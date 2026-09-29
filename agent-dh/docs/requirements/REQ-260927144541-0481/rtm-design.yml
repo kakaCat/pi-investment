@@ -1,0 +1,248 @@
+metadata:
+  stage: design
+  requirement_id: REQ-260927144541-0481
+  generated_at: 2026-09-27T06:48:07.773Z
+  version: 4
+  generated_by: dsh-pmboard
+  last_updated: 2026-09-27T11:19:26.959Z
+inputs:
+  requirements: []
+outputs:
+  design_sections:
+    - ref: design/architecture.md#分层与两族边界
+      title: 分层与两族边界 <!--
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+      file: design/architecture.md
+      section: 分层与两族边界
+    - ref: design/architecture.md#本需求改动落点
+      title: 本需求改动落点 <!--
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+      file: design/architecture.md
+      section: 本需求改动落点
+    - ref: design/architecture.md#不变量
+      title: 不变量 <!--
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+      file: design/architecture.md
+      section: 不变量
+    - ref: design/architecture.md#回滚路径
+      title: 回滚路径 <!--
+      serves:
+        - FR-2
+        - FR-4
+        - FR-7
+      file: design/architecture.md
+      section: 回滚路径
+    - ref: design/data-model.md#复用既有结构
+      title: 复用既有结构 <!--
+      serves:
+        - FR-1
+        - FR-3
+        - FR-4
+        - FR-5
+      file: design/data-model.md
+      section: 复用既有结构
+    - ref: design/data-model.md#新增视图模型
+      title: 新增视图模型 <!--
+      serves:
+        - FR-3
+        - FR-4
+      file: design/data-model.md
+      section: 新增视图模型
+    - ref: design/data-model.md#约束
+      title: 约束 <!--
+      serves:
+        - FR-3
+        - FR-4
+      file: design/data-model.md
+      section: 约束
+    - ref: design/interfaces.md#接口清单
+      title: 接口清单 <!--
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+      file: design/interfaces.md
+      section: 接口清单
+    - ref: design/interfaces.md#I-1-reqboardtaskrun
+      title: I-1 reqboard_task_run <!--
+      serves:
+        - FR-1
+        - FR-2
+        - FR-6
+      file: design/interfaces.md
+      section: I-1-reqboardtaskrun
+    - ref: design/interfaces.md#I-2-reqboardtaskexecute
+      title: I-2 reqboard_task_execute <!--
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: I-2-reqboardtaskexecute
+    - ref: design/interfaces.md#I-3-reqboardtasktree新增只读
+      title: I-3 reqboard_task_tree（新增，只读） <!--
+      serves:
+        - FR-3
+      file: design/interfaces.md
+      section: I-3-reqboardtasktree新增只读
+    - ref: design/interfaces.md#I-4-reqboardtaskstatus
+      title: I-4 reqboard_task_status <!--
+      serves:
+        - FR-4
+        - FR-6
+      file: design/interfaces.md
+      section: I-4-reqboardtaskstatus
+    - ref: design/interfaces.md#I-5-reqboardtaskmove
+      title: I-5 reqboard_task_move <!--
+      serves:
+        - FR-5
+      file: design/interfaces.md
+      section: I-5-reqboardtaskmove
+    - ref: design/interfaces.md#I-6-契约门禁
+      title: I-6 契约门禁 <!--
+      serves:
+        - FR-7
+      file: design/interfaces.md
+      section: I-6-契约门禁
+    - ref: design/interfaces.md#错误语义
+      title: 错误语义 <!--
+      serves:
+        - FR-1
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-7
+      file: design/interfaces.md
+      section: 错误语义
+    - ref: design/use-cases.md#UC-1-起链后一眼看清父子结构
+      title: UC-1 起链后一眼看清父子结构 <!--
+      serves:
+        - FR-3
+        - FR-4
+      file: design/use-cases.md
+      section: UC-1-起链后一眼看清父子结构
+    - ref: design/use-cases.md#UC-2-用错边推进被解释而不是只被拒
+      title: UC-2 用错边推进被解释，而不是只被拒 <!--
+      serves:
+        - FR-5
+      file: design/use-cases.md
+      section: UC-2-用错边推进被解释而不是只被拒
+    - ref: design/use-cases.md#UC-3-验收标准不可执行时当场能改
+      title: UC-3 验收标准不可执行时当场能改 <!--
+      serves:
+        - FR-5
+      file: design/use-cases.md
+      section: UC-3-验收标准不可执行时当场能改
+    - ref: design/use-cases.md#UC-4-维护者新增工具时被门禁兜底
+      title: UC-4 维护者新增工具时被门禁兜底 <!--
+      serves:
+        - FR-2
+        - FR-7
+      file: design/use-cases.md
+      section: UC-4-维护者新增工具时被门禁兜底
+    - ref: design/use-cases.md#范围外另行立项
+      title: 范围外（另行立项） <!--
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: 范围外另行立项
+traceability:
+  fr_to_design:
+    FR-1:
+      - design/architecture.md#分层与两族边界
+      - design/architecture.md#本需求改动落点
+      - design/architecture.md#不变量
+      - design/data-model.md#复用既有结构
+      - design/interfaces.md#接口清单
+      - design/interfaces.md#I-1-reqboardtaskrun
+      - design/interfaces.md#I-2-reqboardtaskexecute
+      - design/interfaces.md#错误语义
+      - design/use-cases.md#范围外另行立项
+    FR-2:
+      - design/architecture.md#分层与两族边界
+      - design/architecture.md#本需求改动落点
+      - design/architecture.md#不变量
+      - design/architecture.md#回滚路径
+      - design/interfaces.md#接口清单
+      - design/interfaces.md#I-1-reqboardtaskrun
+      - design/use-cases.md#UC-4-维护者新增工具时被门禁兜底
+    FR-3:
+      - design/architecture.md#分层与两族边界
+      - design/architecture.md#本需求改动落点
+      - design/architecture.md#不变量
+      - design/data-model.md#复用既有结构
+      - design/data-model.md#新增视图模型
+      - design/data-model.md#约束
+      - design/interfaces.md#接口清单
+      - design/interfaces.md#I-3-reqboardtasktree新增只读
+      - design/interfaces.md#错误语义
+      - design/use-cases.md#UC-1-起链后一眼看清父子结构
+    FR-4:
+      - design/architecture.md#分层与两族边界
+      - design/architecture.md#本需求改动落点
+      - design/architecture.md#不变量
+      - design/architecture.md#回滚路径
+      - design/data-model.md#复用既有结构
+      - design/data-model.md#新增视图模型
+      - design/data-model.md#约束
+      - design/interfaces.md#接口清单
+      - design/interfaces.md#I-4-reqboardtaskstatus
+      - design/interfaces.md#错误语义
+      - design/use-cases.md#UC-1-起链后一眼看清父子结构
+    FR-5:
+      - design/architecture.md#分层与两族边界
+      - design/architecture.md#本需求改动落点
+      - design/architecture.md#不变量
+      - design/data-model.md#复用既有结构
+      - design/interfaces.md#接口清单
+      - design/interfaces.md#I-5-reqboardtaskmove
+      - design/interfaces.md#错误语义
+      - design/use-cases.md#UC-2-用错边推进被解释而不是只被拒
+      - design/use-cases.md#UC-3-验收标准不可执行时当场能改
+    FR-6:
+      - design/architecture.md#分层与两族边界
+      - design/architecture.md#本需求改动落点
+      - design/architecture.md#不变量
+      - design/interfaces.md#接口清单
+      - design/interfaces.md#I-1-reqboardtaskrun
+      - design/interfaces.md#I-4-reqboardtaskstatus
+    FR-7:
+      - design/architecture.md#分层与两族边界
+      - design/architecture.md#本需求改动落点
+      - design/architecture.md#不变量
+      - design/architecture.md#回滚路径
+      - design/interfaces.md#接口清单
+      - design/interfaces.md#I-6-契约门禁
+      - design/interfaces.md#错误语义
+      - design/use-cases.md#UC-4-维护者新增工具时被门禁兜底
+coverage:
+  design:
+    total: 0
+    covered: 0
+    uncovered: []
+    rate: 100
+    total_frs: 0
+    covered_frs: 0

@@ -1,0 +1,891 @@
+{
+  "version": 1,
+  "requirement_id": "REQ-a458a6",
+  "schemaVersion": 9,
+  "generated_at": "2026-09-27T14:55:11.425Z",
+  "tasks": [
+    {
+      "id": "t-edbc50",
+      "requirementId": "REQ-a458a6",
+      "title": "修正训练门控语义（秒级阈值 + 缺失兜底 + 文案）",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "单测覆盖 5.9/6.5/7.0/8.0 天与 train_date 缺失；手动 trigger task 320，runs 里 reason 带一位小数与阈值",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-5662da",
+          "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6",
+          "trigger": "manual",
+          "startedAt": 1789330677347,
+          "outcome": "succeeded",
+          "endedAt": 1789330677355
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789330658895,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789330677347,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          },
+          "reason": "开工（实现已先行完成，补录流水线状态）"
+        },
+        {
+          "status": "testing",
+          "at": 1789330677355,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          },
+          "reason": "自检通过：证据见 done 留痕"
+        },
+        {
+          "status": "in_review",
+          "at": 1789330677363,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          },
+          "reason": "自检完成，交回看板"
+        },
+        {
+          "status": "done",
+          "at": 1789330677371,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          },
+          "reason": "t1 门控语义：秒级阈值 6.5 天 + _age_needs_retrain + train_date 缺失兜底；11 条回归测试（含节律测试）全过；线上 runs 3709 reason「仍有效 (age=0.0d < 6.5d, acc=0.5975)」。commit 484ad302 + cb587742"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-08b173",
+          "body": "[状态] → in_progress：开工（实现已先行完成，补录流水线状态）（窗口 session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6）",
+          "createdAt": 1789330677347,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          }
+        },
+        {
+          "id": "c-69db12",
+          "body": "[状态] → testing：自检通过：证据见 done 留痕（窗口 session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6）",
+          "createdAt": 1789330677355,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          }
+        },
+        {
+          "id": "c-ae0314",
+          "body": "[状态] → in_review：自检完成，交回看板（窗口 session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6）",
+          "createdAt": 1789330677363,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          }
+        },
+        {
+          "id": "c-b5ebb6",
+          "body": "[状态] → done：t1 门控语义：秒级阈值 6.5 天 + _age_needs_retrain + train_date 缺失兜底；11 条回归测试（含节律测试）全过；线上 runs 3709 reason「仍有效 (age=0.0d < 6.5d, acc=0.5975)」。commit 484ad302 + cb587742（窗口 session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6）",
+          "createdAt": 1789330677371,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          }
+        }
+      ],
+      "version": 5,
+      "createdAt": 1789330658895,
+      "updatedAt": 1789330677371,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+      },
+      "layer": 0
+    },
+    {
+      "id": "t-687db6",
+      "requirementId": "REQ-a458a6",
+      "title": "调度去重：撤两条训练 crontab，训练只留 task 320",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-edbc50"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "crontab -l 不再含 0 3 * * 1 与 0 3 1 * *；连续 ≥2 个训练周期里训练均由 task 320 在本机 runs 中留下记录",
+      "context": "",
+      "status": "in_progress",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-30d8af",
+          "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6",
+          "trigger": "manual",
+          "startedAt": 1789330664059,
+          "outcome": "running"
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789330658895,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789330664059,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          },
+          "reason": "t2 已把两个训练 cron 脚本改为拒绝训练（weekly no-op、force 需 CONFIRM_FORCE_TRAIN=1），行为上训练只剩 task 320；crontab 两行删不掉（macOS TCC 拒写 /var/at/tmp），待人工执行：crontab -l | grep -v cron_train_model.sh | grep -v cron_train_model_force.sh | crontab -"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-fea6fd",
+          "body": "[状态] → in_progress：t2 已把两个训练 cron 脚本改为拒绝训练（weekly no-op、force 需 CONFIRM_FORCE_TRAIN=1），行为上训练只剩 task 320；crontab 两行删不掉（macOS TCC 拒写 /var/at/tmp），待人工执行：crontab -l | grep -v cron_train_model.sh | grep -v cron_train_model_force.sh | crontab -（窗口 session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6）",
+          "createdAt": 1789330664059,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          }
+        }
+      ],
+      "version": 2,
+      "createdAt": 1789330658895,
+      "updatedAt": 1789330664059,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+      },
+      "claimedBy": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6",
+      "claimedAt": 1789330664059,
+      "layer": 1
+    },
+    {
+      "id": "t-f3baf3",
+      "requirementId": "REQ-a458a6",
+      "title": "模型新鲜度巡检（in-app freshness_guard + 外部 launchd 检查）",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "把 quant.ml_models 里最新 lightgbm 的 train_date 人为改老 11 天 → 两处各告警一次，复原后不再告警",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-130c04",
+          "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6",
+          "trigger": "manual",
+          "startedAt": 1789330677379,
+          "outcome": "succeeded",
+          "endedAt": 1789330677392
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789330658895,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789330677379,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          },
+          "reason": "开工（实现已先行完成，补录流水线状态）"
+        },
+        {
+          "status": "testing",
+          "at": 1789330677392,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          },
+          "reason": "自检通过：证据见 done 留痕"
+        },
+        {
+          "status": "in_review",
+          "at": 1789330677400,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          },
+          "reason": "自检完成，交回看板"
+        },
+        {
+          "status": "done",
+          "at": 1789330677407,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          },
+          "reason": "t3 双线新鲜度：in-app 在 ModelTrainDailyJob 训练后复核（>10 天 → JobResult.fail + 高优通知，runs 3707 含 freshness_alerts）；外部 scripts/model-freshness-check.sh + launchd 每日 09:05，注入实测 FAIL + error-event HTTP=201"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-243fe9",
+          "body": "[状态] → in_progress：开工（实现已先行完成，补录流水线状态）（窗口 session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6）",
+          "createdAt": 1789330677379,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          }
+        },
+        {
+          "id": "c-842298",
+          "body": "[状态] → testing：自检通过：证据见 done 留痕（窗口 session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6）",
+          "createdAt": 1789330677392,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          }
+        },
+        {
+          "id": "c-61ca83",
+          "body": "[状态] → in_review：自检完成，交回看板（窗口 session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6）",
+          "createdAt": 1789330677400,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          }
+        },
+        {
+          "id": "c-ebd0de",
+          "body": "[状态] → done：t3 双线新鲜度：in-app 在 ModelTrainDailyJob 训练后复核（>10 天 → JobResult.fail + 高优通知，runs 3707 含 freshness_alerts）；外部 scripts/model-freshness-check.sh + launchd 每日 09:05，注入实测 FAIL + error-event HTTP=201（窗口 session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6）",
+          "createdAt": 1789330677407,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          }
+        }
+      ],
+      "version": 5,
+      "createdAt": 1789330658895,
+      "updatedAt": 1789330677407,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+      },
+      "layer": 0
+    },
+    {
+      "id": "t-f77be7",
+      "requirementId": "REQ-a458a6",
+      "title": "删除死代码 application/services/ml_train_task.py",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "grep -rn ml_train_task 只剩文档注记；全量导入/冒烟测试通过",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-909389",
+          "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6",
+          "trigger": "manual",
+          "startedAt": 1789330677415,
+          "outcome": "succeeded",
+          "endedAt": 1789330677423
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789330658895,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789330677415,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          },
+          "reason": "开工（实现已先行完成，补录流水线状态）"
+        },
+        {
+          "status": "testing",
+          "at": 1789330677423,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          },
+          "reason": "自检通过：证据见 done 留痕"
+        },
+        {
+          "status": "in_review",
+          "at": 1789330677439,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          },
+          "reason": "自检完成，交回看板"
+        },
+        {
+          "status": "done",
+          "at": 1789330677447,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          },
+          "reason": "t4 删除零调用方死代码 application/services/ml_train_task.py（298 行，含同款 tz 崩溃实现）；全量导入预检通过"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-297d37",
+          "body": "[状态] → in_progress：开工（实现已先行完成，补录流水线状态）（窗口 session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6）",
+          "createdAt": 1789330677415,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          }
+        },
+        {
+          "id": "c-604428",
+          "body": "[状态] → testing：自检通过：证据见 done 留痕（窗口 session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6）",
+          "createdAt": 1789330677423,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          }
+        },
+        {
+          "id": "c-4b709a",
+          "body": "[状态] → in_review：自检完成，交回看板（窗口 session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6）",
+          "createdAt": 1789330677439,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          }
+        },
+        {
+          "id": "c-66854d",
+          "body": "[状态] → done：t4 删除零调用方死代码 application/services/ml_train_task.py（298 行，含同款 tz 崩溃实现）；全量导入预检通过（窗口 session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6）",
+          "createdAt": 1789330677447,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          }
+        }
+      ],
+      "version": 5,
+      "createdAt": 1789330658895,
+      "updatedAt": 1789330677447,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+      },
+      "layer": 0
+    },
+    {
+      "id": "t-ace1ce",
+      "requirementId": "REQ-a458a6",
+      "title": "跳过通知降噪（skipped 不单独推飞书）",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-edbc50"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "造一次 skipped 无飞书；造一次 success 有飞书；skipped 仍完整落在 runs",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-089c6a",
+          "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6",
+          "trigger": "manual",
+          "startedAt": 1789330677456,
+          "outcome": "succeeded",
+          "endedAt": 1789330677466
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789330658895,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789330677456,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          },
+          "reason": "开工（实现已先行完成，补录流水线状态）"
+        },
+        {
+          "status": "testing",
+          "at": 1789330677466,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          },
+          "reason": "自检通过：证据见 done 留痕"
+        },
+        {
+          "status": "in_review",
+          "at": 1789330677478,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          },
+          "reason": "自检完成，交回看板"
+        },
+        {
+          "status": "done",
+          "at": 1789330677494,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          },
+          "reason": "t5 skipped 不再单发飞书；线上 trigger 后 notification_logs 计数未变（唯一新增的是注入测试的模型新鲜度告警）"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-03433c",
+          "body": "[状态] → in_progress：开工（实现已先行完成，补录流水线状态）（窗口 session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6）",
+          "createdAt": 1789330677456,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          }
+        },
+        {
+          "id": "c-957b4c",
+          "body": "[状态] → testing：自检通过：证据见 done 留痕（窗口 session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6）",
+          "createdAt": 1789330677466,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          }
+        },
+        {
+          "id": "c-cc52a7",
+          "body": "[状态] → in_review：自检完成，交回看板（窗口 session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6）",
+          "createdAt": 1789330677478,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          }
+        },
+        {
+          "id": "c-a1e957",
+          "body": "[状态] → done：t5 skipped 不再单发飞书；线上 trigger 后 notification_logs 计数未变（唯一新增的是注入测试的模型新鲜度告警）（窗口 session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6）",
+          "createdAt": 1789330677494,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          }
+        }
+      ],
+      "version": 5,
+      "createdAt": 1789330658895,
+      "updatedAt": 1789330677494,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+      },
+      "layer": 1
+    },
+    {
+      "id": "t-7f83dd",
+      "requirementId": "REQ-a458a6",
+      "title": "验收：故障注入 + 一个训练周期观察",
+      "description": "",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-687db6",
+        "t-f3baf3",
+        "t-f77be7",
+        "t-ace1ce"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "故障注入全过；观测窗口内模型年龄峰值 ≤8 天",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-4f5156",
+          "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6",
+          "trigger": "manual",
+          "startedAt": 1789330664072,
+          "outcome": "succeeded",
+          "endedAt": 1789331195391
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789330658895,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789330664072,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          },
+          "reason": "t6 四条故障注入全过并已精确复原（老 11 天 / NULL train_date / 双线告警 / Job fail 判定）；剩余「≥1 个 7 天训练周期观察」需等 09-21/09-22 看 task 320 是否自行训练"
+        },
+        {
+          "status": "testing",
+          "at": 1789331195391,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          },
+          "reason": "自检证据齐备：四条故障注入（老 11 天 / NULL train_date / 双线告警 / Job fail 判定）+ 节律推演测试 + 04:19 的 in-app 真实训练（runs 3710 success，version 20260914_041938，auto_switched，飞书成功通知）"
+        },
+        {
+          "status": "in_review",
+          "at": 1789331195407,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          },
+          "reason": "交回看板：日历项按用户裁定转为自动兜底（in-app Job 每次复核 + 外部 launchd 每日 09:05，模型 >10 天必告警）"
+        },
+        {
+          "status": "done",
+          "at": 1789331195423,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          },
+          "reason": "用户裁定按现有证据收口：故障注入全过、节律稳定 7 天（测试钉住）、in-app 训练路径实测可训；「≥1 个 7 天周期观察」由两道已部署巡检自动兜底，到点核 runs 即可（残留待办已写入计划文档）"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-3d04f7",
+          "body": "[状态] → in_progress：t6 四条故障注入全过并已精确复原（老 11 天 / NULL train_date / 双线告警 / Job fail 判定）；剩余「≥1 个 7 天训练周期观察」需等 09-21/09-22 看 task 320 是否自行训练（窗口 session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6）",
+          "createdAt": 1789330664072,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          }
+        },
+        {
+          "id": "c-28bc7b",
+          "body": "[状态] → testing：自检证据齐备：四条故障注入（老 11 天 / NULL train_date / 双线告警 / Job fail 判定）+ 节律推演测试 + 04:19 的 in-app 真实训练（runs 3710 success，version 20260914_041938，auto_switched，飞书成功通知）（窗口 session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6）",
+          "createdAt": 1789331195391,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          }
+        },
+        {
+          "id": "c-2aeb8c",
+          "body": "[状态] → in_review：交回看板：日历项按用户裁定转为自动兜底（in-app Job 每次复核 + 外部 launchd 每日 09:05，模型 >10 天必告警）（窗口 session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6）",
+          "createdAt": 1789331195407,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          }
+        },
+        {
+          "id": "c-3da6e8",
+          "body": "[状态] → done：用户裁定按现有证据收口：故障注入全过、节律稳定 7 天（测试钉住）、in-app 训练路径实测可训；「≥1 个 7 天周期观察」由两道已部署巡检自动兜底，到点核 runs 即可（残留待办已写入计划文档）（窗口 session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6）",
+          "createdAt": 1789331195423,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          }
+        }
+      ],
+      "version": 5,
+      "createdAt": 1789330658895,
+      "updatedAt": 1789331195423,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+      },
+      "layer": 2
+    },
+    {
+      "id": "t-36b62b",
+      "requirementId": "REQ-a458a6",
+      "title": "修复基准巡检的滞后比较失效（执行期并入）",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "正常跑 exit 0 且无 stderr 重定向报错；把比较改坏后必须 FAIL: 巡检自检未通过 并投错误事件",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-46f840",
+          "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6",
+          "trigger": "manual",
+          "startedAt": 1789330677502,
+          "outcome": "succeeded",
+          "endedAt": 1789330677508
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789330658895,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789330677502,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          },
+          "reason": "开工（实现已先行完成，补录流水线状态）"
+        },
+        {
+          "status": "testing",
+          "at": 1789330677508,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          },
+          "reason": "自检通过：证据见 done 留痕"
+        },
+        {
+          "status": "in_review",
+          "at": 1789330677517,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          },
+          "reason": "自检完成，交回看板"
+        },
+        {
+          "status": "done",
+          "at": 1789330677524,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          },
+          "reason": "t7 基准巡检滞后比较改 python3 + 每次运行都跑的自检；正常 exit 0 且 stderr 干净；故障注入（lag→echo 0）→ 自检 FAIL + HTTP=201 + exit 1。commit ef04ca34"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-0a81aa",
+          "body": "[状态] → in_progress：开工（实现已先行完成，补录流水线状态）（窗口 session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6）",
+          "createdAt": 1789330677502,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          }
+        },
+        {
+          "id": "c-503096",
+          "body": "[状态] → testing：自检通过：证据见 done 留痕（窗口 session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6）",
+          "createdAt": 1789330677508,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          }
+        },
+        {
+          "id": "c-f6becb",
+          "body": "[状态] → in_review：自检完成，交回看板（窗口 session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6）",
+          "createdAt": 1789330677517,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          }
+        },
+        {
+          "id": "c-24757b",
+          "body": "[状态] → done：t7 基准巡检滞后比较改 python3 + 每次运行都跑的自检；正常 exit 0 且 stderr 干净；故障注入（lag→echo 0）→ 自检 FAIL + HTTP=201 + exit 1。commit ef04ca34（窗口 session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6）",
+          "createdAt": 1789330677524,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+          }
+        }
+      ],
+      "version": 5,
+      "createdAt": 1789330658895,
+      "updatedAt": 1789330677524,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-4db568de-4a4a-46e4-bd15-12ed7bebf6b6"
+      },
+      "layer": 0
+    }
+  ],
+  "edges": [
+    {
+      "from": "t-edbc50",
+      "to": "t-687db6"
+    },
+    {
+      "from": "t-edbc50",
+      "to": "t-ace1ce"
+    },
+    {
+      "from": "t-687db6",
+      "to": "t-7f83dd"
+    },
+    {
+      "from": "t-f3baf3",
+      "to": "t-7f83dd"
+    },
+    {
+      "from": "t-f77be7",
+      "to": "t-7f83dd"
+    },
+    {
+      "from": "t-ace1ce",
+      "to": "t-7f83dd"
+    }
+  ],
+  "layers": [
+    {
+      "layer": 0,
+      "tasks": [
+        "t-edbc50",
+        "t-f3baf3",
+        "t-f77be7",
+        "t-36b62b"
+      ]
+    },
+    {
+      "layer": 1,
+      "tasks": [
+        "t-687db6",
+        "t-ace1ce"
+      ]
+    },
+    {
+      "layer": 2,
+      "tasks": [
+        "t-7f83dd"
+      ]
+    }
+  ],
+  "ready": [],
+  "updated_at": "2026-09-28T23:14:14.529Z"
+}

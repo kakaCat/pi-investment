@@ -1,0 +1,32 @@
+task:
+  id: t-3e952f
+  title: 新增一次性交接持有器 src/client/board-focus.ts
+  status: in_progress
+  implements: 新建 packages/web/dsh-pmboard/src/client/board-focus.ts（零 import）：模块级 pendingReqId + 四个导出 requestBoardFocus/takeBoardFocus/clearBoardFocus/peekBoardFocus；take 取走即清、空串不登记、不写 storage/URL；新建 tests/board-focus.test.ts 覆盖 TC-6。
+  serves: []
+  depends_on: []
+  phase: implement
+  side: frontend
+  workflow_params:
+    REQ_ID: REQ-260928222643-4d34
+    TASK_ID: t-3e952f
+    TASK_TITLE: 新增一次性交接持有器 src/client/board-focus.ts
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: frontend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-09-28T14:59:17.022Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-260928222643-4d34
+  generated_at: 2026-09-28T14:53:42.766Z
+  version: 3
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-09-28T14:59:17.023Z

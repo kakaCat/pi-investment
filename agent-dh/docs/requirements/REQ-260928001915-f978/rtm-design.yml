@@ -1,0 +1,478 @@
+metadata:
+  stage: design
+  requirement_id: REQ-260928001915-f978
+  generated_at: 2026-09-27T17:45:02.142Z
+  version: 5
+  generated_by: dsh-pmboard
+  last_updated: 2026-09-28T07:03:54.453Z
+inputs:
+  requirements: []
+outputs:
+  design_sections:
+    - ref: design/architecture.md#目标与总体方案
+      title: 目标与总体方案 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+      file: design/architecture.md
+      section: 目标与总体方案
+    - ref: design/architecture.md#模块改动地图
+      title: 模块改动地图 `
+      serves:
+        - FR-2
+        - FR-3
+      file: design/architecture.md
+      section: 模块改动地图
+    - ref: design/architecture.md#数据结构变更
+      title: 数据结构变更 `
+      serves:
+        - FR-1
+        - FR-2
+      file: design/architecture.md
+      section: 数据结构变更
+    - ref: design/architecture.md#新增的派生字段内部状态不写回-queuejson
+      title: 新增的派生字段（内部状态，不写回 queue.json） `
+      serves:
+        - FR-1
+        - FR-2
+      file: design/architecture.md
+      section: 新增的派生字段内部状态不写回-queuejson
+    - ref: design/architecture.md#兼容性分析
+      title: 兼容性分析 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/architecture.md
+      section: 兼容性分析
+    - ref: design/architecture.md#接口变更
+      title: 接口变更 `
+      serves:
+        - FR-2
+        - FR-3
+      file: design/architecture.md
+      section: 接口变更
+    - ref: design/architecture.md#修改的接口
+      title: 修改的接口 `
+      serves:
+        - FR-2
+        - FR-3
+      file: design/architecture.md
+      section: 修改的接口
+    - ref: design/architecture.md#关键算法流程
+      title: 关键算法/流程 `
+      serves:
+        - FR-3
+        - FR-4
+        - FR-6
+      file: design/architecture.md
+      section: 关键算法流程
+    - ref: design/architecture.md#布局算法layoutDag
+      title: 布局算法（layoutDag） `
+      serves:
+        - FR-3
+      file: design/architecture.md
+      section: 布局算法layoutDag
+    - ref: design/architecture.md#关键路径算法computeCriticalPath
+      title: 关键路径算法（computeCriticalPath） `
+      serves:
+        - FR-6
+      file: design/architecture.md
+      section: 关键路径算法computeCriticalPath
+    - ref: design/architecture.md#上下游遍历computeNeighbors
+      title: 上下游遍历（computeNeighbors） `
+      serves:
+        - FR-4
+        - FR-5
+      file: design/architecture.md
+      section: 上下游遍历computeNeighbors
+    - ref: design/architecture.md#测试策略
+      title: 测试策略 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+      file: design/architecture.md
+      section: 测试策略
+    - ref: design/architecture.md#错误处理
+      title: 错误处理 `
+      serves:
+        - FR-2
+        - FR-3
+      file: design/architecture.md
+      section: 错误处理
+    - ref: design/architecture.md#文档更新清单
+      title: 文档更新清单 `
+      serves:
+        - FR-1
+        - FR-2
+      file: design/architecture.md
+      section: 文档更新清单
+    - ref: design/architecture.md#部署变更
+      title: 部署变更 `
+      serves:
+        - FR-2
+      file: design/architecture.md
+      section: 部署变更
+    - ref: design/architecture.md#遗留问题
+      title: 遗留问题 `
+      serves:
+        - FR-2
+        - FR-6
+      file: design/architecture.md
+      section: 遗留问题
+    - ref: design/data-model.md#队列文件契约QueueFile
+      title: 队列文件契约（QueueFile）`
+      serves:
+        - FR-2
+        - FR-3
+      file: design/data-model.md
+      section: 队列文件契约QueueFile
+    - ref: design/data-model.md#TaskRecord-字段子集渲染所需
+      title: TaskRecord 字段子集（渲染所需）`
+      serves:
+        - FR-1
+        - FR-2
+      file: design/data-model.md
+      section: TaskRecord-字段子集渲染所需
+    - ref: design/data-model.md#派生字段内存计算不写回
+      title: 派生字段（内存计算，不写回）`
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/data-model.md
+      section: 派生字段内存计算不写回
+    - ref: design/data-model.md#渲染状态前端内存
+      title: 渲染状态（前端内存）`
+      serves:
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+      file: design/data-model.md
+      section: 渲染状态前端内存
+    - ref: design/data-model.md#数据约束校验规则
+      title: 数据约束（校验规则）`
+      serves:
+        - FR-2
+        - FR-3
+      file: design/data-model.md
+      section: 数据约束校验规则
+    - ref: design/data-model.md#数据来源与更新路径
+      title: 数据来源与更新路径 `
+      serves:
+        - FR-2
+      file: design/data-model.md
+      section: 数据来源与更新路径
+    - ref: design/data-model.md#迁移与兼容
+      title: 迁移与兼容 `
+      serves:
+        - FR-2
+      file: design/data-model.md
+      section: 迁移与兼容
+    - ref: design/data-model.md#数据新鲜度
+      title: 数据新鲜度 `
+      serves:
+        - FR-2
+      file: design/data-model.md
+      section: 数据新鲜度
+    - ref: design/interfaces.md#核心渲染接口
+      title: 核心渲染接口 `
+      serves:
+        - FR-2
+        - FR-3
+      file: design/interfaces.md
+      section: 核心渲染接口
+    - ref: design/interfaces.md#renderDag
+      title: renderDag() `
+      serves:
+        - FR-2
+        - FR-3
+      file: design/interfaces.md
+      section: renderDag
+    - ref: design/interfaces.md#布局算法接口
+      title: 布局算法接口 `
+      serves:
+        - FR-3
+      file: design/interfaces.md
+      section: 布局算法接口
+    - ref: design/interfaces.md#layoutDag
+      title: layoutDag() `
+      serves:
+        - FR-3
+      file: design/interfaces.md
+      section: layoutDag
+    - ref: design/interfaces.md#关键路径接口
+      title: 关键路径接口 `
+      serves:
+        - FR-6
+      file: design/interfaces.md
+      section: 关键路径接口
+    - ref: design/interfaces.md#computeCriticalPath
+      title: computeCriticalPath() `
+      serves:
+        - FR-6
+      file: design/interfaces.md
+      section: computeCriticalPath
+    - ref: design/interfaces.md#上下游遍历接口
+      title: 上下游遍历接口 `
+      serves:
+        - FR-4
+      file: design/interfaces.md
+      section: 上下游遍历接口
+    - ref: design/interfaces.md#computeNeighbors
+      title: computeNeighbors() `
+      serves:
+        - FR-4
+      file: design/interfaces.md
+      section: computeNeighbors
+    - ref: design/interfaces.md#派生字段计算接口
+      title: 派生字段计算接口 `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: 派生字段计算接口
+    - ref: design/interfaces.md#deriveTaskFields
+      title: deriveTaskFields() `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: deriveTaskFields
+    - ref: design/interfaces.md#卡片渲染接口
+      title: 卡片渲染接口 `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: 卡片渲染接口
+    - ref: design/interfaces.md#cardHtml
+      title: cardHtml() `
+      serves:
+        - FR-1
+        - FR-2
+      file: design/interfaces.md
+      section: cardHtml
+    - ref: design/interfaces.md#交互事件接口
+      title: 交互事件接口 `
+      serves:
+        - FR-4
+        - FR-5
+      file: design/interfaces.md
+      section: 交互事件接口
+    - ref: design/interfaces.md#事件绑定
+      title: 事件绑定 `
+      serves:
+        - FR-4
+        - FR-5
+      file: design/interfaces.md
+      section: 事件绑定
+    - ref: design/interfaces.md#highlightNode-clearHighlight
+      title: highlightNode() / clearHighlight() `
+      serves:
+        - FR-4
+        - FR-5
+      file: design/interfaces.md
+      section: highlightNode-clearHighlight
+    - ref: design/interfaces.md#数据校验接口
+      title: 数据校验接口 `
+      serves:
+        - FR-2
+      file: design/interfaces.md
+      section: 数据校验接口
+    - ref: design/interfaces.md#validateQueueFile
+      title: validateQueueFile() `
+      serves:
+        - FR-2
+        - FR-3
+      file: design/interfaces.md
+      section: validateQueueFile
+    - ref: design/interfaces.md#调用方集成示例
+      title: 调用方集成示例 `
+      serves:
+        - FR-2
+        - FR-3
+      file: design/interfaces.md
+      section: 调用方集成示例
+    - ref: design/use-cases.md#场景-1理解任务类型分布
+      title: 场景 1：理解任务类型分布 `
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: 场景-1理解任务类型分布
+    - ref: design/use-cases.md#场景-2识别关键路径与瓶颈
+      title: 场景 2：识别关键路径与瓶颈 `
+      serves:
+        - FR-6
+      file: design/use-cases.md
+      section: 场景-2识别关键路径与瓶颈
+    - ref: design/use-cases.md#场景-3理解任务依赖关系
+      title: 场景 3：理解任务依赖关系 `
+      serves:
+        - FR-2
+        - FR-4
+      file: design/use-cases.md
+      section: 场景-3理解任务依赖关系
+    - ref: design/use-cases.md#场景-4大图导航主线折叠
+      title: 场景 4：大图导航（主线折叠）`
+      serves:
+        - FR-7
+      file: design/use-cases.md
+      section: 场景-4大图导航主线折叠
+    - ref: design/use-cases.md#场景-5识别父子卡结构
+      title: 场景 5：识别父子卡结构 `
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: 场景-5识别父子卡结构
+    - ref: design/use-cases.md#场景-6识别可执行任务
+      title: 场景 6：识别可执行任务 `
+      serves:
+        - FR-3
+      file: design/use-cases.md
+      section: 场景-6识别可执行任务
+    - ref: design/use-cases.md#场景-7纵向横向布局切换
+      title: 场景 7：纵向/横向布局切换 `
+      serves:
+        - FR-3
+      file: design/use-cases.md
+      section: 场景-7纵向横向布局切换
+    - ref: design/use-cases.md#场景-8点击钉住持续观察依赖
+      title: 场景 8：点击钉住（持续观察依赖）`
+      serves:
+        - FR-5
+      file: design/use-cases.md
+      section: 场景-8点击钉住持续观察依赖
+    - ref: design/use-cases.md#场景-9发现数据异常
+      title: 场景 9：发现数据异常 `
+      serves:
+        - FR-2
+      file: design/use-cases.md
+      section: 场景-9发现数据异常
+    - ref: design/use-cases.md#非功能场景性能与可读性
+      title: 非功能场景：性能与可读性 `
+      serves:
+        - FR-2
+        - FR-3
+      file: design/use-cases.md
+      section: 非功能场景性能与可读性
+traceability:
+  fr_to_design:
+    FR-1:
+      - design/architecture.md#目标与总体方案
+      - design/architecture.md#数据结构变更
+      - design/architecture.md#新增的派生字段内部状态不写回-queuejson
+      - design/architecture.md#兼容性分析
+      - design/architecture.md#测试策略
+      - design/architecture.md#文档更新清单
+      - design/data-model.md#TaskRecord-字段子集渲染所需
+      - design/data-model.md#派生字段内存计算不写回
+      - design/interfaces.md#派生字段计算接口
+      - design/interfaces.md#deriveTaskFields
+      - design/interfaces.md#卡片渲染接口
+      - design/interfaces.md#cardHtml
+      - design/use-cases.md#场景-1理解任务类型分布
+      - design/use-cases.md#场景-5识别父子卡结构
+    FR-2:
+      - design/architecture.md#目标与总体方案
+      - design/architecture.md#模块改动地图
+      - design/architecture.md#数据结构变更
+      - design/architecture.md#新增的派生字段内部状态不写回-queuejson
+      - design/architecture.md#兼容性分析
+      - design/architecture.md#接口变更
+      - design/architecture.md#修改的接口
+      - design/architecture.md#测试策略
+      - design/architecture.md#错误处理
+      - design/architecture.md#文档更新清单
+      - design/architecture.md#部署变更
+      - design/architecture.md#遗留问题
+      - design/data-model.md#队列文件契约QueueFile
+      - design/data-model.md#TaskRecord-字段子集渲染所需
+      - design/data-model.md#派生字段内存计算不写回
+      - design/data-model.md#数据约束校验规则
+      - design/data-model.md#数据来源与更新路径
+      - design/data-model.md#迁移与兼容
+      - design/data-model.md#数据新鲜度
+      - design/interfaces.md#核心渲染接口
+      - design/interfaces.md#renderDag
+      - design/interfaces.md#cardHtml
+      - design/interfaces.md#数据校验接口
+      - design/interfaces.md#validateQueueFile
+      - design/interfaces.md#调用方集成示例
+      - design/use-cases.md#场景-3理解任务依赖关系
+      - design/use-cases.md#场景-9发现数据异常
+      - design/use-cases.md#非功能场景性能与可读性
+    FR-3:
+      - design/architecture.md#目标与总体方案
+      - design/architecture.md#模块改动地图
+      - design/architecture.md#兼容性分析
+      - design/architecture.md#接口变更
+      - design/architecture.md#修改的接口
+      - design/architecture.md#关键算法流程
+      - design/architecture.md#布局算法layoutDag
+      - design/architecture.md#测试策略
+      - design/architecture.md#错误处理
+      - design/data-model.md#队列文件契约QueueFile
+      - design/data-model.md#派生字段内存计算不写回
+      - design/data-model.md#数据约束校验规则
+      - design/interfaces.md#核心渲染接口
+      - design/interfaces.md#renderDag
+      - design/interfaces.md#布局算法接口
+      - design/interfaces.md#layoutDag
+      - design/interfaces.md#validateQueueFile
+      - design/interfaces.md#调用方集成示例
+      - design/use-cases.md#场景-6识别可执行任务
+      - design/use-cases.md#场景-7纵向横向布局切换
+      - design/use-cases.md#非功能场景性能与可读性
+    FR-4:
+      - design/architecture.md#目标与总体方案
+      - design/architecture.md#关键算法流程
+      - design/architecture.md#上下游遍历computeNeighbors
+      - design/architecture.md#测试策略
+      - design/data-model.md#渲染状态前端内存
+      - design/interfaces.md#上下游遍历接口
+      - design/interfaces.md#computeNeighbors
+      - design/interfaces.md#交互事件接口
+      - design/interfaces.md#事件绑定
+      - design/interfaces.md#highlightNode-clearHighlight
+      - design/use-cases.md#场景-3理解任务依赖关系
+    FR-5:
+      - design/architecture.md#目标与总体方案
+      - design/architecture.md#上下游遍历computeNeighbors
+      - design/architecture.md#测试策略
+      - design/data-model.md#渲染状态前端内存
+      - design/interfaces.md#交互事件接口
+      - design/interfaces.md#事件绑定
+      - design/interfaces.md#highlightNode-clearHighlight
+      - design/use-cases.md#场景-8点击钉住持续观察依赖
+    FR-6:
+      - design/architecture.md#目标与总体方案
+      - design/architecture.md#关键算法流程
+      - design/architecture.md#关键路径算法computeCriticalPath
+      - design/architecture.md#测试策略
+      - design/architecture.md#遗留问题
+      - design/data-model.md#渲染状态前端内存
+      - design/interfaces.md#关键路径接口
+      - design/interfaces.md#computeCriticalPath
+      - design/use-cases.md#场景-2识别关键路径与瓶颈
+    FR-7:
+      - design/architecture.md#目标与总体方案
+      - design/architecture.md#测试策略
+      - design/data-model.md#渲染状态前端内存
+      - design/use-cases.md#场景-4大图导航主线折叠
+coverage:
+  design:
+    total: 0
+    covered: 0
+    uncovered: []
+    rate: 100
+    total_frs: 0
+    covered_frs: 0

@@ -1,7 +1,7 @@
 task:
   id: t-91f04c
   title: 性能测试
-  status: todo
+  status: done
   implements: ""
   serves:
     - FR-8
@@ -27,8 +27,8 @@ metadata:
   stage: implementing
   requirement_id: REQ-202609262349-1518
   generated_at: 2026-09-27T01:34:27.554Z
-  version: 2
+  version: 6
   generated_by: dsh-pmboard
   detail_dir: rtm-implementing/
   detail_count: 1
-  last_updated: 2026-09-27T01:36:07.141Z
+  last_updated: 2026-09-27T03:21:49.244Z

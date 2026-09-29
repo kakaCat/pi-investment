@@ -1,0 +1,32 @@
+task:
+  id: t-73c392
+  title: 实现悬停交互处理器
+  status: todo
+  implements: 编写 interaction.ts，实现 setupInteraction 函数，监听 canvas 的 mousemove 和 click 事件。悬停时高亮上游（橙色）和下游（蓝色）边线，未高亮元素 dimming（透明度 0.18/0.05），当前卡片加黑边框和阴影。点击钉住状态，再次点击或点击画布取消。接收 FR-5。
+  serves: []
+  depends_on:
+    - t-e4e9db
+  phase: implement
+  side: frontend
+  workflow_params:
+    REQ_ID: REQ-260928001915-f978
+    TASK_ID: t-73c392
+    TASK_TITLE: 实现悬停交互处理器
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: frontend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 0
+  workflow:
+    - phase: implement
+      status: pending
+metadata:
+  stage: implementing
+  requirement_id: REQ-260928001915-f978
+  generated_at: 2026-09-28T03:01:02.221Z
+  version: 1
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-09-28T03:01:02.221Z

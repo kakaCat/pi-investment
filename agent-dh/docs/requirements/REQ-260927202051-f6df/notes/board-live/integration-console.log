@@ -1,0 +1,41 @@
+PASS  [truth] 磁盘真值可读（台账 + 队列文件） — 台账 schemaVersion=9 有 tasks 键=false requirements=82 queue.json=51 tasks=616
+PASS  [truth] 队列 requirementId 与目录一一对应（无串档） — 全部 616 条一致
+PASS  [A1 /state] 请求样例 GET /dashboard/api/reqboard/state → 200 且信封 {success:true} — HTTP=200 success=true
+PASS  [A1 /state] requirements 与台账逐项一致（数量+顺序） — HTTP=82 台账=82
+PASS  [A1 /state] tasks 数量 = Σ 各 queue.json 任务数 — HTTP=616 磁盘=616
+PASS  [A1 /state] tasks 顺序 = 需求字典序分组 + 组内队列顺序（listAll 契约） — id 序列逐项相同（616 条）
+PASS  [A1 /state] 出口剥离派生字段 layer（TaskStore D3 契约） — 0 条带 layer
+PASS  [A1 /state] 逐任务逐字段与队列文件一致（去 layer 后键集+值全等） — 616 条逐字段一致
+PASS  [A1 /state] ready 映射键 = 台账全部需求（顺序一致） — 82 个键
+PASS  [A1 /state] 需求内 ready = status:todo 且依赖全 done（顺序=任务数组顺序） — 抽查 51 个有队列需求全部一致
+PASS  [A2 /requirements/summary] 请求样例 GET /requirements/summary → 200 — HTTP=200 rows=34
+PASS  [A2 /requirements/summary] 本需求摘要计数 = 队列真值（tasksTotal/tasksDone） — REQ-260927202051-f6df tasksTotal=29/29 tasksDone=25/25
+PASS  [A3 /requirements/:id/stages] 请求样例 GET /requirements/<REQ>/stages → 200 — HTTP=200 currentStage=implementing stages=7
+PASS  [A3 /requirements/:id/stages] 拆分节点任务投影 = 队列任务（29 条：id 顺序 + 契约字段 + 无契约外键） — 29 条投影逐字段一致（StageTaskRef 契约）
+PASS  [A3 /requirements/:id/stages] 实施节点任务投影 = 队列任务（含 executions） — 29 条投影逐字段一致（StageTaskExecution 契约）
+PASS  [A3 /requirements/:id/stages] 阶段视图响应无 layer 派生字段泄漏 — 响应文本不含 "layer"
+PASS  [A4 /requirements/:id/stage/:stage] 请求样例 GET /requirements/<REQ>/stage/implementing → 200 且任务投影 = 队列任务 — HTTP=200 tasks=29 逐字段一致
+PASS  [A4 /requirements/:id/stage/:stage] 非法 stage → 400 invalid_input — HTTP=400 code=invalid_input
+PASS  [A5 token / marks] 请求样例 GET /requirements/<REQ>/token → 200 且 byStage = 全节点 — HTTP=200 byStage=7 totals={"cacheReadTokens":217639610,"cacheWriteTokens":56350,"outputTokens":664335,"uncachedInputTokens":3578343}
+PASS  [A5 token / marks] 请求样例 GET /requirements/<REQ>/marks → 200 且接收标记值域可追溯（队列 id ∪ 计划键） — HTTP=200 clauses=8 unreceived=0 越界值=0
+PASS  [A5 token / marks] marks 抽扫：解析出的真实任务 id 全部命中队列文件（读方确从队列出数） — 扫描 51 个有队列需求；含真实 id 解析的 19 个；未命中 0
+PASS  [A5 token / marks] 不存在需求 → 404 not_found — HTTP=404 code=not_found
+PASS  [A6 /session/:sid/progress] 请求样例 GET /session/<sid>/progress → 200 且 progress 计数 = 队列真值 — HTTP=200 sid=session-3936d77f-2391-4042-8305-9b0fb5e9d2b8 target=REQ-260927202051-f6df total=29/29 done=25/25
+PASS  [A7 路由契约] GET /health → 200 {status:ok} — HTTP=200 body={"success":true,"data":{"status":"ok"}}
+PASS  [A7 路由契约] 未知路由 → 404 {success:false, code:not_found} — HTTP=404 body={"success":false,"error":"未知路由：GET /dashboard/api/reqboard/definitely-not-a-route","code":"not_found"}
+PASS  [B 写接口契约（零副作用）] 只读阶段零写队列：全部 queue.json 指纹前后一致 — before=after=03b38056ee6bab1ce0e320b17a637fb1（51 个队列文件）
+PASS  [B 写接口契约（零副作用）] POST /task/move 不存在 id → 404 not_found — HTTP=404 body={"success":false,"error":"任务 t-deadbeef0001不存在","code":"not_found"}
+PASS  [B 写接口契约（零副作用）] POST /task/move 缺 id → 404 not_found（不误判为成功） — HTTP=404 body={"success":false,"error":"任务 不存在","code":"not_found"}
+PASS  [B 写接口契约（零副作用）] POST /task/move 非法流转（done→todo）→ 400 invalid_transition — HTTP=400 id=t-9d53f4 body={"success":false,"error":"存量卡不允许 done→todo；该角色合法边：todo→in_progress、todo→canceled、in_progress→integrating、in_progress→testing、in_progress→tod
+PASS  [B 写接口契约（零副作用）] POST /task/move 非法 to → 400 invalid_input — HTTP=400 body={"success":false,"error":"任务状态必须是：todo, in_progress, integrating, testing, in_review, done, canceled
+PASS  [B 写接口契约（零副作用）] POST /task/update 不存在 id → 404 not_found — HTTP=404 body={"success":false,"error":"任务 t-deadbeef0001不存在","code":"not_found"}
+PASS  [B 写接口契约（零副作用）] POST /task/create 需求不存在 → 404 not_found（不隐式建档） — HTTP=404 body={"success":false,"error":"需求 REQ-does-not-exist-000000不存在","code":"not_found"}
+PASS  [B 写接口契约（零副作用）] POST /comment 目标不存在 → 4xx（不静默成功） — HTTP=400 code=invalid_input body={"success":false,"error":"target 必须是 req/task","code":"invalid_input"}
+PASS  [B 写接口契约（零副作用）] POST /task/move done→in_progress（actor=agent）→ 403 human_gate（人工闸门） — HTTP=403 id=t-9d53f4 body={"success":false,"error":"该任务转移为人工闸门，仅人可操作","code":"human_gate"}
+INFO  无 canceled 任务样本：canceled→todo 的人工闸门分支本次未验证（本次全部 616 条队列任务里 status=canceled 为 0 条）
+PASS  [B 写接口契约（零副作用）] 拒绝路径零副作用：全部 queue.json 指纹不变 — before=after=03b38056ee6bab1ce0e320b17a637fb1
+PASS  [B 写接口契约（零副作用）] 拒绝路径零副作用：需求目录数不变（未隐式建档） — before=69 after=69
+INFO  台账 md5 只读阶段 88d1991fd7ebfbd1a9a227987d524f31 → 拒绝路径后 88d1991fd7ebfbd1a9a227987d524f31（rev 5956 → 5956）；台账会被并发窗口与 /state 的产物自动发现写入，故零写判据只取 queue.json 与目录数
+
+断言：36 passed / 0 failed
+结构化证据：/Users/yunpeng/pi-investment/agent-dh/docs/requirements/REQ-260927202051-f6df/notes/board-live/integration-summary.json

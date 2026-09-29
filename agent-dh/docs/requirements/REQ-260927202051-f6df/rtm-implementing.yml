@@ -2,11 +2,11 @@ metadata:
   stage: implementing
   requirement_id: REQ-260927202051-f6df
   generated_at: 2026-09-27T12:54:40.514Z
-  version: 86
+  version: 100
   generated_by: dsh-pmboard
   detail_dir: rtm-implementing/
-  detail_count: 25
-  last_updated: 2026-09-27T14:16:46.456Z
+  detail_count: 29
+  last_updated: 2026-09-27T16:03:35.441Z
 inputs:
   tasks:
     - id: t-87f0da
@@ -14,7 +14,7 @@ inputs:
       status: done
     - id: t-0e7fac
       title: 实现 DAG 拓扑分层与派生视图
-      status: in_progress
+      status: done
     - id: t-394339
       title: 实现队列数据校验 V-1~V-6
       status: done
@@ -56,10 +56,10 @@ inputs:
       status: done
     - id: t-e77b06
       title: 看板实测回归（真实打开页面）
-      status: todo
+      status: done
     - id: t-d1aa0f
       title: 端到端验收与文档同步
-      status: todo
+      status: done
     - id: t-796a50
       title: 定义队列类型与任务契约·研发
       status: done
@@ -74,26 +74,38 @@ inputs:
       status: done
     - id: t-5be8c6
       title: 实现 DAG 拓扑分层与派生视图·研发
-      status: todo
+      status: done
     - id: t-315ea1
       title: 实现 DAG 拓扑分层与派生视图·联调
-      status: todo
+      status: done
     - id: t-1e2054
       title: 实现 DAG 拓扑分层与派生视图·复核
-      status: todo
+      status: done
     - id: t-a21eb3
       title: 实现 DAG 拓扑分层与派生视图·测试
-      status: todo
+      status: done
+    - id: t-c130ca
+      title: 看板实测回归（真实打开页面）·研发
+      status: done
+    - id: t-6df9a0
+      title: 看板实测回归（真实打开页面）·联调
+      status: done
+    - id: t-f4c9f5
+      title: 看板实测回归（真实打开页面）·复核
+      status: done
+    - id: t-10122a
+      title: 看板实测回归（真实打开页面）·测试
+      status: done
 status:
-  tasks_total: 25
-  tasks_done: 18
-  tasks_in_progress: 1
-  tasks_todo: 6
+  tasks_total: 29
+  tasks_done: 29
+  tasks_in_progress: 0
+  tasks_todo: 0
 tasks:
   - id: t-87f0da
     status: done
   - id: t-0e7fac
-    status: in_progress
+    status: done
   - id: t-394339
     status: done
   - id: t-e96a0c
@@ -121,9 +133,9 @@ tasks:
   - id: t-dfc245
     status: done
   - id: t-e77b06
-    status: todo
+    status: done
   - id: t-d1aa0f
-    status: todo
+    status: done
   - id: t-796a50
     status: done
   - id: t-b34b32
@@ -133,10 +145,18 @@ tasks:
   - id: t-c6026b
     status: done
   - id: t-5be8c6
-    status: todo
+    status: done
   - id: t-315ea1
-    status: todo
+    status: done
   - id: t-1e2054
-    status: todo
+    status: done
   - id: t-a21eb3
-    status: todo
+    status: done
+  - id: t-c130ca
+    status: done
+  - id: t-6df9a0
+    status: done
+  - id: t-f4c9f5
+    status: done
+  - id: t-10122a
+    status: done

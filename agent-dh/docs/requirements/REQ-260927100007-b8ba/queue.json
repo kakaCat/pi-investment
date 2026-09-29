@@ -1,0 +1,2378 @@
+{
+  "version": 1,
+  "requirement_id": "REQ-260927100007-b8ba",
+  "schemaVersion": 9,
+  "generated_at": "2026-09-27T14:55:11.425Z",
+  "tasks": [
+    {
+      "id": "t-4b7697",
+      "requirementId": "REQ-260927100007-b8ba",
+      "title": "抽任务级收敛点并统一四处写入点",
+      "cardDoc": "docs/requirements/REQ-260927100007-b8ba/tasks/t-4b7697.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "npx vitest run tests/task-transition-guard.test.ts 通过；grep -rn \"status = \" src/application/use-cases src/application/internal 在业务路径零命中（收敛点与迁移除外）。",
+      "implementation": "新增 src/application/internal/task-transition.ts（transitionTask：assertTaskTransition + 改 status/version/updatedAt/updatedBy + recordStatus，保留 allowIllegalTransition 逃生舱）；ExecuteTask.ts:225/260、AdvanceChain.ts:138/171、failure-handling.ts:44、http/routers/tasks.ts:81 四处改为经它流转。",
+      "context": "",
+      "requirementRefs": [
+        "FR-8"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-a41960",
+          "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8",
+          "trigger": "manual",
+          "startedAt": 1790481257252,
+          "outcome": "succeeded",
+          "endedAt": 1790481257342
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790478975132,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790481257252,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "testing",
+          "at": 1790481257342,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "in_review",
+          "at": 1790481257428,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "done",
+          "at": 1790481257509,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-c2cc90",
+          "body": "[状态] → in_progress：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481257252,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-9548f6",
+          "body": "[状态] → testing：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481257342,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-b60232",
+          "body": "[状态] → in_review：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481257428,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-8f1942",
+          "body": "[状态] → done：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481257509,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790478975132,
+      "updatedAt": 1790481257509,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+      },
+      "lastReport": {
+        "at": 1790479772029,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/application/internal/task-transition.ts",
+          "packages/web/dsh-pmboard/src/application/use-cases/ExecuteTask.ts",
+          "packages/web/dsh-pmboard/src/application/use-cases/AdvanceChain.ts",
+          "packages/web/dsh-pmboard/src/application/internal/failure-handling.ts",
+          "packages/web/dsh-pmboard/src/http/routers/tasks.ts",
+          "packages/web/dsh-pmboard/src/domain/task/TaskStatus.ts",
+          "packages/web/dsh-pmboard/tests/task-transition-guard.test.ts"
+        ],
+        "completed": [
+          "四处直接写 task.status 全部改为经 transitionTask：ExecuteTask（开工/完成）、AdvanceChain（父卡开工/收尾）、failure-handling（子卡失败退回）、HTTP tasks 路由",
+          "domain/task/TaskStatus：system 白名单加角色例外（父卡/子卡链 in_progress→done 由自动链收尾），legacy 行为不变",
+          "新增 task-transition-guard.test.ts（5 例：合法转移、非法转移零副作用、人工门零副作用、system 角色例外、逃生舱）",
+          "grep 复核：application/http 下除收敛点自身外，业务路径已无 task.status 直接赋值"
+        ]
+      },
+      "layer": 0
+    },
+    {
+      "id": "t-9785bb",
+      "requirementId": "REQ-260927100007-b8ba",
+      "title": "补 agent 侧需求/任务流转工具",
+      "cardDoc": "docs/requirements/REQ-260927100007-b8ba/tasks/t-9785bb.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-4b7697"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "tests/apply-wiring.test.ts 里工具期望集合 = 实际 17 个（含 move/task_move/clear_pause/run_status）且通过；agent 调 reqboard_task_move 能把 todo 卡推到 in_progress。",
+      "implementation": "新增 src/application/use-cases/MoveRequirement.ts（executeMoveRequirement）与 MoveTask.ts（executeMoveTask）+ src/tools/MoveTool、TaskMoveTool，并在 src/tools/index.ts 与 src/index.ts 注册（reqboard_move / reqboard_task_move）。",
+      "context": "",
+      "requirementRefs": [
+        "FR-7"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-201f2c",
+          "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8",
+          "trigger": "manual",
+          "startedAt": 1790481257598,
+          "outcome": "succeeded",
+          "endedAt": 1790481257680
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790478975132,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790481257598,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "testing",
+          "at": 1790481257680,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "in_review",
+          "at": 1790481257758,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "done",
+          "at": 1790481257839,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-34ff5c",
+          "body": "[状态] → in_progress：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481257598,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-fde63e",
+          "body": "[状态] → testing：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481257680,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-7d469d",
+          "body": "[状态] → in_review：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481257758,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-65b712",
+          "body": "[状态] → done：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481257839,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790478975132,
+      "updatedAt": 1790481257839,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+      },
+      "lastReport": {
+        "at": 1790479772139,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/application/use-cases/MoveRequirement.ts",
+          "packages/web/dsh-pmboard/src/application/use-cases/MoveTask.ts",
+          "packages/web/dsh-pmboard/src/tools/MoveTool/MoveTool.ts",
+          "packages/web/dsh-pmboard/src/tools/TaskMoveTool/TaskMoveTool.ts",
+          "packages/web/dsh-pmboard/src/tools/RunStatusTool/RunStatusTool.ts",
+          "packages/web/dsh-pmboard/src/index.ts",
+          "packages/web/dsh-pmboard/tests/apply-wiring.test.ts"
+        ],
+        "completed": [
+          "MoveRequirement / MoveTask 用例 + MoveTool / TaskMoveTool 工具壳接线到 index.ts 工具面",
+          "顺带把 reqboard_run_status 补回工具面，并把它的旧式 inputSchema/outputSchema 改成统一 DSL（原写法会让 defineTool 读 output.render 崩溃）",
+          "apply-wiring.test.ts 装配 stub 补 reflect.provide（原先在 apply() 阶段就抛 TypeError），期望集合对齐实际 17 个"
+        ]
+      },
+      "layer": 1
+    },
+    {
+      "id": "t-8bce7d",
+      "requirementId": "REQ-260927100007-b8ba",
+      "title": "补齐 MoveTask 契约（现有测试即契约）",
+      "cardDoc": "docs/requirements/REQ-260927100007-b8ba/tasks/t-8bce7d.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-9785bb"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "cd packages/web/dsh-pmboard && npx vitest run tests/execute-task.test.ts tests/lazy-expand.test.ts tests/concurrency-limits.test.ts tests/application/use-cases.test.ts 全绿（当前 40 passed / 28 failed）。",
+      "implementation": "按 tests/execute-task.test.ts / lazy-expand.test.ts / concurrency-limits.test.ts / use-cases.test.ts 补齐：父卡开工懒展开子卡（expandSubtasks）、父卡并发上限（REQBOARD_PARENT_LIMIT）、开工返回 task_card{doc_path,implementation}、done 凭证门（REQBOARD_NO_REPORT）、父卡收尾门（REQBOARD_SUBTASK_GATE）、human_gate→REQBOARD_HUMAN_GATE 映射。",
+      "context": "",
+      "requirementRefs": [
+        "FR-7"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-bf9c95",
+          "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8",
+          "trigger": "manual",
+          "startedAt": 1790481257925,
+          "outcome": "succeeded",
+          "endedAt": 1790481258005
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790478975132,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790481257925,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "testing",
+          "at": 1790481258005,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "in_review",
+          "at": 1790481258086,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "done",
+          "at": 1790481258167,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-ea57cf",
+          "body": "[状态] → in_progress：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481257925,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-ae4886",
+          "body": "[状态] → testing：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481258005,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-160ae6",
+          "body": "[状态] → in_review：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481258086,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-2d7a70",
+          "body": "[状态] → done：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481258167,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790478975132,
+      "updatedAt": 1790481258167,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+      },
+      "lastReport": {
+        "at": 1790480755748,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/application/use-cases/ExecuteTask.ts",
+          "packages/web/dsh-pmboard/src/application/use-cases/MoveTask.ts",
+          "packages/web/dsh-pmboard/src/application/use-cases/MoveRequirement.ts",
+          "packages/web/dsh-pmboard/src/application/use-cases/AdvanceChain.ts",
+          "packages/web/dsh-pmboard/src/application/internal/support.ts",
+          "packages/web/dsh-pmboard/src/shared/protocol.ts"
+        ],
+        "completed": [
+          "子卡执行：正确解包 WorkflowRunOutcome（校验 ok → 取 value.output），产出按既有 JSON 契约解析；run 失败/引擎缺失显式失败而非静默成功",
+          "MoveTask 补齐契约：开工返回 task_card{doc_path,implementation}；父卡开工同事务懒展开子卡链；同需求并发父卡上限 REQBOARD_PARENT_LIMIT；转 done 前过 done 凭证门（父卡收尾门 / 子卡三项证据 / REQBOARD_NO_REPORT）",
+          "用例边界错误码映射：domain human_gate → REQBOARD_HUMAN_GATE（工具与看板各自保持既有码）",
+          "AdvanceChain：抽出 driveChain，无后台任务端口时同步跑完并返回真实停止原因（不再返回 not_found 空壳）；AdvanceState 补 runId 类型",
+          "测试：execute-task / lazy-expand / concurrency-limits / use-cases 四文件 49 项全绿（此前 28 项红）"
+        ]
+      },
+      "layer": 2
+    },
+    {
+      "id": "t-29a9b8",
+      "requirementId": "REQ-260927100007-b8ba",
+      "title": "批准计划即同步落库并响亮化失败",
+      "cardDoc": "docs/requirements/REQ-260927100007-b8ba/tasks/t-29a9b8.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-4b7697"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "npx vitest run tests/confirm-settle-plan-persist.test.ts 通过：同一调用返回时台账任务数=计划卡数；注入落库失败时状态仍 decomposing 且 pausedReason/评论/告警齐备。",
+      "implementation": "在 application/internal/confirm-settle.ts 的批准块内同步落库（抽出 Decompose 的落库编排复用），落库成功才 transitionRequirement(decomposing→implementing)+autoRun=true；失败则不推进并写 advance.pausedReason + 系统评论 + deps.alert。",
+      "context": "",
+      "requirementRefs": [
+        "FR-1",
+        "FR-2"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-a7cab6",
+          "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8",
+          "trigger": "manual",
+          "startedAt": 1790481258249,
+          "outcome": "succeeded",
+          "endedAt": 1790481258341
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790478975132,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790481258249,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "testing",
+          "at": 1790481258341,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "in_review",
+          "at": 1790481258420,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "done",
+          "at": 1790481258506,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-3f5a60",
+          "body": "[状态] → in_progress：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481258249,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-2ee5c5",
+          "body": "[状态] → testing：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481258341,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-a79dd9",
+          "body": "[状态] → in_review：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481258420,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-7e9bca",
+          "body": "[状态] → done：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481258506,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790478975132,
+      "updatedAt": 1790481258506,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+      },
+      "lastReport": {
+        "at": 1790479334235,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/application/internal/plan-landing.ts",
+          "packages/web/dsh-pmboard/src/application/internal/confirm-settle.ts",
+          "packages/web/dsh-pmboard/src/application/use-cases/Decompose.ts",
+          "packages/web/dsh-pmboard/tests/confirm-settle-plan-persist.test.ts"
+        ],
+        "completed": [
+          "抽出 application/internal/plan-landing.ts：把「计划任务表 → 台账任务卡 DAG（含任务卡文档/decomposition.md/产物登记/RTM）」收敛为唯一实现，reqboard_decompose 与批准路径共用",
+          "confirm-settle 门合并块改为同步落库：落库成功才 transitionRequirement(decomposing→implementing)+autoRun=true；失败则留在 decomposing 并写 pausedReason/评论/告警",
+          "Decompose 用例改为调用 landPlanTasks（行为不变，去掉重复编排）",
+          "新增 tests/confirm-settle-plan-persist.test.ts（2 例：成功路径台账卡数=计划卡数；失败路径不推进且三件留痕齐备）"
+        ]
+      },
+      "layer": 1
+    },
+    {
+      "id": "t-4ed3cc",
+      "requirementId": "REQ-260927100007-b8ba",
+      "title": "阶段推进加任务完整性守卫",
+      "cardDoc": "docs/requirements/REQ-260927100007-b8ba/tasks/t-4ed3cc.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-9785bb"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "npx vitest run tests/advance-task-completeness-guard.test.ts 通过：计划 14 张/台账 0 张 → 拒绝且错误含修复指引；空计划放行。",
+      "implementation": "新增 application/internal/task-completeness.ts（taskCompletenessGap，已在 t2 里先用上）并在 confirm-settle 推进前与 MoveRequirement 处共用；只拦「计划有卡而台账 0 张未取消任务」。",
+      "context": "",
+      "requirementRefs": [
+        "FR-3"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-96c7c4",
+          "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8",
+          "trigger": "manual",
+          "startedAt": 1790481258591,
+          "outcome": "succeeded",
+          "endedAt": 1790481258668
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790478975132,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790481258591,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "testing",
+          "at": 1790481258668,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "in_review",
+          "at": 1790481258747,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "done",
+          "at": 1790481258827,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-f6703b",
+          "body": "[状态] → in_progress：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481258591,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-69a064",
+          "body": "[状态] → testing：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481258668,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-d77f86",
+          "body": "[状态] → in_review：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481258747,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-199952",
+          "body": "[状态] → done：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481258827,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790478975132,
+      "updatedAt": 1790481258827,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+      },
+      "lastReport": {
+        "at": 1790479772254,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/application/internal/task-completeness.ts",
+          "packages/web/dsh-pmboard/src/application/use-cases/MoveRequirement.ts",
+          "packages/web/dsh-pmboard/tests/advance-task-completeness-guard.test.ts"
+        ],
+        "completed": [
+          "taskCompletenessGap 接入 MoveRequirement（预检 + mutate 内复查），拒绝码 REQBOARD_TASK_INCOMPLETE",
+          "新增 advance-task-completeness-guard.test.ts（3 例：有卡无库→拒绝且含修复指引；空计划/非 implementing/已落库/存量需求→放行）"
+        ]
+      },
+      "layer": 2
+    },
+    {
+      "id": "t-4de551",
+      "requirementId": "REQ-260927100007-b8ba",
+      "title": "修正条款门禁失败提示与计划提交提示",
+      "cardDoc": "docs/requirements/REQ-260927100007-b8ba/tasks/t-4de551.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "npx vitest run tests/clause-coverage-gate.test.ts 通过，且断言 how 含上述两条路径关键词。",
+      "implementation": "改 content-gate-wiring.ts 的 assertClauseCoverageGate 的 how 文案：给出两条真的能用的路径（decomposition.md 覆盖对照表 / 显式 tasks+requirement_refs）与参数示例，删掉不可执行的「给任务卡加 requirement_refs」；reqboard_submit(kind=plan) 缺 FR 对照时返回 warning。",
+      "context": "",
+      "requirementRefs": [
+        "FR-4"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-fdad1f",
+          "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8",
+          "trigger": "manual",
+          "startedAt": 1790481258911,
+          "outcome": "succeeded",
+          "endedAt": 1790481259008
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790478975132,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790481258911,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "testing",
+          "at": 1790481259008,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "in_review",
+          "at": 1790481259090,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "done",
+          "at": 1790481259172,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-8a07e2",
+          "body": "[状态] → in_progress：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481258911,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-2d2d06",
+          "body": "[状态] → testing：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481259008,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-a9bb6e",
+          "body": "[状态] → in_review：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481259090,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-0877e5",
+          "body": "[状态] → done：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481259172,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790478975132,
+      "updatedAt": 1790481259172,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+      },
+      "lastReport": {
+        "at": 1790479334345,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/application/internal/content-trace.ts",
+          "packages/web/dsh-pmboard/src/application/internal/content-gate-wiring.ts",
+          "packages/web/dsh-pmboard/tests/clause-coverage-gate.test.ts"
+        ],
+        "completed": [
+          "content-trace 的 RTM 表格解析放宽任务列 + 支持计划键（t4/T-1）回落",
+          "content-gate-wiring 的 requirement_uncovered 文案改为两条可执行路径与参数示例",
+          "clause-coverage-gate.test.ts 增 2 例：覆盖对照表放行、how 含两条路径关键词（共 13 例全绿）"
+        ]
+      },
+      "layer": 0
+    },
+    {
+      "id": "t-722397",
+      "requirementId": "REQ-260927100007-b8ba",
+      "title": "修 reqboard_decompose 返回体契约",
+      "cardDoc": "docs/requirements/REQ-260927100007-b8ba/tasks/t-722397.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "npx vitest run tests/tools-schema.test.ts tests/decompose-tools.test.ts 通过；成功返回不再出现 returned invalid output。",
+      "implementation": "src/tools/DecomposeTool/DecomposeTool.ts 的 output schema 把 task_coverage 由 object 改为 array（items 含 task_id/task_key/task_title/covers_frs/covers_acceptance）。",
+      "context": "",
+      "requirementRefs": [
+        "FR-5"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-1c692f",
+          "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8",
+          "trigger": "manual",
+          "startedAt": 1790481259256,
+          "outcome": "succeeded",
+          "endedAt": 1790481259332
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790478975132,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790481259256,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "testing",
+          "at": 1790481259332,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "in_review",
+          "at": 1790481259414,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "done",
+          "at": 1790481259493,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-feddd4",
+          "body": "[状态] → in_progress：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481259256,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-4214d5",
+          "body": "[状态] → testing：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481259332,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-016610",
+          "body": "[状态] → in_review：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481259414,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-18b48a",
+          "body": "[状态] → done：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481259493,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790478975132,
+      "updatedAt": 1790481259493,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+      },
+      "lastReport": {
+        "at": 1790479334447,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/tools/DecomposeTool/DecomposeTool.ts"
+        ],
+        "completed": [
+          "DecomposeTool 输出 schema 的 task_coverage 改为 array（items 为对象）",
+          "tests/tools-schema.test.ts 通过（本卡的 schema 契约）"
+        ]
+      },
+      "layer": 0
+    },
+    {
+      "id": "t-15d2d8",
+      "requirementId": "REQ-260927100007-b8ba",
+      "title": "RTM 刷新集合补 rtm-decomposing",
+      "cardDoc": "docs/requirements/REQ-260927100007-b8ba/tasks/t-15d2d8.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "npx vitest run packages/tools/reqboard/tests/rtm/triggers.test.ts 通过；filesForTrigger(\"task:status\") 含 rtm-decomposing.yml 且覆盖度随任务变化。",
+      "implementation": "packages/tools/reqboard/src/rtm/generator.ts 的 filesForTrigger 把 rtm-decomposing.yml 加入 task:status/task:report，并在 runRTMTrigger 的对应分支重新生成 decomposing。",
+      "context": "",
+      "requirementRefs": [
+        "FR-6"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-3458d9",
+          "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8",
+          "trigger": "manual",
+          "startedAt": 1790481259576,
+          "outcome": "succeeded",
+          "endedAt": 1790481259658
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790478975132,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790481259576,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "testing",
+          "at": 1790481259658,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "in_review",
+          "at": 1790481259738,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "done",
+          "at": 1790481259817,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-f423ab",
+          "body": "[状态] → in_progress：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481259576,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-884221",
+          "body": "[状态] → testing：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481259658,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-70fcb3",
+          "body": "[状态] → in_review：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481259738,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-0e564d",
+          "body": "[状态] → done：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481259817,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790478975132,
+      "updatedAt": 1790481259817,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+      },
+      "lastReport": {
+        "at": 1790479772366,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/tools/reqboard/src/rtm/generator.ts",
+          "packages/tools/reqboard/tests/rtm/triggers.test.ts"
+        ],
+        "completed": [
+          "generator.filesForTrigger 把 rtm-decomposing.yml 加进 task:status/task:report 的文件集合，并在分支内重算实施覆盖度",
+          "triggers.test.ts 增 1 例（集合含 rtm-decomposing.yml 且覆盖率有值），11/11 绿"
+        ]
+      },
+      "layer": 0
+    },
+    {
+      "id": "t-4f717c",
+      "requirementId": "REQ-260927100007-b8ba",
+      "title": "确认门挂起期间的停手守卫",
+      "cardDoc": "docs/requirements/REQ-260927100007-b8ba/tasks/t-4f717c.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-9785bb"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "npx vitest run tests/confirm-pending-guard.test.ts 通过：pending 存在时 reqboard_submit 被拒且不写盘；status/confirm_receipt 仍可用。",
+      "implementation": "写路径工具（submit/decompose/move/task_move）入口检查本窗口未作答的挂起确认，命中则 REQBOARD_CONFIRM_PENDING 并附取回执命令；status/confirm_receipt 保持可用；pending 的 note 写明「收到作答前不得产出下游产物」。",
+      "context": "",
+      "requirementRefs": [
+        "FR-9"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-af0722",
+          "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8",
+          "trigger": "manual",
+          "startedAt": 1790481259904,
+          "outcome": "succeeded",
+          "endedAt": 1790481259983
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790478975132,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790481259904,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "testing",
+          "at": 1790481259983,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "in_review",
+          "at": 1790481260060,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "done",
+          "at": 1790481260141,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-d75a76",
+          "body": "[状态] → in_progress：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481259904,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-23e3e4",
+          "body": "[状态] → testing：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481259983,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-1d2a86",
+          "body": "[状态] → in_review：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481260060,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-c78dcd",
+          "body": "[状态] → done：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481260141,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790478975132,
+      "updatedAt": 1790481260141,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+      },
+      "lastReport": {
+        "at": 1790479772482,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/application/ports.ts",
+          "packages/web/dsh-pmboard/src/adapters/PendingConfirmRegistry.ts",
+          "packages/web/dsh-pmboard/src/application/internal/support.ts",
+          "packages/web/dsh-pmboard/src/application/internal/pending-confirm.ts",
+          "packages/web/dsh-pmboard/src/tools/SubmitTool/SubmitTool.ts",
+          "packages/web/dsh-pmboard/src/tools/DecomposeTool/DecomposeTool.ts",
+          "packages/web/dsh-pmboard/src/tools/MoveTool/MoveTool.ts",
+          "packages/web/dsh-pmboard/src/tools/TaskMoveTool/TaskMoveTool.ts",
+          "packages/web/dsh-pmboard/tests/confirm-pending-guard.test.ts",
+          "packages/web/dsh-pmboard/tests/contract-shapes.test.ts"
+        ],
+        "completed": [
+          "PendingConfirmPort 增 pendingForWindow（唯一实现 PendingConfirmRegistry），识别本窗口未作答/未过期的挂起",
+          "support.assertNoPendingConfirm 接入 4 个写路径工具壳；错误码 REQBOARD_CONFIRM_PENDING",
+          "ask_confirm 挂起返回体的 note 显式写明「收到作答前不得产出下游产物」",
+          "新增 confirm-pending-guard.test.ts（4 例），contract-shapes 契约同步"
+        ]
+      },
+      "layer": 2
+    },
+    {
+      "id": "t-92c999",
+      "requirementId": "REQ-260927100007-b8ba",
+      "title": "修 reqboard_status 返回体 lossless",
+      "cardDoc": "docs/requirements/REQ-260927100007-b8ba/tasks/t-92c999.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "npx vitest run tests/status-lossless.test.ts 通过；已绑定窗口调用 reqboard_status 返回 success（修复前必然 not lossless JSON）。",
+      "implementation": "application/internal/rtm-health.ts 无失败记录时省略 last_failure 键（条件展开）；为 queryState 加递归 lossless 断言测试。",
+      "context": "",
+      "requirementRefs": [
+        "FR-10"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-298a0f",
+          "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8",
+          "trigger": "manual",
+          "startedAt": 1790481260225,
+          "outcome": "succeeded",
+          "endedAt": 1790481260301
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790478975132,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790481260225,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "testing",
+          "at": 1790481260301,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "in_review",
+          "at": 1790481260382,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "done",
+          "at": 1790481260462,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-d43175",
+          "body": "[状态] → in_progress：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481260225,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-6acb20",
+          "body": "[状态] → testing：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481260301,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-ffd4e3",
+          "body": "[状态] → in_review：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481260382,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-c84421",
+          "body": "[状态] → done：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481260462,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790478975132,
+      "updatedAt": 1790481260462,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+      },
+      "lastReport": {
+        "at": 1790479334551,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/application/internal/rtm-health.ts",
+          "packages/web/dsh-pmboard/tests/status-lossless.test.ts"
+        ],
+        "completed": [
+          "rtm-health.checkRTMHealth 无失败记录时条件展开 last_failure",
+          "新增 tests/status-lossless.test.ts（2 例：无/有失败记录都递归断言无 undefined 属性），并跑通 rtm-health 与 tools-status 既有测试"
+        ]
+      },
+      "layer": 0
+    },
+    {
+      "id": "t-d73cec",
+      "requirementId": "REQ-260927100007-b8ba",
+      "title": "Dive 采集半停止直投 + 投递白名单",
+      "cardDoc": "docs/requirements/REQ-260927100007-b8ba/tasks/t-d73cec.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "npx vitest run tests/dive-manager-alignment.test.ts tests/dive-round-driver.test.ts 通过：同阶段连续两条人类消息 → onStagePrompt 0 次、不产生额外轮次；armed+active 时投递且 source.kind===\"dive\"。",
+      "implementation": "删 session-driver.ts driveIdle 的阶段纪律投递（保留 injectionLog 留痕与 R1）；里程碑催办改为登记+requestDrive，由 round 半在 armed+active 时投递；在 reqboard-dive-mode.md 补「投递白名单」节。",
+      "context": "",
+      "requirementRefs": [
+        "FR-11"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-f9ed2d",
+          "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8",
+          "trigger": "manual",
+          "startedAt": 1790481260545,
+          "outcome": "succeeded",
+          "endedAt": 1790481260627
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790478975132,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790481260545,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "testing",
+          "at": 1790481260627,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "in_review",
+          "at": 1790481260710,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "done",
+          "at": 1790481260786,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-1cb986",
+          "body": "[状态] → in_progress：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481260545,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-e6fe8e",
+          "body": "[状态] → testing：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481260627,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-4a51cb",
+          "body": "[状态] → in_review：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481260710,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-2d8079",
+          "body": "[状态] → done：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481260786,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790478975132,
+      "updatedAt": 1790481260786,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+      },
+      "lastReport": {
+        "at": 1790480755862,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/application/dive/session-driver.ts",
+          "packages/web/dsh-pmboard/src/application/dive/round-driver.ts",
+          "packages/web/dsh-pmboard/src/application/dive/idle-capture-actions.ts",
+          "packages/web/dsh-pmboard/src/wiring/pm-capture-root.ts",
+          "packages/web/dsh-pmboard/tests/capture-hook.test.ts",
+          "packages/web/dsh-pmboard/tests/acceptance-criteria.test.ts",
+          "packages/web/dsh-pmboard/tests/isolate-node-context.test.ts",
+          "packages/web/dsh-pmboard/tests/dive-session-driver-wiring.test.ts",
+          "packages/web/dsh-pmboard/tests/dive-manager-alignment.test.ts",
+          "packages/web/dsh-pmboard/tests/dive-round-driver.test.ts"
+        ],
+        "completed": [
+          "采集半零投递：删除 driveIdle 的阶段纪律直投（保留注入留痕与节点结算信号）",
+          "里程碑催办改为登记 onMilestoneNotice；round 半新增 queueReminder，经 requestDrive→createRoundMessage 投递（source.kind=dive、走预留/准入计数），投递失败放回不静默丢",
+          "组合根按投递白名单分流：armed+active→round 半；非 armed→只写台账 comment；round 未装配→响亮 warn",
+          "reqboard-dive-mode.md「投递白名单」与节点流程图同步（白名单：pending-confirm wake / 闸门链 H4 / 失败告警）",
+          "测试：dive 相关 5 文件 95/95 全绿；capture-hook / acceptance-criteria / isolate-node-context 三条旧契约改写为\"采集半零投递 + 留痕照旧\""
+        ]
+      },
+      "layer": 0
+    },
+    {
+      "id": "t-2c852b",
+      "requirementId": "REQ-260927100007-b8ba",
+      "title": "RTM 窗口绑定投影可更新且有消费者",
+      "cardDoc": "docs/requirements/REQ-260927100007-b8ba/tasks/t-2c852b.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-15d2d8"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "npx vitest run packages/tools/reqboard/tests/rtm/triggers.test.ts 通过：先建后绑 → source_session 随之更新；grep 该字段存在读取方（或类型层如实声明）。",
+      "implementation": "新增 bind 触发点刷新 rtm-lifecycle.yml；让 source_session 有真实读取方（Dive 投递目标优先读 RTM），或按 A 方案删误导注释并在类型层声明无消费者；考虑窗口侧锚点投影。",
+      "context": "",
+      "requirementRefs": [
+        "FR-12"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-dc2f11",
+          "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8",
+          "trigger": "manual",
+          "startedAt": 1790481260869,
+          "outcome": "succeeded",
+          "endedAt": 1790481260948
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790478975132,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790481260869,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "testing",
+          "at": 1790481260948,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "in_review",
+          "at": 1790481261024,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "done",
+          "at": 1790481261105,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-ceb27f",
+          "body": "[状态] → in_progress：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481260869,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-cffe59",
+          "body": "[状态] → testing：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481260948,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-165ebc",
+          "body": "[状态] → in_review：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481261024,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-9d10e0",
+          "body": "[状态] → done：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481261105,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790478975132,
+      "updatedAt": 1790481261105,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+      },
+      "lastReport": {
+        "at": 1790480760611,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/tools/reqboard/src/rtm/generator.ts",
+          "packages/tools/reqboard/src/rtm/types.ts",
+          "packages/tools/reqboard/tests/rtm/triggers.test.ts",
+          "packages/web/dsh-pmboard/src/application/internal/rtm-yaml.ts",
+          "packages/web/dsh-pmboard/src/application/use-cases/CaptureRequirement.ts"
+        ],
+        "completed": [
+          "RTMTrigger 新增 bind；filesForTrigger(bind) 只刷新 rtm-lifecycle.yml；runRTMTrigger(bind) 重读台账重写生命周期快照（否则是静默空转）",
+          "真实调用点：reqboard_capture 写入窗口绑定（sourceSessionId）后以 bind 触发刷新；失败不阻断立项",
+          "消费者口径按设计允许的最小真相方案：删除 rtm-yaml.ts 的误导注释，types.ts 的 source_session 注明\"当前无生产读取方，仅供人查\"",
+          "测试：triggers.test.ts 由 11 增至 14 项全绿（含\"刷新集合恰为 lifecycle 一个文件\"与\"先建后绑 source_session 随之一致\"）",
+          "实测发现（卡片前提不符）：全仓 resultRequirementId(s) 无生产写入方（bind_req 分流未实现），唯一真实绑定写入是 reqboard_capture，故 bind 接在那里"
+        ]
+      },
+      "layer": 1
+    },
+    {
+      "id": "t-0fad87",
+      "requirementId": "REQ-260927100007-b8ba",
+      "title": "证据路径确认后同调用内推进（已实现，补回归）",
+      "cardDoc": "docs/requirements/REQ-260927100007-b8ba/tasks/t-0fad87.md",
+      "description": "",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "npx vitest run tests/confirm-evidence.test.ts 8/8 通过（含 advanced=true 与 kind 不匹配不推进两条）。",
+      "implementation": "ConfirmArtifact.ts 落章后按 advanceTargetFor 推进（含 kind 与门的匹配护栏）——已在本次实现并线上验证；补 tests/confirm-evidence.test.ts 的两条断言与回归。",
+      "context": "",
+      "requirementRefs": [
+        "FR-13"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-cf066e",
+          "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8",
+          "trigger": "manual",
+          "startedAt": 1790481261190,
+          "outcome": "succeeded",
+          "endedAt": 1790481261266
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790478975132,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790481261190,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "testing",
+          "at": 1790481261266,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "in_review",
+          "at": 1790481261347,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "done",
+          "at": 1790481261427,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-83d1fd",
+          "body": "[状态] → in_progress：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481261190,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-2d3480",
+          "body": "[状态] → testing：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481261266,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-b15f39",
+          "body": "[状态] → in_review：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481261347,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-31e74d",
+          "body": "[状态] → done：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481261427,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790478975132,
+      "updatedAt": 1790481261427,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+      },
+      "lastReport": {
+        "at": 1790479772704,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/application/use-cases/ConfirmArtifact.ts",
+          "packages/web/dsh-pmboard/tests/confirm-evidence.test.ts"
+        ],
+        "completed": [
+          "confirm-evidence.test.ts 8/8 通过（含 advanced=true 与 kind 不匹配不推进两条断言）"
+        ]
+      },
+      "layer": 0
+    },
+    {
+      "id": "t-08fcc2",
+      "requirementId": "REQ-260927100007-b8ba",
+      "title": "Dive 在人工门主动弹框（有边界重弹）",
+      "cardDoc": "docs/requirements/REQ-260927100007-b8ba/tasks/t-08fcc2.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-d73cec"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "npx vitest run tests/dive-gate-prompt.test.ts 通过：门已满足未推进时弹出推进确认框；同一次等待只弹 1 次；冷却内不弹、上限 2 次后停手并写 comment。",
+      "implementation": "新增受信内部端口 GatePromptPort（仅 Dive 调用，绕过 idle 期 live-driver 认证）；driveIdle 计算门状态：(a) 产物未确认→弹确认框 (b) 已确认未推进→弹推进确认框；幂等按 (需求,门,产物指纹) 一次等待只弹一次，跨回合冷却≥5min、上限 2 次，到顶留痕停手；未装配端口→行为与改动前逐字一致。",
+      "context": "",
+      "requirementRefs": [
+        "FR-14"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-b6d554",
+          "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8",
+          "trigger": "manual",
+          "startedAt": 1790481261509,
+          "outcome": "succeeded",
+          "endedAt": 1790481261591
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790478975132,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790481261509,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "testing",
+          "at": 1790481261591,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "in_review",
+          "at": 1790481261670,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "done",
+          "at": 1790481261747,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-5b2649",
+          "body": "[状态] → in_progress：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481261509,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-4bf711",
+          "body": "[状态] → testing：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481261591,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-9a1764",
+          "body": "[状态] → in_review：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481261670,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-c81583",
+          "body": "[状态] → done：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481261747,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790478975132,
+      "updatedAt": 1790481261747,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+      },
+      "lastReport": {
+        "at": 1790481244267,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/application/dive/gate-prompt.ts",
+          "packages/web/dsh-pmboard/src/application/dive/session-driver.ts",
+          "packages/web/dsh-pmboard/src/application/ports.ts",
+          "packages/web/dsh-pmboard/src/wiring/pm-capture-root.ts",
+          "packages/web/dsh-pmboard/tests/dive-gate-prompt.test.ts"
+        ],
+        "completed": [
+          "新增受信内部端口 GatePromptPort（design I-10 签名）+ application/dive/gate-prompt.ts：门状态投影 gatePromptFor、有边界重弹状态机 createGatePromptLoop、可投产的端口实现 createGatePromptPort（肯定项→applyConfirmDecision，G3 走 plan 门合并落库，FR-1 不被绕过）",
+          "session-driver.driveIdle 末尾接 gatePromptLoop.tick；未注入端口 → 逐字零行为（不改变 FR-11 的采集半零投递）",
+          "组合根 pm-capture-root 透传 gatePrompt + onGatePromptExhausted（到顶写台账 comment）",
+          "G4 验收门排除在自动弹框之外（归档要逐项裁决，不能被压成一个肯定项）",
+          "测试：tests/dive-gate-prompt.test.ts 9/9（TC-15 全量）＋ dive 相关 4 文件 44/44",
+          "交付边界（响亮报出）：端口已 plumb 但**未在生产组合根装配**——卡片明确允许\"未装配端口→行为与改动前逐字一致\"；激活还需在 index.ts 注入 createGatePromptPort 并给端口补 agent 解析（当前 questions.ask 不带 agent，idle 期路由语义未验证）。刻意不擅自打开，避免向人弹未经确认的框。"
+        ]
+      },
+      "layer": 1
+    },
+    {
+      "id": "t-52999b",
+      "requirementId": "REQ-260927100007-b8ba",
+      "title": "修 apply-wiring 装配 stub 与期望集合",
+      "cardDoc": "docs/requirements/REQ-260927100007-b8ba/tasks/t-52999b.md",
+      "description": "",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-9785bb"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "npx vitest run tests/apply-wiring.test.ts 4/4 通过（当前因 Service 装配抛错 4/4 红）。",
+      "implementation": "tests/apply-wiring.test.ts 的 stub ctx 补 reqboard 服务（ReqboardDiveManager extends Service 需要），并把期望集合对齐实际 17 个工具名。",
+      "context": "",
+      "requirementRefs": [
+        "FR-7"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-b6e855",
+          "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8",
+          "trigger": "manual",
+          "startedAt": 1790481261832,
+          "outcome": "succeeded",
+          "endedAt": 1790481261913
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790478975132,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790481261832,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "testing",
+          "at": 1790481261913,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "in_review",
+          "at": 1790481261989,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "done",
+          "at": 1790481262072,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-4c535e",
+          "body": "[状态] → in_progress：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481261832,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-bafe6b",
+          "body": "[状态] → testing：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481261913,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-73bd15",
+          "body": "[状态] → in_review：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481261989,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-f0d9d7",
+          "body": "[状态] → done：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481262072,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790478975132,
+      "updatedAt": 1790481262072,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+      },
+      "lastReport": {
+        "at": 1790479772593,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/tests/apply-wiring.test.ts"
+        ],
+        "completed": [
+          "apply-wiring.test.ts stub 补 reflect.provide，apply() 装配不再抛 TypeError",
+          "期望集合对齐实际 17 个（含 reqboard_move / reqboard_task_move / reqboard_clear_pause / reqboard_run_status）",
+          "plugin-schema.smoke.test.ts 21/21 绿（新注册的 run_status schema 合法）"
+        ]
+      },
+      "layer": 2
+    },
+    {
+      "id": "t-a1ecaa",
+      "requirementId": "REQ-260927100007-b8ba",
+      "title": "同步文档：流程图 / 白名单 / 手册",
+      "cardDoc": "docs/requirements/REQ-260927100007-b8ba/tasks/t-a1ecaa.md",
+      "description": "",
+      "phase": "doc",
+      "side": "doc",
+      "dependsOn": [
+        "t-d73cec",
+        "t-2c852b"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "python3 agent-dh/scripts/wiki_probe.py 无新增死链/孤儿；流程图文档的缺陷落点索引覆盖 D1–D13。",
+      "implementation": "更新 docs/architecture/reqboard-pipeline-flow.md（缺陷落点补齐）、reqboard-dive-mode.md（投递白名单）与项目说明书相关章节；跑 scripts/wiki_probe.py 自检。",
+      "context": "",
+      "requirementRefs": [
+        "FR-11",
+        "FR-12"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-4448e8",
+          "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8",
+          "trigger": "manual",
+          "startedAt": 1790481262160,
+          "outcome": "succeeded",
+          "endedAt": 1790481262245
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790478975132,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790481262160,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "testing",
+          "at": 1790481262245,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "in_review",
+          "at": 1790481262324,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        },
+        {
+          "status": "done",
+          "at": 1790481262401,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+          },
+          "reason": "本需求实施完成（含自测与完工汇报）"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-fe1473",
+          "body": "[状态] → in_progress：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481262160,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-bac864",
+          "body": "[状态] → testing：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481262245,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-887a1f",
+          "body": "[状态] → in_review：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481262324,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-7963b7",
+          "body": "[状态] → done：本需求实施完成（含自测与完工汇报）",
+          "createdAt": 1790481262401,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790478975132,
+      "updatedAt": 1790481262401,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-52f725ef-eeda-4458-8c6d-cb15b10ad5b8"
+      },
+      "lastReport": {
+        "at": 1790480760725,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/architecture/project-manual.md",
+          "agent-dh/docs/architecture/reqboard-pipeline-flow.md",
+          "agent-dh/docs/architecture/reqboard-dive-mode.md",
+          "agent-dh/docs/INDEX.md",
+          "agent-dh/docs/README.md"
+        ],
+        "completed": [
+          "reqboard-pipeline-flow.md：缺陷落点索引 D1–D13 增加\"对应 FR + 修复状态\"列（✅ 已修 / — 未纳入），front-matter 摘要同步",
+          "docs/architecture/project-manual.md：新增 2026-09-27 更新点（本需求交付的完整变化面）",
+          "reqboard-dive-mode.md：投递白名单一节与实现对齐；缺陷索引引用同步为 D1–D13",
+          "docs_index.py 重生索引（INDEX.md / README.md 自动区）→ --check 报\"索引与文档一致\"",
+          "wiki_probe 复核：现行页死链 30 条全部为既有（README 指向 packages/*/README.md、work-logs 索引等），本次新增/修改页零新增死链/孤儿"
+        ]
+      },
+      "layer": 2
+    }
+  ],
+  "edges": [
+    {
+      "from": "t-4b7697",
+      "to": "t-9785bb"
+    },
+    {
+      "from": "t-9785bb",
+      "to": "t-8bce7d"
+    },
+    {
+      "from": "t-4b7697",
+      "to": "t-29a9b8"
+    },
+    {
+      "from": "t-9785bb",
+      "to": "t-4ed3cc"
+    },
+    {
+      "from": "t-9785bb",
+      "to": "t-4f717c"
+    },
+    {
+      "from": "t-15d2d8",
+      "to": "t-2c852b"
+    },
+    {
+      "from": "t-d73cec",
+      "to": "t-08fcc2"
+    },
+    {
+      "from": "t-9785bb",
+      "to": "t-52999b"
+    },
+    {
+      "from": "t-d73cec",
+      "to": "t-a1ecaa"
+    },
+    {
+      "from": "t-2c852b",
+      "to": "t-a1ecaa"
+    }
+  ],
+  "layers": [
+    {
+      "layer": 0,
+      "tasks": [
+        "t-4b7697",
+        "t-4de551",
+        "t-722397",
+        "t-15d2d8",
+        "t-92c999",
+        "t-d73cec",
+        "t-0fad87"
+      ]
+    },
+    {
+      "layer": 1,
+      "tasks": [
+        "t-9785bb",
+        "t-29a9b8",
+        "t-2c852b",
+        "t-08fcc2"
+      ]
+    },
+    {
+      "layer": 2,
+      "tasks": [
+        "t-8bce7d",
+        "t-4ed3cc",
+        "t-4f717c",
+        "t-52999b",
+        "t-a1ecaa"
+      ]
+    }
+  ],
+  "ready": []
+}

@@ -1,0 +1,38 @@
+task:
+  id: t-66570e
+  title: 集成测试与文档·测试
+  status: done
+  implements: |-
+    编写 integration.ts，集成所有模块，实现主渲染流程。更新 build-demo.py 和 template.html，加载所有 JS 模块。用真实队列文件（小图 12 卡、中图 20 卡、压力图 65 卡）测试。编写 README.md 说明使用方法。接收 FR-1 至 FR-7 全部功能点。
+
+    [子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）
+  serves: []
+  depends_on:
+    - t-975c52
+  phase: test
+  side: fullstack
+  workflow_params:
+    REQ_ID: REQ-260928001915-f978
+    TASK_ID: t-66570e
+    TASK_TITLE: 集成测试与文档·测试
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: fullstack
+    PHASE: test
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: test
+      status: done
+      completed_at: 2026-09-28T05:49:44.105Z
+    - phase: doc
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-260928001915-f978
+  generated_at: 2026-09-28T05:49:44.105Z
+  version: 2
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-09-28T05:49:44.106Z

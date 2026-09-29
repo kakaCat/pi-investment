@@ -1,0 +1,35 @@
+task:
+  id: t-a0c273
+  title: 先定契约：挂起确认能标出「被中止」，判定口径只留一处·研发
+  status: done
+  implements: ""
+  serves: []
+  depends_on: []
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-260927123256-196b
+    TASK_ID: t-a0c273
+    TASK_TITLE: 先定契约：挂起确认能标出「被中止」，判定口径只留一处·研发
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      started_at: 2026-09-27T05:33:46.135Z
+      completed_at: 2026-09-27T05:33:56.326Z
+    - phase: doc
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-260927123256-196b
+  generated_at: 2026-09-27T05:07:49.496Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-09-27T05:33:56.327Z

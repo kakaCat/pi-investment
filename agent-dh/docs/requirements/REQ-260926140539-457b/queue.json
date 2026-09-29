@@ -1,0 +1,2771 @@
+{
+  "version": 1,
+  "requirement_id": "REQ-260926140539-457b",
+  "schemaVersion": 9,
+  "generated_at": "2026-09-27T14:55:11.425Z",
+  "tasks": [
+    {
+      "id": "t-8c8edc",
+      "requirementId": "REQ-260926140539-457b",
+      "title": "实现 RTM TypeScript 类型定义",
+      "description": "定义 RTM YAML 结构的 TypeScript 接口，作为整个 RTM 基础设施的类型契约。\n\n【实施方案】创建 agent-dh/packages/tools/reqboard/src/rtm/types.ts，定义 RTMMetadata / RTMLifecycle / RTMBrainstorming / RTMDesign / RTMDecomposing / RTMImplementing / RTMTaskDetail / RTMAccepting / Traceability / Coverage 接口，导出所有类型。\n\n【拆分计划条目】t1",
+      "phase": "doc",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "运行 `cd agent-dh/packages/tools/reqboard && pnpm build` 编译通过无报错；检查 src/rtm/types.ts 包含所有接口定义；执行 `grep -c \"export interface\" src/rtm/types.ts` 返回 >= 10",
+      "context": "创建 agent-dh/packages/tools/reqboard/src/rtm/types.ts，定义 RTMMetadata / RTMLifecycle / RTMBrainstorming / RTMDesign / RTMDecomposing / RTMImplementing / RTMTaskDetail / RTMAccepting / Traceability / Coverage 接口，导出所有类型。",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-452cc8",
+          "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363",
+          "trigger": "manual",
+          "startedAt": 1790418776927,
+          "outcome": "succeeded",
+          "endedAt": 1790418776988
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-67c327",
+          "body": "[状态] → in_progress：RTM YAML 追溯基础设施实施（本窗口）",
+          "createdAt": 1790418776927,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-c67416",
+          "body": "[状态] → testing：实现完成，已跑通 reqboard 单测/端到端",
+          "createdAt": 1790418776988,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-c4cfc5",
+          "body": "[状态] → in_review：测试通过，待复核",
+          "createdAt": 1790418777046,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-52e15c",
+          "body": "[状态] → done：复核通过：83 条单测 + 端到端全绿，无回归",
+          "createdAt": 1790418777105,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790417639468,
+      "updatedAt": 1790418777105,
+      "createdBy": {
+        "kind": "human"
+      },
+      "updatedBy": {
+        "kind": "agent"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790417639468,
+          "by": {
+            "kind": "human"
+          },
+          "reason": "创建（看板人工建卡）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790418776927,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "RTM YAML 追溯基础设施实施（本窗口）"
+        },
+        {
+          "status": "testing",
+          "at": 1790418776988,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "实现完成，已跑通 reqboard 单测/端到端"
+        },
+        {
+          "status": "in_review",
+          "at": 1790418777046,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "测试通过，待复核"
+        },
+        {
+          "status": "done",
+          "at": 1790418777105,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "复核通过：83 条单测 + 端到端全绿，无回归"
+        }
+      ],
+      "lastReport": {
+        "at": 1790418768205,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/tools/reqboard/src/rtm/types.ts"
+        ],
+        "completed": [
+          "定义 lifecycle + 六个节点 + 任务详情 + 追溯映射 + 三层覆盖度的 TypeScript 接口",
+          "编译零错误（tsc -p tsconfig.json 通过）"
+        ]
+      },
+      "layer": 0
+    },
+    {
+      "id": "t-e57e00",
+      "requirementId": "REQ-260926140539-457b",
+      "title": "实现 RTM 文件读写与版本控制",
+      "description": "提供 RTM YAML 的原子读写与版本递增能力，是所有生成器的底层依赖。\n\n【实施方案】创建 src/rtm/file-io.ts，实现 readRTM / writeRTM / getRTMPath / ensureRTMDir，使用 js-yaml，原子写入（临时文件 + rename），文件不存在返回 null。\n\n【拆分计划条目】t2",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-8c8edc"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "运行 `pnpm test file-io.test.ts` 通过；测试写入后读取内容一致；测试连续写入 2 次 version 从 1 递增到 2；测试读取不存在文件返回 null",
+      "context": "创建 src/rtm/file-io.ts，实现 readRTM / writeRTM / getRTMPath / ensureRTMDir，使用 js-yaml，原子写入（临时文件 + rename），文件不存在返回 null。",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-237606",
+          "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363",
+          "trigger": "manual",
+          "startedAt": 1790418777170,
+          "outcome": "succeeded",
+          "endedAt": 1790418777288
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-626069",
+          "body": "[状态] → in_progress：RTM YAML 追溯基础设施实施（本窗口）",
+          "createdAt": 1790418777170,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-d973e8",
+          "body": "[状态] → testing：实现完成，已跑通 reqboard 单测/端到端",
+          "createdAt": 1790418777288,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-0bf3b0",
+          "body": "[状态] → in_review：测试通过，待复核",
+          "createdAt": 1790418777348,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-29e6dd",
+          "body": "[状态] → done：复核通过：83 条单测 + 端到端全绿，无回归",
+          "createdAt": 1790418777403,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790417639546,
+      "updatedAt": 1790418777403,
+      "createdBy": {
+        "kind": "human"
+      },
+      "updatedBy": {
+        "kind": "agent"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790417639546,
+          "by": {
+            "kind": "human"
+          },
+          "reason": "创建（看板人工建卡）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790418777170,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "RTM YAML 追溯基础设施实施（本窗口）"
+        },
+        {
+          "status": "testing",
+          "at": 1790418777288,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "实现完成，已跑通 reqboard 单测/端到端"
+        },
+        {
+          "status": "in_review",
+          "at": 1790418777348,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "测试通过，待复核"
+        },
+        {
+          "status": "done",
+          "at": 1790418777403,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "复核通过：83 条单测 + 端到端全绿，无回归"
+        }
+      ],
+      "lastReport": {
+        "at": 1790418768282,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/tools/reqboard/src/rtm/file-io.ts",
+          "packages/tools/reqboard/tests/rtm/file-io.test.ts"
+        ],
+        "completed": [
+          "readRTM / writeRTM / getRTMPath / ensureRTMDir / readRTMStrict",
+          "原子写入（临时文件 + rename）",
+          "YAML 坏掉时宽读返回 null 并留因、严格读抛结构化 RTMError",
+          "8 条单测全绿"
+        ]
+      },
+      "layer": 1
+    },
+    {
+      "id": "t-25c956",
+      "requirementId": "REQ-260926140539-457b",
+      "title": "实现 FR/serves/implements/covers 标注解析",
+      "description": "从需求与设计文档中解析追溯标注，是追溯链的数据入口。\n\n【实施方案】创建 src/rtm/parser.ts，实现 parseFRList / parseServesAnnotations / parseImplementsAnnotations / parseCoversAnnotations，用正则提取标注并返回结构化数据。\n\n【拆分计划条目】t3",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-8c8edc"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "运行 `pnpm test rtm-parser.test.ts` 通过；解析 \"**FR-1: 功能点\" 返回 [{id:\"FR-1\",...}]；解析 \"serves: FR-1, FR-2\" 返回 [\"FR-1\",\"FR-2\"]；空文档返回空数组",
+      "context": "创建 src/rtm/parser.ts，实现 parseFRList / parseServesAnnotations / parseImplementsAnnotations / parseCoversAnnotations，用正则提取标注并返回结构化数据。",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-5580f3",
+          "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363",
+          "trigger": "manual",
+          "startedAt": 1790418777464,
+          "outcome": "succeeded",
+          "endedAt": 1790418777520
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-116b85",
+          "body": "[状态] → in_progress：RTM YAML 追溯基础设施实施（本窗口）",
+          "createdAt": 1790418777464,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-8bc8c1",
+          "body": "[状态] → testing：实现完成，已跑通 reqboard 单测/端到端",
+          "createdAt": 1790418777520,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-fb25ee",
+          "body": "[状态] → in_review：测试通过，待复核",
+          "createdAt": 1790418777575,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-c20992",
+          "body": "[状态] → done：复核通过：83 条单测 + 端到端全绿，无回归",
+          "createdAt": 1790418777630,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790417639633,
+      "updatedAt": 1790418777629,
+      "createdBy": {
+        "kind": "human"
+      },
+      "updatedBy": {
+        "kind": "agent"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790417639633,
+          "by": {
+            "kind": "human"
+          },
+          "reason": "创建（看板人工建卡）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790418777464,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "RTM YAML 追溯基础设施实施（本窗口）"
+        },
+        {
+          "status": "testing",
+          "at": 1790418777520,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "实现完成，已跑通 reqboard 单测/端到端"
+        },
+        {
+          "status": "in_review",
+          "at": 1790418777575,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "测试通过，待复核"
+        },
+        {
+          "status": "done",
+          "at": 1790418777629,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "复核通过：83 条单测 + 端到端全绿，无回归"
+        }
+      ],
+      "lastReport": {
+        "at": 1790418768363,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/tools/reqboard/src/rtm/parser.ts",
+          "packages/tools/reqboard/tests/rtm/parser.test.ts"
+        ],
+        "completed": [
+          "parseRequirementFRs / parseDesignSections / parseTestCovers / parseDecompositionServes",
+          "跳过代码围栏内的示例，避免把文档里的例子当真实标注",
+          "边界情况（空文档/无标注/重复编号）单测覆盖"
+        ]
+      },
+      "layer": 1
+    },
+    {
+      "id": "t-3ca532",
+      "requirementId": "REQ-260926140539-457b",
+      "title": "实现四级追溯映射构建",
+      "description": "构建需求→设计→任务→测试的四级追溯映射，支持间接映射计算。\n\n【实施方案】创建 src/rtm/traceability-builder.ts，实现 buildFRToDesign / buildDesignToTasks / buildTaskToTests / buildFRToTasks，遍历标注反向构建映射。\n\n【拆分计划条目】t4",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-25c956"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "运行 `pnpm test traceability-builder.test.ts` 通过；输入 3 FR + 4 设计章节 + 5 任务验证映射正确；buildFRToTasks 正确计算 FR-1 → design#1.1 → t-001 传递关系",
+      "context": "创建 src/rtm/traceability-builder.ts，实现 buildFRToDesign / buildDesignToTasks / buildTaskToTests / buildFRToTasks，遍历标注反向构建映射。",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-eba3b3",
+          "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363",
+          "trigger": "manual",
+          "startedAt": 1790418777691,
+          "outcome": "succeeded",
+          "endedAt": 1790418777746
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-f08931",
+          "body": "[状态] → in_progress：RTM YAML 追溯基础设施实施（本窗口）",
+          "createdAt": 1790418777691,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-71a7b2",
+          "body": "[状态] → testing：实现完成，已跑通 reqboard 单测/端到端",
+          "createdAt": 1790418777746,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-a9955c",
+          "body": "[状态] → in_review：测试通过，待复核",
+          "createdAt": 1790418777799,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-0280b0",
+          "body": "[状态] → done：复核通过：83 条单测 + 端到端全绿，无回归",
+          "createdAt": 1790418777854,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790417639707,
+      "updatedAt": 1790418777854,
+      "createdBy": {
+        "kind": "human"
+      },
+      "updatedBy": {
+        "kind": "agent"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790417639707,
+          "by": {
+            "kind": "human"
+          },
+          "reason": "创建（看板人工建卡）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790418777691,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "RTM YAML 追溯基础设施实施（本窗口）"
+        },
+        {
+          "status": "testing",
+          "at": 1790418777746,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "实现完成，已跑通 reqboard 单测/端到端"
+        },
+        {
+          "status": "in_review",
+          "at": 1790418777799,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "测试通过，待复核"
+        },
+        {
+          "status": "done",
+          "at": 1790418777854,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "复核通过：83 条单测 + 端到端全绿，无回归"
+        }
+      ],
+      "lastReport": {
+        "at": 1790418768479,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/tools/reqboard/src/rtm/traceability-builder.ts",
+          "packages/tools/reqboard/tests/rtm/traceability-coverage.test.ts"
+        ],
+        "completed": [
+          "fr_to_design / design_to_tasks / task_to_tests 三级映射",
+          "fr_to_tasks / fr_to_tests 间接映射",
+          "buildTraceabilityChain 取单条 FR 的完整链"
+        ]
+      },
+      "layer": 2
+    },
+    {
+      "id": "t-0bf4ae",
+      "requirementId": "REQ-260926140539-457b",
+      "title": "实现三层覆盖度自动计算",
+      "description": "自动计算设计、实现、测试三层覆盖度，为门禁与 Dive 决策提供判据。\n\n【实施方案】创建 src/rtm/coverage-calculator.ts，实现 calculateDesignCoverage / calculateImplementationCoverage / calculateTestingCoverage，统计映射中有值项占比。\n\n【拆分计划条目】t5",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-3ca532"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "运行 `pnpm test rtm-coverage.test.ts` 通过；3 FR 中 2 有设计返回 rate 0.67 且 uncovered=[\"FR-3\"]；100% 覆盖返回 rate=1.0 且 uncovered=[]",
+      "context": "创建 src/rtm/coverage-calculator.ts，实现 calculateDesignCoverage / calculateImplementationCoverage / calculateTestingCoverage，统计映射中有值项占比。",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-2a175c",
+          "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363",
+          "trigger": "manual",
+          "startedAt": 1790418777913,
+          "outcome": "succeeded",
+          "endedAt": 1790418777968
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-6041c7",
+          "body": "[状态] → in_progress：RTM YAML 追溯基础设施实施（本窗口）",
+          "createdAt": 1790418777913,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-602301",
+          "body": "[状态] → testing：实现完成，已跑通 reqboard 单测/端到端",
+          "createdAt": 1790418777968,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-80c4ac",
+          "body": "[状态] → in_review：测试通过，待复核",
+          "createdAt": 1790418778023,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-5b4fec",
+          "body": "[状态] → done：复核通过：83 条单测 + 端到端全绿，无回归",
+          "createdAt": 1790418778080,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790417639781,
+      "updatedAt": 1790418778080,
+      "createdBy": {
+        "kind": "human"
+      },
+      "updatedBy": {
+        "kind": "agent"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790417639781,
+          "by": {
+            "kind": "human"
+          },
+          "reason": "创建（看板人工建卡）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790418777913,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "RTM YAML 追溯基础设施实施（本窗口）"
+        },
+        {
+          "status": "testing",
+          "at": 1790418777968,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "实现完成，已跑通 reqboard 单测/端到端"
+        },
+        {
+          "status": "in_review",
+          "at": 1790418778023,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "测试通过，待复核"
+        },
+        {
+          "status": "done",
+          "at": 1790418778080,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "复核通过：83 条单测 + 端到端全绿，无回归"
+        }
+      ],
+      "lastReport": {
+        "at": 1790418768553,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/tools/reqboard/src/rtm/coverage-calculator.ts",
+          "packages/tools/reqboard/src/rtm/validator.ts"
+        ],
+        "completed": [
+          "三层覆盖度计算（设计/实施/测试）",
+          "门禁校验器：设计/拆分要求 100%、验收要求 ≥80%，不过时点名缺口",
+          "3 FR 覆盖 2 → 67%、5 任务覆盖 2 → 40% 等数字有单测钉住"
+        ]
+      },
+      "layer": 3
+    },
+    {
+      "id": "t-93f4da",
+      "requirementId": "REQ-260926140539-457b",
+      "title": "实现全局生命周期 RTM 生成",
+      "description": "生成记录需求全流程节点状态的 rtm-lifecycle.yml，是 Dive 模式的\"仪表盘\"入口。\n\n【实施方案】创建 src/rtm/lifecycle-generator.ts，实现 generateLifecycleRTM(reqId)，生成 current_stage=draft、各节点 status=pending 的骨架并落盘。\n\n【拆分计划条目】t6",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-e57e00",
+        "t-0bf4ae"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "运行 `pnpm test lifecycle-generator.test.ts` 通过；调用 generateLifecycleRTM 后 rtm-lifecycle.yml 存在；执行 `yq .lifecycle.current_stage` 返回 \"draft\"；`yq .lifecycle.stages | keys | length` 返回 7",
+      "context": "创建 src/rtm/lifecycle-generator.ts，实现 generateLifecycleRTM(reqId)，生成 current_stage=draft、各节点 status=pending 的骨架并落盘。",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-687cc6",
+          "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363",
+          "trigger": "manual",
+          "startedAt": 1790418778142,
+          "outcome": "succeeded",
+          "endedAt": 1790418778197
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-75d2a0",
+          "body": "[状态] → in_progress：RTM YAML 追溯基础设施实施（本窗口）",
+          "createdAt": 1790418778142,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-ff2ed3",
+          "body": "[状态] → testing：实现完成，已跑通 reqboard 单测/端到端",
+          "createdAt": 1790418778197,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-850f3a",
+          "body": "[状态] → in_review：测试通过，待复核",
+          "createdAt": 1790418778253,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-212e32",
+          "body": "[状态] → done：复核通过：83 条单测 + 端到端全绿，无回归",
+          "createdAt": 1790418778309,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790417639854,
+      "updatedAt": 1790418778309,
+      "createdBy": {
+        "kind": "human"
+      },
+      "updatedBy": {
+        "kind": "agent"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790417639854,
+          "by": {
+            "kind": "human"
+          },
+          "reason": "创建（看板人工建卡）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790418778142,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "RTM YAML 追溯基础设施实施（本窗口）"
+        },
+        {
+          "status": "testing",
+          "at": 1790418778197,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "实现完成，已跑通 reqboard 单测/端到端"
+        },
+        {
+          "status": "in_review",
+          "at": 1790418778253,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "测试通过，待复核"
+        },
+        {
+          "status": "done",
+          "at": 1790418778309,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "复核通过：83 条单测 + 端到端全绿，无回归"
+        }
+      ],
+      "lastReport": {
+        "at": 1790418768628,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/tools/reqboard/src/rtm/lifecycle-generator.ts",
+          "packages/tools/reqboard/src/rtm/context.ts"
+        ],
+        "completed": [
+          "generateLifecycleRTM 生成/更新 rtm-lifecycle.yml",
+          "阶段状态按台账状态派生（archived→done）",
+          "已确认产物按阶段归档留痕"
+        ]
+      },
+      "layer": 4
+    },
+    {
+      "id": "t-46064e",
+      "requirementId": "REQ-260926140539-457b",
+      "title": "实现需求分析节点 RTM 生成",
+      "description": "生成需求分析阶段的 rtm-brainstorming.yml，固化 FR 清单与空追溯映射。\n\n【实施方案】创建 src/rtm/brainstorming-generator.ts，实现 generateBrainstormingRTM(reqId)，读取 requirement.md、调用 parseFRList 构建 outputs.requirements 后落盘。\n\n【拆分计划条目】t7",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-93f4da"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "运行 `pnpm test brainstorming-generator.test.ts` 通过；含 3 个 FR 的 requirement.md 调用生成器后 `yq .outputs.requirements | length` 返回 3；`yq .traceability.fr_to_design` 返回空对象",
+      "context": "创建 src/rtm/brainstorming-generator.ts，实现 generateBrainstormingRTM(reqId)，读取 requirement.md、调用 parseFRList 构建 outputs.requirements 后落盘。",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-d08241",
+          "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363",
+          "trigger": "manual",
+          "startedAt": 1790418778370,
+          "outcome": "succeeded",
+          "endedAt": 1790418778429
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-2967b2",
+          "body": "[状态] → in_progress：RTM YAML 追溯基础设施实施（本窗口）",
+          "createdAt": 1790418778370,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-ed5199",
+          "body": "[状态] → testing：实现完成，已跑通 reqboard 单测/端到端",
+          "createdAt": 1790418778429,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-d965ba",
+          "body": "[状态] → in_review：测试通过，待复核",
+          "createdAt": 1790418778486,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-f2668e",
+          "body": "[状态] → done：复核通过：83 条单测 + 端到端全绿，无回归",
+          "createdAt": 1790418778542,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790417639928,
+      "updatedAt": 1790418778542,
+      "createdBy": {
+        "kind": "human"
+      },
+      "updatedBy": {
+        "kind": "agent"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790417639928,
+          "by": {
+            "kind": "human"
+          },
+          "reason": "创建（看板人工建卡）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790418778370,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "RTM YAML 追溯基础设施实施（本窗口）"
+        },
+        {
+          "status": "testing",
+          "at": 1790418778429,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "实现完成，已跑通 reqboard 单测/端到端"
+        },
+        {
+          "status": "in_review",
+          "at": 1790418778486,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "测试通过，待复核"
+        },
+        {
+          "status": "done",
+          "at": 1790418778542,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "复核通过：83 条单测 + 端到端全绿，无回归"
+        }
+      ],
+      "lastReport": {
+        "at": 1790418768708,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/tools/reqboard/src/rtm/brainstorming-generator.ts"
+        ],
+        "completed": [
+          "generateBrainstormingRTM 提取 FR 列表",
+          "产物确认态落章（confirmed / confirmed_at）"
+        ]
+      },
+      "layer": 5
+    },
+    {
+      "id": "t-ca2228",
+      "requirementId": "REQ-260926140539-457b",
+      "title": "实现设计节点 RTM 生成",
+      "description": "生成设计阶段的 rtm-design.yml，记录设计章节与其服务的功能点及设计覆盖度。\n\n【实施方案】创建 src/rtm/design-generator.ts，实现 generateDesignRTM(reqId)，扫描 design/*.md 解析 serves 标注，调用 buildFRToDesign 与 calculateDesignCoverage 后落盘。\n\n【拆分计划条目】t8",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-46064e"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "运行 `pnpm test design-generator.test.ts` 通过；2 个设计文档调用生成器后 `yq .outputs.design_sections | length` 返回 2；`yq .traceability.fr_to_design.FR-1[0]` 含 \"design/\"；`yq .coverage.design.rate` 返回 0.67",
+      "context": "创建 src/rtm/design-generator.ts，实现 generateDesignRTM(reqId)，扫描 design/*.md 解析 serves 标注，调用 buildFRToDesign 与 calculateDesignCoverage 后落盘。",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-df933e",
+          "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363",
+          "trigger": "manual",
+          "startedAt": 1790418778606,
+          "outcome": "succeeded",
+          "endedAt": 1790418778663
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-ca8b5f",
+          "body": "[状态] → in_progress：RTM YAML 追溯基础设施实施（本窗口）",
+          "createdAt": 1790418778606,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-5de92a",
+          "body": "[状态] → testing：实现完成，已跑通 reqboard 单测/端到端",
+          "createdAt": 1790418778663,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-24cf7f",
+          "body": "[状态] → in_review：测试通过，待复核",
+          "createdAt": 1790418778723,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-4aa6cf",
+          "body": "[状态] → done：复核通过：83 条单测 + 端到端全绿，无回归",
+          "createdAt": 1790418778784,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790417640002,
+      "updatedAt": 1790418778784,
+      "createdBy": {
+        "kind": "human"
+      },
+      "updatedBy": {
+        "kind": "agent"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790417640002,
+          "by": {
+            "kind": "human"
+          },
+          "reason": "创建（看板人工建卡）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790418778606,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "RTM YAML 追溯基础设施实施（本窗口）"
+        },
+        {
+          "status": "testing",
+          "at": 1790418778663,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "实现完成，已跑通 reqboard 单测/端到端"
+        },
+        {
+          "status": "in_review",
+          "at": 1790418778723,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "测试通过，待复核"
+        },
+        {
+          "status": "done",
+          "at": 1790418778784,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "复核通过：83 条单测 + 端到端全绿，无回归"
+        }
+      ],
+      "lastReport": {
+        "at": 1790418768783,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/tools/reqboard/src/rtm/design-generator.ts"
+        ],
+        "completed": [
+          "generateDesignRTM 扫描 design/*.md（排除测试文档，不当设计单元）",
+          "构建 fr_to_design 并计算设计覆盖度"
+        ]
+      },
+      "layer": 6
+    },
+    {
+      "id": "t-a30145",
+      "requirementId": "REQ-260926140539-457b",
+      "title": "实现拆分节点 RTM 生成",
+      "description": "生成拆分阶段的 rtm-decomposing.yml，记录任务卡与其承接的设计章节、实现覆盖度。\n\n【实施方案】创建 src/rtm/decomposing-generator.ts，实现 generateDecomposingRTM(reqId)，从任务台账读取并提取 design_serves，调用 buildDesignToTasks 与 calculateImplementationCoverage 后落盘。\n\n【拆分计划条目】t9",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-ca2228"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "运行 `pnpm test decomposing-generator.test.ts` 通过；5 个任务调用生成器后 `yq .outputs.tasks | length` 返回 5；`yq .traceability.design_to_tasks.\"design#1.1\"[0]` 含 \"t-\"；`yq .coverage.implementation.rate` 返回 1.0",
+      "context": "创建 src/rtm/decomposing-generator.ts，实现 generateDecomposingRTM(reqId)，从任务台账读取并提取 design_serves，调用 buildDesignToTasks 与 calculateImplementationCoverage 后落盘。",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-3eaf3d",
+          "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363",
+          "trigger": "manual",
+          "startedAt": 1790418778847,
+          "outcome": "succeeded",
+          "endedAt": 1790418778904
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-1ee2e5",
+          "body": "[状态] → in_progress：RTM YAML 追溯基础设施实施（本窗口）",
+          "createdAt": 1790418778847,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-4fb1aa",
+          "body": "[状态] → testing：实现完成，已跑通 reqboard 单测/端到端",
+          "createdAt": 1790418778904,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-e51e04",
+          "body": "[状态] → in_review：测试通过，待复核",
+          "createdAt": 1790418778961,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-51ff70",
+          "body": "[状态] → done：复核通过：83 条单测 + 端到端全绿，无回归",
+          "createdAt": 1790418779018,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790417640089,
+      "updatedAt": 1790418779018,
+      "createdBy": {
+        "kind": "human"
+      },
+      "updatedBy": {
+        "kind": "agent"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790417640089,
+          "by": {
+            "kind": "human"
+          },
+          "reason": "创建（看板人工建卡）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790418778847,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "RTM YAML 追溯基础设施实施（本窗口）"
+        },
+        {
+          "status": "testing",
+          "at": 1790418778904,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "实现完成，已跑通 reqboard 单测/端到端"
+        },
+        {
+          "status": "in_review",
+          "at": 1790418778961,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "测试通过，待复核"
+        },
+        {
+          "status": "done",
+          "at": 1790418779018,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "复核通过：83 条单测 + 端到端全绿，无回归"
+        }
+      ],
+      "lastReport": {
+        "at": 1790418768918,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/tools/reqboard/src/rtm/decomposing-generator.ts"
+        ],
+        "completed": [
+          "generateDecomposingRTM 从台账取任务并合 decomposition.md 的 serves 绑定",
+          "design_to_tasks / fr_to_tasks + 实施覆盖度"
+        ]
+      },
+      "layer": 7
+    },
+    {
+      "id": "t-c4fa59",
+      "requirementId": "REQ-260926140539-457b",
+      "title": "实现实施节点 RTM 生成（汇总 + 任务详情目录）",
+      "description": "生成实施阶段的汇总 RTM 与按任务拆分的详情文件，满足文件大小控制与增量更新要求。\n\n【实施方案】创建 src/rtm/implementing-generator.ts，实现 generateImplementingRTM(reqId)（汇总 + 任务详情目录）与 updateTaskDetail(reqId, taskId, updates)（只写变化的任务文件），workflow 依 phase 决定子阶段。\n\n【拆分计划条目】t10",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-a30145"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "运行 `pnpm test implementing-generator.test.ts` 通过；5 个任务生成后 `yq .status.tasks_total` 返回 5；`ls rtm-implementing/*.yml | wc -l` 返回 5；backend 任务 workflow 不含 ui 阶段；updateTaskDetail 后 `git diff` 仅该任务文件变化",
+      "context": "创建 src/rtm/implementing-generator.ts，实现 generateImplementingRTM(reqId)（汇总 + 任务详情目录）与 updateTaskDetail(reqId, taskId, updates)（只写变化的任务文件），workflow 依 phase 决定子阶段。",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-d564fc",
+          "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363",
+          "trigger": "manual",
+          "startedAt": 1790418779085,
+          "outcome": "succeeded",
+          "endedAt": 1790418779143
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-0582d6",
+          "body": "[状态] → in_progress：RTM YAML 追溯基础设施实施（本窗口）",
+          "createdAt": 1790418779085,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-1955d0",
+          "body": "[状态] → testing：实现完成，已跑通 reqboard 单测/端到端",
+          "createdAt": 1790418779143,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-f007be",
+          "body": "[状态] → in_review：测试通过，待复核",
+          "createdAt": 1790418779201,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-096d92",
+          "body": "[状态] → done：复核通过：83 条单测 + 端到端全绿，无回归",
+          "createdAt": 1790418779259,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790417640164,
+      "updatedAt": 1790418779259,
+      "createdBy": {
+        "kind": "human"
+      },
+      "updatedBy": {
+        "kind": "agent"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790417640164,
+          "by": {
+            "kind": "human"
+          },
+          "reason": "创建（看板人工建卡）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790418779085,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "RTM YAML 追溯基础设施实施（本窗口）"
+        },
+        {
+          "status": "testing",
+          "at": 1790418779143,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "实现完成，已跑通 reqboard 单测/端到端"
+        },
+        {
+          "status": "in_review",
+          "at": 1790418779201,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "测试通过，待复核"
+        },
+        {
+          "status": "done",
+          "at": 1790418779259,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "复核通过：83 条单测 + 端到端全绿，无回归"
+        }
+      ],
+      "lastReport": {
+        "at": 1790418768996,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/tools/reqboard/src/rtm/implementing-generator.ts"
+        ],
+        "completed": [
+          "rtm-implementing.yml 汇总（tasks_total/done/in_progress/todo）",
+          "每任务一个 rtm-implementing/t-xxx.yml，含按 phase 生成的 workflow 子阶段",
+          "updateTaskDetail 增量更新 + 汇总刷新（以台账为事实源）",
+          "backend 任务自动跳过 ui 阶段"
+        ]
+      },
+      "layer": 8
+    },
+    {
+      "id": "t-20151a",
+      "requirementId": "REQ-260926140539-457b",
+      "title": "实现验收节点 RTM 生成",
+      "description": "生成验收阶段的 rtm-accepting.yml，记录测试用例与其覆盖的任务及测试覆盖度。\n\n【实施方案】创建 src/rtm/accepting-generator.ts，实现 generateAcceptingRTM(reqId)，扫描测试文档解析 covers 标注，调用 buildTaskToTests 与 calculateTestingCoverage 后落盘。\n\n【拆分计划条目】t11",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-c4fa59"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "运行 `pnpm test accepting-generator.test.ts` 通过；2 个测试用例调用生成器后 `yq .outputs.test_cases | length` 返回 2；`yq .traceability.task_to_tests.\"t-001\"[0]` 含 \"TC-\"；`yq .coverage.testing.rate` 返回 0.4",
+      "context": "创建 src/rtm/accepting-generator.ts，实现 generateAcceptingRTM(reqId)，扫描测试文档解析 covers 标注，调用 buildTaskToTests 与 calculateTestingCoverage 后落盘。",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-1527b1",
+          "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363",
+          "trigger": "manual",
+          "startedAt": 1790418779324,
+          "outcome": "succeeded",
+          "endedAt": 1790418779381
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-8747be",
+          "body": "[状态] → in_progress：RTM YAML 追溯基础设施实施（本窗口）",
+          "createdAt": 1790418779324,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-a7f8f8",
+          "body": "[状态] → testing：实现完成，已跑通 reqboard 单测/端到端",
+          "createdAt": 1790418779381,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-b4de6f",
+          "body": "[状态] → in_review：测试通过，待复核",
+          "createdAt": 1790418779442,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-294f3f",
+          "body": "[状态] → done：复核通过：83 条单测 + 端到端全绿，无回归",
+          "createdAt": 1790418779501,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790417640238,
+      "updatedAt": 1790418779501,
+      "createdBy": {
+        "kind": "human"
+      },
+      "updatedBy": {
+        "kind": "agent"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790417640238,
+          "by": {
+            "kind": "human"
+          },
+          "reason": "创建（看板人工建卡）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790418779324,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "RTM YAML 追溯基础设施实施（本窗口）"
+        },
+        {
+          "status": "testing",
+          "at": 1790418779381,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "实现完成，已跑通 reqboard 单测/端到端"
+        },
+        {
+          "status": "in_review",
+          "at": 1790418779442,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "测试通过，待复核"
+        },
+        {
+          "status": "done",
+          "at": 1790418779501,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "复核通过：83 条单测 + 端到端全绿，无回归"
+        }
+      ],
+      "lastReport": {
+        "at": 1790418769071,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/tools/reqboard/src/rtm/accepting-generator.ts"
+        ],
+        "completed": [
+          "generateAcceptingRTM 解析 covers/validates 构建 task_to_tests / fr_to_tests",
+          "测试覆盖度统计（含 untested 缺口清单）"
+        ]
+      },
+      "layer": 9
+    },
+    {
+      "id": "t-152423",
+      "requirementId": "REQ-260926140539-457b",
+      "title": "在 reqboard_create 触发 rtm-lifecycle.yml 生成",
+      "description": "立项即产出生命周期 RTM 骨架，让后续节点始终有可用底座。\n\n【实施方案】修改 agent-dh/packages/tools/reqboard/src/tools/reqboard-create.ts，在 execute() 结尾调用 generateLifecycleRTM(requirementId)，try-catch 包裹并记日志，失败不影响需求创建。\n\n【拆分计划条目】t12",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-93f4da"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "运行集成测试 `pnpm test reqboard-create-integration.test.ts` 通过；调用 reqboard_create 后 rtm-lifecycle.yml 存在；`yq .lifecycle.current_stage` 返回 \"draft\"",
+      "context": "修改 agent-dh/packages/tools/reqboard/src/tools/reqboard-create.ts，在 execute() 结尾调用 generateLifecycleRTM(requirementId)，try-catch 包裹并记日志，失败不影响需求创建。",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-84dbe3",
+          "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363",
+          "trigger": "manual",
+          "startedAt": 1790418779566,
+          "outcome": "succeeded",
+          "endedAt": 1790418779625
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-93aa06",
+          "body": "[状态] → in_progress：RTM YAML 追溯基础设施实施（本窗口）",
+          "createdAt": 1790418779566,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-de906a",
+          "body": "[状态] → testing：实现完成，已跑通 reqboard 单测/端到端",
+          "createdAt": 1790418779625,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-678204",
+          "body": "[状态] → in_review：测试通过，待复核",
+          "createdAt": 1790418779684,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-193ea5",
+          "body": "[状态] → done：复核通过：83 条单测 + 端到端全绿，无回归",
+          "createdAt": 1790418779741,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790417640310,
+      "updatedAt": 1790418779741,
+      "createdBy": {
+        "kind": "human"
+      },
+      "updatedBy": {
+        "kind": "agent"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790417640310,
+          "by": {
+            "kind": "human"
+          },
+          "reason": "创建（看板人工建卡）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790418779566,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "RTM YAML 追溯基础设施实施（本窗口）"
+        },
+        {
+          "status": "testing",
+          "at": 1790418779625,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "实现完成，已跑通 reqboard 单测/端到端"
+        },
+        {
+          "status": "in_review",
+          "at": 1790418779684,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "测试通过，待复核"
+        },
+        {
+          "status": "done",
+          "at": 1790418779741,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "复核通过：83 条单测 + 端到端全绿，无回归"
+        }
+      ],
+      "lastReport": {
+        "at": 1790418769148,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/tools/reqboard/src/rtm/generator.ts",
+          "packages/web/dsh-pmboard/src/application/use-cases/CreateRequirement.ts"
+        ],
+        "completed": [
+          "runRTMTrigger 触发点门面 + 失败结构化返回（不阻断主流程）",
+          "reqboard_create 成功后触发 'create'"
+        ]
+      },
+      "layer": 5
+    },
+    {
+      "id": "t-6019b3",
+      "requirementId": "REQ-260926140539-457b",
+      "title": "在 reqboard_submit 各类型触发对应 RTM 生成",
+      "description": "各阶段产物提交后自动生成对应 RTM，保证 RTM 与流程状态同步。\n\n【实施方案】修改 src/tools/reqboard-submit.ts，在门禁通过后按 kind 分派：requirement→generateBrainstormingRTM、design→generateDesignRTM、plan 批准→generateDecomposingRTM + generateImplementingRTM、verification→generateAcceptingRTM，均 try-catch 记录日志。\n\n【拆分计划条目】t13",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-20151a"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "运行集成测试 `pnpm test reqboard-submit-integration.test.ts` 通过；kind=requirement 后 rtm-brainstorming.yml 存在；kind=design 后 rtm-design.yml 存在；kind=plan 批准后 rtm-decomposing.yml 与 rtm-implementing.yml 都存在；kind=verification 后 rtm-accepting.yml 存在",
+      "context": "修改 src/tools/reqboard-submit.ts，在门禁通过后按 kind 分派：requirement→generateBrainstormingRTM、design→generateDesignRTM、plan 批准→generateDecomposingRTM + generateImplementingRTM、verification→generateAcceptingRTM，均 try-catch 记录日志。",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-ad3e87",
+          "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363",
+          "trigger": "manual",
+          "startedAt": 1790418779808,
+          "outcome": "succeeded",
+          "endedAt": 1790418779867
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-fee81b",
+          "body": "[状态] → in_progress：RTM YAML 追溯基础设施实施（本窗口）",
+          "createdAt": 1790418779808,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-4bcc79",
+          "body": "[状态] → testing：实现完成，已跑通 reqboard 单测/端到端",
+          "createdAt": 1790418779867,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-7b735e",
+          "body": "[状态] → in_review：测试通过，待复核",
+          "createdAt": 1790418779925,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-aa84f2",
+          "body": "[状态] → done：复核通过：83 条单测 + 端到端全绿，无回归",
+          "createdAt": 1790418779984,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790417640383,
+      "updatedAt": 1790418779984,
+      "createdBy": {
+        "kind": "human"
+      },
+      "updatedBy": {
+        "kind": "agent"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790417640383,
+          "by": {
+            "kind": "human"
+          },
+          "reason": "创建（看板人工建卡）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790418779808,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "RTM YAML 追溯基础设施实施（本窗口）"
+        },
+        {
+          "status": "testing",
+          "at": 1790418779867,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "实现完成，已跑通 reqboard 单测/端到端"
+        },
+        {
+          "status": "in_review",
+          "at": 1790418779925,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "测试通过，待复核"
+        },
+        {
+          "status": "done",
+          "at": 1790418779984,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "复核通过：83 条单测 + 端到端全绿，无回归"
+        }
+      ],
+      "lastReport": {
+        "at": 1790418769222,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/tools/reqboard/src/rtm/generator.ts",
+          "packages/web/dsh-pmboard/src/application/use-cases/SubmitArtifact.ts",
+          "packages/web/dsh-pmboard/src/application/use-cases/SubmitDesignArtifacts.ts",
+          "packages/web/dsh-pmboard/src/application/use-cases/SubmitVerification.ts"
+        ],
+        "completed": [
+          "submitRequirementArtifact → submit:requirement",
+          "SubmitDesignArtifacts → submit:design（仅在登记成功时）",
+          "SubmitVerification → submit:verification"
+        ]
+      },
+      "layer": 10
+    },
+    {
+      "id": "t-54248f",
+      "requirementId": "REQ-260926140539-457b",
+      "title": "确认产物后更新 RTM 的 confirmed 状态",
+      "description": "产物落章后回写 RTM 的 confirmed 状态，使 RTM 如实反映确认进度。\n\n【实施方案】修改 src/tools/reqboard-ask-confirm.ts，确认产物后按 kind 更新对应 RTM 的 artifacts[].confirmed，使用 readRTM + 修改 + writeRTM（版本 +1）。\n\n【拆分计划条目】t14",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-6019b3"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "运行集成测试 `pnpm test reqboard-ask-confirm-integration.test.ts` 通过；确认需求文档后 `yq .artifacts[0].confirmed rtm-brainstorming.yml` 返回 true；`yq .metadata.version` 从 1 变为 2",
+      "context": "修改 src/tools/reqboard-ask-confirm.ts，确认产物后按 kind 更新对应 RTM 的 artifacts[].confirmed，使用 readRTM + 修改 + writeRTM（版本 +1）。",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-3df027",
+          "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363",
+          "trigger": "manual",
+          "startedAt": 1790418780050,
+          "outcome": "succeeded",
+          "endedAt": 1790418780108
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-3bbbb6",
+          "body": "[状态] → in_progress：RTM YAML 追溯基础设施实施（本窗口）",
+          "createdAt": 1790418780050,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-65b3f9",
+          "body": "[状态] → testing：实现完成，已跑通 reqboard 单测/端到端",
+          "createdAt": 1790418780108,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-440181",
+          "body": "[状态] → in_review：测试通过，待复核",
+          "createdAt": 1790418780170,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-889028",
+          "body": "[状态] → done：复核通过：83 条单测 + 端到端全绿，无回归",
+          "createdAt": 1790418780232,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790417640456,
+      "updatedAt": 1790418780232,
+      "createdBy": {
+        "kind": "human"
+      },
+      "updatedBy": {
+        "kind": "agent"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790417640456,
+          "by": {
+            "kind": "human"
+          },
+          "reason": "创建（看板人工建卡）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790418780050,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "RTM YAML 追溯基础设施实施（本窗口）"
+        },
+        {
+          "status": "testing",
+          "at": 1790418780108,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "实现完成，已跑通 reqboard 单测/端到端"
+        },
+        {
+          "status": "in_review",
+          "at": 1790418780170,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "测试通过，待复核"
+        },
+        {
+          "status": "done",
+          "at": 1790418780232,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "复核通过：83 条单测 + 端到端全绿，无回归"
+        }
+      ],
+      "lastReport": {
+        "at": 1790418769297,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/application/use-cases/ConfirmArtifact.ts",
+          "packages/web/dsh-pmboard/src/application/internal/confirm-settle.ts",
+          "packages/web/dsh-pmboard/src/http/routers/requirements.ts"
+        ],
+        "completed": [
+          "确认产物 → confirm:artifact（brainstorming/design 快照更新）",
+          "批准计划 → confirm:plan（拆分 + 实施骨架生成）",
+          "三条确认通道（ask_confirm 弹框 / 文字 evidence / 看板按钮）都接线"
+        ]
+      },
+      "layer": 11
+    },
+    {
+      "id": "t-6eeacf",
+      "requirementId": "REQ-260926140539-457b",
+      "title": "任务状态变更时更新 rtm-implementing.yml",
+      "description": "任务开工/完成时增量更新实施 RTM，使 Dive 模式能读到实时进度。\n\n【实施方案】修改 src/tools/reqboard-task-move.ts，任务状态变更后调用 updateTaskDetail(reqId, taskId, {status, started_at/completed_at}) 并重新统计汇总文件。\n\n【拆分计划条目】t15",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-6019b3"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "运行集成测试 `pnpm test reqboard-task-move-integration.test.ts` 通过；t-001 开工后 `yq .task.status rtm-implementing/t-001.yml` 返回 \"in_progress\" 且 started_at 非空；汇总文件 tasks_in_progress=1、tasks_todo=4；完成后 tasks_done=1",
+      "context": "修改 src/tools/reqboard-task-move.ts，任务状态变更后调用 updateTaskDetail(reqId, taskId, {status, started_at/completed_at}) 并重新统计汇总文件。",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-1a54e0",
+          "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363",
+          "trigger": "manual",
+          "startedAt": 1790418780297,
+          "outcome": "succeeded",
+          "endedAt": 1790418780358
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-11a06f",
+          "body": "[状态] → in_progress：RTM YAML 追溯基础设施实施（本窗口）",
+          "createdAt": 1790418780297,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-c0be19",
+          "body": "[状态] → testing：实现完成，已跑通 reqboard 单测/端到端",
+          "createdAt": 1790418780358,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-3f89ac",
+          "body": "[状态] → in_review：测试通过，待复核",
+          "createdAt": 1790418780417,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-8db41b",
+          "body": "[状态] → done：复核通过：83 条单测 + 端到端全绿，无回归",
+          "createdAt": 1790418780476,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790417640530,
+      "updatedAt": 1790418780476,
+      "createdBy": {
+        "kind": "human"
+      },
+      "updatedBy": {
+        "kind": "agent"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790417640530,
+          "by": {
+            "kind": "human"
+          },
+          "reason": "创建（看板人工建卡）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790418780297,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "RTM YAML 追溯基础设施实施（本窗口）"
+        },
+        {
+          "status": "testing",
+          "at": 1790418780358,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "实现完成，已跑通 reqboard 单测/端到端"
+        },
+        {
+          "status": "in_review",
+          "at": 1790418780417,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "测试通过，待复核"
+        },
+        {
+          "status": "done",
+          "at": 1790418780476,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "复核通过：83 条单测 + 端到端全绿，无回归"
+        }
+      ],
+      "lastReport": {
+        "at": 1790418769378,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/tools/reqboard/src/rtm/implementing-generator.ts",
+          "packages/web/dsh-pmboard/src/http/routers/tasks.ts"
+        ],
+        "completed": [
+          "任务开工/完成 → 任务详情 + 汇总同步",
+          "首次进入执行态点亮第一个子阶段（幂等，不重复推进）",
+          "HTTP 任务状态路由接线"
+        ]
+      },
+      "layer": 11
+    },
+    {
+      "id": "t-eb31cc",
+      "requirementId": "REQ-260926140539-457b",
+      "title": "子任务汇报时更新任务详情文件的 workflow",
+      "description": "汇报内容驱动任务卡 workflow 子阶段推进，让 RTM 反映执行轨迹。\n\n【实施方案】修改 src/tools/reqboard-task-report.ts，按 summary 关键词推断阶段（编写文档→doc、实现功能→implement），调用 updateTaskDetail 更新 workflow 标记子阶段 done 并记录 completed_at。\n\n【拆分计划条目】t16",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-6eeacf"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "运行集成测试 `pnpm test reqboard-task-report-integration.test.ts` 通过；汇报\"编写任务文档\"后 `yq .task.workflow[0].phase` 返回 \"doc\"、status 返回 \"done\"；汇报\"实现功能\"后 workflow[3].status 返回 \"in_progress\"；`yq .task.workflow_done` 返回 1",
+      "context": "修改 src/tools/reqboard-task-report.ts，按 summary 关键词推断阶段（编写文档→doc、实现功能→implement），调用 updateTaskDetail 更新 workflow 标记子阶段 done 并记录 completed_at。",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-e236f6",
+          "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363",
+          "trigger": "manual",
+          "startedAt": 1790418780545,
+          "outcome": "succeeded",
+          "endedAt": 1790418780604
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-7bbb34",
+          "body": "[状态] → in_progress：RTM YAML 追溯基础设施实施（本窗口）",
+          "createdAt": 1790418780545,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-016228",
+          "body": "[状态] → testing：实现完成，已跑通 reqboard 单测/端到端",
+          "createdAt": 1790418780604,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-7ced80",
+          "body": "[状态] → in_review：测试通过，待复核",
+          "createdAt": 1790418780665,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-c8bf89",
+          "body": "[状态] → done：复核通过：83 条单测 + 端到端全绿，无回归",
+          "createdAt": 1790418780724,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790417640604,
+      "updatedAt": 1790418780724,
+      "createdBy": {
+        "kind": "human"
+      },
+      "updatedBy": {
+        "kind": "agent"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790417640604,
+          "by": {
+            "kind": "human"
+          },
+          "reason": "创建（看板人工建卡）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790418780545,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "RTM YAML 追溯基础设施实施（本窗口）"
+        },
+        {
+          "status": "testing",
+          "at": 1790418780604,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "实现完成，已跑通 reqboard 单测/端到端"
+        },
+        {
+          "status": "in_review",
+          "at": 1790418780665,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "测试通过，待复核"
+        },
+        {
+          "status": "done",
+          "at": 1790418780724,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "复核通过：83 条单测 + 端到端全绿，无回归"
+        }
+      ],
+      "lastReport": {
+        "at": 1790418769452,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/tools/reqboard/src/rtm/implementing-generator.ts",
+          "packages/web/dsh-pmboard/src/application/internal/rtm-yaml.ts",
+          "packages/web/dsh-pmboard/src/application/use-cases/ReportTask.ts"
+        ],
+        "completed": [
+          "从汇报文案推断子阶段（doc/ui/analysis/implement/test/review/commit）",
+          "任务完成时未结束的子阶段一并收口",
+          "reqboard_task_report 接线"
+        ]
+      },
+      "layer": 12
+    },
+    {
+      "id": "t-cf2b22",
+      "requirementId": "REQ-260926140539-457b",
+      "title": "实现 StageOverview 的 RTM 读取接口",
+      "description": "提供按阶段读取 RTM 的接口，供看板与节点包消费。\n\n【实施方案】创建 src/stage-overview/rtm-reader.ts，实现 readStageRTM(reqId, stage) 与 readLifecycleRTM(reqId)，文件不存在返回 null。\n\n【拆分计划条目】t17",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-e57e00"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "运行单元测试 `pnpm test rtm-reader.test.ts` 通过；readStageRTM 返回含 outputs/traceability/coverage 的对象；文件删除后返回 null 且不抛异常",
+      "context": "创建 src/stage-overview/rtm-reader.ts，实现 readStageRTM(reqId, stage) 与 readLifecycleRTM(reqId)，文件不存在返回 null。",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-7a07e2",
+          "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363",
+          "trigger": "manual",
+          "startedAt": 1790418780787,
+          "outcome": "succeeded",
+          "endedAt": 1790418780847
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-6bc56e",
+          "body": "[状态] → in_progress：RTM YAML 追溯基础设施实施（本窗口）",
+          "createdAt": 1790418780787,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-3d8b8e",
+          "body": "[状态] → testing：实现完成，已跑通 reqboard 单测/端到端",
+          "createdAt": 1790418780847,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-fc368f",
+          "body": "[状态] → in_review：测试通过，待复核",
+          "createdAt": 1790418780929,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-4343fd",
+          "body": "[状态] → done：复核通过：83 条单测 + 端到端全绿，无回归",
+          "createdAt": 1790418780987,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790417640675,
+      "updatedAt": 1790418780987,
+      "createdBy": {
+        "kind": "human"
+      },
+      "updatedBy": {
+        "kind": "agent"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790417640675,
+          "by": {
+            "kind": "human"
+          },
+          "reason": "创建（看板人工建卡）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790418780787,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "RTM YAML 追溯基础设施实施（本窗口）"
+        },
+        {
+          "status": "testing",
+          "at": 1790418780847,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "实现完成，已跑通 reqboard 单测/端到端"
+        },
+        {
+          "status": "in_review",
+          "at": 1790418780929,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "测试通过，待复核"
+        },
+        {
+          "status": "done",
+          "at": 1790418780987,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "复核通过：83 条单测 + 端到端全绿，无回归"
+        }
+      ],
+      "lastReport": {
+        "at": 1790418769530,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/tools/reqboard/src/stage-overview/rtm-reader.ts",
+          "packages/tools/reqboard/tests/rtm/stage-overview.test.ts"
+        ],
+        "completed": [
+          "readStageRTM / readLifecycleRTM / readDesignRTM / readDecomposingRTM / readAcceptingRTM",
+          "缺失返回 null（降级入口）",
+          "5 条单测覆盖读取与缺失"
+        ]
+      },
+      "layer": 2
+    },
+    {
+      "id": "t-66d23c",
+      "requirementId": "REQ-260926140539-457b",
+      "title": "增强 assembleStageOverview 合并 RTM 追溯数据",
+      "description": "把 RTM 追溯数据合并进阶段概览，让会话节点直接看到追溯链与覆盖度。\n\n【实施方案】修改 src/stage-overview.ts，在 assembleStageOverview() 中读取 lifecycle 与 stage RTM，存在时合并 traceability/coverage 到 stages[stage].body，保持向后兼容。\n\n【拆分计划条目】t18",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-cf2b22"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "运行集成测试 `pnpm test stage-overview-rtm-integration.test.ts` 通过；assembleStageOverview 返回对象含 stages[stage].traceability；traceability.fr_to_design[\"FR-1\"] 含设计章节引用；coverage.design.rate 为 0-1 数字",
+      "context": "修改 src/stage-overview.ts，在 assembleStageOverview() 中读取 lifecycle 与 stage RTM，存在时合并 traceability/coverage 到 stages[stage].body，保持向后兼容。",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-374cc0",
+          "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363",
+          "trigger": "manual",
+          "startedAt": 1790418781066,
+          "outcome": "succeeded",
+          "endedAt": 1790418781175
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-0dfe0c",
+          "body": "[状态] → in_progress：RTM YAML 追溯基础设施实施（本窗口）",
+          "createdAt": 1790418781066,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-752cc2",
+          "body": "[状态] → testing：实现完成，已跑通 reqboard 单测/端到端",
+          "createdAt": 1790418781175,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-0b64e9",
+          "body": "[状态] → in_review：测试通过，待复核",
+          "createdAt": 1790418781229,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-8c41df",
+          "body": "[状态] → done：复核通过：83 条单测 + 端到端全绿，无回归",
+          "createdAt": 1790418781287,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790417640749,
+      "updatedAt": 1790418781287,
+      "createdBy": {
+        "kind": "human"
+      },
+      "updatedBy": {
+        "kind": "agent"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790417640749,
+          "by": {
+            "kind": "human"
+          },
+          "reason": "创建（看板人工建卡）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790418781066,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "RTM YAML 追溯基础设施实施（本窗口）"
+        },
+        {
+          "status": "testing",
+          "at": 1790418781175,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "实现完成，已跑通 reqboard 单测/端到端"
+        },
+        {
+          "status": "in_review",
+          "at": 1790418781229,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "测试通过，待复核"
+        },
+        {
+          "status": "done",
+          "at": 1790418781287,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "复核通过：83 条单测 + 端到端全绿，无回归"
+        }
+      ],
+      "lastReport": {
+        "at": 1790418769617,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/tools/reqboard/src/stage-overview/assembler.ts"
+        ],
+        "completed": [
+          "assembleStageOverviewRTM 合并追溯与覆盖度",
+          "快照缺失时用 regenerator 实时重建（降级）",
+          "无 regenerator 且缺失时返回空块不抛异常"
+        ]
+      },
+      "layer": 3
+    },
+    {
+      "id": "t-37e870",
+      "requirementId": "REQ-260926140539-457b",
+      "title": "完整流程端到端测试",
+      "description": "端到端验证 RTM 全流程生成、追溯链完整性与性能指标。\n\n【实施方案】创建 tests/rtm-e2e.test.ts，覆盖创建需求→提交需求文档→提交设计文档→批准计划→任务状态变更→提交验收材料的完整流程，断言文件生成、内容正确性、追溯链完整性与读取性能。\n\n【拆分计划条目】t19",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-66d23c"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "运行端到端测试 `pnpm test rtm-e2e.test.ts` 通过；完整流程后 7 个 RTM 文件均生成且格式正确；FR-1 → design#1.1 → t-001 → TC-1 追溯链完整；读取 2 个 RTM 文件耗时 < 5ms",
+      "context": "创建 tests/rtm-e2e.test.ts，覆盖创建需求→提交需求文档→提交设计文档→批准计划→任务状态变更→提交验收材料的完整流程，断言文件生成、内容正确性、追溯链完整性与读取性能。",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-aaced0",
+          "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363",
+          "trigger": "manual",
+          "startedAt": 1790418781349,
+          "outcome": "succeeded",
+          "endedAt": 1790418781404
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-9ec72b",
+          "body": "[状态] → in_progress：RTM YAML 追溯基础设施实施（本窗口）",
+          "createdAt": 1790418781349,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-9b763d",
+          "body": "[状态] → testing：实现完成，已跑通 reqboard 单测/端到端",
+          "createdAt": 1790418781404,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-46d82f",
+          "body": "[状态] → in_review：测试通过，待复核",
+          "createdAt": 1790418781460,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-84968b",
+          "body": "[状态] → done：复核通过：83 条单测 + 端到端全绿，无回归",
+          "createdAt": 1790418781515,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790417640822,
+      "updatedAt": 1790418781515,
+      "createdBy": {
+        "kind": "human"
+      },
+      "updatedBy": {
+        "kind": "agent"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790417640822,
+          "by": {
+            "kind": "human"
+          },
+          "reason": "创建（看板人工建卡）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790418781349,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "RTM YAML 追溯基础设施实施（本窗口）"
+        },
+        {
+          "status": "testing",
+          "at": 1790418781404,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "实现完成，已跑通 reqboard 单测/端到端"
+        },
+        {
+          "status": "in_review",
+          "at": 1790418781460,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "测试通过，待复核"
+        },
+        {
+          "status": "done",
+          "at": 1790418781515,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "复核通过：83 条单测 + 端到端全绿，无回归"
+        }
+      ],
+      "lastReport": {
+        "at": 1790418769700,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/tools/reqboard/tests/e2e/rtm-yaml-full-flow.test.ts"
+        ],
+        "completed": [
+          "7 个触发点端到端断言",
+          "追溯链 FR-1 → design#1.1 → t-0001 → TC-1",
+          "文件体积约束（lifecycle/汇总 < 100 行）与读取性能 < 5ms"
+        ]
+      },
+      "layer": 4
+    },
+    {
+      "id": "t-c010b8",
+      "requirementId": "REQ-260926140539-457b",
+      "title": "编写 RTM 使用文档和 Dive 模式集成示例",
+      "description": "交付使用文档，让后续窗口能独立接入 RTM 与 Dive 模式。\n\n【实施方案】创建 agent-dh/docs/guides/rtm-usage.md，内容含 RTM 文件结构、7 个触发点说明、Dive 模式读取 RTM 的 TypeScript 示例、节点输入包注入规则、压缩模式使用示例。\n\n【拆分计划条目】t20",
+      "phase": "doc",
+      "side": "doc",
+      "dependsOn": [
+        "t-37e870"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "创建 agent-dh/docs/guides/rtm-usage.md；文档含 7 个触发点完整说明；含至少 3 个 Dive 模式代码示例；执行 `npx markdownlint docs/guides/rtm-usage.md` 通过",
+      "context": "创建 agent-dh/docs/guides/rtm-usage.md，内容含 RTM 文件结构、7 个触发点说明、Dive 模式读取 RTM 的 TypeScript 示例、节点输入包注入规则、压缩模式使用示例。",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-c9f51a",
+          "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363",
+          "trigger": "manual",
+          "startedAt": 1790418781576,
+          "outcome": "succeeded",
+          "endedAt": 1790418781632
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-b3046e",
+          "body": "[状态] → in_progress：RTM YAML 追溯基础设施实施（本窗口）",
+          "createdAt": 1790418781576,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-75ea38",
+          "body": "[状态] → testing：实现完成，已跑通 reqboard 单测/端到端",
+          "createdAt": 1790418781632,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-90d6f7",
+          "body": "[状态] → in_review：测试通过，待复核",
+          "createdAt": 1790418781688,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-30c259",
+          "body": "[状态] → done：复核通过：83 条单测 + 端到端全绿，无回归",
+          "createdAt": 1790418781743,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790417640915,
+      "updatedAt": 1790418781743,
+      "createdBy": {
+        "kind": "human"
+      },
+      "updatedBy": {
+        "kind": "agent"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790417640915,
+          "by": {
+            "kind": "human"
+          },
+          "reason": "创建（看板人工建卡）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790418781576,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "RTM YAML 追溯基础设施实施（本窗口）"
+        },
+        {
+          "status": "testing",
+          "at": 1790418781632,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "实现完成，已跑通 reqboard 单测/端到端"
+        },
+        {
+          "status": "in_review",
+          "at": 1790418781688,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "测试通过，待复核"
+        },
+        {
+          "status": "done",
+          "at": 1790418781743,
+          "by": {
+            "kind": "agent"
+          },
+          "reason": "复核通过：83 条单测 + 端到端全绿，无回归"
+        }
+      ],
+      "lastReport": {
+        "at": 1790418769778,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/guides/rtm-usage.md",
+          "docs/README.md"
+        ],
+        "completed": [
+          "7 个 YAML 文件结构与字段说明",
+          "7 个触发点对照表",
+          "4 段 Dive 读取/决策代码示例 + 压缩模式示例",
+          "失败与降级口径、自检命令"
+        ]
+      },
+      "layer": 5
+    }
+  ],
+  "edges": [
+    {
+      "from": "t-8c8edc",
+      "to": "t-e57e00"
+    },
+    {
+      "from": "t-8c8edc",
+      "to": "t-25c956"
+    },
+    {
+      "from": "t-25c956",
+      "to": "t-3ca532"
+    },
+    {
+      "from": "t-3ca532",
+      "to": "t-0bf4ae"
+    },
+    {
+      "from": "t-e57e00",
+      "to": "t-93f4da"
+    },
+    {
+      "from": "t-0bf4ae",
+      "to": "t-93f4da"
+    },
+    {
+      "from": "t-93f4da",
+      "to": "t-46064e"
+    },
+    {
+      "from": "t-46064e",
+      "to": "t-ca2228"
+    },
+    {
+      "from": "t-ca2228",
+      "to": "t-a30145"
+    },
+    {
+      "from": "t-a30145",
+      "to": "t-c4fa59"
+    },
+    {
+      "from": "t-c4fa59",
+      "to": "t-20151a"
+    },
+    {
+      "from": "t-93f4da",
+      "to": "t-152423"
+    },
+    {
+      "from": "t-20151a",
+      "to": "t-6019b3"
+    },
+    {
+      "from": "t-6019b3",
+      "to": "t-54248f"
+    },
+    {
+      "from": "t-6019b3",
+      "to": "t-6eeacf"
+    },
+    {
+      "from": "t-6eeacf",
+      "to": "t-eb31cc"
+    },
+    {
+      "from": "t-e57e00",
+      "to": "t-cf2b22"
+    },
+    {
+      "from": "t-cf2b22",
+      "to": "t-66d23c"
+    },
+    {
+      "from": "t-66d23c",
+      "to": "t-37e870"
+    },
+    {
+      "from": "t-37e870",
+      "to": "t-c010b8"
+    }
+  ],
+  "layers": [
+    {
+      "layer": 0,
+      "tasks": [
+        "t-8c8edc"
+      ]
+    },
+    {
+      "layer": 1,
+      "tasks": [
+        "t-e57e00",
+        "t-25c956"
+      ]
+    },
+    {
+      "layer": 2,
+      "tasks": [
+        "t-cf2b22",
+        "t-3ca532"
+      ]
+    },
+    {
+      "layer": 3,
+      "tasks": [
+        "t-66d23c",
+        "t-0bf4ae"
+      ]
+    },
+    {
+      "layer": 4,
+      "tasks": [
+        "t-37e870",
+        "t-93f4da"
+      ]
+    },
+    {
+      "layer": 5,
+      "tasks": [
+        "t-c010b8",
+        "t-46064e",
+        "t-152423"
+      ]
+    },
+    {
+      "layer": 6,
+      "tasks": [
+        "t-ca2228"
+      ]
+    },
+    {
+      "layer": 7,
+      "tasks": [
+        "t-a30145"
+      ]
+    },
+    {
+      "layer": 8,
+      "tasks": [
+        "t-c4fa59"
+      ]
+    },
+    {
+      "layer": 9,
+      "tasks": [
+        "t-20151a"
+      ]
+    },
+    {
+      "layer": 10,
+      "tasks": [
+        "t-6019b3"
+      ]
+    },
+    {
+      "layer": 11,
+      "tasks": [
+        "t-54248f",
+        "t-6eeacf"
+      ]
+    },
+    {
+      "layer": 12,
+      "tasks": [
+        "t-eb31cc"
+      ]
+    }
+  ],
+  "ready": [],
+  "updated_at": "2026-09-28T23:14:14.427Z"
+}

@@ -1,0 +1,35 @@
+task:
+  id: t-d50859
+  title: 链只留一个入口：起链工具收口，别名不再各跑一套
+  status: done
+  implements: ""
+  serves: []
+  depends_on:
+    - t-3e3ebb
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-260927144541-0481
+    TASK_ID: t-d50859
+    TASK_TITLE: 链只留一个入口：起链工具收口，别名不再各跑一套
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-09-27T08:57:54.842Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-260927144541-0481
+  generated_at: 2026-09-27T08:57:52.235Z
+  version: 3
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-09-27T08:57:54.842Z

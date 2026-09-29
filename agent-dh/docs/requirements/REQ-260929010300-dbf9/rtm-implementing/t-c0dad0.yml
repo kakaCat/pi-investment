@@ -1,0 +1,38 @@
+task:
+  id: t-c0dad0
+  title: 会话面板两处 DAG 块改调同一构建函数·研发
+  status: done
+  implements: |-
+    改 packages/web/dsh-pmboard/src/client/node-panel.ts：renderDecomposingInfo 的「📊 DAG 层级」块与 renderImplViews 的 [DAG] 页签块，从 renderDag(...) 改为 buildDagCanvas(tasks, PANEL_DAG_CONTAINER_ID, PANEL_DAG_CANVAS_ID)（自 views/dag-view.ts import）；renderDag 保留函数、不再有调用点。
+
+    [子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要
+  serves: []
+  depends_on:
+    - t-d03789
+  phase: implement
+  side: frontend
+  workflow_params:
+    REQ_ID: REQ-260929010300-dbf9
+    TASK_ID: t-c0dad0
+    TASK_TITLE: 会话面板两处 DAG 块改调同一构建函数·研发
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: frontend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-09-28T18:19:39.050Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-260929010300-dbf9
+  generated_at: 2026-09-28T18:19:39.050Z
+  version: 2
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-09-28T18:19:39.050Z

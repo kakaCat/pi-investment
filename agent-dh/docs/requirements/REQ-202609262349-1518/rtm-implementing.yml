@@ -2,86 +2,86 @@ metadata:
   stage: implementing
   requirement_id: REQ-202609262349-1518
   generated_at: 2026-09-26T16:29:23.500Z
-  version: 16
+  version: 72
   generated_by: dsh-pmboard
   detail_dir: rtm-implementing/
   detail_count: 14
-  last_updated: 2026-09-27T01:36:07.244Z
+  last_updated: 2026-09-27T03:21:53.969Z
 inputs:
   tasks:
     - id: t-9d53f4
       title: 扩展台账数据模型
-      status: todo
+      status: done
     - id: t-3067d0
       title: 台账数据迁移
-      status: todo
+      status: done
     - id: t-799c20
       title: 文档标注解析器
-      status: todo
+      status: done
     - id: t-51e360
       title: 追溯关系构建器
-      status: todo
+      status: done
     - id: t-09dcfc
       title: 覆盖度计算器
-      status: todo
+      status: done
     - id: t-0de514
       title: 覆盖度门禁
-      status: todo
+      status: done
     - id: t-8a2918
       title: decomposing 阶段 RTM 生成
-      status: todo
+      status: done
     - id: t-052ac0
       title: implementing 阶段 RTM 生成
-      status: todo
+      status: done
     - id: t-7d6e13
       title: accepting 阶段 RTM 生成
-      status: todo
+      status: done
     - id: t-bbf915
       title: RTM 快速读取接口
-      status: todo
+      status: done
     - id: t-67e3e4
       title: StatusTool 集成覆盖度
-      status: todo
+      status: done
     - id: t-8eee40
       title: 端到端测试
-      status: todo
+      status: done
     - id: t-91f04c
       title: 性能测试
-      status: todo
+      status: done
     - id: t-dbad8b
       title: 文档更新
-      status: todo
+      status: done
 status:
   tasks_total: 14
-  tasks_done: 0
+  tasks_done: 14
   tasks_in_progress: 0
-  tasks_todo: 14
+  tasks_todo: 0
 tasks:
   - id: t-9d53f4
-    status: todo
+    status: done
   - id: t-3067d0
-    status: todo
+    status: done
   - id: t-799c20
-    status: todo
+    status: done
   - id: t-51e360
-    status: todo
+    status: done
   - id: t-09dcfc
-    status: todo
+    status: done
   - id: t-0de514
-    status: todo
+    status: done
   - id: t-8a2918
-    status: todo
+    status: done
   - id: t-052ac0
-    status: todo
+    status: done
   - id: t-7d6e13
-    status: todo
+    status: done
   - id: t-bbf915
-    status: todo
+    status: done
   - id: t-67e3e4
-    status: todo
+    status: done
   - id: t-8eee40
-    status: todo
+    status: done
   - id: t-91f04c
-    status: todo
+    status: done
   - id: t-dbad8b
-    status: todo
+    status: done

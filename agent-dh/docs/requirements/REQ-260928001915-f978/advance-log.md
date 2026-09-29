@@ -1,0 +1,76 @@
+# 推进事件日志
+- 2026-09-28T03:05:24.438Z [RUN_SUBTASK] parent=t-efa03b subtask=t-f24eee failed：子卡凭证不过：run 产出为空（脚本未返回有效 JSON）（REQBOARD_SUBTASK_GATE）
+- 2026-09-28T03:07:01.574Z [RUN_SUBTASK] parent=t-efa03b subtask=t-f24eee ok：子卡 t-f24eee 执行完成
+- 2026-09-28T03:07:02.656Z [RUN_SUBTASK] parent=t-efa03b subtask=t-4d6cf2 failed：子卡凭证不过：workflow run 未完成（stopReason=cancelled: workflow run cancelled: workflow signal aborted；cancelled: workflow run cancelled: workflow signal aborted）（REQBOARD_SUBTASK_GATE）
+- 2026-09-28T03:09:29.681Z [RUN_SUBTASK] parent=t-efa03b subtask=t-4d6cf2 failed：子卡凭证不过：run 产出为空（脚本未返回有效 JSON）（REQBOARD_SUBTASK_GATE）
+- 2026-09-28T03:13:44.834Z [RUN_SUBTASK] parent=t-efa03b subtask=t-4d6cf2 failed：子卡凭证不过：run 产出为空（脚本未返回有效 JSON）（REQBOARD_SUBTASK_GATE）
+- 2026-09-28T03:26:19.058Z [RUN_SUBTASK] parent=t-efa03b subtask=t-4d6cf2 failed：子卡凭证不过：run 产出为空（脚本未返回有效 JSON）（REQBOARD_SUBTASK_GATE）
+- 2026-09-28T03:29:27.381Z [RUN_SUBTASK] parent=t-efa03b subtask=t-4d6cf2 failed：子卡凭证不过：run 产出为空（脚本未返回有效 JSON）（REQBOARD_SUBTASK_GATE）
+- 2026-09-28T03:33:06.576Z [RUN_SUBTASK] parent=t-efa03b subtask=t-4d6cf2 failed：子卡凭证不过：run 产出为空（脚本未返回有效 JSON）（REQBOARD_SUBTASK_GATE）
+- 2026-09-28T03:50:31.254Z [ROLLUP] parent=- subtask=- noop：暂不可 rollup
+- 2026-09-28T04:21:40.377Z [RUN_SUBTASK] parent=t-efa03b subtask=t-730c85 ok：子卡 t-730c85 执行完成
+- 2026-09-28T04:21:43.389Z [RUN_SUBTASK] parent=t-efa03b subtask=t-d65d4c failed：子卡凭证不过：workflow run 未完成（stopReason=cancelled: workflow run cancelled: workflow signal aborted；cancelled: workflow run cancelled: workflow signal aborted）（REQBOARD_SUBTASK_GATE）
+- 2026-09-28T04:23:48.339Z [RUN_SUBTASK] parent=t-efa03b subtask=t-d65d4c ok：子卡 t-d65d4c 执行完成
+- 2026-09-28T04:23:49.402Z [FINALIZE_PARENT] parent=t-efa03b subtask=- ok：父卡 t-efa03b 汇总子卡产出并收尾
+- 2026-09-28T04:23:50.444Z [OPEN_PARENT] parent=t-2ad263 subtask=- ok：父卡 t-2ad263 自动开工并落子卡 4 张
+- 2026-09-28T04:23:52.416Z [RUN_SUBTASK] parent=t-2ad263 subtask=t-5fccbe failed：子卡凭证不过：workflow run 未完成（stopReason=cancelled: workflow run cancelled: workflow signal aborted；cancelled: workflow run cancelled: workflow signal aborted）（REQBOARD_SUBTASK_GATE）
+- 2026-09-28T04:28:50.332Z [RUN_SUBTASK] parent=t-2ad263 subtask=t-5fccbe ok：子卡 t-5fccbe 执行完成
+- 2026-09-28T04:32:10.215Z [RUN_SUBTASK] parent=t-2ad263 subtask=t-92496d ok：子卡 t-92496d 执行完成
+- 2026-09-28T04:32:25.030Z [RUN_SUBTASK] parent=t-2ad263 subtask=t-c969a8 failed：子卡凭证不过：workflow run 未完成（stopReason=cancelled: workflow run cancelled: workflow signal aborted；cancelled: workflow run cancelled: workflow signal aborted）（REQBOARD_SUBTASK_GATE）
+- 2026-09-28T04:35:13.064Z [RUN_SUBTASK] parent=t-2ad263 subtask=t-c969a8 ok：子卡 t-c969a8 执行完成
+- 2026-09-28T04:36:32.519Z [RUN_SUBTASK] parent=t-2ad263 subtask=t-cb5648 ok：子卡 t-cb5648 执行完成
+- 2026-09-28T04:36:33.597Z [FINALIZE_PARENT] parent=t-2ad263 subtask=- ok：父卡 t-2ad263 汇总子卡产出并收尾
+- 2026-09-28T04:36:35.517Z [OPEN_PARENT] parent=t-4256bf subtask=- ok：父卡 t-4256bf 自动开工并落子卡 4 张
+- 2026-09-28T04:38:33.170Z [RUN_SUBTASK] parent=t-4256bf subtask=t-c11c61 ok：子卡 t-c11c61 执行完成
+- 2026-09-28T04:40:14.317Z [RUN_SUBTASK] parent=t-4256bf subtask=t-185222 ok：子卡 t-185222 执行完成
+- 2026-09-28T04:40:32.647Z [RUN_SUBTASK] parent=t-4256bf subtask=t-a10499 failed：子卡凭证不过：workflow run 未完成（stopReason=cancelled: workflow run cancelled: workflow signal aborted；cancelled: workflow run cancelled: workflow signal aborted）（REQBOARD_SUBTASK_GATE）
+- 2026-09-28T04:43:01.375Z [RUN_SUBTASK] parent=t-4256bf subtask=t-a10499 ok：子卡 t-a10499 执行完成
+- 2026-09-28T04:43:42.704Z [RUN_SUBTASK] parent=t-4256bf subtask=t-d41ea0 ok：子卡 t-d41ea0 执行完成
+- 2026-09-28T04:43:43.928Z [FINALIZE_PARENT] parent=t-4256bf subtask=- ok：父卡 t-4256bf 汇总子卡产出并收尾
+- 2026-09-28T04:43:45.063Z [OPEN_PARENT] parent=t-e4e9db subtask=- ok：父卡 t-e4e9db 自动开工并落子卡 4 张
+- 2026-09-28T04:44:52.760Z [RUN_SUBTASK] parent=t-e4e9db subtask=t-660826 failed：子卡凭证不过：workflow run 未完成（stopReason=cancelled: workflow run cancelled: workflow signal aborted；cancelled: workflow run cancelled: workflow signal aborted）（REQBOARD_SUBTASK_GATE）
+- 2026-09-28T04:46:52.244Z [RUN_SUBTASK] parent=t-e4e9db subtask=t-660826 ok：子卡 t-660826 执行完成
+- 2026-09-28T04:49:11.807Z [RUN_SUBTASK] parent=t-e4e9db subtask=t-ca1655 failed：子卡凭证不过：workflow run 未完成（stopReason=cancelled: workflow run cancelled: workflow signal aborted；cancelled: workflow run cancelled: workflow signal aborted）（REQBOARD_SUBTASK_GATE）
+- 2026-09-28T04:51:37.452Z [RUN_SUBTASK] parent=t-e4e9db subtask=t-ca1655 ok：子卡 t-ca1655 执行完成
+- 2026-09-28T04:53:28.928Z [RUN_SUBTASK] parent=t-e4e9db subtask=t-35222c failed：子卡凭证不过：workflow run 未完成（stopReason=cancelled: workflow run cancelled: workflow signal aborted；cancelled: workflow run cancelled: workflow signal aborted）（REQBOARD_SUBTASK_GATE）
+- 2026-09-28T04:55:00.268Z [RUN_SUBTASK] parent=t-e4e9db subtask=t-35222c ok：子卡 t-35222c 执行完成
+- 2026-09-28T04:55:31.702Z [RUN_SUBTASK] parent=t-e4e9db subtask=t-c41ace ok：子卡 t-c41ace 执行完成
+- 2026-09-28T04:55:33.700Z [FINALIZE_PARENT] parent=t-e4e9db subtask=- ok：父卡 t-e4e9db 汇总子卡产出并收尾
+- 2026-09-28T04:55:34.828Z [OPEN_PARENT] parent=t-1f219b subtask=- ok：父卡 t-1f219b 自动开工并落子卡 4 张
+- 2026-09-28T04:57:36.173Z [RUN_SUBTASK] parent=t-1f219b subtask=t-868884 failed：子卡凭证不过：workflow run 未完成（stopReason=cancelled: workflow run cancelled: workflow signal aborted；cancelled: workflow run cancelled: workflow signal aborted）（REQBOARD_SUBTASK_GATE）
+- 2026-09-28T05:00:46.210Z [RUN_SUBTASK] parent=t-1f219b subtask=t-868884 ok：子卡 t-868884 执行完成
+- 2026-09-28T05:01:44.974Z [RUN_SUBTASK] parent=t-1f219b subtask=t-41d67e failed：子卡凭证不过：workflow run 未完成（stopReason=cancelled: workflow run cancelled: workflow signal aborted；cancelled: workflow run cancelled: workflow signal aborted）（REQBOARD_SUBTASK_GATE）
+- 2026-09-28T05:04:35.374Z [RUN_SUBTASK] parent=t-1f219b subtask=t-41d67e ok：子卡 t-41d67e 执行完成
+- 2026-09-28T05:05:50.354Z [RUN_SUBTASK] parent=t-1f219b subtask=t-706169 failed：子卡凭证不过：workflow run 未完成（stopReason=cancelled: workflow run cancelled: workflow signal aborted；cancelled: workflow run cancelled: workflow signal aborted）（REQBOARD_SUBTASK_GATE）
+- 2026-09-28T05:07:18.557Z [RUN_SUBTASK] parent=t-1f219b subtask=t-706169 ok：子卡 t-706169 执行完成
+- 2026-09-28T05:07:58.979Z [RUN_SUBTASK] parent=t-1f219b subtask=t-1f0b86 ok：子卡 t-1f0b86 执行完成
+- 2026-09-28T05:08:00.021Z [FINALIZE_PARENT] parent=t-1f219b subtask=- ok：父卡 t-1f219b 汇总子卡产出并收尾
+- 2026-09-28T05:08:01.034Z [OPEN_PARENT] parent=t-73c392 subtask=- ok：父卡 t-73c392 自动开工并落子卡 4 张
+- 2026-09-28T05:09:56.859Z [RUN_SUBTASK] parent=t-73c392 subtask=t-e00c5f failed：子卡凭证不过：workflow run 未完成（stopReason=cancelled: workflow run cancelled: workflow signal aborted；cancelled: workflow run cancelled: workflow signal aborted）（REQBOARD_SUBTASK_GATE）
+- 2026-09-28T05:11:45.256Z [RUN_SUBTASK] parent=t-73c392 subtask=t-e00c5f ok：子卡 t-e00c5f 执行完成
+- 2026-09-28T05:14:05.263Z [RUN_SUBTASK] parent=t-73c392 subtask=t-65df2c failed：子卡凭证不过：workflow run 未完成（stopReason=cancelled: workflow run cancelled: workflow signal aborted；cancelled: workflow run cancelled: workflow signal aborted）（REQBOARD_SUBTASK_GATE）
+- 2026-09-28T05:17:57.819Z [RUN_SUBTASK] parent=t-73c392 subtask=t-65df2c ok：子卡 t-65df2c 执行完成
+- 2026-09-28T05:18:10.634Z [RUN_SUBTASK] parent=t-73c392 subtask=t-b9308e failed：子卡凭证不过：workflow run 未完成（stopReason=cancelled: workflow run cancelled: workflow signal aborted；cancelled: workflow run cancelled: workflow signal aborted）（REQBOARD_SUBTASK_GATE）
+- 2026-09-28T05:20:24.138Z [RUN_SUBTASK] parent=t-73c392 subtask=t-b9308e ok：子卡 t-b9308e 执行完成
+- 2026-09-28T05:22:16.119Z [RUN_SUBTASK] parent=t-73c392 subtask=t-1b2632 failed：子卡凭证不过：workflow run 未完成（stopReason=cancelled: workflow run cancelled: workflow signal aborted；cancelled: workflow run cancelled: workflow signal aborted）（REQBOARD_SUBTASK_GATE）
+- 2026-09-28T05:24:01.545Z [RUN_SUBTASK] parent=t-73c392 subtask=t-1b2632 ok：子卡 t-1b2632 执行完成
+- 2026-09-28T05:24:02.650Z [FINALIZE_PARENT] parent=t-73c392 subtask=- ok：父卡 t-73c392 汇总子卡产出并收尾
+- 2026-09-28T05:24:03.808Z [OPEN_PARENT] parent=t-d379c7 subtask=- ok：父卡 t-d379c7 自动开工并落子卡 4 张
+- 2026-09-28T05:25:32.018Z [RUN_SUBTASK] parent=t-d379c7 subtask=t-8a854a ok：子卡 t-8a854a 执行完成
+- 2026-09-28T05:26:23.729Z [RUN_SUBTASK] parent=t-d379c7 subtask=t-d284d3 failed：子卡凭证不过：workflow run 未完成（stopReason=cancelled: workflow run cancelled: workflow signal aborted；cancelled: workflow run cancelled: workflow signal aborted）（REQBOARD_SUBTASK_GATE）
+- 2026-09-28T05:28:36.306Z [RUN_SUBTASK] parent=t-d379c7 subtask=t-d284d3 ok：子卡 t-d284d3 执行完成
+- 2026-09-28T05:30:32.575Z [RUN_SUBTASK] parent=t-d379c7 subtask=t-f49d5b failed：子卡凭证不过：workflow run 未完成（stopReason=cancelled: workflow run cancelled: workflow signal aborted；cancelled: workflow run cancelled: workflow signal aborted）（REQBOARD_SUBTASK_GATE）
+- 2026-09-28T05:33:01.939Z [RUN_SUBTASK] parent=t-d379c7 subtask=t-f49d5b ok：子卡 t-f49d5b 执行完成
+- 2026-09-28T05:34:07.267Z [RUN_SUBTASK] parent=t-d379c7 subtask=t-a2599c ok：子卡 t-a2599c 执行完成
+- 2026-09-28T05:34:08.318Z [FINALIZE_PARENT] parent=t-d379c7 subtask=- ok：父卡 t-d379c7 汇总子卡产出并收尾
+- 2026-09-28T05:34:09.396Z [OPEN_PARENT] parent=t-144707 subtask=- ok：父卡 t-144707 自动开工并落子卡 4 张
+- 2026-09-28T05:34:38.187Z [RUN_SUBTASK] parent=t-144707 subtask=t-cf42de failed：子卡凭证不过：workflow run 未完成（stopReason=cancelled: workflow run cancelled: workflow signal aborted；cancelled: workflow run cancelled: workflow signal aborted）（REQBOARD_SUBTASK_GATE）
+- 2026-09-28T05:38:06.652Z [RUN_SUBTASK] parent=t-144707 subtask=t-cf42de ok：子卡 t-cf42de 执行完成
+- 2026-09-28T05:38:45.648Z [RUN_SUBTASK] parent=t-144707 subtask=t-dbed64 failed：子卡凭证不过：workflow run 未完成（stopReason=cancelled: workflow run cancelled: workflow signal aborted；cancelled: workflow run cancelled: workflow signal aborted）（REQBOARD_SUBTASK_GATE）
+- 2026-09-28T05:41:26.657Z [RUN_SUBTASK] parent=t-144707 subtask=t-dbed64 ok：子卡 t-dbed64 执行完成
+- 2026-09-28T05:42:51.139Z [RUN_SUBTASK] parent=t-144707 subtask=t-975c52 failed：子卡凭证不过：workflow run 未完成（stopReason=cancelled: workflow run cancelled: workflow signal aborted；cancelled: workflow run cancelled: workflow signal aborted）（REQBOARD_SUBTASK_GATE）
+- 2026-09-28T05:45:35.574Z [RUN_SUBTASK] parent=t-144707 subtask=t-975c52 ok：子卡 t-975c52 执行完成
+- 2026-09-28T05:46:56.634Z [RUN_SUBTASK] parent=t-144707 subtask=t-66570e failed：子卡凭证不过：workflow run 未完成（stopReason=cancelled: workflow run cancelled: workflow signal aborted；cancelled: workflow run cancelled: workflow signal aborted）（REQBOARD_SUBTASK_GATE）
+- 2026-09-28T05:48:16.000Z [RUN_SUBTASK] parent=t-144707 subtask=t-66570e ok：子卡 t-66570e 执行完成
+- 2026-09-28T05:48:17.040Z [FINALIZE_PARENT] parent=t-144707 subtask=- ok：父卡 t-144707 汇总子卡产出并收尾
+- 2026-09-28T05:48:18.983Z [ROLLUP] parent=- subtask=- ok：需求已全部任务完成，滚进验收

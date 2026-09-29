@@ -1,0 +1,19 @@
+PASS  页面加载（未落到 401） — {"title":"DeepSeek Harness","rev":"93a86bdd0e9f","hasReqboardClient":true,"url":"http://127.0.0.1:13080/"}
+PASS  pmboard client 半已接管 — window.__dshReqboardClient 存在
+PASS  泳道看板渲染出泳道 — 泳道数=6
+PASS  泳道看板有需求卡（非空） — 卡片数=34，空态=false
+PASS  本需求卡片可见（REQ-260927202051-f6df） — REQ-260927202051-f6df 功能计划已批1 ready运行中 实现 DAG 任务队列机制（拆分时生成 queue.json） 24/29 🪙 20.4M 父卡 2/3 · 子卡 8/12 ✓ 需求文档✓ 设计文档✓ 拆分计划✗ 验收材料 产物 137/6 创建 09-27 20:20 · 实施 09-27 20:54 · 已停留 2 小时 46 分 窗口 w-3936d77f会话
+PASS  列表视图渲染出行 — 行数=10
+PASS  任务总览页渲染（非空） — 需求分组=51，任务行=616，616 个任务 · 51 个需求 · rev 5949
+PASS  甘特图 SVG 渲染 — 条形数=2906
+PASS  本需求在任务总览可见（REQ-260927202051-f6df） — 其甘特条=122
+PASS  需求详情页渲染 — 正文长度=171258，表格=3，任务行=69，Tab=["📋 概览","⚙️ 执行","📅 时间线","📦 归档","🔗 追溯","🪙 Token"]
+PASS  依赖信息可见（DAG 或依赖列） — DAG=true，DAG 层=11，含「依赖」字样=true
+PASS  无未捕获页面异常 — 0 条
+PASS  无 console.error — 0 条
+PASS  无失败的数据请求 — 0 条
+PASS  接口侧交叉核对（tasks 与 DOM 同源） — 接口 tasks=616，接口 requirements=82，DOM 卡片=34
+
+截图：/Users/yunpeng/pi-investment/agent-dh/docs/requirements/REQ-260927202051-f6df/notes/board-live/shots-after-restart/01-board-lanes.png /Users/yunpeng/pi-investment/agent-dh/docs/requirements/REQ-260927202051-f6df/notes/board-live/shots-after-restart/02-board-list.png /Users/yunpeng/pi-investment/agent-dh/docs/requirements/REQ-260927202051-f6df/notes/board-live/shots-after-restart/03-tasks-gantt.png /Users/yunpeng/pi-investment/agent-dh/docs/requirements/REQ-260927202051-f6df/notes/board-live/shots-after-restart/04-req-detail.png
+摘要：/Users/yunpeng/pi-investment/agent-dh/docs/requirements/REQ-260927202051-f6df/notes/board-live/shots-after-restart/SUMMARY.json
+断言：15 passed / 0 failed

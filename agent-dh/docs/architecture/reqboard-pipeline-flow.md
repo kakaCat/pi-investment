@@ -52,6 +52,7 @@ tags: [reqboard, dive, rtm, pipeline, flow]
 
 
 节点一：brainstorming（需求分析）
+<!-- serves: FR-5 / FR-6（REQ-260927123256-196b t6：等待语义与停手守卫已同步到本文档） -->
 ═══════════════════════════════════════════════════════════════════════════
    [阶段1] 写需求文档
       │
@@ -70,9 +71,13 @@ tags: [reqboard, dive, rtm, pipeline, flow]
    [阶段3] 【门】G1 = requirement 产物确认
       │
       ├─→ 发起：reqboard_ask_confirm(target=artifact, kind=requirement)
-      │      ⚠ 非阻塞投递：30s 宽限内作答 = 同步落章；超宽限 = 返回 pending+ticket，
-      │         弹框留着、**agent loop 不被拦**（REQ-260924213231-b1c4 FR-3 的设计）
-      │      ⚠F9 挂起期间**没有**"停手"守卫 → 窗口可能继续产出下游产物
+      │      ⚠ 缺省**阻塞等待**：人不作答，agent 就停在这一步（与原生 ask_user_question 一致），
+      │         等到作答 / 取消 / 中止才返回；返回体不再出现 pending/ticket
+      │         （REQ-260927123256-196b FR-1；原「30s 宽限到点自动放行」已删除）
+      │      ⚠ 仅当调用方**显式**传正数 inline_grace_ms 才走非阻塞逃生舱：超宽限返回 pending+ticket，
+      │         弹框留着、后台落章并唤醒窗口——这是"主动放弃阻塞"，后果自负（FR-3）
+      │      ⚠ 阻塞期间本窗口写路径被停手守卫拦住（REQBOARD_CONFIRM_PENDING），
+      │         且 reqboard_status.pending_confirms 可见"在等谁 / 是否被中止"（FR-2 / FR-4）
       │
       ├─→ 肯定 → 落章 + transitionRequirement(brainstorming → design)
       ├─→ 否定/需修改 → 只留痕（recordDeclinedConfirmation），不推进、不注入下一节纪律
@@ -97,6 +102,7 @@ tags: [reqboard, dive, rtm, pipeline, flow]
    [阶段3] 【门】G2 = design 产物确认
       │
       ├─→ reqboard_ask_confirm(target=artifact, kind=design)
+      │      等待语义同 G1：缺省阻塞到作答/取消/中止；显式 inline_grace_ms 才非阻塞（FR-1 / FR-3）
       │      闸门：checkDesignCompletenessGate（① 文档集交齐 ② 每份 design/*.md 都有确认章）
       ├─→ 肯定 → 落章 + transitionRequirement(design → decomposing)
       └─→ → RTM: rtm-design.yml + rtm-brainstorming.yml + rtm-lifecycle.yml（trigger='confirm:artifact'）
@@ -394,6 +400,27 @@ tags: [reqboard, dive, rtm, pipeline, flow]
 > 不校验被确认的 kind 是否等于该门的 requiredKind → 照这条命令做
 > **可能用一个笔记文件把节点推进**。**我没有执行验证**——因为执行即等于用错误命令推进节点。
 
+## 事件链的两处「崩溃不丢链」补强（2026-09-28，REQ-260928222643-4d34）
+
+一次实机 quick_restart 暴露了两处会在**进程被杀**后把链永久卡死的缺陷，均已修复并加回归测试
+（`tests/advance-parent-evidence.test.ts`、`tests/advance-stale-lock.test.ts`，各含正例与反例）：
+
+1. **残留锁回收**：`driveChain` 正常收尾会清 `advance.lockAt/runId`，但进程被杀时 `finally` 不执行，`runId` 会**永久**留下；
+   而投递前置检查只看「runId 是否存在」就判「已有 run 在跑」——该需求此后再也无法投递
+   （实测恒返回 `REQBOARD_ADVANCE_LOCKED`），连启动恢复扫描 `scanAndResume` 也被同一判断挡下。
+   修法：`lockAt` 缺省或已过期即视为残留，显式回收后继续投递（新鲜锁照旧挡并发）。
+2. **父卡收尾凭证基准**：done 凭证门的子卡路径早已用「不可变出身」（需求/父卡/子卡 `createdAt` 最小值），
+   父卡路径却仍用 `claimedAt`。轻档手工交付（先干活、后认领）时 `claimedAt` 晚于交付文件 mtime，
+   父卡在 `FINALIZE_PARENT` 恒被判 `REQBOARD_NO_EVIDENCE`。修法：父子两条证据路径共用 `chainBaselineOf()`
+   （不可变出身，窗口单调不后退）。
+
+**另一条实操约束**：重启后的子卡派发需要 **agent 句柄**——启动恢复扫描无 `exec`，子卡会以
+「派发缺少 agent 句柄：绑定窗口 <session>」失败并暂停；需由**绑定窗口**再调一次 `reqboard_task_run`
+带上 `exec` 才能续跑。
+
+**同源观测**：链懒展开只建 TaskRecord、不落 `tasks/<id>.md` 卡文档；验收门 AC-7.5 要求每卡一份，
+需回填。自动展开的子卡验收标准是模板话术（无可执行锚点），会被 `REQBOARD_ACCEPTANCE_NOT_EXECUTABLE` 拦下，
+需用 `reqboard_task_move(task_id, acceptance=...)` 改成可复核命令。
 ## 参考
 
 - 缺陷清单与实测证据：docs/work-logs/2026-09/reqboard-decompose-flow-defects.md、d7-task-move-tool-decision.md

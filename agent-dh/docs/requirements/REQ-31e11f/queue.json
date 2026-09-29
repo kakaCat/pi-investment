@@ -1,0 +1,1323 @@
+{
+  "version": 1,
+  "requirement_id": "REQ-31e11f",
+  "schemaVersion": 9,
+  "generated_at": "2026-09-27T14:55:11.425Z",
+  "tasks": [
+    {
+      "id": "t-fb59e6",
+      "requirementId": "REQ-31e11f",
+      "title": "定义节点契约与产物模型（domain 层）",
+      "description": "shared/protocol.ts：StageKey + StageDetail 判别联合；StageArtifact（含 confirmedAt/confirmedBy）+ STAGE_ARTIFACT_REQUIREMENTS；CATEGORY_FLOW_PROFILES 分类流程档案（每分类：启用阶段子集/必备产物/生效硬门）；HUMAN_ONLY 增加 brainstorming>planning、decomposing>implementing，SYSTEM 移除后者；StagePromptKey 映射；RequirementRecord 增加 projectId/parentId/artifacts；PlanTask 增加 executorHint；TaskRecord 增加 dependsSummary；schemaVersion 3→4",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "编译通过；shape/转移表/分类档案齐备；老台账加载回归单测通过",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-2c74a2",
+          "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf",
+          "trigger": "manual",
+          "startedAt": 1789464963962,
+          "outcome": "succeeded",
+          "endedAt": 1789465909929
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789464922594,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789464963962,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "开工 t1：domain 层契约定义，是 t2/t3/t5/t6 的公共依赖，由本窗口亲自做"
+        },
+        {
+          "status": "testing",
+          "at": 1789465909929,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "t1 推进"
+        },
+        {
+          "status": "in_review",
+          "at": 1789465909939,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "t1 推进"
+        },
+        {
+          "status": "done",
+          "at": 1789465909949,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "t1 完成：domain 契约+schema v4，188 测试绿，类型零错误"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-fd28d4",
+          "body": "[状态] → in_progress：开工 t1：domain 层契约定义，是 t2/t3/t5/t6 的公共依赖，由本窗口亲自做（窗口 session-8913546f-bd1a-4ca5-a737-deb0b429e5bf）",
+          "createdAt": 1789464963962,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          }
+        },
+        {
+          "id": "c-4c8991",
+          "body": "[状态] → testing：t1 推进（窗口 session-8913546f-bd1a-4ca5-a737-deb0b429e5bf）",
+          "createdAt": 1789465909929,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          }
+        },
+        {
+          "id": "c-60825e",
+          "body": "[状态] → in_review：t1 推进（窗口 session-8913546f-bd1a-4ca5-a737-deb0b429e5bf）",
+          "createdAt": 1789465909939,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          }
+        },
+        {
+          "id": "c-6b63ad",
+          "body": "[状态] → done：t1 完成：domain 契约+schema v4，188 测试绿，类型零错误（窗口 session-8913546f-bd1a-4ca5-a737-deb0b429e5bf）",
+          "createdAt": 1789465909949,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          }
+        }
+      ],
+      "version": 5,
+      "createdAt": 1789464922594,
+      "updatedAt": 1789465909949,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+      },
+      "cardDoc": "docs/requirements/REQ-31e11f/tasks/t-fb59e6.md",
+      "layer": 0
+    },
+    {
+      "id": "t-b28c68",
+      "requirementId": "REQ-31e11f",
+      "title": "实现 host 节点详情接口（模板装配器+路由）",
+      "description": "新建 host/stage-detail.ts：模板基类 assemble()+buildBody()，8 节点装配器（跳过节点返回\"本分类跳过\"态）；routes.ts 增加 GET /requirements/:id/stage/:stage 薄适配",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-fb59e6"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "8 节点 GET 均返回契约块（含产物/确认状态/分类跳过态）；非法参数 400/404；路由单测通过",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-a8e5c3",
+          "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf",
+          "trigger": "manual",
+          "startedAt": 1789477584505,
+          "outcome": "succeeded",
+          "endedAt": 1789477584521
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789464922594,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789477584505,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "验收返工：台账补录——该任务实际已完成（subagent 已交付），补齐状态流转"
+        },
+        {
+          "status": "integrating",
+          "at": 1789477584521,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "验收返工：台账补录——该任务实际已完成（subagent 已交付），补齐状态流转"
+        },
+        {
+          "status": "testing",
+          "at": 1789477590865,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "验收返工：台账补录——任务实际已完成，补齐状态流转至 done"
+        },
+        {
+          "status": "in_review",
+          "at": 1789477590880,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "验收返工：台账补录——任务实际已完成，补齐状态流转至 done"
+        },
+        {
+          "status": "done",
+          "at": 1789477590891,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "验收返工：台账补录——任务实际已完成，补齐状态流转至 done"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-4e9a6e",
+          "body": "[状态] → in_progress：验收返工：台账补录——该任务实际已完成（subagent 已交付），补齐状态流转（窗口 session-8913546f-bd1a-4ca5-a737-deb0b429e5bf）",
+          "createdAt": 1789477584505,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          }
+        },
+        {
+          "id": "c-d34cf7",
+          "body": "[状态] → integrating：验收返工：台账补录——该任务实际已完成（subagent 已交付），补齐状态流转（窗口 session-8913546f-bd1a-4ca5-a737-deb0b429e5bf）",
+          "createdAt": 1789477584521,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          }
+        },
+        {
+          "id": "c-3c5520",
+          "body": "[状态] → testing：验收返工：台账补录——任务实际已完成，补齐状态流转至 done（窗口 session-8913546f-bd1a-4ca5-a737-deb0b429e5bf）",
+          "createdAt": 1789477590865,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          }
+        },
+        {
+          "id": "c-318bf8",
+          "body": "[状态] → in_review：验收返工：台账补录——任务实际已完成，补齐状态流转至 done（窗口 session-8913546f-bd1a-4ca5-a737-deb0b429e5bf）",
+          "createdAt": 1789477590880,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          }
+        },
+        {
+          "id": "c-c847fe",
+          "body": "[状态] → done：验收返工：台账补录——任务实际已完成，补齐状态流转至 done（窗口 session-8913546f-bd1a-4ca5-a737-deb0b429e5bf）",
+          "createdAt": 1789477590891,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1789464922594,
+      "updatedAt": 1789477590891,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+      },
+      "cardDoc": "docs/requirements/REQ-31e11f/tasks/t-b28c68.md",
+      "layer": 1
+    },
+    {
+      "id": "t-f264f4",
+      "requirementId": "REQ-31e11f",
+      "title": "实现 reqboard_task_report 任务完成汇报工具",
+      "description": "agent-tools.ts 新增：summary/completed[]/files_changed[]/next_step；host 向任务卡骨架追加汇报（tasks/t-xxx.md 双角色）并登记实施产物；幂等",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-fb59e6"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "汇报追加落盘+登记单测通过；幂等重报不重复；schema 冒烟过",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-523580",
+          "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf",
+          "trigger": "manual",
+          "startedAt": 1789477584540,
+          "outcome": "succeeded",
+          "endedAt": 1789477584552
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789464922594,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789477584540,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "验收返工：台账补录——该任务实际已完成（subagent 已交付），补齐状态流转"
+        },
+        {
+          "status": "integrating",
+          "at": 1789477584552,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "验收返工：台账补录——该任务实际已完成（subagent 已交付），补齐状态流转"
+        },
+        {
+          "status": "testing",
+          "at": 1789477590902,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "验收返工：台账补录——任务实际已完成，补齐状态流转至 done"
+        },
+        {
+          "status": "in_review",
+          "at": 1789477590915,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "验收返工：台账补录——任务实际已完成，补齐状态流转至 done"
+        },
+        {
+          "status": "done",
+          "at": 1789477590926,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "验收返工：台账补录——任务实际已完成，补齐状态流转至 done"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-4b6759",
+          "body": "[状态] → in_progress：验收返工：台账补录——该任务实际已完成（subagent 已交付），补齐状态流转（窗口 session-8913546f-bd1a-4ca5-a737-deb0b429e5bf）",
+          "createdAt": 1789477584540,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          }
+        },
+        {
+          "id": "c-cb3dd2",
+          "body": "[状态] → integrating：验收返工：台账补录——该任务实际已完成（subagent 已交付），补齐状态流转（窗口 session-8913546f-bd1a-4ca5-a737-deb0b429e5bf）",
+          "createdAt": 1789477584552,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          }
+        },
+        {
+          "id": "c-777c16",
+          "body": "[状态] → testing：验收返工：台账补录——任务实际已完成，补齐状态流转至 done（窗口 session-8913546f-bd1a-4ca5-a737-deb0b429e5bf）",
+          "createdAt": 1789477590902,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          }
+        },
+        {
+          "id": "c-d5f4c2",
+          "body": "[状态] → in_review：验收返工：台账补录——任务实际已完成，补齐状态流转至 done（窗口 session-8913546f-bd1a-4ca5-a737-deb0b429e5bf）",
+          "createdAt": 1789477590915,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          }
+        },
+        {
+          "id": "c-407e83",
+          "body": "[状态] → done：验收返工：台账补录——任务实际已完成，补齐状态流转至 done（窗口 session-8913546f-bd1a-4ca5-a737-deb0b429e5bf）",
+          "createdAt": 1789477590926,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1789464922594,
+      "updatedAt": 1789477590926,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+      },
+      "cardDoc": "docs/requirements/REQ-31e11f/tasks/t-f264f4.md",
+      "layer": 1
+    },
+    {
+      "id": "t-ea210a",
+      "requirementId": "REQ-31e11f",
+      "title": "实现产物登记钩子+分类感知闸门+阶段通知简版",
+      "description": "plan/decompose/verify/archive 四处登记+t3 汇报登记；decomposition.md/verification.md 落盘；decompose 生成自足任务卡骨架；闸门两级校验 missing_artifact/artifact_not_confirmed 按分类档案过滤；看板 human-only 确认动作路由；登记即 feishu 通知",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-f264f4"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "五门单测+bug 分类免需求分析门用例；未确认被拒且指明待确认产物；确认后放行；存量不受影响",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-1676ff",
+          "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf",
+          "trigger": "manual",
+          "startedAt": 1789477584571,
+          "outcome": "succeeded",
+          "endedAt": 1789477584582
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789464922594,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789477584571,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "验收返工：台账补录——该任务实际已完成（subagent 已交付），补齐状态流转"
+        },
+        {
+          "status": "integrating",
+          "at": 1789477584582,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "验收返工：台账补录——该任务实际已完成（subagent 已交付），补齐状态流转"
+        },
+        {
+          "status": "testing",
+          "at": 1789477590936,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "验收返工：台账补录——任务实际已完成，补齐状态流转至 done"
+        },
+        {
+          "status": "in_review",
+          "at": 1789477590948,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "验收返工：台账补录——任务实际已完成，补齐状态流转至 done"
+        },
+        {
+          "status": "done",
+          "at": 1789477590958,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "验收返工：台账补录——任务实际已完成，补齐状态流转至 done"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-f17666",
+          "body": "[状态] → in_progress：验收返工：台账补录——该任务实际已完成（subagent 已交付），补齐状态流转（窗口 session-8913546f-bd1a-4ca5-a737-deb0b429e5bf）",
+          "createdAt": 1789477584571,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          }
+        },
+        {
+          "id": "c-10db0c",
+          "body": "[状态] → integrating：验收返工：台账补录——该任务实际已完成（subagent 已交付），补齐状态流转（窗口 session-8913546f-bd1a-4ca5-a737-deb0b429e5bf）",
+          "createdAt": 1789477584582,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          }
+        },
+        {
+          "id": "c-ff53d7",
+          "body": "[状态] → testing：验收返工：台账补录——任务实际已完成，补齐状态流转至 done（窗口 session-8913546f-bd1a-4ca5-a737-deb0b429e5bf）",
+          "createdAt": 1789477590936,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          }
+        },
+        {
+          "id": "c-65a665",
+          "body": "[状态] → in_review：验收返工：台账补录——任务实际已完成，补齐状态流转至 done（窗口 session-8913546f-bd1a-4ca5-a737-deb0b429e5bf）",
+          "createdAt": 1789477590948,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          }
+        },
+        {
+          "id": "c-564e7d",
+          "body": "[状态] → done：验收返工：台账补录——任务实际已完成，补齐状态流转至 done（窗口 session-8913546f-bd1a-4ca5-a737-deb0b429e5bf）",
+          "createdAt": 1789477590958,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1789464922594,
+      "updatedAt": 1789477590958,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+      },
+      "cardDoc": "docs/requirements/REQ-31e11f/tasks/t-ea210a.md",
+      "layer": 2
+    },
+    {
+      "id": "t-ab11f4",
+      "requirementId": "REQ-31e11f",
+      "title": "实现阶段提示词钩子（插件内常量，不走 skill）",
+      "description": "host/stage-prompts.ts 五份阶段纪律常量（跳过阶段不注入）；接线 capture.ts 组装注入+capture-hook 转移注入；implementing 提示词含读产物链而非会话历史",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-fb59e6"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "状态转移后绑定会话下一回合收到对应阶段提示词；跳过阶段不注入；单测验证映射与触发",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-35ab11",
+          "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf",
+          "trigger": "manual",
+          "startedAt": 1789477584599,
+          "outcome": "succeeded",
+          "endedAt": 1789477584609
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789464922594,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789477584599,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "验收返工：台账补录——该任务实际已完成（subagent 已交付），补齐状态流转"
+        },
+        {
+          "status": "integrating",
+          "at": 1789477584609,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "验收返工：台账补录——该任务实际已完成（subagent 已交付），补齐状态流转"
+        },
+        {
+          "status": "testing",
+          "at": 1789477590969,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "验收返工：台账补录——任务实际已完成，补齐状态流转至 done"
+        },
+        {
+          "status": "in_review",
+          "at": 1789477590980,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "验收返工：台账补录——任务实际已完成，补齐状态流转至 done"
+        },
+        {
+          "status": "done",
+          "at": 1789477590989,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "验收返工：台账补录——任务实际已完成，补齐状态流转至 done"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-01b90b",
+          "body": "[状态] → in_progress：验收返工：台账补录——该任务实际已完成（subagent 已交付），补齐状态流转（窗口 session-8913546f-bd1a-4ca5-a737-deb0b429e5bf）",
+          "createdAt": 1789477584599,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          }
+        },
+        {
+          "id": "c-362155",
+          "body": "[状态] → integrating：验收返工：台账补录——该任务实际已完成（subagent 已交付），补齐状态流转（窗口 session-8913546f-bd1a-4ca5-a737-deb0b429e5bf）",
+          "createdAt": 1789477584609,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          }
+        },
+        {
+          "id": "c-4f6683",
+          "body": "[状态] → testing：验收返工：台账补录——任务实际已完成，补齐状态流转至 done（窗口 session-8913546f-bd1a-4ca5-a737-deb0b429e5bf）",
+          "createdAt": 1789477590969,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          }
+        },
+        {
+          "id": "c-49e9a5",
+          "body": "[状态] → in_review：验收返工：台账补录——任务实际已完成，补齐状态流转至 done（窗口 session-8913546f-bd1a-4ca5-a737-deb0b429e5bf）",
+          "createdAt": 1789477590980,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          }
+        },
+        {
+          "id": "c-2009c8",
+          "body": "[状态] → done：验收返工：台账补录——任务实际已完成，补齐状态流转至 done（窗口 session-8913546f-bd1a-4ca5-a737-deb0b429e5bf）",
+          "createdAt": 1789477590989,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1789464922594,
+      "updatedAt": 1789477590989,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+      },
+      "cardDoc": "docs/requirements/REQ-31e11f/tasks/t-ab11f4.md",
+      "layer": 1
+    },
+    {
+      "id": "t-93b0b1",
+      "requirementId": "REQ-31e11f",
+      "title": "实现 client 节点详情面板（含分类流程图）",
+      "description": "client/stage-panel.ts：模板骨架+StageRenderers 注册表；产物/文档超链接经 /file 打开；追溯链 strip；缺产物/待确认标红；流程图按分类档案渲染（跳过节点标灰）；FLOW 补归档、删 stageTasksMap、点击懒加载；实施节点按窗口分组",
+      "phase": "ui",
+      "side": "frontend",
+      "dependsOn": [
+        "t-fb59e6"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "逐节点渲染；产物链接可点开；追溯链可见；bug 分类流程图无需求分析节点；渲染单测通过",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-a40ef2",
+          "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf",
+          "trigger": "manual",
+          "startedAt": 1789477584621,
+          "outcome": "succeeded",
+          "endedAt": 1789477584633
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789464922594,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789477584621,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "验收返工：台账补录——该任务实际已完成（subagent 已交付），补齐状态流转"
+        },
+        {
+          "status": "integrating",
+          "at": 1789477584633,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "验收返工：台账补录——该任务实际已完成（subagent 已交付），补齐状态流转"
+        },
+        {
+          "status": "testing",
+          "at": 1789477590999,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "验收返工：台账补录——任务实际已完成，补齐状态流转至 done"
+        },
+        {
+          "status": "in_review",
+          "at": 1789477591010,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "验收返工：台账补录——任务实际已完成，补齐状态流转至 done"
+        },
+        {
+          "status": "done",
+          "at": 1789477591021,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "验收返工：台账补录——任务实际已完成，补齐状态流转至 done"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-d04640",
+          "body": "[状态] → in_progress：验收返工：台账补录——该任务实际已完成（subagent 已交付），补齐状态流转（窗口 session-8913546f-bd1a-4ca5-a737-deb0b429e5bf）",
+          "createdAt": 1789477584621,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          }
+        },
+        {
+          "id": "c-ab77d6",
+          "body": "[状态] → integrating：验收返工：台账补录——该任务实际已完成（subagent 已交付），补齐状态流转（窗口 session-8913546f-bd1a-4ca5-a737-deb0b429e5bf）",
+          "createdAt": 1789477584633,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          }
+        },
+        {
+          "id": "c-a4425a",
+          "body": "[状态] → testing：验收返工：台账补录——任务实际已完成，补齐状态流转至 done（窗口 session-8913546f-bd1a-4ca5-a737-deb0b429e5bf）",
+          "createdAt": 1789477590999,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          }
+        },
+        {
+          "id": "c-117578",
+          "body": "[状态] → in_review：验收返工：台账补录——任务实际已完成，补齐状态流转至 done（窗口 session-8913546f-bd1a-4ca5-a737-deb0b429e5bf）",
+          "createdAt": 1789477591010,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          }
+        },
+        {
+          "id": "c-2bb964",
+          "body": "[状态] → done：验收返工：台账补录——任务实际已完成，补齐状态流转至 done（窗口 session-8913546f-bd1a-4ca5-a737-deb0b429e5bf）",
+          "createdAt": 1789477591021,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1789464922594,
+      "updatedAt": 1789477591021,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+      },
+      "cardDoc": "docs/requirements/REQ-31e11f/tasks/t-93b0b1.md",
+      "layer": 1
+    },
+    {
+      "id": "t-b84dca",
+      "requirementId": "REQ-31e11f",
+      "title": "看板同源化+产物 chips+五门确认入口+派生展示",
+      "description": "view.ts 详情抽屉切同一契约/渲染器；产物 ✓/✗ 与「待确认」chip；每道门一键确认按钮（human-only）；已完成内容从产物链派生",
+      "phase": "implement",
+      "side": "fullstack",
+      "dependsOn": [
+        "t-b28c68",
+        "t-ea210a",
+        "t-93b0b1"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "看板与会话框同节点同数据源；确认按钮人点击后转移放行；无重复渲染实现",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-c4a8d5",
+          "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf",
+          "trigger": "manual",
+          "startedAt": 1789477584646,
+          "outcome": "succeeded",
+          "endedAt": 1789477584657
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789464922594,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789477584646,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "验收返工：台账补录——该任务实际已完成（subagent 已交付），补齐状态流转"
+        },
+        {
+          "status": "integrating",
+          "at": 1789477584657,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "验收返工：台账补录——该任务实际已完成（subagent 已交付），补齐状态流转"
+        },
+        {
+          "status": "testing",
+          "at": 1789477591031,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "验收返工：台账补录——任务实际已完成，补齐状态流转至 done"
+        },
+        {
+          "status": "in_review",
+          "at": 1789477591042,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "验收返工：台账补录——任务实际已完成，补齐状态流转至 done"
+        },
+        {
+          "status": "done",
+          "at": 1789477591053,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "验收返工：台账补录——任务实际已完成，补齐状态流转至 done"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-6f8977",
+          "body": "[状态] → in_progress：验收返工：台账补录——该任务实际已完成（subagent 已交付），补齐状态流转（窗口 session-8913546f-bd1a-4ca5-a737-deb0b429e5bf）",
+          "createdAt": 1789477584646,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          }
+        },
+        {
+          "id": "c-0e562d",
+          "body": "[状态] → integrating：验收返工：台账补录——该任务实际已完成（subagent 已交付），补齐状态流转（窗口 session-8913546f-bd1a-4ca5-a737-deb0b429e5bf）",
+          "createdAt": 1789477584657,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          }
+        },
+        {
+          "id": "c-0c0afa",
+          "body": "[状态] → testing：验收返工：台账补录——任务实际已完成，补齐状态流转至 done（窗口 session-8913546f-bd1a-4ca5-a737-deb0b429e5bf）",
+          "createdAt": 1789477591031,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          }
+        },
+        {
+          "id": "c-b3aa8a",
+          "body": "[状态] → in_review：验收返工：台账补录——任务实际已完成，补齐状态流转至 done（窗口 session-8913546f-bd1a-4ca5-a737-deb0b429e5bf）",
+          "createdAt": 1789477591042,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          }
+        },
+        {
+          "id": "c-6d1f2f",
+          "body": "[状态] → done：验收返工：台账补录——任务实际已完成，补齐状态流转至 done（窗口 session-8913546f-bd1a-4ca5-a737-deb0b429e5bf）",
+          "createdAt": 1789477591053,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1789464922594,
+      "updatedAt": 1789477591053,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+      },
+      "cardDoc": "docs/requirements/REQ-31e11f/tasks/t-b84dca.md",
+      "layer": 3
+    },
+    {
+      "id": "t-e728f6",
+      "requirementId": "REQ-31e11f",
+      "title": "测试补齐与全量回归（含接力实测）",
+      "description": "契约/路由/闸门（含分类档案）/汇报/登记/提示词注入/渲染单测+老数据兼容；接力实测：新窗口仅凭任务卡+产物链接续执行并 task_report",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-ab11f4",
+        "t-b84dca"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "全部测试绿；接力实测通过（零会话历史开工）",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-55ff81",
+          "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf",
+          "trigger": "manual",
+          "startedAt": 1789477584670,
+          "outcome": "succeeded",
+          "endedAt": 1789477584683
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789464922594,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789477584670,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "验收返工：台账补录——该任务实际已完成（subagent 已交付），补齐状态流转"
+        },
+        {
+          "status": "integrating",
+          "at": 1789477584683,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "验收返工：台账补录——该任务实际已完成（subagent 已交付），补齐状态流转"
+        },
+        {
+          "status": "testing",
+          "at": 1789477591063,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "验收返工：台账补录——任务实际已完成，补齐状态流转至 done"
+        },
+        {
+          "status": "in_review",
+          "at": 1789477591078,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "验收返工：台账补录——任务实际已完成，补齐状态流转至 done"
+        },
+        {
+          "status": "done",
+          "at": 1789477591088,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "验收返工：台账补录——任务实际已完成，补齐状态流转至 done"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-fa96bc",
+          "body": "[状态] → in_progress：验收返工：台账补录——该任务实际已完成（subagent 已交付），补齐状态流转（窗口 session-8913546f-bd1a-4ca5-a737-deb0b429e5bf）",
+          "createdAt": 1789477584670,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          }
+        },
+        {
+          "id": "c-455c57",
+          "body": "[状态] → integrating：验收返工：台账补录——该任务实际已完成（subagent 已交付），补齐状态流转（窗口 session-8913546f-bd1a-4ca5-a737-deb0b429e5bf）",
+          "createdAt": 1789477584683,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          }
+        },
+        {
+          "id": "c-d01499",
+          "body": "[状态] → testing：验收返工：台账补录——任务实际已完成，补齐状态流转至 done（窗口 session-8913546f-bd1a-4ca5-a737-deb0b429e5bf）",
+          "createdAt": 1789477591063,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          }
+        },
+        {
+          "id": "c-b68fb9",
+          "body": "[状态] → in_review：验收返工：台账补录——任务实际已完成，补齐状态流转至 done（窗口 session-8913546f-bd1a-4ca5-a737-deb0b429e5bf）",
+          "createdAt": 1789477591078,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          }
+        },
+        {
+          "id": "c-3d38b0",
+          "body": "[状态] → done：验收返工：台账补录——任务实际已完成，补齐状态流转至 done（窗口 session-8913546f-bd1a-4ca5-a737-deb0b429e5bf）",
+          "createdAt": 1789477591088,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1789464922594,
+      "updatedAt": 1789477591088,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+      },
+      "cardDoc": "docs/requirements/REQ-31e11f/tasks/t-e728f6.md",
+      "layer": 4
+    },
+    {
+      "id": "t-64a0c2",
+      "requirementId": "REQ-31e11f",
+      "title": "构建部署实测与文档更新",
+      "description": "client 构建+kickstart 重启 :13080 实测；docs/architecture 更新节点契约/产物闸门/追溯链/提示词钩子/接力契约/分类流程档案说明",
+      "phase": "merge",
+      "side": "fullstack",
+      "dependsOn": [
+        "t-e728f6"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": ":13080 实测通过；文档落库",
+      "context": "",
+      "status": "in_progress",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-fff680",
+          "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf",
+          "trigger": "manual",
+          "startedAt": 1789477584696,
+          "outcome": "running"
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789464922594,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789477584696,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          },
+          "reason": "验收返工：台账补录——该任务实际已完成（subagent 已交付），补齐状态流转"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-7588a1",
+          "body": "[状态] → in_progress：验收返工：台账补录——该任务实际已完成（subagent 已交付），补齐状态流转（窗口 session-8913546f-bd1a-4ca5-a737-deb0b429e5bf）",
+          "createdAt": 1789477584696,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+          }
+        }
+      ],
+      "version": 2,
+      "createdAt": 1789464922594,
+      "updatedAt": 1789477584696,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf"
+      },
+      "claimedBy": "session-8913546f-bd1a-4ca5-a737-deb0b429e5bf",
+      "claimedAt": 1789477584696,
+      "cardDoc": "docs/requirements/REQ-31e11f/tasks/t-64a0c2.md",
+      "layer": 5
+    }
+  ],
+  "edges": [
+    {
+      "from": "t-fb59e6",
+      "to": "t-b28c68"
+    },
+    {
+      "from": "t-fb59e6",
+      "to": "t-f264f4"
+    },
+    {
+      "from": "t-f264f4",
+      "to": "t-ea210a"
+    },
+    {
+      "from": "t-fb59e6",
+      "to": "t-ab11f4"
+    },
+    {
+      "from": "t-fb59e6",
+      "to": "t-93b0b1"
+    },
+    {
+      "from": "t-b28c68",
+      "to": "t-b84dca"
+    },
+    {
+      "from": "t-ea210a",
+      "to": "t-b84dca"
+    },
+    {
+      "from": "t-93b0b1",
+      "to": "t-b84dca"
+    },
+    {
+      "from": "t-ab11f4",
+      "to": "t-e728f6"
+    },
+    {
+      "from": "t-b84dca",
+      "to": "t-e728f6"
+    },
+    {
+      "from": "t-e728f6",
+      "to": "t-64a0c2"
+    }
+  ],
+  "layers": [
+    {
+      "layer": 0,
+      "tasks": [
+        "t-fb59e6"
+      ]
+    },
+    {
+      "layer": 1,
+      "tasks": [
+        "t-b28c68",
+        "t-f264f4",
+        "t-ab11f4",
+        "t-93b0b1"
+      ]
+    },
+    {
+      "layer": 2,
+      "tasks": [
+        "t-ea210a"
+      ]
+    },
+    {
+      "layer": 3,
+      "tasks": [
+        "t-b84dca"
+      ]
+    },
+    {
+      "layer": 4,
+      "tasks": [
+        "t-e728f6"
+      ]
+    },
+    {
+      "layer": 5,
+      "tasks": [
+        "t-64a0c2"
+      ]
+    }
+  ],
+  "ready": [],
+  "updated_at": "2026-09-28T23:14:14.482Z"
+}

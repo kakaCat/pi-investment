@@ -1,0 +1,36 @@
+task:
+  id: t-2231a8
+  title: 老调用方与既有确认链路不回退，流程文档同步
+  status: done
+  implements: ""
+  serves: []
+  depends_on:
+    - t-93e425
+  phase: test
+  side: fullstack
+  workflow_params:
+    REQ_ID: REQ-260927123256-196b
+    TASK_ID: t-2231a8
+    TASK_TITLE: 老调用方与既有确认链路不回退，流程文档同步
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: fullstack
+    PHASE: test
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: test
+      status: done
+      started_at: 2026-09-27T06:27:19.451Z
+      completed_at: 2026-09-27T06:27:21.059Z
+    - phase: doc
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-260927123256-196b
+  generated_at: 2026-09-27T05:07:49.493Z
+  version: 6
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-09-27T06:27:21.059Z

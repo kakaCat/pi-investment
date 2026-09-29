@@ -1,0 +1,418 @@
+metadata:
+  stage: decomposing
+  requirement_id: REQ-260927123256-196b
+  generated_at: 2026-09-27T04:44:33.318Z
+  version: 36
+  generated_by: dsh-pmboard
+  last_updated: 2026-09-27T06:27:21.067Z
+inputs:
+  requirements: []
+  design_sections:
+    - ref: design/architecture.md#TLDR
+      title: TL;DR <!--
+      serves:
+        - FR-1
+        - FR-3
+        - FR-4
+      file: design/architecture.md
+      section: TLDR
+    - ref: design/architecture.md#目标与总体方案
+      title: 目标与总体方案 <!--
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 目标与总体方案
+    - ref: design/architecture.md#等待语义状态机
+      title: 等待语义状态机 <!--
+      serves:
+        - FR-1
+        - FR-3
+        - FR-4
+      file: design/architecture.md
+      section: 等待语义状态机
+    - ref: design/architecture.md#停手守卫与解除路径
+      title: 停手守卫与解除路径 <!--
+      serves:
+        - FR-2
+        - FR-4
+      file: design/architecture.md
+      section: 停手守卫与解除路径
+    - ref: design/architecture.md#模块改动地图
+      title: 模块改动地图 <!--
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+      file: design/architecture.md
+      section: 模块改动地图
+    - ref: design/architecture.md#错误处理
+      title: 错误处理 <!--
+      serves:
+        - FR-4
+        - FR-5
+      file: design/architecture.md
+      section: 错误处理
+    - ref: design/architecture.md#配置项与删除项
+      title: 配置项与删除项 <!--
+      serves:
+        - FR-1
+        - FR-5
+      file: design/architecture.md
+      section: 配置项与删除项
+    - ref: design/architecture.md#兼容性与回滚
+      title: 兼容性与回滚 <!--
+      serves:
+        - FR-6
+      file: design/architecture.md
+      section: 兼容性与回滚
+    - ref: design/architecture.md#安全-性能考虑
+      title: 安全 / 性能考虑 <!--
+      serves:
+        - FR-1
+        - FR-2
+      file: design/architecture.md
+      section: 安全-性能考虑
+    - ref: design/architecture.md#文档更新清单
+      title: 文档更新清单 <!--
+      serves:
+        - FR-5
+      file: design/architecture.md
+      section: 文档更新清单
+    - ref: design/architecture.md#关键决策点对齐需求-D-1D-2D-3
+      title: 关键决策点（对齐需求 D-1/D-2/D-3） <!--
+      serves:
+        - FR-1
+        - FR-3
+        - FR-4
+      file: design/architecture.md
+      section: 关键决策点对齐需求-D-1D-2D-3
+    - ref: design/architecture.md#测试策略
+      title: 测试策略 <!--
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+      file: design/architecture.md
+      section: 测试策略
+    - ref: design/data-model.md#实体关系
+      title: 实体关系 <!--
+      serves:
+        - FR-1
+        - FR-3
+        - FR-4
+      file: design/data-model.md
+      section: 实体关系
+    - ref: design/data-model.md#T-1-PendingConfirmation内存改语义-增可选字段
+      title: T-1 `PendingConfirmation`（内存，改语义 + 增可选字段） <!--
+      serves:
+        - FR-1
+        - FR-3
+        - FR-4
+      file: design/data-model.md
+      section: T-1-PendingConfirmation内存改语义-增可选字段
+    - ref: design/data-model.md#T-2-PendingConfirmView派生投影不落盘
+      title: T-2 `PendingConfirmView`（派生投影，不落盘） <!--
+      serves:
+        - FR-4
+      file: design/data-model.md
+      section: T-2-PendingConfirmView派生投影不落盘
+    - ref: design/data-model.md#T-3-台账落章谓词-targetConfirmedInLedger既有逻辑提取零行为变化
+      title: T-3 台账落章谓词 `targetConfirmedInLedger`（既有逻辑提取，零行为变化） <!--
+      serves:
+        - FR-4
+        - FR-6
+      file: design/data-model.md
+      section: T-3-台账落章谓词-targetConfirmedInLedger既有逻辑提取零行为变化
+    - ref: design/data-model.md#索引与约束
+      title: 索引与约束 <!--
+      serves:
+        - FR-1
+        - FR-4
+      file: design/data-model.md
+      section: 索引与约束
+    - ref: design/data-model.md#版本兼容与迁移
+      title: 版本兼容与迁移 <!--
+      serves:
+        - FR-4
+        - FR-6
+      file: design/data-model.md
+      section: 版本兼容与迁移
+    - ref: design/interfaces.md#接口清单
+      title: 接口清单 <!--
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+      file: design/interfaces.md
+      section: 接口清单
+    - ref: design/interfaces.md#I-1-reqboardaskconfirm-等待语义矩阵
+      title: I-1 `reqboard_ask_confirm` 等待语义矩阵 <!--
+      serves:
+        - FR-1
+        - FR-3
+        - FR-4
+      file: design/interfaces.md
+      section: I-1-reqboardaskconfirm-等待语义矩阵
+    - ref: design/interfaces.md#I-2-reqboardstatuspendingconfirms
+      title: I-2 `reqboard_status.pending_confirms` <!--
+      serves:
+        - FR-4
+      file: design/interfaces.md
+      section: I-2-reqboardstatuspendingconfirms
+    - ref: design/interfaces.md#I-3-停手守卫-assertNoPendingConfirm
+      title: I-3 停手守卫 `assertNoPendingConfirm` <!--
+      serves:
+        - FR-2
+        - FR-4
+      file: design/interfaces.md
+      section: I-3-停手守卫-assertNoPendingConfirm
+    - ref: design/interfaces.md#I-4-PendingConfirmPort-变更
+      title: I-4 `PendingConfirmPort` 变更 <!--
+      serves:
+        - FR-4
+        - FR-6
+      file: design/interfaces.md
+      section: I-4-PendingConfirmPort-变更
+    - ref: design/interfaces.md#I-5-文案契约工具描述与提示词
+      title: I-5 文案契约（工具描述与提示词） <!--
+      serves:
+        - FR-5
+      file: design/interfaces.md
+      section: I-5-文案契约工具描述与提示词
+    - ref: design/interfaces.md#I-6-reqboardconfirmreceipt-兼容性
+      title: I-6 `reqboard_confirm_receipt` 兼容性 <!--
+      serves:
+        - FR-4
+        - FR-6
+      file: design/interfaces.md
+      section: I-6-reqboardconfirmreceipt-兼容性
+    - ref: design/interfaces.md#错误语义
+      title: 错误语义 <!--
+      serves:
+        - FR-1
+        - FR-3
+        - FR-4
+        - FR-5
+      file: design/interfaces.md
+      section: 错误语义
+    - ref: design/interfaces.md#兼容性矩阵
+      title: 兼容性矩阵 <!--
+      serves:
+        - FR-6
+      file: design/interfaces.md
+      section: 兼容性矩阵
+    - ref: design/use-cases.md#场景总览
+      title: 场景总览 <!--
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/use-cases.md
+      section: 场景总览
+    - ref: design/use-cases.md#UC-1-确认门缺省阻塞人不在agent-就停住
+      title: UC-1 确认门缺省阻塞（人不在，agent 就停住） <!--
+      serves:
+        - FR-1
+        - FR-2
+      file: design/use-cases.md
+      section: UC-1-确认门缺省阻塞人不在agent-就停住
+    - ref: design/use-cases.md#UC-2-显式宽限逃生舱调用方预算有限
+      title: UC-2 显式宽限逃生舱（调用方预算有限） <!--
+      serves:
+        - FR-3
+      file: design/use-cases.md
+      section: UC-2-显式宽限逃生舱调用方预算有限
+    - ref: design/use-cases.md#UC-3-阻塞被中止后仍可查可续
+      title: UC-3 阻塞被中止后仍可查、可续 <!--
+      serves:
+        - FR-4
+        - FR-6
+      file: design/use-cases.md
+      section: UC-3-阻塞被中止后仍可查可续
+    - ref: design/use-cases.md#UC-4-用户取消弹框-中性未作答
+      title: UC-4 用户取消弹框 = 中性未作答 <!--
+      serves:
+        - FR-1
+        - FR-6
+      file: design/use-cases.md
+      section: UC-4-用户取消弹框-中性未作答
+    - ref: design/use-cases.md#UC-5-重新发起-显式解除
+      title: UC-5 重新发起 = 显式解除 <!--
+      serves:
+        - FR-4
+      file: design/use-cases.md
+      section: UC-5-重新发起-显式解除
+outputs:
+  tasks:
+    - id: t-f8ed18
+      title: 先定契约：挂起确认能标出「被中止」，判定口径只留一处
+      implements: ""
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-4d87e5
+      title: 确认弹框改为阻塞等待：人不作答，agent 就停在这一步
+      implements: ""
+      serves: []
+      depends_on:
+        - t-f8ed18
+      phase: implement
+      side: backend
+    - id: t-fd257f
+      title: 等待期间不许偷偷往下走，状态页能看出在等谁
+      implements: ""
+      serves: []
+      depends_on:
+        - t-f8ed18
+      phase: implement
+      side: backend
+    - id: t-16cefa
+      title: 工具说明写清「默认会等你」：显式宽限等于主动放弃等待
+      implements: ""
+      serves: []
+      depends_on:
+        - t-4d87e5
+      phase: doc
+      side: doc
+    - id: t-93e425
+      title: 把等待语义的每条分支都钉成测试
+      implements: ""
+      serves: []
+      depends_on:
+        - t-4d87e5
+        - t-fd257f
+        - t-16cefa
+      phase: test
+      side: backend
+    - id: t-2231a8
+      title: 老调用方与既有确认链路不回退，流程文档同步
+      implements: ""
+      serves: []
+      depends_on:
+        - t-93e425
+      phase: test
+      side: fullstack
+    - id: t-a0c273
+      title: 先定契约：挂起确认能标出「被中止」，判定口径只留一处·研发
+      implements: ""
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-3b5f9c
+      title: 先定契约：挂起确认能标出「被中止」，判定口径只留一处·联调
+      implements: ""
+      serves: []
+      depends_on:
+        - t-a0c273
+      phase: implement
+      side: backend
+    - id: t-738238
+      title: 先定契约：挂起确认能标出「被中止」，判定口径只留一处·复核
+      implements: ""
+      serves: []
+      depends_on:
+        - t-3b5f9c
+      phase: implement
+      side: backend
+    - id: t-db1d48
+      title: 先定契约：挂起确认能标出「被中止」，判定口径只留一处·测试
+      implements: ""
+      serves: []
+      depends_on:
+        - t-738238
+      phase: implement
+      side: backend
+traceability:
+  design_to_tasks:
+    design/architecture.md#TLDR: []
+    design/architecture.md#目标与总体方案: []
+    design/architecture.md#等待语义状态机: []
+    design/architecture.md#停手守卫与解除路径: []
+    design/architecture.md#模块改动地图: []
+    design/architecture.md#错误处理: []
+    design/architecture.md#配置项与删除项: []
+    design/architecture.md#兼容性与回滚: []
+    design/architecture.md#安全-性能考虑: []
+    design/architecture.md#文档更新清单: []
+    design/architecture.md#关键决策点对齐需求-D-1D-2D-3: []
+    design/architecture.md#测试策略: []
+    design/data-model.md#实体关系: []
+    design/data-model.md#T-1-PendingConfirmation内存改语义-增可选字段: []
+    design/data-model.md#T-2-PendingConfirmView派生投影不落盘: []
+    design/data-model.md#T-3-台账落章谓词-targetConfirmedInLedger既有逻辑提取零行为变化: []
+    design/data-model.md#索引与约束: []
+    design/data-model.md#版本兼容与迁移: []
+    design/interfaces.md#接口清单: []
+    design/interfaces.md#I-1-reqboardaskconfirm-等待语义矩阵: []
+    design/interfaces.md#I-2-reqboardstatuspendingconfirms: []
+    design/interfaces.md#I-3-停手守卫-assertNoPendingConfirm: []
+    design/interfaces.md#I-4-PendingConfirmPort-变更: []
+    design/interfaces.md#I-5-文案契约工具描述与提示词: []
+    design/interfaces.md#I-6-reqboardconfirmreceipt-兼容性: []
+    design/interfaces.md#错误语义: []
+    design/interfaces.md#兼容性矩阵: []
+    design/use-cases.md#场景总览: []
+    design/use-cases.md#UC-1-确认门缺省阻塞人不在agent-就停住: []
+    design/use-cases.md#UC-2-显式宽限逃生舱调用方预算有限: []
+    design/use-cases.md#UC-3-阻塞被中止后仍可查可续: []
+    design/use-cases.md#UC-4-用户取消弹框-中性未作答: []
+    design/use-cases.md#UC-5-重新发起-显式解除: []
+  fr_to_tasks:
+    FR-1: []
+    FR-3: []
+    FR-4: []
+    FR-2: []
+    FR-5: []
+    FR-6: []
+coverage:
+  implementation:
+    total: 33
+    covered: 0
+    uncovered:
+      - design/architecture.md#TLDR
+      - design/architecture.md#目标与总体方案
+      - design/architecture.md#等待语义状态机
+      - design/architecture.md#停手守卫与解除路径
+      - design/architecture.md#模块改动地图
+      - design/architecture.md#错误处理
+      - design/architecture.md#配置项与删除项
+      - design/architecture.md#兼容性与回滚
+      - design/architecture.md#安全-性能考虑
+      - design/architecture.md#文档更新清单
+      - design/architecture.md#关键决策点对齐需求-D-1D-2D-3
+      - design/architecture.md#测试策略
+      - design/data-model.md#实体关系
+      - design/data-model.md#T-1-PendingConfirmation内存改语义-增可选字段
+      - design/data-model.md#T-2-PendingConfirmView派生投影不落盘
+      - design/data-model.md#T-3-台账落章谓词-targetConfirmedInLedger既有逻辑提取零行为变化
+      - design/data-model.md#索引与约束
+      - design/data-model.md#版本兼容与迁移
+      - design/interfaces.md#接口清单
+      - design/interfaces.md#I-1-reqboardaskconfirm-等待语义矩阵
+      - design/interfaces.md#I-2-reqboardstatuspendingconfirms
+      - design/interfaces.md#I-3-停手守卫-assertNoPendingConfirm
+      - design/interfaces.md#I-4-PendingConfirmPort-变更
+      - design/interfaces.md#I-5-文案契约工具描述与提示词
+      - design/interfaces.md#I-6-reqboardconfirmreceipt-兼容性
+      - design/interfaces.md#错误语义
+      - design/interfaces.md#兼容性矩阵
+      - design/use-cases.md#场景总览
+      - design/use-cases.md#UC-1-确认门缺省阻塞人不在agent-就停住
+      - design/use-cases.md#UC-2-显式宽限逃生舱调用方预算有限
+      - design/use-cases.md#UC-3-阻塞被中止后仍可查可续
+      - design/use-cases.md#UC-4-用户取消弹框-中性未作答
+      - design/use-cases.md#UC-5-重新发起-显式解除
+    rate: 0
+    total_designs: 33
+    covered_designs: 0

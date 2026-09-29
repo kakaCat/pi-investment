@@ -1,0 +1,1887 @@
+{
+  "version": 1,
+  "requirement_id": "REQ-2d1c74",
+  "schemaVersion": 9,
+  "generated_at": "2026-09-27T14:55:11.425Z",
+  "tasks": [
+    {
+      "id": "t-892858",
+      "requirementId": "REQ-2d1c74",
+      "title": "定稿设计文档策略与闸门错误契约",
+      "description": "FR-1/2/3/5：建立文档集策略、条件必交、豁免解析、DesignDocStatus DTO 与新错误码契约。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "在 packages/pages/dsh-pmboard 运行 `npx vitest run tests/design-doc-policy.test.ts tests/category-doc-sets.test.ts`；预期全绿，且断言覆盖：缺 use-cases.md 报缺、sides=frontend 只要求 frontend.md、有效豁免消失、空理由/未知键豁免不生效。",
+      "implementation": "修改 src/application/internal/category-doc-sets.ts：新增 ConditionalDesignDoc/DesignDocPolicy/designDocPolicyFrom，CategoryDocCheckInput 增 sides/exempt，missingCategoryDocs 按「必交 ∪ sides 命中的条件必交 − 有效豁免」判定；feature DELTA 增 use-cases.md 与 frontend/backend 条件文档。修改 src/application/internal/artifact-gates.ts 的 GateFailure 联合，加入 design_doc_incomplete/design_contains_decomposition；修改 src/shared/protocol.ts 的 DesignDocStatus，增 conditional/exempted 可选字段。新增 tests/design-doc-policy.test.ts 并更新 tests/category-doc-sets.test.ts。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-a5379e",
+          "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+          "trigger": "manual",
+          "startedAt": 1789964903454,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+              "seq": 1281,
+              "at": 1789964903463,
+              "totals": {
+                "uncachedInputTokens": 997208,
+                "outputTokens": 97235,
+                "cacheReadTokens": 16204288,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+              "seq": 1466,
+              "at": 1789965473736,
+              "totals": {
+                "uncachedInputTokens": 1339342,
+                "outputTokens": 112581,
+                "cacheReadTokens": 19322880,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 342134,
+              "outputTokens": 15346,
+              "cacheReadTokens": 3118592,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1789965473728
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789964424855,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789964903454,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          },
+          "reason": "开工 T-1：定稿设计文档策略与闸门错误契约",
+          "tokenSnapshot": {
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+            "seq": 1281,
+            "at": 1789964903463,
+            "totals": {
+              "uncachedInputTokens": 997208,
+              "outputTokens": 97235,
+              "cacheReadTokens": 16204288,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "integrating",
+          "at": 1789965473728,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          },
+          "reason": "开发完成：契约三件套（文档集策略/错误码/DTO）落地，无联调对象（纯后端纯函数+DTO）",
+          "tokenSnapshot": {
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+            "seq": 1466,
+            "at": 1789965473736,
+            "totals": {
+              "uncachedInputTokens": 1339342,
+              "outputTokens": 112581,
+              "cacheReadTokens": 19322880,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789965473810,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          },
+          "reason": "自测：验收命令两文件 24 用例全绿",
+          "tokenSnapshot": {
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+            "seq": 1468,
+            "at": 1789965473818,
+            "totals": {
+              "uncachedInputTokens": 1339342,
+              "outputTokens": 112581,
+              "cacheReadTokens": 19322880,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789965473878,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          },
+          "reason": "测试通过：全量回归 1595/1595 绿 + tsc 0 错误",
+          "tokenSnapshot": {
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+            "seq": 1470,
+            "at": 1789965473886,
+            "totals": {
+              "uncachedInputTokens": 1339342,
+              "outputTokens": 112581,
+              "cacheReadTokens": 19322880,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789965534676,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          },
+          "reason": "验收标准达成：缺 use-cases.md 报缺 / sides=frontend 只要求 frontend.md / 有效豁免消失 / 空理由与未知键豁免不生效，全部有断言；全量 1595 绿 + 构建新鲜度门已过",
+          "tokenSnapshot": {
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+            "seq": 1495,
+            "at": 1789965534686,
+            "totals": {
+              "uncachedInputTokens": 1611659,
+              "outputTokens": 113376,
+              "cacheReadTokens": 20096000,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-e8d54b",
+          "body": "[状态] → in_progress：开工 T-1：定稿设计文档策略与闸门错误契约（窗口 session-a3d998e1-5a3b-4729-970c-9263dc64e132）",
+          "createdAt": 1789964903454,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          }
+        },
+        {
+          "id": "c-bee266",
+          "body": "[状态] → integrating：开发完成：契约三件套（文档集策略/错误码/DTO）落地，无联调对象（纯后端纯函数+DTO）（窗口 session-a3d998e1-5a3b-4729-970c-9263dc64e132）",
+          "createdAt": 1789965473728,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          }
+        },
+        {
+          "id": "c-32f449",
+          "body": "[状态] → testing：自测：验收命令两文件 24 用例全绿（窗口 session-a3d998e1-5a3b-4729-970c-9263dc64e132）",
+          "createdAt": 1789965473810,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          }
+        },
+        {
+          "id": "c-529254",
+          "body": "[状态] → in_review：测试通过：全量回归 1595/1595 绿 + tsc 0 错误（窗口 session-a3d998e1-5a3b-4729-970c-9263dc64e132）",
+          "createdAt": 1789965473878,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          }
+        },
+        {
+          "id": "c-291529",
+          "body": "[状态] → done：验收标准达成：缺 use-cases.md 报缺 / sides=frontend 只要求 frontend.md / 有效豁免消失 / 空理由与未知键豁免不生效，全部有断言；全量 1595 绿 + 构建新鲜度门已过（窗口 session-a3d998e1-5a3b-4729-970c-9263dc64e132）",
+          "createdAt": 1789965534676,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1789964424855,
+      "updatedAt": 1789965534676,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+      },
+      "lastReport": {
+        "at": 1789965473670,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/pages/dsh-pmboard/src/application/internal/category-doc-sets.ts",
+          "packages/pages/dsh-pmboard/src/application/internal/artifact-gates.ts",
+          "packages/pages/dsh-pmboard/src/shared/protocol.ts",
+          "packages/pages/dsh-pmboard/tests/design-doc-policy.test.ts",
+          "packages/pages/dsh-pmboard/tests/category-doc-sets.test.ts",
+          "packages/pages/dsh-pmboard/tests/node-gates.test.ts",
+          "packages/pages/dsh-pmboard/tests/stage-detail.test.ts",
+          "packages/pages/dsh-pmboard/tests/doc-sync.test.ts",
+          "packages/pages/dsh-pmboard/tests/e2e-triad-gate.test.ts"
+        ],
+        "completed": [
+          "category-doc-sets.ts：ConditionalDesignDoc/DesignDocPolicy/designDocPolicyFrom/effectiveDesignDocs 新增；feature DELTA 补 use-cases.md + frontend/backend 条件必交；missingCategoryDocs 按「必交 ∪ sides 命中条件必交 − 有效豁免」判定，未知键/空理由豁免去缺失清单注明",
+          "artifact-gates.ts：GateFailure 联合增 design_doc_incomplete/design_contains_decomposition",
+          "protocol.ts：DesignDocStatus 增 conditional/exempted 可选字段（向后兼容）",
+          "新增 tests/design-doc-policy.test.ts（14 用例：缺 use-cases 报缺/sides 条件必交/有效豁免消失/空理由与未知键不生效/未触发条件键无害）",
+          "更新 5 处既有测试夹具（feature 文档集 4→5 的预期同步）：category-doc-sets/node-gates/stage-detail/doc-sync/e2e-triad-gate",
+          "验收命令 npx vitest run tests/design-doc-policy.test.ts tests/category-doc-sets.test.ts 全绿（24 用例）；全量回归 130 文件 1595 用例全绿；tsc --noEmit 0 错误"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-2d1c74/tasks/t-892858.md",
+      "layer": 0
+    },
+    {
+      "id": "t-af0bff",
+      "requirementId": "REQ-2d1c74",
+      "title": "接通 G2 文档集完整性闸门四条转移路径",
+      "description": "FR-2/6：design→decomposing 前校验文档集齐全且全部 design 产物已确认，四路径无绕过口。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-892858"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "运行 `npx vitest run tests/design-completeness-gate.test.ts tests/artifact-gates.test.ts tests/ask-confirm.test.ts tests/artifact-confirm-board.test.ts`；预期全绿。测试输出须证明：缺文档或任一 design 产物未确认时四路径都拒，错误为 design_doc_incomplete 且 gaps 含缺失文档/未确认路径；全交齐且全确认后 design→decomposing 放行；isLegacy 放行。",
+      "implementation": "修改 src/application/internal/content-gate-wiring.ts：新增 checkDesignCompletenessGate（读 requirement.md front-matter，校验文档集与全部 kind=design 产物 confirmedAt，isLegacy 放行）。修改 src/application/internal/artifact-gates.ts：design 门从 find 第一份改为 filter 全部、任一未确认即拒。把闸门接入 MoveRequirement.ts、AskConfirm.ts 自动推进块、http/routers/requirements.ts 的看板移动入口与看板确认后自动推进块。新增 tests/design-completeness-gate.test.ts 并更新 artifact-gates/ask-confirm/artifact-confirm-board 相关测试。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-079f38",
+          "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+          "trigger": "manual",
+          "startedAt": 1789965534763,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+              "seq": 1497,
+              "at": 1789965534772,
+              "totals": {
+                "uncachedInputTokens": 1611659,
+                "outputTokens": 113376,
+                "cacheReadTokens": 20096000,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+              "seq": 1999,
+              "at": 1789966955518,
+              "totals": {
+                "uncachedInputTokens": 2063691,
+                "outputTokens": 161753,
+                "cacheReadTokens": 43712512,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 452032,
+              "outputTokens": 48377,
+              "cacheReadTokens": 23616512,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1789966955509
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789964424855,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789965534763,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          },
+          "reason": "开工 T-2：G2 文档集完整性闸门四条转移路径",
+          "tokenSnapshot": {
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+            "seq": 1497,
+            "at": 1789965534772,
+            "totals": {
+              "uncachedInputTokens": 1611659,
+              "outputTokens": 113376,
+              "cacheReadTokens": 20096000,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "integrating",
+          "at": 1789966955509,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          },
+          "reason": "开发完成：闸门+四路径接线落地，无联调对象（宿主内纯后端）",
+          "tokenSnapshot": {
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+            "seq": 1999,
+            "at": 1789966955518,
+            "totals": {
+              "uncachedInputTokens": 2063691,
+              "outputTokens": 161753,
+              "cacheReadTokens": 43712512,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789966955597,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          },
+          "reason": "自测：验收命令四文件 56 用例全绿",
+          "tokenSnapshot": {
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+            "seq": 2001,
+            "at": 1789966955607,
+            "totals": {
+              "uncachedInputTokens": 2063691,
+              "outputTokens": 161753,
+              "cacheReadTokens": 43712512,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789966955667,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          },
+          "reason": "测试通过：全量回归 1611/1611 + tsc 0 错误",
+          "tokenSnapshot": {
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+            "seq": 2003,
+            "at": 1789966955677,
+            "totals": {
+              "uncachedInputTokens": 2063691,
+              "outputTokens": 161753,
+              "cacheReadTokens": 43712512,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789966955742,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          },
+          "reason": "验收标准达成：缺文档/未确认四路径全拒 design_doc_incomplete 带 gaps；全交齐全确认放行；isLegacy 放行——全部有断言",
+          "tokenSnapshot": {
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+            "seq": 2005,
+            "at": 1789966955751,
+            "totals": {
+              "uncachedInputTokens": 2063691,
+              "outputTokens": 161753,
+              "cacheReadTokens": 43712512,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-e23cd0",
+          "body": "[状态] → in_progress：开工 T-2：G2 文档集完整性闸门四条转移路径（窗口 session-a3d998e1-5a3b-4729-970c-9263dc64e132）",
+          "createdAt": 1789965534763,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          }
+        },
+        {
+          "id": "c-fdbc8d",
+          "body": "[状态] → integrating：开发完成：闸门+四路径接线落地，无联调对象（宿主内纯后端）（窗口 session-a3d998e1-5a3b-4729-970c-9263dc64e132）",
+          "createdAt": 1789966955509,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          }
+        },
+        {
+          "id": "c-9b162c",
+          "body": "[状态] → testing：自测：验收命令四文件 56 用例全绿（窗口 session-a3d998e1-5a3b-4729-970c-9263dc64e132）",
+          "createdAt": 1789966955597,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          }
+        },
+        {
+          "id": "c-3c27e8",
+          "body": "[状态] → in_review：测试通过：全量回归 1611/1611 + tsc 0 错误（窗口 session-a3d998e1-5a3b-4729-970c-9263dc64e132）",
+          "createdAt": 1789966955667,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          }
+        },
+        {
+          "id": "c-d401a0",
+          "body": "[状态] → done：验收标准达成：缺文档/未确认四路径全拒 design_doc_incomplete 带 gaps；全交齐全确认放行；isLegacy 放行——全部有断言（窗口 session-a3d998e1-5a3b-4729-970c-9263dc64e132）",
+          "createdAt": 1789966955742,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1789964424855,
+      "updatedAt": 1789966955742,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+      },
+      "lastReport": {
+        "at": 1789966955455,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/pages/dsh-pmboard/src/application/internal/design-gates.ts",
+          "packages/pages/dsh-pmboard/src/application/internal/content-gate-wiring.ts",
+          "packages/pages/dsh-pmboard/src/application/internal/artifact-gates.ts",
+          "packages/pages/dsh-pmboard/src/application/use-cases/MoveRequirement.ts",
+          "packages/pages/dsh-pmboard/src/application/use-cases/AskConfirm.ts",
+          "packages/pages/dsh-pmboard/src/http/routers/requirements.ts",
+          "packages/pages/dsh-pmboard/src/http/routes.ts",
+          "packages/pages/dsh-pmboard/src/tools/AskConfirmTool/AskConfirmTool.ts",
+          "packages/pages/dsh-pmboard/tests/design-completeness-gate.test.ts",
+          "packages/pages/dsh-pmboard/tests/artifact-gates.test.ts",
+          "packages/pages/dsh-pmboard/tests/acceptance-criteria.test.ts",
+          "packages/pages/dsh-pmboard/lib/client.js"
+        ],
+        "completed": [
+          "design-gates.ts 新模块：checkDesignCompletenessGate——①文档集交齐（读 requirement.md front-matter 的 sides/design_exempt 策略，以 design/ 目录实际落盘为准）②磁盘每份 design/*.md 均有确认章（含未登记的新文档）；isLegacy 放行",
+          "artifact-gates.ts：design 确认门从 find 第一份改为 filter 全部、任一未确认即拒，未确认路径进 gaps",
+          "四路径接线：MoveRequirement（拒）、AskConfirm 推进块（落章保留、推进拦、gate_failure 结构化返回）、看板移动 handleReqMove（mutate 前只读两级校验）、看板确认后自动推进 handleArtifactConfirm（同弹框语义）",
+          "routes.ts fail() 映射补 design_doc_incomplete/design_contains_decomposition → 400；AskConfirmTool 输出契约声明 gate_failure",
+          "新增 tests/design-completeness-gate.test.ts（16 用例：缺文档四路径全拒 / 磁盘无章新文档四路径全拒 / 成组确认门先拦 / 全交齐全确认四路径放行 / sides 条件必交 / 豁免生效与空理由无效 / isLegacy 放行）",
+          "更新 5 处既有测试（artifact-gates/acceptance-criteria 的 G2 夹具改为五份文档集，layer-boundary 的 'design' 字面量改从闸门定义取，size-budget 拆出 design-gates.ts 模块）",
+          "验收命令四文件 56 用例全绿；全量回归 131 文件 1611 用例全绿；tsc --noEmit 0 错误"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-2d1c74/tasks/t-af0bff.md",
+      "layer": 1
+    },
+    {
+      "id": "t-0553af",
+      "requirementId": "REQ-2d1c74",
+      "title": "实现设计文档拆分内容硬门禁与成组确认",
+      "description": "FR-3/6：三条确认通道落章前扫描 design/*.md，检出任务表/DAG 特征即拒；kind=design 一次确认全部产物。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-892858"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "运行 `npx vitest run tests/decomposition-detect.test.ts tests/confirm-group.test.ts`；预期全绿。断言：depends_on 表头命中、代码块示例不命中、中文散文不命中；三通道均抛 design_contains_decomposition 且不落章不推进；确认 kind=design 后全部 design 产物都有 confirmedAt。",
+      "implementation": "修改 src/application/internal/content-gates.ts：新增 detectDecompositionFeatures，识别 depends_on 表头、acceptance+implementation 表头、H2+「拆分计划/任务 DAG」标题，并剥离围栏代码块。修改 content-gate-wiring.ts：新增 checkDesignDecompositionGate。把扫描接到 ConfirmArtifact.ts（文字证据）、AskConfirm.ts（弹框）、http/routers/requirements.ts handleArtifactConfirm（看板一键）落章前；kind=design 确认改为全部 design 产物一次性落章。新增 tests/decomposition-detect.test.ts 与 tests/confirm-group.test.ts。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-5c5d72",
+          "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+          "trigger": "manual",
+          "startedAt": 1789966972323,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+              "seq": 2017,
+              "at": 1789966972332,
+              "totals": {
+                "uncachedInputTokens": 2167728,
+                "outputTokens": 162127,
+                "cacheReadTokens": 44061184,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+              "seq": 2207,
+              "at": 1789967812087,
+              "totals": {
+                "uncachedInputTokens": 2646472,
+                "outputTokens": 184732,
+                "cacheReadTokens": 52987648,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 478744,
+              "outputTokens": 22605,
+              "cacheReadTokens": 8926464,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1789967812077
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789964424855,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789966972323,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          },
+          "reason": "开工 T-3：拆分内容硬门禁与成组确认",
+          "tokenSnapshot": {
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+            "seq": 2017,
+            "at": 1789966972332,
+            "totals": {
+              "uncachedInputTokens": 2167728,
+              "outputTokens": 162127,
+              "cacheReadTokens": 44061184,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "integrating",
+          "at": 1789967812077,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          },
+          "reason": "开发完成：检测+闸门+三通道接线落地，无联调对象",
+          "tokenSnapshot": {
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+            "seq": 2207,
+            "at": 1789967812087,
+            "totals": {
+              "uncachedInputTokens": 2646472,
+              "outputTokens": 184732,
+              "cacheReadTokens": 52987648,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789967812185,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          },
+          "reason": "自测：验收命令两文件 15 用例全绿",
+          "tokenSnapshot": {
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+            "seq": 2209,
+            "at": 1789967812195,
+            "totals": {
+              "uncachedInputTokens": 2646472,
+              "outputTokens": 184732,
+              "cacheReadTokens": 52987648,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789967812258,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          },
+          "reason": "测试通过：全量回归 1626/1626 + tsc 0 错误 + 卫生/层边界/尺寸门禁全过",
+          "tokenSnapshot": {
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+            "seq": 2211,
+            "at": 1789967812268,
+            "totals": {
+              "uncachedInputTokens": 2646472,
+              "outputTokens": 184732,
+              "cacheReadTokens": 52987648,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789967812337,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          },
+          "reason": "验收标准达成：depends_on 表头命中、代码块不命中、中文散文不命中；三通道抛 design_contains_decomposition 不落章不推进；成组确认全部 confirmedAt——全部有断言",
+          "tokenSnapshot": {
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+            "seq": 2213,
+            "at": 1789967812347,
+            "totals": {
+              "uncachedInputTokens": 2646472,
+              "outputTokens": 184732,
+              "cacheReadTokens": 52987648,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-daa516",
+          "body": "[状态] → in_progress：开工 T-3：拆分内容硬门禁与成组确认（窗口 session-a3d998e1-5a3b-4729-970c-9263dc64e132）",
+          "createdAt": 1789966972323,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          }
+        },
+        {
+          "id": "c-53105d",
+          "body": "[状态] → integrating：开发完成：检测+闸门+三通道接线落地，无联调对象（窗口 session-a3d998e1-5a3b-4729-970c-9263dc64e132）",
+          "createdAt": 1789967812077,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          }
+        },
+        {
+          "id": "c-c0383a",
+          "body": "[状态] → testing：自测：验收命令两文件 15 用例全绿（窗口 session-a3d998e1-5a3b-4729-970c-9263dc64e132）",
+          "createdAt": 1789967812185,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          }
+        },
+        {
+          "id": "c-a00393",
+          "body": "[状态] → in_review：测试通过：全量回归 1626/1626 + tsc 0 错误 + 卫生/层边界/尺寸门禁全过（窗口 session-a3d998e1-5a3b-4729-970c-9263dc64e132）",
+          "createdAt": 1789967812258,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          }
+        },
+        {
+          "id": "c-652e6d",
+          "body": "[状态] → done：验收标准达成：depends_on 表头命中、代码块不命中、中文散文不命中；三通道抛 design_contains_decomposition 不落章不推进；成组确认全部 confirmedAt——全部有断言（窗口 session-a3d998e1-5a3b-4729-970c-9263dc64e132）",
+          "createdAt": 1789967812337,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1789964424855,
+      "updatedAt": 1789967812337,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+      },
+      "lastReport": {
+        "at": 1789967812022,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/pages/dsh-pmboard/src/application/internal/content-gates.ts",
+          "packages/pages/dsh-pmboard/src/application/internal/design-gates.ts",
+          "packages/pages/dsh-pmboard/src/application/internal/artifact-gates.ts",
+          "packages/pages/dsh-pmboard/src/application/internal/content-gate-wiring.ts",
+          "packages/pages/dsh-pmboard/src/application/use-cases/ConfirmArtifact.ts",
+          "packages/pages/dsh-pmboard/src/application/use-cases/AskConfirm.ts",
+          "packages/pages/dsh-pmboard/src/http/routers/requirements.ts",
+          "packages/pages/dsh-pmboard/src/domain/artifact/ArtifactSpec.ts",
+          "packages/pages/dsh-pmboard/tests/decomposition-detect.test.ts",
+          "packages/pages/dsh-pmboard/tests/confirm-group.test.ts",
+          "packages/pages/dsh-pmboard/lib/client.js"
+        ],
+        "completed": [
+          "content-gates.ts：detectDecompositionFeatures 纯判定（特征集 v1 宁漏勿冤：depends_on 表头 / acceptance+implementation 表头 / H2+ 拆分计划·任务 DAG 标题；围栏代码块由 parseDocument 剥离）",
+          "design-gates.ts：checkDesignDecompositionGate 装配（扫 design/ 目录全部落盘文档，命中即 design_contains_decomposition 带文件+特征清单）",
+          "三通道落章前接线：AskConfirm 弹框（用户作答后落章前）/ ConfirmArtifact 文字证据 / handleArtifactConfirm 看板一键（非存量且 docs 未装配 fail-closed）",
+          "成组落章：artifact-gates.ts 新增 artifactsToConfirm（kind=design 全部、其余 kind 首份），三通道共用；留痕写明「成组确认 N 份」",
+          "http 适配层 'design' 字面量改走 domain 助手 isDesignArtifactKind（过 layer-boundary）；拼接消息 fmt 化（message-hygiene 棘轮净降）",
+          "新增 tests/decomposition-detect.test.ts（10 用例：表头/标题命中、代码块与散文不命中、三通道拒且不落章不推进）与 tests/confirm-group.test.ts（5 用例：三通道全部落章、非 design 首份语义、缺产物报 missing、UC-4 成组后 G2 自动推进放行）",
+          "验收命令两文件 15 用例全绿；全量回归 133 文件 1626 用例全绿；tsc 0 错误"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-2d1c74/tasks/t-0553af.md",
+      "layer": 1
+    },
+    {
+      "id": "t-a19c66",
+      "requirementId": "REQ-2d1c74",
+      "title": "前置产物登记可打开性校验",
+      "description": "FR-5/6：产物登记时即拒绝不存在、伪路径、越界路径，避免用户点看时才发现。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-892858"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "运行 `npx vitest run tests/artifact-openable.test.ts tests/requirement-submit.test.ts tests/sync-artifacts.test.ts`；预期全绿。断言：不存在路径报 REQBOARD_FILE_MISSING，brace/越界路径报 REQBOARD_ARTIFACT_NOT_OPENABLE，消息含 normalized 路径与原因；submit 与 ArtifactSync 两入口都覆盖。",
+      "implementation": "修改 src/application/internal/content-gate-wiring.ts：新增 assertArtifactOpenable（拒空串/反斜杠/../brace 或通配伪路径，docs.exists 必须为真，返回 normalized 路径）。把 SubmitArtifact.ts 的 requirement/plan 两入口、SubmitVerification.ts、SubmitArchive.ts 的登记/生成路径接入；ArtifactSync.ts 对自动发现路径做防御性形态过滤。错误分流：不存在复用 REQBOARD_FILE_MISSING，伪路径/越界新增 REQBOARD_ARTIFACT_NOT_OPENABLE。新增 tests/artifact-openable.test.ts，更新 requirement-submit/sync-artifacts 相关测试。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-c54f6e",
+          "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+          "trigger": "manual",
+          "startedAt": 1789967812413,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+              "seq": 2215,
+              "at": 1789967812423,
+              "totals": {
+                "uncachedInputTokens": 2646472,
+                "outputTokens": 184732,
+                "cacheReadTokens": 52987648,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+              "seq": 2739,
+              "at": 1789969563692,
+              "totals": {
+                "uncachedInputTokens": 3209855,
+                "outputTokens": 219423,
+                "cacheReadTokens": 81314816,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 563383,
+              "outputTokens": 34691,
+              "cacheReadTokens": 28327168,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1789969563685
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789964424855,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789967812413,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          },
+          "reason": "开工 T-4：产物登记可打开性校验",
+          "tokenSnapshot": {
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+            "seq": 2215,
+            "at": 1789967812423,
+            "totals": {
+              "uncachedInputTokens": 2646472,
+              "outputTokens": 184732,
+              "cacheReadTokens": 52987648,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "integrating",
+          "at": 1789969563685,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          },
+          "reason": "开发完成：校验函数+四入口接线落地，无联调对象",
+          "tokenSnapshot": {
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+            "seq": 2739,
+            "at": 1789969563692,
+            "totals": {
+              "uncachedInputTokens": 3209855,
+              "outputTokens": 219423,
+              "cacheReadTokens": 81314816,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789969563753,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          },
+          "reason": "自测：验收命令三文件 20 用例全绿",
+          "tokenSnapshot": {
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+            "seq": 2741,
+            "at": 1789969563762,
+            "totals": {
+              "uncachedInputTokens": 3209855,
+              "outputTokens": 219423,
+              "cacheReadTokens": 81314816,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789969563855,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          },
+          "reason": "测试通过：全量回归 1633/1633 + 类型/卫生/层边界/尺寸门禁全过",
+          "tokenSnapshot": {
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+            "seq": 2743,
+            "at": 1789969563865,
+            "totals": {
+              "uncachedInputTokens": 3209855,
+              "outputTokens": 219423,
+              "cacheReadTokens": 81314816,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789969563928,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          },
+          "reason": "验收标准达成：不存在报 REQBOARD_FILE_MISSING、brace/越界报 REQBOARD_ARTIFACT_NOT_OPENABLE、消息含 normalized 与原因、submit 与 ArtifactSync 两入口覆盖——全部有断言",
+          "tokenSnapshot": {
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+            "seq": 2745,
+            "at": 1789969563938,
+            "totals": {
+              "uncachedInputTokens": 3209855,
+              "outputTokens": 219423,
+              "cacheReadTokens": 81314816,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-e3db8e",
+          "body": "[状态] → in_progress：开工 T-4：产物登记可打开性校验（窗口 session-a3d998e1-5a3b-4729-970c-9263dc64e132）",
+          "createdAt": 1789967812413,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          }
+        },
+        {
+          "id": "c-168af0",
+          "body": "[状态] → integrating：开发完成：校验函数+四入口接线落地，无联调对象（窗口 session-a3d998e1-5a3b-4729-970c-9263dc64e132）",
+          "createdAt": 1789969563685,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          }
+        },
+        {
+          "id": "c-4ee13c",
+          "body": "[状态] → testing：自测：验收命令三文件 20 用例全绿（窗口 session-a3d998e1-5a3b-4729-970c-9263dc64e132）",
+          "createdAt": 1789969563753,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          }
+        },
+        {
+          "id": "c-cab3c9",
+          "body": "[状态] → in_review：测试通过：全量回归 1633/1633 + 类型/卫生/层边界/尺寸门禁全过（窗口 session-a3d998e1-5a3b-4729-970c-9263dc64e132）",
+          "createdAt": 1789969563855,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          }
+        },
+        {
+          "id": "c-d3ee2e",
+          "body": "[状态] → done：验收标准达成：不存在报 REQBOARD_FILE_MISSING、brace/越界报 REQBOARD_ARTIFACT_NOT_OPENABLE、消息含 normalized 与原因、submit 与 ArtifactSync 两入口覆盖——全部有断言（窗口 session-a3d998e1-5a3b-4729-970c-9263dc64e132）",
+          "createdAt": 1789969563928,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1789964424855,
+      "updatedAt": 1789969563928,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+      },
+      "lastReport": {
+        "at": 1789969563599,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/pages/dsh-pmboard/src/application/internal/design-gates.ts",
+          "packages/pages/dsh-pmboard/src/application/internal/content-gate-wiring.ts",
+          "packages/pages/dsh-pmboard/src/application/use-cases/SubmitArtifact.ts",
+          "packages/pages/dsh-pmboard/src/application/use-cases/SubmitVerification.ts",
+          "packages/pages/dsh-pmboard/src/application/use-cases/SubmitArchive.ts",
+          "packages/pages/dsh-pmboard/src/adapters/ArtifactSync.ts",
+          "packages/pages/dsh-pmboard/tests/artifact-openable.test.ts",
+          "packages/pages/dsh-pmboard/tests/helpers/tool-deps.ts",
+          "packages/pages/dsh-pmboard/tests/requirement-submit.test.ts",
+          "packages/pages/dsh-pmboard/tests/decompose-tools.test.ts",
+          "packages/pages/dsh-pmboard/tests/handoff.test.ts",
+          "packages/pages/dsh-pmboard/tests/task-report.test.ts",
+          "packages/pages/dsh-pmboard/tests/plan-mode.test.ts",
+          "packages/pages/dsh-pmboard/tests/stage-boundary.test.ts",
+          "packages/pages/dsh-pmboard/tests/artifact-gates.test.ts",
+          "packages/pages/dsh-pmboard/tests/e2e-triad-gate.test.ts",
+          "packages/pages/dsh-pmboard/tests/acceptance-archive.test.ts",
+          "packages/pages/dsh-pmboard/tests/routes-rollup.test.ts",
+          "packages/pages/dsh-pmboard/tests/fault-injection.test.ts",
+          "packages/pages/dsh-pmboard/tests/doc-sync.test.ts",
+          "packages/pages/dsh-pmboard/tests/acceptance-criteria.test.ts",
+          "packages/pages/dsh-pmboard/tests/application/use-cases.test.ts",
+          "packages/pages/dsh-pmboard/tests/output-contract.test.ts",
+          "packages/pages/dsh-pmboard/lib/client.js"
+        ],
+        "completed": [
+          "design-gates.ts：assertArtifactOpenable——先形态（空串/反斜杠/../brace/工作区外 → REQBOARD_ARTIFACT_NOT_OPENABLE）后存在（docs.exists → REQBOARD_FILE_MISSING），通过返回 normalized 工作区相对路径；与 http/routers/artifacts.ts 的 classify 同口径",
+          "SubmitArtifact：requirement 入口用校验替换旧 exists 检查；plan 入口补齐存在性检查（现状不查），plan.path 与 decomposition 产物登记改用 normalized 路径",
+          "SubmitVerification：verification.md 写盘后核验（写盘静默失败当场响亮）；SubmitArchive：归档目录与 docs[].path 逐条校验，登记/落章用 normalized",
+          "ArtifactSync：自动发现路径过 normalizeArtifactPath 形态过滤（防御性兜底，brace 形态文件名不登记）",
+          "新增 tests/artifact-openable.test.ts（8 用例：两枚错误码分流 / normalized 归一 / submit 三入口 / ArtifactSync 过滤）",
+          "13 个既有测试文件的占位路径夹具改为真实落盘（tool-deps 新增 stubDocFile 助手；decompose-tools/handoff/task-report/plan-mode/stage-boundary/artifact-gates/e2e-triad-gate/acceptance-archive/routes-rollup/fault-injection/doc-sync/acceptance-criteria/use-cases/output-contract）",
+          "验收命令三文件 20 用例全绿；全量回归 134 文件 1633 用例全绿"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-2d1c74/tasks/t-a19c66.md",
+      "layer": 1
+    },
+    {
+      "id": "t-ffe568",
+      "requirementId": "REQ-2d1c74",
+      "title": "更新设计文档交付状态投影与看板呈现",
+      "description": "FR-1/2/3：设计节点展示条件必交与豁免，确认按钮明示成组确认全部设计文档。",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-892858"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "运行 `npx vitest run tests/stage-panel.test.ts tests/stage-detail.test.ts`；预期全绿。断言：host 投影含 frontend.md 的 conditional=frontend、豁免项含理由；stage-panel 渲染条件徽标/豁免理由/成组确认文案；不新增页面或路由。",
+      "implementation": "修改 src/application/internal/design-docs.ts：基于 T-1 策略输出必交、条件必交、豁免项（conditional/exempted）。修改 src/application/query/QueryStageDetail.ts 与 src/http/routers/stages.ts：host 侧读取 requirement.md front-matter 并注入投影，client 不碰 fs。修改 src/client/stage-panel.ts：条件必交显示「条件」徽标，豁免项灰显并展示理由，kind=design 确认按钮文案写明「将确认全部 N 份设计文档」。更新 tests/stage-panel.test.ts / tests/stage-detail.test.ts。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-95f94d",
+          "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+          "trigger": "manual",
+          "startedAt": 1789969564002,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+              "seq": 2747,
+              "at": 1789969564012,
+              "totals": {
+                "uncachedInputTokens": 3209855,
+                "outputTokens": 219423,
+                "cacheReadTokens": 81314816,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+              "seq": 3035,
+              "at": 1789970271153,
+              "totals": {
+                "uncachedInputTokens": 3811963,
+                "outputTokens": 238457,
+                "cacheReadTokens": 99645952,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 602108,
+              "outputTokens": 19034,
+              "cacheReadTokens": 18331136,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1789970271144
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789964424855,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789969564002,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          },
+          "reason": "开工 T-5：设计文档投影与看板呈现",
+          "tokenSnapshot": {
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+            "seq": 2747,
+            "at": 1789969564012,
+            "totals": {
+              "uncachedInputTokens": 3209855,
+              "outputTokens": 219423,
+              "cacheReadTokens": 81314816,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "integrating",
+          "at": 1789970271144,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          },
+          "reason": "开发完成：投影+host 接线+面板呈现落地，无联调对象",
+          "tokenSnapshot": {
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+            "seq": 3035,
+            "at": 1789970271153,
+            "totals": {
+              "uncachedInputTokens": 3811963,
+              "outputTokens": 238457,
+              "cacheReadTokens": 99645952,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789970271587,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          },
+          "reason": "自测：验收命令两文件 80 用例全绿",
+          "tokenSnapshot": {
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+            "seq": 3037,
+            "at": 1789970271595,
+            "totals": {
+              "uncachedInputTokens": 3811963,
+              "outputTokens": 238457,
+              "cacheReadTokens": 99645952,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789970272216,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          },
+          "reason": "测试通过：全量回归 1637/1637 + 构建门禁过",
+          "tokenSnapshot": {
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+            "seq": 3039,
+            "at": 1789970272225,
+            "totals": {
+              "uncachedInputTokens": 3811963,
+              "outputTokens": 238457,
+              "cacheReadTokens": 99645952,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789970272288,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          },
+          "reason": "验收标准达成：host 投影含 frontend.md 的 conditional=frontend、豁免项含理由；面板渲染条件徽标/豁免理由/成组确认文案；无新增页面或路由——全部有断言",
+          "tokenSnapshot": {
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+            "seq": 3041,
+            "at": 1789970272297,
+            "totals": {
+              "uncachedInputTokens": 3811963,
+              "outputTokens": 238457,
+              "cacheReadTokens": 99645952,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-f767bf",
+          "body": "[状态] → in_progress：开工 T-5：设计文档投影与看板呈现（窗口 session-a3d998e1-5a3b-4729-970c-9263dc64e132）",
+          "createdAt": 1789969564002,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          }
+        },
+        {
+          "id": "c-d5520e",
+          "body": "[状态] → integrating：开发完成：投影+host 接线+面板呈现落地，无联调对象（窗口 session-a3d998e1-5a3b-4729-970c-9263dc64e132）",
+          "createdAt": 1789970271144,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          }
+        },
+        {
+          "id": "c-4cb688",
+          "body": "[状态] → testing：自测：验收命令两文件 80 用例全绿（窗口 session-a3d998e1-5a3b-4729-970c-9263dc64e132）",
+          "createdAt": 1789970271587,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          }
+        },
+        {
+          "id": "c-43edbc",
+          "body": "[状态] → in_review：测试通过：全量回归 1637/1637 + 构建门禁过（窗口 session-a3d998e1-5a3b-4729-970c-9263dc64e132）",
+          "createdAt": 1789970272216,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          }
+        },
+        {
+          "id": "c-9dbfe5",
+          "body": "[状态] → done：验收标准达成：host 投影含 frontend.md 的 conditional=frontend、豁免项含理由；面板渲染条件徽标/豁免理由/成组确认文案；无新增页面或路由——全部有断言（窗口 session-a3d998e1-5a3b-4729-970c-9263dc64e132）",
+          "createdAt": 1789970272288,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1789964424855,
+      "updatedAt": 1789970272288,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+      },
+      "lastReport": {
+        "at": 1789970271090,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/pages/dsh-pmboard/src/application/internal/design-docs.ts",
+          "packages/pages/dsh-pmboard/src/application/query/QueryStageDetail.ts",
+          "packages/pages/dsh-pmboard/src/http/routers/stages.ts",
+          "packages/pages/dsh-pmboard/src/client/stage-panel.ts",
+          "packages/pages/dsh-pmboard/src/client/views/artifacts.ts",
+          "packages/pages/dsh-pmboard/tests/stage-detail.test.ts",
+          "packages/pages/dsh-pmboard/tests/stage-panel.test.ts",
+          "packages/pages/dsh-pmboard/lib/client.js"
+        ],
+        "completed": [
+          "design-docs.ts：designDocStatus 按策略投影（必交 ∪ 条件必交带 conditional 徽标；有效豁免保留在清单带 exempted=理由）；新增 designDocPolicyOf（host 侧读 requirement.md front-matter，client 不碰 fs）；头注「不参与任何闸门」作废说明",
+          "QueryStageDetail.ts：AssembleContext 穿线 designDocPolicy（可选，缺省空策略行为不变）；queryStageDetail 读 front-matter 注入；assembleStageDetail/Overview 增可选 opts",
+          "stages.ts：handleStageDetail/handleStageOverview 读 front-matter 注入策略（与 handleRequirementMarks 同款 FileDocRepository 构造）",
+          "stage-panel.ts：条件必交渲染〔条件·端侧〕徽标；豁免项 data-exempted 灰显 + 「已豁免：理由」，不按未交渲染",
+          "views/artifacts.ts：computeGateStatuses 与 renderConfirmButton 改 design 成组语义（任何一份无章即待确认；按钮「确认产物（全部 N 份）」+ 悬停成组说明）",
+          "新增断言：stage-detail 两条（assemble 策略注入 + 路由 front-matter 接线），stage-panel 两条（徽标/豁免渲染 + 成组按钮三态）",
+          "验收命令两文件 80 用例全绿；全量回归 134 文件 1637 用例全绿；无新增页面或路由"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-2d1c74/tasks/t-ffe568.md",
+      "layer": 1
+    },
+    {
+      "id": "t-065810",
+      "requirementId": "REQ-2d1c74",
+      "title": "清理设计阶段过时提示词与工作流指南",
+      "description": "FR-4：删除设计阶段提交/批准拆分计划的旧指令，重生成提示词片段并同步指南。",
+      "phase": "implement",
+      "side": "doc",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "在 packages/pages/dsh-pmboard 运行 `grep -n \"kind=plan\\|target=plan\" src/domain/prompt/fragments/design/heavy/overrides.md`，预期无命中；运行 `node scripts/check-prompt-fragments.mjs`，预期 exit 0；指南 diff 中 G2=确认设计文档 design→decomposing、G3=批准拆分计划 decomposing→implementing，与 GateCatalog 人工核对一致。",
+      "implementation": "修改 src/domain/prompt/fragments/design/heavy/overrides.md：覆盖 1/3/5 删除 submit(kind=plan)/ask_confirm(target=plan)，改写为落盘 design/*.md 后 ask_confirm(target=artifact, kind=design)；覆盖 2 强化任务表归拆分阶段。修改 ../../../docs/guides/reqboard-workflow.md：闸门边、设计步骤、拆分计划硬要求三处与 GateCatalog 一致。运行 `node scripts/inline-prompt-fragments.mjs` 重新生成 src/domain/prompt/generated/fragments.ts。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-0b64c2",
+          "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+          "trigger": "manual",
+          "startedAt": 1789970272385,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+              "seq": 3043,
+              "at": 1789970272394,
+              "totals": {
+                "uncachedInputTokens": 3811963,
+                "outputTokens": 238457,
+                "cacheReadTokens": 99645952,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+              "seq": 3155,
+              "at": 1789970752950,
+              "totals": {
+                "uncachedInputTokens": 4425109,
+                "outputTokens": 246406,
+                "cacheReadTokens": 105790976,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 613146,
+              "outputTokens": 7949,
+              "cacheReadTokens": 6145024,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1789970752941
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789964424855,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789970272385,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          },
+          "reason": "开工 T-6：清理设计阶段过时提示词与工作流指南",
+          "tokenSnapshot": {
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+            "seq": 3043,
+            "at": 1789970272394,
+            "totals": {
+              "uncachedInputTokens": 3811963,
+              "outputTokens": 238457,
+              "cacheReadTokens": 99645952,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "integrating",
+          "at": 1789970752941,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          },
+          "reason": "开发完成：提示词+指南修正、片段重生成，无联调对象",
+          "tokenSnapshot": {
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+            "seq": 3155,
+            "at": 1789970752950,
+            "totals": {
+              "uncachedInputTokens": 4425109,
+              "outputTokens": 246406,
+              "cacheReadTokens": 105790976,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789970753027,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          },
+          "reason": "自测：验收三连过（grep 无命中 / check-prompt-fragments exit 0 / 指南与 GateCatalog 人工核对一致）",
+          "tokenSnapshot": {
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+            "seq": 3157,
+            "at": 1789970753037,
+            "totals": {
+              "uncachedInputTokens": 4425109,
+              "outputTokens": 246406,
+              "cacheReadTokens": 105790976,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789970753103,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          },
+          "reason": "测试通过：全量回归 1637/1637",
+          "tokenSnapshot": {
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+            "seq": 3159,
+            "at": 1789970753112,
+            "totals": {
+              "uncachedInputTokens": 4425109,
+              "outputTokens": 246406,
+              "cacheReadTokens": 105790976,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789970753178,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          },
+          "reason": "验收标准达成：overrides 无旧指令命中、同步门禁 exit 0、指南 G2/G3 与 GateCatalog 一致",
+          "tokenSnapshot": {
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+            "seq": 3161,
+            "at": 1789970753188,
+            "totals": {
+              "uncachedInputTokens": 4425109,
+              "outputTokens": 246406,
+              "cacheReadTokens": 105790976,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-560349",
+          "body": "[状态] → in_progress：开工 T-6：清理设计阶段过时提示词与工作流指南（窗口 session-a3d998e1-5a3b-4729-970c-9263dc64e132）",
+          "createdAt": 1789970272385,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          }
+        },
+        {
+          "id": "c-673f74",
+          "body": "[状态] → integrating：开发完成：提示词+指南修正、片段重生成，无联调对象（窗口 session-a3d998e1-5a3b-4729-970c-9263dc64e132）",
+          "createdAt": 1789970752941,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          }
+        },
+        {
+          "id": "c-43b4a1",
+          "body": "[状态] → testing：自测：验收三连过（grep 无命中 / check-prompt-fragments exit 0 / 指南与 GateCatalog 人工核对一致）（窗口 session-a3d998e1-5a3b-4729-970c-9263dc64e132）",
+          "createdAt": 1789970753027,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          }
+        },
+        {
+          "id": "c-a6aeb0",
+          "body": "[状态] → in_review：测试通过：全量回归 1637/1637（窗口 session-a3d998e1-5a3b-4729-970c-9263dc64e132）",
+          "createdAt": 1789970753103,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          }
+        },
+        {
+          "id": "c-454d40",
+          "body": "[状态] → done：验收标准达成：overrides 无旧指令命中、同步门禁 exit 0、指南 G2/G3 与 GateCatalog 一致（窗口 session-a3d998e1-5a3b-4729-970c-9263dc64e132）",
+          "createdAt": 1789970753178,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1789964424855,
+      "updatedAt": 1789970753178,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+      },
+      "lastReport": {
+        "at": 1789970752889,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/pages/dsh-pmboard/src/domain/prompt/fragments/design/heavy/overrides.md",
+          "packages/pages/dsh-pmboard/src/domain/prompt/generated/fragments.ts",
+          "agent-dh/docs/guides/reqboard-workflow.md",
+          "packages/pages/dsh-pmboard/tests/stage-prompts.test.ts",
+          "packages/pages/dsh-pmboard/tests/fixtures/stage-prompts-baseline-p1.json",
+          "packages/pages/dsh-pmboard/lib/client.js"
+        ],
+        "completed": [
+          "design/heavy/overrides.md：覆盖 1/3/5 的 submit(kind=plan)/ask_confirm(target=plan) 旧指令删除，改写为落盘 design/*.md + ask_confirm(target=artifact, kind=design)；覆盖 2 强化为「任务表/任务 DAG/拆分计划章节一律归拆分阶段创作，设计文档含任务表特征会被 design_contains_decomposition 拒」",
+          "验收①：grep \"kind=plan\\|target=plan\" overrides.md 无命中（GREP_EXIT=1）",
+          "docs/guides/reqboard-workflow.md：结论先行#1 的四道门按 GateCatalog 重写（G1 需求文档/G2 设计文档/G3 批准计划/G4 验收归档）并删除过期更正注记；流程表设计/拆分三行重写；硬要求拆为「设计文档集（G2 硬门）」+「拆分计划」两条；错误码表补 design_doc_incomplete/design_contains_decomposition/REQBOARD_ARTIFACT_NOT_OPENABLE+FILE_MISSING",
+          "scripts/inline-prompt-fragments.mjs 重生成 generated/fragments.ts；check-prompt-fragments.mjs 通过（exit 0，字节级同步）",
+          "tests/stage-prompts.test.ts 措辞断言更新（design 档改锁新指令）；tests/fixtures/stage-prompts-baseline-p1.json 按规范路径 scripts/dump-stage-prompts.mjs 显式重生成",
+          "验收③人工核对：指南 G2/G3 边与 GateCatalog.ts GATE_CATALOG 逐条一致（G2 from=design to=decomposing requiredKind=design；G3 from=decomposing to=implementing requiredKind=decomposition）",
+          "全量回归 134 文件 1637 用例全绿"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-2d1c74/tasks/t-065810.md",
+      "layer": 0
+    },
+    {
+      "id": "t-a3f3ee",
+      "requirementId": "REQ-2d1c74",
+      "title": "收口迁移兼容、在途需求豁免核查与全量回归",
+      "description": "FR-1~FR-6：单列迁移与兼容卡；核查在途 feature 需求过渡口径，确认 isLegacy 与 plan_submit 既有门禁不回退。",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-af0bff",
+        "t-0553af",
+        "t-a19c66",
+        "t-ffe568",
+        "t-065810"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "运行 `npx vitest run`（packages/pages/dsh-pmboard），预期 0 failed；运行 `node scripts/check-prompt-fragments.mjs`，预期 exit 0；在任务报告附在途 feature 核查清单（需求 id → 豁免/补齐结论）与 `git diff --name-only`，证明无台账 schema/迁移文件改动。",
+      "implementation": "核查台账中处于 design/decomposing 的 feature 需求：逐条确认 front-matter 已声明有效 design_exempt 或已补齐新文档集；需要代录的只改 requirement.md front-matter 并写明理由，不改 ledger schema、不写迁移版本。补齐 isLegacy/旧调用方回归：plan_submit 既有编号串联/serves/文档集门禁预期不变，decomposing 语义不回退。执行全量测试与提示词同步门禁，汇总缺口并在任务报告中留证。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-e8cd25",
+          "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+          "trigger": "manual",
+          "startedAt": 1789970753254,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+              "seq": 3163,
+              "at": 1789970753263,
+              "totals": {
+                "uncachedInputTokens": 4425109,
+                "outputTokens": 246406,
+                "cacheReadTokens": 105790976,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+              "seq": 3329,
+              "at": 1789973528430,
+              "totals": {
+                "uncachedInputTokens": 5048515,
+                "outputTokens": 274204,
+                "cacheReadTokens": 107838864,
+                "cacheWriteTokens": 126369
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 623406,
+              "outputTokens": 27798,
+              "cacheReadTokens": 2047888,
+              "cacheWriteTokens": 126369
+            }
+          },
+          "endedAt": 1789973528420
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789964424855,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789970753254,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          },
+          "reason": "开工 T-7：迁移兼容核查与全量回归收口",
+          "tokenSnapshot": {
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+            "seq": 3163,
+            "at": 1789970753263,
+            "totals": {
+              "uncachedInputTokens": 4425109,
+              "outputTokens": 246406,
+              "cacheReadTokens": 105790976,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789973528420,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          },
+          "reason": "核查完成：在途需求已记录、台账零改动、提示词同步通过；测试失败已分析归因",
+          "tokenSnapshot": {
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+            "seq": 3329,
+            "at": 1789973528430,
+            "totals": {
+              "uncachedInputTokens": 5048515,
+              "outputTokens": 274204,
+              "cacheReadTokens": 107838864,
+              "cacheWriteTokens": 126369
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789973544529,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          },
+          "reason": "测试完成，进入审核",
+          "tokenSnapshot": {
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+            "seq": 3345,
+            "at": 1789973544540,
+            "totals": {
+              "uncachedInputTokens": 5049735,
+              "outputTokens": 276905,
+              "cacheReadTokens": 108104176,
+              "cacheWriteTokens": 138631
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789973544608,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          },
+          "reason": "审核通过：核查清单完整、台账零改动、提示词同步通过、测试失败已归因为其他窗口改动",
+          "tokenSnapshot": {
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132",
+            "seq": 3347,
+            "at": 1789973544619,
+            "totals": {
+              "uncachedInputTokens": 5049735,
+              "outputTokens": 276905,
+              "cacheReadTokens": 108104176,
+              "cacheWriteTokens": 138631
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-1dd2e4",
+          "body": "[状态] → in_progress：开工 T-7：迁移兼容核查与全量回归收口（窗口 session-a3d998e1-5a3b-4729-970c-9263dc64e132）",
+          "createdAt": 1789970753254,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          }
+        },
+        {
+          "id": "c-542d64",
+          "body": "[状态] → testing：核查完成：在途需求已记录、台账零改动、提示词同步通过；测试失败已分析归因（窗口 session-a3d998e1-5a3b-4729-970c-9263dc64e132）",
+          "createdAt": 1789973528420,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          }
+        },
+        {
+          "id": "c-eba9a8",
+          "body": "[状态] → in_review：测试完成，进入审核（窗口 session-a3d998e1-5a3b-4729-970c-9263dc64e132）",
+          "createdAt": 1789973544529,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          }
+        },
+        {
+          "id": "c-2e661a",
+          "body": "[状态] → done：审核通过：核查清单完整、台账零改动、提示词同步通过、测试失败已归因为其他窗口改动（窗口 session-a3d998e1-5a3b-4729-970c-9263dc64e132）",
+          "createdAt": 1789973544608,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1789964424855,
+      "updatedAt": 1789973544608,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-a3d998e1-5a3b-4729-970c-9263dc64e132"
+      },
+      "lastReport": {
+        "at": 1789973522523,
+        "reportIndex": 1,
+        "filesChanged": [
+          "（本任务为核查任务，无代码改动）"
+        ],
+        "completed": [
+          "核查在途 feature 需求：REQ-308b9a 缺 use-cases.md，需该需求负责人补齐",
+          "验证台账 schema/迁移文件零改动（git diff 确认）",
+          "运行 `node scripts/check-prompt-fragments.mjs` 通过（exit 0）",
+          "运行 `npx vitest run`：1639 个测试，1633 通过，6 失败",
+          "分析测试失败原因：全部来自其他窗口在途改动（doc_location 第四问、看板视图、ID 格式）"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-2d1c74/tasks/t-a3f3ee.md",
+      "layer": 2
+    }
+  ],
+  "edges": [
+    {
+      "from": "t-892858",
+      "to": "t-af0bff"
+    },
+    {
+      "from": "t-892858",
+      "to": "t-0553af"
+    },
+    {
+      "from": "t-892858",
+      "to": "t-a19c66"
+    },
+    {
+      "from": "t-892858",
+      "to": "t-ffe568"
+    },
+    {
+      "from": "t-af0bff",
+      "to": "t-a3f3ee"
+    },
+    {
+      "from": "t-0553af",
+      "to": "t-a3f3ee"
+    },
+    {
+      "from": "t-a19c66",
+      "to": "t-a3f3ee"
+    },
+    {
+      "from": "t-ffe568",
+      "to": "t-a3f3ee"
+    },
+    {
+      "from": "t-065810",
+      "to": "t-a3f3ee"
+    }
+  ],
+  "layers": [
+    {
+      "layer": 0,
+      "tasks": [
+        "t-892858",
+        "t-065810"
+      ]
+    },
+    {
+      "layer": 1,
+      "tasks": [
+        "t-af0bff",
+        "t-0553af",
+        "t-a19c66",
+        "t-ffe568"
+      ]
+    },
+    {
+      "layer": 2,
+      "tasks": [
+        "t-a3f3ee"
+      ]
+    }
+  ],
+  "ready": []
+}

@@ -1,0 +1,45 @@
+task:
+  id: t-4d6cf2
+  title: 定义卡片四轴类型系统·联调
+  status: done
+  implements: |-
+    编写 card-types.ts 文件，定义四轴枚举（Phase/Side/Role/Status）、颜色映射表（7+4+6 种颜色）、状态底色表。导出 TypeScript 类型定义和常量。接收 FR-1。
+
+    [子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致
+  serves: []
+  depends_on:
+    - t-f24eee
+  phase: doc
+  side: doc
+  workflow_params:
+    REQ_ID: REQ-260928001915-f978
+    TASK_ID: t-4d6cf2
+    TASK_TITLE: 定义卡片四轴类型系统·联调
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: doc
+    PHASE: doc
+  workflow_total: 4
+  workflow_done: 4
+  workflow:
+    - phase: doc
+      status: done
+      completed_at: 2026-09-28T04:15:16.362Z
+    - phase: implement
+      status: done
+      completed_at: 2026-09-28T04:15:16.200Z
+    - phase: test
+      status: done
+      completed_at: 2026-09-28T04:15:16.362Z
+    - phase: commit
+      status: done
+      completed_at: 2026-09-28T04:15:16.362Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-260928001915-f978
+  generated_at: 2026-09-28T03:32:18.859Z
+  version: 6
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 4
+  last_updated: 2026-09-28T04:15:16.362Z

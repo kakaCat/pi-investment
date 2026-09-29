@@ -1,0 +1,277 @@
+metadata:
+  stage: design
+  requirement_id: REQ-260928222643-4d34
+  generated_at: 2026-09-28T14:37:20.428Z
+  version: 3
+  generated_by: dsh-pmboard
+  last_updated: 2026-09-28T14:46:43.260Z
+inputs:
+  requirements: []
+outputs:
+  design_sections:
+    - ref: design/architecture.md#目标与总体方案
+      title: 目标与总体方案 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+      file: design/architecture.md
+      section: 目标与总体方案
+    - ref: design/architecture.md#模块改动地图
+      title: 模块改动地图 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+      file: design/architecture.md
+      section: 模块改动地图
+    - ref: design/architecture.md#为什么用模块级一次性持有器关键决策
+      title: 为什么用模块级一次性持有器（关键决策） `
+      serves:
+        - FR-2
+      file: design/architecture.md
+      section: 为什么用模块级一次性持有器关键决策
+    - ref: design/architecture.md#错误处理与响亮失败
+      title: 错误处理与响亮失败 `
+      serves:
+        - FR-3
+      file: design/architecture.md
+      section: 错误处理与响亮失败
+    - ref: design/architecture.md#兼容与回滚
+      title: 兼容与回滚 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+      file: design/architecture.md
+      section: 兼容与回滚
+    - ref: design/architecture.md#验收口径
+      title: 验收口径 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+      file: design/architecture.md
+      section: 验收口径
+    - ref: design/architecture.md#遗留问题
+      title: 遗留问题 `
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 遗留问题
+    - ref: design/data-model.md#T-1-持久化数据契约无变更
+      title: T-1 持久化数据契约：无变更 `
+      serves:
+        - FR-2
+        - FR-3
+      file: design/data-model.md
+      section: T-1-持久化数据契约无变更
+    - ref: design/data-model.md#T-2-新增内存态交接意图
+      title: T-2 新增内存态：交接意图 `
+      serves:
+        - FR-2
+      file: design/data-model.md
+      section: T-2-新增内存态交接意图
+    - ref: design/data-model.md#T-3-状态生命周期与不粘滞保证
+      title: T-3 状态生命周期与不粘滞保证 `
+      serves:
+        - FR-2
+        - FR-3
+      file: design/data-model.md
+      section: T-3-状态生命周期与不粘滞保证
+    - ref: design/data-model.md#T-4-面板入参数据契约变更
+      title: T-4 面板入参数据契约变更 `
+      serves:
+        - FR-4
+        - FR-5
+      file: design/data-model.md
+      section: T-4-面板入参数据契约变更
+    - ref: design/data-model.md#T-5-派生数据无新增
+      title: T-5 派生数据：无新增 `
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: T-5-派生数据无新增
+    - ref: design/frontend.md#P-1-入口落位与结构
+      title: P-1 入口落位与结构 `
+      serves:
+        - FR-1
+      file: design/frontend.md
+      section: P-1-入口落位与结构
+    - ref: design/frontend.md#P-2-窄面板换行与可点性
+      title: P-2 窄面板换行与可点性 `
+      serves:
+        - FR-1
+      file: design/frontend.md
+      section: P-2-窄面板换行与可点性
+    - ref: design/frontend.md#P-3-交互与失败提示的可见性
+      title: P-3 交互与失败提示的可见性 `
+      serves:
+        - FR-2
+        - FR-3
+      file: design/frontend.md
+      section: P-3-交互与失败提示的可见性
+    - ref: design/frontend.md#P-4-下掉执行流程后的面板结构
+      title: P-4 下掉执行流程后的面板结构 `
+      serves:
+        - FR-4
+      file: design/frontend.md
+      section: P-4-下掉执行流程后的面板结构
+    - ref: design/frontend.md#P-5-视觉一致性
+      title: P-5 视觉一致性 `
+      serves:
+        - FR-1
+      file: design/frontend.md
+      section: P-5-视觉一致性
+    - ref: design/interfaces.md#I-1-一次性交接持有器-board-focusts
+      title: I-1 一次性交接持有器 `board-focus.ts` `
+      serves:
+        - FR-2
+      file: design/interfaces.md
+      section: I-1-一次性交接持有器-board-focusts
+    - ref: design/interfaces.md#I-2-入口校验与失败提示-board-entryts
+      title: I-2 入口校验与失败提示 `board-entry.ts` `
+      serves:
+        - FR-3
+      file: design/interfaces.md
+      section: I-2-入口校验与失败提示-board-entryts
+    - ref: design/interfaces.md#I-3-面板入口-DOM-契约
+      title: I-3 面板入口 DOM 契约 `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: I-3-面板入口-DOM-契约
+    - ref: design/interfaces.md#I-4-面板入参契约变更
+      title: I-4 面板入参契约变更 `
+      serves:
+        - FR-4
+        - FR-5
+      file: design/interfaces.md
+      section: I-4-面板入参契约变更
+    - ref: design/interfaces.md#I-5-看板挂载点消费契约
+      title: I-5 看板挂载点消费契约 `
+      serves:
+        - FR-2
+      file: design/interfaces.md
+      section: I-5-看板挂载点消费契约
+    - ref: design/interfaces.md#I-6-不变量实现时不得违反
+      title: I-6 不变量（实现时不得违反） `
+      serves:
+        - FR-2
+        - FR-3
+      file: design/interfaces.md
+      section: I-6-不变量实现时不得违反
+    - ref: design/interfaces.md#I-7-明确不变更的接口防顺手改
+      title: I-7 明确不变更的接口（防顺手改） `
+      serves:
+        - FR-4
+        - FR-5
+      file: design/interfaces.md
+      section: I-7-明确不变更的接口防顺手改
+    - ref: design/use-cases.md#UC-1-看完节点直达需求详情主路径
+      title: UC-1 看完节点直达需求详情（主路径） `
+      serves:
+        - FR-1
+        - FR-2
+      file: design/use-cases.md
+      section: UC-1-看完节点直达需求详情主路径
+    - ref: design/use-cases.md#UC-2-分类跳过节点也要能走
+      title: UC-2 分类跳过节点也要能走 `
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: UC-2-分类跳过节点也要能走
+    - ref: design/use-cases.md#UC-3-目标已不在台账
+      title: UC-3 目标已不在台账 `
+      serves:
+        - FR-3
+      file: design/use-cases.md
+      section: UC-3-目标已不在台账
+    - ref: design/use-cases.md#UC-4-页面导航服务未注入
+      title: UC-4 页面导航服务未注入 `
+      serves:
+        - FR-3
+      file: design/use-cases.md
+      section: UC-4-页面导航服务未注入
+    - ref: design/use-cases.md#UC-5-刷新-再次进入看板非粘滞
+      title: UC-5 刷新 / 再次进入看板（非粘滞） `
+      serves:
+        - FR-2
+      file: design/use-cases.md
+      section: UC-5-刷新-再次进入看板非粘滞
+traceability:
+  fr_to_design:
+    FR-1:
+      - design/architecture.md#目标与总体方案
+      - design/architecture.md#模块改动地图
+      - design/architecture.md#兼容与回滚
+      - design/architecture.md#验收口径
+      - design/architecture.md#遗留问题
+      - design/data-model.md#T-5-派生数据无新增
+      - design/frontend.md#P-1-入口落位与结构
+      - design/frontend.md#P-2-窄面板换行与可点性
+      - design/frontend.md#P-5-视觉一致性
+      - design/interfaces.md#I-3-面板入口-DOM-契约
+      - design/use-cases.md#UC-1-看完节点直达需求详情主路径
+      - design/use-cases.md#UC-2-分类跳过节点也要能走
+    FR-2:
+      - design/architecture.md#目标与总体方案
+      - design/architecture.md#模块改动地图
+      - design/architecture.md#为什么用模块级一次性持有器关键决策
+      - design/architecture.md#兼容与回滚
+      - design/architecture.md#验收口径
+      - design/data-model.md#T-1-持久化数据契约无变更
+      - design/data-model.md#T-2-新增内存态交接意图
+      - design/data-model.md#T-3-状态生命周期与不粘滞保证
+      - design/frontend.md#P-3-交互与失败提示的可见性
+      - design/interfaces.md#I-1-一次性交接持有器-board-focusts
+      - design/interfaces.md#I-5-看板挂载点消费契约
+      - design/interfaces.md#I-6-不变量实现时不得违反
+      - design/use-cases.md#UC-1-看完节点直达需求详情主路径
+      - design/use-cases.md#UC-5-刷新-再次进入看板非粘滞
+    FR-3:
+      - design/architecture.md#目标与总体方案
+      - design/architecture.md#模块改动地图
+      - design/architecture.md#错误处理与响亮失败
+      - design/architecture.md#兼容与回滚
+      - design/architecture.md#验收口径
+      - design/data-model.md#T-1-持久化数据契约无变更
+      - design/data-model.md#T-3-状态生命周期与不粘滞保证
+      - design/frontend.md#P-3-交互与失败提示的可见性
+      - design/interfaces.md#I-2-入口校验与失败提示-board-entryts
+      - design/interfaces.md#I-6-不变量实现时不得违反
+      - design/use-cases.md#UC-3-目标已不在台账
+      - design/use-cases.md#UC-4-页面导航服务未注入
+    FR-4:
+      - design/architecture.md#目标与总体方案
+      - design/architecture.md#模块改动地图
+      - design/architecture.md#兼容与回滚
+      - design/architecture.md#验收口径
+      - design/data-model.md#T-4-面板入参数据契约变更
+      - design/frontend.md#P-4-下掉执行流程后的面板结构
+      - design/interfaces.md#I-4-面板入参契约变更
+      - design/interfaces.md#I-7-明确不变更的接口防顺手改
+    FR-5:
+      - design/architecture.md#目标与总体方案
+      - design/architecture.md#模块改动地图
+      - design/architecture.md#兼容与回滚
+      - design/architecture.md#验收口径
+      - design/data-model.md#T-4-面板入参数据契约变更
+      - design/interfaces.md#I-4-面板入参契约变更
+      - design/interfaces.md#I-7-明确不变更的接口防顺手改
+coverage:
+  design:
+    total: 0
+    covered: 0
+    uncovered: []
+    rate: 100
+    total_frs: 0
+    covered_frs: 0

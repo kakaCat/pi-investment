@@ -1,0 +1,31 @@
+task:
+  id: t-x
+  title: 无归属卡
+  status: todo
+  implements: 改 x.ts
+  serves: []
+  depends_on: []
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-000001
+    TASK_ID: t-x
+    TASK_TITLE: 无归属卡
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 0
+  workflow:
+    - phase: implement
+      status: pending
+metadata:
+  stage: implementing
+  requirement_id: REQ-000001
+  generated_at: 2026-09-28T15:17:40.970Z
+  version: 22
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-09-29T00:02:35.655Z

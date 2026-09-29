@@ -1,0 +1,116 @@
+requirement:
+  id: REQ-260928185112-e20d
+  title: 页面插件统一 main 插槽：看板迁移样板 + 其余 7 个面板迁移清单
+  category: refactor
+  created_at: 2026-09-28T10:51:12.589Z
+  source_session: session-7f4acab0-a754-4c1d-b1c3-06e76697fde2
+  dir: /Users/yunpeng/pi-investment/agent-dh/docs/requirements/REQ-260928185112-e20d
+lifecycle:
+  current_stage: accepting
+  stage_count: 6
+  stage_list:
+    - draft
+    - design
+    - decomposing
+    - implementing
+    - accepting
+    - done
+  stages:
+    - stage: draft
+      status: completed
+      enabled: true
+      entered_at: 2026-09-28T10:51:12.589Z
+      completed_at: 2026-09-28T12:59:59.014Z
+    - stage: brainstorming
+      status: completed
+      enabled: false
+      entered_at: 2026-09-28T10:51:12.589Z
+      completed_at: 2026-09-28T12:59:59.014Z
+      artifacts:
+        - kind: notes
+          path: docs/requirements/REQ-260928185112-e20d/rtm-lifecycle.yml
+        - kind: requirement
+          path: docs/requirements/REQ-260928185112-e20d/requirement.md
+          confirmed_at: 2026-09-28T10:52:14.206Z
+        - kind: notes
+          path: docs/requirements/REQ-260928185112-e20d/rtm-brainstorming.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928185112-e20d/rtm-design.yml
+    - stage: design
+      status: completed
+      enabled: true
+      entered_at: 2026-09-28T10:51:12.589Z
+      completed_at: 2026-09-28T12:59:59.014Z
+      artifacts:
+        - kind: design
+          path: docs/requirements/REQ-260928185112-e20d/design/architecture.md
+          confirmed_at: 2026-09-28T11:07:16.243Z
+        - kind: design
+          path: docs/requirements/REQ-260928185112-e20d/design/migration.md
+          confirmed_at: 2026-09-28T11:07:16.243Z
+    - stage: decomposing
+      status: completed
+      enabled: true
+      entered_at: 2026-09-28T10:51:12.589Z
+      completed_at: 2026-09-28T12:59:59.014Z
+      artifacts:
+        - kind: decomposition
+          path: docs/requirements/REQ-260928185112-e20d/decomposition.md
+          confirmed_at: 2026-09-28T11:10:19.967Z
+        - kind: notes
+          path: docs/requirements/REQ-260928185112-e20d/rtm-decomposing.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928185112-e20d/rtm-implementing.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928185112-e20d/queue.json
+    - stage: implementing
+      status: completed
+      enabled: true
+      entered_at: 2026-09-28T10:51:12.589Z
+      completed_at: 2026-09-28T12:59:59.014Z
+      artifacts:
+        - kind: task_detail
+          path: docs/requirements/REQ-260928185112-e20d/tasks/t-48d9a4.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928185112-e20d/tasks/t-5dc812.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928185112-e20d/tasks/t-75e700.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928185112-e20d/tasks/t-bb1e62.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928185112-e20d/tasks/t-d52858.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928185112-e20d/tasks/t-351435.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928185112-e20d/tasks/t-c7f36f.md
+        - kind: notes
+          path: docs/requirements/REQ-260928185112-e20d/rtm-implementing/t-5dc812.yml
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/client/page/page-panel.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/tests/client-page-panel.test.ts
+        - kind: notes
+          path: docs/requirements/REQ-260928185112-e20d/rtm-implementing/t-834096.yml
+        - kind: task_detail
+          path: docs/requirements/REQ-260928185112-e20d/tasks/t-834096.md
+        - kind: notes
+          path: docs/requirements/REQ-260928185112-e20d/advance-log.md
+    - stage: accepting
+      status: in_progress
+      enabled: true
+      entered_at: 2026-09-28T10:51:12.589Z
+      artifacts:
+        - kind: verification
+          path: docs/requirements/REQ-260928185112-e20d/verification.md
+    - stage: done
+      status: pending
+      enabled: true
+metadata:
+  stage: lifecycle
+  requirement_id: REQ-260928185112-e20d
+  generated_at: 2026-09-28T10:51:13.717Z
+  version: 11
+  generated_by: dsh-pmboard
+  rtm_version: "1.0"
+  file_path: /Users/yunpeng/pi-investment/agent-dh/docs/requirements/REQ-260928185112-e20d/rtm-lifecycle.yml
+  last_updated: 2026-09-28T12:59:59.139Z

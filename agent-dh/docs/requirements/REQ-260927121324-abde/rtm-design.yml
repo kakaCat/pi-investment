@@ -1,0 +1,535 @@
+metadata:
+  stage: design
+  requirement_id: REQ-260927121324-abde
+  generated_at: 2026-09-27T04:29:10.382Z
+  version: 3
+  generated_by: dsh-pmboard
+  last_updated: 2026-09-27T04:37:28.235Z
+inputs:
+  requirements:
+    - id: FR-1
+      title: 需求状态迁移统一经收敛点并带写时快照
+      source: requirement.md
+      line: 176
+    - id: FR-2
+      title: 批准计划 → 实施与看板确认推进不丢快照（离开 + 进入双端）
+      source: requirement.md
+      line: 183
+    - id: FR-3
+      title: 看板验收/裁决路径同源带快照
+      source: requirement.md
+      line: 191
+    - id: FR-4
+      title: 任务开工写 start 快照（四处执行记录产生点同源）
+      source: requirement.md
+      line: 198
+    - id: FR-5
+      title: 任务完工与中途汇报写 end 与 delta
+      source: requirement.md
+      line: 207
+    - id: FR-6
+      title: 派生推进（rollup）能取快照就结算，取不到诚实不传
+      source: requirement.md
+      line: 215
+    - id: FR-7
+      title: 快照缺失如实降级
+      source: requirement.md
+      line: 222
+    - id: FR-8
+      title: 执行快照写路径收敛到唯一助手（结构性守卫）
+      source: requirement.md
+      line: 229
+    - id: FR-9
+      title: 回归守护
+      source: requirement.md
+      line: 236
+outputs:
+  design_sections:
+    - ref: design/architecture.md#TLDR
+      title: TL;DR <!--
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+        - FR-9
+      file: design/architecture.md
+      section: TLDR
+    - ref: design/architecture.md#设计总览三条写路径-一条读路径
+      title: 设计总览：三条写路径 + 一条读路径 <!--
+      serves:
+        - FR-1
+        - FR-4
+        - FR-6
+        - FR-7
+      file: design/architecture.md
+      section: 设计总览三条写路径-一条读路径
+    - ref: design/architecture.md#根因-修点对照
+      title: 根因 → 修点对照 <!--
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/architecture.md
+      section: 根因-修点对照
+    - ref: design/architecture.md#写路径收敛点
+      title: 写路径收敛点 <!--
+      serves:
+        - FR-1
+        - FR-8
+      file: design/architecture.md
+      section: 写路径收敛点
+    - ref: design/architecture.md#数据流含失败分支
+      title: 数据流（含失败分支） <!--
+      serves:
+        - FR-2
+        - FR-5
+        - FR-7
+      file: design/architecture.md
+      section: 数据流含失败分支
+    - ref: design/architecture.md#逐条功能点实现要点
+      title: 逐条功能点实现要点 <!--
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+        - FR-9
+      file: design/architecture.md
+      section: 逐条功能点实现要点
+    - ref: design/architecture.md#四视角落点
+      title: 四视角落点 <!--
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/architecture.md
+      section: 四视角落点
+    - ref: design/architecture.md#迁移与回滚
+      title: 迁移与回滚 <!--
+      serves:
+        - FR-7
+        - FR-8
+      file: design/architecture.md
+      section: 迁移与回滚
+    - ref: design/architecture.md#不做什么边界
+      title: 不做什么（边界） <!--
+      serves:
+        - FR-1
+        - FR-4
+        - FR-6
+        - FR-7
+      file: design/architecture.md
+      section: 不做什么边界
+    - ref: design/architecture.md#风险与缓解
+      title: 风险与缓解 <!--
+      serves:
+        - FR-4
+        - FR-5
+        - FR-7
+      file: design/architecture.md
+      section: 风险与缓解
+    - ref: design/backend.md#后端改动清单
+      title: 后端改动清单 <!--
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+        - FR-9
+      file: design/backend.md
+      section: 后端改动清单
+    - ref: design/backend.md#逐文件改动需求迁移
+      title: 逐文件改动（需求迁移） <!--
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/backend.md
+      section: 逐文件改动需求迁移
+    - ref: design/backend.md#逐文件改动任务执行
+      title: 逐文件改动（任务执行） <!--
+      serves:
+        - FR-4
+        - FR-5
+        - FR-8
+      file: design/backend.md
+      section: 逐文件改动任务执行
+    - ref: design/backend.md#自动链与无会话路径
+      title: 自动链与无会话路径 <!--
+      serves:
+        - FR-4
+        - FR-6
+      file: design/backend.md
+      section: 自动链与无会话路径
+    - ref: design/backend.md#读路径降级实现
+      title: 读路径降级实现 <!--
+      serves:
+        - FR-7
+      file: design/backend.md
+      section: 读路径降级实现
+    - ref: design/backend.md#结构性守卫
+      title: 结构性守卫 <!--
+      serves:
+        - FR-8
+        - FR-9
+      file: design/backend.md
+      section: 结构性守卫
+    - ref: design/backend.md#发布与验证
+      title: 发布与验证 <!--
+      serves:
+        - FR-9
+      file: design/backend.md
+      section: 发布与验证
+    - ref: design/data-model.md#数据契约总览不新增字段
+      title: 数据契约总览（不新增字段） <!--
+      serves:
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+      file: design/data-model.md
+      section: 数据契约总览不新增字段
+    - ref: design/data-model.md#字段明细
+      title: 字段明细 <!--
+      serves:
+        - FR-1
+        - FR-2
+        - FR-4
+        - FR-5
+        - FR-7
+      file: design/data-model.md
+      section: 字段明细
+    - ref: design/data-model.md#不变式
+      title: 不变式 <!--
+      serves:
+        - FR-4
+        - FR-5
+        - FR-7
+        - FR-8
+      file: design/data-model.md
+      section: 不变式
+    - ref: design/data-model.md#读路径判定degradedFR-7-唯一变更点
+      title: 读路径判定（degraded，FR-7 唯一变更点） <!--
+      serves:
+        - FR-7
+      file: design/data-model.md
+      section: 读路径判定degradedFR-7-唯一变更点
+    - ref: design/data-model.md#版本兼容与迁移
+      title: 版本兼容与迁移 <!--
+      serves:
+        - FR-7
+        - FR-9
+      file: design/data-model.md
+      section: 版本兼容与迁移
+    - ref: design/data-model.md#回滚路径
+      title: 回滚路径 <!--
+      serves:
+        - FR-7
+      file: design/data-model.md
+      section: 回滚路径
+    - ref: design/interfaces.md#写路径助手内部接口
+      title: 写路径助手（内部接口） <!--
+      serves:
+        - FR-1
+        - FR-4
+        - FR-5
+        - FR-8
+      file: design/interfaces.md
+      section: 写路径助手内部接口
+    - ref: design/interfaces.md#需求迁移收敛点
+      title: 需求迁移收敛点 <!--
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-6
+      file: design/interfaces.md
+      section: 需求迁移收敛点
+    - ref: design/interfaces.md#执行快照助手
+      title: 执行快照助手 <!--
+      serves:
+        - FR-4
+        - FR-5
+        - FR-8
+      file: design/interfaces.md
+      section: 执行快照助手
+    - ref: design/interfaces.md#HTTP-入口
+      title: HTTP 入口 <!--
+      serves:
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-6
+      file: design/interfaces.md
+      section: HTTP-入口
+    - ref: design/interfaces.md#Agent-工具入口
+      title: Agent 工具入口 <!--
+      serves:
+        - FR-1
+        - FR-4
+        - FR-5
+        - FR-6
+      file: design/interfaces.md
+      section: Agent-工具入口
+    - ref: design/interfaces.md#错误与降级语义
+      title: 错误与降级语义 <!--
+      serves:
+        - FR-1
+        - FR-4
+        - FR-5
+        - FR-7
+        - FR-8
+      file: design/interfaces.md
+      section: 错误与降级语义
+    - ref: design/interfaces.md#兼容性矩阵
+      title: 兼容性矩阵 <!--
+      serves:
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-6
+        - FR-7
+      file: design/interfaces.md
+      section: 兼容性矩阵
+    - ref: design/use-cases.md#场景总览
+      title: 场景总览 <!--
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+        - FR-9
+      file: design/use-cases.md
+      section: 场景总览
+    - ref: design/use-cases.md#UC-1-看板使用者看到真实数字或诚实的无快照
+      title: UC-1 看板使用者看到真实数字或诚实的「无快照」 <!--
+      serves:
+        - FR-7
+      file: design/use-cases.md
+      section: UC-1-看板使用者看到真实数字或诚实的无快照
+    - ref: design/use-cases.md#UC-2-窗口-agent-推进任务需求时自动落账
+      title: UC-2 窗口 agent 推进任务/需求时自动落账 <!--
+      serves:
+        - FR-1
+        - FR-4
+        - FR-5
+      file: design/use-cases.md
+      section: UC-2-窗口-agent-推进任务需求时自动落账
+    - ref: design/use-cases.md#UC-3-看板操作者点按钮推进也落账
+      title: UC-3 看板操作者点按钮推进也落账 <!--
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-6
+      file: design/use-cases.md
+      section: UC-3-看板操作者点按钮推进也落账
+    - ref: design/use-cases.md#UC-4-自动链无人值守跑完一张父卡
+      title: UC-4 自动链无人值守跑完一张父卡 <!--
+      serves:
+        - FR-4
+        - FR-5
+        - FR-6
+      file: design/use-cases.md
+      section: UC-4-自动链无人值守跑完一张父卡
+    - ref: design/use-cases.md#UC-5-维护者新增一条写路径时漏写快照会被拦下
+      title: UC-5 维护者新增一条写路径时漏写快照会被拦下 <!--
+      serves:
+        - FR-8
+        - FR-9
+      file: design/use-cases.md
+      section: UC-5-维护者新增一条写路径时漏写快照会被拦下
+    - ref: design/use-cases.md#UC-6-翻历史需求时如实标注
+      title: UC-6 翻历史需求时如实标注 <!--
+      serves:
+        - FR-7
+      file: design/use-cases.md
+      section: UC-6-翻历史需求时如实标注
+traceability:
+  fr_to_design:
+    FR-1:
+      - design/architecture.md#TLDR
+      - design/architecture.md#设计总览三条写路径-一条读路径
+      - design/architecture.md#根因-修点对照
+      - design/architecture.md#写路径收敛点
+      - design/architecture.md#逐条功能点实现要点
+      - design/architecture.md#四视角落点
+      - design/architecture.md#不做什么边界
+      - design/backend.md#后端改动清单
+      - design/backend.md#逐文件改动需求迁移
+      - design/data-model.md#字段明细
+      - design/interfaces.md#写路径助手内部接口
+      - design/interfaces.md#需求迁移收敛点
+      - design/interfaces.md#Agent-工具入口
+      - design/interfaces.md#错误与降级语义
+      - design/use-cases.md#场景总览
+      - design/use-cases.md#UC-2-窗口-agent-推进任务需求时自动落账
+      - design/use-cases.md#UC-3-看板操作者点按钮推进也落账
+    FR-2:
+      - design/architecture.md#TLDR
+      - design/architecture.md#根因-修点对照
+      - design/architecture.md#数据流含失败分支
+      - design/architecture.md#逐条功能点实现要点
+      - design/architecture.md#四视角落点
+      - design/backend.md#后端改动清单
+      - design/backend.md#逐文件改动需求迁移
+      - design/data-model.md#字段明细
+      - design/interfaces.md#需求迁移收敛点
+      - design/interfaces.md#HTTP-入口
+      - design/interfaces.md#兼容性矩阵
+      - design/use-cases.md#场景总览
+      - design/use-cases.md#UC-3-看板操作者点按钮推进也落账
+    FR-3:
+      - design/architecture.md#TLDR
+      - design/architecture.md#根因-修点对照
+      - design/architecture.md#逐条功能点实现要点
+      - design/architecture.md#四视角落点
+      - design/backend.md#后端改动清单
+      - design/backend.md#逐文件改动需求迁移
+      - design/interfaces.md#需求迁移收敛点
+      - design/interfaces.md#HTTP-入口
+      - design/interfaces.md#兼容性矩阵
+      - design/use-cases.md#场景总览
+      - design/use-cases.md#UC-3-看板操作者点按钮推进也落账
+    FR-4:
+      - design/architecture.md#TLDR
+      - design/architecture.md#设计总览三条写路径-一条读路径
+      - design/architecture.md#根因-修点对照
+      - design/architecture.md#逐条功能点实现要点
+      - design/architecture.md#四视角落点
+      - design/architecture.md#不做什么边界
+      - design/architecture.md#风险与缓解
+      - design/backend.md#后端改动清单
+      - design/backend.md#逐文件改动任务执行
+      - design/backend.md#自动链与无会话路径
+      - design/data-model.md#数据契约总览不新增字段
+      - design/data-model.md#字段明细
+      - design/data-model.md#不变式
+      - design/interfaces.md#写路径助手内部接口
+      - design/interfaces.md#执行快照助手
+      - design/interfaces.md#HTTP-入口
+      - design/interfaces.md#Agent-工具入口
+      - design/interfaces.md#错误与降级语义
+      - design/interfaces.md#兼容性矩阵
+      - design/use-cases.md#场景总览
+      - design/use-cases.md#UC-2-窗口-agent-推进任务需求时自动落账
+      - design/use-cases.md#UC-4-自动链无人值守跑完一张父卡
+    FR-5:
+      - design/architecture.md#TLDR
+      - design/architecture.md#根因-修点对照
+      - design/architecture.md#数据流含失败分支
+      - design/architecture.md#逐条功能点实现要点
+      - design/architecture.md#四视角落点
+      - design/architecture.md#风险与缓解
+      - design/backend.md#后端改动清单
+      - design/backend.md#逐文件改动任务执行
+      - design/data-model.md#数据契约总览不新增字段
+      - design/data-model.md#字段明细
+      - design/data-model.md#不变式
+      - design/interfaces.md#写路径助手内部接口
+      - design/interfaces.md#执行快照助手
+      - design/interfaces.md#Agent-工具入口
+      - design/interfaces.md#错误与降级语义
+      - design/use-cases.md#场景总览
+      - design/use-cases.md#UC-2-窗口-agent-推进任务需求时自动落账
+      - design/use-cases.md#UC-4-自动链无人值守跑完一张父卡
+    FR-6:
+      - design/architecture.md#TLDR
+      - design/architecture.md#设计总览三条写路径-一条读路径
+      - design/architecture.md#根因-修点对照
+      - design/architecture.md#逐条功能点实现要点
+      - design/architecture.md#四视角落点
+      - design/architecture.md#不做什么边界
+      - design/backend.md#后端改动清单
+      - design/backend.md#自动链与无会话路径
+      - design/data-model.md#数据契约总览不新增字段
+      - design/interfaces.md#需求迁移收敛点
+      - design/interfaces.md#HTTP-入口
+      - design/interfaces.md#Agent-工具入口
+      - design/interfaces.md#兼容性矩阵
+      - design/use-cases.md#场景总览
+      - design/use-cases.md#UC-3-看板操作者点按钮推进也落账
+      - design/use-cases.md#UC-4-自动链无人值守跑完一张父卡
+    FR-7:
+      - design/architecture.md#TLDR
+      - design/architecture.md#设计总览三条写路径-一条读路径
+      - design/architecture.md#根因-修点对照
+      - design/architecture.md#数据流含失败分支
+      - design/architecture.md#逐条功能点实现要点
+      - design/architecture.md#四视角落点
+      - design/architecture.md#迁移与回滚
+      - design/architecture.md#不做什么边界
+      - design/architecture.md#风险与缓解
+      - design/backend.md#后端改动清单
+      - design/backend.md#读路径降级实现
+      - design/data-model.md#数据契约总览不新增字段
+      - design/data-model.md#字段明细
+      - design/data-model.md#不变式
+      - design/data-model.md#读路径判定degradedFR-7-唯一变更点
+      - design/data-model.md#版本兼容与迁移
+      - design/data-model.md#回滚路径
+      - design/interfaces.md#错误与降级语义
+      - design/interfaces.md#兼容性矩阵
+      - design/use-cases.md#场景总览
+      - design/use-cases.md#UC-1-看板使用者看到真实数字或诚实的无快照
+      - design/use-cases.md#UC-6-翻历史需求时如实标注
+    FR-8:
+      - design/architecture.md#TLDR
+      - design/architecture.md#根因-修点对照
+      - design/architecture.md#写路径收敛点
+      - design/architecture.md#逐条功能点实现要点
+      - design/architecture.md#四视角落点
+      - design/architecture.md#迁移与回滚
+      - design/backend.md#后端改动清单
+      - design/backend.md#逐文件改动任务执行
+      - design/backend.md#结构性守卫
+      - design/data-model.md#不变式
+      - design/interfaces.md#写路径助手内部接口
+      - design/interfaces.md#执行快照助手
+      - design/interfaces.md#错误与降级语义
+      - design/use-cases.md#场景总览
+      - design/use-cases.md#UC-5-维护者新增一条写路径时漏写快照会被拦下
+    FR-9:
+      - design/architecture.md#TLDR
+      - design/architecture.md#逐条功能点实现要点
+      - design/backend.md#后端改动清单
+      - design/backend.md#结构性守卫
+      - design/backend.md#发布与验证
+      - design/data-model.md#版本兼容与迁移
+      - design/use-cases.md#场景总览
+      - design/use-cases.md#UC-5-维护者新增一条写路径时漏写快照会被拦下
+coverage:
+  design:
+    total: 9
+    covered: 9
+    uncovered: []
+    rate: 100
+    total_frs: 9
+    covered_frs: 9

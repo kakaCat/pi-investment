@@ -1,7 +1,7 @@
 task:
   id: t-0de514
   title: 覆盖度门禁
-  status: todo
+  status: done
   implements: ""
   serves:
     - FR-7
@@ -27,8 +27,8 @@ metadata:
   stage: implementing
   requirement_id: REQ-202609262349-1518
   generated_at: 2026-09-27T01:34:27.541Z
-  version: 2
+  version: 6
   generated_by: dsh-pmboard
   detail_dir: rtm-implementing/
   detail_count: 1
-  last_updated: 2026-09-27T01:36:06.425Z
+  last_updated: 2026-09-27T03:21:45.505Z

@@ -1,0 +1,217 @@
+metadata:
+  stage: implementing
+  requirement_id: REQ-260928001915-f978
+  generated_at: 2026-09-28T02:35:10.759Z
+  version: 43
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 40
+  last_updated: 2026-09-28T05:49:56.789Z
+inputs:
+  tasks:
+    - id: t-efa03b
+      title: 定义卡片四轴类型系统
+      status: done
+    - id: t-2ad263
+      title: 实现卡片样式渲染器
+      status: done
+    - id: t-4256bf
+      title: 实现 DAG 布局引擎
+      status: done
+    - id: t-e4e9db
+      title: 实现边线渲染器
+      status: done
+    - id: t-1f219b
+      title: 实现关键路径算法
+      status: done
+    - id: t-73c392
+      title: 实现悬停交互处理器
+      status: done
+    - id: t-d379c7
+      title: 实现父卡子卡链进度条
+      status: done
+    - id: t-144707
+      title: 集成测试与文档
+      status: done
+    - id: t-f24eee
+      title: 定义卡片四轴类型系统·研发
+      status: done
+    - id: t-4d6cf2
+      title: 定义卡片四轴类型系统·联调
+      status: done
+    - id: t-730c85
+      title: 定义卡片四轴类型系统·复核
+      status: done
+    - id: t-d65d4c
+      title: 定义卡片四轴类型系统·测试
+      status: done
+    - id: t-5fccbe
+      title: 实现卡片样式渲染器·研发
+      status: done
+    - id: t-92496d
+      title: 实现卡片样式渲染器·联调
+      status: done
+    - id: t-c969a8
+      title: 实现卡片样式渲染器·复核
+      status: done
+    - id: t-cb5648
+      title: 实现卡片样式渲染器·测试
+      status: done
+    - id: t-c11c61
+      title: 实现 DAG 布局引擎·研发
+      status: done
+    - id: t-185222
+      title: 实现 DAG 布局引擎·联调
+      status: done
+    - id: t-a10499
+      title: 实现 DAG 布局引擎·复核
+      status: done
+    - id: t-d41ea0
+      title: 实现 DAG 布局引擎·测试
+      status: done
+    - id: t-660826
+      title: 实现边线渲染器·研发
+      status: done
+    - id: t-ca1655
+      title: 实现边线渲染器·联调
+      status: done
+    - id: t-35222c
+      title: 实现边线渲染器·复核
+      status: done
+    - id: t-c41ace
+      title: 实现边线渲染器·测试
+      status: done
+    - id: t-868884
+      title: 实现关键路径算法·研发
+      status: done
+    - id: t-41d67e
+      title: 实现关键路径算法·联调
+      status: done
+    - id: t-706169
+      title: 实现关键路径算法·复核
+      status: done
+    - id: t-1f0b86
+      title: 实现关键路径算法·测试
+      status: done
+    - id: t-e00c5f
+      title: 实现悬停交互处理器·研发
+      status: done
+    - id: t-65df2c
+      title: 实现悬停交互处理器·联调
+      status: done
+    - id: t-b9308e
+      title: 实现悬停交互处理器·复核
+      status: done
+    - id: t-1b2632
+      title: 实现悬停交互处理器·测试
+      status: done
+    - id: t-8a854a
+      title: 实现父卡子卡链进度条·研发
+      status: done
+    - id: t-d284d3
+      title: 实现父卡子卡链进度条·联调
+      status: done
+    - id: t-f49d5b
+      title: 实现父卡子卡链进度条·复核
+      status: done
+    - id: t-a2599c
+      title: 实现父卡子卡链进度条·测试
+      status: done
+    - id: t-cf42de
+      title: 集成测试与文档·研发
+      status: done
+    - id: t-dbed64
+      title: 集成测试与文档·联调
+      status: done
+    - id: t-975c52
+      title: 集成测试与文档·复核
+      status: done
+    - id: t-66570e
+      title: 集成测试与文档·测试
+      status: done
+status:
+  tasks_total: 40
+  tasks_done: 40
+  tasks_in_progress: 0
+  tasks_todo: 0
+tasks:
+  - id: t-efa03b
+    status: done
+  - id: t-2ad263
+    status: done
+  - id: t-4256bf
+    status: done
+  - id: t-e4e9db
+    status: done
+  - id: t-1f219b
+    status: done
+  - id: t-73c392
+    status: done
+  - id: t-d379c7
+    status: done
+  - id: t-144707
+    status: done
+  - id: t-f24eee
+    status: done
+  - id: t-4d6cf2
+    status: done
+  - id: t-730c85
+    status: done
+  - id: t-d65d4c
+    status: done
+  - id: t-5fccbe
+    status: done
+  - id: t-92496d
+    status: done
+  - id: t-c969a8
+    status: done
+  - id: t-cb5648
+    status: done
+  - id: t-c11c61
+    status: done
+  - id: t-185222
+    status: done
+  - id: t-a10499
+    status: done
+  - id: t-d41ea0
+    status: done
+  - id: t-660826
+    status: done
+  - id: t-ca1655
+    status: done
+  - id: t-35222c
+    status: done
+  - id: t-c41ace
+    status: done
+  - id: t-868884
+    status: done
+  - id: t-41d67e
+    status: done
+  - id: t-706169
+    status: done
+  - id: t-1f0b86
+    status: done
+  - id: t-e00c5f
+    status: done
+  - id: t-65df2c
+    status: done
+  - id: t-b9308e
+    status: done
+  - id: t-1b2632
+    status: done
+  - id: t-8a854a
+    status: done
+  - id: t-d284d3
+    status: done
+  - id: t-f49d5b
+    status: done
+  - id: t-a2599c
+    status: done
+  - id: t-cf42de
+    status: done
+  - id: t-dbed64
+    status: done
+  - id: t-975c52
+    status: done
+  - id: t-66570e
+    status: done

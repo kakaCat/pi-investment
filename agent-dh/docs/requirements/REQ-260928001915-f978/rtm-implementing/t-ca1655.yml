@@ -1,0 +1,38 @@
+task:
+  id: t-ca1655
+  title: 实现边线渲染器·联调
+  status: done
+  implements: |-
+    编写 edge-renderer.ts，实现 renderEdges 函数，根据任务状态给连线着色：from/to 都 done=绿色（rgba(52,199,89,.5)，1.3px）；默认=灰色（rgba(0,0,0,.17)，1.2px）；关键路径=蓝色（rgba(0,113,227,.75)，1.8px）。支持传入关键路径节点集合。接收 FR-4。
+
+    [子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致
+  serves: []
+  depends_on:
+    - t-660826
+  phase: implement
+  side: frontend
+  workflow_params:
+    REQ_ID: REQ-260928001915-f978
+    TASK_ID: t-ca1655
+    TASK_TITLE: 实现边线渲染器·联调
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: frontend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-09-28T05:49:34.781Z
+    - phase: doc
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-260928001915-f978
+  generated_at: 2026-09-28T05:49:34.780Z
+  version: 2
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-09-28T05:49:34.781Z

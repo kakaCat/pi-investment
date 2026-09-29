@@ -1,0 +1,2227 @@
+{
+  "version": 1,
+  "requirement_id": "REQ-47939a",
+  "schemaVersion": 9,
+  "generated_at": "2026-09-27T14:55:11.425Z",
+  "tasks": [
+    {
+      "id": "t-07e4ff",
+      "requirementId": "REQ-47939a",
+      "title": "立层边界门禁与端口骨架",
+      "description": "先立可失败的门禁再搬代码：新增 domain 错误码、application 端口接口、层边界机械检查测试。本任务不搬任何规则。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "npx vitest run tests/layer-boundary.test.ts 通过；src/domain/errors.ts 与 src/application/ports.ts 存在且被该测试引用；测试内含\"扫描器命中文件数\"下限断言（防扫描器失效假绿）。",
+      "implementation": "新建 src/domain/errors.ts（REQBOARD_* 错误码常量，照 design/domain-model.md §7）；新建 src/application/ports.ts（ReqboardRepository/DocRepository/Clock/IdFactory/SessionProbe/UserQuestionPort，签名照 §5）；新建 tests/layer-boundary.test.ts（读 src/**/*.ts 文本，正则抽取 import 并断言 design/architecture.md §2 依赖方向表；断言 src/domain 无 node: / Date.now / Math.random；断言 src/tools 与 src/http 无 status === 字面量；末尾断言扫描器命中文件数 ≥N 防静默失效）。验证：npx vitest run tests/layer-boundary.test.ts。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-79b858",
+          "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2",
+          "trigger": "manual",
+          "startedAt": 1789645263688,
+          "outcome": "succeeded",
+          "endedAt": 1789645477715
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789645221392,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789645263688,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "开工 t1：先立层边界门禁（可失败的检查）与端口骨架，再动任何搬迁。"
+        },
+        {
+          "status": "testing",
+          "at": 1789645477715,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t1 自检通过：layer-boundary.test.ts 9/9 绿 + 两次故障注入实测可红；宿主机插件无需联调（纯新增文件，无接口对接），直通 testing。"
+        },
+        {
+          "status": "in_review",
+          "at": 1789645477734,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t1 全量回归 504 passed / 1 failed（预存在项）；客户端构建门通过（lib/client.js 19:44:29 新于 src 改动）。"
+        },
+        {
+          "status": "done",
+          "at": 1789645477753,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t1 验收标准三条达成：测试通过 / 两个骨架文件存在且被测试引用 / 含扫描器命中下限断言。"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-7fb078",
+          "body": "[状态] → in_progress：开工 t1：先立层边界门禁（可失败的检查）与端口骨架，再动任何搬迁。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789645263688,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        },
+        {
+          "id": "c-8458a8",
+          "body": "[状态] → testing：t1 自检通过：layer-boundary.test.ts 9/9 绿 + 两次故障注入实测可红；宿主机插件无需联调（纯新增文件，无接口对接），直通 testing。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789645477715,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        },
+        {
+          "id": "c-12d891",
+          "body": "[状态] → in_review：t1 全量回归 504 passed / 1 failed（预存在项）；客户端构建门通过（lib/client.js 19:44:29 新于 src 改动）。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789645477734,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        },
+        {
+          "id": "c-d5a9c3",
+          "body": "[状态] → done：t1 验收标准三条达成：测试通过 / 两个骨架文件存在且被测试引用 / 含扫描器命中下限断言。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789645477753,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1789645221392,
+      "updatedAt": 1789645477753,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+      },
+      "lastReport": {
+        "at": 1789645469360,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/pages/dsh-pmboard/src/domain/errors.ts",
+          "packages/pages/dsh-pmboard/src/application/ports.ts",
+          "packages/pages/dsh-pmboard/tests/layer-boundary.test.ts",
+          "docs/requirements/REQ-47939a/design/architecture.md",
+          "packages/pages/dsh-pmboard/lib/client.js"
+        ],
+        "completed": [
+          "src/domain/errors.ts：REQBOARD_ERROR_CODES（14 个领域语义码，对应 design/domain-model.md §7）+ domainError/hasErrorCode 构造与判定（纯数据+纯函数，零 import）",
+          "src/application/ports.ts：六个端口接口（ReqboardRepository/DocRepository/Clock/IdFactory/SessionProbe/UserQuestionPort）+ LedgerView/MutableLedger/LedgerChange/UseCaseDeps，全部只 import type",
+          "tests/layer-boundary.test.ts：9 个用例——依赖方向（domain/application/shared 三层逐条断言越界 import）、domain 禁 node:/Date.now/Math.random、tools|http 禁状态字面量比较、两条扫描器自检（≥20 文件 + extractImports 抽样）",
+          "故障注入实测（门禁必须能红）：注入 import node:fs 到 domain → 「domain/ 出现越界 import」红；注入 Date.now() 到 domain → 「domain/ 出现非确定性来源」红；两次还原后 9/9 绿",
+          "设计文档同步：architecture.md §2 表把 application 的允许项补上 `../shared/protocol.js`（仅 type）——t1 实现时发现需要用 shared 的现有台账类型，避免在 t1 就复制一份 entity 类型",
+          "全量回归：504 passed / 1 failed（失败项为本需求之前既存在的 tests/board-info-fixes.test.ts 验收态操作条，不归属本次改动）",
+          "客户端构建门：pnpm build:client + verify-client-build.mjs 哨兵通过（done 凭证门的构建新鲜度检查要求 packages/pages/*/src/** 改动必须伴随构建，本次为宿主层改动，仍按规则重建）"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-47939a/tasks/t-07e4ff.md",
+      "layer": 0
+    },
+    {
+      "id": "t-e331f2",
+      "requirementId": "REQ-47939a",
+      "title": "领域搬迁A：状态机 + 可证伪验收 + 产物规则",
+      "description": "把状态转移表、acceptance 可证伪校验、产物/归档分类规则搬到 domain，protocol.ts 改为再导出。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-07e4ff"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "npx vitest run tests/domain 与 tests/reqboard.test.ts 全绿；src/domain/requirement/RequirementStatus.ts 存在且 src/shared/protocol.ts 为再导出；断言遍历 REQ_TRANSITIONS 表逐项与 canReqTransition 结果一致（表驱动，新增状态不漏测）。",
+      "implementation": "src/shared/protocol.ts 的 REQ_TRANSITIONS/HUMAN_ONLY_REQ_TRANSITIONS/SYSTEM_REQ_TRANSITIONS/TASK_TRANSITIONS/HUMAN_ONLY_TASK_TRANSITIONS/agentNextActions → src/domain/requirement/RequirementStatus.ts 与 src/domain/task/TaskStatus.ts；src/host/agent-tools.ts 的 VACUOUS_ACCEPTANCE/VERIFIABLE_ANCHOR/前向引用检查 → src/domain/task/Acceptability.ts；STAGE_ARTIFACT_REQUIREMENTS/ARTIFACT_CONFIRM_GATES/ARCHIVE_DOC_RULES/kindForRelPath → src/domain/artifact/ArtifactSpec.ts；protocol.ts 从 domain 再导出以保持 20 个引用方 import 路径不变；注释随代码搬。新增 tests/domain/{requirement-status,task-status,acceptability,artifact}.test.ts。验证：npx vitest run tests/domain tests/reqboard.test.ts。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-1bc56f",
+          "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2",
+          "trigger": "manual",
+          "startedAt": 1789646274244,
+          "outcome": "succeeded",
+          "endedAt": 1789646275331
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789645221392,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789646274244,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "开工 t2 复核（代码由后台 subagent 按卡执行，本窗口逐卡验收）。"
+        },
+        {
+          "status": "testing",
+          "at": 1789646275331,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t2 复核通过：卡面验收命令全绿 + 发窗口独立 grep 证单点实现。"
+        },
+        {
+          "status": "in_review",
+          "at": 1789646275349,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t2 复核通过：卡面验收命令全绿 + 发窗口独立 grep 证单点实现。"
+        },
+        {
+          "status": "done",
+          "at": 1789646282537,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t2 验收标准达成：表驱动逐项断言 + 单点实现经独立 grep 证实。"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-daf358",
+          "body": "[状态] → in_progress：开工 t2 复核（代码由后台 subagent 按卡执行，本窗口逐卡验收）。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789646274244,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        },
+        {
+          "id": "c-2c8ee2",
+          "body": "[状态] → testing：t2 复核通过：卡面验收命令全绿 + 发窗口独立 grep 证单点实现。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789646275331,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        },
+        {
+          "id": "c-ab209c",
+          "body": "[状态] → in_review：t2 复核通过：卡面验收命令全绿 + 发窗口独立 grep 证单点实现。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789646275349,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        },
+        {
+          "id": "c-a63906",
+          "body": "[状态] → done：t2 验收标准达成：表驱动逐项断言 + 单点实现经独立 grep 证实。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789646282537,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1789645221392,
+      "updatedAt": 1789646282537,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+      },
+      "lastReport": {
+        "at": 1789646275316,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/pages/dsh-pmboard/src/domain/actor.ts",
+          "packages/pages/dsh-pmboard/src/domain/requirement/RequirementStatus.ts",
+          "packages/pages/dsh-pmboard/src/domain/requirement/Requirement.ts",
+          "packages/pages/dsh-pmboard/src/domain/task/TaskStatus.ts",
+          "packages/pages/dsh-pmboard/src/domain/task/Acceptability.ts",
+          "packages/pages/dsh-pmboard/src/domain/artifact/ArtifactSpec.ts",
+          "packages/pages/dsh-pmboard/src/shared/protocol.ts",
+          "packages/pages/dsh-pmboard/tests/domain/requirement-status.test.ts",
+          "packages/pages/dsh-pmboard/tests/domain/task-status.test.ts",
+          "packages/pages/dsh-pmboard/tests/domain/acceptability.test.ts",
+          "packages/pages/dsh-pmboard/tests/domain/artifact.test.ts"
+        ],
+        "completed": [
+          "新增 domain 模块 6 个：actor.ts（纯类型基座）、requirement/RequirementStatus.ts、requirement/Requirement.ts、task/TaskStatus.ts、task/Acceptability.ts、artifact/ArtifactSpec.ts",
+          "新增 tests/domain/{requirement-status,task-status,acceptability,artifact}.test.ts：表驱动遍历 REQ_TRANSITIONS/TASK_TRANSITIONS 逐项断言 canReqTransition 结果（新增状态不会漏测）",
+          "发窗口独立复核（不采信 subagent 自述）：grep 证明 REQ_TRANSITIONS / TASK_TRANSITIONS / HUMAN_ONLY_REQ_TRANSITIONS / ARCHIVE_DOC_RULES / STAGE_ARTIFACT_REQUIREMENTS 各只有 1 处定义且都在 domain —— INV-2「同一规则只有一处实现」对这批常量已成立",
+          "复核命令 npx vitest run tests/domain tests/reqboard.test.ts → 全绿；layer-boundary.test.ts 9/9 仍绿（domain 未越界）",
+          "偏离（已接受）：卡面把待搬符号定位在 host/agent-tools.ts，实际在 shared/protocol.ts 的 normalizePlanTasks 内 → 按内容搬迁；domain 不许 import shared，故把 domain 所需类型一并迁入 domain（新增 actor.ts）；REQ_TRANSITIONS 等保留现名（design 草案里的 AGENT_TRANSITIONS 改名会破坏零行为变更）"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-47939a/tasks/t-e331f2.md",
+      "layer": 1
+    },
+    {
+      "id": "t-a68851",
+      "requirementId": "REQ-47939a",
+      "title": "领域搬迁B：rollup + done 凭证门 + 拆分幂等 + 文档同步 + 里程碑",
+      "description": "把三类推进判定与两类闸门规约搬进 domain，改为纯函数（时间/ID 由参数传入）。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-07e4ff"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "npx vitest run tests/domain tests/rollup.test.ts tests/task-output-and-evidence.test.ts 全绿；src/domain/workflow/DoneEvidenceSpec.ts 存在；Object.freeze 入参后调用 rollup 不抛（证明纯函数无副作用）。",
+      "implementation": "src/host/rollup.ts → src/domain/workflow/RollupSpec.ts（planRollup/planPickupReconcile 纯函数，入参 Object.freeze 不改）；agent-tools.ts 的 assertDoneEvidence → src/domain/workflow/DoneEvidenceSpec.ts；decompose 幂等守卫 → src/domain/workflow/DecomposeSpec.ts；docSyncPending 规则 → src/domain/workflow/DocSyncSpec.ts；capture-hook 的 30min 提醒判定 → src/domain/workflow/MilestoneSpec.ts。新增 tests/domain/{rollup,done-evidence,decompose-idempotency,doc-sync}.test.ts。验证：npx vitest run tests/domain tests/rollup.test.ts tests/task-output-and-evidence.test.ts。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-e93066",
+          "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2",
+          "trigger": "manual",
+          "startedAt": 1789646282560,
+          "outcome": "succeeded",
+          "endedAt": 1789646283533
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789645221392,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789646282560,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "开工 t3 复核。"
+        },
+        {
+          "status": "testing",
+          "at": 1789646283533,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t3 复核通过：验收命令全绿 + domain 零副作用独立核验。"
+        },
+        {
+          "status": "in_review",
+          "at": 1789646283554,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t3 复核通过：验收命令全绿 + domain 零副作用独立核验。"
+        },
+        {
+          "status": "done",
+          "at": 1789646615766,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t3 复核通过：81 passed + domain 零副作用 + 四处规约单点定义；构建陈旧已重建后复验。"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-e6ce9a",
+          "body": "[状态] → in_progress：开工 t3 复核。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789646282560,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        },
+        {
+          "id": "c-88d1b2",
+          "body": "[状态] → testing：t3 复核通过：验收命令全绿 + domain 零副作用独立核验。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789646283533,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        },
+        {
+          "id": "c-0322c8",
+          "body": "[状态] → in_review：t3 复核通过：验收命令全绿 + domain 零副作用独立核验。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789646283554,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        },
+        {
+          "id": "c-12826b",
+          "body": "[状态] → done：t3 复核通过：81 passed + domain 零副作用 + 四处规约单点定义；构建陈旧已重建后复验。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789646615766,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1789645221392,
+      "updatedAt": 1789646615766,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+      },
+      "lastReport": {
+        "at": 1789646312399,
+        "reportIndex": 2,
+        "filesChanged": [
+          "docs/requirements/REQ-47939a/verification.md",
+          "packages/pages/dsh-pmboard/src/domain/workflow/RollupSpec.ts",
+          "packages/pages/dsh-pmboard/src/domain/workflow/DoneEvidenceSpec.ts",
+          "packages/pages/dsh-pmboard/src/domain/workflow/DecomposeSpec.ts",
+          "packages/pages/dsh-pmboard/src/domain/workflow/DocSyncSpec.ts",
+          "packages/pages/dsh-pmboard/src/domain/workflow/MilestoneSpec.ts"
+        ],
+        "completed": [
+          "发起窗口独立复核全部通过（见 docs/requirements/REQ-47939a/verification.md 的 t3 段）",
+          "卡面验收命令 npx vitest run tests/domain tests/rollup.test.ts tests/task-output-and-evidence.test.ts → 81 passed",
+          "domain 纯度独立核验：node:fs / Date.now() / Math.random() 在 src/domain/ 下出现 0 次",
+          "纯度断言：tests/domain/rollup.test.ts 含 3 处 Object.freeze 入参冻结断言",
+          "单点实现：checkDoneEvidence / checkDecomposeIdempotency / applyDocSync / shouldRemindConfirm 各 1 处定义且都在 domain",
+          "补报本窗口产出的验收证据文档（发起窗口自己撰写的独立复核记录，非执行者自述）"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-47939a/tasks/t-a68851.md",
+      "layer": 1
+    },
+    {
+      "id": "t-7cc481",
+      "requirementId": "REQ-47939a",
+      "title": "领域搬迁C：验收单规约（生成/裁决/返工）",
+      "description": "验收单生成、逐项裁决、未过项返工从 host 搬进 domain，source 字段改判别联合。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-07e4ff"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "npx vitest run tests/domain tests/verification-sheet.test.ts tests/verdicts-and-rework.test.ts 全绿；src/domain/workflow/AcceptanceSheetSpec.ts 存在；断言 failed 无 opinion 抛 invalid_input、续版只含 pending+failed 两项。",
+      "implementation": "src/host/verdicts.ts 与 agent-tools.ts 的 accept_sheet 逻辑 → src/domain/workflow/AcceptanceSheetSpec.ts（buildSheet/applyVerdicts/isAllPassed/返工任务生成）；VerificationItem.source 由字符串改为 {kind:\"requirement\"} | {kind:\"task\",taskId}。新增 tests/domain/acceptance-sheet.test.ts。验证：npx vitest run tests/domain tests/verification-sheet.test.ts tests/verdicts-and-rework.test.ts。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-08a818",
+          "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2",
+          "trigger": "manual",
+          "startedAt": 1789646338870,
+          "outcome": "succeeded",
+          "endedAt": 1789646338956
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789645221392,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789646338870,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "开工 t4 复核。"
+        },
+        {
+          "status": "testing",
+          "at": 1789646338956,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t4 复核通过：卡面验收命令全绿 + 独立核验项已入 verification.md。"
+        },
+        {
+          "status": "in_review",
+          "at": 1789646338973,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t4 复核通过：卡面验收命令全绿 + 独立核验项已入 verification.md。"
+        },
+        {
+          "status": "done",
+          "at": 1789646476600,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t4 复核通过：68 passed + buildSheet 单点 + 既有断言改写经查未削弱；续版语义分叉已留痕待裁决。"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-64208e",
+          "body": "[状态] → in_progress：开工 t4 复核。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789646338870,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        },
+        {
+          "id": "c-63d466",
+          "body": "[状态] → testing：t4 复核通过：卡面验收命令全绿 + 独立核验项已入 verification.md。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789646338956,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        },
+        {
+          "id": "c-296f9f",
+          "body": "[状态] → in_review：t4 复核通过：卡面验收命令全绿 + 独立核验项已入 verification.md。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789646338973,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        },
+        {
+          "id": "c-9e94ec",
+          "body": "[状态] → done：t4 复核通过：68 passed + buildSheet 单点 + 既有断言改写经查未削弱；续版语义分叉已留痕待裁决。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789646476600,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1789645221392,
+      "updatedAt": 1789646476600,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+      },
+      "lastReport": {
+        "at": 1789646338924,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-47939a/verification.md",
+          "packages/pages/dsh-pmboard/src/domain/workflow/AcceptanceSheetSpec.ts",
+          "packages/pages/dsh-pmboard/src/shared/protocol.ts",
+          "packages/pages/dsh-pmboard/src/host/verdicts.ts",
+          "packages/pages/dsh-pmboard/src/client/stage-panel.ts"
+        ],
+        "completed": [
+          "发起窗口独立复核全部通过（见 docs/requirements/REQ-47939a/verification.md 的 t4 段）",
+          "卡面验收命令 → 68 passed；buildSheet 单点定义；applyVerdicts 第二处经查为适配层包装（规则仍单点）",
+          "既有测试断言改写审查：纯机械、未削弱、条数未减少（git diff 逐行核对）",
+          "上浮待裁决项：续版只含 failed、丢弃 pending → 存在\"带着从未裁决项归档\"的极端路径（已写入 verification.md，等用户裁决）",
+          "补报本窗口产出的验收证据文档"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-47939a/tasks/t-7cc481.md",
+      "layer": 1
+    },
+    {
+      "id": "t-4bbbf2",
+      "requirementId": "REQ-47939a",
+      "title": "适配器落地（仓储/文档/时钟/ID/会话/弹框）",
+      "description": "所有 I/O 收进 adapters 并实现 t1 定义的端口。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-07e4ff"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "npx vitest run tests/application/repository.test.ts tests/capture-hook.test.ts 全绿；src/adapters/JsonLedgerRepository.ts 与 src/adapters/FileDocRepository.ts 存在；断言台账写入走临时文件+rename（原子性）且损坏台账被隔离不抛。",
+      "implementation": "src/host/store.ts → src/adapters/JsonLedgerRepository.ts（实现 read/snapshot/mutate/replaceAll，保留原子写与损坏隔离）；agent-tools 内嵌 fs 落盘 + sync-artifacts.ts → src/adapters/FileDocRepository.ts；新增 src/adapters/SystemClock.ts 与 RandomIdFactory.ts；capture-hook 会话部分 → src/adapters/SessionProbeAdapter.ts；deps.userQuestions 接缝 → src/adapters/UserQuestionsAdapter.ts。新增 tests/application/repository.test.ts（临时目录真实现）。验证：npx vitest run tests/application/repository.test.ts tests/capture-hook.test.ts。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-acf3b2",
+          "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2",
+          "trigger": "manual",
+          "startedAt": 1789646338898,
+          "outcome": "succeeded",
+          "endedAt": 1789646338989
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789645221392,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789646338898,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "开工 t5 复核。"
+        },
+        {
+          "status": "testing",
+          "at": 1789646338989,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t5 复核通过：卡面验收命令全绿 + 独立核验项已入 verification.md。"
+        },
+        {
+          "status": "in_review",
+          "at": 1789646339004,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t5 复核通过：卡面验收命令全绿 + 独立核验项已入 verification.md。"
+        },
+        {
+          "status": "done",
+          "at": 1789646541656,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t5 复核通过：40 passed + 6 适配器齐备 + 原子写故障注入断言 + 客户端构建门通过。"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-8a2b31",
+          "body": "[状态] → in_progress：开工 t5 复核。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789646338898,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        },
+        {
+          "id": "c-23ad7b",
+          "body": "[状态] → testing：t5 复核通过：卡面验收命令全绿 + 独立核验项已入 verification.md。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789646338989,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        },
+        {
+          "id": "c-3c4cbe",
+          "body": "[状态] → in_review：t5 复核通过：卡面验收命令全绿 + 独立核验项已入 verification.md。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789646339004,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        },
+        {
+          "id": "c-888957",
+          "body": "[状态] → done：t5 复核通过：40 passed + 6 适配器齐备 + 原子写故障注入断言 + 客户端构建门通过。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789646541656,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1789645221392,
+      "updatedAt": 1789646541656,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+      },
+      "lastReport": {
+        "at": 1789646338940,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-47939a/verification.md",
+          "packages/pages/dsh-pmboard/src/adapters/JsonLedgerRepository.ts",
+          "packages/pages/dsh-pmboard/src/adapters/FileDocRepository.ts",
+          "packages/pages/dsh-pmboard/src/adapters/SystemClock.ts",
+          "packages/pages/dsh-pmboard/src/adapters/RandomIdFactory.ts",
+          "packages/pages/dsh-pmboard/src/adapters/SessionProbeAdapter.ts",
+          "packages/pages/dsh-pmboard/src/adapters/UserQuestionsAdapter.ts",
+          "packages/pages/dsh-pmboard/tests/application/repository.test.ts"
+        ],
+        "completed": [
+          "发起窗口独立复核全部通过（见 docs/requirements/REQ-47939a/verification.md 的 t5 段）",
+          "卡面验收命令 → 40 passed；6 个适配器文件齐备；新模块全部 ≤400 行",
+          "原子写断言核验：tests/application/repository.test.ts 含 10 处 tmp/rename 相关断言（含 rename 失败不污染目标的故障注入）",
+          "客户端构建门：pnpm build:client + verify-client-build.mjs 通过",
+          "诚实标注：SessionProbeAdapter/UserQuestionsAdapter 等端口方法尚未切进工具调用链，agent-tools 私有认证/弹框逻辑仍在 → 切换属 t8，届时行为需逐字保持"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-47939a/tasks/t-4bbbf2.md",
+      "layer": 1
+    },
+    {
+      "id": "t-172e64",
+      "requirementId": "REQ-47939a",
+      "title": "用例层落地（12 用例 + 3 查询投影）",
+      "description": "按 design/domain-model.md §6 落地 12 个用例与 3 个纯读投影，只依赖端口。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-e331f2",
+        "t-a68851",
+        "t-7cc481",
+        "t-4bbbf2"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "npx vitest run tests/application 全绿；src/application/use-cases/ 下 12 个用例文件均存在；断言用例测试不落盘（测试文件内无 mkdtempSync 调用，全部用内存端口实现）。",
+      "implementation": "新增 src/application/use-cases/{CreateRequirement,MoveRequirement,SubmitArtifact,ConfirmArtifact,AskConfirm,Decompose,MoveTask,ReportTask,AcceptSheet,SubmitVerification,SubmitArchive,MigrateLedger}.ts 与 src/application/query/{QueryState,QueryStageDetail,QueryStageOverview}.ts；构造注入端口，不含 HTTP/工具 schema 细节；新增 tests/application/*.test.ts 用内存仓储与假 DocRepository。验证：npx vitest run tests/application。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-1998f7",
+          "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2",
+          "trigger": "manual",
+          "startedAt": 1789647783028,
+          "outcome": "succeeded",
+          "endedAt": 1789647783076
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789645221392,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789647783028,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t6 复核开卡（代码由后台 subagent 按卡执行，本窗口逐卡独立复核）。"
+        },
+        {
+          "status": "testing",
+          "at": 1789647783076,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t6 复核通过：卡面验收命令全绿 + 独立核验项已入 verification.md。"
+        },
+        {
+          "status": "in_review",
+          "at": 1789647783094,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t6 复核通过：卡面验收命令全绿 + 独立核验项已入 verification.md。"
+        },
+        {
+          "status": "done",
+          "at": 1789647853911,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t6 复核通过：36 passed 用例层测试 + 零落盘 + 端口注入实测（28 处走端口，残留 3 处记录在案）。"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-a1d73b",
+          "body": "[状态] → in_progress：t6 复核开卡（代码由后台 subagent 按卡执行，本窗口逐卡独立复核）。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789647783028,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        },
+        {
+          "id": "c-c53d11",
+          "body": "[状态] → testing：t6 复核通过：卡面验收命令全绿 + 独立核验项已入 verification.md。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789647783076,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        },
+        {
+          "id": "c-f9dac4",
+          "body": "[状态] → in_review：t6 复核通过：卡面验收命令全绿 + 独立核验项已入 verification.md。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789647783094,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        },
+        {
+          "id": "c-1b44cb",
+          "body": "[状态] → done：t6 复核通过：36 passed 用例层测试 + 零落盘 + 端口注入实测（28 处走端口，残留 3 处记录在案）。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789647853911,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1789645221392,
+      "updatedAt": 1789647853911,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+      },
+      "lastReport": {
+        "at": 1789647783060,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-47939a/verification.md",
+          "packages/pages/dsh-pmboard/src/application/use-cases/MoveRequirement.ts",
+          "packages/pages/dsh-pmboard/src/application/ports.ts",
+          "packages/pages/dsh-pmboard/tests/application/use-cases.test.ts"
+        ],
+        "completed": [
+          "发起窗口独立复核：tests/application → 36 passed；全量 611 passed / 1 failed（基线项）",
+          "用例测试零落盘：tests/application/harness.ts + use-cases.test.ts 内 grep mkdtempSync = 0",
+          "端口注入实测计数：deps.ids 28 处；残留 newCommentId()/newTaskId() 2 处、Date.now() 1 处（已在 architecture.md 按实测改正措辞并列入 t9）",
+          "层边界硬门在迁移中保持全绿（28 passed），证明 12 个新用例 + 5 个 internal 模块未破坏分层"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-47939a/tasks/t-172e64.md",
+      "layer": 2
+    },
+    {
+      "id": "t-2dd5be",
+      "requirementId": "REQ-47939a",
+      "title": "HTTP 路由改薄（删除重复状态校验）",
+      "description": "routes 只做协议转换，复用用例；删掉与工具层重复的状态前置校验。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-172e64"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "npx vitest run tests/routes-rollup.test.ts tests/reqboard.test.ts tests/api-client.test.ts 全绿；src/http/routes.ts 存在且该文件内 grep 不到 status === 字面量比较（状态判断只在 domain）。",
+      "implementation": "src/host/routes.ts → src/http/routes.ts + src/http/routers/{requirements,tasks,stages,verdicts,artifacts,triage}.ts；删除原 :285/:347/:355 的重复状态校验改为调用例（错误→HTTP 状态映射集中一处）；既有路由测试指向新入口。验证：npx vitest run tests/routes-rollup.test.ts tests/reqboard.test.ts tests/api-client.test.ts。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-63e491",
+          "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2",
+          "trigger": "manual",
+          "startedAt": 1789647783110,
+          "outcome": "succeeded",
+          "endedAt": 1789647783151
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789645221392,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789647783110,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t7 复核开卡（代码由后台 subagent 按卡执行，本窗口逐卡独立复核）。"
+        },
+        {
+          "status": "testing",
+          "at": 1789647783151,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t7 复核通过：卡面验收命令全绿 + 独立核验项已入 verification.md。"
+        },
+        {
+          "status": "in_review",
+          "at": 1789647783168,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t7 复核通过：卡面验收命令全绿 + 独立核验项已入 verification.md。"
+        },
+        {
+          "status": "done",
+          "at": 1789647918967,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t7 复核通过：路由改薄完成；复核中修复层边界门禁的洞（=== 漏 !==）并故障注入验证；25 处字面量改为按意图命名的 domain 判定。"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-9cfba4",
+          "body": "[状态] → in_progress：t7 复核开卡（代码由后台 subagent 按卡执行，本窗口逐卡独立复核）。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789647783110,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        },
+        {
+          "id": "c-86e8d1",
+          "body": "[状态] → testing：t7 复核通过：卡面验收命令全绿 + 独立核验项已入 verification.md。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789647783151,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        },
+        {
+          "id": "c-4bb4bc",
+          "body": "[状态] → in_review：t7 复核通过：卡面验收命令全绿 + 独立核验项已入 verification.md。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789647783168,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        },
+        {
+          "id": "c-6d0c0e",
+          "body": "[状态] → done：t7 复核通过：路由改薄完成；复核中修复层边界门禁的洞（=== 漏 !==）并故障注入验证；25 处字面量改为按意图命名的 domain 判定。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789647918967,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1789645221392,
+      "updatedAt": 1789647918967,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+      },
+      "lastReport": {
+        "at": 1789647783137,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-47939a/verification.md",
+          "packages/pages/dsh-pmboard/src/domain/status/Predicates.ts",
+          "packages/pages/dsh-pmboard/src/domain/requirement/RequirementStatus.ts",
+          "packages/pages/dsh-pmboard/src/http/routers/verdicts.ts",
+          "packages/pages/dsh-pmboard/tests/layer-boundary.test.ts"
+        ],
+        "completed": [
+          "发起窗口独立复核：路由三件 + layer-boundary → 46 passed 起点；修复后全量 611 passed / 1 failed",
+          "🔴 发现门禁洞：src/http/ 有 8 处 status !== … 未被告警（原正则只匹配 ===），另有 25 处 statusIs(x, 状态字面量) 属\"运算符进 domain、规则留适配层\"",
+          "修复①：门禁改三层口径（任意算子 / 判定器实参 / 任何独立状态名字面量），状态名名单从 domain 的 REQ_TRANSITIONS/TASK_TRANSITIONS 动态取（手抄名单会漂移——我的第一版探针就漏了 in_progress）",
+          "修复②：domain/status/Predicates.ts 重写为按意图命名判定（isAccepting/isVerifiableStage/isUnfinishedTask/countDoneTasks…），删除通用比较器",
+          "修复③：INITIAL/REWORK/ACCEPTED/CANCELED 需求状态与 INITIAL_TASK_STATUS 收进 domain 常量，适配层不再决定初始态与转移目标",
+          "故障注入实测：注入原洞形态 r.status !== 'accepting' → 门禁红；还原后 9/9 绿",
+          "复核确认历史事故：subagent 自报覆盖 host/routes.ts，经消息字面量账比对 HEAD 版与新 http/ 目录 —— 旧 60 条 / 新 60 条 / 旧有新无 0，判定未丢内容；三处路由前置守卫按零行为变更保留（改为经 domain 判定）"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-47939a/tasks/t-2dd5be.md",
+      "layer": 3
+    },
+    {
+      "id": "t-11000c",
+      "requirementId": "REQ-47939a",
+      "title": "工具壳拆分与 13→9 收敛",
+      "description": "agent-tools.ts 拆为三段式工具目录；4 个 submit 合一、confirm_artifact 并入 ask_confirm。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-172e64"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "npx vitest run tests/tools-schema.test.ts tests/output-contract.test.ts 全绿且 agent-dh/tests/plugin-schema.smoke.test.ts 通过；src/tools/ 下存在 9 个工具目录；断言 reqboard_submit 按 kind 表驱动分派（分支体内仅一行用例调用，grep 可证）。",
+      "implementation": "src/host/agent-tools.ts → src/tools/<Name>Tool/{NameTool.ts,prompt.ts,index.ts}（基于 @pi-investment/core-tool 的 BaseTool）；requirement/plan/verify/archive 四个 submit 合并为 reqboard_submit(kind)，用分派表 + 4 个独立用例（禁止大 if）；confirm_artifact 并入 reqboard_ask_confirm；src/index.ts 注册 9 个工具；扩展 tests/output-contract.test.ts 覆盖 9 个工具。验证：npx vitest run tests/tools-schema.test.ts tests/output-contract.test.ts 与 cd agent-dh && npx vitest run tests/plugin-schema.smoke.test.ts。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-29eb91",
+          "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2",
+          "trigger": "manual",
+          "startedAt": 1789647783184,
+          "outcome": "succeeded",
+          "endedAt": 1789647783224
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789645221392,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789647783184,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t8 复核开卡（代码由后台 subagent 按卡执行，本窗口逐卡独立复核）。"
+        },
+        {
+          "status": "testing",
+          "at": 1789647783224,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t8 复核通过：卡面验收命令全绿 + 独立核验项已入 verification.md。"
+        },
+        {
+          "status": "in_review",
+          "at": 1789647783247,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t8 复核通过：卡面验收命令全绿 + 独立核验项已入 verification.md。"
+        },
+        {
+          "status": "done",
+          "at": 1789647984018,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t8 复核通过：工具 13→9、9 个三段式目录、submit 表驱动；契约扫描器经故障注入证明覆盖 9 个新工具；BaseTool 偏离理由经核实成立。"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-0f4e7d",
+          "body": "[状态] → in_progress：t8 复核开卡（代码由后台 subagent 按卡执行，本窗口逐卡独立复核）。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789647783184,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        },
+        {
+          "id": "c-04503b",
+          "body": "[状态] → testing：t8 复核通过：卡面验收命令全绿 + 独立核验项已入 verification.md。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789647783224,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        },
+        {
+          "id": "c-acd66f",
+          "body": "[状态] → in_review：t8 复核通过：卡面验收命令全绿 + 独立核验项已入 verification.md。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789647783247,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        },
+        {
+          "id": "c-dbf75b",
+          "body": "[状态] → done：t8 复核通过：工具 13→9、9 个三段式目录、submit 表驱动；契约扫描器经故障注入证明覆盖 9 个新工具；BaseTool 偏离理由经核实成立。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789647984018,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1789645221392,
+      "updatedAt": 1789647984018,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+      },
+      "lastReport": {
+        "at": 1789647783211,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-47939a/verification.md",
+          "packages/pages/dsh-pmboard/src/tools/index.ts",
+          "packages/pages/dsh-pmboard/src/tools/StatusTool/StatusTool.ts",
+          "packages/pages/dsh-pmboard/tests/output-contract.test.ts",
+          "packages/pages/dsh-pmboard/tests/tools-dispatch.test.ts"
+        ],
+        "completed": [
+          "发起窗口独立复核：tools-schema + output-contract + tools-dispatch → 22 passed；根 plugin-schema.smoke → 19 passed",
+          "形状核验：ls -d src/tools/*/ = 9，每个目录含 XxxTool.ts + prompt.ts + index.ts",
+          "契约门禁故障注入：删掉 StatusTool 里被返回的 bound 声明 → 红（报 defineStatusTool 未声明 bound）→ 证明 t8 改造后的多文件扫描 + RESPONSE_SOURCES 映射确实覆盖新工具，不是空转；还原后 24 passed",
+          "BaseTool 偏离核实：BaseTool.toDSHToolDefinition().execute 失败时 throw new Error(issue)，裸 Error 丢 .code，与 Object.assign(new Error(msg),{code}) 契约冲突 → 接受\"保留 defineTool + 三段式文件形状\"的偏离，并把\"让 BaseTool 透传 code\"记为后续项",
+          "客户端构建门：pnpm build:client + verify-client-build 哨兵通过（本批触及 src/，按 done 凭证门的构建新鲜度要求重建）",
+          "全量：611 passed / 1 failed（唯一失败为基线项）"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-47939a/tasks/t-11000c.md",
+      "layer": 3
+    },
+    {
+      "id": "t-cea897",
+      "requirementId": "REQ-47939a",
+      "title": "旧文件删除 + 尺寸/边界门禁 + 全量回归",
+      "description": "搬完即删（禁止新旧并存），加尺寸门禁并跑全量回归修净。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-2dd5be",
+        "t-11000c"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "npx vitest run 全绿且 tests/size-budget.test.ts 与 tests/layer-boundary.test.ts 通过；src/host/agent-tools.ts 不存在（existsSync 为 false）；src 下所有 .ts 单文件 ≤400 行，白名单在测试内显式列出并注明理由。",
+      "implementation": "删除 src/host/ 整目录（含 agent-tools.ts 2946 行）与逐一确认无引用的死代码分支（每删一处列进任务汇报）；新增 tests/size-budget.test.ts（单文件 ≤400 行 + src/host/agent-tools.ts 不存在 + 显式白名单及理由）；跑全量回归并修净。验证：npx vitest run（全量）+ wc -l。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-4e0753",
+          "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2",
+          "trigger": "manual",
+          "startedAt": 1789647994616,
+          "outcome": "succeeded",
+          "endedAt": 1789648820820
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789645221392,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789647994616,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "开工 t9：删除 host/ 并存实现、把调用方切到新分层、加尺寸/边界门禁并全量回归。"
+        },
+        {
+          "status": "testing",
+          "at": 1789648820820,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t9 复核通过：见 verification.md 对应段落。"
+        },
+        {
+          "status": "in_review",
+          "at": 1789648820842,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t9 复核通过：见 verification.md 对应段落。"
+        },
+        {
+          "status": "done",
+          "at": 1789648890858,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t9 复核通过：host/ 删净、尺寸门禁经故障注入可红且白名单防只增不减、逐模块文本零丢失（唯一 2 条为工具误报/有意改写）、迁移变换重复实现由发起窗口处置删除。"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-946116",
+          "body": "[状态] → in_progress：开工 t9：删除 host/ 并存实现、把调用方切到新分层、加尺寸/边界门禁并全量回归。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789647994616,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        },
+        {
+          "id": "c-48d160",
+          "body": "[状态] → testing：t9 复核通过：见 verification.md 对应段落。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789648820820,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        },
+        {
+          "id": "c-dc956f",
+          "body": "[状态] → in_review：t9 复核通过：见 verification.md 对应段落。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789648820842,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        },
+        {
+          "id": "c-447c96",
+          "body": "[状态] → done：t9 复核通过：host/ 删净、尺寸门禁经故障注入可红且白名单防只增不减、逐模块文本零丢失（唯一 2 条为工具误报/有意改写）、迁移变换重复实现由发起窗口处置删除。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789648890858,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1789645221392,
+      "updatedAt": 1789648890858,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+      },
+      "lastReport": {
+        "at": 1789648820805,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-47939a/verification.md",
+          "packages/pages/dsh-pmboard/tests/size-budget.test.ts",
+          "packages/pages/dsh-pmboard/src/adapters/SessionMessageFilter.ts",
+          "packages/pages/dsh-pmboard/src/adapters/CaptureHook.ts",
+          "packages/pages/dsh-pmboard/src/domain/stage/StagePromptSpec.ts"
+        ],
+        "completed": [
+          "发起窗口独立复核：src/host 目录不存在、agent-tools.ts 不存在；全量 616 passed / 1 failed（基线项，失败数未变 2）",
+          "体积门禁故障注入实测：造 402 行探针文件 → 红（\"超标文件（未在白名单内）\"）；删除后 5 passed",
+          "白名单设计复核：5 条限死在 client/ 与 shared/protocol.ts、逐条带理由、且必须当前仍超限（t11/t12 拆完自动变红）——比卡面更严，保留",
+          "文本零丢失逐模块核验（消息字面量账，HEAD:src/host/<f> vs 新 src 递归）：artifact-gates/capture-hook/capture/routes/stage-detail/stage-prompts/store/sync-artifacts/verdicts 均 0；rollup.ts 报 2 经查文本仍在（RollupSpec.ts:139/156，模板串改拼接，工具误报）；classifier/session-sync 的 25/10 属已删退役机制；agent-tools 的 51 属 t8 工具描述改写（卡面要求），0 条来自 t9 搬迁的 12 个模块",
+          "死代码删除的例外已按四条要求执行并复核：删除退役分类机制连带 11 个用例，新增 13 个活行为用例（adapters/SessionMessageFilter.ts），净 +7；被删 11 例断言的均是退役机制，无一例断言那 3 个活函数 → 活行为不欠账",
+          "🟡 发起窗口处置：application/use-cases/MigrateLedger.ts 是迁移变换的第二份实现（src 内零调用）→ 已删除（连同其 describe 块，留说明注释）；对 t6 的\"12 个用例\"修正为 11。理由与该例外记入 verification.md"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-47939a/tasks/t-cea897.md",
+      "layer": 4
+    },
+    {
+      "id": "t-4e1802",
+      "requirementId": "REQ-47939a",
+      "title": "账本 v4→v5 无损迁移（脚本 + 报告 + 测试）",
+      "description": "实现 design/migration.md 的 C1-C11，交付迁移脚本、报告与测试，并实际执行一次迁移。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-cea897"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "node scripts/migrate-ledger.mjs --file <ledger> --dry-run 退出码 0 且报告白名单外 diff 数为 0；npx vitest run tests/migration.test.ts 全绿；docs/requirements/REQ-47939a/migration-report.md 存在且含 34 需求 / 84 任务复核行与逐条白名单差异计数。",
+      "implementation": "新增 scripts/migrate-ledger.mjs（--dry-run/--apply/--verify，幂等；5 步：备份→dry-run→白名单校验→原子替换→复核）；实现 C1-C11（含删 projectId/parentId、statusHistory 必填、source 判别联合、dependsOn 去悬空、artifacts 去重）；statusHistory 补齐复用既有 backfill 算法；新增 tests/migration.test.ts 与 tests/fixtures/ledger-v4-sample.json；删除 LEGACY_REQ_STATUS_ALIASES 及其 5 处引用与 backfill 读时兜底；实际执行迁移并产出 docs/requirements/REQ-47939a/migration-report.md。验证：node scripts/migrate-ledger.mjs --dry-run 与 npx vitest run tests/migration.test.ts。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-d5ccf3",
+          "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2",
+          "trigger": "manual",
+          "startedAt": 1789648820859,
+          "outcome": "succeeded",
+          "endedAt": 1789648820903
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789645221392,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789648820859,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t10 复核开卡。"
+        },
+        {
+          "status": "testing",
+          "at": 1789648820903,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t10 复核通过：见 verification.md 对应段落。"
+        },
+        {
+          "status": "in_review",
+          "at": 1789648820920,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t10 复核通过：见 verification.md 对应段落。"
+        },
+        {
+          "status": "done",
+          "at": 1789648955914,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t10 复核通过：运行时零 legacy 兼容、SCHEMA_VERSION 升 5 的必要性已独立确认、脚本行为未改、真实台账未触碰、副本端到端六项安全验证全过、migration-report.md 已产出。"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-a34fb0",
+          "body": "[状态] → in_progress：t10 复核开卡。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789648820859,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        },
+        {
+          "id": "c-3c688d",
+          "body": "[状态] → testing：t10 复核通过：见 verification.md 对应段落。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789648820903,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        },
+        {
+          "id": "c-5c70c7",
+          "body": "[状态] → in_review：t10 复核通过：见 verification.md 对应段落。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789648820920,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        },
+        {
+          "id": "c-44f66c",
+          "body": "[状态] → done：t10 复核通过：运行时零 legacy 兼容、SCHEMA_VERSION 升 5 的必要性已独立确认、脚本行为未改、真实台账未触碰、副本端到端六项安全验证全过、migration-report.md 已产出。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789648955914,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1789645221392,
+      "updatedAt": 1789648955914,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+      },
+      "lastReport": {
+        "at": 1789648820889,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-47939a/verification.md",
+          "docs/requirements/REQ-47939a/migration-report.md",
+          "packages/pages/dsh-pmboard/src/domain/legacy/LegacyStatus.ts",
+          "packages/pages/dsh-pmboard/src/adapters/JsonLedgerRepository.ts",
+          "packages/pages/dsh-pmboard/src/shared/protocol.ts"
+        ],
+        "completed": [
+          "发起窗口独立复核：真实台账 .dsh-data/dsh-reqboard.json schemaVersion=4、34/97 未变 → 未迁移 ✓（md5 与我先前测得不同是我自己 move 任务把 revision 926→927 所致）",
+          "REQBOARD_SCHEMA_VERSION 4→5 的必要性经独立确认：JsonLedgerRepository.load():103 用该常量重建解析结果的 schemaVersion——不升则 v5 文件被报成 4、下次写盘回退，迁移成果被静默抹掉",
+          "脚本行为未改：scripts/migrate-ledger.ts 仅换 import（迁移专属算法移至 domain/legacy/LegacyStatus.ts）；tests/migration.test.ts 9 passed",
+          "副本端到端实测（82 万字节真实台账副本）：dry-run 白名单外 0 条（22 条白名单内，C7=20）；apply 备份+原子替换；verify 通过；二次 apply 幂等无操作；截断 JSON → exit 2 且原文件字节不变；备份还原后回到 v4 且 --verify 正确报 2 项未达 v5（证明校验非空转）",
+          "🟡 发起窗口处置（同 t9）：删除迁移变换的第二份实现 application/use-cases/MigrateLedger.ts；修正 t6 用例计数 12→11",
+          "任务数口径修正已确认：卡面写 34/84，事实 34/97/2（84 是需求期口径；design/migration.md §1.1 已有记录），报告按事实记 97"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-47939a/tasks/t-4e1802.md",
+      "layer": 5
+    },
+    {
+      "id": "t-5e153b",
+      "requirementId": "REQ-47939a",
+      "title": "客户端 view.ts 按视图区拆分",
+      "description": "2579 行的 view.ts 按渲染区机械分片，DOM 结构/类名/SSE 订阅不变。",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-cea897"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "npx vitest run tests/client-view.test.ts tests/stage-panel.test.ts tests/card-face.test.ts 全绿；src/client/views/board.ts 等 6 个分片文件存在；src/client/view.ts 已不存在或降为汇总再导出。",
+      "implementation": "src/client/view.ts → src/client/views/{board,stage-detail,stage-panel,verification,artifacts,timeline}.ts + src/client/render/dom-utils.ts；不改 DOM 结构、类名与订阅方式；import 路径随分层调整。验证：npx vitest run tests/client-view.test.ts tests/stage-panel.test.ts tests/card-face.test.ts。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-5c4512",
+          "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2",
+          "trigger": "manual",
+          "startedAt": 1789649429739,
+          "outcome": "succeeded",
+          "endedAt": 1789649429790
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789645221392,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789649429739,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t11 复核开卡。"
+        },
+        {
+          "status": "testing",
+          "at": 1789649429790,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t11 复核通过：见 verification.md 对应段落。"
+        },
+        {
+          "status": "in_review",
+          "at": 1789649429807,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t11 复核通过：见 verification.md 对应段落。"
+        },
+        {
+          "status": "done",
+          "at": 1789649499071,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t11 复核通过：导出集合守恒（缺失 0/0）、分片全部 ≤400、客户端三件 113 passed、白名单条目已按门禁删除；多出 2 个分片属 ≤400 行约束下的必要拆分，卡面点名文件全保留。"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-9d8240",
+          "body": "[状态] → in_progress：t11 复核开卡。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789649429739,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        },
+        {
+          "id": "c-ea956f",
+          "body": "[状态] → testing：t11 复核通过：见 verification.md 对应段落。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789649429790,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        },
+        {
+          "id": "c-4433e4",
+          "body": "[状态] → in_review：t11 复核通过：见 verification.md 对应段落。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789649429807,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        },
+        {
+          "id": "c-2db565",
+          "body": "[状态] → done：t11 复核通过：导出集合守恒（缺失 0/0）、分片全部 ≤400、客户端三件 113 passed、白名单条目已按门禁删除；多出 2 个分片属 ≤400 行约束下的必要拆分，卡面点名文件全保留。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789649499071,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1789645221392,
+      "updatedAt": 1789649499071,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+      },
+      "lastReport": {
+        "at": 1789649429773,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-47939a/verification.md",
+          "packages/pages/dsh-pmboard/src/client/view.ts",
+          "packages/pages/dsh-pmboard/src/client/views/board.ts",
+          "packages/pages/dsh-pmboard/src/client/views/stage-detail.ts",
+          "packages/pages/dsh-pmboard/src/client/render/dom-utils.ts",
+          "packages/pages/dsh-pmboard/tests/size-budget.test.ts"
+        ],
+        "completed": [
+          "独立核验导出守恒：脚本比对 HEAD view.ts 的 14 value + 4 type 导出 vs 新 barrel+views+render 并集 → 缺失 0 / 0",
+          "尺寸：无任何分片 >400（最大 364）；view.ts 降为 16 行 barrel",
+          "客户端三件测试：tests/client-view + stage-panel + card-face = 113 passed（54/44/15）",
+          "子代理故障注入（删 views/board.ts 的 buildTriage 导出 → client-view 7 failed；还原后 54/54 绿）——门禁可红的证据在其汇报中，我复核了导出守恒作为等价性主证据",
+          "size-budget 白名单：client/view.ts 条目已按门禁要求删除（该门禁要求条目必须仍超限，拆完不删即红）",
+          "偏离（已接受）：多出 2 个分片（views/stage-nodes-quality.ts、views/stage-nodes-doc.ts）——节点专属渲染器约 950 行，在 ≤400 行门禁下 7 个文件装不下；卡面点名的 6 个文件名全部保留",
+          "它声称\"3 个历史死 import 未搬\"经我独立核对属实（renderStagePanel/getStageLabel 各仅 1 次=import 行；STAGE_LABELS 第 2 处是注释）"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-47939a/tasks/t-5e153b.md",
+      "layer": 5
+    },
+    {
+      "id": "t-29e52c",
+      "requirementId": "REQ-47939a",
+      "title": "客户端 styles.ts 分层 + 构建门",
+      "description": "1886 行 styles.ts 分层，保持样式注入接口不变，并过客户端构建与哨兵门。",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-5e153b"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "pnpm build:client 退出码 0 且 node scripts/verify-client-build.mjs 通过（WRAP_SENTINEL 未命中）；src/client/styles/base.ts 等 5 个分片存在；src/client/styles.ts 单文件 ≤400 行。",
+      "implementation": "src/client/styles.ts → src/client/styles/{base,board,detail,panel,files}.ts，由 styles.ts 汇总导出（注入接口与 CSS 内容不变）；跑客户端构建与构建校验。验证：pnpm build:client && node scripts/verify-client-build.mjs。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-6d23c8",
+          "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2",
+          "trigger": "manual",
+          "startedAt": 1789649429822,
+          "outcome": "succeeded",
+          "endedAt": 1789649429863
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789645221392,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789649429822,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t12 复核开卡。"
+        },
+        {
+          "status": "testing",
+          "at": 1789649429863,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t12 复核通过：见 verification.md 对应段落。"
+        },
+        {
+          "status": "in_review",
+          "at": 1789649429877,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t12 复核通过：见 verification.md 对应段落。"
+        },
+        {
+          "status": "done",
+          "at": 1789649564124,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t12 复核通过：独立提取比对确认 CSS 逐字节一致（89,677 字符）、构建门与哨兵通过、styles.ts 降为 26 行 barrel、连续区段取向正确。"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-e171ec",
+          "body": "[状态] → in_progress：t12 复核开卡。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789649429822,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        },
+        {
+          "id": "c-40e269",
+          "body": "[状态] → testing：t12 复核通过：见 verification.md 对应段落。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789649429863,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        },
+        {
+          "id": "c-6cb2bc",
+          "body": "[状态] → in_review：t12 复核通过：见 verification.md 对应段落。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789649429877,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        },
+        {
+          "id": "c-918560",
+          "body": "[状态] → done：t12 复核通过：独立提取比对确认 CSS 逐字节一致（89,677 字符）、构建门与哨兵通过、styles.ts 降为 26 行 barrel、连续区段取向正确。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789649564124,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1789645221392,
+      "updatedAt": 1789649564124,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+      },
+      "lastReport": {
+        "at": 1789649429849,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-47939a/verification.md",
+          "packages/pages/dsh-pmboard/src/client/styles.ts",
+          "packages/pages/dsh-pmboard/src/client/styles/base.ts",
+          "packages/pages/dsh-pmboard/src/client/styles/detail.ts",
+          "packages/pages/dsh-pmboard/src/client/styles/panel.ts"
+        ],
+        "completed": [
+          "**独立验证 CSS 逐字节不变**：从 /tmp/req47939a-t12-backup/styles.ts 提取原 CSS 模板（89,677 字符）vs 5 分片按 barrel 顺序（base→detail→files→board→panel）拼接 → 完全一致",
+          "构建门：pnpm build:client exit 0 + verify-client-build 哨兵 OK；bundle 216528 bytes 与 t11 一致（佐证 CSS 未变）",
+          "尺寸：5 分片全部 ≤400（base 398 最大）；styles.ts 降为 26 行 barrel，CSS_TAG 与 injectStyles 逐字节保留",
+          "size-budget 白名单：client/styles.ts 条目已删除",
+          "子代理故障注入（哨兵行前加空格 → 构建失败 EXIT=1；还原后 OK）——构建门可红的证据在其汇报中",
+          "取向复核：分片取\"连续区段\"而非按主题重排——这是正确的（重排会改变 CSS 级联行为）",
+          "全量：616 passed / 1 failed（基线项）"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-47939a/tasks/t-29e52c.md",
+      "layer": 6
+    },
+    {
+      "id": "t-d6ccb4",
+      "requirementId": "REQ-47939a",
+      "title": "文档演进与死代码清理 + 归档材料",
+      "description": "把结论并进项目文档（工具名同步、分层落地记录、工具清单、术语），清理死代码并备归档材料。",
+      "phase": "doc",
+      "side": "doc",
+      "dependsOn": [
+        "t-4e1802",
+        "t-29e52c"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "python3 agent-dh/scripts/wiki_probe.py 通过（无死链/孤儿页）；docs/architecture/workflow-stages.md 与 docs/rfcs/014-requirement-board.md 内出现 9 个收敛后工具名且不再把 confirm_artifact 列为独立入口。",
+      "implementation": "更新 docs/architecture/workflow-stages.md 阶段职责中的工具名（13→9）；docs/rfcs/014-requirement-board.md 增补分层落地记录小节；docs/architecture/TOOLS_INVENTORY.md 与 glossary.md 同步；清理确认无引用的死代码并在任务汇报列出；跑 python3 agent-dh/scripts/wiki_probe.py 自检死链/孤儿页。验证：wiki_probe.py 与文档 diff。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-b44b4f",
+          "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2",
+          "trigger": "manual",
+          "startedAt": 1789649571779,
+          "outcome": "succeeded",
+          "endedAt": 1789649592117
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789645221392,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789649571779,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "开工 t13：文档演进（工具面/分层/RFC/术语）与死代码清理；文档部分已在等待期完成，本卡做验收核对与归档材料。"
+        },
+        {
+          "status": "testing",
+          "at": 1789649592117,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t13 验收命令实测通过（现行页零死链零孤儿 + 9 工具名齐备）。"
+        },
+        {
+          "status": "in_review",
+          "at": 1789649592136,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t13 验收命令实测通过（现行页零死链零孤儿 + 9 工具名齐备）。"
+        },
+        {
+          "status": "done",
+          "at": 1789649657168,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "t13 完成：文档演进 + 死代码复扫无死文件 + wiki 探针现行页零死链零孤儿 + 9 工具名齐备。"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-643e71",
+          "body": "[状态] → in_progress：开工 t13：文档演进（工具面/分层/RFC/术语）与死代码清理；文档部分已在等待期完成，本卡做验收核对与归档材料。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789649571779,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        },
+        {
+          "id": "c-97b4d5",
+          "body": "[状态] → testing：t13 验收命令实测通过（现行页零死链零孤儿 + 9 工具名齐备）。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789649592117,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        },
+        {
+          "id": "c-1ff50e",
+          "body": "[状态] → in_review：t13 验收命令实测通过（现行页零死链零孤儿 + 9 工具名齐备）。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789649592136,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        },
+        {
+          "id": "c-85adaa",
+          "body": "[状态] → done：t13 完成：文档演进 + 死代码复扫无死文件 + wiki 探针现行页零死链零孤儿 + 9 工具名齐备。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789649657168,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1789645221392,
+      "updatedAt": 1789649657168,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+      },
+      "lastReport": {
+        "at": 1789649592099,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-47939a/verification.md",
+          "docs/architecture/workflow-stages.md",
+          "docs/rfcs/014-requirement-board.md",
+          "docs/architecture/glossary.md",
+          "docs/standards/testing.md"
+        ],
+        "completed": [
+          "workflow-stages.md：新增「工具面（2026-09-17 收敛后：13 → 9）」章节并同步两处现行引用（verify/archive submit → reqboard_submit(kind=…)）",
+          "rfcs/014-requirement-board.md：新增 §15「分层重构与工具收敛」，含四层目录图、四条来自实测的经验（门禁必须能证明自己扫到了东西 / \"换个花样的绕过\"更危险 / 续版语义要问\"没被处理的去哪了\" / 卡面\"复用 X 实现\"与\"不依赖 X 环境\"可能不可兼得）、产物索引",
+          "glossary.md：新增 4 条术语（四层分层 / 端口·用例 / 机械门禁 / 续版验收）",
+          "死代码复扫：同时认 .ts 与 .js 后缀并含 scripts/tests 引用方 → 无死文件；13 个假阳性（client 用 .ts 后缀 import、脚本引用 domain/legacy/LegacyStatus.ts）已查清",
+          "TOOLS_INVENTORY.md 经查无需更新（本无 reqboard 条目）——显式记录避免\"漏做\"误判",
+          "卡面验收命令实测：从仓库根跑 wiki 探针 → 现行页死链 0 / 孤儿 0；9 个收敛后工具名齐备；confirm_artifact 独立入口 0 次",
+          "边界原则遵守：work-logs 与 RFC 历史叙述不改写（history 只增不改），只在 living 文档更新现行表述、RFC 用新增一节记录收敛",
+          "文档索引：docs_index.py --check = OK（须从仓库根跑且连跑两次——该陷阱已写进 docs/standards/testing.md）"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-47939a/tasks/t-d6ccb4.md",
+      "layer": 7
+    },
+    {
+      "id": "t-69ea73",
+      "requirementId": "REQ-47939a",
+      "title": "返工：立层边界门禁与端口骨架",
+      "description": "验收不通过项返工（v1 项 v1-1）：npx vitest run tests/layer-boundary.test.ts 通过；src/domain/errors.ts 与 src/application/ports.ts 存在且被该测试引用；测试内含\"扫描器命中文件数\"下限断言（防扫描器失效假绿）。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "npx vitest run tests/layer-boundary.test.ts 通过；src/domain/errors.ts 与 src/application/ports.ts 存在且被该测试引用；测试内含\"扫描器命中文件数\"下限断言（防扫描器失效假绿）。",
+      "implementation": "按验收意见修复：options: [\n              { label: OPT_PASS, description: '该验收项通过' },\n              { label: OPT_FIX, description: '需修改——请在自定义输入写意见' },\n              { label: OPT_OTHER, description: '其他结论——请在自定义输入说明' },\n            ]\n这个样魔法数字比较多，可以抽象专门解决拼接和魔法数字问题吗",
+      "context": "承接自 任务 t-07e4ff；验收意见：options: [\n              { label: OPT_PASS, description: '该验收项通过' },\n              { label: OPT_FIX, description: '需修改——请在自定义输入写意见' },\n              { label: OPT_OTHER, description: '其他结论——请在自定义输入说明' },\n            ]\n这个样魔法数字比较多，可以抽象专门解决拼接和魔法数字问题吗",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-af95e1",
+          "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2",
+          "trigger": "manual",
+          "startedAt": 1789650096669,
+          "outcome": "succeeded",
+          "endedAt": 1789650305201
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-8286db",
+          "body": "[状态] → in_progress：开工返工：按用户验收意见——抽出专门解决\"字符串拼接\"与\"魔法数字/字符串\"的抽象，并在领域/工具/路由层落地。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789650096669,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        },
+        {
+          "id": "c-8bd249",
+          "body": "[状态] → testing：返工完成：三件抽象 + 规则层归零 + 门禁三条故障注入可红。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789650305201,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        },
+        {
+          "id": "c-8a2aa4",
+          "body": "[状态] → in_review：返工完成：三件抽象 + 规则层归零 + 门禁三条故障注入可红。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789650305223,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        },
+        {
+          "id": "c-e3135b",
+          "body": "[状态] → done：返工验收：message-hygiene 门禁 5 passed（含棘轮），三次故障注入实测可红，全量 621 passed / 1 failed（基线项），客户端已重建并过哨兵。（窗口 session-41e7e4cd-4038-476c-9307-d93622a411e2）",
+          "createdAt": 1789650444617,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1789650064583,
+      "updatedAt": 1789650444617,
+      "createdBy": {
+        "kind": "human",
+        "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789650064583,
+          "by": {
+            "kind": "human",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "验收不通过 → 自动生成返工任务（W6）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789650096669,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "开工返工：按用户验收意见——抽出专门解决\"字符串拼接\"与\"魔法数字/字符串\"的抽象，并在领域/工具/路由层落地。"
+        },
+        {
+          "status": "testing",
+          "at": 1789650305201,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "返工完成：三件抽象 + 规则层归零 + 门禁三条故障注入可红。"
+        },
+        {
+          "status": "in_review",
+          "at": 1789650305223,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "返工完成：三件抽象 + 规则层归零 + 门禁三条故障注入可红。"
+        },
+        {
+          "status": "done",
+          "at": 1789650444617,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-41e7e4cd-4038-476c-9307-d93622a411e2"
+          },
+          "reason": "返工验收：message-hygiene 门禁 5 passed（含棘轮），三次故障注入实测可红，全量 621 passed / 1 failed（基线项），客户端已重建并过哨兵。"
+        }
+      ],
+      "lastReport": {
+        "at": 1789650305181,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-47939a/verification.md",
+          "packages/pages/dsh-pmboard/src/domain/text/fmt.ts",
+          "packages/pages/dsh-pmboard/src/domain/text/labels.ts",
+          "packages/pages/dsh-pmboard/src/domain/limits.ts",
+          "packages/pages/dsh-pmboard/src/domain/task/Acceptability.ts",
+          "packages/pages/dsh-pmboard/src/domain/workflow/AcceptanceSheetSpec.ts",
+          "packages/pages/dsh-pmboard/src/domain/workflow/DoneEvidenceSpec.ts",
+          "packages/pages/dsh-pmboard/src/application/use-cases/AcceptSheet.ts",
+          "packages/pages/dsh-pmboard/src/client/stage-panel.ts",
+          "packages/pages/dsh-pmboard/tests/message-hygiene.test.ts"
+        ],
+        "completed": [
+          "新增 domain/text/fmt.ts（具名占位符 + 缺变量抛错，替代字符串拼接）",
+          "新增 domain/limits.ts（标题/文本/证据/批次/节流/提醒/证据窗/三类超时具名化）",
+          "新增 domain/text/labels.ts（弹框选项、徽章、终确认、缺省确认选项）并经 shared/protocol 再导出给 client —— 解决用户点到的\"host 与 client 各写一份文案\"",
+          "规则层迁移：src/domain 拼接式消息 29 → 0（7 个文件逐条改 fmt，消息逐字不变，由断言消息内容的既有测试守住）",
+          "魔数迁移：9 个工具 timeoutMs → LIMITS.*；AcceptSheet 批次 → LIMITS.sheetBatchDefault/Max；protocol 标题/文本上限 → LIMITS.titleMax/textMax",
+          "文案接线：AcceptSheet 用 FINAL_PASS_LABEL/FINAL_DECLINE_LABEL/ACCEPT_ITEM_OPTIONS；AskConfirm 用 DEFAULT_CONFIRM_OPTIONS；client stage-panel 徽章用 ITEM_STATUS_BADGE",
+          "新增 tests/message-hygiene.test.ts（5 例）：domain 拼接硬零 + 其余层棘轮 + 工具超时禁裸数字 + 批次禁裸数字 + 六条文案单点",
+          "故障注入实测三条全红：domain 拼接探针 / client 文案探针 / tools 裸超时探针；探针已清理，全量 621 passed / 1 failed（基线项）",
+          "诚实边界：上层仍有 322 处拼接未逐条迁移（一次性改 300+ 处消息回归面过大），已用棘轮门禁钉住\"只降不升\"，并在 verification.md 显式写明未完成范围"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-47939a/tasks/t-69ea73.md",
+      "layer": 0
+    }
+  ],
+  "edges": [
+    {
+      "from": "t-07e4ff",
+      "to": "t-e331f2"
+    },
+    {
+      "from": "t-07e4ff",
+      "to": "t-a68851"
+    },
+    {
+      "from": "t-07e4ff",
+      "to": "t-7cc481"
+    },
+    {
+      "from": "t-07e4ff",
+      "to": "t-4bbbf2"
+    },
+    {
+      "from": "t-e331f2",
+      "to": "t-172e64"
+    },
+    {
+      "from": "t-a68851",
+      "to": "t-172e64"
+    },
+    {
+      "from": "t-7cc481",
+      "to": "t-172e64"
+    },
+    {
+      "from": "t-4bbbf2",
+      "to": "t-172e64"
+    },
+    {
+      "from": "t-172e64",
+      "to": "t-2dd5be"
+    },
+    {
+      "from": "t-172e64",
+      "to": "t-11000c"
+    },
+    {
+      "from": "t-2dd5be",
+      "to": "t-cea897"
+    },
+    {
+      "from": "t-11000c",
+      "to": "t-cea897"
+    },
+    {
+      "from": "t-cea897",
+      "to": "t-4e1802"
+    },
+    {
+      "from": "t-cea897",
+      "to": "t-5e153b"
+    },
+    {
+      "from": "t-5e153b",
+      "to": "t-29e52c"
+    },
+    {
+      "from": "t-4e1802",
+      "to": "t-d6ccb4"
+    },
+    {
+      "from": "t-29e52c",
+      "to": "t-d6ccb4"
+    }
+  ],
+  "layers": [
+    {
+      "layer": 0,
+      "tasks": [
+        "t-07e4ff",
+        "t-69ea73"
+      ]
+    },
+    {
+      "layer": 1,
+      "tasks": [
+        "t-e331f2",
+        "t-a68851",
+        "t-7cc481",
+        "t-4bbbf2"
+      ]
+    },
+    {
+      "layer": 2,
+      "tasks": [
+        "t-172e64"
+      ]
+    },
+    {
+      "layer": 3,
+      "tasks": [
+        "t-2dd5be",
+        "t-11000c"
+      ]
+    },
+    {
+      "layer": 4,
+      "tasks": [
+        "t-cea897"
+      ]
+    },
+    {
+      "layer": 5,
+      "tasks": [
+        "t-4e1802",
+        "t-5e153b"
+      ]
+    },
+    {
+      "layer": 6,
+      "tasks": [
+        "t-29e52c"
+      ]
+    },
+    {
+      "layer": 7,
+      "tasks": [
+        "t-d6ccb4"
+      ]
+    }
+  ],
+  "ready": []
+}

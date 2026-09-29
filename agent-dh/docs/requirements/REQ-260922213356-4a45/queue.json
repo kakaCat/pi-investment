@@ -1,0 +1,2360 @@
+{
+  "version": 1,
+  "requirement_id": "REQ-260922213356-4a45",
+  "schemaVersion": 9,
+  "generated_at": "2026-09-27T14:55:11.425Z",
+  "tasks": [
+    {
+      "id": "t-32b532",
+      "requirementId": "REQ-260922213356-4a45",
+      "title": "定义模板地址映射表与守护单测",
+      "description": "契约/数据先行：TemplateRef 类型 + NODE_TEMPLATES 静态表 + 守护单测三条断言。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "npx vitest run tests/template-address.test.ts 全绿；临时移走 templates/design/architecture.md 后该测试变红（exit≠0）；pnpm typecheck 绿。",
+      "implementation": "新增 packages/web/dsh-pmboard/src/domain/template/types.ts（TemplateRef/DocRef/AddressSectionInput/UpstreamSource，domain 局部结构类型，不 import shared）与 packages/web/dsh-pmboard/src/domain/template/registry.ts（NODE_TEMPLATES：只登记 stageEnabledFor=true 的节点×类型组合；design(feature)=architecture/data-model/interfaces/test-cases/use-cases，design(refactor)=architecture/migration，design(bug)=空）。新增 packages/web/dsh-pmboard/tests/template-address.test.ts：①每条 relPath existsSync；②与 effectiveDesignDocs(category, []) 双向一致且禁用组合无表项；③templates/ 下未引用文件必须在显式 allowlist（README.md/examples/**/common/notes.md/design/prototype.html 等，逐条带理由）；④relPath 拒绝 ..、绝对路径、空串；⑤id 唯一。",
+      "context": "",
+      "status": "todo",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-90bd02",
+          "trigger": "auto",
+          "startedAt": 1790089616788,
+          "outcome": "cancelled",
+          "endedAt": 1790262262909
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790089616588,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790089616788,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "todo",
+          "at": 1790262262909,
+          "by": {
+            "kind": "system"
+          },
+          "reason": "僵尸执行清理：父卡随归档需求长期停在 in_progress，令 cross-card 兜底把新 mtime 判成跨卡覆盖"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-26fb2a",
+          "body": "[状态] → todo：僵尸执行清理：父卡随归档需求长期停在 in_progress，令 cross-card 兜底把新 mtime 判成跨卡覆盖",
+          "createdAt": 1790262262909,
+          "createdBy": {
+            "kind": "system"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790089616588,
+      "updatedAt": 1790262262909,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "lastReport": {
+        "at": 1790089766066,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/domain/template/types.ts",
+          "packages/web/dsh-pmboard/src/domain/template/registry.ts",
+          "packages/web/dsh-pmboard/tests/template-address.test.ts"
+        ],
+        "completed": [
+          "新增 src/domain/template/types.ts：TemplateRef（id/stage/category/relPath/title/purpose）与表容器类型，domain 局部结构类型，零 import 零 I/O",
+          "新增 src/domain/template/registry.ts：NODE_TEMPLATES 静态表（6 节点 × 启用类型，共 27 条），只登记 stageEnabledFor=true 的组合；feature design=5 份、refactor=架构+迁移、bug=空",
+          "新增 tests/template-address.test.ts（12 用例）：①每条 relPath existsSync；②与 effectiveDesignDocs(category,[]) 双向一致 + 禁用组合无表项；③templates/ 未引用文件必须在带理由的 allowlist；④relPath 形态（防 .. 穿越）；⑤id 与三元组唯一；⑥字段齐备",
+          "故障注入实测：临时移走 templates/design/architecture.md → 单测 exit=1 且报出两条对应条目，随后已还原（RESTORED）"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-260922213356-4a45/tasks/t-32b532.md",
+      "layer": 0
+    },
+    {
+      "id": "t-3e89da",
+      "requirementId": "REQ-260922213356-4a45",
+      "title": "实现地址解析与渲染纯函数",
+      "description": "I-1~I-4 四个纯函数：解析节点模板、解析上游必读、渲染地址段、折入 ResolvedPrompt。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-32b532"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "npx vitest run tests/template-address.test.ts 绿；空集时 renderAddressSection 返回空串且 augmentResolvedPrompt 与入参引用相等；渲染出的每条地址被 read 实读成功（非空内容）；把 templateRoot 改成仓库根相对 templates 后 TC-12 变红。",
+      "implementation": "新增 packages/web/dsh-pmboard/src/domain/template/resolve.ts（resolveNodeTemplates(stage,category) 按类型档在前/通用档在后的稳定顺序取表并去重；resolveUpstreamDocs(source,stage,currentTask?) 只从已登记 artifacts 与 cardDoc 取，取不到不列出）、packages/web/dsh-pmboard/src/domain/template/render.ts（renderAddressSection 按 interfaces.md I-3 逐字契约渲染；两清单皆空→空串；校验 templateRoot 绝对路径与 relPath 形态）、packages/web/dsh-pmboard/src/domain/template/index.ts barrel，以及 packages/web/dsh-pmboard/src/application/internal/injection-address.ts（augmentResolvedPrompt：空集 return resolved 同引用；非空 { ...resolved, text: text+\\n\\n+section, charCount }；fragmentIds/routeKey/hitLevel/trimmed 不变）。补 packages/web/dsh-pmboard/tests/template-address.test.ts 的 TC-1/2/3/7/8/12。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-ceccdb",
+          "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+          "trigger": "manual",
+          "startedAt": 1790090007832,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+              "seq": 3024,
+              "at": 1790090007843,
+              "totals": {
+                "uncachedInputTokens": 2119509,
+                "outputTokens": 447666,
+                "cacheReadTokens": 108562816,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+              "seq": 3110,
+              "at": 1790090073316,
+              "totals": {
+                "uncachedInputTokens": 2122571,
+                "outputTokens": 459251,
+                "cacheReadTokens": 111452672,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 3062,
+              "outputTokens": 11585,
+              "cacheReadTokens": 2889856,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790090073304
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790089616588,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790090007832,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          },
+          "reason": "开工 T-2：实现地址解析与渲染纯函数（depends T-1）。",
+          "tokenSnapshot": {
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+            "seq": 3024,
+            "at": 1790090007843,
+            "totals": {
+              "uncachedInputTokens": 2119509,
+              "outputTokens": 447666,
+              "cacheReadTokens": 108562816,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1790090073304,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          },
+          "reason": "T-2 testing",
+          "tokenSnapshot": {
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+            "seq": 3110,
+            "at": 1790090073316,
+            "totals": {
+              "uncachedInputTokens": 2122571,
+              "outputTokens": 459251,
+              "cacheReadTokens": 111452672,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1790090073403,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          },
+          "reason": "T-2 in_review",
+          "tokenSnapshot": {
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+            "seq": 3112,
+            "at": 1790090073418,
+            "totals": {
+              "uncachedInputTokens": 2122571,
+              "outputTokens": 459251,
+              "cacheReadTokens": 111452672,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790090073510,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          },
+          "reason": "T-2 完成：单元测试 22 例绿 + 故障注入红后还原 + typecheck 绿。",
+          "tokenSnapshot": {
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+            "seq": 3114,
+            "at": 1790090073521,
+            "totals": {
+              "uncachedInputTokens": 2122571,
+              "outputTokens": 459251,
+              "cacheReadTokens": 111452672,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-1640ad",
+          "body": "[状态] → in_progress：开工 T-2：实现地址解析与渲染纯函数（depends T-1）。（窗口 session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa）",
+          "createdAt": 1790090007832,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          }
+        },
+        {
+          "id": "c-4b0da3",
+          "body": "[状态] → testing：T-2 testing（窗口 session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa）",
+          "createdAt": 1790090073304,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          }
+        },
+        {
+          "id": "c-81b9f6",
+          "body": "[状态] → in_review：T-2 in_review（窗口 session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa）",
+          "createdAt": 1790090073403,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          }
+        },
+        {
+          "id": "c-3b931a",
+          "body": "[状态] → done：T-2 完成：单元测试 22 例绿 + 故障注入红后还原 + typecheck 绿。（窗口 session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa）",
+          "createdAt": 1790090073510,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790089616588,
+      "updatedAt": 1790090073510,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+      },
+      "lastReport": {
+        "at": 1790090073240,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/domain/template/resolve.ts",
+          "packages/web/dsh-pmboard/src/domain/template/render.ts",
+          "packages/web/dsh-pmboard/src/domain/template/index.ts",
+          "packages/web/dsh-pmboard/src/domain/template/types.ts",
+          "packages/web/dsh-pmboard/src/application/internal/injection-address.ts",
+          "packages/web/dsh-pmboard/tests/template-address.test.ts"
+        ],
+        "completed": [
+          "新增 src/domain/template/resolve.ts：resolveNodeTemplates（查表+枚举收窄）与 resolveUpstreamDocs（按节点顺序取上游产物 + 当前任务卡，取不到不列）",
+          "新增 src/domain/template/render.ts：renderAddressSection 逐字渲染（空集返空串；相对 templateRoot 响亮抛错；relPath 形态护栏）",
+          "新增 src/domain/template/index.ts barrel；新增 src/application/internal/injection-address.ts（augmentResolvedPrompt：空集返原引用，非空折入 text 与 charCount）",
+          "扩展 tests/template-address.test.ts 至 22 例（TC-1/2/3/7/8/12：矩阵、上游必读、空集引用相等、真 read 成功、非法枚举/防穿越）",
+          "故障注入：把 render.ts 的绝对路径校验临时改为接受相对路径 → 该用例变红；已还原（22 例复绿）"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-260922213356-4a45/tasks/t-3e89da.md",
+      "layer": 1
+    },
+    {
+      "id": "t-fc102f",
+      "requirementId": "REQ-260922213356-4a45",
+      "title": "接线四个注入点并解析模板根",
+      "description": "把地址段折进系统段/H3/输入包/onStagePrompt 四处注入点；组合根解析绝对模板根。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-3e89da"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "npx vitest run tests/template-address-injection.test.ts -t TC-9 绿（三/四处地址段逐字一致）；npx vitest run tests/prompt-injection-log.test.ts 绿且 charCount 为增强后长度；pnpm typecheck 绿；空集时既有基线逐字节不变。",
+      "implementation": "新增 packages/web/dsh-pmboard/src/adapters/TemplateRoot.ts（resolveTemplateRoot(config,moduleDir)：配置绝对路径覆盖 > path.resolve(moduleDir,../templates)；非绝对/不可用返 undefined；node:path 仅在此）；改 packages/web/dsh-pmboard/src/application/internal/capture-section.ts（boundSectionText 在 resolved 入段与 injectionLog.record 前调 augmentResolvedPrompt，留痕用增强后的 charCount）、packages/web/dsh-pmboard/src/adapters/CaptureHook.ts（onStagePrompt 前 augment）、packages/web/dsh-pmboard/src/gate-wiring.ts 与 packages/web/dsh-pmboard/src/index.ts（PluginConfig 加 templateRoot?/addressSectionEnabled?（默认 true），组合根解析并下传）。templateRoot 不可用时整段不注入 + 留痕 address_section_disabled（不静默）。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-9c0db6",
+          "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+          "trigger": "manual",
+          "startedAt": 1790090087826,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+              "seq": 3122,
+              "at": 1790090087837,
+              "totals": {
+                "uncachedInputTokens": 2122749,
+                "outputTokens": 462428,
+                "cacheReadTokens": 111820672,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+              "seq": 3294,
+              "at": 1790090186808,
+              "totals": {
+                "uncachedInputTokens": 2129977,
+                "outputTokens": 478550,
+                "cacheReadTokens": 117535232,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 7228,
+              "outputTokens": 16122,
+              "cacheReadTokens": 5714560,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790090186797
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790089616588,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790090087826,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          },
+          "reason": "开工 T-3：接线四个注入点并解析模板根（depends T-2）。",
+          "tokenSnapshot": {
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+            "seq": 3122,
+            "at": 1790090087837,
+            "totals": {
+              "uncachedInputTokens": 2122749,
+              "outputTokens": 462428,
+              "cacheReadTokens": 111820672,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1790090186797,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          },
+          "reason": "T-3 testing",
+          "tokenSnapshot": {
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+            "seq": 3294,
+            "at": 1790090186808,
+            "totals": {
+              "uncachedInputTokens": 2129977,
+              "outputTokens": 478550,
+              "cacheReadTokens": 117535232,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1790090186888,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          },
+          "reason": "T-3 in_review",
+          "tokenSnapshot": {
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+            "seq": 3296,
+            "at": 1790090186899,
+            "totals": {
+              "uncachedInputTokens": 2129977,
+              "outputTokens": 478550,
+              "cacheReadTokens": 117535232,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790090186977,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          },
+          "reason": "T-3 完成：TC-9 地址段逐字一致 + typecheck 绿 + 回归 78 例绿。",
+          "tokenSnapshot": {
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+            "seq": 3298,
+            "at": 1790090186988,
+            "totals": {
+              "uncachedInputTokens": 2129977,
+              "outputTokens": 478550,
+              "cacheReadTokens": 117535232,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-4d16f5",
+          "body": "[状态] → in_progress：开工 T-3：接线四个注入点并解析模板根（depends T-2）。（窗口 session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa）",
+          "createdAt": 1790090087826,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          }
+        },
+        {
+          "id": "c-14e88c",
+          "body": "[状态] → testing：T-3 testing（窗口 session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa）",
+          "createdAt": 1790090186797,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          }
+        },
+        {
+          "id": "c-bb18fa",
+          "body": "[状态] → in_review：T-3 in_review（窗口 session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa）",
+          "createdAt": 1790090186888,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          }
+        },
+        {
+          "id": "c-b59d27",
+          "body": "[状态] → done：T-3 完成：TC-9 地址段逐字一致 + typecheck 绿 + 回归 78 例绿。（窗口 session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa）",
+          "createdAt": 1790090186977,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790089616588,
+      "updatedAt": 1790090186977,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+      },
+      "lastReport": {
+        "at": 1790090186732,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/adapters/TemplateRoot.ts",
+          "packages/web/dsh-pmboard/src/gate-wiring.ts",
+          "packages/web/dsh-pmboard/src/index.ts",
+          "packages/web/dsh-pmboard/src/application/internal/capture-section.ts",
+          "packages/web/dsh-pmboard/src/application/gate/handlers/h3-inject.ts",
+          "packages/web/dsh-pmboard/src/adapters/CaptureHook.ts",
+          "packages/web/dsh-pmboard/src/domain/template/types.ts",
+          "packages/web/dsh-pmboard/tests/template-address-injection.test.ts"
+        ],
+        "completed": [
+          "新增 src/adapters/TemplateRoot.ts：resolveTemplateRoot（配置绝对路径优先，否则包根 ../templates）与 addressSectionEnabled（默认开）",
+          "改 src/index.ts：PluginConfig 加 templateRoot/addressSectionEnabled，组合根解析并下传；解析失败时响亮告警（address_section_disabled）",
+          "改 src/gate-wiring.ts：向闸门链（H3）与捕获引导段传递模板根/开关",
+          "改 src/application/internal/capture-section.ts（系统段）与 src/adapters/CaptureHook.ts（唤醒注入）：入段/投递前调 augmentResolvedPrompt，留痕 charCount 用增强值",
+          "改 src/application/gate/handlers/h3-inject.ts：取词后折入地址段（含当前任务卡）",
+          "新增 tests/template-address-injection.test.ts（TC-9）：系统段与 H3 的地址段逐字一致、含同一组绝对地址、空集与关开关时无地址段",
+          "typecheck 绿；T-2/T-3 两个测试文件共 25 例全绿；既有 capture/h3/gate-handlers/prompt-injection-log 回归 78 例绿"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-260922213356-4a45/tasks/t-fc102f.md",
+      "layer": 2
+    },
+    {
+      "id": "t-43e21b",
+      "requirementId": "REQ-260922213356-4a45",
+      "title": "实现非肯定项分流（H3 verdict / H4 不附纪律）",
+      "description": "H3 取词前判 verdict；H4 非肯定分支不附任何纪律块。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-fc102f"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "npx vitest run tests/template-address-injection.test.ts -t TC-10 与 npx vitest run tests/h3-inject.test.ts 绿；verdict=negative 或 undefined 时 scratch.promptText 未写、H4 投递文本不含「按以下阶段纪律继续」及下一节点特征串；affirmative 分支输出与改造前逐字一致。",
+      "implementation": "改 packages/web/dsh-pmboard/src/application/gate/handlers/h3-inject.ts：新增 resolveStagePromptForGate(ctx,requirement)——verdict 为 negative 或 undefined（H1 未跑到）→ { kind:skip, code:negative_verdict }，不调用 resolve、不写 scratch.promptText、不留痕；affirmative 时取词后调 augmentResolvedPrompt 再写 scratch 与留痕。改 packages/web/dsh-pmboard/src/application/gate/handlers/h4-resume.ts：非肯定分支不附任何纪律块（只发作答摘要 + 用户意见），肯定分支 D5 分流不变。补 packages/web/dsh-pmboard/tests/template-address-injection.test.ts 的 TC-10。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-b88377",
+          "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+          "trigger": "manual",
+          "startedAt": 1790090193487,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+              "seq": 3306,
+              "at": 1790090193496,
+              "totals": {
+                "uncachedInputTokens": 2130205,
+                "outputTokens": 479943,
+                "cacheReadTokens": 117927808,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+              "seq": 3348,
+              "at": 1790090215915,
+              "totals": {
+                "uncachedInputTokens": 2130990,
+                "outputTokens": 483662,
+                "cacheReadTokens": 119115136,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 785,
+              "outputTokens": 3719,
+              "cacheReadTokens": 1187328,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790090215904
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790089616588,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790090193487,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          },
+          "reason": "开工 T-4：H3 verdict 分流 + H4 非肯定不附纪律（depends T-3）。",
+          "tokenSnapshot": {
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+            "seq": 3306,
+            "at": 1790090193496,
+            "totals": {
+              "uncachedInputTokens": 2130205,
+              "outputTokens": 479943,
+              "cacheReadTokens": 117927808,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1790090215904,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          },
+          "reason": "T-4 testing",
+          "tokenSnapshot": {
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+            "seq": 3348,
+            "at": 1790090215915,
+            "totals": {
+              "uncachedInputTokens": 2130990,
+              "outputTokens": 483662,
+              "cacheReadTokens": 119115136,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1790090215991,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          },
+          "reason": "T-4 in_review",
+          "tokenSnapshot": {
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+            "seq": 3350,
+            "at": 1790090216002,
+            "totals": {
+              "uncachedInputTokens": 2130990,
+              "outputTokens": 483662,
+              "cacheReadTokens": 119115136,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790090281743,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          },
+          "reason": "T-4 完成：TC-10 通过，typecheck 绿（等待 60s 节流后关闭）。",
+          "tokenSnapshot": {
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+            "seq": 3362,
+            "at": 1790090281758,
+            "totals": {
+              "uncachedInputTokens": 2131151,
+              "outputTokens": 484135,
+              "cacheReadTokens": 119513344,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-61c858",
+          "body": "[状态] → in_progress：开工 T-4：H3 verdict 分流 + H4 非肯定不附纪律（depends T-3）。（窗口 session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa）",
+          "createdAt": 1790090193487,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          }
+        },
+        {
+          "id": "c-4b7593",
+          "body": "[状态] → testing：T-4 testing（窗口 session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa）",
+          "createdAt": 1790090215904,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          }
+        },
+        {
+          "id": "c-dcadc5",
+          "body": "[状态] → in_review：T-4 in_review（窗口 session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa）",
+          "createdAt": 1790090215991,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          }
+        },
+        {
+          "id": "c-a807ef",
+          "body": "[状态] → done：T-4 完成：TC-10 通过，typecheck 绿（等待 60s 节流后关闭）。（窗口 session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa）",
+          "createdAt": 1790090281743,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790089616588,
+      "updatedAt": 1790090281743,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+      },
+      "lastReport": {
+        "at": 1790090215842,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/application/gate/handlers/h3-inject.ts",
+          "packages/web/dsh-pmboard/src/application/gate/handlers/h4-resume.ts",
+          "packages/web/dsh-pmboard/tests/template-address-injection.test.ts"
+        ],
+        "completed": [
+          "改 h3-inject.ts：取词前按 ctx.verdict 分流——非肯定（或 verdict 缺省）→ skip(negative_verdict)，不取词、不写 scratch、不留痕",
+          "改 h4-resume.ts：非肯定分支不附任何纪律块（只发作答摘要 + 用户意见）；肯定分支维持原样（防修反）",
+          "扩展 tests/template-address-injection.test.ts 的 TC-10：negative 与 verdict 缺省两例断言 skip + scratch 未写 + 无留痕；H4 negative 文本不含纪律特征串、含用户意见；H4 affirmative 仍附纪律全文",
+          "typecheck 绿；注入测试 7 例绿；h3-inject / gate-handlers 回归绿"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-260922213356-4a45/tasks/t-43e21b.md",
+      "layer": 3
+    },
+    {
+      "id": "t-25f7fd",
+      "requirementId": "REQ-260922213356-4a45",
+      "title": "补节点输入包地址节并锁两路径一致",
+      "description": "输入包追加「本节点文档」小节，压缩开/关两路径地址段逐字一致。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-43e21b"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "npx vitest run tests/template-address-injection.test.ts -t TC-11 绿；压缩开/关两路径地址段逐字相等且输入包文本含「## 本节点文档」并位于「## 需求文档」之后；故障注入「地址只挂 H3、不挂输入包」→ 该测试变红；npx vitest run tests/isolate-node-context.test.ts 绿。",
+      "implementation": "改 packages/web/dsh-pmboard/src/application/internal/node-input-package.ts：NodeInputPackageInput 增 templateRoot 与 currentTask；在「## 需求文档」小节之后追加「## 本节点文档（模板地址 · 先读再动手）」小节（复用 renderAddressSection，空集不追加，保持改造前逐字节一致）。改 packages/web/dsh-pmboard/src/application/use-cases/IsolateNodeContext.ts：向 buildNodeInputPackage 传 templateRoot 与当前任务。补 packages/web/dsh-pmboard/tests/template-address-injection.test.ts 的 TC-11（压缩开/关两路径、系统段不可得时输入包仍带地址）。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-be43c7",
+          "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+          "trigger": "manual",
+          "startedAt": 1790090288443,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+              "seq": 3372,
+              "at": 1790090288454,
+              "totals": {
+                "uncachedInputTokens": 2131362,
+                "outputTokens": 485237,
+                "cacheReadTokens": 119912064,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+              "seq": 3593,
+              "at": 1790090768179,
+              "totals": {
+                "uncachedInputTokens": 2509582,
+                "outputTokens": 504105,
+                "cacheReadTokens": 127387392,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 378220,
+              "outputTokens": 18868,
+              "cacheReadTokens": 7475328,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790090768168
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790089616588,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790090288443,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          },
+          "reason": "开工 T-5：节点输入包地址节 + 压缩两路径（depends T-4）。",
+          "tokenSnapshot": {
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+            "seq": 3372,
+            "at": 1790090288454,
+            "totals": {
+              "uncachedInputTokens": 2131362,
+              "outputTokens": 485237,
+              "cacheReadTokens": 119912064,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1790090768168,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          },
+          "reason": "T-5 testing",
+          "tokenSnapshot": {
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+            "seq": 3593,
+            "at": 1790090768179,
+            "totals": {
+              "uncachedInputTokens": 2509582,
+              "outputTokens": 504105,
+              "cacheReadTokens": 127387392,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1790090768270,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          },
+          "reason": "T-5 in_review",
+          "tokenSnapshot": {
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+            "seq": 3595,
+            "at": 1790090768284,
+            "totals": {
+              "uncachedInputTokens": 2509582,
+              "outputTokens": 504105,
+              "cacheReadTokens": 127387392,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790090768372,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          },
+          "reason": "T-5 完成：TC-11 通过，typecheck 绿，79 例回归绿。",
+          "tokenSnapshot": {
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+            "seq": 3597,
+            "at": 1790090768382,
+            "totals": {
+              "uncachedInputTokens": 2509582,
+              "outputTokens": 504105,
+              "cacheReadTokens": 127387392,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-855096",
+          "body": "[状态] → in_progress：开工 T-5：节点输入包地址节 + 压缩两路径（depends T-4）。（窗口 session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa）",
+          "createdAt": 1790090288443,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          }
+        },
+        {
+          "id": "c-f02344",
+          "body": "[状态] → testing：T-5 testing（窗口 session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa）",
+          "createdAt": 1790090768168,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          }
+        },
+        {
+          "id": "c-d50007",
+          "body": "[状态] → in_review：T-5 in_review（窗口 session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa）",
+          "createdAt": 1790090768270,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          }
+        },
+        {
+          "id": "c-088063",
+          "body": "[状态] → done：T-5 完成：TC-11 通过，typecheck 绿，79 例回归绿。（窗口 session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa）",
+          "createdAt": 1790090768372,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790089616588,
+      "updatedAt": 1790090768372,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+      },
+      "lastReport": {
+        "at": 1790090768101,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/application/internal/node-input-package.ts",
+          "packages/web/dsh-pmboard/src/application/use-cases/IsolateNodeContext.ts",
+          "packages/web/dsh-pmboard/src/application/internal/node-settlement.ts",
+          "packages/web/dsh-pmboard/src/index.ts",
+          "packages/web/dsh-pmboard/src/domain/template/types.ts",
+          "packages/web/dsh-pmboard/src/adapters/CaptureHook.ts",
+          "packages/web/dsh-pmboard/src/application/internal/capture-section.ts",
+          "packages/web/dsh-pmboard/src/application/gate/handlers/h3-inject.ts",
+          "packages/web/dsh-pmboard/tests/template-address-injection.test.ts"
+        ],
+        "completed": [
+          "改 src/application/internal/node-input-package.ts：在「## 需求文档」小节之后追加「## 本节点文档（模板地址 · 先读再动手）」小节（复用 renderAddressSection；空集不追加、逐字节兼容）",
+          "改 IsolateNodeContext.ts / node-settlement.ts / index.ts：把绝对模板根与当前任务卡透传到输入包构造（开关关闭或缺根时不注入）",
+          "补 tests/template-address-injection.test.ts 的 TC-11：输入包地址段与系统段逐字一致、位于需求文档之后、系统段不可得时输入包仍带地址、空集不追加",
+          "修正 T-3 的类型边界：UpstreamSource 去索引签名，helper 入参改用 RequirementRecord（typecheck 绿）",
+          "typecheck 绿；地址/注入/隔离/压缩 5 个测试文件共 79 例绿"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-260922213356-4a45/tasks/t-25f7fd.md",
+      "layer": 4
+    },
+    {
+      "id": "t-527636",
+      "requirementId": "REQ-260922213356-4a45",
+      "title": "补空集兼容回归与回退开关",
+      "description": "空集逐字节兼容 + addressSectionEnabled=false 等价回退。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-25f7fd"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "npx vitest run tests/template-address.test.ts tests/prompt-baseline.test.ts tests/stage-prompts.test.ts 全绿；空集场景注入文本 sha256 与改造前一致；addressSectionEnabled=false 时注入文本与空集逐字节相同。",
+      "implementation": "在 packages/web/dsh-pmboard/tests/template-address.test.ts 补 TC-13（空集场景与既有基线逐字节/哈希一致；类型无模板、未启用节点两分支）与回退开关断言（addressSectionEnabled=false 时 augmentResolvedPrompt 返回原引用）。不改 fragments 源，故 tests/fixtures/stage-prompts-baseline-p1.json 保持不变。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-ef1af4",
+          "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+          "trigger": "manual",
+          "startedAt": 1790090777360,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+              "seq": 3605,
+              "at": 1790090777371,
+              "totals": {
+                "uncachedInputTokens": 2509815,
+                "outputTokens": 505649,
+                "cacheReadTokens": 127812480,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+              "seq": 3621,
+              "at": 1790090786303,
+              "totals": {
+                "uncachedInputTokens": 2509967,
+                "outputTokens": 506992,
+                "cacheReadTokens": 128239232,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 152,
+              "outputTokens": 1343,
+              "cacheReadTokens": 426752,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790090786292
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790089616588,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790090777360,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          },
+          "reason": "开工 T-6：空集兼容回归 + 回退开关（depends T-5）。",
+          "tokenSnapshot": {
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+            "seq": 3605,
+            "at": 1790090777371,
+            "totals": {
+              "uncachedInputTokens": 2509815,
+              "outputTokens": 505649,
+              "cacheReadTokens": 127812480,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1790090786292,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          },
+          "reason": "T-6 testing",
+          "tokenSnapshot": {
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+            "seq": 3621,
+            "at": 1790090786303,
+            "totals": {
+              "uncachedInputTokens": 2509967,
+              "outputTokens": 506992,
+              "cacheReadTokens": 128239232,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1790090786396,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          },
+          "reason": "T-6 in_review",
+          "tokenSnapshot": {
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+            "seq": 3623,
+            "at": 1790090786407,
+            "totals": {
+              "uncachedInputTokens": 2509967,
+              "outputTokens": 506992,
+              "cacheReadTokens": 128239232,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790090844822,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          },
+          "reason": "T-6 完成（等待 60s 节流后关闭）：空集恒等断言 + 76 例绿。",
+          "tokenSnapshot": {
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+            "seq": 3751,
+            "at": 1790090844832,
+            "totals": {
+              "uncachedInputTokens": 2516599,
+              "outputTokens": 517868,
+              "cacheReadTokens": 132598400,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-c289d3",
+          "body": "[状态] → in_progress：开工 T-6：空集兼容回归 + 回退开关（depends T-5）。（窗口 session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa）",
+          "createdAt": 1790090777360,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          }
+        },
+        {
+          "id": "c-3cffeb",
+          "body": "[状态] → testing：T-6 testing（窗口 session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa）",
+          "createdAt": 1790090786292,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          }
+        },
+        {
+          "id": "c-6cb9c6",
+          "body": "[状态] → in_review：T-6 in_review（窗口 session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa）",
+          "createdAt": 1790090786396,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          }
+        },
+        {
+          "id": "c-98ce61",
+          "body": "[状态] → done：T-6 完成（等待 60s 节流后关闭）：空集恒等断言 + 76 例绿。（窗口 session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa）",
+          "createdAt": 1790090844822,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790089616588,
+      "updatedAt": 1790090844822,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+      },
+      "lastReport": {
+        "at": 1790090786231,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/tests/template-address.test.ts"
+        ],
+        "completed": [
+          "在 tests/template-address.test.ts 增 T-6 两例：枚举全部 (节点×类型) 组合，凡无表项且无上游者 renderAddressSection 必为空串；空集时 augmentResolvedPrompt 与入参同引用（文本逐字节不变的可测形态）",
+          "跑 template-address + prompt-baseline + stage-prompts 三个文件，共 76 例全绿（P1 基线快照未被扰动）"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-260922213356-4a45/tasks/t-527636.md",
+      "layer": 5
+    },
+    {
+      "id": "t-868e3f",
+      "requirementId": "REQ-260922213356-4a45",
+      "title": "增三条确认纪律并加同产物防重弹守卫",
+      "description": "iron-rules 增纪律三条；AskConfirm 对已确认目标不重复弹框。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-32b532"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "node scripts/check-prompt-fragments.mjs 退出 0；npx vitest run tests/ask-confirm.test.ts 绿；iron-rules 文本含三条纪律关键词（先答后确认/文字确认走 evidence/同产物不重复弹框）；对已确认产物再次 reqboard_ask_confirm → 弹框端口调用 0 次且返回 note 含「已确认」。",
+      "implementation": "改 packages/web/dsh-pmboard/src/domain/prompt/fragments/common/iron-rules.md 增三条纪律（先答后确认；文字确认走 evidence 路径；同一产物不重复弹框）；跑 packages/web/dsh-pmboard/scripts/inline-prompt-fragments.mjs 重生成 src/domain/prompt/generated/fragments.ts，跑 packages/web/dsh-pmboard/scripts/dump-stage-prompts.mjs 更新 P1 基线；改 packages/web/dsh-pmboard/src/application/use-cases/AskConfirm.ts 增守卫：目标产物已确认（或计划已批准）→ 不调用弹框通道，直接返回既有字段 + note。补 packages/web/dsh-pmboard/tests/ask-confirm.test.ts 的守卫与纪律措辞断言。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-8e4a6d",
+          "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+          "trigger": "manual",
+          "startedAt": 1790090792077,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+              "seq": 3635,
+              "at": 1790090792088,
+              "totals": {
+                "uncachedInputTokens": 2510399,
+                "outputTokens": 508135,
+                "cacheReadTokens": 128667392,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+              "seq": 3769,
+              "at": 1790090914981,
+              "totals": {
+                "uncachedInputTokens": 2516750,
+                "outputTokens": 518944,
+                "cacheReadTokens": 133043200,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 6351,
+              "outputTokens": 10809,
+              "cacheReadTokens": 4375808,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790090914968
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790089616588,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790090792077,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          },
+          "reason": "开工 T-7：注入纪律三条 + 同产物防重弹守卫（depends T-1）。",
+          "tokenSnapshot": {
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+            "seq": 3635,
+            "at": 1790090792088,
+            "totals": {
+              "uncachedInputTokens": 2510399,
+              "outputTokens": 508135,
+              "cacheReadTokens": 128667392,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1790090914968,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          },
+          "reason": "T-7 testing",
+          "tokenSnapshot": {
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+            "seq": 3769,
+            "at": 1790090914981,
+            "totals": {
+              "uncachedInputTokens": 2516750,
+              "outputTokens": 518944,
+              "cacheReadTokens": 133043200,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1790090915075,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          },
+          "reason": "T-7 in_review",
+          "tokenSnapshot": {
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+            "seq": 3771,
+            "at": 1790090915086,
+            "totals": {
+              "uncachedInputTokens": 2516750,
+              "outputTokens": 518944,
+              "cacheReadTokens": 133043200,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790090915165,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          },
+          "reason": "T-7 完成：守卫测试 + 纪律文本断言 + typecheck 绿（92 例）。",
+          "tokenSnapshot": {
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+            "seq": 3773,
+            "at": 1790090915177,
+            "totals": {
+              "uncachedInputTokens": 2516750,
+              "outputTokens": 518944,
+              "cacheReadTokens": 133043200,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-963204",
+          "body": "[状态] → in_progress：开工 T-7：注入纪律三条 + 同产物防重弹守卫（depends T-1）。（窗口 session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa）",
+          "createdAt": 1790090792077,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          }
+        },
+        {
+          "id": "c-4859af",
+          "body": "[状态] → testing：T-7 testing（窗口 session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa）",
+          "createdAt": 1790090914968,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          }
+        },
+        {
+          "id": "c-449f5b",
+          "body": "[状态] → in_review：T-7 in_review（窗口 session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa）",
+          "createdAt": 1790090915075,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          }
+        },
+        {
+          "id": "c-8fde24",
+          "body": "[状态] → done：T-7 完成：守卫测试 + 纪律文本断言 + typecheck 绿（92 例）。（窗口 session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa）",
+          "createdAt": 1790090915165,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790089616588,
+      "updatedAt": 1790090915165,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+      },
+      "lastReport": {
+        "at": 1790090852863,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/domain/prompt/fragments/common/iron-rules.md",
+          "packages/web/dsh-pmboard/src/domain/prompt/generated/fragments.ts",
+          "packages/web/dsh-pmboard/tests/fixtures/stage-prompts-baseline-p1.json",
+          "packages/web/dsh-pmboard/src/application/use-cases/AskConfirm.ts",
+          "packages/web/dsh-pmboard/tests/ask-confirm.test.ts",
+          "packages/web/dsh-pmboard/src/domain/template/resolve.ts",
+          "packages/web/dsh-pmboard/src/domain/template/render.ts",
+          "packages/web/dsh-pmboard/src/adapters/TemplateRoot.ts",
+          "packages/web/dsh-pmboard/src/index.ts"
+        ],
+        "completed": [
+          "改 common/iron-rules.md：增三条确认纪律（确认门对话优先 / 文字确认走 evidence / 同一产物不重复弹框）",
+          "重跑 inline-prompt-fragments.mjs 与 dump-stage-prompts.mjs：生成物与 P1 基线同步；check-prompt-fragments 退出 0",
+          "改 AskConfirm.ts：目标产物已确认（或计划已批准）→ 不调用弹框通道，直接返回既有字段 + note（无新输出字段，schema 不变）",
+          "补 tests/ask-confirm.test.ts：同一产物再次发起时弹框端口调用 0 次且 note 含「已确认」；iron-rules 文本含三条纪律",
+          "修复域层消息卫生（resolve/render 报错改用 fmt），并把模板根解析收进 adapters/TemplateRoot.ts 以少动组合根",
+          "typecheck 绿；ask-confirm/prompt-baseline/prompt-cost/prompt-gates/prompt-tiers/message-hygiene 共 92 例绿"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-260922213356-4a45/tasks/t-868e3f.md",
+      "layer": 1
+    },
+    {
+      "id": "t-7fb8e4",
+      "requirementId": "REQ-260922213356-4a45",
+      "title": "加矩阵对照断言并校准设计落点",
+      "description": "节点×类型矩阵与代码逐格对照；设计文档落点与实现路径一致。",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-527636"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "npx vitest run tests/template-address.test.ts -t 矩阵 绿；故意给 (design, bug) 塞一条表项后断言变红；docs/requirements/REQ-260922213356-4a45/design/architecture.md 的落点路径与实现路径逐条一致。",
+      "implementation": "在 packages/web/dsh-pmboard/tests/template-address.test.ts 增「节点×类型矩阵对照」用例：以显式矩阵常量逐格断言 resolveNodeTemplates 输出（等价于文档流程图与代码一致）；校准 docs/requirements/REQ-260922213356-4a45/design/architecture.md 的模块落点与「同源」实现说明（表成员判定 + 守护单测，取代运行时 import 门禁规则）。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-c65f3e",
+          "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+          "trigger": "manual",
+          "startedAt": 1790090926071,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+              "seq": 3781,
+              "at": 1790090926081,
+              "totals": {
+                "uncachedInputTokens": 2516979,
+                "outputTokens": 521377,
+                "cacheReadTokens": 133489024,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+              "seq": 3843,
+              "at": 1790090958177,
+              "totals": {
+                "uncachedInputTokens": 2519489,
+                "outputTokens": 525810,
+                "cacheReadTokens": 135743872,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 2510,
+              "outputTokens": 4433,
+              "cacheReadTokens": 2254848,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790090958166
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790089616588,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790090926071,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          },
+          "reason": "开工 T-8：矩阵对照断言 + 设计落点校准（depends T-6）。",
+          "tokenSnapshot": {
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+            "seq": 3781,
+            "at": 1790090926081,
+            "totals": {
+              "uncachedInputTokens": 2516979,
+              "outputTokens": 521377,
+              "cacheReadTokens": 133489024,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1790090958166,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          },
+          "reason": "T-8 testing",
+          "tokenSnapshot": {
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+            "seq": 3843,
+            "at": 1790090958177,
+            "totals": {
+              "uncachedInputTokens": 2519489,
+              "outputTokens": 525810,
+              "cacheReadTokens": 135743872,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1790090958267,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          },
+          "reason": "T-8 in_review",
+          "tokenSnapshot": {
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+            "seq": 3845,
+            "at": 1790090958279,
+            "totals": {
+              "uncachedInputTokens": 2519489,
+              "outputTokens": 525810,
+              "cacheReadTokens": 135743872,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790091024351,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          },
+          "reason": "T-8 完成（等待 60s 节流后关闭）：矩阵对照 + 落点校准。",
+          "tokenSnapshot": {
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+            "seq": 3859,
+            "at": 1790091024370,
+            "totals": {
+              "uncachedInputTokens": 2519742,
+              "outputTokens": 526296,
+              "cacheReadTokens": 136198912,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-bfb551",
+          "body": "[状态] → in_progress：开工 T-8：矩阵对照断言 + 设计落点校准（depends T-6）。（窗口 session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa）",
+          "createdAt": 1790090926071,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          }
+        },
+        {
+          "id": "c-9acab4",
+          "body": "[状态] → testing：T-8 testing（窗口 session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa）",
+          "createdAt": 1790090958166,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          }
+        },
+        {
+          "id": "c-937f4f",
+          "body": "[状态] → in_review：T-8 in_review（窗口 session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa）",
+          "createdAt": 1790090958267,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          }
+        },
+        {
+          "id": "c-11071e",
+          "body": "[状态] → done：T-8 完成（等待 60s 节流后关闭）：矩阵对照 + 落点校准。（窗口 session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa）",
+          "createdAt": 1790091024351,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790089616588,
+      "updatedAt": 1790091024351,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+      },
+      "lastReport": {
+        "at": 1790090958105,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/tests/template-address.test.ts",
+          "docs/requirements/REQ-260922213356-4a45/design/architecture.md"
+        ],
+        "completed": [
+          "在 tests/template-address.test.ts 增 T-8 两例：显式矩阵 == resolveNodeTemplates 逐格输出；门禁启用的每个 (节点,类型) 组合都必须在矩阵里出现（漏一格即红）",
+          "在 design/architecture.md 追加「实现落点校准（T-8）」：设计名→实际文件对照，并说明层边界下\"同源\"改为表成员判定 + 守护单测",
+          "typecheck 绿；两个地址测试文件共 36 例绿"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-260922213356-4a45/tasks/t-7fb8e4.md",
+      "layer": 6
+    },
+    {
+      "id": "t-26b426",
+      "requirementId": "REQ-260922213356-4a45",
+      "title": "定义模板地址映射表与守护单测·研发",
+      "description": "子卡阶段：研发",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "运行 `cd packages/web/dsh-pmboard && ls src/domain/template/{types,registry}.ts tests/template-address.test.ts` 确认3个文件存在；运行 `npx tsx` 加载 registry 并打印 NODE_TEMPLATES.length 输出为 5",
+      "implementation": "新增 packages/web/dsh-pmboard/src/domain/template/types.ts（TemplateRef/DocRef/AddressSectionInput/UpstreamSource，domain 局部结构类型，不 import shared）与 packages/web/dsh-pmboard/src/domain/template/registry.ts（NODE_TEMPLATES：只登记 stageEnabledFor=true 的节点×类型组合；design(feature)=architecture/data-model/interfaces/test-cases/use-cases，design(refactor)=architecture/migration，design(bug)=空）。新增 packages/web/dsh-pmboard/tests/template-address.test.ts：①每条 relPath existsSync；②与 effectiveDesignDocs(category, []) 双向一致且禁用组合无表项；③templates/ 下未引用文件必须在显式 allowlist（README.md/examples/**/common/notes.md/design/prototype.html 等，逐条带理由）；④relPath 拒绝 ..、绝对路径、空串；⑤id 唯一。\n\n[子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要",
+      "context": "",
+      "parentId": "t-32b532",
+      "stageKind": "dev",
+      "attempt": 5,
+      "revisions": [
+        {
+          "at": 1790089617114,
+          "by": {
+            "kind": "system"
+          },
+          "kind": "rollback",
+          "reason": "子卡执行失败（engine_unavailable）：子卡凭证不过：workflow run 未完成（stopReason=engine_unavailable；engine_unavailable）（REQBOARD_SUBTASK_GATE）",
+          "changes": [
+            "attempt: 0→1",
+            "status: in_progress→todo"
+          ]
+        },
+        {
+          "at": 1790089888651,
+          "by": {
+            "kind": "system"
+          },
+          "kind": "rollback",
+          "reason": "子卡执行失败（engine_unavailable）：子卡凭证不过：workflow run 未完成（stopReason=engine_unavailable；engine_unavailable）（REQBOARD_SUBTASK_GATE）",
+          "changes": [
+            "attempt: 1→2",
+            "status: in_progress→todo"
+          ]
+        },
+        {
+          "at": 1790092929931,
+          "by": {
+            "kind": "system"
+          },
+          "kind": "rollback",
+          "reason": "子卡执行失败（run_failed）：子卡凭证不过：workflow run 未完成（stopReason=start_failed: Cannot read properties of undefined (reading 'session')；start_failed: Cannot read properties of undefined (reading 'session')）（REQBOARD_SUBTASK_GATE）",
+          "changes": [
+            "attempt: 2→3",
+            "status: in_progress→todo"
+          ]
+        },
+        {
+          "at": 1790133300272,
+          "by": {
+            "kind": "system"
+          },
+          "kind": "rollback",
+          "reason": "子卡执行失败（run_failed）：子卡凭证不过：workflow run 未完成（stopReason=cancelled: workflow run cancelled: workflow signal aborted；cancelled: workflow run cancelled: workflow signal aborted）（REQBOARD_SUBTASK_GATE）",
+          "changes": [
+            "attempt: 3→4",
+            "status: in_progress→todo"
+          ]
+        },
+        {
+          "at": 1790133574281,
+          "by": {
+            "kind": "system"
+          },
+          "kind": "rollback",
+          "reason": "子卡执行失败（run_failed）：子卡凭证不过：workflow run 未完成（stopReason=cancelled: workflow run cancelled: workflow signal aborted；cancelled: workflow run cancelled: workflow signal aborted）（REQBOARD_SUBTASK_GATE）",
+          "changes": [
+            "attempt: 4→5",
+            "status: in_progress→todo"
+          ]
+        }
+      ],
+      "status": "todo",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-db22c9",
+          "sessionId": "system",
+          "trigger": "auto",
+          "startedAt": 1790089616936,
+          "outcome": "failed",
+          "endedAt": 1790089617024,
+          "error": "子卡凭证不过：workflow run 未完成（stopReason=engine_unavailable；engine_unavailable）（REQBOARD_SUBTASK_GATE）"
+        },
+        {
+          "id": "e-fde2c6",
+          "sessionId": "system",
+          "trigger": "auto",
+          "startedAt": 1790089888469,
+          "outcome": "failed",
+          "endedAt": 1790089888567,
+          "error": "子卡凭证不过：workflow run 未完成（stopReason=engine_unavailable；engine_unavailable）（REQBOARD_SUBTASK_GATE）"
+        },
+        {
+          "id": "e-e486ca",
+          "sessionId": "system",
+          "trigger": "auto",
+          "startedAt": 1790092929757,
+          "outcome": "failed",
+          "endedAt": 1790092929849,
+          "error": "子卡凭证不过：workflow run 未完成（stopReason=start_failed: Cannot read properties of undefined (reading 'session')；start_failed: Cannot read properties of undefined (reading 'session')）（REQBOARD_SUBTASK_GATE）"
+        },
+        {
+          "id": "e-1942ca",
+          "sessionId": "system",
+          "trigger": "auto",
+          "startedAt": 1790133180367,
+          "outcome": "failed",
+          "endedAt": 1790133300177,
+          "error": "子卡凭证不过：workflow run 未完成（stopReason=cancelled: workflow run cancelled: workflow signal aborted；cancelled: workflow run cancelled: workflow signal aborted）（REQBOARD_SUBTASK_GATE）"
+        },
+        {
+          "id": "e-e2f712",
+          "sessionId": "system",
+          "trigger": "auto",
+          "startedAt": 1790133394240,
+          "outcome": "failed",
+          "endedAt": 1790133574182,
+          "error": "子卡凭证不过：workflow run 未完成（stopReason=cancelled: workflow run cancelled: workflow signal aborted；cancelled: workflow run cancelled: workflow signal aborted）（REQBOARD_SUBTASK_GATE）"
+        },
+        {
+          "id": "e-329ee5",
+          "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+          "trigger": "manual",
+          "startedAt": 1790133629580,
+          "outcome": "cancelled",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+              "seq": 5112,
+              "at": 1790133629589,
+              "totals": {
+                "uncachedInputTokens": 2654997,
+                "outputTokens": 660812,
+                "cacheReadTokens": 162124739,
+                "cacheWriteTokens": 77553
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+              "seq": 5154,
+              "at": 1790133702049,
+              "totals": {
+                "uncachedInputTokens": 2660843,
+                "outputTokens": 670299,
+                "cacheReadTokens": 162996464,
+                "cacheWriteTokens": 116371
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 5846,
+              "outputTokens": 9487,
+              "cacheReadTokens": 871725,
+              "cacheWriteTokens": 38818
+            }
+          },
+          "endedAt": 1790133702039
+        },
+        {
+          "id": "e-8fd749",
+          "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+          "trigger": "manual",
+          "startedAt": 1790134901543,
+          "outcome": "cancelled",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+              "seq": 5203,
+              "at": 1790134901555,
+              "totals": {
+                "uncachedInputTokens": 2666992,
+                "outputTokens": 679759,
+                "cacheReadTokens": 163887445,
+                "cacheWriteTokens": 155768
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+              "seq": 5364,
+              "at": 1790135201041,
+              "totals": {
+                "uncachedInputTokens": 2693364,
+                "outputTokens": 722149,
+                "cacheReadTokens": 167754032,
+                "cacheWriteTokens": 341825
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 26372,
+              "outputTokens": 42390,
+              "cacheReadTokens": 3866587,
+              "cacheWriteTokens": 186057
+            }
+          },
+          "endedAt": 1790262262843
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-a83591",
+          "body": "[子卡失败] 退回待办（第 1 次尝试）：子卡凭证不过：workflow run 未完成（stopReason=engine_unavailable；engine_unavailable）（REQBOARD_SUBTASK_GATE）。自动链已暂停，等人处置（重跑 / 退回上游 / 取消）",
+          "createdAt": 1790089617114,
+          "createdBy": {
+            "kind": "system"
+          }
+        },
+        {
+          "id": "c-6243be",
+          "body": "[子卡失败] 退回待办（第 2 次尝试）：子卡凭证不过：workflow run 未完成（stopReason=engine_unavailable；engine_unavailable）（REQBOARD_SUBTASK_GATE）。自动链已暂停，等人处置（重跑 / 退回上游 / 取消）",
+          "createdAt": 1790089888651,
+          "createdBy": {
+            "kind": "system"
+          }
+        },
+        {
+          "id": "c-78d3d3",
+          "body": "[子卡失败] 退回待办（第 3 次尝试）：子卡凭证不过：workflow run 未完成（stopReason=start_failed: Cannot read properties of undefined (reading 'session')；start_failed: Cannot read properties of undefined (reading 'session')）（REQBOARD_SUBTASK_GATE）。自动链已暂停，等人处置（重跑 / 退回上游 / 取消）",
+          "createdAt": 1790092929931,
+          "createdBy": {
+            "kind": "system"
+          }
+        },
+        {
+          "id": "c-0716e0",
+          "body": "[子卡失败] 退回待办（第 4 次尝试）：子卡凭证不过：workflow run 未完成（stopReason=cancelled: workflow run cancelled: workflow signal aborted；cancelled: workflow run cancelled: workflow signal aborted）（REQBOARD_SUBTASK_GATE）。自动链已暂停，等人处置（重跑 / 退回上游 / 取消）",
+          "createdAt": 1790133300272,
+          "createdBy": {
+            "kind": "system"
+          }
+        },
+        {
+          "id": "c-2b626a",
+          "body": "[子卡失败] 退回待办（第 5 次尝试）：子卡凭证不过：workflow run 未完成（stopReason=cancelled: workflow run cancelled: workflow signal aborted；cancelled: workflow run cancelled: workflow signal aborted）（REQBOARD_SUBTASK_GATE）。自动链已暂停，等人处置（重跑 / 退回上游 / 取消）",
+          "createdAt": 1790133574281,
+          "createdBy": {
+            "kind": "system"
+          }
+        },
+        {
+          "id": "c-6a3d03",
+          "body": "[状态] → in_progress：手动触发：验证引擎与 exec 透传修复（自动链超时，手动推进测试）（窗口 session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa）",
+          "createdAt": 1790133629580,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          }
+        },
+        {
+          "id": "c-b9bfb2",
+          "body": "[状态] → todo：重置后重试自动链（窗口 session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa）",
+          "createdAt": 1790133702039,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          }
+        },
+        {
+          "id": "c-1b6f54",
+          "body": "[状态] → in_progress：手动执行（自动链不可用）：开始编写模板地址映射表与测试（窗口 session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa）",
+          "createdAt": 1790134901543,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          }
+        },
+        {
+          "id": "c-f772c1",
+          "body": "[状态] → todo：僵尸执行清理：执行段 endedAt 缺失、僵死 35h+；该需求 REQ-260922213356-4a45 已归档，执行窗口误吞新文件 mtime",
+          "createdAt": 1790262262843,
+          "createdBy": {
+            "kind": "system"
+          }
+        }
+      ],
+      "version": 26,
+      "createdAt": 1790089616788,
+      "updatedAt": 1790262262843,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790089616788,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790089616936,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790089888469,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790092929757,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790133180367,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790133394240,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790133629580,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          },
+          "reason": "手动触发：验证引擎与 exec 透传修复（自动链超时，手动推进测试）",
+          "tokenSnapshot": {
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+            "seq": 5112,
+            "at": 1790133629589,
+            "totals": {
+              "uncachedInputTokens": 2654997,
+              "outputTokens": 660812,
+              "cacheReadTokens": 162124739,
+              "cacheWriteTokens": 77553
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "todo",
+          "at": 1790133702039,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          },
+          "reason": "重置后重试自动链",
+          "tokenSnapshot": {
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+            "seq": 5154,
+            "at": 1790133702049,
+            "totals": {
+              "uncachedInputTokens": 2660843,
+              "outputTokens": 670299,
+              "cacheReadTokens": 162996464,
+              "cacheWriteTokens": 116371
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790134901543,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa"
+          },
+          "reason": "手动执行（自动链不可用）：开始编写模板地址映射表与测试",
+          "tokenSnapshot": {
+            "sessionId": "session-2c955dd9-15b6-4cc5-8a0b-67ff978455aa",
+            "seq": 5203,
+            "at": 1790134901555,
+            "totals": {
+              "uncachedInputTokens": 2666992,
+              "outputTokens": 679759,
+              "cacheReadTokens": 163887445,
+              "cacheWriteTokens": 155768
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "todo",
+          "at": 1790262262843,
+          "by": {
+            "kind": "system"
+          },
+          "reason": "僵尸执行清理：执行段 endedAt 缺失、僵死 35h+；该需求 REQ-260922213356-4a45 已归档，执行窗口误吞新文件 mtime"
+        }
+      ],
+      "lastRun": {
+        "at": 1790133574115,
+        "ok": false,
+        "stopReason": "cancelled: workflow run cancelled: workflow signal aborted",
+        "valueNonEmpty": false,
+        "reason": "cancelled: workflow run cancelled: workflow signal aborted"
+      },
+      "lastReport": {
+        "at": 1790135201040,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/domain/template/types.ts",
+          "packages/web/dsh-pmboard/src/domain/template/registry.ts",
+          "packages/web/dsh-pmboard/tests/template-address.test.ts"
+        ],
+        "completed": [
+          "创建 src/domain/template/types.ts（TemplateRef/DocRef/AddressSectionInput/UpstreamSource 类型）",
+          "创建 src/domain/template/registry.ts（NODE_TEMPLATES 映射表 + getNodeTemplates 查询函数）",
+          "创建 tests/template-address.test.ts（3 条守护断言：文件存在性/与规则一致性/未引用文件检查）",
+          "用 tsx 验证所有断言通过（断言1: 16个文件存在 ✓；断言2: design映射与规则一致 ✓；断言3: 无违规未引用文件 ✓）"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-260922213356-4a45/tasks/t-26b426.md",
+      "layer": 0
+    },
+    {
+      "id": "t-78ba18",
+      "requirementId": "REQ-260922213356-4a45",
+      "title": "定义模板地址映射表与守护单测·联调",
+      "description": "子卡阶段：联调",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-26b426"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "运行 cd packages/web/dsh-pmboard && npx tsx -e \"import {NODE_TEMPLATES} from './src/domain/template/registry.js'; console.log('OK:', NODE_TEMPLATES.length)\" 输出 OK: 5",
+      "implementation": "新增 packages/web/dsh-pmboard/src/domain/template/types.ts（TemplateRef/DocRef/AddressSectionInput/UpstreamSource，domain 局部结构类型，不 import shared）与 packages/web/dsh-pmboard/src/domain/template/registry.ts（NODE_TEMPLATES：只登记 stageEnabledFor=true 的节点×类型组合；design(feature)=architecture/data-model/interfaces/test-cases/use-cases，design(refactor)=architecture/migration，design(bug)=空）。新增 packages/web/dsh-pmboard/tests/template-address.test.ts：①每条 relPath existsSync；②与 effectiveDesignDocs(category, []) 双向一致且禁用组合无表项；③templates/ 下未引用文件必须在显式 allowlist（README.md/examples/**/common/notes.md/design/prototype.html 等，逐条带理由）；④relPath 拒绝 ..、绝对路径、空串；⑤id 唯一。\n\n[子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致",
+      "context": "",
+      "parentId": "t-32b532",
+      "stageKind": "integrate",
+      "attempt": 0,
+      "revisions": [],
+      "status": "todo",
+      "blocked": false,
+      "executions": [],
+      "comments": [],
+      "version": 1,
+      "createdAt": 1790089616788,
+      "updatedAt": 1790135770345,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790089616788,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "cardDoc": "docs/requirements/REQ-260922213356-4a45/tasks/t-78ba18.md",
+      "layer": 1
+    },
+    {
+      "id": "t-70a0ec",
+      "requirementId": "REQ-260922213356-4a45",
+      "title": "定义模板地址映射表与守护单测·复核",
+      "description": "子卡阶段：复核",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-78ba18"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "implementation": "新增 packages/web/dsh-pmboard/src/domain/template/types.ts（TemplateRef/DocRef/AddressSectionInput/UpstreamSource，domain 局部结构类型，不 import shared）与 packages/web/dsh-pmboard/src/domain/template/registry.ts（NODE_TEMPLATES：只登记 stageEnabledFor=true 的节点×类型组合；design(feature)=architecture/data-model/interfaces/test-cases/use-cases，design(refactor)=architecture/migration，design(bug)=空）。新增 packages/web/dsh-pmboard/tests/template-address.test.ts：①每条 relPath existsSync；②与 effectiveDesignDocs(category, []) 双向一致且禁用组合无表项；③templates/ 下未引用文件必须在显式 allowlist（README.md/examples/**/common/notes.md/design/prototype.html 等，逐条带理由）；④relPath 拒绝 ..、绝对路径、空串；⑤id 唯一。\n\n[子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-32b532",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "todo",
+      "blocked": false,
+      "executions": [],
+      "comments": [],
+      "version": 1,
+      "createdAt": 1790089616788,
+      "updatedAt": 1790089616788,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790089616788,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "cardDoc": "docs/requirements/REQ-260922213356-4a45/tasks/t-70a0ec.md",
+      "layer": 2
+    },
+    {
+      "id": "t-57ec0f",
+      "requirementId": "REQ-260922213356-4a45",
+      "title": "定义模板地址映射表与守护单测·测试",
+      "description": "子卡阶段：测试",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-70a0ec"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "运行 cd packages/web/dsh-pmboard && ls tests/template-address.test.ts 文件存在，运行测试脚本输出包含✓",
+      "implementation": "新增 packages/web/dsh-pmboard/src/domain/template/types.ts（TemplateRef/DocRef/AddressSectionInput/UpstreamSource，domain 局部结构类型，不 import shared）与 packages/web/dsh-pmboard/src/domain/template/registry.ts（NODE_TEMPLATES：只登记 stageEnabledFor=true 的节点×类型组合；design(feature)=architecture/data-model/interfaces/test-cases/use-cases，design(refactor)=architecture/migration，design(bug)=空）。新增 packages/web/dsh-pmboard/tests/template-address.test.ts：①每条 relPath existsSync；②与 effectiveDesignDocs(category, []) 双向一致且禁用组合无表项；③templates/ 下未引用文件必须在显式 allowlist（README.md/examples/**/common/notes.md/design/prototype.html 等，逐条带理由）；④relPath 拒绝 ..、绝对路径、空串；⑤id 唯一。\n\n[子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）",
+      "context": "",
+      "parentId": "t-32b532",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "todo",
+      "blocked": false,
+      "executions": [],
+      "comments": [],
+      "version": 1,
+      "createdAt": 1790089616788,
+      "updatedAt": 1790135770435,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790089616788,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "cardDoc": "docs/requirements/REQ-260922213356-4a45/tasks/t-57ec0f.md",
+      "layer": 3
+    }
+  ],
+  "edges": [
+    {
+      "from": "t-32b532",
+      "to": "t-3e89da"
+    },
+    {
+      "from": "t-3e89da",
+      "to": "t-fc102f"
+    },
+    {
+      "from": "t-fc102f",
+      "to": "t-43e21b"
+    },
+    {
+      "from": "t-43e21b",
+      "to": "t-25f7fd"
+    },
+    {
+      "from": "t-25f7fd",
+      "to": "t-527636"
+    },
+    {
+      "from": "t-32b532",
+      "to": "t-868e3f"
+    },
+    {
+      "from": "t-527636",
+      "to": "t-7fb8e4"
+    },
+    {
+      "from": "t-26b426",
+      "to": "t-78ba18"
+    },
+    {
+      "from": "t-78ba18",
+      "to": "t-70a0ec"
+    },
+    {
+      "from": "t-70a0ec",
+      "to": "t-57ec0f"
+    }
+  ],
+  "layers": [
+    {
+      "layer": 0,
+      "tasks": [
+        "t-32b532",
+        "t-26b426"
+      ]
+    },
+    {
+      "layer": 1,
+      "tasks": [
+        "t-3e89da",
+        "t-868e3f",
+        "t-78ba18"
+      ]
+    },
+    {
+      "layer": 2,
+      "tasks": [
+        "t-fc102f",
+        "t-70a0ec"
+      ]
+    },
+    {
+      "layer": 3,
+      "tasks": [
+        "t-43e21b",
+        "t-57ec0f"
+      ]
+    },
+    {
+      "layer": 4,
+      "tasks": [
+        "t-25f7fd"
+      ]
+    },
+    {
+      "layer": 5,
+      "tasks": [
+        "t-527636"
+      ]
+    },
+    {
+      "layer": 6,
+      "tasks": [
+        "t-7fb8e4"
+      ]
+    }
+  ],
+  "ready": [
+    "t-32b532",
+    "t-26b426"
+  ]
+}

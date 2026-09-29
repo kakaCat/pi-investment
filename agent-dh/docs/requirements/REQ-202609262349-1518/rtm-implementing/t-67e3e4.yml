@@ -1,7 +1,7 @@
 task:
   id: t-67e3e4
   title: StatusTool 集成覆盖度
-  status: todo
+  status: done
   implements: ""
   serves:
     - FR-6
@@ -28,8 +28,8 @@ metadata:
   stage: implementing
   requirement_id: REQ-202609262349-1518
   generated_at: 2026-09-27T01:34:27.551Z
-  version: 2
+  version: 6
   generated_by: dsh-pmboard
   detail_dir: rtm-implementing/
   detail_count: 1
-  last_updated: 2026-09-27T01:36:06.932Z
+  last_updated: 2026-09-27T03:21:48.174Z

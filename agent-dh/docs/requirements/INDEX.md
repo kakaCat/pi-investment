@@ -3,7 +3,7 @@ id: requirements-index
 title: 需求档案索引（L3 证据档案）
 type: index
 status: living
-updated: 2026-09-25
+updated: 2026-09-29
 owners: [agent-dh]
 tags: [reqboard, archive, index, l3]
 ---
@@ -16,6 +16,10 @@ tags: [reqboard, archive, index, l3]
 
 | REQ id | 一句话结论 | 类型 | 归档日期 | 需求目录 | 合并去向 |
 |---|---|---|---|---|---|
+| REQ-260929010300-dbf9 | 会话面板 DAG 与需求详情统一为同源 Canvas 真图：删标题/统计条（FR-7 作废）、同层不折行、删父卡左侧蓝条、泳道不再展示 n/N、单击卡片打开任务卡文档；并把任务依赖归一为「直接前置」（98/646 条冗余边清零，含存量迁移脚本） | feature | 2026-09-29 | [REQ-260929010300-dbf9](REQ-260929010300-dbf9/) | [architecture/reqboard-queue-storage.md](../architecture/reqboard-queue-storage.md) §7、[architecture/reqboard-node-panel.md](../architecture/reqboard-node-panel.md) §10、[project-manual.md](../../docs/architecture/project-manual.md) 最近更新 |
+| REQ-260928222643-4d34 | 节点面板状态行新增「项目看板 ↗」直达入口：一次性交接持有器 `board-focus`（取走即清、不落 storage/URL）+ 先校验后导航（不可达不切页并就地提示），并连标题行下掉「🔄 执行流程」块、面板侧不再拉取注入/隔离留痕（看板既有消费方保留）；顺带修掉自动链两处崩溃死锁（残留锁回收 + 父卡凭证基准） | feature | 2026-09-29 | [REQ-260928222643-4d34](REQ-260928222643-4d34/) | [architecture/reqboard-node-panel.md](../architecture/reqboard-node-panel.md)、[architecture/reqboard-pipeline-flow.md](../architecture/reqboard-pipeline-flow.md) |
+| REQ-260927202051-f6df | 任务卡从台账迁到**按需求分片的队列文件**：`docs/requirements/<REQ>/queue.json` 成为任务唯一存储（含 DAG 层级与 ready 队列），台账瘦身为 schemaVersion 9（只留需求/分诊/迁移留痕）；拆分写队列、执行读队列、状态流转写回并解锁下游；迁移四态 CLI + 白名单 + 幂等 + 可回滚，投产须停机；看板实测 15/15 ×3 轮无回归 | feature | 2026-09-28 | [REQ-260927202051-f6df](REQ-260927202051-f6df/) | [architecture/reqboard-queue-storage.md](../architecture/reqboard-queue-storage.md) |
+| REQ-260927123256-196b | 确认门弹框改为真正阻塞（与原生 ask_user_question 等待语义对齐）：删除 30s 到点自动放行，缺省阻塞到作答/取消/中止；仅显式 inline_grace_ms 走非阻塞逃生舱；阻塞期停手守卫拦写、中止留可查 ticket（pending_confirms） | feature | 2026-09-27 | [REQ-260927123256-196b](REQ-260927123256-196b/) | [architecture/reqboard-pipeline-flow.md](../architecture/reqboard-pipeline-flow.md) |
 | REQ-260924213231-b1c4 | 修 REQ 流水线设计阶段死锁：登记入口工具化（reqboard_submit kind=design 幂等 + 逐份登记态投影）、G2 闸门按病因分化文案并统一拒绝信封、弹框非阻塞+回执、零参调用、提示词写明登记命令、断点续跑、立项降级不丢文档位置、pm 弹框来源标志 | feature | 2026-09-25 | [REQ-260924213231-b1c4](REQ-260924213231-b1c4/) | [architecture/reqboard-design-stage.md](../architecture/reqboard-design-stage.md)、[guides/reqboard-workflow.md](../guides/reqboard-workflow.md) |
 | REQ-e3b6a0 | 闸门确认后置链：五道人工闸门统一织入 H1..H5（推进→压缩→注入→唤醒→留痕）+ pm 专有立项弹框 reqboard_capture + 立项提示硬化 | feature | 2026-09-20 | [REQ-e3b6a0](REQ-e3b6a0/) | [architecture/gate-post-chain.md](../architecture/gate-post-chain.md) |
 | REQ-6f39b5 | 项目看板三视图重构：详情页 4Tab+8态进度点、泳道 6 列、列表表格化；流程节点唯一事实源 workflow-stages.md | refactor | 2026-09-17 | [REQ-6f39b5](REQ-6f39b5/) | [architecture/workflow-stages.md](../architecture/workflow-stages.md) |

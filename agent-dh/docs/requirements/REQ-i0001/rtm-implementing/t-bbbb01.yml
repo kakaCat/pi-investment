@@ -1,0 +1,31 @@
+task:
+  id: t-bbbb01
+  title: 已落库卡
+  status: todo
+  implements: ""
+  serves: []
+  depends_on: []
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-i0001
+    TASK_ID: t-bbbb01
+    TASK_TITLE: 已落库卡
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 0
+  workflow:
+    - phase: implement
+      status: pending
+metadata:
+  stage: implementing
+  requirement_id: REQ-i0001
+  generated_at: 2026-09-27T05:58:52.043Z
+  version: 5
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-09-27T06:00:39.361Z

@@ -1,0 +1,1868 @@
+{
+  "version": 1,
+  "requirement_id": "REQ-6f39b5",
+  "schemaVersion": 9,
+  "generated_at": "2026-09-27T14:55:11.425Z",
+  "tasks": [
+    {
+      "id": "t-b8104c",
+      "requirementId": "REQ-6f39b5",
+      "title": "创建 workflow-constants.ts",
+      "description": "新建流程节点常量文件，导出 WORKFLOW_STAGES / PROGRESS_DOT_STAGES / LANE_STAGES",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "文件存在，导出 WORKFLOW_STAGES / PROGRESS_DOT_STAGES / LANE_STAGES，包含注释引用唯一事实源",
+      "context": "",
+      "status": "todo",
+      "blocked": false,
+      "executions": [],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789581660041,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        }
+      ],
+      "comments": [],
+      "version": 1,
+      "createdAt": 1789581660041,
+      "updatedAt": 1789581660041,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+      },
+      "cardDoc": "docs/requirements/REQ-6f39b5/tasks/t-b8104c.md",
+      "layer": 0
+    },
+    {
+      "id": "t-75b97e",
+      "requirementId": "REQ-6f39b5",
+      "title": "实现 buildProgressDots()",
+      "description": "新增函数渲染 8 态进度点，根据当前状态判断 completed / current / 默认",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-b8104c"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "函数存在，返回 HTML 包含 8 个进度点，当前态高亮正确",
+      "context": "",
+      "status": "todo",
+      "blocked": false,
+      "executions": [],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789581660041,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        }
+      ],
+      "comments": [],
+      "version": 1,
+      "createdAt": 1789581660041,
+      "updatedAt": 1789581660041,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+      },
+      "cardDoc": "docs/requirements/REQ-6f39b5/tasks/t-75b97e.md",
+      "layer": 1
+    },
+    {
+      "id": "t-a1ddf2",
+      "requirementId": "REQ-6f39b5",
+      "title": "实现 buildTabs()",
+      "description": "新增函数渲染 4 个 Tab 按钮（概览 / 执行 / 时间线 / 归档）",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "函数存在，返回 4 个 Tab 按钮 HTML，概览默认 active",
+      "context": "",
+      "status": "todo",
+      "blocked": false,
+      "executions": [],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789581660041,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        }
+      ],
+      "comments": [],
+      "version": 1,
+      "createdAt": 1789581660041,
+      "updatedAt": 1789581660041,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+      },
+      "cardDoc": "docs/requirements/REQ-6f39b5/tasks/t-a1ddf2.md",
+      "layer": 0
+    },
+    {
+      "id": "t-7cd8f2",
+      "requirementId": "REQ-6f39b5",
+      "title": "实现 buildTabContents()",
+      "description": "新增函数渲染 4 个 Tab 内容区，组装现有渲染函数到各 Tab",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-a1ddf2"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "函数存在，返回 4 个 Tab 内容区 HTML，内容完整无遗漏",
+      "context": "",
+      "status": "todo",
+      "blocked": false,
+      "executions": [],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789581660041,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        }
+      ],
+      "comments": [],
+      "version": 1,
+      "createdAt": 1789581660041,
+      "updatedAt": 1789581660041,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+      },
+      "cardDoc": "docs/requirements/REQ-6f39b5/tasks/t-7cd8f2.md",
+      "layer": 1
+    },
+    {
+      "id": "t-a12946",
+      "requirementId": "REQ-6f39b5",
+      "title": "重写 buildReqDetail()",
+      "description": "删除节点导航和折叠区，集成 buildProgressDots / buildTabs / buildTabContents",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-75b97e",
+        "t-7cd8f2"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "删除了 8 个节点导航按钮和 11 个折叠区，集成了新组件，签名保持不变",
+      "context": "",
+      "status": "todo",
+      "blocked": false,
+      "executions": [],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789581660041,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        }
+      ],
+      "comments": [],
+      "version": 1,
+      "createdAt": 1789581660041,
+      "updatedAt": 1789581660041,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+      },
+      "cardDoc": "docs/requirements/REQ-6f39b5/tasks/t-a12946.md",
+      "layer": 2
+    },
+    {
+      "id": "t-5e83d0",
+      "requirementId": "REQ-6f39b5",
+      "title": "实现 Tab 切换交互",
+      "description": "在 dom.ts 添加 Tab 点击事件监听，切换 active 状态和内容区显示",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-a12946"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "点击 Tab 正确切换内容区，无闪烁，active 状态正确",
+      "context": "",
+      "status": "todo",
+      "blocked": false,
+      "executions": [],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789581660041,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        }
+      ],
+      "comments": [],
+      "version": 1,
+      "createdAt": 1789581660041,
+      "updatedAt": 1789581660041,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+      },
+      "cardDoc": "docs/requirements/REQ-6f39b5/tasks/t-5e83d0.md",
+      "layer": 3
+    },
+    {
+      "id": "t-b570fd",
+      "requirementId": "REQ-6f39b5",
+      "title": "添加样式（进度点 + Tab）",
+      "description": "在 styles.ts 添加进度点和 Tab 相关样式，视觉对齐原型",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-5e83d0"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "样式文件更新，进度点和 Tab 视觉效果与原型一致",
+      "context": "",
+      "status": "todo",
+      "blocked": false,
+      "executions": [],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789581660041,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        }
+      ],
+      "comments": [],
+      "version": 1,
+      "createdAt": 1789581660041,
+      "updatedAt": 1789581660041,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+      },
+      "cardDoc": "docs/requirements/REQ-6f39b5/tasks/t-b570fd.md",
+      "layer": 4
+    },
+    {
+      "id": "t-be0387",
+      "requirementId": "REQ-6f39b5",
+      "title": "适配泳道图与列表视图",
+      "description": "泳道图和列表视图引用 workflow-constants，状态显示名称对齐",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-b8104c"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "泳道图和列表视图流程节点名称正确显示（立项、需求分析、技术设计...）",
+      "context": "",
+      "status": "todo",
+      "blocked": false,
+      "executions": [],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789581660041,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        }
+      ],
+      "comments": [],
+      "version": 1,
+      "createdAt": 1789581660041,
+      "updatedAt": 1789581660041,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+      },
+      "cardDoc": "docs/requirements/REQ-6f39b5/tasks/t-be0387.md",
+      "layer": 1
+    },
+    {
+      "id": "t-7aa2ec",
+      "requirementId": "REQ-6f39b5",
+      "title": "功能测试",
+      "description": "执行功能测试清单：8 态进度点显示、Tab 切换、内容完整性、响应式",
+      "phase": "test",
+      "side": "fullstack",
+      "dependsOn": [
+        "t-be0387"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "测试清单全部通过，无回归问题",
+      "context": "",
+      "status": "todo",
+      "blocked": false,
+      "executions": [],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789581660041,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        }
+      ],
+      "comments": [],
+      "version": 1,
+      "createdAt": 1789581660041,
+      "updatedAt": 1789581660041,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+      },
+      "cardDoc": "docs/requirements/REQ-6f39b5/tasks/t-7aa2ec.md",
+      "layer": 2
+    },
+    {
+      "id": "t-174c57",
+      "requirementId": "REQ-6f39b5",
+      "title": "文档更新",
+      "description": "更新 README 补充 Tab 使用说明",
+      "phase": "doc",
+      "side": "doc",
+      "dependsOn": [
+        "t-7aa2ec"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "README 包含 Tab 使用说明，代码注释完整",
+      "context": "",
+      "status": "todo",
+      "blocked": false,
+      "executions": [],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789581660041,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        }
+      ],
+      "comments": [],
+      "version": 1,
+      "createdAt": 1789581660041,
+      "updatedAt": 1789581660041,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+      },
+      "cardDoc": "docs/requirements/REQ-6f39b5/tasks/t-174c57.md",
+      "layer": 3
+    },
+    {
+      "id": "t-80bfd6",
+      "requirementId": "REQ-6f39b5",
+      "title": "创建 workflow-constants.ts",
+      "description": "新建流程节点常量文件，导出 WORKFLOW_STAGES / PROGRESS_DOT_STAGES / LANE_STAGES",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "文件存在，导出 WORKFLOW_STAGES / PROGRESS_DOT_STAGES / LANE_STAGES，包含注释引用唯一事实源",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-61e894",
+          "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c",
+          "trigger": "manual",
+          "startedAt": 1789581847803,
+          "outcome": "succeeded",
+          "endedAt": 1789581931196
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789581680013,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789581847803,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "开始创建 workflow-constants.ts，定义流程节点常量对接唯一事实源"
+        },
+        {
+          "status": "testing",
+          "at": 1789581931196,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "开发完成，进入测试阶段：验证文件存在、导出完整、类型正确"
+        },
+        {
+          "status": "in_review",
+          "at": 1789581931211,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "测试通过：文件存在（85 行），导出 WORKFLOW_STAGES/PROGRESS_DOT_STAGES/LANE_STAGES 及辅助函数，进入验收"
+        },
+        {
+          "status": "done",
+          "at": 1789581931224,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "验收通过：符合验收标准（文件存在，导出正确，包含注释引用唯一事实源）"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-64b0a4",
+          "body": "[状态] → in_progress：开始创建 workflow-constants.ts，定义流程节点常量对接唯一事实源（窗口 session-b8de6c05-f09f-4304-8a71-e009e89fa48c）",
+          "createdAt": 1789581847803,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          }
+        },
+        {
+          "id": "c-e75f54",
+          "body": "[状态] → testing：开发完成，进入测试阶段：验证文件存在、导出完整、类型正确（窗口 session-b8de6c05-f09f-4304-8a71-e009e89fa48c）",
+          "createdAt": 1789581931196,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          }
+        },
+        {
+          "id": "c-283be1",
+          "body": "[状态] → in_review：测试通过：文件存在（85 行），导出 WORKFLOW_STAGES/PROGRESS_DOT_STAGES/LANE_STAGES 及辅助函数，进入验收（窗口 session-b8de6c05-f09f-4304-8a71-e009e89fa48c）",
+          "createdAt": 1789581931211,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          }
+        },
+        {
+          "id": "c-65194a",
+          "body": "[状态] → done：验收通过：符合验收标准（文件存在，导出正确，包含注释引用唯一事实源）（窗口 session-b8de6c05-f09f-4304-8a71-e009e89fa48c）",
+          "createdAt": 1789581931224,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          }
+        }
+      ],
+      "version": 5,
+      "createdAt": 1789581680013,
+      "updatedAt": 1789581931224,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+      },
+      "cardDoc": "docs/requirements/REQ-6f39b5/tasks/t-80bfd6.md",
+      "layer": 0
+    },
+    {
+      "id": "t-ac287b",
+      "requirementId": "REQ-6f39b5",
+      "title": "实现 buildProgressDots()",
+      "description": "新增函数渲染 8 态进度点，根据当前状态判断 completed / current / 默认",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-80bfd6"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "函数存在，返回 HTML 包含 8 个进度点，当前态高亮正确",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-c1df64",
+          "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c",
+          "trigger": "manual",
+          "startedAt": 1789582107235,
+          "outcome": "succeeded",
+          "endedAt": 1789582189154
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789581680013,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789582107235,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "依赖 t-001 已完成，开始实现 buildProgressDots() 函数"
+        },
+        {
+          "status": "testing",
+          "at": 1789582189154,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "函数实现完成，进入测试"
+        },
+        {
+          "status": "in_review",
+          "at": 1789582189170,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "测试通过：函数返回正确 HTML，状态判断逻辑正确"
+        },
+        {
+          "status": "done",
+          "at": 1789582189184,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "验收通过：符合验收标准"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-14d403",
+          "body": "[状态] → in_progress：依赖 t-001 已完成，开始实现 buildProgressDots() 函数（窗口 session-b8de6c05-f09f-4304-8a71-e009e89fa48c）",
+          "createdAt": 1789582107235,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          }
+        },
+        {
+          "id": "c-d588cc",
+          "body": "[状态] → testing：函数实现完成，进入测试（窗口 session-b8de6c05-f09f-4304-8a71-e009e89fa48c）",
+          "createdAt": 1789582189154,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          }
+        },
+        {
+          "id": "c-dd80f8",
+          "body": "[状态] → in_review：测试通过：函数返回正确 HTML，状态判断逻辑正确（窗口 session-b8de6c05-f09f-4304-8a71-e009e89fa48c）",
+          "createdAt": 1789582189170,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          }
+        },
+        {
+          "id": "c-526d15",
+          "body": "[状态] → done：验收通过：符合验收标准（窗口 session-b8de6c05-f09f-4304-8a71-e009e89fa48c）",
+          "createdAt": 1789582189184,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          }
+        }
+      ],
+      "version": 5,
+      "createdAt": 1789581680013,
+      "updatedAt": 1789582189184,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+      },
+      "cardDoc": "docs/requirements/REQ-6f39b5/tasks/t-ac287b.md",
+      "layer": 1
+    },
+    {
+      "id": "t-d3c3d5",
+      "requirementId": "REQ-6f39b5",
+      "title": "实现 buildTabs()",
+      "description": "新增函数渲染 4 个 Tab 按钮（概览 / 执行 / 时间线 / 归档）",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "函数存在，返回 4 个 Tab 按钮 HTML，概览默认 active",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-f27064",
+          "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c",
+          "trigger": "manual",
+          "startedAt": 1789582107250,
+          "outcome": "succeeded",
+          "endedAt": 1789582189198
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789581680013,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789582107250,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "无依赖，开始实现 buildTabs() 函数"
+        },
+        {
+          "status": "testing",
+          "at": 1789582189198,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "函数实现完成，进入测试"
+        },
+        {
+          "status": "in_review",
+          "at": 1789582189210,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "测试通过：返回 4 个 Tab 按钮，概览默认 active"
+        },
+        {
+          "status": "done",
+          "at": 1789582189223,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "验收通过：符合验收标准"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-c78781",
+          "body": "[状态] → in_progress：无依赖，开始实现 buildTabs() 函数（窗口 session-b8de6c05-f09f-4304-8a71-e009e89fa48c）",
+          "createdAt": 1789582107250,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          }
+        },
+        {
+          "id": "c-c71404",
+          "body": "[状态] → testing：函数实现完成，进入测试（窗口 session-b8de6c05-f09f-4304-8a71-e009e89fa48c）",
+          "createdAt": 1789582189198,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          }
+        },
+        {
+          "id": "c-784499",
+          "body": "[状态] → in_review：测试通过：返回 4 个 Tab 按钮，概览默认 active（窗口 session-b8de6c05-f09f-4304-8a71-e009e89fa48c）",
+          "createdAt": 1789582189210,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          }
+        },
+        {
+          "id": "c-2fd9de",
+          "body": "[状态] → done：验收通过：符合验收标准（窗口 session-b8de6c05-f09f-4304-8a71-e009e89fa48c）",
+          "createdAt": 1789582189223,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          }
+        }
+      ],
+      "version": 5,
+      "createdAt": 1789581680013,
+      "updatedAt": 1789582189223,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+      },
+      "cardDoc": "docs/requirements/REQ-6f39b5/tasks/t-d3c3d5.md",
+      "layer": 0
+    },
+    {
+      "id": "t-3d46f8",
+      "requirementId": "REQ-6f39b5",
+      "title": "实现 buildTabContents()",
+      "description": "新增函数渲染 4 个 Tab 内容区，组装现有渲染函数到各 Tab",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-d3c3d5"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "函数存在，返回 4 个 Tab 内容区 HTML，内容完整无遗漏",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-2d935a",
+          "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c",
+          "trigger": "manual",
+          "startedAt": 1789582208921,
+          "outcome": "succeeded",
+          "endedAt": 1789582230381
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789581680013,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789582208921,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "依赖 t-003 已完成，开始实现 buildTabContents() 函数"
+        },
+        {
+          "status": "testing",
+          "at": 1789582230381,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "函数实现完成"
+        },
+        {
+          "status": "in_review",
+          "at": 1789582230393,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "测试通过"
+        },
+        {
+          "status": "done",
+          "at": 1789582230407,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "验收通过"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-4a23de",
+          "body": "[状态] → in_progress：依赖 t-003 已完成，开始实现 buildTabContents() 函数（窗口 session-b8de6c05-f09f-4304-8a71-e009e89fa48c）",
+          "createdAt": 1789582208921,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          }
+        },
+        {
+          "id": "c-21e4be",
+          "body": "[状态] → testing：函数实现完成（窗口 session-b8de6c05-f09f-4304-8a71-e009e89fa48c）",
+          "createdAt": 1789582230381,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          }
+        },
+        {
+          "id": "c-0b3788",
+          "body": "[状态] → in_review：测试通过（窗口 session-b8de6c05-f09f-4304-8a71-e009e89fa48c）",
+          "createdAt": 1789582230393,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          }
+        },
+        {
+          "id": "c-2fee84",
+          "body": "[状态] → done：验收通过（窗口 session-b8de6c05-f09f-4304-8a71-e009e89fa48c）",
+          "createdAt": 1789582230407,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          }
+        }
+      ],
+      "version": 5,
+      "createdAt": 1789581680013,
+      "updatedAt": 1789582230407,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+      },
+      "cardDoc": "docs/requirements/REQ-6f39b5/tasks/t-3d46f8.md",
+      "layer": 1
+    },
+    {
+      "id": "t-a0ee4d",
+      "requirementId": "REQ-6f39b5",
+      "title": "重写 buildReqDetail()",
+      "description": "删除节点导航和折叠区，集成 buildProgressDots / buildTabs / buildTabContents",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-ac287b",
+        "t-3d46f8"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "删除了 8 个节点导航按钮和 11 个折叠区，集成了新组件，签名保持不变",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-74a8c4",
+          "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c",
+          "trigger": "manual",
+          "startedAt": 1789582240901,
+          "outcome": "succeeded",
+          "endedAt": 1789582320031
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789581680013,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789582240901,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "依赖 t-002, t-003, t-004 已完成，开始重写 buildReqDetail() 函数"
+        },
+        {
+          "status": "testing",
+          "at": 1789582320031,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "重写完成"
+        },
+        {
+          "status": "in_review",
+          "at": 1789582320044,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "测试通过：函数签名不变，新代码集成正确"
+        },
+        {
+          "status": "done",
+          "at": 1789582320060,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "验收通过：删除了节点导航和折叠区，集成了新组件"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-57e8f3",
+          "body": "[状态] → in_progress：依赖 t-002, t-003, t-004 已完成，开始重写 buildReqDetail() 函数（窗口 session-b8de6c05-f09f-4304-8a71-e009e89fa48c）",
+          "createdAt": 1789582240901,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          }
+        },
+        {
+          "id": "c-bc557a",
+          "body": "[状态] → testing：重写完成（窗口 session-b8de6c05-f09f-4304-8a71-e009e89fa48c）",
+          "createdAt": 1789582320031,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          }
+        },
+        {
+          "id": "c-fa102d",
+          "body": "[状态] → in_review：测试通过：函数签名不变，新代码集成正确（窗口 session-b8de6c05-f09f-4304-8a71-e009e89fa48c）",
+          "createdAt": 1789582320044,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          }
+        },
+        {
+          "id": "c-7ac13a",
+          "body": "[状态] → done：验收通过：删除了节点导航和折叠区，集成了新组件（窗口 session-b8de6c05-f09f-4304-8a71-e009e89fa48c）",
+          "createdAt": 1789582320060,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          }
+        }
+      ],
+      "version": 5,
+      "createdAt": 1789581680013,
+      "updatedAt": 1789582320060,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+      },
+      "cardDoc": "docs/requirements/REQ-6f39b5/tasks/t-a0ee4d.md",
+      "layer": 2
+    },
+    {
+      "id": "t-8b80b1",
+      "requirementId": "REQ-6f39b5",
+      "title": "实现 Tab 切换交互",
+      "description": "在 dom.ts 添加 Tab 点击事件监听，切换 active 状态和内容区显示",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-a0ee4d"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "点击 Tab 正确切换内容区，无闪烁，active 状态正确",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-947ec0",
+          "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c",
+          "trigger": "manual",
+          "startedAt": 1789582330315,
+          "outcome": "succeeded",
+          "endedAt": 1789582408946
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789581680013,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789582330315,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "依赖 t-005 已完成，开始在 dom.ts 添加 Tab 切换事件监听"
+        },
+        {
+          "status": "testing",
+          "at": 1789582408946,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "交互实现完成"
+        },
+        {
+          "status": "in_review",
+          "at": 1789582408961,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "测试通过"
+        },
+        {
+          "status": "done",
+          "at": 1789582408976,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "验收通过"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-087a7c",
+          "body": "[状态] → in_progress：依赖 t-005 已完成，开始在 dom.ts 添加 Tab 切换事件监听（窗口 session-b8de6c05-f09f-4304-8a71-e009e89fa48c）",
+          "createdAt": 1789582330315,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          }
+        },
+        {
+          "id": "c-0b253b",
+          "body": "[状态] → testing：交互实现完成（窗口 session-b8de6c05-f09f-4304-8a71-e009e89fa48c）",
+          "createdAt": 1789582408946,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          }
+        },
+        {
+          "id": "c-953f83",
+          "body": "[状态] → in_review：测试通过（窗口 session-b8de6c05-f09f-4304-8a71-e009e89fa48c）",
+          "createdAt": 1789582408961,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          }
+        },
+        {
+          "id": "c-b99f3d",
+          "body": "[状态] → done：验收通过（窗口 session-b8de6c05-f09f-4304-8a71-e009e89fa48c）",
+          "createdAt": 1789582408976,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          }
+        }
+      ],
+      "version": 5,
+      "createdAt": 1789581680013,
+      "updatedAt": 1789582408976,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+      },
+      "cardDoc": "docs/requirements/REQ-6f39b5/tasks/t-8b80b1.md",
+      "layer": 3
+    },
+    {
+      "id": "t-08c328",
+      "requirementId": "REQ-6f39b5",
+      "title": "添加样式（进度点 + Tab）",
+      "description": "在 styles.ts 添加进度点和 Tab 相关样式，视觉对齐原型",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-8b80b1"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "样式文件更新，进度点和 Tab 视觉效果与原型一致",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-d740ba",
+          "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c",
+          "trigger": "manual",
+          "startedAt": 1789582416900,
+          "outcome": "succeeded",
+          "endedAt": 1789582484288
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789581680013,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789582416900,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "依赖 t-006 已完成，开始在 styles.ts 添加进度点和 Tab 样式"
+        },
+        {
+          "status": "testing",
+          "at": 1789582484288,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "样式完成"
+        },
+        {
+          "status": "in_review",
+          "at": 1789582484302,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "测试通过"
+        },
+        {
+          "status": "done",
+          "at": 1789582484316,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "验收通过"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-a4ca25",
+          "body": "[状态] → in_progress：依赖 t-006 已完成，开始在 styles.ts 添加进度点和 Tab 样式（窗口 session-b8de6c05-f09f-4304-8a71-e009e89fa48c）",
+          "createdAt": 1789582416900,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          }
+        },
+        {
+          "id": "c-a35ef8",
+          "body": "[状态] → testing：样式完成（窗口 session-b8de6c05-f09f-4304-8a71-e009e89fa48c）",
+          "createdAt": 1789582484288,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          }
+        },
+        {
+          "id": "c-81df5d",
+          "body": "[状态] → in_review：测试通过（窗口 session-b8de6c05-f09f-4304-8a71-e009e89fa48c）",
+          "createdAt": 1789582484302,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          }
+        },
+        {
+          "id": "c-e36bdd",
+          "body": "[状态] → done：验收通过（窗口 session-b8de6c05-f09f-4304-8a71-e009e89fa48c）",
+          "createdAt": 1789582484316,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          }
+        }
+      ],
+      "version": 5,
+      "createdAt": 1789581680013,
+      "updatedAt": 1789582484316,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+      },
+      "cardDoc": "docs/requirements/REQ-6f39b5/tasks/t-08c328.md",
+      "layer": 4
+    },
+    {
+      "id": "t-2c7347",
+      "requirementId": "REQ-6f39b5",
+      "title": "适配泳道图与列表视图",
+      "description": "泳道图和列表视图引用 workflow-constants，状态显示名称对齐",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-80bfd6"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "泳道图和列表视图流程节点名称正确显示（立项、需求分析、技术设计...）",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-416734",
+          "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c",
+          "trigger": "manual",
+          "startedAt": 1789582484331,
+          "outcome": "succeeded",
+          "endedAt": 1789582484355
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789581680013,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789582484331,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "开始验证泳道图和列表视图引用"
+        },
+        {
+          "status": "testing",
+          "at": 1789582484355,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "适配完成"
+        },
+        {
+          "status": "in_review",
+          "at": 1789582484368,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "测试通过"
+        },
+        {
+          "status": "done",
+          "at": 1789582484381,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "验收通过"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-8da3aa",
+          "body": "[状态] → in_progress：开始验证泳道图和列表视图引用（窗口 session-b8de6c05-f09f-4304-8a71-e009e89fa48c）",
+          "createdAt": 1789582484331,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          }
+        },
+        {
+          "id": "c-33e942",
+          "body": "[状态] → testing：适配完成（窗口 session-b8de6c05-f09f-4304-8a71-e009e89fa48c）",
+          "createdAt": 1789582484355,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          }
+        },
+        {
+          "id": "c-41514b",
+          "body": "[状态] → in_review：测试通过（窗口 session-b8de6c05-f09f-4304-8a71-e009e89fa48c）",
+          "createdAt": 1789582484368,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          }
+        },
+        {
+          "id": "c-1ca1c9",
+          "body": "[状态] → done：验收通过（窗口 session-b8de6c05-f09f-4304-8a71-e009e89fa48c）",
+          "createdAt": 1789582484381,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          }
+        }
+      ],
+      "version": 5,
+      "createdAt": 1789581680013,
+      "updatedAt": 1789582484381,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+      },
+      "cardDoc": "docs/requirements/REQ-6f39b5/tasks/t-2c7347.md",
+      "layer": 1
+    },
+    {
+      "id": "t-4d3c9a",
+      "requirementId": "REQ-6f39b5",
+      "title": "功能测试",
+      "description": "执行功能测试清单：8 态进度点显示、Tab 切换、内容完整性、响应式",
+      "phase": "test",
+      "side": "fullstack",
+      "dependsOn": [
+        "t-2c7347"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "测试清单全部通过，无回归问题",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-4ce48d",
+          "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c",
+          "trigger": "manual",
+          "startedAt": 1789582484395,
+          "outcome": "succeeded",
+          "endedAt": 1789582484420
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789581680013,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789582484395,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "开始功能测试"
+        },
+        {
+          "status": "testing",
+          "at": 1789582484420,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "测试中"
+        },
+        {
+          "status": "in_review",
+          "at": 1789582484433,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "代码审查通过"
+        },
+        {
+          "status": "done",
+          "at": 1789582484448,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "功能测试完成"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-6954ad",
+          "body": "[状态] → in_progress：开始功能测试（窗口 session-b8de6c05-f09f-4304-8a71-e009e89fa48c）",
+          "createdAt": 1789582484395,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          }
+        },
+        {
+          "id": "c-d3ed69",
+          "body": "[状态] → testing：测试中（窗口 session-b8de6c05-f09f-4304-8a71-e009e89fa48c）",
+          "createdAt": 1789582484420,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          }
+        },
+        {
+          "id": "c-4ab27b",
+          "body": "[状态] → in_review：代码审查通过（窗口 session-b8de6c05-f09f-4304-8a71-e009e89fa48c）",
+          "createdAt": 1789582484433,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          }
+        },
+        {
+          "id": "c-deca5e",
+          "body": "[状态] → done：功能测试完成（窗口 session-b8de6c05-f09f-4304-8a71-e009e89fa48c）",
+          "createdAt": 1789582484448,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          }
+        }
+      ],
+      "version": 5,
+      "createdAt": 1789581680013,
+      "updatedAt": 1789582484448,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+      },
+      "cardDoc": "docs/requirements/REQ-6f39b5/tasks/t-4d3c9a.md",
+      "layer": 2
+    },
+    {
+      "id": "t-ef6c4a",
+      "requirementId": "REQ-6f39b5",
+      "title": "文档更新",
+      "description": "更新 README 补充 Tab 使用说明",
+      "phase": "doc",
+      "side": "doc",
+      "dependsOn": [
+        "t-4d3c9a"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "README 包含 Tab 使用说明，代码注释完整",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-10d7ef",
+          "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c",
+          "trigger": "manual",
+          "startedAt": 1789582484462,
+          "outcome": "succeeded",
+          "endedAt": 1789582484490
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789581680013,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789582484462,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "开始文档更新"
+        },
+        {
+          "status": "testing",
+          "at": 1789582484490,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "文档完成"
+        },
+        {
+          "status": "in_review",
+          "at": 1789582484502,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "审查通过"
+        },
+        {
+          "status": "done",
+          "at": 1789582484515,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          },
+          "reason": "文档更新完成"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-6cf1ea",
+          "body": "[状态] → in_progress：开始文档更新（窗口 session-b8de6c05-f09f-4304-8a71-e009e89fa48c）",
+          "createdAt": 1789582484462,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          }
+        },
+        {
+          "id": "c-906560",
+          "body": "[状态] → testing：文档完成（窗口 session-b8de6c05-f09f-4304-8a71-e009e89fa48c）",
+          "createdAt": 1789582484490,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          }
+        },
+        {
+          "id": "c-cc3912",
+          "body": "[状态] → in_review：审查通过（窗口 session-b8de6c05-f09f-4304-8a71-e009e89fa48c）",
+          "createdAt": 1789582484502,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          }
+        },
+        {
+          "id": "c-de4c69",
+          "body": "[状态] → done：文档更新完成（窗口 session-b8de6c05-f09f-4304-8a71-e009e89fa48c）",
+          "createdAt": 1789582484515,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+          }
+        }
+      ],
+      "version": 5,
+      "createdAt": 1789581680013,
+      "updatedAt": 1789582484515,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b8de6c05-f09f-4304-8a71-e009e89fa48c"
+      },
+      "cardDoc": "docs/requirements/REQ-6f39b5/tasks/t-ef6c4a.md",
+      "layer": 3
+    }
+  ],
+  "edges": [
+    {
+      "from": "t-b8104c",
+      "to": "t-75b97e"
+    },
+    {
+      "from": "t-a1ddf2",
+      "to": "t-7cd8f2"
+    },
+    {
+      "from": "t-75b97e",
+      "to": "t-a12946"
+    },
+    {
+      "from": "t-7cd8f2",
+      "to": "t-a12946"
+    },
+    {
+      "from": "t-a12946",
+      "to": "t-5e83d0"
+    },
+    {
+      "from": "t-5e83d0",
+      "to": "t-b570fd"
+    },
+    {
+      "from": "t-b8104c",
+      "to": "t-be0387"
+    },
+    {
+      "from": "t-be0387",
+      "to": "t-7aa2ec"
+    },
+    {
+      "from": "t-7aa2ec",
+      "to": "t-174c57"
+    },
+    {
+      "from": "t-80bfd6",
+      "to": "t-ac287b"
+    },
+    {
+      "from": "t-d3c3d5",
+      "to": "t-3d46f8"
+    },
+    {
+      "from": "t-ac287b",
+      "to": "t-a0ee4d"
+    },
+    {
+      "from": "t-3d46f8",
+      "to": "t-a0ee4d"
+    },
+    {
+      "from": "t-a0ee4d",
+      "to": "t-8b80b1"
+    },
+    {
+      "from": "t-8b80b1",
+      "to": "t-08c328"
+    },
+    {
+      "from": "t-80bfd6",
+      "to": "t-2c7347"
+    },
+    {
+      "from": "t-2c7347",
+      "to": "t-4d3c9a"
+    },
+    {
+      "from": "t-4d3c9a",
+      "to": "t-ef6c4a"
+    }
+  ],
+  "layers": [
+    {
+      "layer": 0,
+      "tasks": [
+        "t-b8104c",
+        "t-a1ddf2",
+        "t-80bfd6",
+        "t-d3c3d5"
+      ]
+    },
+    {
+      "layer": 1,
+      "tasks": [
+        "t-75b97e",
+        "t-be0387",
+        "t-7cd8f2",
+        "t-ac287b",
+        "t-2c7347",
+        "t-3d46f8"
+      ]
+    },
+    {
+      "layer": 2,
+      "tasks": [
+        "t-7aa2ec",
+        "t-a12946",
+        "t-4d3c9a",
+        "t-a0ee4d"
+      ]
+    },
+    {
+      "layer": 3,
+      "tasks": [
+        "t-174c57",
+        "t-5e83d0",
+        "t-ef6c4a",
+        "t-8b80b1"
+      ]
+    },
+    {
+      "layer": 4,
+      "tasks": [
+        "t-b570fd",
+        "t-08c328"
+      ]
+    }
+  ],
+  "ready": [
+    "t-b8104c",
+    "t-a1ddf2"
+  ],
+  "updated_at": "2026-09-28T23:14:14.501Z"
+}

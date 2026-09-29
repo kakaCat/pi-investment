@@ -1,0 +1,1829 @@
+{
+  "version": 1,
+  "requirement_id": "REQ-260927123256-196b",
+  "schemaVersion": 9,
+  "generated_at": "2026-09-27T14:55:11.425Z",
+  "tasks": [
+    {
+      "id": "t-f8ed18",
+      "requirementId": "REQ-260927123256-196b",
+      "title": "先定契约：挂起确认能标出「被中止」，判定口径只留一处",
+      "cardDoc": "docs/requirements/REQ-260927123256-196b/tasks/t-f8ed18.md",
+      "description": "为「阻塞被中止仍可查」和「守卫/回执同一判定」提供数据结构与共享谓词。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "cd /Users/yunpeng/pi-investment/agent-dh && node_modules/.bin/vitest run packages/web/dsh-pmboard/tests/pending-guard.test.ts 全绿：targetConfirmedInLedger 对 plan（approvedAt 已写）与 artifact（该 kind 成组 confirmedAt 已写）分别返回 true、未落章返回 false；markInterrupted 二次调用后 interruptedAt 不变；createdAt 早于中止时间时记录不提前过期。",
+      "implementation": "① src/shared/protocol.ts：PendingConfirmation 增可选 interruptedAt?: number。② src/application/ports.ts：PendingConfirmPort 增 markInterrupted(ticket): PendingConfirmation | undefined（不抛）。③ src/adapters/PendingConfirmRegistry.ts：实现 markInterrupted（幂等，只写首次）；get/pendingForWindow 过期基准改 (interruptedAt ?? createdAt) + ttlMs。④ 新增 src/application/internal/pending-guard.ts：从 ConfirmReceipt.ts:76-80 逐字提取 targetConfirmedInLedger，并实现 livePendingConfirm(deps, windowKey)（过滤已 settle/已过期/台账已落章）+ PENDING_CONFIRM_BLOCKED_TOOLS + 恢复文案常量。⑤ src/application/use-cases/ConfirmReceipt.ts：删私有谓词、改用共享谓词，interruptedAt 且未作答时改文案。",
+      "context": "",
+      "requirementRefs": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-817bdb",
+          "trigger": "auto",
+          "startedAt": 1790484309251,
+          "outcome": "succeeded",
+          "endedAt": 1790487904862
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790484304344,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790484309251,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790487904862,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          },
+          "reason": "父卡收尾：4 张子卡（研发/联调/复核/测试）全部完成，验收命令 pending-guard.test.ts 9/9 全绿，证据文档落于 docs/requirements/REQ-260927123256-196b/evidence/"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-a3dab2",
+          "body": "[状态] → done：父卡收尾：4 张子卡（研发/联调/复核/测试）全部完成，验收命令 pending-guard.test.ts 9/9 全绿，证据文档落于 docs/requirements/REQ-260927123256-196b/evidence/（reqboard_task_move）",
+          "createdAt": 1790487904862,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          }
+        }
+      ],
+      "version": 5,
+      "createdAt": 1790484304344,
+      "updatedAt": 1790487904862,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+      },
+      "lastReport": {
+        "at": 1790487833316,
+        "reportIndex": 2,
+        "filesChanged": [
+          "docs/requirements/REQ-260927123256-196b/evidence/t-a0c273-dev.md",
+          "docs/requirements/REQ-260927123256-196b/evidence/t-db1d48-test.md",
+          "packages/web/dsh-pmboard/src/shared/protocol.ts",
+          "packages/web/dsh-pmboard/src/application/ports.ts",
+          "packages/web/dsh-pmboard/src/adapters/PendingConfirmRegistry.ts",
+          "packages/web/dsh-pmboard/src/application/internal/pending-guard.ts",
+          "packages/web/dsh-pmboard/src/application/use-cases/ConfirmReceipt.ts",
+          "packages/web/dsh-pmboard/tests/pending-guard.test.ts"
+        ],
+        "completed": [
+          "研发 t-a0c273：契约+实现落盘（interruptedAt / markInterrupted / 过期基准 / pending-guard 单点谓词 / ConfirmReceipt 改用共享谓词）",
+          "联调 t-3b5f9c：registry 方法对未知/跨窗口/过期一律不抛；回执链路接共享谓词",
+          "复核 t-738238：实现与设计 I-4/I-6 无偏离",
+          "测试 t-db1d48：验收命令 pending-guard.test.ts 9/9 全绿，回归 20/20",
+          "父卡验收命令：node_modules/.bin/vitest run packages/web/dsh-pmboard/tests/pending-guard.test.ts → 9 passed"
+        ]
+      },
+      "layer": 0
+    },
+    {
+      "id": "t-4d87e5",
+      "requirementId": "REQ-260927123256-196b",
+      "title": "确认弹框改为阻塞等待：人不作答，agent 就停在这一步",
+      "cardDoc": "docs/requirements/REQ-260927123256-196b/tasks/t-4d87e5.md",
+      "description": "缺省等待语义反转：不传宽限就阻塞到作答/取消/中止；显式正数宽限才走非阻塞逃生舱。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-f8ed18"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "cd /Users/yunpeng/pi-investment/agent-dh && node_modules/.bin/vitest run packages/web/dsh-pmboard/tests/ask-confirm-blocking.test.ts packages/web/dsh-pmboard/tests/ask-confirm.test.ts 全绿：不传宽限 + ask 永不 resolve 时工具 200ms 仍未返回，resolve(确认推进) 后返回 confirmed=true, advanced=true 且返回体无 pending/ticket 键；显式 inline_grace_ms: 20 返回 pending=true 与 pc- 前缀 ticket。",
+      "implementation": "① src/application/use-cases/AskConfirm.ts：graceRaw === undefined → 先 settle 本窗口旧未作答记录、register ticket、await ask（try/catch）；resolve → settleAnswers + settle(ticket)；ASK_CANCELLED → settle + degradedAnswer；ASK_ABORTED / exec.signal.aborted → markInterrupted + 返回 {success:false, confirmed:false, advanced:false, pending:true, ticket, requirement_id, interrupted:true, note}。② graceRaw 正数 → 未装配 pendingConfirms 时 reject(...,'REQBOARD_NONBLOCK_UNAVAILABLE')；raceAsk 三分支（timeout 走 suspendConfirm）。③ src/application/internal/pending-confirm.ts：suspendConfirm 改为接收已登记 ticket；导出 outcomeOf。④ src/domain/limits.ts：删除 confirmInlineGraceMs。",
+      "context": "",
+      "requirementRefs": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-73bf3b",
+          "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf",
+          "trigger": "manual",
+          "startedAt": 1790489809766,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf",
+              "seq": 4385,
+              "at": 1790489809766,
+              "totals": {
+                "uncachedInputTokens": 1885722,
+                "outputTokens": 466101,
+                "cacheReadTokens": 71264640,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf",
+              "seq": 4993,
+              "at": 1790490155619,
+              "totals": {
+                "uncachedInputTokens": 2087884,
+                "outputTokens": 525338,
+                "cacheReadTokens": 85255936,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 202162,
+              "outputTokens": 59237,
+              "cacheReadTokens": 13991296,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790490155619
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790484304344,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790489809766,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          },
+          "reason": "开工 t2：确认弹框改缺省阻塞（照卡实施方案：AskConfirm 缺省 await、显式宽限逃生舱、删缺省 30s 放行）"
+        },
+        {
+          "status": "testing",
+          "at": 1790490155619,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          },
+          "reason": "照卡实施完成，进入统一测试"
+        },
+        {
+          "status": "in_review",
+          "at": 1790490155745,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          },
+          "reason": "照卡实施完成，进入统一测试"
+        },
+        {
+          "status": "done",
+          "at": 1790490155870,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          },
+          "reason": "实施+自测完成：缺省阻塞/显式宽限/中止留痕三路径实测通过（ask-confirm-blocking 5 tests + ask-confirm-pending 11 tests 全绿）"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-50fd9a",
+          "body": "[状态] → in_progress：开工 t2：确认弹框改缺省阻塞（照卡实施方案：AskConfirm 缺省 await、显式宽限逃生舱、删缺省 30s 放行）（reqboard_task_move）",
+          "createdAt": 1790489809766,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          }
+        },
+        {
+          "id": "c-ec69a0",
+          "body": "[状态] → testing：照卡实施完成，进入统一测试（reqboard_task_move）",
+          "createdAt": 1790490155619,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          }
+        },
+        {
+          "id": "c-4c9d2e",
+          "body": "[状态] → in_review：照卡实施完成，进入统一测试（reqboard_task_move）",
+          "createdAt": 1790490155745,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          }
+        },
+        {
+          "id": "c-d20ef6",
+          "body": "[状态] → done：实施+自测完成：缺省阻塞/显式宽限/中止留痕三路径实测通过（ask-confirm-blocking 5 tests + ask-confirm-pending 11 tests 全绿）（reqboard_task_move）",
+          "createdAt": 1790490155870,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790484304344,
+      "updatedAt": 1790490155870,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+      },
+      "lastReport": {
+        "at": 1790490155461,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/application/use-cases/AskConfirm.ts",
+          "packages/web/dsh-pmboard/src/application/internal/pending-confirm.ts",
+          "packages/web/dsh-pmboard/src/domain/limits.ts"
+        ],
+        "completed": [
+          "AskConfirm 等待语义反转：缺省 await ask（阻塞到作答/取消/中止）；显式正数宽限才 raceAsk + 挂起",
+          "进入等待前先 settle 本窗口旧未作答记录（重新发起覆盖），再登记本次 ticket（阻塞/非阻塞共用）",
+          "中止路径响亮：ASK_ABORTED / signal.aborted → markInterrupted + pending:true + ticket + interrupted:true（note 含两条恢复路径）",
+          "取消/其他失败 → settle 后走既有降级返回（守卫放行）",
+          "suspendConfirm 改为消费已登记 ticket（不二次登记）；导出 outcomeOf",
+          "删除 domain/limits.ts 的 confirmInlineGraceMs（缺省放行唯一来源）"
+        ]
+      },
+      "layer": 1
+    },
+    {
+      "id": "t-fd257f",
+      "requirementId": "REQ-260927123256-196b",
+      "title": "等待期间不许偷偷往下走，状态页能看出在等谁",
+      "cardDoc": "docs/requirements/REQ-260927123256-196b/tasks/t-fd257f.md",
+      "description": "把停手守卫升级为台账感知，并让 reqboard_status 暴露挂起确认。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-f8ed18"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "cd /Users/yunpeng/pi-investment/agent-dh && node_modules/.bin/vitest run packages/web/dsh-pmboard/tests/confirm-pending-guard.test.ts packages/web/dsh-pmboard/tests/status-pending-confirm.test.ts packages/web/dsh-pmboard/tests/output-contract.test.ts 全绿：阻塞登记的未作答记录使 reqboard_submit/move/task_move/decompose 抛 REQBOARD_CONFIRM_PENDING 且台账零写入；reqboard_status 返回 pending_confirms[0].ticket；台账落章后该数组为空。",
+      "implementation": "① src/application/internal/support.ts：assertNoPendingConfirm 改用 livePendingConfirm，拒绝消息含 ticket、「收到作答前不得产出下游产物」与三条恢复路径（取回执 / 看板确认 / 重新发起）。② src/application/query/QueryState.ts：返回体增 pending_confirms（字段见 design/interfaces.md I-2）。③ src/tools/StatusTool/StatusTool.ts：output.schema 声明 pending_confirms。",
+      "context": "",
+      "requirementRefs": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-0b4502",
+          "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf",
+          "trigger": "manual",
+          "startedAt": 1790490223937,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf",
+              "seq": 5009,
+              "at": 1790490223937,
+              "totals": {
+                "uncachedInputTokens": 2184125,
+                "outputTokens": 526327,
+                "cacheReadTokens": 85420800,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf",
+              "seq": 5015,
+              "at": 1790490224933,
+              "totals": {
+                "uncachedInputTokens": 2184125,
+                "outputTokens": 526327,
+                "cacheReadTokens": 85420800,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790490224933
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790484304344,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790490223937,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          },
+          "reason": "开工 t3：停手守卫改共享谓词 + reqboard_status 暴露 pending_confirms"
+        },
+        {
+          "status": "testing",
+          "at": 1790490224933,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          },
+          "reason": "照卡实施完成，进入统一测试"
+        },
+        {
+          "status": "in_review",
+          "at": 1790490225073,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          },
+          "reason": "照卡实施完成，进入统一测试"
+        },
+        {
+          "status": "done",
+          "at": 1790490233569,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          },
+          "reason": "实施+自测完成：守卫拦写/落章解除/状态投影实测通过（confirm-pending-guard 5 + status-pending-confirm 4 全绿）"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-3bcd81",
+          "body": "[状态] → in_progress：开工 t3：停手守卫改共享谓词 + reqboard_status 暴露 pending_confirms（reqboard_task_move）",
+          "createdAt": 1790490223937,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          }
+        },
+        {
+          "id": "c-b4aa4a",
+          "body": "[状态] → testing：照卡实施完成，进入统一测试（reqboard_task_move）",
+          "createdAt": 1790490224933,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          }
+        },
+        {
+          "id": "c-8e7508",
+          "body": "[状态] → in_review：照卡实施完成，进入统一测试（reqboard_task_move）",
+          "createdAt": 1790490225073,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          }
+        },
+        {
+          "id": "c-fc4d8d",
+          "body": "[状态] → done：实施+自测完成：守卫拦写/落章解除/状态投影实测通过（confirm-pending-guard 5 + status-pending-confirm 4 全绿）（reqboard_task_move）",
+          "createdAt": 1790490233569,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790484304344,
+      "updatedAt": 1790490233569,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+      },
+      "lastReport": {
+        "at": 1790490224790,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/application/internal/support.ts",
+          "packages/web/dsh-pmboard/src/application/query/QueryState.ts",
+          "packages/web/dsh-pmboard/src/tools/StatusTool/StatusTool.ts",
+          "packages/web/dsh-pmboard/tests/confirm-pending-guard.test.ts",
+          "packages/web/dsh-pmboard/tests/status-pending-confirm.test.ts"
+        ],
+        "completed": [
+          "assertNoPendingConfirm 复用 pending-guard.livePendingConfirm（判定口径单点），拒绝文案含 ticket + 三条恢复路径",
+          "QueryState 返回体增 pending_confirms 投影（ticket/requirement_id/target/kind/created_at/interrupted/blocked_tools/recovery）",
+          "StatusTool output.schema 声明 pending_confirms",
+          "confirm-pending-guard 补 TC-9（台账落章即放行）；status-pending-confirm 新增 4 用例"
+        ]
+      },
+      "layer": 1
+    },
+    {
+      "id": "t-16cefa",
+      "requirementId": "REQ-260927123256-196b",
+      "title": "工具说明写清「默认会等你」：显式宽限等于主动放弃等待",
+      "cardDoc": "docs/requirements/REQ-260927123256-196b/tasks/t-16cefa.md",
+      "description": "让模型与调用方从工具描述就能读懂缺省阻塞与逃生舱的代价。",
+      "phase": "doc",
+      "side": "doc",
+      "dependsOn": [
+        "t-4d87e5"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "cd /Users/yunpeng/pi-investment/agent-dh && node_modules/.bin/vitest run packages/web/dsh-pmboard/tests/ask-confirm-prompt.test.ts packages/web/dsh-pmboard/tests/tools-schema.test.ts 全绿：ASK_CONFIRM_PROMPT 文本含「缺省阻塞」，参数 description 含「缺省」与「阻塞」；defineAskConfirmTool 构造（含新 interrupted 键）不抛 schema 编译错误。",
+      "implementation": "① src/tools/AskConfirmTool/prompt.ts：ASK_CONFIRM_PROMPT 写明弹框路径缺省阻塞、inline_grace_ms = 主动放弃阻塞且须自担超时后 loop 继续的后果。② src/tools/AskConfirmTool/AskConfirmTool.ts：inline_grace_ms 参数 description 同步。③ src/tools/ConfirmReceiptTool/prompt.ts：补被中止记录可凭 ticket 查询。",
+      "context": "",
+      "requirementRefs": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-8ce04d",
+          "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf",
+          "trigger": "manual",
+          "startedAt": 1790490300581,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf",
+              "seq": 5039,
+              "at": 1790490300581,
+              "totals": {
+                "uncachedInputTokens": 2185648,
+                "outputTokens": 528919,
+                "cacheReadTokens": 85947648,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf",
+              "seq": 5047,
+              "at": 1790490301582,
+              "totals": {
+                "uncachedInputTokens": 2185648,
+                "outputTokens": 528919,
+                "cacheReadTokens": 85947648,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790490301582
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790484304344,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790490300581,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          },
+          "reason": "开工 t4：工具描述/提示词写明「缺省阻塞；显式宽限=主动放弃阻塞」+ schema 声明 interrupted"
+        },
+        {
+          "status": "testing",
+          "at": 1790490301582,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          },
+          "reason": "照卡实施完成，进入统一测试"
+        },
+        {
+          "status": "in_review",
+          "at": 1790490301720,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          },
+          "reason": "照卡实施完成，进入统一测试"
+        },
+        {
+          "status": "done",
+          "at": 1790490301847,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          },
+          "reason": "实施+自测完成：文案契约与 schema 编译实测通过（ask-confirm-prompt 3 + tools-schema 4 全绿）"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-848e4b",
+          "body": "[状态] → in_progress：开工 t4：工具描述/提示词写明「缺省阻塞；显式宽限=主动放弃阻塞」+ schema 声明 interrupted（reqboard_task_move）",
+          "createdAt": 1790490300581,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          }
+        },
+        {
+          "id": "c-7be137",
+          "body": "[状态] → testing：照卡实施完成，进入统一测试（reqboard_task_move）",
+          "createdAt": 1790490301582,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          }
+        },
+        {
+          "id": "c-aa1c06",
+          "body": "[状态] → in_review：照卡实施完成，进入统一测试（reqboard_task_move）",
+          "createdAt": 1790490301720,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          }
+        },
+        {
+          "id": "c-62c471",
+          "body": "[状态] → done：实施+自测完成：文案契约与 schema 编译实测通过（ask-confirm-prompt 3 + tools-schema 4 全绿）（reqboard_task_move）",
+          "createdAt": 1790490301847,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790484304344,
+      "updatedAt": 1790490301847,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+      },
+      "lastReport": {
+        "at": 1790490301440,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/tools/AskConfirmTool/prompt.ts",
+          "packages/web/dsh-pmboard/src/tools/AskConfirmTool/AskConfirmTool.ts",
+          "packages/web/dsh-pmboard/src/tools/ConfirmReceiptTool/prompt.ts"
+        ],
+        "completed": [
+          "ASK_CONFIRM_PROMPT 重写为单字面量：含「缺省阻塞」「主动放弃阻塞」与 REQBOARD_CONFIRM_PENDING 的停手说明",
+          "inline_grace_ms 参数 description 同步（含「缺省」「阻塞」「主动放弃阻塞」）",
+          "AskConfirmTool output.schema 增 interrupted 键（中止分支可被绑定层接受）",
+          "ConfirmReceiptTool 提示词补「被中止的挂起记录同样可凭 ticket 查询」并点名 reqboard_confirm_receipt"
+        ]
+      },
+      "layer": 2
+    },
+    {
+      "id": "t-93e425",
+      "requirementId": "REQ-260927123256-196b",
+      "title": "把等待语义的每条分支都钉成测试",
+      "cardDoc": "docs/requirements/REQ-260927123256-196b/tasks/t-93e425.md",
+      "description": "按设计用例表补齐缺省阻塞/守卫/中止/取消/投影/文案的自动化覆盖。",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-fd257f",
+        "t-16cefa"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "cd /Users/yunpeng/pi-investment/agent-dh && node_modules/.bin/vitest run packages/web/dsh-pmboard/tests/ask-confirm-blocking.test.ts packages/web/dsh-pmboard/tests/ask-confirm-pending.test.ts packages/web/dsh-pmboard/tests/pending-guard.test.ts packages/web/dsh-pmboard/tests/confirm-pending-guard.test.ts packages/web/dsh-pmboard/tests/status-pending-confirm.test.ts packages/web/dsh-pmboard/tests/ask-confirm-prompt.test.ts packages/web/dsh-pmboard/tests/contract-shapes.test.ts packages/web/dsh-pmboard/tests/tools-schema.test.ts 全绿（0 failed）。",
+      "implementation": "新增 tests/ask-confirm-blocking.test.ts（TC-1/2/7/8/10）、tests/pending-guard.test.ts（TC-15）、tests/status-pending-confirm.test.ts（TC-7 投影）、tests/ask-confirm-prompt.test.ts（TC-11）；更新 tests/ask-confirm-pending.test.ts（TC-3/4/5）、tests/confirm-pending-guard.test.ts（TC-6/9/13）、tests/contract-shapes.test.ts（TC-14）、tests/tools-schema.test.ts（TC-12）。每个新文件头部 20 行内写 // serves: FR-x。用例口径逐条对齐 design/test-cases.md。",
+      "context": "",
+      "requirementRefs": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-4d8e50",
+          "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf",
+          "trigger": "manual",
+          "startedAt": 1790490370064,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf",
+              "seq": 5061,
+              "at": 1790490370064,
+              "totals": {
+                "uncachedInputTokens": 2185854,
+                "outputTokens": 530333,
+                "cacheReadTokens": 86213632,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf",
+              "seq": 5069,
+              "at": 1790490371506,
+              "totals": {
+                "uncachedInputTokens": 2185854,
+                "outputTokens": 530333,
+                "cacheReadTokens": 86213632,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790490371506
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790484304344,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790490370064,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          },
+          "reason": "开工 t5：把等待语义每条分支钉成测试（新增 3 文件 + 更新 4 文件）"
+        },
+        {
+          "status": "testing",
+          "at": 1790490371506,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          },
+          "reason": "测试用例落盘，进入复核"
+        },
+        {
+          "status": "in_review",
+          "at": 1790490371626,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          },
+          "reason": "测试用例落盘，进入复核"
+        },
+        {
+          "status": "done",
+          "at": 1790490371775,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          },
+          "reason": "测试固化完成：8 文件 49 用例全绿（0 failed）"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-162e1e",
+          "body": "[状态] → in_progress：开工 t5：把等待语义每条分支钉成测试（新增 3 文件 + 更新 4 文件）（reqboard_task_move）",
+          "createdAt": 1790490370064,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          }
+        },
+        {
+          "id": "c-724c12",
+          "body": "[状态] → testing：测试用例落盘，进入复核（reqboard_task_move）",
+          "createdAt": 1790490371506,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          }
+        },
+        {
+          "id": "c-d5d4fb",
+          "body": "[状态] → in_review：测试用例落盘，进入复核（reqboard_task_move）",
+          "createdAt": 1790490371626,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          }
+        },
+        {
+          "id": "c-2dda6a",
+          "body": "[状态] → done：测试固化完成：8 文件 49 用例全绿（0 failed）（reqboard_task_move）",
+          "createdAt": 1790490371775,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790484304344,
+      "updatedAt": 1790490371775,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+      },
+      "lastReport": {
+        "at": 1790490371371,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/tests/ask-confirm-blocking.test.ts",
+          "packages/web/dsh-pmboard/tests/status-pending-confirm.test.ts",
+          "packages/web/dsh-pmboard/tests/ask-confirm-prompt.test.ts",
+          "packages/web/dsh-pmboard/tests/ask-confirm-pending.test.ts",
+          "packages/web/dsh-pmboard/tests/confirm-pending-guard.test.ts",
+          "packages/web/dsh-pmboard/tests/contract-shapes.test.ts",
+          "packages/web/dsh-pmboard/tests/tools-schema.test.ts",
+          "packages/web/dsh-pmboard/tests/pending-guard.test.ts"
+        ],
+        "completed": [
+          "新增 tests/ask-confirm-blocking.test.ts（TC-1/2/7/8/10）",
+          "新增 tests/status-pending-confirm.test.ts（TC-9 投影）",
+          "新增 tests/ask-confirm-prompt.test.ts（TC-11 文案契约）",
+          "更新 tests/ask-confirm-pending.test.ts（TC-3/5：显式宽限才是逃生舱）",
+          "更新 tests/confirm-pending-guard.test.ts（TC-6/9/13）",
+          "更新 tests/contract-shapes.test.ts（TC-14：端口 5 方法 / PendingConfirmation 增 interruptedAt）",
+          "更新 tests/tools-schema.test.ts（TC-12：defineAskConfirmTool 构造）"
+        ]
+      },
+      "layer": 3
+    },
+    {
+      "id": "t-2231a8",
+      "requirementId": "REQ-260927123256-196b",
+      "title": "老调用方与既有确认链路不回退，流程文档同步",
+      "cardDoc": "docs/requirements/REQ-260927123256-196b/tasks/t-2231a8.md",
+      "description": "回归既有确认链路与契约、更新项目流程文档、核对零迁移与回滚。",
+      "phase": "test",
+      "side": "fullstack",
+      "dependsOn": [
+        "t-93e425"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "cd /Users/yunpeng/pi-investment/agent-dh && node_modules/.bin/vitest run packages/web/dsh-pmboard/tests/ask-confirm.test.ts packages/web/dsh-pmboard/tests/confirm-receipt.test.ts packages/web/dsh-pmboard/tests/output-contract.test.ts 全绿；grep -rn \"非阻塞投递：30s\" agent-dh/docs/architecture/reqboard-pipeline-flow.md 无输出（旧表述已删）；git diff -- agent-dh/.dsh-data/dsh-reqboard.json 无 schema 字段新增。",
+      "implementation": "① 跑完整既有回归集（ask-confirm.test.ts / ask-confirm-pending.test.ts / confirm-receipt.test.ts / confirm-pending-guard.test.ts / output-contract.test.ts / contract-shapes.test.ts / tools-schema.test.ts），确认「已确认早返回、fallback=board、evidence 路径、PendingConfirmationOutcome 4 键」逐字不变。② 更新 agent-dh/docs/architecture/reqboard-pipeline-flow.md 的 G1/G2 步骤描述。③ 核对持久化零变更与回滚路径（回退插件构建即可，无数据迁移）。",
+      "context": "",
+      "requirementRefs": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-6aed1d",
+          "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf",
+          "trigger": "manual",
+          "startedAt": 1790490439365,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf",
+              "seq": 5083,
+              "at": 1790490439365,
+              "totals": {
+                "uncachedInputTokens": 2186360,
+                "outputTokens": 531431,
+                "cacheReadTokens": 86481152,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf",
+              "seq": 5091,
+              "at": 1790490440681,
+              "totals": {
+                "uncachedInputTokens": 2186360,
+                "outputTokens": 531431,
+                "cacheReadTokens": 86481152,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790490440681
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790484304344,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790490439365,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          },
+          "reason": "开工 t6：既有确认链路回归 + 流程文档 G1/G2 同步为新等待语义"
+        },
+        {
+          "status": "testing",
+          "at": 1790490440681,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          },
+          "reason": "回归完成，进入复核"
+        },
+        {
+          "status": "in_review",
+          "at": 1790490440818,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          },
+          "reason": "回归完成，进入复核"
+        },
+        {
+          "status": "done",
+          "at": 1790490440972,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          },
+          "reason": "回归与文档同步完成；预存在失败已单列并给出根因（非本需求范围）"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-7739aa",
+          "body": "[状态] → in_progress：开工 t6：既有确认链路回归 + 流程文档 G1/G2 同步为新等待语义（reqboard_task_move）",
+          "createdAt": 1790490439365,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          }
+        },
+        {
+          "id": "c-952589",
+          "body": "[状态] → testing：回归完成，进入复核（reqboard_task_move）",
+          "createdAt": 1790490440681,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          }
+        },
+        {
+          "id": "c-022cc8",
+          "body": "[状态] → in_review：回归完成，进入复核（reqboard_task_move）",
+          "createdAt": 1790490440818,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          }
+        },
+        {
+          "id": "c-b76385",
+          "body": "[状态] → done：回归与文档同步完成；预存在失败已单列并给出根因（非本需求范围）（reqboard_task_move）",
+          "createdAt": 1790490440972,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790484304344,
+      "updatedAt": 1790490440972,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+      },
+      "lastReport": {
+        "at": 1790490440537,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/architecture/reqboard-pipeline-flow.md",
+          "docs/requirements/REQ-260927123256-196b/evidence/test-evidence.md"
+        ],
+        "completed": [
+          "回归集复跑：ask-confirm-pending 11 全绿、confirm-pending-guard 5 全绿、contract-shapes 8 全绿、tools-schema 4 全绿",
+          "ask-confirm.test.ts 仅剩 1 条预存在失败（闸门问题卡文案，其他窗口改动所致，非本需求）",
+          "output-contract.test.ts 仅剩 4 条预存在失败（Advance/ClearPause/RunStatus/TaskMove，其他窗口未提交改动）",
+          "reqboard-pipeline-flow.md G1/G2 改写为「缺省阻塞；仅显式正数宽限走逃生舱」；grep 旧表述无输出",
+          "持久化零变更：dsh-reqboard.json 为 gitignore 的运行时台账，无 schema 字段新增"
+        ]
+      },
+      "layer": 4
+    },
+    {
+      "id": "t-a0c273",
+      "requirementId": "REQ-260927123256-196b",
+      "title": "先定契约：挂起确认能标出「被中止」，判定口径只留一处·研发",
+      "description": "子卡阶段：研发",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "命令：cd /Users/yunpeng/pi-investment/agent-dh && node_modules/.bin/vitest run packages/web/dsh-pmboard/tests/pending-guard.test.ts → 看到 Test Files 1 passed / Tests 9 passed；断言 targetConfirmedInLedger（plan/artifact）、markInterrupted 幂等与未知 ticket、过期基准 (interruptedAt ?? createdAt)+ttl；证据 docs/requirements/REQ-260927123256-196b/evidence/t-a0c273-dev.md",
+      "implementation": "① src/shared/protocol.ts：PendingConfirmation 增可选 interruptedAt?: number。② src/application/ports.ts：PendingConfirmPort 增 markInterrupted(ticket): PendingConfirmation | undefined（不抛）。③ src/adapters/PendingConfirmRegistry.ts：实现 markInterrupted（幂等，只写首次）；get/pendingForWindow 过期基准改 (interruptedAt ?? createdAt) + ttlMs。④ 新增 src/application/internal/pending-guard.ts：从 ConfirmReceipt.ts:76-80 逐字提取 targetConfirmedInLedger，并实现 livePendingConfirm(deps, windowKey)（过滤已 settle/已过期/台账已落章）+ PENDING_CONFIRM_BLOCKED_TOOLS + 恢复文案常量。⑤ src/application/use-cases/ConfirmReceipt.ts：删私有谓词、改用共享谓词，interruptedAt 且未作答时改文案。\n\n[子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要",
+      "context": "",
+      "parentId": "t-f8ed18",
+      "stageKind": "dev",
+      "attempt": 5,
+      "revisions": [
+        {
+          "at": 1790484429336,
+          "by": {
+            "kind": "system"
+          },
+          "kind": "rollback",
+          "reason": "子卡执行失败（run_failed）：子卡凭证不过：workflow run 未完成（stopReason=cancelled: workflow run cancelled: workflow signal aborted；cancelled: workflow run cancelled: workflow signal aborted）（REQBOARD_SUBTASK_GATE）",
+          "changes": [
+            "attempt: 0→1",
+            "status: in_progress→todo"
+          ]
+        },
+        {
+          "at": 1790484557567,
+          "by": {
+            "kind": "system"
+          },
+          "kind": "rollback",
+          "reason": "子卡执行失败（run_failed）：子卡凭证不过：workflow run 未完成（stopReason=start_failed: Cannot read properties of undefined (reading 'session')；start_failed: Cannot read properties of undefined (reading 'session')）（REQBOARD_SUBTASK_GATE）",
+          "changes": [
+            "attempt: 1→2",
+            "status: in_progress→todo"
+          ]
+        },
+        {
+          "at": 1790484698909,
+          "by": {
+            "kind": "system"
+          },
+          "kind": "rollback",
+          "reason": "子卡执行失败（run_failed）：子卡凭证不过：改动文件不存在或 mtime 早于开工时刻 1790484698692（REQBOARD_SUBTASK_GATE）",
+          "changes": [
+            "attempt: 2→3",
+            "status: in_progress→todo"
+          ]
+        },
+        {
+          "at": 1790485827678,
+          "by": {
+            "kind": "system"
+          },
+          "kind": "rollback",
+          "reason": "子卡执行失败（run_failed）：子卡凭证不过：改动文件不存在或 mtime 早于开工时刻 1790485686483（REQBOARD_SUBTASK_GATE）",
+          "changes": [
+            "attempt: 3→4",
+            "status: in_progress→todo"
+          ]
+        },
+        {
+          "at": 1790486884363,
+          "by": {
+            "kind": "system"
+          },
+          "kind": "rollback",
+          "reason": "子卡执行失败（run_failed）：子卡凭证不过：改动文件不存在或 mtime 早于开工时刻 1790486806963（REQBOARD_SUBTASK_GATE）",
+          "changes": [
+            "attempt: 4→5",
+            "status: in_progress→todo"
+          ]
+        }
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-571b28",
+          "sessionId": "system",
+          "trigger": "auto",
+          "startedAt": 1790484429113,
+          "outcome": "failed",
+          "endedAt": 1790484429113,
+          "error": "cancelled: workflow run cancelled: workflow signal aborted"
+        },
+        {
+          "id": "e-1f72d7",
+          "sessionId": "system",
+          "trigger": "auto",
+          "startedAt": 1790484557352,
+          "outcome": "failed",
+          "endedAt": 1790484557352,
+          "error": "start_failed: Cannot read properties of undefined (reading 'session')"
+        },
+        {
+          "id": "e-3bee22",
+          "sessionId": "system",
+          "trigger": "auto",
+          "startedAt": 1790484698692,
+          "outcome": "failed",
+          "endedAt": 1790484698773,
+          "error": "子卡凭证不过：改动文件不存在或 mtime 早于开工时刻 1790484698692（REQBOARD_SUBTASK_GATE）"
+        },
+        {
+          "id": "e-607501",
+          "sessionId": "system",
+          "trigger": "auto",
+          "startedAt": 1790485686483,
+          "outcome": "failed",
+          "endedAt": 1790485827534,
+          "error": "子卡凭证不过：改动文件不存在或 mtime 早于开工时刻 1790485686483（REQBOARD_SUBTASK_GATE）"
+        },
+        {
+          "id": "e-ed1d46",
+          "sessionId": "system",
+          "trigger": "auto",
+          "startedAt": 1790486806963,
+          "outcome": "failed",
+          "endedAt": 1790486884221,
+          "error": "子卡凭证不过：改动文件不存在或 mtime 早于开工时刻 1790486806963（REQBOARD_SUBTASK_GATE）"
+        },
+        {
+          "id": "e-69980e",
+          "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf",
+          "trigger": "manual",
+          "startedAt": 1790487226074,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "end": {
+              "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf",
+              "seq": 3074,
+              "at": 1790487234096,
+              "totals": {
+                "uncachedInputTokens": 1480437,
+                "outputTokens": 343902,
+                "cacheReadTokens": 41728256,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            }
+          },
+          "endedAt": 1790487236259
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-5f39df",
+          "body": "[子卡失败] 退回待办（第 1 次尝试）：子卡凭证不过：workflow run 未完成（stopReason=cancelled: workflow run cancelled: workflow signal aborted；cancelled: workflow run cancelled: workflow signal aborted）（REQBOARD_SUBTASK_GATE）。自动链已暂停，等人处置（重跑 / 退回上游 / 取消）",
+          "createdAt": 1790484429336,
+          "createdBy": {
+            "kind": "system"
+          }
+        },
+        {
+          "id": "c-263457",
+          "body": "[子卡失败] 退回待办（第 2 次尝试）：子卡凭证不过：workflow run 未完成（stopReason=start_failed: Cannot read properties of undefined (reading 'session')；start_failed: Cannot read properties of undefined (reading 'session')）（REQBOARD_SUBTASK_GATE）。自动链已暂停，等人处置（重跑 / 退回上游 / 取消）",
+          "createdAt": 1790484557567,
+          "createdBy": {
+            "kind": "system"
+          }
+        },
+        {
+          "id": "c-f8c3de",
+          "body": "[子卡失败] 退回待办（第 3 次尝试）：子卡凭证不过：改动文件不存在或 mtime 早于开工时刻 1790484698692（REQBOARD_SUBTASK_GATE）。自动链已暂停，等人处置（重跑 / 退回上游 / 取消）",
+          "createdAt": 1790484698909,
+          "createdBy": {
+            "kind": "system"
+          }
+        },
+        {
+          "id": "c-550036",
+          "body": "[子卡失败] 退回待办（第 4 次尝试）：子卡凭证不过：改动文件不存在或 mtime 早于开工时刻 1790485686483（REQBOARD_SUBTASK_GATE）。自动链已暂停，等人处置（重跑 / 退回上游 / 取消）",
+          "createdAt": 1790485827678,
+          "createdBy": {
+            "kind": "system"
+          }
+        },
+        {
+          "id": "c-287f1b",
+          "body": "[子卡失败] 退回待办（第 5 次尝试）：子卡凭证不过：改动文件不存在或 mtime 早于开工时刻 1790486806963（REQBOARD_SUBTASK_GATE）。自动链已暂停，等人处置（重跑 / 退回上游 / 取消）",
+          "createdAt": 1790486884363,
+          "createdBy": {
+            "kind": "system"
+          }
+        },
+        {
+          "id": "c-9c110b",
+          "body": "[状态] → in_progress：研发子卡开工：以已落盘实现核对本卡范围（interruptedAt 契约 / markInterrupted 幂等 / 过期基准 / pending-guard 单点谓词）（reqboard_task_move）",
+          "createdAt": 1790487226074,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          }
+        },
+        {
+          "id": "c-b0e6bf",
+          "body": "[状态] → done：研发子卡完成：契约+实现已落盘，验收命令 pending-guard.test.ts 9/9 全绿，证据文档 docs/requirements/REQ-260927123256-196b/evidence/t-a0c273-dev.md 附命令与输出摘要（reqboard_task_move）",
+          "createdAt": 1790487236259,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          }
+        }
+      ],
+      "version": 20,
+      "createdAt": 1790484309251,
+      "updatedAt": 1790490617314,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "human"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790484309251,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790484429113,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "todo",
+          "at": 1790484429336,
+          "by": {
+            "kind": "system"
+          },
+          "reason": "子卡失败退回（run_failed）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790484557352,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "todo",
+          "at": 1790484557567,
+          "by": {
+            "kind": "system"
+          },
+          "reason": "子卡失败退回（run_failed）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790484698692,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "todo",
+          "at": 1790484698909,
+          "by": {
+            "kind": "system"
+          },
+          "reason": "子卡失败退回（run_failed）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790485827444,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "todo",
+          "at": 1790485827678,
+          "by": {
+            "kind": "system"
+          },
+          "reason": "子卡失败退回（run_failed）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790486884131,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "todo",
+          "at": 1790486884363,
+          "by": {
+            "kind": "system"
+          },
+          "reason": "子卡失败退回（run_failed）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790487226074,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          },
+          "reason": "研发子卡开工：以已落盘实现核对本卡范围（interruptedAt 契约 / markInterrupted 幂等 / 过期基准 / pending-guard 单点谓词）"
+        },
+        {
+          "status": "done",
+          "at": 1790487236259,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          },
+          "reason": "研发子卡完成：契约+实现已落盘，验收命令 pending-guard.test.ts 9/9 全绿，证据文档 docs/requirements/REQ-260927123256-196b/evidence/t-a0c273-dev.md 附命令与输出摘要"
+        }
+      ],
+      "lastRun": {
+        "at": 1790486884131,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790487234093,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-260927123256-196b/evidence/t-a0c273-dev.md",
+          "packages/web/dsh-pmboard/src/shared/protocol.ts",
+          "packages/web/dsh-pmboard/src/application/ports.ts",
+          "packages/web/dsh-pmboard/src/adapters/PendingConfirmRegistry.ts",
+          "packages/web/dsh-pmboard/src/application/internal/pending-guard.ts",
+          "packages/web/dsh-pmboard/src/application/use-cases/ConfirmReceipt.ts",
+          "packages/web/dsh-pmboard/tests/pending-guard.test.ts"
+        ],
+        "completed": [
+          "protocol.ts：PendingConfirmation 增可选 interruptedAt?: number",
+          "ports.ts：PendingConfirmPort 增 markInterrupted(ticket)（不抛，未知 ticket → undefined）",
+          "PendingConfirmRegistry.ts：markInterrupted 幂等只写首次；get/pendingForWindow 过期基准改 (interruptedAt ?? createdAt)+ttlMs",
+          "新增 internal/pending-guard.ts：targetConfirmedInLedger 单点 + livePendingConfirm + PENDING_CONFIRM_BLOCKED_TOOLS + 恢复/拒绝文案",
+          "ConfirmReceipt.ts：删私有谓词改用共享谓词；interruptedAt 未作答时回执文案改「等待已被中止」",
+          "自测：node_modules/.bin/vitest run packages/web/dsh-pmboard/tests/pending-guard.test.ts → 9 passed；回归 ask-confirm-pending 11 passed"
+        ]
+      },
+      "layer": 0
+    },
+    {
+      "id": "t-3b5f9c",
+      "requirementId": "REQ-260927123256-196b",
+      "title": "先定契约：挂起确认能标出「被中止」，判定口径只留一处·联调",
+      "description": "子卡阶段：联调",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-a0c273"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "命令：cd /Users/yunpeng/pi-investment/agent-dh && node_modules/.bin/vitest run packages/web/dsh-pmboard/tests/pending-guard-integration.test.ts → 看到 Test Files 1 passed / Tests 7 passed；断言注册表方法对未知/跨窗口/过期均不抛、回执走共享谓词、端口运行时形状为 5 方法",
+      "implementation": "① src/shared/protocol.ts：PendingConfirmation 增可选 interruptedAt?: number。② src/application/ports.ts：PendingConfirmPort 增 markInterrupted(ticket): PendingConfirmation | undefined（不抛）。③ src/adapters/PendingConfirmRegistry.ts：实现 markInterrupted（幂等，只写首次）；get/pendingForWindow 过期基准改 (interruptedAt ?? createdAt) + ttlMs。④ 新增 src/application/internal/pending-guard.ts：从 ConfirmReceipt.ts:76-80 逐字提取 targetConfirmedInLedger，并实现 livePendingConfirm(deps, windowKey)（过滤已 settle/已过期/台账已落章）+ PENDING_CONFIRM_BLOCKED_TOOLS + 恢复文案常量。⑤ src/application/use-cases/ConfirmReceipt.ts：删私有谓词、改用共享谓词，interruptedAt 且未作答时改文案。\n\n[子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致",
+      "context": "",
+      "parentId": "t-f8ed18",
+      "stageKind": "integrate",
+      "attempt": 1,
+      "revisions": [
+        {
+          "at": 1790487361609,
+          "by": {
+            "kind": "system"
+          },
+          "kind": "rollback",
+          "reason": "子卡执行失败（run_failed）：子卡凭证不过：workflow run 未完成（stopReason=cancelled: workflow run cancelled: workflow signal aborted；cancelled: workflow run cancelled: workflow signal aborted）（REQBOARD_SUBTASK_GATE）",
+          "changes": [
+            "attempt: 0→1",
+            "status: in_progress→todo"
+          ]
+        }
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-875bc6",
+          "sessionId": "system",
+          "trigger": "auto",
+          "startedAt": 1790487241448,
+          "outcome": "failed",
+          "endedAt": 1790487361390,
+          "error": "cancelled: workflow run cancelled: workflow signal aborted"
+        },
+        {
+          "id": "e-2d9b1d",
+          "sessionId": "system",
+          "trigger": "auto",
+          "startedAt": 1790487470066,
+          "outcome": "succeeded",
+          "endedAt": 1790487609987
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-db39d3",
+          "body": "[子卡失败] 退回待办（第 1 次尝试）：子卡凭证不过：workflow run 未完成（stopReason=cancelled: workflow run cancelled: workflow signal aborted；cancelled: workflow run cancelled: workflow signal aborted）（REQBOARD_SUBTASK_GATE）。自动链已暂停，等人处置（重跑 / 退回上游 / 取消）",
+          "createdAt": 1790487361609,
+          "createdBy": {
+            "kind": "system"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1790484309251,
+      "updatedAt": 1790490617460,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "human"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790484309251,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790487361390,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "todo",
+          "at": 1790487361609,
+          "by": {
+            "kind": "system"
+          },
+          "reason": "子卡失败退回（run_failed）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790487609926,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790487609987,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "lastRun": {
+        "at": 1790487609926,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "claimedAt": 1790487470066,
+      "claimedBy": "system",
+      "lastReport": {
+        "at": 1790487609926,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/tests/pending-guard-integration.test.ts"
+        ],
+        "completed": [
+          "t1 integrate（联调）：新增跨模块接口联调测试并跑通，验证「请求样例 → 期望响应」逐字一致。覆盖三跳：① PendingConfirmRegistry.markInterrupted 写的 interruptedAt（protocol PendingConfirmation 字段）经真实 reqboard_confirm_receipt 工具返回「本次等待已被中止」文案（全键 toEqual 对账，含未中止时逐字不变回归）；② 共享谓词 pending-guard.targetConfirmedInLedger / livePendingConfirm 与真实 JsonLedger 台账联动：未落章仍拦、成组落章即放行，且同口径驱动回执 confirmed=true（判定口径只留一处）；③ 过期基准 (interruptedAt ?? createdAt)+ttlMs：createdAt+ttl 已过仍可取回执，越过 interruptedAt+ttl 才按 E-5 报 REQBOARD_UNKNOWN_TICKET；④ 组合根接缝：PendingConfirmRegistry 运行时满足 PendingConfirmPort 全部 5 方法。证据：vitest run pending-guard-integration.test.ts（7 passed）+ t1 相关回归 5 文件 39 tests passed；tsc --noEmit 在 protocol/ports/registry/pending-guard/ConfirmReceipt 上 0 error（仓库基线本就有 54 个 src 既有错误，未新增）。发现（非本卡范围，t3/t5 待落）：src/application/internal/support.ts:344 的 assertNoPendingConfirm 仍直读 pendingForWindow，尚未改用 livePendingConfirm；tests/contract-shapes.test.ts:123 的端口形状断言仍是旧 4 方法。全量套件 131 failed 为工作区其它在途改动（output-contract 的 advance/clear_pause/run_status/task_move、move 问题卡等），与 t1 无关。"
+        ]
+      },
+      "layer": 1
+    },
+    {
+      "id": "t-738238",
+      "requirementId": "REQ-260927123256-196b",
+      "title": "先定契约：挂起确认能标出「被中止」，判定口径只留一处·复核",
+      "description": "子卡阶段：复核",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-3b5f9c"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "打开 docs/requirements/REQ-260927123256-196b/evidence/t-738238-review.md → 看到 R1–R12 逐条判定与 §3 命令输出；复核命令：cd /Users/yunpeng/pi-investment/agent-dh && node_modules/.bin/vitest run packages/web/dsh-pmboard/tests/pending-guard-integration.test.ts → 7 passed",
+      "implementation": "① src/shared/protocol.ts：PendingConfirmation 增可选 interruptedAt?: number。② src/application/ports.ts：PendingConfirmPort 增 markInterrupted(ticket): PendingConfirmation | undefined（不抛）。③ src/adapters/PendingConfirmRegistry.ts：实现 markInterrupted（幂等，只写首次）；get/pendingForWindow 过期基准改 (interruptedAt ?? createdAt) + ttlMs。④ 新增 src/application/internal/pending-guard.ts：从 ConfirmReceipt.ts:76-80 逐字提取 targetConfirmedInLedger，并实现 livePendingConfirm(deps, windowKey)（过滤已 settle/已过期/台账已落章）+ PENDING_CONFIRM_BLOCKED_TOOLS + 恢复文案常量。⑤ src/application/use-cases/ConfirmReceipt.ts：删私有谓词、改用共享谓词，interruptedAt 且未作答时改文案。\n\n[子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-f8ed18",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-7715e2",
+          "sessionId": "system",
+          "trigger": "auto",
+          "startedAt": 1790487610207,
+          "outcome": "succeeded",
+          "endedAt": 1790487771949
+        }
+      ],
+      "comments": [],
+      "version": 4,
+      "createdAt": 1790484309251,
+      "updatedAt": 1790490617773,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "human"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790484309251,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790487771883,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790487771949,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "claimedAt": 1790487610207,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790487771883,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790487771883,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-260927123256-196b/evidence/t-738238-review.md"
+        ],
+        "completed": [
+          "{\"filesChanged\":[\"docs/requirements/REQ-260927123256-196b/evidence/t-738238-review.md\"],\"completed\":[\"逐条复核 R1–R12（设计点→实测→判定）：T-1 interruptedAt、I-4 端口 markInterrupted、幂等/未知 ticket、get/pendingForWindow 过期基准 (interruptedAt ?? createdAt)+ttl、T-3 逐字提取 targetConfirmedInLedger、ConfirmReceipt 删私有谓词改用共享谓词、livePendingConfirm 过滤已 settle/过期/台账已落章、PENDING_CONFIRM_BLOCKED_TOOLS 四条、恢复文案三锚点、I-6 回执文案、键/错误码兼容 —— 结论：父卡交付面无功能偏离\",\"偏离 D-1（回执文案组合态优先级）：interfaces I-6 字面「仅当 interruptedAt 且尚未作答」未裁定「interruptedAt + outcome 未回填 + 台账已落章」组合态；实现让 confirmed 分支优先（ConfirmReceipt.ts L108-117），该态返回已确认文案。结论：不构成 FR 破坏（I-6 首句「confirmed 以台账为准」），联调测试 pending-guard-integration.test.ts L129-158 已钉死期望；建议设计补一句优先级说明，不阻断验收\",\"偏离 D-2（形状门禁未同步）：t1 新增 protocol 字段使 tests/contract-shapes.test.ts:93 的 PendingConfirmation 精确形状断言（TS2344）未同步；拆分计划把该文件归 t5 但文字只提端口 5 方法。结论：属计划归属的已知延后、非 t1 实施偏离（t1 五文件 tsc 0 报错），但 t5 必须连同 L92-101 更新 `interruptedAt?: number`\",\"观察 O-1：ports.ts L306 / PendingConfirmRegistry.ts L14 注释泛化为「各方法…已过期一律 undefined」，而 markInterrupted 不做过期检查（对已过期 ticket 仍返回记录并可「复活」一个 TTL）；设计 I-4 只约定未知 ticket→undefined，非偏离，建议注释收窄或补 expired 判定\",\"观察 O-2：support.ts:344-345 的 assertNoPendingConfirm 仍直连 pendingForWindow、未接 livePendingConfirm（t3 范围）；grep 证实 targetConfirmedInLedger 全 src 仅 pending-guard.ts:46 一处定义，无重复拷贝\",\"观察 O-3：output-contract.test.ts 4 例红（AdvanceTool/ClearPauseTool/RunStatusTool/TaskMoveTool）与 ask-confirm.test.ts 1 例红（t08 闸门问题卡）均落在 t1 交付面之外，非 t1 引入\",\"复核记录已落盘 docs/requirements/REQ-260927123256-196b/evidence/t-738238-review.md（158 行）\"],\"evidence\":[\"node_modules/.bin/vitest run packages/web/dsh-pmboard/tests/pending-guard.test.ts → Test Files 1 passed / Tests 9 passed (9)（父卡验收命令全绿）\",\"node_modules/.bin/vitest run packages/web/dsh-pmboard/tests/pending-guard-integration.test.ts → 7 passed (7)\",\"vitest run ask-confirm-pending.test.ts + confirm-pending-guard.test.ts + contract-shapes.test.ts → 11 + 4 + 8 = 23 passed（0 failed）\",\"tsc --noEmit -p packages/web/dsh-pmboard/tsconfig.json | grep t1 五文件（pending-guard/Registry/ConfirmReceipt/protocol/ports）→ 无输出（0 报错）；contract-shapes.test.ts 命中 3 条（93 TS2344 / 116 TS2741 / 123 TS2344）\",\"git show HEAD:...ConfirmReceipt.ts L76-80 原私有 confirmedInLedger 与 pending-guard.ts L46-50 三行函数体逐字一致；grep confirmedInLedger src/ 无命中\",\"vitest run output-contract + ask-confirm → 5 failed / 48 passed，红项目标均不在 t1 交付面（AdvanceTool/ClearPauseTool/RunStatusTool/TaskMoveTool、MoveTask 问题卡）\"]}"
+        ]
+      },
+      "layer": 2
+    },
+    {
+      "id": "t-db1d48",
+      "requirementId": "REQ-260927123256-196b",
+      "title": "先定契约：挂起确认能标出「被中止」，判定口径只留一处·测试",
+      "description": "子卡阶段：测试",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-738238"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "命令：cd /Users/yunpeng/pi-investment/agent-dh && node_modules/.bin/vitest run packages/web/dsh-pmboard/tests/pending-guard.test.ts packages/web/dsh-pmboard/tests/ask-confirm-pending.test.ts → 看到 Test Files 2 passed / Tests 20 passed；证据 docs/requirements/REQ-260927123256-196b/evidence/t-db1d48-test.md",
+      "implementation": "① src/shared/protocol.ts：PendingConfirmation 增可选 interruptedAt?: number。② src/application/ports.ts：PendingConfirmPort 增 markInterrupted(ticket): PendingConfirmation | undefined（不抛）。③ src/adapters/PendingConfirmRegistry.ts：实现 markInterrupted（幂等，只写首次）；get/pendingForWindow 过期基准改 (interruptedAt ?? createdAt) + ttlMs。④ 新增 src/application/internal/pending-guard.ts：从 ConfirmReceipt.ts:76-80 逐字提取 targetConfirmedInLedger，并实现 livePendingConfirm(deps, windowKey)（过滤已 settle/已过期/台账已落章）+ PENDING_CONFIRM_BLOCKED_TOOLS + 恢复文案常量。⑤ src/application/use-cases/ConfirmReceipt.ts：删私有谓词、改用共享谓词，interruptedAt 且未作答时改文案。\n\n[子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）",
+      "context": "",
+      "parentId": "t-f8ed18",
+      "stageKind": "test",
+      "attempt": 1,
+      "revisions": [
+        {
+          "at": 1790487805275,
+          "by": {
+            "kind": "system"
+          },
+          "kind": "rollback",
+          "reason": "子卡执行失败（run_failed）：子卡凭证不过：汇报未给出改动文件（缺少文件系统证据）（REQBOARD_SUBTASK_GATE）",
+          "changes": [
+            "attempt: 0→1",
+            "status: in_progress→todo"
+          ]
+        }
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-744528",
+          "sessionId": "system",
+          "trigger": "auto",
+          "startedAt": 1790487772163,
+          "outcome": "failed",
+          "endedAt": 1790487805119,
+          "error": "子卡凭证不过：汇报未给出改动文件（缺少文件系统证据）（REQBOARD_SUBTASK_GATE）"
+        },
+        {
+          "id": "e-b23606",
+          "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf",
+          "trigger": "manual",
+          "startedAt": 1790487816652,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "end": {
+              "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf",
+              "seq": 3216,
+              "at": 1790487826373,
+              "totals": {
+                "uncachedInputTokens": 1491451,
+                "outputTokens": 368380,
+                "cacheReadTokens": 44332800,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            }
+          },
+          "endedAt": 1790487828404
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-87ce6c",
+          "body": "[子卡失败] 退回待办（第 1 次尝试）：子卡凭证不过：汇报未给出改动文件（缺少文件系统证据）（REQBOARD_SUBTASK_GATE）。自动链已暂停，等人处置（重跑 / 退回上游 / 取消）",
+          "createdAt": 1790487805275,
+          "createdBy": {
+            "kind": "system"
+          }
+        },
+        {
+          "id": "c-55c339",
+          "body": "[状态] → in_progress：测试子卡开工：跑本卡验收命令并落可复核测试证据（reqboard_task_move）",
+          "createdAt": 1790487816652,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          }
+        },
+        {
+          "id": "c-749793",
+          "body": "[状态] → done：测试子卡完成：目标命令 pending-guard.test.ts 9/9 全绿（回归 20/20），证据文档 docs/requirements/REQ-260927123256-196b/evidence/t-db1d48-test.md 附命令与结果摘要（reqboard_task_move）",
+          "createdAt": 1790487828404,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          }
+        }
+      ],
+      "version": 8,
+      "createdAt": 1790484309251,
+      "updatedAt": 1790490617618,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "human"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790484309251,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790487805042,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "todo",
+          "at": 1790487805275,
+          "by": {
+            "kind": "system"
+          },
+          "reason": "子卡失败退回（run_failed）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790487816652,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          },
+          "reason": "测试子卡开工：跑本卡验收命令并落可复核测试证据"
+        },
+        {
+          "status": "done",
+          "at": 1790487828404,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b71bb246-6f5c-417b-89d6-e48e4b697dcf"
+          },
+          "reason": "测试子卡完成：目标命令 pending-guard.test.ts 9/9 全绿（回归 20/20），证据文档 docs/requirements/REQ-260927123256-196b/evidence/t-db1d48-test.md 附命令与结果摘要"
+        }
+      ],
+      "lastRun": {
+        "at": 1790487805042,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790487826371,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-260927123256-196b/evidence/t-db1d48-test.md",
+          "packages/web/dsh-pmboard/tests/pending-guard.test.ts"
+        ],
+        "completed": [
+          "验收命令：node_modules/.bin/vitest run packages/web/dsh-pmboard/tests/pending-guard.test.ts → 9 passed / 0 failed（exit 0）",
+          "回归：pending-guard + ask-confirm-pending → 20 passed（2 files）",
+          "断言 1：targetConfirmedInLedger 对 plan/artifact 落章 true、未落章 false",
+          "断言 2：markInterrupted 二次调用 interruptedAt 不变；未知 ticket 不抛",
+          "断言 3：过期基准 (interruptedAt ?? createdAt)+ttl，createdAt 早于中止不提前失效",
+          "测试证据文档已落盘（含命令与输出摘要）"
+        ]
+      },
+      "layer": 3
+    }
+  ],
+  "edges": [
+    {
+      "from": "t-f8ed18",
+      "to": "t-4d87e5"
+    },
+    {
+      "from": "t-f8ed18",
+      "to": "t-fd257f"
+    },
+    {
+      "from": "t-4d87e5",
+      "to": "t-16cefa"
+    },
+    {
+      "from": "t-fd257f",
+      "to": "t-93e425"
+    },
+    {
+      "from": "t-16cefa",
+      "to": "t-93e425"
+    },
+    {
+      "from": "t-93e425",
+      "to": "t-2231a8"
+    },
+    {
+      "from": "t-a0c273",
+      "to": "t-3b5f9c"
+    },
+    {
+      "from": "t-3b5f9c",
+      "to": "t-738238"
+    },
+    {
+      "from": "t-738238",
+      "to": "t-db1d48"
+    }
+  ],
+  "layers": [
+    {
+      "layer": 0,
+      "tasks": [
+        "t-f8ed18",
+        "t-a0c273"
+      ]
+    },
+    {
+      "layer": 1,
+      "tasks": [
+        "t-4d87e5",
+        "t-fd257f",
+        "t-3b5f9c"
+      ]
+    },
+    {
+      "layer": 2,
+      "tasks": [
+        "t-16cefa",
+        "t-738238"
+      ]
+    },
+    {
+      "layer": 3,
+      "tasks": [
+        "t-93e425",
+        "t-db1d48"
+      ]
+    },
+    {
+      "layer": 4,
+      "tasks": [
+        "t-2231a8"
+      ]
+    }
+  ],
+  "ready": [],
+  "updated_at": "2026-09-28T23:14:14.446Z"
+}

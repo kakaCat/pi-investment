@@ -1,0 +1,92 @@
+metadata:
+  stage: implementing
+  requirement_id: REQ-260928185112-e20d
+  generated_at: 2026-09-28T11:10:20.068Z
+  version: 6
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 15
+  last_updated: 2026-09-28T11:21:49.288Z
+inputs:
+  tasks:
+    - id: t-5dc812
+      title: 新增页面注册 helper registerPagePanel
+      status: done
+    - id: t-48d9a4
+      title: 命令式看板改由宿主挂载（attachBoard）
+      status: in_progress
+    - id: t-75e700
+      title: 注册两端并接线（index.ts）
+      status: todo
+    - id: t-bb1e62
+      title: 跳转语义归位（selectPanel(null)）
+      status: todo
+    - id: t-d52858
+      title: 拆除旧机制（属性显隐/互斥/壳）
+      status: todo
+    - id: t-351435
+      title: 行为等价验证（含 E2E）
+      status: todo
+    - id: t-c7f36f
+      title: 迁移清单收口（其余 4 页）
+      status: todo
+    - id: t-834096
+      title: 新增页面注册 helper registerPagePanel·研发
+      status: done
+    - id: t-b18667
+      title: 新增页面注册 helper registerPagePanel·联调
+      status: done
+    - id: t-98ea58
+      title: 新增页面注册 helper registerPagePanel·复核
+      status: done
+    - id: t-972c31
+      title: 新增页面注册 helper registerPagePanel·测试
+      status: done
+    - id: t-1c086a
+      title: 命令式看板改由宿主挂载（attachBoard）·研发
+      status: todo
+    - id: t-711a75
+      title: 命令式看板改由宿主挂载（attachBoard）·联调
+      status: todo
+    - id: t-32c30f
+      title: 命令式看板改由宿主挂载（attachBoard）·复核
+      status: todo
+    - id: t-f6b936
+      title: 命令式看板改由宿主挂载（attachBoard）·测试
+      status: todo
+status:
+  tasks_total: 15
+  tasks_done: 5
+  tasks_in_progress: 1
+  tasks_todo: 9
+tasks:
+  - id: t-5dc812
+    status: done
+  - id: t-48d9a4
+    status: in_progress
+  - id: t-75e700
+    status: todo
+  - id: t-bb1e62
+    status: todo
+  - id: t-d52858
+    status: todo
+  - id: t-351435
+    status: todo
+  - id: t-c7f36f
+    status: todo
+  - id: t-834096
+    status: done
+  - id: t-b18667
+    status: done
+  - id: t-98ea58
+    status: done
+  - id: t-972c31
+    status: done
+  - id: t-1c086a
+    status: todo
+  - id: t-711a75
+    status: todo
+  - id: t-32c30f
+    status: todo
+  - id: t-f6b936
+    status: todo

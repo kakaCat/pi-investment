@@ -1,0 +1,417 @@
+metadata:
+  stage: accepting
+  requirement_id: REQ-260928001915-f978
+  generated_at: 2026-09-28T03:51:34.525Z
+  version: 7
+  generated_by: dsh-pmboard
+  last_updated: 2026-09-28T06:59:41.374Z
+inputs:
+  tasks:
+    - id: t-efa03b
+      title: 定义卡片四轴类型系统
+      status: done
+    - id: t-2ad263
+      title: 实现卡片样式渲染器
+      status: done
+    - id: t-4256bf
+      title: 实现 DAG 布局引擎
+      status: done
+    - id: t-e4e9db
+      title: 实现边线渲染器
+      status: done
+    - id: t-1f219b
+      title: 实现关键路径算法
+      status: done
+    - id: t-73c392
+      title: 实现悬停交互处理器
+      status: done
+    - id: t-d379c7
+      title: 实现父卡子卡链进度条
+      status: done
+    - id: t-144707
+      title: 集成测试与文档
+      status: done
+    - id: t-f24eee
+      title: 定义卡片四轴类型系统·研发
+      status: done
+    - id: t-4d6cf2
+      title: 定义卡片四轴类型系统·联调
+      status: done
+    - id: t-730c85
+      title: 定义卡片四轴类型系统·复核
+      status: done
+    - id: t-d65d4c
+      title: 定义卡片四轴类型系统·测试
+      status: done
+    - id: t-5fccbe
+      title: 实现卡片样式渲染器·研发
+      status: done
+    - id: t-92496d
+      title: 实现卡片样式渲染器·联调
+      status: done
+    - id: t-c969a8
+      title: 实现卡片样式渲染器·复核
+      status: done
+    - id: t-cb5648
+      title: 实现卡片样式渲染器·测试
+      status: done
+    - id: t-c11c61
+      title: 实现 DAG 布局引擎·研发
+      status: done
+    - id: t-185222
+      title: 实现 DAG 布局引擎·联调
+      status: done
+    - id: t-a10499
+      title: 实现 DAG 布局引擎·复核
+      status: done
+    - id: t-d41ea0
+      title: 实现 DAG 布局引擎·测试
+      status: done
+    - id: t-660826
+      title: 实现边线渲染器·研发
+      status: done
+    - id: t-ca1655
+      title: 实现边线渲染器·联调
+      status: done
+    - id: t-35222c
+      title: 实现边线渲染器·复核
+      status: done
+    - id: t-c41ace
+      title: 实现边线渲染器·测试
+      status: done
+    - id: t-868884
+      title: 实现关键路径算法·研发
+      status: done
+    - id: t-41d67e
+      title: 实现关键路径算法·联调
+      status: done
+    - id: t-706169
+      title: 实现关键路径算法·复核
+      status: done
+    - id: t-1f0b86
+      title: 实现关键路径算法·测试
+      status: done
+    - id: t-e00c5f
+      title: 实现悬停交互处理器·研发
+      status: done
+    - id: t-65df2c
+      title: 实现悬停交互处理器·联调
+      status: done
+    - id: t-b9308e
+      title: 实现悬停交互处理器·复核
+      status: done
+    - id: t-1b2632
+      title: 实现悬停交互处理器·测试
+      status: done
+    - id: t-8a854a
+      title: 实现父卡子卡链进度条·研发
+      status: done
+    - id: t-d284d3
+      title: 实现父卡子卡链进度条·联调
+      status: done
+    - id: t-f49d5b
+      title: 实现父卡子卡链进度条·复核
+      status: done
+    - id: t-a2599c
+      title: 实现父卡子卡链进度条·测试
+      status: done
+    - id: t-cf42de
+      title: 集成测试与文档·研发
+      status: done
+    - id: t-dbed64
+      title: 集成测试与文档·联调
+      status: done
+    - id: t-975c52
+      title: 集成测试与文档·复核
+      status: done
+    - id: t-66570e
+      title: 集成测试与文档·测试
+      status: done
+outputs:
+  test_cases:
+    - id: TC-1
+      title: 卡片四轴类型系统（demo/card-types.ts）
+      covers:
+        - t-efa03b
+        - t-f24eee
+        - t-4d6cf2
+        - t-730c85
+        - t-d65d4c
+      validates:
+        - FR-1
+        - FR-2
+      source: tests/acceptance-20260928.md
+    - id: TC-2
+      title: 卡片样式渲染器（demo/card-renderer.ts）
+      covers:
+        - t-2ad263
+        - t-5fccbe
+        - t-92496d
+        - t-c969a8
+        - t-cb5648
+      validates:
+        - FR-2
+      source: tests/acceptance-20260928.md
+    - id: TC-3
+      title: DAG 布局引擎（demo/dag-layout.ts）
+      covers:
+        - t-4256bf
+        - t-c11c61
+        - t-185222
+        - t-a10499
+        - t-d41ea0
+      validates:
+        - FR-3
+      source: tests/acceptance-20260928.md
+    - id: TC-4
+      title: 边线渲染器（demo/edge-renderer.ts）
+      covers:
+        - t-e4e9db
+        - t-660826
+        - t-ca1655
+        - t-35222c
+        - t-c41ace
+      validates:
+        - FR-4
+      source: tests/acceptance-20260928.md
+    - id: TC-5
+      title: 关键路径算法（demo/critical-path.ts）
+      covers:
+        - t-1f219b
+        - t-868884
+        - t-41d67e
+        - t-706169
+        - t-1f0b86
+      validates:
+        - FR-6
+      source: tests/acceptance-20260928.md
+    - id: TC-6
+      title: 悬停交互处理器（demo/interaction.ts）
+      covers:
+        - t-73c392
+        - t-e00c5f
+        - t-65df2c
+        - t-b9308e
+        - t-1b2632
+      validates:
+        - FR-5
+      source: tests/acceptance-20260928.md
+    - id: TC-7
+      title: 父卡子卡链进度条（demo/progress-bar.ts）
+      covers:
+        - t-d379c7
+        - t-8a854a
+        - t-d284d3
+        - t-f49d5b
+        - t-a2599c
+      validates:
+        - FR-7
+      source: tests/acceptance-20260928.md
+    - id: TC-8
+      title: 集成测试与文档（demo/integration.ts）
+      covers:
+        - t-144707
+        - t-cf42de
+        - t-dbed64
+        - t-975c52
+        - t-66570e
+      validates:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+      source: tests/acceptance-20260928.md
+    - id: TC-9
+      title: 端到端场景（补 E2E 缺口）
+      covers:
+        - t-efa03b
+        - t-2ad263
+        - t-4256bf
+        - t-e4e9db
+        - t-1f219b
+        - t-73c392
+        - t-d379c7
+        - t-144707
+        - t-f24eee
+        - t-4d6cf2
+        - t-730c85
+        - t-d65d4c
+        - t-5fccbe
+        - t-92496d
+        - t-c969a8
+        - t-cb5648
+        - t-c11c61
+        - t-185222
+        - t-a10499
+        - t-d41ea0
+        - t-660826
+        - t-ca1655
+        - t-35222c
+        - t-c41ace
+        - t-868884
+        - t-41d67e
+        - t-706169
+        - t-1f0b86
+        - t-e00c5f
+        - t-65df2c
+        - t-b9308e
+        - t-1b2632
+        - t-8a854a
+        - t-d284d3
+        - t-f49d5b
+        - t-a2599c
+        - t-cf42de
+        - t-dbed64
+        - t-975c52
+        - t-66570e
+      validates:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+      source: tests/acceptance-20260928.md
+traceability:
+  task_to_tests:
+    t-efa03b:
+      - TC-1
+      - TC-9
+    t-2ad263:
+      - TC-2
+      - TC-9
+    t-4256bf:
+      - TC-3
+      - TC-9
+    t-e4e9db:
+      - TC-4
+      - TC-9
+    t-1f219b:
+      - TC-5
+      - TC-9
+    t-73c392:
+      - TC-6
+      - TC-9
+    t-d379c7:
+      - TC-7
+      - TC-9
+    t-144707:
+      - TC-8
+      - TC-9
+    t-f24eee:
+      - TC-1
+      - TC-9
+    t-4d6cf2:
+      - TC-1
+      - TC-9
+    t-730c85:
+      - TC-1
+      - TC-9
+    t-d65d4c:
+      - TC-1
+      - TC-9
+    t-5fccbe:
+      - TC-2
+      - TC-9
+    t-92496d:
+      - TC-2
+      - TC-9
+    t-c969a8:
+      - TC-2
+      - TC-9
+    t-cb5648:
+      - TC-2
+      - TC-9
+    t-c11c61:
+      - TC-3
+      - TC-9
+    t-185222:
+      - TC-3
+      - TC-9
+    t-a10499:
+      - TC-3
+      - TC-9
+    t-d41ea0:
+      - TC-3
+      - TC-9
+    t-660826:
+      - TC-4
+      - TC-9
+    t-ca1655:
+      - TC-4
+      - TC-9
+    t-35222c:
+      - TC-4
+      - TC-9
+    t-c41ace:
+      - TC-4
+      - TC-9
+    t-868884:
+      - TC-5
+      - TC-9
+    t-41d67e:
+      - TC-5
+      - TC-9
+    t-706169:
+      - TC-5
+      - TC-9
+    t-1f0b86:
+      - TC-5
+      - TC-9
+    t-e00c5f:
+      - TC-6
+      - TC-9
+    t-65df2c:
+      - TC-6
+      - TC-9
+    t-b9308e:
+      - TC-6
+      - TC-9
+    t-1b2632:
+      - TC-6
+      - TC-9
+    t-8a854a:
+      - TC-7
+      - TC-9
+    t-d284d3:
+      - TC-7
+      - TC-9
+    t-f49d5b:
+      - TC-7
+      - TC-9
+    t-a2599c:
+      - TC-7
+      - TC-9
+    t-cf42de:
+      - TC-8
+      - TC-9
+    t-dbed64:
+      - TC-8
+      - TC-9
+    t-975c52:
+      - TC-8
+      - TC-9
+    t-66570e:
+      - TC-8
+      - TC-9
+  fr_to_tests:
+    FR-1: []
+    FR-2: []
+    FR-3: []
+    FR-4: []
+    FR-5: []
+    FR-6: []
+    FR-7: []
+coverage:
+  testing:
+    total: 40
+    covered: 40
+    uncovered: []
+    rate: 100
+    total_tasks: 40
+    tested_tasks: 40
+    untested: []

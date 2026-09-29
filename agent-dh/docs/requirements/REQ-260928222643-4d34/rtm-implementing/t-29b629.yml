@@ -1,0 +1,49 @@
+task:
+  id: t-29b629
+  title: 重建客户端产物并发版，完成 TC-15 端到端人工验收
+  status: todo
+  implements: 全量 npx vitest run + pnpm run typecheck；pnpm build:client 过 WRAP_SENTINEL 哨兵与产物校验；agent-dh/scripts/restart-with-build.sh 发版；在 :13080 做 TC-15 四步人工闭环并留证。
+  serves: []
+  depends_on:
+    - t-2eb71d
+    - t-e481a4
+    - t-9b365a
+    - t-71aeb3
+    - t-316227
+  phase: merge
+  side: fullstack
+  workflow_params:
+    REQ_ID: REQ-260928222643-4d34
+    TASK_ID: t-29b629
+    TASK_TITLE: 重建客户端产物并发版，完成 TC-15 端到端人工验收
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: fullstack
+    PHASE: merge
+  workflow_total: 7
+  workflow_done: 1
+  workflow:
+    - phase: doc
+      status: pending
+    - phase: ui
+      status: pending
+    - phase: analysis
+      status: pending
+    - phase: implement
+      status: pending
+    - phase: test
+      status: done
+      completed_at: 2026-09-28T14:59:54.495Z
+    - phase: review
+      status: pending
+    - phase: commit
+      status: pending
+metadata:
+  stage: implementing
+  requirement_id: REQ-260928222643-4d34
+  generated_at: 2026-09-28T14:59:54.495Z
+  version: 2
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 7
+  last_updated: 2026-09-28T14:59:54.495Z

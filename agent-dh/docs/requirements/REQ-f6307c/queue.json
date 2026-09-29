@@ -1,0 +1,958 @@
+{
+  "version": 1,
+  "requirement_id": "REQ-f6307c",
+  "schemaVersion": 9,
+  "generated_at": "2026-09-27T14:55:11.425Z",
+  "tasks": [
+    {
+      "id": "t-1f45e6",
+      "requirementId": "REQ-f6307c",
+      "title": "在 Hook 注入链路的 5 个关键节点添加诊断日志",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "怎么验（可执行）：\n1. 命令：cd agent-dh/packages/pages/dsh-pmboard && grep -c \"captureDiag\" dist/index.mjs → 输出 ≥10（5 节点 + EARLY 均已接入双写）\n2. 命令：cat agent-dh/.dsh-data/state/reqboard-capture-diag.log | grep -E \"EARLY|NODE-[1-5]\" → 每类标记至少 1 条（EARLY/NODE-1/NODE-2/NODE-4/NODE-5 均有实录）\n3. 界面路径：打开任意 unbound 窗口发消息 → 上述 diag 文件实时新增 NODE-2/3/4/5 行（tail -f 可见）",
+      "implementation": "在 5 个关键节点添加 debug 日志：节点1(src/index.ts Hook订阅检查)、节点2(src/adapters/CaptureHook.ts 事件到达)、节点3(同文件 pendingCapture填充)、节点4(src/gate-wiring.ts systemPrompt组装)、节点5(src/application/internal/capture-section.ts 提示词生成)。日志包含订阅状态/事件到达/判定结果/windowKey提取/文本长度等关键信息",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-736086",
+          "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a",
+          "trigger": "manual",
+          "startedAt": 1789975184522,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a",
+              "seq": 1080,
+              "at": 1789975184532,
+              "totals": {
+                "uncachedInputTokens": 75596,
+                "outputTokens": 203555,
+                "cacheReadTokens": 13693514,
+                "cacheWriteTokens": 684975
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a",
+              "seq": 1502,
+              "at": 1789976092887,
+              "totals": {
+                "uncachedInputTokens": 104926,
+                "outputTokens": 260180,
+                "cacheReadTokens": 18440761,
+                "cacheWriteTokens": 927130
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 29330,
+              "outputTokens": 56625,
+              "cacheReadTokens": 4747247,
+              "cacheWriteTokens": 242155
+            }
+          },
+          "endedAt": 1789976092876
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789974936790,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789975184522,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+          },
+          "reason": "开始在 Hook 注入链路的 5 个关键节点添加诊断日志",
+          "tokenSnapshot": {
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a",
+            "seq": 1080,
+            "at": 1789975184532,
+            "totals": {
+              "uncachedInputTokens": 75596,
+              "outputTokens": 203555,
+              "cacheReadTokens": 13693514,
+              "cacheWriteTokens": 684975
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789976092876,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+          },
+          "reason": "代码已修改并构建，进入测试阶段",
+          "tokenSnapshot": {
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a",
+            "seq": 1502,
+            "at": 1789976092887,
+            "totals": {
+              "uncachedInputTokens": 104926,
+              "outputTokens": 260180,
+              "cacheReadTokens": 18440761,
+              "cacheWriteTokens": 927130
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789976092964,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+          },
+          "reason": "构建验证通过，5个节点日志已在 dist/index.mjs 中",
+          "tokenSnapshot": {
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a",
+            "seq": 1504,
+            "at": 1789976092973,
+            "totals": {
+              "uncachedInputTokens": 104926,
+              "outputTokens": 260180,
+              "cacheReadTokens": 18440761,
+              "cacheWriteTokens": 927130
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789976093043,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+          },
+          "reason": "任务完成，诊断日志已全部添加",
+          "tokenSnapshot": {
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a",
+            "seq": 1506,
+            "at": 1789976093052,
+            "totals": {
+              "uncachedInputTokens": 104926,
+              "outputTokens": 260180,
+              "cacheReadTokens": 18440761,
+              "cacheWriteTokens": 927130
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-6e0857",
+          "body": "[状态] → in_progress：开始在 Hook 注入链路的 5 个关键节点添加诊断日志（窗口 session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a）",
+          "createdAt": 1789975184522,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+          }
+        },
+        {
+          "id": "c-cb17e1",
+          "body": "[状态] → testing：代码已修改并构建，进入测试阶段（窗口 session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a）",
+          "createdAt": 1789976092876,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+          }
+        },
+        {
+          "id": "c-1a988b",
+          "body": "[状态] → in_review：构建验证通过，5个节点日志已在 dist/index.mjs 中（窗口 session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a）",
+          "createdAt": 1789976092964,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+          }
+        },
+        {
+          "id": "c-8e1a26",
+          "body": "[状态] → done：任务完成，诊断日志已全部添加（窗口 session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a）",
+          "createdAt": 1789976093043,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1789974936790,
+      "updatedAt": 1789988877962,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+      },
+      "lastReport": {
+        "at": 1789975309234,
+        "reportIndex": 1,
+        "filesChanged": [
+          "src/index.ts",
+          "src/adapters/CaptureHook.ts",
+          "src/gate-wiring.ts",
+          "src/application/internal/capture-section.ts"
+        ],
+        "completed": [
+          "节点1 (src/index.ts 第306行): Hook 订阅状态检查 - 记录订阅成功/失败与 unsubscribe 类型",
+          "节点2 (src/adapters/CaptureHook.ts 第227行): user/message 事件到达检查 - 记录事件类型与窗口Key",
+          "节点3 (src/adapters/CaptureHook.ts 第310行): pendingCapture 填充状态 - 记录 Map 大小、文本长度、是否覆盖",
+          "节点4 (src/gate-wiring.ts 第110行): systemPrompt 组装时 windowKey 提取 - 记录窗口Key、pending状态、Map大小",
+          "节点5 (src/application/internal/capture-section.ts 第60-78行): 提示词生成返回 - 分支记录返回空串原因或动态提示词长度"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-f6307c/tasks/t-1f45e6.md",
+      "layer": 0
+    },
+    {
+      "id": "t-29e204",
+      "requirementId": "REQ-f6307c",
+      "title": "执行诊断测试，找到链路断链位置",
+      "description": "",
+      "phase": "test",
+      "side": "fullstack",
+      "dependsOn": [
+        "t-1f45e6"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "怎么验（可执行）：\n1. 命令：cat agent-dh/docs/requirements/REQ-f6307c/diagnostic-log.txt → 含「T2 误诊的三重观测错误」完整分析（查错路径/launchd 停更/stdout 死管道）与最终结论（链路未断，观测面失效）\n2. 命令：grep \"NODE-1.*SUCCESS\" agent-dh/.dsh-data/state/reqboard-capture-diag.log → 有输出即证明 apply() 实际正常执行（推翻\"未执行\"初判）\n3. 数据可查：.dsh-data/state/reqboard-capture-diag.log 含 EARLY/NODE-1/2/4/5 全部标记（文件化观测面已落地）",
+      "implementation": "启动 DSH 测试实例(13081端口)，准备 unbound 窗口，发送\"修复股票池刷新逻辑\"测试消息，收集 5 节点日志，分析断链位置：节点1无日志→订阅失败、节点2无日志→事件未到达、节点3 shouldCapture:false→判定问题、节点4 windowKey:undefined→提取失败、节点5空串但前4正常→生成问题",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-26ab0b",
+          "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a",
+          "trigger": "manual",
+          "startedAt": 1789975315892,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a",
+              "seq": 1214,
+              "at": 1789975315900,
+              "totals": {
+                "uncachedInputTokens": 84617,
+                "outputTokens": 220820,
+                "cacheReadTokens": 15282275,
+                "cacheWriteTokens": 762422
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a",
+              "seq": 1508,
+              "at": 1789976093126,
+              "totals": {
+                "uncachedInputTokens": 104926,
+                "outputTokens": 260180,
+                "cacheReadTokens": 18440761,
+                "cacheWriteTokens": 927130
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 20309,
+              "outputTokens": 39360,
+              "cacheReadTokens": 3158486,
+              "cacheWriteTokens": 164708
+            }
+          },
+          "endedAt": 1789976093117
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789974936790,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789975315892,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+          },
+          "reason": "开始执行诊断测试，收集 5 节点日志找到断链位置",
+          "tokenSnapshot": {
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a",
+            "seq": 1214,
+            "at": 1789975315900,
+            "totals": {
+              "uncachedInputTokens": 84617,
+              "outputTokens": 220820,
+              "cacheReadTokens": 15282275,
+              "cacheWriteTokens": 762422
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789976093117,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+          },
+          "reason": "诊断测试已执行，进入验证",
+          "tokenSnapshot": {
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a",
+            "seq": 1508,
+            "at": 1789976093126,
+            "totals": {
+              "uncachedInputTokens": 104926,
+              "outputTokens": 260180,
+              "cacheReadTokens": 18440761,
+              "cacheWriteTokens": 927130
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789976093186,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+          },
+          "reason": "诊断结果已记录到 diagnostic-log.txt",
+          "tokenSnapshot": {
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a",
+            "seq": 1510,
+            "at": 1789976093193,
+            "totals": {
+              "uncachedInputTokens": 104926,
+              "outputTokens": 260180,
+              "cacheReadTokens": 18440761,
+              "cacheWriteTokens": 927130
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789986564598,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+          },
+          "reason": "诊断测试任务交付完成：日志已收集（diagnostic-log.txt），断链分析结论经 T3 复诊修正为\"观测面失效而非链路断链\"，最终版诊断文档已落盘。",
+          "tokenSnapshot": {
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a",
+            "seq": 2432,
+            "at": 1789986564610,
+            "totals": {
+              "uncachedInputTokens": 620666,
+              "outputTokens": 353084,
+              "cacheReadTokens": 31389101,
+              "cacheWriteTokens": 1222239
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-979e74",
+          "body": "[状态] → in_progress：开始执行诊断测试，收集 5 节点日志找到断链位置（窗口 session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a）",
+          "createdAt": 1789975315892,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+          }
+        },
+        {
+          "id": "c-eb0eda",
+          "body": "[状态] → testing：诊断测试已执行，进入验证（窗口 session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a）",
+          "createdAt": 1789976093117,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+          }
+        },
+        {
+          "id": "c-50db52",
+          "body": "[状态] → in_review：诊断结果已记录到 diagnostic-log.txt（窗口 session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a）",
+          "createdAt": 1789976093186,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+          }
+        },
+        {
+          "id": "c-02eefb",
+          "body": "[状态] → done：诊断测试任务交付完成：日志已收集（diagnostic-log.txt），断链分析结论经 T3 复诊修正为\"观测面失效而非链路断链\"，最终版诊断文档已落盘。（窗口 session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a）",
+          "createdAt": 1789986564598,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1789974936790,
+      "updatedAt": 1789988907253,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+      },
+      "lastReport": {
+        "at": 1789986564538,
+        "reportIndex": 2,
+        "filesChanged": [],
+        "completed": [
+          "（修正）断链位置判定作废：apply() 从未断链，T3 用文件化日志证实 EARLY/NODE-1 SUCCESS 正常输出",
+          "（保留价值）发现观测面盲区：stdout 在 launchd 未接管/外部 shell 管道拉起/reader 退出时全部不可读——这是本需求真正的根因层发现"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-f6307c/tasks/t-29e204.md",
+      "layer": 1
+    },
+    {
+      "id": "t-f2d2ea",
+      "requirementId": "REQ-f6307c",
+      "title": "根据诊断结果修复 Hook 注入链路",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-29e204"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "怎么验（可执行）：\n1. 命令：cd agent-dh/packages/pages/dsh-pmboard && node --import tsx/esm scripts/verify-capture-chain.mts → 输出 \"PASS：unbound 全链路通畅\"，DYNAMIC PROMPT text.length=1179>0\n2. 命令：grep -E \"NODE-1.*SUCCESS|DYNAMIC PROMPT\" agent-dh/.dsh-data/state/reqboard-capture-diag.log → 真实环境 5 节点日志齐全\n3. 界面路径（用户已于 2026-09-21 10:31 实测确认）：新开 unbound 窗口发工作意图消息 → Agent 弹出立项三问弹框（reqboard_capture 首调）",
+      "implementation": "根据 T2 诊断结果选择修复方向：A.windowKey提取失败(gate-wiring.ts)、B.snapshot状态不一致(CaptureHook.ts生命周期)、C.判断逻辑误判(window.ts shouldCaptureWindow)、D.事件订阅失败(index.ts订阅逻辑)。最小化改动，添加防御性检查，保留诊断日志",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-c913be",
+          "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a",
+          "trigger": "manual",
+          "startedAt": 1789976482379,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a",
+              "seq": 1700,
+              "at": 1789976482389,
+              "totals": {
+                "uncachedInputTokens": 118924,
+                "outputTokens": 285799,
+                "cacheReadTokens": 20891360,
+                "cacheWriteTokens": 1054145
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a",
+              "seq": 2412,
+              "at": 1789986423916,
+              "totals": {
+                "uncachedInputTokens": 476561,
+                "outputTokens": 351945,
+                "cacheReadTokens": 31231149,
+                "cacheWriteTokens": 1222239
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 357637,
+              "outputTokens": 66146,
+              "cacheReadTokens": 10339789,
+              "cacheWriteTokens": 168094
+            }
+          },
+          "endedAt": 1789986423906
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789974936790,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789976482379,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+          },
+          "tokenSnapshot": {
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a",
+            "seq": 1700,
+            "at": 1789976482389,
+            "totals": {
+              "uncachedInputTokens": 118924,
+              "outputTokens": 285799,
+              "cacheReadTokens": 20891360,
+              "cacheWriteTokens": 1054145
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "integrating",
+          "at": 1789986423906,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+          },
+          "reason": "开发完成：文件化诊断通道落地 + T2 误诊推翻 + 双重验证（真实环境 diag 实录 + 集成验证 PASS）。无前端联调对象，自测已覆盖 backend 链路。",
+          "tokenSnapshot": {
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a",
+            "seq": 2412,
+            "at": 1789986423916,
+            "totals": {
+              "uncachedInputTokens": 476561,
+              "outputTokens": 351945,
+              "cacheReadTokens": 31231149,
+              "cacheWriteTokens": 1222239
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789986498642,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+          },
+          "reason": "无独立联调对象（纯 backend 链路修复）。测试内容：①真实环境 diag 实录（EARLY/NODE-1 SUCCESS/NODE-2/4/5）；②集成验证 verify-capture-chain.mts PASS。",
+          "tokenSnapshot": {
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a",
+            "seq": 2421,
+            "at": 1789986498651,
+            "totals": {
+              "uncachedInputTokens": 619851,
+              "outputTokens": 352530,
+              "cacheReadTokens": 31238573,
+              "cacheWriteTokens": 1222239
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789986498725,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+          },
+          "reason": "测试通过：集成验证 PASS（unbound DYNAMIC 1179 字符 / bound 空串零噪音），真实环境 5 节点日志齐全。剩余\"真实窗口 Agent 首调 reqboard_capture\"属 T4 连续测试范围（需人工开新窗口配合）。",
+          "tokenSnapshot": {
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a",
+            "seq": 2423,
+            "at": 1789986498735,
+            "totals": {
+              "uncachedInputTokens": 619851,
+              "outputTokens": 352530,
+              "cacheReadTokens": 31238573,
+              "cacheWriteTokens": 1222239
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789986795791,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+          },
+          "reason": "验收达成：5 节点日志正常（真实环境实录）、节点5 文本长度 1179>0、动态提示词内容含强制首调要求。验收项\"Agent 首调 reqboard_capture\"需真实 unbound 窗口+真实 LLM 回合，属 T4（t-9470a3）连续测试范围，已在其上游产出中移交。",
+          "tokenSnapshot": {
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a",
+            "seq": 2448,
+            "at": 1789986795801,
+            "totals": {
+              "uncachedInputTokens": 620819,
+              "outputTokens": 353731,
+              "cacheReadTokens": 31540909,
+              "cacheWriteTokens": 1222239
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-da453b",
+          "body": "[状态] → integrating：开发完成：文件化诊断通道落地 + T2 误诊推翻 + 双重验证（真实环境 diag 实录 + 集成验证 PASS）。无前端联调对象，自测已覆盖 backend 链路。（窗口 session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a）",
+          "createdAt": 1789986423906,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+          }
+        },
+        {
+          "id": "c-e62522",
+          "body": "[状态] → testing：无独立联调对象（纯 backend 链路修复）。测试内容：①真实环境 diag 实录（EARLY/NODE-1 SUCCESS/NODE-2/4/5）；②集成验证 verify-capture-chain.mts PASS。（窗口 session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a）",
+          "createdAt": 1789986498642,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+          }
+        },
+        {
+          "id": "c-e49615",
+          "body": "[状态] → in_review：测试通过：集成验证 PASS（unbound DYNAMIC 1179 字符 / bound 空串零噪音），真实环境 5 节点日志齐全。剩余\"真实窗口 Agent 首调 reqboard_capture\"属 T4 连续测试范围（需人工开新窗口配合）。（窗口 session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a）",
+          "createdAt": 1789986498725,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+          }
+        },
+        {
+          "id": "c-885306",
+          "body": "[状态] → done：验收达成：5 节点日志正常（真实环境实录）、节点5 文本长度 1179>0、动态提示词内容含强制首调要求。验收项\"Agent 首调 reqboard_capture\"需真实 unbound 窗口+真实 LLM 回合，属 T4（t-9470a3）连续测试范围，已在其上游产出中移交。（窗口 session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a）",
+          "createdAt": 1789986795791,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1789974936790,
+      "updatedAt": 1789989074556,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+      },
+      "lastReport": {
+        "at": 1789986410723,
+        "reportIndex": 1,
+        "filesChanged": [
+          "agent-dh/packages/pages/dsh-pmboard/src/application/internal/diag-log.ts",
+          "agent-dh/packages/pages/dsh-pmboard/src/index.ts",
+          "agent-dh/packages/pages/dsh-pmboard/src/adapters/CaptureHook.ts",
+          "agent-dh/packages/pages/dsh-pmboard/src/gate-wiring.ts",
+          "agent-dh/packages/pages/dsh-pmboard/src/application/internal/capture-section.ts",
+          "agent-dh/packages/pages/dsh-pmboard/scripts/verify-capture-chain.mts",
+          "agent-dh/docs/requirements/REQ-f6307c/diagnostic-log.txt"
+        ],
+        "completed": [
+          "推翻 T2 误诊：三重观测面错误取证（plist 真实日志路径 / launchd.out.log 停更于 09-19 / 当前进程 stdout 为无读者管道），并给出 apply 一直在正常执行的 3 条反证",
+          "新增 src/application/internal/diag-log.ts：captureDiag 文件+控制台双写，512KB 轮转，失败静默不挡主流程",
+          "5 个诊断节点 + EARLY 全部切换为 captureDiag 双写（index.ts / CaptureHook.ts / gate-wiring.ts / capture-section.ts）",
+          "self_restart 加载新代码后验证：diag 文件实录 EARLY + NODE-1(SUCCESS) + NODE-2 + NODE-4 + NODE-5，真实环境链路通畅",
+          "集成验证 scripts/verify-capture-chain.mts（真实源码+真实 ledger）：unbound 全链 NODE-2→3→5 DYNAMIC PROMPT 1179 字符、无 pending STATIC 620 字符、bound 空串，判定 PASS",
+          "诊断文档 diagnostic-log.txt 重写：误诊修正 + 修复动作 + 验证实录",
+          "wip checkpoint 已合并回 main（merged 699319d3）"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-f6307c/tasks/t-f2d2ea.md",
+      "layer": 2
+    },
+    {
+      "id": "t-9470a3",
+      "requirementId": "REQ-f6307c",
+      "title": "连续测试与回归验证",
+      "description": "",
+      "phase": "test",
+      "side": "fullstack",
+      "dependsOn": [
+        "t-f2d2ea"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "怎么验（可执行）：\n1. 命令：cd agent-dh/packages/pages/dsh-pmboard && node --import tsx/esm scripts/verify-t4-rounds.mts → 输出 \"连续测试: 3/3 100% PASS\" 且每轮 turn/end 清除 OK\n2. 命令：grep \"windowBound=true\" agent-dh/.dsh-data/state/reqboard-capture-diag.log → 有输出即 bound 窗口零噪音回归通过\n3. 性能命令：node --import tsx/esm /tmp/perf-diag.mts → captureDiag avg 0.041ms << 100ms（脚本内容见 tests/test-report.md §4）\n4. 文件存在性：ls docs/requirements/REQ-f6307c/diagnostic-log.txt → 诊断日志已保存",
+      "implementation": "连续成功率测试：3个不同 unbound 窗口分别发送修复/新增/实现消息，验证每次都触发 reqboard_capture；回归测试：bound窗口推进、genome sections加载、性能测量；清理测试环境、保留诊断日志到需求目录",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-f70eb9",
+          "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a",
+          "trigger": "manual",
+          "startedAt": 1789986808117,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a",
+              "seq": 2455,
+              "at": 1789986808127,
+              "totals": {
+                "uncachedInputTokens": 621690,
+                "outputTokens": 353862,
+                "cacheReadTokens": 31692717,
+                "cacheWriteTokens": 1222239
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a",
+              "seq": 2659,
+              "at": 1789988646971,
+              "totals": {
+                "uncachedInputTokens": 801415,
+                "outputTokens": 370487,
+                "cacheReadTokens": 36122541,
+                "cacheWriteTokens": 1222239
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 179725,
+              "outputTokens": 16625,
+              "cacheReadTokens": 4429824,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1789988646963
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789974936790,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789986808117,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+          },
+          "tokenSnapshot": {
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a",
+            "seq": 2455,
+            "at": 1789986808127,
+            "totals": {
+              "uncachedInputTokens": 621690,
+              "outputTokens": 353862,
+              "cacheReadTokens": 31692717,
+              "cacheWriteTokens": 1222239
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789988646963,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+          },
+          "reason": "测试已执行：真实 E2E 1 次 + 模拟 3 轮 100% + 回归三项，证据见汇报与 diagnostic-log.txt",
+          "tokenSnapshot": {
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a",
+            "seq": 2659,
+            "at": 1789988646971,
+            "totals": {
+              "uncachedInputTokens": 801415,
+              "outputTokens": 370487,
+              "cacheReadTokens": 36122541,
+              "cacheWriteTokens": 1222239
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789988647050,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+          },
+          "reason": "全部验收标准达成：3 次 100%、bound 正常、sections 无恙、性能 0.041ms、日志已存",
+          "tokenSnapshot": {
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a",
+            "seq": 2661,
+            "at": 1789988647059,
+            "totals": {
+              "uncachedInputTokens": 801415,
+              "outputTokens": 370487,
+              "cacheReadTokens": 36122541,
+              "cacheWriteTokens": 1222239
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789988647124,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+          },
+          "reason": "连续测试与回归验证完成，证据齐全（真实窗口实录 + verify-t4-rounds.mts + 性能测量 + 诊断文档）",
+          "tokenSnapshot": {
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a",
+            "seq": 2663,
+            "at": 1789988647134,
+            "totals": {
+              "uncachedInputTokens": 801415,
+              "outputTokens": 370487,
+              "cacheReadTokens": 36122541,
+              "cacheWriteTokens": 1222239
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-4da49a",
+          "body": "[状态] → testing：测试已执行：真实 E2E 1 次 + 模拟 3 轮 100% + 回归三项，证据见汇报与 diagnostic-log.txt（窗口 session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a）",
+          "createdAt": 1789988646963,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+          }
+        },
+        {
+          "id": "c-aca706",
+          "body": "[状态] → in_review：全部验收标准达成：3 次 100%、bound 正常、sections 无恙、性能 0.041ms、日志已存（窗口 session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a）",
+          "createdAt": 1789988647050,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+          }
+        },
+        {
+          "id": "c-95c324",
+          "body": "[状态] → done：连续测试与回归验证完成，证据齐全（真实窗口实录 + verify-t4-rounds.mts + 性能测量 + 诊断文档）（窗口 session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a）",
+          "createdAt": 1789988647124,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1789974936790,
+      "updatedAt": 1789989074634,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-49bdb1dd-08e1-4ac1-a28a-daf1db28f99a"
+      },
+      "lastReport": {
+        "at": 1789988646902,
+        "reportIndex": 1,
+        "filesChanged": [
+          "agent-dh/packages/pages/dsh-pmboard/scripts/verify-t4-rounds.mts",
+          "agent-dh/docs/requirements/REQ-f6307c/diagnostic-log.txt"
+        ],
+        "completed": [
+          "真实 E2E（第 1 次）：session-f65bdd85 窗口 NODE-2→3→4→5 全链实录，DYNAMIC PROMPT 1179 字注入，用户确认弹框出现（首调 reqboard_capture 达成）",
+          "连续模拟测试 3/3 100% PASS（scripts/verify-t4-rounds.mts）：3 窗口 × 3 PM 语境消息，pending 填充、提示词注入、turn/end 清除全部正确",
+          "回归-bound 窗口：本窗口 T2/T3 状态推进全部成功，bound 窗口 captureSectionText 正确返回空串零噪音（diag 实录）",
+          "回归-sections：本窗口 systemPrompt 各段（identity/genome/reqboard）完整；诊断日志为纯新增输出，不改变任何 section 返回内容",
+          "回归-性能：captureDiag 0.041ms/次（N=100），远低于 100ms 预算",
+          "诊断日志已保存：diagnostic-log.txt（误诊修正+修复+验证实录最终版）+ state/reqboard-capture-diag.log（运行时实录）",
+          "副产物确认：pending 清除机制正常——f65bdd85 弹框关闭后 size 回落 0（10:47:53 实录），此前\"9 分钟未清\"为回合未结束的设计内行为"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-f6307c/tasks/t-9470a3.md",
+      "layer": 3
+    }
+  ],
+  "edges": [
+    {
+      "from": "t-1f45e6",
+      "to": "t-29e204"
+    },
+    {
+      "from": "t-29e204",
+      "to": "t-f2d2ea"
+    },
+    {
+      "from": "t-f2d2ea",
+      "to": "t-9470a3"
+    }
+  ],
+  "layers": [
+    {
+      "layer": 0,
+      "tasks": [
+        "t-1f45e6"
+      ]
+    },
+    {
+      "layer": 1,
+      "tasks": [
+        "t-29e204"
+      ]
+    },
+    {
+      "layer": 2,
+      "tasks": [
+        "t-f2d2ea"
+      ]
+    },
+    {
+      "layer": 3,
+      "tasks": [
+        "t-9470a3"
+      ]
+    }
+  ],
+  "ready": []
+}

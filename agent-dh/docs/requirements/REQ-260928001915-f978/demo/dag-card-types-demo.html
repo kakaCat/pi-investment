@@ -1,0 +1,1724 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DAG 卡片类型规格 + 真 DAG 示例（REQ-260928001915-f978）</title>
+<style>
+* { box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', Roboto, sans-serif;
+  margin: 0; padding: 34px 30px 90px; background: #f5f7fa; color: #1f2733; -webkit-font-smoothing: antialiased; }
+h1 { font-size: 23px; margin: 0 0 6px; letter-spacing: -.01em; }
+.sub { color: #6b7280; font-size: 13px; margin: 0 0 8px; line-height: 1.7; }
+.sub a { color: #0071e3; text-decoration: none; }
+.src { font-family: ui-monospace, 'SF Mono', monospace; font-size: 11px; color: #9ca3af; margin: 0 0 24px; line-height: 1.7; }
+.sec { background: #fff; border-radius: 14px; padding: 22px 24px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.07); }
+.sec > h2 { font-size: 16px; margin: 0 0 6px; }
+.sec > .desc { color: #6b7280; font-size: 13px; margin: 0 0 18px; line-height: 1.7; }
+h3 { font-size: 13.5px; margin: 22px 0 10px; color: #374151; }
+h3:first-of-type { margin-top: 0; }
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+th, td { text-align: left; padding: 7px 9px; border-bottom: 1px solid #eef0f3; vertical-align: top; }
+th { color: #6b7280; font-weight: 600; font-size: 11.5px; background: #fafbfc; white-space: nowrap; }
+code { font-family: ui-monospace, monospace; font-size: 11px; background: #f3f4f6; padding: 1px 5px; border-radius: 3px; color: #374151; }
+.num { font-variant-numeric: tabular-nums; }
+.pill { display: inline-block; font-size: 10.5px; padding: 1px 7px; border-radius: 980px; font-weight: 500; }
+.pill.rec { background: #e8f5ec; color: #1d8a3c; }
+.pill.warn { background: #fdecef; color: #c2185b; }
+.pill.neutral { background: #f0f1f3; color: #6b7280; }
+
+/* ---------- 卡片（沿用已选定的新卡片：ID 行带类型/端侧徽标，标题在下） ---------- */
+.card { display: flex; flex-direction: column; gap: 2px; background: #fff; border-radius: 9px;
+  padding: 6px 8px; min-height: 44px; width: 208px; box-shadow: 0 1px 3px rgba(0,0,0,.08);
+  overflow: hidden; position: relative; text-align: left; }
+.card-top { display: flex; align-items: center; gap: 4px; flex: none; min-height: 14px; }
+.card-id { font-family: ui-monospace, monospace; font-size: 10px; line-height: 12px; color: #a3abb8; white-space: nowrap; }
+.card-title { font-size: 11.5px; font-weight: 500; line-height: 15px; color: #1f2733; letter-spacing: -.005em;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.chip { font-size: 10px; line-height: 14px; padding: 0 5px; border-radius: 4px; white-space: nowrap; font-weight: 500; flex: none; }
+/* 变体 ①：类型中性灰（把饱和度留给状态） */
+.chip-type { background: rgba(107,114,128,.13); color: #4b5563; }
+.chip-side { background: transparent; color: #a3abb8; padding: 0 2px; }
+.chip-kind { background: rgba(107,114,128,.09); color: #8a9099; }
+/* 变体 ②：类型着色 */
+.vc .chip-type[data-phase="implement"] { background: rgba(0,113,227,.13); color: #0062c4; }
+.vc .chip-type[data-phase="test"]      { background: rgba(255,149,0,.15); color: #b26a00; }
+.vc .chip-type[data-phase="doc"]       { background: rgba(88,86,214,.13); color: #4b49b8; }
+.vc .chip-type[data-phase="review"]    { background: rgba(233,30,99,.12); color: #c2185b; }
+.vc .chip-type[data-phase="ui"]        { background: rgba(6,182,212,.15); color: #0e7490; }
+.vc .chip-type[data-phase="analysis"]  { background: rgba(87,83,78,.14); color: #57534e; }
+.vc .chip-type[data-phase="merge"]     { background: rgba(52,199,89,.15); color: #1d8a3c; }
+.vc .chip-side[data-side="backend"]    { background: rgba(124,58,237,.12); color: #7c3aed; }
+.vc .chip-side[data-side="frontend"]   { background: rgba(219,39,119,.12); color: #db2777; }
+.vc .chip-side[data-side="fullstack"]  { background: rgba(34,197,94,.12); color: #16a34a; }
+.vc .chip-side[data-side="doc"]        { background: rgba(251,146,60,.14); color: #ea580c; }
+/* 状态 = 卡片底色（沿用线上现有 6 态，不动） */
+.card[data-status="todo"]        { background: #fafafa; }
+.card[data-status="in_progress"] { background: rgba(0,113,227,.06); }
+.card[data-status="integrating"] { background: rgba(142,68,173,.07); }
+.card[data-status="testing"]     { background: rgba(255,149,0,.08); }
+.card[data-status="in_review"]   { background: rgba(233,30,99,.06); }
+.card[data-status="done"]        { background: rgba(52,199,89,.08); }
+.ready-dot { position: absolute; right: 6px; top: 6px; width: 6px; height: 6px; border-radius: 50%;
+  background: #34c759; box-shadow: 0 0 0 3px rgba(52,199,89,.2); }
+/* 父卡：内嵌子卡链进度 */
+.card-chain { display: flex; align-items: center; gap: 3px; margin-top: 3px; flex: none; }
+.card-chain i { width: 14px; height: 3px; border-radius: 2px; background: rgba(0,0,0,.12); display: block; }
+.card-chain i.on { background: #34c759; }
+.card-chain i.now { background: #0071e3; }
+.card-chain span { font-size: 9.5px; color: #a3abb8; margin-left: 2px; }
+.card-crown { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: rgba(0,113,227,.55); border-radius: 9px 0 0 9px; }
+.card[data-role="child"] { width: 190px; margin-left: 18px; padding-left: 10px; }
+.card[data-role="child"]::before { content: ""; position: absolute; left: 4px; top: 8px; bottom: 8px; width: 2px; background: rgba(0,0,0,.08); }
+
+/* 标本墙 */
+.wall { display: flex; flex-direction: column; gap: 10px; }
+.wall-row { display: grid; grid-template-columns: 96px 1fr 1fr; gap: 14px; align-items: center;
+  padding: 9px 0; border-bottom: 1px solid #f4f5f7; }
+.wall-row:last-child { border-bottom: none; }
+.wall-key { font-size: 12.5px; font-weight: 600; }
+.wall-key small { display: block; font-weight: 400; color: #9ca3af; font-size: 10.5px; margin-top: 2px; }
+.wall-col { display: flex; align-items: center; gap: 8px; }
+.wall-col .tagnote { font-size: 10.5px; color: #9ca3af; }
+.colhead { display: grid; grid-template-columns: 96px 1fr 1fr; gap: 14px; font-size: 11.5px; font-weight: 600;
+  color: #6b7280; padding-bottom: 6px; border-bottom: 1px solid #eef0f3; }
+
+/* 解剖图 */
+.anat { display: flex; gap: 34px; align-items: flex-start; flex-wrap: wrap; }
+.anat-canvas { position: relative; padding: 48px 44px 48px 36px; background: #f7f8fa; border-radius: 12px; }
+.anat-mark { position: absolute; width: 18px; height: 18px; border-radius: 50%; background: #1f2733; color: #fff;
+  font-size: 11px; font-weight: 600; line-height: 18px; text-align: center; }
+.anat-list { flex: 1 1 320px; font-size: 12.5px; line-height: 1.5; }
+.anat-list li { margin-bottom: 7px; }
+.anat-list b { font-weight: 600; }
+.anat-list code { font-size: 10.5px; }
+
+/* 面板 mock */
+.panel { width: 720px; max-width: 100%; border: 1px solid #e5e7eb; border-radius: 12px; background: #fff; overflow: hidden; }
+.panel-head { padding: 9px 13px; border-bottom: 1px solid #eef0f3; display: flex; align-items: center; gap: 8px;
+  flex-wrap: wrap; background: #fafbfc; }
+.panel-title { font-size: 12.5px; font-weight: 600; }
+.panel-sub { font-size: 11px; color: #9ca3af; }
+.panel-body { padding: 12px; background: #f7f8fa; }
+.seg { display: flex; gap: 4px; margin-left: auto; }
+.seg button { font: inherit; font-size: 11.5px; padding: 3px 10px; border-radius: 980px; border: 1px solid #e5e7eb;
+  background: #fff; color: #6b7280; cursor: pointer; }
+.seg button.on { background: #0071e3; border-color: #0071e3; color: #fff; }
+.flowstat { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.flowstat span { font-size: 11px; color: #6b7280; background: #fff; border: 1px solid #eef0f3; border-radius: 980px; padding: 2px 9px; }
+.flowstat span b { color: #1f2733; font-weight: 600; }
+.canvas-wrap { overflow: auto; border-radius: 10px; background: #fff; border: 1px solid #eef0f3; max-height: 640px; }
+.canvas-wrap::-webkit-scrollbar { width: 8px; height: 8px; }
+.canvas-wrap::-webkit-scrollbar-track { background: rgba(0,0,0,.05); border-radius: 4px; }
+.canvas-wrap::-webkit-scrollbar-thumb { background: rgba(0,0,0,.24); border-radius: 4px; }
+.canvas { position: relative; }
+.dag-canvas { display: block; }
+svg.edges { position: absolute; left: 0; top: 0; z-index: 1; }
+.node { position: absolute; z-index: 2; }
+.node .card { cursor: pointer; }
+.node.hi-self .card { box-shadow: 0 0 0 2px #1f2733, 0 3px 12px rgba(0,0,0,.18); }
+.node.hi-up .card { box-shadow: 0 0 0 2px rgba(255,149,0,.9), 0 3px 10px rgba(0,0,0,.12); }
+.node.hi-down .card { box-shadow: 0 0 0 2px rgba(0,113,227,.9), 0 3px 10px rgba(0,0,0,.12); }
+.node.crit .card { outline: 2px dashed rgba(0,113,227,.55); outline-offset: 1px; }
+.canvas.dimming .node:not(.hi-self):not(.hi-up):not(.hi-down) { opacity: .18; filter: saturate(.3); }
+.band-label { position: absolute; left: 8px; z-index: 3; font-size: 10px; font-weight: 600; color: #b6bcc6;
+  font-family: ui-monospace, monospace; }
+.branch-chip { position: absolute; right: -6px; bottom: -6px; background: #fff; border: 1px solid #e5e7eb; border-radius: 980px;
+  font-size: 9.5px; color: #6b7280; padding: 0 5px; z-index: 4; cursor: pointer; }
+path.e-base { stroke: rgba(0,0,0,.17); stroke-width: 1.2; fill: none; }
+path.e-done { stroke: rgba(52,199,89,.5); stroke-width: 1.3; fill: none; }
+path.e-crit { stroke: rgba(0,113,227,.75); stroke-width: 1.8; fill: none; }
+.canvas.dimming path:not(.hi-up):not(.hi-down) { opacity: .05; }
+path.hi-up { stroke: #ff9500 !important; stroke-width: 2 !important; opacity: 1 !important; }
+path.hi-down { stroke: #0071e3 !important; stroke-width: 2 !important; opacity: 1 !important; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 11.5px; color: #6b7280; margin-top: 10px; }
+.legend i { display: inline-block; width: 16px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 5px; }
+.tip { font-size: 12px; color: #6b7280; background: #f7f8fa; border-left: 3px solid #d9dde3; padding: 9px 12px;
+  border-radius: 0 8px 8px 0; line-height: 1.7; margin-top: 14px; }
+.dec { border: 1px solid #eef0f3; border-radius: 10px; padding: 13px 15px; margin-bottom: 10px; }
+.dec h4 { margin: 0 0 6px; font-size: 13px; }
+.dec p { margin: 0 0 6px; font-size: 12.5px; color: #4b5563; line-height: 1.7; }
+.dec .opt { font-size: 12.5px; color: #6b7280; line-height: 1.8; }
+.dec .opt b { color: #1f2733; }
+</style>
+</head>
+<body>
+
+<h1>DAG 卡片类型规格 + 真 DAG 示例</h1>
+<p class="sub">本轮焦点按你的要求收窄到 <b>卡片类型</b>（不是尺寸）：先定"一张卡上到底有哪几种类型、每种长什么样"，再用真实队列数据把真 DAG 画出来验证类型系统够不够用。</p>
+<p class="src">数据来源：全仓 <code>docs/requirements/*/queue.json</code> 扫描（51 份队列 / 616 张任务卡，2026-09-28）· 卡片几何沿用线上 <code>node-panel.ts</code>（208px / 9px 圆角 / 等高）· 关联需求 REQ-260928001915-f978</p>
+
+<!-- ============ ① 三轴总览 ============ -->
+<div class="sec">
+  <h2>① 卡片类型 = 三根轴，先定哪根是"类型"</h2>
+  <p class="desc">队列数据里每张卡同时带三组身份字段，它们天然是三根正交的轴。现在线上只画出了 <b>ID + 标题</b>，三组字段全部可见，等于没分类。</p>
+  <table>
+    <thead><tr><th>轴</th><th>字段</th><th>取值（受控枚举）</th><th>实测分布（616 卡）</th><th>建议承担</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>轴 1 · 任务类型</b><br><span class="pill rec">建议 = 卡片类型</span></td>
+        <td><code>phase</code></td>
+        <td>实施 / 测试 / 文档 / 评审 / UI / 分析 / 合并（7 类）</td>
+        <td class="num" id="freq-phase"></td>
+        <td>决定 ID 行徽标文案（+ 可选配色）。<b>"这张卡是干什么的"</b>，看 DAG 时最想知道的就是它。</td>
+      </tr>
+      <tr>
+        <td><b>轴 2 · 端侧</b></td>
+        <td><code>side</code></td>
+        <td>backend / frontend / fullstack / doc（4 类）</td>
+        <td class="num" id="freq-side"></td>
+        <td>次级标记（同一根 ID 行的小徽标）。回答"改哪一端"，对 DAG 流程判断帮助有限。</td>
+      </tr>
+      <tr>
+        <td><b>轴 3 · 角色</b></td>
+        <td><code>parentId</code> / <code>stageKind</code></td>
+        <td>独立卡 / 父卡（带子卡链）/ 子卡（dev·integrate·review·test）</td>
+        <td class="num" id="freq-role"></td>
+        <td>决定<b>卡形</b>而非徽标：父卡的子卡链内嵌进度条，子卡默认不单独成节点。</td>
+      </tr>
+      <tr>
+        <td><b>（非类型）状态</b></td>
+        <td><code>status</code></td>
+        <td>待开始 / 开发中 / 联调中 / 测试中 / 待复核 / 已完成</td>
+        <td class="num" id="freq-status"></td>
+        <td>已经占用了<b>卡片底色</b>（线上 6 态淡底），本轮<b>不动</b>。</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="tip"><b>为什么建议把 phase 定为"卡片类型"：</b>实测 95.6% 的卡是<code>实施</code>+<code>测试</code>两类的组合，类型维度天然把 DAG 切成"写代码 / 验证"两段；而 side 只有 4 类且 77% 是 backend，作为主类型区分度太低。<b>若你心里的"类型"其实是 side，请在下方裁定 1 里改选。</b></div>
+</div>
+
+<!-- ============ ② 类型标本墙 ============ -->
+<div class="sec">
+  <h2>② 类型标本墙 · 7 类任务类型（实物卡）</h2>
+  <p class="desc">下面每张卡都用<b>真实任务</b>渲染（来自真实队列文件），只切换类型徽标的配色变体。请你裁定用哪一种。</p>
+  <div class="colhead"><span>类型</span><span>变体 ① 中性灰徽标（推荐）</span><span>变体 ② 七类彩徽标</span></div>
+  <div class="wall" id="wall-phase"></div>
+  <div class="tip" id="collision-note"></div>
+</div>
+
+<!-- ============ ③ 角色 + 状态 ============ -->
+<div class="sec">
+  <h2>③ 角色三态 & 状态六色</h2>
+  <p class="desc">角色回答"这张卡在结构上是什么"，用<b>卡形</b>表达；状态回答"它走到哪了"，用<b>底色</b>表达。两者都不再额外占徽标位。</p>
+  <h3>角色（轴 3）</h3>
+  <div class="wall" id="wall-role"></div>
+  <h3>状态（底色，沿用线上不动）</h3>
+  <div class="wall" id="wall-status"></div>
+</div>
+
+<!-- ============ ④ 卡片解剖 ============ -->
+<div class="sec">
+  <h2>④ 一张卡上每个位置的语义（解剖图）</h2>
+  <p class="desc">7 个位置，每个位置只承担一件事——这是"卡片类型确定"之后的落地口径。</p>
+  <div class="anat">
+    <div class="anat-canvas" id="anat-canvas"></div>
+    <ul class="anat-list">
+      <li><b>① 任务 ID</b> — 等宽 10px 灰字，DAG 里的稳定标识；无任务卡文档时在右侧挂灰化 📄。</li>
+      <li><b>② 类型徽标（本轮的"卡片类型"）</b> — 10px 圆角小片，文案 = phase 中文；<code>data-phase</code> 供样式分色。</li>
+      <li><b>③ 端侧徽标</b> — 更低一级的视觉权重（变体 ① 用纯文字无底）。</li>
+      <li><b>④ 卡片底色 = 状态</b> — 六态淡底，与泳道卡片同一套色值，不另起一套。</li>
+      <li><b>⑤ 标题</b> — 11.5px / 两行 clamp（等高是 DAG 可读的前提）。</li>
+      <li><b>⑥ 子卡链进度（仅父卡）</b> — 4 段小条：<code>绿=已完成</code> <code>蓝=进行中</code> <code>灰=未开始</code>，右侧 <code>4/6</code> 计数。</li>
+      <li><b>⑦ 可开工标记（ready）</b> — 绿点呼吸；直接消费队列的 <code>ready[]</code>，不是前端自己算的。</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============ ⑤ 真 DAG ============ -->
+<div class="sec">
+  <h2>⑤ 真 DAG（用队列的 edges 画真连线）</h2>
+  <p class="desc">卡片类型确定后，把它放进真图里验证。节点位置 = 队列 <code>layers[]</code>，连线 = 队列 <code>edges[]</code>（不再是"分层平铺看不出流程"）。<b>悬停任一卡</b>：橙色 = 它的上游、蓝色 = 下游；点击可钉住；边线按状态着色。</p>
+  <div class="panel">
+    <div class="panel-head">
+      <span class="panel-title">📊 DAG 层级</span>
+      <span class="panel-sub" id="panel-sub"></span>
+      <span class="seg" id="ds-seg"></span>
+      <span class="seg" style="margin-left:8px">
+        <button data-dir="vertical" class="on">纵向</button>
+        <button data-dir="horizontal">横向</button>
+        <button data-crit="0">关键路径</button>
+        <button data-focus="0">只看主线</button>
+      </span>
+    </div>
+    <div class="panel-body">
+      <div class="flowstat" id="flowstat"></div>
+      <div class="canvas-wrap" id="canvas-wrap"><canvas class="dag-canvas" id="dag-canvas"></canvas></div>
+      <div class="legend">
+        <span><i style="background:rgba(52,199,89,.5)"></i>已完成链路</span>
+        <span><i style="background:rgba(0,0,0,.17)"></i>进行中 / 待办</span>
+        <span><i style="background:rgba(0,113,227,.75);height:2px"></i>关键路径</span>
+        <span>🟠 上游（它依赖谁）</span>
+        <span>🔵 下游（谁依赖它）</span>
+        <span>🟢 呼吸点 = 可开工 ready</span>
+      </div>
+    </div>
+  </div>
+  <div class="tip" id="stress-note"></div>
+</div>
+
+<!-- ============ ⑥ 待裁定 ============ -->
+<div class="sec">
+  <h2>⑥ 待你裁定（4 条）</h2>
+  <p class="desc">裁定后我按结果改 <code>node-panel.ts</code>（renderDag / renderSwimlane）+ <code>styles/node-panel.ts</code>，并把类型口径写进需求文档。</p>
+  <div class="dec">
+    <h4>裁定 1 · "卡片类型"取哪根轴？ <span class="pill rec">建议：phase（7 类）</span></h4>
+    <p class="opt"><b>A.</b> phase 作类型（实施/测试/文档/评审/UI/分析/合并），side 降为次级徽标 ← 我的建议<br>
+    <b>B.</b> side 作类型（backend/frontend/fullstack/doc），phase 降为次级<br>
+    <b>C.</b> 两根都要同级徽标（就是 /tmp/dag-card-demo.html 现在的样子）</p>
+  </div>
+  <div class="dec">
+    <h4>裁定 2 · 类型要不要着色？ <span class="pill rec">建议：变体 ①（中性灰 + 文案）</span></h4>
+    <p class="opt"><b>A. 中性灰徽标</b>：类型靠文案区分，饱和度全部留给状态底色 → 一屏不出现两套同色系语义 ← 我的建议<br>
+    <b>B. 七类彩徽标</b>：识别更快，但要接受"实施=蓝"与"开发中=蓝"、"测试=橙"与"测试中=橙"、"合并=绿"与"已完成=绿"三处撞色</p>
+  </div>
+  <div class="dec">
+    <h4>裁定 3 · 父卡的子卡链怎么进图？ <span class="pill rec">建议：内嵌进度条，子卡不单独成节点</span></h4>
+    <p class="opt"><b>A.</b> 父卡一张卡 + 内嵌 4 段子卡进度，点开看子卡 ← 我的建议（实测 136 张子卡若全部成节点，图会立刻膨胀 3 倍）<br>
+    <b>B.</b> 子卡单独成节点，父卡与子卡之间连边</p>
+  </div>
+  <div class="dec">
+    <h4>裁定 4 · 状态底色（6 态）沿用线上不变？ <span class="pill rec">建议：沿用</span></h4>
+    <p class="opt"><b>A.</b> 沿用现有六态淡底（与泳道卡片同一套） ← 我的建议，卡片类型只加"类型"这一层信息，不改已有语义<br>
+    <b>B.</b> 借这次一起调状态色（那要另外配色表，会扩大改动面）</p>
+  </div>
+</div>
+
+<script>"use strict";
+var DagDemo = (() => {
+  var __defProp = Object.defineProperty;
+  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+  var __getOwnPropNames = Object.getOwnPropertyNames;
+  var __hasOwnProp = Object.prototype.hasOwnProperty;
+  var __export = (target, all) => {
+    for (var name in all)
+      __defProp(target, name, { get: all[name], enumerable: true });
+  };
+  var __copyProps = (to, from, except, desc) => {
+    if (from && typeof from === "object" || typeof from === "function") {
+      for (let key of __getOwnPropNames(from))
+        if (!__hasOwnProp.call(to, key) && key !== except)
+          __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+    }
+    return to;
+  };
+  var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+
+  // demo/integration.ts
+  var integration_exports = {};
+  __export(integration_exports, {
+    BAND_GAP: () => BAND_GAP,
+    CARD_H: () => CARD_H,
+    CARD_W: () => CARD_W,
+    DIM_EDGE_ALPHA: () => DIM_EDGE_ALPHA,
+    DIM_NODE_ALPHA: () => DIM_NODE_ALPHA,
+    EDGE_BASE: () => EDGE_BASE,
+    EDGE_BASE_W: () => EDGE_BASE_W,
+    EDGE_CRIT: () => EDGE_CRIT,
+    EDGE_CRIT_W: () => EDGE_CRIT_W,
+    EDGE_DONE: () => EDGE_DONE,
+    EDGE_DONE_W: () => EDGE_DONE_W,
+    EDGE_DOWN: () => EDGE_DOWN,
+    EDGE_HL_W: () => EDGE_HL_W,
+    EDGE_UP: () => EDGE_UP,
+    EMPTY_HIGHLIGHT: () => EMPTY_HIGHLIGHT,
+    GAP_X: () => GAP_X,
+    GAP_Y: () => GAP_Y,
+    GUTTER: () => GUTTER,
+    IN_PROGRESS_STATUSES: () => IN_PROGRESS_STATUSES,
+    MAX_ROWS: () => MAX_ROWS,
+    PAD: () => PAD,
+    PHASE_COLORS: () => PHASE_COLORS,
+    PHASE_LABEL: () => PHASE_LABEL,
+    Phase: () => Phase,
+    Role: () => Role,
+    SEGMENT_COLOR: () => SEGMENT_COLOR,
+    SIDE_COLORS: () => SIDE_COLORS,
+    SIDE_LABEL: () => SIDE_LABEL,
+    STAGE_HINT: () => STAGE_HINT,
+    STAGE_LABEL: () => STAGE_LABEL,
+    STAGE_ORDER: () => STAGE_ORDER,
+    STATUS_BACKGROUND_COLORS: () => STATUS_BACKGROUND_COLORS,
+    STATUS_LABEL: () => STATUS_LABEL,
+    STATUS_TEXT_COLORS: () => STATUS_TEXT_COLORS,
+    Side: () => Side,
+    Status: () => Status,
+    alignKids: () => alignKids,
+    allocatePorts: () => allocatePorts,
+    bindDomInteraction: () => bindDomInteraction,
+    branchCounts: () => branchCounts,
+    calculateLayout: () => calculateLayout,
+    cardHtml: () => cardHtml,
+    chainHtml: () => chainHtml,
+    computeCriticalPath: () => computeCriticalPath,
+    computeNeighbors: () => computeNeighbors,
+    createDagViewer: () => createDagViewer,
+    deriveTaskFields: () => deriveTaskFields,
+    detectCycle: () => detectCycle,
+    drawChip: () => drawChip,
+    edgeGeometry: () => edgeGeometry,
+    edgeStyle: () => edgeStyle,
+    edgeSvg: () => edgeSvg,
+    esc: () => esc,
+    findCriticalPath: () => findCriticalPath,
+    getPhaseColor: () => getPhaseColor,
+    getSideColor: () => getSideColor,
+    getStatusBackgroundColor: () => getStatusBackgroundColor,
+    getStatusTextColor: () => getStatusTextColor,
+    hitTest: () => hitTest,
+    isChildCard: () => isChildCard,
+    isParentCard: () => isParentCard,
+    paintDim: () => paintDim,
+    progressText: () => progressText,
+    renderCard: () => renderCard,
+    renderDagHtml: () => renderDagHtml,
+    renderEdges: () => renderEdges,
+    renderProgressBar: () => renderProgressBar,
+    resetEdgePaint: () => resetEdgePaint,
+    resolveHighlight: () => resolveHighlight,
+    resolveTasks: () => resolveTasks,
+    roundRectPath: () => roundRectPath,
+    segmentClass: () => segmentClass,
+    segmentColor: () => segmentColor,
+    setupInteraction: () => setupInteraction,
+    statusLabel: () => statusLabel,
+    validateQueueFile: () => validateQueueFile,
+    wrapText: () => wrapText
+  });
+
+  // demo/card-types.ts
+  var Phase = /* @__PURE__ */ ((Phase2) => {
+    Phase2["IMPLEMENT"] = "implement";
+    Phase2["TEST"] = "test";
+    Phase2["DOC"] = "doc";
+    Phase2["REVIEW"] = "review";
+    Phase2["UI"] = "ui";
+    Phase2["ANALYSIS"] = "analysis";
+    Phase2["MERGE"] = "merge";
+    return Phase2;
+  })(Phase || {});
+  var Side = /* @__PURE__ */ ((Side2) => {
+    Side2["BACKEND"] = "backend";
+    Side2["FRONTEND"] = "frontend";
+    Side2["FULLSTACK"] = "fullstack";
+    Side2["DOC"] = "doc";
+    return Side2;
+  })(Side || {});
+  var Role = /* @__PURE__ */ ((Role3) => {
+    Role3["PARENT"] = "parent";
+    Role3["CHILD"] = "child";
+    Role3["SOLO"] = "solo";
+    return Role3;
+  })(Role || {});
+  var Status = /* @__PURE__ */ ((Status2) => {
+    Status2["TODO"] = "todo";
+    Status2["IN_PROGRESS"] = "in_progress";
+    Status2["INTEGRATING"] = "integrating";
+    Status2["TESTING"] = "testing";
+    Status2["IN_REVIEW"] = "in_review";
+    Status2["DONE"] = "done";
+    return Status2;
+  })(Status || {});
+  var PHASE_COLORS = {
+    ["implement" /* IMPLEMENT */]: "#0071e3",
+    // 蓝色 - 实施
+    ["test" /* TEST */]: "#34c759",
+    // 绿色 - 测试
+    ["doc" /* DOC */]: "#ff9500",
+    // 橙色 - 文档
+    ["review" /* REVIEW */]: "#af52de",
+    // 紫色 - 评审
+    ["ui" /* UI */]: "#ff2d55",
+    // 粉色 - UI
+    ["analysis" /* ANALYSIS */]: "#5ac8fa",
+    // 青色 - 分析
+    ["merge" /* MERGE */]: "#ffcc00"
+    // 黄色 - 合并
+  };
+  var SIDE_COLORS = {
+    ["backend" /* BACKEND */]: "#8e8e93",
+    // 灰色
+    ["frontend" /* FRONTEND */]: "#007aff",
+    // 亮蓝
+    ["fullstack" /* FULLSTACK */]: "#5856d6",
+    // 靛蓝
+    ["doc" /* DOC */]: "#ff9500"
+    // 橙色
+  };
+  var STATUS_BACKGROUND_COLORS = {
+    ["todo" /* TODO */]: "#f2f2f7",
+    // 浅灰 - 待开始
+    ["in_progress" /* IN_PROGRESS */]: "#e5f1ff",
+    // 浅蓝 - 开发中
+    ["integrating" /* INTEGRATING */]: "#fff4e5",
+    // 浅橙 - 联调中
+    ["testing" /* TESTING */]: "#e8f9ed",
+    // 浅绿 - 测试中
+    ["in_review" /* IN_REVIEW */]: "#f3e5ff",
+    // 浅紫 - 待复核
+    ["done" /* DONE */]: "#e8f5e9"
+    // 浅绿（偏深）- 已完成
+  };
+  var STATUS_TEXT_COLORS = {
+    ["todo" /* TODO */]: "#8e8e93",
+    ["in_progress" /* IN_PROGRESS */]: "#0071e3",
+    ["integrating" /* INTEGRATING */]: "#ff9500",
+    ["testing" /* TESTING */]: "#34c759",
+    ["in_review" /* IN_REVIEW */]: "#af52de",
+    ["done" /* DONE */]: "#2e7d32"
+  };
+  function getPhaseColor(phase) {
+    return PHASE_COLORS[phase] || "#8e8e93";
+  }
+  function getSideColor(side) {
+    return SIDE_COLORS[side] || "#8e8e93";
+  }
+  function getStatusBackgroundColor(status) {
+    return STATUS_BACKGROUND_COLORS[status] || "#f2f2f7";
+  }
+  function getStatusTextColor(status) {
+    return STATUS_TEXT_COLORS[status] || "#8e8e93";
+  }
+  function isParentCard(card) {
+    return card.role === "parent" /* PARENT */;
+  }
+  function isChildCard(card) {
+    return card.role === "child" /* CHILD */;
+  }
+  var PHASE_LABEL = {
+    implement: "\u5B9E\u65BD",
+    test: "\u6D4B\u8BD5",
+    doc: "\u6587\u6863",
+    review: "\u8BC4\u5BA1",
+    ui: "UI",
+    analysis: "\u5206\u6790",
+    merge: "\u5408\u5E76"
+  };
+  var SIDE_LABEL = {
+    backend: "\u540E\u7AEF",
+    frontend: "\u524D\u7AEF",
+    fullstack: "\u5168\u6808",
+    doc: "\u6587\u6863"
+  };
+  var STATUS_LABEL = {
+    todo: "\u5F85\u5F00\u59CB",
+    in_progress: "\u5F00\u53D1\u4E2D",
+    integrating: "\u8054\u8C03\u4E2D",
+    testing: "\u6D4B\u8BD5\u4E2D",
+    in_review: "\u5F85\u590D\u6838",
+    done: "\u5DF2\u5B8C\u6210"
+  };
+  function deriveTaskFields(task, allTasks) {
+    if (task.parentId) return { role: "child" /* CHILD */ };
+    const order = ["dev", "integrate", "review", "test"];
+    const kids = allTasks.filter(function(t) {
+      return t.parentId === task.id;
+    }).sort(function(a, b) {
+      const ia = order.indexOf(String(a.stageKind));
+      const ib = order.indexOf(String(b.stageKind));
+      return (ia < 0 ? 9 : ia) - (ib < 0 ? 9 : ib);
+    }).map(function(t) {
+      return {
+        id: t.id,
+        stageKind: t.stageKind || "",
+        status: t.status,
+        title: t.title
+      };
+    });
+    if (kids.length) return { role: "parent" /* PARENT */, kids };
+    return { role: "solo" /* SOLO */ };
+  }
+
+  // demo/dag-layout.ts
+  var CARD_W = 208;
+  var CARD_H = 72;
+  var GAP_X = 14;
+  var GAP_Y = 22;
+  var GUTTER = 42;
+  var BAND_GAP = 30;
+  var PAD = 14;
+  var MAX_ROWS = 8;
+  function groupByLayer(tasks) {
+    const layers = [];
+    tasks.forEach(function(t) {
+      const l = typeof t.layer === "number" && t.layer >= 0 ? t.layer : 0;
+      if (!layers[l]) layers[l] = [];
+      layers[l].push(t);
+    });
+    return layers;
+  }
+  function barycenter(t, order) {
+    const ps = (t.dependsOn || []).filter(function(d) {
+      return order[d] !== void 0;
+    }).map(function(d) {
+      return order[d];
+    });
+    return ps.length ? ps.reduce(function(a, b) {
+      return a + b;
+    }, 0) / ps.length : 0;
+  }
+  function orderWithinLayers(layers) {
+    const order = {};
+    layers.forEach(function(arr) {
+      if (!arr) return;
+      arr.forEach(function(t, i) {
+        order[t.id] = i;
+      });
+    });
+    for (let pass = 0; pass < 2; pass++) {
+      for (let l = 1; l < layers.length; l++) {
+        const arr = layers[l];
+        if (!arr) continue;
+        const keyed = arr.map(function(t) {
+          return { task: t, bary: barycenter(t, order) };
+        });
+        keyed.sort(function(a, b) {
+          return a.bary - b.bary;
+        });
+        arr.length = 0;
+        for (let i = 0; i < keyed.length; i++) {
+          arr.push(keyed[i].task);
+          order[keyed[i].task.id] = i;
+        }
+      }
+    }
+  }
+  function calculateLayout(tasks, dir, availW) {
+    const layers = groupByLayer(tasks);
+    orderWithinLayers(layers);
+    const pos = {};
+    const bands = [];
+    let width = 0;
+    let height = 0;
+    if (dir === "horizontal") {
+      let x = PAD + GUTTER;
+      let maxRows = 1;
+      layers.forEach(function(arr, l) {
+        if (!arr || !arr.length) return;
+        maxRows = Math.max(maxRows, Math.min(MAX_ROWS, arr.length));
+        bands.push({ layer: l, y: PAD, count: arr.length });
+        arr.forEach(function(t, i) {
+          pos[t.id] = {
+            x: x + Math.floor(i / MAX_ROWS) * (CARD_W + GAP_X),
+            y: PAD + i % MAX_ROWS * (CARD_H + GAP_Y)
+          };
+        });
+        x += Math.ceil(arr.length / MAX_ROWS) * (CARD_W + GAP_X) + BAND_GAP;
+      });
+      width = Math.max(PAD * 2 + CARD_W, x - GAP_X - BAND_GAP + PAD);
+      height = PAD * 2 + maxRows * (CARD_H + GAP_Y) - GAP_Y;
+    } else {
+      const usable = Math.max(CARD_W, availW - PAD * 2 - GUTTER);
+      const cols = Math.max(1, Math.floor((usable + GAP_X) / (CARD_W + GAP_X)));
+      let y = PAD;
+      layers.forEach(function(arr, l) {
+        if (!arr || !arr.length) return;
+        const rows = Math.ceil(arr.length / cols);
+        bands.push({ layer: l, y, count: arr.length });
+        arr.forEach(function(t, i) {
+          pos[t.id] = {
+            x: PAD + GUTTER + i % cols * (CARD_W + GAP_X),
+            y: y + Math.floor(i / cols) * (CARD_H + GAP_Y)
+          };
+        });
+        y += rows * CARD_H + (rows - 1) * GAP_Y + BAND_GAP;
+      });
+      width = PAD * 2 + GUTTER + cols * (CARD_W + GAP_X) - GAP_X;
+      height = Math.max(PAD * 2 + CARD_H, y - BAND_GAP + PAD);
+    }
+    return { pos, bands, width, height, dir };
+  }
+  function hitTest(layout, x, y, inset) {
+    const pad = inset || 0;
+    for (const id in layout.pos) {
+      const p = layout.pos[id];
+      if (x >= p.x - pad && x <= p.x + CARD_W + pad && y >= p.y - pad && y <= p.y + CARD_H + pad) {
+        return id;
+      }
+    }
+    return null;
+  }
+
+  // demo/critical-path.ts
+  function isTaskLike(value) {
+    return value !== null && typeof value === "object";
+  }
+  function buildGraph(tasks, edges) {
+    const ids = [];
+    const byId = /* @__PURE__ */ new Map();
+    for (const task of tasks) {
+      if (!isTaskLike(task) || typeof task.id !== "string" || task.id.length === 0) continue;
+      if (byId.has(task.id)) continue;
+      byId.set(task.id, task);
+      ids.push(task.id);
+    }
+    const preds = /* @__PURE__ */ new Map();
+    const succs = /* @__PURE__ */ new Map();
+    const indeg = /* @__PURE__ */ new Map();
+    for (const id of ids) {
+      preds.set(id, []);
+      succs.set(id, []);
+      indeg.set(id, 0);
+    }
+    const addEdge = (from, to) => {
+      if (!byId.has(from) || !byId.has(to)) return;
+      const incoming = preds.get(to);
+      if (incoming.indexOf(from) >= 0) return;
+      incoming.push(from);
+      succs.get(from).push(to);
+      indeg.set(to, indeg.get(to) + 1);
+    };
+    for (const id of ids) {
+      const task = byId.get(id);
+      const deps = Array.isArray(task.dependsOn) ? task.dependsOn : [];
+      if (deps.length > 0) {
+        for (const dep of deps) {
+          if (typeof dep === "string" && dep.length > 0) addEdge(dep, id);
+        }
+        continue;
+      }
+      if (Array.isArray(edges)) {
+        for (const e of edges) {
+          if (!e || typeof e.from !== "string" || typeof e.to !== "string") continue;
+          if (e.to === id) addEdge(e.from, e.to);
+        }
+      }
+    }
+    return { ids, byId, preds, succs, indeg };
+  }
+  function topoOrder(graph) {
+    const indeg = new Map(graph.indeg);
+    const queue = graph.ids.filter((id) => indeg.get(id) === 0);
+    const order = [];
+    for (let head = 0; head < queue.length; head += 1) {
+      const id = queue[head];
+      order.push(id);
+      for (const next of graph.succs.get(id)) {
+        const left = indeg.get(next) - 1;
+        indeg.set(next, left);
+        if (left === 0) queue.push(next);
+      }
+    }
+    const cycle = graph.ids.filter((id) => indeg.get(id) > 0);
+    return { order, cycle };
+  }
+  function detectCycle(tasks) {
+    const { cycle } = topoOrder(buildGraph(tasks));
+    return cycle.length > 0 ? cycle : null;
+  }
+  function findCriticalPath(tasks, edges) {
+    const result = /* @__PURE__ */ new Set();
+    const graph = buildGraph(tasks, edges);
+    if (graph.ids.length === 0) return result;
+    const { order, cycle } = topoOrder(graph);
+    if (cycle.length > 0) return result;
+    const dist = /* @__PURE__ */ new Map();
+    const prev = /* @__PURE__ */ new Map();
+    for (const id of order) {
+      dist.set(id, 1);
+      prev.set(id, null);
+      for (const p of graph.preds.get(id)) {
+        const candidate = dist.get(p) + 1;
+        if (candidate > dist.get(id)) {
+          dist.set(id, candidate);
+          prev.set(id, p);
+        }
+      }
+    }
+    let end = null;
+    let best = 0;
+    for (const id of order) {
+      const d = dist.get(id);
+      if (d > best) {
+        best = d;
+        end = id;
+      }
+    }
+    let cur = end;
+    while (cur !== null) {
+      result.add(cur);
+      cur = prev.get(cur) ?? null;
+    }
+    return result;
+  }
+  var computeCriticalPath = findCriticalPath;
+  function computeNeighbors(tasks, targetId) {
+    const graph = buildGraph(tasks);
+    const up = /* @__PURE__ */ new Set();
+    const down = /* @__PURE__ */ new Set();
+    if (!graph.byId.has(targetId)) return { up, down };
+    const walk = (seeds, adjacency, out) => {
+      const stack = seeds.slice();
+      while (stack.length > 0) {
+        const id = stack.pop();
+        for (const next of adjacency.get(id) ?? []) {
+          if (next === targetId || out.has(next)) continue;
+          out.add(next);
+          stack.push(next);
+        }
+      }
+    };
+    walk([targetId], graph.preds, up);
+    walk([targetId], graph.succs, down);
+    return { up, down };
+  }
+  function branchCounts(edges, critSet) {
+    const out = {};
+    for (const e of edges) {
+      if (!e || typeof e.from !== "string" || typeof e.to !== "string") continue;
+      const fromCrit = critSet.has(e.from);
+      const toCrit = critSet.has(e.to);
+      if (fromCrit && toCrit) continue;
+      if (fromCrit) out[e.from] = (out[e.from] ?? 0) + 1;
+      if (toCrit && !fromCrit) out[e.to] = (out[e.to] ?? 0) + 1;
+    }
+    return out;
+  }
+
+  // demo/progress-bar.ts
+  var STAGE_ORDER = ["dev", "integrate", "review", "test"];
+  var STAGE_LABEL = {
+    dev: "\u7814\u53D1",
+    integrate: "\u8054\u8C03",
+    review: "\u590D\u6838",
+    test: "\u6D4B\u8BD5",
+    repro: "\u590D\u73B0",
+    fix: "\u4FEE\u590D",
+    regress: "\u56DE\u5F52",
+    probe: "\u63A2\u9488",
+    collect: "\u91C7\u96C6",
+    analyze: "\u5206\u6790",
+    prepare: "\u51C6\u5907",
+    run: "\u8FD0\u884C",
+    verify: "\u9A8C\u8BC1",
+    change: "\u53D8\u66F4",
+    dryrun: "\u6F14\u7EC3",
+    apply: "\u5E94\u7528"
+  };
+  var STAGE_HINT = {
+    "dev": "\u7814\u53D1\u5B8C\u6210\u624D\u8FDB\u5165\u8054\u8C03",
+    "integrate": "\u8054\u8C03\u901A\u8FC7\u624D\u8FDB\u5165\u590D\u6838",
+    "review": "\u590D\u6838\u901A\u8FC7\u624D\u8FDB\u5165\u6D4B\u8BD5",
+    "test": "\u6D4B\u8BD5\u5168\u7EFF\u624D\u7B97\u4EA4\u4ED8"
+  };
+  var IN_PROGRESS_STATUSES = ["in_progress", "integrating", "testing", "in_review"];
+  function segmentClass(status) {
+    if (status === "done") return "on";
+    if (IN_PROGRESS_STATUSES.indexOf(status) >= 0) return "now";
+    return "";
+  }
+  var SEGMENT_COLOR = {
+    on: "#34c759",
+    now: "#0071e3",
+    "": "rgba(0,0,0,.12)"
+  };
+  function segmentColor(status) {
+    return SEGMENT_COLOR[segmentClass(status)];
+  }
+  function progressText(kids) {
+    const total = kids.length;
+    const done = kids.filter(function(k) {
+      return k.status === "done";
+    }).length;
+    return done + "/" + total;
+  }
+  function alignKids(kids) {
+    const byStage = {};
+    const rest = [];
+    kids.forEach(function(k) {
+      const s = k.stageKind || "";
+      if (STAGE_ORDER.indexOf(s) >= 0 && !byStage[s]) byStage[s] = k;
+      else rest.push(k);
+    });
+    const out = [];
+    STAGE_ORDER.forEach(function(s) {
+      if (byStage[s]) out.push(byStage[s]);
+    });
+    return out.concat(rest);
+  }
+  function renderProgressBar(ctx, kids, x, y, w) {
+    if (!kids || !kids.length) return;
+    const aligned = alignKids(kids);
+    const gap = 3;
+    const barW = Math.max(8, w - 34);
+    const segW = Math.max(3, (barW - gap * (aligned.length - 1)) / aligned.length);
+    const barH = 4;
+    ctx.save();
+    aligned.forEach(function(k, i) {
+      ctx.fillStyle = segmentColor(k.status);
+      const sx = x + i * (segW + gap);
+      ctx.fillRect(sx, y, segW, barH);
+    });
+    ctx.fillStyle = "rgba(0,0,0,.45)";
+    ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    ctx.fillText(progressText(aligned), x + w, y + barH / 2);
+    ctx.restore();
+  }
+  function chainHtml(kids) {
+    if (!kids || !kids.length) return "";
+    const aligned = alignKids(kids);
+    let s = '<div class="card-chain">';
+    aligned.forEach(function(k) {
+      const cls = segmentClass(k.status);
+      const label = STAGE_LABEL[k.stageKind || ""] || k.stageKind || "";
+      const status = STATUS_LABEL[k.status] || k.status;
+      s += '<i class="' + cls + '" title="' + esc(label) + "\uFF1A" + esc(status) + '"></i>';
+    });
+    s += "<span>" + progressText(aligned) + "</span></div>";
+    return s;
+  }
+  function esc(s) {
+    return String(s === null || s === void 0 ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  // demo/card-renderer.ts
+  function roundRectPath(ctx, x, y, w, h, r) {
+    const rr = Math.max(0, Math.min(r, w / 2, h / 2));
+    ctx.beginPath();
+    ctx.moveTo(x + rr, y);
+    ctx.lineTo(x + w - rr, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + rr);
+    ctx.lineTo(x + w, y + h - rr);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - rr, y + h);
+    ctx.lineTo(x + rr, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - rr);
+    ctx.lineTo(x, y + rr);
+    ctx.quadraticCurveTo(x, y, x + rr, y);
+    ctx.closePath();
+  }
+  function wrapText(ctx, text, maxW, maxLines) {
+    const chars = String(text || "").split("");
+    const lines = [];
+    let cur = "";
+    for (let i = 0; i < chars.length; i++) {
+      const next = cur + chars[i];
+      if (ctx.measureText(next).width > maxW && cur) {
+        lines.push(cur);
+        cur = chars[i];
+        if (lines.length === maxLines) break;
+      } else {
+        cur = next;
+      }
+    }
+    if (lines.length < maxLines && cur) lines.push(cur);
+    if (lines.length === maxLines) {
+      let last = lines[maxLines - 1];
+      while (last.length > 1 && ctx.measureText(last + "\u2026").width > maxW) {
+        last = last.slice(0, -1);
+      }
+      lines[maxLines - 1] = last + "\u2026";
+    }
+    return lines;
+  }
+  function drawChip(ctx, x, y, text, color) {
+    ctx.save();
+    ctx.font = '10px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    const w = Math.round(ctx.measureText(text).width) + 14;
+    const h = 16;
+    ctx.globalAlpha = ctx.globalAlpha * 0.16;
+    ctx.fillStyle = color;
+    roundRectPath(ctx, x, y, w, h, 8);
+    ctx.fill();
+    ctx.restore();
+    ctx.save();
+    ctx.fillStyle = color;
+    ctx.font = '10px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, x + w / 2, y + h / 2 + 0.5);
+    ctx.restore();
+    return x + w;
+  }
+  function renderCard(ctx, task, x, y, opts) {
+    const o = opts || {};
+    ctx.save();
+    ctx.globalAlpha = o.dimmed ? 0.18 : 1;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = getStatusBackgroundColor(task.status);
+    roundRectPath(ctx, x, y, CARD_W, CARD_H, 8);
+    ctx.fill();
+    ctx.setLineDash(o.critical ? [5, 3] : []);
+    ctx.lineWidth = o.critical ? 1.5 : 1;
+    ctx.strokeStyle = o.critical ? "rgba(0,113,227,.55)" : "rgba(0,0,0,.10)";
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.save();
+    roundRectPath(ctx, x, y, CARD_W, CARD_H, 8);
+    ctx.clip();
+    if (task.role === "parent" /* PARENT */) {
+      ctx.fillStyle = "rgba(0,113,227,.55)";
+      ctx.fillRect(x + 1, y + 6, 3, CARD_H - 12);
+    }
+    ctx.fillStyle = "#8e8e93";
+    ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, monospace";
+    ctx.fillText(task.id, x + 12, y + 16);
+    const idW = ctx.measureText(task.id).width;
+    let bx = drawChip(ctx, x + 12 + idW + 8, y + 8, PHASE_LABEL[task.phase] || String(task.phase), getPhaseColor(task.phase));
+    bx = drawChip(ctx, bx + 4, y + 8, String(task.side), getSideColor(task.side));
+    if (task.stageKind) {
+      drawChip(ctx, bx + 4, y + 8, STAGE_LABEL[task.stageKind] || String(task.stageKind), "rgba(0,0,0,.45)");
+    }
+    ctx.fillStyle = "#1f2733";
+    ctx.font = '600 12px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    const lines = wrapText(ctx, task.title, CARD_W - 26, 2);
+    lines.forEach(function(line, i) {
+      ctx.fillText(line, x + 12, y + 34 + i * 15);
+    });
+    if (task.role === "parent" /* PARENT */ && o.kids && o.kids.length) {
+      renderProgressBar(ctx, o.kids, x + 12, y + CARD_H - 13, CARD_W - 24);
+    }
+    if (o.ready) {
+      ctx.beginPath();
+      ctx.arc(x + CARD_W - 12, y + 12, 4, 0, Math.PI * 2);
+      ctx.fillStyle = "#34c759";
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(x + CARD_W - 12, y + 12, 7, 0, Math.PI * 2);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "rgba(52,199,89,.25)";
+      ctx.stroke();
+    }
+    ctx.restore();
+    if (o.highlight) {
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = o.highlight === "self" ? "#1f2733" : o.highlight === "up" ? "#ff9500" : "#0071e3";
+      roundRectPath(ctx, x - 1, y - 1, CARD_W + 2, CARD_H + 2, 9);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+  function cardHtml(task, opts) {
+    const o = opts || {};
+    const cls = "card" + (o.vc ? " vc" : "");
+    let attrs = ' data-status="' + esc(task.status) + '"';
+    if (task.role) attrs += ' data-role="' + esc(task.role) + '"';
+    let s = '<div class="' + cls + '"' + attrs + ">";
+    if (task.role === "parent" /* PARENT */) s += '<div class="card-crown"></div>';
+    s += '<div class="card-top"><span class="card-id">' + esc(task.id) + "</span>";
+    s += '<span class="chip chip-type" data-phase="' + esc(task.phase) + '">' + esc(PHASE_LABEL[task.phase] || task.phase) + "</span>";
+    s += '<span class="chip chip-side" data-side="' + esc(task.side) + '">' + esc(task.side) + "</span>";
+    if (task.stageKind) s += '<span class="chip chip-kind">' + esc(STAGE_LABEL[task.stageKind] || task.stageKind) + "</span>";
+    s += '</div><div class="card-title">' + esc(task.title) + "</div>";
+    if (o.kids && o.kids.length) s += chainHtml(o.kids);
+    if (o.ready) s += '<span class="ready-dot" title="\u53EF\u5F00\u5DE5\uFF08\u961F\u5217 ready[]\uFF09"></span>';
+    s += "</div>";
+    return s;
+  }
+  function statusLabel(status) {
+    return STATUS_LABEL[status] || status;
+  }
+
+  // demo/edge-renderer.ts
+  var EDGE_DONE = "rgba(52,199,89,.5)";
+  var EDGE_DONE_W = 1.3;
+  var EDGE_BASE = "rgba(0,0,0,.17)";
+  var EDGE_BASE_W = 1.2;
+  var EDGE_CRIT = "rgba(0,113,227,.75)";
+  var EDGE_CRIT_W = 1.8;
+  var EDGE_UP = "#ff9500";
+  var EDGE_DOWN = "#0071e3";
+  var EDGE_HL_W = 2;
+  function allocatePorts(edges, layout, dir) {
+    const outIdx = {};
+    const inIdx = {};
+    edges.forEach(function(e, i) {
+      if (!outIdx[e.from]) outIdx[e.from] = [];
+      if (!inIdx[e.to]) inIdx[e.to] = [];
+      outIdx[e.from].push(i);
+      inIdx[e.to].push(i);
+    });
+    const frac = function(k, n) {
+      return n <= 1 ? 0.5 : 0.2 + 0.6 * k / (n - 1);
+    };
+    const axis = function(id) {
+      const p = layout.pos[id];
+      if (!p) return 0;
+      return dir === "vertical" ? p.x : p.y;
+    };
+    const outF = {};
+    const inF = {};
+    Object.keys(outIdx).forEach(function(id) {
+      const list = outIdx[id].slice().sort(function(a, b) {
+        return axis(edges[a].to) - axis(edges[b].to);
+      });
+      list.forEach(function(ei, k) {
+        outF[ei] = frac(k, list.length);
+      });
+    });
+    Object.keys(inIdx).forEach(function(id) {
+      const list = inIdx[id].slice().sort(function(a, b) {
+        return axis(edges[a].from) - axis(edges[b].from);
+      });
+      list.forEach(function(ei, k) {
+        inF[ei] = frac(k, list.length);
+      });
+    });
+    return { outF, inF };
+  }
+  function edgeGeometry(from, to, outF, inF, dir) {
+    if (dir === "horizontal") {
+      const sx2 = from.x + CARD_W;
+      const sy2 = from.y + CARD_H * outF;
+      const tx2 = to.x;
+      const ty2 = to.y + CARD_H * inF;
+      const dx = Math.max(20, (tx2 - sx2) * 0.45);
+      return { sx: sx2, sy: sy2, c1x: sx2 + dx, c1y: sy2, c2x: tx2 - dx, c2y: ty2, tx: tx2, ty: ty2 };
+    }
+    const sx = from.x + CARD_W * outF;
+    const sy = from.y + CARD_H;
+    const tx = to.x + CARD_W * inF;
+    const ty = to.y;
+    const dy = Math.max(18, (ty - sy) * 0.45);
+    return { sx, sy, c1x: sx, c1y: sy + dy, c2x: tx, c2y: ty - dy, tx, ty };
+  }
+  function edgeStyle(e, byId, critSet, highlight) {
+    const a = byId[e.from];
+    const b = byId[e.to];
+    if (highlight) {
+      const isUp = highlight.up.has(e.to) || highlight.up.has(e.from);
+      const isDown = highlight.down.has(e.from);
+      if (isUp) return { color: EDGE_UP, width: EDGE_HL_W };
+      if (isDown) return { color: EDGE_DOWN, width: EDGE_HL_W };
+    }
+    if (critSet.has(e.from) && critSet.has(e.to)) return { color: EDGE_CRIT, width: EDGE_CRIT_W };
+    if (a && b && a.status === "done" && b.status === "done") return { color: EDGE_DONE, width: EDGE_DONE_W };
+    return { color: EDGE_BASE, width: EDGE_BASE_W };
+  }
+  function drawArrow(ctx, g, color, width, dimmed) {
+    const ang = Math.atan2(g.ty - g.c2y, g.tx - g.c2x);
+    const size = 7;
+    ctx.save();
+    ctx.globalAlpha = dimmed ? 0.05 : 1;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(g.tx - size * Math.cos(ang - 0.42), g.ty - size * Math.sin(ang - 0.42));
+    ctx.lineTo(g.tx, g.ty);
+    ctx.lineTo(g.tx - size * Math.cos(ang + 0.42), g.ty - size * Math.sin(ang + 0.42));
+    ctx.stroke();
+    ctx.restore();
+  }
+  function resetEdgePaint(ctx) {
+    ctx.strokeStyle = EDGE_BASE;
+    ctx.lineWidth = EDGE_BASE_W;
+    ctx.lineCap = "round";
+  }
+  function renderEdges(ctx, edges, layout, tasks, opts) {
+    const o = opts || {};
+    const dir = o.dir || layout.dir;
+    const critSet = o.critSet || /* @__PURE__ */ new Set();
+    const highlight = o.highlight || null;
+    const ports = allocatePorts(edges, layout, dir);
+    const byId = {};
+    tasks.forEach(function(t) {
+      byId[t.id] = t;
+    });
+    ctx.save();
+    ctx.lineCap = "round";
+    let drawn = 0;
+    edges.forEach(function(e, i) {
+      const from = layout.pos[e.from];
+      const to = layout.pos[e.to];
+      if (!from || !to) return;
+      drawn++;
+      const st = edgeStyle(e, byId, critSet, highlight);
+      const dimmed = !!o.dimmed && st.color !== EDGE_UP && st.color !== EDGE_DOWN;
+      const g = edgeGeometry(from, to, ports.outF[i], ports.inF[i], dir);
+      ctx.globalAlpha = dimmed ? 0.05 : 1;
+      ctx.strokeStyle = st.color;
+      ctx.lineWidth = st.width;
+      ctx.beginPath();
+      ctx.moveTo(g.sx, g.sy);
+      ctx.bezierCurveTo(g.c1x, g.c1y, g.c2x, g.c2y, g.tx, g.ty);
+      ctx.stroke();
+      drawArrow(ctx, g, st.color, st.width, dimmed);
+    });
+    resetEdgePaint(ctx);
+    ctx.restore();
+    return drawn;
+  }
+  function edgeSvg(edges, layout, tasks, critSet, dir) {
+    const direction = dir || layout.dir;
+    const ports = allocatePorts(edges, layout, direction);
+    const byId = {};
+    tasks.forEach(function(t) {
+      byId[t.id] = t;
+    });
+    const markers = '<defs><marker id="m-base" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,1 L7,4 L0,7 z" fill="' + EDGE_BASE + '"/></marker><marker id="m-done" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,1 L7,4 L0,7 z" fill="' + EDGE_DONE + '"/></marker><marker id="m-crit" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6.5" markerHeight="6.5" orient="auto"><path d="M0,1 L7,4 L0,7 z" fill="' + EDGE_CRIT + '"/></marker></defs>';
+    let paths = "";
+    edges.forEach(function(e, i) {
+      const from = layout.pos[e.from];
+      const to = layout.pos[e.to];
+      if (!from || !to) return;
+      const g = edgeGeometry(from, to, ports.outF[i], ports.inF[i], direction);
+      const d = "M" + g.sx + "," + g.sy + " C" + g.c1x + "," + g.c1y + " " + g.c2x + "," + g.c2y + " " + g.tx + "," + g.ty;
+      const st = edgeStyle(e, byId, critSet, null);
+      const cls = st.color === EDGE_CRIT ? "e-crit" : st.color === EDGE_DONE ? "e-done" : "e-base";
+      const mk = cls === "e-crit" ? "m-crit" : cls === "e-done" ? "m-done" : "m-base";
+      paths += '<path class="' + cls + '" data-from="' + e.from + '" data-to="' + e.to + '" data-mk="' + mk + '" d="' + d + '" marker-end="url(#' + mk + ')"/>';
+    });
+    return '<svg class="edges" width="' + layout.width + '" height="' + layout.height + '">' + markers + paths + "</svg>";
+  }
+
+  // demo/interaction.ts
+  var DIM_NODE_ALPHA = 0.18;
+  var DIM_EDGE_ALPHA = 0.05;
+  function paintDim(ctx, alpha) {
+    ctx.globalAlpha = alpha;
+  }
+  var EMPTY_HIGHLIGHT = { self: null, up: /* @__PURE__ */ new Set(), down: /* @__PURE__ */ new Set() };
+  function resolveHighlight(tasks, id) {
+    if (!id) return EMPTY_HIGHLIGHT;
+    const nb = computeNeighbors(tasks, id);
+    return { self: id, up: nb.up, down: nb.down };
+  }
+  function setupInteraction(canvas, opts) {
+    let pinned = null;
+    let hover = null;
+    const at = function(ev) {
+      const r = canvas.getBoundingClientRect();
+      return opts.hitTest(ev.clientX - r.left, ev.clientY - r.top);
+    };
+    const onMouseMove = function(ev) {
+      const id = at(ev);
+      if (id === hover) return;
+      hover = id;
+      if (pinned) return;
+      opts.onChange(id);
+    };
+    const onClick = function(ev) {
+      const id = at(ev);
+      pinned = !id || pinned === id ? null : id;
+      opts.onChange(pinned);
+    };
+    const onMouseLeave = function() {
+      hover = null;
+      if (!pinned) opts.onChange(null);
+    };
+    canvas.addEventListener("mousemove", onMouseMove);
+    canvas.addEventListener("click", onClick);
+    canvas.addEventListener("mouseleave", onMouseLeave);
+    return {
+      get pinned() {
+        return pinned;
+      },
+      get hover() {
+        return hover;
+      },
+      reset: function() {
+        pinned = null;
+        hover = null;
+        opts.onChange(null);
+      },
+      destroy: function() {
+        canvas.removeEventListener("mousemove", onMouseMove);
+        canvas.removeEventListener("click", onClick);
+        canvas.removeEventListener("mouseleave", onMouseLeave);
+      }
+    };
+  }
+  function bindDomInteraction(root, opts) {
+    let pinned = null;
+    const nodeOf = function(ev) {
+      const target = ev.target;
+      if (!target || !target.closest) return null;
+      return target.closest("[data-id]");
+    };
+    const onMouseOver = function(ev) {
+      const n = nodeOf(ev);
+      if (!n || pinned) return;
+      opts.onChange(n.getAttribute("data-id"));
+    };
+    const onMouseOut = function(ev) {
+      const n = nodeOf(ev);
+      if (!n || pinned) return;
+      opts.onChange(null);
+    };
+    const onClick = function(ev) {
+      const n = nodeOf(ev);
+      const id = n ? n.getAttribute("data-id") : null;
+      pinned = !id || pinned === id ? null : id;
+      opts.onChange(pinned);
+    };
+    root.addEventListener("mouseover", onMouseOver);
+    root.addEventListener("mouseout", onMouseOut);
+    root.addEventListener("click", onClick);
+    return {
+      get pinned() {
+        return pinned;
+      },
+      get hover() {
+        return null;
+      },
+      reset: function() {
+        pinned = null;
+        opts.onChange(null);
+      },
+      destroy: function() {
+        root.removeEventListener("mouseover", onMouseOver);
+        root.removeEventListener("mouseout", onMouseOut);
+        root.removeEventListener("click", onClick);
+      }
+    };
+  }
+
+  // demo/integration.ts
+  function roleOf(id, hl) {
+    if (!hl || !hl.self) return { highlight: null, dimmed: false };
+    if (hl.self === id) return { highlight: "self", dimmed: false };
+    if (hl.up.has(id)) return { highlight: "up", dimmed: false };
+    if (hl.down.has(id)) return { highlight: "down", dimmed: false };
+    return { highlight: null, dimmed: true };
+  }
+  function resolveTasks(tasks) {
+    return tasks.map(function(t) {
+      const d = deriveTaskFields(t, tasks);
+      const copy = Object.assign({}, t);
+      copy.role = d.role;
+      if (d.kids && d.kids.length) copy.kids = d.kids;
+      return copy;
+    });
+  }
+  function createDagViewer(canvas, data, initial) {
+    const state = {
+      dir: initial.dir || "vertical",
+      crit: !!initial.crit,
+      focus: !!initial.focus,
+      pinned: initial.pinned || null
+    };
+    let lastLayout = null;
+    let controller = null;
+    const paint = function() {
+      const ctx = canvas.getContext("2d");
+      const availW = canvas.parentElement && canvas.parentElement.clientWidth || 900;
+      const tasks = resolveTasks(data.tasks);
+      const cycle = detectCycle(tasks);
+      const critSet = findCriticalPath(tasks);
+      if (cycle || !tasks.length) {
+        canvas.width = availW;
+        canvas.height = 90;
+        canvas.style.width = availW + "px";
+        canvas.style.height = "90px";
+        if (ctx) {
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+          ctx.clearRect(0, 0, availW, 90);
+          ctx.fillStyle = cycle ? "#c2185b" : "#8e8e93";
+          ctx.font = "13px -apple-system, BlinkMacSystemFont, sans-serif";
+          ctx.textAlign = "left";
+          ctx.textBaseline = "middle";
+          ctx.fillText(cycle ? "DAG \u5B58\u5728\u5FAA\u73AF\u4F9D\u8D56\uFF1A" + cycle.join(" \u2192 ") : "\u6682\u65E0\u4EFB\u52A1", PAD, 40);
+        }
+        lastLayout = null;
+        return { layout: { pos: {}, bands: [], width: availW, height: 90, dir: state.dir }, critSet, visibleIds: [], branchCount: {}, cycle };
+      }
+      const visibleTasks = state.focus ? tasks.filter(function(t) {
+        return critSet.has(t.id);
+      }) : tasks;
+      const visible = /* @__PURE__ */ new Set();
+      visibleTasks.forEach(function(t) {
+        visible.add(t.id);
+      });
+      const edges = data.edges.filter(function(e) {
+        return visible.has(e.from) && visible.has(e.to);
+      });
+      const layout = calculateLayout(visibleTasks, state.dir, availW);
+      lastLayout = layout;
+      const dpr = typeof devicePixelRatio === "number" && devicePixelRatio > 0 ? devicePixelRatio : 1;
+      canvas.width = Math.round(layout.width * dpr);
+      canvas.height = Math.round(layout.height * dpr);
+      canvas.style.width = layout.width + "px";
+      canvas.style.height = layout.height + "px";
+      if (ctx) {
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, layout.width, layout.height);
+        const hl = resolveHighlight(tasks, state.pinned);
+        const hasHl = !!hl.self;
+        const branch = state.focus ? branchCounts(data.edges, critSet) : {};
+        const ready = new Set(data.ready || []);
+        renderEdges(ctx, edges, layout, visibleTasks, {
+          critSet,
+          highlight: hasHl ? hl : null,
+          dimmed: hasHl,
+          dir: state.dir
+        });
+        if (state.dir !== "horizontal") {
+          layout.bands.forEach(function(b) {
+            ctx.save();
+            ctx.fillStyle = "rgba(0,0,0,.32)";
+            ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
+            ctx.textAlign = "left";
+            ctx.textBaseline = "middle";
+            ctx.fillText("L" + b.layer, PAD, b.y + 14);
+            ctx.restore();
+          });
+        }
+        visibleTasks.forEach(function(t) {
+          const p = layout.pos[t.id];
+          if (!p) return;
+          const flag = roleOf(t.id, hasHl ? hl : null);
+          renderCard(ctx, t, p.x, p.y, {
+            kids: t.kids,
+            ready: ready.has(t.id),
+            critical: state.crit && critSet.has(t.id),
+            dimmed: flag.dimmed,
+            highlight: flag.highlight
+          });
+          if (state.focus && branch[t.id]) {
+            ctx.save();
+            ctx.globalAlpha = flag.dimmed ? DIM_NODE_ALPHA : 1;
+            ctx.fillStyle = "rgba(0,0,0,.55)";
+            ctx.font = "10px -apple-system, BlinkMacSystemFont, sans-serif";
+            ctx.textAlign = "right";
+            ctx.textBaseline = "bottom";
+            ctx.fillText("+" + branch[t.id] + " \u652F\u7EBF", p.x + CARD_W - 8, p.y + CARD_H - 4);
+            ctx.restore();
+          }
+        });
+      }
+      return {
+        layout,
+        critSet,
+        visibleIds: visibleTasks.map(function(t) {
+          return t.id;
+        }),
+        branchCount: state.focus ? branchCounts(data.edges, critSet) : {},
+        cycle: null
+      };
+    };
+    const viewer = {
+      render: paint,
+      patch: function(patch) {
+        if (patch.dir !== void 0) state.dir = patch.dir;
+        if (patch.crit !== void 0) state.crit = patch.crit;
+        if (patch.focus !== void 0) state.focus = patch.focus;
+        if (patch.pinned !== void 0) state.pinned = patch.pinned;
+        return paint();
+      },
+      state: function() {
+        return { dir: state.dir, crit: state.crit, focus: state.focus, pinned: state.pinned };
+      },
+      layout: function() {
+        return lastLayout;
+      },
+      destroy: function() {
+        if (controller) controller.destroy();
+      }
+    };
+    controller = setupInteraction(canvas, {
+      hitTest: function(x, y) {
+        return lastLayout ? hitTest(lastLayout, x, y, 0) : null;
+      },
+      onChange: function(id) {
+        state.pinned = id;
+        paint();
+      }
+    });
+    paint();
+    return viewer;
+  }
+  function validateQueueFile(queue) {
+    const issues = [];
+    const tasks = queue.tasks || [];
+    const edges = queue.edges || [];
+    const ready = queue.ready || [];
+    if (!tasks.length) issues.push({ rule: "V-1", message: "tasks \u4E3A\u7A7A\uFF0C\u6CA1\u6709\u53EF\u6E32\u67D3\u7684\u4EFB\u52A1" });
+    const ids = /* @__PURE__ */ new Set();
+    tasks.forEach(function(t) {
+      ids.add(t.id);
+    });
+    edges.forEach(function(e, i) {
+      if (!ids.has(e.from)) issues.push({ rule: "V-2", message: "\u8FB9\u5F15\u7528\u4E86\u4E0D\u5B58\u5728\u7684\u4EFB\u52A1 " + e.from, path: "edges[" + i + "].from" });
+      if (!ids.has(e.to)) issues.push({ rule: "V-2", message: "\u8FB9\u5F15\u7528\u4E86\u4E0D\u5B58\u5728\u7684\u4EFB\u52A1 " + e.to, path: "edges[" + i + "].to" });
+    });
+    const req = queue.requirement_id;
+    if (req) {
+      tasks.forEach(function(t, i) {
+        if (t.requirementId && t.requirementId !== req) {
+          issues.push({ rule: "V-3", message: "\u4EFB\u52A1 " + t.id + " \u7684 requirementId \u4E0E\u961F\u5217\u4E0D\u4E00\u81F4", path: "tasks[" + i + "]" });
+        }
+      });
+    }
+    const cycle = detectCycle(tasks);
+    if (cycle) issues.push({ rule: "V-4", message: "dependsOn \u5B58\u5728\u5FAA\u73AF\u4F9D\u8D56\uFF1A" + cycle.join(" \u2192 ") });
+    tasks.forEach(function(t, i) {
+      (t.dependsOn || []).forEach(function(d, j) {
+        const dep = tasks.filter(function(x) {
+          return x.id === d;
+        })[0];
+        if (dep && typeof t.layer === "number" && typeof dep.layer === "number" && dep.layer >= t.layer) {
+          issues.push({ rule: "V-5", message: "\u524D\u9A71 " + d + " \u7684 layer(" + dep.layer + ") \u4E0D\u5C0F\u4E8E\u540E\u7EE7 " + t.id + "(" + t.layer + ")", path: "tasks[" + i + "].dependsOn[" + j + "]" });
+        }
+      });
+    });
+    ready.forEach(function(id, i) {
+      const t = tasks.filter(function(x) {
+        return x.id === id;
+      })[0];
+      if (!t) issues.push({ rule: "V-6", message: "ready \u542B\u4E0D\u5B58\u5728\u7684\u4EFB\u52A1 " + id, path: "ready[" + i + "]" });
+      else if (t.status !== "todo") issues.push({ rule: "V-6", message: "ready \u542B\u975E\u5F85\u5F00\u59CB\u72B6\u6001\u7684\u4EFB\u52A1 " + id, path: "ready[" + i + "]" });
+    });
+    return { passed: issues.length === 0, issues };
+  }
+  function renderDagHtml(data, state) {
+    if (!data.tasks.length) return '<div class="dsh-pm-np-empty">\u6682\u65E0\u4EFB\u52A1</div>';
+    const resolved = resolveTasks(data.tasks);
+    const cycle = detectCycle(resolved);
+    if (cycle) return '<div class="dsh-pm-np-error">DAG \u5B58\u5728\u5FAA\u73AF\u4F9D\u8D56\uFF1A' + cycle.join(" \u2192 ") + "</div>";
+    const critSet = findCriticalPath(resolved);
+    const visibleTasks = state.focus ? resolved.filter(function(t) {
+      return critSet.has(t.id);
+    }) : resolved;
+    const visible = /* @__PURE__ */ new Set();
+    visibleTasks.forEach(function(t) {
+      visible.add(t.id);
+    });
+    const edges = data.edges.filter(function(e) {
+      return visible.has(e.from) && visible.has(e.to);
+    });
+    const layout = calculateLayout(visibleTasks, state.dir, 690);
+    const ready = new Set(data.ready || []);
+    let nodes = "";
+    visibleTasks.forEach(function(t) {
+      const p = layout.pos[t.id];
+      if (!p) return;
+      nodes += '<div class="node' + (critSet.has(t.id) ? " crit" : "") + '" data-id="' + t.id + '" style="left:' + p.x + "px;top:" + p.y + 'px">' + cardHtml(t, { kids: t.kids, ready: ready.has(t.id) }) + "</div>";
+    });
+    return '<div class="dsh-pm-np-dag" data-direction="' + state.dir + '" data-focus="' + state.focus + '">' + edgeSvg(edges, layout, visibleTasks, critSet, state.dir) + nodes + "</div>";
+  }
+  return __toCommonJS(integration_exports);
+})();
+</script>
+<script>
+const D = {"meta":{"at":"2026-09-28","files":52,"tasks":656},"freq":{"phase":{"doc":35,"implement":498,"test":101,"analysis":3,"review":4,"ui":10,"merge":5},"side":{"backend":478,"fullstack":67,"doc":38,"frontend":73},"status":{"done":625,"in_progress":7,"todo":24},"role":{"solo":446,"parent":42,"child":168}},"specimens":{"doc":{"id":"t-5a68f8","title":"同步说明书与 RTM（写路径收敛与验收命令）","status":"todo","side":"doc","phase":"doc","req":"REQ-260927121324-abde"},"implement":{"id":"t-cd19d2","title":"应用/路由层 SQL 下沉到仓储","status":"in_progress","side":"backend","phase":"implement","req":"REQ-24e15d"},"test":{"id":"t-288a07","title":"验收：扫描器 gate + 全量回归 + 工作日志","status":"todo","side":"backend","phase":"test","req":"REQ-24e15d"},"analysis":{"id":"t-31d4d5","title":"复现死代码现状并建立回归基线","status":"done","side":"backend","phase":"analysis","req":"REQ-260922182505-0924"},"review":{"id":"t-0f54a6","title":"审计全仓投递形状并归档验证证据","status":"in_progress","side":"doc","phase":"review","req":"REQ-9494f9"},"ui":{"id":"t-d332d0","title":"新增苹果风样式分片并接入拼接链","status":"done","side":"frontend","phase":"ui","req":"REQ-260923134706-e72f"},"merge":{"id":"t-64a0c2","title":"构建部署实测与文档更新","status":"in_progress","side":"fullstack","phase":"merge","req":"REQ-31e11f"}},"roles":{"parent":{"id":"t-32b532","title":"定义模板地址映射表与守护单测","status":"todo","phase":"implement","side":"backend","req":"REQ-260922213356-4a45"},"child":{"id":"t-78ba18","title":"定义模板地址映射表与守护单测·联调","status":"todo","phase":"implement","side":"backend","stageKind":"integrate","req":"REQ-260922213356-4a45"},"solo":{"id":"t-9d53f4","title":"扩展台账数据模型","status":"done","phase":"doc","side":"backend","req":"REQ-202609262349-1518"},"kids":[{"id":"t-26b426","stageKind":"dev","status":"todo","title":"定义模板地址映射表与守护单测·研发"},{"id":"t-78ba18","stageKind":"integrate","status":"todo","title":"定义模板地址映射表与守护单测·联调"},{"id":"t-70a0ec","stageKind":"review","status":"todo","title":"定义模板地址映射表与守护单测·复核"},{"id":"t-57ec0f","stageKind":"test","status":"todo","title":"定义模板地址映射表与守护单测·测试"}]},"datasets":[{"key":"d0","label":"本需求 · 真实队列","req":"REQ-260928001915-f978","tasks":[{"id":"t-efa03b","title":"定义卡片四轴类型系统","status":"done","phase":"doc","side":"doc","layer":0,"dependsOn":[],"role":"parent","kids":[{"id":"t-f24eee","stageKind":"dev","status":"done","title":"定义卡片四轴类型系统·研发"},{"id":"t-4d6cf2","stageKind":"integrate","status":"done","title":"定义卡片四轴类型系统·联调"},{"id":"t-730c85","stageKind":"review","status":"done","title":"定义卡片四轴类型系统·复核"},{"id":"t-d65d4c","stageKind":"test","status":"done","title":"定义卡片四轴类型系统·测试"}]},{"id":"t-2ad263","title":"实现卡片样式渲染器","status":"done","phase":"implement","side":"frontend","layer":1,"dependsOn":["t-efa03b"],"role":"parent","kids":[{"id":"t-5fccbe","stageKind":"dev","status":"done","title":"实现卡片样式渲染器·研发"},{"id":"t-92496d","stageKind":"integrate","status":"done","title":"实现卡片样式渲染器·联调"},{"id":"t-c969a8","stageKind":"review","status":"done","title":"实现卡片样式渲染器·复核"},{"id":"t-cb5648","stageKind":"test","status":"done","title":"实现卡片样式渲染器·测试"}]},{"id":"t-4256bf","title":"实现 DAG 布局引擎","status":"done","phase":"implement","side":"frontend","layer":2,"dependsOn":["t-2ad263"],"role":"parent","kids":[{"id":"t-c11c61","stageKind":"dev","status":"done","title":"实现 DAG 布局引擎·研发"},{"id":"t-185222","stageKind":"integrate","status":"done","title":"实现 DAG 布局引擎·联调"},{"id":"t-a10499","stageKind":"review","status":"done","title":"实现 DAG 布局引擎·复核"},{"id":"t-d41ea0","stageKind":"test","status":"done","title":"实现 DAG 布局引擎·测试"}]},{"id":"t-e4e9db","title":"实现边线渲染器","status":"done","phase":"implement","side":"frontend","layer":3,"dependsOn":["t-4256bf"],"role":"parent","kids":[{"id":"t-660826","stageKind":"dev","status":"done","title":"实现边线渲染器·研发"},{"id":"t-ca1655","stageKind":"integrate","status":"done","title":"实现边线渲染器·联调"},{"id":"t-35222c","stageKind":"review","status":"done","title":"实现边线渲染器·复核"},{"id":"t-c41ace","stageKind":"test","status":"done","title":"实现边线渲染器·测试"}]},{"id":"t-1f219b","title":"实现关键路径算法","status":"done","phase":"implement","side":"backend","layer":3,"dependsOn":["t-4256bf"],"role":"parent","kids":[{"id":"t-868884","stageKind":"dev","status":"done","title":"实现关键路径算法·研发"},{"id":"t-41d67e","stageKind":"integrate","status":"done","title":"实现关键路径算法·联调"},{"id":"t-706169","stageKind":"review","status":"done","title":"实现关键路径算法·复核"},{"id":"t-1f0b86","stageKind":"test","status":"done","title":"实现关键路径算法·测试"}]},{"id":"t-73c392","title":"实现悬停交互处理器","status":"done","phase":"implement","side":"frontend","layer":4,"dependsOn":["t-e4e9db"],"role":"parent","kids":[{"id":"t-e00c5f","stageKind":"dev","status":"done","title":"实现悬停交互处理器·研发"},{"id":"t-65df2c","stageKind":"integrate","status":"done","title":"实现悬停交互处理器·联调"},{"id":"t-b9308e","stageKind":"review","status":"done","title":"实现悬停交互处理器·复核"},{"id":"t-1b2632","stageKind":"test","status":"done","title":"实现悬停交互处理器·测试"}]},{"id":"t-d379c7","title":"实现父卡子卡链进度条","status":"done","phase":"implement","side":"frontend","layer":2,"dependsOn":["t-2ad263"],"role":"parent","kids":[{"id":"t-8a854a","stageKind":"dev","status":"done","title":"实现父卡子卡链进度条·研发"},{"id":"t-d284d3","stageKind":"integrate","status":"done","title":"实现父卡子卡链进度条·联调"},{"id":"t-f49d5b","stageKind":"review","status":"done","title":"实现父卡子卡链进度条·复核"},{"id":"t-a2599c","stageKind":"test","status":"done","title":"实现父卡子卡链进度条·测试"}]},{"id":"t-144707","title":"集成测试与文档","status":"done","phase":"test","side":"fullstack","layer":5,"dependsOn":["t-73c392","t-d379c7"],"role":"parent","kids":[{"id":"t-cf42de","stageKind":"dev","status":"done","title":"集成测试与文档·研发"},{"id":"t-dbed64","stageKind":"integrate","status":"done","title":"集成测试与文档·联调"},{"id":"t-975c52","stageKind":"review","status":"done","title":"集成测试与文档·复核"},{"id":"t-66570e","stageKind":"test","status":"done","title":"集成测试与文档·测试"}]},{"id":"t-f24eee","title":"定义卡片四轴类型系统·研发","status":"done","phase":"doc","side":"doc","layer":0,"dependsOn":[],"role":"child","parentId":"t-efa03b","stageKind":"dev"},{"id":"t-4d6cf2","title":"定义卡片四轴类型系统·联调","status":"done","phase":"doc","side":"doc","layer":1,"dependsOn":["t-f24eee"],"role":"child","parentId":"t-efa03b","stageKind":"integrate"},{"id":"t-730c85","title":"定义卡片四轴类型系统·复核","status":"done","phase":"doc","side":"doc","layer":2,"dependsOn":["t-4d6cf2"],"role":"child","parentId":"t-efa03b","stageKind":"review"},{"id":"t-d65d4c","title":"定义卡片四轴类型系统·测试","status":"done","phase":"doc","side":"doc","layer":3,"dependsOn":["t-730c85"],"role":"child","parentId":"t-efa03b","stageKind":"test"},{"id":"t-5fccbe","title":"实现卡片样式渲染器·研发","status":"done","phase":"implement","side":"frontend","layer":1,"dependsOn":["t-efa03b"],"role":"child","parentId":"t-2ad263","stageKind":"dev"},{"id":"t-92496d","title":"实现卡片样式渲染器·联调","status":"done","phase":"implement","side":"frontend","layer":2,"dependsOn":["t-5fccbe"],"role":"child","parentId":"t-2ad263","stageKind":"integrate"},{"id":"t-c969a8","title":"实现卡片样式渲染器·复核","status":"done","phase":"implement","side":"frontend","layer":3,"dependsOn":["t-92496d"],"role":"child","parentId":"t-2ad263","stageKind":"review"},{"id":"t-cb5648","title":"实现卡片样式渲染器·测试","status":"done","phase":"implement","side":"frontend","layer":4,"dependsOn":["t-c969a8"],"role":"child","parentId":"t-2ad263","stageKind":"test"},{"id":"t-c11c61","title":"实现 DAG 布局引擎·研发","status":"done","phase":"implement","side":"frontend","layer":2,"dependsOn":["t-2ad263"],"role":"child","parentId":"t-4256bf","stageKind":"dev"},{"id":"t-185222","title":"实现 DAG 布局引擎·联调","status":"done","phase":"implement","side":"frontend","layer":3,"dependsOn":["t-c11c61"],"role":"child","parentId":"t-4256bf","stageKind":"integrate"},{"id":"t-a10499","title":"实现 DAG 布局引擎·复核","status":"done","phase":"implement","side":"frontend","layer":4,"dependsOn":["t-185222"],"role":"child","parentId":"t-4256bf","stageKind":"review"},{"id":"t-d41ea0","title":"实现 DAG 布局引擎·测试","status":"done","phase":"implement","side":"frontend","layer":5,"dependsOn":["t-a10499"],"role":"child","parentId":"t-4256bf","stageKind":"test"},{"id":"t-660826","title":"实现边线渲染器·研发","status":"done","phase":"implement","side":"frontend","layer":3,"dependsOn":["t-4256bf"],"role":"child","parentId":"t-e4e9db","stageKind":"dev"},{"id":"t-ca1655","title":"实现边线渲染器·联调","status":"done","phase":"implement","side":"frontend","layer":4,"dependsOn":["t-660826"],"role":"child","parentId":"t-e4e9db","stageKind":"integrate"},{"id":"t-35222c","title":"实现边线渲染器·复核","status":"done","phase":"implement","side":"frontend","layer":5,"dependsOn":["t-ca1655"],"role":"child","parentId":"t-e4e9db","stageKind":"review"},{"id":"t-c41ace","title":"实现边线渲染器·测试","status":"done","phase":"implement","side":"frontend","layer":6,"dependsOn":["t-35222c"],"role":"child","parentId":"t-e4e9db","stageKind":"test"},{"id":"t-868884","title":"实现关键路径算法·研发","status":"done","phase":"implement","side":"backend","layer":3,"dependsOn":["t-4256bf"],"role":"child","parentId":"t-1f219b","stageKind":"dev"},{"id":"t-41d67e","title":"实现关键路径算法·联调","status":"done","phase":"implement","side":"backend","layer":4,"dependsOn":["t-868884"],"role":"child","parentId":"t-1f219b","stageKind":"integrate"},{"id":"t-706169","title":"实现关键路径算法·复核","status":"done","phase":"implement","side":"backend","layer":5,"dependsOn":["t-41d67e"],"role":"child","parentId":"t-1f219b","stageKind":"review"},{"id":"t-1f0b86","title":"实现关键路径算法·测试","status":"done","phase":"implement","side":"backend","layer":6,"dependsOn":["t-706169"],"role":"child","parentId":"t-1f219b","stageKind":"test"},{"id":"t-e00c5f","title":"实现悬停交互处理器·研发","status":"done","phase":"implement","side":"frontend","layer":4,"dependsOn":["t-e4e9db"],"role":"child","parentId":"t-73c392","stageKind":"dev"},{"id":"t-65df2c","title":"实现悬停交互处理器·联调","status":"done","phase":"implement","side":"frontend","layer":5,"dependsOn":["t-e00c5f"],"role":"child","parentId":"t-73c392","stageKind":"integrate"},{"id":"t-b9308e","title":"实现悬停交互处理器·复核","status":"done","phase":"implement","side":"frontend","layer":6,"dependsOn":["t-65df2c"],"role":"child","parentId":"t-73c392","stageKind":"review"},{"id":"t-1b2632","title":"实现悬停交互处理器·测试","status":"done","phase":"implement","side":"frontend","layer":7,"dependsOn":["t-b9308e"],"role":"child","parentId":"t-73c392","stageKind":"test"},{"id":"t-8a854a","title":"实现父卡子卡链进度条·研发","status":"done","phase":"implement","side":"frontend","layer":2,"dependsOn":["t-2ad263"],"role":"child","parentId":"t-d379c7","stageKind":"dev"},{"id":"t-d284d3","title":"实现父卡子卡链进度条·联调","status":"done","phase":"implement","side":"frontend","layer":3,"dependsOn":["t-8a854a"],"role":"child","parentId":"t-d379c7","stageKind":"integrate"},{"id":"t-f49d5b","title":"实现父卡子卡链进度条·复核","status":"done","phase":"implement","side":"frontend","layer":4,"dependsOn":["t-d284d3"],"role":"child","parentId":"t-d379c7","stageKind":"review"},{"id":"t-a2599c","title":"实现父卡子卡链进度条·测试","status":"done","phase":"implement","side":"frontend","layer":5,"dependsOn":["t-f49d5b"],"role":"child","parentId":"t-d379c7","stageKind":"test"},{"id":"t-cf42de","title":"集成测试与文档·研发","status":"done","phase":"test","side":"fullstack","layer":5,"dependsOn":["t-73c392","t-d379c7"],"role":"child","parentId":"t-144707","stageKind":"dev"},{"id":"t-dbed64","title":"集成测试与文档·联调","status":"done","phase":"test","side":"fullstack","layer":6,"dependsOn":["t-cf42de"],"role":"child","parentId":"t-144707","stageKind":"integrate"},{"id":"t-975c52","title":"集成测试与文档·复核","status":"done","phase":"test","side":"fullstack","layer":7,"dependsOn":["t-dbed64"],"role":"child","parentId":"t-144707","stageKind":"review"},{"id":"t-66570e","title":"集成测试与文档·测试","status":"done","phase":"test","side":"fullstack","layer":8,"dependsOn":["t-975c52"],"role":"child","parentId":"t-144707","stageKind":"test"}],"edges":[{"from":"t-efa03b","to":"t-2ad263"},{"from":"t-2ad263","to":"t-4256bf"},{"from":"t-4256bf","to":"t-e4e9db"},{"from":"t-4256bf","to":"t-1f219b"},{"from":"t-e4e9db","to":"t-73c392"},{"from":"t-2ad263","to":"t-d379c7"},{"from":"t-73c392","to":"t-144707"},{"from":"t-d379c7","to":"t-144707"},{"from":"t-f24eee","to":"t-4d6cf2"},{"from":"t-4d6cf2","to":"t-730c85"},{"from":"t-730c85","to":"t-d65d4c"},{"from":"t-efa03b","to":"t-5fccbe"},{"from":"t-5fccbe","to":"t-92496d"},{"from":"t-92496d","to":"t-c969a8"},{"from":"t-c969a8","to":"t-cb5648"},{"from":"t-2ad263","to":"t-c11c61"},{"from":"t-c11c61","to":"t-185222"},{"from":"t-185222","to":"t-a10499"},{"from":"t-a10499","to":"t-d41ea0"},{"from":"t-4256bf","to":"t-660826"},{"from":"t-660826","to":"t-ca1655"},{"from":"t-ca1655","to":"t-35222c"},{"from":"t-35222c","to":"t-c41ace"},{"from":"t-4256bf","to":"t-868884"},{"from":"t-868884","to":"t-41d67e"},{"from":"t-41d67e","to":"t-706169"},{"from":"t-706169","to":"t-1f0b86"},{"from":"t-e4e9db","to":"t-e00c5f"},{"from":"t-e00c5f","to":"t-65df2c"},{"from":"t-65df2c","to":"t-b9308e"},{"from":"t-b9308e","to":"t-1b2632"},{"from":"t-2ad263","to":"t-8a854a"},{"from":"t-8a854a","to":"t-d284d3"},{"from":"t-d284d3","to":"t-f49d5b"},{"from":"t-f49d5b","to":"t-a2599c"},{"from":"t-73c392","to":"t-cf42de"},{"from":"t-d379c7","to":"t-cf42de"},{"from":"t-cf42de","to":"t-dbed64"},{"from":"t-dbed64","to":"t-975c52"},{"from":"t-975c52","to":"t-66570e"}],"ready":[],"layerCount":9},{"key":"d1","label":"小图 · 12 卡 7 层","req":"REQ-260922213356-4a45","tasks":[{"id":"t-32b532","title":"定义模板地址映射表与守护单测","status":"todo","phase":"implement","side":"backend","layer":0,"dependsOn":[],"role":"parent","kids":[{"id":"t-26b426","stageKind":"dev","status":"todo","title":"定义模板地址映射表与守护单测·研发"},{"id":"t-78ba18","stageKind":"integrate","status":"todo","title":"定义模板地址映射表与守护单测·联调"},{"id":"t-70a0ec","stageKind":"review","status":"todo","title":"定义模板地址映射表与守护单测·复核"},{"id":"t-57ec0f","stageKind":"test","status":"todo","title":"定义模板地址映射表与守护单测·测试"}]},{"id":"t-3e89da","title":"实现地址解析与渲染纯函数","status":"done","phase":"implement","side":"backend","layer":1,"dependsOn":["t-32b532"],"role":"solo"},{"id":"t-fc102f","title":"接线四个注入点并解析模板根","status":"done","phase":"implement","side":"backend","layer":2,"dependsOn":["t-3e89da"],"role":"solo"},{"id":"t-43e21b","title":"实现非肯定项分流（H3 verdict / H4 不附纪律）","status":"done","phase":"implement","side":"backend","layer":3,"dependsOn":["t-fc102f"],"role":"solo"},{"id":"t-25f7fd","title":"补节点输入包地址节并锁两路径一致","status":"done","phase":"implement","side":"backend","layer":4,"dependsOn":["t-43e21b"],"role":"solo"},{"id":"t-527636","title":"补空集兼容回归与回退开关","status":"done","phase":"implement","side":"backend","layer":5,"dependsOn":["t-25f7fd"],"role":"solo"},{"id":"t-868e3f","title":"增三条确认纪律并加同产物防重弹守卫","status":"done","phase":"implement","side":"backend","layer":1,"dependsOn":["t-32b532"],"role":"solo"},{"id":"t-7fb8e4","title":"加矩阵对照断言并校准设计落点","status":"done","phase":"test","side":"backend","layer":6,"dependsOn":["t-527636"],"role":"solo"},{"id":"t-26b426","title":"定义模板地址映射表与守护单测·研发","status":"todo","phase":"implement","side":"backend","layer":0,"dependsOn":[],"role":"child","parentId":"t-32b532","stageKind":"dev"},{"id":"t-78ba18","title":"定义模板地址映射表与守护单测·联调","status":"todo","phase":"implement","side":"backend","layer":1,"dependsOn":["t-26b426"],"role":"child","parentId":"t-32b532","stageKind":"integrate"},{"id":"t-70a0ec","title":"定义模板地址映射表与守护单测·复核","status":"todo","phase":"implement","side":"backend","layer":2,"dependsOn":["t-78ba18"],"role":"child","parentId":"t-32b532","stageKind":"review"},{"id":"t-57ec0f","title":"定义模板地址映射表与守护单测·测试","status":"todo","phase":"implement","side":"backend","layer":3,"dependsOn":["t-70a0ec"],"role":"child","parentId":"t-32b532","stageKind":"test"}],"edges":[{"from":"t-32b532","to":"t-3e89da"},{"from":"t-3e89da","to":"t-fc102f"},{"from":"t-fc102f","to":"t-43e21b"},{"from":"t-43e21b","to":"t-25f7fd"},{"from":"t-25f7fd","to":"t-527636"},{"from":"t-32b532","to":"t-868e3f"},{"from":"t-527636","to":"t-7fb8e4"},{"from":"t-26b426","to":"t-78ba18"},{"from":"t-78ba18","to":"t-70a0ec"},{"from":"t-70a0ec","to":"t-57ec0f"}],"ready":["t-32b532","t-26b426"],"layerCount":7},{"key":"d2","label":"中图 · 20 卡 5 层","req":"REQ-6f39b5","tasks":[{"id":"t-b8104c","title":"创建 workflow-constants.ts","status":"todo","phase":"implement","side":"frontend","layer":0,"dependsOn":[],"role":"solo"},{"id":"t-75b97e","title":"实现 buildProgressDots()","status":"todo","phase":"implement","side":"frontend","layer":1,"dependsOn":["t-b8104c"],"role":"solo"},{"id":"t-a1ddf2","title":"实现 buildTabs()","status":"todo","phase":"implement","side":"frontend","layer":0,"dependsOn":[],"role":"solo"},{"id":"t-7cd8f2","title":"实现 buildTabContents()","status":"todo","phase":"implement","side":"frontend","layer":1,"dependsOn":["t-a1ddf2"],"role":"solo"},{"id":"t-a12946","title":"重写 buildReqDetail()","status":"todo","phase":"implement","side":"frontend","layer":2,"dependsOn":["t-75b97e","t-a1ddf2","t-7cd8f2"],"role":"solo"},{"id":"t-5e83d0","title":"实现 Tab 切换交互","status":"todo","phase":"implement","side":"frontend","layer":3,"dependsOn":["t-a12946"],"role":"solo"},{"id":"t-b570fd","title":"添加样式（进度点 + Tab）","status":"todo","phase":"implement","side":"frontend","layer":4,"dependsOn":["t-5e83d0"],"role":"solo"},{"id":"t-be0387","title":"适配泳道图与列表视图","status":"todo","phase":"implement","side":"frontend","layer":1,"dependsOn":["t-b8104c"],"role":"solo"},{"id":"t-7aa2ec","title":"功能测试","status":"todo","phase":"test","side":"fullstack","layer":2,"dependsOn":["t-be0387"],"role":"solo"},{"id":"t-174c57","title":"文档更新","status":"todo","phase":"doc","side":"doc","layer":3,"dependsOn":["t-7aa2ec"],"role":"solo"},{"id":"t-80bfd6","title":"创建 workflow-constants.ts","status":"done","phase":"implement","side":"frontend","layer":0,"dependsOn":[],"role":"solo"},{"id":"t-ac287b","title":"实现 buildProgressDots()","status":"done","phase":"implement","side":"frontend","layer":1,"dependsOn":["t-80bfd6"],"role":"solo"},{"id":"t-d3c3d5","title":"实现 buildTabs()","status":"done","phase":"implement","side":"frontend","layer":0,"dependsOn":[],"role":"solo"},{"id":"t-3d46f8","title":"实现 buildTabContents()","status":"done","phase":"implement","side":"frontend","layer":1,"dependsOn":["t-d3c3d5"],"role":"solo"},{"id":"t-a0ee4d","title":"重写 buildReqDetail()","status":"done","phase":"implement","side":"frontend","layer":2,"dependsOn":["t-ac287b","t-d3c3d5","t-3d46f8"],"role":"solo"},{"id":"t-8b80b1","title":"实现 Tab 切换交互","status":"done","phase":"implement","side":"frontend","layer":3,"dependsOn":["t-a0ee4d"],"role":"solo"},{"id":"t-08c328","title":"添加样式（进度点 + Tab）","status":"done","phase":"implement","side":"frontend","layer":4,"dependsOn":["t-8b80b1"],"role":"solo"},{"id":"t-2c7347","title":"适配泳道图与列表视图","status":"done","phase":"implement","side":"frontend","layer":1,"dependsOn":["t-80bfd6"],"role":"solo"},{"id":"t-4d3c9a","title":"功能测试","status":"done","phase":"test","side":"fullstack","layer":2,"dependsOn":["t-2c7347"],"role":"solo"},{"id":"t-ef6c4a","title":"文档更新","status":"done","phase":"doc","side":"doc","layer":3,"dependsOn":["t-4d3c9a"],"role":"solo"}],"edges":[{"from":"t-b8104c","to":"t-75b97e"},{"from":"t-a1ddf2","to":"t-7cd8f2"},{"from":"t-75b97e","to":"t-a12946"},{"from":"t-a1ddf2","to":"t-a12946"},{"from":"t-7cd8f2","to":"t-a12946"},{"from":"t-a12946","to":"t-5e83d0"},{"from":"t-5e83d0","to":"t-b570fd"},{"from":"t-b8104c","to":"t-be0387"},{"from":"t-be0387","to":"t-7aa2ec"},{"from":"t-7aa2ec","to":"t-174c57"},{"from":"t-80bfd6","to":"t-ac287b"},{"from":"t-d3c3d5","to":"t-3d46f8"},{"from":"t-ac287b","to":"t-a0ee4d"},{"from":"t-d3c3d5","to":"t-a0ee4d"},{"from":"t-3d46f8","to":"t-a0ee4d"},{"from":"t-a0ee4d","to":"t-8b80b1"},{"from":"t-8b80b1","to":"t-08c328"},{"from":"t-80bfd6","to":"t-2c7347"},{"from":"t-2c7347","to":"t-4d3c9a"},{"from":"t-4d3c9a","to":"t-ef6c4a"}],"ready":["t-b8104c","t-a1ddf2"],"layerCount":5},{"key":"d3","label":"压力 · 65 卡 12 层 83 边","req":"REQ-260924213231-b1c4","tasks":[{"id":"t-41f158","title":"定义新契约类型与端口","status":"done","phase":"implement","side":"backend","layer":0,"dependsOn":[],"role":"parent","kids":[{"id":"t-8cd37e","stageKind":"dev","status":"done","title":"定义新契约类型与端口·研发"},{"id":"t-0f05c1","stageKind":"integrate","status":"done","title":"定义新契约类型与端口·联调"},{"id":"t-c579d7","stageKind":"review","status":"done","title":"定义新契约类型与端口·复核"},{"id":"t-4c35b9","stageKind":"test","status":"done","title":"定义新契约类型与端口·测试"}]},{"id":"t-9a6bdb","title":"下沉产物发现核心并薄壳化 ArtifactSync","status":"done","phase":"implement","side":"backend","layer":1,"dependsOn":["t-41f158"],"role":"parent","kids":[{"id":"t-a394e1","stageKind":"dev","status":"done","title":"下沉产物发现核心并薄壳化 ArtifactSync·研发"},{"id":"t-34191e","stageKind":"integrate","status":"done","title":"下沉产物发现核心并薄壳化 ArtifactSync·联调"},{"id":"t-222d3d","stageKind":"review","status":"done","title":"下沉产物发现核心并薄壳化 ArtifactSync·复核"},{"id":"t-e5d2e6","stageKind":"test","status":"done","title":"下沉产物发现核心并薄壳化 ArtifactSync·测试"}]},{"id":"t-6eca2a","title":"新增 kind=design 登记用例与工具入口","status":"done","phase":"implement","side":"backend","layer":2,"dependsOn":["t-9a6bdb"],"role":"parent","kids":[{"id":"t-097478","stageKind":"dev","status":"done","title":"新增 kind=design 登记用例与工具入口·研发"},{"id":"t-52d7fe","stageKind":"integrate","status":"done","title":"新增 kind=design 登记用例与工具入口·联调"},{"id":"t-d76da9","stageKind":"review","status":"done","title":"新增 kind=design 登记用例与工具入口·复核"},{"id":"t-4b15cf","stageKind":"test","status":"done","title":"新增 kind=design 登记用例与工具入口·测试"}]},{"id":"t-7e9633","title":"投影逐份登记态到 reqboard_status","status":"done","phase":"implement","side":"backend","layer":3,"dependsOn":["t-6eca2a"],"role":"parent","kids":[{"id":"t-02e4ae","stageKind":"dev","status":"done","title":"投影逐份登记态到 reqboard_status·研发"},{"id":"t-788302","stageKind":"integrate","status":"done","title":"投影逐份登记态到 reqboard_status·联调"},{"id":"t-14057a","stageKind":"review","status":"done","title":"投影逐份登记态到 reqboard_status·复核"},{"id":"t-01bd5b","stageKind":"test","status":"done","title":"投影逐份登记态到 reqboard_status·测试"}]},{"id":"t-954348","title":"分化 G2 闸门文案并统一拒绝信封","status":"done","phase":"implement","side":"backend","layer":4,"dependsOn":["t-7e9633"],"role":"parent","kids":[{"id":"t-114ef1","stageKind":"dev","status":"done","title":"分化 G2 闸门文案并统一拒绝信封·研发"},{"id":"t-dde78e","stageKind":"integrate","status":"done","title":"分化 G2 闸门文案并统一拒绝信封·联调"},{"id":"t-792c94","stageKind":"review","status":"done","title":"分化 G2 闸门文案并统一拒绝信封·复核"},{"id":"t-44b8c6","stageKind":"test","status":"done","title":"分化 G2 闸门文案并统一拒绝信封·测试"}]},{"id":"t-5f2a65","title":"弹框改非阻塞投递并加回执工具","status":"done","phase":"implement","side":"backend","layer":5,"dependsOn":["t-954348"],"role":"parent","kids":[{"id":"t-e932fc","stageKind":"dev","status":"done","title":"弹框改非阻塞投递并加回执工具·研发"},{"id":"t-74ab2d","stageKind":"integrate","status":"done","title":"弹框改非阻塞投递并加回执工具·联调"},{"id":"t-51fc46","stageKind":"review","status":"done","title":"弹框改非阻塞投递并加回执工具·复核"},{"id":"t-4d6d70","stageKind":"test","status":"done","title":"弹框改非阻塞投递并加回执工具·测试"}]},{"id":"t-6cfab3","title":"打零参绑定 patch","status":"done","phase":"implement","side":"backend","layer":0,"dependsOn":[],"role":"parent","kids":[{"id":"t-d4cded","stageKind":"dev","status":"done","title":"打零参绑定 patch·研发"},{"id":"t-db23dc","stageKind":"integrate","status":"done","title":"打零参绑定 patch·联调"},{"id":"t-9abb40","stageKind":"review","status":"done","title":"打零参绑定 patch·复核"},{"id":"t-0d19e8","stageKind":"test","status":"done","title":"打零参绑定 patch·测试"}]},{"id":"t-216224","title":"设计提示词写明登记命令","status":"done","phase":"doc","side":"doc","layer":3,"dependsOn":["t-6eca2a"],"role":"parent","kids":[{"id":"t-5b02db","stageKind":"dev","status":"done","title":"设计提示词写明登记命令·研发"},{"id":"t-e80e8b","stageKind":"integrate","status":"done","title":"设计提示词写明登记命令·联调"},{"id":"t-e897e0","stageKind":"review","status":"done","title":"设计提示词写明登记命令·复核"},{"id":"t-2c7e2e","stageKind":"test","status":"done","title":"设计提示词写明登记命令·测试"}]},{"id":"t-7b5e7a","title":"实现断点常驻与续跑输入包","status":"done","phase":"implement","side":"backend","layer":6,"dependsOn":["t-5f2a65"],"role":"parent","kids":[{"id":"t-14191c","stageKind":"dev","status":"done","title":"实现断点常驻与续跑输入包·研发"},{"id":"t-6a3070","stageKind":"integrate","status":"done","title":"实现断点常驻与续跑输入包·联调"},{"id":"t-b89d61","stageKind":"review","status":"done","title":"实现断点常驻与续跑输入包·复核"},{"id":"t-a85c7b","stageKind":"test","status":"done","title":"实现断点常驻与续跑输入包·测试"}]},{"id":"t-fbde12","title":"立项降级路径不丢文档位置","status":"done","phase":"implement","side":"backend","layer":1,"dependsOn":["t-41f158"],"role":"parent","kids":[{"id":"t-b1f61e","stageKind":"dev","status":"done","title":"立项降级路径不丢文档位置·研发"},{"id":"t-d52c67","stageKind":"integrate","status":"done","title":"立项降级路径不丢文档位置·联调"},{"id":"t-8e8f83","stageKind":"review","status":"done","title":"立项降级路径不丢文档位置·复核"},{"id":"t-b1b27b","stageKind":"test","status":"done","title":"立项降级路径不丢文档位置·测试"}]},{"id":"t-9f96a1","title":"pm 弹框统一来源标志","status":"done","phase":"implement","side":"backend","layer":7,"dependsOn":["t-7b5e7a"],"role":"parent","kids":[{"id":"t-22628e","stageKind":"dev","status":"done","title":"pm 弹框统一来源标志·研发"},{"id":"t-f4d6b1","stageKind":"integrate","status":"done","title":"pm 弹框统一来源标志·联调"},{"id":"t-3d59ae","stageKind":"review","status":"done","title":"pm 弹框统一来源标志·复核"},{"id":"t-456a3d","stageKind":"test","status":"done","title":"pm 弹框统一来源标志·测试"}]},{"id":"t-800d53","title":"组合根瘦身使尺寸门禁转绿","status":"done","phase":"implement","side":"backend","layer":7,"dependsOn":["t-7b5e7a"],"role":"parent","kids":[{"id":"t-c396e9","stageKind":"dev","status":"done","title":"组合根瘦身使尺寸门禁转绿·研发"},{"id":"t-a45bcd","stageKind":"integrate","status":"done","title":"组合根瘦身使尺寸门禁转绿·联调"},{"id":"t-57bfa5","stageKind":"review","status":"done","title":"组合根瘦身使尺寸门禁转绿·复核"},{"id":"t-b36caf","stageKind":"test","status":"done","title":"组合根瘦身使尺寸门禁转绿·测试"}]},{"id":"t-145cb0","title":"迁移兼容卡与 E2E 复跑","status":"done","phase":"test","side":"fullstack","layer":8,"dependsOn":["t-41f158","t-9a6bdb","t-6eca2a","t-7e9633","t-954348","t-5f2a65","t-6cfab3","t-216224","t-7b5e7a","t-fbde12","t-9f96a1","t-800d53"],"role":"parent","kids":[{"id":"t-3d5f80","stageKind":"dev","status":"done","title":"迁移兼容卡与 E2E 复跑·研发"},{"id":"t-87ca1c","stageKind":"integrate","status":"done","title":"迁移兼容卡与 E2E 复跑·联调"},{"id":"t-55b8c4","stageKind":"review","status":"done","title":"迁移兼容卡与 E2E 复跑·复核"},{"id":"t-5a41f7","stageKind":"test","status":"done","title":"迁移兼容卡与 E2E 复跑·测试"}]},{"id":"t-8cd37e","title":"定义新契约类型与端口·研发","status":"done","phase":"implement","side":"backend","layer":0,"dependsOn":[],"role":"child","parentId":"t-41f158","stageKind":"dev"},{"id":"t-0f05c1","title":"定义新契约类型与端口·联调","status":"done","phase":"implement","side":"backend","layer":1,"dependsOn":["t-8cd37e"],"role":"child","parentId":"t-41f158","stageKind":"integrate"},{"id":"t-c579d7","title":"定义新契约类型与端口·复核","status":"done","phase":"implement","side":"backend","layer":2,"dependsOn":["t-0f05c1"],"role":"child","parentId":"t-41f158","stageKind":"review"},{"id":"t-4c35b9","title":"定义新契约类型与端口·测试","status":"done","phase":"implement","side":"backend","layer":3,"dependsOn":["t-c579d7"],"role":"child","parentId":"t-41f158","stageKind":"test"},{"id":"t-d4cded","title":"打零参绑定 patch·研发","status":"done","phase":"implement","side":"backend","layer":0,"dependsOn":[],"role":"child","parentId":"t-6cfab3","stageKind":"dev"},{"id":"t-db23dc","title":"打零参绑定 patch·联调","status":"done","phase":"implement","side":"backend","layer":1,"dependsOn":["t-d4cded"],"role":"child","parentId":"t-6cfab3","stageKind":"integrate"},{"id":"t-9abb40","title":"打零参绑定 patch·复核","status":"done","phase":"implement","side":"backend","layer":2,"dependsOn":["t-db23dc"],"role":"child","parentId":"t-6cfab3","stageKind":"review"},{"id":"t-0d19e8","title":"打零参绑定 patch·测试","status":"done","phase":"implement","side":"backend","layer":3,"dependsOn":["t-9abb40"],"role":"child","parentId":"t-6cfab3","stageKind":"test"},{"id":"t-a394e1","title":"下沉产物发现核心并薄壳化 ArtifactSync·研发","status":"done","phase":"implement","side":"backend","layer":1,"dependsOn":["t-41f158"],"role":"child","parentId":"t-9a6bdb","stageKind":"dev"},{"id":"t-34191e","title":"下沉产物发现核心并薄壳化 ArtifactSync·联调","status":"done","phase":"implement","side":"backend","layer":2,"dependsOn":["t-a394e1"],"role":"child","parentId":"t-9a6bdb","stageKind":"integrate"},{"id":"t-222d3d","title":"下沉产物发现核心并薄壳化 ArtifactSync·复核","status":"done","phase":"implement","side":"backend","layer":3,"dependsOn":["t-34191e"],"role":"child","parentId":"t-9a6bdb","stageKind":"review"},{"id":"t-e5d2e6","title":"下沉产物发现核心并薄壳化 ArtifactSync·测试","status":"done","phase":"implement","side":"backend","layer":4,"dependsOn":["t-222d3d"],"role":"child","parentId":"t-9a6bdb","stageKind":"test"},{"id":"t-097478","title":"新增 kind=design 登记用例与工具入口·研发","status":"done","phase":"implement","side":"backend","layer":2,"dependsOn":["t-9a6bdb"],"role":"child","parentId":"t-6eca2a","stageKind":"dev"},{"id":"t-52d7fe","title":"新增 kind=design 登记用例与工具入口·联调","status":"done","phase":"implement","side":"backend","layer":3,"dependsOn":["t-097478"],"role":"child","parentId":"t-6eca2a","stageKind":"integrate"},{"id":"t-d76da9","title":"新增 kind=design 登记用例与工具入口·复核","status":"done","phase":"implement","side":"backend","layer":4,"dependsOn":["t-52d7fe"],"role":"child","parentId":"t-6eca2a","stageKind":"review"},{"id":"t-4b15cf","title":"新增 kind=design 登记用例与工具入口·测试","status":"done","phase":"implement","side":"backend","layer":5,"dependsOn":["t-d76da9"],"role":"child","parentId":"t-6eca2a","stageKind":"test"},{"id":"t-02e4ae","title":"投影逐份登记态到 reqboard_status·研发","status":"done","phase":"implement","side":"backend","layer":3,"dependsOn":["t-6eca2a"],"role":"child","parentId":"t-7e9633","stageKind":"dev"},{"id":"t-788302","title":"投影逐份登记态到 reqboard_status·联调","status":"done","phase":"implement","side":"backend","layer":4,"dependsOn":["t-02e4ae"],"role":"child","parentId":"t-7e9633","stageKind":"integrate"},{"id":"t-14057a","title":"投影逐份登记态到 reqboard_status·复核","status":"done","phase":"implement","side":"backend","layer":5,"dependsOn":["t-788302"],"role":"child","parentId":"t-7e9633","stageKind":"review"},{"id":"t-01bd5b","title":"投影逐份登记态到 reqboard_status·测试","status":"done","phase":"implement","side":"backend","layer":6,"dependsOn":["t-14057a"],"role":"child","parentId":"t-7e9633","stageKind":"test"},{"id":"t-114ef1","title":"分化 G2 闸门文案并统一拒绝信封·研发","status":"done","phase":"implement","side":"backend","layer":4,"dependsOn":["t-7e9633"],"role":"child","parentId":"t-954348","stageKind":"dev"},{"id":"t-dde78e","title":"分化 G2 闸门文案并统一拒绝信封·联调","status":"done","phase":"implement","side":"backend","layer":5,"dependsOn":["t-114ef1"],"role":"child","parentId":"t-954348","stageKind":"integrate"},{"id":"t-792c94","title":"分化 G2 闸门文案并统一拒绝信封·复核","status":"done","phase":"implement","side":"backend","layer":6,"dependsOn":["t-dde78e"],"role":"child","parentId":"t-954348","stageKind":"review"},{"id":"t-44b8c6","title":"分化 G2 闸门文案并统一拒绝信封·测试","status":"done","phase":"implement","side":"backend","layer":7,"dependsOn":["t-792c94"],"role":"child","parentId":"t-954348","stageKind":"test"},{"id":"t-e932fc","title":"弹框改非阻塞投递并加回执工具·研发","status":"done","phase":"implement","side":"backend","layer":5,"dependsOn":["t-954348"],"role":"child","parentId":"t-5f2a65","stageKind":"dev"},{"id":"t-74ab2d","title":"弹框改非阻塞投递并加回执工具·联调","status":"done","phase":"implement","side":"backend","layer":6,"dependsOn":["t-e932fc"],"role":"child","parentId":"t-5f2a65","stageKind":"integrate"},{"id":"t-51fc46","title":"弹框改非阻塞投递并加回执工具·复核","status":"done","phase":"implement","side":"backend","layer":7,"dependsOn":["t-74ab2d"],"role":"child","parentId":"t-5f2a65","stageKind":"review"},{"id":"t-4d6d70","title":"弹框改非阻塞投递并加回执工具·测试","status":"done","phase":"implement","side":"backend","layer":8,"dependsOn":["t-51fc46"],"role":"child","parentId":"t-5f2a65","stageKind":"test"},{"id":"t-5b02db","title":"设计提示词写明登记命令·研发","status":"done","phase":"doc","side":"doc","layer":3,"dependsOn":["t-6eca2a"],"role":"child","parentId":"t-216224","stageKind":"dev"},{"id":"t-e80e8b","title":"设计提示词写明登记命令·联调","status":"done","phase":"doc","side":"doc","layer":4,"dependsOn":["t-5b02db"],"role":"child","parentId":"t-216224","stageKind":"integrate"},{"id":"t-e897e0","title":"设计提示词写明登记命令·复核","status":"done","phase":"doc","side":"doc","layer":5,"dependsOn":["t-e80e8b"],"role":"child","parentId":"t-216224","stageKind":"review"},{"id":"t-2c7e2e","title":"设计提示词写明登记命令·测试","status":"done","phase":"doc","side":"doc","layer":6,"dependsOn":["t-e897e0"],"role":"child","parentId":"t-216224","stageKind":"test"},{"id":"t-14191c","title":"实现断点常驻与续跑输入包·研发","status":"done","phase":"implement","side":"backend","layer":6,"dependsOn":["t-5f2a65"],"role":"child","parentId":"t-7b5e7a","stageKind":"dev"},{"id":"t-6a3070","title":"实现断点常驻与续跑输入包·联调","status":"done","phase":"implement","side":"backend","layer":7,"dependsOn":["t-14191c"],"role":"child","parentId":"t-7b5e7a","stageKind":"integrate"},{"id":"t-b89d61","title":"实现断点常驻与续跑输入包·复核","status":"done","phase":"implement","side":"backend","layer":8,"dependsOn":["t-6a3070"],"role":"child","parentId":"t-7b5e7a","stageKind":"review"},{"id":"t-a85c7b","title":"实现断点常驻与续跑输入包·测试","status":"done","phase":"implement","side":"backend","layer":9,"dependsOn":["t-b89d61"],"role":"child","parentId":"t-7b5e7a","stageKind":"test"},{"id":"t-b1f61e","title":"立项降级路径不丢文档位置·研发","status":"done","phase":"implement","side":"backend","layer":1,"dependsOn":["t-41f158"],"role":"child","parentId":"t-fbde12","stageKind":"dev"},{"id":"t-d52c67","title":"立项降级路径不丢文档位置·联调","status":"done","phase":"implement","side":"backend","layer":2,"dependsOn":["t-b1f61e"],"role":"child","parentId":"t-fbde12","stageKind":"integrate"},{"id":"t-8e8f83","title":"立项降级路径不丢文档位置·复核","status":"done","phase":"implement","side":"backend","layer":3,"dependsOn":["t-d52c67"],"role":"child","parentId":"t-fbde12","stageKind":"review"},{"id":"t-b1b27b","title":"立项降级路径不丢文档位置·测试","status":"done","phase":"implement","side":"backend","layer":4,"dependsOn":["t-8e8f83"],"role":"child","parentId":"t-fbde12","stageKind":"test"},{"id":"t-22628e","title":"pm 弹框统一来源标志·研发","status":"done","phase":"implement","side":"backend","layer":7,"dependsOn":["t-7b5e7a"],"role":"child","parentId":"t-9f96a1","stageKind":"dev"},{"id":"t-f4d6b1","title":"pm 弹框统一来源标志·联调","status":"done","phase":"implement","side":"backend","layer":8,"dependsOn":["t-22628e"],"role":"child","parentId":"t-9f96a1","stageKind":"integrate"},{"id":"t-3d59ae","title":"pm 弹框统一来源标志·复核","status":"done","phase":"implement","side":"backend","layer":9,"dependsOn":["t-f4d6b1"],"role":"child","parentId":"t-9f96a1","stageKind":"review"},{"id":"t-456a3d","title":"pm 弹框统一来源标志·测试","status":"done","phase":"implement","side":"backend","layer":10,"dependsOn":["t-3d59ae"],"role":"child","parentId":"t-9f96a1","stageKind":"test"},{"id":"t-c396e9","title":"组合根瘦身使尺寸门禁转绿·研发","status":"done","phase":"implement","side":"backend","layer":7,"dependsOn":["t-7b5e7a"],"role":"child","parentId":"t-800d53","stageKind":"dev"},{"id":"t-a45bcd","title":"组合根瘦身使尺寸门禁转绿·联调","status":"done","phase":"implement","side":"backend","layer":8,"dependsOn":["t-c396e9"],"role":"child","parentId":"t-800d53","stageKind":"integrate"},{"id":"t-57bfa5","title":"组合根瘦身使尺寸门禁转绿·复核","status":"done","phase":"implement","side":"backend","layer":9,"dependsOn":["t-a45bcd"],"role":"child","parentId":"t-800d53","stageKind":"review"},{"id":"t-b36caf","title":"组合根瘦身使尺寸门禁转绿·测试","status":"done","phase":"implement","side":"backend","layer":10,"dependsOn":["t-57bfa5"],"role":"child","parentId":"t-800d53","stageKind":"test"},{"id":"t-3d5f80","title":"迁移兼容卡与 E2E 复跑·研发","status":"done","phase":"test","side":"fullstack","layer":8,"dependsOn":["t-41f158","t-9a6bdb","t-6eca2a","t-7e9633","t-954348","t-5f2a65","t-6cfab3","t-216224","t-7b5e7a","t-fbde12","t-9f96a1","t-800d53"],"role":"child","parentId":"t-145cb0","stageKind":"dev"},{"id":"t-87ca1c","title":"迁移兼容卡与 E2E 复跑·联调","status":"done","phase":"test","side":"fullstack","layer":9,"dependsOn":["t-3d5f80"],"role":"child","parentId":"t-145cb0","stageKind":"integrate"},{"id":"t-55b8c4","title":"迁移兼容卡与 E2E 复跑·复核","status":"done","phase":"test","side":"fullstack","layer":10,"dependsOn":["t-87ca1c"],"role":"child","parentId":"t-145cb0","stageKind":"review"},{"id":"t-5a41f7","title":"迁移兼容卡与 E2E 复跑·测试","status":"done","phase":"test","side":"fullstack","layer":11,"dependsOn":["t-55b8c4"],"role":"child","parentId":"t-145cb0","stageKind":"test"}],"edges":[{"from":"t-41f158","to":"t-9a6bdb"},{"from":"t-9a6bdb","to":"t-6eca2a"},{"from":"t-6eca2a","to":"t-7e9633"},{"from":"t-7e9633","to":"t-954348"},{"from":"t-954348","to":"t-5f2a65"},{"from":"t-6eca2a","to":"t-216224"},{"from":"t-5f2a65","to":"t-7b5e7a"},{"from":"t-41f158","to":"t-fbde12"},{"from":"t-7b5e7a","to":"t-9f96a1"},{"from":"t-7b5e7a","to":"t-800d53"},{"from":"t-41f158","to":"t-145cb0"},{"from":"t-9a6bdb","to":"t-145cb0"},{"from":"t-6eca2a","to":"t-145cb0"},{"from":"t-7e9633","to":"t-145cb0"},{"from":"t-954348","to":"t-145cb0"},{"from":"t-5f2a65","to":"t-145cb0"},{"from":"t-6cfab3","to":"t-145cb0"},{"from":"t-216224","to":"t-145cb0"},{"from":"t-7b5e7a","to":"t-145cb0"},{"from":"t-fbde12","to":"t-145cb0"},{"from":"t-9f96a1","to":"t-145cb0"},{"from":"t-800d53","to":"t-145cb0"},{"from":"t-8cd37e","to":"t-0f05c1"},{"from":"t-0f05c1","to":"t-c579d7"},{"from":"t-c579d7","to":"t-4c35b9"},{"from":"t-d4cded","to":"t-db23dc"},{"from":"t-db23dc","to":"t-9abb40"},{"from":"t-9abb40","to":"t-0d19e8"},{"from":"t-41f158","to":"t-a394e1"},{"from":"t-a394e1","to":"t-34191e"},{"from":"t-34191e","to":"t-222d3d"},{"from":"t-222d3d","to":"t-e5d2e6"},{"from":"t-9a6bdb","to":"t-097478"},{"from":"t-097478","to":"t-52d7fe"},{"from":"t-52d7fe","to":"t-d76da9"},{"from":"t-d76da9","to":"t-4b15cf"},{"from":"t-6eca2a","to":"t-02e4ae"},{"from":"t-02e4ae","to":"t-788302"},{"from":"t-788302","to":"t-14057a"},{"from":"t-14057a","to":"t-01bd5b"},{"from":"t-7e9633","to":"t-114ef1"},{"from":"t-114ef1","to":"t-dde78e"},{"from":"t-dde78e","to":"t-792c94"},{"from":"t-792c94","to":"t-44b8c6"},{"from":"t-954348","to":"t-e932fc"},{"from":"t-e932fc","to":"t-74ab2d"},{"from":"t-74ab2d","to":"t-51fc46"},{"from":"t-51fc46","to":"t-4d6d70"},{"from":"t-6eca2a","to":"t-5b02db"},{"from":"t-5b02db","to":"t-e80e8b"},{"from":"t-e80e8b","to":"t-e897e0"},{"from":"t-e897e0","to":"t-2c7e2e"},{"from":"t-5f2a65","to":"t-14191c"},{"from":"t-14191c","to":"t-6a3070"},{"from":"t-6a3070","to":"t-b89d61"},{"from":"t-b89d61","to":"t-a85c7b"},{"from":"t-41f158","to":"t-b1f61e"},{"from":"t-b1f61e","to":"t-d52c67"},{"from":"t-d52c67","to":"t-8e8f83"},{"from":"t-8e8f83","to":"t-b1b27b"},{"from":"t-7b5e7a","to":"t-22628e"},{"from":"t-22628e","to":"t-f4d6b1"},{"from":"t-f4d6b1","to":"t-3d59ae"},{"from":"t-3d59ae","to":"t-456a3d"},{"from":"t-7b5e7a","to":"t-c396e9"},{"from":"t-c396e9","to":"t-a45bcd"},{"from":"t-a45bcd","to":"t-57bfa5"},{"from":"t-57bfa5","to":"t-b36caf"},{"from":"t-41f158","to":"t-3d5f80"},{"from":"t-9a6bdb","to":"t-3d5f80"},{"from":"t-6eca2a","to":"t-3d5f80"},{"from":"t-7e9633","to":"t-3d5f80"},{"from":"t-954348","to":"t-3d5f80"},{"from":"t-5f2a65","to":"t-3d5f80"},{"from":"t-6cfab3","to":"t-3d5f80"},{"from":"t-216224","to":"t-3d5f80"},{"from":"t-7b5e7a","to":"t-3d5f80"},{"from":"t-fbde12","to":"t-3d5f80"},{"from":"t-9f96a1","to":"t-3d5f80"},{"from":"t-800d53","to":"t-3d5f80"},{"from":"t-3d5f80","to":"t-87ca1c"},{"from":"t-87ca1c","to":"t-55b8c4"},{"from":"t-55b8c4","to":"t-5a41f7"}],"ready":[],"layerCount":12}]};
+const M = window.DagDemo;   // build-demo.py 用 esbuild 打进来的模块集合（window.DagDemo）
+
+/* 四轴标签与顺序：全部取自模块（单一真源），模板不再自带一份 */
+const PHASE = M.PHASE_LABEL;
+const STATUS = M.STATUS_LABEL;
+const STAGEKIND = M.STAGE_LABEL;
+const PHASE_ORDER = ['implement', 'test', 'doc', 'review', 'ui', 'analysis', 'merge'];
+const STATUS_ORDER = ['todo', 'in_progress', 'integrating', 'testing', 'in_review', 'done'];
+const esc = M.esc;
+
+function pct(n, total) { return total ? (n * 100 / total).toFixed(1) + '%' : '0%'; }
+function byIdOf(ds) { const m = {}; ds.tasks.forEach(function (t) { m[t.id] = t; }); return m; }
+
+/* ---------------- ① 四轴频次（全仓真实统计） ---------------- */
+(function fillFreq() {
+  const tot = D.meta.tasks;
+  document.getElementById('freq-phase').innerHTML = PHASE_ORDER.map(function (p) {
+    return (PHASE[p] || p) + ' <b>' + (D.freq.phase[p] || 0) + '</b>';
+  }).join(' · ');
+  const sides = Object.keys(D.freq.side).sort(function (a, b) { return D.freq.side[b] - D.freq.side[a]; });
+  document.getElementById('freq-side').innerHTML = sides.map(function (s) {
+    return (M.SIDE_LABEL[s] || s) + ' <b>' + D.freq.side[s] + '</b>';
+  }).join(' · ');
+  const roles = D.freq.role;
+  document.getElementById('freq-role').innerHTML = '独立卡 <b>' + (roles.solo || 0) + '</b> · 父卡 <b>' + (roles.parent || 0) + '</b> · 子卡 <b>' + (roles.child || 0) + '</b>';
+  const sts = Object.keys(D.freq.status).sort(function (a, b) { return D.freq.status[b] - D.freq.status[a]; });
+  document.getElementById('freq-status').innerHTML = sts.map(function (s) {
+    return (STATUS[s] || s) + ' <b>' + D.freq.status[s] + '</b>';
+  }).join(' · ') + ' <span class="tagnote">合计 ' + tot + ' 张卡</span>';
+})();
+
+/* ---------------- ② 类型标本墙（七类 phase 的真实卡） ---------------- */
+(function fillWall() {
+  const host = document.getElementById('wall-phase');
+  const tot = D.meta.tasks;
+  let html = '';
+  PHASE_ORDER.forEach(function (p) {
+    const spec = D.specimens[p];
+    if (!spec) return;
+    const card = Object.assign({}, spec, { phase: p });
+    html += '<div class="wall-row">';
+    html += '<div class="wall-key">' + esc(PHASE[p]) + '<small>' + esc(p) + ' · ' + D.freq.phase[p] + ' 张 · ' + pct(D.freq.phase[p], tot) + '</small></div>';
+    html += '<div class="wall-col">' + M.cardHtml(card, {}) + '<span class="tagnote">灰徽标</span></div>';
+    html += '<div class="wall-col">' + M.cardHtml(card, { vc: true }) + '<span class="tagnote">彩徽标</span></div>';
+    html += '</div>';
+  });
+  host.innerHTML = html;
+
+  document.getElementById('collision-note').innerHTML =
+    '<b>变体 ② 的撞色清单（这是我不敢替你选的原因）</b>：' +
+    '<code>实施=蓝</code> ↔ <code>开发中底色=蓝</code>；<code>测试=橙</code> ↔ <code>测试中底色=橙</code>；' +
+    '<code>合并=绿</code> ↔ <code>已完成底色=绿</code>；<code>UI=青</code> ↔ 无冲突；' +
+    '端侧若也着色则再与 <code>联调中=紫</code>、<code>待复核=粉</code> 相撞。' +
+    '变体 ① 把饱和度全部让给状态，一张卡上只剩一套强色语义。';
+})();
+
+/* ---------------- ③ 角色三态 + 状态六态 ---------------- */
+(function fillRoleWall() {
+  const host = document.getElementById('wall-role');
+  const r = D.roles;
+  if (!r) { host.innerHTML = '<div class="tagnote">本仓暂无父子卡样本</div>'; return; }
+  const parentCard = { id: r.parent.id, title: r.parent.title, status: r.parent.status, phase: r.parent.phase, side: r.parent.side, role: 'parent' };
+  const soloCard = { id: r.solo.id, title: r.solo.title, status: r.solo.status, phase: r.solo.phase, side: r.solo.side };
+  const childCard = { id: r.child.id, title: r.child.title, status: r.child.status, phase: r.child.phase, side: r.child.side, stageKind: r.child.stageKind, role: 'child' };
+  host.innerHTML =
+    '<div class="wall-row"><div class="wall-key">独立卡<small>无 parentId / 无子卡 · ' + (D.freq.role.solo || 0) + ' 张</small></div>' +
+      '<div class="wall-col">' + M.cardHtml(soloCard, {}) + '</div>' +
+      '<div class="wall-col"><span class="tagnote">DAG 里的普通节点</span></div></div>' +
+    '<div class="wall-row"><div class="wall-key">父卡<small>有子卡链 · ' + (D.freq.role.parent || 0) + ' 张</small></div>' +
+      '<div class="wall-col">' + M.cardHtml(parentCard, { kids: r.kids }) + '</div>' +
+      '<div class="wall-col"><span class="tagnote">左侧蓝条 + 内嵌子卡链进度（' + r.kids.length + ' 段）</span></div></div>' +
+    '<div class="wall-row"><div class="wall-key">子卡<small>parentId 指向父卡 · ' + (D.freq.role.child || 0) + ' 张</small></div>' +
+      '<div class="wall-col">' + M.cardHtml(childCard, {}) + '</div>' +
+      '<div class="wall-col"><span class="tagnote">默认折叠在父卡内，展开才出现（缩进 + 阶段徽标）</span></div></div>';
+})();
+(function fillStatusWall() {
+  const host = document.getElementById('wall-status');
+  const base = D.specimens.implement || { id: 't-sample', title: '状态底色示例', phase: 'implement', side: 'backend' };
+  host.innerHTML = STATUS_ORDER.map(function (s) {
+    return '<div class="wall-row"><div class="wall-key">' + esc(STATUS[s]) + '<small>' + esc(s) + ' · ' + (D.freq.status[s] || 0) + ' 张</small></div>' +
+      '<div class="wall-col">' + M.cardHtml(Object.assign({}, base, { status: s }), {}) + '</div>' +
+      '<div class="wall-col"><span class="tagnote">与泳道卡片共用色值</span></div></div>';
+  }).join('');
+})();
+
+/* ---------------- ④ 卡片解剖图（标注位置一律实测） ---------------- */
+(function fillAnat() {
+  const host = document.getElementById('anat-canvas');
+  const r = D.roles;
+  if (!r) { host.innerHTML = '<div class="tagnote">本仓暂无父子卡样本</div>'; return; }
+  const t = { id: r.parent.id, title: r.parent.title, status: r.parent.status, phase: r.parent.phase, side: r.parent.side, role: 'parent' };
+  host.innerHTML = M.cardHtml(t, { kids: r.kids, ready: true });
+
+  const hr = host.getBoundingClientRect();
+  const card = host.querySelector('.card');
+  if (!card) return;
+  const cr = card.getBoundingClientRect();
+  const rel = function (el) {
+    const b = el.getBoundingClientRect();
+    return { x: b.left - hr.left, y: b.top - hr.top, w: b.width, h: b.height, cx: b.left - hr.left + b.width / 2, cy: b.top - hr.top + b.height / 2 };
+  };
+  const at = function (sel) { const el = host.querySelector(sel); return el ? rel(el) : null; };
+  const marks = [];
+  const top = cr.top - hr.top - 30;
+  const idEl = at('.card-id'); if (idEl) marks.push({ n: 1, p: [idEl.cx - 9, top] });
+  const typeEl = at('.chip-type'); if (typeEl) marks.push({ n: 2, p: [typeEl.cx - 9, top] });
+  const sideEl = at('.chip-side'); if (sideEl) marks.push({ n: 3, p: [sideEl.cx - 9, top] });
+  const readyEl = at('.ready-dot'); if (readyEl) marks.push({ n: 7, p: [readyEl.cx - 9, top] });
+  marks.push({ n: 5, p: [cr.left - hr.left - 26, cr.top - hr.top + 20] });
+  const titleEl = at('.card-title'); if (titleEl) marks.push({ n: 4, p: [cr.left - hr.left + cr.width + 8, titleEl.y + 1] });
+  const chainEl = at('.card-chain'); if (chainEl) marks.push({ n: 6, p: [cr.left - hr.left + cr.width + 8, chainEl.y + 1] });
+  marks.forEach(function (m) {
+    const d = document.createElement('div');
+    d.className = 'anat-mark';
+    d.style.left = m.p[0] + 'px';
+    d.style.top = m.p[1] + 'px';
+    d.textContent = m.n;
+    host.appendChild(d);
+  });
+})();
+
+/* ---------------- ⑤ 真 DAG（Canvas + integration.ts 模块） ---------------- */
+var dagState = { dir: 'vertical', crit: false, focus: false, pinned: null };
+var current = D.datasets[0];
+var viewer = null;
+
+function ensureViewer() {
+  const canvas = document.getElementById('dag-canvas');
+  if (viewer) viewer.destroy();
+  viewer = M.createDagViewer(canvas, { tasks: current.tasks, edges: current.edges, ready: current.ready }, dagState);
+}
+
+function paintAll() {
+  if (!viewer) ensureViewer();
+  const res = viewer.patch({ dir: dagState.dir, crit: dagState.crit, focus: dagState.focus });
+  const byId = byIdOf(current);
+  const visSet = {};
+  res.visibleIds.forEach(function (id) { visSet[id] = 1; });
+  const edges = current.edges.filter(function (e) { return visSet[e.from] && visSet[e.to]; });
+  const degIn = {}, degOut = {};
+  edges.forEach(function (e) { degIn[e.to] = (degIn[e.to] || 0) + 1; degOut[e.from] = (degOut[e.from] || 0) + 1; });
+  const maxLayer = res.visibleIds.length
+    ? Math.max.apply(null, res.visibleIds.map(function (id) { return byId[id].layer || 0; })) + 1 : 0;
+  const fanOut = res.visibleIds.filter(function (id) { return (degOut[id] || 0) > 1; }).length;
+  const fanIn = res.visibleIds.filter(function (id) { return (degIn[id] || 0) > 1; }).length;
+
+  document.getElementById('flowstat').innerHTML =
+    '<span>REQ <b>' + esc(current.req) + '</b></span>' +
+    '<span>任务 <b>' + res.visibleIds.length + '</b></span>' +
+    '<span>依赖边 <b>' + edges.length + '</b></span>' +
+    '<span>层级 <b>' + maxLayer + '</b></span>' +
+    '<span>关键路径 <b>' + res.critSet.size + ' 步</b></span>' +
+    '<span>分叉点 <b>' + fanOut + '</b></span>' +
+    '<span>汇合点 <b>' + fanIn + '</b></span>' +
+    '<span>可开工 <b>' + (current.ready || []).length + '</b></span>';
+  document.getElementById('panel-sub').textContent = current.label + '（' + current.req + ' · 真实队列文件）';
+
+  const wrap = document.getElementById('canvas-wrap');
+  const L = res.layout;
+  const availW = wrap.clientWidth || 690;
+  const ovX = Math.max(0, L.width - availW);
+  const ovY = Math.max(0, L.height - wrap.clientHeight);
+  const rows = D.datasets.map(function (d) {
+    return '<code>' + esc(d.req) + '</code> ' + d.tasks.length + ' 卡 / ' + d.layerCount + ' 层 / ' + d.edges.length + ' 边';
+  }).join('；');
+  document.getElementById('stress-note').innerHTML =
+    '<b>当前视图实测：</b>画布 <b>' + L.width + '×' + L.height + 'px</b>，容器可视 <b>' + availW + '×' + Math.round(wrap.clientHeight) + 'px</b>，' +
+    '横向溢出 <b>' + ovX + 'px</b>，纵向溢出 <b>' + ovY + 'px</b>。' +
+    '<br><b>四档真实读数：</b>' + rows + '。' +
+    '<br><b>只看主线</b>把图折叠到关键路径（' + res.critSet.size + ' 步），支线用卡角 <code>+N 支线</code> 挂回，需要时再展开。' +
+    '<br><b>读图提示：</b>鼠标移到任意卡片上即可看到它的上下游链路（橙色=上游、蓝色=下游），点击钉住，点空白取消。';
+}
+
+function selectDataset(key) {
+  current = D.datasets.filter(function (x) { return x.key === key; })[0] || D.datasets[0];
+  dagState.pinned = null;
+  document.querySelectorAll('[data-ds]').forEach(function (x) {
+    x.classList.toggle('on', x.getAttribute('data-ds') === current.key);
+  });
+  ensureViewer();
+  paintAll();
+}
+
+(function initDag() {
+  const seg = document.getElementById('ds-seg');
+  D.datasets.forEach(function (d, i) {
+    const b = document.createElement('button');
+    b.setAttribute('data-ds', d.key);
+    if (i === 0) b.classList.add('on');
+    b.textContent = d.label + ' · ' + d.tasks.length + ' 卡';
+    b.addEventListener('click', function () { selectDataset(d.key); });
+    seg.appendChild(b);
+  });
+
+  document.querySelectorAll('[data-dir]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      dagState.dir = b.getAttribute('data-dir');
+      document.querySelectorAll('[data-dir]').forEach(function (x) { x.classList.toggle('on', x === b); });
+      paintAll();
+    });
+  });
+
+  const critBtn = document.querySelector('[data-crit]');
+  critBtn.addEventListener('click', function () {
+    dagState.crit = !dagState.crit;
+    critBtn.classList.toggle('on', dagState.crit);
+    paintAll();
+  });
+
+  const focusBtn = document.querySelector('[data-focus]');
+  focusBtn.addEventListener('click', function () {
+    dagState.focus = !dagState.focus;
+    focusBtn.classList.toggle('on', dagState.focus);
+    focusBtn.textContent = dagState.focus ? '展开全图' : '只看主线';
+    paintAll();
+  });
+
+  let rt = null;
+  window.addEventListener('resize', function () {
+    if (rt) clearTimeout(rt);
+    rt = setTimeout(function () { paintAll(); }, 120);
+  });
+
+  selectDataset(current.key);
+})();
+</script>
+</body>
+</html>

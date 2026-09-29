@@ -1,0 +1,353 @@
+requirement:
+  id: REQ-260928001915-f978
+  title: 队列 DAG 真图卡片类型与可视化设计
+  category: feature
+  created_at: 2026-09-27T16:19:15.270Z
+  source_session: session-6cbda737-2159-497d-9384-10ef3330279f
+  dir: /Users/yunpeng/pi-investment/agent-dh/docs/requirements/REQ-260928001915-f978
+lifecycle:
+  current_stage: accepting
+  stage_count: 7
+  stage_list:
+    - draft
+    - brainstorming
+    - design
+    - decomposing
+    - implementing
+    - accepting
+    - done
+  stages:
+    - stage: draft
+      status: completed
+      enabled: true
+      entered_at: 2026-09-27T16:19:15.270Z
+      completed_at: 2026-09-28T07:03:54.395Z
+    - stage: brainstorming
+      status: completed
+      enabled: true
+      entered_at: 2026-09-27T16:19:15.270Z
+      completed_at: 2026-09-28T07:03:54.395Z
+      artifacts:
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-lifecycle.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/demo/build-demo.py
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/demo/dag-card-types-demo.html
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/demo/template.html
+        - kind: requirement
+          path: docs/requirements/REQ-260928001915-f978/requirement.md
+          confirmed_at: 2026-09-27T17:45:02.052Z
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/prototype.html
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-brainstorming.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/color-test.html
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/decompose-logic-analysis.md
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-design.yml
+    - stage: design
+      status: completed
+      enabled: true
+      entered_at: 2026-09-27T16:19:15.270Z
+      completed_at: 2026-09-28T07:03:54.395Z
+      artifacts:
+        - kind: design
+          path: docs/requirements/REQ-260928001915-f978/design/architecture.md
+          confirmed_at: 2026-09-28T02:29:25.247Z
+        - kind: design
+          path: docs/requirements/REQ-260928001915-f978/design/data-model.md
+          confirmed_at: 2026-09-28T02:29:25.247Z
+        - kind: design
+          path: docs/requirements/REQ-260928001915-f978/design/interfaces.md
+          confirmed_at: 2026-09-28T02:29:25.247Z
+        - kind: design
+          path: docs/requirements/REQ-260928001915-f978/design/test-cases.md
+          confirmed_at: 2026-09-28T02:29:25.247Z
+        - kind: design
+          path: docs/requirements/REQ-260928001915-f978/design/use-cases.md
+          confirmed_at: 2026-09-28T02:29:25.247Z
+    - stage: decomposing
+      status: completed
+      enabled: true
+      entered_at: 2026-09-27T16:19:15.270Z
+      completed_at: 2026-09-28T07:03:54.395Z
+      artifacts:
+        - kind: decomposition
+          path: docs/requirements/REQ-260928001915-f978/decomposition.md
+          confirmed_at: 2026-09-28T03:01:02.080Z
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-decomposing.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-implementing.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/queue.json
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-implementing/t-144707.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-implementing/t-1f219b.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-implementing/t-2ad263.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-implementing/t-4256bf.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-implementing/t-73c392.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-implementing/t-d379c7.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-implementing/t-e4e9db.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-implementing/t-efa03b.yml
+    - stage: implementing
+      status: completed
+      enabled: true
+      entered_at: 2026-09-27T16:19:15.270Z
+      completed_at: 2026-09-28T07:03:54.395Z
+      artifacts:
+        - kind: task_detail
+          path: docs/requirements/REQ-260928001915-f978/tasks/t-efa03b.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928001915-f978/tasks/t-2ad263.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928001915-f978/tasks/t-4256bf.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928001915-f978/tasks/t-e4e9db.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928001915-f978/tasks/t-1f219b.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928001915-f978/tasks/t-73c392.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928001915-f978/tasks/t-d379c7.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928001915-f978/tasks/t-144707.md
+        - kind: task_output
+          path: docs/requirements/REQ-260928001915-f978/demo/card-types.ts
+        - kind: task_detail
+          path: docs/requirements/REQ-260928001915-f978/tasks/t-f24eee.md
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-implementing/t-f24eee.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/advance-log.md
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-implementing/t-4d6cf2.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/reviews/review-20260928.md
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-accepting.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/tests/test-20260928.md
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/demo/README.md
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/demo/card-renderer.ts
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/demo/critical-path.ts
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/demo/dag-layout.ts
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/demo/edge-renderer.ts
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/demo/integration.ts
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/demo/interaction.ts
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/demo/progress-bar.ts
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/demo/selftest.mjs
+        - kind: task_detail
+          path: docs/requirements/REQ-260928001915-f978/tasks/t-4d6cf2.md
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-implementing/t-730c85.yml
+        - kind: task_detail
+          path: docs/requirements/REQ-260928001915-f978/tasks/t-730c85.md
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/demo/dag-layout.test.ts
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/demo/edge-renderer.test.ts
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/demo/__probe-t-ca1655.ts
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/demo/critical-path.test.ts
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/demo/__probe-t-41d67e.ts
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/demo/interaction.test.ts
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/demo/__probe-t-65df2c.ts
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/demo/integration.test.ts
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/demo/__probe-t-dbed64.ts
+        - kind: task_detail
+          path: docs/requirements/REQ-260928001915-f978/tasks/t-d65d4c.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928001915-f978/tasks/t-5fccbe.md
+        - kind: task_output
+          path: docs/requirements/REQ-260928001915-f978/demo/card-renderer.ts
+        - kind: task_output
+          path: docs/requirements/REQ-260928001915-f978/demo/selftest.mjs
+        - kind: task_output
+          path: docs/requirements/REQ-260928001915-f978/demo/dag-card-types-demo.html
+        - kind: task_detail
+          path: docs/requirements/REQ-260928001915-f978/tasks/t-92496d.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928001915-f978/tasks/t-c969a8.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928001915-f978/tasks/t-cb5648.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928001915-f978/tasks/t-c11c61.md
+        - kind: task_output
+          path: docs/requirements/REQ-260928001915-f978/demo/dag-layout.ts
+        - kind: task_output
+          path: docs/requirements/REQ-260928001915-f978/demo/dag-layout.test.ts
+        - kind: task_detail
+          path: docs/requirements/REQ-260928001915-f978/tasks/t-185222.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928001915-f978/tasks/t-d41ea0.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928001915-f978/tasks/t-660826.md
+        - kind: task_output
+          path: docs/requirements/REQ-260928001915-f978/demo/edge-renderer.ts
+        - kind: task_output
+          path: docs/requirements/REQ-260928001915-f978/demo/edge-renderer.test.ts
+        - kind: task_detail
+          path: docs/requirements/REQ-260928001915-f978/tasks/t-ca1655.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928001915-f978/tasks/t-c41ace.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928001915-f978/tasks/t-41d67e.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928001915-f978/tasks/t-706169.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928001915-f978/tasks/t-1f0b86.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928001915-f978/tasks/t-e00c5f.md
+        - kind: task_output
+          path: docs/requirements/REQ-260928001915-f978/demo/interaction.ts
+        - kind: task_output
+          path: docs/requirements/REQ-260928001915-f978/demo/interaction.test.ts
+        - kind: task_detail
+          path: docs/requirements/REQ-260928001915-f978/tasks/t-65df2c.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928001915-f978/tasks/t-d284d3.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928001915-f978/tasks/t-a2599c.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928001915-f978/tasks/t-cf42de.md
+        - kind: task_output
+          path: docs/requirements/REQ-260928001915-f978/demo/build-demo.py
+        - kind: task_output
+          path: docs/requirements/REQ-260928001915-f978/demo/integration.test.ts
+        - kind: task_output
+          path: docs/requirements/REQ-260928001915-f978/demo/README.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928001915-f978/tasks/t-975c52.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928001915-f978/tasks/t-66570e.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928001915-f978/tasks/t-a10499.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928001915-f978/tasks/t-35222c.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928001915-f978/tasks/t-868884.md
+        - kind: task_output
+          path: docs/requirements/REQ-260928001915-f978/demo/critical-path.ts
+        - kind: task_output
+          path: docs/requirements/REQ-260928001915-f978/demo/critical-path.test.ts
+        - kind: task_detail
+          path: docs/requirements/REQ-260928001915-f978/tasks/t-b9308e.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928001915-f978/tasks/t-1b2632.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928001915-f978/tasks/t-8a854a.md
+        - kind: task_output
+          path: docs/requirements/REQ-260928001915-f978/demo/progress-bar.ts
+        - kind: task_detail
+          path: docs/requirements/REQ-260928001915-f978/tasks/t-f49d5b.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928001915-f978/tasks/t-dbed64.md
+        - kind: task_output
+          path: docs/requirements/REQ-260928001915-f978/demo/__probe-t-dbed64.ts
+    - stage: accepting
+      status: in_progress
+      enabled: true
+      entered_at: 2026-09-27T16:19:15.270Z
+      artifacts:
+        - kind: verification
+          path: docs/requirements/REQ-260928001915-f978/verification.md
+          confirmed_at: 2026-09-28T07:03:54.395Z
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-implementing/t-185222.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-implementing/t-41d67e.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-implementing/t-5fccbe.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-implementing/t-660826.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-implementing/t-92496d.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-implementing/t-c11c61.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-implementing/t-c41ace.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-implementing/t-c969a8.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-implementing/t-ca1655.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-implementing/t-cb5648.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-implementing/t-d41ea0.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-implementing/t-d65d4c.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-implementing/t-706169.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-implementing/t-1f0b86.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-implementing/t-e00c5f.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-implementing/t-65df2c.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-implementing/t-d284d3.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-implementing/t-a2599c.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-implementing/t-cf42de.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-implementing/t-975c52.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-implementing/t-66570e.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-implementing/t-35222c.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-implementing/t-868884.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-implementing/t-a10499.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-implementing/t-b9308e.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-implementing/t-1b2632.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-implementing/t-8a854a.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-implementing/t-f49d5b.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/rtm-implementing/t-dbed64.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928001915-f978/tests/acceptance-20260928.md
+    - stage: done
+      status: pending
+      enabled: true
+metadata:
+  stage: lifecycle
+  requirement_id: REQ-260928001915-f978
+  generated_at: 2026-09-27T16:19:16.366Z
+  version: 19
+  generated_by: dsh-pmboard
+  rtm_version: "1.0"
+  file_path: /Users/yunpeng/pi-investment/agent-dh/docs/requirements/REQ-260928001915-f978/rtm-lifecycle.yml
+  last_updated: 2026-09-28T07:03:54.460Z

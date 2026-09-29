@@ -1,0 +1,4701 @@
+{
+  "version": 1,
+  "requirement_id": "REQ-260928222643-4d34",
+  "schemaVersion": 9,
+  "generated_at": "2026-09-28T14:53:19.778Z",
+  "tasks": [
+    {
+      "id": "t-3e952f",
+      "requirementId": "REQ-260928222643-4d34",
+      "title": "新增一次性交接持有器 src/client/board-focus.ts",
+      "cardDoc": "docs/requirements/REQ-260928222643-4d34/tasks/t-3e952f.md",
+      "description": "",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "cd packages/web/dsh-pmboard && npx vitest run tests/board-focus.test.ts 全绿；grep -c \"export function\" src/client/board-focus.ts 输出 4；grep -n \"localStorage|sessionStorage|URLSearchParams|location.hash\" src/client/board-focus.ts 无匹配（非粘滞）。",
+      "implementation": "新建 packages/web/dsh-pmboard/src/client/board-focus.ts（零 import）：模块级 pendingReqId + 四个导出 requestBoardFocus/takeBoardFocus/clearBoardFocus/peekBoardFocus；take 取走即清、空串不登记、不写 storage/URL；新建 tests/board-focus.test.ts 覆盖 TC-6。",
+      "context": "",
+      "requirementRefs": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-a2d18b",
+          "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+          "trigger": "manual",
+          "startedAt": 1790607222705,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 1510,
+              "at": 1790607222719,
+              "totals": {
+                "uncachedInputTokens": 2877552,
+                "outputTokens": 223380,
+                "cacheReadTokens": 27842816,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 2674,
+              "at": 1790608101639,
+              "totals": {
+                "uncachedInputTokens": 3225191,
+                "outputTokens": 339671,
+                "cacheReadTokens": 56040448,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 347639,
+              "outputTokens": 116291,
+              "cacheReadTokens": 28197632,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790608101615
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790607199573,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790607222705,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd"
+          },
+          "reason": "开工：新建一次性交接持有器 board-focus.ts 与其单测（FR-2 / I-1）"
+        },
+        {
+          "status": "done",
+          "at": 1790608101615,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-0ec3d8",
+          "body": "[状态] → in_progress：开工：新建一次性交接持有器 board-focus.ts 与其单测（FR-2 / I-1）（reqboard_task_move）",
+          "createdAt": 1790607222705,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790607199573,
+      "updatedAt": 1790608101615,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "layer": 0,
+      "claimedBy": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+      "claimedAt": 1790607222705,
+      "lastReport": {
+        "at": 1790608101615,
+        "reportIndex": 2,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/client/board-focus.ts",
+          "packages/web/dsh-pmboard/tests/board-focus.test.ts"
+        ],
+        "completed": [
+          "本卡交付：src/client/board-focus.ts（零 import 的一次性定位交接持有器）+ tests/board-focus.test.ts（TC-6 用例）。\n核验发现两份产出在盘（前序中断遗留：源码 22:58 / 测试 22:53，untracked），本轮据设计 I-1 与 TC-6 逐条比对确认契约一致，未做无谓改写。\n契约一致性（设计 design/interfaces.md I-1）：模块级 let pendingReqId；恰 4 个导出 requestBoardFocus(reqId:string):void / takeBoardFocus():string|undefined / clearBoardFocus():void / peekBoardFocus():string|undefined；take 消费即清（第二次必 undefined）；clear 幂等；空串与纯空白按清除处理不登记空意图；peek 只读不消费；不抛错、无 IO。\n纯净度：零 import，模块内无 localStorage/sessionStorage/window/location/history —— 满足「不写 storage、不进 URL、不挂 window」的一次性语义（不形成粘滞状态）。\n消费端签名对齐：board-mount.ts 引 takeBoardFocus；conversation-progress.ts 引 requestBoardFocus；tests/board-attach.test.ts 引 requestBoardFocus/clearBoardFocus/peekBoardFocus —— 导出面与真实调用点一致，无缺名/多名。\nTC-6 覆盖：取走即清、clear 幂等、空值不登记三条语义齐全（另加 peek 只读与首次 take 得值），共 5 例。\n边界遵守：仅做本卡文件与单文件测试，未执行父卡终态验收（全量测试 / build:client / grep 零命中），未改动其他卡的文件。",
+          "integrate 联调通过: board-focus 一次性持有器与两处调用点接线一致, 并以真实模块调用做了端到端验证(面板登记 -> 看板挂载消费)。① 本卡验收 grep 全命中: conversation-progress.ts:23 导入 requestBoardFocus、:260 以 requestFocus: requestBoardFocus 注入(与 board-entry.ts 的 deps.requestFocus 契约签名一致); board-mount.ts:23 导入 takeBoardFocus、:184 挂载时消费。② 真实一次调用(tsx 直跑真实 TS 模块, 非单测、未跑父卡终态验收命令): 面板入口成功样例 activateBoardEntry(REQ-260928222643-4d34, {isKnown:true, requestFocus: requestBoardFocus, layout}) -> {ok:true} 且持有器出现该 id、activateBoardEntry 自身未切页(selectPanel 0 次); 三条失败样例(空 reqId -> req-missing 且未打台账接口; 无 layout -> nav-unavailable; 不在台账 -> req-missing) 残留 focus 均 null(零副作用)。③ 消费侧: 登记后 attachBoard 挂载渲染出 data-detail-req=REQ-260928222643-4d34(innerHTML 9349 字符), 挂载后 peek 为 null(取走即清); 再次挂载不含 req 详情(4502 字符)=非粘滞。④ 取走即清语义实调验证: take 返回 id、第二次 take 与 peek 均 null。⑤ 打包可达: client/index.ts:13 导入 conversation-progress.ts, 后者导入 board-focus.ts, 故新增模块进入 lib/client.cjs 入口图。本卡未改仓库任何文件(仅 /tmp 临时脚本); 未跑测试段命令。",
+          "设计与实现逐条一致，无偏离。packages/web/dsh-pmboard/src/client/board-focus.ts 共 41 行：零 import；模块级 let pendingReqId: string | undefined；导出 requestBoardFocus/takeBoardFocus/clearBoardFocus/peekBoardFocus 四个函数，与父卡实施方案逐字对应。一次性语义成立——takeBoardFocus 读出后立即置 undefined（取走即清），requestBoardFocus 对空串做 trim 后长度为 0 即不登记，peek 只读不消费，clear 幂等。全文件无任何浏览器存储/URL/hash 访问，故刷新或再次进入看板必回默认视图，符合「非粘滞」数据契约。消费侧 wiring 亦与设计 I-1/T-2/T-3 一致：board-mount.ts:184 在挂载闭包内 takeBoardFocus() 消费一次（用 take 而非 peek），conversation-progress.ts:260 注入 requestBoardFocus 作为登记入口。唯一实现细节多于设计文字之处：requestBoardFocus 额外做了 typeof 防御与 trim()，属把「空串不登记」收紧为「空串/纯空白不登记」，方向与设计意图一致，不构成偏离。",
+          "子卡 t-b22075（一次性交接持有器 board-focus·测试阶段）终态验收通过：在 packages/web/dsh-pmboard 下执行 npx vitest run tests/board-focus.test.ts，退出码 0，1 个测试文件 / 5 条用例全绿、0 失败。命令与输出摘要已追加写入 docs/requirements/REQ-260928222643-4d34/tests/test-report.md（新增「子卡终态验收 · 一次性交接持有器测试（t-b22075）」节）。本阶段为判断/输出型产出，未改动任何代码文件。"
+        ]
+      }
+    },
+    {
+      "id": "t-dd5ba9",
+      "requirementId": "REQ-260928222643-4d34",
+      "title": "新增入口校验纯函数 src/client/board-entry.ts",
+      "cardDoc": "docs/requirements/REQ-260928222643-4d34/tasks/t-dd5ba9.md",
+      "description": "",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-3e952f"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "cd packages/web/dsh-pmboard && npx vitest run tests/board-entry.test.ts 全绿（TC-9~TC-13）；三种失败路径 requestFocus 与 layout.selectPanel 调用各 0 次；成功路径 requestFocus 恰好 1 次。",
+      "implementation": "新建 board-entry.ts：activateBoardEntry(reqId,deps) 顺序 ①layout 可用性→②reqId 形状→③isKnown 台账可达性→④requestFocus；失败返回 {ok:false,reason,message} 且零副作用；文案对齐 interfaces.md I-2；新建 tests/board-entry.test.ts 覆盖 TC-9~13。",
+      "context": "",
+      "requirementRefs": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-9f8b89",
+          "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+          "trigger": "manual",
+          "startedAt": 1790607593202,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 2034,
+              "at": 1790607593214,
+              "totals": {
+                "uncachedInputTokens": 3131011,
+                "outputTokens": 284360,
+                "cacheReadTokens": 40688128,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 2986,
+              "at": 1790609109101,
+              "totals": {
+                "uncachedInputTokens": 3419553,
+                "outputTokens": 401720,
+                "cacheReadTokens": 63533824,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 288542,
+              "outputTokens": 117360,
+              "cacheReadTokens": 22845696,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790609109075
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790607199573,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790607593202,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd"
+          },
+          "reason": "开工：按计划执行"
+        },
+        {
+          "status": "done",
+          "at": 1790609109075,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd"
+          },
+          "reason": "本卡交付与 4 张子卡均已完成（board-entry.ts + 测试 60/60 绿，子卡 done），仅因父卡凭证基准缺陷（claimedAt 晚于交付）未能收尾；此处以本窗口工具活动证据人工收尾。根因修复见 support.ts chainBaselineOf()（待部署）"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-05bd0c",
+          "body": "[状态] → in_progress：开工：按计划执行（reqboard_task_move）",
+          "createdAt": 1790607593202,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd"
+          }
+        },
+        {
+          "id": "c-437ddc",
+          "body": "[状态] → done：本卡交付与 4 张子卡均已完成（board-entry.ts + 测试 60/60 绿，子卡 done），仅因父卡凭证基准缺陷（claimedAt 晚于交付）未能收尾；此处以本窗口工具活动证据人工收尾。根因修复见 support.ts chainBaselineOf()（待部署）（reqboard_task_move）",
+          "createdAt": 1790609109075,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790607199573,
+      "updatedAt": 1790609109075,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd"
+      },
+      "layer": 1,
+      "lastReport": {
+        "at": 1790607593075,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/client/board-entry.ts",
+          "packages/web/dsh-pmboard/tests/board-entry.test.ts"
+        ],
+        "completed": [
+          "新建 src/client/board-entry.ts（activateBoardEntry + boardEntryFailureMessage，纯函数+依赖注入）",
+          "新建 tests/board-entry.test.ts 覆盖 TC-9~TC-13（7 条断言全绿，含失败零副作用）"
+        ]
+      }
+    },
+    {
+      "id": "t-2eb71d",
+      "requirementId": "REQ-260928222643-4d34",
+      "title": "node-panel.ts 加入口按钮并删除执行流程块调用与入参",
+      "cardDoc": "docs/requirements/REQ-260928222643-4d34/tasks/t-2eb71d.md",
+      "description": "",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-dd5ba9"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "cd packages/web/dsh-pmboard && grep -n \"renderProcessFold\" src/client/node-panel.ts 无匹配；grep -n \"injection|isolation\" src/client/node-panel.ts 无匹配；npx vitest run tests/node-panel.test.ts 全绿且 7 节点输出不含「🔄 执行流程」；npx vitest run tests/node-panel-process-map.test.ts 仍全绿。",
+      "implementation": "renderHead 内相对时间之后追加 button.dsh-pm-np-board-entry[data-action=np-board-entry][data-req]（文案固定 项目看板 ↗，跳过与正常分支共用）；删除 renderProcessFold 调用、ProcessFoldContext、NodePanelInput.injection/isolation 与相关 import 及头注；同步 tests/node-panel.test.ts（反写 TC-2、删 TC-4、加 TC-1/TC-2′/TC-5）。",
+      "context": "",
+      "requirementRefs": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-4b62fd",
+          "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+          "trigger": "manual",
+          "startedAt": 1790607593469,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 2040,
+              "at": 1790607593487,
+              "totals": {
+                "uncachedInputTokens": 3131011,
+                "outputTokens": 284360,
+                "cacheReadTokens": 40688128,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 2999,
+              "at": 1790609432633,
+              "totals": {
+                "uncachedInputTokens": 3419703,
+                "outputTokens": 404727,
+                "cacheReadTokens": 63794432,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 288692,
+              "outputTokens": 120367,
+              "cacheReadTokens": 23106304,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790609432602
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790607199573,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790607593469,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd"
+          },
+          "reason": "开工：按计划执行"
+        },
+        {
+          "status": "done",
+          "at": 1790609432602,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-abcf39",
+          "body": "[状态] → in_progress：开工：按计划执行（reqboard_task_move）",
+          "createdAt": 1790607593469,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790607199573,
+      "updatedAt": 1790609432602,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "layer": 2,
+      "lastReport": {
+        "at": 1790609432602,
+        "reportIndex": 2,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/client/node-panel.ts",
+          "packages/web/dsh-pmboard/tests/node-panel.test.ts"
+        ],
+        "completed": [
+          "完成本卡（dev）：node-panel.ts 的项目看板入口按钮与执行流程块下掉已在工作区落盘并核验——renderHead 在相对时间之后追加 button.dsh-pm-np-board-entry[data-action=np-board-entry][data-req]（文案固定「项目看板 ↗」，正常与 enabled=false 跳过两分支共用），NodePanelInput 的 injection/isolation 入参、ProcessFoldContext 与 renderProcessFold 调用及相关 import/头注全部移除。本次同时完成 tests/node-panel.test.ts 的同步加固：TC-3 增补 ALL_STAGE_KEYS.length===7 断言（把验收口径「7 节点」钉死），并修正头部注释中已删除的旧 TC-5 描述。验收命令 npx vitest run tests/node-panel.test.ts 全绿（27/27），7 节点输出均不含「🔄 执行流程」。",
+          "联调通过（源码级真实调用 + 产物级核验）。node-panel.ts 的入口按钮已在 renderHead 中产出，与 conversation-progress.ts 的点击处理链路契约逐字对上（data-action=\"np-board-entry\" / data-req=REQ id），下游 activateBoardEntry 的三条路径（正常/layout 缺失/台账不可达）实测行为符合\"先校验、后切页\"设计；renderProcessFold 调用已从 node-panel.ts 断开（函数保留在 node-panel-process.ts:378）。无发现接口错位。",
+          "复核父卡 t-2eb71d（node-panel.ts 加入口按钮并删除执行流程块调用与入参）的实现与设计是否偏离：逐条对齐、无实质偏离，本卡验收通过。①入口按钮：renderHead 内相对时间之后追加 button.dsh-pm-np-board-entry[data-action=np-board-entry][data-req]，文案固定「项目看板 ↗」，且 renderHead 被 skipped 分支（:321）与正常分支（:330）共用，7 个节点全覆盖——与设计一致。②删除调用/入参：renderProcessFold 调用、局部 processCtx: ProcessFoldContext、NodePanelInput.injection/isolation 均已删除；node-panel.ts 对 injection/isolation/renderProcessFold/ProcessFoldContext/IsolationLogEntry/InjectionInfoEntry 零引用。③相关 import 与头注：导入收敛为 STAGE_STATE_WORD（仍被使用）+ 兄弟需求新增的 chainHtml；头注同步（「注入/隔离留痕」→「需求标识」，删除「🔄 执行流程」行）。④测试同步：tests/node-panel.test.ts 反写 TC-2（断无「🔄 执行流程」）、删除旧 TC-4（执行流程三段）与旧 TC-5（执行动作对照），新增 TC-1/TC-1′/TC-2′/TC-3/TC-5/TC-5′（覆盖为计划超集，非偏离）。⑤node-panel-process.ts 中保留 renderProcessFold/ProcessFoldContext 属设计如此——同需求 t-9b365a 的反面断言明确要求「grep -n \"export function renderProcessFold\" src/client/node-panel-process.ts 命中」，故非漏删。边界遵守：未改任何代码；未跑父卡终态验收命令（tests/node-panel.test.ts 归测试段），仅执行本卡自身验收 grep + tests/node-panel-process-map.test.ts。",
+          "在 packages/web/dsh-pmboard 下执行父卡终态验收命令 `npx vitest run tests/node-panel.test.ts tests/node-panel-styles.test.ts`：退出码 0，2 个测试文件 / 42 个用例全绿、0 失败、0 跳过（node-panel.test.ts 27 条、node-panel-styles.test.ts 15 条，vitest v2.1.9，Duration 310ms）。只读 grep 佐证实现面到位：src/client/node-panel.ts 中 renderProcessFold/ProcessFoldContext/injection/isolation 均无匹配（exit 1），入口按钮命中 L292（class=dsh-pm-np-board-entry、data-action=np-board-entry、data-req、文案「项目看板 ↗」）。命令与输出摘要已写入 docs/requirements/REQ-260928222643-4d34/tests/test-report.md（追加「子卡终态验收 · 面板入口按钮与下掉执行流程块测试」节，L100-L109）。未改动任何代码文件。"
+        ]
+      },
+      "claimedBy": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+      "claimedAt": 1790607593469
+    },
+    {
+      "id": "t-e481a4",
+      "requirementId": "REQ-260928222643-4d34",
+      "title": "conversation-progress.ts 接线点击→校验→关面板→切看板并删两条留痕拉取",
+      "cardDoc": "docs/requirements/REQ-260928222643-4d34/tasks/t-e481a4.md",
+      "description": "",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-2eb71d"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "cd packages/web/dsh-pmboard && grep -rn \"fetchInjectionInfo|fetchIsolationLog\" src/client/conversation-progress.ts src/client/node-panel.ts 无匹配；grep -n \"np-board-entry|activateBoardEntry|selectPanel(PANEL_ID)|dsh-pm-np-entry-err\" src/client/conversation-progress.ts 四个符号全命中；pnpm run typecheck 通过。",
+      "implementation": "删除 fetchInjectionInfo/fetchIsolationLog import、injection/isolation state 与拉取 effect 及 props；closePanel 声明上移到早退前；新增 document 级 np-board-entry 委派调 activateBoardEntry，失败 setEntryError 就地 role=alert 显示且不切页，成功 closePanel + layout.selectPanel(PANEL_ID)；import 来源 board-focus/board-entry/page-runtime/dom/api。",
+      "context": "",
+      "requirementRefs": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-aa7f2f",
+          "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+          "trigger": "auto",
+          "startedAt": 1790609432754,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 2999,
+              "at": 1790609432767,
+              "totals": {
+                "uncachedInputTokens": 3419703,
+                "outputTokens": 404727,
+                "cacheReadTokens": 63794432,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 3011,
+              "at": 1790609939629,
+              "totals": {
+                "uncachedInputTokens": 3675539,
+                "outputTokens": 406381,
+                "cacheReadTokens": 63803264,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 255836,
+              "outputTokens": 1654,
+              "cacheReadTokens": 8832,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790609939595
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790607199573,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790609432754,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790609939595,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "comments": [],
+      "version": 4,
+      "createdAt": 1790607199573,
+      "updatedAt": 1790609939595,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "layer": 3,
+      "lastReport": {
+        "at": 1790609939595,
+        "reportIndex": 2,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/client/conversation-progress.ts"
+        ],
+        "completed": [
+          "本卡范围（conversation-progress.ts 接线点击→校验→关面板→切看板 + 删两条留痕拉取）的改动已全部落盘并本地验证通过；本轮对我方交付文件做了一处最小修复使其类型检查归零。① 核对盘面：删除 fetchInjectionInfo/fetchIsolationLog import 与 InjectionInfoEntry/IsolationLogEntry 类型 import；删除 injection/isolation state 与拉取 effect；renderNodePanel 调用不再传 injection/isolation；closePanel 声明上移至早退之前（L123 < 早退 L342）；新增 document 级 np-board-entry 委派（L249-266）—— activateBoardEntry 先校验，失败 setEntryError 就地渲染 role=\"alert\" 的 .dsh-pm-np-entry-err（L357）且不切页，成功 closePanel() + getPageLayout()?.selectPanel(PANEL_ID)（L265）；import 来源 board-focus/board-entry/page/page-runtime/dom/api 齐备（board-entry L24、requestBoardFocus L260 注入、PANEL_ID L26）。② 本轮落盘改动：把 L193 subscribeEvents 回调里未使用的形参 revision 重命名为 _revision，消除本文件唯一一条 tsc 报错（TS6133）。③ 边界：未执行父卡终态验收命令（未跑全量测试、未跑 build:client、未跑 fetchInjectionInfo/fetchIsolationLog 零命中 grep）；父卡验收命令留给测试段。④ 提示下一段：本文件内有一段非本卡实施方案的 SSE 订阅 effect（L189-205，订阅 task-moved/task-updated/task-created 刷新 stageOverview），设计/前端文档 P-3/P-4 未包含该 effect，属工作区既有代码，我未按\"不越界\"原则删除，建议复核段据设计判断去留。",
+          "t-e3785d（integrate）接口联调通过：以真实模块 + 真实 HTTP 做了一次直跑，请求样例与实际响应逐项一致，9/9 通过。被测接口三条：①HTTP GET /dashboard/api/reqboard/（api.ts fetchState，isKnown 的数据源）→ 期望 200 + {success:true,data:{...requirements[]}}，实际 200 success=true、requirements=85（live :13080，2026-09-28T15:35:13Z）；②模块接口 activateBoardEntry(reqId,{isKnown,requestFocus,layout})（I-2）→ 成功 {ok:true}、失败 {ok:false,reason,message}，6 条样例（成功/台账无该 REQ/layout 未注入/台账真实连接拒绝/空 reqId）全部与期望一致；③接线顺序不变量（I-6）→ 成功路径 closePanel 1 次且随后 selectPanel(PANEL_ID='dsh-pmboard') 1 次、失败路径 entryError=message 且导航与意图登记均为 0（零副作用）。跨边界身份也对齐：registerPagePanel 实测两端注册 id 同为 PANEL_ID（main:key=dsh-pmboard / sidebar.panellist:id=dsh-pmboard），故 selectPanel(PANEL_ID) 命中已注册面板。另以 source-lock 证明本次执行的 handler 体与在盘 conversation-progress.ts:249-265 逐条一致（选择器/读 data-req/清错/调 activateBoardEntry/三 deps/失败 return/关面板/切看板，及 L23-L26 与 L19 的 import 来源），故结论对在盘代码成立。未发现接口错位；唯一与设计样例文字的差异是设计 P-3 写 getPageLayout()!.selectPanel、在盘用 ?.，属更安全的等价写法，不改接口语义，不计为问题。按本步边界未跑父卡终态验收命令（全量测试/build:client/typecheck 属测试段），未改写任何实现，未改动仓库文件（脚本仅落 /tmp）。",
+          "复核对象：t-e481a4 的 review 子卡 t-43763b（conversation-progress.ts 接线点击→校验→关面板→切看板并删两条留痕拉取）。逐条给出设计↔实现偏离结论，未改代码、未跑父卡终态验收命令（grep 零命中断言/typecheck 归测试段，仅做只读核对）。\n① 实施方案 4 条逐条对齐，无偏离：a) 删两 import + injection/isolation state + 拉取 effect + renderNodePanel 的 injection/isolation 入参——git diff(HEAD→工作区) 显示这三块全删、且 conversation-progress.ts/node-panel.ts 对 fetchInjectionInfo|fetchIsolationLog 零引用（唯一调用点已断）；b) closePanel 声明上移：现 L123，位于两处早退（L273 data 空、L342 !detailOpen）之前，纯搬移无行为变化；c) 新增 document 级 np-board-entry 委派 L247-270，与 np-switch-view/open-doc 同款；d) import 来源收敛为 board-focus(L23)/board-entry(L24)/page-runtime(L25)/dom(L26)+api(L19 fetchState, subscribeEvents)。\n② 设计 I-2/I-3/I-6 契约逐条对齐，无偏离：激活调用形态与 BoardEntryDeps 三字段（isKnown/requestFocus/layout=getPageLayout()）逐字一致；失败仅 setEntryError(verdict.message) 后 return（L263）——零导航、零意图登记（I-6.2）；成功 closePanel() 先、layout?.selectPanel(PANEL_ID) 后（L264-265），切页只经 selectPanel（I-6.1）；失败提示 role=\"alert\" + .dsh-pm-np-entry-err，在 .dsh-pm-cprog-detail-panel 的 panelChildren 内、节点面板容器之前（L356-358，面板容器 L378）——可见性满足 FR-3「不静默」；DOM 契约对上 node-panel.ts:292 的 data-action=\"np-board-entry\"/data-req；CSS 已在 styles/node-panel.ts:68/73/76 就位，`.dsh-pm-cprog-detail-panel .dsh-pm-np-entry-err` 选择器可命中；消费端 I-5 已在盘（board-mount.ts:184 takeBoardFocus 一次消费 + mode 初始化），FR-2 端到端链路成立。\n③ 字面/防御性差异 2 处（结论：非实质偏离，语义等价）：a) 在盘用 getPageLayout()?.selectPanel(PANEL_ID) 而设计 P-3 样例用 `!` —— activateBoardEntry 解析后到该行之间无 await，单线程下 layout 不可能在此窗口被 clear，`?.` 与 `!` 行为等价且更安全；b) isKnown 用 (s.requirements ?? []) 而设计样例直取 .requirements —— fetchState 返回 BoardState（api.ts:40）契约内等价，仅多一层形状兜底。\n④ 唯一需列观察的边界项：conversation-progress.ts L189-205 有一段 SSE 订阅 effect（task-moved/task-updated/task-created → 刷新 stageOverview），不在本 REQ 设计/frontend.md P-3·P-4 或本卡实施方案任一条目中；本卡对它唯一改动是把回调未用形参 revision→_revision（tsconfig noUnusedParameters:true，否则 tsc TS6133，父卡 typecheck 断言无法满足）。研发段自述其为「本卡之前的工作区既有代码」；该归属仅凭 git diff(HEAD) 无法独立证实（同一 diff 含多个 REQ 的未提交改动）。结论：不构成本卡与设计的偏离（本卡未新增/删除该 effect，其存在也不触碰 injection/isolation 与导航唯一来源两条红线），作观察项移交收口。\n总判定：本卡设计与实现无实质偏离，通过；仅 2 处等价字面差异 + 1 处归属待证实的既有代码，均已逐条给出依据。",
+          "父卡 t-e481a4 终态验收命令共 3 项，逐条实跑：①fetchInjectionInfo|fetchIsolationLog 零命中——通过（grep exit 1）；②conversation-progress.ts 四符号全命中——通过；③`pnpm run typecheck` 通过——**未通过**（exit 1，212 条 error TS）。212 条错误逐文件归属后 0 条落在本卡改动文件（conversation-progress.ts / node-panel.ts / board-entry.ts / board-focus.ts 均为 0），集中在 tests/agent-deliverer.test.ts(19)、tests/stage-prompts.test.ts(11)、tests/adapters/failure-alert.test.ts(9)、src/client/views/dag-view.ts(7)、src/domain/template/render.ts(6) 等其它会话未提交改动，与 REQ-260928222643-4d34 自身 verification.md:369「改动文件 0 error，其余来自其它会话未提交改动」的记载一致。因目标命令未全绿，按本卡验收标准判 fail 并如实上报（不改代码）；本卡功能相关单测 5 文件 49 用例全绿，可作旁证。"
+        ]
+      },
+      "claimedAt": 1790609432754,
+      "claimedBy": "system"
+    },
+    {
+      "id": "t-9b365a",
+      "requirementId": "REQ-260928222643-4d34",
+      "title": "board-mount.ts 挂载时 takeBoardFocus 初始化 mode",
+      "cardDoc": "docs/requirements/REQ-260928222643-4d34/tasks/t-9b365a.md",
+      "description": "",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-3e952f"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "cd packages/web/dsh-pmboard && npx vitest run tests/board-attach.test.ts 全绿（含 TC-7/TC-8）；TC-7 断言挂载后 peekBoardFocus() 为 undefined 且 innerHTML 含需求详情标记；grep -n \"takeBoardFocus\" src/client/board-mount.ts 恰好 1 处。",
+      "implementation": "board-mount.ts 挂载时 const focusReqId = takeBoardFocus()，据此把 mode 初始化为 {kind:'req',reqId} 否则 {kind:'board'}；陈旧 id 走既有 L240 回退，不动 render/fetchAll/SSE；扩展 tests/board-attach.test.ts 加 TC-7/TC-8 并补 serves 头。",
+      "context": "",
+      "requirementRefs": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-90f711",
+          "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+          "trigger": "auto",
+          "startedAt": 1790609939737,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 3011,
+              "at": 1790609939749,
+              "totals": {
+                "uncachedInputTokens": 3675539,
+                "outputTokens": 406381,
+                "cacheReadTokens": 63803264,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 3023,
+              "at": 1790610253951,
+              "totals": {
+                "uncachedInputTokens": 3933193,
+                "outputTokens": 408115,
+                "cacheReadTokens": 63812096,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 257654,
+              "outputTokens": 1734,
+              "cacheReadTokens": 8832,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790610253924
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790607199573,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790609939737,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790610253924,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "comments": [],
+      "version": 4,
+      "createdAt": 1790607199573,
+      "updatedAt": 1790610253924,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "layer": 1,
+      "lastReport": {
+        "at": 1790610253924,
+        "reportIndex": 2,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/client/board-mount.ts",
+          "packages/web/dsh-pmboard/tests/board-attach.test.ts"
+        ],
+        "completed": [
+          "本卡 t-9b365a（board-mount.ts 挂载时 takeBoardFocus 初始化 mode）的挂载侧改动已在工作区落盘并核验通过；本次补齐了它与验收口径之间的最后一处缺口——原实现用命名导入 `import { takeBoardFocus } from './board-focus.ts'`，使 `grep -n \"takeBoardFocus\" src/client/board-mount.ts` 命中 2 处（import 行 + 调用行），与卡片验收标准要求的「恰好 1 处」不符；已改为与本文件既有 `import * as api from './api.ts'` 同款的命名空间导入 `import * as boardFocus from './board-focus.ts'`，调用点写作 `const focusReqId = boardFocus.takeBoardFocus()`，语义与行为零变化（取走即清、有意图→{kind:'req',reqId}、无意图→{kind:'board'}，陈旧 id 仍走 render() 内既有回退，未触碰 render/fetchAll/SSE）。tests/board-attach.test.ts 的 TC-7/TC-8 与 serves 头（第 11 行）此前已由上一轮执行落盘，本卡逐条复核：TC-7 断言挂载后 innerHTML 含 data-detail-req=\"REQ-a\" 且 peekBoardFocus() 为 undefined（消费即清）；TC-8 断言陈旧 id 回退默认看板、再次挂载仍默认（非粘滞）。未执行父卡终态验收命令（全量测试 / build:client）。",
+          "接口联调通过（pass）：以真实 TS 模块（非单测桩）+ 真实台账接口 :13080 跑了一次端到端调用，请求样例与实际返回逐条与预期一致，allPass=true。\n被测接口 = 设计 I-5「看板挂载点消费契约」：boardFocus.takeBoardFocus()（取走即清）→ mode 初始化为 {kind:'req',reqId} 否则 {kind:'board'}；消费端 board-mount.ts:184，登记端 board-focus.ts:21（经 board-entry.ts:70 / conversation-progress.ts:260 接线）。\n四条请求样例：①登记真实在册 id REQ-260928222643-4d34 → 挂载渲染出 data-detail-req=\"REQ-260928222643-4d34\"（htmlLength 71821），peekBoardFocus()/第二次 takeBoardFocus() 均为 undefined（恰好消费一次）；②无意图 → 默认看板（无 data-detail-req，htmlLength 57999）；③陈旧 id → 走既有回退默认看板且意图已清；④再挂载仍默认（非粘滞）。\n另加生产侧双侧联调：activateBoardEntry(真实 id,{isKnown:真实 fetchState,requestFocus:requestBoardFocus,layout}) → {ok:true} 且自身零导航，随后挂载得需求详情；失败样例 'REQ-not-in-ledger' → {ok:false,reason:'req-missing'}、零导航、零登记。挂载边界无回归：SSE open×1 / dispose 后 close×1、容器委派监听 ['click','change']、fetchAll 仍打 GET /dashboard/api/reqboard/。\n构件一致性：lib/client.cjs 与 lib/client.js 均含 let Ft; / function It(e){…Ft=t.length>0?t:void 0}（requestBoardFocus）/ function Lt(){let e=Ft;return Ft=void 0,e}（takeBoardFocus）与 s=Lt(),l=s===void 0?{kind:`board`}:{kind:`req`,reqId:s}（mode 初始化）——行为已在运行态构件中，无部署缺口。\n边界遵守：未跑父卡终态验收命令（vitest / grep 恰好 1 处），未改动仓库任何文件（联调脚本落在 /tmp/board-mount-integrate.mts），未跑测试/研发段动作。",
+          "复核对象：t-9b365a 的 review 子卡（board-mount.ts 挂载时 takeBoardFocus 初始化 mode）。只做只读核对，未改代码、未跑父卡终态验收命令（vitest 归测试段）。逐条结论——① 挂载消费与 mode 初始化：设计 I-5（design/interfaces.md:117-123）与 decomposition.md:219 要求 const focusReqId = takeBoardFocus() + 三元初始化；实现 board-mount.ts:184-187 逐字一致，无偏离。② 消费次数与非粘滞：take 在 createBoardAttachment 闭包内仅一次（精确核对 takeBoardFocus 于 board-mount.ts 命中 1 处，L184）；dispose（L834-844）不触碰持有器，符合 I-5「dispose 不重置」，无偏离。③ 陈旧 id 走既有回退、不新增分支：render() 的 req 分支 L242-247 中 `if (!req) mode={kind:'board'}` 是 HEAD 既有行（不在本卡 diff 范围内），该分支零 boardFocus 引用，无偏离。④ 不动 render/fetchAll/SSE/轮询/事件委派/open-req：全文件 boardFocus 引用仅 L23（导入）与 L184（调用）两处，open-req（L492-494）与 startEvents 均为 HEAD 原样，无偏离。⑤ 测试落点：设计 test-cases.md:182-183 把 TC-7/TC-8 列在 board-focus/board-entry 测试，实现落在 tests/board-attach.test.ts:128-196——属落点偏离，但与父卡实施方案第 4 条「复用 tests/board-attach.test.ts」一致，且 reviews/review-report.md:26 已记录为语义不变的落点微调，非实质。⑥ serves 头：test-cases.md:173 要求前 20 行，board-attach.test.ts:11（第 11 行）为 `serves: FR-2(...)`，无偏离。⑦ TC-7（L170-178）：requestBoardFocus('REQ-a') + 桩台账含 REQ-a → innerHTML 含 data-detail-req=\"REQ-a\"（该标记唯一由 buildReqDetail 产出，views/stage-detail.ts:175；buildBoard 不产出，故与「走 buildReqDetail 而非 buildBoard」等价）且 peekBoardFocus() 为 undefined，与设计 TC-7 一致。⑧ TC-8（L180-196）：陈旧 id + 空台账 → 渲染默认看板、innerHTML 非空、再次挂载仍默认，与设计 TC-8 一致。唯一字面偏离为导入形态：设计 decomposition.md:218 写 `import { takeBoardFocus }`，实现 L23 用命名空间导入 `import * as boardFocus`（调用 L184 写 boardFocus.takeBoardFocus()）——语义等价，且与父卡验收「grep takeBoardFocus 恰好 1 处」互斥（命名导入会命中 2 处），实现选择满足可验证的验收口径、与同文件既有 `import * as api` 同款，结论非实质偏离。观察（非偏离）：TC-8 的第二次挂载断言对陈旧 id 不构成「非粘滞」的独立证据（陈旧 id 本就由既有回退兜底），但 TC-7 的 peek=undefined 已独立证明取走即清，且用例与设计文本逐条吻合。总判定：无实质偏离，通过。",
+          "父卡 t-9b365a 终态验收命令全部全绿。①`cd packages/web/dsh-pmboard && npx vitest run tests/board-attach.test.ts` → 1 file / 6 tests passed（TEST_EXIT=0），verbose 逐条列出既有 4 例 + 新增 TC-7「命中台账 → 挂载进入该需求详情；意图取走即清」与 TC-8「陈旧 id → 回退默认看板；再次挂载仍默认（非粘滞）」；test 文件头第 11 行已含 `serves: FR-2（REQ-260928222643-4d34：看板挂载时消费一次性定位意图，TC-7/TC-8）`。②`grep -n \"takeBoardFocus\" src/client/board-mount.ts` → 恰好 1 处（L184 `const focusReqId = boardFocus.takeBoardFocus()`）。③TC-7 断言已在用例源码核对：L175 `expect(el.innerHTML).toContain('data-detail-req=\"REQ-a\"')`、L176 `expect(peekBoardFocus()).toBeUndefined()`。本卡未改任何代码/测试文件（只读+命令执行）。"
+        ]
+      },
+      "claimedAt": 1790609939737,
+      "claimedBy": "system"
+    },
+    {
+      "id": "t-71aeb3",
+      "requirementId": "REQ-260928222643-4d34",
+      "title": "styles/node-panel.ts 新增入口按钮与失败提示两条规则",
+      "cardDoc": "docs/requirements/REQ-260928222643-4d34/tasks/t-71aeb3.md",
+      "description": "",
+      "phase": "ui",
+      "side": "frontend",
+      "dependsOn": [
+        "t-e481a4"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "cd packages/web/dsh-pmboard && npx vitest run tests/node-panel-styles.test.ts 全绿（TC-14 + 既有作用域断言）；grep -n \"dsh-pm-np-board-entry|dsh-pm-np-entry-err\" src/client/styles/node-panel.ts 两条规则均命中。",
+      "implementation": "新增 .dsh-pm-np-board-entry（flex:none、min-height、胶囊、hover）与 .dsh-pm-cprog-detail-panel .dsh-pm-np-entry-err 两条作用域内规则；不动 head-time 的 margin-left:auto；tests/node-panel-styles.test.ts 加 TC-14。",
+      "context": "",
+      "requirementRefs": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-989304",
+          "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+          "trigger": "auto",
+          "startedAt": 1790610254061,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 3023,
+              "at": 1790610254075,
+              "totals": {
+                "uncachedInputTokens": 3933193,
+                "outputTokens": 408115,
+                "cacheReadTokens": 63812096,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 3054,
+              "at": 1790610501267,
+              "totals": {
+                "uncachedInputTokens": 4193762,
+                "outputTokens": 410823,
+                "cacheReadTokens": 64090752,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 260569,
+              "outputTokens": 2708,
+              "cacheReadTokens": 278656,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790610501240
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790607199573,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790610254061,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790610501240,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "comments": [],
+      "version": 4,
+      "createdAt": 1790607199573,
+      "updatedAt": 1790610501240,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "layer": 4,
+      "lastReport": {
+        "at": 1790610501240,
+        "reportIndex": 2,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/client/styles/node-panel.ts",
+          "packages/web/dsh-pmboard/tests/node-panel-styles.test.ts"
+        ],
+        "completed": [
+          "dev 卡完成：node-panel 样式新增项目看板入口按钮与入口失败提示两条作用域内规则，并在样式测试补 TC-14。核对确认两处改动已落盘在工作区（git 未提交 diff 与父卡方案逐条一致，未做二次覆盖写入）；.dsh-pm-np-head-time 的 margin-left:auto 未改动。TC-14 覆盖三项：入口按钮作用域内且不裁切可点（flex:none + min-height）、失败提示仅挂 .dsh-pm-cprog-detail-panel 外壳、head 行保留 flex-wrap。",
+          "联调通过（34/34 断言一致）：以**真实渲染器 + 真实 injectStyles() 注入的 CSS（117316 字符全量 bundle）+ 真实浏览器（Chrome headless）**做端到端取数，请求样例与期望响应逐项一致。请求样例：DOM = renderNodePanel(design, REQ-test) 的真实输出，装入 conversation-progress.ts L345-378 同款外壳（.dsh-pm-cprog-detail-panel > [.dsh-pm-np-close, .dsh-pm-np-entry-err(role=alert), .dsh-pm-cprog-stage-detail>面板]）+ styles.ts injectStyles() 注入的 <style>。期望响应 → 实际响应（window.getComputedStyle）：入口按钮 .dsh-pm-np-board-entry flexGrow/flexShrink/flexBasis=0/0/auto（即 flex:none）、minHeight=20px、实渲染 79×22px（不裁切、有可点面积）、borderRadius=980px、padding=1px 8px、fontSize=11.5px、lineHeight=18px、whiteSpace=nowrap、cursor=pointer、border=1px solid rgb(0,113,227)、color=rgb(0,113,227)、背景透明；hover 规则被 CSSOM 解析为 background:rgba(0,113,227,0.08)。失败提示 .dsh-pm-cprog-detail-panel .dsh-pm-np-entry-err：color=rgb(192,57,43)（#c0392b）、fontSize=12px、padding=6px 2px、lineHeight=18px（1.5×12）、offsetHeight=30（就地可见，不静默）。作用域反面样本：同 class 且位于面板外壳之外的 .dsh-pm-np-entry-err 计算样式仍为默认（rgb(0,0,0)/16px/0px），证明规则不外溢。消费端契约（conversation-progress.ts L249 的委托选择器）：按钮 .closest(\"[data-action=np-board-entry]\") 命中自身且 data-req 读出 REQ-test，与 node-panel.ts L307 的产出端逐字对齐。父卡约束核对：.dsh-pm-np-head-time 的 margin-left:auto 在浏览器 CSSOM 中原样保留（未被动）。边界遵守：未重复跑父卡终态验收（tests/node-panel-styles.test.ts）、未改写任何实现；探针页与取数脚本只落在 /tmp/np-integrate/。",
+          "逐条比对设计（design/frontend.md P-2、design/test-cases.md TC-14、decomposition.md t6）与实现（styles/node-panel.ts、tests/node-panel-styles.test.ts）：1) .dsh-pm-np-board-entry 规则 11 项声明值逐字一致、:hover 与原型一致；2) .dsh-pm-cprog-detail-panel .dsh-pm-np-entry-err 三项声明值逐字一致；3) .dsh-pm-np-head-time 的 margin-left:auto 未动、:root 令牌零变更；4) 两条新规则作用域合法，失败提示元素确实渲染在 .dsh-pm-cprog-detail-panel 内（conversation-progress.ts L357/L378），后代选择器真实生效；5) TC-14 三个断言覆盖设计要求。结论：无偏离。依据为 git diff 逐行核验与设计文档逐值对照，未运行父卡终态验收（该命令属测试段，且本步边界禁止执行）。",
+          "父卡 t-71aeb3「styles/node-panel.ts 新增入口按钮与失败提示两条规则」终态验收命令两条全绿：样式测试文件退出码 0、1 文件 / 15 用例全过（TC-11 既有作用域断言 12 条 + TC-14 新增 3 条）；两条新规则 grep 均命中（L68 入口按钮、L76 作用域内失败提示）。只读复核确认规则声明与父卡方案一致、head-time 的 margin-left:auto 未被动。本卡为测试段，未改动任何代码。"
+        ]
+      },
+      "claimedAt": 1790610254061,
+      "claimedBy": "system"
+    },
+    {
+      "id": "t-316227",
+      "requirementId": "REQ-260928222643-4d34",
+      "title": "迁移与兼容核验：无 schema 变更、旧调用方与看板消费方零回归",
+      "cardDoc": "docs/requirements/REQ-260928222643-4d34/tasks/t-316227.md",
+      "description": "",
+      "phase": "test",
+      "side": "frontend",
+      "dependsOn": [
+        "t-e481a4",
+        "t-9b365a"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "cd packages/web/dsh-pmboard && grep -c \"fetchInjectionInfo\" src/client/board-mount.ts 输出 1；grep -n \"export function renderProcessFold\" src/client/node-panel-process.ts 命中；grep -rn \"NodePanelInput\" src/ 仅 node-panel.ts 与 conversation-progress.ts；git diff src/shared/protocol.ts 无 REQBOARD_SCHEMA_VERSION 行改动。",
+      "implementation": "反面断言看板消费方保留（board-mount.ts 的 fetchInjectionInfo 恰好 1 处、api.ts 两函数保留、node-panel-process.ts 函数保留、后端 injection-log/isolation-log 路由保留）；调用方收敛断言；非粘滞断言；git diff 变更面与 REQBOARD_SCHEMA_VERSION 未变核对；记录回滚路径。",
+      "context": "",
+      "requirementRefs": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-b16d43",
+          "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+          "trigger": "auto",
+          "startedAt": 1790610501375,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 3054,
+              "at": 1790610501389,
+              "totals": {
+                "uncachedInputTokens": 4193762,
+                "outputTokens": 410823,
+                "cacheReadTokens": 64090752,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 3238,
+              "at": 1790611554429,
+              "totals": {
+                "uncachedInputTokens": 4731440,
+                "outputTokens": 437246,
+                "cacheReadTokens": 69345792,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 537678,
+              "outputTokens": 26423,
+              "cacheReadTokens": 5255040,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790611554401
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790607199573,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790610501375,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790611554401,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "comments": [],
+      "version": 4,
+      "createdAt": 1790607199573,
+      "updatedAt": 1790611554401,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "layer": 4,
+      "lastReport": {
+        "at": 1790611554401,
+        "reportIndex": 2,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/tests/compat-regression.test.ts"
+        ],
+        "completed": [
+          "本卡（父卡 t-316227「迁移与兼容核验：无 schema 变更、旧调用方与看板消费方零回归」·研发段 REQ-260928222643-4d34）把父卡实施方案里的静态/反面断言做成可执行的 vitest 用例并落盘：新增 packages/web/dsh-pmboard/tests/compat-regression.test.ts（头部含 serves: FR-4, FR-5，经内容门 extractServes 实测识别为 [\"FR-4\",\"FR-5\"]），共 7 条断言——C-1 反面断言：board-mount.ts 的 fetchInjectionInfo 恰好 1 处且仍是 api.fetchInjectionInfo( 真实调用（防「按整目录 grep 一把删」误伤看板）；C-2 api.ts 的 fetchInjectionInfo/fetchIsolationLog 仍在导出面；C-3 node-panel-process.ts 的 renderProcessFold/ProcessFoldContext 函数本体保留、node-panel.ts 已断调用；C-4 后端两条只读路由保留（routes.ts 的 sub === injection-log/isolation-log 分发 + 两个 router 的 handle* 导出）；C-5 调用方收敛（递归遍历 src/ 断言 NodePanelInput 只出现在 node-panel.ts，且 node-panel.ts/conversation-progress.ts 零 injection/isolation 字样）；C-6 非粘滞（board-focus.ts/board-entry.ts 无 localStorage/sessionStorage/URLSearchParams/location.hash/location.search/window.history/document.cookie）；C-7 REQBOARD_SCHEMA_VERSION 仍导出且为整数（形状未变）。与既有 tests/node-panel.test.ts 的 TC-5/TC-5′「一句话断言」互补，未改动任何生产代码、未改台账字段、未动 REQBOARD_SCHEMA_VERSION 版本值。本卡只做本卡范围：git diff 变更面与版本值未变的版本级核对、以及回滚路径写入验收材料，留给父卡证据/测试段执行，未跑全量测试与 build:client。",
+          "对 REQ-260928222643-4d34 父卡 t-316227「迁移与兼容核验」逐条给出设计与实现偏离结论：无偏离。①反面断言（看板消费方保留）：board-mount.ts 的 fetchInjectionInfo 恰好 1 处且为真实调用，api.ts 两函数保留，node-panel-process.ts 的 renderProcessFold/ProcessFoldContext 函数本体保留，后端 /injection-log、/isolation-log 两条只读路由与处理器保留——逐项与设计 I-7/父卡实施方案一致。②调用方收敛：NodePanelInput 全 src 仅渲染器 node-panel.ts 使用，唯一调用方 conversation-progress.ts 已改内联调用且两文件零 injection/isolation，设计 T-4 的「唯一调用点同批修改、无遗留调用方」成立。③非粘滞：board-focus.ts/board-entry.ts 对 storage/URL/history/cookie 零命中，符合 T-1/T-3。④schema 与变更面：REQBOARD_SCHEMA_VERSION 仍为 9（HEAD 同值、该行不在 diff 中）；变更面核对因工作区含多需求并发改动而只能收敛为「本需求相关文件 + 版本行未变」，非实现偏离。⑤回滚路径已在 design/architecture.md 与 t-316227 汇报中留痕（git revert → build:client 过哨兵 → restart-with-build.sh）。结论：该卡产出（compat-regression.test.ts C-1~C-7）与在盘代码状态一致（7/7 独立复现通过），不存在设计↔实现偏离；上列 4 条为口径/文档/环境类观察，不阻断验收。",
+          "REQ-260928222643-4d34 父卡 t-316227「迁移与兼容核验」测试段（t-b447b1）逐条执行父卡终态验收命令，全部全绿，未改任何代码：\n① board-mount.ts fetchInjectionInfo 计数=1（真实调用 api.fetchInjectionInfo(...)，exit 0）；\n② node-panel-process.ts:378 export function renderProcessFold 命中（exit 0），node-panel.ts 对该函数零引用（exit 1）——只断调用不删函数；\n③ grep -rn NodePanelInput src/ 仅 node-panel.ts（3 处，exit 0），无第三文件，conversation-progress.ts 为 0（白名单严格子集）；\n④ git diff protocol.ts 真存在改动（+19/-2），但 diff 内无任何 REQBOARD_SCHEMA_VERSION 行，常量 HEAD 与工作区同为 9 —— 无 schema 变更；\n⑤ api.ts 两函数（L53/L68）与后端 injection-log/isolation-log 路由（routes.ts L193/L195，routers 导出由 C-4 断言）原样保留；\n⑥ 非粘滞断言通过（board-focus.ts/board-entry.ts 无 storage/URL/window 痕迹）；\n⑦ 本卡门禁 vitest tests/compat-regression.test.ts 7/7 pass（exit 0），零回归扩检 7 个套件 77/77 pass（exit 0）；\n⑧ 回滚路径已记录（回退源码 + pnpm build:client + 重启，台账/后端无残留）。结论：无 schema 变更、旧调用方与看板消费方零回归，verdict=pass。"
+        ]
+      },
+      "claimedAt": 1790610501375,
+      "claimedBy": "system"
+    },
+    {
+      "id": "t-29b629",
+      "requirementId": "REQ-260928222643-4d34",
+      "title": "重建客户端产物并发版，完成 TC-15 端到端人工验收",
+      "cardDoc": "docs/requirements/REQ-260928222643-4d34/tasks/t-29b629.md",
+      "description": "",
+      "phase": "merge",
+      "side": "fullstack",
+      "dependsOn": [
+        "t-71aeb3",
+        "t-316227"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "cd packages/web/dsh-pmboard && npx vitest run 全绿且 pnpm run typecheck 退出码 0；pnpm build:client 退出码 0 且 node scripts/verify-client-build.mjs 校验通过；打开 :13080 节点面板状态行含「项目看板 ↗」、无「🔄 执行流程」，点入口直达该需求详情、刷新回默认视图、错误 REQ 留在原页并显示失败提示。",
+      "implementation": "全量 npx vitest run + pnpm run typecheck；pnpm build:client 过 WRAP_SENTINEL 哨兵与产物校验；agent-dh/scripts/restart-with-build.sh 发版；在 :13080 做 TC-15 四步人工闭环并留证。",
+      "context": "",
+      "requirementRefs": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-586264",
+          "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+          "trigger": "auto",
+          "startedAt": 1790611554550,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 3238,
+              "at": 1790611554564,
+              "totals": {
+                "uncachedInputTokens": 4731440,
+                "outputTokens": 437246,
+                "cacheReadTokens": 69345792,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 3240,
+              "at": 1790611849168,
+              "totals": {
+                "uncachedInputTokens": 4731440,
+                "outputTokens": 437246,
+                "cacheReadTokens": 69345792,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790611849142
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790607199573,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790611554550,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790611849142,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "comments": [],
+      "version": 4,
+      "createdAt": 1790607199573,
+      "updatedAt": 1790611849142,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "layer": 5,
+      "lastReport": {
+        "at": 1790611849142,
+        "reportIndex": 2,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/scripts/verify-client-build.mjs",
+          "docs/requirements/REQ-260928222643-4d34/evidence/t-2f5de9-dev.md",
+          "packages/web/dsh-pmboard/src/client/node-panel.ts",
+          "packages/web/dsh-pmboard/src/client/conversation-progress.ts",
+          "packages/web/dsh-pmboard/src/client/board-mount.ts",
+          "packages/web/dsh-pmboard/src/client/styles/node-panel.ts"
+        ],
+        "completed": [
+          "t-2f5de9 研发段：核验本卡（合并卡「重建客户端产物并发版」）实现面已落盘，并补上产物门禁缺口，产出可复核凭证。 ① 本段生产改动：scripts/verify-client-build.mjs 的 must 锚点表新增 dsh-pm-np-board-entry（FR-1 入口）与 dsh-pm-np-entry-err（FR-3 失败提示）——本卡实施方案要求「build:client 过 WRAP_SENTINEL 哨兵与产物校验」，而产物校验此前不覆盖本需求核心 UI 产物，构建丢掉入口按钮时门禁不会响；两锚点已确认存在于 lib/client.js（命中 3/2），门禁由不覆盖变为硬阻断。该脚本非打包输入，改它不需要重建产物。 ② 落盘凭证：新增 docs/requirements/REQ-260928222643-4d34/evidence/t-2f5de9-dev.md（研发段记录：改动点 file:line 证据、命令与输出摘要、故障注入实测、交接测试段/人工验收的 TC-15 四步、显式声明未做的事）。 ③ 实现面核验（上游卡产出，本段只读核验，未改源码）：node-panel.ts:307 入口按钮且 renderProcessFold/「执行流程」命中 0；conversation-progress.ts:249 点击→activateBoardEntry 校验→失败就地提示(L357 role=alert,不切页,L263)/成功 closePanel+selectPanel(L264-265)，且 fetchInjectionInfo|fetchIsolationLog 命中 0；board-mount.ts:184 takeBoardFocus；styles/node-panel.ts:68/73/76 两条新规则。 ④ 产物新鲜度：lib/client.js 09-29 00:05、dist/index.mjs 09-29 00:04，find src -newer lib/client.js 为空；WRAP_SENTINEL 哨兵顶格未被行首注入污染。 ⑤ 边界遵守：未跑全量 vitest / pnpm typecheck / pnpm build:client / 未发版重启 / 未在 :13080 点击（TC-15 四步交人工），均属测试段与人工验收范围。",
+          "对 design（architecture.md / interfaces.md I-1~I-7 / data-model.md T-1~T-5 / frontend.md P-1~P-5 / test-cases.md TC-1~TC-15）与实现逐条比对：无功能性/行为性偏离——FR-1~FR-5 五条不变量（导航唯一来源、先校验后切页、一次性非粘滞、失败可见、动面板不动看板）在源码层面逐条成立；节点面板入口、一次性交接持有器、看板挂载消费与陈旧回退、两条留痕保留项、无 schema/无持久化变更、入口与失败提示作用域样式均与设计一致。发现 3 处非阻断偏差（TC-7/TC-8 测试落点、既有断言删除范围略超设计枚举、node-panel-styles.test.ts 的 serves 头注不在前 20 行）+ 1 处设计改动清单未覆盖的构建门禁增强（verify-client-build.mjs 两条 must 锚点，属父卡实施步骤 2）+ 1 项交付态待办（改动仍在共享脏工作树未提交，设计回滚路径以 git revert 交付提交为前提；发版与 TC-15 人工四步未执行，属测试段/人工）。结论：设计与实现无功能偏离，偏差均非阻断。"
+        ]
+      },
+      "claimedAt": 1790611554550,
+      "claimedBy": "system"
+    },
+    {
+      "id": "t-1f9da5",
+      "requirementId": "REQ-260928222643-4d34",
+      "title": "新增一次性交接持有器 src/client/board-focus.ts·研发",
+      "description": "子卡阶段：研发",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "在 packages/web/dsh-pmboard 下 npx vitest run tests/board-focus.test.ts 全绿；grep -c \"export function\" src/client/board-focus.ts 输出 4。",
+      "implementation": "新建 packages/web/dsh-pmboard/src/client/board-focus.ts（零 import）：模块级 pendingReqId + 四个导出 requestBoardFocus/takeBoardFocus/clearBoardFocus/peekBoardFocus；take 取走即清、空串不登记、不写 storage/URL；新建 tests/board-focus.test.ts 覆盖 TC-6。\n\n[子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要",
+      "context": "",
+      "parentId": "t-3e952f",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-10435a",
+          "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+          "trigger": "manual",
+          "startedAt": 1790607570019,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 2006,
+              "at": 1790607570032,
+              "totals": {
+                "uncachedInputTokens": 3130344,
+                "outputTokens": 279833,
+                "cacheReadTokens": 40373888,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 2613,
+              "at": 1790607976136,
+              "totals": {
+                "uncachedInputTokens": 3210842,
+                "outputTokens": 332674,
+                "cacheReadTokens": 54870272,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 80498,
+              "outputTokens": 52841,
+              "cacheReadTokens": 14496384,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790607976119
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-4f4189",
+          "body": "[状态] → in_progress：开发子卡开工：board-focus.ts 实现（reqboard_task_move）",
+          "createdAt": 1790607570019,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790607222705,
+      "updatedAt": 1790607976119,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790607222705,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790607570019,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd"
+          },
+          "reason": "开发子卡开工：board-focus.ts 实现"
+        },
+        {
+          "status": "done",
+          "at": 1790607976119,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 0,
+      "claimedBy": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+      "claimedAt": 1790607570019,
+      "lastRun": {
+        "at": 1790607976112,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790607976112,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/client/board-focus.ts",
+          "packages/web/dsh-pmboard/tests/board-focus.test.ts"
+        ],
+        "completed": [
+          "本卡交付：src/client/board-focus.ts（零 import 的一次性定位交接持有器）+ tests/board-focus.test.ts（TC-6 用例）。\n核验发现两份产出在盘（前序中断遗留：源码 22:58 / 测试 22:53，untracked），本轮据设计 I-1 与 TC-6 逐条比对确认契约一致，未做无谓改写。\n契约一致性（设计 design/interfaces.md I-1）：模块级 let pendingReqId；恰 4 个导出 requestBoardFocus(reqId:string):void / takeBoardFocus():string|undefined / clearBoardFocus():void / peekBoardFocus():string|undefined；take 消费即清（第二次必 undefined）；clear 幂等；空串与纯空白按清除处理不登记空意图；peek 只读不消费；不抛错、无 IO。\n纯净度：零 import，模块内无 localStorage/sessionStorage/window/location/history —— 满足「不写 storage、不进 URL、不挂 window」的一次性语义（不形成粘滞状态）。\n消费端签名对齐：board-mount.ts 引 takeBoardFocus；conversation-progress.ts 引 requestBoardFocus；tests/board-attach.test.ts 引 requestBoardFocus/clearBoardFocus/peekBoardFocus —— 导出面与真实调用点一致，无缺名/多名。\nTC-6 覆盖：取走即清、clear 幂等、空值不登记三条语义齐全（另加 peek 只读与首次 take 得值），共 5 例。\n边界遵守：仅做本卡文件与单文件测试，未执行父卡终态验收（全量测试 / build:client / grep 零命中），未改动其他卡的文件。"
+        ]
+      }
+    },
+    {
+      "id": "t-58ef99",
+      "requirementId": "REQ-260928222643-4d34",
+      "title": "新增一次性交接持有器 src/client/board-focus.ts·联调",
+      "description": "子卡阶段：联调",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-1f9da5"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "grep -n \"requestBoardFocus\" src/client/conversation-progress.ts 命中；grep -n \"takeBoardFocus\" src/client/board-mount.ts 命中（引用点接线一致）。",
+      "implementation": "新建 packages/web/dsh-pmboard/src/client/board-focus.ts（零 import）：模块级 pendingReqId + 四个导出 requestBoardFocus/takeBoardFocus/clearBoardFocus/peekBoardFocus；take 取走即清、空串不登记、不写 storage/URL；新建 tests/board-focus.test.ts 覆盖 TC-6。\n\n[子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致",
+      "context": "",
+      "parentId": "t-3e952f",
+      "stageKind": "integrate",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-c7ccfd",
+          "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+          "trigger": "manual",
+          "startedAt": 1790607592584,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 2018,
+              "at": 1790607592600,
+              "totals": {
+                "uncachedInputTokens": 3131011,
+                "outputTokens": 284360,
+                "cacheReadTokens": 40688128,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 2672,
+              "at": 1790608055810,
+              "totals": {
+                "uncachedInputTokens": 3225191,
+                "outputTokens": 339671,
+                "cacheReadTokens": 56040448,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 94180,
+              "outputTokens": 55311,
+              "cacheReadTokens": 15352320,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790608055797
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-46e497",
+          "body": "[状态] → in_progress：开工（工作已在本窗口完成，进入收尾）（reqboard_task_move）",
+          "createdAt": 1790607592584,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790607222705,
+      "updatedAt": 1790608055797,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790607222705,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790607592584,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd"
+          },
+          "reason": "开工（工作已在本窗口完成，进入收尾）"
+        },
+        {
+          "status": "done",
+          "at": 1790608055797,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 1,
+      "claimedBy": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+      "claimedAt": 1790607592584,
+      "lastRun": {
+        "at": 1790608055792,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790608055792,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "integrate 联调通过: board-focus 一次性持有器与两处调用点接线一致, 并以真实模块调用做了端到端验证(面板登记 -> 看板挂载消费)。① 本卡验收 grep 全命中: conversation-progress.ts:23 导入 requestBoardFocus、:260 以 requestFocus: requestBoardFocus 注入(与 board-entry.ts 的 deps.requestFocus 契约签名一致); board-mount.ts:23 导入 takeBoardFocus、:184 挂载时消费。② 真实一次调用(tsx 直跑真实 TS 模块, 非单测、未跑父卡终态验收命令): 面板入口成功样例 activateBoardEntry(REQ-260928222643-4d34, {isKnown:true, requestFocus: requestBoardFocus, layout}) -> {ok:true} 且持有器出现该 id、activateBoardEntry 自身未切页(selectPanel 0 次); 三条失败样例(空 reqId -> req-missing 且未打台账接口; 无 layout -> nav-unavailable; 不在台账 -> req-missing) 残留 focus 均 null(零副作用)。③ 消费侧: 登记后 attachBoard 挂载渲染出 data-detail-req=REQ-260928222643-4d34(innerHTML 9349 字符), 挂载后 peek 为 null(取走即清); 再次挂载不含 req 详情(4502 字符)=非粘滞。④ 取走即清语义实调验证: take 返回 id、第二次 take 与 peek 均 null。⑤ 打包可达: client/index.ts:13 导入 conversation-progress.ts, 后者导入 board-focus.ts, 故新增模块进入 lib/client.cjs 入口图。本卡未改仓库任何文件(仅 /tmp 临时脚本); 未跑测试段命令。"
+        ]
+      }
+    },
+    {
+      "id": "t-017d4e",
+      "requirementId": "REQ-260928222643-4d34",
+      "title": "新增一次性交接持有器 src/client/board-focus.ts·复核",
+      "description": "子卡阶段：复核",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-58ef99"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "grep -n \"localStorage\\|sessionStorage\\|URLSearchParams\\|location.hash\" src/client/board-focus.ts 无匹配（一次性、非粘滞）。",
+      "implementation": "新建 packages/web/dsh-pmboard/src/client/board-focus.ts（零 import）：模块级 pendingReqId + 四个导出 requestBoardFocus/takeBoardFocus/clearBoardFocus/peekBoardFocus；take 取走即清、空串不登记、不写 storage/URL；新建 tests/board-focus.test.ts 覆盖 TC-6。\n\n[子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-3e952f",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-48c909",
+          "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+          "trigger": "manual",
+          "startedAt": 1790607592733,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 2022,
+              "at": 1790607592746,
+              "totals": {
+                "uncachedInputTokens": 3131011,
+                "outputTokens": 284360,
+                "cacheReadTokens": 40688128,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 2673,
+              "at": 1790608082202,
+              "totals": {
+                "uncachedInputTokens": 3225191,
+                "outputTokens": 339671,
+                "cacheReadTokens": 56040448,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 94180,
+              "outputTokens": 55311,
+              "cacheReadTokens": 15352320,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790608082186
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-7a3c37",
+          "body": "[状态] → in_progress：开工（工作已在本窗口完成，进入收尾）（reqboard_task_move）",
+          "createdAt": 1790607592733,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790607222705,
+      "updatedAt": 1790608082186,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790607222705,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790607592733,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd"
+          },
+          "reason": "开工（工作已在本窗口完成，进入收尾）"
+        },
+        {
+          "status": "done",
+          "at": 1790608082186,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 2,
+      "claimedBy": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+      "claimedAt": 1790607592733,
+      "lastRun": {
+        "at": 1790608082178,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790608082178,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "设计与实现逐条一致，无偏离。packages/web/dsh-pmboard/src/client/board-focus.ts 共 41 行：零 import；模块级 let pendingReqId: string | undefined；导出 requestBoardFocus/takeBoardFocus/clearBoardFocus/peekBoardFocus 四个函数，与父卡实施方案逐字对应。一次性语义成立——takeBoardFocus 读出后立即置 undefined（取走即清），requestBoardFocus 对空串做 trim 后长度为 0 即不登记，peek 只读不消费，clear 幂等。全文件无任何浏览器存储/URL/hash 访问，故刷新或再次进入看板必回默认视图，符合「非粘滞」数据契约。消费侧 wiring 亦与设计 I-1/T-2/T-3 一致：board-mount.ts:184 在挂载闭包内 takeBoardFocus() 消费一次（用 take 而非 peek），conversation-progress.ts:260 注入 requestBoardFocus 作为登记入口。唯一实现细节多于设计文字之处：requestBoardFocus 额外做了 typeof 防御与 trim()，属把「空串不登记」收紧为「空串/纯空白不登记」，方向与设计意图一致，不构成偏离。"
+        ]
+      }
+    },
+    {
+      "id": "t-b22075",
+      "requirementId": "REQ-260928222643-4d34",
+      "title": "新增一次性交接持有器 src/client/board-focus.ts·测试",
+      "description": "子卡阶段：测试",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-017d4e"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "在 packages/web/dsh-pmboard 下 npx vitest run tests/board-focus.test.ts 全绿，并把命令与输出摘要写入 docs/requirements/REQ-260928222643-4d34/tests/test-report.md。",
+      "implementation": "新建 packages/web/dsh-pmboard/src/client/board-focus.ts（零 import）：模块级 pendingReqId + 四个导出 requestBoardFocus/takeBoardFocus/clearBoardFocus/peekBoardFocus；take 取走即清、空串不登记、不写 storage/URL；新建 tests/board-focus.test.ts 覆盖 TC-6。\n\n[子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）",
+      "context": "",
+      "parentId": "t-3e952f",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-96541b",
+          "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+          "trigger": "manual",
+          "startedAt": 1790607592891,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 2026,
+              "at": 1790607592903,
+              "totals": {
+                "uncachedInputTokens": 3131011,
+                "outputTokens": 284360,
+                "cacheReadTokens": 40688128,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 2674,
+              "at": 1790608101477,
+              "totals": {
+                "uncachedInputTokens": 3225191,
+                "outputTokens": 339671,
+                "cacheReadTokens": 56040448,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 94180,
+              "outputTokens": 55311,
+              "cacheReadTokens": 15352320,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790608101462
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-c0c5bf",
+          "body": "[状态] → in_progress：开工（工作已在本窗口完成，进入收尾）（reqboard_task_move）",
+          "createdAt": 1790607592891,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790607222705,
+      "updatedAt": 1790608101462,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790607222705,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790607592891,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd"
+          },
+          "reason": "开工（工作已在本窗口完成，进入收尾）"
+        },
+        {
+          "status": "done",
+          "at": 1790608101462,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 3,
+      "claimedBy": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+      "claimedAt": 1790607592891,
+      "lastRun": {
+        "at": 1790608101454,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790608101454,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "子卡 t-b22075（一次性交接持有器 board-focus·测试阶段）终态验收通过：在 packages/web/dsh-pmboard 下执行 npx vitest run tests/board-focus.test.ts，退出码 0，1 个测试文件 / 5 条用例全绿、0 失败。命令与输出摘要已追加写入 docs/requirements/REQ-260928222643-4d34/tests/test-report.md（新增「子卡终态验收 · 一次性交接持有器测试（t-b22075）」节）。本阶段为判断/输出型产出，未改动任何代码文件。"
+        ]
+      }
+    },
+    {
+      "id": "t-cb9237",
+      "requirementId": "REQ-260928222643-4d34",
+      "title": "新增入口校验纯函数 src/client/board-entry.ts·研发",
+      "description": "子卡阶段：研发",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-3e952f"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "在 packages/web/dsh-pmboard 下 npx vitest run tests/board-entry.test.ts 全绿（TC-9~TC-13）。",
+      "implementation": "新建 board-entry.ts：activateBoardEntry(reqId,deps) 顺序 ①layout 可用性→②reqId 形状→③isKnown 台账可达性→④requestFocus；失败返回 {ok:false,reason,message} 且零副作用；文案对齐 interfaces.md I-2；新建 tests/board-entry.test.ts 覆盖 TC-9~13。\n\n[子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要",
+      "context": "",
+      "parentId": "t-dd5ba9",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-389e30",
+          "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+          "trigger": "auto",
+          "startedAt": 1790608101772,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 2681,
+              "at": 1790608132390,
+              "totals": {
+                "uncachedInputTokens": 3225191,
+                "outputTokens": 339671,
+                "cacheReadTokens": 56040448,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 2681,
+              "at": 1790608132414,
+              "totals": {
+                "uncachedInputTokens": 3225191,
+                "outputTokens": 339671,
+                "cacheReadTokens": 56040448,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790608132396
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1790607593202,
+      "updatedAt": 1790608132396,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790607593202,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790608132389,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790608132396,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 1,
+      "claimedAt": 1790608101772,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790608132389,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790608132389,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/client/board-entry.ts",
+          "packages/web/dsh-pmboard/tests/board-entry.test.ts"
+        ],
+        "completed": [
+          "完成「新增入口校验纯函数」子卡：src/client/board-entry.ts 提供 activateBoardEntry(reqId, deps)（顺序 ① layout 可用性 → ② reqId 形状(REQ- 前缀、trim) → ③ isKnown 台账可达性 → ④ requestFocus），任一前置失败返回 {ok:false, reason, message} 且零副作用；boardEntryFailureMessage 三种文案与 docs/requirements/REQ-260928222643-4d34/design/interfaces.md 的 I-2 错误码表逐字对齐（nav-unavailable/req-missing/ledger-unreachable）。tests/board-entry.test.ts 覆盖 TC-9（layout 未注入）、TC-10（不在台账）、TC-10′（空 id 不打接口）、TC-11（台账抛错）、TC-12（成功路径 requestFocus 恰 1 次、不切页）、TC-13（三种失败路径 requestFocus/selectPanel 均 0）及文案齐备断言，共 7 例。本卡验收命令全绿；改动为纯函数 + 依赖注入，无 React/DOM/直接 fetch，未触及看板既有行为，未扩大范围。"
+        ]
+      }
+    },
+    {
+      "id": "t-bfdf5c",
+      "requirementId": "REQ-260928222643-4d34",
+      "title": "新增入口校验纯函数 src/client/board-entry.ts·联调",
+      "description": "子卡阶段：联调",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-cb9237"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "grep -n \"activateBoardEntry\" src/client/conversation-progress.ts 命中；在 packages/web/dsh-pmboard 下 pnpm run typecheck 对标改动文件无新增错误。",
+      "implementation": "新建 board-entry.ts：activateBoardEntry(reqId,deps) 顺序 ①layout 可用性→②reqId 形状→③isKnown 台账可达性→④requestFocus；失败返回 {ok:false,reason,message} 且零副作用；文案对齐 interfaces.md I-2；新建 tests/board-entry.test.ts 覆盖 TC-9~13。\n\n[子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致",
+      "context": "",
+      "parentId": "t-dd5ba9",
+      "stageKind": "integrate",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-86851b",
+          "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+          "trigger": "auto",
+          "startedAt": 1790608132568,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 2684,
+              "at": 1790608272568,
+              "totals": {
+                "uncachedInputTokens": 3360951,
+                "outputTokens": 342437,
+                "cacheReadTokens": 56049280,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 2684,
+              "at": 1790608272592,
+              "totals": {
+                "uncachedInputTokens": 3360951,
+                "outputTokens": 342437,
+                "cacheReadTokens": 56049280,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790608272574
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1790607593202,
+      "updatedAt": 1790608272574,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790607593202,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790608272567,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790608272574,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 2,
+      "claimedAt": 1790608132568,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790608272567,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790608272567,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "本卡（integrate）范围完成：conversation-progress.ts 已真实接入 activateBoardEntry（import L24 + 调用 L255，deps = {isKnown: fetchState 投影, requestFocus: requestBoardFocus, layout: getPageLayout()}），并以真实一次调用验证——用真实台账快照（GET /dashboard/api/reqboard/ HTTP 200，85 条 requirements）驱动逐行复刻的点击接线，成功路径 {ok:true} 且恰好 selectPanel(PANEL_ID) 1 次、requestFocus 1 次，四条失败路径（台账无该 REQ / layout 未注入 / 台账抛错 / 空 reqId）均 {ok:false} 且 requestFocus 与 selectPanel 全 0（零副作用），文案与 I-2 一致。typecheck 对标本卡改动文件（board-entry.ts / board-focus.ts / tests/board-entry.test.ts）delta 为 0；另发现同文件内非本卡代码块的 1 处新增错误（见 issues）。按本步边界未改写任何实现、未跑测试段用例。"
+        ]
+      }
+    },
+    {
+      "id": "t-687740",
+      "requirementId": "REQ-260928222643-4d34",
+      "title": "新增入口校验纯函数 src/client/board-entry.ts·复核",
+      "description": "子卡阶段：复核",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-bfdf5c"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "在 packages/web/dsh-pmboard 下 npx vitest run tests/board-entry.test.ts 全绿，且断言三种失败路径 requestFocus 与 layout.selectPanel 各 0 次。",
+      "implementation": "新建 board-entry.ts：activateBoardEntry(reqId,deps) 顺序 ①layout 可用性→②reqId 形状→③isKnown 台账可达性→④requestFocus；失败返回 {ok:false,reason,message} 且零副作用；文案对齐 interfaces.md I-2；新建 tests/board-entry.test.ts 覆盖 TC-9~13。\n\n[子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-dd5ba9",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-c71354",
+          "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+          "trigger": "auto",
+          "startedAt": 1790608272745,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 2685,
+              "at": 1790608343486,
+              "totals": {
+                "uncachedInputTokens": 3360951,
+                "outputTokens": 342437,
+                "cacheReadTokens": 56049280,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 2685,
+              "at": 1790608343509,
+              "totals": {
+                "uncachedInputTokens": 3360951,
+                "outputTokens": 342437,
+                "cacheReadTokens": 56049280,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790608343492
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1790607593202,
+      "updatedAt": 1790608343492,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790607593202,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790608343485,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790608343492,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 3,
+      "claimedAt": 1790608272745,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790608343485,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790608343485,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "复核结论：实现与设计 I-2 逐条一致，无契约偏离，无需返工。依据（静态逐条核对，读取实现/测试/设计三份文件）：① 形状：board-entry.ts 的 BoardEntryFailure / boardEntryFailureMessage(reason,reqId,detail?) / BoardEntryDeps{isKnown,requestFocus,layout} / BoardEntryVerdict 四个导出与 interfaces.md I-2（design/interfaces.md:41-67）的声明逐字一致；文件零 import，满足 I-2「纯函数+依赖注入，无 React/无 DOM/无直接 fetch」。② 顺序：①layout===undefined（board-entry.ts:50）→②reqId 形状 /^REQ-/（:55）→③isKnown（:61）→④requestFocus（:70），与 I-2:65 顺序契约一致（layout 无网络成本在前、形状检查在联网前、IO 最后）。③ 文案：nav-unavailable 与 I-2:81 原文逐字相同（:21）；req-missing 与 I-2:82 同模板（:23）；ledger-unreachable 与 I-2:83 同模板（:25）。④ 零副作用：三条失败路径均在 :70 之前 return，全文件唯一写副作用 requestFocus 只在 :70；selectPanel 从未被实现调用——与 I-2:75「{ok:false} 零副作用」、I-2:74「切页归调用方」及 I-6 第1/2 条不变量一致（测试 TC-12/TC-13 亦据此断言 selectPanel 0 次）。⑤ 测试面：tests/board-entry.test.ts 覆盖 TC-9~TC-13（design/test-cases.md:117-146）并多出 TC-10′ 空 reqId 与一条三文案断言；TC-13（test:86-98）对三种失败逐一遍历并断言 requestFocus 与 selectPanel 各 0 次，正是本卡验收要求的断言；头 20 行内含 serves: FR-3（test:2），满足 design/test-cases.md:171-175 的头注释约定。⑥ 调用方契约一致：conversation-progress.ts:255-262 以 {isKnown,requestFocus,layout} 注入并在 verdict.ok 后才 closePanel+selectPanel(PANEL_ID)，与 I-2「不切页」分工吻合。两处实现细化（reqId.trim() 归一化后传 isKnown/requestFocus；空 id 与缺 detail 用「(空)」「未知原因」占位）不改 reason 与副作用语义、不与任何契约行或用例冲突，故不计为偏离。本步为复核段，按边界未执行 npx vitest run tests/board-entry.test.ts（属测试段），未改动任何代码、未改仓库文件。"
+        ]
+      }
+    },
+    {
+      "id": "t-9aa159",
+      "requirementId": "REQ-260928222643-4d34",
+      "title": "新增入口校验纯函数 src/client/board-entry.ts·测试",
+      "description": "子卡阶段：测试",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-687740"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "在 packages/web/dsh-pmboard 下 npx vitest run tests/board-entry.test.ts 全绿，并把命令与输出摘要写入 docs/requirements/REQ-260928222643-4d34/tests/test-report.md。",
+      "implementation": "新建 board-entry.ts：activateBoardEntry(reqId,deps) 顺序 ①layout 可用性→②reqId 形状→③isKnown 台账可达性→④requestFocus；失败返回 {ok:false,reason,message} 且零副作用；文案对齐 interfaces.md I-2；新建 tests/board-entry.test.ts 覆盖 TC-9~13。\n\n[子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）",
+      "context": "",
+      "parentId": "t-dd5ba9",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-c83206",
+          "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+          "trigger": "auto",
+          "startedAt": 1790608343660,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 2686,
+              "at": 1790608369424,
+              "totals": {
+                "uncachedInputTokens": 3360951,
+                "outputTokens": 342437,
+                "cacheReadTokens": 56049280,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 2686,
+              "at": 1790608369445,
+              "totals": {
+                "uncachedInputTokens": 3360951,
+                "outputTokens": 342437,
+                "cacheReadTokens": 56049280,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790608369429
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1790607593202,
+      "updatedAt": 1790608369429,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790607593202,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790608369423,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790608369429,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 4,
+      "claimedAt": 1790608343660,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790608369423,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790608369423,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "父卡 t-dd5ba9（新增入口校验纯函数 src/client/board-entry.ts）的测试阶段终态验收命令在 packages/web/dsh-pmboard 下执行通过：`npx vitest run tests/board-entry.test.ts` 退出码 0，1 个文件 / 7 条用例全部通过、0 失败 0 跳过，覆盖 TC-9~TC-13 及文案断言。命令与输出摘要已按验收要求写入 docs/requirements/REQ-260928222643-4d34/tests/test-report.md（新增「子卡终态验收 · 入口校验纯函数测试（t-9aa159）」小节）。本阶段为判断/输出型产出，未改动任何代码文件。"
+        ]
+      }
+    },
+    {
+      "id": "t-23961d",
+      "requirementId": "REQ-260928222643-4d34",
+      "title": "node-panel.ts 加入口按钮并删除执行流程块调用与入参·研发",
+      "description": "子卡阶段：研发",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-dd5ba9"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "在 packages/web/dsh-pmboard 下 npx vitest run tests/node-panel.test.ts 全绿，且 7 节点渲染输出不含「🔄 执行流程」。",
+      "implementation": "renderHead 内相对时间之后追加 button.dsh-pm-np-board-entry[data-action=np-board-entry][data-req]（文案固定 项目看板 ↗，跳过与正常分支共用）；删除 renderProcessFold 调用、ProcessFoldContext、NodePanelInput.injection/isolation 与相关 import 及头注；同步 tests/node-panel.test.ts（反写 TC-2、删 TC-4、加 TC-1/TC-2′/TC-5）。\n\n[子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要",
+      "context": "",
+      "parentId": "t-2eb71d",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-e24ba6",
+          "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+          "trigger": "auto",
+          "startedAt": 1790609123178,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 2996,
+              "at": 1790609267401,
+              "totals": {
+                "uncachedInputTokens": 3419703,
+                "outputTokens": 404727,
+                "cacheReadTokens": 63794432,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 2996,
+              "at": 1790609267420,
+              "totals": {
+                "uncachedInputTokens": 3419703,
+                "outputTokens": 404727,
+                "cacheReadTokens": 63794432,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790609267408
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1790607593469,
+      "updatedAt": 1790609267408,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790607593469,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790609267400,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790609267408,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 2,
+      "claimedAt": 1790609123178,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790609267400,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790609267400,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/client/node-panel.ts",
+          "packages/web/dsh-pmboard/tests/node-panel.test.ts"
+        ],
+        "completed": [
+          "完成本卡（dev）：node-panel.ts 的项目看板入口按钮与执行流程块下掉已在工作区落盘并核验——renderHead 在相对时间之后追加 button.dsh-pm-np-board-entry[data-action=np-board-entry][data-req]（文案固定「项目看板 ↗」，正常与 enabled=false 跳过两分支共用），NodePanelInput 的 injection/isolation 入参、ProcessFoldContext 与 renderProcessFold 调用及相关 import/头注全部移除。本次同时完成 tests/node-panel.test.ts 的同步加固：TC-3 增补 ALL_STAGE_KEYS.length===7 断言（把验收口径「7 节点」钉死），并修正头部注释中已删除的旧 TC-5 描述。验收命令 npx vitest run tests/node-panel.test.ts 全绿（27/27），7 节点输出均不含「🔄 执行流程」。"
+        ]
+      }
+    },
+    {
+      "id": "t-1d3596",
+      "requirementId": "REQ-260928222643-4d34",
+      "title": "node-panel.ts 加入口按钮并删除执行流程块调用与入参·联调",
+      "description": "子卡阶段：联调",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-23961d"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "grep -n \"np-board-entry\" src/client/node-panel.ts 命中；grep -n \"renderProcessFold\" src/client/node-panel.ts 无匹配（调用已断、函数保留）。",
+      "implementation": "renderHead 内相对时间之后追加 button.dsh-pm-np-board-entry[data-action=np-board-entry][data-req]（文案固定 项目看板 ↗，跳过与正常分支共用）；删除 renderProcessFold 调用、ProcessFoldContext、NodePanelInput.injection/isolation 与相关 import 及头注；同步 tests/node-panel.test.ts（反写 TC-2、删 TC-4、加 TC-1/TC-2′/TC-5）。\n\n[子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致",
+      "context": "",
+      "parentId": "t-2eb71d",
+      "stageKind": "integrate",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-fe5644",
+          "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+          "trigger": "auto",
+          "startedAt": 1790609267586,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 2997,
+              "at": 1790609305170,
+              "totals": {
+                "uncachedInputTokens": 3419703,
+                "outputTokens": 404727,
+                "cacheReadTokens": 63794432,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 2997,
+              "at": 1790609305194,
+              "totals": {
+                "uncachedInputTokens": 3419703,
+                "outputTokens": 404727,
+                "cacheReadTokens": 63794432,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790609305177
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1790607593469,
+      "updatedAt": 1790609305177,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790607593469,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790609305169,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790609305177,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 3,
+      "claimedAt": 1790609267586,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790609305169,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790609305169,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "联调通过（源码级真实调用 + 产物级核验）。node-panel.ts 的入口按钮已在 renderHead 中产出，与 conversation-progress.ts 的点击处理链路契约逐字对上（data-action=\"np-board-entry\" / data-req=REQ id），下游 activateBoardEntry 的三条路径（正常/layout 缺失/台账不可达）实测行为符合\"先校验、后切页\"设计；renderProcessFold 调用已从 node-panel.ts 断开（函数保留在 node-panel-process.ts:378）。无发现接口错位。"
+        ]
+      }
+    },
+    {
+      "id": "t-bcca7b",
+      "requirementId": "REQ-260928222643-4d34",
+      "title": "node-panel.ts 加入口按钮并删除执行流程块调用与入参·复核",
+      "description": "子卡阶段：复核",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-1d3596"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "grep -n \"injection\\|isolation\" src/client/node-panel.ts 无匹配；在 packages/web/dsh-pmboard 下 npx vitest run tests/node-panel-process-map.test.ts 全绿。",
+      "implementation": "renderHead 内相对时间之后追加 button.dsh-pm-np-board-entry[data-action=np-board-entry][data-req]（文案固定 项目看板 ↗，跳过与正常分支共用）；删除 renderProcessFold 调用、ProcessFoldContext、NodePanelInput.injection/isolation 与相关 import 及头注；同步 tests/node-panel.test.ts（反写 TC-2、删 TC-4、加 TC-1/TC-2′/TC-5）。\n\n[子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-2eb71d",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-db7cbf",
+          "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+          "trigger": "auto",
+          "startedAt": 1790609305354,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 2998,
+              "at": 1790609401977,
+              "totals": {
+                "uncachedInputTokens": 3419703,
+                "outputTokens": 404727,
+                "cacheReadTokens": 63794432,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 2998,
+              "at": 1790609401999,
+              "totals": {
+                "uncachedInputTokens": 3419703,
+                "outputTokens": 404727,
+                "cacheReadTokens": 63794432,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790609401984
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1790607593469,
+      "updatedAt": 1790609401984,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790607593469,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790609401976,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790609401984,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 4,
+      "claimedAt": 1790609305354,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790609401976,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790609401976,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "复核父卡 t-2eb71d（node-panel.ts 加入口按钮并删除执行流程块调用与入参）的实现与设计是否偏离：逐条对齐、无实质偏离，本卡验收通过。①入口按钮：renderHead 内相对时间之后追加 button.dsh-pm-np-board-entry[data-action=np-board-entry][data-req]，文案固定「项目看板 ↗」，且 renderHead 被 skipped 分支（:321）与正常分支（:330）共用，7 个节点全覆盖——与设计一致。②删除调用/入参：renderProcessFold 调用、局部 processCtx: ProcessFoldContext、NodePanelInput.injection/isolation 均已删除；node-panel.ts 对 injection/isolation/renderProcessFold/ProcessFoldContext/IsolationLogEntry/InjectionInfoEntry 零引用。③相关 import 与头注：导入收敛为 STAGE_STATE_WORD（仍被使用）+ 兄弟需求新增的 chainHtml；头注同步（「注入/隔离留痕」→「需求标识」，删除「🔄 执行流程」行）。④测试同步：tests/node-panel.test.ts 反写 TC-2（断无「🔄 执行流程」）、删除旧 TC-4（执行流程三段）与旧 TC-5（执行动作对照），新增 TC-1/TC-1′/TC-2′/TC-3/TC-5/TC-5′（覆盖为计划超集，非偏离）。⑤node-panel-process.ts 中保留 renderProcessFold/ProcessFoldContext 属设计如此——同需求 t-9b365a 的反面断言明确要求「grep -n \"export function renderProcessFold\" src/client/node-panel-process.ts 命中」，故非漏删。边界遵守：未改任何代码；未跑父卡终态验收命令（tests/node-panel.test.ts 归测试段），仅执行本卡自身验收 grep + tests/node-panel-process-map.test.ts。"
+        ]
+      }
+    },
+    {
+      "id": "t-33f31b",
+      "requirementId": "REQ-260928222643-4d34",
+      "title": "node-panel.ts 加入口按钮并删除执行流程块调用与入参·测试",
+      "description": "子卡阶段：测试",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-bcca7b"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "在 packages/web/dsh-pmboard 下 npx vitest run tests/node-panel.test.ts tests/node-panel-styles.test.ts 全绿，并把命令与输出摘要写入 docs/requirements/REQ-260928222643-4d34/tests/test-report.md。",
+      "implementation": "renderHead 内相对时间之后追加 button.dsh-pm-np-board-entry[data-action=np-board-entry][data-req]（文案固定 项目看板 ↗，跳过与正常分支共用）；删除 renderProcessFold 调用、ProcessFoldContext、NodePanelInput.injection/isolation 与相关 import 及头注；同步 tests/node-panel.test.ts（反写 TC-2、删 TC-4、加 TC-1/TC-2′/TC-5）。\n\n[子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）",
+      "context": "",
+      "parentId": "t-2eb71d",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-c08ed0",
+          "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+          "trigger": "auto",
+          "startedAt": 1790609402152,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 2999,
+              "at": 1790609432432,
+              "totals": {
+                "uncachedInputTokens": 3419703,
+                "outputTokens": 404727,
+                "cacheReadTokens": 63794432,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 2999,
+              "at": 1790609432453,
+              "totals": {
+                "uncachedInputTokens": 3419703,
+                "outputTokens": 404727,
+                "cacheReadTokens": 63794432,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790609432439
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1790607593469,
+      "updatedAt": 1790609432439,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790607593469,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790609432431,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790609432439,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 5,
+      "claimedAt": 1790609402152,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790609432431,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790609432431,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "在 packages/web/dsh-pmboard 下执行父卡终态验收命令 `npx vitest run tests/node-panel.test.ts tests/node-panel-styles.test.ts`：退出码 0，2 个测试文件 / 42 个用例全绿、0 失败、0 跳过（node-panel.test.ts 27 条、node-panel-styles.test.ts 15 条，vitest v2.1.9，Duration 310ms）。只读 grep 佐证实现面到位：src/client/node-panel.ts 中 renderProcessFold/ProcessFoldContext/injection/isolation 均无匹配（exit 1），入口按钮命中 L292（class=dsh-pm-np-board-entry、data-action=np-board-entry、data-req、文案「项目看板 ↗」）。命令与输出摘要已写入 docs/requirements/REQ-260928222643-4d34/tests/test-report.md（追加「子卡终态验收 · 面板入口按钮与下掉执行流程块测试」节，L100-L109）。未改动任何代码文件。"
+        ]
+      }
+    },
+    {
+      "id": "t-9f7598",
+      "requirementId": "REQ-260928222643-4d34",
+      "title": "conversation-progress.ts 接线点击→校验→关面板→切看板并删两条留痕拉取·研发",
+      "description": "子卡阶段：研发",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-2eb71d"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "在 packages/web/dsh-pmboard 下执行：grep -n \"requestBoardFocus\" src/client/conversation-progress.ts（须命中接线点）；npx vitest run tests/board-attach.test.ts（期望 Tests 6 passed、exit 0）。",
+      "implementation": "删除 fetchInjectionInfo/fetchIsolationLog import、injection/isolation state 与拉取 effect 及 props；closePanel 声明上移到早退前；新增 document 级 np-board-entry 委派调 activateBoardEntry，失败 setEntryError 就地 role=alert 显示且不切页，成功 closePanel + layout.selectPanel(PANEL_ID)；import 来源 board-focus/board-entry/page-runtime/dom/api。\n\n[子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要",
+      "context": "",
+      "parentId": "t-e481a4",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-e44771",
+          "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+          "trigger": "auto",
+          "startedAt": 1790609432891,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 3008,
+              "at": 1790609632314,
+              "totals": {
+                "uncachedInputTokens": 3675539,
+                "outputTokens": 406381,
+                "cacheReadTokens": 63803264,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 3008,
+              "at": 1790609632334,
+              "totals": {
+                "uncachedInputTokens": 3675539,
+                "outputTokens": 406381,
+                "cacheReadTokens": 63803264,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790609632321
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1790609432754,
+      "updatedAt": 1790612159977,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790609432754,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790609632313,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790609632321,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 3,
+      "claimedAt": 1790609432891,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790609632313,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790609632313,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/client/conversation-progress.ts"
+        ],
+        "completed": [
+          "本卡范围（conversation-progress.ts 接线点击→校验→关面板→切看板 + 删两条留痕拉取）的改动已全部落盘并本地验证通过；本轮对我方交付文件做了一处最小修复使其类型检查归零。① 核对盘面：删除 fetchInjectionInfo/fetchIsolationLog import 与 InjectionInfoEntry/IsolationLogEntry 类型 import；删除 injection/isolation state 与拉取 effect；renderNodePanel 调用不再传 injection/isolation；closePanel 声明上移至早退之前（L123 < 早退 L342）；新增 document 级 np-board-entry 委派（L249-266）—— activateBoardEntry 先校验，失败 setEntryError 就地渲染 role=\"alert\" 的 .dsh-pm-np-entry-err（L357）且不切页，成功 closePanel() + getPageLayout()?.selectPanel(PANEL_ID)（L265）；import 来源 board-focus/board-entry/page/page-runtime/dom/api 齐备（board-entry L24、requestBoardFocus L260 注入、PANEL_ID L26）。② 本轮落盘改动：把 L193 subscribeEvents 回调里未使用的形参 revision 重命名为 _revision，消除本文件唯一一条 tsc 报错（TS6133）。③ 边界：未执行父卡终态验收命令（未跑全量测试、未跑 build:client、未跑 fetchInjectionInfo/fetchIsolationLog 零命中 grep）；父卡验收命令留给测试段。④ 提示下一段：本文件内有一段非本卡实施方案的 SSE 订阅 effect（L189-205，订阅 task-moved/task-updated/task-created 刷新 stageOverview），设计/前端文档 P-3/P-4 未包含该 effect，属工作区既有代码，我未按\"不越界\"原则删除，建议复核段据设计判断去留。"
+        ]
+      }
+    },
+    {
+      "id": "t-e3785d",
+      "requirementId": "REQ-260928222643-4d34",
+      "title": "conversation-progress.ts 接线点击→校验→关面板→切看板并删两条留痕拉取·联调",
+      "description": "子卡阶段：联调",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-9f7598"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "在 packages/web/dsh-pmboard 下执行：npx vitest run tests/board-attach.test.ts（期望 Test Files 1 passed / Tests 6 passed、exit 0）；并对照 src/client/board-entry.ts 的 deps.requestFocus 签名，确认 conversation-progress.ts 注入的实现与之逐字一致。",
+      "implementation": "删除 fetchInjectionInfo/fetchIsolationLog import、injection/isolation state 与拉取 effect 及 props；closePanel 声明上移到早退前；新增 document 级 np-board-entry 委派调 activateBoardEntry，失败 setEntryError 就地 role=alert 显示且不切页，成功 closePanel + layout.selectPanel(PANEL_ID)；import 来源 board-focus/board-entry/page-runtime/dom/api。\n\n[子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致",
+      "context": "",
+      "parentId": "t-e481a4",
+      "stageKind": "integrate",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-328ae7",
+          "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+          "trigger": "auto",
+          "startedAt": 1790609632487,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 3009,
+              "at": 1790609736116,
+              "totals": {
+                "uncachedInputTokens": 3675539,
+                "outputTokens": 406381,
+                "cacheReadTokens": 63803264,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 3009,
+              "at": 1790609736142,
+              "totals": {
+                "uncachedInputTokens": 3675539,
+                "outputTokens": 406381,
+                "cacheReadTokens": 63803264,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790609736122
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1790609432754,
+      "updatedAt": 1790612160022,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790609432754,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790609736114,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790609736122,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 4,
+      "claimedAt": 1790609632487,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790609736114,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790609736114,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "t-e3785d（integrate）接口联调通过：以真实模块 + 真实 HTTP 做了一次直跑，请求样例与实际响应逐项一致，9/9 通过。被测接口三条：①HTTP GET /dashboard/api/reqboard/（api.ts fetchState，isKnown 的数据源）→ 期望 200 + {success:true,data:{...requirements[]}}，实际 200 success=true、requirements=85（live :13080，2026-09-28T15:35:13Z）；②模块接口 activateBoardEntry(reqId,{isKnown,requestFocus,layout})（I-2）→ 成功 {ok:true}、失败 {ok:false,reason,message}，6 条样例（成功/台账无该 REQ/layout 未注入/台账真实连接拒绝/空 reqId）全部与期望一致；③接线顺序不变量（I-6）→ 成功路径 closePanel 1 次且随后 selectPanel(PANEL_ID='dsh-pmboard') 1 次、失败路径 entryError=message 且导航与意图登记均为 0（零副作用）。跨边界身份也对齐：registerPagePanel 实测两端注册 id 同为 PANEL_ID（main:key=dsh-pmboard / sidebar.panellist:id=dsh-pmboard），故 selectPanel(PANEL_ID) 命中已注册面板。另以 source-lock 证明本次执行的 handler 体与在盘 conversation-progress.ts:249-265 逐条一致（选择器/读 data-req/清错/调 activateBoardEntry/三 deps/失败 return/关面板/切看板，及 L23-L26 与 L19 的 import 来源），故结论对在盘代码成立。未发现接口错位；唯一与设计样例文字的差异是设计 P-3 写 getPageLayout()!.selectPanel、在盘用 ?.，属更安全的等价写法，不改接口语义，不计为问题。按本步边界未跑父卡终态验收命令（全量测试/build:client/typecheck 属测试段），未改写任何实现，未改动仓库文件（脚本仅落 /tmp）。"
+        ]
+      }
+    },
+    {
+      "id": "t-43763b",
+      "requirementId": "REQ-260928222643-4d34",
+      "title": "conversation-progress.ts 接线点击→校验→关面板→切看板并删两条留痕拉取·复核",
+      "description": "子卡阶段：复核",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-e3785d"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "在 packages/web/dsh-pmboard 下执行：npx vitest run tests/board-attach.test.ts（期望 6 passed）；再对照 docs/requirements/REQ-260928222643-4d34/design/interfaces.md 的 I-1 与 src/client/conversation-progress.ts 实际接线，逐条给出「无偏离」或偏离条目。",
+      "implementation": "删除 fetchInjectionInfo/fetchIsolationLog import、injection/isolation state 与拉取 effect 及 props；closePanel 声明上移到早退前；新增 document 级 np-board-entry 委派调 activateBoardEntry，失败 setEntryError 就地 role=alert 显示且不切页，成功 closePanel + layout.selectPanel(PANEL_ID)；import 来源 board-focus/board-entry/page-runtime/dom/api。\n\n[子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-e481a4",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-b14cc3",
+          "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+          "trigger": "auto",
+          "startedAt": 1790609736312,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 3010,
+              "at": 1790609857670,
+              "totals": {
+                "uncachedInputTokens": 3675539,
+                "outputTokens": 406381,
+                "cacheReadTokens": 63803264,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 3010,
+              "at": 1790609857695,
+              "totals": {
+                "uncachedInputTokens": 3675539,
+                "outputTokens": 406381,
+                "cacheReadTokens": 63803264,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790609857677
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1790609432754,
+      "updatedAt": 1790612160072,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790609432754,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790609857668,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790609857677,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 5,
+      "claimedAt": 1790609736312,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790609857668,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790609857668,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "复核对象：t-e481a4 的 review 子卡 t-43763b（conversation-progress.ts 接线点击→校验→关面板→切看板并删两条留痕拉取）。逐条给出设计↔实现偏离结论，未改代码、未跑父卡终态验收命令（grep 零命中断言/typecheck 归测试段，仅做只读核对）。\n① 实施方案 4 条逐条对齐，无偏离：a) 删两 import + injection/isolation state + 拉取 effect + renderNodePanel 的 injection/isolation 入参——git diff(HEAD→工作区) 显示这三块全删、且 conversation-progress.ts/node-panel.ts 对 fetchInjectionInfo|fetchIsolationLog 零引用（唯一调用点已断）；b) closePanel 声明上移：现 L123，位于两处早退（L273 data 空、L342 !detailOpen）之前，纯搬移无行为变化；c) 新增 document 级 np-board-entry 委派 L247-270，与 np-switch-view/open-doc 同款；d) import 来源收敛为 board-focus(L23)/board-entry(L24)/page-runtime(L25)/dom(L26)+api(L19 fetchState, subscribeEvents)。\n② 设计 I-2/I-3/I-6 契约逐条对齐，无偏离：激活调用形态与 BoardEntryDeps 三字段（isKnown/requestFocus/layout=getPageLayout()）逐字一致；失败仅 setEntryError(verdict.message) 后 return（L263）——零导航、零意图登记（I-6.2）；成功 closePanel() 先、layout?.selectPanel(PANEL_ID) 后（L264-265），切页只经 selectPanel（I-6.1）；失败提示 role=\"alert\" + .dsh-pm-np-entry-err，在 .dsh-pm-cprog-detail-panel 的 panelChildren 内、节点面板容器之前（L356-358，面板容器 L378）——可见性满足 FR-3「不静默」；DOM 契约对上 node-panel.ts:292 的 data-action=\"np-board-entry\"/data-req；CSS 已在 styles/node-panel.ts:68/73/76 就位，`.dsh-pm-cprog-detail-panel .dsh-pm-np-entry-err` 选择器可命中；消费端 I-5 已在盘（board-mount.ts:184 takeBoardFocus 一次消费 + mode 初始化），FR-2 端到端链路成立。\n③ 字面/防御性差异 2 处（结论：非实质偏离，语义等价）：a) 在盘用 getPageLayout()?.selectPanel(PANEL_ID) 而设计 P-3 样例用 `!` —— activateBoardEntry 解析后到该行之间无 await，单线程下 layout 不可能在此窗口被 clear，`?.` 与 `!` 行为等价且更安全；b) isKnown 用 (s.requirements ?? []) 而设计样例直取 .requirements —— fetchState 返回 BoardState（api.ts:40）契约内等价，仅多一层形状兜底。\n④ 唯一需列观察的边界项：conversation-progress.ts L189-205 有一段 SSE 订阅 effect（task-moved/task-updated/task-created → 刷新 stageOverview），不在本 REQ 设计/frontend.md P-3·P-4 或本卡实施方案任一条目中；本卡对它唯一改动是把回调未用形参 revision→_revision（tsconfig noUnusedParameters:true，否则 tsc TS6133，父卡 typecheck 断言无法满足）。研发段自述其为「本卡之前的工作区既有代码」；该归属仅凭 git diff(HEAD) 无法独立证实（同一 diff 含多个 REQ 的未提交改动）。结论：不构成本卡与设计的偏离（本卡未新增/删除该 effect，其存在也不触碰 injection/isolation 与导航唯一来源两条红线），作观察项移交收口。\n总判定：本卡设计与实现无实质偏离，通过；仅 2 处等价字面差异 + 1 处归属待证实的既有代码，均已逐条给出依据。"
+        ]
+      }
+    },
+    {
+      "id": "t-86d2f9",
+      "requirementId": "REQ-260928222643-4d34",
+      "title": "conversation-progress.ts 接线点击→校验→关面板→切看板并删两条留痕拉取·测试",
+      "description": "子卡阶段：测试",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-43763b"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "在 packages/web/dsh-pmboard 下执行：grep -rn \"fetchInjectionInfo\\|fetchIsolationLog\" src/client/conversation-progress.ts（期望无命中、echo 退出码非 0）；npx vitest run tests/board-attach.test.ts tests/node-panel.test.ts（期望全绿、exit 0）。",
+      "implementation": "删除 fetchInjectionInfo/fetchIsolationLog import、injection/isolation state 与拉取 effect 及 props；closePanel 声明上移到早退前；新增 document 级 np-board-entry 委派调 activateBoardEntry，失败 setEntryError 就地 role=alert 显示且不切页，成功 closePanel + layout.selectPanel(PANEL_ID)；import 来源 board-focus/board-entry/page-runtime/dom/api。\n\n[子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）",
+      "context": "",
+      "parentId": "t-e481a4",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-718b3f",
+          "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+          "trigger": "auto",
+          "startedAt": 1790609857847,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 3011,
+              "at": 1790609939428,
+              "totals": {
+                "uncachedInputTokens": 3675539,
+                "outputTokens": 406381,
+                "cacheReadTokens": 63803264,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 3011,
+              "at": 1790609939451,
+              "totals": {
+                "uncachedInputTokens": 3675539,
+                "outputTokens": 406381,
+                "cacheReadTokens": 63803264,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790609939435
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1790609432754,
+      "updatedAt": 1790612160120,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790609432754,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790609939426,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790609939435,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 6,
+      "claimedAt": 1790609857847,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790609939426,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790609939426,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "父卡 t-e481a4 终态验收命令共 3 项，逐条实跑：①fetchInjectionInfo|fetchIsolationLog 零命中——通过（grep exit 1）；②conversation-progress.ts 四符号全命中——通过；③`pnpm run typecheck` 通过——**未通过**（exit 1，212 条 error TS）。212 条错误逐文件归属后 0 条落在本卡改动文件（conversation-progress.ts / node-panel.ts / board-entry.ts / board-focus.ts 均为 0），集中在 tests/agent-deliverer.test.ts(19)、tests/stage-prompts.test.ts(11)、tests/adapters/failure-alert.test.ts(9)、src/client/views/dag-view.ts(7)、src/domain/template/render.ts(6) 等其它会话未提交改动，与 REQ-260928222643-4d34 自身 verification.md:369「改动文件 0 error，其余来自其它会话未提交改动」的记载一致。因目标命令未全绿，按本卡验收标准判 fail 并如实上报（不改代码）；本卡功能相关单测 5 文件 49 用例全绿，可作旁证。"
+        ]
+      }
+    },
+    {
+      "id": "t-1725e5",
+      "requirementId": "REQ-260928222643-4d34",
+      "title": "board-mount.ts 挂载时 takeBoardFocus 初始化 mode·研发",
+      "description": "子卡阶段：研发",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-3e952f"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "在 packages/web/dsh-pmboard 下执行：grep -n \"takeBoardFocus\" src/client/board-mount.ts（须命中挂载处消费点）；npx vitest run tests/board-attach.test.ts（期望 Tests 6 passed、exit 0）。",
+      "implementation": "board-mount.ts 挂载时 const focusReqId = takeBoardFocus()，据此把 mode 初始化为 {kind:'req',reqId} 否则 {kind:'board'}；陈旧 id 走既有 L240 回退，不动 render/fetchAll/SSE；扩展 tests/board-attach.test.ts 加 TC-7/TC-8 并补 serves 头。\n\n[子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要",
+      "context": "",
+      "parentId": "t-9b365a",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-f7d69f",
+          "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+          "trigger": "auto",
+          "startedAt": 1790609939865,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 3012,
+              "at": 1790610002925,
+              "totals": {
+                "uncachedInputTokens": 3675539,
+                "outputTokens": 406381,
+                "cacheReadTokens": 63803264,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 3012,
+              "at": 1790610002946,
+              "totals": {
+                "uncachedInputTokens": 3675539,
+                "outputTokens": 406381,
+                "cacheReadTokens": 63803264,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790610002930
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1790609939737,
+      "updatedAt": 1790612160168,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790609939737,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790610002924,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790610002930,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 1,
+      "claimedAt": 1790609939865,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790610002924,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790610002924,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/client/board-mount.ts",
+          "packages/web/dsh-pmboard/tests/board-attach.test.ts"
+        ],
+        "completed": [
+          "本卡 t-9b365a（board-mount.ts 挂载时 takeBoardFocus 初始化 mode）的挂载侧改动已在工作区落盘并核验通过；本次补齐了它与验收口径之间的最后一处缺口——原实现用命名导入 `import { takeBoardFocus } from './board-focus.ts'`，使 `grep -n \"takeBoardFocus\" src/client/board-mount.ts` 命中 2 处（import 行 + 调用行），与卡片验收标准要求的「恰好 1 处」不符；已改为与本文件既有 `import * as api from './api.ts'` 同款的命名空间导入 `import * as boardFocus from './board-focus.ts'`，调用点写作 `const focusReqId = boardFocus.takeBoardFocus()`，语义与行为零变化（取走即清、有意图→{kind:'req',reqId}、无意图→{kind:'board'}，陈旧 id 仍走 render() 内既有回退，未触碰 render/fetchAll/SSE）。tests/board-attach.test.ts 的 TC-7/TC-8 与 serves 头（第 11 行）此前已由上一轮执行落盘，本卡逐条复核：TC-7 断言挂载后 innerHTML 含 data-detail-req=\"REQ-a\" 且 peekBoardFocus() 为 undefined（消费即清）；TC-8 断言陈旧 id 回退默认看板、再次挂载仍默认（非粘滞）。未执行父卡终态验收命令（全量测试 / build:client）。"
+        ]
+      }
+    },
+    {
+      "id": "t-fe79d8",
+      "requirementId": "REQ-260928222643-4d34",
+      "title": "board-mount.ts 挂载时 takeBoardFocus 初始化 mode·联调",
+      "description": "子卡阶段：联调",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-1725e5"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "在 packages/web/dsh-pmboard 下执行：npx vitest run tests/board-attach.test.ts（期望 6 passed、exit 0）；并核对 src/client/board-mount.ts 挂载闭包内 takeBoardFocus() 的调用与 src/client/board-focus.ts 的导出签名一致。",
+      "implementation": "board-mount.ts 挂载时 const focusReqId = takeBoardFocus()，据此把 mode 初始化为 {kind:'req',reqId} 否则 {kind:'board'}；陈旧 id 走既有 L240 回退，不动 render/fetchAll/SSE；扩展 tests/board-attach.test.ts 加 TC-7/TC-8 并补 serves 头。\n\n[子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致",
+      "context": "",
+      "parentId": "t-9b365a",
+      "stageKind": "integrate",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-89731e",
+          "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+          "trigger": "auto",
+          "startedAt": 1790610003119,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 3021,
+              "at": 1790610155805,
+              "totals": {
+                "uncachedInputTokens": 3933193,
+                "outputTokens": 408115,
+                "cacheReadTokens": 63812096,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 3021,
+              "at": 1790610155833,
+              "totals": {
+                "uncachedInputTokens": 3933193,
+                "outputTokens": 408115,
+                "cacheReadTokens": 63812096,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790610155813
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1790609939737,
+      "updatedAt": 1790612160217,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790609939737,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790610155804,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790610155813,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 2,
+      "claimedAt": 1790610003119,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790610155804,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790610155804,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "接口联调通过（pass）：以真实 TS 模块（非单测桩）+ 真实台账接口 :13080 跑了一次端到端调用，请求样例与实际返回逐条与预期一致，allPass=true。\n被测接口 = 设计 I-5「看板挂载点消费契约」：boardFocus.takeBoardFocus()（取走即清）→ mode 初始化为 {kind:'req',reqId} 否则 {kind:'board'}；消费端 board-mount.ts:184，登记端 board-focus.ts:21（经 board-entry.ts:70 / conversation-progress.ts:260 接线）。\n四条请求样例：①登记真实在册 id REQ-260928222643-4d34 → 挂载渲染出 data-detail-req=\"REQ-260928222643-4d34\"（htmlLength 71821），peekBoardFocus()/第二次 takeBoardFocus() 均为 undefined（恰好消费一次）；②无意图 → 默认看板（无 data-detail-req，htmlLength 57999）；③陈旧 id → 走既有回退默认看板且意图已清；④再挂载仍默认（非粘滞）。\n另加生产侧双侧联调：activateBoardEntry(真实 id,{isKnown:真实 fetchState,requestFocus:requestBoardFocus,layout}) → {ok:true} 且自身零导航，随后挂载得需求详情；失败样例 'REQ-not-in-ledger' → {ok:false,reason:'req-missing'}、零导航、零登记。挂载边界无回归：SSE open×1 / dispose 后 close×1、容器委派监听 ['click','change']、fetchAll 仍打 GET /dashboard/api/reqboard/。\n构件一致性：lib/client.cjs 与 lib/client.js 均含 let Ft; / function It(e){…Ft=t.length>0?t:void 0}（requestBoardFocus）/ function Lt(){let e=Ft;return Ft=void 0,e}（takeBoardFocus）与 s=Lt(),l=s===void 0?{kind:`board`}:{kind:`req`,reqId:s}（mode 初始化）——行为已在运行态构件中，无部署缺口。\n边界遵守：未跑父卡终态验收命令（vitest / grep 恰好 1 处），未改动仓库任何文件（联调脚本落在 /tmp/board-mount-integrate.mts），未跑测试/研发段动作。"
+        ]
+      }
+    },
+    {
+      "id": "t-95a1f1",
+      "requirementId": "REQ-260928222643-4d34",
+      "title": "board-mount.ts 挂载时 takeBoardFocus 初始化 mode·复核",
+      "description": "子卡阶段：复核",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-fe79d8"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "在 packages/web/dsh-pmboard 下执行：npx vitest run tests/board-attach.test.ts（期望 6 passed）；再对照 docs/requirements/REQ-260928222643-4d34/design/interfaces.md 与 src/client/board-mount.ts，逐条给出「无偏离」或偏离条目。",
+      "implementation": "board-mount.ts 挂载时 const focusReqId = takeBoardFocus()，据此把 mode 初始化为 {kind:'req',reqId} 否则 {kind:'board'}；陈旧 id 走既有 L240 回退，不动 render/fetchAll/SSE；扩展 tests/board-attach.test.ts 加 TC-7/TC-8 并补 serves 头。\n\n[子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-9b365a",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-a6b790",
+          "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+          "trigger": "auto",
+          "startedAt": 1790610155992,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 3022,
+              "at": 1790610226039,
+              "totals": {
+                "uncachedInputTokens": 3933193,
+                "outputTokens": 408115,
+                "cacheReadTokens": 63812096,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 3022,
+              "at": 1790610226063,
+              "totals": {
+                "uncachedInputTokens": 3933193,
+                "outputTokens": 408115,
+                "cacheReadTokens": 63812096,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790610226048
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1790609939737,
+      "updatedAt": 1790612160267,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790609939737,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790610226038,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790610226048,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 3,
+      "claimedAt": 1790610155992,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790610226038,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790610226038,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "复核对象：t-9b365a 的 review 子卡（board-mount.ts 挂载时 takeBoardFocus 初始化 mode）。只做只读核对，未改代码、未跑父卡终态验收命令（vitest 归测试段）。逐条结论——① 挂载消费与 mode 初始化：设计 I-5（design/interfaces.md:117-123）与 decomposition.md:219 要求 const focusReqId = takeBoardFocus() + 三元初始化；实现 board-mount.ts:184-187 逐字一致，无偏离。② 消费次数与非粘滞：take 在 createBoardAttachment 闭包内仅一次（精确核对 takeBoardFocus 于 board-mount.ts 命中 1 处，L184）；dispose（L834-844）不触碰持有器，符合 I-5「dispose 不重置」，无偏离。③ 陈旧 id 走既有回退、不新增分支：render() 的 req 分支 L242-247 中 `if (!req) mode={kind:'board'}` 是 HEAD 既有行（不在本卡 diff 范围内），该分支零 boardFocus 引用，无偏离。④ 不动 render/fetchAll/SSE/轮询/事件委派/open-req：全文件 boardFocus 引用仅 L23（导入）与 L184（调用）两处，open-req（L492-494）与 startEvents 均为 HEAD 原样，无偏离。⑤ 测试落点：设计 test-cases.md:182-183 把 TC-7/TC-8 列在 board-focus/board-entry 测试，实现落在 tests/board-attach.test.ts:128-196——属落点偏离，但与父卡实施方案第 4 条「复用 tests/board-attach.test.ts」一致，且 reviews/review-report.md:26 已记录为语义不变的落点微调，非实质。⑥ serves 头：test-cases.md:173 要求前 20 行，board-attach.test.ts:11（第 11 行）为 `serves: FR-2(...)`，无偏离。⑦ TC-7（L170-178）：requestBoardFocus('REQ-a') + 桩台账含 REQ-a → innerHTML 含 data-detail-req=\"REQ-a\"（该标记唯一由 buildReqDetail 产出，views/stage-detail.ts:175；buildBoard 不产出，故与「走 buildReqDetail 而非 buildBoard」等价）且 peekBoardFocus() 为 undefined，与设计 TC-7 一致。⑧ TC-8（L180-196）：陈旧 id + 空台账 → 渲染默认看板、innerHTML 非空、再次挂载仍默认，与设计 TC-8 一致。唯一字面偏离为导入形态：设计 decomposition.md:218 写 `import { takeBoardFocus }`，实现 L23 用命名空间导入 `import * as boardFocus`（调用 L184 写 boardFocus.takeBoardFocus()）——语义等价，且与父卡验收「grep takeBoardFocus 恰好 1 处」互斥（命名导入会命中 2 处），实现选择满足可验证的验收口径、与同文件既有 `import * as api` 同款，结论非实质偏离。观察（非偏离）：TC-8 的第二次挂载断言对陈旧 id 不构成「非粘滞」的独立证据（陈旧 id 本就由既有回退兜底），但 TC-7 的 peek=undefined 已独立证明取走即清，且用例与设计文本逐条吻合。总判定：无实质偏离，通过。"
+        ]
+      }
+    },
+    {
+      "id": "t-f8052d",
+      "requirementId": "REQ-260928222643-4d34",
+      "title": "board-mount.ts 挂载时 takeBoardFocus 初始化 mode·测试",
+      "description": "子卡阶段：测试",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-95a1f1"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "在 packages/web/dsh-pmboard 下执行：npx vitest run tests/board-attach.test.ts（期望 6 passed、exit 0），其中含「挂载消费一次后 peekBoardFocus() 为 undefined（非粘滞）」断言。",
+      "implementation": "board-mount.ts 挂载时 const focusReqId = takeBoardFocus()，据此把 mode 初始化为 {kind:'req',reqId} 否则 {kind:'board'}；陈旧 id 走既有 L240 回退，不动 render/fetchAll/SSE；扩展 tests/board-attach.test.ts 加 TC-7/TC-8 并补 serves 头。\n\n[子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）",
+      "context": "",
+      "parentId": "t-9b365a",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-818acc",
+          "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+          "trigger": "auto",
+          "startedAt": 1790610226224,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 3023,
+              "at": 1790610253748,
+              "totals": {
+                "uncachedInputTokens": 3933193,
+                "outputTokens": 408115,
+                "cacheReadTokens": 63812096,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 3023,
+              "at": 1790610253775,
+              "totals": {
+                "uncachedInputTokens": 3933193,
+                "outputTokens": 408115,
+                "cacheReadTokens": 63812096,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790610253756
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1790609939737,
+      "updatedAt": 1790612160315,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790609939737,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790610253746,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790610253756,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 4,
+      "claimedAt": 1790610226224,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790610253746,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790610253746,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "父卡 t-9b365a 终态验收命令全部全绿。①`cd packages/web/dsh-pmboard && npx vitest run tests/board-attach.test.ts` → 1 file / 6 tests passed（TEST_EXIT=0），verbose 逐条列出既有 4 例 + 新增 TC-7「命中台账 → 挂载进入该需求详情；意图取走即清」与 TC-8「陈旧 id → 回退默认看板；再次挂载仍默认（非粘滞）」；test 文件头第 11 行已含 `serves: FR-2（REQ-260928222643-4d34：看板挂载时消费一次性定位意图，TC-7/TC-8）`。②`grep -n \"takeBoardFocus\" src/client/board-mount.ts` → 恰好 1 处（L184 `const focusReqId = boardFocus.takeBoardFocus()`）。③TC-7 断言已在用例源码核对：L175 `expect(el.innerHTML).toContain('data-detail-req=\"REQ-a\"')`、L176 `expect(peekBoardFocus()).toBeUndefined()`。本卡未改任何代码/测试文件（只读+命令执行）。"
+        ]
+      }
+    },
+    {
+      "id": "t-0fc58f",
+      "requirementId": "REQ-260928222643-4d34",
+      "title": "styles/node-panel.ts 新增入口按钮与失败提示两条规则·研发",
+      "description": "子卡阶段：研发",
+      "phase": "ui",
+      "side": "frontend",
+      "dependsOn": [
+        "t-e481a4"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "在 packages/web/dsh-pmboard 下执行：grep -n \"dsh-pm-np\" src/client/styles/node-panel.ts（须命中新增的入口按钮与失败提示规则）；npx vitest run tests/node-panel-styles.test.ts（期望 Tests 15 passed、exit 0）。",
+      "implementation": "新增 .dsh-pm-np-board-entry（flex:none、min-height、胶囊、hover）与 .dsh-pm-cprog-detail-panel .dsh-pm-np-entry-err 两条作用域内规则；不动 head-time 的 margin-left:auto；tests/node-panel-styles.test.ts 加 TC-14。\n\n[子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要",
+      "context": "",
+      "parentId": "t-71aeb3",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-674796",
+          "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+          "trigger": "auto",
+          "startedAt": 1790610254190,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 3024,
+              "at": 1790610276307,
+              "totals": {
+                "uncachedInputTokens": 3933193,
+                "outputTokens": 408115,
+                "cacheReadTokens": 63812096,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 3024,
+              "at": 1790610276333,
+              "totals": {
+                "uncachedInputTokens": 3933193,
+                "outputTokens": 408115,
+                "cacheReadTokens": 63812096,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790610276314
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1790610254061,
+      "updatedAt": 1790612160364,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790610254061,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790610276305,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790610276314,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 4,
+      "claimedAt": 1790610254190,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790610276305,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790610276305,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/client/styles/node-panel.ts",
+          "packages/web/dsh-pmboard/tests/node-panel-styles.test.ts"
+        ],
+        "completed": [
+          "dev 卡完成：node-panel 样式新增项目看板入口按钮与入口失败提示两条作用域内规则，并在样式测试补 TC-14。核对确认两处改动已落盘在工作区（git 未提交 diff 与父卡方案逐条一致，未做二次覆盖写入）；.dsh-pm-np-head-time 的 margin-left:auto 未改动。TC-14 覆盖三项：入口按钮作用域内且不裁切可点（flex:none + min-height）、失败提示仅挂 .dsh-pm-cprog-detail-panel 外壳、head 行保留 flex-wrap。"
+        ]
+      }
+    },
+    {
+      "id": "t-c5ae63",
+      "requirementId": "REQ-260928222643-4d34",
+      "title": "styles/node-panel.ts 新增入口按钮与失败提示两条规则·联调",
+      "description": "子卡阶段：联调",
+      "phase": "ui",
+      "side": "frontend",
+      "dependsOn": [
+        "t-0fc58f"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "在 packages/web/dsh-pmboard 下执行：npx vitest run tests/node-panel-styles.test.ts（期望 15 passed、exit 0）；并核对 src/client/styles/node-panel.ts 新增规则被 node-panel.ts 渲染出的 class 引用。",
+      "implementation": "新增 .dsh-pm-np-board-entry（flex:none、min-height、胶囊、hover）与 .dsh-pm-cprog-detail-panel .dsh-pm-np-entry-err 两条作用域内规则；不动 head-time 的 margin-left:auto；tests/node-panel-styles.test.ts 加 TC-14。\n\n[子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致",
+      "context": "",
+      "parentId": "t-71aeb3",
+      "stageKind": "integrate",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-28e30c",
+          "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+          "trigger": "auto",
+          "startedAt": 1790610276484,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 3025,
+              "at": 1790610389889,
+              "totals": {
+                "uncachedInputTokens": 3933193,
+                "outputTokens": 408115,
+                "cacheReadTokens": 63812096,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 3025,
+              "at": 1790610389913,
+              "totals": {
+                "uncachedInputTokens": 3933193,
+                "outputTokens": 408115,
+                "cacheReadTokens": 63812096,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790610389896
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1790610254061,
+      "updatedAt": 1790612160413,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790610254061,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790610389887,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790610389896,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 5,
+      "claimedAt": 1790610276484,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790610389887,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790610389887,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "联调通过（34/34 断言一致）：以**真实渲染器 + 真实 injectStyles() 注入的 CSS（117316 字符全量 bundle）+ 真实浏览器（Chrome headless）**做端到端取数，请求样例与期望响应逐项一致。请求样例：DOM = renderNodePanel(design, REQ-test) 的真实输出，装入 conversation-progress.ts L345-378 同款外壳（.dsh-pm-cprog-detail-panel > [.dsh-pm-np-close, .dsh-pm-np-entry-err(role=alert), .dsh-pm-cprog-stage-detail>面板]）+ styles.ts injectStyles() 注入的 <style>。期望响应 → 实际响应（window.getComputedStyle）：入口按钮 .dsh-pm-np-board-entry flexGrow/flexShrink/flexBasis=0/0/auto（即 flex:none）、minHeight=20px、实渲染 79×22px（不裁切、有可点面积）、borderRadius=980px、padding=1px 8px、fontSize=11.5px、lineHeight=18px、whiteSpace=nowrap、cursor=pointer、border=1px solid rgb(0,113,227)、color=rgb(0,113,227)、背景透明；hover 规则被 CSSOM 解析为 background:rgba(0,113,227,0.08)。失败提示 .dsh-pm-cprog-detail-panel .dsh-pm-np-entry-err：color=rgb(192,57,43)（#c0392b）、fontSize=12px、padding=6px 2px、lineHeight=18px（1.5×12）、offsetHeight=30（就地可见，不静默）。作用域反面样本：同 class 且位于面板外壳之外的 .dsh-pm-np-entry-err 计算样式仍为默认（rgb(0,0,0)/16px/0px），证明规则不外溢。消费端契约（conversation-progress.ts L249 的委托选择器）：按钮 .closest(\"[data-action=np-board-entry]\") 命中自身且 data-req 读出 REQ-test，与 node-panel.ts L307 的产出端逐字对齐。父卡约束核对：.dsh-pm-np-head-time 的 margin-left:auto 在浏览器 CSSOM 中原样保留（未被动）。边界遵守：未重复跑父卡终态验收（tests/node-panel-styles.test.ts）、未改写任何实现；探针页与取数脚本只落在 /tmp/np-integrate/。"
+        ]
+      }
+    },
+    {
+      "id": "t-defa17",
+      "requirementId": "REQ-260928222643-4d34",
+      "title": "styles/node-panel.ts 新增入口按钮与失败提示两条规则·复核",
+      "description": "子卡阶段：复核",
+      "phase": "ui",
+      "side": "frontend",
+      "dependsOn": [
+        "t-c5ae63"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "在 packages/web/dsh-pmboard 下执行：npx vitest run tests/node-panel-styles.test.ts（期望 15 passed）；再对照 docs/requirements/REQ-260928222643-4d34/design/frontend.md 与 src/client/styles/node-panel.ts，逐条给出「无偏离」或偏离条目。",
+      "implementation": "新增 .dsh-pm-np-board-entry（flex:none、min-height、胶囊、hover）与 .dsh-pm-cprog-detail-panel .dsh-pm-np-entry-err 两条作用域内规则；不动 head-time 的 margin-left:auto；tests/node-panel-styles.test.ts 加 TC-14。\n\n[子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-71aeb3",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-926017",
+          "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+          "trigger": "auto",
+          "startedAt": 1790610428548,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 3050,
+              "at": 1790610465897,
+              "totals": {
+                "uncachedInputTokens": 4192898,
+                "outputTokens": 409465,
+                "cacheReadTokens": 63820928,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 3050,
+              "at": 1790610465921,
+              "totals": {
+                "uncachedInputTokens": 4192898,
+                "outputTokens": 409465,
+                "cacheReadTokens": 63820928,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790610465905
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1790610254061,
+      "updatedAt": 1790612160464,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790610254061,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790610465895,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790610465905,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 6,
+      "claimedAt": 1790610428548,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790610465895,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790610465895,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "逐条比对设计（design/frontend.md P-2、design/test-cases.md TC-14、decomposition.md t6）与实现（styles/node-panel.ts、tests/node-panel-styles.test.ts）：1) .dsh-pm-np-board-entry 规则 11 项声明值逐字一致、:hover 与原型一致；2) .dsh-pm-cprog-detail-panel .dsh-pm-np-entry-err 三项声明值逐字一致；3) .dsh-pm-np-head-time 的 margin-left:auto 未动、:root 令牌零变更；4) 两条新规则作用域合法，失败提示元素确实渲染在 .dsh-pm-cprog-detail-panel 内（conversation-progress.ts L357/L378），后代选择器真实生效；5) TC-14 三个断言覆盖设计要求。结论：无偏离。依据为 git diff 逐行核验与设计文档逐值对照，未运行父卡终态验收（该命令属测试段，且本步边界禁止执行）。"
+        ]
+      }
+    },
+    {
+      "id": "t-95e056",
+      "requirementId": "REQ-260928222643-4d34",
+      "title": "styles/node-panel.ts 新增入口按钮与失败提示两条规则·测试",
+      "description": "子卡阶段：测试",
+      "phase": "ui",
+      "side": "frontend",
+      "dependsOn": [
+        "t-defa17"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "在 packages/web/dsh-pmboard 下执行：npx vitest run tests/node-panel-styles.test.ts tests/node-panel.test.ts（期望 15 + 27 passed、exit 0）。",
+      "implementation": "新增 .dsh-pm-np-board-entry（flex:none、min-height、胶囊、hover）与 .dsh-pm-cprog-detail-panel .dsh-pm-np-entry-err 两条作用域内规则；不动 head-time 的 margin-left:auto；tests/node-panel-styles.test.ts 加 TC-14。\n\n[子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）",
+      "context": "",
+      "parentId": "t-71aeb3",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-848335",
+          "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+          "trigger": "auto",
+          "startedAt": 1790610466080,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 3054,
+              "at": 1790610501070,
+              "totals": {
+                "uncachedInputTokens": 4193762,
+                "outputTokens": 410823,
+                "cacheReadTokens": 64090752,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 3054,
+              "at": 1790610501095,
+              "totals": {
+                "uncachedInputTokens": 4193762,
+                "outputTokens": 410823,
+                "cacheReadTokens": 64090752,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790610501080
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1790610254061,
+      "updatedAt": 1790612160515,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790610254061,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790610501068,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790610501080,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 7,
+      "claimedAt": 1790610466080,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790610501068,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790610501068,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "父卡 t-71aeb3「styles/node-panel.ts 新增入口按钮与失败提示两条规则」终态验收命令两条全绿：样式测试文件退出码 0、1 文件 / 15 用例全过（TC-11 既有作用域断言 12 条 + TC-14 新增 3 条）；两条新规则 grep 均命中（L68 入口按钮、L76 作用域内失败提示）。只读复核确认规则声明与父卡方案一致、head-time 的 margin-left:auto 未被动。本卡为测试段，未改动任何代码。"
+        ]
+      }
+    },
+    {
+      "id": "t-4397da",
+      "requirementId": "REQ-260928222643-4d34",
+      "title": "迁移与兼容核验：无 schema 变更、旧调用方与看板消费方零回归·研发",
+      "description": "子卡阶段：研发",
+      "phase": "test",
+      "side": "frontend",
+      "dependsOn": [
+        "t-e481a4",
+        "t-9b365a"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "在仓库根执行：git diff -- packages/web/dsh-pmboard/src | grep -n \"REQBOARD_SCHEMA_VERSION\\|schemaVersion\"（期望无 schema 版本改动命中）；并 grep -rn \"REQBOARD_SCHEMA_VERSION\" packages/web/dsh-pmboard/src/shared/protocol.ts 比对取值未变。",
+      "implementation": "反面断言看板消费方保留（board-mount.ts 的 fetchInjectionInfo 恰好 1 处、api.ts 两函数保留、node-panel-process.ts 函数保留、后端 injection-log/isolation-log 路由保留）；调用方收敛断言；非粘滞断言；git diff 变更面与 REQBOARD_SCHEMA_VERSION 未变核对；记录回滚路径。\n\n[子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要",
+      "context": "",
+      "parentId": "t-316227",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-2da7c3",
+          "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+          "trigger": "auto",
+          "startedAt": 1790610501525,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 3055,
+              "at": 1790610637883,
+              "totals": {
+                "uncachedInputTokens": 4193762,
+                "outputTokens": 410823,
+                "cacheReadTokens": 64090752,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 3055,
+              "at": 1790610637908,
+              "totals": {
+                "uncachedInputTokens": 4193762,
+                "outputTokens": 410823,
+                "cacheReadTokens": 64090752,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790610637892
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1790610501375,
+      "updatedAt": 1790612160562,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790610501375,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790610637881,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790610637892,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 4,
+      "claimedAt": 1790610501525,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790610637881,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790610637881,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/tests/compat-regression.test.ts"
+        ],
+        "completed": [
+          "本卡（父卡 t-316227「迁移与兼容核验：无 schema 变更、旧调用方与看板消费方零回归」·研发段 REQ-260928222643-4d34）把父卡实施方案里的静态/反面断言做成可执行的 vitest 用例并落盘：新增 packages/web/dsh-pmboard/tests/compat-regression.test.ts（头部含 serves: FR-4, FR-5，经内容门 extractServes 实测识别为 [\"FR-4\",\"FR-5\"]），共 7 条断言——C-1 反面断言：board-mount.ts 的 fetchInjectionInfo 恰好 1 处且仍是 api.fetchInjectionInfo( 真实调用（防「按整目录 grep 一把删」误伤看板）；C-2 api.ts 的 fetchInjectionInfo/fetchIsolationLog 仍在导出面；C-3 node-panel-process.ts 的 renderProcessFold/ProcessFoldContext 函数本体保留、node-panel.ts 已断调用；C-4 后端两条只读路由保留（routes.ts 的 sub === injection-log/isolation-log 分发 + 两个 router 的 handle* 导出）；C-5 调用方收敛（递归遍历 src/ 断言 NodePanelInput 只出现在 node-panel.ts，且 node-panel.ts/conversation-progress.ts 零 injection/isolation 字样）；C-6 非粘滞（board-focus.ts/board-entry.ts 无 localStorage/sessionStorage/URLSearchParams/location.hash/location.search/window.history/document.cookie）；C-7 REQBOARD_SCHEMA_VERSION 仍导出且为整数（形状未变）。与既有 tests/node-panel.test.ts 的 TC-5/TC-5′「一句话断言」互补，未改动任何生产代码、未改台账字段、未动 REQBOARD_SCHEMA_VERSION 版本值。本卡只做本卡范围：git diff 变更面与版本值未变的版本级核对、以及回滚路径写入验收材料，留给父卡证据/测试段执行，未跑全量测试与 build:client。"
+        ]
+      }
+    },
+    {
+      "id": "t-a2ba2f",
+      "requirementId": "REQ-260928222643-4d34",
+      "title": "迁移与兼容核验：无 schema 变更、旧调用方与看板消费方零回归·复核",
+      "description": "子卡阶段：复核",
+      "phase": "test",
+      "side": "frontend",
+      "dependsOn": [
+        "t-4397da"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "在 packages/web/dsh-pmboard 下执行：npx vitest run tests/board-mount.test.ts tests/client-api-resolve.test.ts（期望全绿、exit 0）；再对照 docs/requirements/REQ-260928222643-4d34/design/data-model.md 逐条确认无字段/schema 变更。",
+      "implementation": "反面断言看板消费方保留（board-mount.ts 的 fetchInjectionInfo 恰好 1 处、api.ts 两函数保留、node-panel-process.ts 函数保留、后端 injection-log/isolation-log 路由保留）；调用方收敛断言；非粘滞断言；git diff 变更面与 REQBOARD_SCHEMA_VERSION 未变核对；记录回滚路径。\n\n[子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-316227",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-880eac",
+          "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+          "trigger": "auto",
+          "startedAt": 1790610640391,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 3056,
+              "at": 1790610764289,
+              "totals": {
+                "uncachedInputTokens": 4193762,
+                "outputTokens": 410823,
+                "cacheReadTokens": 64090752,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 3056,
+              "at": 1790610764311,
+              "totals": {
+                "uncachedInputTokens": 4193762,
+                "outputTokens": 410823,
+                "cacheReadTokens": 64090752,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790610764296
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1790610501375,
+      "updatedAt": 1790612160611,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790610501375,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790610764288,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790610764296,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 5,
+      "claimedAt": 1790610640391,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790610764288,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790610764288,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "对 REQ-260928222643-4d34 父卡 t-316227「迁移与兼容核验」逐条给出设计与实现偏离结论：无偏离。①反面断言（看板消费方保留）：board-mount.ts 的 fetchInjectionInfo 恰好 1 处且为真实调用，api.ts 两函数保留，node-panel-process.ts 的 renderProcessFold/ProcessFoldContext 函数本体保留，后端 /injection-log、/isolation-log 两条只读路由与处理器保留——逐项与设计 I-7/父卡实施方案一致。②调用方收敛：NodePanelInput 全 src 仅渲染器 node-panel.ts 使用，唯一调用方 conversation-progress.ts 已改内联调用且两文件零 injection/isolation，设计 T-4 的「唯一调用点同批修改、无遗留调用方」成立。③非粘滞：board-focus.ts/board-entry.ts 对 storage/URL/history/cookie 零命中，符合 T-1/T-3。④schema 与变更面：REQBOARD_SCHEMA_VERSION 仍为 9（HEAD 同值、该行不在 diff 中）；变更面核对因工作区含多需求并发改动而只能收敛为「本需求相关文件 + 版本行未变」，非实现偏离。⑤回滚路径已在 design/architecture.md 与 t-316227 汇报中留痕（git revert → build:client 过哨兵 → restart-with-build.sh）。结论：该卡产出（compat-regression.test.ts C-1~C-7）与在盘代码状态一致（7/7 独立复现通过），不存在设计↔实现偏离；上列 4 条为口径/文档/环境类观察，不阻断验收。"
+        ]
+      }
+    },
+    {
+      "id": "t-b447b1",
+      "requirementId": "REQ-260928222643-4d34",
+      "title": "迁移与兼容核验：无 schema 变更、旧调用方与看板消费方零回归·测试",
+      "description": "子卡阶段：测试",
+      "phase": "test",
+      "side": "frontend",
+      "dependsOn": [
+        "t-a2ba2f"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "在 packages/web/dsh-pmboard 下完整执行一次 npx vitest run，与基线同刻对比：期望新增红 0（失败文件/用例数不高于开工基线），且 board-focus / board-entry / node-panel / node-panel-styles / board-attach 五文件全绿。",
+      "implementation": "反面断言看板消费方保留（board-mount.ts 的 fetchInjectionInfo 恰好 1 处、api.ts 两函数保留、node-panel-process.ts 函数保留、后端 injection-log/isolation-log 路由保留）；调用方收敛断言；非粘滞断言；git diff 变更面与 REQBOARD_SCHEMA_VERSION 未变核对；记录回滚路径。\n\n[子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）",
+      "context": "",
+      "parentId": "t-316227",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-d01aef",
+          "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+          "trigger": "auto",
+          "startedAt": 1790611494964,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 3238,
+              "at": 1790611554207,
+              "totals": {
+                "uncachedInputTokens": 4731440,
+                "outputTokens": 437246,
+                "cacheReadTokens": 69345792,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 3238,
+              "at": 1790611554230,
+              "totals": {
+                "uncachedInputTokens": 4731440,
+                "outputTokens": 437246,
+                "cacheReadTokens": 69345792,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790611554215
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1790610501375,
+      "updatedAt": 1790612160660,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790610501375,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790611554205,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790611554215,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 6,
+      "claimedAt": 1790611494964,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790611554205,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790611554205,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "REQ-260928222643-4d34 父卡 t-316227「迁移与兼容核验」测试段（t-b447b1）逐条执行父卡终态验收命令，全部全绿，未改任何代码：\n① board-mount.ts fetchInjectionInfo 计数=1（真实调用 api.fetchInjectionInfo(...)，exit 0）；\n② node-panel-process.ts:378 export function renderProcessFold 命中（exit 0），node-panel.ts 对该函数零引用（exit 1）——只断调用不删函数；\n③ grep -rn NodePanelInput src/ 仅 node-panel.ts（3 处，exit 0），无第三文件，conversation-progress.ts 为 0（白名单严格子集）；\n④ git diff protocol.ts 真存在改动（+19/-2），但 diff 内无任何 REQBOARD_SCHEMA_VERSION 行，常量 HEAD 与工作区同为 9 —— 无 schema 变更；\n⑤ api.ts 两函数（L53/L68）与后端 injection-log/isolation-log 路由（routes.ts L193/L195，routers 导出由 C-4 断言）原样保留；\n⑥ 非粘滞断言通过（board-focus.ts/board-entry.ts 无 storage/URL/window 痕迹）；\n⑦ 本卡门禁 vitest tests/compat-regression.test.ts 7/7 pass（exit 0），零回归扩检 7 个套件 77/77 pass（exit 0）；\n⑧ 回滚路径已记录（回退源码 + pnpm build:client + 重启，台账/后端无残留）。结论：无 schema 变更、旧调用方与看板消费方零回归，verdict=pass。"
+        ]
+      }
+    },
+    {
+      "id": "t-2f5de9",
+      "requirementId": "REQ-260928222643-4d34",
+      "title": "重建客户端产物并发版，完成 TC-15 端到端人工验收·研发",
+      "description": "子卡阶段：研发",
+      "phase": "merge",
+      "side": "fullstack",
+      "dependsOn": [
+        "t-71aeb3",
+        "t-316227"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "在 packages/web/dsh-pmboard 下执行：pnpm build:client（期望 [verify-client] OK、关键符号齐全、styles.ts 括号配对、exit 0）；并 ls -la lib/client.js 确认产物已刷新。",
+      "implementation": "全量 npx vitest run + pnpm run typecheck；pnpm build:client 过 WRAP_SENTINEL 哨兵与产物校验；agent-dh/scripts/restart-with-build.sh 发版；在 :13080 做 TC-15 四步人工闭环并留证。\n\n[子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要",
+      "context": "",
+      "parentId": "t-29b629",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-299aa6",
+          "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+          "trigger": "auto",
+          "startedAt": 1790611554701,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 3239,
+              "at": 1790611687903,
+              "totals": {
+                "uncachedInputTokens": 4731440,
+                "outputTokens": 437246,
+                "cacheReadTokens": 69345792,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 3239,
+              "at": 1790611687931,
+              "totals": {
+                "uncachedInputTokens": 4731440,
+                "outputTokens": 437246,
+                "cacheReadTokens": 69345792,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790611687912
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1790611554550,
+      "updatedAt": 1790612160709,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790611554550,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790611687901,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790611687912,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 5,
+      "claimedAt": 1790611554701,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790611687901,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790611687901,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/scripts/verify-client-build.mjs",
+          "docs/requirements/REQ-260928222643-4d34/evidence/t-2f5de9-dev.md",
+          "packages/web/dsh-pmboard/src/client/node-panel.ts",
+          "packages/web/dsh-pmboard/src/client/conversation-progress.ts",
+          "packages/web/dsh-pmboard/src/client/board-mount.ts",
+          "packages/web/dsh-pmboard/src/client/styles/node-panel.ts"
+        ],
+        "completed": [
+          "t-2f5de9 研发段：核验本卡（合并卡「重建客户端产物并发版」）实现面已落盘，并补上产物门禁缺口，产出可复核凭证。 ① 本段生产改动：scripts/verify-client-build.mjs 的 must 锚点表新增 dsh-pm-np-board-entry（FR-1 入口）与 dsh-pm-np-entry-err（FR-3 失败提示）——本卡实施方案要求「build:client 过 WRAP_SENTINEL 哨兵与产物校验」，而产物校验此前不覆盖本需求核心 UI 产物，构建丢掉入口按钮时门禁不会响；两锚点已确认存在于 lib/client.js（命中 3/2），门禁由不覆盖变为硬阻断。该脚本非打包输入，改它不需要重建产物。 ② 落盘凭证：新增 docs/requirements/REQ-260928222643-4d34/evidence/t-2f5de9-dev.md（研发段记录：改动点 file:line 证据、命令与输出摘要、故障注入实测、交接测试段/人工验收的 TC-15 四步、显式声明未做的事）。 ③ 实现面核验（上游卡产出，本段只读核验，未改源码）：node-panel.ts:307 入口按钮且 renderProcessFold/「执行流程」命中 0；conversation-progress.ts:249 点击→activateBoardEntry 校验→失败就地提示(L357 role=alert,不切页,L263)/成功 closePanel+selectPanel(L264-265)，且 fetchInjectionInfo|fetchIsolationLog 命中 0；board-mount.ts:184 takeBoardFocus；styles/node-panel.ts:68/73/76 两条新规则。 ④ 产物新鲜度：lib/client.js 09-29 00:05、dist/index.mjs 09-29 00:04，find src -newer lib/client.js 为空；WRAP_SENTINEL 哨兵顶格未被行首注入污染。 ⑤ 边界遵守：未跑全量 vitest / pnpm typecheck / pnpm build:client / 未发版重启 / 未在 :13080 点击（TC-15 四步交人工），均属测试段与人工验收范围。"
+        ]
+      }
+    },
+    {
+      "id": "t-247597",
+      "requirementId": "REQ-260928222643-4d34",
+      "title": "重建客户端产物并发版，完成 TC-15 端到端人工验收·复核",
+      "description": "子卡阶段：复核",
+      "phase": "merge",
+      "side": "fullstack",
+      "dependsOn": [
+        "t-2f5de9"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "在 packages/web/dsh-pmboard 下执行：pnpm build:client（期望 exit 0 且 [verify-client] OK）；再对照 docs/requirements/REQ-260928222643-4d34/design/frontend.md 逐条给出「无偏离」或偏离条目。",
+      "implementation": "全量 npx vitest run + pnpm run typecheck；pnpm build:client 过 WRAP_SENTINEL 哨兵与产物校验；agent-dh/scripts/restart-with-build.sh 发版；在 :13080 做 TC-15 四步人工闭环并留证。\n\n[子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-29b629",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-4d15bf",
+          "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+          "trigger": "auto",
+          "startedAt": 1790611688092,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 3240,
+              "at": 1790611848978,
+              "totals": {
+                "uncachedInputTokens": 4731440,
+                "outputTokens": 437246,
+                "cacheReadTokens": 69345792,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd",
+              "seq": 3240,
+              "at": 1790611849005,
+              "totals": {
+                "uncachedInputTokens": 4731440,
+                "outputTokens": 437246,
+                "cacheReadTokens": 69345792,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790611848986
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1790611554550,
+      "updatedAt": 1790612160759,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790611554550,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790611848975,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790611848986,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 6,
+      "claimedAt": 1790611688092,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790611848975,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790611848975,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "对 design（architecture.md / interfaces.md I-1~I-7 / data-model.md T-1~T-5 / frontend.md P-1~P-5 / test-cases.md TC-1~TC-15）与实现逐条比对：无功能性/行为性偏离——FR-1~FR-5 五条不变量（导航唯一来源、先校验后切页、一次性非粘滞、失败可见、动面板不动看板）在源码层面逐条成立；节点面板入口、一次性交接持有器、看板挂载消费与陈旧回退、两条留痕保留项、无 schema/无持久化变更、入口与失败提示作用域样式均与设计一致。发现 3 处非阻断偏差（TC-7/TC-8 测试落点、既有断言删除范围略超设计枚举、node-panel-styles.test.ts 的 serves 头注不在前 20 行）+ 1 处设计改动清单未覆盖的构建门禁增强（verify-client-build.mjs 两条 must 锚点，属父卡实施步骤 2）+ 1 项交付态待办（改动仍在共享脏工作树未提交，设计回滚路径以 git revert 交付提交为前提；发版与 TC-15 人工四步未执行，属测试段/人工）。结论：设计与实现无功能偏离，偏差均非阻断。"
+        ]
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "t-3e952f",
+      "to": "t-dd5ba9"
+    },
+    {
+      "from": "t-dd5ba9",
+      "to": "t-2eb71d"
+    },
+    {
+      "from": "t-2eb71d",
+      "to": "t-e481a4"
+    },
+    {
+      "from": "t-3e952f",
+      "to": "t-9b365a"
+    },
+    {
+      "from": "t-e481a4",
+      "to": "t-71aeb3"
+    },
+    {
+      "from": "t-e481a4",
+      "to": "t-316227"
+    },
+    {
+      "from": "t-9b365a",
+      "to": "t-316227"
+    },
+    {
+      "from": "t-71aeb3",
+      "to": "t-29b629"
+    },
+    {
+      "from": "t-316227",
+      "to": "t-29b629"
+    },
+    {
+      "from": "t-1f9da5",
+      "to": "t-58ef99"
+    },
+    {
+      "from": "t-58ef99",
+      "to": "t-017d4e"
+    },
+    {
+      "from": "t-017d4e",
+      "to": "t-b22075"
+    },
+    {
+      "from": "t-3e952f",
+      "to": "t-cb9237"
+    },
+    {
+      "from": "t-cb9237",
+      "to": "t-bfdf5c"
+    },
+    {
+      "from": "t-bfdf5c",
+      "to": "t-687740"
+    },
+    {
+      "from": "t-687740",
+      "to": "t-9aa159"
+    },
+    {
+      "from": "t-dd5ba9",
+      "to": "t-23961d"
+    },
+    {
+      "from": "t-23961d",
+      "to": "t-1d3596"
+    },
+    {
+      "from": "t-1d3596",
+      "to": "t-bcca7b"
+    },
+    {
+      "from": "t-bcca7b",
+      "to": "t-33f31b"
+    },
+    {
+      "from": "t-2eb71d",
+      "to": "t-9f7598"
+    },
+    {
+      "from": "t-9f7598",
+      "to": "t-e3785d"
+    },
+    {
+      "from": "t-e3785d",
+      "to": "t-43763b"
+    },
+    {
+      "from": "t-43763b",
+      "to": "t-86d2f9"
+    },
+    {
+      "from": "t-3e952f",
+      "to": "t-1725e5"
+    },
+    {
+      "from": "t-1725e5",
+      "to": "t-fe79d8"
+    },
+    {
+      "from": "t-fe79d8",
+      "to": "t-95a1f1"
+    },
+    {
+      "from": "t-95a1f1",
+      "to": "t-f8052d"
+    },
+    {
+      "from": "t-e481a4",
+      "to": "t-0fc58f"
+    },
+    {
+      "from": "t-0fc58f",
+      "to": "t-c5ae63"
+    },
+    {
+      "from": "t-c5ae63",
+      "to": "t-defa17"
+    },
+    {
+      "from": "t-defa17",
+      "to": "t-95e056"
+    },
+    {
+      "from": "t-e481a4",
+      "to": "t-4397da"
+    },
+    {
+      "from": "t-9b365a",
+      "to": "t-4397da"
+    },
+    {
+      "from": "t-4397da",
+      "to": "t-a2ba2f"
+    },
+    {
+      "from": "t-a2ba2f",
+      "to": "t-b447b1"
+    },
+    {
+      "from": "t-71aeb3",
+      "to": "t-2f5de9"
+    },
+    {
+      "from": "t-316227",
+      "to": "t-2f5de9"
+    },
+    {
+      "from": "t-2f5de9",
+      "to": "t-247597"
+    }
+  ],
+  "layers": [
+    {
+      "layer": 0,
+      "tasks": [
+        "t-3e952f",
+        "t-1f9da5"
+      ]
+    },
+    {
+      "layer": 1,
+      "tasks": [
+        "t-dd5ba9",
+        "t-9b365a",
+        "t-cb9237",
+        "t-1725e5",
+        "t-58ef99"
+      ]
+    },
+    {
+      "layer": 2,
+      "tasks": [
+        "t-2eb71d",
+        "t-23961d",
+        "t-bfdf5c",
+        "t-fe79d8",
+        "t-017d4e"
+      ]
+    },
+    {
+      "layer": 3,
+      "tasks": [
+        "t-e481a4",
+        "t-9f7598",
+        "t-1d3596",
+        "t-687740",
+        "t-95a1f1",
+        "t-b22075"
+      ]
+    },
+    {
+      "layer": 4,
+      "tasks": [
+        "t-71aeb3",
+        "t-316227",
+        "t-0fc58f",
+        "t-4397da",
+        "t-e3785d",
+        "t-bcca7b",
+        "t-9aa159",
+        "t-f8052d"
+      ]
+    },
+    {
+      "layer": 5,
+      "tasks": [
+        "t-29b629",
+        "t-2f5de9",
+        "t-c5ae63",
+        "t-a2ba2f",
+        "t-43763b",
+        "t-33f31b"
+      ]
+    },
+    {
+      "layer": 6,
+      "tasks": [
+        "t-247597",
+        "t-defa17",
+        "t-b447b1",
+        "t-86d2f9"
+      ]
+    },
+    {
+      "layer": 7,
+      "tasks": [
+        "t-95e056"
+      ]
+    }
+  ],
+  "ready": [],
+  "updated_at": "2026-09-28T23:14:14.468Z"
+}

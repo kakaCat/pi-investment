@@ -1,0 +1,227 @@
+metadata:
+  stage: implementing
+  requirement_id: REQ-260927121324-abde
+  generated_at: 2026-09-27T04:41:45.610Z
+  version: 11
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 42
+  last_updated: 2026-09-27T07:21:28.436Z
+inputs:
+  tasks:
+    - id: t-806d6e
+      title: 新增执行快照收敛助手（任务执行唯一写入口）
+      status: done
+    - id: t-f6ee83
+      title: 需求迁移写路径统一经收敛点并带写时快照
+      status: done
+    - id: t-030788
+      title: agent 任务执行与中途汇报改经执行助手
+      status: done
+    - id: t-15c076
+      title: 看板任务流转/建卡改卡带写时快照
+      status: done
+    - id: t-00bed8
+      title: 自动链任务执行与接手推进改经执行助手并带快照
+      status: done
+    - id: t-a6293c
+      title: 读路径把快照缺失与不可得同等计入 degraded
+      status: done
+    - id: t-9b87a6
+      title: 新增执行与迁移收敛的结构守卫单测
+      status: done
+    - id: t-49d8d4
+      title: 补看板/自动链/读路径行为用例并锁死四条验收命令
+      status: in_progress
+    - id: t-4b6ff4
+      title: 迁移与兼容验证（无 schema 变更 / 旧台账可载入 / 回滚路径）
+      status: todo
+    - id: t-5a68f8
+      title: 同步说明书与 RTM（写路径收敛与验收命令）
+      status: todo
+    - id: t-882d5d
+      title: 新增执行快照收敛助手（任务执行唯一写入口）·研发
+      status: done
+    - id: t-6b6559
+      title: 新增执行快照收敛助手（任务执行唯一写入口）·联调
+      status: done
+    - id: t-f9462e
+      title: 新增执行快照收敛助手（任务执行唯一写入口）·复核
+      status: done
+    - id: t-c48502
+      title: 新增执行快照收敛助手（任务执行唯一写入口）·测试
+      status: done
+    - id: t-eaafd0
+      title: agent 任务执行与中途汇报改经执行助手·研发
+      status: done
+    - id: t-4cbf34
+      title: agent 任务执行与中途汇报改经执行助手·联调
+      status: done
+    - id: t-fdecb4
+      title: agent 任务执行与中途汇报改经执行助手·复核
+      status: done
+    - id: t-8298de
+      title: agent 任务执行与中途汇报改经执行助手·测试
+      status: done
+    - id: t-7d64e0
+      title: 需求迁移写路径统一经收敛点并带写时快照·研发
+      status: done
+    - id: t-b36ec5
+      title: 需求迁移写路径统一经收敛点并带写时快照·联调
+      status: done
+    - id: t-613fa5
+      title: 需求迁移写路径统一经收敛点并带写时快照·复核
+      status: done
+    - id: t-be396c
+      title: 需求迁移写路径统一经收敛点并带写时快照·测试
+      status: done
+    - id: t-726c22
+      title: 看板任务流转/建卡改卡带写时快照·研发
+      status: done
+    - id: t-2ccb60
+      title: 看板任务流转/建卡改卡带写时快照·联调
+      status: done
+    - id: t-ea3f3b
+      title: 看板任务流转/建卡改卡带写时快照·复核
+      status: done
+    - id: t-fc2982
+      title: 看板任务流转/建卡改卡带写时快照·测试
+      status: done
+    - id: t-86bafa
+      title: 自动链任务执行与接手推进改经执行助手并带快照·研发
+      status: done
+    - id: t-a5b887
+      title: 自动链任务执行与接手推进改经执行助手并带快照·联调
+      status: done
+    - id: t-784718
+      title: 自动链任务执行与接手推进改经执行助手并带快照·复核
+      status: done
+    - id: t-0bacf5
+      title: 自动链任务执行与接手推进改经执行助手并带快照·测试
+      status: done
+    - id: t-5e6e51
+      title: 读路径把快照缺失与不可得同等计入 degraded·研发
+      status: done
+    - id: t-d7795b
+      title: 读路径把快照缺失与不可得同等计入 degraded·联调
+      status: done
+    - id: t-cf1a8b
+      title: 读路径把快照缺失与不可得同等计入 degraded·复核
+      status: done
+    - id: t-073d46
+      title: 读路径把快照缺失与不可得同等计入 degraded·测试
+      status: done
+    - id: t-d108cf
+      title: 新增执行与迁移收敛的结构守卫单测·研发
+      status: done
+    - id: t-2a1ea4
+      title: 新增执行与迁移收敛的结构守卫单测·联调
+      status: done
+    - id: t-bf3d34
+      title: 新增执行与迁移收敛的结构守卫单测·复核
+      status: done
+    - id: t-e00ebb
+      title: 新增执行与迁移收敛的结构守卫单测·测试
+      status: done
+    - id: t-fb1c62
+      title: 补看板/自动链/读路径行为用例并锁死四条验收命令·研发
+      status: todo
+    - id: t-83fb68
+      title: 补看板/自动链/读路径行为用例并锁死四条验收命令·联调
+      status: todo
+    - id: t-05e238
+      title: 补看板/自动链/读路径行为用例并锁死四条验收命令·复核
+      status: todo
+    - id: t-87b7e9
+      title: 补看板/自动链/读路径行为用例并锁死四条验收命令·测试
+      status: todo
+status:
+  tasks_total: 42
+  tasks_done: 35
+  tasks_in_progress: 1
+  tasks_todo: 6
+tasks:
+  - id: t-806d6e
+    status: done
+  - id: t-f6ee83
+    status: done
+  - id: t-030788
+    status: done
+  - id: t-15c076
+    status: done
+  - id: t-00bed8
+    status: done
+  - id: t-a6293c
+    status: done
+  - id: t-9b87a6
+    status: done
+  - id: t-49d8d4
+    status: in_progress
+  - id: t-4b6ff4
+    status: todo
+  - id: t-5a68f8
+    status: todo
+  - id: t-882d5d
+    status: done
+  - id: t-6b6559
+    status: done
+  - id: t-f9462e
+    status: done
+  - id: t-c48502
+    status: done
+  - id: t-eaafd0
+    status: done
+  - id: t-4cbf34
+    status: done
+  - id: t-fdecb4
+    status: done
+  - id: t-8298de
+    status: done
+  - id: t-7d64e0
+    status: done
+  - id: t-b36ec5
+    status: done
+  - id: t-613fa5
+    status: done
+  - id: t-be396c
+    status: done
+  - id: t-726c22
+    status: done
+  - id: t-2ccb60
+    status: done
+  - id: t-ea3f3b
+    status: done
+  - id: t-fc2982
+    status: done
+  - id: t-86bafa
+    status: done
+  - id: t-a5b887
+    status: done
+  - id: t-784718
+    status: done
+  - id: t-0bacf5
+    status: done
+  - id: t-5e6e51
+    status: done
+  - id: t-d7795b
+    status: done
+  - id: t-cf1a8b
+    status: done
+  - id: t-073d46
+    status: done
+  - id: t-d108cf
+    status: done
+  - id: t-2a1ea4
+    status: done
+  - id: t-bf3d34
+    status: done
+  - id: t-e00ebb
+    status: done
+  - id: t-fb1c62
+    status: todo
+  - id: t-83fb68
+    status: todo
+  - id: t-05e238
+    status: todo
+  - id: t-87b7e9
+    status: todo

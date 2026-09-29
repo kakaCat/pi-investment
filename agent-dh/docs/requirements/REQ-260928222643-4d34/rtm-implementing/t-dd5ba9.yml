@@ -1,0 +1,36 @@
+task:
+  id: t-dd5ba9
+  title: 新增入口校验纯函数 src/client/board-entry.ts
+  status: done
+  implements: 新建 board-entry.ts：activateBoardEntry(reqId,deps) 顺序 ①layout 可用性→②reqId 形状→③isKnown 台账可达性→④requestFocus；失败返回 {ok:false,reason,message} 且零副作用；文案对齐 interfaces.md I-2；新建 tests/board-entry.test.ts 覆盖 TC-9~13。
+  serves: []
+  depends_on:
+    - t-3e952f
+  phase: implement
+  side: frontend
+  workflow_params:
+    REQ_ID: REQ-260928222643-4d34
+    TASK_ID: t-dd5ba9
+    TASK_TITLE: 新增入口校验纯函数 src/client/board-entry.ts
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: frontend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      started_at: 2026-09-28T14:59:53.262Z
+      completed_at: 2026-09-28T15:25:09.145Z
+    - phase: review
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-260928222643-4d34
+  generated_at: 2026-09-28T14:59:53.168Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-09-28T15:25:09.145Z

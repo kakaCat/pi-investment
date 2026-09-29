@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DAG 卡片类型规格 + 真 DAG 示例（REQ-260928001915-f978）</title>
+<style>
+* { box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', Roboto, sans-serif;
+  margin: 0; padding: 34px 30px 90px; background: #f5f7fa; color: #1f2733; -webkit-font-smoothing: antialiased; }
+h1 { font-size: 23px; margin: 0 0 6px; letter-spacing: -.01em; }
+.sub { color: #6b7280; font-size: 13px; margin: 0 0 8px; line-height: 1.7; }
+.sub a { color: #0071e3; text-decoration: none; }
+.src { font-family: ui-monospace, 'SF Mono', monospace; font-size: 11px; color: #9ca3af; margin: 0 0 24px; line-height: 1.7; }
+.sec { background: #fff; border-radius: 14px; padding: 22px 24px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.07); }
+.sec > h2 { font-size: 16px; margin: 0 0 6px; }
+.sec > .desc { color: #6b7280; font-size: 13px; margin: 0 0 18px; line-height: 1.7; }
+h3 { font-size: 13.5px; margin: 22px 0 10px; color: #374151; }
+h3:first-of-type { margin-top: 0; }
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+th, td { text-align: left; padding: 7px 9px; border-bottom: 1px solid #eef0f3; vertical-align: top; }
+th { color: #6b7280; font-weight: 600; font-size: 11.5px; background: #fafbfc; white-space: nowrap; }
+code { font-family: ui-monospace, monospace; font-size: 11px; background: #f3f4f6; padding: 1px 5px; border-radius: 3px; color: #374151; }
+.num { font-variant-numeric: tabular-nums; }
+.pill { display: inline-block; font-size: 10.5px; padding: 1px 7px; border-radius: 980px; font-weight: 500; }
+.pill.rec { background: #e8f5ec; color: #1d8a3c; }
+.pill.warn { background: #fdecef; color: #c2185b; }
+.pill.neutral { background: #f0f1f3; color: #6b7280; }
+
+/* ---------- 卡片（沿用已选定的新卡片：ID 行带类型/端侧徽标，标题在下） ---------- */
+.card { display: flex; flex-direction: column; gap: 2px; background: #fff; border-radius: 9px;
+  padding: 6px 8px; min-height: 44px; width: 208px; box-shadow: 0 1px 3px rgba(0,0,0,.08);
+  overflow: hidden; position: relative; text-align: left; }
+.card-top { display: flex; align-items: center; gap: 4px; flex: none; min-height: 14px; }
+.card-id { font-family: ui-monospace, monospace; font-size: 10px; line-height: 12px; color: #a3abb8; white-space: nowrap; }
+.card-title { font-size: 11.5px; font-weight: 500; line-height: 15px; color: #1f2733; letter-spacing: -.005em;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.chip { font-size: 10px; line-height: 14px; padding: 0 5px; border-radius: 4px; white-space: nowrap; font-weight: 500; flex: none; }
+/* 变体 ①：类型中性灰（把饱和度留给状态） */
+.chip-type { background: rgba(107,114,128,.13); color: #4b5563; }
+.chip-side { background: transparent; color: #a3abb8; padding: 0 2px; }
+.chip-kind { background: rgba(107,114,128,.09); color: #8a9099; }
+/* 变体 ②：类型着色 */
+.vc .chip-type[data-phase="implement"] { background: rgba(0,113,227,.13); color: #0062c4; }
+.vc .chip-type[data-phase="test"]      { background: rgba(255,149,0,.15); color: #b26a00; }
+.vc .chip-type[data-phase="doc"]       { background: rgba(88,86,214,.13); color: #4b49b8; }
+.vc .chip-type[data-phase="review"]    { background: rgba(233,30,99,.12); color: #c2185b; }
+.vc .chip-type[data-phase="ui"]        { background: rgba(6,182,212,.15); color: #0e7490; }
+.vc .chip-type[data-phase="analysis"]  { background: rgba(87,83,78,.14); color: #57534e; }
+.vc .chip-type[data-phase="merge"]     { background: rgba(52,199,89,.15); color: #1d8a3c; }
+.vc .chip-side[data-side="backend"]    { background: rgba(124,58,237,.12); color: #7c3aed; }
+.vc .chip-side[data-side="frontend"]   { background: rgba(219,39,119,.12); color: #db2777; }
+.vc .chip-side[data-side="fullstack"]  { background: rgba(34,197,94,.12); color: #16a34a; }
+.vc .chip-side[data-side="doc"]        { background: rgba(251,146,60,.14); color: #ea580c; }
+/* 状态 = 卡片底色（沿用线上现有 6 态，不动） */
+.card[data-status="todo"]        { background: #fafafa; }
+.card[data-status="in_progress"] { background: rgba(0,113,227,.06); }
+.card[data-status="integrating"] { background: rgba(142,68,173,.07); }
+.card[data-status="testing"]     { background: rgba(255,149,0,.08); }
+.card[data-status="in_review"]   { background: rgba(233,30,99,.06); }
+.card[data-status="done"]        { background: rgba(52,199,89,.08); }
+.ready-dot { position: absolute; right: 6px; top: 6px; width: 6px; height: 6px; border-radius: 50%;
+  background: #34c759; box-shadow: 0 0 0 3px rgba(52,199,89,.2); }
+/* 父卡：内嵌子卡链进度 */
+.card-chain { display: flex; align-items: center; gap: 3px; margin-top: 3px; flex: none; }
+.card-chain i { width: 14px; height: 3px; border-radius: 2px; background: rgba(0,0,0,.12); display: block; }
+.card-chain i.on { background: #34c759; }
+.card-chain i.now { background: #0071e3; }
+.card-chain span { font-size: 9.5px; color: #a3abb8; margin-left: 2px; }
+.card-crown { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: rgba(0,113,227,.55); border-radius: 9px 0 0 9px; }
+.card[data-role="child"] { width: 190px; margin-left: 18px; padding-left: 10px; }
+.card[data-role="child"]::before { content: ""; position: absolute; left: 4px; top: 8px; bottom: 8px; width: 2px; background: rgba(0,0,0,.08); }
+
+/* 标本墙 */
+.wall { display: flex; flex-direction: column; gap: 10px; }
+.wall-row { display: grid; grid-template-columns: 96px 1fr 1fr; gap: 14px; align-items: center;
+  padding: 9px 0; border-bottom: 1px solid #f4f5f7; }
+.wall-row:last-child { border-bottom: none; }
+.wall-key { font-size: 12.5px; font-weight: 600; }
+.wall-key small { display: block; font-weight: 400; color: #9ca3af; font-size: 10.5px; margin-top: 2px; }
+.wall-col { display: flex; align-items: center; gap: 8px; }
+.wall-col .tagnote { font-size: 10.5px; color: #9ca3af; }
+.colhead { display: grid; grid-template-columns: 96px 1fr 1fr; gap: 14px; font-size: 11.5px; font-weight: 600;
+  color: #6b7280; padding-bottom: 6px; border-bottom: 1px solid #eef0f3; }
+
+/* 解剖图 */
+.anat { display: flex; gap: 34px; align-items: flex-start; flex-wrap: wrap; }
+.anat-canvas { position: relative; padding: 48px 44px 48px 36px; background: #f7f8fa; border-radius: 12px; }
+.anat-mark { position: absolute; width: 18px; height: 18px; border-radius: 50%; background: #1f2733; color: #fff;
+  font-size: 11px; font-weight: 600; line-height: 18px; text-align: center; }
+.anat-list { flex: 1 1 320px; font-size: 12.5px; line-height: 1.5; }
+.anat-list li { margin-bottom: 7px; }
+.anat-list b { font-weight: 600; }
+.anat-list code { font-size: 10.5px; }
+
+/* 面板 mock */
+.panel { width: 720px; max-width: 100%; border: 1px solid #e5e7eb; border-radius: 12px; background: #fff; overflow: hidden; }
+.panel-head { padding: 9px 13px; border-bottom: 1px solid #eef0f3; display: flex; align-items: center; gap: 8px;
+  flex-wrap: wrap; background: #fafbfc; }
+.panel-title { font-size: 12.5px; font-weight: 600; }
+.panel-sub { font-size: 11px; color: #9ca3af; }
+.panel-body { padding: 12px; background: #f7f8fa; }
+.seg { display: flex; gap: 4px; margin-left: auto; }
+.seg button { font: inherit; font-size: 11.5px; padding: 3px 10px; border-radius: 980px; border: 1px solid #e5e7eb;
+  background: #fff; color: #6b7280; cursor: pointer; }
+.seg button.on { background: #0071e3; border-color: #0071e3; color: #fff; }
+.flowstat { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.flowstat span { font-size: 11px; color: #6b7280; background: #fff; border: 1px solid #eef0f3; border-radius: 980px; padding: 2px 9px; }
+.flowstat span b { color: #1f2733; font-weight: 600; }
+.canvas-wrap { overflow: auto; border-radius: 10px; background: #fff; border: 1px solid #eef0f3; max-height: 640px; }
+.canvas-wrap::-webkit-scrollbar { width: 8px; height: 8px; }
+.canvas-wrap::-webkit-scrollbar-track { background: rgba(0,0,0,.05); border-radius: 4px; }
+.canvas-wrap::-webkit-scrollbar-thumb { background: rgba(0,0,0,.24); border-radius: 4px; }
+.canvas { position: relative; }
+.dag-canvas { display: block; }
+svg.edges { position: absolute; left: 0; top: 0; z-index: 1; }
+.node { position: absolute; z-index: 2; }
+.node .card { cursor: pointer; }
+.node.hi-self .card { box-shadow: 0 0 0 2px #1f2733, 0 3px 12px rgba(0,0,0,.18); }
+.node.hi-up .card { box-shadow: 0 0 0 2px rgba(255,149,0,.9), 0 3px 10px rgba(0,0,0,.12); }
+.node.hi-down .card { box-shadow: 0 0 0 2px rgba(0,113,227,.9), 0 3px 10px rgba(0,0,0,.12); }
+.node.crit .card { outline: 2px dashed rgba(0,113,227,.55); outline-offset: 1px; }
+.canvas.dimming .node:not(.hi-self):not(.hi-up):not(.hi-down) { opacity: .18; filter: saturate(.3); }
+.band-label { position: absolute; left: 8px; z-index: 3; font-size: 10px; font-weight: 600; color: #b6bcc6;
+  font-family: ui-monospace, monospace; }
+.branch-chip { position: absolute; right: -6px; bottom: -6px; background: #fff; border: 1px solid #e5e7eb; border-radius: 980px;
+  font-size: 9.5px; color: #6b7280; padding: 0 5px; z-index: 4; cursor: pointer; }
+path.e-base { stroke: rgba(0,0,0,.17); stroke-width: 1.2; fill: none; }
+path.e-done { stroke: rgba(52,199,89,.5); stroke-width: 1.3; fill: none; }
+path.e-crit { stroke: rgba(0,113,227,.75); stroke-width: 1.8; fill: none; }
+.canvas.dimming path:not(.hi-up):not(.hi-down) { opacity: .05; }
+path.hi-up { stroke: #ff9500 !important; stroke-width: 2 !important; opacity: 1 !important; }
+path.hi-down { stroke: #0071e3 !important; stroke-width: 2 !important; opacity: 1 !important; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 11.5px; color: #6b7280; margin-top: 10px; }
+.legend i { display: inline-block; width: 16px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 5px; }
+.tip { font-size: 12px; color: #6b7280; background: #f7f8fa; border-left: 3px solid #d9dde3; padding: 9px 12px;
+  border-radius: 0 8px 8px 0; line-height: 1.7; margin-top: 14px; }
+.dec { border: 1px solid #eef0f3; border-radius: 10px; padding: 13px 15px; margin-bottom: 10px; }
+.dec h4 { margin: 0 0 6px; font-size: 13px; }
+.dec p { margin: 0 0 6px; font-size: 12.5px; color: #4b5563; line-height: 1.7; }
+.dec .opt { font-size: 12.5px; color: #6b7280; line-height: 1.8; }
+.dec .opt b { color: #1f2733; }
+</style>
+</head>
+<body>
+
+<h1>DAG 卡片类型规格 + 真 DAG 示例</h1>
+<p class="sub">本轮焦点按你的要求收窄到 <b>卡片类型</b>（不是尺寸）：先定"一张卡上到底有哪几种类型、每种长什么样"，再用真实队列数据把真 DAG 画出来验证类型系统够不够用。</p>
+<p class="src">数据来源：全仓 <code>docs/requirements/*/queue.json</code> 扫描（51 份队列 / 616 张任务卡，2026-09-28）· 卡片几何沿用线上 <code>node-panel.ts</code>（208px / 9px 圆角 / 等高）· 关联需求 REQ-260928001915-f978</p>
+
+<!-- ============ ① 三轴总览 ============ -->
+<div class="sec">
+  <h2>① 卡片类型 = 三根轴，先定哪根是"类型"</h2>
+  <p class="desc">队列数据里每张卡同时带三组身份字段，它们天然是三根正交的轴。现在线上只画出了 <b>ID + 标题</b>，三组字段全部可见，等于没分类。</p>
+  <table>
+    <thead><tr><th>轴</th><th>字段</th><th>取值（受控枚举）</th><th>实测分布（616 卡）</th><th>建议承担</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>轴 1 · 任务类型</b><br><span class="pill rec">建议 = 卡片类型</span></td>
+        <td><code>phase</code></td>
+        <td>实施 / 测试 / 文档 / 评审 / UI / 分析 / 合并（7 类）</td>
+        <td class="num" id="freq-phase"></td>
+        <td>决定 ID 行徽标文案（+ 可选配色）。<b>"这张卡是干什么的"</b>，看 DAG 时最想知道的就是它。</td>
+      </tr>
+      <tr>
+        <td><b>轴 2 · 端侧</b></td>
+        <td><code>side</code></td>
+        <td>backend / frontend / fullstack / doc（4 类）</td>
+        <td class="num" id="freq-side"></td>
+        <td>次级标记（同一根 ID 行的小徽标）。回答"改哪一端"，对 DAG 流程判断帮助有限。</td>
+      </tr>
+      <tr>
+        <td><b>轴 3 · 角色</b></td>
+        <td><code>parentId</code> / <code>stageKind</code></td>
+        <td>独立卡 / 父卡（带子卡链）/ 子卡（dev·integrate·review·test）</td>
+        <td class="num" id="freq-role"></td>
+        <td>决定<b>卡形</b>而非徽标：父卡的子卡链内嵌进度条，子卡默认不单独成节点。</td>
+      </tr>
+      <tr>
+        <td><b>（非类型）状态</b></td>
+        <td><code>status</code></td>
+        <td>待开始 / 开发中 / 联调中 / 测试中 / 待复核 / 已完成</td>
+        <td class="num" id="freq-status"></td>
+        <td>已经占用了<b>卡片底色</b>（线上 6 态淡底），本轮<b>不动</b>。</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="tip"><b>为什么建议把 phase 定为"卡片类型"：</b>实测 95.6% 的卡是<code>实施</code>+<code>测试</code>两类的组合，类型维度天然把 DAG 切成"写代码 / 验证"两段；而 side 只有 4 类且 77% 是 backend，作为主类型区分度太低。<b>若你心里的"类型"其实是 side，请在下方裁定 1 里改选。</b></div>
+</div>
+
+<!-- ============ ② 类型标本墙 ============ -->
+<div class="sec">
+  <h2>② 类型标本墙 · 7 类任务类型（实物卡）</h2>
+  <p class="desc">下面每张卡都用<b>真实任务</b>渲染（来自真实队列文件），只切换类型徽标的配色变体。请你裁定用哪一种。</p>
+  <div class="colhead"><span>类型</span><span>变体 ① 中性灰徽标（推荐）</span><span>变体 ② 七类彩徽标</span></div>
+  <div class="wall" id="wall-phase"></div>
+  <div class="tip" id="collision-note"></div>
+</div>
+
+<!-- ============ ③ 角色 + 状态 ============ -->
+<div class="sec">
+  <h2>③ 角色三态 & 状态六色</h2>
+  <p class="desc">角色回答"这张卡在结构上是什么"，用<b>卡形</b>表达；状态回答"它走到哪了"，用<b>底色</b>表达。两者都不再额外占徽标位。</p>
+  <h3>角色（轴 3）</h3>
+  <div class="wall" id="wall-role"></div>
+  <h3>状态（底色，沿用线上不动）</h3>
+  <div class="wall" id="wall-status"></div>
+</div>
+
+<!-- ============ ④ 卡片解剖 ============ -->
+<div class="sec">
+  <h2>④ 一张卡上每个位置的语义（解剖图）</h2>
+  <p class="desc">7 个位置，每个位置只承担一件事——这是"卡片类型确定"之后的落地口径。</p>
+  <div class="anat">
+    <div class="anat-canvas" id="anat-canvas"></div>
+    <ul class="anat-list">
+      <li><b>① 任务 ID</b> — 等宽 10px 灰字，DAG 里的稳定标识；无任务卡文档时在右侧挂灰化 📄。</li>
+      <li><b>② 类型徽标（本轮的"卡片类型"）</b> — 10px 圆角小片，文案 = phase 中文；<code>data-phase</code> 供样式分色。</li>
+      <li><b>③ 端侧徽标</b> — 更低一级的视觉权重（变体 ① 用纯文字无底）。</li>
+      <li><b>④ 卡片底色 = 状态</b> — 六态淡底，与泳道卡片同一套色值，不另起一套。</li>
+      <li><b>⑤ 标题</b> — 11.5px / 两行 clamp（等高是 DAG 可读的前提）。</li>
+      <li><b>⑥ 子卡链进度（仅父卡）</b> — 4 段小条：<code>绿=已完成</code> <code>蓝=进行中</code> <code>灰=未开始</code>，右侧 <code>4/6</code> 计数。</li>
+      <li><b>⑦ 可开工标记（ready）</b> — 绿点呼吸；直接消费队列的 <code>ready[]</code>，不是前端自己算的。</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============ ⑤ 真 DAG ============ -->
+<div class="sec">
+  <h2>⑤ 真 DAG（用队列的 edges 画真连线）</h2>
+  <p class="desc">卡片类型确定后，把它放进真图里验证。节点位置 = 队列 <code>layers[]</code>，连线 = 队列 <code>edges[]</code>（不再是"分层平铺看不出流程"）。<b>悬停任一卡</b>：橙色 = 它的上游、蓝色 = 下游；点击可钉住；边线按状态着色。</p>
+  <div class="panel">
+    <div class="panel-head">
+      <span class="panel-title">📊 DAG 层级</span>
+      <span class="panel-sub" id="panel-sub"></span>
+      <span class="seg" id="ds-seg"></span>
+      <span class="seg" style="margin-left:8px">
+        <button data-dir="vertical" class="on">纵向</button>
+        <button data-dir="horizontal">横向</button>
+        <button data-crit="0">关键路径</button>
+        <button data-focus="0">只看主线</button>
+      </span>
+    </div>
+    <div class="panel-body">
+      <div class="flowstat" id="flowstat"></div>
+      <div class="canvas-wrap" id="canvas-wrap"><canvas class="dag-canvas" id="dag-canvas"></canvas></div>
+      <div class="legend">
+        <span><i style="background:rgba(52,199,89,.5)"></i>已完成链路</span>
+        <span><i style="background:rgba(0,0,0,.17)"></i>进行中 / 待办</span>
+        <span><i style="background:rgba(0,113,227,.75);height:2px"></i>关键路径</span>
+        <span>🟠 上游（它依赖谁）</span>
+        <span>🔵 下游（谁依赖它）</span>
+        <span>🟢 呼吸点 = 可开工 ready</span>
+      </div>
+    </div>
+  </div>
+  <div class="tip" id="stress-note"></div>
+</div>
+
+<!-- ============ ⑥ 待裁定 ============ -->
+<div class="sec">
+  <h2>⑥ 待你裁定（4 条）</h2>
+  <p class="desc">裁定后我按结果改 <code>node-panel.ts</code>（renderDag / renderSwimlane）+ <code>styles/node-panel.ts</code>，并把类型口径写进需求文档。</p>
+  <div class="dec">
+    <h4>裁定 1 · "卡片类型"取哪根轴？ <span class="pill rec">建议：phase（7 类）</span></h4>
+    <p class="opt"><b>A.</b> phase 作类型（实施/测试/文档/评审/UI/分析/合并），side 降为次级徽标 ← 我的建议<br>
+    <b>B.</b> side 作类型（backend/frontend/fullstack/doc），phase 降为次级<br>
+    <b>C.</b> 两根都要同级徽标（就是 /tmp/dag-card-demo.html 现在的样子）</p>
+  </div>
+  <div class="dec">
+    <h4>裁定 2 · 类型要不要着色？ <span class="pill rec">建议：变体 ①（中性灰 + 文案）</span></h4>
+    <p class="opt"><b>A. 中性灰徽标</b>：类型靠文案区分，饱和度全部留给状态底色 → 一屏不出现两套同色系语义 ← 我的建议<br>
+    <b>B. 七类彩徽标</b>：识别更快，但要接受"实施=蓝"与"开发中=蓝"、"测试=橙"与"测试中=橙"、"合并=绿"与"已完成=绿"三处撞色</p>
+  </div>
+  <div class="dec">
+    <h4>裁定 3 · 父卡的子卡链怎么进图？ <span class="pill rec">建议：内嵌进度条，子卡不单独成节点</span></h4>
+    <p class="opt"><b>A.</b> 父卡一张卡 + 内嵌 4 段子卡进度，点开看子卡 ← 我的建议（实测 136 张子卡若全部成节点，图会立刻膨胀 3 倍）<br>
+    <b>B.</b> 子卡单独成节点，父卡与子卡之间连边</p>
+  </div>
+  <div class="dec">
+    <h4>裁定 4 · 状态底色（6 态）沿用线上不变？ <span class="pill rec">建议：沿用</span></h4>
+    <p class="opt"><b>A.</b> 沿用现有六态淡底（与泳道卡片同一套） ← 我的建议，卡片类型只加"类型"这一层信息，不改已有语义<br>
+    <b>B.</b> 借这次一起调状态色（那要另外配色表，会扩大改动面）</p>
+  </div>
+</div>
+
+<script>/*__DAG_BUNDLE__*/</script>
+<script>
+const D = __DATA_JSON__;
+const M = window.DagDemo;   // build-demo.py 用 esbuild 打进来的模块集合（window.DagDemo）
+
+/* 四轴标签与顺序：全部取自模块（单一真源），模板不再自带一份 */
+const PHASE = M.PHASE_LABEL;
+const STATUS = M.STATUS_LABEL;
+const STAGEKIND = M.STAGE_LABEL;
+const PHASE_ORDER = ['implement', 'test', 'doc', 'review', 'ui', 'analysis', 'merge'];
+const STATUS_ORDER = ['todo', 'in_progress', 'integrating', 'testing', 'in_review', 'done'];
+const esc = M.esc;
+
+function pct(n, total) { return total ? (n * 100 / total).toFixed(1) + '%' : '0%'; }
+function byIdOf(ds) { const m = {}; ds.tasks.forEach(function (t) { m[t.id] = t; }); return m; }
+
+/* ---------------- ① 四轴频次（全仓真实统计） ---------------- */
+(function fillFreq() {
+  const tot = D.meta.tasks;
+  document.getElementById('freq-phase').innerHTML = PHASE_ORDER.map(function (p) {
+    return (PHASE[p] || p) + ' <b>' + (D.freq.phase[p] || 0) + '</b>';
+  }).join(' · ');
+  const sides = Object.keys(D.freq.side).sort(function (a, b) { return D.freq.side[b] - D.freq.side[a]; });
+  document.getElementById('freq-side').innerHTML = sides.map(function (s) {
+    return (M.SIDE_LABEL[s] || s) + ' <b>' + D.freq.side[s] + '</b>';
+  }).join(' · ');
+  const roles = D.freq.role;
+  document.getElementById('freq-role').innerHTML = '独立卡 <b>' + (roles.solo || 0) + '</b> · 父卡 <b>' + (roles.parent || 0) + '</b> · 子卡 <b>' + (roles.child || 0) + '</b>';
+  const sts = Object.keys(D.freq.status).sort(function (a, b) { return D.freq.status[b] - D.freq.status[a]; });
+  document.getElementById('freq-status').innerHTML = sts.map(function (s) {
+    return (STATUS[s] || s) + ' <b>' + D.freq.status[s] + '</b>';
+  }).join(' · ') + ' <span class="tagnote">合计 ' + tot + ' 张卡</span>';
+})();
+
+/* ---------------- ② 类型标本墙（七类 phase 的真实卡） ---------------- */
+(function fillWall() {
+  const host = document.getElementById('wall-phase');
+  const tot = D.meta.tasks;
+  let html = '';
+  PHASE_ORDER.forEach(function (p) {
+    const spec = D.specimens[p];
+    if (!spec) return;
+    const card = Object.assign({}, spec, { phase: p });
+    html += '<div class="wall-row">';
+    html += '<div class="wall-key">' + esc(PHASE[p]) + '<small>' + esc(p) + ' · ' + D.freq.phase[p] + ' 张 · ' + pct(D.freq.phase[p], tot) + '</small></div>';
+    html += '<div class="wall-col">' + M.cardHtml(card, {}) + '<span class="tagnote">灰徽标</span></div>';
+    html += '<div class="wall-col">' + M.cardHtml(card, { vc: true }) + '<span class="tagnote">彩徽标</span></div>';
+    html += '</div>';
+  });
+  host.innerHTML = html;
+
+  document.getElementById('collision-note').innerHTML =
+    '<b>变体 ② 的撞色清单（这是我不敢替你选的原因）</b>：' +
+    '<code>实施=蓝</code> ↔ <code>开发中底色=蓝</code>；<code>测试=橙</code> ↔ <code>测试中底色=橙</code>；' +
+    '<code>合并=绿</code> ↔ <code>已完成底色=绿</code>；<code>UI=青</code> ↔ 无冲突；' +
+    '端侧若也着色则再与 <code>联调中=紫</code>、<code>待复核=粉</code> 相撞。' +
+    '变体 ① 把饱和度全部让给状态，一张卡上只剩一套强色语义。';
+})();
+
+/* ---------------- ③ 角色三态 + 状态六态 ---------------- */
+(function fillRoleWall() {
+  const host = document.getElementById('wall-role');
+  const r = D.roles;
+  if (!r) { host.innerHTML = '<div class="tagnote">本仓暂无父子卡样本</div>'; return; }
+  const parentCard = { id: r.parent.id, title: r.parent.title, status: r.parent.status, phase: r.parent.phase, side: r.parent.side, role: 'parent' };
+  const soloCard = { id: r.solo.id, title: r.solo.title, status: r.solo.status, phase: r.solo.phase, side: r.solo.side };
+  const childCard = { id: r.child.id, title: r.child.title, status: r.child.status, phase: r.child.phase, side: r.child.side, stageKind: r.child.stageKind, role: 'child' };
+  host.innerHTML =
+    '<div class="wall-row"><div class="wall-key">独立卡<small>无 parentId / 无子卡 · ' + (D.freq.role.solo || 0) + ' 张</small></div>' +
+      '<div class="wall-col">' + M.cardHtml(soloCard, {}) + '</div>' +
+      '<div class="wall-col"><span class="tagnote">DAG 里的普通节点</span></div></div>' +
+    '<div class="wall-row"><div class="wall-key">父卡<small>有子卡链 · ' + (D.freq.role.parent || 0) + ' 张</small></div>' +
+      '<div class="wall-col">' + M.cardHtml(parentCard, { kids: r.kids }) + '</div>' +
+      '<div class="wall-col"><span class="tagnote">左侧蓝条 + 内嵌子卡链进度（' + r.kids.length + ' 段）</span></div></div>' +
+    '<div class="wall-row"><div class="wall-key">子卡<small>parentId 指向父卡 · ' + (D.freq.role.child || 0) + ' 张</small></div>' +
+      '<div class="wall-col">' + M.cardHtml(childCard, {}) + '</div>' +
+      '<div class="wall-col"><span class="tagnote">默认折叠在父卡内，展开才出现（缩进 + 阶段徽标）</span></div></div>';
+})();
+(function fillStatusWall() {
+  const host = document.getElementById('wall-status');
+  const base = D.specimens.implement || { id: 't-sample', title: '状态底色示例', phase: 'implement', side: 'backend' };
+  host.innerHTML = STATUS_ORDER.map(function (s) {
+    return '<div class="wall-row"><div class="wall-key">' + esc(STATUS[s]) + '<small>' + esc(s) + ' · ' + (D.freq.status[s] || 0) + ' 张</small></div>' +
+      '<div class="wall-col">' + M.cardHtml(Object.assign({}, base, { status: s }), {}) + '</div>' +
+      '<div class="wall-col"><span class="tagnote">与泳道卡片共用色值</span></div></div>';
+  }).join('');
+})();
+
+/* ---------------- ④ 卡片解剖图（标注位置一律实测） ---------------- */
+(function fillAnat() {
+  const host = document.getElementById('anat-canvas');
+  const r = D.roles;
+  if (!r) { host.innerHTML = '<div class="tagnote">本仓暂无父子卡样本</div>'; return; }
+  const t = { id: r.parent.id, title: r.parent.title, status: r.parent.status, phase: r.parent.phase, side: r.parent.side, role: 'parent' };
+  host.innerHTML = M.cardHtml(t, { kids: r.kids, ready: true });
+
+  const hr = host.getBoundingClientRect();
+  const card = host.querySelector('.card');
+  if (!card) return;
+  const cr = card.getBoundingClientRect();
+  const rel = function (el) {
+    const b = el.getBoundingClientRect();
+    return { x: b.left - hr.left, y: b.top - hr.top, w: b.width, h: b.height, cx: b.left - hr.left + b.width / 2, cy: b.top - hr.top + b.height / 2 };
+  };
+  const at = function (sel) { const el = host.querySelector(sel); return el ? rel(el) : null; };
+  const marks = [];
+  const top = cr.top - hr.top - 30;
+  const idEl = at('.card-id'); if (idEl) marks.push({ n: 1, p: [idEl.cx - 9, top] });
+  const typeEl = at('.chip-type'); if (typeEl) marks.push({ n: 2, p: [typeEl.cx - 9, top] });
+  const sideEl = at('.chip-side'); if (sideEl) marks.push({ n: 3, p: [sideEl.cx - 9, top] });
+  const readyEl = at('.ready-dot'); if (readyEl) marks.push({ n: 7, p: [readyEl.cx - 9, top] });
+  marks.push({ n: 5, p: [cr.left - hr.left - 26, cr.top - hr.top + 20] });
+  const titleEl = at('.card-title'); if (titleEl) marks.push({ n: 4, p: [cr.left - hr.left + cr.width + 8, titleEl.y + 1] });
+  const chainEl = at('.card-chain'); if (chainEl) marks.push({ n: 6, p: [cr.left - hr.left + cr.width + 8, chainEl.y + 1] });
+  marks.forEach(function (m) {
+    const d = document.createElement('div');
+    d.className = 'anat-mark';
+    d.style.left = m.p[0] + 'px';
+    d.style.top = m.p[1] + 'px';
+    d.textContent = m.n;
+    host.appendChild(d);
+  });
+})();
+
+/* ---------------- ⑤ 真 DAG（Canvas + integration.ts 模块） ---------------- */
+var dagState = { dir: 'vertical', crit: false, focus: false, pinned: null };
+var current = D.datasets[0];
+var viewer = null;
+
+function ensureViewer() {
+  const canvas = document.getElementById('dag-canvas');
+  if (viewer) viewer.destroy();
+  viewer = M.createDagViewer(canvas, { tasks: current.tasks, edges: current.edges, ready: current.ready }, dagState);
+}
+
+function paintAll() {
+  if (!viewer) ensureViewer();
+  const res = viewer.patch({ dir: dagState.dir, crit: dagState.crit, focus: dagState.focus });
+  const byId = byIdOf(current);
+  const visSet = {};
+  res.visibleIds.forEach(function (id) { visSet[id] = 1; });
+  const edges = current.edges.filter(function (e) { return visSet[e.from] && visSet[e.to]; });
+  const degIn = {}, degOut = {};
+  edges.forEach(function (e) { degIn[e.to] = (degIn[e.to] || 0) + 1; degOut[e.from] = (degOut[e.from] || 0) + 1; });
+  const maxLayer = res.visibleIds.length
+    ? Math.max.apply(null, res.visibleIds.map(function (id) { return byId[id].layer || 0; })) + 1 : 0;
+  const fanOut = res.visibleIds.filter(function (id) { return (degOut[id] || 0) > 1; }).length;
+  const fanIn = res.visibleIds.filter(function (id) { return (degIn[id] || 0) > 1; }).length;
+
+  document.getElementById('flowstat').innerHTML =
+    '<span>REQ <b>' + esc(current.req) + '</b></span>' +
+    '<span>任务 <b>' + res.visibleIds.length + '</b></span>' +
+    '<span>依赖边 <b>' + edges.length + '</b></span>' +
+    '<span>层级 <b>' + maxLayer + '</b></span>' +
+    '<span>关键路径 <b>' + res.critSet.size + ' 步</b></span>' +
+    '<span>分叉点 <b>' + fanOut + '</b></span>' +
+    '<span>汇合点 <b>' + fanIn + '</b></span>' +
+    '<span>可开工 <b>' + (current.ready || []).length + '</b></span>';
+  document.getElementById('panel-sub').textContent = current.label + '（' + current.req + ' · 真实队列文件）';
+
+  const wrap = document.getElementById('canvas-wrap');
+  const L = res.layout;
+  const availW = wrap.clientWidth || 690;
+  const ovX = Math.max(0, L.width - availW);
+  const ovY = Math.max(0, L.height - wrap.clientHeight);
+  const rows = D.datasets.map(function (d) {
+    return '<code>' + esc(d.req) + '</code> ' + d.tasks.length + ' 卡 / ' + d.layerCount + ' 层 / ' + d.edges.length + ' 边';
+  }).join('；');
+  document.getElementById('stress-note').innerHTML =
+    '<b>当前视图实测：</b>画布 <b>' + L.width + '×' + L.height + 'px</b>，容器可视 <b>' + availW + '×' + Math.round(wrap.clientHeight) + 'px</b>，' +
+    '横向溢出 <b>' + ovX + 'px</b>，纵向溢出 <b>' + ovY + 'px</b>。' +
+    '<br><b>四档真实读数：</b>' + rows + '。' +
+    '<br><b>只看主线</b>把图折叠到关键路径（' + res.critSet.size + ' 步），支线用卡角 <code>+N 支线</code> 挂回，需要时再展开。' +
+    '<br><b>读图提示：</b>鼠标移到任意卡片上即可看到它的上下游链路（橙色=上游、蓝色=下游），点击钉住，点空白取消。';
+}
+
+function selectDataset(key) {
+  current = D.datasets.filter(function (x) { return x.key === key; })[0] || D.datasets[0];
+  dagState.pinned = null;
+  document.querySelectorAll('[data-ds]').forEach(function (x) {
+    x.classList.toggle('on', x.getAttribute('data-ds') === current.key);
+  });
+  ensureViewer();
+  paintAll();
+}
+
+(function initDag() {
+  const seg = document.getElementById('ds-seg');
+  D.datasets.forEach(function (d, i) {
+    const b = document.createElement('button');
+    b.setAttribute('data-ds', d.key);
+    if (i === 0) b.classList.add('on');
+    b.textContent = d.label + ' · ' + d.tasks.length + ' 卡';
+    b.addEventListener('click', function () { selectDataset(d.key); });
+    seg.appendChild(b);
+  });
+
+  document.querySelectorAll('[data-dir]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      dagState.dir = b.getAttribute('data-dir');
+      document.querySelectorAll('[data-dir]').forEach(function (x) { x.classList.toggle('on', x === b); });
+      paintAll();
+    });
+  });
+
+  const critBtn = document.querySelector('[data-crit]');
+  critBtn.addEventListener('click', function () {
+    dagState.crit = !dagState.crit;
+    critBtn.classList.toggle('on', dagState.crit);
+    paintAll();
+  });
+
+  const focusBtn = document.querySelector('[data-focus]');
+  focusBtn.addEventListener('click', function () {
+    dagState.focus = !dagState.focus;
+    focusBtn.classList.toggle('on', dagState.focus);
+    focusBtn.textContent = dagState.focus ? '展开全图' : '只看主线';
+    paintAll();
+  });
+
+  let rt = null;
+  window.addEventListener('resize', function () {
+    if (rt) clearTimeout(rt);
+    rt = setTimeout(function () { paintAll(); }, 120);
+  });
+
+  selectDataset(current.key);
+})();
+</script>
+</body>
+</html>

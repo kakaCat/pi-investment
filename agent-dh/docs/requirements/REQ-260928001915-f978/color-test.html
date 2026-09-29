@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>彩色徽标测试</title>
+<style>
+.chip { 
+  font-size: 10px; line-height: 14px; padding: 0 5px; 
+  border-radius: 4px; white-space: nowrap; font-weight: 500; 
+  display: inline-block; margin: 5px;
+}
+
+/* 默认灰色 */
+.chip-type { background: rgba(107,114,128,.13); color: #4b5563; }
+
+/* 七类任务彩色 */
+.chip-type[data-phase="implement"] { background: rgba(0,113,227,.13); color: #0062c4; }
+.chip-type[data-phase="test"]      { background: rgba(255,149,0,.15); color: #b26a00; }
+.chip-type[data-phase="doc"]       { background: rgba(88,86,214,.13); color: #4b49b8; }
+.chip-type[data-phase="review"]    { background: rgba(233,30,99,.12); color: #c2185b; }
+.chip-type[data-phase="ui"]        { background: rgba(6,182,212,.15); color: #0e7490; }
+.chip-type[data-phase="analysis"]  { background: rgba(87,83,78,.14); color: #57534e; }
+.chip-type[data-phase="merge"]     { background: rgba(52,199,89,.15); color: #1d8a3c; }
+
+/* 四类端侧彩色 */
+.chip-side { background: transparent; color: #a3abb8; padding: 0 2px; }
+.chip-side[data-side="backend"]    { background: rgba(124,58,237,.12); color: #7c3aed; }
+.chip-side[data-side="frontend"]   { background: rgba(219,39,119,.12); color: #db2777; }
+.chip-side[data-side="fullstack"]  { background: rgba(34,197,94,.12); color: #16a34a; }
+.chip-side[data-side="doc"]        { background: rgba(251,146,60,.14); color: #ea580c; }
+</style>
+</head>
+<body style="padding: 20px; font-family: sans-serif;">
+<h2>七类任务类型彩色徽标测试</h2>
+<div>
+  <span class="chip chip-type" data-phase="implement">实施</span>
+  <span class="chip chip-type" data-phase="test">测试</span>
+  <span class="chip chip-type" data-phase="doc">文档</span>
+  <span class="chip chip-type" data-phase="review">评审</span>
+  <span class="chip chip-type" data-phase="ui">UI</span>
+  <span class="chip chip-type" data-phase="analysis">分析</span>
+  <span class="chip chip-type" data-phase="merge">合并</span>
+</div>
+
+<h2>四类端侧彩色徽标测试</h2>
+<div>
+  <span class="chip chip-side" data-side="backend">backend</span>
+  <span class="chip chip-side" data-side="frontend">frontend</span>
+  <span class="chip chip-side" data-side="fullstack">fullstack</span>
+  <span class="chip chip-side" data-side="doc">doc</span>
+</div>
+
+<h2>效果说明</h2>
+<ul>
+  <li>实施 - 蓝色 (#0062c4)</li>
+  <li>测试 - 橙色 (#b26a00)</li>
+  <li>文档 - 紫色 (#4b49b8)</li>
+  <li>评审 - 粉色 (#c2185b)</li>
+  <li>UI - 青色 (#0e7490)</li>
+  <li>分析 - 棕色 (#57534e)</li>
+  <li>合并 - 绿色 (#1d8a3c)</li>
+</ul>
+</body>
+</html>

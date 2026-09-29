@@ -1,0 +1,22 @@
+metadata:
+  stage: implementing
+  requirement_id: REQ-i0001
+  generated_at: 2026-09-27T05:58:52.034Z
+  version: 10
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-09-27T06:00:39.362Z
+inputs:
+  tasks:
+    - id: t-bbbb01
+      title: 已落库卡
+      status: todo
+status:
+  tasks_total: 1
+  tasks_done: 0
+  tasks_in_progress: 0
+  tasks_todo: 1
+tasks:
+  - id: t-bbbb01
+    status: todo

@@ -1,0 +1,299 @@
+requirement:
+  id: REQ-260927144541-0481
+  title: 对齐父卡/子卡工具面：链入口收口 + 父子结构可查 + 契约与门禁对齐
+  category: feature
+  created_at: 2026-09-27T06:45:41.695Z
+  source_session: session-b71bb246-6f5c-417b-89d6-e48e4b697dcf
+  dir: /Users/yunpeng/pi-investment/agent-dh/docs/requirements/REQ-260927144541-0481
+lifecycle:
+  current_stage: accepting
+  stage_count: 7
+  stage_list:
+    - draft
+    - brainstorming
+    - design
+    - decomposing
+    - implementing
+    - accepting
+    - done
+  stages:
+    - stage: draft
+      status: completed
+      enabled: true
+      entered_at: 2026-09-27T06:45:41.695Z
+      completed_at: 2026-09-27T11:19:26.804Z
+    - stage: brainstorming
+      status: completed
+      enabled: true
+      entered_at: 2026-09-27T06:45:41.695Z
+      completed_at: 2026-09-27T11:19:26.804Z
+      artifacts:
+        - kind: requirement
+          path: docs/requirements/REQ-260927144541-0481/requirement.md
+          confirmed_at: 2026-09-27T06:48:07.616Z
+        - kind: notes
+          path: docs/requirements/REQ-260927144541-0481/rtm-brainstorming.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927144541-0481/rtm-lifecycle.yml
+    - stage: design
+      status: completed
+      enabled: true
+      entered_at: 2026-09-27T06:45:41.695Z
+      completed_at: 2026-09-27T11:19:26.804Z
+      artifacts:
+        - kind: design
+          path: docs/requirements/REQ-260927144541-0481/design/architecture.md
+          confirmed_at: 2026-09-27T06:49:34.741Z
+        - kind: design
+          path: docs/requirements/REQ-260927144541-0481/design/data-model.md
+          confirmed_at: 2026-09-27T06:49:34.741Z
+        - kind: design
+          path: docs/requirements/REQ-260927144541-0481/design/interfaces.md
+          confirmed_at: 2026-09-27T06:49:34.741Z
+        - kind: notes
+          path: docs/requirements/REQ-260927144541-0481/rtm-design.yml
+        - kind: design
+          path: docs/requirements/REQ-260927144541-0481/design/test-cases.md
+          confirmed_at: 2026-09-27T06:49:34.741Z
+        - kind: design
+          path: docs/requirements/REQ-260927144541-0481/design/use-cases.md
+          confirmed_at: 2026-09-27T06:49:34.741Z
+    - stage: decomposing
+      status: completed
+      enabled: true
+      entered_at: 2026-09-27T06:45:41.695Z
+      completed_at: 2026-09-27T11:19:26.804Z
+      artifacts:
+        - kind: decomposition
+          path: docs/requirements/REQ-260927144541-0481/decomposition.md
+          confirmed_at: 2026-09-27T06:51:16.377Z
+    - stage: implementing
+      status: completed
+      enabled: true
+      entered_at: 2026-09-27T06:45:41.695Z
+      completed_at: 2026-09-27T11:19:26.804Z
+      artifacts:
+        - kind: task_detail
+          path: docs/requirements/REQ-260927144541-0481/tasks/t-3e3ebb.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927144541-0481/tasks/t-d50859.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927144541-0481/tasks/t-acd60f.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927144541-0481/tasks/t-039d31.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927144541-0481/tasks/t-ac97a2.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927144541-0481/tasks/t-507969.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927144541-0481/tasks/t-5e64cd.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927144541-0481/tasks/t-bd7439.md
+        - kind: notes
+          path: docs/requirements/REQ-260927144541-0481/rtm-decomposing.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927144541-0481/rtm-implementing.yml
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/tools/AdvanceTool/AdvanceTool.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/tools/TaskExecuteTool/TaskExecuteTool.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/tools/TaskStatusTool/TaskStatusTool.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/tools/TaskTreeTool/TaskTreeTool.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/tools/TaskTreeTool/prompt.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/tools/TaskTreeTool/index.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/tests/output-contract.test.ts
+        - kind: notes
+          path: docs/requirements/REQ-260927144541-0481/reviews/delivery-review.md
+        - kind: notes
+          path: docs/requirements/REQ-260927144541-0481/rtm-implementing/t-3e3ebb.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927144541-0481/tests/test-evidence.md
+        - kind: notes
+          path: docs/requirements/REQ-260927144541-0481/advance-log.md
+        - kind: task_output
+          path: packages/web/dsh-pmboard/dist/index.mjs
+        - kind: task_detail
+          path: docs/requirements/REQ-260927144541-0481/tasks/t-91b37e.md
+        - kind: task_output
+          path: docs/requirements/REQ-260927144541-0481/tests/test-evidence.md
+        - kind: notes
+          path: docs/requirements/REQ-260927144541-0481/rtm-implementing/t-91b37e.yml
+        - kind: task_detail
+          path: docs/requirements/REQ-260927144541-0481/tasks/t-52933e.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927144541-0481/tasks/t-2838a8.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927144541-0481/tasks/t-b079ef.md
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/tools/AdvanceTool/prompt.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/tests/task-run-contract.test.ts
+        - kind: notes
+          path: docs/requirements/REQ-260927144541-0481/rtm-implementing/t-2838a8.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927144541-0481/rtm-implementing/t-52933e.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927144541-0481/rtm-implementing/t-b079ef.yml
+        - kind: task_detail
+          path: docs/requirements/REQ-260927144541-0481/tasks/t-4ef7ab.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927144541-0481/tasks/t-226f18.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927144541-0481/tasks/t-6fd3e4.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927144541-0481/tasks/t-3f8bb3.md
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/application/use-cases/TaskTree.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/tools/index.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/index.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/tests/task-tree.test.ts
+        - kind: task_detail
+          path: docs/requirements/REQ-260927144541-0481/tasks/t-4b44d7.md
+        - kind: task_output
+          path: docs/requirements/REQ-260927144541-0481/tests/task-tree-integration-evidence.md
+        - kind: notes
+          path: docs/requirements/REQ-260927144541-0481/rtm-implementing/t-226f18.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927144541-0481/rtm-implementing/t-3f8bb3.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927144541-0481/rtm-implementing/t-4b44d7.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927144541-0481/rtm-implementing/t-4ef7ab.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927144541-0481/rtm-implementing/t-6fd3e4.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927144541-0481/rtm-implementing/t-d50859.yml
+        - kind: task_detail
+          path: docs/requirements/REQ-260927144541-0481/tasks/t-f42b5a.md
+        - kind: notes
+          path: docs/requirements/REQ-260927144541-0481/rtm-implementing/t-f42b5a.yml
+        - kind: task_detail
+          path: docs/requirements/REQ-260927144541-0481/tasks/t-ca640c.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927144541-0481/tasks/t-2de564.md
+        - kind: task_output
+          path: packages/web/dsh-pmboard/tests/task-status-ledger.test.ts
+        - kind: task_detail
+          path: docs/requirements/REQ-260927144541-0481/tasks/t-e2ccda.md
+        - kind: task_output
+          path: packages/web/dsh-pmboard/tests/task-status-integration.test.ts
+        - kind: notes
+          path: docs/requirements/REQ-260927144541-0481/rtm-implementing/t-2de564.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927144541-0481/rtm-implementing/t-ca640c.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927144541-0481/rtm-implementing/t-e2ccda.yml
+        - kind: task_detail
+          path: docs/requirements/REQ-260927144541-0481/tasks/t-ebe92d.md
+        - kind: notes
+          path: docs/requirements/REQ-260927144541-0481/rtm-implementing/t-ebe92d.yml
+        - kind: task_detail
+          path: docs/requirements/REQ-260927144541-0481/tasks/t-46d23f.md
+        - kind: notes
+          path: docs/requirements/REQ-260927144541-0481/rtm-implementing/t-46d23f.yml
+        - kind: task_detail
+          path: docs/requirements/REQ-260927144541-0481/tasks/t-c65b1a.md
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/domain/task/TaskStatus.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/application/use-cases/MoveTask.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/tools/TaskMoveTool/TaskMoveTool.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/tests/task-move-role.test.ts
+        - kind: task_detail
+          path: docs/requirements/REQ-260927144541-0481/tasks/t-061657.md
+        - kind: task_output
+          path: docs/requirements/REQ-260927144541-0481/tests/task-move-integration-evidence.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927144541-0481/tasks/t-c67876.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927144541-0481/tasks/t-008040.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927144541-0481/tasks/t-59916c.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927144541-0481/tasks/t-d80c2b.md
+        - kind: task_output
+          path: packages/web/dsh-pmboard/tests/timeout-routing-integration.test.ts
+        - kind: task_output
+          path: docs/requirements/REQ-260927144541-0481/tests/timeout-routing-integration-evidence.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927144541-0481/tasks/t-fc43f2.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927144541-0481/tasks/t-773fbf.md
+        - kind: notes
+          path: docs/requirements/REQ-260927144541-0481/rtm-implementing/t-008040.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927144541-0481/rtm-implementing/t-061657.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927144541-0481/rtm-implementing/t-59916c.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927144541-0481/rtm-implementing/t-773fbf.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927144541-0481/rtm-implementing/t-c65b1a.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927144541-0481/rtm-implementing/t-c67876.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927144541-0481/rtm-implementing/t-d80c2b.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927144541-0481/rtm-implementing/t-fc43f2.yml
+        - kind: task_detail
+          path: docs/requirements/REQ-260927144541-0481/tasks/t-b02159.md
+        - kind: task_output
+          path: packages/web/dsh-pmboard/tests/tools-schema.test.ts
+        - kind: notes
+          path: docs/requirements/REQ-260927144541-0481/rtm-implementing/t-b02159.yml
+        - kind: task_detail
+          path: docs/requirements/REQ-260927144541-0481/tasks/t-022248.md
+        - kind: task_output
+          path: docs/work-logs/2026-09/pmboard-gate-hardening-fr7-integration.md
+        - kind: notes
+          path: docs/requirements/REQ-260927144541-0481/rtm-implementing/t-022248.yml
+        - kind: task_detail
+          path: docs/requirements/REQ-260927144541-0481/tasks/t-8ec036.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927144541-0481/tasks/t-5a4790.md
+        - kind: notes
+          path: docs/requirements/REQ-260927144541-0481/rtm-implementing/t-5a4790.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927144541-0481/rtm-implementing/t-8ec036.yml
+        - kind: task_detail
+          path: docs/requirements/REQ-260927144541-0481/tasks/t-73e493.md
+        - kind: task_output
+          path: docs/architecture/reqboard-implement-chain-flow.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927144541-0481/tasks/t-3b7673.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927144541-0481/tasks/t-bfe2a8.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927144541-0481/tasks/t-417698.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927144541-0481/tasks/t-c42bc0.md
+    - stage: accepting
+      status: in_progress
+      enabled: true
+      entered_at: 2026-09-27T06:45:41.695Z
+      artifacts:
+        - kind: verification
+          path: docs/requirements/REQ-260927144541-0481/verification.md
+          confirmed_at: 2026-09-27T11:19:26.804Z
+    - stage: done
+      status: pending
+      enabled: true
+metadata:
+  stage: lifecycle
+  requirement_id: REQ-260927144541-0481
+  generated_at: 2026-09-27T06:45:41.920Z
+  version: 12
+  generated_by: dsh-pmboard
+  rtm_version: "1.0"
+  file_path: /Users/yunpeng/pi-investment/agent-dh/docs/requirements/REQ-260927144541-0481/rtm-lifecycle.yml
+  last_updated: 2026-09-27T11:19:26.968Z

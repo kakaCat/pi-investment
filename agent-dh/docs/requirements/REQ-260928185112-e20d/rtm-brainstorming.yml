@@ -1,0 +1,15 @@
+metadata:
+  stage: brainstorming
+  requirement_id: REQ-260928185112-e20d
+  generated_at: 2026-09-28T10:51:43.967Z
+  version: 3
+  generated_by: dsh-pmboard
+  last_updated: 2026-09-28T11:07:16.334Z
+outputs:
+  requirements: []
+status:
+  artifacts:
+    - kind: requirement
+      path: docs/requirements/REQ-260928185112-e20d/requirement.md
+      confirmed: true
+      confirmed_at: 2026-09-28T10:52:14.206Z

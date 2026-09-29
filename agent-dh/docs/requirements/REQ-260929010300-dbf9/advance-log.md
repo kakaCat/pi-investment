@@ -1,0 +1,33 @@
+# 推进事件日志
+- 2026-09-28T17:36:08.780Z [RUN_SUBTASK] parent=t-d03789 subtask=t-ee4384 ok：子卡 t-ee4384 执行完成
+- 2026-09-28T17:37:14.007Z [RUN_SUBTASK] parent=t-d03789 subtask=t-1fadb6 failed：子卡凭证不过：workflow run 未完成（stopReason=cancelled: workflow run cancelled: workflow signal aborted；cancelled: workflow run cancelled: workflow signal aborted）（REQBOARD_SUBTASK_GATE）
+- 2026-09-28T17:37:14.098Z [RETRY] parent=t-d03789 subtask=t-1fadb6 skipped：子卡 t-1fadb6 瞬断，同一 job 内自动重试一次（子卡凭证不过：workflow run 未完成（stopReason=cancelled: workflow run cancelled: workflow signal aborted；cancelled: workflow run ca）
+- 2026-09-28T17:40:03.221Z [RUN_SUBTASK] parent=t-d03789 subtask=t-1fadb6 ok：子卡 t-1fadb6 执行完成
+- 2026-09-28T17:42:37.719Z [RUN_SUBTASK] parent=t-d03789 subtask=t-cc9e3a ok：子卡 t-cc9e3a 执行完成
+- 2026-09-28T17:43:34.117Z [RUN_SUBTASK] parent=t-d03789 subtask=t-470baa ok：子卡 t-470baa 执行完成
+- 2026-09-28T17:43:34.275Z [FINALIZE_PARENT] parent=t-d03789 subtask=- ok：父卡 t-d03789 汇总子卡产出并收尾
+- 2026-09-28T17:45:44.770Z [RUN_SUBTASK] parent=t-6f9d7f subtask=t-3f8d67 ok：子卡 t-3f8d67 执行完成
+- 2026-09-28T17:49:31.762Z [RUN_SUBTASK] parent=t-6f9d7f subtask=t-2e30df ok：子卡 t-2e30df 执行完成
+- 2026-09-28T17:51:39.287Z [RUN_SUBTASK] parent=t-6f9d7f subtask=t-cf0284 ok：子卡 t-cf0284 执行完成
+- 2026-09-28T17:52:24.563Z [RUN_SUBTASK] parent=t-6f9d7f subtask=t-c53e93 ok：子卡 t-c53e93 执行完成
+- 2026-09-28T17:52:24.730Z [FINALIZE_PARENT] parent=t-6f9d7f subtask=- ok：父卡 t-6f9d7f 汇总子卡产出并收尾
+- 2026-09-28T17:53:59.837Z [RUN_SUBTASK] parent=t-284b0a subtask=t-c0dad0 ok：子卡 t-c0dad0 执行完成
+- 2026-09-28T17:55:36.225Z [RUN_SUBTASK] parent=t-284b0a subtask=t-32a952 ok：子卡 t-32a952 执行完成
+- 2026-09-28T17:56:50.701Z [RUN_SUBTASK] parent=t-284b0a subtask=t-89278b ok：子卡 t-89278b 执行完成
+- 2026-09-28T17:57:48.035Z [RUN_SUBTASK] parent=t-284b0a subtask=t-3b43fd ok：子卡 t-3b43fd 执行完成
+- 2026-09-28T17:57:48.182Z [FINALIZE_PARENT] parent=t-284b0a subtask=- ok：父卡 t-284b0a 汇总子卡产出并收尾
+- 2026-09-28T17:59:37.028Z [RUN_SUBTASK] parent=t-3ed4b5 subtask=t-b1db02 ok：子卡 t-b1db02 执行完成
+- 2026-09-28T18:02:45.089Z [RUN_SUBTASK] parent=t-3ed4b5 subtask=t-3dfb5d ok：子卡 t-3dfb5d 执行完成
+- 2026-09-28T18:04:08.708Z [RUN_SUBTASK] parent=t-3ed4b5 subtask=t-aeb8eb ok：子卡 t-aeb8eb 执行完成
+- 2026-09-28T18:06:08.524Z [RUN_SUBTASK] parent=t-3ed4b5 subtask=t-bf779f ok：子卡 t-bf779f 执行完成
+- 2026-09-28T18:06:08.674Z [FINALIZE_PARENT] parent=t-3ed4b5 subtask=- ok：父卡 t-3ed4b5 汇总子卡产出并收尾
+- 2026-09-28T18:08:03.044Z [RUN_SUBTASK] parent=t-d1a7f7 subtask=t-2069e2 ok：子卡 t-2069e2 执行完成
+- 2026-09-28T18:09:41.638Z [RUN_SUBTASK] parent=t-d1a7f7 subtask=t-0c43f8 ok：子卡 t-0c43f8 执行完成
+- 2026-09-28T18:12:00.295Z [RUN_SUBTASK] parent=t-d1a7f7 subtask=t-6fed57 ok：子卡 t-6fed57 执行完成
+- 2026-09-28T18:12:28.082Z [RUN_SUBTASK] parent=t-d1a7f7 subtask=t-a195b8 ok：子卡 t-a195b8 执行完成
+- 2026-09-28T18:12:28.231Z [FINALIZE_PARENT] parent=t-d1a7f7 subtask=- ok：父卡 t-d1a7f7 汇总子卡产出并收尾
+- 2026-09-28T18:15:25.570Z [RUN_SUBTASK] parent=t-757283 subtask=t-7125de ok：子卡 t-7125de 执行完成
+- 2026-09-28T18:17:00.149Z [RUN_SUBTASK] parent=t-757283 subtask=t-74e548 ok：子卡 t-74e548 执行完成
+- 2026-09-28T18:17:57.074Z [RUN_SUBTASK] parent=t-757283 subtask=t-7ee744 ok：子卡 t-7ee744 执行完成
+- 2026-09-28T18:17:57.231Z [FINALIZE_PARENT] parent=t-757283 subtask=- ok：父卡 t-757283 汇总子卡产出并收尾
+- 2026-09-28T18:17:57.389Z [ROLLUP] parent=- subtask=- ok：需求已全部任务完成，滚进验收

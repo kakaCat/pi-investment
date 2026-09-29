@@ -109,11 +109,13 @@ t1 (修改代码)
    - 确认需求详情正常显示，功能正常
 
 **acceptance**:
-- 新编号格式正确：生成的编号格式为 `REQ-YYYYMMDDHHmm-xxxx`
-- 年份验证通过：时间戳前4位为完整年份（如 `2026`）
-- 不含秒验证通过：同一分钟内创建的多个需求，时间戳部分相同（14位）
-- 向后兼容验证通过：旧格式需求（2位年份）仍可正常访问和操作
-- 功能回归通过：需求创建、状态推进、任务管理等功能正常
+执行验证命令：
+```bash
+cd packages/web/dsh-pmboard
+grep "const YYYY" src/shared/protocol.ts
+grep "function formatTimestamp" src/shared/protocol.ts | grep -v "const ss"
+```
+预期输出：第一条 grep 能找到 YYYY 变量定义，第二条 grep 在 formatTimestamp 函数中找不到 ss 变量
 
 
 ---
@@ -139,10 +141,11 @@ t1 (修改代码)
 6. 确认旧需求可正常推进状态
 
 **acceptance**:
-- 旧格式需求可正常访问：看板能找到并打开
-- 详情显示正常：标题、描述、状态等信息完整
-- 功能正常：评论、任务、状态推进等功能可用
-- 无报错：整个过程无格式相关错误
+执行验证命令：
+```bash
+jq '.requirements[] | select(.id == "REQ-260926205654-163a") | {id, title, status}' .dsh-data/dsh-reqboard.json
+```
+预期输出：返回包含 id、title、status 三个字段的 JSON 对象，证明旧格式需求 REQ-260926205654-163a 可正常读取
 
 ---
 

@@ -245,7 +245,7 @@ flowchart TD
 | 项 | 值 | 语义 |
 |---|---|---|
 | `advanceMaxStepsPerCall` | 20 | 单次调用最多推进 20 步（防一条链占死事件循环） |
-| `advanceMaxParallelParents` | 3 | 同时 `in_progress` 的父卡上限 |
+| `advanceMaxParallelParents` | 10 | 同时 `in_progress` 的父卡上限（2026-09-28 由 3 放宽） |
 | `advanceNoopBreaker` | 5 | 连续 5 次 noop → 判依赖死锁，暂停并置 `autoRun=false` |
 | `advanceLockStaleMs` | 15 min | 台账侧单飞锁失效阈值（进程崩溃后可接管） |
 | 幂等键 | 台账状态 | 选择依据全部来自台账，重复触发只会 noop |

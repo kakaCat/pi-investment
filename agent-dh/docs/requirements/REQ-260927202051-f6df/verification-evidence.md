@@ -21,10 +21,10 @@ generated: 2026-09-27
 | 2 | `--apply` 后各 queue.json 生成、台账 `tasks` 移除、`schemaVersion=9`、`migrations[]` 留痕 | **真实台账副本**全量演练：`schemaVersion=9` / `'tasks' in ledger === false` / `migrations` 末条 `{8,9}` / 台账 7,905,194 → 4,825,231 bytes / 51 份 queue.json | ✅（副本） |
 | 3 | `--verify` 无差异（幂等），退出码 0 | 副本 `--verify` **exit 0**；第二次 `--apply` → `already_v9`，md5 不变、0 个 queue.json 被重写、migrations 不叠加 | ✅ |
 | 4 | 新建测试需求 → 拆分 → 队列生成且台账无新任务 → 推进 → ready 更新 | **`tests/t17-queue-e2e.test.ts` Exited 0**（单 `it` 一条真实连续链，见 §二） | ✅ |
-| 5 | 看板任务页与甘特图迁移后正常渲染 | ⏳ **待投产窗口实测**（需停机迁移 + 重启，见 §七） | ⏳ |
+| 5 | 看板任务页与甘特图迁移后正常渲染 | ✅ **已投产实测**（2026-09-27 深夜 t-e77b06 链实跑）：真实浏览器 15/15（重启前）+ 15/15（重启后）+ 15/15（测试阶段独立复跑）、联调 34~36/36、复核独立复跑主证据全绿；截图与 SUMMARY 见 [verification-addendum.md](verification-addendum.md) §二 | ✅ |
 | 6 | `pnpm build` 与 `plugin-schema.smoke.test.ts` 通过 | `pnpm build` **退出码 0**（`[verify-client] OK bundle=302659 bytes, 关键符号齐全, styles.ts 括号配对`）；冒烟 **21 passed**（含「dsh-pmboard 插件可构造（所有工具 schema 合法）」） | ✅ |
 
-**唯一未闭环的是 #5**，它依赖一次**停机迁移 + 重启**（本会话就跑在 `:13080` 进程内，`stop.sh` 一执行会话与迁移同时结束），只能由人在终端执行。runbook 见 §七。
+**6/6 已闭环**：#5 已由 t-e77b06 链在**投产后的实例**上实跑闭环；另外两处**判据文本**问题（验收① 字面命令口径、本表 #3 在活台账上的可达性）属需人工裁决项，见 [verification-addendum.md](verification-addendum.md) §四。本节写于投产前，§七 的 runbook 与「脆弱窗口」描述已被实际投产取代（**保留作历史**，不要再按它执行）。
 
 ---
 

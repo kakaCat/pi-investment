@@ -1,0 +1,297 @@
+metadata:
+  stage: accepting
+  requirement_id: REQ-260927202051-f6df
+  generated_at: 2026-09-27T16:04:40.427Z
+  version: 3
+  generated_by: dsh-pmboard
+  last_updated: 2026-09-27T16:07:31.810Z
+inputs:
+  tasks:
+    - id: t-87f0da
+      title: 定义队列类型与任务契约
+      status: done
+    - id: t-0e7fac
+      title: 实现 DAG 拓扑分层与派生视图
+      status: done
+    - id: t-394339
+      title: 实现队列数据校验 V-1~V-6
+      status: done
+    - id: t-e96a0c
+      title: 实现队列仓储与原子写入
+      status: done
+    - id: t-bc1ba6
+      title: 实现 TaskStore 端口与队列实现
+      status: done
+    - id: t-2417da
+      title: 台账 schema v9：移除 tasks
+      status: done
+    - id: t-66797c
+      title: 读方改造 A：看板与 HTTP 路由
+      status: done
+    - id: t-0c7f17
+      title: 读方改造 B：执行工具
+      status: done
+    - id: t-860900
+      title: 读方改造 C：用例层
+      status: done
+    - id: t-8d4af7
+      title: 读方改造 D：门禁、查询与 Dive
+      status: done
+    - id: t-05925b
+      title: 接线 Decompose：任务写入队列
+      status: done
+    - id: t-fa3e16
+      title: 接线 ExecuteTask/MoveTask：读队列与顺序契约
+      status: done
+    - id: t-faf303
+      title: 实现 v8→v9 迁移变换与 CLI
+      status: done
+    - id: t-03254f
+      title: 迁移安全：白名单、幂等与 orphan
+      status: done
+    - id: t-dfc245
+      title: 迁移契约比对：587 条零字段丢失
+      status: done
+    - id: t-e77b06
+      title: 看板实测回归（真实打开页面）
+      status: done
+    - id: t-d1aa0f
+      title: 端到端验收与文档同步
+      status: done
+    - id: t-796a50
+      title: 定义队列类型与任务契约·研发
+      status: done
+    - id: t-b34b32
+      title: 定义队列类型与任务契约·联调
+      status: done
+    - id: t-43e512
+      title: 定义队列类型与任务契约·复核
+      status: done
+    - id: t-c6026b
+      title: 定义队列类型与任务契约·测试
+      status: done
+    - id: t-5be8c6
+      title: 实现 DAG 拓扑分层与派生视图·研发
+      status: done
+    - id: t-315ea1
+      title: 实现 DAG 拓扑分层与派生视图·联调
+      status: done
+    - id: t-1e2054
+      title: 实现 DAG 拓扑分层与派生视图·复核
+      status: done
+    - id: t-a21eb3
+      title: 实现 DAG 拓扑分层与派生视图·测试
+      status: done
+    - id: t-c130ca
+      title: 看板实测回归（真实打开页面）·研发
+      status: done
+    - id: t-6df9a0
+      title: 看板实测回归（真实打开页面）·联调
+      status: done
+    - id: t-f4c9f5
+      title: 看板实测回归（真实打开页面）·复核
+      status: done
+    - id: t-10122a
+      title: 看板实测回归（真实打开页面）·测试
+      status: done
+outputs:
+  test_cases:
+    - id: TC-1
+      title: "TC-1: 队列类型契约（类型级断言 + 与既有读方接口联调）"
+      covers:
+        - t-87f0da
+        - t-796a50
+        - t-b34b32
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-2
+      title: "TC-2: DAG 拓扑分层与派生视图（纯函数 + 真实仓储联调）"
+      covers:
+        - t-0e7fac
+        - t-5be8c6
+        - t-315ea1
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-3
+      title: "TC-3: 队列数据校验 V-1~V-6"
+      covers:
+        - t-394339
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-4
+      title: "TC-4: 队列仓储与原子写入"
+      covers:
+        - t-e96a0c
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-5
+      title: "TC-5: TaskStore 端口与队列实现"
+      covers:
+        - t-bc1ba6
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-6
+      title: "TC-6: 台账 schema v9 与迁移留痕"
+      covers:
+        - t-2417da
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-7
+      title: "TC-7: 读方等价性（看板 / HTTP 路由 / 执行工具）"
+      covers:
+        - t-66797c
+        - t-0c7f17
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-8
+      title: "TC-8: 用例层读方改造"
+      covers:
+        - t-860900
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-9
+      title: "TC-9: 门禁 / 查询 / Dive 与公共夹具 v9 契约"
+      covers:
+        - t-8d4af7
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-10
+      title: "TC-10: 拆分把任务写进队列（台账零新增）"
+      covers:
+        - t-05925b
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-11
+      title: "TC-11: 执行读队列 + 状态流转解锁下游 + 顺序契约"
+      covers:
+        - t-fa3e16
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-12
+      title: "TC-12: v8→v9 迁移变换、CLI 与迁移安全"
+      covers:
+        - t-faf303
+        - t-03254f
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-13
+      title: "TC-13: 迁移契约比对（零字段丢失）"
+      covers:
+        - t-dfc245
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-14
+      title: "TC-14: 端到端验收链（建需求 → 拆分落队列 → 台账零新增 → 推进 → 进验收）"
+      covers:
+        - t-d1aa0f
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-15
+      title: "TC-15: 看板实测回归（真实打开页面）"
+      covers:
+        - t-e77b06
+        - t-c130ca
+        - t-10122a
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-16
+      title: "TC-16: 看板/接口出数 × 磁盘真值联调"
+      covers:
+        - t-6df9a0
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-17
+      title: "TC-17: 独立复核（设计与实现偏离逐条结论）"
+      covers:
+        - t-43e512
+        - t-1e2054
+        - t-f4c9f5
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-18
+      title: "TC-18: 测试阶段目标命令（交付可重放的验收入口）"
+      covers:
+        - t-c6026b
+        - t-a21eb3
+        - t-10122a
+      validates: []
+      source: tests/test-evidence.md
+traceability:
+  task_to_tests:
+    t-87f0da:
+      - TC-1
+    t-0e7fac:
+      - TC-2
+    t-394339:
+      - TC-3
+    t-e96a0c:
+      - TC-4
+    t-bc1ba6:
+      - TC-5
+    t-2417da:
+      - TC-6
+    t-66797c:
+      - TC-7
+    t-0c7f17:
+      - TC-7
+    t-860900:
+      - TC-8
+    t-8d4af7:
+      - TC-9
+    t-05925b:
+      - TC-10
+    t-fa3e16:
+      - TC-11
+    t-faf303:
+      - TC-12
+    t-03254f:
+      - TC-12
+    t-dfc245:
+      - TC-13
+    t-e77b06:
+      - TC-15
+    t-d1aa0f:
+      - TC-14
+    t-796a50:
+      - TC-1
+    t-b34b32:
+      - TC-1
+    t-43e512:
+      - TC-17
+    t-c6026b:
+      - TC-18
+    t-5be8c6:
+      - TC-2
+    t-315ea1:
+      - TC-2
+    t-1e2054:
+      - TC-17
+    t-a21eb3:
+      - TC-18
+    t-c130ca:
+      - TC-15
+    t-6df9a0:
+      - TC-16
+    t-f4c9f5:
+      - TC-17
+    t-10122a:
+      - TC-15
+      - TC-18
+  fr_to_tests:
+    FR-1: []
+    FR-6: []
+    FR-8: []
+    FR-3: []
+    FR-4: []
+    FR-7: []
+    FR-5: []
+    FR-2: []
+coverage:
+  testing:
+    total: 29
+    covered: 29
+    uncovered: []
+    rate: 100
+    total_tasks: 29
+    tested_tasks: 29
+    untested: []

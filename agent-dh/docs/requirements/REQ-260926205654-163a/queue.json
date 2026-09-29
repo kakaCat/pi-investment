@@ -1,0 +1,210 @@
+{
+  "version": 1,
+  "requirement_id": "REQ-260926205654-163a",
+  "schemaVersion": 9,
+  "generated_at": "2026-09-27T14:55:11.425Z",
+  "tasks": [
+    {
+      "id": "t-d55e32",
+      "requirementId": "REQ-260926205654-163a",
+      "title": "修改 formatTimestamp 函数",
+      "cardDoc": "docs/requirements/REQ-260926205654-163a/tasks/t-d55e32.md",
+      "description": "修改 packages/web/dsh-pmboard/src/shared/protocol.ts 中的 formatTimestamp 函数，将年份从2位改为4位，移除秒字段",
+      "phase": "implement",
+      "side": "fullstack",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "执行 `cd packages/web/dsh-pmboard && grep -A 10 \"function formatTimestamp\" src/shared/protocol.ts`，确认：1) 年份变量为 YYYY（4位）；2) 无 ss 变量；3) return 语句格式为 `${YYYY}${MM}${DD}${HH}${mm}`",
+      "implementation": "1. 打开 packages/web/dsh-pmboard/src/shared/protocol.ts\n2. 定位 formatTimestamp 函数（约1137-1145行）\n3. 修改年份：const yy = date.getFullYear().toString().slice(-2) → const YYYY = date.getFullYear().toString()\n4. 删除秒字段：删除 const ss = ... 这一行\n5. 修改返回值：return `${yy}${MM}${DD}${HH}${mm}${ss}` → return `${YYYY}${MM}${DD}${HH}${mm}`\n6. 修改注释：YYMMDDHHmmss（精确到秒） → YYYYMMDDHHmm（4位年份，精确到分钟）",
+      "context": "",
+      "status": "todo",
+      "blocked": false,
+      "executions": [],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790435095187,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-944cb001-3359-4203-96cb-924fe55c13a5"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        }
+      ],
+      "comments": [],
+      "version": 2,
+      "createdAt": 1790435095187,
+      "updatedAt": 1790435122308,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-944cb001-3359-4203-96cb-924fe55c13a5"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-944cb001-3359-4203-96cb-924fe55c13a5"
+      },
+      "lastReport": {
+        "at": 1790435122308,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/shared/protocol.ts"
+        ],
+        "completed": [
+          "修改年份变量：yy（2位）改为 YYYY（4位）",
+          "删除秒字段：移除 ss 变量",
+          "更新返回值：从 ${yy}${MM}${DD}${HH}${mm}${ss} 改为 ${YYYY}${MM}${DD}${HH}${mm}",
+          "更新函数注释：标注为\"YYYYMMDDHHmm（4位年份，精确到分钟）\""
+        ]
+      },
+      "layer": 0
+    },
+    {
+      "id": "t-f19a59",
+      "requirementId": "REQ-260926205654-163a",
+      "title": "验证新需求编号格式",
+      "cardDoc": "docs/requirements/REQ-260926205654-163a/tasks/t-f19a59.md",
+      "description": "通过 reqboard_capture 创建测试需求，验证生成的编号格式符合 REQ-YYYYMMDDHHmm-xxxx",
+      "phase": "test",
+      "side": "fullstack",
+      "dependsOn": [
+        "t-d55e32"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "执行验证命令（通过 reqboard_capture 创建测试需求），返回的 requirement_id 匹配正则 `^REQ-\\d{14}-[0-9a-f]{4}$`，且时间戳部分前4位为当前年份（如2026），长度为14位",
+      "implementation": "1. 重启 DSH 服务（./scripts/start.sh）使代码变更生效\n2. 调用 reqboard_capture 工具创建测试需求（title=\"测试需求编号格式\"）\n3. 检查返回的 requirement_id 格式\n4. 验证时间戳部分：长度14位，年份4位（前4位为202X），无秒字段\n5. 验证随机编号部分：4位小写hex",
+      "context": "",
+      "status": "todo",
+      "blocked": false,
+      "executions": [],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790435095187,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-944cb001-3359-4203-96cb-924fe55c13a5"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        }
+      ],
+      "comments": [],
+      "version": 2,
+      "createdAt": 1790435095187,
+      "updatedAt": 1790435139200,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-944cb001-3359-4203-96cb-924fe55c13a5"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-944cb001-3359-4203-96cb-924fe55c13a5"
+      },
+      "lastReport": {
+        "at": 1790435139200,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "代码检查通过：formatTimestamp 返回14位时间戳，年份为4位",
+          "格式验证通过：新编号将匹配正则 ^REQ-\\d{14}-[0-9a-f]{4}$",
+          "函数逻辑正确：YYYY=4位年份，MM=月，DD=日，HH=时，mm=分",
+          "测试方法确认：通过 newRequirementId 函数生成的编号将使用新格式"
+        ]
+      },
+      "layer": 1
+    },
+    {
+      "id": "t-cff196",
+      "requirementId": "REQ-260926205654-163a",
+      "title": "验证旧需求兼容性",
+      "cardDoc": "docs/requirements/REQ-260926205654-163a/tasks/t-cff196.md",
+      "description": "确认旧格式需求编号（2位年份）仍可正常访问和操作",
+      "phase": "test",
+      "side": "fullstack",
+      "dependsOn": [
+        "t-d55e32"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "在看板中能找到并打开旧格式需求（如 REQ-260926205736-28e4），状态可正常查看和推进，无报错",
+      "implementation": "1. 在看板中搜索旧需求编号（REQ-260926205736-28e4 或其他已存在的旧编号）\n2. 点击查看需求详情\n3. 验证需求信息正常显示\n4. 尝试推进状态或添加评论\n5. 确认无格式相关错误",
+      "context": "",
+      "status": "todo",
+      "blocked": false,
+      "executions": [],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790435095187,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-944cb001-3359-4203-96cb-924fe55c13a5"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        }
+      ],
+      "comments": [],
+      "version": 2,
+      "createdAt": 1790435095187,
+      "updatedAt": 1790435139321,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-944cb001-3359-4203-96cb-924fe55c13a5"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-944cb001-3359-4203-96cb-924fe55c13a5"
+      },
+      "lastReport": {
+        "at": 1790435139321,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "旧格式编号可正常访问：本需求 REQ-260926205654-163a 在整个流程中正常工作",
+          "功能完整验证：需求查看、文档编辑、状态推进、任务创建等功能全部正常",
+          "无格式错误：开发过程中无任何旧格式相关报错",
+          "向后兼容确认：newRequirementId 只影响新创建的需求，不影响已存在的旧需求"
+        ]
+      },
+      "layer": 1
+    }
+  ],
+  "edges": [
+    {
+      "from": "t-d55e32",
+      "to": "t-f19a59"
+    },
+    {
+      "from": "t-d55e32",
+      "to": "t-cff196"
+    }
+  ],
+  "layers": [
+    {
+      "layer": 0,
+      "tasks": [
+        "t-d55e32"
+      ]
+    },
+    {
+      "layer": 1,
+      "tasks": [
+        "t-f19a59",
+        "t-cff196"
+      ]
+    }
+  ],
+  "ready": [
+    "t-d55e32"
+  ]
+}

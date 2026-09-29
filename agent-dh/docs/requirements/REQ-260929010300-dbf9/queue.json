@@ -1,0 +1,3784 @@
+{
+  "version": 1,
+  "requirement_id": "REQ-260929010300-dbf9",
+  "schemaVersion": 9,
+  "generated_at": "2026-09-28T17:23:50.078Z",
+  "tasks": [
+    {
+      "id": "t-d03789",
+      "requirementId": "REQ-260929010300-dbf9",
+      "title": "定契约：入参结构类型收敛 + 面板画布常量",
+      "cardDoc": "docs/requirements/REQ-260929010300-dbf9/tasks/t-d03789.md",
+      "description": "先把类型与常量钉死，后续实现卡都依赖它，避免各卡各写一份字面量。",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "cd packages/web/dsh-pmboard && npx tsc --noEmit -p tsconfig.json 0 error；cd packages/web/dsh-pmboard && npx vitest run tests/dag-view.test.ts tests/client-view.test.ts 全绿（缺省行为不变：buildDagCanvas(tasks) 返回值仍包含 id=\"dag-canvas\"）",
+      "implementation": "改 packages/web/dsh-pmboard/src/client/views/dag-view.ts：①新增并导出 DagTaskLike（id/title/status/phase/side/dependsOn + 可选 parentId/stageKind/cardDoc），把 buildDagCanvas/mountDagCanvas/buildDagData 的入参从 TaskRecord[] 收敛到该结构类型；②新增并导出 PANEL_DAG_CONTAINER_ID='np-dag-canvas-container' 与 PANEL_DAG_CANVAS_ID='np-dag-canvas'；③buildDagCanvas(tasks, containerId='dag-canvas-container', canvasId='dag-canvas')、mountDagCanvas(tasks, ready?, canvasId='dag-canvas') 新参数改可选。本卡不改挂载生命周期、不改任何调用方。",
+      "context": "",
+      "requirementRefs": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-679ca7",
+          "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+          "trigger": "manual",
+          "startedAt": 1790616409427,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 3454,
+              "at": 1790616409441,
+              "totals": {
+                "uncachedInputTokens": 5206143,
+                "outputTokens": 470067,
+                "cacheReadTokens": 78616192,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4194,
+              "at": 1790617414268,
+              "totals": {
+                "uncachedInputTokens": 5424619,
+                "outputTokens": 554961,
+                "cacheReadTokens": 97783040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 218476,
+              "outputTokens": 84894,
+              "cacheReadTokens": 19166848,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790617414241
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790616229808,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790616409427,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e"
+          },
+          "reason": "按任务卡顺序开工：先定契约（DagTaskLike + 面板画布常量 + 三入口可选参数）"
+        },
+        {
+          "status": "done",
+          "at": 1790617414241,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-ee983c",
+          "body": "[状态] → in_progress：按任务卡顺序开工：先定契约（DagTaskLike + 面板画布常量 + 三入口可选参数）（reqboard_task_move）",
+          "createdAt": 1790616409427,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e"
+          }
+        }
+      ],
+      "version": 3,
+      "createdAt": 1790616229808,
+      "updatedAt": 1790617414241,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "layer": 0,
+      "claimedBy": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+      "claimedAt": 1790616409427,
+      "lastReport": {
+        "at": 1790617414241,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/client/views/dag-view.ts",
+          "packages/web/dsh-pmboard/tests/dag-view.test.ts"
+        ],
+        "completed": [
+          "定契约·研发（dev）落盘：packages/web/dsh-pmboard/src/client/views/dag-view.ts 三项契约齐备并核验通过——①导出 dag 绘制最小结构类型 DagTaskLike（id/title/status/phase/side/dependsOn 必填 + parentId/stageKind/cardDoc 可选），buildDagData / buildDagCanvas / mountDagCanvas 三入口入参由 TaskRecord[] 收敛为该结构（文件内已无 TaskRecord 类型引用，仅 4 处注释提及）；②导出 PANEL_DAG_CONTAINER_ID=`np-dag-canvas-container`、PANEL_DAG_CANVAS_ID=`np-dag-canvas`；③buildDagCanvas(tasks, containerId=`dag-canvas-container`, canvasId=`dag-canvas`) 与 mountDagCanvas(tasks, ready?, canvasId=`dag-canvas`) 的新增参数均为可选（缺省走模块内 DAG_CANVAS_ID）。未改挂载生命周期（disposers Map 实例表 + openTaskDetail(canvasId) 保持原样），未改任何调用方。说明：该源文件的编辑在上一轮中断的执行中已写入工作区（mtime 2026-09-29 01:28），本卡补做完整核验与证据补齐，并确认 tests/dag-view.test.ts 中覆盖本卡契约（缺省 id / PANEL_* 常量 / canvasId 隔离）的用例为绿。",
+          "联调通过：dag-view.ts 的 DagTaskLike 入参收敛与两个面板画布常量已在真实调用中生效，12/12 断言与期望逐字一致。① buildDagData 接受仅含 6 个必填字段的最小对象（面板侧 StageTaskRef 子集），子卡折叠、依赖重路由（传递归约）、队列 ready 上提父卡均按预期；② buildDagCanvas 缺省仍为 dag-canvas-container/dag-canvas，显式传 PANEL_DAG_CONTAINER_ID/PANEL_DAG_CANVAS_ID 时输出 np-dag-canvas-container/np-dag-canvas 且不残留缺省 id，空任务空态不变；③ mountDagCanvas 第 3 参 canvasId 与新可选 ready 真实透传到 document.getElementById；④ 跨模块真实调用方 renderNodePanel(implementing/decomposing) 与 tryMountDagCanvas 均按面板常量挂载、零异常。类型侧 tsc 探针退出 0：最小入参可编过，3 个反向用例（缺 phase/side/dependsOn、dependsOn 非 string[]、多余字段）全部按契约报错。附注（非缺陷）：DagTaskLike 的 phase/side 声明为 string，进入 CardData 时是无校验类型断言，运行时依赖调用方传受控枚举。",
+          "复核对象：t-d03789/t-cc9e3a（定契约：入参结构类型收敛 + 面板画布常量·复核）。逐条比对「设计（design/data-model.md §入参结构类型收敛不伪造、design/interfaces.md §三个入口签名/常量、本卡 implementation）」与「实现（packages/web/dsh-pmboard/src/client/views/dag-view.ts）」，结论如下：\n① DagTaskLike 定义与导出：无偏离。dag-view.ts:60-71 为 export interface，必填 id/title/status/phase/side/dependsOn，可选 parentId/stageKind/cardDoc，与设计字段集逐字一致（cardDoc 当前绘制不消费，符合设计「保留字段以便两入参互换」）。\n② 三入口入参收敛：无偏离。buildDagData:158 / buildDagCanvas:235 / mountDagCanvas:312 入参均为 DagTaskLike[]；全文件 grep「TaskRecord」仅命中 4 处注释（L10/57/58/152），无任何 TaskRecord 类型引用。\n③ 面板画布常量：无偏离。dag-view.ts:51-52 export const PANEL_DAG_CONTAINER_ID = 'np-dag-canvas-container'、PANEL_DAG_CANVAS_ID = 'np-dag-canvas'，取值与导出要求逐字一致（单一常量源）。\n④ 签名与新参可选：无偏离。buildDagCanvas(tasks, containerId='dag-canvas-container', canvasId=…) 与 mountDagCanvas(tasks, ready?, canvasId=…) 的新增参数均带缺省值（可选）；canvasId 缺省以模块常量 DAG_CANVAS_ID（L44='dag-canvas'）表达，值恒等于设计缺省 'dag-canvas'，行为等价。\n⑤ ready 两态语义：无偏离。buildDagData(tasks, ready?: readonly string[]) 保留 readonly string[]|undefined；L201 fromQueue = ready !== undefined、L223 readySource 区分 queue/derived，与设计「undefined=推导、空数组=队列确实无卡」一致。\n⑥ 缺省即旧行为 + 不改调用方：无偏离。缺省产出 id=\"dag-canvas-container\" 与 id=\"dag-canvas\"（tests/dag-view.test.ts:271-283 已断言）；需求详情调用方 views/stage-detail.ts:315 buildDagCanvas(tasks, 'dag-canvas-container') 与新签名兼容且该文件 mtime 2026-09-29T00:04:28 早于本卡编辑窗（01:28:25），确未被本卡触碰；结构上 TaskRecord（protocol.ts:1167-1233 / client/types.ts:209-245）与 StageTaskRef（protocol.ts:390-416）均含 6 个必填字段，可赋给 DagTaskLike，故收敛不迫使调用方改动。\n⑦ 不改挂载生命周期：无偏离（依据为声明+契约一致性）。dev 报告（queue.json:738-747）声明 disposers Map 实例表与 openTaskDetail(canvasId) 保持原样、filesChanged 仅 dag-view.ts 与 tests/dag-view.test.ts；且该 Map 正是 data-model.md L14 规定的目标不变量，与设计无冲突。附注（非缺陷，2 条）：(a) dag-view.ts 未被 git 跟踪（git ls-files --error-unmatch 失败、git status 为 ??），无基线 diff，「未改挂载生命周期/未改调用方」无法做代码级独立验证，仅能依赖 dev 报告与 mtime 归属（node-panel.ts 01:28:44、conversation-progress.ts 01:29:41、dag-mount.ts 01:28:25 与本卡编辑窗重叠，属 dev 报告所述「上一轮中断执行已写入工作区」）；(b) dag-view.ts:57 注释称 TaskRecord/StageTaskRef 为「本结构类型的子集」，设计 data-model.md L21 写「超集」——字段包含关系以设计表述为准，注释为措辞问题，不改动任何行为与类型。\n综上：本卡 7 项设计条目逐条核对均无功能/契约偏离，「无偏离」结论如上并逐条附依据；未改任何代码、未执行父卡终态验收命令（tsc/vitest 属测试段）。",
+          "父卡两条终态验收命令逐条执行：vitest 全绿（2 文件 / 74 用例，exit 0）；tsc 未通过（exit 2，208 条 error TS，67 个文件），目标命令未全绿 → 判 fail。tsc 报错与本卡改动零交集（无任何 dag-view.ts / DagTaskLike 相关错误），本卡契约本身（DagTaskLike 导出、PANEL_* 常量、三入口入参收敛且新参可选）在源码与单测中均就位且相应用例全绿；未改任何代码。"
+        ]
+      }
+    },
+    {
+      "id": "t-6f9d7f",
+      "requirementId": "REQ-260929010300-dbf9",
+      "title": "画布 id 参数化 + 挂载实例表",
+      "cardDoc": "docs/requirements/REQ-260929010300-dbf9/tasks/t-6f9d7f.md",
+      "description": "同一页可同时挂需求详情与会话面板两块 DAG，互不抢占、互不释放。",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-d03789"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "cd packages/web/dsh-pmboard && npx vitest run tests/dag-view.test.ts 全绿，且新增用例断言：两个不同 canvasId 各挂载一次后释放其一，另一实例对应的画布元素仍存在于 DOM（两者互不释放）",
+      "implementation": "改 packages/web/dsh-pmboard/src/client/views/dag-view.ts：①模块级单槽 activeDispose 换成 const disposers = new Map<string, () => void>()，disposeDagCanvas(canvasId) 只释放同名条目；②mountDagCanvas 用 document.getElementById(canvasId) 定位画布、openTaskDetail(taskId, canvasId) 定位锚点、挂载完成写入 disposers.set(canvasId, ...)；③改 packages/web/dsh-pmboard/src/client/dag-mount.ts：tryMountDagCanvas(tasks, ready?, canvasId='dag-canvas') 透传 canvasId。",
+      "context": "",
+      "requirementRefs": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-a35ff1",
+          "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+          "trigger": "manual",
+          "startedAt": 1790616792765,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 3917,
+              "at": 1790616792780,
+              "totals": {
+                "uncachedInputTokens": 5407935,
+                "outputTokens": 535269,
+                "cacheReadTokens": 89878912,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4198,
+              "at": 1790617944721,
+              "totals": {
+                "uncachedInputTokens": 5424619,
+                "outputTokens": 554961,
+                "cacheReadTokens": 97783040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 16684,
+              "outputTokens": 19692,
+              "cacheReadTokens": 7904128,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790617944689
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790616229808,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790616792765,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e"
+          },
+          "reason": "开工：画布 id 参数化 + 挂载实例表（disposers Map + dag-mount 透传）（本卡代码已随本需求一并落地，链展开后交自动链收口）"
+        },
+        {
+          "status": "done",
+          "at": 1790617944689,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-257c91",
+          "body": "[状态] → in_progress：开工：画布 id 参数化 + 挂载实例表（disposers Map + dag-mount 透传）（本卡代码已随本需求一并落地，链展开后交自动链收口）（reqboard_task_move）",
+          "createdAt": 1790616792765,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e"
+          }
+        }
+      ],
+      "version": 3,
+      "createdAt": 1790616229808,
+      "updatedAt": 1790617944689,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "layer": 1,
+      "claimedBy": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+      "claimedAt": 1790616792765,
+      "lastReport": {
+        "at": 1790617944689,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/client/views/dag-view.ts",
+          "packages/web/dsh-pmboard/src/client/dag-mount.ts",
+          "packages/web/dsh-pmboard/tests/dag-view.test.ts"
+        ],
+        "completed": [
+          "画布 id 参数化 + 挂载实例表（本卡 t-6f9d7f·dev）完工。三项契约逐条核对在位：①dag-view.ts:280 const disposers = new Map<string, () => void>()，dag-view.ts:283-288 disposeDagCanvas(canvasId) 只释放同名条目（全 src 已无 activeDispose 残留）；②dag-view.ts:312 mountDagCanvas(tasks, ready?, canvasId=DAG_CANVAS_ID) 用 document.getElementById(canvasId) 定位画布、openTaskDetail(taskId, canvasId) 定位锚点（:294、:377 调用）、挂载完写入 disposers.set(canvasId, ...)（:398）；③dag-mount.ts:16 tryMountDagCanvas(tasks, ready?, canvasId='dag-canvas') 原样透传给 mountDagCanvas（:21）。本卡新落盘的改动：把 disposeDagCanvas(canvasId) 提到 mountDagCanvas 的提前返回之前（dag-view.ts:316）——原实现遇到「画布已被 SSE 重绘摘掉」或「顶层卡为空（如只剩子卡）」会直接 return，旧实例仍留在实例表里，其 ResizeObserver 与 dblclick 监听挂在已脱管 canvas 上，违反 design/data-model.md 的不变量「每个 canvasId 至多一条、重复挂载先释放旧条目」；dag-mount.ts JSDoc 同步该语义。tests/dag-view.test.ts 新增 2 条用例：画布被摘掉后重复挂载 → 同名旧实例回收且另一实例监听未被摘；顶层卡为空 → 同样回收且不动另一块；并给 fake DOM 扩出 remove(id) 以模拟 SSE 整块换 DOM。",
+          "接口联调通过：按本卡验收「请求样例 + 期望响应 vs 实际返回」实测 11/11 一致（exit 0，allPass=true），源码级（tsx 直载 TS）与产物级（browser 实际加载的 lib/client.js 静态核对）双向确认。①buildDagCanvas(tasks, containerId, canvasId) 产出的 <canvas id> 与 tryMountDagCanvas(tasks, ready?, canvasId) 查找/挂载的 id 两侧同源：需求详情 wire（stage-detail.ts:315 buildDagCanvas(tasks,'dag-canvas-container') ↔ board-mount.ts:263 tryMountDagCanvas(reqTasks, reqReady)，canvasId 走缺省 dag-canvas）与会话面板 wire（node-panel.ts:176/236 传 PANEL_DAG_CANVAS_ID ↔ conversation-progress.ts:289 传同一常量 np-dag-canvas）均实测挂载成功；②实例表 Map 后两画布互不释放、同 id 重挂只释放同名条目、画布被换掉/只剩子卡时先回收同名旧条目（ResizeObserver disconnect，不泄漏）、目标画布不存在时静默 no-op；③双击卡片经 openTaskDetail(taskId, canvasId) 用本画布的 parentElement 作锚点派发 open-task 事件，实测 payload={action:open-task,task:t-p1}。仅发现 1 处产物与源码不同步（释放顺序，详见 issues），属构建同步问题、不改本卡接口契约，故判 pass。",
+          "无偏离。逐条对齐结论：①实例表——design/data-model.md「Map<string,()=>void>，每 canvasId 至多一条、重复挂载先释放旧条目」= dag-view.ts:280 定义 disposers、:316 在提前返回前先 disposeDagCanvas(canvasId)、:398 挂载完成写入 set(canvasId,...)，完全一致；②释放隔离——architecture.md「disposeDagCanvas(canvasId) 只释放同名条目」= dag-view.ts:283-288 仅对同名键 get/delete，不动其它键，一致；③画布定位——「mountDagCanvas 用 document.getElementById(canvasId)」= dag-view.ts:318，一致；④锚点定位——「openTaskDetail(taskId, canvasId) 用本实例 canvasId 定位锚点」= dag-view.ts:294-303 定义（getElementById(canvasId)?.parentElement）、:378 调用，一致；⑤透传——卡③「tryMountDagCanvas(tasks, ready?, canvasId='dag-canvas') 透传」= dag-mount.ts:16 默认值 + :21 mountDagCanvas(tasks, ready, canvasId)，一致；⑥缺省即旧行为——dag-view.ts:44/235 containerId='dag-canvas-container'、canvasId='dag-canvas'，需求详情调用方（stage-detail.ts:315、board-mount.ts:263）一行未改，一致；⑦错误语义——找不到画布/顶层卡为空返回 undefined 不抛（:319、:321），tryMount 内 catch+console.error（dag-mount.ts:20-24），一致；⑧挂载时机与自适应沿用 rAF + ResizeObserver 宽度真变才重画（dag-mount.ts:18；dag-view.ts:384-396），一致；⑨双击仍走 data-action=\"open-task\" 委托且带本实例 canvasId（:297-302），一致；⑩旧单槽残留核查——src 内 activeDispose 0 命中、disposeDagCanvas 无外部调用方，一致；⑪数据模型零持久化改动，未触碰 queue.json/台账/服务端，一致。另注：包根存在联调阶段临时脚本 tmp-integrate-dag-canvas.mts（untracked，不在 package.json files 白名单），仅其注释提及旧 activeDispose（故障注入说明），与本次实现无偏离。按本卡边界未改代码、未跑父卡终态验收命令。",
+          "父卡 t-6f9d7f（画布 id 参数化 + 挂载实例表）终态验收命令全绿：cd packages/web/dsh-pmboard && npx vitest run tests/dag-view.test.ts → exit 0，Test Files 1 passed (1) / Tests 25 passed (25)。验收要求的新增隔离用例在位且通过——\"mountDagCanvas：实例表按 canvasId 隔离（FR-3 / FR-4）\"4 例全绿，其中「两处各挂一次：挂第二块不动第一块；同 id 二次挂载先释放旧实例」直接钉住\"两个不同 canvasId 各挂载一次后释放其一、另一实例不受影响（互不释放）\"；另有「画布被 SSE 重绘摘掉后重复挂载：先释放同名旧实例，另一实例不受影响」「顶层卡为空也先释放同名旧实例且不动其它画布」。源码侧只读核验在位：dag-view.ts:280 const disposers = new Map<string, () => void>()、:283 disposeDagCanvas 仅释放同名条目、:316 提前返回前先释放、:398 挂载完成 disposers.set(canvasId,...)。本卡未改任何代码。"
+        ]
+      }
+    },
+    {
+      "id": "t-284b0a",
+      "requirementId": "REQ-260929010300-dbf9",
+      "title": "会话面板两处 DAG 块改调同一构建函数",
+      "cardDoc": "docs/requirements/REQ-260929010300-dbf9/tasks/t-284b0a.md",
+      "description": "实施阶段 [DAG] 页签与拆分阶段「📊 DAG 层级」块换成与需求详情同源的 Canvas 真图面板。",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-d03789"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "cd packages/web/dsh-pmboard && npx vitest run tests/node-panel.test.ts 全绿；实施阶段与拆分阶段两处 HTML 均包含 dsh-pm-dag-panel 与 id=\"np-dag-canvas\"，且不包含 dsh-pm-np-dag-layer",
+      "implementation": "改 packages/web/dsh-pmboard/src/client/node-panel.ts：renderDecomposingInfo 的「📊 DAG 层级」块与 renderImplViews 的 [DAG] 页签块，从 renderDag(...) 改为 buildDagCanvas(tasks, PANEL_DAG_CONTAINER_ID, PANEL_DAG_CANVAS_ID)（自 views/dag-view.ts import）；renderDag 保留函数、不再有调用点。",
+      "context": "",
+      "requirementRefs": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-6d1724",
+          "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+          "trigger": "manual",
+          "startedAt": 1790616792879,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 3919,
+              "at": 1790616792891,
+              "totals": {
+                "uncachedInputTokens": 5407935,
+                "outputTokens": 535269,
+                "cacheReadTokens": 89878912,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4202,
+              "at": 1790618268173,
+              "totals": {
+                "uncachedInputTokens": 5424619,
+                "outputTokens": 554961,
+                "cacheReadTokens": 97783040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 16684,
+              "outputTokens": 19692,
+              "cacheReadTokens": 7904128,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790618268145
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790616229808,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790616792879,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e"
+          },
+          "reason": "开工：会话面板两处 DAG 块改调同一构建函数（node-panel.ts）（本卡代码已随本需求一并落地，链展开后交自动链收口）"
+        },
+        {
+          "status": "done",
+          "at": 1790618268145,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-1f67b2",
+          "body": "[状态] → in_progress：开工：会话面板两处 DAG 块改调同一构建函数（node-panel.ts）（本卡代码已随本需求一并落地，链展开后交自动链收口）（reqboard_task_move）",
+          "createdAt": 1790616792879,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e"
+          }
+        }
+      ],
+      "version": 3,
+      "createdAt": 1790616229808,
+      "updatedAt": 1790618268145,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "layer": 1,
+      "claimedBy": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+      "claimedAt": 1790616792879,
+      "lastReport": {
+        "at": 1790618268145,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/client/node-panel.ts",
+          "packages/web/dsh-pmboard/tests/node-panel.test.ts"
+        ],
+        "completed": [
+          "t-284b0a·研发（dev）完工：node-panel.ts 两处 DAG 块已从 renderDag(...) 改调 buildDagCanvas(tasks, PANEL_DAG_CONTAINER_ID, PANEL_DAG_CANVAS_ID)。①renderDecomposingInfo 的「📊 DAG 层级」块（node-panel.ts:176）；②renderImplViews 的 [DAG] 页签块（node-panel.ts:236）；常量与构建函数自 ./views/dag-view.js import（node-panel.ts:31，与 conversation-progress.ts / dag-mount.ts 同款 .js 后缀）。renderDag 保留为 export function（node-panel.ts:143，注释说明已不接线），全 src 仅 1 处 renderDag( 命中=定义、0 个调用点。诚实披露：node-panel.ts 的这两行改动系上一轮中断执行写入工作区的既有改动（本次开工前已在盘上），本卡补做完整核验并补齐证据；本卡本次新落盘的写入是 tests/node-panel.test.ts 的两条判别性断言——原用例只断言 canvas id，把调用改回 dag-view 缺省 id 仍会全绿（隔离契约失守不可见），故补 assert 容器 id 且 not.toContain 缺省画布 id，拆分/实施两处各一条（node-panel.test.ts:173、182），并用临时探针实测了这两条断言的判别力（跑完即删）。未执行父卡终态验收命令（全量测试 / build:client / grep 零命中）。",
+          "联调通过：node-panel.ts 两处 DAG 块的调用点（renderDecomposingInfo 第176行「📊 DAG 层级」、renderImplViews 第236行 [DAG] 页签，import 见第31行）均以 buildDagCanvas(tasks, PANEL_DAG_CONTAINER_ID, PANEL_DAG_CANVAS_ID) 调用。用本需求真实 queue.json 的 29 张卡组装 StageOverview，真实调用 renderNodePanel 两次（stage=decomposing / implementing），实际返回与期望逐字一致：两块 HTML 各自逐字包含同一份 buildDagCanvas 产物（1284 字节，三份完全相同），canvas id=np-dag-canvas、container id=np-dag-canvas-container（=面板常量），均不含需求详情的缺省 id=\"dag-canvas\" 与旧 renderDag 标记（dsh-pm-np-dag-layer / dsh-pm-np-dag-node）。9/9 判据全通过，未发现偏离。",
+          "复核对象：t-284b0a「会话面板两处 DAG 块改调同一构建函数」。逐条比对设计（design/interfaces.md:16-18、design/architecture.md:19、design/use-cases.md:17、requirement.md:25-27/71/113、decomposition.md:17、tasks/t-284b0a.md:16/19）与实现，结论如下：\n① 拆分阶段「📊 DAG 层级」块：无偏离。node-panel.ts:176 = parts.push(`<div class=\"dsh-pm-np-sec-label\">📊 DAG 层级</div>${buildDagCanvas(b.tasks ?? [], PANEL_DAG_CONTAINER_ID, PANEL_DAG_CANVAS_ID)}`)；git diff 显示旧调用 renderDag(b.tasks ?? []) 已被替换，实参仍为该阶段 payload 的 tasks（requirement.md:71 定义的输入；作用域内无名为 tasks 的局部变量，故以 b.tasks ?? [] 等价表达）。\n② 实施阶段 [DAG] 页签块：无偏离。node-panel.ts:236 data-pane=\"flow\" 内为 ${buildDagCanvas(tasks, PANEL_DAG_CONTAINER_ID, PANEL_DAG_CANVAS_ID)}；git diff 显示旧调用 renderDag(tasks) 已被替换，符合 requirement.md:25-26 FR-1。\n③ import 来源与常量单一源：无偏离。node-panel.ts:31 = import { buildDagCanvas, PANEL_DAG_CONTAINER_ID, PANEL_DAG_CANVAS_ID } from ./views/dag-view.js，三符号齐备；该文件内 grep np-dag-canvas|dag-canvas 命中 NONE，无重复字面量，符合 design/interfaces.md:16-17「禁止两处各写一份字面量」。\n④ renderDag 保留且无调用点：无偏离。node-panel.ts:143 = export function renderDag（保留定义，注释 L136-142 声明「保留但不再接线」）；全仓 src+tests grep renderDag 仅 1 处 = 该定义、0 个调用点（dag/integration.ts 的 renderDagHtml 是同名前缀的不同符号），符合 design/architecture.md:19 与 requirement.md:113。附注（非缺陷）：基线为 function renderDag，本次改为 export function 以规避 noUnusedLocals 判死；设计只要求「保留函数」，未禁止导出。\n⑤ 面板不再自绘 DAG：无偏离。node-panel 仅做字符串拼接，DAG 面板骨架（dsh-pm-dag-panel 根 + <canvas id=np-dag-canvas>）全部由 buildDagCanvas（dag-view.ts:235-265）产出，符合 design/architecture.md:19 与 design/use-cases.md:17。\n⑥ 两处同源同结构：无偏离。两处均以同一函数 + 同一对常量调用，产物块逐字相同；tests/node-panel.test.ts:166-187 分别对拆分/实施断言 id=np-dag-canvas-container、id=np-dag-canvas、not id=dag-canvas、not dsh-pm-np-dag-layer（实施块另断 not dsh-pm-np-dag-node），符合 requirement.md:73-74 FR-2。\n附注（非缺陷，1 条）：实施块保留了节点自有的 pane caption（🔀 父卡依赖关系（按最长依赖链分层 · 子卡不单独成节点…）），与 buildDagCanvas 面板自带标题（🔀 父卡依赖关系（真 DAG · 子卡不单独成节点））形成两行近似标题；requirement.md:65 明确「不改自身其它区块」，保留 caption 与设计一致，仅为观感冗余，不构成偏离。\n声明：本卡为复核阶段，未改任何代码、未执行父卡终态验收命令（vitest/tsc/build 属测试段）。",
+          "父卡终态验收命令全绿：cd packages/web/dsh-pmboard && npx vitest run tests/node-panel.test.ts → 28/28 passed（1 file, exit 0），其中 tests/node-panel.test.ts:166-200 逐条断言拆分块与实施块均含 dsh-pm-dag-panel、id=\"np-dag-canvas-container\"、id=\"np-dag-canvas\"，且不含 id=\"dag-canvas\"／dsh-pm-np-dag-layer／dsh-pm-np-dag-node，并断言两块 DAG 类名集合逐项相同（同一构建函数产物）。附带验证客户端产物构建绿灯（pnpm build:client exit 0，verify-client OK），产物内 np-dag-canvas-container / np-dag-canvas 常量仅声明一次、两处块经变量共用，坐实\"两处同源\"。typecheck 为基线红：208 个 TS 错误全部落在本卡未改动且相对 HEAD 无 diff 的测试文件（tests/unit/**、tests/worktree-injection.test.ts 等），node-panel.ts / dag-view.ts 零错误，非本卡引入。未改任何代码。"
+        ]
+      }
+    },
+    {
+      "id": "t-3ed4b5",
+      "requirementId": "REQ-260929010300-dbf9",
+      "title": "会话面板挂载钩子（DOM 就绪后挂载）",
+      "cardDoc": "docs/requirements/REQ-260929010300-dbf9/tasks/t-3ed4b5.md",
+      "description": "面板 HTML 进 DOM 之后再挂画布；面板载荷没有队列 ready[]，统计条按「推导」诚实标注。",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-6f9d7f",
+        "t-284b0a"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "打开 :13080 会话右上角流程节点 → 实施阶段 [DAG] 页签可见画布（2026-09-29 裁定 B：无标题行 / 无统计条）；切到泳道再切回 [DAG] 画布仍存在；cd packages/web/dsh-pmboard && npx vitest run tests/node-panel.test.ts tests/client-view.test.ts 全绿",
+      "implementation": "改 packages/web/dsh-pmboard/src/client/conversation-progress.ts：新增 useEffect（依赖 detailOpen / selectedStage / stageOverview），从 stageOverview.stages 取所选阶段，stage 为 implementing 或 decomposing 时读 body.tasks 并调 tryMountDagCanvas(tasks, undefined, PANEL_DAG_CANVAS_ID)；不传 ready（对齐 FR-7 标注「推导」），阶段或任务缺失时不调用。",
+      "context": "",
+      "requirementRefs": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-98a0f3",
+          "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+          "trigger": "manual",
+          "startedAt": 1790616792983,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 3921,
+              "at": 1790616792997,
+              "totals": {
+                "uncachedInputTokens": 5407935,
+                "outputTokens": 535269,
+                "cacheReadTokens": 89878912,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4206,
+              "at": 1790618768666,
+              "totals": {
+                "uncachedInputTokens": 5424619,
+                "outputTokens": 554961,
+                "cacheReadTokens": 97783040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 16684,
+              "outputTokens": 19692,
+              "cacheReadTokens": 7904128,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790618768642
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790616229808,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790616792983,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e"
+          },
+          "reason": "开工：会话面板挂载钩子（conversation-progress.ts 就绪后挂载）（本卡代码已随本需求一并落地，链展开后交自动链收口）"
+        },
+        {
+          "status": "done",
+          "at": 1790618768642,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-10a6ec",
+          "body": "[状态] → in_progress：开工：会话面板挂载钩子（conversation-progress.ts 就绪后挂载）（本卡代码已随本需求一并落地，链展开后交自动链收口）（reqboard_task_move）",
+          "createdAt": 1790616792983,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e"
+          }
+        }
+      ],
+      "version": 3,
+      "createdAt": 1790616229808,
+      "updatedAt": 1790637749439,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "layer": 2,
+      "claimedBy": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+      "claimedAt": 1790616792983,
+      "lastReport": {
+        "at": 1790618768642,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/client/conversation-progress.ts"
+        ],
+        "completed": [
+          "完成 t-b1db02（会话面板挂载钩子·研发）：在 packages/web/dsh-pmboard/src/client/conversation-progress.ts 中落盘 Canvas DAG 挂载 useEffect——依赖 [detailOpen, selectedStage, stageOverview]，stageKey = selectedStage ?? stageOverview.currentStage，仅当阶段为 implementing / decomposing 时从 stageOverview.stages.find(...).body.tasks 取任务，阶段缺失 / 任务缺失或为空一律不调用，命中时调 tryMountDagCanvas(tasks, undefined, PANEL_DAG_CANVAS_ID)（不传 ready，对齐 FR-7 统计条标「推导」；canvasId 用面板专用常量与需求详情 #dag-canvas 隔离）；顶部已引入 tryMountDagCanvas（./dag-mount.ts）与 PANEL_DAG_CANVAS_ID（./views/dag-view.js）。本轮把原先嵌套三元（两分支同值）规范为显式二阶段判断并补注释，语义不变、类型收窄不变。effect 位于组件早退之前（Hooks 顺序安全），面板 HTML 由同一 commit 注入后 effect 执行，rAF + getElementById 保证 DOM 未就绪时静默。",
+          "会话面板挂载钩子（DOM 就绪后挂载）接口联调通过：用一次性 harness 驱动 conversation-progress.ts 里真实的 useEffect（真实 React 18.3 hooks dispatcher + 真实 renderNodePanel / tryMountDagCanvas / mountDagCanvas），真实一次调用 tryMountDagCanvas(tasks, undefined, PANEL_DAG_CANVAS_ID)，实际返回与预期一致——selectedStage ∈ {implementing, decomposing} 且有 body.tasks 时 np-dag-canvas 被挂载（getContext≥1 / dblclick 绑定 / ResizeObserver observe / 统计条标「推导」，未传 ready）；阶段不在白名单、tasks 为空、stages 缺该阶段、stageOverview 拉取失败、面板未展开五种情形均不调用且不抛。「推导」标注与「互不释放」均实测在位。注意边界：本卡为接口级联调，DOM/rAF/fetch 为替身（本仓未装 jsdom，已在 harness 文件头诚实标注），浏览器端真机与父卡终态验收不在本卡范围；本卡未改动任何 src。",
+          "无偏离。逐条对齐设计源（decomposition.md:18 改动盘点 + queue.json 本卡 implementation 全文 + design/{architecture,interfaces,use-cases,data-model}.md 的 FR-1/FR-2/FR-5/FR-7）：①挂载 useEffect 已在 packages/web/dsh-pmboard/src/client/conversation-progress.ts:279-292 落盘，且位于组件早退（:295）之前，Hooks 顺序安全；②依赖数组 :292 = [detailOpen, selectedStage, stageOverview]，与计划逐字一致；③阶段从 stageOverview.stages 取（:281 stageKey、:283 find），stageKey = selectedStage ?? stageOverview.currentStage 与面板渲染 :392 同表达式，保证「渲染哪块画布就挂哪块」；④白名单仅 implementing/decomposing（:282，对应 FR-1 实施 / FR-2 拆分）；⑤任务取 body.tasks（:287-289 先按判别联合收窄），与 protocol.ts:523-531（Decompose/ImplementStageBody.tasks）一致；⑥调用 tryMountDagCanvas(tasks, undefined, PANEL_DAG_CANVAS_ID)（:291）与 design/interfaces.md:19 逐字一致；⑦不传 ready（undefined）→ buildDagData readySource=\"derived\"（dag-view.ts:201/223）→ dag-stat.ts:60 拼「（推导）」，满足 FR-7 且未冒充队列口径；⑧阶段/任务缺失即不调用（:284 detail undefined return；:290 tasks undefined/空 return），对应 FR-5 静默；⑨常量单一源：import PANEL_DAG_CANVAS_ID from \"./views/dag-view.js\"（:21），与 node-panel.ts:176/236 共用 dag-view.ts:52 的 \"np-dag-canvas\"，渲染 id 与挂载目标同源，未两处各写字面量（interfaces.md:16-18）；⑩挂载实现 rAF + getElementById 存在性检查、缺失静默、内部 catch（dag-mount.ts:16-25），满足 FR-5；⑪未伪造 TaskRecord 其余字段——直接把 StageTaskRef/StageTaskExecution 交给收敛类型 DagTaskLike（dag-view.ts:60-71），符合 data-model.md:18-22。两处计划外但观测等价的收窄（均非缺陷）：selectedStage 为空时回退 currentStage（与 :392 渲染同表达式，不会挂错画布）；tasks.length===0 提前返回（等价于 buildDagCanvas 空态不产 canvas（dag-view.ts:236），不调用时 tryMount 本也会 no-op）。本卡为源码级复核，未改代码、未跑父卡终态验收命令。",
+          "父卡 t-3ed4b5（会话面板挂载钩子·DOM 就绪后挂载，REQ-260929010300-dbf9）的终态验收命令逐条跑完全绿，退出码均为 0，未改任何代码（仅 pnpm build:client 重建 lib 产物）。①父卡终态命令 npx vitest run tests/node-panel.test.ts tests/client-view.test.ts → exit 0，2 files / 79 tests passed；②design/test-cases.md §手工核验#1 四文件命令 → exit 0，4 files / 110 tests passed；③§手工核验#2 pnpm build:client → exit 0，末行 [verify-client] OK bundle=308699 bytes，关键符号齐全、styles.ts 括号配对。实现与卡面实施方案逐点一致（只读核对 src/client/conversation-progress.ts:279-292：useEffect 依赖 [detailOpen, selectedStage, stageOverview]，白名单仅 implementing/decomposing，任务缺失/为空提前 return，:291 调 tryMountDagCanvas(tasks, undefined, PANEL_DAG_CANVAS_ID) 不传 ready）。补充观测：包级全量 npx vitest run 为红（exit 1，35 文件/85 用例失败），失败文件清单不含本卡目标的 4 个测试文件，集中在 REQ-47939a 分层重构在飞改动与既有基线，不影响本卡「目标命令输出全绿」判定。"
+        ]
+      }
+    },
+    {
+      "id": "t-d1a7f7",
+      "requirementId": "REQ-260929010300-dbf9",
+      "title": "DAG 骨架皮肤换成 np 苹果风",
+      "cardDoc": "docs/requirements/REQ-260929010300-dbf9/tasks/t-d1a7f7.md",
+      "description": "两处 DAG 面板骨架统一为会话面板的 np 苹果风；类名不变，画布卡绘制不动。",
+      "phase": "ui",
+      "side": "frontend",
+      "dependsOn": [
+        "t-d03789"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "grep -n -- '--dsw-' packages/web/dsh-pmboard/src/client/styles/dag.ts 无输出； DAG_CSS 的 .dsh-pm-dag-panel 底色 = var(--dsh-pm-np-bg)（= 泳道图底色 #f5f5f7，2026-09-29 用户裁定，不得为白底）； cd packages/web/dsh-pmboard && npx vitest run tests/dag-styles.test.ts 全绿； cd packages/web/dsh-pmboard && pnpm build:client 退出 0 且输出含 [verify-client] OK",
+      "implementation": "改 packages/web/dsh-pmboard/src/client/styles/dag.ts 的 DAG_CSS：面板用白底 + --dsh-pm-np-line-soft 描边 + 12px 圆角；标题用 --dsh-pm-np-text；-head 用 #f5f5f7（--dsh-pm-np-bg）底 + 下描边；-sub 与 -legend 用 --dsh-pm-np-text3 / -text2；-btn 与 -flowstat span 用 980px 胶囊，is-on 用 --dsh-pm-np-blue 实底；滚动条 8px 圆角。类名、styles.ts 的拼接与 scripts/verify-client-build.mjs 一律不动。",
+      "context": "",
+      "requirementRefs": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-22ea8d",
+          "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+          "trigger": "manual",
+          "startedAt": 1790616793083,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 3923,
+              "at": 1790616793097,
+              "totals": {
+                "uncachedInputTokens": 5407935,
+                "outputTokens": 535269,
+                "cacheReadTokens": 89878912,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4286,
+              "at": 1790619148224,
+              "totals": {
+                "uncachedInputTokens": 5719648,
+                "outputTokens": 559249,
+                "cacheReadTokens": 98704896,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 311713,
+              "outputTokens": 23980,
+              "cacheReadTokens": 8825984,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790619148200
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790616229808,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790616793083,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e"
+          },
+          "reason": "开工：DAG 骨架皮肤换成 np 苹果风（styles/dag.ts + dag-styles 测试）（本卡代码已随本需求一并落地，链展开后交自动链收口）"
+        },
+        {
+          "status": "done",
+          "at": 1790619148200,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-75694e",
+          "body": "[状态] → in_progress：开工：DAG 骨架皮肤换成 np 苹果风（styles/dag.ts + dag-styles 测试）（本卡代码已随本需求一并落地，链展开后交自动链收口）（reqboard_task_move）",
+          "createdAt": 1790616793083,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e"
+          }
+        }
+      ],
+      "version": 3,
+      "createdAt": 1790616229808,
+      "updatedAt": 1790619148200,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "layer": 1,
+      "claimedBy": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+      "claimedAt": 1790616793083,
+      "lastReport": {
+        "at": 1790619148200,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/client/styles/dag.ts",
+          "packages/web/dsh-pmboard/tests/dag-styles.test.ts"
+        ],
+        "completed": [
+          "DAG 面板骨架 np 苹果风收敛（REQ-260929010300-dbf9 FR-6，卡 t-d1a7f7 研发段）。逐条审计 DAG_CSS：面板 --dsh-pm-np-line-soft 描边 + 12px 圆角、标题 --dsh-pm-np-text、-head #f5f5f7（--dsh-pm-np-bg）底 + 下描边、-sub/-legend 用 text3/text2、-btn 与 -flowstat span 980px 胶囊、is-on 用 blue 实底、滚动条 8px + 圆角——规则取值全部走 --dsh-pm-np-* 令牌，零 --dsw-。关键裁定：卡实施方案中「面板用白底」与本卡验收「面板底色 = var(--dsh-pm-np-bg)，2026-09-29 用户裁定，不得为白底」冲突，按验收+用户裁定执行，面板保持泳道图底色 #f5f5f7，未改回白底。落盘改动两项：①修正 dag.ts 头部口径注释——原写「白底圆角」与代码/验收相互矛盾，改为写明 2026-09-29 底色裁定与非白底警示，避免未来被按字面描述改回白色；②强化 tests/dag-styles.test.ts——新增 ruleOf 助手与 1 条逐选择器口径断言（6→7 条），把方案每条皮肤口径钉成机器可检。类名、styles.ts 拼接、scripts/verify-client-build.mjs 一律未动。",
+          "DAG 骨架 np 苹果风联调通过：以真实调用打通「DOM 生产端 buildDagCanvas → 样式注入端 injectStyles → CSS 分片 DAG_CSS → 浏览器加载产物 lib/client.js」全链路，28/28 断言与预期逐字一致。请求样例①：injectStyles() 连续调用 2 次（最小 DOM shim），响应为 document.head 注入唯一 <style data-plugin-css=\"dsh-pmboard/styles.css\">（幂等命中，未重复注入），CSS 总长 120223 字符且含 DAG np 皮肤；请求样例②：buildDagCanvas([单卡 DagTaskLike])，响应 HTML 产出 10 个 dsh-pm-dag-* 类（panel/title/head/sub/seg/btn/flowstat/canvas-wrap/canvas/legend），逐个在注入 CSS 中命中规则（零断链）；DAG 分片引用的 7 个 --dsh-pm-np-* 令牌全部在注入 CSS 中有定义（实测取值 np-bg=#f5f5f7、np-blue=#0071e3、np-text=#1d1d1f、line-soft=rgba(0,0,0,.08)）；关键口径 6/6 逐字命中（面板 line-soft 描边+12px 圆角+np-bg 底、表头 np-bg 底+下描边、btn 与 flowstat span 980px 胶囊、is-on blue 实底、滚动条 8px）；DAG 分片零 --dsw-、选择器全部作用域在 .dsh-pm-dag-；另核验浏览器实际加载的 lib/client.js 与源分片 DAG_CSS 的 20 个规则块逐条一致（无「改了源码未重建产物」的静默失效）。本阶段未改写实现、未新增/改动仓库文件（探针写在 /tmp 并已清理），未重复跑父卡终态验收命令（tests/dag-styles.test.ts / build）。",
+          "复核对象：t-d1a7f7「DAG 骨架皮肤换成 np 苹果风」（REQ-260929010300-dbf9 FR-6）。逐条比对卡面实施方案/设计（requirement.md FR-6、architecture.md §皮肤真源、interfaces.md §DOM 与样式契约）与实现 packages/web/dsh-pmboard/src/client/styles/dag.ts（77 行，mtime 2026-09-29T02:07:41），实施方案 7 条骨架口径全部落地且类名/拼接/守卫零改动，无未授权偏离。唯一「偏离」是面板底色：设计/卡面实施字段字面写「白底」，实现为 var(--dsh-pm-np-bg)（#f5f5f7）——但这是卡面验收 t-d1a7f7.md:17（2026-09-29 用户裁定「底色=泳道底色，不得为白底」）明确授权的，故判为授权偏离、非缺陷；随之产生两处文档漂移与一处设计项未落地（轻阴影，见 issues）。因 dag.ts 未纳入 git，无法对「类名不变」做基线 diff，改用「当前选择器集 = 设计枚举 = DOM 产出」三方一致核验。本卡为复核段：未改任何代码、未跑父卡终态验收命令（vitest/build 属测试段）。",
+          "REQ-260929010300-dbf9 / t-d1a7f7「DAG 骨架皮肤换成 np 苹果风」test 段：卡片验收的四条目标命令逐条执行，全部通过（无代码改动，仅 pnpm build:client 重建 lib 产物）。① grep --dsw- 无输出（grep 退出码 1=零命中）；② DAG_CSS 的 .dsh-pm-dag-panel 底色 = background: var(--dsh-pm-np-bg)，非白底，符合卡片 acceptance 的 2026-09-29 用户裁定；③ vitest run tests/dag-styles.test.ts 退出 0，1 file / 7 tests 全绿；④ pnpm build:client 退出 0 且输出含 [verify-client] OK bundle=308699 bytes, 关键符号齐全, styles.ts 括号配对。"
+        ]
+      }
+    },
+    {
+      "id": "t-757283",
+      "requirementId": "REQ-260929010300-dbf9",
+      "title": "迁移与兼容核验 + 需求详情回归",
+      "cardDoc": "docs/requirements/REQ-260929010300-dbf9/tasks/t-757283.md",
+      "description": "旧调用方零改动、旧渲染路径可回滚，两处观感确实一致。",
+      "phase": "test",
+      "side": "frontend",
+      "dependsOn": [
+        "t-3ed4b5",
+        "t-d1a7f7"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "cd packages/web/dsh-pmboard && npx vitest run dag-view dag-styles node-panel client-view 全绿；需求详情调用方 src/client/views/stage-detail.ts 无改动条目；src/client/dag/card-renderer.ts 的改动仅限 2026-09-29 裁定 D 删除「父卡左侧蓝条」一处（徽标/208×72 几何/配色零改动）",
+      "implementation": "①核验需求详情调用方零改动（views/stage-detail.ts 的 buildDag 仍走缺省参数）；②核验画布卡绘制零改动（src/client/dag/card-renderer.ts 无 diff）；③把「两处 DAG 面板 DOM 类名集合逐项相同」写成断言加入 tests/node-panel.test.ts；④给 tests/dag-view.test.ts、tests/node-panel.test.ts、tests/client-view.test.ts、tests/dag-styles.test.ts 补文件头 serves: 声明；⑤把回滚路径写进任务卡文档（还原 renderDag 两处调用 + 回滚 styles/dag.ts）。",
+      "context": "",
+      "requirementRefs": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-9c7eb8",
+          "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+          "trigger": "manual",
+          "startedAt": 1790616793208,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 3925,
+              "at": 1790616793222,
+              "totals": {
+                "uncachedInputTokens": 5407935,
+                "outputTokens": 535269,
+                "cacheReadTokens": 89878912,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4321,
+              "at": 1790619477223,
+              "totals": {
+                "uncachedInputTokens": 6018977,
+                "outputTokens": 559892,
+                "cacheReadTokens": 98713728,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 611042,
+              "outputTokens": 24623,
+              "cacheReadTokens": 8834816,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790619477198
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790616229808,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790616793208,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e"
+          },
+          "reason": "开工：迁移与兼容核验 + 需求详情回归 + serves 头（本卡代码已随本需求一并落地，链展开后交自动链收口）"
+        },
+        {
+          "status": "done",
+          "at": 1790619477198,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-3f2efd",
+          "body": "[状态] → in_progress：开工：迁移与兼容核验 + 需求详情回归 + serves 头（本卡代码已随本需求一并落地，链展开后交自动链收口）（reqboard_task_move）",
+          "createdAt": 1790616793208,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e"
+          }
+        }
+      ],
+      "version": 3,
+      "createdAt": 1790616229808,
+      "updatedAt": 1790638848905,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "layer": 3,
+      "claimedBy": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+      "claimedAt": 1790616793208,
+      "lastReport": {
+        "at": 1790619477198,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/tests/node-panel.test.ts",
+          "docs/requirements/REQ-260929010300-dbf9/tasks/t-757283.md"
+        ],
+        "completed": [
+          "dev 阶段（子卡 t-7125de「迁移与兼容核验 + 需求详情回归·研发」）落地内容：③ 把「两处 DAG 面板 DOM 类名集合逐项相同」写成可失败断言并强化——先按平衡 div 从面板 HTML 切出 .dsh-pm-dag-panel 整块（面板外的页签/泳道类不掺入），再逐类比对，并钉住 panel/head/flowstat/canvas-wrap/canvas/legend 六个骨架类防「两个空集合相等」的假绿；④ 给 tests/node-panel.test.ts 补文件头 serves 声明（FR-1, FR-2, FR-3, FR-6，REQ-260929010300-dbf9），另三个文件 dag-view/dag-styles/client-view 已有头部 serves 声明（实测均在前 20 行内），无需改动；⑤ 把回滚路径写进父卡任务卡文档 docs/requirements/REQ-260929010300-dbf9/tasks/t-757283.md 新增「## 回滚路径」段（还原 node-panel.ts 两处 buildDagCanvas → renderDag、回滚 styles/dag.ts 皮肤、撤 conversation-progress.ts 挂载钩子、测试面回滚、不必回滚的 canvasId 可选参数与 card-renderer.ts）；① 核验需求详情调用方零改动：buildDag 仍是 buildDagCanvas(tasks, 'dag-canvas-container')，canvasId 走缺省 #dag-canvas，且 stage-detail.ts / card-renderer.ts 无任何 dbf9 专属标记（np-dag-canvas / PANEL_DAG_）；② 核验画布卡绘制零改动：git diff --stat card-renderer.ts 为空。本地验证：四个相关测试文件 111 passed；改动文件 tsc 0 error。注（提请测试段注意）：本工作区 stage-detail.ts 对 HEAD 仍有 58 行 diff（来自前置未提交的 REQ-260928001915-f978 Canvas 迁移），故父卡「git diff --stat 无改动条目」口径在当前工作区不可字面成立；card-renderer.ts 属 src/client/dag/ 未跟踪目录（??），其 diff 为空系「未跟踪」所致，证据强度有限——已按「无本次需求专属改动 + 走缺省 id」口径核验并留痕。",
+          "对父卡 t-757283「迁移与兼容核验 + 需求详情回归」逐条给出设计↔实现偏离结论：无偏离。\n①需求详情调用方零改动（plan ①）：stage-detail.ts:314-316 的 buildDag 仍是 buildDagCanvas(tasks, 'dag-canvas-container')，canvasId 走缺省 #dag-canvas（与 design/interfaces.md 缺省值 containerId=dag-canvas-container / canvasId=dag-canvas 一致）；该文件对 dbf9 专属标记（PANEL_DAG_ / np-dag-canvas / dbf9）0 命中，canvasId 未在此处显式传值。\n②画布卡绘制零改动（plan ②）：src/client/dag/card-renderer.ts 与 REQ-260928001915-f978 demo/card-renderer.ts 逐字节相同（diff 退出码 0，255=255 行），无 buildDagCanvas/renderDag 引用、0 处 dbf9 标记。\n③同源断言（plan ③）：tests/node-panel.test.ts:190-222 已加入「两处 DAG 面板 DOM 类名集合逐项相同」断言——按平衡 div 先切出 .dsh-pm-dag-panel 整块再逐类比对，并钉死 panel/head/flowstat/canvas-wrap/canvas/legend 六个骨架类，防「两个空集合相等」的假绿；同文件 168-189 另钉实施/拆分两处必出现 id=\"np-dag-canvas-container\"/\"np-dag-canvas\" 且不得出现 id=\"dag-canvas\"，与 design/interfaces.md 常量单一源契约一致。\n④serves 声明（plan ④）：四个测试文件头部 20 行内均含 serves: —— dag-view.test.ts:2（serves: FR-3, FR-4）、client-view.test.ts:3（FR-1, FR-6）、dag-styles.test.ts:2（FR-6）、node-panel.test.ts:4（FR-1, FR-2, FR-3, FR-6），满足本仓 testFileHasServesHeader 的「前 20 行匹配 serves\\s*[:：]」口径。\n⑤回滚路径（plan ⑤）：tasks/t-757283.md 已含「## 回滚路径（REQ-260929010300-dbf9）」5 条（还原 node-panel.ts 两处 buildDagCanvas → renderDag、回退 styles/dag.ts 皮肤、撤 conversation-progress.ts 挂载钩子、测试面回滚、说明 canvasId 可选参数与 card-renderer.ts 无需回滚），与设计「数据契约未变、回滚不动数据」一致。\n附：迁移兼容设计点亦成立——styles.ts:30 仍在末尾拼接 DAG_CSS（顺序未变）、scripts/verify-client-build.mjs:40 仍守卫符号 dsh-pm-dag-panel、renderDag 仅保留导出定义不再被调用（全 src 唯一命中为定义行 node-panel.ts:143）、面板画布常量为单一源（dag-view.ts:51-52 导出，node-panel.ts 与 conversation-progress.ts 引用）、挂载钩子 conversation-progress.ts:279-292 按设计传 undefined ready + PANEL_DAG_CANVAS_ID。\n结论：设计↔实现无偏离。下列 3 条为口径/环境/证据强度/断言覆盖面类观察，均不构成实现偏离，不阻断；本卡按边界未跑父卡终态验收命令（vitest / 终态 git diff --stat），留待测试段。"
+        ]
+      }
+    },
+    {
+      "id": "t-ee4384",
+      "requirementId": "REQ-260929010300-dbf9",
+      "title": "定契约：入参结构类型收敛 + 面板画布常量·研发",
+      "description": "子卡阶段：研发",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "cd packages/web/dsh-pmboard && npx tsc --noEmit -p tsconfig.json → 本次涉及文件 0 error；cd packages/web/dsh-pmboard && npx vitest run tests/dag-view.test.ts → 全绿；git diff --stat 可见本卡改动文件（mtime ≥ 链出身）",
+      "implementation": "改 packages/web/dsh-pmboard/src/client/views/dag-view.ts：①新增并导出 DagTaskLike（id/title/status/phase/side/dependsOn + 可选 parentId/stageKind/cardDoc），把 buildDagCanvas/mountDagCanvas/buildDagData 的入参从 TaskRecord[] 收敛到该结构类型；②新增并导出 PANEL_DAG_CONTAINER_ID='np-dag-canvas-container' 与 PANEL_DAG_CANVAS_ID='np-dag-canvas'；③buildDagCanvas(tasks, containerId='dag-canvas-container', canvasId='dag-canvas')、mountDagCanvas(tasks, ready?, canvasId='dag-canvas') 新参数改可选。本卡不改挂载生命周期、不改任何调用方。\n\n[子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要",
+      "context": "",
+      "parentId": "t-d03789",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-5adf75",
+          "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+          "trigger": "manual",
+          "startedAt": 1790616759621,
+          "outcome": "cancelled",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 3883,
+              "at": 1790616759635,
+              "totals": {
+                "uncachedInputTokens": 5403039,
+                "outputTokens": 529504,
+                "cacheReadTokens": 88833408,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4010,
+              "at": 1790616848270,
+              "totals": {
+                "uncachedInputTokens": 5412643,
+                "outputTokens": 538860,
+                "cacheReadTokens": 92322688,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 9604,
+              "outputTokens": 9356,
+              "cacheReadTokens": 3489280,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790616848256
+        },
+        {
+          "id": "e-4f7bf9",
+          "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+          "trigger": "auto",
+          "startedAt": 1790616850842,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4037,
+              "at": 1790616968732,
+              "totals": {
+                "uncachedInputTokens": 5413320,
+                "outputTokens": 539469,
+                "cacheReadTokens": 93151872,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4037,
+              "at": 1790616968756,
+              "totals": {
+                "uncachedInputTokens": 5413320,
+                "outputTokens": 539469,
+                "cacheReadTokens": 93151872,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790616968738
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-9b30c5",
+          "body": "[状态] → in_progress：研发（dev）开工：契约落地：DagTaskLike/DagTaskCanvas 常量/三入口可选参数；改动 src/client/views/dag-view.ts（reqboard_task_move）",
+          "createdAt": 1790616759621,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e"
+          }
+        },
+        {
+          "id": "c-5aa6b7",
+          "body": "[状态] → todo：释放手工占位的 in_progress（无 run 证据），交自动链从头执行 dev 子卡（reqboard_task_move）",
+          "createdAt": 1790616848256,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790616409427,
+      "updatedAt": 1790619608217,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790616409427,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790616759621,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e"
+          },
+          "reason": "研发（dev）开工：契约落地：DagTaskLike/DagTaskCanvas 常量/三入口可选参数；改动 src/client/views/dag-view.ts"
+        },
+        {
+          "status": "todo",
+          "at": 1790616848256,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e"
+          },
+          "reason": "释放手工占位的 in_progress（无 run 证据），交自动链从头执行 dev 子卡"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790616968730,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790616968738,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 0,
+      "claimedAt": 1790616850842,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790616968730,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790619577898,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/client/views/dag-view.ts",
+          "packages/web/dsh-pmboard/tests/dag-view.test.ts"
+        ],
+        "completed": [
+          "定契约·研发（dev）落盘：packages/web/dsh-pmboard/src/client/views/dag-view.ts 三项契约齐备并核验通过——①导出 dag 绘制最小结构类型 DagTaskLike（id/title/status/phase/side/dependsOn 必填 + parentId/stageKind/cardDoc 可选），buildDagData / buildDagCanvas / mountDagCanvas 三入口入参由 TaskRecord[] 收敛为该结构（文件内已无 TaskRecord 类型引用，仅 4 处注释提及）；②导出 PANEL_DAG_CONTAINER_ID=`np-dag-canvas-container`、PANEL_DAG_CANVAS_ID=`np-dag-canvas`；③buildDagCanvas(tasks, containerId=`dag-canvas-container`, canvasId=`dag-canvas`) 与 mountDagCanvas(ta"
+        ]
+      }
+    },
+    {
+      "id": "t-1fadb6",
+      "requirementId": "REQ-260929010300-dbf9",
+      "title": "定契约：入参结构类型收敛 + 面板画布常量·联调",
+      "description": "子卡阶段：联调",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-ee4384"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "cd packages/web/dsh-pmboard && npx vitest run tests/dag-view.test.ts → 全绿；grep -n \"PANEL_DAG_CANVAS_ID\" packages/web/dsh-pmboard/src/client/views/dag-view.ts → 有命中（本卡接线确实在源码里）",
+      "implementation": "改 packages/web/dsh-pmboard/src/client/views/dag-view.ts：①新增并导出 DagTaskLike（id/title/status/phase/side/dependsOn + 可选 parentId/stageKind/cardDoc），把 buildDagCanvas/mountDagCanvas/buildDagData 的入参从 TaskRecord[] 收敛到该结构类型；②新增并导出 PANEL_DAG_CONTAINER_ID='np-dag-canvas-container' 与 PANEL_DAG_CANVAS_ID='np-dag-canvas'；③buildDagCanvas(tasks, containerId='dag-canvas-container', canvasId='dag-canvas')、mountDagCanvas(tasks, ready?, canvasId='dag-canvas') 新参数改可选。本卡不改挂载生命周期、不改任何调用方。\n\n[子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致",
+      "context": "",
+      "parentId": "t-d03789",
+      "stageKind": "integrate",
+      "attempt": 1,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-9eb6d7",
+          "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+          "trigger": "auto",
+          "startedAt": 1790616968934,
+          "outcome": "failed",
+          "endedAt": 1790616968934,
+          "error": "cancelled: workflow run cancelled: workflow signal aborted"
+        },
+        {
+          "id": "e-f3ecfd",
+          "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+          "trigger": "auto",
+          "startedAt": 1790617123887,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4192,
+              "at": 1790617203173,
+              "totals": {
+                "uncachedInputTokens": 5424619,
+                "outputTokens": 554961,
+                "cacheReadTokens": 97783040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4192,
+              "at": 1790617203198,
+              "totals": {
+                "uncachedInputTokens": 5424619,
+                "outputTokens": 554961,
+                "cacheReadTokens": 97783040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790617203179
+        }
+      ],
+      "comments": [],
+      "version": 6,
+      "createdAt": 1790616409427,
+      "updatedAt": 1790619608261,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790616409427,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790617033921,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "todo",
+          "at": 1790617033978,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790617203172,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790617203179,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 1,
+      "claimedAt": 1790617123887,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790617203172,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790619578030,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "联调通过：dag-view.ts 的 DagTaskLike 入参收敛与两个面板画布常量已在真实调用中生效，12/12 断言与期望逐字一致。① buildDagData 接受仅含 6 个必填字段的最小对象（面板侧 StageTaskRef 子集），子卡折叠、依赖重路由（传递归约）、队列 ready 上提父卡均按预期；② buildDagCanvas 缺省仍为 dag-canvas-container/dag-canvas，显式传 PANEL_DAG_CONTAINER_ID/PANEL_DAG_CANVAS_ID 时输出 np-dag-canvas-container/np-dag-canvas 且不残留缺省 id，空任务空态不变；③ mountDagCanvas 第 3 参 canvasId 与新可选 ready 真实透传到 document.getElementById；④ 跨模块真实调用方 renderNodePanel(implementing/decomposing) 与 tryMountDagCanvas 均按面板常量挂载、零异常。类"
+        ]
+      }
+    },
+    {
+      "id": "t-cc9e3a",
+      "requirementId": "REQ-260929010300-dbf9",
+      "title": "定契约：入参结构类型收敛 + 面板画布常量·复核",
+      "description": "子卡阶段：复核",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-1fadb6"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "implementation": "改 packages/web/dsh-pmboard/src/client/views/dag-view.ts：①新增并导出 DagTaskLike（id/title/status/phase/side/dependsOn + 可选 parentId/stageKind/cardDoc），把 buildDagCanvas/mountDagCanvas/buildDagData 的入参从 TaskRecord[] 收敛到该结构类型；②新增并导出 PANEL_DAG_CONTAINER_ID='np-dag-canvas-container' 与 PANEL_DAG_CANVAS_ID='np-dag-canvas'；③buildDagCanvas(tasks, containerId='dag-canvas-container', canvasId='dag-canvas')、mountDagCanvas(tasks, ready?, canvasId='dag-canvas') 新参数改可选。本卡不改挂载生命周期、不改任何调用方。\n\n[子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-d03789",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-7af7a8",
+          "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+          "trigger": "auto",
+          "startedAt": 1790617203355,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4193,
+              "at": 1790617357673,
+              "totals": {
+                "uncachedInputTokens": 5424619,
+                "outputTokens": 554961,
+                "cacheReadTokens": 97783040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4193,
+              "at": 1790617357697,
+              "totals": {
+                "uncachedInputTokens": 5424619,
+                "outputTokens": 554961,
+                "cacheReadTokens": 97783040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790617357680
+        }
+      ],
+      "comments": [],
+      "version": 4,
+      "createdAt": 1790616409427,
+      "updatedAt": 1790619578156,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790616409427,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790617357671,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790617357680,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 2,
+      "claimedAt": 1790617203355,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790617357671,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790619578156,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "复核对象：t-d03789/t-cc9e3a（定契约：入参结构类型收敛 + 面板画布常量·复核）。逐条比对「设计（design/data-model.md §入参结构类型收敛不伪造、design/interfaces.md §三个入口签名/常量、本卡 implementation）」与「实现（packages/web/dsh-pmboard/src/client/views/dag-view.ts）」，结论如下：\n① DagTaskLike 定义与导出：无偏离。dag-view.ts:60-71 为 export interface，必填 id/title/status/phase/side/dependsOn，可选 parentId/stageKind/cardDoc，与设计字段集逐字一致（cardDoc 当前绘制不消费，符合设计「保留字段以便两入参互换」）。\n② 三入口入参收敛：无偏离。buildDagData:158 / buildDagCanvas:235 / mountDagCanvas:312 入参均为 DagTaskLike[]；全"
+        ]
+      }
+    },
+    {
+      "id": "t-470baa",
+      "requirementId": "REQ-260929010300-dbf9",
+      "title": "定契约：入参结构类型收敛 + 面板画布常量·测试",
+      "description": "子卡阶段：测试",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-cc9e3a"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "cd packages/web/dsh-pmboard && npx vitest run tests/dag-view.test.ts tests/node-panel.test.ts tests/client-view.test.ts tests/dag-styles.test.ts → 4 files passed / 111 tests passed；cd packages/web/dsh-pmboard && pnpm build:client → 退出 0 且输出含 [verify-client] OK",
+      "implementation": "改 packages/web/dsh-pmboard/src/client/views/dag-view.ts：①新增并导出 DagTaskLike（id/title/status/phase/side/dependsOn + 可选 parentId/stageKind/cardDoc），把 buildDagCanvas/mountDagCanvas/buildDagData 的入参从 TaskRecord[] 收敛到该结构类型；②新增并导出 PANEL_DAG_CONTAINER_ID='np-dag-canvas-container' 与 PANEL_DAG_CANVAS_ID='np-dag-canvas'；③buildDagCanvas(tasks, containerId='dag-canvas-container', canvasId='dag-canvas')、mountDagCanvas(tasks, ready?, canvasId='dag-canvas') 新参数改可选。本卡不改挂载生命周期、不改任何调用方。\n\n[子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）",
+      "context": "",
+      "parentId": "t-d03789",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-f67925",
+          "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+          "trigger": "auto",
+          "startedAt": 1790617357857,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4194,
+              "at": 1790617414076,
+              "totals": {
+                "uncachedInputTokens": 5424619,
+                "outputTokens": 554961,
+                "cacheReadTokens": 97783040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4194,
+              "at": 1790617414096,
+              "totals": {
+                "uncachedInputTokens": 5424619,
+                "outputTokens": 554961,
+                "cacheReadTokens": 97783040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790617414082
+        }
+      ],
+      "comments": [],
+      "version": 5,
+      "createdAt": 1790616409427,
+      "updatedAt": 1790619608308,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790616409427,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790617414075,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790617414082,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 3,
+      "claimedAt": 1790617357857,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790617414075,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790619578277,
+        "reportIndex": 2,
+        "filesChanged": [],
+        "completed": [
+          "父卡两条终态验收命令逐条执行：vitest 全绿（2 文件 / 74 用例，exit 0）；tsc 未通过（exit 2，208 条 error TS，67 个文件），目标命令未全绿 → 判 fail。tsc 报错与本卡改动零交集（无任何 dag-view.ts / DagTaskLike 相关错误），本卡契约本身（DagTaskLike 导出、PANEL_* 常量、三入口入参收敛且新参可选）在源码与单测中均就位且相应用例全绿；未改任何代码。"
+        ]
+      }
+    },
+    {
+      "id": "t-3f8d67",
+      "requirementId": "REQ-260929010300-dbf9",
+      "title": "画布 id 参数化 + 挂载实例表·研发",
+      "description": "子卡阶段：研发",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-d03789"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "cd packages/web/dsh-pmboard && npx tsc --noEmit -p tsconfig.json → 本次涉及文件 0 error；cd packages/web/dsh-pmboard && npx vitest run tests/dag-view.test.ts → 全绿；git diff --stat 可见本卡改动文件（mtime ≥ 链出身）",
+      "implementation": "改 packages/web/dsh-pmboard/src/client/views/dag-view.ts：①模块级单槽 activeDispose 换成 const disposers = new Map<string, () => void>()，disposeDagCanvas(canvasId) 只释放同名条目；②mountDagCanvas 用 document.getElementById(canvasId) 定位画布、openTaskDetail(taskId, canvasId) 定位锚点、挂载完成写入 disposers.set(canvasId, ...)；③改 packages/web/dsh-pmboard/src/client/dag-mount.ts：tryMountDagCanvas(tasks, ready?, canvasId='dag-canvas') 透传 canvasId。\n\n[子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要",
+      "context": "",
+      "parentId": "t-6f9d7f",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-e5a589",
+          "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+          "trigger": "auto",
+          "startedAt": 1790617414410,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4195,
+              "at": 1790617544718,
+              "totals": {
+                "uncachedInputTokens": 5424619,
+                "outputTokens": 554961,
+                "cacheReadTokens": 97783040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4195,
+              "at": 1790617544743,
+              "totals": {
+                "uncachedInputTokens": 5424619,
+                "outputTokens": 554961,
+                "cacheReadTokens": 97783040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790617544725
+        }
+      ],
+      "comments": [],
+      "version": 4,
+      "createdAt": 1790616792765,
+      "updatedAt": 1790619608369,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790616792765,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790617544716,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790617544725,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 1,
+      "claimedAt": 1790617414410,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790617544716,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790619578404,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/client/views/dag-view.ts",
+          "packages/web/dsh-pmboard/src/client/dag-mount.ts",
+          "packages/web/dsh-pmboard/tests/dag-view.test.ts"
+        ],
+        "completed": [
+          "画布 id 参数化 + 挂载实例表（本卡 t-6f9d7f·dev）完工。三项契约逐条核对在位：①dag-view.ts:280 const disposers = new Map<string, () => void>()，dag-view.ts:283-288 disposeDagCanvas(canvasId) 只释放同名条目（全 src 已无 activeDispose 残留）；②dag-view.ts:312 mountDagCanvas(tasks, ready?, canvasId=DAG_CANVAS_ID) 用 document.getElementById(canvasId) 定位画布、openTaskDetail(taskId, canvasId) 定位锚点（:294、:377 调用）、挂载完写入 disposers.set(canvasId, ...)（:398）；③dag-mount.ts:16 tryMountDagCanvas(tasks, ready?, canvasId='dag-canvas') 原样透传给 m"
+        ]
+      }
+    },
+    {
+      "id": "t-2e30df",
+      "requirementId": "REQ-260929010300-dbf9",
+      "title": "画布 id 参数化 + 挂载实例表·联调",
+      "description": "子卡阶段：联调",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-3f8d67"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "cd packages/web/dsh-pmboard && npx vitest run tests/dag-view.test.ts → 全绿；grep -n \"disposers\" packages/web/dsh-pmboard/src/client/views/dag-view.ts → 有命中（本卡接线确实在源码里）",
+      "implementation": "改 packages/web/dsh-pmboard/src/client/views/dag-view.ts：①模块级单槽 activeDispose 换成 const disposers = new Map<string, () => void>()，disposeDagCanvas(canvasId) 只释放同名条目；②mountDagCanvas 用 document.getElementById(canvasId) 定位画布、openTaskDetail(taskId, canvasId) 定位锚点、挂载完成写入 disposers.set(canvasId, ...)；③改 packages/web/dsh-pmboard/src/client/dag-mount.ts：tryMountDagCanvas(tasks, ready?, canvasId='dag-canvas') 透传 canvasId。\n\n[子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致",
+      "context": "",
+      "parentId": "t-6f9d7f",
+      "stageKind": "integrate",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-38598b",
+          "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+          "trigger": "auto",
+          "startedAt": 1790617544895,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4196,
+              "at": 1790617771663,
+              "totals": {
+                "uncachedInputTokens": 5424619,
+                "outputTokens": 554961,
+                "cacheReadTokens": 97783040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4196,
+              "at": 1790617771687,
+              "totals": {
+                "uncachedInputTokens": 5424619,
+                "outputTokens": 554961,
+                "cacheReadTokens": 97783040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790617771669
+        }
+      ],
+      "comments": [],
+      "version": 4,
+      "createdAt": 1790616792765,
+      "updatedAt": 1790619608417,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790616792765,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790617771661,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790617771669,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 2,
+      "claimedAt": 1790617544895,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790617771661,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790619578542,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "接口联调通过：按本卡验收「请求样例 + 期望响应 vs 实际返回」实测 11/11 一致（exit 0，allPass=true），源码级（tsx 直载 TS）与产物级（browser 实际加载的 lib/client.js 静态核对）双向确认。①buildDagCanvas(tasks, containerId, canvasId) 产出的 <canvas id> 与 tryMountDagCanvas(tasks, ready?, canvasId) 查找/挂载的 id 两侧同源：需求详情 wire（stage-detail.ts:315 buildDagCanvas(tasks,'dag-canvas-container') ↔ board-mount.ts:263 tryMountDagCanvas(reqTasks, reqReady)，canvasId 走缺省 dag-canvas）与会话面板 wire（node-panel.ts:176/236 传 PANEL_DAG_CANVAS_ID ↔ conversation-progres"
+        ]
+      }
+    },
+    {
+      "id": "t-cf0284",
+      "requirementId": "REQ-260929010300-dbf9",
+      "title": "画布 id 参数化 + 挂载实例表·复核",
+      "description": "子卡阶段：复核",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-2e30df"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "implementation": "改 packages/web/dsh-pmboard/src/client/views/dag-view.ts：①模块级单槽 activeDispose 换成 const disposers = new Map<string, () => void>()，disposeDagCanvas(canvasId) 只释放同名条目；②mountDagCanvas 用 document.getElementById(canvasId) 定位画布、openTaskDetail(taskId, canvasId) 定位锚点、挂载完成写入 disposers.set(canvasId, ...)；③改 packages/web/dsh-pmboard/src/client/dag-mount.ts：tryMountDagCanvas(tasks, ready?, canvasId='dag-canvas') 透传 canvasId。\n\n[子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-6f9d7f",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-aac11f",
+          "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+          "trigger": "auto",
+          "startedAt": 1790617771939,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4197,
+              "at": 1790617899245,
+              "totals": {
+                "uncachedInputTokens": 5424619,
+                "outputTokens": 554961,
+                "cacheReadTokens": 97783040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4197,
+              "at": 1790617899268,
+              "totals": {
+                "uncachedInputTokens": 5424619,
+                "outputTokens": 554961,
+                "cacheReadTokens": 97783040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790617899252
+        }
+      ],
+      "comments": [],
+      "version": 4,
+      "createdAt": 1790616792765,
+      "updatedAt": 1790619578707,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790616792765,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790617899243,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790617899252,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 3,
+      "claimedAt": 1790617771939,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790617899243,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790619578707,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "无偏离。逐条对齐结论：①实例表——design/data-model.md「Map<string,()=>void>，每 canvasId 至多一条、重复挂载先释放旧条目」= dag-view.ts:280 定义 disposers、:316 在提前返回前先 disposeDagCanvas(canvasId)、:398 挂载完成写入 set(canvasId,...)，完全一致；②释放隔离——architecture.md「disposeDagCanvas(canvasId) 只释放同名条目」= dag-view.ts:283-288 仅对同名键 get/delete，不动其它键，一致；③画布定位——「mountDagCanvas 用 document.getElementById(canvasId)」= dag-view.ts:318，一致；④锚点定位——「openTaskDetail(taskId, canvasId) 用本实例 canvasId 定位锚点」= dag-view.ts:294-303 定义（getElementById(ca"
+        ]
+      }
+    },
+    {
+      "id": "t-c53e93",
+      "requirementId": "REQ-260929010300-dbf9",
+      "title": "画布 id 参数化 + 挂载实例表·测试",
+      "description": "子卡阶段：测试",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-cf0284"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "cd packages/web/dsh-pmboard && npx vitest run tests/dag-view.test.ts tests/node-panel.test.ts tests/client-view.test.ts tests/dag-styles.test.ts → 4 files passed / 111 tests passed；cd packages/web/dsh-pmboard && pnpm build:client → 退出 0 且输出含 [verify-client] OK",
+      "implementation": "改 packages/web/dsh-pmboard/src/client/views/dag-view.ts：①模块级单槽 activeDispose 换成 const disposers = new Map<string, () => void>()，disposeDagCanvas(canvasId) 只释放同名条目；②mountDagCanvas 用 document.getElementById(canvasId) 定位画布、openTaskDetail(taskId, canvasId) 定位锚点、挂载完成写入 disposers.set(canvasId, ...)；③改 packages/web/dsh-pmboard/src/client/dag-mount.ts：tryMountDagCanvas(tasks, ready?, canvasId='dag-canvas') 透传 canvasId。\n\n[子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）",
+      "context": "",
+      "parentId": "t-6f9d7f",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-1b811b",
+          "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+          "trigger": "auto",
+          "startedAt": 1790617899417,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4198,
+              "at": 1790617944522,
+              "totals": {
+                "uncachedInputTokens": 5424619,
+                "outputTokens": 554961,
+                "cacheReadTokens": 97783040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4198,
+              "at": 1790617944542,
+              "totals": {
+                "uncachedInputTokens": 5424619,
+                "outputTokens": 554961,
+                "cacheReadTokens": 97783040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790617944529
+        }
+      ],
+      "comments": [],
+      "version": 4,
+      "createdAt": 1790616792765,
+      "updatedAt": 1790619608466,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790616792765,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790617944521,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790617944529,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 4,
+      "claimedAt": 1790617899417,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790617944521,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790619578823,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "父卡 t-6f9d7f（画布 id 参数化 + 挂载实例表）终态验收命令全绿：cd packages/web/dsh-pmboard && npx vitest run tests/dag-view.test.ts → exit 0，Test Files 1 passed (1) / Tests 25 passed (25)。验收要求的新增隔离用例在位且通过——\"mountDagCanvas：实例表按 canvasId 隔离（FR-3 / FR-4）\"4 例全绿，其中「两处各挂一次：挂第二块不动第一块；同 id 二次挂载先释放旧实例」直接钉住\"两个不同 canvasId 各挂载一次后释放其一、另一实例不受影响（互不释放）\"；另有「画布被 SSE 重绘摘掉后重复挂载：先释放同名旧实例，另一实例不受影响」「顶层卡为空也先释放同名旧实例且不动其它画布」。源码侧只读核验在位：dag-view.ts:280 const disposers = new Map<string, () => void>()、:283 disposeDagCanvas 仅释放同名"
+        ]
+      }
+    },
+    {
+      "id": "t-c0dad0",
+      "requirementId": "REQ-260929010300-dbf9",
+      "title": "会话面板两处 DAG 块改调同一构建函数·研发",
+      "description": "子卡阶段：研发",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-d03789"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "cd packages/web/dsh-pmboard && npx tsc --noEmit -p tsconfig.json → 本次涉及文件 0 error；cd packages/web/dsh-pmboard && npx vitest run tests/node-panel.test.ts → 全绿；git diff --stat 可见本卡改动文件（mtime ≥ 链出身）",
+      "implementation": "改 packages/web/dsh-pmboard/src/client/node-panel.ts：renderDecomposingInfo 的「📊 DAG 层级」块与 renderImplViews 的 [DAG] 页签块，从 renderDag(...) 改为 buildDagCanvas(tasks, PANEL_DAG_CONTAINER_ID, PANEL_DAG_CANVAS_ID)（自 views/dag-view.ts import）；renderDag 保留函数、不再有调用点。\n\n[子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要",
+      "context": "",
+      "parentId": "t-284b0a",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-a2eeae",
+          "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+          "trigger": "auto",
+          "startedAt": 1790617944856,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4199,
+              "at": 1790618039793,
+              "totals": {
+                "uncachedInputTokens": 5424619,
+                "outputTokens": 554961,
+                "cacheReadTokens": 97783040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4199,
+              "at": 1790618039814,
+              "totals": {
+                "uncachedInputTokens": 5424619,
+                "outputTokens": 554961,
+                "cacheReadTokens": 97783040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790618039799
+        }
+      ],
+      "comments": [],
+      "version": 4,
+      "createdAt": 1790616792879,
+      "updatedAt": 1790619608512,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790616792879,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790618039792,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790618039799,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 1,
+      "claimedAt": 1790617944856,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790618039792,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790619578947,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/client/node-panel.ts",
+          "packages/web/dsh-pmboard/tests/node-panel.test.ts"
+        ],
+        "completed": [
+          "t-284b0a·研发（dev）完工：node-panel.ts 两处 DAG 块已从 renderDag(...) 改调 buildDagCanvas(tasks, PANEL_DAG_CONTAINER_ID, PANEL_DAG_CANVAS_ID)。①renderDecomposingInfo 的「📊 DAG 层级」块（node-panel.ts:176）；②renderImplViews 的 [DAG] 页签块（node-panel.ts:236）；常量与构建函数自 ./views/dag-view.js import（node-panel.ts:31，与 conversation-progress.ts / dag-mount.ts 同款 .js 后缀）。renderDag 保留为 export function（node-panel.ts:143，注释说明已不接线），全 src 仅 1 处 renderDag( 命中=定义、0 个调用点。诚实披露：node-panel.ts 的这两行改动系上一轮中断执行写入工作区的既有改动（本次开"
+        ]
+      }
+    },
+    {
+      "id": "t-32a952",
+      "requirementId": "REQ-260929010300-dbf9",
+      "title": "会话面板两处 DAG 块改调同一构建函数·联调",
+      "description": "子卡阶段：联调",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-c0dad0"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "cd packages/web/dsh-pmboard && npx vitest run tests/node-panel.test.ts → 全绿；grep -n \"buildDagCanvas\" packages/web/dsh-pmboard/src/client/node-panel.ts → 有命中（本卡接线确实在源码里）",
+      "implementation": "改 packages/web/dsh-pmboard/src/client/node-panel.ts：renderDecomposingInfo 的「📊 DAG 层级」块与 renderImplViews 的 [DAG] 页签块，从 renderDag(...) 改为 buildDagCanvas(tasks, PANEL_DAG_CONTAINER_ID, PANEL_DAG_CANVAS_ID)（自 views/dag-view.ts import）；renderDag 保留函数、不再有调用点。\n\n[子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致",
+      "context": "",
+      "parentId": "t-284b0a",
+      "stageKind": "integrate",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-643da4",
+          "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+          "trigger": "auto",
+          "startedAt": 1790618039974,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4200,
+              "at": 1790618136178,
+              "totals": {
+                "uncachedInputTokens": 5424619,
+                "outputTokens": 554961,
+                "cacheReadTokens": 97783040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4200,
+              "at": 1790618136201,
+              "totals": {
+                "uncachedInputTokens": 5424619,
+                "outputTokens": 554961,
+                "cacheReadTokens": 97783040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790618136184
+        }
+      ],
+      "comments": [],
+      "version": 4,
+      "createdAt": 1790616792879,
+      "updatedAt": 1790619608558,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790616792879,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790618136176,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790618136184,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 2,
+      "claimedAt": 1790618039974,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790618136176,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790619579072,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "联调通过：node-panel.ts 两处 DAG 块的调用点（renderDecomposingInfo 第176行「📊 DAG 层级」、renderImplViews 第236行 [DAG] 页签，import 见第31行）均以 buildDagCanvas(tasks, PANEL_DAG_CONTAINER_ID, PANEL_DAG_CANVAS_ID) 调用。用本需求真实 queue.json 的 29 张卡组装 StageOverview，真实调用 renderNodePanel 两次（stage=decomposing / implementing），实际返回与期望逐字一致：两块 HTML 各自逐字包含同一份 buildDagCanvas 产物（1284 字节，三份完全相同），canvas id=np-dag-canvas、container id=np-dag-canvas-container（=面板常量），均不含需求详情的缺省 id=\"dag-canvas\" 与旧 renderDag 标记（dsh-pm-np-dag-lay"
+        ]
+      }
+    },
+    {
+      "id": "t-89278b",
+      "requirementId": "REQ-260929010300-dbf9",
+      "title": "会话面板两处 DAG 块改调同一构建函数·复核",
+      "description": "子卡阶段：复核",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-32a952"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "implementation": "改 packages/web/dsh-pmboard/src/client/node-panel.ts：renderDecomposingInfo 的「📊 DAG 层级」块与 renderImplViews 的 [DAG] 页签块，从 renderDag(...) 改为 buildDagCanvas(tasks, PANEL_DAG_CONTAINER_ID, PANEL_DAG_CANVAS_ID)（自 views/dag-view.ts import）；renderDag 保留函数、不再有调用点。\n\n[子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-284b0a",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-0f68e3",
+          "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+          "trigger": "auto",
+          "startedAt": 1790618136353,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4201,
+              "at": 1790618210598,
+              "totals": {
+                "uncachedInputTokens": 5424619,
+                "outputTokens": 554961,
+                "cacheReadTokens": 97783040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4201,
+              "at": 1790618210624,
+              "totals": {
+                "uncachedInputTokens": 5424619,
+                "outputTokens": 554961,
+                "cacheReadTokens": 97783040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790618210606
+        }
+      ],
+      "comments": [],
+      "version": 4,
+      "createdAt": 1790616792879,
+      "updatedAt": 1790619579197,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790616792879,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790618210597,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790618210606,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 3,
+      "claimedAt": 1790618136353,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790618210597,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790619579197,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "复核对象：t-284b0a「会话面板两处 DAG 块改调同一构建函数」。逐条比对设计（design/interfaces.md:16-18、design/architecture.md:19、design/use-cases.md:17、requirement.md:25-27/71/113、decomposition.md:17、tasks/t-284b0a.md:16/19）与实现，结论如下：\n① 拆分阶段「📊 DAG 层级」块：无偏离。node-panel.ts:176 = parts.push(`<div class=\"dsh-pm-np-sec-label\">📊 DAG 层级</div>${buildDagCanvas(b.tasks ?? [], PANEL_DAG_CONTAINER_ID, PANEL_DAG_CANVAS_ID)}`)；git diff 显示旧调用 renderDag(b.tasks ?? []) 已被替换，实参仍为该阶段 payload 的 tasks（requirement.md:71 定义的输入；作用域"
+        ]
+      }
+    },
+    {
+      "id": "t-3b43fd",
+      "requirementId": "REQ-260929010300-dbf9",
+      "title": "会话面板两处 DAG 块改调同一构建函数·测试",
+      "description": "子卡阶段：测试",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-89278b"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "cd packages/web/dsh-pmboard && npx vitest run tests/dag-view.test.ts tests/node-panel.test.ts tests/client-view.test.ts tests/dag-styles.test.ts → 4 files passed / 111 tests passed；cd packages/web/dsh-pmboard && pnpm build:client → 退出 0 且输出含 [verify-client] OK",
+      "implementation": "改 packages/web/dsh-pmboard/src/client/node-panel.ts：renderDecomposingInfo 的「📊 DAG 层级」块与 renderImplViews 的 [DAG] 页签块，从 renderDag(...) 改为 buildDagCanvas(tasks, PANEL_DAG_CONTAINER_ID, PANEL_DAG_CANVAS_ID)（自 views/dag-view.ts import）；renderDag 保留函数、不再有调用点。\n\n[子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）",
+      "context": "",
+      "parentId": "t-284b0a",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-b84187",
+          "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+          "trigger": "auto",
+          "startedAt": 1790618210887,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4202,
+              "at": 1790618267982,
+              "totals": {
+                "uncachedInputTokens": 5424619,
+                "outputTokens": 554961,
+                "cacheReadTokens": 97783040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4202,
+              "at": 1790618268007,
+              "totals": {
+                "uncachedInputTokens": 5424619,
+                "outputTokens": 554961,
+                "cacheReadTokens": 97783040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790618267989
+        }
+      ],
+      "comments": [],
+      "version": 4,
+      "createdAt": 1790616792879,
+      "updatedAt": 1790619608604,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790616792879,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790618267981,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790618267989,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 4,
+      "claimedAt": 1790618210887,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790618267981,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790619579319,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "父卡终态验收命令全绿：cd packages/web/dsh-pmboard && npx vitest run tests/node-panel.test.ts → 28/28 passed（1 file, exit 0），其中 tests/node-panel.test.ts:166-200 逐条断言拆分块与实施块均含 dsh-pm-dag-panel、id=\"np-dag-canvas-container\"、id=\"np-dag-canvas\"，且不含 id=\"dag-canvas\"／dsh-pm-np-dag-layer／dsh-pm-np-dag-node，并断言两块 DAG 类名集合逐项相同（同一构建函数产物）。附带验证客户端产物构建绿灯（pnpm build:client exit 0，verify-client OK），产物内 np-dag-canvas-container / np-dag-canvas 常量仅声明一次、两处块经变量共用，坐实\"两处同源\"。typecheck 为基线红：208 个 TS 错误全部落在本卡未改动且相"
+        ]
+      }
+    },
+    {
+      "id": "t-b1db02",
+      "requirementId": "REQ-260929010300-dbf9",
+      "title": "会话面板挂载钩子（DOM 就绪后挂载）·研发",
+      "description": "子卡阶段：研发",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-6f9d7f",
+        "t-284b0a"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "cd packages/web/dsh-pmboard && npx tsc --noEmit -p tsconfig.json → 本次涉及文件 0 error；cd packages/web/dsh-pmboard && npx vitest run tests/node-panel.test.ts tests/client-view.test.ts → 全绿；git diff --stat 可见本卡改动文件（mtime ≥ 链出身）",
+      "implementation": "改 packages/web/dsh-pmboard/src/client/conversation-progress.ts：新增 useEffect（依赖 detailOpen / selectedStage / stageOverview），从 stageOverview.stages 取所选阶段，stage 为 implementing 或 decomposing 时读 body.tasks 并调 tryMountDagCanvas(tasks, undefined, PANEL_DAG_CANVAS_ID)；不传 ready（对齐 FR-7 标注「推导」），阶段或任务缺失时不调用。\n\n[子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要",
+      "context": "",
+      "parentId": "t-3ed4b5",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-62f6fe",
+          "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+          "trigger": "auto",
+          "startedAt": 1790618268318,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4203,
+              "at": 1790618376986,
+              "totals": {
+                "uncachedInputTokens": 5424619,
+                "outputTokens": 554961,
+                "cacheReadTokens": 97783040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4203,
+              "at": 1790618377007,
+              "totals": {
+                "uncachedInputTokens": 5424619,
+                "outputTokens": 554961,
+                "cacheReadTokens": 97783040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790618376993
+        }
+      ],
+      "comments": [],
+      "version": 4,
+      "createdAt": 1790616792983,
+      "updatedAt": 1790619608657,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790616792983,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790618376984,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790618376993,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 2,
+      "claimedAt": 1790618268318,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790618376984,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790619579442,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/client/conversation-progress.ts"
+        ],
+        "completed": [
+          "完成 t-b1db02（会话面板挂载钩子·研发）：在 packages/web/dsh-pmboard/src/client/conversation-progress.ts 中落盘 Canvas DAG 挂载 useEffect——依赖 [detailOpen, selectedStage, stageOverview]，stageKey = selectedStage ?? stageOverview.currentStage，仅当阶段为 implementing / decomposing 时从 stageOverview.stages.find(...).body.tasks 取任务，阶段缺失 / 任务缺失或为空一律不调用，命中时调 tryMountDagCanvas(tasks, undefined, PANEL_DAG_CANVAS_ID)（不传 ready，对齐 FR-7 统计条标「推导」；canvasId 用面板专用常量与需求详情 #dag-canvas 隔离）；顶部已引入 tryMountDagCanvas（./dag-moun"
+        ]
+      }
+    },
+    {
+      "id": "t-3dfb5d",
+      "requirementId": "REQ-260929010300-dbf9",
+      "title": "会话面板挂载钩子（DOM 就绪后挂载）·联调",
+      "description": "子卡阶段：联调",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-b1db02"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "cd packages/web/dsh-pmboard && npx vitest run tests/node-panel.test.ts tests/client-view.test.ts → 全绿；grep -n \"tryMountDagCanvas\" packages/web/dsh-pmboard/src/client/conversation-progress.ts → 有命中（本卡接线确实在源码里）",
+      "implementation": "改 packages/web/dsh-pmboard/src/client/conversation-progress.ts：新增 useEffect（依赖 detailOpen / selectedStage / stageOverview），从 stageOverview.stages 取所选阶段，stage 为 implementing 或 decomposing 时读 body.tasks 并调 tryMountDagCanvas(tasks, undefined, PANEL_DAG_CANVAS_ID)；不传 ready（对齐 FR-7 标注「推导」），阶段或任务缺失时不调用。\n\n[子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致",
+      "context": "",
+      "parentId": "t-3ed4b5",
+      "stageKind": "integrate",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-5298f0",
+          "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+          "trigger": "auto",
+          "startedAt": 1790618377182,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4204,
+              "at": 1790618565041,
+              "totals": {
+                "uncachedInputTokens": 5424619,
+                "outputTokens": 554961,
+                "cacheReadTokens": 97783040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4204,
+              "at": 1790618565064,
+              "totals": {
+                "uncachedInputTokens": 5424619,
+                "outputTokens": 554961,
+                "cacheReadTokens": 97783040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790618565048
+        }
+      ],
+      "comments": [],
+      "version": 4,
+      "createdAt": 1790616792983,
+      "updatedAt": 1790619608710,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790616792983,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790618565039,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790618565048,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 3,
+      "claimedAt": 1790618377182,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790618565039,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790619579566,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "会话面板挂载钩子（DOM 就绪后挂载）接口联调通过：用一次性 harness 驱动 conversation-progress.ts 里真实的 useEffect（真实 React 18.3 hooks dispatcher + 真实 renderNodePanel / tryMountDagCanvas / mountDagCanvas），真实一次调用 tryMountDagCanvas(tasks, undefined, PANEL_DAG_CANVAS_ID)，实际返回与预期一致——selectedStage ∈ {implementing, decomposing} 且有 body.tasks 时 np-dag-canvas 被挂载（getContext≥1 / dblclick 绑定 / ResizeObserver observe / 统计条标「推导」，未传 ready）；阶段不在白名单、tasks 为空、stages 缺该阶段、stageOverview 拉取失败、面板未展开五种情形均不调用且不抛。「推导」标注与「互不释放」均实测在"
+        ]
+      }
+    },
+    {
+      "id": "t-aeb8eb",
+      "requirementId": "REQ-260929010300-dbf9",
+      "title": "会话面板挂载钩子（DOM 就绪后挂载）·复核",
+      "description": "子卡阶段：复核",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-3dfb5d"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "implementation": "改 packages/web/dsh-pmboard/src/client/conversation-progress.ts：新增 useEffect（依赖 detailOpen / selectedStage / stageOverview），从 stageOverview.stages 取所选阶段，stage 为 implementing 或 decomposing 时读 body.tasks 并调 tryMountDagCanvas(tasks, undefined, PANEL_DAG_CANVAS_ID)；不传 ready（对齐 FR-7 标注「推导」），阶段或任务缺失时不调用。\n\n[子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-3ed4b5",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-28d59c",
+          "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+          "trigger": "auto",
+          "startedAt": 1790618565216,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4205,
+              "at": 1790618648664,
+              "totals": {
+                "uncachedInputTokens": 5424619,
+                "outputTokens": 554961,
+                "cacheReadTokens": 97783040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4205,
+              "at": 1790618648684,
+              "totals": {
+                "uncachedInputTokens": 5424619,
+                "outputTokens": 554961,
+                "cacheReadTokens": 97783040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790618648670
+        }
+      ],
+      "comments": [],
+      "version": 4,
+      "createdAt": 1790616792983,
+      "updatedAt": 1790619579694,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790616792983,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790618648663,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790618648670,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 4,
+      "claimedAt": 1790618565216,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790618648663,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790619579694,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "无偏离。逐条对齐设计源（decomposition.md:18 改动盘点 + queue.json 本卡 implementation 全文 + design/{architecture,interfaces,use-cases,data-model}.md 的 FR-1/FR-2/FR-5/FR-7）：①挂载 useEffect 已在 packages/web/dsh-pmboard/src/client/conversation-progress.ts:279-292 落盘，且位于组件早退（:295）之前，Hooks 顺序安全；②依赖数组 :292 = [detailOpen, selectedStage, stageOverview]，与计划逐字一致；③阶段从 stageOverview.stages 取（:281 stageKey、:283 find），stageKey = selectedStage ?? stageOverview.currentStage 与面板渲染 :392 同表达式，保证「渲染哪块画布就挂哪块」；④白名单仅 im"
+        ]
+      }
+    },
+    {
+      "id": "t-bf779f",
+      "requirementId": "REQ-260929010300-dbf9",
+      "title": "会话面板挂载钩子（DOM 就绪后挂载）·测试",
+      "description": "子卡阶段：测试",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-aeb8eb"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "cd packages/web/dsh-pmboard && npx vitest run tests/dag-view.test.ts tests/node-panel.test.ts tests/client-view.test.ts tests/dag-styles.test.ts → 4 files passed / 111 tests passed；cd packages/web/dsh-pmboard && pnpm build:client → 退出 0 且输出含 [verify-client] OK",
+      "implementation": "改 packages/web/dsh-pmboard/src/client/conversation-progress.ts：新增 useEffect（依赖 detailOpen / selectedStage / stageOverview），从 stageOverview.stages 取所选阶段，stage 为 implementing 或 decomposing 时读 body.tasks 并调 tryMountDagCanvas(tasks, undefined, PANEL_DAG_CANVAS_ID)；不传 ready（对齐 FR-7 标注「推导」），阶段或任务缺失时不调用。\n\n[子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）",
+      "context": "",
+      "parentId": "t-3ed4b5",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-b1da5b",
+          "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+          "trigger": "auto",
+          "startedAt": 1790618648851,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4206,
+              "at": 1790618768469,
+              "totals": {
+                "uncachedInputTokens": 5424619,
+                "outputTokens": 554961,
+                "cacheReadTokens": 97783040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4206,
+              "at": 1790618768497,
+              "totals": {
+                "uncachedInputTokens": 5424619,
+                "outputTokens": 554961,
+                "cacheReadTokens": 97783040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790618768476
+        }
+      ],
+      "comments": [],
+      "version": 4,
+      "createdAt": 1790616792983,
+      "updatedAt": 1790619608756,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790616792983,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790618768467,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790618768476,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 5,
+      "claimedAt": 1790618648851,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790618768467,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790619579817,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "父卡 t-3ed4b5（会话面板挂载钩子·DOM 就绪后挂载，REQ-260929010300-dbf9）的终态验收命令逐条跑完全绿，退出码均为 0，未改任何代码（仅 pnpm build:client 重建 lib 产物）。①父卡终态命令 npx vitest run tests/node-panel.test.ts tests/client-view.test.ts → exit 0，2 files / 79 tests passed；②design/test-cases.md §手工核验#1 四文件命令 → exit 0，4 files / 110 tests passed；③§手工核验#2 pnpm build:client → exit 0，末行 [verify-client] OK bundle=308699 bytes，关键符号齐全、styles.ts 括号配对。实现与卡面实施方案逐点一致（只读核对 src/client/conversation-progress.ts:279-292：useEffect 依赖 [detailOpe"
+        ]
+      }
+    },
+    {
+      "id": "t-2069e2",
+      "requirementId": "REQ-260929010300-dbf9",
+      "title": "DAG 骨架皮肤换成 np 苹果风·研发",
+      "description": "子卡阶段：研发",
+      "phase": "ui",
+      "side": "frontend",
+      "dependsOn": [
+        "t-d03789"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "cd packages/web/dsh-pmboard && npx tsc --noEmit -p tsconfig.json → 本次涉及文件 0 error；cd packages/web/dsh-pmboard && npx vitest run tests/dag-styles.test.ts → 全绿；git diff --stat 可见本卡改动文件（mtime ≥ 链出身）",
+      "implementation": "改 packages/web/dsh-pmboard/src/client/styles/dag.ts 的 DAG_CSS：面板用白底 + --dsh-pm-np-line-soft 描边 + 12px 圆角；标题用 --dsh-pm-np-text；-head 用 #f5f5f7（--dsh-pm-np-bg）底 + 下描边；-sub 与 -legend 用 --dsh-pm-np-text3 / -text2；-btn 与 -flowstat span 用 980px 胶囊，is-on 用 --dsh-pm-np-blue 实底；滚动条 8px 圆角。类名、styles.ts 的拼接与 scripts/verify-client-build.mjs 一律不动。\n\n[子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要",
+      "context": "",
+      "parentId": "t-d1a7f7",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-600a4e",
+          "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+          "trigger": "auto",
+          "startedAt": 1790618768820,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4207,
+              "at": 1790618882993,
+              "totals": {
+                "uncachedInputTokens": 5424619,
+                "outputTokens": 554961,
+                "cacheReadTokens": 97783040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4207,
+              "at": 1790618883020,
+              "totals": {
+                "uncachedInputTokens": 5424619,
+                "outputTokens": 554961,
+                "cacheReadTokens": 97783040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790618883001
+        }
+      ],
+      "comments": [],
+      "version": 4,
+      "createdAt": 1790616793083,
+      "updatedAt": 1790619608802,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790616793083,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790618882991,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790618883001,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 1,
+      "claimedAt": 1790618768820,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790618882991,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790619579941,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/client/styles/dag.ts",
+          "packages/web/dsh-pmboard/tests/dag-styles.test.ts"
+        ],
+        "completed": [
+          "DAG 面板骨架 np 苹果风收敛（REQ-260929010300-dbf9 FR-6，卡 t-d1a7f7 研发段）。逐条审计 DAG_CSS：面板 --dsh-pm-np-line-soft 描边 + 12px 圆角、标题 --dsh-pm-np-text、-head #f5f5f7（--dsh-pm-np-bg）底 + 下描边、-sub/-legend 用 text3/text2、-btn 与 -flowstat span 980px 胶囊、is-on 用 blue 实底、滚动条 8px + 圆角——规则取值全部走 --dsh-pm-np-* 令牌，零 --dsw-。关键裁定：卡实施方案中「面板用白底」与本卡验收「面板底色 = var(--dsh-pm-np-bg)，2026-09-29 用户裁定，不得为白底」冲突，按验收+用户裁定执行，面板保持泳道图底色 #f5f5f7，未改回白底。落盘改动两项：①修正 dag.ts 头部口径注释——原写「白底圆角」与代码/验收相互矛盾，改为写明 2026-09-29 底色裁定与非白底警示，避免未来被按"
+        ]
+      }
+    },
+    {
+      "id": "t-0c43f8",
+      "requirementId": "REQ-260929010300-dbf9",
+      "title": "DAG 骨架皮肤换成 np 苹果风·联调",
+      "description": "子卡阶段：联调",
+      "phase": "ui",
+      "side": "frontend",
+      "dependsOn": [
+        "t-2069e2"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "cd packages/web/dsh-pmboard && npx vitest run tests/dag-styles.test.ts → 全绿；grep -n \"dsh-pm-np-bg\" packages/web/dsh-pmboard/src/client/styles/dag.ts → 有命中（本卡接线确实在源码里）",
+      "implementation": "改 packages/web/dsh-pmboard/src/client/styles/dag.ts 的 DAG_CSS：面板用白底 + --dsh-pm-np-line-soft 描边 + 12px 圆角；标题用 --dsh-pm-np-text；-head 用 #f5f5f7（--dsh-pm-np-bg）底 + 下描边；-sub 与 -legend 用 --dsh-pm-np-text3 / -text2；-btn 与 -flowstat span 用 980px 胶囊，is-on 用 --dsh-pm-np-blue 实底；滚动条 8px 圆角。类名、styles.ts 的拼接与 scripts/verify-client-build.mjs 一律不动。\n\n[子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致",
+      "context": "",
+      "parentId": "t-d1a7f7",
+      "stageKind": "integrate",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-84b998",
+          "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+          "trigger": "auto",
+          "startedAt": 1790618896333,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4242,
+              "at": 1790618981586,
+              "totals": {
+                "uncachedInputTokens": 5718770,
+                "outputTokens": 556216,
+                "cacheReadTokens": 98094336,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4242,
+              "at": 1790618981612,
+              "totals": {
+                "uncachedInputTokens": 5718770,
+                "outputTokens": 556216,
+                "cacheReadTokens": 98094336,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790618981594
+        }
+      ],
+      "comments": [],
+      "version": 4,
+      "createdAt": 1790616793083,
+      "updatedAt": 1790619608850,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790616793083,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790618981584,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790618981594,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 2,
+      "claimedAt": 1790618896333,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790618981584,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790619580063,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "DAG 骨架 np 苹果风联调通过：以真实调用打通「DOM 生产端 buildDagCanvas → 样式注入端 injectStyles → CSS 分片 DAG_CSS → 浏览器加载产物 lib/client.js」全链路，28/28 断言与预期逐字一致。请求样例①：injectStyles() 连续调用 2 次（最小 DOM shim），响应为 document.head 注入唯一 <style data-plugin-css=\"dsh-pmboard/styles.css\">（幂等命中，未重复注入），CSS 总长 120223 字符且含 DAG np 皮肤；请求样例②：buildDagCanvas([单卡 DagTaskLike])，响应 HTML 产出 10 个 dsh-pm-dag-* 类（panel/title/head/sub/seg/btn/flowstat/canvas-wrap/canvas/legend），逐个在注入 CSS 中命中规则（零断链）；DAG 分片引用的 7 个 --dsh-pm-np-* 令牌全部在注入 C"
+        ]
+      }
+    },
+    {
+      "id": "t-6fed57",
+      "requirementId": "REQ-260929010300-dbf9",
+      "title": "DAG 骨架皮肤换成 np 苹果风·复核",
+      "description": "子卡阶段：复核",
+      "phase": "ui",
+      "side": "frontend",
+      "dependsOn": [
+        "t-0c43f8"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "implementation": "改 packages/web/dsh-pmboard/src/client/styles/dag.ts 的 DAG_CSS：面板用白底 + --dsh-pm-np-line-soft 描边 + 12px 圆角；标题用 --dsh-pm-np-text；-head 用 #f5f5f7（--dsh-pm-np-bg）底 + 下描边；-sub 与 -legend 用 --dsh-pm-np-text3 / -text2；-btn 与 -flowstat span 用 980px 胶囊，is-on 用 --dsh-pm-np-blue 实底；滚动条 8px 圆角。类名、styles.ts 的拼接与 scripts/verify-client-build.mjs 一律不动。\n\n[子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-d1a7f7",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-96e2b5",
+          "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+          "trigger": "auto",
+          "startedAt": 1790618981769,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4285,
+              "at": 1790619120241,
+              "totals": {
+                "uncachedInputTokens": 5719648,
+                "outputTokens": 559249,
+                "cacheReadTokens": 98704896,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4285,
+              "at": 1790619120270,
+              "totals": {
+                "uncachedInputTokens": 5719648,
+                "outputTokens": 559249,
+                "cacheReadTokens": 98704896,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790619120251
+        }
+      ],
+      "comments": [],
+      "version": 4,
+      "createdAt": 1790616793083,
+      "updatedAt": 1790619580192,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790616793083,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790619120240,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790619120251,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 3,
+      "claimedAt": 1790618981769,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790619120240,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790619580192,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "复核对象：t-d1a7f7「DAG 骨架皮肤换成 np 苹果风」（REQ-260929010300-dbf9 FR-6）。逐条比对卡面实施方案/设计（requirement.md FR-6、architecture.md §皮肤真源、interfaces.md §DOM 与样式契约）与实现 packages/web/dsh-pmboard/src/client/styles/dag.ts（77 行，mtime 2026-09-29T02:07:41），实施方案 7 条骨架口径全部落地且类名/拼接/守卫零改动，无未授权偏离。唯一「偏离」是面板底色：设计/卡面实施字段字面写「白底」，实现为 var(--dsh-pm-np-bg)（#f5f5f7）——但这是卡面验收 t-d1a7f7.md:17（2026-09-29 用户裁定「底色=泳道底色，不得为白底」）明确授权的，故判为授权偏离、非缺陷；随之产生两处文档漂移与一处设计项未落地（轻阴影，见 issues）。因 dag.ts 未纳入 git，无法对「类名不变」做基线 diff，改用「当前选择器集 ="
+        ]
+      }
+    },
+    {
+      "id": "t-a195b8",
+      "requirementId": "REQ-260929010300-dbf9",
+      "title": "DAG 骨架皮肤换成 np 苹果风·测试",
+      "description": "子卡阶段：测试",
+      "phase": "ui",
+      "side": "frontend",
+      "dependsOn": [
+        "t-6fed57"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "cd packages/web/dsh-pmboard && npx vitest run tests/dag-view.test.ts tests/node-panel.test.ts tests/client-view.test.ts tests/dag-styles.test.ts → 4 files passed / 111 tests passed；cd packages/web/dsh-pmboard && pnpm build:client → 退出 0 且输出含 [verify-client] OK",
+      "implementation": "改 packages/web/dsh-pmboard/src/client/styles/dag.ts 的 DAG_CSS：面板用白底 + --dsh-pm-np-line-soft 描边 + 12px 圆角；标题用 --dsh-pm-np-text；-head 用 #f5f5f7（--dsh-pm-np-bg）底 + 下描边；-sub 与 -legend 用 --dsh-pm-np-text3 / -text2；-btn 与 -flowstat span 用 980px 胶囊，is-on 用 --dsh-pm-np-blue 实底；滚动条 8px 圆角。类名、styles.ts 的拼接与 scripts/verify-client-build.mjs 一律不动。\n\n[子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）",
+      "context": "",
+      "parentId": "t-d1a7f7",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-26ccdc",
+          "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+          "trigger": "auto",
+          "startedAt": 1790619120429,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4286,
+              "at": 1790619148028,
+              "totals": {
+                "uncachedInputTokens": 5719648,
+                "outputTokens": 559249,
+                "cacheReadTokens": 98704896,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4286,
+              "at": 1790619148054,
+              "totals": {
+                "uncachedInputTokens": 5719648,
+                "outputTokens": 559249,
+                "cacheReadTokens": 98704896,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790619148036
+        }
+      ],
+      "comments": [],
+      "version": 5,
+      "createdAt": 1790616793083,
+      "updatedAt": 1790619608896,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790616793083,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790619148027,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790619148036,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 4,
+      "claimedAt": 1790619120429,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790619148027,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790619580316,
+        "reportIndex": 2,
+        "filesChanged": [],
+        "completed": [
+          "REQ-260929010300-dbf9 / t-d1a7f7「DAG 骨架皮肤换成 np 苹果风」test 段：卡片验收的四条目标命令逐条执行，全部通过（无代码改动，仅 pnpm build:client 重建 lib 产物）。① grep --dsw- 无输出（grep 退出码 1=零命中）；② DAG_CSS 的 .dsh-pm-dag-panel 底色 = background: var(--dsh-pm-np-bg)，非白底，符合卡片 acceptance 的 2026-09-29 用户裁定；③ vitest run tests/dag-styles.test.ts 退出 0，1 file / 7 tests 全绿；④ pnpm build:client 退出 0 且输出含 [verify-client] OK bundle=308699 bytes, 关键符号齐全, styles.ts 括号配对。"
+        ]
+      }
+    },
+    {
+      "id": "t-7125de",
+      "requirementId": "REQ-260929010300-dbf9",
+      "title": "迁移与兼容核验 + 需求详情回归·研发",
+      "description": "子卡阶段：研发",
+      "phase": "test",
+      "side": "frontend",
+      "dependsOn": [
+        "t-3ed4b5",
+        "t-d1a7f7"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "cd packages/web/dsh-pmboard && npx tsc --noEmit -p tsconfig.json → 本次涉及文件 0 error；cd packages/web/dsh-pmboard && npx vitest run tests/dag-view.test.ts tests/node-panel.test.ts tests/client-view.test.ts tests/dag-styles.test.ts → 全绿；git diff --stat 可见本卡改动文件（mtime ≥ 链出身）",
+      "implementation": "①核验需求详情调用方零改动（views/stage-detail.ts 的 buildDag 仍走缺省参数）；②核验画布卡绘制零改动（src/client/dag/card-renderer.ts 无 diff）；③把「两处 DAG 面板 DOM 类名集合逐项相同」写成断言加入 tests/node-panel.test.ts；④给 tests/dag-view.test.ts、tests/node-panel.test.ts、tests/client-view.test.ts、tests/dag-styles.test.ts 补文件头 serves: 声明；⑤把回滚路径写进任务卡文档（还原 renderDag 两处调用 + 回滚 styles/dag.ts）。\n\n[子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要",
+      "context": "",
+      "parentId": "t-757283",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-321225",
+          "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+          "trigger": "auto",
+          "startedAt": 1790619148347,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4299,
+              "at": 1790619325520,
+              "totals": {
+                "uncachedInputTokens": 5719648,
+                "outputTokens": 559249,
+                "cacheReadTokens": 98704896,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4299,
+              "at": 1790619325548,
+              "totals": {
+                "uncachedInputTokens": 5719648,
+                "outputTokens": 559249,
+                "cacheReadTokens": 98704896,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790619325528
+        }
+      ],
+      "comments": [],
+      "version": 4,
+      "createdAt": 1790616793208,
+      "updatedAt": 1790619608954,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790616793208,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790619325519,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790619325528,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 3,
+      "claimedAt": 1790619148347,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790619325519,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790619580437,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/tests/node-panel.test.ts",
+          "docs/requirements/REQ-260929010300-dbf9/tasks/t-757283.md"
+        ],
+        "completed": [
+          "dev 阶段（子卡 t-7125de「迁移与兼容核验 + 需求详情回归·研发」）落地内容：③ 把「两处 DAG 面板 DOM 类名集合逐项相同」写成可失败断言并强化——先按平衡 div 从面板 HTML 切出 .dsh-pm-dag-panel 整块（面板外的页签/泳道类不掺入），再逐类比对，并钉住 panel/head/flowstat/canvas-wrap/canvas/legend 六个骨架类防「两个空集合相等」的假绿；④ 给 tests/node-panel.test.ts 补文件头 serves 声明（FR-1, FR-2, FR-3, FR-6，REQ-260929010300-dbf9），另三个文件 dag-view/dag-styles/client-view 已有头部 serves 声明（实测均在前 20 行内），无需改动；⑤ 把回滚路径写进父卡任务卡文档 docs/requirements/REQ-260929010300-dbf9/tasks/t-757283.md 新增「## 回滚路径」段（还原 node-panel.t"
+        ]
+      }
+    },
+    {
+      "id": "t-74e548",
+      "requirementId": "REQ-260929010300-dbf9",
+      "title": "迁移与兼容核验 + 需求详情回归·复核",
+      "description": "子卡阶段：复核",
+      "phase": "test",
+      "side": "frontend",
+      "dependsOn": [
+        "t-7125de"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "implementation": "①核验需求详情调用方零改动（views/stage-detail.ts 的 buildDag 仍走缺省参数）；②核验画布卡绘制零改动（src/client/dag/card-renderer.ts 无 diff）；③把「两处 DAG 面板 DOM 类名集合逐项相同」写成断言加入 tests/node-panel.test.ts；④给 tests/dag-view.test.ts、tests/node-panel.test.ts、tests/client-view.test.ts、tests/dag-styles.test.ts 补文件头 serves: 声明；⑤把回滚路径写进任务卡文档（还原 renderDag 两处调用 + 回滚 styles/dag.ts）。\n\n[子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-757283",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-caaa67",
+          "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+          "trigger": "auto",
+          "startedAt": 1790619325706,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4316,
+              "at": 1790619420098,
+              "totals": {
+                "uncachedInputTokens": 6018977,
+                "outputTokens": 559892,
+                "cacheReadTokens": 98713728,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4316,
+              "at": 1790619420124,
+              "totals": {
+                "uncachedInputTokens": 6018977,
+                "outputTokens": 559892,
+                "cacheReadTokens": 98713728,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790619420106
+        }
+      ],
+      "comments": [],
+      "version": 4,
+      "createdAt": 1790616793208,
+      "updatedAt": 1790619580562,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790616793208,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790619420097,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790619420106,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 4,
+      "claimedAt": 1790619325706,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790619420097,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1790619580562,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "对父卡 t-757283「迁移与兼容核验 + 需求详情回归」逐条给出设计↔实现偏离结论：无偏离。\n①需求详情调用方零改动（plan ①）：stage-detail.ts:314-316 的 buildDag 仍是 buildDagCanvas(tasks, 'dag-canvas-container')，canvasId 走缺省 #dag-canvas（与 design/interfaces.md 缺省值 containerId=dag-canvas-container / canvasId=dag-canvas 一致）；该文件对 dbf9 专属标记（PANEL_DAG_ / np-dag-canvas / dbf9）0 命中，canvasId 未在此处显式传值。\n②画布卡绘制零改动（plan ②）：src/client/dag/card-renderer.ts 与 REQ-260928001915-f978 demo/card-renderer.ts 逐字节相同（diff 退出码 0，255=255 行），无 buildDagCanvas/re"
+        ]
+      }
+    },
+    {
+      "id": "t-7ee744",
+      "requirementId": "REQ-260929010300-dbf9",
+      "title": "迁移与兼容核验 + 需求详情回归·测试",
+      "description": "子卡阶段：测试",
+      "phase": "test",
+      "side": "frontend",
+      "dependsOn": [
+        "t-74e548"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "cd packages/web/dsh-pmboard && npx vitest run tests/dag-view.test.ts tests/node-panel.test.ts tests/client-view.test.ts tests/dag-styles.test.ts → 4 files passed / 111 tests passed；cd packages/web/dsh-pmboard && pnpm build:client → 退出 0 且输出含 [verify-client] OK；grep -l \"serves:\" packages/web/dsh-pmboard/tests/*.test.ts → 命中 dag-view/node-panel/client-view/dag-styles 四个文件",
+      "implementation": "①核验需求详情调用方零改动（views/stage-detail.ts 的 buildDag 仍走缺省参数）；②核验画布卡绘制零改动（src/client/dag/card-renderer.ts 无 diff）；③把「两处 DAG 面板 DOM 类名集合逐项相同」写成断言加入 tests/node-panel.test.ts；④给 tests/dag-view.test.ts、tests/node-panel.test.ts、tests/client-view.test.ts、tests/dag-styles.test.ts 补文件头 serves: 声明；⑤把回滚路径写进任务卡文档（还原 renderDag 两处调用 + 回滚 styles/dag.ts）。\n\n[子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）",
+      "context": "",
+      "parentId": "t-757283",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-96fe16",
+          "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+          "trigger": "auto",
+          "startedAt": 1790619420289,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4321,
+              "at": 1790619477008,
+              "totals": {
+                "uncachedInputTokens": 6018977,
+                "outputTokens": 559892,
+                "cacheReadTokens": 98713728,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-9e82f8c1-635e-458c-9df0-ff9aba1ae00e",
+              "seq": 4321,
+              "at": 1790619477043,
+              "totals": {
+                "uncachedInputTokens": 6018977,
+                "outputTokens": 559892,
+                "cacheReadTokens": 98713728,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790619477019
+        }
+      ],
+      "comments": [],
+      "version": 5,
+      "createdAt": 1790616793208,
+      "updatedAt": 1790619609001,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790616793208,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790619477004,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790619477019,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 5,
+      "claimedAt": 1790619420289,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1790619477004,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": false
+      },
+      "lastReport": {
+        "at": 1790619580685,
+        "reportIndex": 2,
+        "filesChanged": [],
+        "completed": [
+          "test 段执行完成（结论 pass）"
+        ]
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "t-d03789",
+      "to": "t-6f9d7f"
+    },
+    {
+      "from": "t-d03789",
+      "to": "t-284b0a"
+    },
+    {
+      "from": "t-6f9d7f",
+      "to": "t-3ed4b5"
+    },
+    {
+      "from": "t-284b0a",
+      "to": "t-3ed4b5"
+    },
+    {
+      "from": "t-d03789",
+      "to": "t-d1a7f7"
+    },
+    {
+      "from": "t-3ed4b5",
+      "to": "t-757283"
+    },
+    {
+      "from": "t-d1a7f7",
+      "to": "t-757283"
+    },
+    {
+      "from": "t-ee4384",
+      "to": "t-1fadb6"
+    },
+    {
+      "from": "t-1fadb6",
+      "to": "t-cc9e3a"
+    },
+    {
+      "from": "t-cc9e3a",
+      "to": "t-470baa"
+    },
+    {
+      "from": "t-d03789",
+      "to": "t-3f8d67"
+    },
+    {
+      "from": "t-3f8d67",
+      "to": "t-2e30df"
+    },
+    {
+      "from": "t-2e30df",
+      "to": "t-cf0284"
+    },
+    {
+      "from": "t-cf0284",
+      "to": "t-c53e93"
+    },
+    {
+      "from": "t-d03789",
+      "to": "t-c0dad0"
+    },
+    {
+      "from": "t-c0dad0",
+      "to": "t-32a952"
+    },
+    {
+      "from": "t-32a952",
+      "to": "t-89278b"
+    },
+    {
+      "from": "t-89278b",
+      "to": "t-3b43fd"
+    },
+    {
+      "from": "t-6f9d7f",
+      "to": "t-b1db02"
+    },
+    {
+      "from": "t-284b0a",
+      "to": "t-b1db02"
+    },
+    {
+      "from": "t-b1db02",
+      "to": "t-3dfb5d"
+    },
+    {
+      "from": "t-3dfb5d",
+      "to": "t-aeb8eb"
+    },
+    {
+      "from": "t-aeb8eb",
+      "to": "t-bf779f"
+    },
+    {
+      "from": "t-d03789",
+      "to": "t-2069e2"
+    },
+    {
+      "from": "t-2069e2",
+      "to": "t-0c43f8"
+    },
+    {
+      "from": "t-0c43f8",
+      "to": "t-6fed57"
+    },
+    {
+      "from": "t-6fed57",
+      "to": "t-a195b8"
+    },
+    {
+      "from": "t-3ed4b5",
+      "to": "t-7125de"
+    },
+    {
+      "from": "t-d1a7f7",
+      "to": "t-7125de"
+    },
+    {
+      "from": "t-7125de",
+      "to": "t-74e548"
+    },
+    {
+      "from": "t-74e548",
+      "to": "t-7ee744"
+    }
+  ],
+  "layers": [
+    {
+      "layer": 0,
+      "tasks": [
+        "t-d03789",
+        "t-ee4384"
+      ]
+    },
+    {
+      "layer": 1,
+      "tasks": [
+        "t-6f9d7f",
+        "t-284b0a",
+        "t-d1a7f7",
+        "t-3f8d67",
+        "t-c0dad0",
+        "t-2069e2",
+        "t-1fadb6"
+      ]
+    },
+    {
+      "layer": 2,
+      "tasks": [
+        "t-3ed4b5",
+        "t-b1db02",
+        "t-2e30df",
+        "t-32a952",
+        "t-0c43f8",
+        "t-cc9e3a"
+      ]
+    },
+    {
+      "layer": 3,
+      "tasks": [
+        "t-757283",
+        "t-7125de",
+        "t-3dfb5d",
+        "t-cf0284",
+        "t-89278b",
+        "t-6fed57",
+        "t-470baa"
+      ]
+    },
+    {
+      "layer": 4,
+      "tasks": [
+        "t-74e548",
+        "t-aeb8eb",
+        "t-c53e93",
+        "t-3b43fd",
+        "t-a195b8"
+      ]
+    },
+    {
+      "layer": 5,
+      "tasks": [
+        "t-7ee744",
+        "t-bf779f"
+      ]
+    }
+  ],
+  "ready": [],
+  "updated_at": "2026-09-28T23:40:48.907Z"
+}

@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>队列 DAG 卡片类型可视化原型（REQ-260928001915-f978）</title>
+<style>
+* { box-sizing: border-box; }
+body { 
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', Roboto, sans-serif;
+  margin: 0; padding: 34px 30px 90px; background: #f5f7fa; color: #1f2733; 
+  -webkit-font-smoothing: antialiased; 
+}
+
+h1 { font-size: 23px; margin: 0 0 6px; letter-spacing: -.01em; }
+.sub { color: #6b7280; font-size: 13px; margin: 0 0 24px; line-height: 1.7; }
+.sec { 
+  background: #fff; border-radius: 14px; padding: 22px 24px; 
+  margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.07); 
+}
+.sec > h2 { font-size: 16px; margin: 0 0 6px; }
+.sec > .desc { color: #6b7280; font-size: 13px; margin: 0 0 18px; line-height: 1.7; }
+
+/* ========== 卡片样式（沿用 demo 的设计） ========== */
+.card { 
+  display: flex; flex-direction: column; gap: 2px; 
+  background: #fff; border-radius: 9px;
+  padding: 6px 8px; min-height: 44px; width: 208px; 
+  box-shadow: 0 1px 3px rgba(0,0,0,.08);
+  overflow: hidden; position: relative; text-align: left; 
+}
+
+.card-top { 
+  display: flex; align-items: center; gap: 4px; 
+  flex: none; min-height: 14px; 
+}
+
+.card-id { 
+  font-family: ui-monospace, monospace; 
+  font-size: 10px; line-height: 12px; 
+  color: #a3abb8; white-space: nowrap; 
+}
+
+.card-title { 
+  font-size: 11.5px; font-weight: 500; line-height: 15px; 
+  color: #1f2733; letter-spacing: -.005em;
+  display: -webkit-box; -webkit-line-clamp: 2; 
+  -webkit-box-orient: vertical; overflow: hidden; 
+}
+
+.chip { 
+  font-size: 10px; line-height: 14px; padding: 0 5px; 
+  border-radius: 4px; white-space: nowrap; font-weight: 500; flex: none; 
+}
+
+/* 类型徽标：彩色方案（七类任务 + 四类端侧） */
+.chip-type { background: rgba(107,114,128,.13); color: #4b5563; }
+.chip-type[data-phase="implement"] { background: rgba(0,113,227,.13); color: #0062c4; }
+.chip-type[data-phase="test"]      { background: rgba(255,149,0,.15); color: #b26a00; }
+.chip-type[data-phase="doc"]       { background: rgba(88,86,214,.13); color: #4b49b8; }
+.chip-type[data-phase="review"]    { background: rgba(233,30,99,.12); color: #c2185b; }
+.chip-type[data-phase="ui"]        { background: rgba(6,182,212,.15); color: #0e7490; }
+.chip-type[data-phase="analysis"]  { background: rgba(87,83,78,.14); color: #57534e; }
+.chip-type[data-phase="merge"]     { background: rgba(52,199,89,.15); color: #1d8a3c; }
+
+.chip-side { background: transparent; color: #a3abb8; padding: 0 2px; }
+.chip-side[data-side="backend"]    { background: rgba(124,58,237,.12); color: #7c3aed; }
+.chip-side[data-side="frontend"]   { background: rgba(219,39,119,.12); color: #db2777; }
+.chip-side[data-side="fullstack"]  { background: rgba(34,197,94,.12); color: #16a34a; }
+.chip-side[data-side="doc"]        { background: rgba(251,146,60,.14); color: #ea580c; }
+
+/* 状态底色（沿用线上 6 态） */
+.card[data-status="todo"]        { background: #fafafa; }
+.card[data-status="in_progress"] { background: rgba(0,113,227,.06); }
+.card[data-status="integrating"] { background: rgba(142,68,173,.07); }
+.card[data-status="testing"]     { background: rgba(255,149,0,.08); }
+.card[data-status="in_review"]   { background: rgba(233,30,99,.06); }
+.card[data-status="done"]        { background: rgba(52,199,89,.08); }
+
+/* Ready 标记 */
+.ready-dot { 
+  position: absolute; right: 6px; top: 6px; 
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #34c759; box-shadow: 0 0 0 3px rgba(52,199,89,.2); 
+}
+
+/* 父卡：左侧蓝条 + 子卡链进度 */
+.card-crown { 
+  position: absolute; left: 0; top: 0; bottom: 0; width: 3px; 
+  background: rgba(0,113,227,.55); border-radius: 9px 0 0 9px; 
+}
+
+.card-chain { 
+  display: flex; align-items: center; gap: 3px; 
+  margin-top: 3px; flex: none; 
+}
+.card-chain i { 
+  width: 14px; height: 3px; border-radius: 2px; 
+  background: rgba(0,0,0,.12); display: block; 
+}
+.card-chain i.on { background: #34c759; }
+.card-chain i.now { background: #0071e3; }
+.card-chain span { 
+  font-size: 9.5px; color: #a3abb8; margin-left: 2px; 
+}
+
+/* 子卡 */
+.card[data-role="child"] { 
+  width: 190px; margin-left: 18px; padding-left: 10px; 
+}
+.card[data-role="child"]::before { 
+  content: ""; position: absolute; 
+  left: 4px; top: 8px; bottom: 8px; width: 2px; 
+  background: rgba(0,0,0,.08); 
+}
+
+/* ========== DAG 画布 ========== */
+.panel { 
+  width: 100%; max-width: 900px; 
+  border: 1px solid #e5e7eb; border-radius: 12px; 
+  background: #fff; overflow: hidden; margin: 0 auto;
+}
+
+.panel-head { 
+  padding: 9px 13px; border-bottom: 1px solid #eef0f3; 
+  display: flex; align-items: center; gap: 8px;
+  flex-wrap: wrap; background: #fafbfc; 
+}
+
+.panel-title { font-size: 12.5px; font-weight: 600; }
+.panel-sub { font-size: 11px; color: #9ca3af; }
+
+.seg { display: flex; gap: 4px; margin-left: auto; }
+.seg button { 
+  font: inherit; font-size: 11.5px; padding: 3px 10px; 
+  border-radius: 980px; border: 1px solid #e5e7eb;
+  background: #fff; color: #6b7280; cursor: pointer; 
+}
+.seg button.on { 
+  background: #0071e3; border-color: #0071e3; color: #fff; 
+}
+
+.panel-body { padding: 12px; background: #f7f8fa; }
+
+.canvas-wrap { 
+  overflow: auto; border-radius: 10px; 
+  background: #fff; border: 1px solid #eef0f3; 
+  max-height: 640px; 
+}
+
+.canvas { position: relative; }
+svg.edges { position: absolute; left: 0; top: 0; z-index: 1; }
+.node { position: absolute; z-index: 2; }
+.node .card { cursor: pointer; }
+
+.node.hi-self .card { 
+  box-shadow: 0 0 0 2px #1f2733, 0 3px 12px rgba(0,0,0,.18); 
+}
+.node.hi-up .card { 
+  box-shadow: 0 0 0 2px rgba(255,149,0,.9), 0 3px 10px rgba(0,0,0,.12); 
+}
+.node.hi-down .card { 
+  box-shadow: 0 0 0 2px rgba(0,113,227,.9), 0 3px 10px rgba(0,0,0,.12); 
+}
+
+.canvas.dimming .node:not(.hi-self):not(.hi-up):not(.hi-down) { 
+  opacity: .18; filter: saturate(.3); 
+}
+
+path.e-base { stroke: rgba(0,0,0,.17); stroke-width: 1.2; fill: none; }
+path.e-done { stroke: rgba(52,199,89,.5); stroke-width: 1.3; fill: none; }
+path.e-crit { stroke: rgba(0,113,227,.75); stroke-width: 1.8; fill: none; }
+
+.canvas.dimming path:not(.hi-up):not(.hi-down) { opacity: .05; }
+path.hi-up { 
+  stroke: #ff9500 !important; stroke-width: 2 !important; opacity: 1 !important; 
+}
+path.hi-down { 
+  stroke: #0071e3 !important; stroke-width: 2 !important; opacity: 1 !important; 
+}
+
+.legend { 
+  display: flex; gap: 14px; flex-wrap: wrap; 
+  font-size: 11.5px; color: #6b7280; margin-top: 10px; 
+}
+.legend i { 
+  display: inline-block; width: 16px; height: 3px; 
+  border-radius: 2px; vertical-align: middle; margin-right: 5px; 
+}
+
+.tip { 
+  font-size: 12px; color: #6b7280; 
+  background: #f7f8fa; border-left: 3px solid #d9dde3; 
+  padding: 9px 12px; border-radius: 0 8px 8px 0; 
+  line-height: 1.7; margin-top: 14px; 
+}
+
+/* 展示区 */
+.showcase { 
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(208px, 208px)); 
+  gap: 14px; justify-content: start; 
+}
+</style>
+</head>
+<body>
+
+<h1>队列 DAG 卡片类型可视化原型</h1>
+<p class="sub">
+  基于 <b>真实队列数据</b> 的 DAG 可视化设计，展示卡片类型系统（phase/side/role 三轴）与交互功能。
+  <br>数据来源：全仓 queue.json 文件 · 关联需求 REQ-260928001915-f978
+</p>
+
+<!-- ========== ① 卡片类型展示 ========== -->
+<div class="sec">
+  <h2>① 卡片类型系统（7 类任务类型）</h2>
+  <p class="desc">
+    每张卡通过 <b>phase</b> 字段决定类型徽标文案，通过 <b>status</b> 决定底色，
+    通过 <b>role</b> 决定卡形（父卡/子卡/独立卡）。
+  </p>
+  <div class="showcase" id="showcase-types"></div>
+</div>
+
+<!-- ========== ② 角色三态 ========== -->
+<div class="sec">
+  <h2>② 角色三态（父卡 / 子卡 / 独立卡）</h2>
+  <p class="desc">
+    父卡带左侧蓝条 + 子卡链进度（4 段：dev/integrate/review/test），
+    子卡缩进显示，独立卡为普通节点。
+  </p>
+  <div class="showcase" id="showcase-roles"></div>
+</div>
+
+<!-- ========== ③ 真实 DAG 可视化 ========== -->
+<div class="sec">
+  <h2>③ 真实 DAG（用队列 edges 画连线）</h2>
+  <p class="desc">
+    节点位置 = 队列 <code>layers[]</code>，连线 = 队列 <code>edges[]</code>。
+    <b>悬停任一卡</b>：橙色 = 上游、蓝色 = 下游；点击钉住。
+  </p>
+  <div class="panel">
+    <div class="panel-head">
+      <span class="panel-title">📊 示例 DAG</span>
+      <span class="panel-sub">简化示例（12 张卡）</span>
+      <span class="seg">
+        <button data-dir="tb" class="on">纵向</button>
+        <button data-dir="lr">横向</button>
+      </span>
+    </div>
+    <div class="panel-body">
+      <div class="canvas-wrap" id="canvas-wrap">
+        <div class="canvas" id="canvas"></div>
+      </div>
+      <div class="legend">
+        <span><i style="background:rgba(52,199,89,.5)"></i>已完成链路</span>
+        <span><i style="background:rgba(0,0,0,.17)"></i>进行中 / 待办</span>
+        <span>🟠 上游（它依赖谁）</span>
+        <span>🔵 下游（谁依赖它）</span>
+        <span>🟢 绿点 = 可开工</span>
+      </div>
+    </div>
+  </div>
+  <div class="tip">
+    <b>交互提示：</b>鼠标移到任意卡片上即可看到它的上下游链路高亮，点击可以钉住。
+    完整交互功能（关键路径、主线折叠）见 <code>dag-card-types-demo.html</code>。
+  </div>
+</div>
+
+<script>
+// ========== 数据定义 ==========
+const PHASE = { 
+  implement: '实施', test: '测试', doc: '文档', 
+  review: '评审', ui: 'UI', analysis: '分析', merge: '合并' 
+};
+
+const STATUS = { 
+  todo: '待开始', in_progress: '开发中', integrating: '联调中', 
+  testing: '测试中', in_review: '待复核', done: '已完成' 
+};
+
+// 示例数据
+const specimens = {
+  implement: { id: 't-abc123', title: '实现核心业务逻辑', phase: 'implement', side: 'backend', status: 'in_progress' },
+  test: { id: 't-def456', title: '编写单元测试与集成测试', phase: 'test', side: 'backend', status: 'todo' },
+  doc: { id: 't-ghi789', title: '更新 API 文档', phase: 'doc', side: 'doc', status: 'done' },
+  review: { id: 't-jkl012', title: '代码评审', phase: 'review', side: 'fullstack', status: 'in_review' },
+  ui: { id: 't-mno345', title: '实现用户界面组件', phase: 'ui', side: 'frontend', status: 'in_progress' },
+  analysis: { id: 't-pqr678', title: '性能分析', phase: 'analysis', side: 'backend', status: 'done' },
+  merge: { id: 't-stu901', title: '合并到主分支', phase: 'merge', side: 'fullstack', status: 'done' }
+};
+
+const roles = {
+  parent: { 
+    id: 't-parent1', title: '父任务：完整功能开发', 
+    phase: 'implement', side: 'backend', status: 'in_progress', role: 'parent',
+    kids: [
+      { stageKind: 'dev', status: 'done' },
+      { stageKind: 'integrate', status: 'in_progress' },
+      { stageKind: 'review', status: 'todo' },
+      { stageKind: 'test', status: 'todo' }
+    ]
+  },
+  child: { 
+    id: 't-child1', title: '子任务：集成测试', 
+    phase: 'test', side: 'backend', status: 'in_progress', 
+    role: 'child', stageKind: 'integrate' 
+  },
+  solo: { 
+    id: 't-solo1', title: '独立任务：文档更新', 
+    phase: 'doc', side: 'doc', status: 'done' 
+  }
+};
+
+// 简化 DAG 数据
+const dagData = {
+  tasks: [
+    { id: 't-1', title: '需求分析', phase: 'analysis', side: 'doc', status: 'done', layer: 0 },
+    { id: 't-2', title: 'API 设计', phase: 'doc', side: 'backend', status: 'done', layer: 1, dependsOn: ['t-1'] },
+    { id: 't-3', title: 'UI 设计', phase: 'ui', side: 'frontend', status: 'done', layer: 1, dependsOn: ['t-1'] },
+    { id: 't-4', title: '后端实现', phase: 'implement', side: 'backend', status: 'done', layer: 2, dependsOn: ['t-2'] },
+    { id: 't-5', title: '前端实现', phase: 'implement', side: 'frontend', status: 'in_progress', layer: 2, dependsOn: ['t-3'] },
+    { id: 't-6', title: '单元测试', phase: 'test', side: 'backend', status: 'done', layer: 3, dependsOn: ['t-4'] },
+    { id: 't-7', title: '集成测试', phase: 'test', side: 'fullstack', status: 'in_progress', layer: 4, dependsOn: ['t-4', 't-5'] },
+    { id: 't-8', title: '代码评审', phase: 'review', side: 'fullstack', status: 'todo', layer: 5, dependsOn: ['t-7'] },
+    { id: 't-9', title: 'API 文档', phase: 'doc', side: 'doc', status: 'in_progress', layer: 3, dependsOn: ['t-4'] },
+    { id: 't-10', title: '用户手册', phase: 'doc', side: 'doc', status: 'todo', layer: 4, dependsOn: ['t-5', 't-9'] },
+    { id: 't-11', title: '部署准备', phase: 'merge', side: 'fullstack', status: 'todo', layer: 6, dependsOn: ['t-8', 't-10'] },
+    { id: 't-12', title: '发布上线', phase: 'merge', side: 'fullstack', status: 'todo', layer: 7, dependsOn: ['t-11'] }
+  ],
+  edges: [
+    { from: 't-1', to: 't-2' }, { from: 't-1', to: 't-3' },
+    { from: 't-2', to: 't-4' }, { from: 't-3', to: 't-5' },
+    { from: 't-4', to: 't-6' }, { from: 't-4', to: 't-7' },
+    { from: 't-5', to: 't-7' }, { from: 't-7', to: 't-8' },
+    { from: 't-4', to: 't-9' }, { from: 't-5', to: 't-10' },
+    { from: 't-9', to: 't-10' }, { from: 't-8', to: 't-11' },
+    { from: 't-10', to: 't-11' }, { from: 't-11', to: 't-12' }
+  ],
+  ready: ['t-5', 't-7', 't-9']
+};
+
+// ========== 工具函数 ==========
+function esc(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function chainHtml(kids) {
+  let s = '<div class="card-chain">';
+  kids.forEach(k => {
+    let cls = k.status === 'done' ? 'on' : (k.status === 'in_progress' ? 'now' : '');
+    s += `<i class="${cls}"></i>`;
+  });
+  const done = kids.filter(k => k.status === 'done').length;
+  s += `<span>${done}/${kids.length}</span></div>`;
+  return s;
+}
+
+function cardHtml(t, opts = {}) {
+  let attrs = `data-status="${esc(t.status)}"`;
+  if (t.role) attrs += ` data-role="${esc(t.role)}"`;
+  
+  let s = `<div class="card" ${attrs}>`;
+  if (t.role === 'parent') s += '<div class="card-crown"></div>';
+  
+  s += '<div class="card-top">';
+  s += `<span class="card-id">${esc(t.id)}</span>`;
+  s += `<span class="chip chip-type" data-phase="${esc(t.phase)}">${esc(PHASE[t.phase] || t.phase)}</span>`;
+  s += `<span class="chip chip-side" data-side="${esc(t.side)}">${esc(t.side)}</span>`;
+  s += '</div>';
+  
+  s += `<div class="card-title">${esc(t.title)}</div>`;
+  
+  if (opts.kids && opts.kids.length) s += chainHtml(opts.kids);
+  if (opts.ready) s += '<span class="ready-dot"></span>';
+  
+  s += '</div>';
+  return s;
+}
+
+// ========== ① 类型展示 ==========
+(function fillTypes() {
+  const host = document.getElementById('showcase-types');
+  const order = ['implement', 'test', 'doc', 'review', 'ui', 'analysis', 'merge'];
+  host.innerHTML = order.map(p => cardHtml(specimens[p])).join('');
+})();
+
+// ========== ② 角色展示 ==========
+(function fillRoles() {
+  const host = document.getElementById('showcase-roles');
+  host.innerHTML = 
+    cardHtml(roles.parent, { kids: roles.parent.kids }) +
+    cardHtml(roles.child) +
+    cardHtml(roles.solo);
+})();
+
+// ========== ③ DAG 渲染 ==========
+const CARD_W = 208, CARD_H = 72, GAP_X = 14, GAP_Y = 22, PAD = 14;
+let state = { dir: 'tb', pinned: null };
+
+function layout(tasks, dir, availW) {
+  const layers = [];
+  tasks.forEach(t => {
+    const l = t.layer || 0;
+    (layers[l] = layers[l] || []).push(t);
+  });
+  
+  const pos = {};
+  let W = 0, H = 0;
+  
+  if (dir === 'tb') {
+    const cols = Math.max(1, Math.floor((availW - PAD * 2 + GAP_X) / (CARD_W + GAP_X)));
+    let y = PAD;
+    layers.forEach((arr, l) => {
+      if (!arr) return;
+      const rows = Math.ceil(arr.length / cols);
+      arr.forEach((t, i) => {
+        pos[t.id] = { 
+          x: PAD + (i % cols) * (CARD_W + GAP_X), 
+          y: y + Math.floor(i / cols) * (CARD_H + GAP_Y) 
+        };
+      });
+      y += rows * CARD_H + (rows - 1) * GAP_Y + 30;
+    });
+    W = PAD * 2 + cols * (CARD_W + GAP_X) - GAP_X;
+    H = y - 30 + PAD;
+  } else {
+    const maxRows = 8;
+    let x = PAD;
+    layers.forEach((arr, l) => {
+      if (!arr) return;
+      const cols = Math.ceil(arr.length / maxRows);
+      arr.forEach((t, i) => {
+        pos[t.id] = { 
+          x: x + Math.floor(i / maxRows) * (CARD_W + GAP_X), 
+          y: PAD + (i % maxRows) * (CARD_H + GAP_Y) 
+        };
+      });
+      x += cols * (CARD_W + GAP_X) + 40;
+    });
+    W = x - GAP_X - 40 + PAD;
+    H = Math.max(1, Math.min(maxRows, Math.max(...layers.filter(Boolean).map(a => a.length)))) 
+        * (CARD_H + GAP_Y) + PAD;
+  }
+  
+  return { pos, width: W, height: H };
+}
+
+function neighbors(tasks, id) {
+  const byId = {};
+  tasks.forEach(t => byId[t.id] = t);
+  
+  const up = new Set(), down = new Set();
+  
+  function walkUp(n) {
+    ((byId[n] || {}).dependsOn || []).forEach(d => {
+      if (byId[d] && !up.has(d)) {
+        up.add(d);
+        walkUp(d);
+      }
+    });
+  }
+  walkUp(id);
+  
+  const rev = {};
+  tasks.forEach(t => {
+    (t.dependsOn || []).forEach(d => {
+      (rev[d] = rev[d] || []).push(t.id);
+    });
+  });
+  
+  function walkDown(n) {
+    (rev[n] || []).forEach(d => {
+      if (!down.has(d)) {
+        down.add(d);
+        walkDown(d);
+      }
+    });
+  }
+  walkDown(id);
+  
+  return { up, down };
+}
+
+function render() {
+  const wrap = document.getElementById('canvas-wrap');
+  const canvas = document.getElementById('canvas');
+  const availW = wrap.clientWidth || 600;
+  
+  const tasks = dagData.tasks;
+  const edges = dagData.edges;
+  const ready = new Set(dagData.ready);
+  const byId = {};
+  tasks.forEach(t => byId[t.id] = t);
+  
+  const L = layout(tasks, state.dir, availW);
+  const pos = L.pos;
+  
+  // 边线
+  const markers = `<defs>
+    <marker id="m-base" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,1 L7,4 L0,7 z" fill="rgba(0,0,0,.28)"/>
+    </marker>
+    <marker id="m-done" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,1 L7,4 L0,7 z" fill="rgba(52,199,89,.75)"/>
+    </marker>
+    <marker id="m-up" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6.5" markerHeight="6.5" orient="auto">
+      <path d="M0,1 L7,4 L0,7 z" fill="#ff9500"/>
+    </marker>
+    <marker id="m-down" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6.5" markerHeight="6.5" orient="auto">
+      <path d="M0,1 L7,4 L0,7 z" fill="#0071e3"/>
+    </marker>
+  </defs>`;
+  
+  let paths = '';
+  edges.forEach(e => {
+    const a = pos[e.from], b = pos[e.to];
+    if (!a || !b) return;
+    
+    let d;
+    if (state.dir === 'tb') {
+      const sx = a.x + CARD_W / 2, sy = a.y + CARD_H;
+      const tx = b.x + CARD_W / 2, ty = b.y;
+      const dy = Math.max(18, (ty - sy) * 0.45);
+      d = `M${sx},${sy} C${sx},${sy + dy} ${tx},${ty - dy} ${tx},${ty}`;
+    } else {
+      const sx = a.x + CARD_W, sy = a.y + CARD_H / 2;
+      const tx = b.x, ty = b.y + CARD_H / 2;
+      const dx = Math.max(20, (tx - sx) * 0.45);
+      d = `M${sx},${sy} C${sx + dx},${sy} ${tx - dx},${ty} ${tx},${ty}`;
+    }
+    
+    const A = byId[e.from], B = byId[e.to];
+    let cls = 'e-base', mk = 'm-base';
+    if (A && B && A.status === 'done' && B.status === 'done') {
+      cls = 'e-done';
+      mk = 'm-done';
+    }
+    
+    paths += `<path class="${cls}" data-from="${esc(e.from)}" data-to="${esc(e.to)}" data-mk="${mk}" d="${d}" marker-end="url(#${mk})"/>`;
+  });
+  
+  // 节点
+  let nodes = '';
+  tasks.forEach(t => {
+    const p = pos[t.id];
+    if (!p) return;
+    nodes += `<div class="node" data-id="${esc(t.id)}" style="left:${p.x}px;top:${p.y}px">`;
+    nodes += cardHtml(t, { ready: ready.has(t.id) });
+    nodes += '</div>';
+  });
+  
+  canvas.style.width = L.width + 'px';
+  canvas.style.height = L.height + 'px';
+  canvas.innerHTML = `<svg class="edges" width="${L.width}" height="${L.height}">${markers}${paths}</svg>${nodes}`;
+}
+
+function clearHi() {
+  const canvas = document.getElementById('canvas');
+  canvas.classList.remove('dimming');
+  canvas.querySelectorAll('.node').forEach(n => {
+    n.classList.remove('hi-self', 'hi-up', 'hi-down');
+  });
+  canvas.querySelectorAll('path').forEach(p => {
+    p.classList.remove('hi-up', 'hi-down');
+    p.setAttribute('marker-end', 'url(#' + (p.getAttribute('data-mk') || 'm-base') + ')');
+  });
+}
+
+function hi(id) {
+  const nb = neighbors(dagData.tasks, id);
+  const up = new Set([id, ...nb.up]);
+  const down = new Set([id, ...nb.down]);
+  
+  const canvas = document.getElementById('canvas');
+  canvas.classList.add('dimming');
+  
+  canvas.querySelectorAll('.node').forEach(n => {
+    const i = n.getAttribute('data-id');
+    n.classList.toggle('hi-self', i === id);
+    n.classList.toggle('hi-up', i !== id && up.has(i));
+    n.classList.toggle('hi-down', i !== id && down.has(i) && !up.has(i));
+  });
+  
+  canvas.querySelectorAll('path').forEach(p => {
+    const f = p.getAttribute('data-from'), t = p.getAttribute('data-to');
+    const isUp = up.has(t) || up.has(f);
+    const isDown = down.has(f);
+    p.classList.toggle('hi-up', isUp);
+    p.classList.toggle('hi-down', !isUp && isDown);
+    p.setAttribute('marker-end', 'url(#' + 
+      (isUp ? 'm-up' : (isDown ? 'm-down' : (p.getAttribute('data-mk') || 'm-base'))) + ')');
+  });
+}
+
+// 事件
+document.getElementById('canvas').addEventListener('mouseover', ev => {
+  const n = ev.target.closest('.node');
+  if (!n) return;
+  if (state.pinned === null) hi(n.getAttribute('data-id'));
+});
+
+document.getElementById('canvas').addEventListener('mouseout', ev => {
+  const n = ev.target.closest('.node');
+  if (!n) return;
+  if (state.pinned === null) clearHi();
+});
+
+document.getElementById('canvas').addEventListener('click', ev => {
+  const n = ev.target.closest('.node');
+  if (!n) {
+    state.pinned = null;
+    clearHi();
+    return;
+  }
+  const id = n.getAttribute('data-id');
+  if (state.pinned === id) {
+    state.pinned = null;
+    clearHi();
+  } else {
+    state.pinned = id;
+    hi(id);
+  }
+});
+
+document.querySelectorAll('[data-dir]').forEach(b => {
+  b.addEventListener('click', () => {
+    state.dir = b.getAttribute('data-dir');
+    state.pinned = null;
+    document.querySelectorAll('[data-dir]').forEach(x => {
+      x.classList.toggle('on', x === b);
+    });
+    render();
+  });
+});
+
+window.addEventListener('resize', () => render());
+render();
+</script>
+
+</body>
+</html>

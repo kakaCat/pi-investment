@@ -1,0 +1,36 @@
+task:
+  id: t-834096
+  title: 新增页面注册 helper registerPagePanel·研发
+  status: in_progress
+  implements: |-
+    新建 packages/web/dsh-pmboard/src/client/page/page-panel.ts：导出 PagePanelSpec、SlotRegistrar、registerPagePanel(ctx, spec)；一次注册 main（{ name: "main", key: spec.id }）与 sidebar.panellist（{ name: "sidebar.panellist", id: spec.id, order: spec.order ?? 0, label: spec.label }）；返回幂等 disposer；ctx.slots 缺失时抛错（不静默降级）。新建 packages/web/dsh-pmboard/tests/client-page-panel.test.ts，用假 ctx 记录两次 register 的参数并断言同源。约束：本文件不得 import @pi-investment/page-kit（dsh-pmboard 自包含包，依赖只有 @deepseek-ai/dsh-tools）。
+
+    [子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要
+  serves: []
+  depends_on: []
+  phase: implement
+  side: frontend
+  workflow_params:
+    REQ_ID: REQ-260928185112-e20d
+    TASK_ID: t-834096
+    TASK_TITLE: 新增页面注册 helper registerPagePanel·研发
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: frontend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: pending
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-260928185112-e20d
+  generated_at: 2026-09-28T11:12:04.022Z
+  version: 3
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-09-28T11:12:37.278Z

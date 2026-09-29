@@ -1,0 +1,51 @@
+metadata:
+  stage: brainstorming
+  requirement_id: REQ-260927121324-abde
+  generated_at: 2026-09-27T04:21:48.799Z
+  version: 6
+  generated_by: dsh-pmboard
+  last_updated: 2026-09-27T04:37:28.221Z
+outputs:
+  requirements:
+    - id: FR-1
+      title: 需求状态迁移统一经收敛点并带写时快照
+      source: requirement.md
+      line: 176
+    - id: FR-2
+      title: 批准计划 → 实施与看板确认推进不丢快照（离开 + 进入双端）
+      source: requirement.md
+      line: 183
+    - id: FR-3
+      title: 看板验收/裁决路径同源带快照
+      source: requirement.md
+      line: 191
+    - id: FR-4
+      title: 任务开工写 start 快照（四处执行记录产生点同源）
+      source: requirement.md
+      line: 198
+    - id: FR-5
+      title: 任务完工与中途汇报写 end 与 delta
+      source: requirement.md
+      line: 207
+    - id: FR-6
+      title: 派生推进（rollup）能取快照就结算，取不到诚实不传
+      source: requirement.md
+      line: 215
+    - id: FR-7
+      title: 快照缺失如实降级
+      source: requirement.md
+      line: 222
+    - id: FR-8
+      title: 执行快照写路径收敛到唯一助手（结构性守卫）
+      source: requirement.md
+      line: 229
+    - id: FR-9
+      title: 回归守护
+      source: requirement.md
+      line: 236
+status:
+  artifacts:
+    - kind: requirement
+      path: docs/requirements/REQ-260927121324-abde/requirement.md
+      confirmed: true
+      confirmed_at: 2026-09-27T04:29:10.255Z

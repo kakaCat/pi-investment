@@ -1,0 +1,636 @@
+{
+  "version": 1,
+  "requirement_id": "REQ-24e15d",
+  "schemaVersion": 9,
+  "generated_at": "2026-09-27T14:55:11.425Z",
+  "tasks": [
+    {
+      "id": "t-19025f",
+      "requirementId": "REQ-24e15d",
+      "title": "P0：值位置注入清零（列名白名单 + 取值绑定）",
+      "description": "industry_data_adapter 两处 f-string 值插值改绑定参数（symbol = ANY(%s)）+ factor 列名白名单；financial_data_update_job 的 SET 子句加列白名单守卫。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "non_orm_sql_scan.py --json 中 in_scope.fstring_value_interp == 0；tests/test_non_orm_sql_t1_parameterization.py 全绿；行业适配器活体取数返回正确值。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-e8eab7",
+          "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf",
+          "trigger": "manual",
+          "startedAt": 1789313679239,
+          "outcome": "succeeded",
+          "endedAt": 1789313683684
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789313672761,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789313679239,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+          },
+          "reason": "P0 值位置注入清零：industry_data_adapter 列名白名单 + symbol = ANY(%s) 绑定参数；financial_data_update_job SET 列白名单守卫。证据：扫描器 in_scope.fstring_value_interp 2→0；tests/test_non_orm_sql_t1_parameterization.py 10 passed；活体取数 pe=[5.02,26.31,20.58] 正确、非法列名被白名单拒绝。（w-32314d00）"
+        },
+        {
+          "status": "testing",
+          "at": 1789313683684,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+          },
+          "reason": "推进：testing。"
+        },
+        {
+          "status": "in_review",
+          "at": 1789313683693,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+          },
+          "reason": "推进：in_review。"
+        },
+        {
+          "status": "done",
+          "at": 1789313683701,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+          },
+          "reason": "完成并自检通过：见前序留痕（扫描器本轮范围 P0 两类清零 + 活体/单测证据）。"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-fafcb9",
+          "body": "[状态] → in_progress：P0 值位置注入清零：industry_data_adapter 列名白名单 + symbol = ANY(%s) 绑定参数；financial_data_update_job SET 列白名单守卫。证据：扫描器 in_scope.fstring_value_interp 2→0；tests/test_non_orm_sql_t1_parameterization.py 10 passed；活体取数 pe=[5.02,26.31,20.58] 正确、非法列名被白名单拒绝。（w-32314d00）（窗口 session-32314d00-572b-46fb-a322-7c5bda5f1acf）",
+          "createdAt": 1789313679239,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+          }
+        },
+        {
+          "id": "c-b1467b",
+          "body": "[状态] → testing：推进：testing。（窗口 session-32314d00-572b-46fb-a322-7c5bda5f1acf）",
+          "createdAt": 1789313683684,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+          }
+        },
+        {
+          "id": "c-730668",
+          "body": "[状态] → in_review：推进：in_review。（窗口 session-32314d00-572b-46fb-a322-7c5bda5f1acf）",
+          "createdAt": 1789313683693,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+          }
+        },
+        {
+          "id": "c-e92caa",
+          "body": "[状态] → done：完成并自检通过：见前序留痕（扫描器本轮范围 P0 两类清零 + 活体/单测证据）。（窗口 session-32314d00-572b-46fb-a322-7c5bda5f1acf）",
+          "createdAt": 1789313683701,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+          }
+        }
+      ],
+      "version": 5,
+      "createdAt": 1789313672761,
+      "updatedAt": 1789313683701,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+      },
+      "layer": 0
+    },
+    {
+      "id": "t-413960",
+      "requirementId": "REQ-24e15d",
+      "title": "P0：裸连接收口到 session/仓储",
+      "description": "本轮范围内 6 处 psycopg2.connect（attribution_service / signal_test_log / weekly_report_service / signal_tracking_repository 等）改为 get_session() 或仓储方法，纳入 session_guard。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-19025f"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "in_scope.raw_connect == 0；相关模块回归通过；重启后无新增 session_leak_detected。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-7dbbc3",
+          "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf",
+          "trigger": "manual",
+          "startedAt": 1789313679253,
+          "outcome": "succeeded",
+          "endedAt": 1789313683708
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789313672761,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789313679253,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+          },
+          "reason": "P0 裸连接清零：新增 PooledConnection（engine.py），attribution_service / weekly_report_service / signal_test_log / signal_tracking_repository 四文件由长寿命裸连接改为池化借还（close 前显式 rollback）。证据：扫描器 in_scope.raw_connect 6→0；重启后 idle in transaction 0 / session_leak_detected 0；连带修掉 attribution Decimal 崩溃与 is_index_symbol 线程泄漏。（w-32314d00）"
+        },
+        {
+          "status": "testing",
+          "at": 1789313683708,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+          },
+          "reason": "推进：testing。"
+        },
+        {
+          "status": "in_review",
+          "at": 1789313683721,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+          },
+          "reason": "推进：in_review。"
+        },
+        {
+          "status": "done",
+          "at": 1789313683729,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+          },
+          "reason": "完成并自检通过：见前序留痕（扫描器本轮范围 P0 两类清零 + 活体/单测证据）。"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-4650ea",
+          "body": "[状态] → in_progress：P0 裸连接清零：新增 PooledConnection（engine.py），attribution_service / weekly_report_service / signal_test_log / signal_tracking_repository 四文件由长寿命裸连接改为池化借还（close 前显式 rollback）。证据：扫描器 in_scope.raw_connect 6→0；重启后 idle in transaction 0 / session_leak_detected 0；连带修掉 attribution Decimal 崩溃与 is_index_symbol 线程泄漏。（w-32314d00）（窗口 session-32314d00-572b-46fb-a322-7c5bda5f1acf）",
+          "createdAt": 1789313679253,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+          }
+        },
+        {
+          "id": "c-82a1ab",
+          "body": "[状态] → testing：推进：testing。（窗口 session-32314d00-572b-46fb-a322-7c5bda5f1acf）",
+          "createdAt": 1789313683708,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+          }
+        },
+        {
+          "id": "c-0087d1",
+          "body": "[状态] → in_review：推进：in_review。（窗口 session-32314d00-572b-46fb-a322-7c5bda5f1acf）",
+          "createdAt": 1789313683721,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+          }
+        },
+        {
+          "id": "c-7d56f7",
+          "body": "[状态] → done：完成并自检通过：见前序留痕（扫描器本轮范围 P0 两类清零 + 活体/单测证据）。（窗口 session-32314d00-572b-46fb-a322-7c5bda5f1acf）",
+          "createdAt": 1789313683729,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+          }
+        }
+      ],
+      "version": 5,
+      "createdAt": 1789313672761,
+      "updatedAt": 1789313683729,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+      },
+      "layer": 1
+    },
+    {
+      "id": "t-cd19d2",
+      "requirementId": "REQ-24e15d",
+      "title": "应用/路由层 SQL 下沉到仓储",
+      "description": "application/services（session_service 13、signal_test_log 9、smart_scheduler 7 等）与 adapters/inbound（signals_async 5、stock_async 2）的 cursor.execute 下沉到 repository。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-413960"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "这两层 cursor_execute 清零；相关 API 抽测返回不变（对照改动前采样）。",
+      "context": "",
+      "status": "in_progress",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-6cbf8e",
+          "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf",
+          "trigger": "manual",
+          "startedAt": 1789313679262,
+          "outcome": "running"
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789313672761,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789313679262,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+          },
+          "reason": "t3 已开工：smart_scheduler.py 裸 SQL 7→0（_update_run_status / _execute_task INSERT / 成功与失败路径 UPDATE runs / automation_tasks.last_run_at / trigger_task INSERT 全部上收到 AutomationRunRepository + AutomationTaskRepository），并修复 AutomationRun 列映射写错（run_metadata vs 真实列 metadata）导致的仓储不可用，新增契约测试 2 passed。剩余：signals_async、session_service（需新建仓储）等。（w-32314d00）"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-2e63d4",
+          "body": "[状态] → in_progress：t3 已开工：smart_scheduler.py 裸 SQL 7→0（_update_run_status / _execute_task INSERT / 成功与失败路径 UPDATE runs / automation_tasks.last_run_at / trigger_task INSERT 全部上收到 AutomationRunRepository + AutomationTaskRepository），并修复 AutomationRun 列映射写错（run_metadata vs 真实列 metadata）导致的仓储不可用，新增契约测试 2 passed。剩余：signals_async、session_service（需新建仓储）等。（w-32314d00）（窗口 session-32314d00-572b-46fb-a322-7c5bda5f1acf）",
+          "createdAt": 1789313679262,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+          }
+        }
+      ],
+      "version": 2,
+      "createdAt": 1789313672761,
+      "updatedAt": 1789313679262,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+      },
+      "claimedBy": "session-32314d00-572b-46fb-a322-7c5bda5f1acf",
+      "claimedAt": 1789313679262,
+      "layer": 2
+    },
+    {
+      "id": "t-d4bd5b",
+      "requirementId": "REQ-24e15d",
+      "title": "作业/适配器层 SQL 收口",
+      "description": "infrastructure/jobs（kline_update_job/weekly_report_job/verification_job/kline_priority_sync/risk_check_job）与 infrastructure/adapters 收口到仓储。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-413960"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "这两层 cursor_execute 清零；相关 job 回归测试通过。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-c491ca",
+          "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf",
+          "trigger": "manual",
+          "startedAt": 1789313808548,
+          "outcome": "succeeded",
+          "endedAt": 1789364971759
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789313672761,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789313808548,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+          },
+          "reason": "t4 已开工：①kline_repository 新增 get_first_close_on_or_after / get_last_close_on_or_before（查询收口）；②verification_job.py 由\"取仓储 session 再手写裸 SQL\"的半迁移写法改为调用仓储方法，cursor.execute 4→2。活体验证：600519 first>=09-01=1299.56、last<=09-11=1275.16、收益率 -0.0188；调用后 idle in transaction 0。剩余：weekly_report_job.py 4 处（同一 daily_klines 查询模式，可直接复用这两个方法）、kline_update_job.py 4 处、infrastructure/adapters 4 处、live_trading 3 处。（w-32314d00）"
+        },
+        {
+          "status": "testing",
+          "at": 1789364971759,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+          },
+          "reason": "进入验证：作业/适配器层已收口（B1 jobs 6 文件 15 处→0；B2-a 2ba1e85e；B4-c5 df57a042 基础设施/作业边缘 7 处）。验证方式=扫描器实测本轮范围内 infrastructure/jobs 与 infrastructure/adapters 命中 0 + 该批已带的回归记录。"
+        },
+        {
+          "status": "in_review",
+          "at": 1789364971769,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+          },
+          "reason": "验证通过：扫描器 tools/non_orm_sql_scan.py（2026-09-14）实测 infrastructure/jobs=0、infrastructure/adapters=0，满足验收「infrastructure/jobs+adapters 的 cursor_execute 清零」。残余站点（async_base_repository 5 / dependency_check 2）已单列 B4-c6，不属本任务。"
+        },
+        {
+          "status": "done",
+          "at": 1789364971779,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+          },
+          "reason": "任务完成：验收项满足（jobs/adapters 层 cursor_execute=0，扫描器可复跑）。证据见 quantsys-v2/docs/work-logs/2026-09/req-24e15d-b1-jobs-layer.md、-b2a-、-b4c5-repo-infra.md。"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-8783d3",
+          "body": "[状态] → in_progress：t4 已开工：①kline_repository 新增 get_first_close_on_or_after / get_last_close_on_or_before（查询收口）；②verification_job.py 由\"取仓储 session 再手写裸 SQL\"的半迁移写法改为调用仓储方法，cursor.execute 4→2。活体验证：600519 first>=09-01=1299.56、last<=09-11=1275.16、收益率 -0.0188；调用后 idle in transaction 0。剩余：weekly_report_job.py 4 处（同一 daily_klines 查询模式，可直接复用这两个方法）、kline_update_job.py 4 处、infrastructure/adapters 4 处、live_trading 3 处。（w-32314d00）（窗口 session-32314d00-572b-46fb-a322-7c5bda5f1acf）",
+          "createdAt": 1789313808548,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+          }
+        },
+        {
+          "id": "c-a6704b",
+          "body": "[状态] → testing：进入验证：作业/适配器层已收口（B1 jobs 6 文件 15 处→0；B2-a 2ba1e85e；B4-c5 df57a042 基础设施/作业边缘 7 处）。验证方式=扫描器实测本轮范围内 infrastructure/jobs 与 infrastructure/adapters 命中 0 + 该批已带的回归记录。（窗口 session-32314d00-572b-46fb-a322-7c5bda5f1acf）",
+          "createdAt": 1789364971759,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+          }
+        },
+        {
+          "id": "c-4b00ed",
+          "body": "[状态] → in_review：验证通过：扫描器 tools/non_orm_sql_scan.py（2026-09-14）实测 infrastructure/jobs=0、infrastructure/adapters=0，满足验收「infrastructure/jobs+adapters 的 cursor_execute 清零」。残余站点（async_base_repository 5 / dependency_check 2）已单列 B4-c6，不属本任务。（窗口 session-32314d00-572b-46fb-a322-7c5bda5f1acf）",
+          "createdAt": 1789364971769,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+          }
+        },
+        {
+          "id": "c-784dca",
+          "body": "[状态] → done：任务完成：验收项满足（jobs/adapters 层 cursor_execute=0，扫描器可复跑）。证据见 quantsys-v2/docs/work-logs/2026-09/req-24e15d-b1-jobs-layer.md、-b2a-、-b4c5-repo-infra.md。（窗口 session-32314d00-572b-46fb-a322-7c5bda5f1acf）",
+          "createdAt": 1789364971779,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+          }
+        }
+      ],
+      "version": 5,
+      "createdAt": 1789313672761,
+      "updatedAt": 1789364971779,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+      },
+      "layer": 2
+    },
+    {
+      "id": "t-35681e",
+      "requirementId": "REQ-24e15d",
+      "title": "仓储内 cursor/Core SQL 统一到 ORM",
+      "description": "adapters/outbound 的 cursor_execute（portfolio_repository 15、risk_repository 10、stock_pool_repository 10、signal_tracking_repository 6、strategy_performance_repository 7…）与 core_text_sql（chip_repository 7、kline_repository 7、competition_repository 3…）逐文件迁移到 ORM/Core 表达式。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-d4bd5b"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "adapters/outbound 的 cursor_execute / core_text_sql / read_sql 清零；每文件配回归测试。",
+      "context": "",
+      "status": "in_progress",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-63ef65",
+          "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf",
+          "trigger": "manual",
+          "startedAt": 1789364967758,
+          "outcome": "running"
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789313672761,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789364967758,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+          },
+          "reason": "仓储内统一已过半：B4-c1 54830404、B4-c2 9bb04e65（portfolio_repository 15→0）、B4-c3 3ec509f8（risk+kline+chip+strategy_performance 33→0）、B4-c5 d87321ce+df57a042（event_repository 12 + 仓储层 13）。扫描器实测（2026-09-14）adapters/outbound 非审计桶剩 14 处：signal_tracking 8 / qlib 4 / ml_model 1 / portfolio 1，均需裁决或设计（非机械活）。另有 72 处 session_execute_var 审计桶待人工复核。"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-92f8f1",
+          "body": "[状态] → in_progress：仓储内统一已过半：B4-c1 54830404、B4-c2 9bb04e65（portfolio_repository 15→0）、B4-c3 3ec509f8（risk+kline+chip+strategy_performance 33→0）、B4-c5 d87321ce+df57a042（event_repository 12 + 仓储层 13）。扫描器实测（2026-09-14）adapters/outbound 非审计桶剩 14 处：signal_tracking 8 / qlib 4 / ml_model 1 / portfolio 1，均需裁决或设计（非机械活）。另有 72 处 session_execute_var 审计桶待人工复核。（窗口 session-32314d00-572b-46fb-a322-7c5bda5f1acf）",
+          "createdAt": 1789364967758,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+          }
+        }
+      ],
+      "version": 2,
+      "createdAt": 1789313672761,
+      "updatedAt": 1789364967758,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+      },
+      "claimedBy": "session-32314d00-572b-46fb-a322-7c5bda5f1acf",
+      "claimedAt": 1789364967758,
+      "layer": 3
+    },
+    {
+      "id": "t-288a07",
+      "requirementId": "REQ-24e15d",
+      "title": "验收：扫描器 gate + 全量回归 + 工作日志",
+      "description": "复跑 non_orm_sql_scan.py --gate；全量 pytest 与基线对比；把 gate 接进 scripts/restart-with-build.sh 体检；写工作日志。",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-35681e"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "--gate 退出码 0；无新增测试失败；gate 已接入发版体检；有 docs/work-logs/2026-09/ 记录。",
+      "context": "",
+      "status": "todo",
+      "blocked": false,
+      "executions": [],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789313672761,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        }
+      ],
+      "comments": [],
+      "version": 1,
+      "createdAt": 1789313672761,
+      "updatedAt": 1789313672761,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-32314d00-572b-46fb-a322-7c5bda5f1acf"
+      },
+      "layer": 4
+    }
+  ],
+  "edges": [
+    {
+      "from": "t-19025f",
+      "to": "t-413960"
+    },
+    {
+      "from": "t-413960",
+      "to": "t-cd19d2"
+    },
+    {
+      "from": "t-413960",
+      "to": "t-d4bd5b"
+    },
+    {
+      "from": "t-d4bd5b",
+      "to": "t-35681e"
+    },
+    {
+      "from": "t-35681e",
+      "to": "t-288a07"
+    }
+  ],
+  "layers": [
+    {
+      "layer": 0,
+      "tasks": [
+        "t-19025f"
+      ]
+    },
+    {
+      "layer": 1,
+      "tasks": [
+        "t-413960"
+      ]
+    },
+    {
+      "layer": 2,
+      "tasks": [
+        "t-cd19d2",
+        "t-d4bd5b"
+      ]
+    },
+    {
+      "layer": 3,
+      "tasks": [
+        "t-35681e"
+      ]
+    },
+    {
+      "layer": 4,
+      "tasks": [
+        "t-288a07"
+      ]
+    }
+  ],
+  "ready": []
+}

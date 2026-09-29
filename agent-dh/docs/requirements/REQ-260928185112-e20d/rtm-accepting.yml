@@ -1,0 +1,283 @@
+metadata:
+  stage: accepting
+  requirement_id: REQ-260928185112-e20d
+  generated_at: 2026-09-28T12:58:47.073Z
+  version: 3
+  generated_by: dsh-pmboard
+  last_updated: 2026-09-28T12:59:59.136Z
+inputs:
+  tasks:
+    - id: t-5dc812
+      title: 新增页面注册 helper registerPagePanel
+      status: done
+    - id: t-48d9a4
+      title: 命令式看板改由宿主挂载（attachBoard）
+      status: done
+    - id: t-75e700
+      title: 注册两端并接线（index.ts）
+      status: done
+    - id: t-bb1e62
+      title: 跳转语义归位（selectPanel(null)）
+      status: done
+    - id: t-d52858
+      title: 拆除旧机制（属性显隐/互斥/壳）
+      status: done
+    - id: t-351435
+      title: 行为等价验证（含 E2E）
+      status: done
+    - id: t-c7f36f
+      title: 迁移清单收口（其余 4 页）
+      status: done
+    - id: t-834096
+      title: 新增页面注册 helper registerPagePanel·研发
+      status: done
+    - id: t-b18667
+      title: 新增页面注册 helper registerPagePanel·联调
+      status: done
+    - id: t-98ea58
+      title: 新增页面注册 helper registerPagePanel·复核
+      status: done
+    - id: t-972c31
+      title: 新增页面注册 helper registerPagePanel·测试
+      status: done
+    - id: t-1c086a
+      title: 命令式看板改由宿主挂载（attachBoard）·研发
+      status: done
+    - id: t-711a75
+      title: 命令式看板改由宿主挂载（attachBoard）·联调
+      status: done
+    - id: t-32c30f
+      title: 命令式看板改由宿主挂载（attachBoard）·复核
+      status: done
+    - id: t-f6b936
+      title: 命令式看板改由宿主挂载（attachBoard）·测试
+      status: done
+    - id: t-2d6d12
+      title: 注册两端并接线（index.ts）·研发
+      status: done
+    - id: t-3d964e
+      title: 注册两端并接线（index.ts）·联调
+      status: done
+    - id: t-5d4b47
+      title: 注册两端并接线（index.ts）·复核
+      status: done
+    - id: t-59970b
+      title: 注册两端并接线（index.ts）·测试
+      status: done
+    - id: t-88c4f7
+      title: 跳转语义归位（selectPanel(null)）·研发
+      status: done
+    - id: t-285f4c
+      title: 跳转语义归位（selectPanel(null)）·联调
+      status: done
+    - id: t-b9c1a6
+      title: 跳转语义归位（selectPanel(null)）·复核
+      status: done
+    - id: t-f03949
+      title: 跳转语义归位（selectPanel(null)）·测试
+      status: done
+    - id: t-eed664
+      title: 拆除旧机制（属性显隐/互斥/壳）·研发
+      status: done
+    - id: t-2ae345
+      title: 拆除旧机制（属性显隐/互斥/壳）·联调
+      status: done
+    - id: t-bbf54d
+      title: 拆除旧机制（属性显隐/互斥/壳）·复核
+      status: done
+    - id: t-dcade9
+      title: 拆除旧机制（属性显隐/互斥/壳）·测试
+      status: done
+    - id: t-847c36
+      title: 行为等价验证（含 E2E）·研发
+      status: done
+    - id: t-52180d
+      title: 行为等价验证（含 E2E）·联调
+      status: done
+    - id: t-2d637e
+      title: 行为等价验证（含 E2E）·复核
+      status: done
+    - id: t-33a049
+      title: 行为等价验证（含 E2E）·测试
+      status: done
+    - id: t-10e948
+      title: 迁移清单收口（其余 4 页）·研发
+      status: done
+    - id: t-c85ab0
+      title: 迁移清单收口（其余 4 页）·联调
+      status: done
+    - id: t-9a5847
+      title: 迁移清单收口（其余 4 页）·复核
+      status: done
+    - id: t-26307a
+      title: 迁移清单收口（其余 4 页）·测试
+      status: done
+outputs:
+  test_cases:
+    - id: TC-01
+      title: "TC-01: 页面注册 helper 两端同源（看板样板 FR-1）"
+      covers:
+        - t-5dc812
+        - t-834096
+        - t-b18667
+        - t-98ea58
+        - t-972c31
+      validates:
+        - FR-1
+      source: test-cases.md
+    - id: TC-02
+      title: "TC-02: 命令式看板改由宿主挂载（attachBoard，FR-2）"
+      covers:
+        - t-48d9a4
+        - t-1c086a
+        - t-711a75
+        - t-32c30f
+        - t-f6b936
+      validates:
+        - FR-2
+      source: test-cases.md
+    - id: TC-03
+      title: "TC-03: 两端注册并接线（index.ts，FR-1/FR-2）"
+      covers:
+        - t-75e700
+        - t-2d6d12
+        - t-3d964e
+        - t-5d4b47
+        - t-59970b
+      validates:
+        - FR-1
+        - FR-2
+      source: test-cases.md
+    - id: TC-04
+      title: "TC-04: 跳转语义归位（selectPanel(null)，FR-3）"
+      covers:
+        - t-bb1e62
+        - t-88c4f7
+        - t-285f4c
+        - t-b9c1a6
+        - t-f03949
+      validates:
+        - FR-3
+      source: test-cases.md
+    - id: TC-05
+      title: "TC-05: 拆除旧机制（属性显隐/互斥/壳，FR-4）"
+      covers:
+        - t-d52858
+        - t-eed664
+        - t-2ae345
+        - t-bbf54d
+        - t-dcade9
+      validates:
+        - FR-4
+      source: test-cases.md
+    - id: TC-06
+      title: "TC-06: 行为等价验证（含 E2E，FR-2/FR-3/FR-4）"
+      covers:
+        - t-351435
+        - t-847c36
+        - t-52180d
+        - t-2d637e
+        - t-33a049
+      validates:
+        - FR-2
+        - FR-3
+        - FR-4
+      source: test-cases.md
+    - id: TC-07
+      title: "TC-07: 迁移清单收口（其余 4 页，FR-5）"
+      covers:
+        - t-c7f36f
+        - t-10e948
+        - t-c85ab0
+        - t-9a5847
+        - t-26307a
+      validates:
+        - FR-5
+      source: test-cases.md
+traceability:
+  task_to_tests:
+    t-5dc812:
+      - TC-01
+    t-48d9a4:
+      - TC-02
+    t-75e700:
+      - TC-03
+    t-bb1e62:
+      - TC-04
+    t-d52858:
+      - TC-05
+    t-351435:
+      - TC-06
+    t-c7f36f:
+      - TC-07
+    t-834096:
+      - TC-01
+    t-b18667:
+      - TC-01
+    t-98ea58:
+      - TC-01
+    t-972c31:
+      - TC-01
+    t-1c086a:
+      - TC-02
+    t-711a75:
+      - TC-02
+    t-32c30f:
+      - TC-02
+    t-f6b936:
+      - TC-02
+    t-2d6d12:
+      - TC-03
+    t-3d964e:
+      - TC-03
+    t-5d4b47:
+      - TC-03
+    t-59970b:
+      - TC-03
+    t-88c4f7:
+      - TC-04
+    t-285f4c:
+      - TC-04
+    t-b9c1a6:
+      - TC-04
+    t-f03949:
+      - TC-04
+    t-eed664:
+      - TC-05
+    t-2ae345:
+      - TC-05
+    t-bbf54d:
+      - TC-05
+    t-dcade9:
+      - TC-05
+    t-847c36:
+      - TC-06
+    t-52180d:
+      - TC-06
+    t-2d637e:
+      - TC-06
+    t-33a049:
+      - TC-06
+    t-10e948:
+      - TC-07
+    t-c85ab0:
+      - TC-07
+    t-9a5847:
+      - TC-07
+    t-26307a:
+      - TC-07
+  fr_to_tests:
+    FR-1: []
+    FR-2: []
+    FR-3: []
+    FR-4: []
+    FR-5: []
+coverage:
+  testing:
+    total: 35
+    covered: 35
+    uncovered: []
+    rate: 100
+    total_tasks: 35
+    tested_tasks: 35
+    untested: []

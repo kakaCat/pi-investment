@@ -1,0 +1,38 @@
+task:
+  id: t-d284d3
+  title: 实现父卡子卡链进度条·联调
+  status: done
+  implements: |-
+    编写 progress-bar.ts，实现 renderProgressBar 函数，在父卡底部绘制 4 段进度条（dev/integrate/review/test），每段根据子卡状态着色：已完成=绿色、进行中=蓝色、待开始=灰色。显示进度文本 '已完成数/总数'。接收 FR-7。
+
+    [子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致
+  serves: []
+  depends_on:
+    - t-8a854a
+  phase: implement
+  side: frontend
+  workflow_params:
+    REQ_ID: REQ-260928001915-f978
+    TASK_ID: t-d284d3
+    TASK_TITLE: 实现父卡子卡链进度条·联调
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: frontend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-09-28T05:49:40.433Z
+    - phase: doc
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-260928001915-f978
+  generated_at: 2026-09-28T05:49:40.433Z
+  version: 2
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-09-28T05:49:40.433Z

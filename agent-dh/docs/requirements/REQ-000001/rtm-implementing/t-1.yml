@@ -1,0 +1,31 @@
+task:
+  id: t-1
+  title: 任务
+  status: in_progress
+  implements: 改 x.ts
+  serves: []
+  depends_on: []
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-000001
+    TASK_ID: t-1
+    TASK_TITLE: 任务
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 0
+  workflow:
+    - phase: implement
+      status: pending
+metadata:
+  stage: implementing
+  requirement_id: REQ-000001
+  generated_at: 2026-09-27T13:29:07.227Z
+  version: 309
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-09-29T00:02:36.332Z

@@ -1,0 +1,35 @@
+task:
+  id: t-4b44d7
+  title: 一眼看清父子：新增「父卡→子卡」结构查询·联调
+  status: todo
+  implements: ""
+  serves: []
+  depends_on:
+    - t-3f8bb3
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-260927144541-0481
+    TASK_ID: t-4b44d7
+    TASK_TITLE: 一眼看清父子：新增「父卡→子卡」结构查询·联调
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-09-27T09:00:19.574Z
+    - phase: doc
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-260927144541-0481
+  generated_at: 2026-09-27T09:00:19.573Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-09-27T10:18:49.653Z

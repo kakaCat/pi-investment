@@ -1,0 +1,67 @@
+metadata:
+  stage: implementing
+  requirement_id: REQ-260927123256-196b
+  generated_at: 2026-09-27T04:44:33.319Z
+  version: 36
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 10
+  last_updated: 2026-09-27T06:27:21.060Z
+inputs:
+  tasks:
+    - id: t-f8ed18
+      title: 先定契约：挂起确认能标出「被中止」，判定口径只留一处
+      status: done
+    - id: t-4d87e5
+      title: 确认弹框改为阻塞等待：人不作答，agent 就停在这一步
+      status: done
+    - id: t-fd257f
+      title: 等待期间不许偷偷往下走，状态页能看出在等谁
+      status: done
+    - id: t-16cefa
+      title: 工具说明写清「默认会等你」：显式宽限等于主动放弃等待
+      status: done
+    - id: t-93e425
+      title: 把等待语义的每条分支都钉成测试
+      status: done
+    - id: t-2231a8
+      title: 老调用方与既有确认链路不回退，流程文档同步
+      status: done
+    - id: t-a0c273
+      title: 先定契约：挂起确认能标出「被中止」，判定口径只留一处·研发
+      status: done
+    - id: t-3b5f9c
+      title: 先定契约：挂起确认能标出「被中止」，判定口径只留一处·联调
+      status: done
+    - id: t-738238
+      title: 先定契约：挂起确认能标出「被中止」，判定口径只留一处·复核
+      status: done
+    - id: t-db1d48
+      title: 先定契约：挂起确认能标出「被中止」，判定口径只留一处·测试
+      status: done
+status:
+  tasks_total: 10
+  tasks_done: 10
+  tasks_in_progress: 0
+  tasks_todo: 0
+tasks:
+  - id: t-f8ed18
+    status: done
+  - id: t-4d87e5
+    status: done
+  - id: t-fd257f
+    status: done
+  - id: t-16cefa
+    status: done
+  - id: t-93e425
+    status: done
+  - id: t-2231a8
+    status: done
+  - id: t-a0c273
+    status: done
+  - id: t-3b5f9c
+    status: done
+  - id: t-738238
+    status: done
+  - id: t-db1d48
+    status: done

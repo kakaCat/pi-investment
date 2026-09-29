@@ -1,7 +1,7 @@
 task:
   id: t-9d53f4
   title: 扩展台账数据模型
-  status: todo
+  status: done
   implements: ""
   serves:
     - FR-1
@@ -18,23 +18,27 @@ task:
     SIDE: backend
     PHASE: doc
   workflow_total: 4
-  workflow_done: 1
+  workflow_done: 4
   workflow:
     - phase: doc
       status: done
       completed_at: 2026-09-27T01:36:05.919Z
     - phase: implement
-      status: pending
+      status: done
+      started_at: 2026-09-27T03:21:31.536Z
+      completed_at: 2026-09-27T03:21:53.966Z
     - phase: test
-      status: pending
+      status: done
+      completed_at: 2026-09-27T03:21:53.966Z
     - phase: commit
-      status: pending
+      status: done
+      completed_at: 2026-09-27T03:21:53.966Z
 metadata:
   stage: implementing
   requirement_id: REQ-202609262349-1518
   generated_at: 2026-09-27T01:34:27.527Z
-  version: 2
+  version: 6
   generated_by: dsh-pmboard
   detail_dir: rtm-implementing/
   detail_count: 4
-  last_updated: 2026-09-27T01:36:05.919Z
+  last_updated: 2026-09-27T03:21:53.966Z

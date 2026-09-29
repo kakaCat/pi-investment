@@ -1,0 +1,15 @@
+metadata:
+  stage: brainstorming
+  requirement_id: REQ-260927123256-196b
+  generated_at: 2026-09-27T04:33:56.893Z
+  version: 4
+  generated_by: dsh-pmboard
+  last_updated: 2026-09-27T04:41:49.555Z
+outputs:
+  requirements: []
+status:
+  artifacts:
+    - kind: requirement
+      path: docs/requirements/REQ-260927123256-196b/requirement.md
+      confirmed: true
+      confirmed_at: 2026-09-27T04:35:23.256Z

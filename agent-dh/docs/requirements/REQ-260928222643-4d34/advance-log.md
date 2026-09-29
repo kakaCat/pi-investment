@@ -1,0 +1,45 @@
+# 推进事件日志
+- 2026-09-28T15:06:16.156Z [RUN_SUBTASK] parent=t-3e952f subtask=t-1f9da5 ok：子卡 t-1f9da5 执行完成
+- 2026-09-28T15:07:35.832Z [RUN_SUBTASK] parent=t-3e952f subtask=t-58ef99 ok：子卡 t-58ef99 执行完成
+- 2026-09-28T15:08:02.227Z [RUN_SUBTASK] parent=t-3e952f subtask=t-017d4e ok：子卡 t-017d4e 执行完成
+- 2026-09-28T15:08:21.501Z [RUN_SUBTASK] parent=t-3e952f subtask=t-b22075 ok：子卡 t-b22075 执行完成
+- 2026-09-28T15:08:21.647Z [FINALIZE_PARENT] parent=t-3e952f subtask=- ok：父卡 t-3e952f 汇总子卡产出并收尾
+- 2026-09-28T15:08:52.436Z [RUN_SUBTASK] parent=t-dd5ba9 subtask=t-cb9237 ok：子卡 t-cb9237 执行完成
+- 2026-09-28T15:11:12.612Z [RUN_SUBTASK] parent=t-dd5ba9 subtask=t-bfdf5c ok：子卡 t-bfdf5c 执行完成
+- 2026-09-28T15:12:23.535Z [RUN_SUBTASK] parent=t-dd5ba9 subtask=t-687740 ok：子卡 t-687740 执行完成
+- 2026-09-28T15:12:49.466Z [RUN_SUBTASK] parent=t-dd5ba9 subtask=t-9aa159 ok：子卡 t-9aa159 执行完成
+- 2026-09-28T15:12:49.606Z [FINALIZE_PARENT] parent=t-dd5ba9 subtask=- failed：reqboard_task_move 未执行：done 凭证门——开工以来无干活类工具动作，且汇报声明的改动文件不存在或早于开工时间。凭证不足不能关闭（25ms 速通拦截）（REQBOARD_NO_EVIDENCE）
+- 2026-09-28T15:27:47.446Z [RUN_SUBTASK] parent=t-2eb71d subtask=t-23961d ok：子卡 t-23961d 执行完成
+- 2026-09-28T15:28:25.216Z [RUN_SUBTASK] parent=t-2eb71d subtask=t-1d3596 ok：子卡 t-1d3596 执行完成
+- 2026-09-28T15:30:02.022Z [RUN_SUBTASK] parent=t-2eb71d subtask=t-bcca7b ok：子卡 t-bcca7b 执行完成
+- 2026-09-28T15:30:32.482Z [RUN_SUBTASK] parent=t-2eb71d subtask=t-33f31b ok：子卡 t-33f31b 执行完成
+- 2026-09-28T15:30:32.642Z [FINALIZE_PARENT] parent=t-2eb71d subtask=- ok：父卡 t-2eb71d 汇总子卡产出并收尾
+- 2026-09-28T15:30:32.774Z [OPEN_PARENT] parent=t-e481a4 subtask=- ok：父卡 t-e481a4 自动开工并落子卡 4 张
+- 2026-09-28T15:33:52.354Z [RUN_SUBTASK] parent=t-e481a4 subtask=t-9f7598 ok：子卡 t-9f7598 执行完成
+- 2026-09-28T15:35:36.163Z [RUN_SUBTASK] parent=t-e481a4 subtask=t-e3785d ok：子卡 t-e3785d 执行完成
+- 2026-09-28T15:37:37.718Z [RUN_SUBTASK] parent=t-e481a4 subtask=t-43763b ok：子卡 t-43763b 执行完成
+- 2026-09-28T15:38:59.471Z [RUN_SUBTASK] parent=t-e481a4 subtask=t-86d2f9 ok：子卡 t-86d2f9 执行完成
+- 2026-09-28T15:38:59.637Z [FINALIZE_PARENT] parent=t-e481a4 subtask=- ok：父卡 t-e481a4 汇总子卡产出并收尾
+- 2026-09-28T15:38:59.757Z [OPEN_PARENT] parent=t-9b365a subtask=- ok：父卡 t-9b365a 自动开工并落子卡 4 张
+- 2026-09-28T15:40:02.971Z [RUN_SUBTASK] parent=t-9b365a subtask=t-1725e5 ok：子卡 t-1725e5 执行完成
+- 2026-09-28T15:42:35.855Z [RUN_SUBTASK] parent=t-9b365a subtask=t-fe79d8 ok：子卡 t-fe79d8 执行完成
+- 2026-09-28T15:43:46.088Z [RUN_SUBTASK] parent=t-9b365a subtask=t-95a1f1 ok：子卡 t-95a1f1 执行完成
+- 2026-09-28T15:44:13.798Z [RUN_SUBTASK] parent=t-9b365a subtask=t-f8052d ok：子卡 t-f8052d 执行完成
+- 2026-09-28T15:44:13.959Z [FINALIZE_PARENT] parent=t-9b365a subtask=- ok：父卡 t-9b365a 汇总子卡产出并收尾
+- 2026-09-28T15:44:14.082Z [OPEN_PARENT] parent=t-71aeb3 subtask=- ok：父卡 t-71aeb3 自动开工并落子卡 4 张
+- 2026-09-28T15:44:36.357Z [RUN_SUBTASK] parent=t-71aeb3 subtask=t-0fc58f ok：子卡 t-0fc58f 执行完成
+- 2026-09-28T15:46:29.951Z [RUN_SUBTASK] parent=t-71aeb3 subtask=t-c5ae63 ok：子卡 t-c5ae63 执行完成
+- 2026-09-28T15:47:45.943Z [RUN_SUBTASK] parent=t-71aeb3 subtask=t-defa17 ok：子卡 t-defa17 执行完成
+- 2026-09-28T15:48:21.117Z [RUN_SUBTASK] parent=t-71aeb3 subtask=t-95e056 ok：子卡 t-95e056 执行完成
+- 2026-09-28T15:48:21.275Z [FINALIZE_PARENT] parent=t-71aeb3 subtask=- ok：父卡 t-71aeb3 汇总子卡产出并收尾
+- 2026-09-28T15:48:21.397Z [OPEN_PARENT] parent=t-316227 subtask=- ok：父卡 t-316227 自动开工并落子卡 3 张
+- 2026-09-28T15:50:39.030Z [RUN_SUBTASK] parent=t-316227 subtask=t-4397da ok：子卡 t-4397da 执行完成
+- 2026-09-28T15:52:44.336Z [RUN_SUBTASK] parent=t-316227 subtask=t-a2ba2f ok：子卡 t-a2ba2f 执行完成
+- 2026-09-28T16:04:41.311Z [RUN_SUBTASK] parent=t-316227 subtask=t-b447b1 failed：子卡 t-b447b1 派发缺少 agent 句柄：绑定窗口 session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd 不在线——请由该窗口调 reqboard_task_run 续跑（看板「继续」/启动恢复仅在窗口在线时可派发）
+- 2026-09-28T16:05:54.256Z [RUN_SUBTASK] parent=t-316227 subtask=t-b447b1 ok：子卡 t-b447b1 执行完成
+- 2026-09-28T16:05:54.438Z [FINALIZE_PARENT] parent=t-316227 subtask=- ok：父卡 t-316227 汇总子卡产出并收尾
+- 2026-09-28T16:05:54.573Z [OPEN_PARENT] parent=t-29b629 subtask=- ok：父卡 t-29b629 自动开工并落子卡 2 张
+- 2026-09-28T16:08:07.958Z [RUN_SUBTASK] parent=t-29b629 subtask=t-2f5de9 ok：子卡 t-2f5de9 执行完成
+- 2026-09-28T16:10:49.029Z [RUN_SUBTASK] parent=t-29b629 subtask=t-247597 ok：子卡 t-247597 执行完成
+- 2026-09-28T16:10:49.176Z [FINALIZE_PARENT] parent=t-29b629 subtask=- ok：父卡 t-29b629 汇总子卡产出并收尾
+- 2026-09-28T16:10:49.332Z [ROLLUP] parent=- subtask=- ok：需求已全部任务完成，滚进验收

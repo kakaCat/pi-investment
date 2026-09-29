@@ -1,0 +1,1089 @@
+{
+  "version": 1,
+  "requirement_id": "REQ-ff20ca",
+  "schemaVersion": 9,
+  "generated_at": "2026-09-27T14:55:11.425Z",
+  "tasks": [
+    {
+      "id": "t-bbea78",
+      "requirementId": "REQ-ff20ca",
+      "title": "新增 reqboard_requirement_submit 登记需求文档产物",
+      "description": "agent-tools.ts 新增工具，对称 reqboard_plan_submit：校验 docs/requirements/<REQ>/requirement.md 存在 → registerArtifact({stage:brainstorming,kind:requirement}) → 飞书通知请人审阅。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "调用后台账 artifacts 出现 {kind:requirement,stage:brainstorming,path}；文件不存在则报错且不写台账；同 path 幂等；单测通过。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-52318c",
+          "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335",
+          "trigger": "manual",
+          "startedAt": 1789575172387,
+          "outcome": "succeeded",
+          "endedAt": 1789576364015
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789575159064,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789575172387,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "确认门工具化最高优先项开工：补 brainstorming 阶段产物登记入口（修复看板确认 400 死锁）。"
+        },
+        {
+          "status": "testing",
+          "at": 1789576364015,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t1 完成：登记工具 + 4 单测通过（首次登记/幂等/文件缺失/阶段纪律）"
+        },
+        {
+          "status": "in_review",
+          "at": 1789576364029,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t1 完成：登记工具 + 4 单测通过（首次登记/幂等/文件缺失/阶段纪律）"
+        },
+        {
+          "status": "done",
+          "at": 1789576364042,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t1 完成：登记工具 + 4 单测通过（首次登记/幂等/文件缺失/阶段纪律）"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-0e2d7d",
+          "body": "[状态] → in_progress：确认门工具化最高优先项开工：补 brainstorming 阶段产物登记入口（修复看板确认 400 死锁）。（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789575172387,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        },
+        {
+          "id": "c-f3c80b",
+          "body": "[状态] → testing：t1 完成：登记工具 + 4 单测通过（首次登记/幂等/文件缺失/阶段纪律）（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789576364015,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        },
+        {
+          "id": "c-cebf4a",
+          "body": "[状态] → in_review：t1 完成：登记工具 + 4 单测通过（首次登记/幂等/文件缺失/阶段纪律）（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789576364029,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        },
+        {
+          "id": "c-fffe7c",
+          "body": "[状态] → done：t1 完成：登记工具 + 4 单测通过（首次登记/幂等/文件缺失/阶段纪律）（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789576364042,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        }
+      ],
+      "version": 5,
+      "createdAt": 1789575159064,
+      "updatedAt": 1789576364042,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+      },
+      "cardDoc": "docs/requirements/REQ-ff20ca/tasks/t-bbea78.md",
+      "layer": 0
+    },
+    {
+      "id": "t-9fc198",
+      "requirementId": "REQ-ff20ca",
+      "title": "新增 reqboard_confirm_artifact 并扩展确认模型（via/evidence）",
+      "description": "新增 agent 工具记录会话确认；看板接口 POST req/artifact/confirm 补写 via=board；artifact.confirmedBy 扩为 {kind,via,evidence?,sessionId?}，老记录无 via 兼容为 board。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "会话确认落库 confirmedBy.via=session 且 evidence/sessionId 与传入一致；看板确认写 via=board；老记录读取不报错；单测覆盖三类来源。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-c9788e",
+          "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335",
+          "trigger": "manual",
+          "startedAt": 1789575776349,
+          "outcome": "succeeded",
+          "endedAt": 1789575776363
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789575159064,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789575776349,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t2 完成：会话确认落章实测通过（via=session + evidence 落库）"
+        },
+        {
+          "status": "testing",
+          "at": 1789575776363,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t2 完成：会话确认落章实测通过（via=session + evidence 落库）"
+        },
+        {
+          "status": "in_review",
+          "at": 1789575776376,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t2 完成：会话确认落章实测通过（via=session + evidence 落库）"
+        },
+        {
+          "status": "done",
+          "at": 1789575776389,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t2 完成：会话确认落章实测通过（via=session + evidence 落库）"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-cbca8c",
+          "body": "[状态] → in_progress：t2 完成：会话确认落章实测通过（via=session + evidence 落库）（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789575776349,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        },
+        {
+          "id": "c-5ecab0",
+          "body": "[状态] → testing：t2 完成：会话确认落章实测通过（via=session + evidence 落库）（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789575776363,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        },
+        {
+          "id": "c-6e47d7",
+          "body": "[状态] → in_review：t2 完成：会话确认落章实测通过（via=session + evidence 落库）（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789575776376,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        },
+        {
+          "id": "c-b6d41b",
+          "body": "[状态] → done：t2 完成：会话确认落章实测通过（via=session + evidence 落库）（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789575776389,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        }
+      ],
+      "version": 5,
+      "createdAt": 1789575159064,
+      "updatedAt": 1789575776389,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+      },
+      "cardDoc": "docs/requirements/REQ-ff20ca/tasks/t-9fc198.md",
+      "layer": 0
+    },
+    {
+      "id": "t-447c4a",
+      "requirementId": "REQ-ff20ca",
+      "title": "改造 reqboard_move 门禁：产物已确认即放行",
+      "description": "brainstorming→planning 判定从\"谁调用\"改为\"requirement 产物是否已 confirmed\"；未确认拒绝并提示用 ask_user_question 请人确认；已确认则允许 agent 推进并留痕。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-9fc198"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "未确认时 move 被拒且提示含 ask_user_question；已确认（board 或 session 来源）时放行；推进留痕 by=agent + 依据说明；单测覆盖两态。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-4d1d1b",
+          "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335",
+          "trigger": "manual",
+          "startedAt": 1789575776412,
+          "outcome": "succeeded",
+          "endedAt": 1789575776424
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789575159064,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789575776412,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t3 完成：门禁两态实测通过（未确认拒/已确认放行）"
+        },
+        {
+          "status": "testing",
+          "at": 1789575776424,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t3 完成：门禁两态实测通过（未确认拒/已确认放行）"
+        },
+        {
+          "status": "in_review",
+          "at": 1789575776436,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t3 完成：门禁两态实测通过（未确认拒/已确认放行）"
+        },
+        {
+          "status": "done",
+          "at": 1789575776447,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t3 完成：门禁两态实测通过（未确认拒/已确认放行）"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-ea6bb4",
+          "body": "[状态] → in_progress：t3 完成：门禁两态实测通过（未确认拒/已确认放行）（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789575776412,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        },
+        {
+          "id": "c-ee5cc7",
+          "body": "[状态] → testing：t3 完成：门禁两态实测通过（未确认拒/已确认放行）（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789575776424,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        },
+        {
+          "id": "c-665a69",
+          "body": "[状态] → in_review：t3 完成：门禁两态实测通过（未确认拒/已确认放行）（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789575776436,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        },
+        {
+          "id": "c-c6adfb",
+          "body": "[状态] → done：t3 完成：门禁两态实测通过（未确认拒/已确认放行）（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789575776447,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        }
+      ],
+      "version": 5,
+      "createdAt": 1789575159064,
+      "updatedAt": 1789575776447,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+      },
+      "cardDoc": "docs/requirements/REQ-ff20ca/tasks/t-447c4a.md",
+      "layer": 1
+    },
+    {
+      "id": "t-90ec62",
+      "requirementId": "REQ-ff20ca",
+      "title": "确认门全链路单测与 13080 实测",
+      "description": "在 13080 实测：提交需求文档 → 会话确认落章 → move 推进到 planning；核对看板确认按钮不再 400。",
+      "phase": "test",
+      "side": "fullstack",
+      "dependsOn": [
+        "t-bbea78",
+        "t-447c4a"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "13080 上全链路走通（提交→确认→推进）；看板「确认产物」按钮返回 200 并写入 confirmedAt；vitest 全绿。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-de5a9a",
+          "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335",
+          "trigger": "manual",
+          "startedAt": 1789576335049,
+          "outcome": "succeeded",
+          "endedAt": 1789576335064
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789575159064,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789576335049,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t4 完成：门禁两态实测通过 + 全量 398 用例绿"
+        },
+        {
+          "status": "testing",
+          "at": 1789576335064,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t4 完成：门禁两态实测通过 + 全量 398 用例绿"
+        },
+        {
+          "status": "in_review",
+          "at": 1789576335077,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t4 完成：门禁两态实测通过 + 全量 398 用例绿"
+        },
+        {
+          "status": "done",
+          "at": 1789576335091,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t4 完成：门禁两态实测通过 + 全量 398 用例绿"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-3ca355",
+          "body": "[状态] → in_progress：t4 完成：门禁两态实测通过 + 全量 398 用例绿（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789576335049,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        },
+        {
+          "id": "c-cd9e7e",
+          "body": "[状态] → testing：t4 完成：门禁两态实测通过 + 全量 398 用例绿（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789576335064,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        },
+        {
+          "id": "c-fe1b3a",
+          "body": "[状态] → in_review：t4 完成：门禁两态实测通过 + 全量 398 用例绿（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789576335077,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        },
+        {
+          "id": "c-b10d4c",
+          "body": "[状态] → done：t4 完成：门禁两态实测通过 + 全量 398 用例绿（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789576335091,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        }
+      ],
+      "version": 5,
+      "createdAt": 1789575159064,
+      "updatedAt": 1789576335091,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+      },
+      "cardDoc": "docs/requirements/REQ-ff20ca/tasks/t-90ec62.md",
+      "layer": 2
+    },
+    {
+      "id": "t-de13e3",
+      "requirementId": "REQ-ff20ca",
+      "title": "sidebarRight 最小验证（会话框单入口）",
+      "description": "新增 client/file-address.ts（对齐官方 grammar）；会话框文档点击改走 ctx.sidebarRight.openResource；先只接一个入口用于验证。",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "13080 上会话框点文档在官方右侧栏打开且 Markdown 正确（列表续行非 pre）；console 记录 sidebarRight 探测与地址；file-address 单测通过。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-1d1541",
+          "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335",
+          "trigger": "manual",
+          "startedAt": 1789575790137,
+          "outcome": "succeeded",
+          "endedAt": 1789576243903
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789575159064,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789575790137,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "确认门工具化完成，进入需求主体：文档打开迁移到官方 sidebarRight（最小验证：会话框单入口）。"
+        },
+        {
+          "status": "testing",
+          "at": 1789576243903,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t5 实测通过：会话框文档点击在官方右侧栏打开、渲染正常"
+        },
+        {
+          "status": "in_review",
+          "at": 1789576243916,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t5 实测通过：会话框文档点击在官方右侧栏打开、渲染正常"
+        },
+        {
+          "status": "done",
+          "at": 1789576243931,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t5 实测通过：会话框文档点击在官方右侧栏打开、渲染正常"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-12e2da",
+          "body": "[状态] → in_progress：确认门工具化完成，进入需求主体：文档打开迁移到官方 sidebarRight（最小验证：会话框单入口）。（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789575790137,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        },
+        {
+          "id": "c-99e6ae",
+          "body": "[状态] → testing：t5 实测通过：会话框文档点击在官方右侧栏打开、渲染正常（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789576243903,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        },
+        {
+          "id": "c-f5f75d",
+          "body": "[状态] → in_review：t5 实测通过：会话框文档点击在官方右侧栏打开、渲染正常（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789576243916,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        },
+        {
+          "id": "c-a321cd",
+          "body": "[状态] → done：t5 实测通过：会话框文档点击在官方右侧栏打开、渲染正常（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789576243931,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        }
+      ],
+      "version": 5,
+      "createdAt": 1789575159064,
+      "updatedAt": 1789576243931,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+      },
+      "cardDoc": "docs/requirements/REQ-ff20ca/tasks/t-de13e3.md",
+      "layer": 0
+    },
+    {
+      "id": "t-802055",
+      "requirementId": "REQ-ff20ca",
+      "title": "全量接线（看板）+ 弹窗整套删除",
+      "description": "看板文档点击同样改走 sidebarRight；删除 doc-modal.ts、board-mount.ts 旧弹窗段、弹窗专用 CSS；确认 marked 与 .dsh-pm-md 保留（view.ts 仍用）。",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-de13e3"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "看板点文档同样打开右栏；doc-modal.ts 不存在；全仓 grep 无 openDocModal；无降级分支；view.ts 需求卡 markdown 仍正常。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-c61947",
+          "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335",
+          "trigger": "manual",
+          "startedAt": 1789576243956,
+          "outcome": "succeeded",
+          "endedAt": 1789576243969
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789575159064,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789576243956,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t6 实测通过：看板入口走官方右侧栏，弹窗整套清除"
+        },
+        {
+          "status": "testing",
+          "at": 1789576243969,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t6 实测通过：看板入口走官方右侧栏，弹窗整套清除"
+        },
+        {
+          "status": "in_review",
+          "at": 1789576243981,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t6 实测通过：看板入口走官方右侧栏，弹窗整套清除"
+        },
+        {
+          "status": "done",
+          "at": 1789576243993,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t6 实测通过：看板入口走官方右侧栏，弹窗整套清除"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-c48634",
+          "body": "[状态] → in_progress：t6 实测通过：看板入口走官方右侧栏，弹窗整套清除（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789576243956,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        },
+        {
+          "id": "c-1a4b9a",
+          "body": "[状态] → testing：t6 实测通过：看板入口走官方右侧栏，弹窗整套清除（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789576243969,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        },
+        {
+          "id": "c-489796",
+          "body": "[状态] → in_review：t6 实测通过：看板入口走官方右侧栏，弹窗整套清除（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789576243981,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        },
+        {
+          "id": "c-306e31",
+          "body": "[状态] → done：t6 实测通过：看板入口走官方右侧栏，弹窗整套清除（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789576243993,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        }
+      ],
+      "version": 5,
+      "createdAt": 1789575159064,
+      "updatedAt": 1789576243993,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+      },
+      "cardDoc": "docs/requirements/REQ-ff20ca/tasks/t-802055.md",
+      "layer": 1
+    },
+    {
+      "id": "t-4c05e9",
+      "requirementId": "REQ-ff20ca",
+      "title": "阶段纪律工具化（stage-prompts 要求 ask_user_question）",
+      "description": "host/stage-prompts.ts 各阶段纪律增加条款：问题与确认必须用 ask_user_question 工具发起，未获确认不得推进。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "各阶段 prompt 含\"必须用 ask_user_question\"条款；单测锁定措辞防回退；既有注入机制与单测不受影响。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-88158e",
+          "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335",
+          "trigger": "manual",
+          "startedAt": 1789576300105,
+          "outcome": "succeeded",
+          "endedAt": 1789576300117
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789575159064,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789576300105,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t7 完成：五段 prompt 工具化 + 单测锁定，全量 398 用例通过"
+        },
+        {
+          "status": "testing",
+          "at": 1789576300117,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t7 完成：五段 prompt 工具化 + 单测锁定，全量 398 用例通过"
+        },
+        {
+          "status": "in_review",
+          "at": 1789576300129,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t7 完成：五段 prompt 工具化 + 单测锁定，全量 398 用例通过"
+        },
+        {
+          "status": "done",
+          "at": 1789576300141,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t7 完成：五段 prompt 工具化 + 单测锁定，全量 398 用例通过"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-4197c1",
+          "body": "[状态] → in_progress：t7 完成：五段 prompt 工具化 + 单测锁定，全量 398 用例通过（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789576300105,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        },
+        {
+          "id": "c-67a0eb",
+          "body": "[状态] → testing：t7 完成：五段 prompt 工具化 + 单测锁定，全量 398 用例通过（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789576300117,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        },
+        {
+          "id": "c-7da9fe",
+          "body": "[状态] → in_review：t7 完成：五段 prompt 工具化 + 单测锁定，全量 398 用例通过（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789576300129,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        },
+        {
+          "id": "c-01de32",
+          "body": "[状态] → done：t7 完成：五段 prompt 工具化 + 单测锁定，全量 398 用例通过（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789576300141,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        }
+      ],
+      "version": 5,
+      "createdAt": 1789575159064,
+      "updatedAt": 1789576300141,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+      },
+      "cardDoc": "docs/requirements/REQ-ff20ca/tasks/t-4c05e9.md",
+      "layer": 0
+    },
+    {
+      "id": "t-d40689",
+      "requirementId": "REQ-ff20ca",
+      "title": "文档更新与需求归档材料",
+      "description": "更新架构文档（文档打开链路、确认门双通道）；整理需求目录材料（requirement/plan/verification）。",
+      "phase": "doc",
+      "side": "doc",
+      "dependsOn": [
+        "t-90ec62",
+        "t-802055",
+        "t-4c05e9"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "架构文档记录 sidebarRight 优先链路与确认门双通道；需求目录含可复核的验收材料。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-957c6d",
+          "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335",
+          "trigger": "manual",
+          "startedAt": 1789576335112,
+          "outcome": "succeeded",
+          "endedAt": 1789576335123
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789575159064,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789576335112,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t8 完成：两份文档已更新"
+        },
+        {
+          "status": "testing",
+          "at": 1789576335123,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t8 完成：两份文档已更新"
+        },
+        {
+          "status": "in_review",
+          "at": 1789576335135,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t8 完成：两份文档已更新"
+        },
+        {
+          "status": "done",
+          "at": 1789576335145,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t8 完成：两份文档已更新"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-3bfcde",
+          "body": "[状态] → in_progress：t8 完成：两份文档已更新（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789576335112,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        },
+        {
+          "id": "c-6b0d5b",
+          "body": "[状态] → testing：t8 完成：两份文档已更新（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789576335123,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        },
+        {
+          "id": "c-a248f4",
+          "body": "[状态] → in_review：t8 完成：两份文档已更新（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789576335135,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        },
+        {
+          "id": "c-f80c16",
+          "body": "[状态] → done：t8 完成：两份文档已更新（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789576335145,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        }
+      ],
+      "version": 5,
+      "createdAt": 1789575159064,
+      "updatedAt": 1789576335145,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+      },
+      "cardDoc": "docs/requirements/REQ-ff20ca/tasks/t-d40689.md",
+      "layer": 3
+    }
+  ],
+  "edges": [
+    {
+      "from": "t-9fc198",
+      "to": "t-447c4a"
+    },
+    {
+      "from": "t-bbea78",
+      "to": "t-90ec62"
+    },
+    {
+      "from": "t-447c4a",
+      "to": "t-90ec62"
+    },
+    {
+      "from": "t-de13e3",
+      "to": "t-802055"
+    },
+    {
+      "from": "t-90ec62",
+      "to": "t-d40689"
+    },
+    {
+      "from": "t-802055",
+      "to": "t-d40689"
+    },
+    {
+      "from": "t-4c05e9",
+      "to": "t-d40689"
+    }
+  ],
+  "layers": [
+    {
+      "layer": 0,
+      "tasks": [
+        "t-bbea78",
+        "t-9fc198",
+        "t-de13e3",
+        "t-4c05e9"
+      ]
+    },
+    {
+      "layer": 1,
+      "tasks": [
+        "t-447c4a",
+        "t-802055"
+      ]
+    },
+    {
+      "layer": 2,
+      "tasks": [
+        "t-90ec62"
+      ]
+    },
+    {
+      "layer": 3,
+      "tasks": [
+        "t-d40689"
+      ]
+    }
+  ],
+  "ready": [],
+  "updated_at": "2026-09-28T23:14:14.578Z"
+}

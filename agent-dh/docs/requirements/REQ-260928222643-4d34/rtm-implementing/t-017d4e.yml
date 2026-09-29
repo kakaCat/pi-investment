@@ -1,0 +1,35 @@
+task:
+  id: t-017d4e
+  title: 新增一次性交接持有器 src/client/board-focus.ts·复核
+  status: in_progress
+  implements: |-
+    新建 packages/web/dsh-pmboard/src/client/board-focus.ts（零 import）：模块级 pendingReqId + 四个导出 requestBoardFocus/takeBoardFocus/clearBoardFocus/peekBoardFocus；take 取走即清、空串不登记、不写 storage/URL；新建 tests/board-focus.test.ts 覆盖 TC-6。
+
+    [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+  serves: []
+  depends_on:
+    - t-58ef99
+  phase: implement
+  side: frontend
+  workflow_params:
+    REQ_ID: REQ-260928222643-4d34
+    TASK_ID: t-017d4e
+    TASK_TITLE: 新增一次性交接持有器 src/client/board-focus.ts·复核
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: frontend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 0
+  workflow:
+    - phase: implement
+      status: pending
+metadata:
+  stage: implementing
+  requirement_id: REQ-260928222643-4d34
+  generated_at: 2026-09-28T14:59:52.796Z
+  version: 2
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-09-28T14:59:52.797Z

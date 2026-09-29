@@ -1,0 +1,38 @@
+task:
+  id: t-706169
+  title: 实现关键路径算法·复核
+  status: done
+  implements: |-
+    编写 critical-path.ts，实现 findCriticalPath 函数，使用拓扑排序 + 动态规划计算 DAG 的最长路径。从入度为 0 的节点开始，计算到每个节点的最长路径长度，回溯得到关键路径节点集合。返回 Set<taskId>。接收 FR-6。
+
+    [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+  serves: []
+  depends_on:
+    - t-41d67e
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-260928001915-f978
+    TASK_ID: t-706169
+    TASK_TITLE: 实现关键路径算法·复核
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-09-28T05:49:36.095Z
+    - phase: doc
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-260928001915-f978
+  generated_at: 2026-09-28T05:49:36.094Z
+  version: 2
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-09-28T05:49:36.095Z

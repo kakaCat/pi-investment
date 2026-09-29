@@ -1,0 +1,201 @@
+requirement:
+  id: REQ-260928222643-4d34
+  title: 节点面板加「去项目看板」入口（方案②）并下掉执行流程块
+  category: feature
+  created_at: 2026-09-28T14:26:43.793Z
+  source_session: session-f17b3bd0-023b-4f68-b85c-28d1d2da72bd
+  dir: /Users/yunpeng/pi-investment/agent-dh/docs/requirements/REQ-260928222643-4d34
+lifecycle:
+  current_stage: accepting
+  stage_count: 7
+  stage_list:
+    - draft
+    - brainstorming
+    - design
+    - decomposing
+    - implementing
+    - accepting
+    - done
+  stages:
+    - stage: draft
+      status: completed
+      enabled: true
+      entered_at: 2026-09-28T14:26:43.793Z
+      completed_at: 2026-09-28T16:16:19.059Z
+    - stage: brainstorming
+      status: completed
+      enabled: true
+      entered_at: 2026-09-28T14:26:43.793Z
+      completed_at: 2026-09-28T16:16:19.059Z
+      artifacts:
+        - kind: notes
+          path: docs/requirements/REQ-260928222643-4d34/rtm-lifecycle.yml
+        - kind: requirement
+          path: docs/requirements/REQ-260928222643-4d34/requirement.md
+          confirmed_at: 2026-09-28T14:37:20.314Z
+    - stage: design
+      status: completed
+      enabled: true
+      entered_at: 2026-09-28T14:26:43.793Z
+      completed_at: 2026-09-28T16:16:19.059Z
+      artifacts:
+        - kind: notes
+          path: docs/requirements/REQ-260928222643-4d34/rtm-brainstorming.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928222643-4d34/rtm-design.yml
+        - kind: design
+          path: docs/requirements/REQ-260928222643-4d34/design/architecture.md
+          confirmed_at: 2026-09-28T14:46:43.123Z
+        - kind: design
+          path: docs/requirements/REQ-260928222643-4d34/design/data-model.md
+          confirmed_at: 2026-09-28T14:46:43.123Z
+        - kind: design
+          path: docs/requirements/REQ-260928222643-4d34/design/frontend.md
+          confirmed_at: 2026-09-28T14:46:43.123Z
+        - kind: design
+          path: docs/requirements/REQ-260928222643-4d34/design/interfaces.md
+          confirmed_at: 2026-09-28T14:46:43.123Z
+        - kind: design
+          path: docs/requirements/REQ-260928222643-4d34/design/test-cases.md
+          confirmed_at: 2026-09-28T14:46:43.123Z
+        - kind: design
+          path: docs/requirements/REQ-260928222643-4d34/design/use-cases.md
+          confirmed_at: 2026-09-28T14:46:43.123Z
+    - stage: decomposing
+      status: completed
+      enabled: true
+      entered_at: 2026-09-28T14:26:43.793Z
+      completed_at: 2026-09-28T16:16:19.059Z
+      artifacts:
+        - kind: notes
+          path: docs/requirements/REQ-260928222643-4d34/design/prototypes/node-panel-board-entry.html
+        - kind: decomposition
+          path: docs/requirements/REQ-260928222643-4d34/decomposition.md
+          confirmed_at: 2026-09-28T14:53:19.573Z
+    - stage: implementing
+      status: completed
+      enabled: true
+      entered_at: 2026-09-28T14:26:43.793Z
+      completed_at: 2026-09-28T16:16:19.059Z
+      artifacts:
+        - kind: task_detail
+          path: docs/requirements/REQ-260928222643-4d34/tasks/t-3e952f.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928222643-4d34/tasks/t-dd5ba9.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928222643-4d34/tasks/t-2eb71d.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928222643-4d34/tasks/t-e481a4.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928222643-4d34/tasks/t-9b365a.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928222643-4d34/tasks/t-71aeb3.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928222643-4d34/tasks/t-316227.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928222643-4d34/tasks/t-29b629.md
+        - kind: notes
+          path: docs/requirements/REQ-260928222643-4d34/queue.json
+        - kind: notes
+          path: docs/requirements/REQ-260928222643-4d34/rtm-decomposing.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928222643-4d34/rtm-implementing.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928222643-4d34/rtm-implementing/t-3e952f.yml
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/client/board-focus.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/tests/board-focus.test.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/client/board-entry.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/tests/board-entry.test.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/client/node-panel.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/tests/node-panel.test.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/client/conversation-progress.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/client/board-mount.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/tests/board-attach.test.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/client/styles/node-panel.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/tests/node-panel-styles.test.ts
+        - kind: notes
+          path: docs/requirements/REQ-260928222643-4d34/rtm-implementing/t-017d4e.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928222643-4d34/rtm-implementing/t-1f9da5.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928222643-4d34/rtm-implementing/t-29b629.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928222643-4d34/rtm-implementing/t-2eb71d.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928222643-4d34/rtm-implementing/t-316227.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928222643-4d34/rtm-implementing/t-58ef99.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928222643-4d34/rtm-implementing/t-71aeb3.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928222643-4d34/rtm-implementing/t-9b365a.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928222643-4d34/rtm-implementing/t-b22075.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928222643-4d34/rtm-implementing/t-dd5ba9.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928222643-4d34/rtm-implementing/t-e481a4.yml
+        - kind: notes
+          path: docs/requirements/REQ-260928222643-4d34/reviews/review-report.md
+        - kind: notes
+          path: docs/requirements/REQ-260928222643-4d34/rtm-accepting.yml
+        - kind: task_detail
+          path: docs/requirements/REQ-260928222643-4d34/tasks/t-017d4e.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928222643-4d34/tasks/t-1d3596.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928222643-4d34/tasks/t-1f9da5.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928222643-4d34/tasks/t-23961d.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928222643-4d34/tasks/t-33f31b.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928222643-4d34/tasks/t-58ef99.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928222643-4d34/tasks/t-687740.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928222643-4d34/tasks/t-9aa159.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928222643-4d34/tasks/t-b22075.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928222643-4d34/tasks/t-bcca7b.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928222643-4d34/tasks/t-bfdf5c.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260928222643-4d34/tasks/t-cb9237.md
+        - kind: notes
+          path: docs/requirements/REQ-260928222643-4d34/tests/test-report.md
+        - kind: notes
+          path: docs/requirements/REQ-260928222643-4d34/advance-log.md
+        - kind: notes
+          path: docs/requirements/REQ-260928222643-4d34/evidence/t-2f5de9-dev.md
+    - stage: accepting
+      status: in_progress
+      enabled: true
+      entered_at: 2026-09-28T14:26:43.793Z
+      artifacts:
+        - kind: verification
+          path: docs/requirements/REQ-260928222643-4d34/verification.md
+    - stage: done
+      status: pending
+      enabled: true
+metadata:
+  stage: lifecycle
+  requirement_id: REQ-260928222643-4d34
+  generated_at: 2026-09-28T14:26:43.952Z
+  version: 13
+  generated_by: dsh-pmboard
+  rtm_version: "1.0"
+  file_path: /Users/yunpeng/pi-investment/agent-dh/docs/requirements/REQ-260928222643-4d34/rtm-lifecycle.yml
+  last_updated: 2026-09-28T16:16:19.193Z

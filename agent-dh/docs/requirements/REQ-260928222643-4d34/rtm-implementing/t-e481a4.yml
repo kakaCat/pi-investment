@@ -1,0 +1,35 @@
+task:
+  id: t-e481a4
+  title: conversation-progress.ts 接线点击→校验→关面板→切看板并删两条留痕拉取
+  status: todo
+  implements: 删除 fetchInjectionInfo/fetchIsolationLog import、injection/isolation state 与拉取 effect 及 props；closePanel 声明上移到早退前；新增 document 级 np-board-entry 委派调 activateBoardEntry，失败 setEntryError 就地 role=alert 显示且不切页，成功 closePanel + layout.selectPanel(PANEL_ID)；import 来源 board-focus/board-entry/page-runtime/dom/api。
+  serves: []
+  depends_on:
+    - t-3e952f
+    - t-dd5ba9
+    - t-2eb71d
+  phase: implement
+  side: frontend
+  workflow_params:
+    REQ_ID: REQ-260928222643-4d34
+    TASK_ID: t-e481a4
+    TASK_TITLE: conversation-progress.ts 接线点击→校验→关面板→切看板并删两条留痕拉取
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: frontend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-09-28T14:59:53.709Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-260928222643-4d34
+  generated_at: 2026-09-28T14:59:53.709Z
+  version: 2
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-09-28T14:59:53.709Z

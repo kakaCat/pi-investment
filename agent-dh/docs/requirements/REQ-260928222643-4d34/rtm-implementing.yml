@@ -1,0 +1,117 @@
+metadata:
+  stage: implementing
+  requirement_id: REQ-260928222643-4d34
+  generated_at: 2026-09-28T14:53:19.691Z
+  version: 17
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 20
+  last_updated: 2026-09-28T15:25:09.149Z
+inputs:
+  tasks:
+    - id: t-3e952f
+      title: 新增一次性交接持有器 src/client/board-focus.ts
+      status: done
+    - id: t-dd5ba9
+      title: 新增入口校验纯函数 src/client/board-entry.ts
+      status: done
+    - id: t-2eb71d
+      title: node-panel.ts 加入口按钮并删除执行流程块调用与入参
+      status: in_progress
+    - id: t-e481a4
+      title: conversation-progress.ts 接线点击→校验→关面板→切看板并删两条留痕拉取
+      status: todo
+    - id: t-9b365a
+      title: board-mount.ts 挂载时 takeBoardFocus 初始化 mode
+      status: todo
+    - id: t-71aeb3
+      title: styles/node-panel.ts 新增入口按钮与失败提示两条规则
+      status: todo
+    - id: t-316227
+      title: 迁移与兼容核验：无 schema 变更、旧调用方与看板消费方零回归
+      status: todo
+    - id: t-29b629
+      title: 重建客户端产物并发版，完成 TC-15 端到端人工验收
+      status: todo
+    - id: t-1f9da5
+      title: 新增一次性交接持有器 src/client/board-focus.ts·研发
+      status: done
+    - id: t-58ef99
+      title: 新增一次性交接持有器 src/client/board-focus.ts·联调
+      status: done
+    - id: t-017d4e
+      title: 新增一次性交接持有器 src/client/board-focus.ts·复核
+      status: done
+    - id: t-b22075
+      title: 新增一次性交接持有器 src/client/board-focus.ts·测试
+      status: done
+    - id: t-cb9237
+      title: 新增入口校验纯函数 src/client/board-entry.ts·研发
+      status: done
+    - id: t-bfdf5c
+      title: 新增入口校验纯函数 src/client/board-entry.ts·联调
+      status: done
+    - id: t-687740
+      title: 新增入口校验纯函数 src/client/board-entry.ts·复核
+      status: done
+    - id: t-9aa159
+      title: 新增入口校验纯函数 src/client/board-entry.ts·测试
+      status: done
+    - id: t-23961d
+      title: node-panel.ts 加入口按钮并删除执行流程块调用与入参·研发
+      status: todo
+    - id: t-1d3596
+      title: node-panel.ts 加入口按钮并删除执行流程块调用与入参·联调
+      status: todo
+    - id: t-bcca7b
+      title: node-panel.ts 加入口按钮并删除执行流程块调用与入参·复核
+      status: todo
+    - id: t-33f31b
+      title: node-panel.ts 加入口按钮并删除执行流程块调用与入参·测试
+      status: todo
+status:
+  tasks_total: 20
+  tasks_done: 10
+  tasks_in_progress: 1
+  tasks_todo: 9
+tasks:
+  - id: t-3e952f
+    status: done
+  - id: t-dd5ba9
+    status: done
+  - id: t-2eb71d
+    status: in_progress
+  - id: t-e481a4
+    status: todo
+  - id: t-9b365a
+    status: todo
+  - id: t-71aeb3
+    status: todo
+  - id: t-316227
+    status: todo
+  - id: t-29b629
+    status: todo
+  - id: t-1f9da5
+    status: done
+  - id: t-58ef99
+    status: done
+  - id: t-017d4e
+    status: done
+  - id: t-b22075
+    status: done
+  - id: t-cb9237
+    status: done
+  - id: t-bfdf5c
+    status: done
+  - id: t-687740
+    status: done
+  - id: t-9aa159
+    status: done
+  - id: t-23961d
+    status: todo
+  - id: t-1d3596
+    status: todo
+  - id: t-bcca7b
+    status: todo
+  - id: t-33f31b
+    status: todo

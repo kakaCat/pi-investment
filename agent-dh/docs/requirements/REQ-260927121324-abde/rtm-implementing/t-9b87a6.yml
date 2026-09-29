@@ -1,0 +1,39 @@
+task:
+  id: t-9b87a6
+  title: 新增执行与迁移收敛的结构守卫单测
+  status: done
+  implements: ""
+  serves: []
+  depends_on:
+    - t-806d6e
+    - t-f6ee83
+    - t-030788
+    - t-15c076
+    - t-00bed8
+  phase: test
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-260927121324-abde
+    TASK_ID: t-9b87a6
+    TASK_TITLE: 新增执行与迁移收敛的结构守卫单测
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: test
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: test
+      status: done
+      completed_at: 2026-09-27T07:16:30.259Z
+    - phase: implement
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-260927121324-abde
+  generated_at: 2026-09-27T07:16:30.257Z
+  version: 2
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-09-27T07:16:30.260Z

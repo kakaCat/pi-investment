@@ -1,0 +1,6 @@
+PASS  GET / （带 dsh-auth cookie）→ 200 且 shell 含 pmboard — HTTP=200 bytes=32257 pmboard=5
+PASS  GET / （无 cookie）→ 401（鉴权在位） — HTTP=401
+PASS  GET /dashboard 记录为客户端 hash 路由（服务端 404，非回归） — HTTP=404 bytes=0
+PASS  GET /dashboard/api/reqboard/state → 200 且出数 — HTTP=200 requirements=82 tasks=616 rev=5950
+
+断言：4 passed / 0 failed

@@ -1,0 +1,305 @@
+metadata:
+  stage: accepting
+  requirement_id: REQ-260928222643-4d34
+  generated_at: 2026-09-28T15:02:26.321Z
+  version: 6
+  generated_by: dsh-pmboard
+  last_updated: 2026-09-28T16:16:19.189Z
+inputs:
+  tasks:
+    - id: t-3e952f
+      title: 新增一次性交接持有器 src/client/board-focus.ts
+      status: done
+    - id: t-dd5ba9
+      title: 新增入口校验纯函数 src/client/board-entry.ts
+      status: done
+    - id: t-2eb71d
+      title: node-panel.ts 加入口按钮并删除执行流程块调用与入参
+      status: done
+    - id: t-e481a4
+      title: conversation-progress.ts 接线点击→校验→关面板→切看板并删两条留痕拉取
+      status: done
+    - id: t-9b365a
+      title: board-mount.ts 挂载时 takeBoardFocus 初始化 mode
+      status: done
+    - id: t-71aeb3
+      title: styles/node-panel.ts 新增入口按钮与失败提示两条规则
+      status: done
+    - id: t-316227
+      title: 迁移与兼容核验：无 schema 变更、旧调用方与看板消费方零回归
+      status: done
+    - id: t-29b629
+      title: 重建客户端产物并发版，完成 TC-15 端到端人工验收
+      status: done
+    - id: t-1f9da5
+      title: 新增一次性交接持有器 src/client/board-focus.ts·研发
+      status: done
+    - id: t-58ef99
+      title: 新增一次性交接持有器 src/client/board-focus.ts·联调
+      status: done
+    - id: t-017d4e
+      title: 新增一次性交接持有器 src/client/board-focus.ts·复核
+      status: done
+    - id: t-b22075
+      title: 新增一次性交接持有器 src/client/board-focus.ts·测试
+      status: done
+    - id: t-cb9237
+      title: 新增入口校验纯函数 src/client/board-entry.ts·研发
+      status: done
+    - id: t-bfdf5c
+      title: 新增入口校验纯函数 src/client/board-entry.ts·联调
+      status: done
+    - id: t-687740
+      title: 新增入口校验纯函数 src/client/board-entry.ts·复核
+      status: done
+    - id: t-9aa159
+      title: 新增入口校验纯函数 src/client/board-entry.ts·测试
+      status: done
+    - id: t-23961d
+      title: node-panel.ts 加入口按钮并删除执行流程块调用与入参·研发
+      status: done
+    - id: t-1d3596
+      title: node-panel.ts 加入口按钮并删除执行流程块调用与入参·联调
+      status: done
+    - id: t-bcca7b
+      title: node-panel.ts 加入口按钮并删除执行流程块调用与入参·复核
+      status: done
+    - id: t-33f31b
+      title: node-panel.ts 加入口按钮并删除执行流程块调用与入参·测试
+      status: done
+    - id: t-9f7598
+      title: conversation-progress.ts 接线点击→校验→关面板→切看板并删两条留痕拉取·研发
+      status: done
+    - id: t-e3785d
+      title: conversation-progress.ts 接线点击→校验→关面板→切看板并删两条留痕拉取·联调
+      status: done
+    - id: t-43763b
+      title: conversation-progress.ts 接线点击→校验→关面板→切看板并删两条留痕拉取·复核
+      status: done
+    - id: t-86d2f9
+      title: conversation-progress.ts 接线点击→校验→关面板→切看板并删两条留痕拉取·测试
+      status: done
+    - id: t-1725e5
+      title: board-mount.ts 挂载时 takeBoardFocus 初始化 mode·研发
+      status: done
+    - id: t-fe79d8
+      title: board-mount.ts 挂载时 takeBoardFocus 初始化 mode·联调
+      status: done
+    - id: t-95a1f1
+      title: board-mount.ts 挂载时 takeBoardFocus 初始化 mode·复核
+      status: done
+    - id: t-f8052d
+      title: board-mount.ts 挂载时 takeBoardFocus 初始化 mode·测试
+      status: done
+    - id: t-0fc58f
+      title: styles/node-panel.ts 新增入口按钮与失败提示两条规则·研发
+      status: done
+    - id: t-c5ae63
+      title: styles/node-panel.ts 新增入口按钮与失败提示两条规则·联调
+      status: done
+    - id: t-defa17
+      title: styles/node-panel.ts 新增入口按钮与失败提示两条规则·复核
+      status: done
+    - id: t-95e056
+      title: styles/node-panel.ts 新增入口按钮与失败提示两条规则·测试
+      status: done
+    - id: t-4397da
+      title: 迁移与兼容核验：无 schema 变更、旧调用方与看板消费方零回归·研发
+      status: done
+    - id: t-a2ba2f
+      title: 迁移与兼容核验：无 schema 变更、旧调用方与看板消费方零回归·复核
+      status: done
+    - id: t-b447b1
+      title: 迁移与兼容核验：无 schema 变更、旧调用方与看板消费方零回归·测试
+      status: done
+    - id: t-2f5de9
+      title: 重建客户端产物并发版，完成 TC-15 端到端人工验收·研发
+      status: done
+    - id: t-247597
+      title: 重建客户端产物并发版，完成 TC-15 端到端人工验收·复核
+      status: done
+outputs:
+  test_cases:
+    - id: TC-1
+      title: 数据契约 · 一次性交接持有器
+      covers:
+        - t-3e952f
+        - t-1f9da5
+        - t-58ef99
+        - t-017d4e
+        - t-b22075
+      validates: []
+      source: tests/test-report.md
+    - id: TC-2
+      title: 接口契约 · 入口校验与失败提示
+      covers:
+        - t-dd5ba9
+        - t-cb9237
+        - t-bfdf5c
+        - t-687740
+        - t-9aa159
+      validates: []
+      source: tests/test-report.md
+    - id: TC-3
+      title: 面板改造 · 入口按钮与下掉执行流程块
+      covers:
+        - t-2eb71d
+        - t-23961d
+        - t-1d3596
+        - t-bcca7b
+        - t-33f31b
+      validates: []
+      source: tests/test-report.md
+    - id: TC-4
+      title: 接线 · 会话头点击委派与失败提示
+      covers:
+        - t-e481a4
+      validates: []
+      source: tests/test-report.md
+    - id: TC-5
+      title: 消费 · 看板挂载时读取定位意图
+      covers:
+        - t-9b365a
+      validates: []
+      source: tests/test-report.md
+    - id: TC-6
+      title: 样式 · 入口按钮与失败提示
+      covers:
+        - t-71aeb3
+      validates: []
+      source: tests/test-report.md
+    - id: TC-7
+      title: 迁移与兼容核验
+      covers:
+        - t-316227
+      validates: []
+      source: tests/test-report.md
+    - id: TC-8
+      title: 构建发版与端到端验收
+      covers:
+        - t-29b629
+      validates: []
+      source: tests/test-report.md
+    - id: TC-9
+      title: 自动链新增子卡的测试覆盖（covers 标注）
+      covers:
+        - t-9f7598
+        - t-e3785d
+        - t-43763b
+        - t-86d2f9
+        - t-e481a4
+        - t-1725e5
+        - t-fe79d8
+        - t-95a1f1
+        - t-f8052d
+        - t-9b365a
+        - t-0fc58f
+        - t-c5ae63
+        - t-defa17
+        - t-95e056
+        - t-71aeb3
+        - t-4397da
+        - t-a2ba2f
+        - t-b447b1
+        - t-316227
+        - t-2f5de9
+        - t-247597
+        - t-29b629
+      validates: []
+      source: tests/test-report.md
+traceability:
+  task_to_tests:
+    t-3e952f:
+      - TC-1
+    t-dd5ba9:
+      - TC-2
+    t-2eb71d:
+      - TC-3
+    t-e481a4:
+      - TC-4
+      - TC-9
+    t-9b365a:
+      - TC-5
+      - TC-9
+    t-71aeb3:
+      - TC-6
+      - TC-9
+    t-316227:
+      - TC-7
+      - TC-9
+    t-29b629:
+      - TC-8
+      - TC-9
+    t-1f9da5:
+      - TC-1
+    t-58ef99:
+      - TC-1
+    t-017d4e:
+      - TC-1
+    t-b22075:
+      - TC-1
+    t-cb9237:
+      - TC-2
+    t-bfdf5c:
+      - TC-2
+    t-687740:
+      - TC-2
+    t-9aa159:
+      - TC-2
+    t-23961d:
+      - TC-3
+    t-1d3596:
+      - TC-3
+    t-bcca7b:
+      - TC-3
+    t-33f31b:
+      - TC-3
+    t-9f7598:
+      - TC-9
+    t-e3785d:
+      - TC-9
+    t-43763b:
+      - TC-9
+    t-86d2f9:
+      - TC-9
+    t-1725e5:
+      - TC-9
+    t-fe79d8:
+      - TC-9
+    t-95a1f1:
+      - TC-9
+    t-f8052d:
+      - TC-9
+    t-0fc58f:
+      - TC-9
+    t-c5ae63:
+      - TC-9
+    t-defa17:
+      - TC-9
+    t-95e056:
+      - TC-9
+    t-4397da:
+      - TC-9
+    t-a2ba2f:
+      - TC-9
+    t-b447b1:
+      - TC-9
+    t-2f5de9:
+      - TC-9
+    t-247597:
+      - TC-9
+  fr_to_tests:
+    FR-1: []
+    FR-2: []
+    FR-3: []
+    FR-4: []
+    FR-5: []
+coverage:
+  testing:
+    total: 37
+    covered: 37
+    uncovered: []
+    rate: 100
+    total_tasks: 37
+    tested_tasks: 37
+    untested: []

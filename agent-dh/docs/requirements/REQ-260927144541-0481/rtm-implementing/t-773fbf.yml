@@ -1,0 +1,35 @@
+task:
+  id: t-773fbf
+  title: 超时归位：投递/查询类工具不再挂交互式长超时·测试
+  status: todo
+  implements: ""
+  serves: []
+  depends_on:
+    - t-fc43f2
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-260927144541-0481
+    TASK_ID: t-773fbf
+    TASK_TITLE: 超时归位：投递/查询类工具不再挂交互式长超时·测试
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: pending
+    - phase: test
+      status: done
+      completed_at: 2026-09-27T10:51:51.515Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-260927144541-0481
+  generated_at: 2026-09-27T10:44:30.402Z
+  version: 3
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-09-27T10:51:51.515Z

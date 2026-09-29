@@ -1,0 +1,38 @@
+task:
+  id: t-f4c9f5
+  title: 看板实测回归（真实打开页面）·复核
+  status: done
+  implements: |-
+    迁移与读方改造完成后，重启 :13080（走 scripts/start.sh 或 launchctl kickstart），真实打开看板任务页与甘特/阶段视图，逐项核对任务可见性与数量、依赖连线、需求详情；记录页面截图路径。本卡是最高风险的验收点——单测绿不等于看板不回归，必须以浏览器实开为准。
+
+    [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+  serves: []
+  depends_on:
+    - t-6df9a0
+  phase: test
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-260927202051-f6df
+    TASK_ID: t-f4c9f5
+    TASK_TITLE: 看板实测回归（真实打开页面）·复核
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: test
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: test
+      status: done
+      completed_at: 2026-09-27T16:03:34.404Z
+    - phase: doc
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-260927202051-f6df
+  generated_at: 2026-09-27T16:03:34.404Z
+  version: 2
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-09-27T16:03:34.405Z

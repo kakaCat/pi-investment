@@ -1,0 +1,277 @@
+metadata:
+  stage: design
+  requirement_id: REQ-260928185112-e20d
+  generated_at: 2026-09-28T10:52:14.300Z
+  version: 4
+  generated_by: dsh-pmboard
+  last_updated: 2026-09-28T11:07:16.343Z
+inputs:
+  requirements: []
+outputs:
+  design_sections:
+    - ref: design/architecture.md#目标可证伪
+      title: 目标（可证伪） «
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/architecture.md
+      section: 目标可证伪
+    - ref: design/architecture.md#框架契约已核实实施以此为准
+      title: 框架契约（已核实，实施以此为准） «
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/architecture.md
+      section: 框架契约已核实实施以此为准
+    - ref: design/architecture.md#插槽与-id
+      title: 插槽与 id «
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 插槽与-id
+    - ref: design/architecture.md#导航
+      title: 导航 «
+      serves:
+        - FR-2
+        - FR-3
+      file: design/architecture.md
+      section: 导航
+    - ref: design/architecture.md#选中态的可观测证据E2E-用
+      title: 选中态的可观测证据（E2E 用） «
+      serves:
+        - FR-2
+        - FR-3
+      file: design/architecture.md
+      section: 选中态的可观测证据E2E-用
+    - ref: design/architecture.md#目录结构一个页面一个文件夹
+      title: 目录结构：一个页面一个文件夹 «
+      serves:
+        - FR-1
+        - FR-5
+      file: design/architecture.md
+      section: 目录结构一个页面一个文件夹
+    - ref: design/architecture.md#标准-helperregisterPagePanel
+      title: 标准 helper：registerPagePanel «
+      serves:
+        - FR-1
+        - FR-2
+      file: design/architecture.md
+      section: 标准-helperregisterPagePanel
+    - ref: design/architecture.md#接口契约
+      title: 接口契约 «
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 接口契约
+    - ref: design/architecture.md#行为约定
+      title: 行为约定 «
+      serves:
+        - FR-1
+        - FR-2
+      file: design/architecture.md
+      section: 行为约定
+    - ref: design/architecture.md#使用样板
+      title: 使用样板 «
+      serves:
+        - FR-2
+      file: design/architecture.md
+      section: 使用样板
+    - ref: design/architecture.md#看板页面化
+      title: 看板页面化 «
+      serves:
+        - FR-2
+      file: design/architecture.md
+      section: 看板页面化
+    - ref: design/architecture.md#薄宿主
+      title: 薄宿主 «
+      serves:
+        - FR-2
+      file: design/architecture.md
+      section: 薄宿主
+    - ref: design/architecture.md#轮询与订阅的生命周期
+      title: 轮询与订阅的生命周期 «
+      serves:
+        - FR-2
+      file: design/architecture.md
+      section: 轮询与订阅的生命周期
+    - ref: design/architecture.md#跳转语义归位
+      title: 跳转语义归位 «
+      serves:
+        - FR-3
+      file: design/architecture.md
+      section: 跳转语义归位
+    - ref: design/architecture.md#调用方与依赖清单refactor-必交
+      title: 调用方与依赖清单（refactor 必交） «
+      serves:
+        - FR-3
+        - FR-4
+      file: design/architecture.md
+      section: 调用方与依赖清单refactor-必交
+    - ref: design/architecture.md#行为不变式与回滚
+      title: 行为不变式与回滚 «
+      serves:
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/architecture.md
+      section: 行为不变式与回滚
+    - ref: design/architecture.md#边界本设计不做
+      title: 边界（本设计不做） «
+      serves:
+        - FR-4
+        - FR-5
+      file: design/architecture.md
+      section: 边界本设计不做
+    - ref: design/migration.md#迁移单位一个页面-一个文件夹
+      title: 迁移单位：一个页面 = 一个文件夹 «
+      serves:
+        - FR-5
+      file: design/migration.md
+      section: 迁移单位一个页面-一个文件夹
+    - ref: design/migration.md#面板清单实测
+      title: 面板清单（实测） «
+      serves:
+        - FR-5
+      file: design/migration.md
+      section: 面板清单实测
+    - ref: design/migration.md#三个名字的处置
+      title: 三个名字的处置 «
+      serves:
+        - FR-5
+      file: design/migration.md
+      section: 三个名字的处置
+    - ref: design/migration.md#看板迁移步骤FR-2FR-3FR-4-的落地顺序
+      title: 看板迁移步骤（FR-2/FR-3/FR-4 的落地顺序） «
+      serves:
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/migration.md
+      section: 看板迁移步骤FR-2FR-3FR-4-的落地顺序
+    - ref: design/migration.md#其余-4-页的迁移要点
+      title: 其余 4 页的迁移要点 «
+      serves:
+        - FR-5
+      file: design/migration.md
+      section: 其余-4-页的迁移要点
+    - ref: design/migration.md#文件级改动盘点
+      title: 文件级改动盘点 «
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/migration.md
+      section: 文件级改动盘点
+    - ref: design/migration.md#行为等价验证设计
+      title: 行为等价验证设计 «
+      serves:
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/migration.md
+      section: 行为等价验证设计
+    - ref: design/migration.md#跑什么看什么
+      title: 跑什么、看什么 «
+      serves:
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/migration.md
+      section: 跑什么看什么
+    - ref: design/migration.md#E2E浏览器13080
+      title: E2E（浏览器，:13080） «
+      serves:
+        - FR-2
+        - FR-3
+      file: design/migration.md
+      section: E2E浏览器13080
+    - ref: design/migration.md#对照的输入输出行为等价
+      title: 对照的输入输出（行为等价） «
+      serves:
+        - FR-2
+      file: design/migration.md
+      section: 对照的输入输出行为等价
+    - ref: design/migration.md#观察与待裁决不夹带
+      title: 观察与待裁决（不夹带） «
+      serves:
+        - FR-3
+      file: design/migration.md
+      section: 观察与待裁决不夹带
+    - ref: design/migration.md#回滚
+      title: 回滚 «
+      serves:
+        - FR-4
+      file: design/migration.md
+      section: 回滚
+traceability:
+  fr_to_design:
+    FR-1:
+      - design/architecture.md#目标可证伪
+      - design/architecture.md#框架契约已核实实施以此为准
+      - design/architecture.md#插槽与-id
+      - design/architecture.md#目录结构一个页面一个文件夹
+      - design/architecture.md#标准-helperregisterPagePanel
+      - design/architecture.md#接口契约
+      - design/architecture.md#行为约定
+      - design/migration.md#文件级改动盘点
+    FR-2:
+      - design/architecture.md#目标可证伪
+      - design/architecture.md#框架契约已核实实施以此为准
+      - design/architecture.md#导航
+      - design/architecture.md#选中态的可观测证据E2E-用
+      - design/architecture.md#标准-helperregisterPagePanel
+      - design/architecture.md#行为约定
+      - design/architecture.md#使用样板
+      - design/architecture.md#看板页面化
+      - design/architecture.md#薄宿主
+      - design/architecture.md#轮询与订阅的生命周期
+      - design/architecture.md#行为不变式与回滚
+      - design/migration.md#看板迁移步骤FR-2FR-3FR-4-的落地顺序
+      - design/migration.md#文件级改动盘点
+      - design/migration.md#行为等价验证设计
+      - design/migration.md#跑什么看什么
+      - design/migration.md#E2E浏览器13080
+      - design/migration.md#对照的输入输出行为等价
+    FR-3:
+      - design/architecture.md#目标可证伪
+      - design/architecture.md#框架契约已核实实施以此为准
+      - design/architecture.md#导航
+      - design/architecture.md#选中态的可观测证据E2E-用
+      - design/architecture.md#跳转语义归位
+      - design/architecture.md#调用方与依赖清单refactor-必交
+      - design/architecture.md#行为不变式与回滚
+      - design/migration.md#看板迁移步骤FR-2FR-3FR-4-的落地顺序
+      - design/migration.md#文件级改动盘点
+      - design/migration.md#行为等价验证设计
+      - design/migration.md#跑什么看什么
+      - design/migration.md#E2E浏览器13080
+      - design/migration.md#观察与待裁决不夹带
+    FR-4:
+      - design/architecture.md#目标可证伪
+      - design/architecture.md#调用方与依赖清单refactor-必交
+      - design/architecture.md#行为不变式与回滚
+      - design/architecture.md#边界本设计不做
+      - design/migration.md#看板迁移步骤FR-2FR-3FR-4-的落地顺序
+      - design/migration.md#文件级改动盘点
+      - design/migration.md#行为等价验证设计
+      - design/migration.md#跑什么看什么
+      - design/migration.md#回滚
+    FR-5:
+      - design/architecture.md#目录结构一个页面一个文件夹
+      - design/architecture.md#边界本设计不做
+      - design/migration.md#迁移单位一个页面-一个文件夹
+      - design/migration.md#面板清单实测
+      - design/migration.md#三个名字的处置
+      - design/migration.md#其余-4-页的迁移要点
+coverage:
+  design:
+    total: 0
+    covered: 0
+    uncovered: []
+    rate: 100
+    total_frs: 0
+    covered_frs: 0

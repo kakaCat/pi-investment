@@ -3,7 +3,7 @@ id: docs-index
 title: 全站页面索引（机器可读入口）
 type: index
 status: living
-updated: 2026-09-27
+updated: 2026-09-28
 owners: [agent-dh]
 tags: [index, wiki]
 ---
@@ -18,7 +18,7 @@ tags: [index, wiki]
 
 | 页 | type | status | 一句话 | 更新 |
 |---|---|---|---|---|
-| [全站页面索引（机器可读入口）](INDEX.md) | index | living | 这个 wiki 有哪些页、每页讲什么（一句话）——先读这张表，再决定打开哪页。 | 2026-09-27 |
+| [全站页面索引（机器可读入口）](INDEX.md) | index | living | 这个 wiki 有哪些页、每页讲什么（一句话）——先读这张表，再决定打开哪页。 | 2026-09-28 |
 | [agent-dh Wiki（归档文档首页 / 大纲）](README.md) | manual | living | agent-dh 的 wiki 首页：10 卷大纲 + 从哪开始读 + 待写页——每个新会话先看这页。 | 2026-09-25 |
 | [🎊 Agent-DH v0.1.1 发布说明](RELEASE-NOTES-v0.1.1.md) | doc | living | v0.1.1（2026-08-18）发布说明：稳定性与可靠性改进清单（历史版本记录）。 | 2026-09-14 |
 | [optimization-remove-deps-jobs.md](optimization-remove-deps-jobs.md) | — | — | 1. deps.jobs.start() 是为了解决 "Agent 回合已结束" 的问题 | — |
@@ -26,7 +26,7 @@ tags: [index, wiki]
 | [workflow-ptc-fix.md](troubleshooting/workflow-ptc-fix.md) | — | — | PM 插件 (dsh-pmboard) 的自动任务执行链依赖 workflow-ptc 服务，但当前运行时 ctx.workflowEngine 服务不可用，导致所有子卡执行失败： | — |
 | [工作日志索引（L3 证据档案）](work-logs/README.md) | index | living | 某个时间点「当时做了什么、为什么这么做、结论是什么」。按月份倒序列出全部工作日志。 | 2026-09-14 |
 
-### 架构与生命周期 · `docs/architecture`（34 页）
+### 架构与生命周期 · `docs/architecture`（38 页）
 
 | 页 | type | status | 一句话 | 更新 |
 |---|---|---|---|---|
@@ -38,6 +38,7 @@ tags: [index, wiki]
 | [a-grade-signal-auto-execution.md](architecture/a-grade-signal-auto-execution.md) | — | — | 解决当前"信号产生但不执行"的问题，建立A级信号到交易执行的自动化闭环，提高信号转化率从<2%到>50%。 | — |
 | [账户模型与边界](architecture/accounts-and-boundaries.md) | architecture | living | 系统里有哪些账户、是谁的、我怎么知道自己该操作哪个。 | 2026-09-13 |
 | [agent-dh 是什么（子项目说明书）](architecture/agent-dh-overview.md) | manual | living | agent-dh 在系统里的位置、运行时长什么样、代码怎么组织、改动怎么生效。 | 2026-09-13 |
+| [agent-teams-subtask-execution.md](architecture/agent-teams-subtask-execution.md) | — | — | 宿主把 Agent Teams 暴露为 cordis 服务 ctx.agentTeams（@deepseek-ai/dsh-experimental-agent-team 的 TeamSer… | — |
 | [auto-reduce-position-system.md](architecture/auto-reduce-position-system.md) | — | — | 自动识别并执行减仓操作，防止亏损扩大，锁定盈利。 | — |
 | [数据契约与新鲜度](architecture/data-contracts-and-freshness.md) | architecture | living | 数据从哪来、契约长什么样、怎么判断"这批数能不能用"。 | 2026-09-13 |
 | [数据库表设计对比分析报告](architecture/database-table-comparison.md) | architecture | living | v2 数据库表设计与文档的对比分析（结论：simulation_* 表设计更好），2026-08-25。 | 2026-09-14 |
@@ -55,9 +56,12 @@ tags: [index, wiki]
 | [六立项类型的流程差异（reqboard）](architecture/reqboard-category-flows.md) | architecture | living | feature/bug/refactor/spike/doc/chore 六类需求各自走什么节点、过哪些门、哪里生效哪里是缺口——以代码为准的实测记录。 | 2026-09-23 |
 | [reqboard-design-stage.md](architecture/reqboard-design-stage.md) | — | — | 根据 REQ-2d1c74 扩展，feature 需求的设计阶段必须交付以下文档： | — |
 | [reqboard-dive-mode.md](architecture/reqboard-dive-mode.md) | — | — | Dive 模式是项目看板（reqboard）的自动流程控制机制，实现需求从立项到归档的自动化推进，减少人工干预，提高执行效率。 | — |
+| [需求流水线「唤醒」通道缺失 —— H4 空转 × Dive 永不介入（根因分析与修复方案）](architecture/reqboard-dive-wake-defect.md) | architecture | living | 人点头推进阶段后无人唤醒 agent 的根因与证据：闸门链 H4 无条件 skip（把唤醒委托给 Dive），而 Dive 起轮门槛 armed+active 全仓 0 命中（83/83 需… | 2026-09-28 |
 | [reqboard-doc-path-contract.md](architecture/reqboard-doc-path-contract.md) | — | — | 登记产物/文档路径时必须归一，历史遗留的下列写法由归一层在读取时兜底： | — |
+| [实施自动链（父卡/子卡）执行流程与缺陷落点](architecture/reqboard-implement-chain-flow.md) | architecture | living | implementing 阶段 autoRun 自动链的真实调用链（入口→选择器→子卡执行→凭证门→收尾/暂停）、2026-09-27 REQ-260927123256-196b 卡链实测暴… | 2026-09-27 |
 | [节点详情面板（锚定式 node-panel）](architecture/reqboard-node-panel.md) | architecture | living | 会话流程条节点点开后的就地面板：锚定在流程条下方右侧、无遮罩无底栏；「基础信息」按节点给该看的，「执行流程」把该阶段提示词的纪律与真实台账做规定 vs 实际对照；实施节点改 DAG·泳道双视… | 2026-09-23 |
 | [需求流水线节点流程图（RTM 生成点 · 人工门 · Dive 参与点）](architecture/reqboard-pipeline-flow.md) | architecture | living | draft→archived 七节点的实际动作、RTM 产出文件、五道人工门与 Dive 两半参与点的 ASCII 流程图；附投递白名单与缺陷落点 D1–D13（含修复状态）。 | 2026-09-27 |
+| [reqboard 任务存储：按需求分片的队列文件（queue.json）](architecture/reqboard-queue-storage.md) | architecture | living | 任务卡的唯一存储是 docs/requirements/<REQ>/queue.json（含 DAG 层级与 ready 队列），台账瘦身为 schemaVersion 9；拆分写队列、执行… | 2026-09-28 |
 | [需求节点详情系统（stage-detail）](architecture/reqboard-stage-detail.md) | architecture | living | 会话框流程条节点点开看详情：StageDetail 契约 + 模板模式双端装配 + 分类流程档案 + 产物闸门 + 追溯链 + 接力任务卡 + 前端工作记录渲染器；含子任务层与自动链控制面（… | 2026-09-21 |
 | [需求看板的 Token 消耗（过程消耗 + 提示词成本）](architecture/reqboard-token-usage.md) | architecture | living | 看板怎么记录与展示「每个流程节点/每个任务」的 token 消耗，以及固定系统提示词与 reqboard 注入提示词的成本；含缺失语义与自检命令。 | 2026-09-18 |
 | [需求归档规范（reqboard 执行细则）](architecture/requirement-archive.md) | architecture | living | 需求归档执行细则：归档要备哪些材料、合并去向怎么定、代码在哪校验。 | 2026-09-13 |
@@ -160,7 +164,7 @@ tags: [index, wiki]
 |---|---|---|---|---|
 | [事件查询使用示例（P1-4）](examples/event-query-examples.md) | doc | living | 事件查询两个工具的实战示例（盘前例行、个股排雷等）。 | 2026-09-14 |
 
-### 包内入口页（怎么用这个包） · `packages`（136 页）
+### 包内入口页（怎么用这个包） · `packages`（141 页）
 
 | 页 | type | status | 一句话 | 更新 |
 |---|---|---|---|---|
@@ -189,6 +193,11 @@ tags: [index, wiki]
 | [SESSION-FLOW-VS-RTM-COMPARISON.md](../packages/web/dsh-pmboard/SESSION-FLOW-VS-RTM-COMPARISON.md) | — | — | — | — |
 | [STAGE-OVERVIEW-WRITE-STRATEGY.md](../packages/web/dsh-pmboard/STAGE-OVERVIEW-WRITE-STRATEGY.md) | — | — | 1. ❌ StageOverview 从来不写入 | — |
 | [WORKFLOW-IN-RTM-ANALYSIS.md](../packages/web/dsh-pmboard/WORKFLOW-IN-RTM-ANALYSIS.md) | — | — | 1. Workflow 是执行细节，不是追溯关系 | — |
+| [dive-submit-confirm-order-fix-report.md](../packages/web/dsh-pmboard/dive-submit-confirm-order-fix-report.md) | — | — | — | — |
+| [reqboard-submit-validation-summary.md](../packages/web/dsh-pmboard/reqboard-submit-validation-summary.md) | — | — | — | — |
+| [rtm-files-complete-catalog.md](../packages/web/dsh-pmboard/rtm-files-complete-catalog.md) | — | — | — | — |
+| [rtm-generation-triggers-complete.md](../packages/web/dsh-pmboard/rtm-generation-triggers-complete.md) | — | — | — | — |
+| [rtm-three-core-files-detail.md](../packages/web/dsh-pmboard/rtm-three-core-files-detail.md) | — | — | — | — |
 | [bug.md](../packages/web/dsh-pmboard/src/domain/prompt/fragments/accepting/bug.md) | — | — | — | — |
 | [chore.md](../packages/web/dsh-pmboard/src/domain/prompt/fragments/accepting/chore.md) | — | — | — | — |
 | [doc.md](../packages/web/dsh-pmboard/src/domain/prompt/fragments/accepting/doc.md) | — | — | — | — |

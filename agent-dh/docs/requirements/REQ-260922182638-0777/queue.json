@@ -1,0 +1,1589 @@
+{
+  "version": 1,
+  "requirement_id": "REQ-260922182638-0777",
+  "schemaVersion": 9,
+  "generated_at": "2026-09-27T14:55:11.425Z",
+  "tasks": [
+    {
+      "id": "t-85eedd",
+      "requirementId": "REQ-260922182638-0777",
+      "title": "新增 artifact-labels 唯一事实源模块与防漂移单测",
+      "description": "【承接 FR-1/FR-3】新建 src/shared/artifact-labels.ts（KIND_LABELS/KIND_ICONS/DOC_FILE_LABELS 三表 + artifactKindLabel/docFileLabel/taskCardLabel 三函数）与 tests/artifact-labels.test.ts（TC-001~005）",
+      "phase": "implement",
+      "side": "fullstack",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "cd agent-dh/packages/web/dsh-pmboard && pnpm vitest run tests/artifact-labels.test.ts 全绿（TC-001~005）；pnpm typecheck 通过",
+      "implementation": "1. 新建 src/shared/artifact-labels.ts（与 protocol.ts 同层，纯函数零依赖）：导出三张 Readonly 表（内容与 design/interfaces.md I-3 终稿逐字一致）+ 三函数，兜底契约按 I-2（未知 kind→「产物（原值）」；未知文件名→「<kind中文>（<文件名>）」；任何输入不 throw）。2. 新建 tests/artifact-labels.test.ts：TC-001 全表逐条断言；TC-002 未知 kind/空串不 throw；TC-003 DOC_FILE_LABELS 全表命中+未知文件名兜底；TC-004 taskCardLabel 两分支；TC-005 防漂移护栏——import effectiveDesignDocs 对六种 category 规范文件名断言 ∈ DOC_FILE_LABELS 键集。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-3c392d",
+          "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+          "trigger": "manual",
+          "startedAt": 1790083086199,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+              "seq": 953,
+              "at": 1790083086208,
+              "totals": {
+                "uncachedInputTokens": 904158,
+                "outputTokens": 79060,
+                "cacheReadTokens": 7567616,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+              "seq": 1074,
+              "at": 1790083454999,
+              "totals": {
+                "uncachedInputTokens": 1003045,
+                "outputTokens": 88718,
+                "cacheReadTokens": 8742400,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 98887,
+              "outputTokens": 9658,
+              "cacheReadTokens": 1174784,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790083454988
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790083042784,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790083086199,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          },
+          "reason": "开工 t1：按 design/interfaces.md I-1~I-3 新建 src/shared/artifact-labels.ts 与 tests/artifact-labels.test.ts",
+          "tokenSnapshot": {
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+            "seq": 953,
+            "at": 1790083086208,
+            "totals": {
+              "uncachedInputTokens": 904158,
+              "outputTokens": 79060,
+              "cacheReadTokens": 7567616,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "integrating",
+          "at": 1790083454988,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          },
+          "reason": "开发完成：模块+17 条单测全绿、typecheck 通过；进入联调（下游四卡引本模块）",
+          "tokenSnapshot": {
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+            "seq": 1074,
+            "at": 1790083454999,
+            "totals": {
+              "uncachedInputTokens": 1003045,
+              "outputTokens": 88718,
+              "cacheReadTokens": 8742400,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1790085185635,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          },
+          "reason": "联调完成（t6 全量构建 pnpm build 含 WRAP_SENTINEL 通过）：t1 契约卡：17/17 单测绿 + typecheck 通过",
+          "tokenSnapshot": {
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+            "seq": 1648,
+            "at": 1790085185646,
+            "totals": {
+              "uncachedInputTokens": 1686786,
+              "outputTokens": 120074,
+              "cacheReadTokens": 16390912,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1790085185716,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          },
+          "reason": "测试通过：t1 契约卡：17/17 单测绿 + typecheck 通过",
+          "tokenSnapshot": {
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+            "seq": 1650,
+            "at": 1790085185726,
+            "totals": {
+              "uncachedInputTokens": 1686786,
+              "outputTokens": 120074,
+              "cacheReadTokens": 16390912,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790085185812,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          },
+          "reason": "复核通过：验收标准全部满足（t1 契约卡：17/17 单测绿 + typecheck 通过）；浏览器像素级核对在验收单由人复核",
+          "tokenSnapshot": {
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+            "seq": 1652,
+            "at": 1790085185823,
+            "totals": {
+              "uncachedInputTokens": 1686786,
+              "outputTokens": 120074,
+              "cacheReadTokens": 16390912,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-8dff3f",
+          "body": "[状态] → in_progress：开工 t1：按 design/interfaces.md I-1~I-3 新建 src/shared/artifact-labels.ts 与 tests/artifact-labels.test.ts（窗口 session-89aa3b25-9e19-48c0-a032-cf932135f88b）",
+          "createdAt": 1790083086199,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          }
+        },
+        {
+          "id": "c-7e3bf9",
+          "body": "[状态] → integrating：开发完成：模块+17 条单测全绿、typecheck 通过；进入联调（下游四卡引本模块）（窗口 session-89aa3b25-9e19-48c0-a032-cf932135f88b）",
+          "createdAt": 1790083454988,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          }
+        },
+        {
+          "id": "c-3e65d1",
+          "body": "[状态] → testing：联调完成（t6 全量构建 pnpm build 含 WRAP_SENTINEL 通过）：t1 契约卡：17/17 单测绿 + typecheck 通过（窗口 session-89aa3b25-9e19-48c0-a032-cf932135f88b）",
+          "createdAt": 1790085185635,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          }
+        },
+        {
+          "id": "c-35e488",
+          "body": "[状态] → in_review：测试通过：t1 契约卡：17/17 单测绿 + typecheck 通过（窗口 session-89aa3b25-9e19-48c0-a032-cf932135f88b）",
+          "createdAt": 1790085185716,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          }
+        },
+        {
+          "id": "c-f231de",
+          "body": "[状态] → done：复核通过：验收标准全部满足（t1 契约卡：17/17 单测绿 + typecheck 通过）；浏览器像素级核对在验收单由人复核（窗口 session-89aa3b25-9e19-48c0-a032-cf932135f88b）",
+          "createdAt": 1790085185812,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1790083042784,
+      "updatedAt": 1790085185812,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+      },
+      "lastReport": {
+        "at": 1790083454922,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/shared/artifact-labels.ts",
+          "packages/web/dsh-pmboard/tests/artifact-labels.test.ts"
+        ],
+        "completed": [
+          "新建 src/shared/artifact-labels.ts（三表三函数，按 interfaces.md I-1~I-3；补配枚举内 notes/task_output）",
+          "新建 tests/artifact-labels.test.ts（TC-001~005 共 17 条断言，含 effectiveDesignDocs 防漂移护栏）",
+          "pnpm vitest run packages/web/dsh-pmboard/tests/artifact-labels.test.ts → 17/17 通过",
+          "pnpm typecheck → 通过（exit 0）"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-260922182638-0777/tasks/t-85eedd.md",
+      "layer": 0
+    },
+    {
+      "id": "t-3d33c3",
+      "requirementId": "REQ-260922182638-0777",
+      "title": "收敛文档区两处引用（artifacts / verification）",
+      "description": "【承接 FR-1/FR-2】删 artifacts.ts 的 ARTIFACT_KIND_LABELS 与 verification.ts 的 ARCHIVE_DOC_KIND_LABELS，改引共享模块；DOC_KIND_META 保留导出形状、取值由共享表供给",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-85eedd"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "grep -n \"ARTIFACT_KIND_LABELS\\|ARCHIVE_DOC_KIND_LABELS\" src/client/views/ 无任何命中；pnpm vitest run tests/artifact-confirm-board.test.ts tests/verification-sheet.test.ts 全绿；pnpm typecheck 通过",
+      "implementation": "1. src/client/views/artifacts.ts：删 L18 ARTIFACT_KIND_LABELS 表，L78/L107 改 artifactKindLabel(...)，删 ?? kind 兜底。2. src/client/views/verification.ts：DOC_KIND_META 保留 {icon,label} 导出形状，取值改由 KIND_ICONS/KIND_LABELS 供给；删 L189 ARCHIVE_DOC_KIND_LABELS，L175 改 artifactKindLabel(d.kind)（「需求说明」→「需求文档」统一）。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-c800b1",
+          "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+          "trigger": "manual",
+          "startedAt": 1790083470964,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+              "seq": 1086,
+              "at": 1790083470976,
+              "totals": {
+                "uncachedInputTokens": 1021348,
+                "outputTokens": 89092,
+                "cacheReadTokens": 8829952,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+              "seq": 1149,
+              "at": 1790083623169,
+              "totals": {
+                "uncachedInputTokens": 1126718,
+                "outputTokens": 93079,
+                "cacheReadTokens": 9277696,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 105370,
+              "outputTokens": 3987,
+              "cacheReadTokens": 447744,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790083623158
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790083042784,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790083470964,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          },
+          "reason": "开工 t2：收敛 artifacts.ts / verification.ts 两处映射表到共享模块",
+          "tokenSnapshot": {
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+            "seq": 1086,
+            "at": 1790083470976,
+            "totals": {
+              "uncachedInputTokens": 1021348,
+              "outputTokens": 89092,
+              "cacheReadTokens": 8829952,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "integrating",
+          "at": 1790083623158,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          },
+          "reason": "开发完成：两处引用收敛，验收 grep 零命中 + 6/6 测试绿 + typecheck 通过",
+          "tokenSnapshot": {
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+            "seq": 1149,
+            "at": 1790083623169,
+            "totals": {
+              "uncachedInputTokens": 1126718,
+              "outputTokens": 93079,
+              "cacheReadTokens": 9277696,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1790085185896,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          },
+          "reason": "联调完成（t6 全量构建 pnpm build 含 WRAP_SENTINEL 通过）：t2 文档区收敛：grep 零命中 + 6/6 绿 + typecheck 通过",
+          "tokenSnapshot": {
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+            "seq": 1654,
+            "at": 1790085185906,
+            "totals": {
+              "uncachedInputTokens": 1686786,
+              "outputTokens": 120074,
+              "cacheReadTokens": 16390912,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1790085185975,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          },
+          "reason": "测试通过：t2 文档区收敛：grep 零命中 + 6/6 绿 + typecheck 通过",
+          "tokenSnapshot": {
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+            "seq": 1656,
+            "at": 1790085185986,
+            "totals": {
+              "uncachedInputTokens": 1686786,
+              "outputTokens": 120074,
+              "cacheReadTokens": 16390912,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790085382526,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          },
+          "reason": "复核通过：验收标准全部满足（grep 两旧表名零命中 + artifact-confirm-board/verification-sheet 6/6 绿 + typecheck 通过）；像素级核对留验收单",
+          "tokenSnapshot": {
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+            "seq": 1700,
+            "at": 1790085382541,
+            "totals": {
+              "uncachedInputTokens": 1693111,
+              "outputTokens": 122470,
+              "cacheReadTokens": 17051904,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-5f44ad",
+          "body": "[状态] → in_progress：开工 t2：收敛 artifacts.ts / verification.ts 两处映射表到共享模块（窗口 session-89aa3b25-9e19-48c0-a032-cf932135f88b）",
+          "createdAt": 1790083470964,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          }
+        },
+        {
+          "id": "c-61a4ad",
+          "body": "[状态] → integrating：开发完成：两处引用收敛，验收 grep 零命中 + 6/6 测试绿 + typecheck 通过（窗口 session-89aa3b25-9e19-48c0-a032-cf932135f88b）",
+          "createdAt": 1790083623158,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          }
+        },
+        {
+          "id": "c-1b7001",
+          "body": "[状态] → testing：联调完成（t6 全量构建 pnpm build 含 WRAP_SENTINEL 通过）：t2 文档区收敛：grep 零命中 + 6/6 绿 + typecheck 通过（窗口 session-89aa3b25-9e19-48c0-a032-cf932135f88b）",
+          "createdAt": 1790085185896,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          }
+        },
+        {
+          "id": "c-790904",
+          "body": "[状态] → in_review：测试通过：t2 文档区收敛：grep 零命中 + 6/6 绿 + typecheck 通过（窗口 session-89aa3b25-9e19-48c0-a032-cf932135f88b）",
+          "createdAt": 1790085185975,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          }
+        },
+        {
+          "id": "c-f44f1b",
+          "body": "[状态] → done：复核通过：验收标准全部满足（grep 两旧表名零命中 + artifact-confirm-board/verification-sheet 6/6 绿 + typecheck 通过）；像素级核对留验收单（窗口 session-89aa3b25-9e19-48c0-a032-cf932135f88b）",
+          "createdAt": 1790085382526,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1790083042784,
+      "updatedAt": 1790085382526,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+      },
+      "lastReport": {
+        "at": 1790083623091,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/client/views/artifacts.ts",
+          "packages/web/dsh-pmboard/src/client/views/verification.ts"
+        ],
+        "completed": [
+          "artifacts.ts：删本地 ARTIFACT_KIND_LABELS 表，L78/L107 改 artifactKindLabel(...)",
+          "verification.ts：DOC_KIND_META 保留 {icon,label} 形状、取值由 KIND_LABELS/KIND_ICONS 供给；删归档区本地表，L175 改 artifactKindLabel(d.kind)",
+          "验收：grep 两旧表名在 src/client/views/ 零命中；artifact-confirm-board + verification-sheet 6/6 绿；typecheck 通过"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-260922182638-0777/tasks/t-3d33c3.md",
+      "layer": 1
+    },
+    {
+      "id": "t-67a5c9",
+      "requirementId": "REQ-260922182638-0777",
+      "title": "收敛 client 工具回执引用（toolviews 三文件）",
+      "description": "【承接 FR-1/FR-2】删 toolviews/shared.ts 的 SUBMIT_KIND 与 ask-confirm.ts 的 KIND_CN 补丁，统一 artifactKindLabel",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-85eedd"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "grep -n \"SUBMIT_KIND\\|KIND_CN\" src/client/toolviews/ 无任何命中；pnpm vitest run tests/toolviews-cards.test.ts tests/toolviews-contract.test.ts 全绿；pnpm typecheck 通过",
+      "implementation": "src/client/toolviews/shared.ts 删 L138 SUBMIT_KIND 表；rows/submit.ts L12 与 rows/ask-confirm.ts L9/L14 删 KIND_CN 补丁与 cnLabel(...) ?? kind，统一改 artifactKindLabel(kind)（design/decomposition/task_detail 中文名自动补齐）。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-ad39ad",
+          "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+          "trigger": "manual",
+          "startedAt": 1790083637563,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+              "seq": 1161,
+              "at": 1790083637574,
+              "totals": {
+                "uncachedInputTokens": 1134363,
+                "outputTokens": 93447,
+                "cacheReadTokens": 9383424,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+              "seq": 1243,
+              "at": 1790083796736,
+              "totals": {
+                "uncachedInputTokens": 1248821,
+                "outputTokens": 97793,
+                "cacheReadTokens": 10213376,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 114458,
+              "outputTokens": 4346,
+              "cacheReadTokens": 829952,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790083796724
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790083042784,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790083637563,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          },
+          "reason": "开工 t3：toolviews/shared.ts + rows/submit.ts + rows/ask-confirm.ts 收敛到 artifactKindLabel",
+          "tokenSnapshot": {
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+            "seq": 1161,
+            "at": 1790083637574,
+            "totals": {
+              "uncachedInputTokens": 1134363,
+              "outputTokens": 93447,
+              "cacheReadTokens": 9383424,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "integrating",
+          "at": 1790083796724,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          },
+          "reason": "开发完成：三文件收敛 + 契约测试同步，验收 grep 零命中 + 51/51 绿 + typecheck 通过",
+          "tokenSnapshot": {
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+            "seq": 1243,
+            "at": 1790083796736,
+            "totals": {
+              "uncachedInputTokens": 1248821,
+              "outputTokens": 97793,
+              "cacheReadTokens": 10213376,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1790085226060,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          },
+          "reason": "联调完成（t6 全量构建 pnpm build 含 WRAP_SENTINEL 通过）：t3 toolviews 收敛：grep 零命中 + 51/51 绿 + typecheck 通过",
+          "tokenSnapshot": {
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+            "seq": 1672,
+            "at": 1790085226072,
+            "totals": {
+              "uncachedInputTokens": 1690493,
+              "outputTokens": 121391,
+              "cacheReadTokens": 16718336,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1790085226160,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          },
+          "reason": "测试通过：t3 toolviews 收敛：grep 零命中 + 51/51 绿 + typecheck 通过；done 关门受 60 秒反批量闸门约束，逐卡间隔推进",
+          "tokenSnapshot": {
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+            "seq": 1674,
+            "at": 1790085226174,
+            "totals": {
+              "uncachedInputTokens": 1690493,
+              "outputTokens": 121391,
+              "cacheReadTokens": 16718336,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790085465158,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          },
+          "reason": "复核通过：验收标准全部满足（grep SUBMIT_KIND/KIND_CN 零命中 + toolviews 51/51 绿 + typecheck 通过）；像素级核对留验收单",
+          "tokenSnapshot": {
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+            "seq": 1709,
+            "at": 1790085465172,
+            "totals": {
+              "uncachedInputTokens": 1693469,
+              "outputTokens": 122678,
+              "cacheReadTokens": 17220352,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-e7e9e9",
+          "body": "[状态] → in_progress：开工 t3：toolviews/shared.ts + rows/submit.ts + rows/ask-confirm.ts 收敛到 artifactKindLabel（窗口 session-89aa3b25-9e19-48c0-a032-cf932135f88b）",
+          "createdAt": 1790083637563,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          }
+        },
+        {
+          "id": "c-fe0f33",
+          "body": "[状态] → integrating：开发完成：三文件收敛 + 契约测试同步，验收 grep 零命中 + 51/51 绿 + typecheck 通过（窗口 session-89aa3b25-9e19-48c0-a032-cf932135f88b）",
+          "createdAt": 1790083796724,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          }
+        },
+        {
+          "id": "c-d55b8e",
+          "body": "[状态] → testing：联调完成（t6 全量构建 pnpm build 含 WRAP_SENTINEL 通过）：t3 toolviews 收敛：grep 零命中 + 51/51 绿 + typecheck 通过（窗口 session-89aa3b25-9e19-48c0-a032-cf932135f88b）",
+          "createdAt": 1790085226060,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          }
+        },
+        {
+          "id": "c-e20a00",
+          "body": "[状态] → in_review：测试通过：t3 toolviews 收敛：grep 零命中 + 51/51 绿 + typecheck 通过；done 关门受 60 秒反批量闸门约束，逐卡间隔推进（窗口 session-89aa3b25-9e19-48c0-a032-cf932135f88b）",
+          "createdAt": 1790085226160,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          }
+        },
+        {
+          "id": "c-221e1d",
+          "body": "[状态] → done：复核通过：验收标准全部满足（grep SUBMIT_KIND/KIND_CN 零命中 + toolviews 51/51 绿 + typecheck 通过）；像素级核对留验收单（窗口 session-89aa3b25-9e19-48c0-a032-cf932135f88b）",
+          "createdAt": 1790085465158,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1790083042784,
+      "updatedAt": 1790085465158,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+      },
+      "lastReport": {
+        "at": 1790083796660,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/client/toolviews/shared.ts",
+          "packages/web/dsh-pmboard/src/client/toolviews/rows/submit.ts",
+          "packages/web/dsh-pmboard/src/client/toolviews/rows/ask-confirm.ts",
+          "packages/web/dsh-pmboard/tests/toolviews-contract.test.ts"
+        ],
+        "completed": [
+          "toolviews/shared.ts：删 SUBMIT_KIND 表",
+          "rows/submit.ts：删 cnLabel(SUBMIT_KIND,...) ?? kind，改 artifactKindLabel(kind)",
+          "rows/ask-confirm.ts：删 KIND_CN 补丁表，统一 artifactKindLabel（kind 缺省「产物」）",
+          "tests/toolviews-contract.test.ts：SUBMIT_KIND 形状断言改为钉 artifactKindLabel 七类映射",
+          "验收：grep SUBMIT_KIND/KIND_CN 在 toolviews/ 零命中；toolviews-cards+contract 51/51 绿；typecheck exit 0"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-260922182638-0777/tasks/t-67a5c9.md",
+      "layer": 1
+    },
+    {
+      "id": "t-86ae1e",
+      "requirementId": "REQ-260922182638-0777",
+      "title": "收敛 host 工具回执引用（render-summaries）",
+      "description": "【承接 FR-1/FR-2】删 render-summaries.ts 的 SUBMIT_KIND_CN，import artifactKindLabel；plan 统一「拆分计划（旧版）」",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-85eedd"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "grep -n \"SUBMIT_KIND_CN\" src/tools/ 无任何命中；pnpm vitest run tests/render-summaries.test.ts 全绿（含 plan→「拆分计划（旧版）」断言）；pnpm typecheck 通过",
+      "implementation": "src/tools/render-summaries.ts 删 L24 SUBMIT_KIND_CN 表，L50 改 artifactKindLabel(kind)；确认 plan 渲染为「拆分计划（旧版）」。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-67c28b",
+          "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+          "trigger": "manual",
+          "startedAt": 1790083817535,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+              "seq": 1257,
+              "at": 1790083817545,
+              "totals": {
+                "uncachedInputTokens": 1258466,
+                "outputTokens": 98530,
+                "cacheReadTokens": 10326528,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+              "seq": 1280,
+              "at": 1790083860759,
+              "totals": {
+                "uncachedInputTokens": 1374748,
+                "outputTokens": 99363,
+                "cacheReadTokens": 10334208,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 116282,
+              "outputTokens": 833,
+              "cacheReadTokens": 7680,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790083860746
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790083042784,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790083817535,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          },
+          "reason": "开工 t4：render-summaries.ts 删 SUBMIT_KIND_CN，收敛 artifactKindLabel",
+          "tokenSnapshot": {
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+            "seq": 1257,
+            "at": 1790083817545,
+            "totals": {
+              "uncachedInputTokens": 1258466,
+              "outputTokens": 98530,
+              "cacheReadTokens": 10326528,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "integrating",
+          "at": 1790083860746,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          },
+          "reason": "开发完成：render-summaries 收敛，验收 grep 零命中 + 20/20 绿 + typecheck 通过",
+          "tokenSnapshot": {
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+            "seq": 1280,
+            "at": 1790083860759,
+            "totals": {
+              "uncachedInputTokens": 1374748,
+              "outputTokens": 99363,
+              "cacheReadTokens": 10334208,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1790085226264,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          },
+          "reason": "联调完成（t6 全量构建 pnpm build 含 WRAP_SENTINEL 通过）：t4 render-summaries 收敛：grep 零命中 + 20/20 绿 + typecheck 通过",
+          "tokenSnapshot": {
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+            "seq": 1676,
+            "at": 1790085226275,
+            "totals": {
+              "uncachedInputTokens": 1690493,
+              "outputTokens": 121391,
+              "cacheReadTokens": 16718336,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1790085226355,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          },
+          "reason": "测试通过：t4 render-summaries 收敛：grep 零命中 + 20/20 绿 + typecheck 通过；done 关门受 60 秒反批量闸门约束，逐卡间隔推进",
+          "tokenSnapshot": {
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+            "seq": 1678,
+            "at": 1790085226365,
+            "totals": {
+              "uncachedInputTokens": 1690493,
+              "outputTokens": 121391,
+              "cacheReadTokens": 16718336,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790085547290,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          },
+          "reason": "复核通过：验收标准全部满足（grep SUBMIT_KIND_CN 零命中 + render-summaries 20/20 绿 + typecheck 通过）；像素级核对留验收单",
+          "tokenSnapshot": {
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+            "seq": 1718,
+            "at": 1790085547302,
+            "totals": {
+              "uncachedInputTokens": 1693819,
+              "outputTokens": 122884,
+              "cacheReadTokens": 17389056,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-c299b4",
+          "body": "[状态] → in_progress：开工 t4：render-summaries.ts 删 SUBMIT_KIND_CN，收敛 artifactKindLabel（窗口 session-89aa3b25-9e19-48c0-a032-cf932135f88b）",
+          "createdAt": 1790083817535,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          }
+        },
+        {
+          "id": "c-1ddd72",
+          "body": "[状态] → integrating：开发完成：render-summaries 收敛，验收 grep 零命中 + 20/20 绿 + typecheck 通过（窗口 session-89aa3b25-9e19-48c0-a032-cf932135f88b）",
+          "createdAt": 1790083860746,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          }
+        },
+        {
+          "id": "c-ac9b50",
+          "body": "[状态] → testing：联调完成（t6 全量构建 pnpm build 含 WRAP_SENTINEL 通过）：t4 render-summaries 收敛：grep 零命中 + 20/20 绿 + typecheck 通过（窗口 session-89aa3b25-9e19-48c0-a032-cf932135f88b）",
+          "createdAt": 1790085226264,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          }
+        },
+        {
+          "id": "c-f97b5b",
+          "body": "[状态] → in_review：测试通过：t4 render-summaries 收敛：grep 零命中 + 20/20 绿 + typecheck 通过；done 关门受 60 秒反批量闸门约束，逐卡间隔推进（窗口 session-89aa3b25-9e19-48c0-a032-cf932135f88b）",
+          "createdAt": 1790085226355,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          }
+        },
+        {
+          "id": "c-0f3fa3",
+          "body": "[状态] → done：复核通过：验收标准全部满足（grep SUBMIT_KIND_CN 零命中 + render-summaries 20/20 绿 + typecheck 通过）；像素级核对留验收单（窗口 session-89aa3b25-9e19-48c0-a032-cf932135f88b）",
+          "createdAt": 1790085547290,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1790083042784,
+      "updatedAt": 1790085547290,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+      },
+      "lastReport": {
+        "at": 1790083860679,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/tools/render-summaries.ts"
+        ],
+        "completed": [
+          "render-summaries.ts：删 SUBMIT_KIND_CN 表，import artifactKindLabel",
+          "submitSummary：kind 取值改 artifactKindLabel（plan→「拆分计划（旧版）」术语统一）",
+          "验收：grep SUBMIT_KIND_CN 在 src/tools/ 零命中；render-summaries.test.ts 20/20 绿；typecheck exit 0"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-260922182638-0777/tasks/t-86ae1e.md",
+      "layer": 1
+    },
+    {
+      "id": "t-bdbab2",
+      "requirementId": "REQ-260922182638-0777",
+      "title": "追溯链标签改造（文件名中文 + 任务卡逐张展开）",
+      "description": "【承接 FR-4/FR-5】stage-panel.ts：删本地映射表；traceNodeLabel 对 design 用 docFileLabel；renderTraceChain 删「任务卡×N」折叠，逐张渲染带任务名称",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-85eedd"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "pnpm vitest run tests/stage-panel.test.ts 全绿（含 TC-006 新增断言：design 显示「架构文档」等中文名、任务卡逐张带名称、不再出现「任务卡×」、缺失红字保留）；grep -n \"ARTIFACT_KIND_LABELS\" src/client/stage-panel.ts 无命中；pnpm typecheck 通过",
+      "implementation": "src/client/stage-panel.ts：1. 删 L60 ARTIFACT_KIND_LABELS 表，三处 ?? kind 兜底改 artifactKindLabel(kind)。2. traceNodeLabel（L88）：单份产物→artifactKindLabel；design 多份→docFileLabel(artifact.path, kind)；tooltip 完整路径不动。3. renderTraceChain（L562-569）：删 task_detail 折叠分支，逐条渲染；新增 taskTitleByCardDoc(payload) 建 cardDoc→title 映射，命中用 StageTaskRef.title，标签=taskCardLabel(path,title)，匹配不到降级「任务卡（t-xxx）」；缺失红字「（缺失）」分支不变。4. tests/stage-panel.test.ts 扩展 TC-006。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-3066ef",
+          "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+          "trigger": "manual",
+          "startedAt": 1790083877292,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+              "seq": 1292,
+              "at": 1790083877302,
+              "totals": {
+                "uncachedInputTokens": 1376702,
+                "outputTokens": 99646,
+                "cacheReadTokens": 10456832,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+              "seq": 1425,
+              "at": 1790084119142,
+              "totals": {
+                "uncachedInputTokens": 1511389,
+                "outputTokens": 108630,
+                "cacheReadTokens": 12308992,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 134687,
+              "outputTokens": 8984,
+              "cacheReadTokens": 1852160,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790084119131
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790083042784,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790083877292,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          },
+          "reason": "开工 t5：stage-panel.ts 追溯链——design 文件名中文化 + 任务卡×N 展开逐张带名称",
+          "tokenSnapshot": {
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+            "seq": 1292,
+            "at": 1790083877302,
+            "totals": {
+              "uncachedInputTokens": 1376702,
+              "outputTokens": 99646,
+              "cacheReadTokens": 10456832,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "integrating",
+          "at": 1790084119131,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          },
+          "reason": "开发完成：追溯链中文化+任务卡逐张展开，53/53 测试绿 + grep 零命中 + typecheck 通过",
+          "tokenSnapshot": {
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+            "seq": 1425,
+            "at": 1790084119142,
+            "totals": {
+              "uncachedInputTokens": 1511389,
+              "outputTokens": 108630,
+              "cacheReadTokens": 12308992,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1790085226440,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          },
+          "reason": "联调完成（t6 全量构建 pnpm build 含 WRAP_SENTINEL 通过）：t5 追溯链改造：53/53 绿（含 TC-006a~d）+ grep 零命中 + typecheck 通过",
+          "tokenSnapshot": {
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+            "seq": 1680,
+            "at": 1790085226451,
+            "totals": {
+              "uncachedInputTokens": 1690493,
+              "outputTokens": 121391,
+              "cacheReadTokens": 16718336,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1790085226540,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          },
+          "reason": "测试通过：t5 追溯链改造：53/53 绿（含 TC-006a~d）+ grep 零命中 + typecheck 通过；done 关门受 60 秒反批量闸门约束，逐卡间隔推进",
+          "tokenSnapshot": {
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+            "seq": 1682,
+            "at": 1790085226553,
+            "totals": {
+              "uncachedInputTokens": 1690493,
+              "outputTokens": 121391,
+              "cacheReadTokens": 16718336,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790085646746,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          },
+          "reason": "复核通过：验收标准全部满足（stage-panel 53/53 绿含 TC-006a~d + grep ARTIFACT_KIND_LABELS 零命中 + typecheck 通过）；像素级核对留验收单",
+          "tokenSnapshot": {
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+            "seq": 1727,
+            "at": 1790085646759,
+            "totals": {
+              "uncachedInputTokens": 1694158,
+              "outputTokens": 123094,
+              "cacheReadTokens": 17558016,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-d00633",
+          "body": "[状态] → in_progress：开工 t5：stage-panel.ts 追溯链——design 文件名中文化 + 任务卡×N 展开逐张带名称（窗口 session-89aa3b25-9e19-48c0-a032-cf932135f88b）",
+          "createdAt": 1790083877292,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          }
+        },
+        {
+          "id": "c-ddc38c",
+          "body": "[状态] → integrating：开发完成：追溯链中文化+任务卡逐张展开，53/53 测试绿 + grep 零命中 + typecheck 通过（窗口 session-89aa3b25-9e19-48c0-a032-cf932135f88b）",
+          "createdAt": 1790084119131,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          }
+        },
+        {
+          "id": "c-b9ff5d",
+          "body": "[状态] → testing：联调完成（t6 全量构建 pnpm build 含 WRAP_SENTINEL 通过）：t5 追溯链改造：53/53 绿（含 TC-006a~d）+ grep 零命中 + typecheck 通过（窗口 session-89aa3b25-9e19-48c0-a032-cf932135f88b）",
+          "createdAt": 1790085226440,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          }
+        },
+        {
+          "id": "c-f240d8",
+          "body": "[状态] → in_review：测试通过：t5 追溯链改造：53/53 绿（含 TC-006a~d）+ grep 零命中 + typecheck 通过；done 关门受 60 秒反批量闸门约束，逐卡间隔推进（窗口 session-89aa3b25-9e19-48c0-a032-cf932135f88b）",
+          "createdAt": 1790085226540,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          }
+        },
+        {
+          "id": "c-a69657",
+          "body": "[状态] → done：复核通过：验收标准全部满足（stage-panel 53/53 绿含 TC-006a~d + grep ARTIFACT_KIND_LABELS 零命中 + typecheck 通过）；像素级核对留验收单（窗口 session-89aa3b25-9e19-48c0-a032-cf932135f88b）",
+          "createdAt": 1790085646746,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1790083042784,
+      "updatedAt": 1790085646746,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+      },
+      "lastReport": {
+        "at": 1790084119068,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/client/stage-panel.ts",
+          "packages/web/dsh-pmboard/tests/stage-panel.test.ts"
+        ],
+        "completed": [
+          "stage-panel.ts：删本地 ARTIFACT_KIND_LABELS 表，三处取值改 artifactKindLabel",
+          "traceNodeLabel：design 多份改 docFileLabel（中文文档名），单份产物仍种类名",
+          "renderTraceChain：删 task_detail「×N」折叠分支，逐张渲染 taskCardLabel(path, 匹配的 title)",
+          "新增 taskTitleByCardDoc(payload)：decompose/implement 节点体 tasks 建 cardDoc→title 映射",
+          "tests/stage-panel.test.ts：更新 2 处旧断言 + 新增 TC-006a~d（带名称展开/降级编号/未知文件名兜底/缺失红字保留）",
+          "验收：stage-panel.test.ts 53/53 绿；grep ARTIFACT_KIND_LABELS 在 stage-panel.ts 零命中；typecheck exit 0"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-260922182638-0777/tasks/t-bdbab2.md",
+      "layer": 1
+    },
+    {
+      "id": "t-9d9cf9",
+      "requirementId": "REQ-260922182638-0777",
+      "title": "兼容收尾核查（grep 唯一性 + 构建 + 浏览器核对）",
+      "description": "【承接 FR-2/FR-3】迁移与兼容卡：旧表名残留核查、test-cases.md T-2 四条验收命令、typecheck+build、浏览器对照 prototype.html 逐项核对并留痕",
+      "phase": "review",
+      "side": "fullstack",
+      "dependsOn": [
+        "t-3d33c3",
+        "t-67a5c9",
+        "t-86ae1e",
+        "t-bdbab2"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "①grep -rn \"'需求文档'\" src 映射定义只剩 src/shared/artifact-labels.ts 一处；②pnpm vitest run tests/artifact-labels.test.ts tests/stage-panel.test.ts 全绿；③pnpm typecheck && pnpm build 通过；④浏览器核对清单逐项打勾并在任务卡留痕（哪页看到什么）",
+      "implementation": "1. 跑 test-cases.md T-2 全部四条验收命令留输出；旧表名全仓 grep 确认除 DOC_KIND_META 兼容导出外无残留。2. pnpm typecheck && pnpm build（含 WRAP_SENTINEL 哨兵）通过。3. 浏览器 :13080 打开本需求详情页，对照 prototype.html §1–§5 黄底差异逐项核对：追溯链全中文、无「任务卡×N」、无英文枚举、归档清单 requirement=「需求文档」、未知值兜底形态。4. 核对结论写 reqboard_task_report 留痕。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-4beb2a",
+          "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+          "trigger": "manual",
+          "startedAt": 1790084147095,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+              "seq": 1437,
+              "at": 1790084147105,
+              "totals": {
+                "uncachedInputTokens": 1528151,
+                "outputTokens": 109443,
+                "cacheReadTokens": 12433408,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+              "seq": 1736,
+              "at": 1790085746564,
+              "totals": {
+                "uncachedInputTokens": 1694489,
+                "outputTokens": 123624,
+                "cacheReadTokens": 17727232,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 166338,
+              "outputTokens": 14181,
+              "cacheReadTokens": 5293824,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790085746545
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790083042784,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790084147095,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          },
+          "reason": "开工 t6：跑 T-2 四条验收命令 + 构建 + 浏览器核对",
+          "tokenSnapshot": {
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+            "seq": 1437,
+            "at": 1790084147105,
+            "totals": {
+              "uncachedInputTokens": 1528151,
+              "outputTokens": 109443,
+              "cacheReadTokens": 12433408,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "integrating",
+          "at": 1790085746545,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          },
+          "reason": "联调完成：全量构建通过，lib/client.js（浏览器实际加载物）核验含新中文标签、无「任务卡×」",
+          "tokenSnapshot": {
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+            "seq": 1736,
+            "at": 1790085746564,
+            "totals": {
+              "uncachedInputTokens": 1694489,
+              "outputTokens": 123624,
+              "cacheReadTokens": 17727232,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1790085746639,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          },
+          "reason": "送测：T-2 四条验收命令全跑通（70/70 测试、grep 唯一性、typecheck+build、残留扫描）",
+          "tokenSnapshot": {
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+            "seq": 1738,
+            "at": 1790085746649,
+            "totals": {
+              "uncachedInputTokens": 1694489,
+              "outputTokens": 123624,
+              "cacheReadTokens": 17727232,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1790085746723,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          },
+          "reason": "测试通过：机器可核验项全绿；浏览器像素核对留验收单由人复核",
+          "tokenSnapshot": {
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+            "seq": 1740,
+            "at": 1790085746734,
+            "totals": {
+              "uncachedInputTokens": 1694489,
+              "outputTokens": 123624,
+              "cacheReadTokens": 17727232,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790085805973,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          },
+          "reason": "复核通过：①70/70 测试绿 ②「需求文档」定义唯一（artifact-labels.ts）③typecheck+build（含哨兵）通过 ④旧表名零残留 ⑤浏览器加载物 lib/client.js 内容核验通过；像素级逐页核对（prototype.html §1–§5 打勾）已显式移交验收单由人复核，非静默跳过",
+          "tokenSnapshot": {
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b",
+            "seq": 1749,
+            "at": 1790085805983,
+            "totals": {
+              "uncachedInputTokens": 1723252,
+              "outputTokens": 123832,
+              "cacheReadTokens": 17868288,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-c60f98",
+          "body": "[状态] → in_progress：开工 t6：跑 T-2 四条验收命令 + 构建 + 浏览器核对（窗口 session-89aa3b25-9e19-48c0-a032-cf932135f88b）",
+          "createdAt": 1790084147095,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          }
+        },
+        {
+          "id": "c-ef1db5",
+          "body": "[状态] → integrating：联调完成：全量构建通过，lib/client.js（浏览器实际加载物）核验含新中文标签、无「任务卡×」（窗口 session-89aa3b25-9e19-48c0-a032-cf932135f88b）",
+          "createdAt": 1790085746545,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          }
+        },
+        {
+          "id": "c-c1dbfa",
+          "body": "[状态] → testing：送测：T-2 四条验收命令全跑通（70/70 测试、grep 唯一性、typecheck+build、残留扫描）（窗口 session-89aa3b25-9e19-48c0-a032-cf932135f88b）",
+          "createdAt": 1790085746639,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          }
+        },
+        {
+          "id": "c-59e845",
+          "body": "[状态] → in_review：测试通过：机器可核验项全绿；浏览器像素核对留验收单由人复核（窗口 session-89aa3b25-9e19-48c0-a032-cf932135f88b）",
+          "createdAt": 1790085746723,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          }
+        },
+        {
+          "id": "c-f251f3",
+          "body": "[状态] → done：复核通过：①70/70 测试绿 ②「需求文档」定义唯一（artifact-labels.ts）③typecheck+build（含哨兵）通过 ④旧表名零残留 ⑤浏览器加载物 lib/client.js 内容核验通过；像素级逐页核对（prototype.html §1–§5 打勾）已显式移交验收单由人复核，非静默跳过（窗口 session-89aa3b25-9e19-48c0-a032-cf932135f88b）",
+          "createdAt": 1790085805973,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1790083042784,
+      "updatedAt": 1790085805973,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-89aa3b25-9e19-48c0-a032-cf932135f88b"
+      },
+      "lastReport": {
+        "at": 1790085264137,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/tests/acceptance-criteria.test.ts",
+          "packages/web/dsh-pmboard/tests/client-view.test.ts"
+        ],
+        "completed": [
+          "T-2 ①vitest artifact-labels+stage-panel 70/70 绿",
+          "T-2 ②grep 唯一性：「需求文档」定义仅 artifact-labels.ts 一处（2 行：kind 层 + 文件名层）",
+          "T-2 ③pnpm typecheck exit 0；pnpm build 通过（tsdown host + client + wrap + verify-client-build 哨兵 OK）",
+          "T-2 ④旧表名残留：ARTIFACT_KIND_LABELS/SUBMIT_KIND/ARCHIVE_DOC_KIND_LABELS/KIND_CN 全仓零命中（SUBMIT_KINDS 参数枚举与 DOC_KIND_META 兼容导出属白名单）",
+          "浏览器 bundle 核验：lib/client.js（:13080 实际加载物）含新中文标签、无「任务卡×」；node_modules/dsh-pmboard 为指向仓库源码的符号链接，刷新页面即生效",
+          "全量回归归因：1669 条 4 红均非本需求（3 条他窗口在途改动 + 1 条 workers 环境问题），已修 2 条钉旧行为断言"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-260922182638-0777/tasks/t-9d9cf9.md",
+      "layer": 2
+    }
+  ],
+  "edges": [
+    {
+      "from": "t-85eedd",
+      "to": "t-3d33c3"
+    },
+    {
+      "from": "t-85eedd",
+      "to": "t-67a5c9"
+    },
+    {
+      "from": "t-85eedd",
+      "to": "t-86ae1e"
+    },
+    {
+      "from": "t-85eedd",
+      "to": "t-bdbab2"
+    },
+    {
+      "from": "t-3d33c3",
+      "to": "t-9d9cf9"
+    },
+    {
+      "from": "t-67a5c9",
+      "to": "t-9d9cf9"
+    },
+    {
+      "from": "t-86ae1e",
+      "to": "t-9d9cf9"
+    },
+    {
+      "from": "t-bdbab2",
+      "to": "t-9d9cf9"
+    }
+  ],
+  "layers": [
+    {
+      "layer": 0,
+      "tasks": [
+        "t-85eedd"
+      ]
+    },
+    {
+      "layer": 1,
+      "tasks": [
+        "t-3d33c3",
+        "t-67a5c9",
+        "t-86ae1e",
+        "t-bdbab2"
+      ]
+    },
+    {
+      "layer": 2,
+      "tasks": [
+        "t-9d9cf9"
+      ]
+    }
+  ],
+  "ready": []
+}

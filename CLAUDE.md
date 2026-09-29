@@ -34,14 +34,15 @@ The system's intelligence is measured by one metric: **sustained profitability**
        ↓ Configure            ↑ Monitor
        
 ┌──────────────────┐      ┌─────────────────┐
-│   agent-ts       │      │  web-frontend   │
+│   agent-dh       │      │  web-frontend   │
 │  (AI Employee)   │──────│  (Monitoring)   │
-│                  │ Data │                 │
-│ 🤖 Autonomous:   │ Trail│ 📊 Visualize:   │
-│ • Scheduled tasks│      │ • Agent logs    │
-│ • Active monitor │      │ • Pool changes  │
-│ • Auto decision  │      │ • Signal history│
-│ • Smart response │      │ • Decisions     │
+│  DSH Profile     │ Data │                 │
+│                  │ Trail│ 📊 Visualize:   │
+│ 🤖 Autonomous:   │      │ • Agent logs    │
+│ • Scheduled tasks│      │ • Pool changes  │
+│ • Active monitor │      │ • Signal history│
+│ • Auto decision  │      │ • Decisions     │
+│ • Smart response │      │ • Requirements  │
 └────────┬─────────┘      └────────┬────────┘
          ↓ API Calls               ↓ Query
          
@@ -53,24 +54,26 @@ The system's intelligence is measured by one metric: **sustained profitability**
 └─────────────────────────────────────────────────┘
 ```
 
-### 1. agent-ts (AI Employee)
+### 1. agent-dh (AI Employee - DSH Profile)
 
-**Location**: `./agent-ts/`
+**Location**: `./agent-dh/`
 
-**Role**: Autonomous AI agent that:
+**Role**: Autonomous AI agent (DeepSeek Harness Profile) that:
 - Executes scheduled investment tasks
 - Makes trading decisions independently
 - Monitors markets and responds to opportunities
-- Learns from results (self-improvement)
+- Learns from results (self-improvement via genome evolution)
+- Manages requirements and development tasks
 
 **Key Features**:
-- Built on DeepSeek model
-- Tool-based architecture (60+ investment tools)
-- Scheduled task system (cron-like)
-- Session management with conversation history
-- Multi-channel integration (CLI, TUI, Feishu bot)
+- Built on DeepSeek Harness framework
+- Plugin-based architecture (60+ investment tools)
+- Genome system (constitution/principles/rules/lessons)
+- Scheduled task system (Agent OS integration)
+- Requirement board (REQ pipeline)
+- Multi-channel integration (Web UI, CLI, Feishu bot)
 
-**See**: [agent-ts/CLAUDE.md](agent-ts/CLAUDE.md) for detailed documentation.
+**See**: [agent-dh/CLAUDE.md](agent-dh/CLAUDE.md) for detailed documentation.
 
 ### 2. quantsys-v2 (Backend Service)
 
@@ -88,6 +91,7 @@ The system's intelligence is measured by one metric: **sustained profitability**
 - PostgreSQL database
 - Multi-data-source abstraction (akshare, eastmoney, sina, etc.)
 - Circuit breaker and cache system
+- Provider framework with fault tolerance
 
 **See**: [quantsys-v2/CLAUDE.md](quantsys-v2/CLAUDE.md) for detailed documentation.
 
@@ -107,6 +111,8 @@ The system's intelligence is measured by one metric: **sustained profitability**
 - Real-time updates via WebSocket
 - Historical data visualization
 
+**Note**: Agent-DH also provides web UI via DSH framework (port 13080) with page plugins.
+
 ## System Intelligence Design
 
 ### Agent Autonomy
@@ -115,9 +121,25 @@ The agent operates on **scheduled tasks** and **event-driven triggers**, not jus
 
 **Examples**:
 - **Daily 02:00**: Refresh dynamic stock pools, validate strategies
-- **Daily 09:00**: Scan buy signals before market opens
+- **Daily 09:00**: Scan buy signals before market opens (session-briefing)
 - **Daily 15:30**: Analyze day's performance, adjust positions
 - **Weekly**: Review all pools, optimize parameters
+
+### Genome Evolution System
+
+The agent's decision-making is governed by a **genome system** (constitution/principles/rules/lessons):
+
+**Four Layers**:
+1. **Constitution** (不可修改) - Trading constraints (时段/制度/仓位/止损/数据驱动)
+2. **Principles** (可进化) - Core principles (博弈思维/风险控制/透明记录/链式扫描)
+3. **Rules** (可进化) - Operational rules (R-001 ~ R-020+, 买入确认/卖出确认/信号分级等)
+4. **Lessons** (可进化) - Experience learned from results
+
+**Evolution Process**:
+- Candidate versions go through validation gate
+- Observational period with A/B testing
+- Promote to active or rollback based on performance
+- Version history tracked with git integration
 
 ### Game Theory in Stock Pools
 
@@ -145,6 +167,19 @@ Every agent operation is logged to quantsys-v2 database:
 
 This enables the agent to improve decision quality over time.
 
+## Key Concepts (术语表)
+
+| 术语 | 一句话解释 | 细节在哪 |
+|---|---|---|
+| **DSH Profile** | DeepSeek Harness 的装载单元；agent-dh 是本项目的 profile | [agent-dh/CLAUDE.md](agent-dh/CLAUDE.md) |
+| **插件 (Plugin)** | DSH 的功能单元；用 `defineTool` 注册工具 | [agent-dh/docs/](agent-dh/docs/README.md) |
+| **基因组 (Genome)** | Agent 的宪法/原则/规则/教训四段提示词，可进化、有版本与验证门 | [RFC 006-008](docs/rfcs/) |
+| **需求看板 (reqboard)** | 需求 → 任务两级流水线：立项 → 需求分析 → 技术设计 → 拆分 → 实施 → 验收 → 归档（7 态） | [RFC 014](agent-dh/docs/rfcs/014-requirement-board.md) |
+| **任务队列 (queue.json)** | 任务卡的唯一存储：按需求分片的 `docs/requirements/<REQ>/queue.json` | [project-manual.md](docs/architecture/project-manual.md) |
+| **文档金字塔** | L1 说明书 / L2 领域篇 / L3 证据档案；归档让认知自下而上生长 | [DOCUMENT-MANAGEMENT-PLAN.md](docs/DOCUMENT-MANAGEMENT-PLAN.md) |
+| **多源 provider 框架** | quantsys-v2 取数的唯一入口，提供故障转移/熔断/健康排序 | quantsys-v2 adapters/outbound/datasources/manager.py |
+| **诚实降级** | 无数据→显式 empty:true；上游损坏→拒绝返回；传输故障→None（进熔断） | [work-logs](docs/work-logs/) |
+
 ## Key Workflow Example
 
 ### Autonomous Daily Stock Pool Maintenance
@@ -168,56 +203,6 @@ Human user checks web dashboard in the morning:
   - Intervene only if needed
 ```
 
-## Stock Pool Game Theory Optimization
-
-Based on our discussion, stock pools need enhancements to support game-theoretic intelligence:
-
-### P0 - Required for Competitive Intelligence
-
-1. **Opponent Behavior Tracking**
-   - API: `GET /api/market/opponent-behavior`
-   - Returns: retail sentiment, institution flows, hot-money activity
-   - Use: Agent identifies when opponents are making mistakes
-
-2. **Pool Risk Assessment with Game Analysis**
-   - API: `GET /api/pools/{id}/risk-assessment`
-   - Returns: risk signals (institution exit, retail chase, volume spike)
-   - Use: Agent exits before traps, enters during panic
-
-3. **Battlefield Assessment**
-   - API: `GET /api/pools/battlefield-assessment`
-   - Returns: competitive advantage score for each pool
-   - Use: Agent prioritizes high-advantage battlefields
-
-4. **Real-time Game Alerts**
-   - WebSocket: `/ws/game-alerts`
-   - Pushes: opportunity alerts (panic selloff) and risk alerts (distribution phase)
-   - Use: Agent responds to fleeting opportunities
-
-### P1 - Enhanced Decision Support
-
-5. **Pool Health Time Series**
-   - Track pool quality trends over time
-   - Detect deterioration early
-
-6. **Attribution Analysis**
-   - Identify profit sources (stock selection vs timing vs sector allocation)
-   - Learn which screening criteria work
-
-7. **Manipulation Detection**
-   - Flag pump-and-dump schemes
-   - Identify post-manipulation bottom-fishing opportunities
-
-## 多会话并行工作规则（Worktree 隔离）
-
-本仓库常有多个 Claude 会话与人工并行工作。**修改代码必须创建 worktree，完成并合并后再提交 GitHub。**
-
-1. **每个独立工作线必须在独立 worktree 中开发**：`git worktree add .claude/worktrees/<name> -b feat/<name>`，不在共享主工作区直接做 feature 提交
-2. **会话开始先确认分支**：`git branch --show-current` 与预期不符时停手确认，不要在被切换的分支上继续提交
-3. **合并与推送**：工作线在 worktree 内完成并验证后，合并回 main（临时 worktree 或 PR），再推送 GitHub
-4. **禁止在脏工作区批量覆盖**：不执行 `git checkout <ref> -- .`、`git restore --source=<ref> .` 等命令；提交前 `git status` 出现不属于自己的改动 = 停手信号，只 add 自己任务的文件
-5. **IP/端口约定**：worktree 中因测试改 IP/端口的，合并前必须改回固定值（见 agent-ts/CLAUDE.md 固定端口表）
-
 ## Development Guidelines
 
 ### Agent Tool Development
@@ -227,6 +212,7 @@ When creating tools for the agent:
 2. **Include opponent analysis** when relevant
 3. **Suggest actions** with confidence scores
 4. **Provide audit trails** for learning
+5. **Follow schema rules** - every `type: 'object'` must have `additionalProperties: true|false`
 
 ### Quantsys-v2 API Design
 
@@ -235,6 +221,7 @@ When adding APIs:
 2. **Include "why"** in responses (explain anomalies, trends)
 3. **Support time-series queries** for pattern recognition
 4. **Log all operations** for agent learning
+5. **Use provider framework** for data sources (fault tolerance)
 
 ### Web Frontend Visualization
 
@@ -279,11 +266,6 @@ channel = FeishuChannel(...)
 channel.send(...)  # FORBIDDEN
 ```
 
-**Consequences of violation:**
-- Code review rejection
-- CI check failure (if CI exists)
-- Runtime monitoring alert
-
 **Reference:**
 - Notification dev guide: `docs/guides/notification-development-guide.md`
 - WatchEngine tiered design: `docs/rfcs/011-watch-engine-tiered-notification.md`
@@ -292,14 +274,15 @@ channel.send(...)  # FORBIDDEN
 
 ```
 pi-investment/
-├── agent-ts/              # AI agent (TypeScript)
-│   ├── src/
-│   │   ├── core/         # Agent loop, session management
-│   │   ├── infrastructure/
-│   │   │   ├── tools/    # 60+ investment tools
-│   │   │   └── adapters/ # Data source adapters
-│   │   └── services/     # Business logic
-│   └── CLAUDE.md         # Agent-specific docs
+├── agent-dh/              # AI agent (DeepSeek Harness Profile)
+│   ├── packages/          # Plugin packages (tools/pages/runtime/client)
+│   │   ├── tools/         # Investment tools (17 plugins, 60+ tools)
+│   │   ├── pages/         # Web page plugins (7 plugins)
+│   │   ├── runtime/       # Runtime management
+│   │   └── bundle/        # Business domain bundles
+│   ├── apps/web/          # Web application shell
+│   ├── .dsh-data/         # DSH_HOME (data directory)
+│   └── CLAUDE.md          # Agent-DH specific docs
 │
 ├── quantsys-v2/          # Backend service (Python)
 │   ├── api/              # Flask REST + WebSocket
@@ -312,6 +295,13 @@ pi-investment/
 │       └── views/        # Dashboard pages
 │
 ├── docs/                 # Shared documentation
+│   ├── architecture/     # Architecture documentation
+│   ├── rfcs/             # Design proposals
+│   ├── adr/              # Architecture decision records
+│   ├── guides/           # User guides
+│   ├── strategy-research/ # Strategy research
+│   └── work-logs/        # Work progress logs
+│
 └── CLAUDE.md            # This file
 ```
 
@@ -345,6 +335,16 @@ pi-investment/
 - 命名规范：kebab-case；ADR/RFC 用 `NNN-title.md` 数字编号；work-logs 用 `<project>-<type>.md`。
 - 完整规范与模板见 [docs/DOCUMENT-MANAGEMENT-PLAN.md](docs/DOCUMENT-MANAGEMENT-PLAN.md) 和 [docs/README.md](docs/README.md)。
 
+## 多会话并行工作规则（Worktree 隔离）
+
+本仓库常有多个 Claude 会话与人工并行工作。**修改代码必须创建 worktree，完成并合并后再提交 GitHub。**
+
+1. **每个独立工作线必须在独立 worktree 中开发**：`git worktree add .claude/worktrees/<name> -b feat/<name>`，不在共享主工作区直接做 feature 提交
+2. **会话开始先确认分支**：`git branch --show-current` 与预期不符时停手确认，不要在被切换的分支上继续提交
+3. **合并与推送**：工作线在 worktree 内完成并验证后，合并回 main（临时 worktree 或 PR），再推送 GitHub
+4. **禁止在脏工作区批量覆盖**：不执行 `git checkout <ref> -- .`、`git restore --source=<ref> .` 等命令；提交前 `git status` 出现不属于自己的改动 = 停手信号，只 add 自己任务的文件
+5. **IP/端口约定**：worktree 中因测试改 IP/端口的，合并前必须改回固定值（见 agent-dh/CLAUDE.md 固定端口表）
+
 ## Getting Started
 
 ### Start All Services
@@ -359,14 +359,14 @@ python start_all.py
 cd web-frontend
 npm run dev
 
-# 3. Start agent
-cd agent-ts
-npm run dev
+# 3. Start agent-dh (DSH Profile)
+cd agent-dh
+./scripts/start.sh  # Default port 13080
 ```
 
 ### Environment Variables
 
-Create `.env` in `agent-ts/` directory:
+Create `.env` in `agent-dh/` directory:
 
 ```bash
 # AI Model
@@ -395,7 +395,7 @@ TAVILY_API_KEY=...
 ### Learning vs Rule-Based
 
 ❌ **Traditional quant**: Fixed rules and parameters
-✅ **This system**: Agent learns from results and adapts
+✅ **This system**: Agent learns from results and adapts (genome evolution)
 
 ### Data Dump vs Intelligence
 
@@ -409,17 +409,27 @@ TAVILY_API_KEY=...
 
 ## Related Documentation
 
-- [Agent Architecture](agent-ts/CLAUDE.md)
-- [Backend API Reference](quantsys-v2/CLAUDE.md)
-- [Web Frontend Guide](web-frontend/CLAUDE.md)
-- [Stock Pool Game Theory](docs/stock-pool-game-theory.md) - Battlefield selection and opponent exploitation
-- [Agent Autonomy Guide](docs/agent-autonomy.md) - Autonomous operation and decision-making
-- [Game Theory Framework](docs/game-theory-framework.md) - Theoretical foundation and competitive intelligence
-- [文档中心](docs/README.md) - 文档索引与放置规范（[管理规范](docs/DOCUMENT-MANAGEMENT-PLAN.md)）
+- [Agent Architecture](agent-dh/CLAUDE.md) - Agent-DH DSH Profile
+- [Backend API Reference](quantsys-v2/CLAUDE.md) - Quantsys-v2 backend
+- [Web Frontend Guide](web-frontend/CLAUDE.md) - Monitoring dashboard
+- [Project Manual](docs/architecture/project-manual.md) - 项目说明书（L1）
+- [Documentation Index](docs/README.md) - 文档中心与索引
+- [RFC Index](docs/rfcs/) - Design proposals
+- [ADR Index](docs/adr/) - Architecture decisions
 
 ## Version History
 
-- 2026-08-18: Added 文档放置规范 - document placement rules (root keeps only README.md + CLAUDE.md)
+- 2026-09-27: 任务队列改为按需求分片的 queue.json；确认门改为真正阻塞；拆分→实施段不再静默
+- 2026-09-24: 盯盘通知改版上线（10 个频道专用群，降级机制，聚合回执）
+- 2026-09-22: 插件 bundle 化（三个业务域 bundle）；立项链路五处收口；看板产物用词收敛
+- 2026-09-20: Profile 布局更新（项目内 profile，DSH_HOME=.dsh-data）
+- 2026-09-18: 盯盘引擎重构为待办化闭环
+- 2026-09-17: 阶段提示词按节点×难度×类型路由注入；项目看板流程节点统一定义
+- 2026-09-14: 多源 provider 框架上线；文档金字塔与需求归档规范确立
+- 2026-09-13: Updated to agent-dh (DeepSeek Harness Profile)
+- 2026-08-21: Added agent identity system and multi-instance lifecycle rules
+- 2026-08-20: Added autonomy system (learning/evolution/genome)
+- 2026-08-18: Added 文档放置规范 - document placement rules
 - 2026-06-29: Documentation consolidation - created game theory framework docs
 - 2026-06-25: Added system philosophy, game theory framework, autonomous agent design
 - 2026-06-03: Initial three-layer architecture documentation

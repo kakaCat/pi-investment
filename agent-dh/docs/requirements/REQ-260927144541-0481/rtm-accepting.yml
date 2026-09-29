@@ -1,0 +1,284 @@
+metadata:
+  stage: accepting
+  requirement_id: REQ-260927144541-0481
+  generated_at: 2026-09-27T11:18:36.548Z
+  version: 3
+  generated_by: dsh-pmboard
+  last_updated: 2026-09-27T11:19:08.419Z
+inputs:
+  tasks:
+    - id: t-3e3ebb
+      title: 先定契约：任务/链工具的入参与返回长什么样
+      status: done
+    - id: t-d50859
+      title: 链只留一个入口：起链工具收口，别名不再各跑一套
+      status: done
+    - id: t-acd60f
+      title: 一眼看清父子：新增「父卡→子卡」结构查询
+      status: done
+    - id: t-039d31
+      title: 单卡状态说实话：改读台账执行记录，不再读没人写的旧段落
+      status: done
+    - id: t-ac97a2
+      title: 推错状态要说清：报错带上角色与合法边，验收标准能当场改
+      status: done
+    - id: t-507969
+      title: 超时归位：投递/查询类工具不再挂交互式长超时
+      status: done
+    - id: t-5e64cd
+      title: 门禁固化：声明与行为不一致由测试拦住
+      status: done
+    - id: t-bd7439
+      title: 兼容收尾：老调用方不退化 + 工具面与流程文档同步
+      status: done
+    - id: t-c42bc0
+      title: 先定契约：任务/链工具的入参与返回长什么样·研发
+      status: done
+    - id: t-91b37e
+      title: 先定契约：任务/链工具的入参与返回长什么样·联调
+      status: done
+    - id: t-52933e
+      title: 先定契约：任务/链工具的入参与返回长什么样·复核
+      status: done
+    - id: t-2838a8
+      title: 先定契约：任务/链工具的入参与返回长什么样·测试
+      status: done
+    - id: t-b079ef
+      title: 链只留一个入口：起链工具收口，别名不再各跑一套·研发
+      status: done
+    - id: t-4ef7ab
+      title: 链只留一个入口：起链工具收口，别名不再各跑一套·联调
+      status: done
+    - id: t-226f18
+      title: 链只留一个入口：起链工具收口，别名不再各跑一套·复核
+      status: done
+    - id: t-6fd3e4
+      title: 链只留一个入口：起链工具收口，别名不再各跑一套·测试
+      status: done
+    - id: t-3f8bb3
+      title: 一眼看清父子：新增「父卡→子卡」结构查询·研发
+      status: done
+    - id: t-4b44d7
+      title: 一眼看清父子：新增「父卡→子卡」结构查询·联调
+      status: done
+    - id: t-f42b5a
+      title: 一眼看清父子：新增「父卡→子卡」结构查询·复核
+      status: done
+    - id: t-ca640c
+      title: 一眼看清父子：新增「父卡→子卡」结构查询·测试
+      status: done
+    - id: t-2de564
+      title: 单卡状态说实话：改读台账执行记录，不再读没人写的旧段落·研发
+      status: done
+    - id: t-e2ccda
+      title: 单卡状态说实话：改读台账执行记录，不再读没人写的旧段落·联调
+      status: done
+    - id: t-ebe92d
+      title: 单卡状态说实话：改读台账执行记录，不再读没人写的旧段落·复核
+      status: done
+    - id: t-46d23f
+      title: 单卡状态说实话：改读台账执行记录，不再读没人写的旧段落·测试
+      status: done
+    - id: t-c65b1a
+      title: 推错状态要说清：报错带上角色与合法边，验收标准能当场改·研发
+      status: done
+    - id: t-061657
+      title: 推错状态要说清：报错带上角色与合法边，验收标准能当场改·联调
+      status: done
+    - id: t-c67876
+      title: 推错状态要说清：报错带上角色与合法边，验收标准能当场改·复核
+      status: done
+    - id: t-008040
+      title: 推错状态要说清：报错带上角色与合法边，验收标准能当场改·测试
+      status: done
+    - id: t-59916c
+      title: 超时归位：投递/查询类工具不再挂交互式长超时·研发
+      status: done
+    - id: t-d80c2b
+      title: 超时归位：投递/查询类工具不再挂交互式长超时·联调
+      status: done
+    - id: t-fc43f2
+      title: 超时归位：投递/查询类工具不再挂交互式长超时·复核
+      status: done
+    - id: t-773fbf
+      title: 超时归位：投递/查询类工具不再挂交互式长超时·测试
+      status: done
+    - id: t-b02159
+      title: 门禁固化：声明与行为不一致由测试拦住·研发
+      status: done
+    - id: t-022248
+      title: 门禁固化：声明与行为不一致由测试拦住·联调
+      status: done
+    - id: t-8ec036
+      title: 门禁固化：声明与行为不一致由测试拦住·复核
+      status: done
+    - id: t-5a4790
+      title: 门禁固化：声明与行为不一致由测试拦住·测试
+      status: done
+    - id: t-73e493
+      title: 兼容收尾：老调用方不退化 + 工具面与流程文档同步·研发
+      status: done
+    - id: t-3b7673
+      title: 兼容收尾：老调用方不退化 + 工具面与流程文档同步·联调
+      status: done
+    - id: t-bfe2a8
+      title: 兼容收尾：老调用方不退化 + 工具面与流程文档同步·复核
+      status: done
+    - id: t-417698
+      title: 兼容收尾：老调用方不退化 + 工具面与流程文档同步·测试
+      status: done
+outputs:
+  test_cases:
+    - id: TC-1
+      title: 五、任务→测试覆盖（covers 标注 · 验收覆盖度门禁用）
+      covers:
+        - t-3e3ebb
+        - t-contract
+        - t-c42bc0
+        - t-91b37e
+        - t-52933e
+        - t-2838a8
+        - t-d50859
+        - t-b079ef
+        - t-4ef7ab
+        - t-226f18
+        - t-6fd3e4
+        - t-acd60f
+        - t-3f8bb3
+        - t-4b44d7
+        - t-f42b5a
+        - t-ca640c
+        - t-039d31
+        - t-2de564
+        - t-e2ccda
+        - t-ebe92d
+        - t-46d23f
+        - t-ac97a2
+        - t-c65b1a
+        - t-061657
+        - t-c67876
+        - t-008040
+        - t-507969
+        - t-routing
+        - t-59916c
+        - t-d80c2b
+        - t-fc43f2
+        - t-773fbf
+        - t-5e64cd
+        - t-shapes
+        - t-b02159
+        - t-022248
+        - t-8ec036
+        - t-5a4790
+        - t-bd7439
+        - t-73e493
+        - t-3b7673
+        - t-bfe2a8
+        - t-417698
+      validates: []
+      source: tests/test-evidence.md
+traceability:
+  task_to_tests:
+    t-3e3ebb:
+      - TC-1
+    t-d50859:
+      - TC-1
+    t-acd60f:
+      - TC-1
+    t-039d31:
+      - TC-1
+    t-ac97a2:
+      - TC-1
+    t-507969:
+      - TC-1
+    t-5e64cd:
+      - TC-1
+    t-bd7439:
+      - TC-1
+    t-c42bc0:
+      - TC-1
+    t-91b37e:
+      - TC-1
+    t-52933e:
+      - TC-1
+    t-2838a8:
+      - TC-1
+    t-b079ef:
+      - TC-1
+    t-4ef7ab:
+      - TC-1
+    t-226f18:
+      - TC-1
+    t-6fd3e4:
+      - TC-1
+    t-3f8bb3:
+      - TC-1
+    t-4b44d7:
+      - TC-1
+    t-f42b5a:
+      - TC-1
+    t-ca640c:
+      - TC-1
+    t-2de564:
+      - TC-1
+    t-e2ccda:
+      - TC-1
+    t-ebe92d:
+      - TC-1
+    t-46d23f:
+      - TC-1
+    t-c65b1a:
+      - TC-1
+    t-061657:
+      - TC-1
+    t-c67876:
+      - TC-1
+    t-008040:
+      - TC-1
+    t-59916c:
+      - TC-1
+    t-d80c2b:
+      - TC-1
+    t-fc43f2:
+      - TC-1
+    t-773fbf:
+      - TC-1
+    t-b02159:
+      - TC-1
+    t-022248:
+      - TC-1
+    t-8ec036:
+      - TC-1
+    t-5a4790:
+      - TC-1
+    t-73e493:
+      - TC-1
+    t-3b7673:
+      - TC-1
+    t-bfe2a8:
+      - TC-1
+    t-417698:
+      - TC-1
+    t-contract:
+      - TC-1
+    t-routing:
+      - TC-1
+    t-shapes:
+      - TC-1
+  fr_to_tests:
+    FR-1: []
+    FR-2: []
+    FR-3: []
+    FR-4: []
+    FR-5: []
+    FR-6: []
+    FR-7: []
+coverage:
+  testing:
+    total: 40
+    covered: 40
+    uncovered: []
+    rate: 100
+    total_tasks: 40
+    tested_tasks: 40
+    untested: []

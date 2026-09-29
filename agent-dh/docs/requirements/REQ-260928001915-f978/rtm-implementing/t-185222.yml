@@ -1,0 +1,38 @@
+task:
+  id: t-185222
+  title: 实现 DAG 布局引擎·联调
+  status: done
+  implements: |-
+    编写 dag-layout.ts，实现 calculateLayout 函数，消费 queue.json 的 layers 和 tasks 数据，支持纵向/横向两种布局方向。纵向：按层级从上到下，同层折行；横向：按层级从左到右，同层纵向堆叠。返回每个节点的 (x, y) 坐标和画布尺寸。接收 FR-3。
+
+    [子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致
+  serves: []
+  depends_on:
+    - t-c11c61
+  phase: implement
+  side: frontend
+  workflow_params:
+    REQ_ID: REQ-260928001915-f978
+    TASK_ID: t-185222
+    TASK_TITLE: 实现 DAG 布局引擎·联调
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: frontend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-09-28T05:49:34.409Z
+    - phase: ui
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-260928001915-f978
+  generated_at: 2026-09-28T05:49:34.408Z
+  version: 2
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-09-28T05:49:34.409Z

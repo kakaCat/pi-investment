@@ -6,3 +6,16 @@
 - 2026-09-27T13:09:40.547Z [FINALIZE_PARENT] parent=t-87f0da subtask=- ok：父卡 t-87f0da 汇总子卡产出并收尾
 - 2026-09-27T13:09:40.761Z [OPEN_PARENT] parent=t-0e7fac subtask=- ok：父卡 t-0e7fac 自动开工并落子卡 4 张
 - 2026-09-27T13:25:57.056Z [RUN_SUBTASK] parent=t-0e7fac subtask=t-5be8c6 failed：子卡凭证不过：workflow run 未完成（stopReason=team_report_missing；team_report_missing）（REQBOARD_SUBTASK_GATE）
+- 2026-09-27T15:10:38.565Z [RUN_SUBTASK] parent=t-0e7fac subtask=t-5be8c6 ok：子卡 t-5be8c6 执行完成
+- 2026-09-27T15:11:33.163Z [RUN_SUBTASK] parent=t-0e7fac subtask=t-315ea1 ok：子卡 t-315ea1 执行完成
+- 2026-09-27T15:12:22.518Z [RUN_SUBTASK] parent=t-0e7fac subtask=t-1e2054 ok：子卡 t-1e2054 执行完成
+- 2026-09-27T15:12:40.855Z [RUN_SUBTASK] parent=t-0e7fac subtask=t-a21eb3 ok：子卡 t-a21eb3 执行完成
+- 2026-09-27T15:12:42.880Z [FINALIZE_PARENT] parent=t-0e7fac subtask=- ok：父卡 t-0e7fac 汇总子卡产出并收尾
+- 2026-09-27T15:12:43.048Z [OPEN_PARENT] parent=t-e77b06 subtask=- ok：父卡 t-e77b06 自动开工并落子卡 4 张
+- 2026-09-27T15:38:07.436Z [RUN_SUBTASK] parent=t-e77b06 subtask=t-c130ca failed：子卡 t-c130ca 派发缺少 agent 句柄：绑定窗口 session-3936d77f-2391-4042-8305-9b0fb5e9d2b8 不在线——请由该窗口调 reqboard_task_run 续跑（看板「继续」/启动恢复仅在窗口在线时可派发）
+- 2026-09-27T15:42:27.347Z [RUN_SUBTASK] parent=t-e77b06 subtask=t-c130ca ok：子卡 t-c130ca 执行完成
+- 2026-09-27T15:53:42.069Z [RUN_SUBTASK] parent=t-e77b06 subtask=t-6df9a0 ok：子卡 t-6df9a0 执行完成
+- 2026-09-27T15:58:27.399Z [RUN_SUBTASK] parent=t-e77b06 subtask=t-f4c9f5 ok：子卡 t-f4c9f5 执行完成
+- 2026-09-27T16:00:01.407Z [RUN_SUBTASK] parent=t-e77b06 subtask=t-10122a ok：子卡 t-10122a 执行完成
+- 2026-09-27T16:00:01.603Z [FINALIZE_PARENT] parent=t-e77b06 subtask=- ok：父卡 t-e77b06 汇总子卡产出并收尾
+- 2026-09-27T16:00:03.498Z [ROLLUP] parent=- subtask=- ok：需求已全部任务完成，滚进验收

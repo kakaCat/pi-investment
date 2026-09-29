@@ -1,0 +1,3210 @@
+{
+  "version": 1,
+  "requirement_id": "REQ-4842fe",
+  "schemaVersion": 9,
+  "generated_at": "2026-09-27T14:55:11.425Z",
+  "tasks": [
+    {
+      "id": "t-b0b327",
+      "requirementId": "REQ-4842fe",
+      "title": "domain：stageKind 枚举与子卡映射表",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "pnpm vitest run 中 SubtaskTemplate 用例全绿：8 类映射正确、未映射回退 dev→review、非法 stages（自由文本/空/重复）分别返回明确错误",
+      "implementation": "新增 src/domain/task/SubtaskTemplate.ts（纯数据+纯函数，零 I/O）：StageKind 联合类型、类型→子卡集合映射表（feature/refactor/bug/doc/chore/spike/research/data/ops/review-only，未映射回退 dev→review）、validateExplicitStages（枚举/非空/去重）、buildSubtaskSpecs（含链内依赖与 acceptance 模板）。新增 tests/SubtaskTemplate.spec.ts。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-e38dd0",
+          "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+          "trigger": "manual",
+          "startedAt": 1789928600099,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+              "seq": 1033,
+              "at": 1789928600109,
+              "totals": {
+                "uncachedInputTokens": 1604154,
+                "outputTokens": 154540,
+                "cacheReadTokens": 17300608,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+              "seq": 1136,
+              "at": 1789928677930,
+              "totals": {
+                "uncachedInputTokens": 1882676,
+                "outputTokens": 169466,
+                "cacheReadTokens": 20823424,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 278522,
+              "outputTokens": 14926,
+              "cacheReadTokens": 3522816,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1789928677920
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789928413297,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789928600099,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "开工：t1 映射表是所有后续卡的契约起点",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 1033,
+            "at": 1789928600109,
+            "totals": {
+              "uncachedInputTokens": 1604154,
+              "outputTokens": 154540,
+              "cacheReadTokens": 17300608,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789928677920,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "纯 domain 卡无前后端联调，跳过联调段进入测试：vitest 12/12 全绿 + tsc 通过",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 1136,
+            "at": 1789928677930,
+            "totals": {
+              "uncachedInputTokens": 1882676,
+              "outputTokens": 169466,
+              "cacheReadTokens": 20823424,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789928677998,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "测试完成：SubtaskTemplate 12/12 用例通过，typecheck 通过，client 产物已重建",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 1138,
+            "at": 1789928678011,
+            "totals": {
+              "uncachedInputTokens": 1882676,
+              "outputTokens": 169466,
+              "cacheReadTokens": 20823424,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789928678088,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "t1 完成：映射表与逃生舱口落地，证据见任务汇报（12/12 用例 + tsc + 构建校验）",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 1140,
+            "at": 1789928678097,
+            "totals": {
+              "uncachedInputTokens": 1882676,
+              "outputTokens": 169466,
+              "cacheReadTokens": 20823424,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-0a33a4",
+          "body": "[状态] → in_progress：开工：t1 映射表是所有后续卡的契约起点（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789928600099,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-d989f6",
+          "body": "[状态] → testing：纯 domain 卡无前后端联调，跳过联调段进入测试：vitest 12/12 全绿 + tsc 通过（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789928677920,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-700ac4",
+          "body": "[状态] → in_review：测试完成：SubtaskTemplate 12/12 用例通过，typecheck 通过，client 产物已重建（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789928677998,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-b982d7",
+          "body": "[状态] → done：t1 完成：映射表与逃生舱口落地，证据见任务汇报（12/12 用例 + tsc + 构建校验）（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789928678088,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1789928413297,
+      "updatedAt": 1789928678088,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+      },
+      "lastReport": {
+        "at": 1789928673982,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/pages/dsh-pmboard/src/domain/task/SubtaskTemplate.ts",
+          "packages/pages/dsh-pmboard/tests/domain/subtask-template.test.ts"
+        ],
+        "completed": [
+          "新增 src/domain/task/SubtaskTemplate.ts（纯数据 + 纯函数，零 I/O、不 import @deepseek-ai）",
+          "新增 tests/domain/subtask-template.test.ts 共 12 个用例，全部通过（含 1.1 八类映射、1.2 未映射回退、1.3/1.4 逃生舱口校验、链依赖与验收模板锚点）",
+          "顺序口径按用户裁定落地：review 在测试段之前，无测试段的以 review 收尾",
+          "修正两处测试假设与模板锚点问题（1.1b 断言与裁定不一致；fix/change 验收模板缺可证伪锚点）",
+          "npx tsc --noEmit 通过；pnpm build:client 重建 lib/client.js 并过 verify-client"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-4842fe/tasks/t-b0b327.md",
+      "layer": 0
+    },
+    {
+      "id": "t-89704e",
+      "requirementId": "REQ-4842fe",
+      "title": "domain：子卡四态状态机 + 人工门 + 需求回退转移",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-b0b327"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "子卡 in_progress→integrating 被拒；子卡失败 in_progress→todo 成功且 attempt+1；done→in_progress 仅人（agent 调用返回 REQBOARD_HUMAN_GATE）；implementing→design 仅人；legacy 卡转移行为不变\n验证：cd packages/pages/dsh-pmboard && npx vitest run tests/domain/subtask-status.test.ts tests/gate-catalog.test.ts → 全绿。",
+      "implementation": "改 src/domain/task/TaskStatus.ts：新增 SUBTASK_TRANSITIONS 与 role 参数，子卡禁入 integrating/testing/in_review；HUMAN_ONLY_TASK_TRANSITIONS 增 done>in_progress、done>canceled。改 src/domain/requirement/RequirementStatus.ts：implementing 增加 design 并列入 HUMAN_ONLY_REQ_TRANSITIONS。补单测。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-209b72",
+          "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+          "trigger": "manual",
+          "startedAt": 1789928786223,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+              "seq": 1435,
+              "at": 1789928786232,
+              "totals": {
+                "uncachedInputTokens": 2001170,
+                "outputTokens": 186985,
+                "cacheReadTokens": 24517376,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+              "seq": 1453,
+              "at": 1789928801892,
+              "totals": {
+                "uncachedInputTokens": 2162969,
+                "outputTokens": 189772,
+                "cacheReadTokens": 24695552,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 161799,
+              "outputTokens": 2787,
+              "cacheReadTokens": 178176,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1789928801883
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789928413297,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789928786223,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "开工 t2：先写失败测试再实现子卡四态与回退转移",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 1435,
+            "at": 1789928786232,
+            "totals": {
+              "uncachedInputTokens": 2001170,
+              "outputTokens": 186985,
+              "cacheReadTokens": 24517376,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "integrating",
+          "at": 1789928801883,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "t2 开发完成：子卡状态机与人工门落地（TaskStatus/RequirementStatus + 单测）",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 1453,
+            "at": 1789928801892,
+            "totals": {
+              "uncachedInputTokens": 2162969,
+              "outputTokens": 189772,
+              "cacheReadTokens": 24695552,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789928801949,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "t2 联调：纯 domain 改动，无接口面；跑 packages/pages/dsh-pmboard 全量单测确认无回归",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 1455,
+            "at": 1789928801956,
+            "totals": {
+              "uncachedInputTokens": 2162969,
+              "outputTokens": 189772,
+              "cacheReadTokens": 24695552,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789928802008,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "t2 测试通过：subtask-status 11 例 + task-status/requirement-status/reqboard/gate-catalog/message-hygiene 全绿",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 1457,
+            "at": 1789928802016,
+            "totals": {
+              "uncachedInputTokens": 2162969,
+              "outputTokens": 189772,
+              "cacheReadTokens": 24695552,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789928808446,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "t2 完成：client 产物已重建（verify-client 通过），单测全绿；此为实施窗口自检，最终验收由人工验收单裁决",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 1482,
+            "at": 1789928808453,
+            "totals": {
+              "uncachedInputTokens": 2168396,
+              "outputTokens": 190382,
+              "cacheReadTokens": 25208192,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-2b358c",
+          "body": "[状态] → in_progress：开工 t2：先写失败测试再实现子卡四态与回退转移（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789928786223,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-c03297",
+          "body": "[状态] → integrating：t2 开发完成：子卡状态机与人工门落地（TaskStatus/RequirementStatus + 单测）（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789928801883,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-2c8df0",
+          "body": "[状态] → testing：t2 联调：纯 domain 改动，无接口面；跑 packages/pages/dsh-pmboard 全量单测确认无回归（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789928801949,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-687a54",
+          "body": "[状态] → in_review：t2 测试通过：subtask-status 11 例 + task-status/requirement-status/reqboard/gate-catalog/message-hygiene 全绿（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789928802008,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-14c55e",
+          "body": "[状态] → done：t2 完成：client 产物已重建（verify-client 通过），单测全绿；此为实施窗口自检，最终验收由人工验收单裁决（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789928808446,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1789928413297,
+      "updatedAt": 1789931568134,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+      },
+      "lastReport": {
+        "at": 1789928796870,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/pages/dsh-pmboard/src/domain/task/TaskStatus.ts",
+          "packages/pages/dsh-pmboard/src/domain/requirement/RequirementStatus.ts",
+          "packages/pages/dsh-pmboard/src/domain/task/SubtaskTemplate.ts",
+          "packages/pages/dsh-pmboard/tests/domain/subtask-status.test.ts",
+          "packages/pages/dsh-pmboard/tests/gate-catalog.test.ts"
+        ],
+        "completed": [
+          "TaskStatus.ts 新增 TaskRole(parent/subtask/legacy) 与 SUBTASK_TRANSITIONS：子卡 in_progress→integrating/testing/in_review 一律 invalid_transition",
+          "TaskStatus.ts done 由绝对终态改为 ['in_progress','canceled']，并把 done>in_progress、done>canceled 列入 HUMAN_ONLY_TASK_TRANSITIONS",
+          "canTaskTransition/assertTaskTransition 增 role 入参（缺省 legacy，既有调用点零改动）",
+          "RequirementStatus.ts implementing 增 design 并列入 HUMAN_ONLY_REQ_TRANSITIONS（返工回上游，仅人）",
+          "新增 tests/domain/subtask-status.test.ts（11 例，覆盖 FR-5/FR-14/FR-15 与 legacy 兼容）",
+          "顺带修复 t1 遗留：SubtaskTemplate.ts 两处拼接式消息改 fmt（message-hygiene 门禁）；gate-catalog 反向锁区分「回退类」与「流水线确认门」"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-4842fe/tasks/t-89704e.md",
+      "layer": 1
+    },
+    {
+      "id": "t-b05389",
+      "requirementId": "REQ-4842fe",
+      "title": "数据契约扩展与迁移兼容",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-b0b327"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "旧台账（无新字段）可读且看板渲染正常、行为不变；重复触发懒展开子卡数量不变；悬空 parentId 触发 INV-1 校验错误\n验证：npx vitest run tests/acceptance-criteria.test.ts（老台账兼容读）；真实台账副本渲染：npx tsx /tmp/render-check.mts（输出 requirements/tasks 计数且零异常，脚本见 docs/requirements/REQ-4842fe/verification.md §3）。",
+      "implementation": "改 src/shared/protocol.ts：TaskRecord 增 parentId/stageKind/attempt/revisions（CardRevision，append-only），RequirementRecord 增 autoRun；补 INV-1/2/3 校验。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-5aed73",
+          "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+          "trigger": "manual",
+          "startedAt": 1789928815147,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+              "seq": 1489,
+              "at": 1789928815157,
+              "totals": {
+                "uncachedInputTokens": 2168854,
+                "outputTokens": 191869,
+                "cacheReadTokens": 25381632,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+              "seq": 1583,
+              "at": 1789928862698,
+              "totals": {
+                "uncachedInputTokens": 2343188,
+                "outputTokens": 200999,
+                "cacheReadTokens": 27038976,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 174334,
+              "outputTokens": 9130,
+              "cacheReadTokens": 1657344,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1789928862690
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789928413297,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789928815147,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "开工 t3：先补契约类型与不变量校验，再补测试",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 1489,
+            "at": 1789928815157,
+            "totals": {
+              "uncachedInputTokens": 2168854,
+              "outputTokens": 191869,
+              "cacheReadTokens": 25381632,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "integrating",
+          "at": 1789928862690,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "t3 开发完成：契约字段、Advance 类型与 INV-1/2/3 校验落地",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 1583,
+            "at": 1789928862698,
+            "totals": {
+              "uncachedInputTokens": 2343188,
+              "outputTokens": 200999,
+              "cacheReadTokens": 27038976,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789928862786,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "t3 联调：shared 契约纯类型与纯函数，typecheck + 单测验证",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 1585,
+            "at": 1789928862793,
+            "totals": {
+              "uncachedInputTokens": 2343188,
+              "outputTokens": 200999,
+              "cacheReadTokens": 27038976,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789928862850,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "t3 测试通过：subtask-contract 8 例 + typecheck 2 例全绿",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 1587,
+            "at": 1789928862858,
+            "totals": {
+              "uncachedInputTokens": 2343188,
+              "outputTokens": 200999,
+              "cacheReadTokens": 27038976,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789928991235,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "t3 完成：契约字段与 INV-1/2/3 校验落地 + client 产物重建；实施窗口自检",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 1827,
+            "at": 1789928991246,
+            "totals": {
+              "uncachedInputTokens": 2564173,
+              "outputTokens": 225825,
+              "cacheReadTokens": 32791808,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-18db56",
+          "body": "[状态] → in_progress：开工 t3：先补契约类型与不变量校验，再补测试（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789928815147,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-53876f",
+          "body": "[状态] → integrating：t3 开发完成：契约字段、Advance 类型与 INV-1/2/3 校验落地（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789928862690,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-4dcecf",
+          "body": "[状态] → testing：t3 联调：shared 契约纯类型与纯函数，typecheck + 单测验证（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789928862786,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-89d874",
+          "body": "[状态] → in_review：t3 测试通过：subtask-contract 8 例 + typecheck 2 例全绿（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789928862850,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-cc35ab",
+          "body": "[状态] → done：t3 完成：契约字段与 INV-1/2/3 校验落地 + client 产物重建；实施窗口自检（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789928991235,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1789928413297,
+      "updatedAt": 1789931568193,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+      },
+      "lastReport": {
+        "at": 1789928862643,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/pages/dsh-pmboard/src/shared/protocol.ts",
+          "packages/pages/dsh-pmboard/tests/subtask-contract.test.ts"
+        ],
+        "completed": [
+          "protocol.ts 新增 CardRevision（append-only 修订记录）与 TaskRecord 的 parentId/stageKind/attempt/revisions 可选字段",
+          "RequirementRecord 新增 autoRun（自动链开关）与 advance 运行状态容器",
+          "新增 AdvanceEvent/AdvanceRecord/AdvanceState 类型（推进事件留痕契约）",
+          "新增 taskRoleOf/isSubtask/subtasksOf 角色判定与派生（父卡不存子卡列表，由 parentId 反查）",
+          "新增 checkSubtaskInvariants/assertSubtaskInvariants（INV-1 悬空父卡 / INV-2 角色字段互斥 / INV-3 幂等展开）",
+          "StageTaskRef 增 parentId/stageKind/attempt 供看板展示",
+          "新增 tests/subtask-contract.test.ts（8 例）覆盖契约与不变量；typecheck 零错误"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-4842fe/tasks/t-b05389.md",
+      "layer": 1
+    },
+    {
+      "id": "t-1cfe9f",
+      "requirementId": "REQ-4842fe",
+      "title": "WorkflowRunner 端口 + 引擎 adapter + 脚本契约门禁",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-b0b327"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "含 ctx.subagent 的脚本在生成阶段即被门禁拒绝；真实引擎冒烟：最简脚本跑通且 stopReason=completed、dispose 后无悬挂；引擎缺失时显式失败（不静默成功）\n验证：npx vitest run tests/workflow-script-contract.test.ts；真实引擎冒烟：npx tsx packages/pages/dsh-pmboard/scripts/workflow-engine-smoke.ts（输出 stopReason=completed）。",
+      "implementation": "application/ports.ts 增 WorkflowRunner 端口；新增 adapters/WorkflowEngineRunner.ts 唯一封装 ctx.workflowEngine.start（await run.result + finally dispose，stopReason 非 completed 翻译为 ok:false）；新增子卡脚本生成器（仅 agent/phase/log）与静态门禁 assertScriptContract（hook 白名单）。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-5c0d74",
+          "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+          "trigger": "manual",
+          "startedAt": 1789928868461,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+              "seq": 1603,
+              "at": 1789928868471,
+              "totals": {
+                "uncachedInputTokens": 2359600,
+                "outputTokens": 201989,
+                "cacheReadTokens": 27403392,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+              "seq": 1831,
+              "at": 1789928991358,
+              "totals": {
+                "uncachedInputTokens": 2564173,
+                "outputTokens": 225825,
+                "cacheReadTokens": 32791808,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 204573,
+              "outputTokens": 23836,
+              "cacheReadTokens": 5388416,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1789928991351
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789928413297,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789928868461,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "开工 t4：先定端口与脚本契约，再落 adapter",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 1603,
+            "at": 1789928868471,
+            "totals": {
+              "uncachedInputTokens": 2359600,
+              "outputTokens": 201989,
+              "cacheReadTokens": 27403392,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "integrating",
+          "at": 1789928991351,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "t4 开发完成：端口 + adapter + 脚本契约门禁落地",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 1831,
+            "at": 1789928991358,
+            "totals": {
+              "uncachedInputTokens": 2564173,
+              "outputTokens": 225825,
+              "cacheReadTokens": 32791808,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789928991451,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "t4 联调：注入 workflowEngine 服务接线完成；真实引擎冒烟经 adapter 跑通",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 1833,
+            "at": 1789928991459,
+            "totals": {
+              "uncachedInputTokens": 2564173,
+              "outputTokens": 225825,
+              "cacheReadTokens": 32791808,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789928991525,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "t4 测试通过：契约单测 11 例 + 真实引擎冒烟 PASS + 层边界/尺寸/消息卫生门禁全绿",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 1835,
+            "at": 1789928991533,
+            "totals": {
+              "uncachedInputTokens": 2564173,
+              "outputTokens": 225825,
+              "cacheReadTokens": 32791808,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789929106569,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "t4 完成：契约方向已验证一致，全量单测与构建通过",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 1972,
+            "at": 1789929106576,
+            "totals": {
+              "uncachedInputTokens": 2610262,
+              "outputTokens": 248799,
+              "cacheReadTokens": 36657536,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-45d4ae",
+          "body": "[状态] → in_progress：开工 t4：先定端口与脚本契约，再落 adapter（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789928868461,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-9d9093",
+          "body": "[状态] → integrating：t4 开发完成：端口 + adapter + 脚本契约门禁落地（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789928991351,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-98ebd7",
+          "body": "[状态] → testing：t4 联调：注入 workflowEngine 服务接线完成；真实引擎冒烟经 adapter 跑通（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789928991451,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-41aea9",
+          "body": "[状态] → in_review：t4 测试通过：契约单测 11 例 + 真实引擎冒烟 PASS + 层边界/尺寸/消息卫生门禁全绿（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789928991525,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-de3843",
+          "body": "[状态] → done：t4 完成：契约方向已验证一致，全量单测与构建通过（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789929106569,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1789928413297,
+      "updatedAt": 1789931568253,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+      },
+      "lastReport": {
+        "at": 1789928991301,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/pages/dsh-pmboard/src/application/ports.ts",
+          "packages/pages/dsh-pmboard/src/application/internal/workflow-script.ts",
+          "packages/pages/dsh-pmboard/src/adapters/WorkflowEngineRunner.ts",
+          "packages/pages/dsh-pmboard/src/index.ts",
+          "packages/pages/dsh-pmboard/tests/workflow-script-contract.test.ts",
+          "packages/pages/dsh-pmboard/scripts/workflow-engine-smoke.ts"
+        ],
+        "completed": [
+          "ports.ts 增 WorkflowRunner 端口（WorkflowRunOutcome/WorkflowStartInput）并挂到 UseCaseDeps.workflow（缺省即显式失败）",
+          "新增 adapters/WorkflowEngineRunner.ts：唯一封装 ctx.workflowEngine.start，await result + finally dispose，stopReason 非 completed 翻译为 ok:false",
+          "新增 application/internal/workflow-script.ts：WORKFLOW_HOOKS 白名单（agent/parallel/pipeline/phase/log）+ assertScriptContract + generateSubtaskScript（生成即过门禁）",
+          "契约门禁先剥离字符串字面量再扫描，避免 prompt 文本里的示例被误伤",
+          "index.ts 注入 workflowEngine 服务并装配 runner（引擎缺失时 debug 留痕）",
+          "新增 tests/workflow-script-contract.test.ts（11 例，含适配器三态翻译）；真实引擎冒烟 scripts/workflow-engine-smoke.ts 通过"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-4842fe/tasks/t-1cfe9f.md",
+      "layer": 1
+    },
+    {
+      "id": "t-b03e8b",
+      "requirementId": "REQ-4842fe",
+      "title": "ExecuteTask 用例：单张子卡闭环",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-b05389",
+        "t-1cfe9f"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "凭证三项任一不过则子卡不 done；存在未 done 子卡时父卡不得 done；改了 packages/pages/*/src 但 lib/client.js 未更新则凭证不过",
+      "implementation": "新增 application/use-cases/ExecuteTask.ts：子卡 in_progress → WorkflowRunner.start → 生成子卡 report → 子卡凭证门（report 非空、文件 mtime≥开工、stopReason=completed；保留 pages 构建新鲜度，豁免窗口活动与 60s 节流）→ 子卡 done。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-e355b7",
+          "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+          "trigger": "manual",
+          "startedAt": 1789929106653,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+              "seq": 1974,
+              "at": 1789929106661,
+              "totals": {
+                "uncachedInputTokens": 2610262,
+                "outputTokens": 248799,
+                "cacheReadTokens": 36657536,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+              "seq": 1985,
+              "at": 1789929114562,
+              "totals": {
+                "uncachedInputTokens": 2862091,
+                "outputTokens": 249685,
+                "cacheReadTokens": 36665088,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 251829,
+              "outputTokens": 886,
+              "cacheReadTokens": 7552,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1789929114554
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789928413297,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789929106653,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "开工 t5：ExecuteTask 用例（子卡闭环）",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 1974,
+            "at": 1789929106661,
+            "totals": {
+              "uncachedInputTokens": 2610262,
+              "outputTokens": 248799,
+              "cacheReadTokens": 36657536,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "integrating",
+          "at": 1789929114554,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "t5 开发完成：子卡闭环与凭证门落地",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 1985,
+            "at": 1789929114562,
+            "totals": {
+              "uncachedInputTokens": 2862091,
+              "outputTokens": 249685,
+              "cacheReadTokens": 36665088,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789929114628,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "t5 联调：凭证门分派接入既有 done 凭证路径，父卡/子卡双模共存",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 1987,
+            "at": 1789929114639,
+            "totals": {
+              "uncachedInputTokens": 2862091,
+              "outputTokens": 249685,
+              "cacheReadTokens": 36665088,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789929114701,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "t5 测试通过：execute-task 11 例 + typecheck + 消息卫生全绿",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 1989,
+            "at": 1789929114709,
+            "totals": {
+              "uncachedInputTokens": 2862091,
+              "outputTokens": 249685,
+              "cacheReadTokens": 36665088,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789929205381,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "t5 完成：子卡闭环与凭证门落地，全量 1469 例全绿",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 2104,
+            "at": 1789929205390,
+            "totals": {
+              "uncachedInputTokens": 2868678,
+              "outputTokens": 264759,
+              "cacheReadTokens": 39644928,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-184277",
+          "body": "[状态] → in_progress：开工 t5：ExecuteTask 用例（子卡闭环）（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789929106653,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-7df6d2",
+          "body": "[状态] → integrating：t5 开发完成：子卡闭环与凭证门落地（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789929114554,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-2d604c",
+          "body": "[状态] → testing：t5 联调：凭证门分派接入既有 done 凭证路径，父卡/子卡双模共存（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789929114628,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-5959f5",
+          "body": "[状态] → in_review：t5 测试通过：execute-task 11 例 + typecheck + 消息卫生全绿（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789929114701,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-03d36f",
+          "body": "[状态] → done：t5 完成：子卡闭环与凭证门落地，全量 1469 例全绿（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789929205381,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1789928413297,
+      "updatedAt": 1789929205381,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+      },
+      "lastReport": {
+        "at": 1789929114501,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/pages/dsh-pmboard/src/application/use-cases/ExecuteTask.ts",
+          "packages/pages/dsh-pmboard/src/application/internal/subtask-evidence.ts",
+          "packages/pages/dsh-pmboard/src/application/internal/support.ts",
+          "packages/pages/dsh-pmboard/src/shared/protocol.ts",
+          "packages/pages/dsh-pmboard/tests/execute-task.test.ts"
+        ],
+        "completed": [
+          "新增 application/use-cases/ExecuteTask.ts：claim(in_progress+执行记录) → WorkflowRunner.start → 产出解析生成 report/lastRun → 子卡凭证门 → done（幂等：已 done 直接返回）",
+          "新增 application/internal/subtask-evidence.ts：子卡三项凭证（report 非空 / 文件 mtime≥开工 / run completed 且产出非空）+ 保留页面构建新鲜度；豁免窗口活动与 60s 节流；附父卡 INV-5 收尾门",
+          "protocol.ts 增 TaskRunEvidence 与 TaskRecord.lastRun（run 证据的持久化载体）",
+          "support.ts assertDoneEvidence 按卡片角色分派：子卡走新口径，父卡先过 INV-5（有未 done 子卡即拒）",
+          "产出解析不猜文件：子代理只回文本时 filesChanged 为空 → 凭证门拦下（宁可不收工也不编文件）",
+          "新增 tests/execute-task.test.ts（11 例，覆盖三项凭证、构建新鲜度、引擎缺失、幂等、INV-5）"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-4842fe/tasks/t-b03e8b.md",
+      "layer": 2
+    },
+    {
+      "id": "t-9769f5",
+      "requirementId": "REQ-4842fe",
+      "title": "懒展开：父卡开工同事务落子卡链",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-b05389"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "用例 tests/LazyExpand.spec.ts 全绿：开工后查询返回完整子卡链且 stageKind 顺序与映射表一致；展开与状态变更落在同一 revision；重复开工后子卡数量不变（不产生第二套）",
+      "implementation": "改 application/use-cases/MoveTask.ts：普通卡转 in_progress 时在同一 mutate 内按映射表或显式 stages 落子卡链（首卡继承父卡 dependsOn、链内前序依赖、acceptance 模板），写留痕评论；已有子卡则幂等跳过。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-19e7d5",
+          "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+          "trigger": "manual",
+          "startedAt": 1789929205460,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+              "seq": 2106,
+              "at": 1789929205471,
+              "totals": {
+                "uncachedInputTokens": 2868678,
+                "outputTokens": 264759,
+                "cacheReadTokens": 39644928,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+              "seq": 2117,
+              "at": 1789929213889,
+              "totals": {
+                "uncachedInputTokens": 3140544,
+                "outputTokens": 265582,
+                "cacheReadTokens": 39652480,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 271866,
+              "outputTokens": 823,
+              "cacheReadTokens": 7552,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1789929213880
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789928413297,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789929205460,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "开工 t6：父卡开工同事务懒展开子卡链",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 2106,
+            "at": 1789929205471,
+            "totals": {
+              "uncachedInputTokens": 2868678,
+              "outputTokens": 264759,
+              "cacheReadTokens": 39644928,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "integrating",
+          "at": 1789929213880,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "t6 开发完成：懒展开与父卡角色表落地",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 2117,
+            "at": 1789929213889,
+            "totals": {
+              "uncachedInputTokens": 3140544,
+              "outputTokens": 265582,
+              "cacheReadTokens": 39652480,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789929213970,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "t6 联调：与既有五段流程双模共存，全量 120 文件 1469 例通过",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 2119,
+            "at": 1789929213980,
+            "totals": {
+              "uncachedInputTokens": 3140544,
+              "outputTokens": 265582,
+              "cacheReadTokens": 39652480,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789929214043,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "t6 测试通过：lazy-expand 9 例 + 全量回归 1469 例全绿",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 2121,
+            "at": 1789929214051,
+            "totals": {
+              "uncachedInputTokens": 3140544,
+              "outputTokens": 265582,
+              "cacheReadTokens": 39652480,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789929367152,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "t6 完成：懒展开双模共存，全量回归全绿，构建产物已更新",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 2243,
+            "at": 1789929367160,
+            "totals": {
+              "uncachedInputTokens": 3148447,
+              "outputTokens": 292232,
+              "cacheReadTokens": 43865472,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-741ba3",
+          "body": "[状态] → in_progress：开工 t6：父卡开工同事务懒展开子卡链（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789929205460,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-bc89e0",
+          "body": "[状态] → integrating：t6 开发完成：懒展开与父卡角色表落地（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789929213880,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-a7fe04",
+          "body": "[状态] → testing：t6 联调：与既有五段流程双模共存，全量 120 文件 1469 例通过（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789929213970,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-b67a19",
+          "body": "[状态] → in_review：t6 测试通过：lazy-expand 9 例 + 全量回归 1469 例全绿（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789929214043,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-e32900",
+          "body": "[状态] → done：t6 完成：懒展开双模共存，全量回归全绿，构建产物已更新（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789929367152,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1789928413297,
+      "updatedAt": 1789929367152,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+      },
+      "lastReport": {
+        "at": 1789929213823,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/pages/dsh-pmboard/src/application/internal/lazy-expand.ts",
+          "packages/pages/dsh-pmboard/src/application/use-cases/MoveTask.ts",
+          "packages/pages/dsh-pmboard/src/domain/task/TaskStatus.ts",
+          "packages/pages/dsh-pmboard/src/shared/protocol.ts",
+          "packages/pages/dsh-pmboard/tests/lazy-expand.test.ts",
+          "packages/pages/dsh-pmboard/tests/domain/subtask-status.test.ts",
+          "packages/pages/dsh-pmboard/tests/execute-task.test.ts"
+        ],
+        "completed": [
+          "新增 application/internal/lazy-expand.ts：resolveSubtaskStages（显式 stages 优先 + skipIntegration 跳过联调）+ expandSubtasks（链内依赖成串、链首继承父卡外部依赖、acceptance 模板、幂等）",
+          "MoveTask 在 to=in_progress 的同一 mutate 内展开子卡链并写留痕评论，changed/revision 一致",
+          "按 autoRun 开关分模：autoRun=true 才懒展开（存量/手动流程保持五段状态机，全量回归 1469 例证明未回归）",
+          "角色判定 taskRoleIn（子卡 / 有子卡的新式父卡 / 存量卡）+ 新增 PARENT_TRANSITIONS（父卡只走 todo→in_progress→done）",
+          "协议增 PlanTask.stages 与 TaskRecord.stages（FR-1b 逃生舱口透传），normalizePlanTasks 用 validateExplicitStages 校验",
+          "新增 tests/lazy-expand.test.ts（9 例），并按仓库 vitest include 约定用 .test.ts 命名（分解决议里的 .spec.ts 不会被收集）"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-4842fe/tasks/t-9769f5.md",
+      "layer": 2
+    },
+    {
+      "id": "t-1819f2",
+      "requirementId": "REQ-4842fe",
+      "title": "AdvanceChain 用例：事件链执行器",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-b03e8b",
+        "t-9769f5"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "重复触发同一事件为 noop 且 revision 不变；并发触发被单飞锁挡下（无双重执行）；连续 noop 达阈值触发熔断；杀进程后重启可续跑至完成；autoRun=false 后无新事件、置回 true 并触发一次即续跑\n验证：npx vitest run tests/advance-chain.test.ts（幂等/单飞锁/熔断/恢复续跑/autoRun 开关各例全绿）。",
+      "implementation": "新增 application/use-cases/AdvanceChain.ts：事件类型 OPEN_PARENT/RUN_SUBTASK/FINALIZE_PARENT/ROLLUP/PAUSE；每需求单飞锁；幂等选择；启动恢复扫描；停滞熔断；事件日志写 advance-log.md 与台账。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-ab2e51",
+          "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+          "trigger": "manual",
+          "startedAt": 1789929367230,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+              "seq": 2245,
+              "at": 1789929367241,
+              "totals": {
+                "uncachedInputTokens": 3148447,
+                "outputTokens": 292232,
+                "cacheReadTokens": 43865472,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+              "seq": 2256,
+              "at": 1789929376536,
+              "totals": {
+                "uncachedInputTokens": 3453812,
+                "outputTokens": 293151,
+                "cacheReadTokens": 43873024,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 305365,
+              "outputTokens": 919,
+              "cacheReadTokens": 7552,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1789929376528
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789928413297,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789929367230,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "开工 t7：事件链执行器",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 2245,
+            "at": 1789929367241,
+            "totals": {
+              "uncachedInputTokens": 3148447,
+              "outputTokens": 292232,
+              "cacheReadTokens": 43865472,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "integrating",
+          "at": 1789929376528,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "t7 开发完成：事件链执行器与恢复扫描落地",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 2256,
+            "at": 1789929376536,
+            "totals": {
+              "uncachedInputTokens": 3453812,
+              "outputTokens": 293151,
+              "cacheReadTokens": 43873024,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789929376601,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "t7 联调：启动扫描接线完成，事件链与懒展开/ExecuteTask 串联",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 2258,
+            "at": 1789929376612,
+            "totals": {
+              "uncachedInputTokens": 3453812,
+              "outputTokens": 293151,
+              "cacheReadTokens": 43873024,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789929376672,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "t7 测试通过：advance-chain 7 例 + 全量 121 文件 1476 例全绿",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 2260,
+            "at": 1789929376680,
+            "totals": {
+              "uncachedInputTokens": 3453812,
+              "outputTokens": 293151,
+              "cacheReadTokens": 43873024,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789929477134,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "t7 完成：事件链执行器 + 恢复扫描，全量回归全绿",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 2403,
+            "at": 1789929477143,
+            "totals": {
+              "uncachedInputTokens": 3459542,
+              "outputTokens": 310097,
+              "cacheReadTokens": 48750464,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-b91793",
+          "body": "[状态] → in_progress：开工 t7：事件链执行器（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789929367230,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-2e595c",
+          "body": "[状态] → integrating：t7 开发完成：事件链执行器与恢复扫描落地（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789929376528,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-a90925",
+          "body": "[状态] → testing：t7 联调：启动扫描接线完成，事件链与懒展开/ExecuteTask 串联（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789929376601,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-623862",
+          "body": "[状态] → in_review：t7 测试通过：advance-chain 7 例 + 全量 121 文件 1476 例全绿（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789929376672,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-770fe5",
+          "body": "[状态] → done：t7 完成：事件链执行器 + 恢复扫描，全量回归全绿（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789929477134,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1789928413297,
+      "updatedAt": 1789931568317,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+      },
+      "lastReport": {
+        "at": 1789929376473,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/pages/dsh-pmboard/src/application/use-cases/AdvanceChain.ts",
+          "packages/pages/dsh-pmboard/src/application/internal/advance-select.ts",
+          "packages/pages/dsh-pmboard/src/application/internal/startup-scan.ts",
+          "packages/pages/dsh-pmboard/src/domain/task/TaskStatus.ts",
+          "packages/pages/dsh-pmboard/src/domain/limits.ts",
+          "packages/pages/dsh-pmboard/src/index.ts",
+          "packages/pages/dsh-pmboard/tests/advance-chain.test.ts"
+        ],
+        "completed": [
+          "新增 application/use-cases/AdvanceChain.ts：事件类型 OPEN_PARENT/RUN_SUBTASK/FINALIZE_PARENT/ROLLUP/PAUSE；循环自动触发下一步；事件历史 + advance-log.md 留痕",
+          "单飞：进程内 inflight Set + 台账 advance.lockAt（stale 15min 可接管）；纯终态重复触发不落盘（revision 不变）",
+          "幂等选择：新增 application/internal/advance-select.ts 纯函数选择器（状态即事实）",
+          "停滞熔断：有开放工作但无可推进事件累计 noop，达阈值 PAUSE + autoRun=false + pausedReason=stagnation",
+          "失败即暂停：子卡失败 → autoRun=false + pausedReason=fail（告警/回弹/返工由 t8 补齐）",
+          "启动恢复扫描 scanAndResume + 接线 application/internal/startup-scan.ts（index.ts 一行调用）",
+          "SYSTEM_TASK_TRANSITIONS 增 in_progress>done（执行器以 system 身份收尾）；LIMITS 增 advance* 阈值",
+          "新增 tests/advance-chain.test.ts（7 例），全量 121 文件 1476 例通过"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-4842fe/tasks/t-1819f2.md",
+      "layer": 3
+    },
+    {
+      "id": "t-89cc1c",
+      "requirementId": "REQ-4842fe",
+      "title": "失败暂停、告警弹框与返工回上游",
+      "description": "",
+      "phase": "implement",
+      "side": "fullstack",
+      "dependsOn": [
+        "t-1819f2"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "失败后子卡退回并留痕、autoRun=false、高优告警发出、后续卡不执行；无任何自动重跑；弹框三选各自生效；退上游重批准后卡数不变且被改卡有 revisions(update)；自动链不产生 done→in_progress\n验证：npx vitest run tests/failure-handling.test.ts（8 例）；代码可查：src/adapters/FailureAlert.ts 的 popupInstructionFor（弹框指令壳，告知窗口如何发起会话内弹框）。",
+      "implementation": "失败分类 → 子卡退回+attempt+1+revisions(rollback)+失败评论 → autoRun=false → feishu_notify(high) + ask_user_question 三选处置；「退回上游」走 implementing→design（人工门），重批准计划后就地更新受影响父卡并写 revisions(update)；补 done→in_progress 重开与 revisions(reopen)。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-c29006",
+          "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+          "trigger": "manual",
+          "startedAt": 1789929477220,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+              "seq": 2405,
+              "at": 1789929477230,
+              "totals": {
+                "uncachedInputTokens": 3459542,
+                "outputTokens": 310097,
+                "cacheReadTokens": 48750464,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+              "seq": 2416,
+              "at": 1789929485632,
+              "totals": {
+                "uncachedInputTokens": 3786551,
+                "outputTokens": 310954,
+                "cacheReadTokens": 48758016,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 327009,
+              "outputTokens": 857,
+              "cacheReadTokens": 7552,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1789929485623
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789928413297,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789929477220,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "开工 t8：失败回退/告警/返工",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 2405,
+            "at": 1789929477230,
+            "totals": {
+              "uncachedInputTokens": 3459542,
+              "outputTokens": 310097,
+              "cacheReadTokens": 48750464,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "integrating",
+          "at": 1789929485623,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "t8 开发完成：失败回退/告警/三选处置/返工就地更新落地",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 2416,
+            "at": 1789929485632,
+            "totals": {
+              "uncachedInputTokens": 3786551,
+              "outputTokens": 310954,
+              "cacheReadTokens": 48758016,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789929485705,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "t8 联调：失败分支接入事件链与告警端口，全量回归 1484 例通过",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 2418,
+            "at": 1789929485714,
+            "totals": {
+              "uncachedInputTokens": 3786551,
+              "outputTokens": 310954,
+              "cacheReadTokens": 48758016,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789929485774,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "t8 测试通过：failure-handling 8 例 + 全量 122 文件 1484 例全绿",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 2420,
+            "at": 1789929485782,
+            "totals": {
+              "uncachedInputTokens": 3786551,
+              "outputTokens": 310954,
+              "cacheReadTokens": 48758016,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789929556664,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "t8 完成：失败回退/告警/三选处置/返工更新，全量回归全绿",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 2522,
+            "at": 1789929556671,
+            "totals": {
+              "uncachedInputTokens": 3791851,
+              "outputTokens": 322910,
+              "cacheReadTokens": 52187520,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-f38f29",
+          "body": "[状态] → in_progress：开工 t8：失败回退/告警/返工（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789929477220,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-7680e3",
+          "body": "[状态] → integrating：t8 开发完成：失败回退/告警/三选处置/返工就地更新落地（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789929485623,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-9fb09e",
+          "body": "[状态] → testing：t8 联调：失败分支接入事件链与告警端口，全量回归 1484 例通过（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789929485705,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-519a23",
+          "body": "[状态] → in_review：t8 测试通过：failure-handling 8 例 + 全量 122 文件 1484 例全绿（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789929485774,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-8ec395",
+          "body": "[状态] → done：t8 完成：失败回退/告警/三选处置/返工更新，全量回归全绿（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789929556664,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1789928413297,
+      "updatedAt": 1789931568390,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+      },
+      "lastReport": {
+        "at": 1789929485567,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/pages/dsh-pmboard/src/application/internal/failure-handling.ts",
+          "packages/pages/dsh-pmboard/src/application/internal/rework-update.ts",
+          "packages/pages/dsh-pmboard/src/application/use-cases/HandleFailure.ts",
+          "packages/pages/dsh-pmboard/src/application/use-cases/AdvanceChain.ts",
+          "packages/pages/dsh-pmboard/src/application/use-cases/MoveTask.ts",
+          "packages/pages/dsh-pmboard/src/adapters/FailureAlert.ts",
+          "packages/pages/dsh-pmboard/src/application/ports.ts",
+          "packages/pages/dsh-pmboard/src/index.ts",
+          "packages/pages/dsh-pmboard/tests/failure-handling.test.ts"
+        ],
+        "completed": [
+          "新增 application/internal/failure-handling.ts：失败分类 + rollbackSubtask（退回 todo + attempt+1 + revisions(rollback) + 失败评论 + 执行记录置失败）+ appendRevision",
+          "AdvanceChain 失败分支：先回退子卡再暂停，并调用 alert 端口发高优告警（含卡位/原因/已做处理/可选处置）",
+          "新增 application/use-cases/HandleFailure.ts：openFailurePopup 三选弹框 + handleFailureChoice（重跑/退回上游/取消）",
+          "新增 application/internal/rework-update.ts：重批准计划后就地更新既有父卡（不新增卡），逐卡 revisions(update)",
+          "MoveTask 增 done→in_progress 重开的 revisions(reopen) 留痕",
+          "ports 增 FailureAlertPort；新增 adapters/FailureAlert.ts（日志 + 会话投递，best-effort 永不抛）并接线",
+          "新增 tests/failure-handling.test.ts（8 例）+ tests/helpers/plan-task.ts；全量 122 文件 1484 例通过"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-4842fe/tasks/t-89cc1c.md",
+      "layer": 4
+    },
+    {
+      "id": "t-83b437",
+      "requirementId": "REQ-4842fe",
+      "title": "并发上限与冲突两级防线",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-1819f2"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "同需求第 4 张父卡开工被拒（REQBOARD_PARENT_LIMIT）；两张互不依赖父卡的链并行且都完成后 rollup 正常；跨父卡依赖被拒；拆分期重叠拒绝并列出冲突文件；构造 mtime 冲突则该子卡判失败并暂停\n验证：npx vitest run tests/concurrency-limits.test.ts tests/decompose-tools.test.ts → 全绿。",
+      "implementation": "domain/limits.ts 增 MAX_PARALLEL_PARENTS=3；MoveTask 开工校验同需求 in_progress 父卡数；decompose 增冲突拦截；运行期兜底（mtime 跨卡覆盖判失败）；子卡 dependsOn 禁跨父卡。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-329961",
+          "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+          "trigger": "manual",
+          "startedAt": 1789929556733,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+              "seq": 2524,
+              "at": 1789929556741,
+              "totals": {
+                "uncachedInputTokens": 3791851,
+                "outputTokens": 322910,
+                "cacheReadTokens": 52187520,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+              "seq": 2559,
+              "at": 1789929577413,
+              "totals": {
+                "uncachedInputTokens": 4136029,
+                "outputTokens": 325592,
+                "cacheReadTokens": 52899328,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 344178,
+              "outputTokens": 2682,
+              "cacheReadTokens": 711808,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1789929577406
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789928413297,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789929556733,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "开工 t9：并发上限与冲突两级防线",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 2524,
+            "at": 1789929556741,
+            "totals": {
+              "uncachedInputTokens": 3791851,
+              "outputTokens": 322910,
+              "cacheReadTokens": 52187520,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "integrating",
+          "at": 1789929577406,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "t9 开发完成：并发上限与两级冲突防线落地",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 2559,
+            "at": 1789929577413,
+            "totals": {
+              "uncachedInputTokens": 4136029,
+              "outputTokens": 325592,
+              "cacheReadTokens": 52899328,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789929577476,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "t9 联调：冲突拦截接入 Decompose，跨卡兜底接入 ExecuteTask",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 2561,
+            "at": 1789929577487,
+            "totals": {
+              "uncachedInputTokens": 4136029,
+              "outputTokens": 325592,
+              "cacheReadTokens": 52899328,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789929577542,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "t9 测试通过：concurrency-limits 7 例 + 尺寸/类型/消息门禁全绿",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 2563,
+            "at": 1789929577549,
+            "totals": {
+              "uncachedInputTokens": 4136029,
+              "outputTokens": 325592,
+              "cacheReadTokens": 52899328,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789929660377,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "t9 完成：并发上限与两级冲突防线，全量 123 文件 1492 例全绿",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 2712,
+            "at": 1789929660385,
+            "totals": {
+              "uncachedInputTokens": 4149797,
+              "outputTokens": 339488,
+              "cacheReadTokens": 57658112,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-18a4d5",
+          "body": "[状态] → in_progress：开工 t9：并发上限与冲突两级防线（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789929556733,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-7def0a",
+          "body": "[状态] → integrating：t9 开发完成：并发上限与两级冲突防线落地（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789929577406,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-8435f3",
+          "body": "[状态] → testing：t9 联调：冲突拦截接入 Decompose，跨卡兜底接入 ExecuteTask（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789929577476,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-56edaa",
+          "body": "[状态] → in_review：t9 测试通过：concurrency-limits 7 例 + 尺寸/类型/消息门禁全绿（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789929577542,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-926189",
+          "body": "[状态] → done：t9 完成：并发上限与两级冲突防线，全量 123 文件 1492 例全绿（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789929660377,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1789928413297,
+      "updatedAt": 1789931568486,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+      },
+      "lastReport": {
+        "at": 1789929577353,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/pages/dsh-pmboard/src/application/internal/conflict-check.ts",
+          "packages/pages/dsh-pmboard/src/application/internal/cross-card.ts",
+          "packages/pages/dsh-pmboard/src/application/use-cases/Decompose.ts",
+          "packages/pages/dsh-pmboard/src/application/use-cases/MoveTask.ts",
+          "packages/pages/dsh-pmboard/src/application/use-cases/ExecuteTask.ts",
+          "packages/pages/dsh-pmboard/src/shared/protocol.ts",
+          "packages/pages/dsh-pmboard/tests/concurrency-limits.test.ts"
+        ],
+        "completed": [
+          "MoveTask 开工校验同需求 in_progress 父卡数 ≤ LIMITS.advanceMaxParallelParents，超限 reject REQBOARD_PARENT_LIMIT",
+          "新增 application/internal/conflict-check.ts：declaredFiles + findWorkSurfaceConflicts（依赖链上串行的卡不算冲突）+ describeConflicts；Decompose 在落库前拦截并列出冲突文件（REQBOARD_FILE_CONFLICT）",
+          "新增 application/internal/cross-card.ts：detectCrossCardOverwrite（mtime 落在另一在跑父卡子卡窗口内）；ExecuteTask 命中即判失败 REQBOARD_CROSS_CARD",
+          "protocol checkSubtaskInvariants 增 INV-4（子卡依赖不跨父卡）",
+          "新增 tests/concurrency-limits.test.ts（7 例，含父卡并行 rollup、拆分冲突、跨卡覆盖）"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-4842fe/tasks/t-83b437.md",
+      "layer": 4
+    },
+    {
+      "id": "t-a46239",
+      "requirementId": "REQ-4842fe",
+      "title": "工具面与批准计划接线（合并拆分确认门）",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-1819f2"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "批准计划后不再调用任何人工工具即可跑到 accepting；全程不出现「确认拆分清单」弹框；批准弹框文案含自动开跑说明；新工具 schema 冒烟通过；代码中不存在 ctx.tools.workflow 调用\n验证：npx vitest run tests/auto-chain-approval.test.ts；根目录 npx vitest run tests/plugin-schema.smoke.test.ts（20/20）；grep -rn \"ctx.tools.workflow\" packages/pages/dsh-pmboard/src → 仅注释。",
+      "implementation": "新增 tools/AdvanceTool（reqboard_task_run）并注册到 tools/index.ts、src/index.ts 与冒烟测试 PLUGINS；改造批准计划路径：批准即自动 decompose + autoRun=true + 触发首个事件，decomposing>implementing 随批准放行；TaskExecuteTool 下线或改薄壳。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-dd8343",
+          "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+          "trigger": "manual",
+          "startedAt": 1789929660446,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+              "seq": 2714,
+              "at": 1789929660454,
+              "totals": {
+                "uncachedInputTokens": 4149797,
+                "outputTokens": 339488,
+                "cacheReadTokens": 57658112,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+              "seq": 3121,
+              "at": 1789930303507,
+              "totals": {
+                "uncachedInputTokens": 4652992,
+                "outputTokens": 412316,
+                "cacheReadTokens": 66293376,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 503195,
+              "outputTokens": 72828,
+              "cacheReadTokens": 8635264,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1789930303499
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789928413297,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789929660446,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "t10 进行中：reqboard_task_run 工具与注册已落地（TaskExecuteTool 已改薄壳、不再依赖被禁 ctx.tools.workflow，冒烟/接线/输出契约门禁全绿）；剩余：批准计划即自动 decompose + autoRun + 触发首个事件、G3「确认拆分清单」门并入 G2、弹框文案",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 2714,
+            "at": 1789929660454,
+            "totals": {
+              "uncachedInputTokens": 4149797,
+              "outputTokens": 339488,
+              "cacheReadTokens": 57658112,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "integrating",
+          "at": 1789930303499,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "t-a46239 开发完成：AdvanceTool + 批准计划门合并（批准即自动拆分开跑），冒烟门补覆盖 dsh-pmboard",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 3121,
+            "at": 1789930303507,
+            "totals": {
+              "uncachedInputTokens": 4652992,
+              "outputTokens": 412316,
+              "cacheReadTokens": 66293376,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789930303563,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "联调完成：reqboard_task_run 接 AdvanceChain 事件链；批准路径经 executeDecompose 自动落卡并触发首事件",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 3123,
+            "at": 1789930303571,
+            "totals": {
+              "uncachedInputTokens": 4652992,
+              "outputTokens": 412316,
+              "cacheReadTokens": 66293376,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789930303627,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "测试通过：pmboard 125 文件 1500 例全绿、tsc 干净、插件 schema 冒烟 20/20、dist/lib 重建过哨兵",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 3125,
+            "at": 1789930303635,
+            "totals": {
+              "uncachedInputTokens": 4652992,
+              "outputTokens": 412316,
+              "cacheReadTokens": 66293376,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789931302463,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "工具面与批准计划接线完成：AdvanceTool + 门合并 + 冒烟门覆盖 dsh-pmboard；全量 126/1512 绿",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 3904,
+            "at": 1789931302475,
+            "totals": {
+              "uncachedInputTokens": 5681434,
+              "outputTokens": 514484,
+              "cacheReadTokens": 91357952,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-aedda9",
+          "body": "[状态] → in_progress：t10 进行中：reqboard_task_run 工具与注册已落地（TaskExecuteTool 已改薄壳、不再依赖被禁 ctx.tools.workflow，冒烟/接线/输出契约门禁全绿）；剩余：批准计划即自动 decompose + autoRun + 触发首个事件、G3「确认拆分清单」门并入 G2、弹框文案（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789929660446,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-8cf14c",
+          "body": "[状态] → integrating：t-a46239 开发完成：AdvanceTool + 批准计划门合并（批准即自动拆分开跑），冒烟门补覆盖 dsh-pmboard（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789930303499,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-1cd703",
+          "body": "[状态] → testing：联调完成：reqboard_task_run 接 AdvanceChain 事件链；批准路径经 executeDecompose 自动落卡并触发首事件（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789930303563,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-7c59fd",
+          "body": "[状态] → in_review：测试通过：pmboard 125 文件 1500 例全绿、tsc 干净、插件 schema 冒烟 20/20、dist/lib 重建过哨兵（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789930303627,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-6a6634",
+          "body": "[状态] → done：工具面与批准计划接线完成：AdvanceTool + 门合并 + 冒烟门覆盖 dsh-pmboard；全量 126/1512 绿（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789931302463,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1789928413297,
+      "updatedAt": 1789931575910,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+      },
+      "lastReport": {
+        "at": 1789930303448,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/pages/dsh-pmboard/src/tools/AdvanceTool/AdvanceTool.ts",
+          "packages/pages/dsh-pmboard/src/tools/AdvanceTool/prompt.ts",
+          "packages/pages/dsh-pmboard/src/tools/AdvanceTool/index.ts",
+          "packages/pages/dsh-pmboard/src/tools/index.ts",
+          "packages/pages/dsh-pmboard/src/index.ts",
+          "packages/pages/dsh-pmboard/src/application/use-cases/AskConfirm.ts",
+          "packages/pages/dsh-pmboard/src/tools/TaskExecuteTool/TaskExecuteTool.ts",
+          "packages/pages/dsh-pmboard/tests/auto-chain-approval.test.ts",
+          "packages/pages/dsh-pmboard/tests/apply-wiring.test.ts",
+          "packages/pages/dsh-pmboard/tests/tools-dispatch.test.ts",
+          "packages/pages/dsh-pmboard/tests/output-contract.test.ts",
+          "tests/plugin-schema.smoke.test.ts"
+        ],
+        "completed": [
+          "新增 tools/AdvanceTool（reqboard_task_run）：一次调用执行当前 ready 的一张子卡，产出回写",
+          "批准计划⇄拆分确认门合并：批准即自动落章 decomposition + 自动 decompose + autoRun=true + 触发首个推进事件；弹框写明\"批准后将自动拆分任务卡并立即开跑，中途不再打断\"",
+          "TaskExecuteTool 下线为兼容薄壳：不再依赖被禁用的 ctx.tools.workflow、不再生成脚本；执行入口唯一收敛到 reqboard_task_run",
+          "补冒烟真门：dsh-pmboard 加入 tests/plugin-schema.smoke.test.ts 的 PLUGINS，并让 stub 支持函数插件形态与可调用 logger → 20/20 通过（13 个 reqboard 工具 schema 全部实编译）",
+          "验证：pmboard 全量 125 文件 1500 例通过；tsc --noEmit 干净；dist/lib 重建（02:50）且过 bundle 哨兵；代码中无 ctx.tools.workflow 调用（仅 2 处注释提及）"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-4842fe/tasks/t-a46239.md",
+      "layer": 4
+    },
+    {
+      "id": "t-3be71b",
+      "requirementId": "REQ-4842fe",
+      "title": "看板 UI：父子卡展示与 autoRun 控制面",
+      "description": "",
+      "phase": "ui",
+      "side": "frontend",
+      "dependsOn": [
+        "t-a46239"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "目视验收：父卡展开显示子卡链与进度、徽标随 autoRun 变化（运行中/已暂停/熔断）、暂停后无新事件、存量卡外观与现状一致\n验证：npx vitest run tests/client-subtask-view.test.ts；界面路径：打开 :13080 项目看板 → 需求卡看自动徽标与「父卡 x/y · 子卡 x/y」→ 点「暂停/继续」；进需求详情「执行」Tab 展开父卡看子卡链（阶段徽标 + 第 N 次）。",
+      "implementation": "改 src/client 渲染：父卡可折叠展开子卡（stageKind 徽标 + attempt）、需求卡进度、自动状态徽标、控制面（暂停/继续/终止）；存量卡标 [手动] 且无子卡区。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-6d1fc3",
+          "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+          "trigger": "manual",
+          "startedAt": 1789930771916,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+              "seq": 3205,
+              "at": 1789930771925,
+              "totals": {
+                "uncachedInputTokens": 4839304,
+                "outputTokens": 431889,
+                "cacheReadTokens": 67616256,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+              "seq": 3770,
+              "at": 1789931129510,
+              "totals": {
+                "uncachedInputTokens": 5154221,
+                "outputTokens": 497602,
+                "cacheReadTokens": 86770560,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 314917,
+              "outputTokens": 65713,
+              "cacheReadTokens": 19154304,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1789931129500
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789928413297,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789930771916,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "开工 t-3be71b：看板父子卡展示与 autoRun 控制面",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 3205,
+            "at": 1789930771925,
+            "totals": {
+              "uncachedInputTokens": 4839304,
+              "outputTokens": 431889,
+              "cacheReadTokens": 67616256,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "integrating",
+          "at": 1789931129500,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "t-3be71b 开发完成：父子卡链 + autoRun 徽标/控制面 + /req/autorun 路由",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 3770,
+            "at": 1789931129510,
+            "totals": {
+              "uncachedInputTokens": 5154221,
+              "outputTokens": 497602,
+              "cacheReadTokens": 86770560,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789931129572,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "联调完成：client 渲染接 host 新路由；暂停=关开关、继续=置开关并触发一次推进事件",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 3772,
+            "at": 1789931129581,
+            "totals": {
+              "uncachedInputTokens": 5154221,
+              "outputTokens": 497602,
+              "cacheReadTokens": 86770560,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789931129642,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "测试通过：client-subtask-view 11 例 + 尺寸/类型门禁过 + bundle 过哨兵（唯一红项为并发会话改的 FailureAlert.ts 触发 hygiene，非本卡）",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 3774,
+            "at": 1789931129651,
+            "totals": {
+              "uncachedInputTokens": 5154221,
+              "outputTokens": 497602,
+              "cacheReadTokens": 86770560,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789931372685,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "看板父子卡与 autoRun 控制面完成（client 11 例绿 + 尺寸/类型门禁过 + bundle 过哨兵）",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 3919,
+            "at": 1789931372694,
+            "totals": {
+              "uncachedInputTokens": 5681760,
+              "outputTokens": 515247,
+              "cacheReadTokens": 91764224,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-816445",
+          "body": "[状态] → in_progress：开工 t-3be71b：看板父子卡展示与 autoRun 控制面（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789930771916,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-c0723b",
+          "body": "[状态] → integrating：t-3be71b 开发完成：父子卡链 + autoRun 徽标/控制面 + /req/autorun 路由（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789931129500,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-26c83a",
+          "body": "[状态] → testing：联调完成：client 渲染接 host 新路由；暂停=关开关、继续=置开关并触发一次推进事件（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789931129572,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-cafaa8",
+          "body": "[状态] → in_review：测试通过：client-subtask-view 11 例 + 尺寸/类型门禁过 + bundle 过哨兵（唯一红项为并发会话改的 FailureAlert.ts 触发 hygiene，非本卡）（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789931129642,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-41a7ba",
+          "body": "[状态] → done：看板父子卡与 autoRun 控制面完成（client 11 例绿 + 尺寸/类型门禁过 + bundle 过哨兵）（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789931372685,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1789928413297,
+      "updatedAt": 1789931568606,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+      },
+      "lastReport": {
+        "at": 1789931129448,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/pages/dsh-pmboard/src/client/render/subtask-view.ts",
+          "packages/pages/dsh-pmboard/src/client/styles/subtask.ts",
+          "packages/pages/dsh-pmboard/src/client/types.ts",
+          "packages/pages/dsh-pmboard/src/client/api.ts",
+          "packages/pages/dsh-pmboard/src/client/board-mount.ts",
+          "packages/pages/dsh-pmboard/src/client/styles.ts",
+          "packages/pages/dsh-pmboard/src/client/views/artifacts.ts",
+          "packages/pages/dsh-pmboard/src/client/views/stage-detail.ts",
+          "packages/pages/dsh-pmboard/src/http/routers/requirements.ts",
+          "packages/pages/dsh-pmboard/src/http/routers/shared.ts",
+          "packages/pages/dsh-pmboard/src/http/routes.ts",
+          "packages/pages/dsh-pmboard/src/index.ts",
+          "packages/pages/dsh-pmboard/tests/client-subtask-view.test.ts"
+        ],
+        "completed": [
+          "client 契约补齐：RequirementRecord.autoRun/advance 与 TaskRecord.parentId/stageKind/attempt（此前 client 类型里没有 → 看板根本读不到，徽标与子卡链无从渲染）",
+          "新增 client/render/subtask-view.ts 纯函数：四态徽标 autoBadgeOf/renderAutoBadge、子卡链 subtaskChain/renderSubtaskChain、进度口径 subtaskProgress/progressText、控制面 renderAutoControls",
+          "需求卡（泳道+列表）：自动徽标 + 父卡/子卡进度 + 暂停/继续/终止；autoRun 缺省（存量需求）完全不显示，外观不变",
+          "执行 Tab 任务列：只有顶层卡进列，子卡挂在父卡下（原生 <details> 折叠，零 JS）；子卡显示 stageKind 徽标 + 第 N 次重跑；存量卡标 [手动] 且无子卡区",
+          "host 新增 POST /dashboard/api/reqboard/req/autorun（仅人）：暂停=置 autoRun=false+pausedReason=manual；继续=置 true 并**立即触发一次推进事件**，推进器未装配时如实说明（不伪装已续跑）",
+          "新增 tests/client-subtask-view.test.ts（11 例）：四态徽标、进度口径（canceled 不计）、父卡/存量卡判定、子卡链渲染、控制面按钮",
+          "尺寸/类型门禁过（src/index.ts 压回 400 行上限内）；client bundle 重建 237780B 过哨兵"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-4842fe/tasks/t-3be71b.md",
+      "layer": 5
+    },
+    {
+      "id": "t-fd25e0",
+      "requirementId": "REQ-4842fe",
+      "title": "端到端验收与文档更新",
+      "description": "",
+      "phase": "test",
+      "side": "fullstack",
+      "dependsOn": [
+        "t-89cc1c",
+        "t-83b437",
+        "t-3be71b"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "pnpm vitest run 既有用例不退化；真实台账副本读取+渲染无异常；层边界门禁通过（domain 无运行时 dsh import、ctx.workflowEngine 仅在 adapter）；verification.md 含可复核证据",
+      "implementation": "跑通并留证：主用例（零点击跑到 accepting）、故障注入、返工、并发；写 docs/requirements/REQ-4842fe/verification.md；更新 agent-dh 项目说明书相关章节。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-51e328",
+          "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+          "trigger": "manual",
+          "startedAt": 1789931138630,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+              "seq": 3786,
+              "at": 1789931138640,
+              "totals": {
+                "uncachedInputTokens": 5275601,
+                "outputTokens": 499044,
+                "cacheReadTokens": 87032576,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+              "seq": 3891,
+              "at": 1789931294375,
+              "totals": {
+                "uncachedInputTokens": 5660721,
+                "outputTokens": 513674,
+                "cacheReadTokens": 90973184,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 385120,
+              "outputTokens": 14630,
+              "cacheReadTokens": 3940608,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1789931294368
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789928413297,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789931138630,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "开工 t-fd25e0：端到端验收与文档更新",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 3786,
+            "at": 1789931138640,
+            "totals": {
+              "uncachedInputTokens": 5275601,
+              "outputTokens": 499044,
+              "cacheReadTokens": 87032576,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "integrating",
+          "at": 1789931294368,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "验收材料齐：verification.md + 说明书章节；全量 126/1512 绿",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 3891,
+            "at": 1789931294375,
+            "totals": {
+              "uncachedInputTokens": 5660721,
+              "outputTokens": 513674,
+              "cacheReadTokens": 90973184,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789931294437,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "联调完成：真实台账副本渲染零异常；层边界与 schema 冒烟过",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 3893,
+            "at": 1789931294447,
+            "totals": {
+              "uncachedInputTokens": 5660721,
+              "outputTokens": 513674,
+              "cacheReadTokens": 90973184,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789931294515,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "测试通过：126 文件 1512 例全绿（含把并发窗口的拼接文案改走 fmt 收绿）",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 3895,
+            "at": 1789931294527,
+            "totals": {
+              "uncachedInputTokens": 5660721,
+              "outputTokens": 513674,
+              "cacheReadTokens": 90973184,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789931509690,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          },
+          "reason": "端到端验收与文档完成；全量 126/1512 绿；产物已重建（lib/dist 新于 src）",
+          "tokenSnapshot": {
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8",
+            "seq": 3936,
+            "at": 1789931509703,
+            "totals": {
+              "uncachedInputTokens": 5682032,
+              "outputTokens": 515817,
+              "cacheReadTokens": 92171520,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-1c7e7a",
+          "body": "[状态] → in_progress：开工 t-fd25e0：端到端验收与文档更新（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789931138630,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-4e895e",
+          "body": "[状态] → integrating：验收材料齐：verification.md + 说明书章节；全量 126/1512 绿（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789931294368,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-169552",
+          "body": "[状态] → testing：联调完成：真实台账副本渲染零异常；层边界与 schema 冒烟过（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789931294437,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-e513b7",
+          "body": "[状态] → in_review：测试通过：126 文件 1512 例全绿（含把并发窗口的拼接文案改走 fmt 收绿）（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789931294515,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        },
+        {
+          "id": "c-fecfc8",
+          "body": "[状态] → done：端到端验收与文档完成；全量 126/1512 绿；产物已重建（lib/dist 新于 src）（窗口 session-d41c9696-eb63-4a47-9018-68884d1f1fc8）",
+          "createdAt": 1789931509690,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1789928413297,
+      "updatedAt": 1789931509690,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-d41c9696-eb63-4a47-9018-68884d1f1fc8"
+      },
+      "lastReport": {
+        "at": 1789931294315,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-4842fe/verification.md",
+          "docs/architecture/reqboard-stage-detail.md",
+          "packages/pages/dsh-pmboard/src/adapters/FailureAlert.ts"
+        ],
+        "completed": [
+          "全量回归：cd packages/pages/dsh-pmboard && npx vitest run → 126 文件 / 1512 例全绿",
+          "真实台账副本读取 + 渲染：/tmp/render-check.mts 只读副本（rev 2185 / 51 需求 / 234 任务）→ 泳道 51024B、列表 19230B，零异常",
+          "层边界证据：domain 无 node:/@deepseek-ai/ 运行时 import；ctx.workflowEngine 实现只在 adapters/WorkflowEngineRunner.ts（其余为注释）",
+          "插件 schema 冒烟 20/20（本需求把 dsh-pmboard 补进 PLUGINS）",
+          "消息/尺寸门禁收绿：把并发窗口新增的 popupInstructionFor 6 行拼接式文案改为「逐行数组 + join + fmt」（行为不变）→ adapters 回到基线 5",
+          "写 docs/requirements/REQ-4842fe/verification.md（含复现命令、已知缺口、并发说明）",
+          "更新说明书章节：docs/architecture/reqboard-stage-detail.md §6「子任务层与自动链控制面」+ front-matter updated"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-4842fe/tasks/t-fd25e0.md",
+      "layer": 6
+    }
+  ],
+  "edges": [
+    {
+      "from": "t-b0b327",
+      "to": "t-89704e"
+    },
+    {
+      "from": "t-b0b327",
+      "to": "t-b05389"
+    },
+    {
+      "from": "t-b0b327",
+      "to": "t-1cfe9f"
+    },
+    {
+      "from": "t-b05389",
+      "to": "t-b03e8b"
+    },
+    {
+      "from": "t-1cfe9f",
+      "to": "t-b03e8b"
+    },
+    {
+      "from": "t-b05389",
+      "to": "t-9769f5"
+    },
+    {
+      "from": "t-b03e8b",
+      "to": "t-1819f2"
+    },
+    {
+      "from": "t-9769f5",
+      "to": "t-1819f2"
+    },
+    {
+      "from": "t-1819f2",
+      "to": "t-89cc1c"
+    },
+    {
+      "from": "t-1819f2",
+      "to": "t-83b437"
+    },
+    {
+      "from": "t-1819f2",
+      "to": "t-a46239"
+    },
+    {
+      "from": "t-a46239",
+      "to": "t-3be71b"
+    },
+    {
+      "from": "t-89cc1c",
+      "to": "t-fd25e0"
+    },
+    {
+      "from": "t-83b437",
+      "to": "t-fd25e0"
+    },
+    {
+      "from": "t-3be71b",
+      "to": "t-fd25e0"
+    }
+  ],
+  "layers": [
+    {
+      "layer": 0,
+      "tasks": [
+        "t-b0b327"
+      ]
+    },
+    {
+      "layer": 1,
+      "tasks": [
+        "t-89704e",
+        "t-b05389",
+        "t-1cfe9f"
+      ]
+    },
+    {
+      "layer": 2,
+      "tasks": [
+        "t-9769f5",
+        "t-b03e8b"
+      ]
+    },
+    {
+      "layer": 3,
+      "tasks": [
+        "t-1819f2"
+      ]
+    },
+    {
+      "layer": 4,
+      "tasks": [
+        "t-89cc1c",
+        "t-83b437",
+        "t-a46239"
+      ]
+    },
+    {
+      "layer": 5,
+      "tasks": [
+        "t-3be71b"
+      ]
+    },
+    {
+      "layer": 6,
+      "tasks": [
+        "t-fd25e0"
+      ]
+    }
+  ],
+  "ready": [],
+  "updated_at": "2026-09-28T23:14:14.489Z"
+}

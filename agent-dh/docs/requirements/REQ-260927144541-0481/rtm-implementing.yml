@@ -1,0 +1,217 @@
+metadata:
+  stage: implementing
+  requirement_id: REQ-260927144541-0481
+  generated_at: 2026-09-27T06:51:16.528Z
+  version: 42
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 40
+  last_updated: 2026-09-27T11:18:06.112Z
+inputs:
+  tasks:
+    - id: t-3e3ebb
+      title: 先定契约：任务/链工具的入参与返回长什么样
+      status: done
+    - id: t-d50859
+      title: 链只留一个入口：起链工具收口，别名不再各跑一套
+      status: done
+    - id: t-acd60f
+      title: 一眼看清父子：新增「父卡→子卡」结构查询
+      status: done
+    - id: t-039d31
+      title: 单卡状态说实话：改读台账执行记录，不再读没人写的旧段落
+      status: done
+    - id: t-ac97a2
+      title: 推错状态要说清：报错带上角色与合法边，验收标准能当场改
+      status: done
+    - id: t-507969
+      title: 超时归位：投递/查询类工具不再挂交互式长超时
+      status: done
+    - id: t-5e64cd
+      title: 门禁固化：声明与行为不一致由测试拦住
+      status: done
+    - id: t-bd7439
+      title: 兼容收尾：老调用方不退化 + 工具面与流程文档同步
+      status: done
+    - id: t-c42bc0
+      title: 先定契约：任务/链工具的入参与返回长什么样·研发
+      status: done
+    - id: t-91b37e
+      title: 先定契约：任务/链工具的入参与返回长什么样·联调
+      status: done
+    - id: t-52933e
+      title: 先定契约：任务/链工具的入参与返回长什么样·复核
+      status: done
+    - id: t-2838a8
+      title: 先定契约：任务/链工具的入参与返回长什么样·测试
+      status: done
+    - id: t-b079ef
+      title: 链只留一个入口：起链工具收口，别名不再各跑一套·研发
+      status: done
+    - id: t-4ef7ab
+      title: 链只留一个入口：起链工具收口，别名不再各跑一套·联调
+      status: done
+    - id: t-226f18
+      title: 链只留一个入口：起链工具收口，别名不再各跑一套·复核
+      status: done
+    - id: t-6fd3e4
+      title: 链只留一个入口：起链工具收口，别名不再各跑一套·测试
+      status: done
+    - id: t-3f8bb3
+      title: 一眼看清父子：新增「父卡→子卡」结构查询·研发
+      status: done
+    - id: t-4b44d7
+      title: 一眼看清父子：新增「父卡→子卡」结构查询·联调
+      status: done
+    - id: t-f42b5a
+      title: 一眼看清父子：新增「父卡→子卡」结构查询·复核
+      status: done
+    - id: t-ca640c
+      title: 一眼看清父子：新增「父卡→子卡」结构查询·测试
+      status: done
+    - id: t-2de564
+      title: 单卡状态说实话：改读台账执行记录，不再读没人写的旧段落·研发
+      status: done
+    - id: t-e2ccda
+      title: 单卡状态说实话：改读台账执行记录，不再读没人写的旧段落·联调
+      status: done
+    - id: t-ebe92d
+      title: 单卡状态说实话：改读台账执行记录，不再读没人写的旧段落·复核
+      status: done
+    - id: t-46d23f
+      title: 单卡状态说实话：改读台账执行记录，不再读没人写的旧段落·测试
+      status: done
+    - id: t-c65b1a
+      title: 推错状态要说清：报错带上角色与合法边，验收标准能当场改·研发
+      status: done
+    - id: t-061657
+      title: 推错状态要说清：报错带上角色与合法边，验收标准能当场改·联调
+      status: done
+    - id: t-c67876
+      title: 推错状态要说清：报错带上角色与合法边，验收标准能当场改·复核
+      status: done
+    - id: t-008040
+      title: 推错状态要说清：报错带上角色与合法边，验收标准能当场改·测试
+      status: done
+    - id: t-59916c
+      title: 超时归位：投递/查询类工具不再挂交互式长超时·研发
+      status: done
+    - id: t-d80c2b
+      title: 超时归位：投递/查询类工具不再挂交互式长超时·联调
+      status: done
+    - id: t-fc43f2
+      title: 超时归位：投递/查询类工具不再挂交互式长超时·复核
+      status: done
+    - id: t-773fbf
+      title: 超时归位：投递/查询类工具不再挂交互式长超时·测试
+      status: done
+    - id: t-b02159
+      title: 门禁固化：声明与行为不一致由测试拦住·研发
+      status: done
+    - id: t-022248
+      title: 门禁固化：声明与行为不一致由测试拦住·联调
+      status: done
+    - id: t-8ec036
+      title: 门禁固化：声明与行为不一致由测试拦住·复核
+      status: done
+    - id: t-5a4790
+      title: 门禁固化：声明与行为不一致由测试拦住·测试
+      status: done
+    - id: t-73e493
+      title: 兼容收尾：老调用方不退化 + 工具面与流程文档同步·研发
+      status: done
+    - id: t-3b7673
+      title: 兼容收尾：老调用方不退化 + 工具面与流程文档同步·联调
+      status: done
+    - id: t-bfe2a8
+      title: 兼容收尾：老调用方不退化 + 工具面与流程文档同步·复核
+      status: done
+    - id: t-417698
+      title: 兼容收尾：老调用方不退化 + 工具面与流程文档同步·测试
+      status: done
+status:
+  tasks_total: 40
+  tasks_done: 40
+  tasks_in_progress: 0
+  tasks_todo: 0
+tasks:
+  - id: t-3e3ebb
+    status: done
+  - id: t-d50859
+    status: done
+  - id: t-acd60f
+    status: done
+  - id: t-039d31
+    status: done
+  - id: t-ac97a2
+    status: done
+  - id: t-507969
+    status: done
+  - id: t-5e64cd
+    status: done
+  - id: t-bd7439
+    status: done
+  - id: t-c42bc0
+    status: done
+  - id: t-91b37e
+    status: done
+  - id: t-52933e
+    status: done
+  - id: t-2838a8
+    status: done
+  - id: t-b079ef
+    status: done
+  - id: t-4ef7ab
+    status: done
+  - id: t-226f18
+    status: done
+  - id: t-6fd3e4
+    status: done
+  - id: t-3f8bb3
+    status: done
+  - id: t-4b44d7
+    status: done
+  - id: t-f42b5a
+    status: done
+  - id: t-ca640c
+    status: done
+  - id: t-2de564
+    status: done
+  - id: t-e2ccda
+    status: done
+  - id: t-ebe92d
+    status: done
+  - id: t-46d23f
+    status: done
+  - id: t-c65b1a
+    status: done
+  - id: t-061657
+    status: done
+  - id: t-c67876
+    status: done
+  - id: t-008040
+    status: done
+  - id: t-59916c
+    status: done
+  - id: t-d80c2b
+    status: done
+  - id: t-fc43f2
+    status: done
+  - id: t-773fbf
+    status: done
+  - id: t-b02159
+    status: done
+  - id: t-022248
+    status: done
+  - id: t-8ec036
+    status: done
+  - id: t-5a4790
+    status: done
+  - id: t-73e493
+    status: done
+  - id: t-3b7673
+    status: done
+  - id: t-bfe2a8
+    status: done
+  - id: t-417698
+    status: done

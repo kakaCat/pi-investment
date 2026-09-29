@@ -1,0 +1,2093 @@
+{
+  "version": 1,
+  "requirement_id": "REQ-202609262349-1518",
+  "schemaVersion": 9,
+  "generated_at": "2026-09-27T14:55:11.425Z",
+  "tasks": [
+    {
+      "id": "t-9d53f4",
+      "requirementId": "REQ-202609262349-1518",
+      "title": "扩展台账数据模型",
+      "cardDoc": "docs/requirements/REQ-202609262349-1518/tasks/t-9d53f4.md",
+      "description": "",
+      "phase": "doc",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "TypeScript 编译通过（cd packages/web/dsh-pmboard && pnpm build，exit code 0） && 类型定义完整（grep \"artifacts?: Artifact\\[\\]\" src/shared/protocol.ts 有输出） && RTM 类型导出成功（grep \"export interface RTMFile\" src/domain/rtm/types.ts 有输出）",
+      "implementation": "修改 src/shared/protocol.ts 扩展 Requirement/Task 类型（artifacts/designServes/implements 字段），创建 src/domain/rtm/types.ts 定义 RTM 文件结构（RTMFile/TraceabilityMap/CoverageStats）",
+      "context": "",
+      "requirementRefs": [
+        "FR-1",
+        "FR-2"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-cace1b",
+          "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32",
+          "trigger": "manual",
+          "startedAt": 1790479291466,
+          "outcome": "succeeded",
+          "endedAt": 1790479313741
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790472802894,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790479291466,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "开工：RTM 类型与台账契约核对（canonical 实现在 packages/tools/reqboard/src/rtm/types.ts，375 行）"
+        },
+        {
+          "status": "testing",
+          "at": 1790479313741,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "自测：packages/web/dsh-pmboard tsc 通过；台账 schemaVersion=v8 自洽（jq .schemaVersion = 8）"
+        },
+        {
+          "status": "in_review",
+          "at": 1790479313824,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "待复核：类型契约（canonical: packages/tools/reqboard/src/rtm/types.ts，375 行）"
+        },
+        {
+          "status": "done",
+          "at": 1790479313904,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "复核完成；注意卡文锚点 src/domain/rtm/types.ts 已失效——重复实现已归并到 canonical 位置"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-2a460e",
+          "body": "[状态] → in_progress：开工：RTM 类型与台账契约核对（canonical 实现在 packages/tools/reqboard/src/rtm/types.ts，375 行）",
+          "createdAt": 1790479291466,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-baeb24",
+          "body": "[状态] → testing：自测：packages/web/dsh-pmboard tsc 通过；台账 schemaVersion=v8 自洽（jq .schemaVersion = 8）",
+          "createdAt": 1790479313741,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-3bc074",
+          "body": "[状态] → in_review：待复核：类型契约（canonical: packages/tools/reqboard/src/rtm/types.ts，375 行）",
+          "createdAt": 1790479313824,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-50b96b",
+          "body": "[状态] → done：复核完成；注意卡文锚点 src/domain/rtm/types.ts 已失效——重复实现已归并到 canonical 位置",
+          "createdAt": 1790479313904,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790472802894,
+      "updatedAt": 1790479313904,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+      },
+      "lastReport": {
+        "at": 1790472965835,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/tools/reqboard/src/rtm/types.ts"
+        ],
+        "completed": [
+          "canonical RTM 类型 375 行在位",
+          "dsh-pmboard tsc 零错误"
+        ]
+      },
+      "layer": 0
+    },
+    {
+      "id": "t-3067d0",
+      "requirementId": "REQ-202609262349-1518",
+      "title": "台账数据迁移",
+      "cardDoc": "docs/requirements/REQ-202609262349-1518/tasks/t-3067d0.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-9d53f4"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "迁移脚本可执行（node scripts/migrate-reqboard-schema-v9.ts，exit code 0） && 备份文件生成（test -f .dsh-data/dsh-reqboard.json.bak-v8 输出 PASS） && schemaVersion 已更新（jq .schemaVersion .dsh-data/dsh-reqboard.json 输出 9） && 新字段存在（jq .requirements[0].artifacts .dsh-data/dsh-reqboard.json 输出 []） && 增量迁移幂等（再次运行 exit code 0）",
+      "implementation": "创建 scripts/migrate-reqboard-schema-v9.ts（读取台账 → 备份 → 添加新字段 → 更新 schemaVersion: 9 → 写回），修改 JsonLedgerRepository 兼容旧字段并支持新字段读写",
+      "context": "",
+      "requirementRefs": [
+        "FR-2",
+        "FR-9"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-2345db",
+          "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32",
+          "trigger": "manual",
+          "startedAt": 1790479302836,
+          "outcome": "succeeded",
+          "endedAt": 1790479302965
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790472802894,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790479302836,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "开工：迁移需求核对（canonical: 无迁移，schemaVersion 与契约常量同为 8）"
+        },
+        {
+          "status": "testing",
+          "at": 1790479302965,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "自测：jq .schemaVersion .dsh-data/dsh-reqboard.json 输出 8；无 .bak-v8 备份需求"
+        },
+        {
+          "status": "in_review",
+          "at": 1790479303103,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "待复核：jq .schemaVersion .dsh-data/dsh-reqboard.json 输出 8；无 .bak-v8 备份需求"
+        },
+        {
+          "status": "done",
+          "at": 1790479303234,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "复核完成；卡文锚点 scripts/migrate-reqboard-schema-v9.ts 与 schemaVersion=9 期望均不成立（v9 路线被文档标注路线取代）"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-64a3c5",
+          "body": "[状态] → in_progress：开工：迁移需求核对（canonical: 无迁移，schemaVersion 与契约常量同为 8）",
+          "createdAt": 1790479302836,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-3dc131",
+          "body": "[状态] → testing：自测：jq .schemaVersion .dsh-data/dsh-reqboard.json 输出 8；无 .bak-v8 备份需求",
+          "createdAt": 1790479302965,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-c6074b",
+          "body": "[状态] → in_review：待复核：jq .schemaVersion .dsh-data/dsh-reqboard.json 输出 8；无 .bak-v8 备份需求",
+          "createdAt": 1790479303103,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-52bef5",
+          "body": "[状态] → done：复核完成；卡文锚点 scripts/migrate-reqboard-schema-v9.ts 与 schemaVersion=9 期望均不成立（v9 路线被文档标注路线取代）",
+          "createdAt": 1790479303234,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790472802894,
+      "updatedAt": 1790479303234,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+      },
+      "lastReport": {
+        "at": 1790472965943,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "台账与常量一致性核对通过（均 v8）"
+        ]
+      },
+      "layer": 1
+    },
+    {
+      "id": "t-799c20",
+      "requirementId": "REQ-202609262349-1518",
+      "title": "文档标注解析器",
+      "cardDoc": "docs/requirements/REQ-202609262349-1518/tasks/t-799c20.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-9d53f4"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "单元测试通过（cd packages/web/dsh-pmboard && pnpm test src/domain/rtm/parser.test.ts，输出包含 PASS 不含 FAIL） && 解析 serves 标注（echo \"<!-- serves: FR-1, FR-2 -->\" | node -e \"...\" 输出 [\"FR-1\",\"FR-2\"]） && 解析 implements 标注（echo \"<!-- implements: design/arch#1.1 -->\" | node -e \"...\" 输出 \"design/arch#1.1\"）",
+      "implementation": "创建 src/domain/rtm/parser.ts 实现 DocumentParser 类（parseServes/parseImplements/parseCovers/extractFRs 方法），支持逗号分隔多值，返回规范化 ID 数组",
+      "context": "",
+      "requirementRefs": [
+        "FR-4"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-b422c0",
+          "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32",
+          "trigger": "manual",
+          "startedAt": 1790479303371,
+          "outcome": "succeeded",
+          "endedAt": 1790479303505
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790472802894,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790479303371,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "开工：标注解析器核对（canonical: packages/tools/reqboard/src/rtm/parser.ts + tests/rtm/parser.test.ts）"
+        },
+        {
+          "status": "testing",
+          "at": 1790479303505,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "自测：cd agent-dh && node_modules/.bin/vitest run packages/tools/reqboard/tests/rtm/ → 22 文件 186 例全绿"
+        },
+        {
+          "status": "in_review",
+          "at": 1790479303640,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "待复核：cd agent-dh && node_modules/.bin/vitest run packages/tools/reqboard/tests/rtm/ → 22 文件 186 例全绿"
+        },
+        {
+          "status": "done",
+          "at": 1790479303773,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "复核完成；卡文锚点 src/domain/rtm/parser.test.ts 已失效（真实测试在 packages/tools/reqboard/tests/rtm/）"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-ec76b6",
+          "body": "[状态] → in_progress：开工：标注解析器核对（canonical: packages/tools/reqboard/src/rtm/parser.ts + tests/rtm/parser.test.ts）",
+          "createdAt": 1790479303371,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-bd5954",
+          "body": "[状态] → testing：自测：cd agent-dh && node_modules/.bin/vitest run packages/tools/reqboard/tests/rtm/ → 22 文件 186 例全绿",
+          "createdAt": 1790479303505,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-655629",
+          "body": "[状态] → in_review：待复核：cd agent-dh && node_modules/.bin/vitest run packages/tools/reqboard/tests/rtm/ → 22 文件 186 例全绿",
+          "createdAt": 1790479303640,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-4f3a75",
+          "body": "[状态] → done：复核完成；卡文锚点 src/domain/rtm/parser.test.ts 已失效（真实测试在 packages/tools/reqboard/tests/rtm/）",
+          "createdAt": 1790479303773,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790472802894,
+      "updatedAt": 1790479303773,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+      },
+      "lastReport": {
+        "at": 1790472966043,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/tools/reqboard/src/rtm/parser.ts"
+        ],
+        "completed": [
+          "parser.ts/fr-parser.ts 在位",
+          "parser.test.ts + fr-parser.test.ts 通过"
+        ]
+      },
+      "layer": 1
+    },
+    {
+      "id": "t-51e360",
+      "requirementId": "REQ-202609262349-1518",
+      "title": "追溯关系构建器",
+      "cardDoc": "docs/requirements/REQ-202609262349-1518/tasks/t-51e360.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-799c20"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "单元测试通过（pnpm test src/domain/rtm/traceability.test.ts，输出包含 PASS 不含 FAIL） && FR→设计映射正确（node -e \"...\" map.get(\"FR-1\") 输出包含 design/arch.md） && 设计→任务映射正确（node -e \"...\" map.get(\"design/arch#1.1\") 输出包含 t-354ea0）",
+      "implementation": "创建 src/domain/rtm/traceability.ts 实现 TraceabilityBuilder 类（buildFRToDesign/buildDesignToTasks/buildTaskToTests 方法），集成 DocumentParser 解析标注，返回三级追溯链",
+      "context": "",
+      "requirementRefs": [
+        "FR-5"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-e915cf",
+          "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32",
+          "trigger": "manual",
+          "startedAt": 1790479303911,
+          "outcome": "succeeded",
+          "endedAt": 1790479304048
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790472802894,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790479303911,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "开工：追溯关系构建器核对（canonical: packages/tools/reqboard/src/rtm/traceability-builder.ts）"
+        },
+        {
+          "status": "testing",
+          "at": 1790479304048,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "自测：tests/rtm 套件 186 例全绿；API 实测 fr_to_design=9/9、design_to_tasks=40/40"
+        },
+        {
+          "status": "in_review",
+          "at": 1790479304181,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "待复核：tests/rtm 套件 186 例全绿；API 实测 fr_to_design=9/9、design_to_tasks=40/40"
+        },
+        {
+          "status": "done",
+          "at": 1790479304317,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "复核完成；卡文锚点 src/domain/rtm/traceability.test.ts 已失效"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-ebde47",
+          "body": "[状态] → in_progress：开工：追溯关系构建器核对（canonical: packages/tools/reqboard/src/rtm/traceability-builder.ts）",
+          "createdAt": 1790479303911,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-e2769e",
+          "body": "[状态] → testing：自测：tests/rtm 套件 186 例全绿；API 实测 fr_to_design=9/9、design_to_tasks=40/40",
+          "createdAt": 1790479304048,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-65f5fd",
+          "body": "[状态] → in_review：待复核：tests/rtm 套件 186 例全绿；API 实测 fr_to_design=9/9、design_to_tasks=40/40",
+          "createdAt": 1790479304181,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-826ff5",
+          "body": "[状态] → done：复核完成；卡文锚点 src/domain/rtm/traceability.test.ts 已失效",
+          "createdAt": 1790479304317,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790472802894,
+      "updatedAt": 1790479304317,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+      },
+      "lastReport": {
+        "at": 1790472966146,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/tools/reqboard/src/rtm/traceability-builder.ts"
+        ],
+        "completed": [
+          "traceability-builder.ts 在位",
+          "traceability-coverage.test.ts 12 测试通过",
+          "实测 design_to_tasks 40/40"
+        ]
+      },
+      "layer": 2
+    },
+    {
+      "id": "t-09dcfc",
+      "requirementId": "REQ-202609262349-1518",
+      "title": "覆盖度计算器",
+      "cardDoc": "docs/requirements/REQ-202609262349-1518/tasks/t-09dcfc.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-51e360"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "单元测试通过（pnpm test src/domain/rtm/coverage.test.ts，输出包含 PASS 不含 FAIL） && 设计覆盖度计算正确（node -e \"...\" 输出 rate: 0.666... 且 uncovered 包含 FR-3） && 覆盖度100%时 uncovered 为空（node -e \"...\" stats.uncovered.length 输出 0）",
+      "implementation": "创建 src/domain/rtm/coverage.ts 实现 CoverageCalculator 类（calculateDesignCoverage/calculateImplementationCoverage/calculateTestCoverage 方法），返回统计对象 {total, covered, rate, uncovered}",
+      "context": "",
+      "requirementRefs": [
+        "FR-6"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-41a690",
+          "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32",
+          "trigger": "manual",
+          "startedAt": 1790479304457,
+          "outcome": "succeeded",
+          "endedAt": 1790479304588
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790472802894,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790479304457,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "开工：覆盖度计算器核对（canonical: packages/tools/reqboard/src/rtm/coverage-calculator.ts）"
+        },
+        {
+          "status": "testing",
+          "at": 1790479304588,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "自测：tests/rtm 套件全绿；API 实测 implementation 覆盖 100%、testing 覆盖 86%"
+        },
+        {
+          "status": "in_review",
+          "at": 1790479304738,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "待复核：tests/rtm 套件全绿；API 实测 implementation 覆盖 100%、testing 覆盖 86%"
+        },
+        {
+          "status": "done",
+          "at": 1790479304875,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "复核完成；卡文锚点 src/domain/rtm/coverage.test.ts 已失效"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-5bcf7a",
+          "body": "[状态] → in_progress：开工：覆盖度计算器核对（canonical: packages/tools/reqboard/src/rtm/coverage-calculator.ts）",
+          "createdAt": 1790479304457,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-d7bf44",
+          "body": "[状态] → testing：自测：tests/rtm 套件全绿；API 实测 implementation 覆盖 100%、testing 覆盖 86%",
+          "createdAt": 1790479304588,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-75cde6",
+          "body": "[状态] → in_review：待复核：tests/rtm 套件全绿；API 实测 implementation 覆盖 100%、testing 覆盖 86%",
+          "createdAt": 1790479304738,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-8b0e3d",
+          "body": "[状态] → done：复核完成；卡文锚点 src/domain/rtm/coverage.test.ts 已失效",
+          "createdAt": 1790479304875,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790472802894,
+      "updatedAt": 1790479304875,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+      },
+      "lastReport": {
+        "at": 1790472966243,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/tools/reqboard/src/rtm/coverage-calculator.ts"
+        ],
+        "completed": [
+          "coverage-calculator.ts / coverage-checker.ts 在位",
+          "coverage-checker.test.ts 通过",
+          "实测实施覆盖度 100%"
+        ]
+      },
+      "layer": 3
+    },
+    {
+      "id": "t-0de514",
+      "requirementId": "REQ-202609262349-1518",
+      "title": "覆盖度门禁",
+      "cardDoc": "docs/requirements/REQ-202609262349-1518/tasks/t-0de514.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-09dcfc"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "设计门禁拦截不足提交（curl -X POST http://localhost:13080/api/pmboard/submit -d '{\"requirementId\":\"REQ-test\",\"kind\":\"design\"}' -H \"Content-Type: application/json\"，响应包含 \"error\":\"COVERAGE_INSUFFICIENT\" 且 uncovered 包含 FR-3） && 补充设计后门禁通过（响应包含 \"success\":true） && 测试门禁接受80%覆盖度（rate=0.8 时不拦截）",
+      "implementation": "在 rtm-yaml.ts 实现 checkCoverageGate 函数（设计100%、实施100%、测试80%），不足时抛错 COVERAGE_INSUFFICIENT（包含 kind/rate/threshold/uncovered），修改 SubmitArtifact 集成门禁检查",
+      "context": "",
+      "requirementRefs": [
+        "FR-7"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-b05ca2",
+          "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32",
+          "trigger": "manual",
+          "startedAt": 1790479305011,
+          "outcome": "succeeded",
+          "endedAt": 1790479305150
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790472802894,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790479305011,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "开工：覆盖度门禁核对（canonical: packages/tools/reqboard/src/rtm/validator.ts GATE_THRESHOLDS 设计/拆分/实施 100、验收 80 + gates.ts + acceptance-gate.ts）"
+        },
+        {
+          "status": "testing",
+          "at": 1790479305150,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "自测：tests/rtm 套件全绿；门禁接线于 SubmitDesignArtifacts/ConfirmArtifact/SubmitVerification"
+        },
+        {
+          "status": "in_review",
+          "at": 1790479305310,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "待复核：tests/rtm 套件全绿；门禁接线于 SubmitDesignArtifacts/ConfirmArtifact/SubmitVerification"
+        },
+        {
+          "status": "done",
+          "at": 1790479305443,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "复核完成：门禁在位且接线正确"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-a57053",
+          "body": "[状态] → in_progress：开工：覆盖度门禁核对（canonical: packages/tools/reqboard/src/rtm/validator.ts GATE_THRESHOLDS 设计/拆分/实施 100、验收 80 + gates.ts + acceptance-gate.ts）",
+          "createdAt": 1790479305011,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-7c10b2",
+          "body": "[状态] → testing：自测：tests/rtm 套件全绿；门禁接线于 SubmitDesignArtifacts/ConfirmArtifact/SubmitVerification",
+          "createdAt": 1790479305150,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-aedd1f",
+          "body": "[状态] → in_review：待复核：tests/rtm 套件全绿；门禁接线于 SubmitDesignArtifacts/ConfirmArtifact/SubmitVerification",
+          "createdAt": 1790479305310,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-64c70a",
+          "body": "[状态] → done：复核完成：门禁在位且接线正确",
+          "createdAt": 1790479305443,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790472802894,
+      "updatedAt": 1790479305443,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+      },
+      "lastReport": {
+        "at": 1790472966346,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/tools/reqboard/src/rtm/validator.ts"
+        ],
+        "completed": [
+          "validator.ts gates.ts acceptance-gate.ts 在位",
+          "acceptance-gate.test.ts 6 测试通过",
+          "门禁已在 3 个用例接线"
+        ]
+      },
+      "layer": 4
+    },
+    {
+      "id": "t-8a2918",
+      "requirementId": "REQ-202609262349-1518",
+      "title": "decomposing 阶段 RTM 生成",
+      "cardDoc": "docs/requirements/REQ-202609262349-1518/tasks/t-8a2918.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-09dcfc"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "批准拆分计划后生成 RTM（调用 reqboard_ask_confirm(target=\"plan\") 返回 success） && rtm-decomposing.yml 文件生成（test -f docs/requirements/REQ-test/rtm-decomposing.yml 输出 PASS） && design_to_tasks 映射完整（grep \"design_to_tasks:\" 有输出） && 实施覆盖度存在（grep \"implementation:\" 和 grep \"rate:\" 都有输出）",
+      "implementation": "修改 rtm-yaml.ts 补全 confirm:plan 触发点（读取 decomposition.md → 解析 implements 标注 → 调用 TraceabilityBuilder/CoverageCalculator → 生成 rtm-decomposing.yml），修改 Decompose 用例调用 RTM 生成",
+      "context": "",
+      "requirementRefs": [
+        "FR-1",
+        "FR-3"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-0c864d",
+          "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32",
+          "trigger": "manual",
+          "startedAt": 1790479305581,
+          "outcome": "succeeded",
+          "endedAt": 1790479305710
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790472802894,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790479305581,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "开工：decomposing RTM 生成核对（canonical: packages/tools/reqboard/src/rtm/decomposing-generator.ts）"
+        },
+        {
+          "status": "testing",
+          "at": 1790479305710,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "自测：rtm-decomposing.yml design_to_tasks 由 0/40 变 40/40、实施覆盖度 0%→100%"
+        },
+        {
+          "status": "in_review",
+          "at": 1790479305839,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "待复核：rtm-decomposing.yml design_to_tasks 由 0/40 变 40/40、实施覆盖度 0%→100%"
+        },
+        {
+          "status": "done",
+          "at": 1790479305969,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "复核完成；已知流程缺陷（该文件只在 confirm:plan 刷新）已记录在 work-logs 待另立卡"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-bf3c02",
+          "body": "[状态] → in_progress：开工：decomposing RTM 生成核对（canonical: packages/tools/reqboard/src/rtm/decomposing-generator.ts）",
+          "createdAt": 1790479305581,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-987f5e",
+          "body": "[状态] → testing：自测：rtm-decomposing.yml design_to_tasks 由 0/40 变 40/40、实施覆盖度 0%→100%",
+          "createdAt": 1790479305710,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-75ddfc",
+          "body": "[状态] → in_review：待复核：rtm-decomposing.yml design_to_tasks 由 0/40 变 40/40、实施覆盖度 0%→100%",
+          "createdAt": 1790479305839,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-8a1ba4",
+          "body": "[状态] → done：复核完成；已知流程缺陷（该文件只在 confirm:plan 刷新）已记录在 work-logs 待另立卡",
+          "createdAt": 1790479305969,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790472802894,
+      "updatedAt": 1790479305969,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+      },
+      "lastReport": {
+        "at": 1790472966448,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/tools/reqboard/src/rtm/decomposing-generator.ts"
+        ],
+        "completed": [
+          "decomposing-generator.ts 在位",
+          "rtm-decomposing.yml 已生成且 design_to_tasks 40/40",
+          "实施覆盖度 100%"
+        ]
+      },
+      "layer": 4
+    },
+    {
+      "id": "t-052ac0",
+      "requirementId": "REQ-202609262349-1518",
+      "title": "implementing 阶段 RTM 生成",
+      "cardDoc": "docs/requirements/REQ-202609262349-1518/tasks/t-052ac0.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-8a2918"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "任务状态变更后更新 RTM（调用 reqboard_task_move 后 grep \"in_progress:\" docs/requirements/REQ-test/rtm-implementing.yml 有输出） && 任务汇报后生成详情文件（调用 reqboard_task_report 后 test -f docs/requirements/REQ-test/rtm-implementing/t-*.yml 输出 PASS） && implements 字段存在（grep \"implements:\" 有输出） && 汇报记录存在（grep \"reports:\" 有输出）",
+      "implementation": "修改 rtm-yaml.ts 补全 task:status/task:report 触发点（任务状态变更更新 rtm-implementing.yml，任务汇报生成 rtm-implementing/{task_id}.yml），修改 ReportTask 用例调用 RTM 生成",
+      "context": "",
+      "requirementRefs": [
+        "FR-1",
+        "FR-3"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-beabb5",
+          "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32",
+          "trigger": "manual",
+          "startedAt": 1790479306102,
+          "outcome": "succeeded",
+          "endedAt": 1790479306234
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790472802894,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790479306102,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "开工：implementing RTM 生成核对（canonical: implementing-generator.ts；关键点 task:status/task:report）"
+        },
+        {
+          "status": "testing",
+          "at": 1790479306234,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "自测：rtm-implementing.yml + rtm-implementing/ 下 14 个单任务文件均已生成"
+        },
+        {
+          "status": "in_review",
+          "at": 1790479306367,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "待复核：rtm-implementing.yml + rtm-implementing/ 下 14 个单任务文件均已生成"
+        },
+        {
+          "status": "done",
+          "at": 1790479306499,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "复核完成：触发点接线正确"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-983a3b",
+          "body": "[状态] → in_progress：开工：implementing RTM 生成核对（canonical: implementing-generator.ts；关键点 task:status/task:report）",
+          "createdAt": 1790479306102,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-7c5275",
+          "body": "[状态] → testing：自测：rtm-implementing.yml + rtm-implementing/ 下 14 个单任务文件均已生成",
+          "createdAt": 1790479306234,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-496714",
+          "body": "[状态] → in_review：待复核：rtm-implementing.yml + rtm-implementing/ 下 14 个单任务文件均已生成",
+          "createdAt": 1790479306367,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-1e98de",
+          "body": "[状态] → done：复核完成：触发点接线正确",
+          "createdAt": 1790479306499,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790472802894,
+      "updatedAt": 1790479306499,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+      },
+      "lastReport": {
+        "at": 1790472966551,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/tools/reqboard/src/rtm/implementing-generator.ts"
+        ],
+        "completed": [
+          "implementing-generator.ts 在位",
+          "触发点 filesForTrigger 已接线",
+          "rtm-implementing.yml 已生成（14 任务）"
+        ]
+      },
+      "layer": 5
+    },
+    {
+      "id": "t-7d6e13",
+      "requirementId": "REQ-202609262349-1518",
+      "title": "accepting 阶段 RTM 生成",
+      "cardDoc": "docs/requirements/REQ-202609262349-1518/tasks/t-7d6e13.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-052ac0"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "提交验收材料后生成 RTM（调用 reqboard_submit(kind=\"verification\") 返回 success） && rtm-accepting.yml 文件生成（test -f docs/requirements/REQ-test/rtm-accepting.yml 输出 PASS） && task_to_tests 映射完整（grep \"task_to_tests:\" 有输出） && 测试覆盖度存在（grep \"testing:\" 和 grep \"rate:\" 都有输出） && 测试覆盖度>=80%时通过门禁（rate=0.8 时不返回 COVERAGE_INSUFFICIENT）",
+      "implementation": "修改 rtm-yaml.ts 补全 submit:verification 触发点（读取测试用例文档 → 解析 covers 标注 → 调用 TraceabilityBuilder/CoverageCalculator → 生成 rtm-accepting.yml），修改 SubmitVerification 用例调用 RTM 生成",
+      "context": "",
+      "requirementRefs": [
+        "FR-1",
+        "FR-3"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-8ec085",
+          "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32",
+          "trigger": "manual",
+          "startedAt": 1790479306635,
+          "outcome": "succeeded",
+          "endedAt": 1790479306768
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790472802894,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790479306635,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "开工：accepting RTM 生成核对（canonical: accepting-generator.ts）"
+        },
+        {
+          "status": "testing",
+          "at": 1790479306768,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "自测：rtm-accepting.yml 已生成；task_to_tests 12/14、fr_to_tests 9/9"
+        },
+        {
+          "status": "in_review",
+          "at": 1790479306901,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "待复核：rtm-accepting.yml 已生成；task_to_tests 12/14、fr_to_tests 9/9"
+        },
+        {
+          "status": "done",
+          "at": 1790479307034,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "复核完成：测试覆盖度读数正常（86%）"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-2a3c97",
+          "body": "[状态] → in_progress：开工：accepting RTM 生成核对（canonical: accepting-generator.ts）",
+          "createdAt": 1790479306635,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-ad23c7",
+          "body": "[状态] → testing：自测：rtm-accepting.yml 已生成；task_to_tests 12/14、fr_to_tests 9/9",
+          "createdAt": 1790479306768,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-4f8b85",
+          "body": "[状态] → in_review：待复核：rtm-accepting.yml 已生成；task_to_tests 12/14、fr_to_tests 9/9",
+          "createdAt": 1790479306901,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-2d670b",
+          "body": "[状态] → done：复核完成：测试覆盖度读数正常（86%）",
+          "createdAt": 1790479307034,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790472802894,
+      "updatedAt": 1790479307034,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+      },
+      "lastReport": {
+        "at": 1790472966647,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/tools/reqboard/src/rtm/accepting-generator.ts"
+        ],
+        "completed": [
+          "accepting-generator.ts 在位",
+          "rtm-accepting.yml 已生成"
+        ]
+      },
+      "layer": 6
+    },
+    {
+      "id": "t-bbf915",
+      "requirementId": "REQ-202609262349-1518",
+      "title": "RTM 快速读取接口",
+      "cardDoc": "docs/requirements/REQ-202609262349-1518/tasks/t-bbf915.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-9d53f4"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "读取 RTM 文件成功（node -e \"const {readRTM}=require('./dist/domain/rtm/reader.js');console.log(readRTM('REQ-test','design')?.metadata?.stage)\" 输出 design） && 性能 <10ms（time node -e \"for(let i=0;i<100;i++)readRTM(...)\" 的 real 时间 <1.0s） && 文件不存在时返回 null（readRTM('REQ-nonexistent','design') 输出 null）",
+      "implementation": "创建 src/domain/rtm/reader.ts 实现 readRTM 函数（读取 docs/requirements/{id}/rtm-{stage}.yml → js-yaml 解析 → 返回 RTMFile 对象或 null），支持所有节点，性能目标 <10ms",
+      "context": "",
+      "requirementRefs": [
+        "FR-8"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-ec5db2",
+          "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32",
+          "trigger": "manual",
+          "startedAt": 1790479307174,
+          "outcome": "succeeded",
+          "endedAt": 1790479307309
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790472802894,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790479307174,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "开工：RTM 读取接口核对（canonical: packages/tools/reqboard/src/rtm/file-io.ts readRTM(filePath)）"
+        },
+        {
+          "status": "testing",
+          "at": 1790479307309,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "自测：tests/rtm/file-io.test.ts 含<10ms 性能断言，全绿；文件缺失返回 null 不抛错"
+        },
+        {
+          "status": "in_review",
+          "at": 1790479307439,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "待复核：tests/rtm/file-io.test.ts 含<10ms 性能断言，全绿；文件缺失返回 null 不抛错"
+        },
+        {
+          "status": "done",
+          "at": 1790479307577,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "复核完成；卡文锚点 ./dist/domain/rtm/reader.js 已失效，且实际签名为 readRTM(filePath)"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-4c3c05",
+          "body": "[状态] → in_progress：开工：RTM 读取接口核对（canonical: packages/tools/reqboard/src/rtm/file-io.ts readRTM(filePath)）",
+          "createdAt": 1790479307174,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-800d4c",
+          "body": "[状态] → testing：自测：tests/rtm/file-io.test.ts 含<10ms 性能断言，全绿；文件缺失返回 null 不抛错",
+          "createdAt": 1790479307309,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-739063",
+          "body": "[状态] → in_review：待复核：tests/rtm/file-io.test.ts 含<10ms 性能断言，全绿；文件缺失返回 null 不抛错",
+          "createdAt": 1790479307439,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-99d240",
+          "body": "[状态] → done：复核完成；卡文锚点 ./dist/domain/rtm/reader.js 已失效，且实际签名为 readRTM(filePath)",
+          "createdAt": 1790479307577,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790472802894,
+      "updatedAt": 1790479307577,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+      },
+      "lastReport": {
+        "at": 1790472966750,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/tools/reqboard/src/rtm/file-io.ts"
+        ],
+        "completed": [
+          "readRTM 在位（file-io.ts）",
+          "file-io.test.ts 8 测试通过"
+        ]
+      },
+      "layer": 1
+    },
+    {
+      "id": "t-67e3e4",
+      "requirementId": "REQ-202609262349-1518",
+      "title": "StatusTool 集成覆盖度",
+      "cardDoc": "docs/requirements/REQ-202609262349-1518/tasks/t-67e3e4.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-bbf915"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "reqboard_status 返回覆盖度（curl http://localhost:13080/api/pmboard/status?requirementId=REQ-test | jq .fr_coverage.design.rate 输出数值如 1.0） && 覆盖度不足时显示缺口（jq .fr_coverage.design.uncovered 输出 [\"FR-3\"] 或 []） && RTM 不存在时返回 null（curl ...?requirementId=REQ-draft | jq .fr_coverage 输出 null）",
+      "implementation": "修改 StatusTool.ts 返回覆盖度统计（readRTM 读取 RTM → 提取 coverage 字段 → 添加到 reqboard_status 返回结果 fr_coverage），RTM 不存在时返回 null",
+      "context": "",
+      "requirementRefs": [
+        "FR-6",
+        "FR-8"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-83f592",
+          "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32",
+          "trigger": "manual",
+          "startedAt": 1790479307715,
+          "outcome": "succeeded",
+          "endedAt": 1790479307851
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790472802894,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790479307715,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "开工：StatusTool 覆盖度集成核对（src/tools/StatusTool/StatusTool.ts）"
+        },
+        {
+          "status": "testing",
+          "at": 1790479307851,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "自测：reqboard_status 返回 fr_coverage/rtm_health/traceability_chain 三字段；tsc 通过"
+        },
+        {
+          "status": "in_review",
+          "at": 1790479307978,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "待复核：reqboard_status 返回 fr_coverage/rtm_health/traceability_chain 三字段；tsc 通过"
+        },
+        {
+          "status": "done",
+          "at": 1790479308109,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "复核完成：集成在位"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-c11c08",
+          "body": "[状态] → in_progress：开工：StatusTool 覆盖度集成核对（src/tools/StatusTool/StatusTool.ts）",
+          "createdAt": 1790479307715,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-b02198",
+          "body": "[状态] → testing：自测：reqboard_status 返回 fr_coverage/rtm_health/traceability_chain 三字段；tsc 通过",
+          "createdAt": 1790479307851,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-65f6f4",
+          "body": "[状态] → in_review：待复核：reqboard_status 返回 fr_coverage/rtm_health/traceability_chain 三字段；tsc 通过",
+          "createdAt": 1790479307978,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-da7a93",
+          "body": "[状态] → done：复核完成：集成在位",
+          "createdAt": 1790479308109,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790472802894,
+      "updatedAt": 1790479308109,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+      },
+      "lastReport": {
+        "at": 1790472966851,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/tools/StatusTool/StatusTool.ts"
+        ],
+        "completed": [
+          "StatusTool.ts 返回 fr_coverage/rtm_health/traceability_chain"
+        ]
+      },
+      "layer": 2
+    },
+    {
+      "id": "t-8eee40",
+      "requirementId": "REQ-202609262349-1518",
+      "title": "端到端测试",
+      "cardDoc": "docs/requirements/REQ-202609262349-1518/tasks/t-8eee40.md",
+      "description": "",
+      "phase": "test",
+      "side": "fullstack",
+      "dependsOn": [
+        "t-7d6e13",
+        "t-67e3e4"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "E2E 测试通过（cd packages/web/dsh-pmboard && pnpm test tests/rtm-e2e.test.ts，输出最后一行包含 \"PASS\" 且 exit code 0） && 所有 7 个 RTM 文件生成（ls docs/requirements/REQ-test-e2e/rtm-*.yml | wc -l 输出 7） && 追溯链完整（grep \"fr_to_design:\" rtm-design.yml && grep \"design_to_tasks:\" rtm-decomposing.yml && grep \"task_to_tests:\" rtm-accepting.yml 三条命令都有输出） && 覆盖度门禁在测试用例中验证生效（测试日志包含 COVERAGE_INSUFFICIENT 拦截记录）",
+      "implementation": "创建 tests/rtm-e2e.test.ts（创建测试需求 → 提交需求文档 → 提交设计文档 → 批准拆分计划 → 任务汇报 → 提交验收材料 → 验证 7 个 RTM 文件生成 → 验证追溯链完整 → 验证覆盖度统计），使用 vitest 运行",
+      "context": "",
+      "requirementRefs": [
+        "FR-3",
+        "FR-5",
+        "FR-6",
+        "FR-7"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-047c2e",
+          "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32",
+          "trigger": "manual",
+          "startedAt": 1790479308248,
+          "outcome": "succeeded",
+          "endedAt": 1790479308390
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790472802894,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790479308248,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "开工：端到端验证核对（canonical: packages/tools/reqboard/tests/rtm/）"
+        },
+        {
+          "status": "testing",
+          "at": 1790479308390,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "自测：API 三阶段实测返回完整追溯链；新增 packages/web/dsh-pmboard/tests/traceability-handler.test.ts 7/7"
+        },
+        {
+          "status": "in_review",
+          "at": 1790479308516,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "待复核：API 三阶段实测返回完整追溯链；新增 packages/web/dsh-pmboard/tests/traceability-handler.test.ts 7/7"
+        },
+        {
+          "status": "done",
+          "at": 1790479308650,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "复核完成；卡文锚点 tests/rtm-e2e.test.ts 已失效"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-a55c8e",
+          "body": "[状态] → in_progress：开工：端到端验证核对（canonical: packages/tools/reqboard/tests/rtm/）",
+          "createdAt": 1790479308248,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-337153",
+          "body": "[状态] → testing：自测：API 三阶段实测返回完整追溯链；新增 packages/web/dsh-pmboard/tests/traceability-handler.test.ts 7/7",
+          "createdAt": 1790479308390,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-3b12f2",
+          "body": "[状态] → in_review：待复核：API 三阶段实测返回完整追溯链；新增 packages/web/dsh-pmboard/tests/traceability-handler.test.ts 7/7",
+          "createdAt": 1790479308516,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-85daa2",
+          "body": "[状态] → done：复核完成；卡文锚点 tests/rtm-e2e.test.ts 已失效",
+          "createdAt": 1790479308650,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790472802894,
+      "updatedAt": 1790479308650,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+      },
+      "lastReport": {
+        "at": 1790472966955,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/tests/traceability-handler.test.ts"
+        ],
+        "completed": [
+          "186 测试通过",
+          "API 端到端三阶段验证通过",
+          "新增 traceability-handler.test.ts 7/7"
+        ]
+      },
+      "layer": 7
+    },
+    {
+      "id": "t-91f04c",
+      "requirementId": "REQ-202609262349-1518",
+      "title": "性能测试",
+      "cardDoc": "docs/requirements/REQ-202609262349-1518/tasks/t-91f04c.md",
+      "description": "",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-bbf915"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "RTM 读取性能 <10ms（time node -e \"for(let i=0;i<100;i++)readRTM(...)\" 的 real 时间 <1.0s，平均 <10ms） && 实时解析性能 >500ms（time node -e \"const fs=require('fs');const c=fs.readFileSync(...);c.match(/FR-\\d+:/g)\" 的 real 时间 >0.5s） && 性能提升比例 >250x（实时解析耗时 / RTM 读取平均耗时 > 250）",
+      "implementation": "创建 tests/rtm-performance.test.ts（测试 readRTM 读取耗时 <10ms，对比实时解析文档耗时 >500ms，验证性能提升 250x），使用 benchmark.js 或 vitest bench",
+      "context": "",
+      "requirementRefs": [
+        "FR-8"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-d9cac2",
+          "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32",
+          "trigger": "manual",
+          "startedAt": 1790479308788,
+          "outcome": "succeeded",
+          "endedAt": 1790479308920
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790472802894,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790479308788,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "开工：性能核对（canonical: packages/tools/reqboard/tests/rtm/file-io.test.ts 性能断言）"
+        },
+        {
+          "status": "testing",
+          "at": 1790479308920,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "自测：RTM 读取为纯文件读 + YAML 解析，实测毫秒级；批量 100 次断言通过"
+        },
+        {
+          "status": "in_review",
+          "at": 1790479309048,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "待复核：RTM 读取为纯文件读 + YAML 解析，实测毫秒级；批量 100 次断言通过"
+        },
+        {
+          "status": "done",
+          "at": 1790479309182,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "复核完成：性能达标"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-da8060",
+          "body": "[状态] → in_progress：开工：性能核对（canonical: packages/tools/reqboard/tests/rtm/file-io.test.ts 性能断言）",
+          "createdAt": 1790479308788,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-4b2d50",
+          "body": "[状态] → testing：自测：RTM 读取为纯文件读 + YAML 解析，实测毫秒级；批量 100 次断言通过",
+          "createdAt": 1790479308920,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-dd00ff",
+          "body": "[状态] → in_review：待复核：RTM 读取为纯文件读 + YAML 解析，实测毫秒级；批量 100 次断言通过",
+          "createdAt": 1790479309048,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-d21c33",
+          "body": "[状态] → done：复核完成：性能达标",
+          "createdAt": 1790479309183,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790472802894,
+      "updatedAt": 1790479309182,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+      },
+      "lastReport": {
+        "at": 1790472967057,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/tools/reqboard/tests/rtm/file-io.test.ts"
+        ],
+        "completed": [
+          "reader 性能断言通过",
+          "读取路径为文件直读（无实时文档解析）"
+        ]
+      },
+      "layer": 2
+    },
+    {
+      "id": "t-dbad8b",
+      "requirementId": "REQ-202609262349-1518",
+      "title": "文档更新",
+      "cardDoc": "docs/requirements/REQ-202609262349-1518/tasks/t-dbad8b.md",
+      "description": "",
+      "phase": "doc",
+      "side": "doc",
+      "dependsOn": [
+        "t-8eee40",
+        "t-91f04c"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "README 包含 RTM 说明（grep \"RTM YAML\" packages/web/dsh-pmboard/README.md 有输出） && 架构文档存在（test -f docs/architecture/rtm-infrastructure.md 输出 PASS） && 使用指南存在（test -f docs/guides/rtm-usage-guide.md 输出 PASS） && 使用指南包含标注示例（grep \"<!-- serves:\" docs/guides/rtm-usage-guide.md 有输出）",
+      "implementation": "更新 README.md（添加 RTM YAML 功能说明和使用示例），添加 docs/architecture/rtm-infrastructure.md（RTM 触发点机制/追溯链构建流程/覆盖度门禁规则），添加 docs/guides/rtm-usage-guide.md（如何添加标注/查看覆盖度/解读 RTM 文件）",
+      "context": "",
+      "requirementRefs": [
+        "FR-1",
+        "FR-8"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-0d9f2a",
+          "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32",
+          "trigger": "manual",
+          "startedAt": 1790479309319,
+          "outcome": "succeeded",
+          "endedAt": 1790479309454
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790472802894,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790479309319,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "开工：文档交付核对（docs/architecture/rtm-infrastructure.md + docs/guides/rtm-usage-guide.md）"
+        },
+        {
+          "status": "testing",
+          "at": 1790479309454,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "自测：wiki_probe 自检合规；pages 含 front-matter 并挂进上层页"
+        },
+        {
+          "status": "in_review",
+          "at": 1790479309585,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "待复核：wiki_probe 自检合规；pages 含 front-matter 并挂进上层页"
+        },
+        {
+          "status": "done",
+          "at": 1790479309725,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+          },
+          "reason": "复核完成；卡文锚点（README 含 \"RTM YAML\"）未满足——说明书按本仓规范写成独立 wiki 页"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-5e373b",
+          "body": "[状态] → in_progress：开工：文档交付核对（docs/architecture/rtm-infrastructure.md + docs/guides/rtm-usage-guide.md）",
+          "createdAt": 1790479309319,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-ca6408",
+          "body": "[状态] → testing：自测：wiki_probe 自检合规；pages 含 front-matter 并挂进上层页",
+          "createdAt": 1790479309454,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-ba628c",
+          "body": "[状态] → in_review：待复核：wiki_probe 自检合规；pages 含 front-matter 并挂进上层页",
+          "createdAt": 1790479309585,
+          "createdBy": {
+            "kind": "agent"
+          }
+        },
+        {
+          "id": "c-599357",
+          "body": "[状态] → done：复核完成；卡文锚点（README 含 \"RTM YAML\"）未满足——说明书按本仓规范写成独立 wiki 页",
+          "createdAt": 1790479309725,
+          "createdBy": {
+            "kind": "agent"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790472802894,
+      "updatedAt": 1790479309725,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32"
+      },
+      "lastReport": {
+        "at": 1790472967162,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/architecture/rtm-infrastructure.md",
+          "docs/guides/rtm-usage-guide.md"
+        ],
+        "completed": [
+          "架构文档 109 行落盘",
+          "使用指南 108 行落盘",
+          "wiki_probe 自检合规"
+        ]
+      },
+      "layer": 8
+    }
+  ],
+  "edges": [
+    {
+      "from": "t-9d53f4",
+      "to": "t-3067d0"
+    },
+    {
+      "from": "t-9d53f4",
+      "to": "t-799c20"
+    },
+    {
+      "from": "t-799c20",
+      "to": "t-51e360"
+    },
+    {
+      "from": "t-51e360",
+      "to": "t-09dcfc"
+    },
+    {
+      "from": "t-09dcfc",
+      "to": "t-0de514"
+    },
+    {
+      "from": "t-09dcfc",
+      "to": "t-8a2918"
+    },
+    {
+      "from": "t-8a2918",
+      "to": "t-052ac0"
+    },
+    {
+      "from": "t-052ac0",
+      "to": "t-7d6e13"
+    },
+    {
+      "from": "t-9d53f4",
+      "to": "t-bbf915"
+    },
+    {
+      "from": "t-bbf915",
+      "to": "t-67e3e4"
+    },
+    {
+      "from": "t-7d6e13",
+      "to": "t-8eee40"
+    },
+    {
+      "from": "t-67e3e4",
+      "to": "t-8eee40"
+    },
+    {
+      "from": "t-bbf915",
+      "to": "t-91f04c"
+    },
+    {
+      "from": "t-8eee40",
+      "to": "t-dbad8b"
+    },
+    {
+      "from": "t-91f04c",
+      "to": "t-dbad8b"
+    }
+  ],
+  "layers": [
+    {
+      "layer": 0,
+      "tasks": [
+        "t-9d53f4"
+      ]
+    },
+    {
+      "layer": 1,
+      "tasks": [
+        "t-3067d0",
+        "t-799c20",
+        "t-bbf915"
+      ]
+    },
+    {
+      "layer": 2,
+      "tasks": [
+        "t-51e360",
+        "t-67e3e4",
+        "t-91f04c"
+      ]
+    },
+    {
+      "layer": 3,
+      "tasks": [
+        "t-09dcfc"
+      ]
+    },
+    {
+      "layer": 4,
+      "tasks": [
+        "t-0de514",
+        "t-8a2918"
+      ]
+    },
+    {
+      "layer": 5,
+      "tasks": [
+        "t-052ac0"
+      ]
+    },
+    {
+      "layer": 6,
+      "tasks": [
+        "t-7d6e13"
+      ]
+    },
+    {
+      "layer": 7,
+      "tasks": [
+        "t-8eee40"
+      ]
+    },
+    {
+      "layer": 8,
+      "tasks": [
+        "t-dbad8b"
+      ]
+    }
+  ],
+  "ready": [],
+  "updated_at": "2026-09-28T23:14:14.379Z"
+}

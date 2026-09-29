@@ -3,7 +3,7 @@ id: project-manual
 title: PI Investment 项目说明书（金字塔 L1）
 type: manual
 status: living
-updated: 2026-09-17
+updated: 2026-09-29
 owners: [w-1cee2467]
 tags: [manual, l1, overview]
 ---
@@ -21,6 +21,7 @@ tags: [manual, l1, overview]
 
 | 日期 | 更新点 | 来源 |
 |---|---|---|
+| 2026-09-29 | **任务依赖只存「直接前置」+ DAG 面板六条展示/交互口径**：`dependsOn` 的传递归约前移到写入侧（`domain/queue/transitiveReduction.ts` + `normalizeQueueFile`，存量走 `scripts/normalize-queue-deps.ts`；实测 98/646 条冗余边，迁移后 0）；会话面板 DAG 与需求详情同源——删标题/统计条、同层不折行、删父卡左侧蓝条、泳道不再展示 `n/N`、单击卡片打开任务卡文档。细节见 [reqboard-queue-storage.md](../../agent-dh/docs/architecture/reqboard-queue-storage.md) §7 与 [reqboard-node-panel.md](../../agent-dh/docs/architecture/reqboard-node-panel.md) §10 | REQ-260929010300-dbf9 |
 | 2026-09-27 | **任务卡从台账迁到按需求分片的队列文件**：`docs/requirements/<REQ>/queue.json` 成为任务的**唯一存储**（内含完整任务卡 + DAG 层级与 ready 队列），台账瘦身为 schemaVersion 9（只留需求 / 分诊 / 迁移留痕）；拆分、执行、状态流转三处都改以队列为准。迁移脚本带 `--dry-run / --apply / --verify / --rollback` 四态、白名单校验与幂等；**投产必须停机执行**（否则内存态旧快照会覆盖迁移成果）。交付证据与已知缺口见 [verification-evidence.md](../../agent-dh/docs/requirements/REQ-260927202051-f6df/verification-evidence.md) | REQ-260927202051-f6df |
 | 2026-09-27 | **确认门弹框改为真正阻塞**：`reqboard_ask_confirm` 缺省等到作答/取消/中止才返回（删除 30s 到点自动放行，「弹框出现＝agent 正在等」）；只有显式 `inline_grace_ms` 才走非阻塞逃生舱；阻塞期登记挂起 ticket 并被停手守卫拦住写路径，中止留可查记录（`reqboard_status.pending_confirms`）。等待语义与流程图见 agent-dh/docs/architecture/reqboard-pipeline-flow.md | REQ-260927123256-196b |
 | 2026-09-27 | **拆分→实施这一段不再静默**：批准拆分计划的**同一次调用内**同步落库任务卡（落库失败不推进、写 pausedReason + 告警）；「计划有卡、台账 0 卡」推进到实施被代码级拒绝并给修复指引；`reqboard_decompose` 返回体契约修正（task_coverage 为数组）；任务状态变更同时刷新实施覆盖度（rtm-decomposing）；agent 侧补齐 `reqboard_move` / `reqboard_task_move` 与任务级收敛点（非法流转被拒且零副作用）；`reqboard_status` 返回体 lossless；确认门挂起期间同窗口写路径代码级拒绝（REQBOARD_CONFIRM_PENDING）；Dive 采集半不再直投会话（投递白名单，阶段纪律只走 system prompt）。节点流程图见 agent-dh/docs/architecture/reqboard-pipeline-flow.md | REQ-260927100007-b8ba |

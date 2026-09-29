@@ -141,12 +141,15 @@ tags: [wiki, index, home, agent-dh]
 - ✅ [RFC 014 需求看板](rfcs/014-requirement-board.md)
 - ✅ **P0** [项目看板代码流程与实施流程（架构设计 + 10 张流程图）](architecture/pmboard-code-flow.md) —— 双半 × 四层架构、工具→用例→端口→台账调用链、七节点五道人工门状态机、骨牌式自动实施链（AdvanceChain）、闸门后置链；附「文档/注释与代码漂移」读数发现（[HTML 版](architecture/pmboard-code-flow.html)）
 - ✅ **P0** [需求流水线节点流程图（RTM 生成点 · 人工门 · Dive 参与点）](architecture/reqboard-pipeline-flow.md) —— 七节点实际动作 / RTM 产出 / 五道人工门 / Dive 两半参与点的 ASCII 流程图；含投递白名单与缺陷落点 D1–D11（REQ-260927100007-b8ba）
+- ✅ [实施自动链（父卡/子卡）执行流程与缺陷落点](architecture/reqboard-implement-chain-flow.md) —— implementing 阶段 autoRun 链的三条入口 / 事件选择器 / 子卡凭证门 / 失败暂停的真实调用链；D14（看板「继续」缺 agent → start_failed）/ D15（汇报路径 `agent-dh/` 前缀被判「文件不存在」）定位与修复（REQ-260927123256-196b）
+- ✅ **P0** [任务存储：按需求分片的队列文件](architecture/reqboard-queue-storage.md) —— 任务卡唯一存储 = `docs/requirements/<REQ>/queue.json`（DAG 层级 + ready 队列），台账 v9 只留需求/分诊/迁移留痕；队列结构 / 顺序契约 / 原子写 / 四态迁移 CLI / **怎么验** / **三处已知坑**（陈旧 advance 锁无回收、迁移留痕被读路径抹掉、--verify 在活台账不达 0）（REQ-260927202051-f6df）
 - ✅ [RTM YAML 追溯基础设施使用指南](guides/rtm-usage.md) —— 追溯关系的预构建索引：7 个 YAML 文件、7 个自动更新触发点、Dive 模式 2ms 读法与节点输入包压缩（REQ-260926140539-457b）
 - ✅ [需求归档规范](architecture/requirement-archive.md)
 - ✅ [需求归档索引](requirements/INDEX.md)
 - ✅ P0 [需求看板实操（从立项到归档）](guides/reqboard-workflow.md) —— 全流程表 + 各阶段硬要求 + 错误码处置（2026-09-25 补：弹框非阻塞+回执、零参调用、断点续跑、立项降级文档位置、pm 弹框来源标志）
 - ✅ [设计阶段规范（文档集 / 登记入口 / G2 闸门文案）](architecture/reqboard-design-stage.md) —— 设计产物登记只有 `reqboard_submit(kind=design)` 一条路（幂等 + 逐份登记态）；被闸门拦下时「未登记 / 待确认」两种病因两种话（REQ-260924213231-b1c4）
 - ✅ [闸门确认后置链（切面 + 责任链）](architecture/gate-post-chain.md) —— 人点完弹框后机器自动做什么：唯一点 join point、两相执行 H1..H5、新加一道门要改哪里（REQ-e3b6a0）
+- ⚠️ **P0** [需求流水线「唤醒」通道缺失 —— H4 空转 × Dive 永不介入](architecture/reqboard-dive-wake-defect.md) —— 阶段推进后**无人唤醒 agent** 的根因与证据：H4 无条件 skip（把唤醒委托给 Dive）、Dive 起轮门槛 `armed+active` 全仓 0 命中（83/83 需求无 `dive` 字段）；含 session 消息级铁证、被拆通道清单（`deliver` 端口/适配器 + 3 消费者）、与 D2 的同源复发、判据错位与三层修复方案（未实施）
 - ✅ [六立项类型的流程差异](architecture/reqboard-category-flows.md) —— 六类各走什么节点/过哪些门；分类感知在表现层全生效、转移层三缺口（跳级转移不存在/人工门走全局表/反向不拦）
 - ✅ **P0** [文档标准：六类文档各写什么](architecture/documentation-standard.md) —— 五层文档链（做什么/怎么做/分几步/照着做/一致吗）；
   分类文档集（BASE 公共节 + 类型 DELTA，不写六份副本）；统一编号体系与 RTM 覆盖表；验收 = 三方一致性；
@@ -216,10 +219,13 @@ tags: [wiki, index, home, agent-dh]
 <!-- AUTO:recent BEGIN -->
 | 日期 | 页面 | 一句话 |
 |---|---|---|
+| 2026-09-28 | [reqboard 任务存储：按需求分片的队列文件（queue.json）](architecture/reqboard-queue-storage.md) | 任务卡的唯一存储是 docs/requirements/<REQ>/queue.json（含 DAG 层级与 ready 队列），台账瘦身为 schemaVersion 9；拆分写队列、执行… |
+| 2026-09-28 | [需求流水线「唤醒」通道缺失 —— H4 空转 × Dive 永不介入（根因分析与修复方案）](architecture/reqboard-dive-wake-defect.md) | 人点头推进阶段后无人唤醒 agent 的根因与证据：闸门链 H4 无条件 skip（把唤醒委托给 Dive），而 Dive 起轮门槛 armed+active 全仓 0 命中（83/83 需… |
+| 2026-09-28 | [全站页面索引（机器可读入口）](INDEX.md) | 这个 wiki 有哪些页、每页讲什么（一句话）——先读这张表，再决定打开哪页。 |
 | 2026-09-27 | [RTM 追溯使用指南](guides/rtm-usage-guide.md) | 怎么写 serves/implements/covers 标注让追溯链长出来、在哪看、覆盖度怎么算，以及"追溯空白/DAG 无数据"的排查顺序。 |
 | 2026-09-27 | [RTM 追溯基础设施](architecture/rtm-infrastructure.md) | RTM 是什么、7 个文件与三级追溯链长什么样、代码在哪，以及"改了 src 不生效"和"工作区根被静默丢弃"两个必知运维坑。 |
 | 2026-09-27 | [需求流水线节点流程图（RTM 生成点 · 人工门 · Dive 参与点）](architecture/reqboard-pipeline-flow.md) | draft→archived 七节点的实际动作、RTM 产出文件、五道人工门与 Dive 两半参与点的 ASCII 流程图；附投递白名单与缺陷落点 D1–D13（含修复状态）。 |
-| 2026-09-27 | [全站页面索引（机器可读入口）](INDEX.md) | 这个 wiki 有哪些页、每页讲什么（一句话）——先读这张表，再决定打开哪页。 |
+| 2026-09-27 | [实施自动链（父卡/子卡）执行流程与缺陷落点](architecture/reqboard-implement-chain-flow.md) | implementing 阶段 autoRun 自动链的真实调用链（入口→选择器→子卡执行→凭证门→收尾/暂停）、2026-09-27 REQ-260927123256-196b 卡链实测暴… |
 | 2026-09-26 | [RTM YAML 追溯基础设施使用指南](guides/rtm-usage.md) | 需求追溯的预构建索引：7 个 YAML 文件长什么样、在哪 7 个时刻自动更新、Dive 模式怎么 2ms 读它做决策、节点输入包怎么注入与压缩。 |
 | 2026-09-25 | [需求看板实操（从立项到归档）](guides/reqboard-workflow.md) | 一个需求从冒出来到归档，具体敲哪些工具、卡在哪、错了怎么办。 |
 | 2026-09-25 | [agent-dh Wiki（归档文档首页 / 大纲）](README.md) | agent-dh 的 wiki 首页：10 卷大纲 + 从哪开始读 + 待写页——每个新会话先看这页。 |
@@ -228,9 +234,6 @@ tags: [wiki, index, home, agent-dh]
 | 2026-09-21 | [需求节点详情系统（stage-detail）](architecture/reqboard-stage-detail.md) | 会话框流程条节点点开看详情：StageDetail 契约 + 模板模式双端装配 + 分类流程档案 + 产物闸门 + 追溯链 + 接力任务卡 + 前端工作记录渲染器；含子任务层与自动链控制面（… |
 | 2026-09-20 | [闸门确认后置链（切面 + 责任链）](architecture/gate-post-chain.md) | 人工闸门被作答之后机器自动做什么：唯一点 join point、两相执行 H1..H5、短路/降级/幂等不变量、新加一道门要改哪里。 |
 | 2026-09-18 | [需求看板的 Token 消耗（过程消耗 + 提示词成本）](architecture/reqboard-token-usage.md) | 看板怎么记录与展示「每个流程节点/每个任务」的 token 消耗，以及固定系统提示词与 reqboard 注入提示词的成本；含缺失语义与自检命令。 |
-| 2026-09-16 | [@pi-investment/web-liveness · 页面自愈（重启后标签页不再变砖）](../packages/web/web-liveness/README.md) | 监听框架免鉴权的 /plugins/events SSE，发现服务端换过进程就自动刷新已打开的标签页。 |
-| 2026-09-16 | [页面插件契约](architecture/page-plugin-contract.md) | 做一个 DSH 页面插件（GUI）要满足哪些契约；改动怎么生效。 |
-| 2026-09-15 | [故障排查手册（症状 → 根因 → 处置）](guides/troubleshooting.md) | 遇到这些症状，先看哪里、大概率是什么、怎么修。 |
 
 > 自动生成（`docs_index.py`）：按 front-matter 的 updated 倒序取前 15 页。
 <!-- AUTO:recent END -->

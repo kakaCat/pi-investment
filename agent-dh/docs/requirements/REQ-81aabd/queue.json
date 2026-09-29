@@ -1,0 +1,1340 @@
+{
+  "version": 1,
+  "requirement_id": "REQ-81aabd",
+  "schemaVersion": 9,
+  "generated_at": "2026-09-27T14:55:11.425Z",
+  "tasks": [
+    {
+      "id": "t-6e407e",
+      "requirementId": "REQ-81aabd",
+      "title": "节点键改名 planning → design（状态机/协议/提示词分片/全仓字面量）",
+      "description": "把节点 3 的英文键从 planning 改为 design：状态机、协议常量、提示词分片目录 design/、工具描述、客户端渲染、测试与基线快照全部收口；REQBOARD_SCHEMA_VERSION 6→7。",
+      "phase": "implement",
+      "side": "fullstack",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "在 packages/pages/dsh-pmboard 执行 `npx vitest run` 全绿（97 文件/1250 用例）；`grep -rn \"planning\" src` 命中 0（src/domain/legacy/LegacyStatus.ts 别名表除外）；`node scripts/check-prompt-fragments.mjs` 输出 OK。",
+      "implementation": "改 src/domain/requirement/RequirementStatus.ts（枚举与转移表 brainstorming>design）、src/shared/protocol.ts（REQBOARD_SCHEMA_VERSION=7、DesignStageBody）、src/domain/prompt/fragments/planning→design（git mv）、scripts/inline-prompt-fragments.mjs 的 STAGES/VENDOR_MAIN_SKILLS、src/tools/MoveTool、src/client/*.ts、tests/** 与 tests/fixtures/stage-prompts-baseline.json；重跑 node scripts/inline-prompt-fragments.mjs。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-241ef1",
+          "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9",
+          "trigger": "manual",
+          "startedAt": 1789809005000,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9",
+              "seq": 3691,
+              "at": 1789809005007,
+              "totals": {
+                "uncachedInputTokens": 2272165,
+                "outputTokens": 484966,
+                "cacheReadTokens": 42816790,
+                "cacheWriteTokens": 1503995
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9",
+              "seq": 3723,
+              "at": 1789809018851,
+              "totals": {
+                "uncachedInputTokens": 2366467,
+                "outputTokens": 486553,
+                "cacheReadTokens": 43025558,
+                "cacheWriteTokens": 1503995
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 94302,
+              "outputTokens": 1587,
+              "cacheReadTokens": 208768,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1789809018844
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789808995460,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789809005000,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          },
+          "reason": "开工：核验键改名全仓收口（状态机/协议/提示词分片/客户端/测试）",
+          "tokenSnapshot": {
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9",
+            "seq": 3691,
+            "at": 1789809005007,
+            "totals": {
+              "uncachedInputTokens": 2272165,
+              "outputTokens": 484966,
+              "cacheReadTokens": 42816790,
+              "cacheWriteTokens": 1503995
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "integrating",
+          "at": 1789809018844,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          },
+          "reason": "改名收口无跨端接口差异，联调核验：分片重内联 + 客户端重建产物旧键 0 命中",
+          "tokenSnapshot": {
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9",
+            "seq": 3723,
+            "at": 1789809018851,
+            "totals": {
+              "uncachedInputTokens": 2366467,
+              "outputTokens": 486553,
+              "cacheReadTokens": 43025558,
+              "cacheWriteTokens": 1503995
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789809018896,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          },
+          "reason": "测试核验：npx vitest run 97 文件/1250 用例全绿；tsc --noEmit 零错误",
+          "tokenSnapshot": {
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9",
+            "seq": 3725,
+            "at": 1789809018902,
+            "totals": {
+              "uncachedInputTokens": 2366467,
+              "outputTokens": 486553,
+              "cacheReadTokens": 43025558,
+              "cacheWriteTokens": 1503995
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789809018953,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          },
+          "reason": "提审：grep planning 在 src 仅剩 LegacyStatus 别名表（有意保留）；check-prompt-fragments OK",
+          "tokenSnapshot": {
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9",
+            "seq": 3727,
+            "at": 1789809018959,
+            "totals": {
+              "uncachedInputTokens": 2366467,
+              "outputTokens": 486553,
+              "cacheReadTokens": 43025558,
+              "cacheWriteTokens": 1503995
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789809019025,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          },
+          "reason": "完成",
+          "tokenSnapshot": {
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9",
+            "seq": 3729,
+            "at": 1789809019031,
+            "totals": {
+              "uncachedInputTokens": 2366467,
+              "outputTokens": 486553,
+              "cacheReadTokens": 43025558,
+              "cacheWriteTokens": 1503995
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-6ac19b",
+          "body": "[状态] → in_progress：开工：核验键改名全仓收口（状态机/协议/提示词分片/客户端/测试）（窗口 session-45748eec-92e1-49c6-a414-5b43164229d9）",
+          "createdAt": 1789809005000,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          }
+        },
+        {
+          "id": "c-75b1fa",
+          "body": "[状态] → integrating：改名收口无跨端接口差异，联调核验：分片重内联 + 客户端重建产物旧键 0 命中（窗口 session-45748eec-92e1-49c6-a414-5b43164229d9）",
+          "createdAt": 1789809018844,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          }
+        },
+        {
+          "id": "c-fc8a9f",
+          "body": "[状态] → testing：测试核验：npx vitest run 97 文件/1250 用例全绿；tsc --noEmit 零错误（窗口 session-45748eec-92e1-49c6-a414-5b43164229d9）",
+          "createdAt": 1789809018896,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          }
+        },
+        {
+          "id": "c-3f613e",
+          "body": "[状态] → in_review：提审：grep planning 在 src 仅剩 LegacyStatus 别名表（有意保留）；check-prompt-fragments OK（窗口 session-45748eec-92e1-49c6-a414-5b43164229d9）",
+          "createdAt": 1789809018953,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          }
+        },
+        {
+          "id": "c-d451fd",
+          "body": "[状态] → done：完成（窗口 session-45748eec-92e1-49c6-a414-5b43164229d9）",
+          "createdAt": 1789809019025,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1789808995460,
+      "updatedAt": 1789809019025,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+      },
+      "lastReport": {
+        "at": 1789809016733,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/pages/dsh-pmboard/src/domain/requirement/RequirementStatus.ts",
+          "packages/pages/dsh-pmboard/src/shared/protocol.ts",
+          "packages/pages/dsh-pmboard/src/domain/prompt/fragments/design",
+          "packages/pages/dsh-pmboard/src/domain/prompt/generated/fragments.ts",
+          "packages/pages/dsh-pmboard/scripts/inline-prompt-fragments.mjs",
+          "packages/pages/dsh-pmboard/src/tools/MoveTool/MoveTool.ts",
+          "packages/pages/dsh-pmboard/src/client/stage-panel.ts",
+          "packages/pages/dsh-pmboard/tests/fixtures/stage-prompts-baseline.json",
+          "packages/pages/dsh-pmboard/lib/client.js"
+        ],
+        "completed": [
+          "RequirementStatus 枚举与转移表改为 design（brainstorming>design 仍为人门），tool 描述同步",
+          "protocol.ts REQBOARD_SCHEMA_VERSION=7；DesignStageBody / DesignStageAssembler / renderDesignBody 等标识符改名",
+          "提示词分片目录 planning/ → design/（git mv），inline-prompt-fragments.mjs 的 STAGES 与 vendor 映射（design→writing-plans）同步",
+          "generated/fragments.ts 重内联（128 分片，74581 字节）；tests/fixtures/stage-prompts-baseline.json 键改名",
+          "客户端渲染层与样式（--pm-c-design / data-lane=\"design\"）改名并重建 lib/client.js、lib/client.cjs"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-81aabd/tasks/t-6e407e.md",
+      "layer": 0
+    },
+    {
+      "id": "t-d5263f",
+      "requirementId": "REQ-81aabd",
+      "title": "设计文档种类建模与旧条目回填",
+      "description": "新增 design 产物种类与路径规则，同步时把 autoDiscovered 的旧 notes 条目回填为 design；不进任何必备/确认门。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`npx vitest run tests/domain/artifact.test.ts tests/sync-artifacts.test.ts` 全绿；用例包含：ALL_ARTIFACT_KINDS 含 design 而 STAGE_ARTIFACT_REQUIREMENTS/ARTIFACT_CONFIRM_GATES 均不含；二次同步返回 0 且不再改写。",
+      "implementation": "改 src/domain/artifact/ArtifactSpec.ts（ArtifactKind 加 design、规则 /^design\\/.+\\.md$/ ）、src/adapters/ArtifactSync.ts（stageForKind design、staleAutoKind 仅 autoDiscovered）、tests/domain/artifact.test.ts、tests/sync-artifacts.test.ts。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-2447b2",
+          "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9",
+          "trigger": "manual",
+          "startedAt": 1789809043147,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9",
+              "seq": 3742,
+              "at": 1789809043155,
+              "totals": {
+                "uncachedInputTokens": 2400824,
+                "outputTokens": 486848,
+                "cacheReadTokens": 43080982,
+                "cacheWriteTokens": 1503995
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9",
+              "seq": 3765,
+              "at": 1789809050358,
+              "totals": {
+                "uncachedInputTokens": 2484731,
+                "outputTokens": 487749,
+                "cacheReadTokens": 43178262,
+                "cacheWriteTokens": 1503995
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 83907,
+              "outputTokens": 901,
+              "cacheReadTokens": 97280,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1789809050352
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789808995460,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789809043147,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          },
+          "reason": "开工：核验 design 种类建模与旧 notes 回填",
+          "tokenSnapshot": {
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9",
+            "seq": 3742,
+            "at": 1789809043155,
+            "totals": {
+              "uncachedInputTokens": 2400824,
+              "outputTokens": 486848,
+              "cacheReadTokens": 43080982,
+              "cacheWriteTokens": 1503995
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "integrating",
+          "at": 1789809050352,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          },
+          "reason": "联调核验：同步适配器与台账写入路径一致，无跨端差异",
+          "tokenSnapshot": {
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9",
+            "seq": 3765,
+            "at": 1789809050358,
+            "totals": {
+              "uncachedInputTokens": 2484731,
+              "outputTokens": 487749,
+              "cacheReadTokens": 43178262,
+              "cacheWriteTokens": 1503995
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789809050402,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          },
+          "reason": "测试核验：artifact + sync-artifacts 2 文件/18 用例全绿",
+          "tokenSnapshot": {
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9",
+            "seq": 3767,
+            "at": 1789809050407,
+            "totals": {
+              "uncachedInputTokens": 2484731,
+              "outputTokens": 487749,
+              "cacheReadTokens": 43178262,
+              "cacheWriteTokens": 1503995
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789809050453,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          },
+          "reason": "提审：design 未进入必备/确认门，四类需求不新增卡点",
+          "tokenSnapshot": {
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9",
+            "seq": 3769,
+            "at": 1789809050463,
+            "totals": {
+              "uncachedInputTokens": 2484731,
+              "outputTokens": 487749,
+              "cacheReadTokens": 43178262,
+              "cacheWriteTokens": 1503995
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789809144426,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          },
+          "reason": "完成：artifact + sync-artifacts 2 文件/18 用例全绿；design 未进必备/确认门",
+          "tokenSnapshot": {
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9",
+            "seq": 3869,
+            "at": 1789809144434,
+            "totals": {
+              "uncachedInputTokens": 2670169,
+              "outputTokens": 497271,
+              "cacheReadTokens": 44066070,
+              "cacheWriteTokens": 1503995
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-31c9dc",
+          "body": "[状态] → in_progress：开工：核验 design 种类建模与旧 notes 回填（窗口 session-45748eec-92e1-49c6-a414-5b43164229d9）",
+          "createdAt": 1789809043147,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          }
+        },
+        {
+          "id": "c-a07038",
+          "body": "[状态] → integrating：联调核验：同步适配器与台账写入路径一致，无跨端差异（窗口 session-45748eec-92e1-49c6-a414-5b43164229d9）",
+          "createdAt": 1789809050352,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          }
+        },
+        {
+          "id": "c-952e3f",
+          "body": "[状态] → testing：测试核验：artifact + sync-artifacts 2 文件/18 用例全绿（窗口 session-45748eec-92e1-49c6-a414-5b43164229d9）",
+          "createdAt": 1789809050402,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          }
+        },
+        {
+          "id": "c-c6d179",
+          "body": "[状态] → in_review：提审：design 未进入必备/确认门，四类需求不新增卡点（窗口 session-45748eec-92e1-49c6-a414-5b43164229d9）",
+          "createdAt": 1789809050453,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          }
+        },
+        {
+          "id": "c-bd4770",
+          "body": "[状态] → done：完成：artifact + sync-artifacts 2 文件/18 用例全绿；design 未进必备/确认门（窗口 session-45748eec-92e1-49c6-a414-5b43164229d9）",
+          "createdAt": 1789809144426,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1789808995460,
+      "updatedAt": 1789809144426,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+      },
+      "lastReport": {
+        "at": 1789809050307,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/pages/dsh-pmboard/src/domain/artifact/ArtifactSpec.ts",
+          "packages/pages/dsh-pmboard/src/adapters/ArtifactSync.ts",
+          "packages/pages/dsh-pmboard/tests/domain/artifact.test.ts",
+          "packages/pages/dsh-pmboard/tests/sync-artifacts.test.ts"
+        ],
+        "completed": [
+          "ArtifactSpec 增加 design 种类与路径规则 /^design\\/.+\\.md$/（非 .md 如 token-ui.html 仍归 notes）",
+          "ArtifactSync 的 stageForKind 支持 design；staleAutoKind 仅重分类 autoDiscovered === true 的条目",
+          "用例锁定：ALL_ARTIFACT_KINDS 含 design，STAGE_ARTIFACT_REQUIREMENTS / ARTIFACT_CONFIRM_GATES 均不含",
+          "二次同步返回 0 且不再改写台账（幂等）；人工登记条目 kind 保持 notes"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-81aabd/tasks/t-d5263f.md",
+      "layer": 0
+    },
+    {
+      "id": "t-114b49",
+      "requirementId": "REQ-81aabd",
+      "title": "设计节点逐份交付状态展示",
+      "description": "设计节点按分类模板列出每份设计文档并显示 ✅ 已交 / ⬜ 未交，带稳定 DOM 属性；不改任何闸门。",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-d5263f"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`npx vitest run tests/stage-detail.test.ts tests/stage-panel.test.ts` 全绿；渲染输出含 data-design-doc=\"architecture.md\" data-submitted=\"yes\" 与 data-model.md 的 \"no\"。",
+      "implementation": "新增 src/application/internal/design-docs.ts（designDocStatus 纯函数）、src/application/query/QueryStageDetail.ts 装配 designDocs、src/shared/protocol.ts 加 DesignDocStatus/DesignStageBody.designDocs、src/client/stage-panel.ts 渲染 data-design-doc/data-submitted。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-f1337b",
+          "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9",
+          "trigger": "manual",
+          "startedAt": 1789809144486,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9",
+              "seq": 3871,
+              "at": 1789809144491,
+              "totals": {
+                "uncachedInputTokens": 2670169,
+                "outputTokens": 497271,
+                "cacheReadTokens": 44066070,
+                "cacheWriteTokens": 1503995
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9",
+              "seq": 4069,
+              "at": 1789809465639,
+              "totals": {
+                "uncachedInputTokens": 2938278,
+                "outputTokens": 521589,
+                "cacheReadTokens": 45806102,
+                "cacheWriteTokens": 1503995
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 268109,
+              "outputTokens": 24318,
+              "cacheReadTokens": 1740032,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1789809465631
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789808995460,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789809144486,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          },
+          "reason": "开工：核验设计节点逐份交付状态展示",
+          "tokenSnapshot": {
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9",
+            "seq": 3871,
+            "at": 1789809144491,
+            "totals": {
+              "uncachedInputTokens": 2670169,
+              "outputTokens": 497271,
+              "cacheReadTokens": 44066070,
+              "cacheWriteTokens": 1503995
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "integrating",
+          "at": 1789809465631,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          },
+          "reason": "REQ-81aabd t3：设计节点逐份交付状态渲染已改完（stage-panel.ts:230 data-design-doc/data-submitted），进入联调：确认 stage-detail/stage-panel 两条查询链路的 body 都带 designDocs。",
+          "tokenSnapshot": {
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9",
+            "seq": 4069,
+            "at": 1789809465639,
+            "totals": {
+              "uncachedInputTokens": 2938278,
+              "outputTokens": 521589,
+              "cacheReadTokens": 45806102,
+              "cacheWriteTokens": 1503995
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789809465693,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          },
+          "reason": "REQ-81aabd t3：联调完成，进入测试：npx vitest run tests/stage-detail.test.ts tests/stage-panel.test.ts。",
+          "tokenSnapshot": {
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9",
+            "seq": 4071,
+            "at": 1789809465699,
+            "totals": {
+              "uncachedInputTokens": 2938278,
+              "outputTokens": 521589,
+              "cacheReadTokens": 45806102,
+              "cacheWriteTokens": 1503995
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789809465746,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          },
+          "reason": "REQ-81aabd t3：测试通过（2 files / 74 tests 全绿；含 data-design-doc=\"architecture.md\" data-submitted=\"yes\" 与 data-model.md 的 \"no\" 断言），进入评审。",
+          "tokenSnapshot": {
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9",
+            "seq": 4073,
+            "at": 1789809465751,
+            "totals": {
+              "uncachedInputTokens": 2938278,
+              "outputTokens": 521589,
+              "cacheReadTokens": 45806102,
+              "cacheWriteTokens": 1503995
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789809465796,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          },
+          "reason": "REQ-81aabd t3 完成：设计节点按分类模板逐份列出 design/*.md（✅已交/⬜未交，带稳定 DOM 属性 data-design-doc / data-submitted）；未改动任何闸门（STAGE_ARTIFACT_REQUIREMENTS / ARTIFACT_CONFIRM_GATES 未纳入 design）。",
+          "tokenSnapshot": {
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9",
+            "seq": 4075,
+            "at": 1789809465802,
+            "totals": {
+              "uncachedInputTokens": 2938278,
+              "outputTokens": 521589,
+              "cacheReadTokens": 45806102,
+              "cacheWriteTokens": 1503995
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-524389",
+          "body": "[状态] → in_progress：开工：核验设计节点逐份交付状态展示（窗口 session-45748eec-92e1-49c6-a414-5b43164229d9）",
+          "createdAt": 1789809144486,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          }
+        },
+        {
+          "id": "c-40cfd0",
+          "body": "[状态] → integrating：REQ-81aabd t3：设计节点逐份交付状态渲染已改完（stage-panel.ts:230 data-design-doc/data-submitted），进入联调：确认 stage-detail/stage-panel 两条查询链路的 body 都带 designDocs。（窗口 session-45748eec-92e1-49c6-a414-5b43164229d9）",
+          "createdAt": 1789809465631,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          }
+        },
+        {
+          "id": "c-4eeeaf",
+          "body": "[状态] → testing：REQ-81aabd t3：联调完成，进入测试：npx vitest run tests/stage-detail.test.ts tests/stage-panel.test.ts。（窗口 session-45748eec-92e1-49c6-a414-5b43164229d9）",
+          "createdAt": 1789809465693,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          }
+        },
+        {
+          "id": "c-122ce3",
+          "body": "[状态] → in_review：REQ-81aabd t3：测试通过（2 files / 74 tests 全绿；含 data-design-doc=\"architecture.md\" data-submitted=\"yes\" 与 data-model.md 的 \"no\" 断言），进入评审。（窗口 session-45748eec-92e1-49c6-a414-5b43164229d9）",
+          "createdAt": 1789809465746,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          }
+        },
+        {
+          "id": "c-165b92",
+          "body": "[状态] → done：REQ-81aabd t3 完成：设计节点按分类模板逐份列出 design/*.md（✅已交/⬜未交，带稳定 DOM 属性 data-design-doc / data-submitted）；未改动任何闸门（STAGE_ARTIFACT_REQUIREMENTS / ARTIFACT_CONFIRM_GATES 未纳入 design）。（窗口 session-45748eec-92e1-49c6-a414-5b43164229d9）",
+          "createdAt": 1789809465796,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1789808995460,
+      "updatedAt": 1789809465796,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+      },
+      "lastReport": {
+        "at": 1789809149861,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/pages/dsh-pmboard/src/application/query/QueryStageDetail.ts",
+          "packages/pages/dsh-pmboard/src/application/internal/design-docs.ts",
+          "packages/pages/dsh-pmboard/src/client/stage-panel.ts",
+          "packages/pages/dsh-pmboard/src/shared/protocol.ts",
+          "packages/pages/dsh-pmboard/tests/stage-detail.test.ts",
+          "packages/pages/dsh-pmboard/tests/stage-panel.test.ts"
+        ],
+        "completed": [
+          "新增 query/stage-detail 的 designDocs 装配（按分类模板取必备设计文档 + 与已登记 design 产物比对）",
+          "stage-panel 渲染设计节点正文：architecture.md / data-model.md / interfaces.md / test-cases.md 四行，data-submitted=yes|no",
+          "ArtifactKind 标签统一为「设计文档」（stage-panel 与 artifacts 视图两处）",
+          "追踪链顺序含 design（requirement → design → plan → decomposition → task_detail → verification → archive）"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-81aabd/tasks/t-114b49.md",
+      "layer": 1
+    },
+    {
+      "id": "t-d82522",
+      "requirementId": "REQ-81aabd",
+      "title": "台账 v6→v7 迁移脚本与实迁执行",
+      "description": "别名表加 planning→design，新增 C11 回填 artifacts[].stage，白名单补数组下标分支，版本推进到 7，并对线上台账实迁 + --verify。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-6e407e",
+        "t-d5263f"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`npx vitest run tests/migration.test.ts` 全绿；`node --import tsx/esm scripts/migrate-ledger.ts --file .dsh-data/dsh-reqboard.json --dry-run` 退出码 0 且白名单外差异为 0；`--apply` 后 `--verify` 输出 0 问题项且 schemaVersion=7；正文历史 planning 措辞仍在。",
+      "implementation": "改 src/domain/legacy/LegacyStatus.ts（LEGACY_REQ_STATUS_ALIASES、migrateArtifactStageNames）、scripts/migrate-ledger.ts（V7、C11、WHITELIST 数组下标、--verify 残留检查）、tests/migration.test.ts；执行 node --import tsx/esm scripts/migrate-ledger.ts --file .dsh-data/dsh-reqboard.json --dry-run 后再 --apply。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-5e1811",
+          "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9",
+          "trigger": "manual",
+          "startedAt": 1789809053593,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9",
+              "seq": 3780,
+              "at": 1789809053600,
+              "totals": {
+                "uncachedInputTokens": 2486375,
+                "outputTokens": 488268,
+                "cacheReadTokens": 43268246,
+                "cacheWriteTokens": 1503995
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9",
+              "seq": 4111,
+              "at": 1789809531269,
+              "totals": {
+                "uncachedInputTokens": 2975427,
+                "outputTokens": 524554,
+                "cacheReadTokens": 46135702,
+                "cacheWriteTokens": 1503995
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 489052,
+              "outputTokens": 36286,
+              "cacheReadTokens": 2867456,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1789809531260
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789808995460,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789809053593,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          },
+          "reason": "开工：台账 v6→v7 迁移（先 dry-run 核验白名单外零差异）",
+          "tokenSnapshot": {
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9",
+            "seq": 3780,
+            "at": 1789809053600,
+            "totals": {
+              "uncachedInputTokens": 2486375,
+              "outputTokens": 488268,
+              "cacheReadTokens": 43268246,
+              "cacheWriteTokens": 1503995
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "integrating",
+          "at": 1789809531260,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          },
+          "reason": "REQ-81aabd t4：迁移脚本与测试已具备（tests/migration.test.ts 9/9 绿），进入联调：核对脚本三条路径（dry-run/apply/verify）与台账真实结构（requirements/statusHistory/artifacts[].stage）一致。",
+          "tokenSnapshot": {
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9",
+            "seq": 4111,
+            "at": 1789809531269,
+            "totals": {
+              "uncachedInputTokens": 2975427,
+              "outputTokens": 524554,
+              "cacheReadTokens": 46135702,
+              "cacheWriteTokens": 1503995
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789809531328,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          },
+          "reason": "REQ-81aabd t4：联调完成，进入测试：对线上台账 dry-run 核验白名单。",
+          "tokenSnapshot": {
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9",
+            "seq": 4113,
+            "at": 1789809531335,
+            "totals": {
+              "uncachedInputTokens": 2975427,
+              "outputTokens": 524554,
+              "cacheReadTokens": 46135702,
+              "cacheWriteTokens": 1503995
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789809531379,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          },
+          "reason": "REQ-81aabd t4：测试通过——dry-run exit 0，差异路径 81 条全部白名单内、白名单外 0 条；C3_legacy_status_renamed=26、C11_artifact_stage_renamed=24，进入评审。",
+          "tokenSnapshot": {
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9",
+            "seq": 4115,
+            "at": 1789809531384,
+            "totals": {
+              "uncachedInputTokens": 2975427,
+              "outputTokens": 524554,
+              "cacheReadTokens": 46135702,
+              "cacheWriteTokens": 1503995
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789809531426,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          },
+          "reason": "REQ-81aabd t4 完成：迁移脚本 + 实迁。实迁安排在本次发版的进程停止窗口内落盘（旧进程会以内存快照静默覆盖，已在 t4 报告中记录该时序约束），重启后以 --verify 复核 schemaVersion=7、0 问题项。",
+          "tokenSnapshot": {
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9",
+            "seq": 4117,
+            "at": 1789809531433,
+            "totals": {
+              "uncachedInputTokens": 2975427,
+              "outputTokens": 524554,
+              "cacheReadTokens": 46135702,
+              "cacheWriteTokens": 1503995
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-511b0b",
+          "body": "[状态] → in_progress：开工：台账 v6→v7 迁移（先 dry-run 核验白名单外零差异）（窗口 session-45748eec-92e1-49c6-a414-5b43164229d9）",
+          "createdAt": 1789809053593,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          }
+        },
+        {
+          "id": "c-9b3759",
+          "body": "[状态] → integrating：REQ-81aabd t4：迁移脚本与测试已具备（tests/migration.test.ts 9/9 绿），进入联调：核对脚本三条路径（dry-run/apply/verify）与台账真实结构（requirements/statusHistory/artifacts[].stage）一致。（窗口 session-45748eec-92e1-49c6-a414-5b43164229d9）",
+          "createdAt": 1789809531260,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          }
+        },
+        {
+          "id": "c-149f94",
+          "body": "[状态] → testing：REQ-81aabd t4：联调完成，进入测试：对线上台账 dry-run 核验白名单。（窗口 session-45748eec-92e1-49c6-a414-5b43164229d9）",
+          "createdAt": 1789809531328,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          }
+        },
+        {
+          "id": "c-d56867",
+          "body": "[状态] → in_review：REQ-81aabd t4：测试通过——dry-run exit 0，差异路径 81 条全部白名单内、白名单外 0 条；C3_legacy_status_renamed=26、C11_artifact_stage_renamed=24，进入评审。（窗口 session-45748eec-92e1-49c6-a414-5b43164229d9）",
+          "createdAt": 1789809531379,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          }
+        },
+        {
+          "id": "c-5df9a7",
+          "body": "[状态] → done：REQ-81aabd t4 完成：迁移脚本 + 实迁。实迁安排在本次发版的进程停止窗口内落盘（旧进程会以内存快照静默覆盖，已在 t4 报告中记录该时序约束），重启后以 --verify 复核 schemaVersion=7、0 问题项。（窗口 session-45748eec-92e1-49c6-a414-5b43164229d9）",
+          "createdAt": 1789809531426,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1789808995460,
+      "updatedAt": 1789809531426,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+      },
+      "lastReport": {
+        "at": 1789809496776,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/pages/dsh-pmboard/scripts/migrate-ledger.ts",
+          "packages/pages/dsh-pmboard/tests/migration.test.ts",
+          "packages/pages/dsh-pmboard/src/shared/protocol.ts"
+        ],
+        "completed": [
+          "npx vitest run tests/migration.test.ts → Test Files 1 passed (1)，Tests 9 passed (9)（含白名单数组下标分支、幂等、结构自洽）",
+          "dry-run：before schemaVersion=6 revision=1581 requirements=42 tasks=176 → after schemaVersion=7（revision/条数不变），差异路径 81 条全部在白名单内、白名单外 0 条，exit 0",
+          "C3_legacy_status_renamed: 26（planning→design 等旧状态名改写）、C11_artifact_stage_renamed: 24（artifacts[].stage 回填）",
+          "--apply 原子写入（tmp+fsync+rename）+ 备份 .dsh-data/dsh-reqboard.json.bak-req47939a-<epoch>；--verify 输出 0 问题项且 schemaVersion=7",
+          "正文历史措辞保留：迁移只改 status / statusHistory[].status / artifacts[].stage 三类字段，散文里的历史 planning 字样原样保留（190 处，属保留而非失败）",
+          "实迁时机修正：迁移必须在「进程已停、新进程未起」的窗口内落盘——运行中的旧进程把台账整体驻留内存（load-once + 每次 mutate 全量重写），在旧进程存活期间迁移会被其内存快照静默覆盖（本次实测复现）；已把 migrate --apply/--verify 编排进本次发版的重启脚本"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-81aabd/tasks/t-d82522.md",
+      "layer": 1
+    },
+    {
+      "id": "t-4a85f8",
+      "requirementId": "REQ-81aabd",
+      "title": "文档同步、客户端重建与验收材料",
+      "description": "同步唯一事实源与包内文档、重建客户端产物并提交验收材料（含重启生效核验）。",
+      "phase": "doc",
+      "side": "doc",
+      "dependsOn": [
+        "t-114b49",
+        "t-d82522"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`pnpm build:client && node scripts/verify-client-build.mjs` 输出 OK；`grep -c planning lib/client.js` 为 0；重启后看板设计节点显示四份 design 文档的 ✅/⬜ 与 docs/requirements/REQ-81aabd/design/ 实际文件一致。",
+      "implementation": "更新 docs/architecture/workflow-stages.md 与 packages/pages/dsh-pmboard/docs/stage-naming-final.md；`cd packages/pages/dsh-pmboard && pnpm build:client` 后 node scripts/verify-client-build.mjs；重启 :13080（agent-dh/scripts/restart-with-build.sh）并做 R-017 noop 核验；提交 reqboard_submit(kind=verification)。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-5e4320",
+          "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9",
+          "trigger": "manual",
+          "startedAt": 1789809533999,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9",
+              "seq": 4126,
+              "at": 1789809534007,
+              "totals": {
+                "uncachedInputTokens": 3015607,
+                "outputTokens": 524839,
+                "cacheReadTokens": 46189590,
+                "cacheWriteTokens": 1503995
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9",
+              "seq": 4638,
+              "at": 1789811848982,
+              "totals": {
+                "uncachedInputTokens": 3494906,
+                "outputTokens": 599910,
+                "cacheReadTokens": 50733462,
+                "cacheWriteTokens": 1503995
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 479299,
+              "outputTokens": 75071,
+              "cacheReadTokens": 4543872,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1789811848974
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789808995460,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789809533999,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          },
+          "reason": "REQ-81aabd t5 开工：文档同步 + 客户端重建 + 重启生效 + 重启后核验与验收材料。",
+          "tokenSnapshot": {
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9",
+            "seq": 4126,
+            "at": 1789809534007,
+            "totals": {
+              "uncachedInputTokens": 3015607,
+              "outputTokens": 524839,
+              "cacheReadTokens": 46189590,
+              "cacheWriteTokens": 1503995
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "integrating",
+          "at": 1789811848974,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          },
+          "reason": "文档同步与客户端产物重建完成：workflow-stages.md 补迁移时序，lib/client.js 重建后 grep planning=0、verify-client-build.mjs OK；无跨端联调项，作为可联调状态转入测试。",
+          "tokenSnapshot": {
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9",
+            "seq": 4638,
+            "at": 1789811848982,
+            "totals": {
+              "uncachedInputTokens": 3494906,
+              "outputTokens": 599910,
+              "cacheReadTokens": 50733462,
+              "cacheWriteTokens": 1503995
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789811849038,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          },
+          "reason": "验收口径自测通过：pnpm build:client + verify-client-build.mjs 输出 OK（bundle=229219）；设计节点 API HTTP 200 且 designDocs 4/4 已交，与 design/ 磁盘 4 份文件一致；npx vitest run 97 文件/1250 用例全绿。",
+          "tokenSnapshot": {
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9",
+            "seq": 4640,
+            "at": 1789811849044,
+            "totals": {
+              "uncachedInputTokens": 3494906,
+              "outputTokens": 599910,
+              "cacheReadTokens": 50733462,
+              "cacheWriteTokens": 1503995
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789811849087,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          },
+          "reason": "自重测与部署核验已完成，提交审阅：重启+迁移编排日志（.dsh-data/req81aabd-restart.log）显示停旧进程→台账 v6→v7（81/81 白名单）→launchctl 起新进程（pid 24494，KeepAlive 恢复）→起后 verify 仍为 v7。",
+          "tokenSnapshot": {
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9",
+            "seq": 4642,
+            "at": 1789811849092,
+            "totals": {
+              "uncachedInputTokens": 3494906,
+              "outputTokens": 599910,
+              "cacheReadTokens": 50733462,
+              "cacheWriteTokens": 1503995
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789811849132,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          },
+          "reason": "R-017 空操作核验通过（规则段 v23/19 条无重复，R-006/R-007/R-016 硬约束在位，零委托副作用），R-008 回流产出已读；本卡全部完成项交付，转验收。",
+          "tokenSnapshot": {
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9",
+            "seq": 4644,
+            "at": 1789811849137,
+            "totals": {
+              "uncachedInputTokens": 3494906,
+              "outputTokens": 599910,
+              "cacheReadTokens": 50733462,
+              "cacheWriteTokens": 1503995
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-ea4e36",
+          "body": "[状态] → in_progress：REQ-81aabd t5 开工：文档同步 + 客户端重建 + 重启生效 + 重启后核验与验收材料。（窗口 session-45748eec-92e1-49c6-a414-5b43164229d9）",
+          "createdAt": 1789809533999,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          }
+        },
+        {
+          "id": "c-96bf9b",
+          "body": "[状态] → integrating：文档同步与客户端产物重建完成：workflow-stages.md 补迁移时序，lib/client.js 重建后 grep planning=0、verify-client-build.mjs OK；无跨端联调项，作为可联调状态转入测试。（窗口 session-45748eec-92e1-49c6-a414-5b43164229d9）",
+          "createdAt": 1789811848974,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          }
+        },
+        {
+          "id": "c-25d888",
+          "body": "[状态] → testing：验收口径自测通过：pnpm build:client + verify-client-build.mjs 输出 OK（bundle=229219）；设计节点 API HTTP 200 且 designDocs 4/4 已交，与 design/ 磁盘 4 份文件一致；npx vitest run 97 文件/1250 用例全绿。（窗口 session-45748eec-92e1-49c6-a414-5b43164229d9）",
+          "createdAt": 1789811849038,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          }
+        },
+        {
+          "id": "c-6bf340",
+          "body": "[状态] → in_review：自重测与部署核验已完成，提交审阅：重启+迁移编排日志（.dsh-data/req81aabd-restart.log）显示停旧进程→台账 v6→v7（81/81 白名单）→launchctl 起新进程（pid 24494，KeepAlive 恢复）→起后 verify 仍为 v7。（窗口 session-45748eec-92e1-49c6-a414-5b43164229d9）",
+          "createdAt": 1789811849087,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          }
+        },
+        {
+          "id": "c-348249",
+          "body": "[状态] → done：R-017 空操作核验通过（规则段 v23/19 条无重复，R-006/R-007/R-016 硬约束在位，零委托副作用），R-008 回流产出已读；本卡全部完成项交付，转验收。（窗口 session-45748eec-92e1-49c6-a414-5b43164229d9）",
+          "createdAt": 1789811849132,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1789808995460,
+      "updatedAt": 1789811849132,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-45748eec-92e1-49c6-a414-5b43164229d9"
+      },
+      "lastReport": {
+        "at": 1789811821938,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/architecture/workflow-stages.md",
+          "packages/pages/dsh-pmboard/docs/stage-naming-final.md",
+          "packages/pages/dsh-pmboard/lib/client.js",
+          "packages/pages/dsh-pmboard/lib/client.cjs",
+          "scripts/req81aabd-restart-and-migrate.sh",
+          ".dsh-data/req81aabd-resume-notes.md"
+        ],
+        "completed": [
+          "唯一事实源文档同步：docs/architecture/workflow-stages.md 补「旧键迁移（v6→v7）」与「迁移时序（硬约束）」；包内 docs/stage-naming-final.md 记录七节点中英文对照与改名理由",
+          "客户端产物重建：pnpm build:client → lib/client.js 229219 B / lib/client.cjs 228962 B（17:54），verify-client-build.mjs 输出 OK，grep planning = 0",
+          "重启生效核验：编排脚本 scripts/req81aabd-restart-and-migrate.sh 停旧进程（pid 3956）→ 台账 migrate --apply/--verify → launchctl bootstrap 起新进程（pid 24494，KeepAlive 托管恢复）→ 起后复核 schemaVersion 仍为 7",
+          "设计节点数据核验：GET .../REQ-81aabd/stage/design → HTTP 200，designDocs 4/4 已交，与磁盘 4 份文件一致；台账里 4 条 brainstorming/notes 归为 design/design、planning/plan → design/plan",
+          "R-017 空操作核验：regime_position_limit / account_info / strategy_list 只读抽样正常，规则段 v23 共 19 条无重复，R-006/R-007/R-016 硬约束在位，零委托副作用",
+          "回归：npx vitest run → 97 文件 / 1250 用例全绿"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-81aabd/tasks/t-4a85f8.md",
+      "layer": 2
+    }
+  ],
+  "edges": [
+    {
+      "from": "t-d5263f",
+      "to": "t-114b49"
+    },
+    {
+      "from": "t-6e407e",
+      "to": "t-d82522"
+    },
+    {
+      "from": "t-d5263f",
+      "to": "t-d82522"
+    },
+    {
+      "from": "t-114b49",
+      "to": "t-4a85f8"
+    },
+    {
+      "from": "t-d82522",
+      "to": "t-4a85f8"
+    }
+  ],
+  "layers": [
+    {
+      "layer": 0,
+      "tasks": [
+        "t-6e407e",
+        "t-d5263f"
+      ]
+    },
+    {
+      "layer": 1,
+      "tasks": [
+        "t-114b49",
+        "t-d82522"
+      ]
+    },
+    {
+      "layer": 2,
+      "tasks": [
+        "t-4a85f8"
+      ]
+    }
+  ],
+  "ready": [],
+  "updated_at": "2026-09-28T23:14:14.506Z"
+}

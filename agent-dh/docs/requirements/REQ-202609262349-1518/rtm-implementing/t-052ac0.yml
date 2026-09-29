@@ -1,7 +1,7 @@
 task:
   id: t-052ac0
   title: implementing 阶段 RTM 生成
-  status: todo
+  status: done
   implements: ""
   serves:
     - FR-1
@@ -28,8 +28,8 @@ metadata:
   stage: implementing
   requirement_id: REQ-202609262349-1518
   generated_at: 2026-09-27T01:34:27.545Z
-  version: 2
+  version: 6
   generated_by: dsh-pmboard
   detail_dir: rtm-implementing/
   detail_count: 1
-  last_updated: 2026-09-27T01:36:06.626Z
+  last_updated: 2026-09-27T03:21:46.558Z

@@ -1,0 +1,172 @@
+metadata:
+  stage: design
+  requirement_id: REQ-260929010300-dbf9
+  generated_at: 2026-09-28T17:17:20.266Z
+  version: 3
+  generated_by: dsh-pmboard
+  last_updated: 2026-09-28T17:20:33.023Z
+inputs:
+  requirements: []
+outputs:
+  design_sections:
+    - ref: design/architecture.md#现状与目标
+      title: 现状与目标 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-6
+      file: design/architecture.md
+      section: 现状与目标
+    - ref: design/architecture.md#模块职责与数据流
+      title: 模块职责与数据流 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-5
+      file: design/architecture.md
+      section: 模块职责与数据流
+    - ref: design/architecture.md#皮肤真源与迁移
+      title: 皮肤真源与迁移 `
+      serves:
+        - FR-6
+      file: design/architecture.md
+      section: 皮肤真源与迁移
+    - ref: design/architecture.md#单例到多实例挂载生命周期
+      title: 单例到多实例（挂载生命周期） `
+      serves:
+        - FR-3
+        - FR-4
+      file: design/architecture.md
+      section: 单例到多实例挂载生命周期
+    - ref: design/data-model.md#持久化数据零变更
+      title: 持久化数据：零变更 `
+      serves:
+        - FR-3
+        - FR-7
+      file: design/data-model.md
+      section: 持久化数据零变更
+    - ref: design/data-model.md#运行时结构与不变量
+      title: 运行时结构与不变量 `
+      serves:
+        - FR-3
+        - FR-4
+      file: design/data-model.md
+      section: 运行时结构与不变量
+    - ref: design/data-model.md#入参结构类型收敛不伪造
+      title: 入参结构类型（收敛，不伪造） `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-7
+      file: design/data-model.md
+      section: 入参结构类型收敛不伪造
+    - ref: design/interfaces.md#三个入口签名
+      title: 三个入口签名 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/interfaces.md
+      section: 三个入口签名
+    - ref: design/interfaces.md#常量与调用方契约
+      title: 常量与调用方契约 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/interfaces.md
+      section: 常量与调用方契约
+    - ref: design/interfaces.md#DOM-与样式契约
+      title: DOM 与样式契约 `
+      serves:
+        - FR-1
+        - FR-6
+      file: design/interfaces.md
+      section: DOM-与样式契约
+    - ref: design/use-cases.md#用例总览
+      title: 用例总览 `
+      serves:
+        - FR-1
+        - FR-2
+      file: design/use-cases.md
+      section: 用例总览
+    - ref: design/use-cases.md#主用例
+      title: 主用例 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-7
+      file: design/use-cases.md
+      section: 主用例
+    - ref: design/use-cases.md#异常与边界
+      title: 异常与边界 `
+      serves:
+        - FR-4
+        - FR-5
+        - FR-7
+      file: design/use-cases.md
+      section: 异常与边界
+    - ref: design/use-cases.md#范围外
+      title: 范围外 `
+      serves:
+        - FR-6
+      file: design/use-cases.md
+      section: 范围外
+traceability:
+  fr_to_design:
+    FR-1:
+      - design/architecture.md#现状与目标
+      - design/architecture.md#模块职责与数据流
+      - design/data-model.md#入参结构类型收敛不伪造
+      - design/interfaces.md#三个入口签名
+      - design/interfaces.md#常量与调用方契约
+      - design/interfaces.md#DOM-与样式契约
+      - design/use-cases.md#用例总览
+      - design/use-cases.md#主用例
+    FR-2:
+      - design/architecture.md#现状与目标
+      - design/architecture.md#模块职责与数据流
+      - design/data-model.md#入参结构类型收敛不伪造
+      - design/interfaces.md#三个入口签名
+      - design/interfaces.md#常量与调用方契约
+      - design/use-cases.md#用例总览
+      - design/use-cases.md#主用例
+    FR-6:
+      - design/architecture.md#现状与目标
+      - design/architecture.md#皮肤真源与迁移
+      - design/interfaces.md#DOM-与样式契约
+      - design/use-cases.md#范围外
+    FR-3:
+      - design/architecture.md#模块职责与数据流
+      - design/architecture.md#单例到多实例挂载生命周期
+      - design/data-model.md#持久化数据零变更
+      - design/data-model.md#运行时结构与不变量
+      - design/interfaces.md#三个入口签名
+      - design/interfaces.md#常量与调用方契约
+      - design/use-cases.md#主用例
+    FR-5:
+      - design/architecture.md#模块职责与数据流
+      - design/use-cases.md#主用例
+      - design/use-cases.md#异常与边界
+    FR-4:
+      - design/architecture.md#单例到多实例挂载生命周期
+      - design/data-model.md#运行时结构与不变量
+      - design/use-cases.md#主用例
+      - design/use-cases.md#异常与边界
+    FR-7:
+      - design/data-model.md#持久化数据零变更
+      - design/data-model.md#入参结构类型收敛不伪造
+      - design/use-cases.md#主用例
+      - design/use-cases.md#异常与边界
+coverage:
+  design:
+    total: 0
+    covered: 0
+    uncovered: []
+    rate: 100
+    total_frs: 0
+    covered_frs: 0

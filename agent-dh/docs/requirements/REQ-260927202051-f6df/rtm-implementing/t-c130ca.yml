@@ -1,0 +1,41 @@
+task:
+  id: t-c130ca
+  title: 看板实测回归（真实打开页面）·研发
+  status: done
+  implements: |-
+    迁移与读方改造完成后，重启 :13080（走 scripts/start.sh 或 launchctl kickstart），真实打开看板任务页与甘特/阶段视图，逐项核对任务可见性与数量、依赖连线、需求详情；记录页面截图路径。本卡是最高风险的验收点——单测绿不等于看板不回归，必须以浏览器实开为准。
+
+    [子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要
+  serves: []
+  depends_on:
+    - t-66797c
+    - t-0c7f17
+    - t-860900
+    - t-8d4af7
+    - t-fa3e16
+    - t-03254f
+  phase: test
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-260927202051-f6df
+    TASK_ID: t-c130ca
+    TASK_TITLE: 看板实测回归（真实打开页面）·研发
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: test
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: test
+      status: done
+      completed_at: 2026-09-27T16:03:20.642Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-260927202051-f6df
+  generated_at: 2026-09-27T16:03:20.639Z
+  version: 2
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-09-27T16:03:20.642Z

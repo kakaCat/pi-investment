@@ -1,0 +1,836 @@
+{
+  "version": 1,
+  "requirement_id": "REQ-9f4a44",
+  "schemaVersion": 9,
+  "generated_at": "2026-09-27T14:55:11.425Z",
+  "tasks": [
+    {
+      "id": "t-939208",
+      "requirementId": "REQ-9f4a44",
+      "title": "状态机改造：新增 accepting→archived、移除 done 相关转移与门",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "protocol.ts 中 REQ_TRANSITIONS 含 accepting→archived 且无 done 相关转移；HUMAN_ONLY 移除 done>archived；ARTIFACT_CONFIRM_GATES 改为 accepting>archived:verification；ALL_REQ_STATUSES 保留 done 作 legacy；单测断言上述表内容与 assertReqTransition 行为",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-e332a2",
+          "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335",
+          "trigger": "manual",
+          "startedAt": 1789577822826,
+          "outcome": "succeeded",
+          "endedAt": 1789577822837
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789577508243,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789577822826,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t1 状态机改造 完成"
+        },
+        {
+          "status": "testing",
+          "at": 1789577822837,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t1 状态机改造 完成"
+        },
+        {
+          "status": "in_review",
+          "at": 1789577822848,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t1 状态机改造 完成"
+        },
+        {
+          "status": "done",
+          "at": 1789577822861,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t1 状态机改造 完成"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-eb1d88",
+          "body": "[状态] → in_progress：t1 状态机改造 完成（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789577822826,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        },
+        {
+          "id": "c-52e344",
+          "body": "[状态] → testing：t1 状态机改造 完成（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789577822837,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        },
+        {
+          "id": "c-3ec0f2",
+          "body": "[状态] → in_review：t1 状态机改造 完成（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789577822848,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        },
+        {
+          "id": "c-3a013e",
+          "body": "[状态] → done：t1 状态机改造 完成（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789577822861,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        }
+      ],
+      "version": 5,
+      "createdAt": 1789577508243,
+      "updatedAt": 1789577822861,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+      },
+      "cardDoc": "docs/requirements/REQ-9f4a44/tasks/t-939208.md",
+      "layer": 0
+    },
+    {
+      "id": "t-0a1ad4",
+      "requirementId": "REQ-9f4a44",
+      "title": "验收通过落点改 archived + archive_submit 放宽为 archived 可用",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-939208"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "handleVerifyDecision(pass=true) 写 status=archived（pass=false 仍回 implementing）；reqboard_archive_submit 在 archived 态可调且仍按 ARCHIVE_DOC_RULES 校验；单测覆盖两项",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-54992c",
+          "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335",
+          "trigger": "manual",
+          "startedAt": 1789577822889,
+          "outcome": "succeeded",
+          "endedAt": 1789577822904
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789577508243,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789577822889,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t2 验收落点改 archived 完成"
+        },
+        {
+          "status": "testing",
+          "at": 1789577822904,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t2 验收落点改 archived 完成"
+        },
+        {
+          "status": "in_review",
+          "at": 1789577822916,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t2 验收落点改 archived 完成"
+        },
+        {
+          "status": "done",
+          "at": 1789577822927,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t2 验收落点改 archived 完成"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-78464c",
+          "body": "[状态] → in_progress：t2 验收落点改 archived 完成（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789577822889,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        },
+        {
+          "id": "c-b633bc",
+          "body": "[状态] → testing：t2 验收落点改 archived 完成（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789577822904,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        },
+        {
+          "id": "c-d63703",
+          "body": "[状态] → in_review：t2 验收落点改 archived 完成（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789577822916,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        },
+        {
+          "id": "c-1e5262",
+          "body": "[状态] → done：t2 验收落点改 archived 完成（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789577822927,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        }
+      ],
+      "version": 5,
+      "createdAt": 1789577508243,
+      "updatedAt": 1789577822927,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+      },
+      "cardDoc": "docs/requirements/REQ-9f4a44/tasks/t-0a1ad4.md",
+      "layer": 1
+    },
+    {
+      "id": "t-23ebb9",
+      "requirementId": "REQ-9f4a44",
+      "title": "移除流程图与分类档案中的 done 节点",
+      "description": "",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-939208"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "conversation-progress.ts 的 FLOW 不含 done（流程止于归档）；CATEGORY_FLOW_PROFILES 各分类 stages/confirmGates 不含 done；单测遍历分类断言",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-3110bd",
+          "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335",
+          "trigger": "manual",
+          "startedAt": 1789577822951,
+          "outcome": "succeeded",
+          "endedAt": 1789577822962
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789577508243,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789577822951,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t3 流程图与分类档案去 done 完成"
+        },
+        {
+          "status": "testing",
+          "at": 1789577822962,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t3 流程图与分类档案去 done 完成"
+        },
+        {
+          "status": "in_review",
+          "at": 1789577822972,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t3 流程图与分类档案去 done 完成"
+        },
+        {
+          "status": "done",
+          "at": 1789577822983,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t3 流程图与分类档案去 done 完成"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-fd545d",
+          "body": "[状态] → in_progress：t3 流程图与分类档案去 done 完成（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789577822951,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        },
+        {
+          "id": "c-13c783",
+          "body": "[状态] → testing：t3 流程图与分类档案去 done 完成（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789577822962,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        },
+        {
+          "id": "c-3ca072",
+          "body": "[状态] → in_review：t3 流程图与分类档案去 done 完成（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789577822972,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        },
+        {
+          "id": "c-8df80b",
+          "body": "[状态] → done：t3 流程图与分类档案去 done 完成（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789577822983,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        }
+      ],
+      "version": 5,
+      "createdAt": 1789577508243,
+      "updatedAt": 1789577822983,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+      },
+      "cardDoc": "docs/requirements/REQ-9f4a44/tasks/t-23ebb9.md",
+      "layer": 1
+    },
+    {
+      "id": "t-456236",
+      "requirementId": "REQ-9f4a44",
+      "title": "验收通过后注入\"请准备归档材料\"提示",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-0a1ad4"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "验收通过后绑定会话可收到\"请准备归档材料\"提示（复用既有注入点）；单测断言提示文本与触发条件",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-7a50a2",
+          "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335",
+          "trigger": "manual",
+          "startedAt": 1789577823008,
+          "outcome": "succeeded",
+          "endedAt": 1789577823022
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789577508243,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789577823008,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t4 归档提示注入 完成"
+        },
+        {
+          "status": "testing",
+          "at": 1789577823022,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t4 归档提示注入 完成"
+        },
+        {
+          "status": "in_review",
+          "at": 1789577823037,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t4 归档提示注入 完成"
+        },
+        {
+          "status": "done",
+          "at": 1789577823049,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t4 归档提示注入 完成"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-140873",
+          "body": "[状态] → in_progress：t4 归档提示注入 完成（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789577823008,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        },
+        {
+          "id": "c-e4fd63",
+          "body": "[状态] → testing：t4 归档提示注入 完成（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789577823022,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        },
+        {
+          "id": "c-4c6973",
+          "body": "[状态] → in_review：t4 归档提示注入 完成（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789577823037,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        },
+        {
+          "id": "c-2b8b86",
+          "body": "[状态] → done：t4 归档提示注入 完成（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789577823049,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        }
+      ],
+      "version": 5,
+      "createdAt": 1789577508243,
+      "updatedAt": 1789577823049,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+      },
+      "cardDoc": "docs/requirements/REQ-9f4a44/tasks/t-456236.md",
+      "layer": 2
+    },
+    {
+      "id": "t-431822",
+      "requirementId": "REQ-9f4a44",
+      "title": "看板：archived 且无 archive 产物显示\"归档材料待补\"",
+      "description": "",
+      "phase": "ui",
+      "side": "frontend",
+      "dependsOn": [
+        "t-0a1ad4"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "看板对 archived 且缺 archive 产物的需求显示\"归档材料待补\"标记；build:client 通过",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-1071af",
+          "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335",
+          "trigger": "manual",
+          "startedAt": 1789577823076,
+          "outcome": "succeeded",
+          "endedAt": 1789577823088
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789577508243,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789577823076,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t5 看板归档待补标记 完成"
+        },
+        {
+          "status": "testing",
+          "at": 1789577823088,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t5 看板归档待补标记 完成"
+        },
+        {
+          "status": "in_review",
+          "at": 1789577823101,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t5 看板归档待补标记 完成"
+        },
+        {
+          "status": "done",
+          "at": 1789577823112,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t5 看板归档待补标记 完成"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-784ea3",
+          "body": "[状态] → in_progress：t5 看板归档待补标记 完成（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789577823076,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        },
+        {
+          "id": "c-a00b9f",
+          "body": "[状态] → testing：t5 看板归档待补标记 完成（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789577823088,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        },
+        {
+          "id": "c-5b9bf7",
+          "body": "[状态] → in_review：t5 看板归档待补标记 完成（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789577823101,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        },
+        {
+          "id": "c-d7635b",
+          "body": "[状态] → done：t5 看板归档待补标记 完成（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789577823112,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        }
+      ],
+      "version": 5,
+      "createdAt": 1789577508243,
+      "updatedAt": 1789577823112,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+      },
+      "cardDoc": "docs/requirements/REQ-9f4a44/tasks/t-431822.md",
+      "layer": 2
+    },
+    {
+      "id": "t-cf5bec",
+      "requirementId": "REQ-9f4a44",
+      "title": "单测与 13080 实测（含历史 done 兼容）",
+      "description": "",
+      "phase": "test",
+      "side": "fullstack",
+      "dependsOn": [
+        "t-23ebb9",
+        "t-456236",
+        "t-431822"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "vitest 全绿（含新转移/兼容/流程图断言）；13080 实测：造一个 accepting 需求 → 会话确认验收 → 状态直接 archived、无人工归档动作、流程图无 done、会话收到备料提示；含 done 的历史台账载入不报错",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-fb600d",
+          "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335",
+          "trigger": "manual",
+          "startedAt": 1789577934114,
+          "outcome": "succeeded",
+          "endedAt": 1789577934129
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789577508243,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789577934114,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t6 完成：395 用例全绿 + 历史兼容与门禁链路实测通过"
+        },
+        {
+          "status": "testing",
+          "at": 1789577934129,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t6 完成：395 用例全绿 + 历史兼容与门禁链路实测通过"
+        },
+        {
+          "status": "in_review",
+          "at": 1789577934142,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t6 完成：395 用例全绿 + 历史兼容与门禁链路实测通过"
+        },
+        {
+          "status": "done",
+          "at": 1789577934154,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          },
+          "reason": "t6 完成：395 用例全绿 + 历史兼容与门禁链路实测通过"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-276d81",
+          "body": "[状态] → in_progress：t6 完成：395 用例全绿 + 历史兼容与门禁链路实测通过（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789577934114,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        },
+        {
+          "id": "c-7a6ee5",
+          "body": "[状态] → testing：t6 完成：395 用例全绿 + 历史兼容与门禁链路实测通过（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789577934129,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        },
+        {
+          "id": "c-11d832",
+          "body": "[状态] → in_review：t6 完成：395 用例全绿 + 历史兼容与门禁链路实测通过（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789577934142,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        },
+        {
+          "id": "c-a208bd",
+          "body": "[状态] → done：t6 完成：395 用例全绿 + 历史兼容与门禁链路实测通过（窗口 session-24ded829-8d22-4e59-9318-bad027351335）",
+          "createdAt": 1789577934154,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+          }
+        }
+      ],
+      "version": 5,
+      "createdAt": 1789577508243,
+      "updatedAt": 1789577934154,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-24ded829-8d22-4e59-9318-bad027351335"
+      },
+      "cardDoc": "docs/requirements/REQ-9f4a44/tasks/t-cf5bec.md",
+      "layer": 3
+    }
+  ],
+  "edges": [
+    {
+      "from": "t-939208",
+      "to": "t-0a1ad4"
+    },
+    {
+      "from": "t-939208",
+      "to": "t-23ebb9"
+    },
+    {
+      "from": "t-0a1ad4",
+      "to": "t-456236"
+    },
+    {
+      "from": "t-0a1ad4",
+      "to": "t-431822"
+    },
+    {
+      "from": "t-23ebb9",
+      "to": "t-cf5bec"
+    },
+    {
+      "from": "t-456236",
+      "to": "t-cf5bec"
+    },
+    {
+      "from": "t-431822",
+      "to": "t-cf5bec"
+    }
+  ],
+  "layers": [
+    {
+      "layer": 0,
+      "tasks": [
+        "t-939208"
+      ]
+    },
+    {
+      "layer": 1,
+      "tasks": [
+        "t-0a1ad4",
+        "t-23ebb9"
+      ]
+    },
+    {
+      "layer": 2,
+      "tasks": [
+        "t-456236",
+        "t-431822"
+      ]
+    },
+    {
+      "layer": 3,
+      "tasks": [
+        "t-cf5bec"
+      ]
+    }
+  ],
+  "ready": [],
+  "updated_at": "2026-09-28T23:14:14.517Z"
+}

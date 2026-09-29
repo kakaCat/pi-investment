@@ -1,0 +1,1050 @@
+{
+  "version": 1,
+  "requirement_id": "REQ-9494f9",
+  "schemaVersion": 9,
+  "generated_at": "2026-09-27T14:55:11.425Z",
+  "tasks": [
+    {
+      "id": "t-90d985",
+      "requirementId": "REQ-9494f9",
+      "title": "修 buildNudgeMessage 信封并让调用点传 plugin",
+      "description": "改 packages/solve-kit/src/host.ts：buildNudgeMessage 返回 UserMessage 信封（id=randomUUID/role/content/source），参数增 plugin；host.ts:134 调用点传 plugin: opts.plugin；导出该纯函数供测试。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "cd agent-dh && npx tsx -e \"import {buildNudgeMessage} from './packages/solve-kit/src/host.ts'; const m:any=buildNudgeMessage({eventId:'x',title:'t',attempt:1,total:3,actorWindow:'w-a',panel:'执行看板',plugin:'dashboard-execution'}); console.log(typeof m.id, m.role, m.source.kind, m.content[0].type)\" → 输出 string user plugin text",
+      "implementation": "编辑 packages/solve-kit/src/host.ts:106-114（返回值改对象信封，参数表加 plugin）与 :134（补 plugin: opts.plugin）；randomUUID 已在文件头 import；不引入新依赖；不顺手重构（不改走 deliverMessage）。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-87b298",
+          "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb",
+          "trigger": "manual",
+          "startedAt": 1789930027041,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb",
+              "seq": 661,
+              "at": 1789930027050,
+              "totals": {
+                "uncachedInputTokens": 988212,
+                "outputTokens": 71108,
+                "cacheReadTokens": 10267648,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb",
+              "seq": 738,
+              "at": 1789930063689,
+              "totals": {
+                "uncachedInputTokens": 1221083,
+                "outputTokens": 76399,
+                "cacheReadTokens": 12175232,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 232871,
+              "outputTokens": 5291,
+              "cacheReadTokens": 1907584,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1789930063679
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789929894625,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789930027041,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+          },
+          "reason": "开工 t1：按卡修 buildNudgeMessage 信封并让调用点传 plugin（FR-1）",
+          "tokenSnapshot": {
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb",
+            "seq": 661,
+            "at": 1789930027050,
+            "totals": {
+              "uncachedInputTokens": 988212,
+              "outputTokens": 71108,
+              "cacheReadTokens": 10267648,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789930063679,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+          },
+          "reason": "后端单文件改动、无前后端汇合面，跳过联调直通测试：tsx 一行式验收命令已通过（string user plugin text）",
+          "tokenSnapshot": {
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb",
+            "seq": 738,
+            "at": 1789930063689,
+            "totals": {
+              "uncachedInputTokens": 1221083,
+              "outputTokens": 76399,
+              "cacheReadTokens": 12175232,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789930063749,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+          },
+          "reason": "自测与 typecheck 复核通过，进入待复核",
+          "tokenSnapshot": {
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb",
+            "seq": 740,
+            "at": 1789930063757,
+            "totals": {
+              "uncachedInputTokens": 1221083,
+              "outputTokens": 76399,
+              "cacheReadTokens": 12175232,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789930063841,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+          },
+          "reason": "FR-1 达成：buildNudgeMessage 返回 UserMessage 信封 + 调用点传 plugin；无顺手重构，diff 仅 host.ts",
+          "tokenSnapshot": {
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb",
+            "seq": 742,
+            "at": 1789930063850,
+            "totals": {
+              "uncachedInputTokens": 1221083,
+              "outputTokens": 76399,
+              "cacheReadTokens": 12175232,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-48cbd6",
+          "body": "[状态] → in_progress：开工 t1：按卡修 buildNudgeMessage 信封并让调用点传 plugin（FR-1）（窗口 session-f8006463-e476-454d-8262-b86351a7b8bb）",
+          "createdAt": 1789930027041,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+          }
+        },
+        {
+          "id": "c-535133",
+          "body": "[状态] → testing：后端单文件改动、无前后端汇合面，跳过联调直通测试：tsx 一行式验收命令已通过（string user plugin text）（窗口 session-f8006463-e476-454d-8262-b86351a7b8bb）",
+          "createdAt": 1789930063679,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+          }
+        },
+        {
+          "id": "c-bc0081",
+          "body": "[状态] → in_review：自测与 typecheck 复核通过，进入待复核（窗口 session-f8006463-e476-454d-8262-b86351a7b8bb）",
+          "createdAt": 1789930063749,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+          }
+        },
+        {
+          "id": "c-4d5593",
+          "body": "[状态] → done：FR-1 达成：buildNudgeMessage 返回 UserMessage 信封 + 调用点传 plugin；无顺手重构，diff 仅 host.ts（窗口 session-f8006463-e476-454d-8262-b86351a7b8bb）",
+          "createdAt": 1789930063841,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1789929894625,
+      "updatedAt": 1789930063841,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+      },
+      "lastReport": {
+        "at": 1789930054291,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/solve-kit/src/host.ts"
+        ],
+        "completed": [
+          "buildNudgeMessage 返回 {id: randomUUID(), role:'user', content:[{type:'text',text}], source:{kind:'plugin',plugin}}，与同文件 buildSolveMessage 逐字段同形",
+          "参数表新增 plugin；watchResolution 调用点（host.ts:134）传 plugin: opts.plugin",
+          "导出该纯函数供回归测试直接断言（仅导出，语义不变）",
+          "补了形状纪律注释：说明传字符串会同时触发 inbox 去重拒绝与 Host 级 control stream 崩溃",
+          "自测：npx tsx 一行式验收命令 → 输出 `string user plugin text`",
+          "typecheck 复核：tsc --noEmit 在 solve-kit 下仅剩 client/index.ts 的既有 DOM lib 报错，host.ts 无新增错误"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-9494f9/tasks/t-90d985.md",
+      "layer": 0
+    },
+    {
+      "id": "t-673e77",
+      "requirementId": "REQ-9494f9",
+      "title": "补催办消息形状回归测试",
+      "description": "新建 packages/solve-kit/tests/nudge-message.test.ts：A1 形状断言、A2 连续两次调用 id 不相等、A3 严格双重身契约（模拟 inbox 去重与 message.source.kind 读取）不抛错。",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-90d985"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "cd agent-dh && npx vitest run packages/solve-kit/tests/nudge-message.test.ts → 全绿；故障注入：把 buildNudgeMessage 临时改回返回字符串后同命令必须变红。",
+      "implementation": "用 vitest（根 vitest.config.ts 已 include packages/**/tests/**/*.test.ts）；从 ../src/host.js 导入 buildNudgeMessage；严格双重身内联在测试中，不引框架包。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-9e054a",
+          "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb",
+          "trigger": "manual",
+          "startedAt": 1789930076109,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb",
+              "seq": 760,
+              "at": 1789930076117,
+              "totals": {
+                "uncachedInputTokens": 1235951,
+                "outputTokens": 79367,
+                "cacheReadTokens": 12652160,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb",
+              "seq": 813,
+              "at": 1789930098815,
+              "totals": {
+                "uncachedInputTokens": 1478138,
+                "outputTokens": 82452,
+                "cacheReadTokens": 13660928,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 242187,
+              "outputTokens": 3085,
+              "cacheReadTokens": 1008768,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1789930098804
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789929894625,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789930076109,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+          },
+          "reason": "开工 t2：把 REQ-9494f9 的复现路径固化成先红后绿的门禁",
+          "tokenSnapshot": {
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb",
+            "seq": 760,
+            "at": 1789930076117,
+            "totals": {
+              "uncachedInputTokens": 1235951,
+              "outputTokens": 79367,
+              "cacheReadTokens": 12652160,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789930098804,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+          },
+          "reason": "测试卡自测通过：4/4 绿 + 故障注入复核已红（3 failed/1 passed）",
+          "tokenSnapshot": {
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb",
+            "seq": 813,
+            "at": 1789930098815,
+            "totals": {
+              "uncachedInputTokens": 1478138,
+              "outputTokens": 82452,
+              "cacheReadTokens": 13660928,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789930098957,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+          },
+          "reason": "红绿对比证据齐全，进入待复核",
+          "tokenSnapshot": {
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb",
+            "seq": 815,
+            "at": 1789930098970,
+            "totals": {
+              "uncachedInputTokens": 1478138,
+              "outputTokens": 82452,
+              "cacheReadTokens": 13660928,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789930149639,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+          },
+          "reason": "FR-2 达成：回归门禁锁死形状 + id 唯一性 + 严格双重身契约（含反例锁）；红绿对比与故障注入已实测",
+          "tokenSnapshot": {
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb",
+            "seq": 851,
+            "at": 1789930149649,
+            "totals": {
+              "uncachedInputTokens": 1484531,
+              "outputTokens": 91599,
+              "cacheReadTokens": 14421504,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-bc315e",
+          "body": "[状态] → in_progress：开工 t2：把 REQ-9494f9 的复现路径固化成先红后绿的门禁（窗口 session-f8006463-e476-454d-8262-b86351a7b8bb）",
+          "createdAt": 1789930076109,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+          }
+        },
+        {
+          "id": "c-873dc7",
+          "body": "[状态] → testing：测试卡自测通过：4/4 绿 + 故障注入复核已红（3 failed/1 passed）（窗口 session-f8006463-e476-454d-8262-b86351a7b8bb）",
+          "createdAt": 1789930098804,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+          }
+        },
+        {
+          "id": "c-94d9aa",
+          "body": "[状态] → in_review：红绿对比证据齐全，进入待复核（窗口 session-f8006463-e476-454d-8262-b86351a7b8bb）",
+          "createdAt": 1789930098957,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+          }
+        },
+        {
+          "id": "c-a7496d",
+          "body": "[状态] → done：FR-2 达成：回归门禁锁死形状 + id 唯一性 + 严格双重身契约（含反例锁）；红绿对比与故障注入已实测（窗口 session-f8006463-e476-454d-8262-b86351a7b8bb）",
+          "createdAt": 1789930149639,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1789929894625,
+      "updatedAt": 1789930149639,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+      },
+      "lastReport": {
+        "at": 1789930098726,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/solve-kit/tests/nudge-message.test.ts"
+        ],
+        "completed": [
+          "新增 packages/solve-kit/tests/nudge-message.test.ts（4 个用例）",
+          "A1 形状：对象 + id 为 UUID 形态字符串 + role='user' + content[0].type='text'（含「收单催办」）+ source.kind='plugin' 且 plugin 透传",
+          "A2 唯一性：连续两次调用 id 不相等（对治 message \"undefined\" is already pending）",
+          "A3 严格双重身：逐条复刻框架两个真实读取点（inbox.mutate 读 message.id / queueItemsFromInbox 读 message.source.kind）→ 不抛错",
+          "A4 反例锁：同一双重身对字符串投递必须抛错——证明 A3 不是恒真",
+          "红绿对比实测：故障注入（把 buildNudgeMessage 临时改回 return text）→ 3 failed | 1 passed；还原后 → 4 passed。残留检查：FAULT-INJECTION 行数=0",
+          "未引入回归：solve-kit + solve-predispatch-guard + agent-deliverer 共 16 tests 全绿；全量套件已在后台跑（bash-1）"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-9494f9/tasks/t-673e77.md",
+      "layer": 1
+    },
+    {
+      "id": "t-f0dcf2",
+      "requirementId": "REQ-9494f9",
+      "title": "修复 session-6faac762 脏 inbox 并核验控制流恢复",
+      "description": "停实例→备份 session.v3.jsonl.zstd→追加一帧 checksumFlag=1 的 zstd 修正 splice（seq=max(seq)+1，data={target:'next-turn',start:0,removedCount:1,inserted:[],outcome:'canceled'}）→解压回读校验 next-turn 折叠为空→启动实例。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-90d985"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "① 解压 session-6faac762 的 event log，折叠 agent/inbox/spliced 投影后 next-turn 为空（不含字符串条目）；② 全量扫描各 session 的折叠 inbox 投影，字符串条目数 = 0（node scripts/req9494f9-scan-inbox.mjs → sessionsWithFoldedStringEntries=0、exit 0）。【口径修订 2026-09-21，用户已裁决】AC-6 原文「raw grep inserted\":[\" 命中 0」在追加式帧容器日志上不可能成立（修复帧只取消折叠投影中的条目、不抹历史字节；改写历史被需求 §7 边界禁止），故改为折叠投影判据；③ :13080 健康检查通过，浏览器任意窗口控制台无 [session-controller] control stream failed。",
+      "implementation": "① ./scripts/stop.sh 并确认 :13080 无监听；② cp 备份到 session.v3.jsonl.zstd.bak-req9494f9-<ts>；③ node 脚本用 zlib.zstdCompressSync(..., {params:{[zlib.constants.ZSTD_c_checksumFlag]:1}}) 生成帧并 appendFileSync；④ 立即 zstd -d 回读折叠校验；⑤ ./scripts/start.sh。失败即用备份覆盖回滚。",
+      "context": "",
+      "status": "in_progress",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-631af5",
+          "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb",
+          "trigger": "manual",
+          "startedAt": 1789930162383,
+          "outcome": "cancelled",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb",
+              "seq": 860,
+              "at": 1789930162393,
+              "totals": {
+                "uncachedInputTokens": 1484901,
+                "outputTokens": 94842,
+                "cacheReadTokens": 14685184,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb",
+              "seq": 941,
+              "at": 1789930265853,
+              "totals": {
+                "uncachedInputTokens": 1748389,
+                "outputTokens": 103847,
+                "cacheReadTokens": 16330752,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 263488,
+              "outputTokens": 9005,
+              "cacheReadTokens": 1645568,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1789930265842
+        },
+        {
+          "id": "e-015f4b",
+          "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb",
+          "trigger": "manual",
+          "startedAt": 1789930636711,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb",
+              "seq": 1303,
+              "at": 1789930636720,
+              "totals": {
+                "uncachedInputTokens": 2104530,
+                "outputTokens": 166412,
+                "cacheReadTokens": 21273984,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb",
+              "seq": 1373,
+              "at": 1789930776055,
+              "totals": {
+                "uncachedInputTokens": 2228971,
+                "outputTokens": 179724,
+                "cacheReadTokens": 22435712,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 124441,
+              "outputTokens": 13312,
+              "cacheReadTokens": 1161728,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1789930776045
+        },
+        {
+          "id": "e-9b95ae",
+          "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb",
+          "trigger": "manual",
+          "startedAt": 1789930776113,
+          "outcome": "running",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb",
+              "seq": 1375,
+              "at": 1789930776122,
+              "totals": {
+                "uncachedInputTokens": 2228971,
+                "outputTokens": 179724,
+                "cacheReadTokens": 22435712,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            }
+          }
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789929894625,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789930162383,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+          },
+          "reason": "开工 t3：修复 session-6faac762 的持久化脏 inbox 并核验控制流恢复（FR-4/FR-5）",
+          "tokenSnapshot": {
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb",
+            "seq": 860,
+            "at": 1789930162393,
+            "totals": {
+              "uncachedInputTokens": 1484901,
+              "outputTokens": 94842,
+              "cacheReadTokens": 14685184,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "todo",
+          "at": 1789930265842,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+          },
+          "reason": "用户裁决方案 C：本回合不执行停实例/日志写入；准备工作（备份 + 修复脚本 + dry-run 验证）已完成，退回待办等另排窗口",
+          "tokenSnapshot": {
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb",
+            "seq": 941,
+            "at": 1789930265853,
+            "totals": {
+              "uncachedInputTokens": 1748389,
+              "outputTokens": 103847,
+              "cacheReadTokens": 16330752,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1789930636711,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+          },
+          "reason": "本轮（同窗口续跑）执行存量脏数据修复：先按 plan.md §5 顺序写修正帧并复核折叠投影；用户裁决「只写修正帧，暂不重启」，故重启与线上核验（AC-5）留待择时执行。",
+          "tokenSnapshot": {
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb",
+            "seq": 1303,
+            "at": 1789930636720,
+            "totals": {
+              "uncachedInputTokens": 2104530,
+              "outputTokens": 166412,
+              "cacheReadTokens": 21273984,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789930776045,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+          },
+          "reason": "验收口径修订 + 数据修复完成待重启核验",
+          "tokenSnapshot": {
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb",
+            "seq": 1373,
+            "at": 1789930776055,
+            "totals": {
+              "uncachedInputTokens": 2228971,
+              "outputTokens": 179724,
+              "cacheReadTokens": 22435712,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1789930776113,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+          },
+          "reason": "重启核验（AC-5）未完成，退回实施态等待择时重启。",
+          "tokenSnapshot": {
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb",
+            "seq": 1375,
+            "at": 1789930776122,
+            "totals": {
+              "uncachedInputTokens": 2228971,
+              "outputTokens": 179724,
+              "cacheReadTokens": 22435712,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-6e7f8a",
+          "body": "[状态] → in_progress：开工 t3：修复 session-6faac762 的持久化脏 inbox 并核验控制流恢复（FR-4/FR-5）（窗口 session-f8006463-e476-454d-8262-b86351a7b8bb）",
+          "createdAt": 1789930162383,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+          }
+        },
+        {
+          "id": "c-8dfea9",
+          "body": "[状态] → todo：用户裁决方案 C：本回合不执行停实例/日志写入；准备工作（备份 + 修复脚本 + dry-run 验证）已完成，退回待办等另排窗口（窗口 session-f8006463-e476-454d-8262-b86351a7b8bb）",
+          "createdAt": 1789930265842,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+          }
+        },
+        {
+          "id": "c-675c6a",
+          "body": "[状态] → in_progress：本轮（同窗口续跑）执行存量脏数据修复：先按 plan.md §5 顺序写修正帧并复核折叠投影；用户裁决「只写修正帧，暂不重启」，故重启与线上核验（AC-5）留待择时执行。（窗口 session-f8006463-e476-454d-8262-b86351a7b8bb）",
+          "createdAt": 1789930636711,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+          }
+        },
+        {
+          "id": "c-4d8edb",
+          "body": "[状态] → testing：验收口径修订 + 数据修复完成待重启核验（窗口 session-f8006463-e476-454d-8262-b86351a7b8bb）",
+          "createdAt": 1789930776045,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+          }
+        },
+        {
+          "id": "c-8cc303",
+          "body": "[状态] → in_progress：重启核验（AC-5）未完成，退回实施态等待择时重启。（窗口 session-f8006463-e476-454d-8262-b86351a7b8bb）",
+          "createdAt": 1789930776113,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+          }
+        }
+      ],
+      "version": 8,
+      "createdAt": 1789929894625,
+      "updatedAt": 1789930776113,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+      },
+      "lastReport": {
+        "at": 1789930668225,
+        "reportIndex": 2,
+        "filesChanged": [
+          "scripts/req9494f9-scan-inbox.mjs",
+          "scripts/req9494f9-restart-and-repair.sh",
+          "docs/requirements/REQ-9494f9/verification.md"
+        ],
+        "completed": [
+          "备份两遍（修复前后各一次独立备份，sha256 一致 4c0f080f…6954a，2421811 B），回滚材料就位",
+          "向目标 session 追加修正帧（seq=1482，removedCount=1, inserted=[]）：脚本报 residualBad={}、lastSeq=1482、exit 0",
+          "折叠投影独立复核（另一套实现）：next-turn=0、next-step=0、foldedStringEntries=0",
+          "幂等复核：复跑 dry-run 报『无需修复』",
+          "新增全量体检脚本 scripts/req9494f9-scan-inbox.mjs：316 个 session 折叠投影字符串条目 = 0（exit 0）",
+          "发现并记录 AC-6 判据缺陷：追加式日志不会抹掉历史字节，raw grep 命中数不可能归零（与需求 §7『不改历史/不裁剪日志』边界冲突）；已改用折叠投影作为正确判据",
+          "★ 与 plan §5『先停后改』的偏差已记录：本轮按用户裁决未停机，改为在线追加；依据是写路径为追加式（open(path,\"a\")+fsync）、该文件无进程持有 fd、目标 session 自 21:34 起空闲无并发写入"
+        ]
+      },
+      "claimedBy": "session-f8006463-e476-454d-8262-b86351a7b8bb",
+      "claimedAt": 1789930776113,
+      "cardDoc": "docs/requirements/REQ-9494f9/tasks/t-f0dcf2.md",
+      "layer": 1
+    },
+    {
+      "id": "t-0f54a6",
+      "requirementId": "REQ-9494f9",
+      "title": "审计全仓投递形状并归档验证证据",
+      "description": "扫全部 followup( 调用方确认无字符串实参；把 AC-1..AC-6 的逐条证据写入 verification.md；decision_audit + memory_write 留痕（含根因、动作、数据来源与时点）。",
+      "phase": "review",
+      "side": "doc",
+      "dependsOn": [
+        "t-673e77",
+        "t-f0dcf2"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "grep -rn 'followup(' packages/*/src 中每个调用点的实参均为对象信封（或 createUserMessage），无字符串；docs/requirements/REQ-9494f9/verification.md 存在且 AC-1..AC-6 每条都有命令/输出或证据路径。",
+      "implementation": "grep -rn 'followup(' packages/*/src 逐点核对形状；产出 docs/requirements/REQ-9494f9/verification.md；decision_audit(record) + memory_write(experience)。",
+      "context": "",
+      "status": "in_progress",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-04a602",
+          "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb",
+          "trigger": "manual",
+          "startedAt": 1789930275668,
+          "outcome": "cancelled",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb",
+              "seq": 950,
+              "at": 1789930275677,
+              "totals": {
+                "uncachedInputTokens": 1760626,
+                "outputTokens": 106134,
+                "cacheReadTokens": 16598016,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb",
+              "seq": 963,
+              "at": 1789930283001,
+              "totals": {
+                "uncachedInputTokens": 2035221,
+                "outputTokens": 106750,
+                "cacheReadTokens": 16605568,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 274595,
+              "outputTokens": 616,
+              "cacheReadTokens": 7552,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1789930282993
+        },
+        {
+          "id": "e-e15a0f",
+          "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb",
+          "trigger": "manual",
+          "startedAt": 1789930668165,
+          "outcome": "running",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb",
+              "seq": 1341,
+              "at": 1789930668174,
+              "totals": {
+                "uncachedInputTokens": 2227434,
+                "outputTokens": 173393,
+                "cacheReadTokens": 21869952,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb",
+              "seq": 1345,
+              "at": 1789930668263,
+              "totals": {
+                "uncachedInputTokens": 2227434,
+                "outputTokens": 173393,
+                "cacheReadTokens": 21869952,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          }
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789929894625,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789930275668,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+          },
+          "reason": "开工 t4 可做部分：全仓投递形状审计 + 交接证据（AC-4/5/6 依赖 t-f0dcf2，待另排窗口）",
+          "tokenSnapshot": {
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb",
+            "seq": 950,
+            "at": 1789930275677,
+            "totals": {
+              "uncachedInputTokens": 1760626,
+              "outputTokens": 106134,
+              "cacheReadTokens": 16598016,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "todo",
+          "at": 1789930282993,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+          },
+          "reason": "可做部分（AC-3 审计 + verification.md 草稿）已交付；AC-4/5/6 依赖 t-f0dcf2，退回待办待脏数据修复后结单",
+          "tokenSnapshot": {
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb",
+            "seq": 963,
+            "at": 1789930283001,
+            "totals": {
+              "uncachedInputTokens": 2035221,
+              "outputTokens": 106750,
+              "cacheReadTokens": 16605568,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1789930668165,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+          },
+          "reason": "补齐本期审计与验证证据：重跑全仓 followup 形状审计（AC-3）、按你的裁决记录 AC-4 已通过 / AC-6 判据缺陷 / AC-5 待重启。",
+          "tokenSnapshot": {
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb",
+            "seq": 1341,
+            "at": 1789930668174,
+            "totals": {
+              "uncachedInputTokens": 2227434,
+              "outputTokens": 173393,
+              "cacheReadTokens": 21869952,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-68d306",
+          "body": "[状态] → in_progress：开工 t4 可做部分：全仓投递形状审计 + 交接证据（AC-4/5/6 依赖 t-f0dcf2，待另排窗口）（窗口 session-f8006463-e476-454d-8262-b86351a7b8bb）",
+          "createdAt": 1789930275668,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+          }
+        },
+        {
+          "id": "c-2092b0",
+          "body": "[状态] → todo：可做部分（AC-3 审计 + verification.md 草稿）已交付；AC-4/5/6 依赖 t-f0dcf2，退回待办待脏数据修复后结单（窗口 session-f8006463-e476-454d-8262-b86351a7b8bb）",
+          "createdAt": 1789930282993,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+          }
+        },
+        {
+          "id": "c-53be47",
+          "body": "[状态] → in_progress：补齐本期审计与验证证据：重跑全仓 followup 形状审计（AC-3）、按你的裁决记录 AC-4 已通过 / AC-6 判据缺陷 / AC-5 待重启。（窗口 session-f8006463-e476-454d-8262-b86351a7b8bb）",
+          "createdAt": 1789930668165,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1789929894625,
+      "updatedAt": 1789930668261,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-f8006463-e476-454d-8262-b86351a7b8bb"
+      },
+      "lastReport": {
+        "at": 1789930668261,
+        "reportIndex": 2,
+        "filesChanged": [
+          "docs/requirements/REQ-9494f9/verification.md"
+        ],
+        "completed": [
+          "重跑全仓 grep followup( 审计：lifecycle×6 用 createUserMessage、solve-kit/target.ts:35 传调用方信封、solve-kit/host.ts:147 用 buildNudgeMessage 信封、pmboard AgentDeliverer 结构复刻信封——无字符串实参（AC-3 通过）",
+          "verification.md 重写为可复核版本：AC-1..AC-6 逐条给出命令/输出或证据路径与数据时点",
+          "AC-4 证据补齐（追加帧输出 + 独立折叠复核 + 幂等 dry-run）",
+          "AC-6 记为判据缺陷并给出等价判据与体检脚本；AC-5 记为待重启，附精确剩余步骤",
+          "汇入未引入回归的证据（solve-kit 等 16 tests 全绿）"
+        ]
+      },
+      "claimedBy": "session-f8006463-e476-454d-8262-b86351a7b8bb",
+      "claimedAt": 1789930668165,
+      "cardDoc": "docs/requirements/REQ-9494f9/tasks/t-0f54a6.md",
+      "layer": 2
+    }
+  ],
+  "edges": [
+    {
+      "from": "t-90d985",
+      "to": "t-673e77"
+    },
+    {
+      "from": "t-90d985",
+      "to": "t-f0dcf2"
+    },
+    {
+      "from": "t-673e77",
+      "to": "t-0f54a6"
+    },
+    {
+      "from": "t-f0dcf2",
+      "to": "t-0f54a6"
+    }
+  ],
+  "layers": [
+    {
+      "layer": 0,
+      "tasks": [
+        "t-90d985"
+      ]
+    },
+    {
+      "layer": 1,
+      "tasks": [
+        "t-673e77",
+        "t-f0dcf2"
+      ]
+    },
+    {
+      "layer": 2,
+      "tasks": [
+        "t-0f54a6"
+      ]
+    }
+  ],
+  "ready": []
+}

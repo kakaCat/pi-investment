@@ -93,6 +93,36 @@ tags: [reqboard, node-panel, gui, REQ-260923134706-e72f]
 - 实施节点的视图切换按钮实现文案是「**DAG** / 泳道」（与拆分节点统一命名，经用户裁定），需求文档字面写的是「流程图 / 泳道」——如需统一，改一处文案即可。
 - 宿主入口 `src/index.ts` 单文件超 400 行（**HEAD 上即 415 行，属既有红**，不在尺寸门禁白名单允许范围内），会让「全量测试绿」长期不可达，建议单开拆分卡。
 
+## 9. 节点面板「项目看板 ↗」直达入口（2026-09-28，REQ-260928222643-4d34）
+
+面板状态行（与相对时间同排）新增固定文案「项目看板 ↗」，**7 个节点全显示**（含「本分类跳过」态）。
+点击 = 打开项目看板并**直接定位到该需求详情**；节点面板关闭、会话本身不切换。
+
+- **一次性交接**：看板视图状态 `mode` 是 `board-mount` 挂载闭包内的局部变量，而宿主是 keyed 插槽（切走即卸载）。
+  因此「面板点击时把 REQ id 交给看板」走**模块级一次性持有器** `src/client/board-focus.ts`
+  （`requestBoardFocus` / `takeBoardFocus` / `clearBoardFocus` / `peekBoardFocus`，零 import）。
+  取走即清；**不落 localStorage/sessionStorage、不进 URL/hash、不挂 window**——刷新或再次进入必回默认视图（非粘滞）。
+- **先校验后导航**：`src/client/board-entry.ts` 的纯函数先确认目标可达（该 REQ 仍在台账 / 看板拿得到），
+  不可达则**不切页**并就地给出含原因的可见提示（禁止静默，也禁止「切过去才发现是列表」）。
+- **导航唯一来源不变**：仍走 `ctx.layout.selectPanel(PANEL_ID)`。
+- **下掉「🔄 执行流程」折叠块**：面板连该行标题都不再渲染（渲染器不再调用 `renderProcessFold`），
+  打开面板也不再为它拉取注入/隔离留痕；后端 `/injection-log`、`/isolation-log` 路由与采集链路、
+  以及看板自身既有的留痕消费方一律保留。
+## 10. DAG 面板与卡片的展示/交互口径（2026-09-29，REQ-260929010300-dbf9）
+
+会话面板的 DAG 与需求详情**共用同一份** `buildDagCanvas` / `mountDagCanvas` / `buildDagData`，故下列口径两处一致：
+
+| 裁定 | 用户原话（要点） | 口径 |
+|---|---|---|
+| B | 「两处都删标题行 + 统计条」 | 不再渲染 `.dsh-pm-dag-title` 与 `.dsh-pm-dag-flowstat`；面板只剩 **工具条 + 画布 + 图例**。原「统计条标『推导』」作废；`ready` 两态语义保留，只驱动画布上的**可开工绿点** |
+| C | 「一行只能放2个，把这个限制去掉」 | `calculateLayout` 竖向分支**同层不折行**：每层一行、画布按最宽层展开（`availW` 降级为最小宽度），容器窄时由 `.dsh-pm-dag-canvas-wrap` 横向滚动 |
+| D | 「卡片左边的一条线删除了，泳道卡片就是对的」 | 不再画**父卡左侧 3px 蓝条**（Canvas `fillRect` + DOM `.card-crown`），DAG 卡片外观与泳道卡片一致 |
+| E | 「泳道里的卡片有4/4这个内容删除了」 | 泳道父卡卡片不再展示**子卡链进度**（4 段色条 + `n/N`）；列归属仍由 `laneOf` 按子卡链推导 |
+| F | 「点击卡片应该打开对应文档这个dag功能丢失了」 | **单击卡片 → 打开该卡任务卡文档**（派发 `data-action="open-doc"`，复用既有右侧栏委托）；单击延迟一拍、双击取消后开任务详情。`CardData` 与 client `TaskRecord` 因此补 `cardDoc` |
+
+- 卡片**类型/端侧/阶段徽标、208×72 几何、配色**与折叠/传递归约/箭头分级**零改动**（裁定 D 的蓝条是唯一例外）。
+- 会话面板里 `open-task`（双击→任务详情）**无处理方**（该委托只有看板页 `board-mount` 具备）——面板的文档入口就是单击，与旧分层列表一致。
+
 ## 8. 追溯
 
 - 需求档案：`docs/requirements/REQ-260923134706-e72f/`（requirement / design×7 / decomposition / verification / tests/evidence.md / reviews/self-review.md）

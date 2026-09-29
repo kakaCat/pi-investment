@@ -1,7 +1,7 @@
 task:
   id: t-8eee40
   title: 端到端测试
-  status: todo
+  status: done
   implements: ""
   serves:
     - FR-3
@@ -33,8 +33,8 @@ metadata:
   stage: implementing
   requirement_id: REQ-202609262349-1518
   generated_at: 2026-09-27T01:34:27.552Z
-  version: 2
+  version: 6
   generated_by: dsh-pmboard
   detail_dir: rtm-implementing/
   detail_count: 1
-  last_updated: 2026-09-27T01:36:07.034Z
+  last_updated: 2026-09-27T03:21:48.711Z

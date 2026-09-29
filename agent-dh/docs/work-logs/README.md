@@ -19,12 +19,14 @@ tags: [worklog, index, l3]
 - **提炼**：结论一旦合并进 L2，就在日志 fm 里填 `distilled_into: docs/...`——**待提炼队列 = 没填这个字段的**；队列才是要干的活，其余不必读。
 
 <!-- AUTO:ledger BEGIN -->
-合计 **105** 篇。**提炼去向**（`distilled_into`）为空的都在「待提炼队列」里——那才是要干的活，其余不必读。
+合计 **115** 篇。**提炼去向**（`distilled_into`）为空的都在「待提炼队列」里——那才是要干的活，其余不必读。
 
-### 2026-09（60 篇）
+### 2026-09（70 篇）
 
 | 日期 | 日志 | 提炼去向 |
 |---|---|---|
+| 2026-09-27 | [拆分（decompose）节点流程缺陷清单与修复方案](2026-09/reqboard-decompose-flow-defects.md) | ⏳ 待提炼 |
+| 2026-09-27 | [D7 决策记录与需求草案：agent 侧任务流转工具缺失（选 B 改提示词）](2026-09/d7-task-move-tool-decision.md) | ⏳ 待提炼 |
 | 2026-09-16 | [web-liveness 页面自愈：重启后已开标签页自动刷新（2026-09-16）](2026-09/web-liveness-restart-self-heal.md) | ⏳ 待提炼 |
 | 2026-09-14 | [需求看板：验收人工审核 + 归档文档合并规范](2026-09/reqboard-verify-archive.md) | ⏳ 待提炼 |
 | 2026-09-14 | [文档金字塔与项目说明书（归档让项目认知向上生长）](2026-09/reqboard-knowledge-pyramid.md) | ⏳ 待提炼 |
@@ -62,7 +64,13 @@ tags: [worklog, index, l3]
 | 2026-09-01 | [M6-3 周报自动生成交付（2026-09-01）](2026-09/m6-3-weekly-report-delivery.md) | ⏳ 待提炼 |
 | 2026-09-01 | [M6-2 归因分析交付（2026-09-01）](2026-09/m6-2-attribution-delivery.md) | ⏳ 待提炼 |
 | 2026-09-01 | [盈利引擎系统设计完成进度重新梳理（2026-09-01）](2026-09/m0-m8-progress-rebaseline.md) | ⏳ 待提炼 |
+| — | [traceability-frontend-guide.md](2026-09/traceability-frontend-guide.md) | ⏳ 待提炼 |
 | — | [session-node-display-audit.md](2026-09/session-node-display-audit.md) | ⏳ 待提炼 |
+| — | [rtm-integration-verification-report.md](2026-09/rtm-integration-verification-report.md) | ⏳ 待提炼 |
+| — | [rtm-implementation-progress.md](2026-09/rtm-implementation-progress.md) | ⏳ 待提炼 |
+| — | [rtm-frontend-integration-report.md](2026-09/rtm-frontend-integration-report.md) | ⏳ 待提炼 |
+| — | [rtm-final-completion-report.md](2026-09/rtm-final-completion-report.md) | ⏳ 待提炼 |
+| — | [rtm-code-cleanup-report.md](2026-09/rtm-code-cleanup-report.md) | ⏳ 待提炼 |
 | — | [requirement-progress-implementation.md](2026-09/requirement-progress-implementation.md) | ⏳ 待提炼 |
 | — | [reqboard-pipeline-simplify.md](2026-09/reqboard-pipeline-simplify.md) | ⏳ 待提炼 |
 | — | [req-f0579a-pmboard-audit-fixes.md](2026-09/req-f0579a-pmboard-audit-fixes.md) | ⏳ 待提炼 |
@@ -81,8 +89,10 @@ tags: [worklog, index, l3]
 | — | [pmboard-new-tools-design.md](2026-09/pmboard-new-tools-design.md) | ⏳ 待提炼 |
 | — | [pmboard-menu-optimization.md](2026-09/pmboard-menu-optimization.md) | ⏳ 待提炼 |
 | — | [pmboard-implementation-plan.md](2026-09/pmboard-implementation-plan.md) | ⏳ 待提炼 |
+| — | [pmboard-gate-hardening-fr7-integration.md](2026-09/pmboard-gate-hardening-fr7-integration.md) | ⏳ 待提炼 |
 | — | [pmboard-dual-view-mode.md](2026-09/pmboard-dual-view-mode.md) | ⏳ 待提炼 |
 | — | [pmboard-complete-design.md](2026-09/pmboard-complete-design.md) | ⏳ 待提炼 |
+| — | [board-mount-integration-report.md](2026-09/board-mount-integration-report.md) | ⏳ 待提炼 |
 | — | [REQ-31e11f-stage-detail-complete.md](2026-09/REQ-31e11f-stage-detail-complete.md) | ⏳ 待提炼 |
 | — | [REQ-2e9473-execution-chain-hardening.md](2026-09/REQ-2e9473-execution-chain-hardening.md) | ⏳ 待提炼 |
 

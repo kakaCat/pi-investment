@@ -1,0 +1,488 @@
+metadata:
+  stage: decomposing
+  requirement_id: REQ-260928222643-4d34
+  generated_at: 2026-09-28T14:53:19.689Z
+  version: 17
+  generated_by: dsh-pmboard
+  last_updated: 2026-09-28T15:25:09.158Z
+inputs:
+  requirements: []
+  design_sections:
+    - ref: design/architecture.md#目标与总体方案
+      title: 目标与总体方案 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+      file: design/architecture.md
+      section: 目标与总体方案
+    - ref: design/architecture.md#模块改动地图
+      title: 模块改动地图 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+      file: design/architecture.md
+      section: 模块改动地图
+    - ref: design/architecture.md#为什么用模块级一次性持有器关键决策
+      title: 为什么用模块级一次性持有器（关键决策） `
+      serves:
+        - FR-2
+      file: design/architecture.md
+      section: 为什么用模块级一次性持有器关键决策
+    - ref: design/architecture.md#错误处理与响亮失败
+      title: 错误处理与响亮失败 `
+      serves:
+        - FR-3
+      file: design/architecture.md
+      section: 错误处理与响亮失败
+    - ref: design/architecture.md#兼容与回滚
+      title: 兼容与回滚 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+      file: design/architecture.md
+      section: 兼容与回滚
+    - ref: design/architecture.md#验收口径
+      title: 验收口径 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+      file: design/architecture.md
+      section: 验收口径
+    - ref: design/architecture.md#遗留问题
+      title: 遗留问题 `
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 遗留问题
+    - ref: design/data-model.md#T-1-持久化数据契约无变更
+      title: T-1 持久化数据契约：无变更 `
+      serves:
+        - FR-2
+        - FR-3
+      file: design/data-model.md
+      section: T-1-持久化数据契约无变更
+    - ref: design/data-model.md#T-2-新增内存态交接意图
+      title: T-2 新增内存态：交接意图 `
+      serves:
+        - FR-2
+      file: design/data-model.md
+      section: T-2-新增内存态交接意图
+    - ref: design/data-model.md#T-3-状态生命周期与不粘滞保证
+      title: T-3 状态生命周期与不粘滞保证 `
+      serves:
+        - FR-2
+        - FR-3
+      file: design/data-model.md
+      section: T-3-状态生命周期与不粘滞保证
+    - ref: design/data-model.md#T-4-面板入参数据契约变更
+      title: T-4 面板入参数据契约变更 `
+      serves:
+        - FR-4
+        - FR-5
+      file: design/data-model.md
+      section: T-4-面板入参数据契约变更
+    - ref: design/data-model.md#T-5-派生数据无新增
+      title: T-5 派生数据：无新增 `
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: T-5-派生数据无新增
+    - ref: design/frontend.md#P-1-入口落位与结构
+      title: P-1 入口落位与结构 `
+      serves:
+        - FR-1
+      file: design/frontend.md
+      section: P-1-入口落位与结构
+    - ref: design/frontend.md#P-2-窄面板换行与可点性
+      title: P-2 窄面板换行与可点性 `
+      serves:
+        - FR-1
+      file: design/frontend.md
+      section: P-2-窄面板换行与可点性
+    - ref: design/frontend.md#P-3-交互与失败提示的可见性
+      title: P-3 交互与失败提示的可见性 `
+      serves:
+        - FR-2
+        - FR-3
+      file: design/frontend.md
+      section: P-3-交互与失败提示的可见性
+    - ref: design/frontend.md#P-4-下掉执行流程后的面板结构
+      title: P-4 下掉执行流程后的面板结构 `
+      serves:
+        - FR-4
+      file: design/frontend.md
+      section: P-4-下掉执行流程后的面板结构
+    - ref: design/frontend.md#P-5-视觉一致性
+      title: P-5 视觉一致性 `
+      serves:
+        - FR-1
+      file: design/frontend.md
+      section: P-5-视觉一致性
+    - ref: design/interfaces.md#I-1-一次性交接持有器-board-focusts
+      title: I-1 一次性交接持有器 `board-focus.ts` `
+      serves:
+        - FR-2
+      file: design/interfaces.md
+      section: I-1-一次性交接持有器-board-focusts
+    - ref: design/interfaces.md#I-2-入口校验与失败提示-board-entryts
+      title: I-2 入口校验与失败提示 `board-entry.ts` `
+      serves:
+        - FR-3
+      file: design/interfaces.md
+      section: I-2-入口校验与失败提示-board-entryts
+    - ref: design/interfaces.md#I-3-面板入口-DOM-契约
+      title: I-3 面板入口 DOM 契约 `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: I-3-面板入口-DOM-契约
+    - ref: design/interfaces.md#I-4-面板入参契约变更
+      title: I-4 面板入参契约变更 `
+      serves:
+        - FR-4
+        - FR-5
+      file: design/interfaces.md
+      section: I-4-面板入参契约变更
+    - ref: design/interfaces.md#I-5-看板挂载点消费契约
+      title: I-5 看板挂载点消费契约 `
+      serves:
+        - FR-2
+      file: design/interfaces.md
+      section: I-5-看板挂载点消费契约
+    - ref: design/interfaces.md#I-6-不变量实现时不得违反
+      title: I-6 不变量（实现时不得违反） `
+      serves:
+        - FR-2
+        - FR-3
+      file: design/interfaces.md
+      section: I-6-不变量实现时不得违反
+    - ref: design/interfaces.md#I-7-明确不变更的接口防顺手改
+      title: I-7 明确不变更的接口（防顺手改） `
+      serves:
+        - FR-4
+        - FR-5
+      file: design/interfaces.md
+      section: I-7-明确不变更的接口防顺手改
+    - ref: design/use-cases.md#UC-1-看完节点直达需求详情主路径
+      title: UC-1 看完节点直达需求详情（主路径） `
+      serves:
+        - FR-1
+        - FR-2
+      file: design/use-cases.md
+      section: UC-1-看完节点直达需求详情主路径
+    - ref: design/use-cases.md#UC-2-分类跳过节点也要能走
+      title: UC-2 分类跳过节点也要能走 `
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: UC-2-分类跳过节点也要能走
+    - ref: design/use-cases.md#UC-3-目标已不在台账
+      title: UC-3 目标已不在台账 `
+      serves:
+        - FR-3
+      file: design/use-cases.md
+      section: UC-3-目标已不在台账
+    - ref: design/use-cases.md#UC-4-页面导航服务未注入
+      title: UC-4 页面导航服务未注入 `
+      serves:
+        - FR-3
+      file: design/use-cases.md
+      section: UC-4-页面导航服务未注入
+    - ref: design/use-cases.md#UC-5-刷新-再次进入看板非粘滞
+      title: UC-5 刷新 / 再次进入看板（非粘滞） `
+      serves:
+        - FR-2
+      file: design/use-cases.md
+      section: UC-5-刷新-再次进入看板非粘滞
+outputs:
+  tasks:
+    - id: t-3e952f
+      title: 新增一次性交接持有器 src/client/board-focus.ts
+      implements: 新建 packages/web/dsh-pmboard/src/client/board-focus.ts（零 import）：模块级 pendingReqId + 四个导出 requestBoardFocus/takeBoardFocus/clearBoardFocus/peekBoardFocus；take 取走即清、空串不登记、不写 storage/URL；新建 tests/board-focus.test.ts 覆盖 TC-6。
+      serves: []
+      depends_on: []
+      phase: implement
+      side: frontend
+    - id: t-dd5ba9
+      title: 新增入口校验纯函数 src/client/board-entry.ts
+      implements: 新建 board-entry.ts：activateBoardEntry(reqId,deps) 顺序 ①layout 可用性→②reqId 形状→③isKnown 台账可达性→④requestFocus；失败返回 {ok:false,reason,message} 且零副作用；文案对齐 interfaces.md I-2；新建 tests/board-entry.test.ts 覆盖 TC-9~13。
+      serves: []
+      depends_on:
+        - t-3e952f
+      phase: implement
+      side: frontend
+    - id: t-2eb71d
+      title: node-panel.ts 加入口按钮并删除执行流程块调用与入参
+      implements: renderHead 内相对时间之后追加 button.dsh-pm-np-board-entry[data-action=np-board-entry][data-req]（文案固定 项目看板 ↗，跳过与正常分支共用）；删除 renderProcessFold 调用、ProcessFoldContext、NodePanelInput.injection/isolation 与相关 import 及头注；同步 tests/node-panel.test.ts（反写 TC-2、删 TC-4、加 TC-1/TC-2′/TC-5）。
+      serves: []
+      depends_on:
+        - t-3e952f
+        - t-dd5ba9
+      phase: implement
+      side: frontend
+    - id: t-e481a4
+      title: conversation-progress.ts 接线点击→校验→关面板→切看板并删两条留痕拉取
+      implements: 删除 fetchInjectionInfo/fetchIsolationLog import、injection/isolation state 与拉取 effect 及 props；closePanel 声明上移到早退前；新增 document 级 np-board-entry 委派调 activateBoardEntry，失败 setEntryError 就地 role=alert 显示且不切页，成功 closePanel + layout.selectPanel(PANEL_ID)；import 来源 board-focus/board-entry/page-runtime/dom/api。
+      serves: []
+      depends_on:
+        - t-3e952f
+        - t-dd5ba9
+        - t-2eb71d
+      phase: implement
+      side: frontend
+    - id: t-9b365a
+      title: board-mount.ts 挂载时 takeBoardFocus 初始化 mode
+      implements: board-mount.ts 挂载时 const focusReqId = takeBoardFocus()，据此把 mode 初始化为 {kind:'req',reqId} 否则 {kind:'board'}；陈旧 id 走既有 L240 回退，不动 render/fetchAll/SSE；扩展 tests/board-attach.test.ts 加 TC-7/TC-8 并补 serves 头。
+      serves: []
+      depends_on:
+        - t-3e952f
+      phase: implement
+      side: frontend
+    - id: t-71aeb3
+      title: styles/node-panel.ts 新增入口按钮与失败提示两条规则
+      implements: 新增 .dsh-pm-np-board-entry（flex:none、min-height、胶囊、hover）与 .dsh-pm-cprog-detail-panel .dsh-pm-np-entry-err 两条作用域内规则；不动 head-time 的 margin-left:auto；tests/node-panel-styles.test.ts 加 TC-14。
+      serves: []
+      depends_on:
+        - t-2eb71d
+        - t-e481a4
+      phase: ui
+      side: frontend
+    - id: t-316227
+      title: 迁移与兼容核验：无 schema 变更、旧调用方与看板消费方零回归
+      implements: 反面断言看板消费方保留（board-mount.ts 的 fetchInjectionInfo 恰好 1 处、api.ts 两函数保留、node-panel-process.ts 函数保留、后端 injection-log/isolation-log 路由保留）；调用方收敛断言；非粘滞断言；git diff 变更面与 REQBOARD_SCHEMA_VERSION 未变核对；记录回滚路径。
+      serves: []
+      depends_on:
+        - t-e481a4
+        - t-9b365a
+      phase: test
+      side: frontend
+    - id: t-29b629
+      title: 重建客户端产物并发版，完成 TC-15 端到端人工验收
+      implements: 全量 npx vitest run + pnpm run typecheck；pnpm build:client 过 WRAP_SENTINEL 哨兵与产物校验；agent-dh/scripts/restart-with-build.sh 发版；在 :13080 做 TC-15 四步人工闭环并留证。
+      serves: []
+      depends_on:
+        - t-2eb71d
+        - t-e481a4
+        - t-9b365a
+        - t-71aeb3
+        - t-316227
+      phase: merge
+      side: fullstack
+    - id: t-1f9da5
+      title: 新增一次性交接持有器 src/client/board-focus.ts·研发
+      implements: |-
+        新建 packages/web/dsh-pmboard/src/client/board-focus.ts（零 import）：模块级 pendingReqId + 四个导出 requestBoardFocus/takeBoardFocus/clearBoardFocus/peekBoardFocus；take 取走即清、空串不登记、不写 storage/URL；新建 tests/board-focus.test.ts 覆盖 TC-6。
+
+        [子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要
+      serves: []
+      depends_on: []
+      phase: implement
+      side: frontend
+    - id: t-58ef99
+      title: 新增一次性交接持有器 src/client/board-focus.ts·联调
+      implements: |-
+        新建 packages/web/dsh-pmboard/src/client/board-focus.ts（零 import）：模块级 pendingReqId + 四个导出 requestBoardFocus/takeBoardFocus/clearBoardFocus/peekBoardFocus；take 取走即清、空串不登记、不写 storage/URL；新建 tests/board-focus.test.ts 覆盖 TC-6。
+
+        [子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致
+      serves: []
+      depends_on:
+        - t-1f9da5
+      phase: implement
+      side: frontend
+    - id: t-017d4e
+      title: 新增一次性交接持有器 src/client/board-focus.ts·复核
+      implements: |-
+        新建 packages/web/dsh-pmboard/src/client/board-focus.ts（零 import）：模块级 pendingReqId + 四个导出 requestBoardFocus/takeBoardFocus/clearBoardFocus/peekBoardFocus；take 取走即清、空串不登记、不写 storage/URL；新建 tests/board-focus.test.ts 覆盖 TC-6。
+
+        [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-58ef99
+      phase: implement
+      side: frontend
+    - id: t-b22075
+      title: 新增一次性交接持有器 src/client/board-focus.ts·测试
+      implements: |-
+        新建 packages/web/dsh-pmboard/src/client/board-focus.ts（零 import）：模块级 pendingReqId + 四个导出 requestBoardFocus/takeBoardFocus/clearBoardFocus/peekBoardFocus；take 取走即清、空串不登记、不写 storage/URL；新建 tests/board-focus.test.ts 覆盖 TC-6。
+
+        [子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）
+      serves: []
+      depends_on:
+        - t-017d4e
+      phase: implement
+      side: frontend
+    - id: t-cb9237
+      title: 新增入口校验纯函数 src/client/board-entry.ts·研发
+      implements: |-
+        新建 board-entry.ts：activateBoardEntry(reqId,deps) 顺序 ①layout 可用性→②reqId 形状→③isKnown 台账可达性→④requestFocus；失败返回 {ok:false,reason,message} 且零副作用；文案对齐 interfaces.md I-2；新建 tests/board-entry.test.ts 覆盖 TC-9~13。
+
+        [子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要
+      serves: []
+      depends_on:
+        - t-3e952f
+      phase: implement
+      side: frontend
+    - id: t-bfdf5c
+      title: 新增入口校验纯函数 src/client/board-entry.ts·联调
+      implements: |-
+        新建 board-entry.ts：activateBoardEntry(reqId,deps) 顺序 ①layout 可用性→②reqId 形状→③isKnown 台账可达性→④requestFocus；失败返回 {ok:false,reason,message} 且零副作用；文案对齐 interfaces.md I-2；新建 tests/board-entry.test.ts 覆盖 TC-9~13。
+
+        [子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致
+      serves: []
+      depends_on:
+        - t-cb9237
+      phase: implement
+      side: frontend
+    - id: t-687740
+      title: 新增入口校验纯函数 src/client/board-entry.ts·复核
+      implements: |-
+        新建 board-entry.ts：activateBoardEntry(reqId,deps) 顺序 ①layout 可用性→②reqId 形状→③isKnown 台账可达性→④requestFocus；失败返回 {ok:false,reason,message} 且零副作用；文案对齐 interfaces.md I-2；新建 tests/board-entry.test.ts 覆盖 TC-9~13。
+
+        [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-bfdf5c
+      phase: implement
+      side: frontend
+    - id: t-9aa159
+      title: 新增入口校验纯函数 src/client/board-entry.ts·测试
+      implements: |-
+        新建 board-entry.ts：activateBoardEntry(reqId,deps) 顺序 ①layout 可用性→②reqId 形状→③isKnown 台账可达性→④requestFocus；失败返回 {ok:false,reason,message} 且零副作用；文案对齐 interfaces.md I-2；新建 tests/board-entry.test.ts 覆盖 TC-9~13。
+
+        [子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）
+      serves: []
+      depends_on:
+        - t-687740
+      phase: implement
+      side: frontend
+    - id: t-23961d
+      title: node-panel.ts 加入口按钮并删除执行流程块调用与入参·研发
+      implements: |-
+        renderHead 内相对时间之后追加 button.dsh-pm-np-board-entry[data-action=np-board-entry][data-req]（文案固定 项目看板 ↗，跳过与正常分支共用）；删除 renderProcessFold 调用、ProcessFoldContext、NodePanelInput.injection/isolation 与相关 import 及头注；同步 tests/node-panel.test.ts（反写 TC-2、删 TC-4、加 TC-1/TC-2′/TC-5）。
+
+        [子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要
+      serves: []
+      depends_on:
+        - t-3e952f
+        - t-dd5ba9
+      phase: implement
+      side: frontend
+    - id: t-1d3596
+      title: node-panel.ts 加入口按钮并删除执行流程块调用与入参·联调
+      implements: |-
+        renderHead 内相对时间之后追加 button.dsh-pm-np-board-entry[data-action=np-board-entry][data-req]（文案固定 项目看板 ↗，跳过与正常分支共用）；删除 renderProcessFold 调用、ProcessFoldContext、NodePanelInput.injection/isolation 与相关 import 及头注；同步 tests/node-panel.test.ts（反写 TC-2、删 TC-4、加 TC-1/TC-2′/TC-5）。
+
+        [子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致
+      serves: []
+      depends_on:
+        - t-23961d
+      phase: implement
+      side: frontend
+    - id: t-bcca7b
+      title: node-panel.ts 加入口按钮并删除执行流程块调用与入参·复核
+      implements: |-
+        renderHead 内相对时间之后追加 button.dsh-pm-np-board-entry[data-action=np-board-entry][data-req]（文案固定 项目看板 ↗，跳过与正常分支共用）；删除 renderProcessFold 调用、ProcessFoldContext、NodePanelInput.injection/isolation 与相关 import 及头注；同步 tests/node-panel.test.ts（反写 TC-2、删 TC-4、加 TC-1/TC-2′/TC-5）。
+
+        [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-1d3596
+      phase: implement
+      side: frontend
+    - id: t-33f31b
+      title: node-panel.ts 加入口按钮并删除执行流程块调用与入参·测试
+      implements: |-
+        renderHead 内相对时间之后追加 button.dsh-pm-np-board-entry[data-action=np-board-entry][data-req]（文案固定 项目看板 ↗，跳过与正常分支共用）；删除 renderProcessFold 调用、ProcessFoldContext、NodePanelInput.injection/isolation 与相关 import 及头注；同步 tests/node-panel.test.ts（反写 TC-2、删 TC-4、加 TC-1/TC-2′/TC-5）。
+
+        [子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）
+      serves: []
+      depends_on:
+        - t-bcca7b
+      phase: implement
+      side: frontend
+traceability:
+  design_to_tasks:
+    design/architecture.md#目标与总体方案: []
+    design/architecture.md#模块改动地图: []
+    design/architecture.md#为什么用模块级一次性持有器关键决策: []
+    design/architecture.md#错误处理与响亮失败: []
+    design/architecture.md#兼容与回滚: []
+    design/architecture.md#验收口径: []
+    design/architecture.md#遗留问题: []
+    design/data-model.md#T-1-持久化数据契约无变更: []
+    design/data-model.md#T-2-新增内存态交接意图: []
+    design/data-model.md#T-3-状态生命周期与不粘滞保证: []
+    design/data-model.md#T-4-面板入参数据契约变更: []
+    design/data-model.md#T-5-派生数据无新增: []
+    design/frontend.md#P-1-入口落位与结构: []
+    design/frontend.md#P-2-窄面板换行与可点性: []
+    design/frontend.md#P-3-交互与失败提示的可见性: []
+    design/frontend.md#P-4-下掉执行流程后的面板结构: []
+    design/frontend.md#P-5-视觉一致性: []
+    design/interfaces.md#I-1-一次性交接持有器-board-focusts: []
+    design/interfaces.md#I-2-入口校验与失败提示-board-entryts: []
+    design/interfaces.md#I-3-面板入口-DOM-契约: []
+    design/interfaces.md#I-4-面板入参契约变更: []
+    design/interfaces.md#I-5-看板挂载点消费契约: []
+    design/interfaces.md#I-6-不变量实现时不得违反: []
+    design/interfaces.md#I-7-明确不变更的接口防顺手改: []
+    design/use-cases.md#UC-1-看完节点直达需求详情主路径: []
+    design/use-cases.md#UC-2-分类跳过节点也要能走: []
+    design/use-cases.md#UC-3-目标已不在台账: []
+    design/use-cases.md#UC-4-页面导航服务未注入: []
+    design/use-cases.md#UC-5-刷新-再次进入看板非粘滞: []
+  fr_to_tasks:
+    FR-1: []
+    FR-2: []
+    FR-3: []
+    FR-4: []
+    FR-5: []
+coverage:
+  implementation:
+    total: 29
+    covered: 0
+    uncovered:
+      - design/architecture.md#目标与总体方案
+      - design/architecture.md#模块改动地图
+      - design/architecture.md#为什么用模块级一次性持有器关键决策
+      - design/architecture.md#错误处理与响亮失败
+      - design/architecture.md#兼容与回滚
+      - design/architecture.md#验收口径
+      - design/architecture.md#遗留问题
+      - design/data-model.md#T-1-持久化数据契约无变更
+      - design/data-model.md#T-2-新增内存态交接意图
+      - design/data-model.md#T-3-状态生命周期与不粘滞保证
+      - design/data-model.md#T-4-面板入参数据契约变更
+      - design/data-model.md#T-5-派生数据无新增
+      - design/frontend.md#P-1-入口落位与结构
+      - design/frontend.md#P-2-窄面板换行与可点性
+      - design/frontend.md#P-3-交互与失败提示的可见性
+      - design/frontend.md#P-4-下掉执行流程后的面板结构
+      - design/frontend.md#P-5-视觉一致性
+      - design/interfaces.md#I-1-一次性交接持有器-board-focusts
+      - design/interfaces.md#I-2-入口校验与失败提示-board-entryts
+      - design/interfaces.md#I-3-面板入口-DOM-契约
+      - design/interfaces.md#I-4-面板入参契约变更
+      - design/interfaces.md#I-5-看板挂载点消费契约
+      - design/interfaces.md#I-6-不变量实现时不得违反
+      - design/interfaces.md#I-7-明确不变更的接口防顺手改
+      - design/use-cases.md#UC-1-看完节点直达需求详情主路径
+      - design/use-cases.md#UC-2-分类跳过节点也要能走
+      - design/use-cases.md#UC-3-目标已不在台账
+      - design/use-cases.md#UC-4-页面导航服务未注入
+      - design/use-cases.md#UC-5-刷新-再次进入看板非粘滞
+    rate: 0
+    total_designs: 29
+    covered_designs: 0

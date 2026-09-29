@@ -1,0 +1,1081 @@
+{
+  "version": 1,
+  "requirement_id": "REQ-260926215013-1568",
+  "schemaVersion": 9,
+  "generated_at": "2026-09-27T14:55:11.425Z",
+  "tasks": [
+    {
+      "id": "t-aa2ec9",
+      "requirementId": "REQ-260926215013-1568",
+      "title": "契约定死：回合来源、相位值域与驱动状态纯判定",
+      "cardDoc": "docs/requirements/REQ-260926215013-1568/tasks/t-aa2ec9.md",
+      "description": "round-state.ts 纯契约/判定 + protocol.ts phase 值域修正与 DiveRoundSource + ports.ts AgentDeliveryPort 扩展",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "npx vitest run tests/dive-round-state.test.ts 全绿（非 dive 来源不认、round 必须等于 roundsInStage+1、内容不一致返回 false）；npx tsc --noEmit -p tsconfig.json 错误数不高于改动前基线；grep -n paused src/shared/protocol.ts 可见 phase 值域含 paused。",
+      "implementation": "新增 src/application/dive/round-state.ts（DriverState/RoundAttempt/DiveRoundSource 结构类型 + isDiveRoundSource/sameQueued/roundReservationValid/deepEqualJson/roundLimitFor 纯函数）；src/shared/protocol.ts 修正 RequirementDive.phase 为 'idle'|'active'|'paused'、新增 DiveRoundSource + isDiveRoundSource；src/application/ports.ts 给 AgentDeliveryPort 增 createRoundMessage/deliverMessage 签名；新增 tests/dive-round-state.test.ts。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-89ff9c",
+          "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363",
+          "trigger": "auto",
+          "startedAt": 1790433289240,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "end": {
+              "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363",
+              "seq": 12384,
+              "at": 1790433375470,
+              "totals": {
+                "uncachedInputTokens": 5994533,
+                "outputTokens": 2059888,
+                "cacheReadTokens": 310563441,
+                "cacheWriteTokens": 3521290
+              },
+              "source": "projection"
+            }
+          },
+          "endedAt": 1790433384995
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790433273089,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790433289240,
+          "by": {
+            "kind": "system",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "照卡执行 T-1"
+        },
+        {
+          "status": "testing",
+          "at": 1790433384995,
+          "by": {
+            "kind": "human",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "T-1 达标"
+        },
+        {
+          "status": "in_review",
+          "at": 1790433385092,
+          "by": {
+            "kind": "human",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "T-1 达标"
+        },
+        {
+          "status": "done",
+          "at": 1790433385182,
+          "by": {
+            "kind": "human",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "T-1 达标"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-c732f0",
+          "body": "[状态] → in_progress：照卡执行 T-1",
+          "createdAt": 1790433289240,
+          "createdBy": {
+            "kind": "system"
+          }
+        },
+        {
+          "id": "c-21b485",
+          "body": "[状态] → testing：T-1 达标",
+          "createdAt": 1790433384995,
+          "createdBy": {
+            "kind": "human"
+          }
+        },
+        {
+          "id": "c-f79789",
+          "body": "[状态] → in_review：T-1 达标",
+          "createdAt": 1790433385092,
+          "createdBy": {
+            "kind": "human"
+          }
+        },
+        {
+          "id": "c-dda962",
+          "body": "[状态] → done：T-1 达标",
+          "createdAt": 1790433385182,
+          "createdBy": {
+            "kind": "human"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790433273089,
+      "updatedAt": 1790433385182,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+      },
+      "updatedBy": {
+        "kind": "human",
+        "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+      },
+      "lastReport": {
+        "at": 1790433375468,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/shared/protocol.ts",
+          "packages/web/dsh-pmboard/src/application/ports.ts",
+          "packages/web/dsh-pmboard/src/application/dive/round-state.ts",
+          "packages/web/dsh-pmboard/tests/dive-round-state.test.ts"
+        ],
+        "completed": [
+          "protocol.ts：RequirementDive.phase 值域修正为 idle|active|paused（原为阶段名联合，与文档/FR-6/FR-8 矛盾）；maxRoundsPerStage 降为可选",
+          "protocol.ts：新增 DiveRoundSource 来源契约 + isDiveRoundSource 判定（非 dive / round≤0 → false）",
+          "ports.ts：新增 DiveRoundDeliveryPort 子端口（createRoundMessage/deliverMessage），不扩父接口以保 tsc 基线",
+          "新增 application/dive/round-state.ts：DriverState/RoundAttempt 契约 + deepEqualJson/sameQueued/roundReservationValid/roundLimitFor/renderDiveRoundText/isDrivableRequirement",
+          "新增 tests/dive-round-state.test.ts：12 条断言（非 dive 不认 / 内容逐字相等 / round 必须=roundsInStage+1 / stale·cancelled·revision 变·非 armed+active 一律拒 / 上限来源与回落）"
+        ]
+      },
+      "layer": 0
+    },
+    {
+      "id": "t-0ddfb1",
+      "requirementId": "REQ-260926215013-1568",
+      "title": "回合状态机：空闲才起轮、准入才计数、上限写终态",
+      "cardDoc": "docs/requirements/REQ-260926215013-1568/tasks/t-0ddfb1.md",
+      "description": "新增 round-driver.ts 实现全部 FR 的竞态栅栏/让位/检查点/串行化/终态/异常收尾/留痕",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-aa2ec9"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "npx vitest run tests/dive-round-driver.test.ts 全绿：连发 3 次触发只执行 1 次驱动体；驱动体抛错不产生未捕获异常/未处理 rejection；需求 version 变化后 pre-step 返回 reject 且同批消息被放回；checkpoint 失败后 activation 等于 disarmed；roundsInStage 等于 maxRounds 时 phase 等于 paused 且 pausedReason 等于 round-limit。",
+      "implementation": "新增 src/application/dive/round-driver.ts：createDiveRoundDriver(ports) 实现 onIdle/onPreStep/onInboxInserted|Claimed|Discarded/onAgentError/onAgentDisposed/onRequirementMoved/onSessionEvent/requestDrive/teardown/whenQuiet；requestDrive 用 ports.agents.withoutInitiator 串 while(requested && !stopping) 单链；drive() 按设计 7 步（含排队点 await checkpoint() 屏障）；onPreStep 前后各一次 roundReservationValid + restoreOtherClaimed；admission 落 dive-round-admitted、终态落 dive-terminal-block、异常/检查点失败落 dive-disarm。新增 tests/dive-round-driver.test.ts（fake 端口）。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-538c0c",
+          "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363",
+          "trigger": "manual",
+          "startedAt": 1790433562260,
+          "outcome": "succeeded",
+          "endedAt": 1790433562358
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790433273089,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790433562260,
+          "by": {
+            "kind": "human",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "T-2 达标"
+        },
+        {
+          "status": "testing",
+          "at": 1790433562358,
+          "by": {
+            "kind": "human",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "T-2 达标"
+        },
+        {
+          "status": "in_review",
+          "at": 1790433562445,
+          "by": {
+            "kind": "human",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "T-2 达标"
+        },
+        {
+          "status": "done",
+          "at": 1790433562530,
+          "by": {
+            "kind": "human",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "T-2 达标"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-5fa7e3",
+          "body": "[状态] → in_progress：T-2 达标",
+          "createdAt": 1790433562260,
+          "createdBy": {
+            "kind": "human"
+          }
+        },
+        {
+          "id": "c-8b98b2",
+          "body": "[状态] → testing：T-2 达标",
+          "createdAt": 1790433562358,
+          "createdBy": {
+            "kind": "human"
+          }
+        },
+        {
+          "id": "c-dda67a",
+          "body": "[状态] → in_review：T-2 达标",
+          "createdAt": 1790433562445,
+          "createdBy": {
+            "kind": "human"
+          }
+        },
+        {
+          "id": "c-ec3111",
+          "body": "[状态] → done：T-2 达标",
+          "createdAt": 1790433562530,
+          "createdBy": {
+            "kind": "human"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790433273089,
+      "updatedAt": 1790433562616,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+      },
+      "updatedBy": {
+        "kind": "human",
+        "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+      },
+      "lastReport": {
+        "at": 1790433562616,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/application/dive/round-driver.ts",
+          "packages/web/dsh-pmboard/src/application/dive/round-state.ts",
+          "packages/web/dsh-pmboard/tests/dive-round-driver.test.ts"
+        ],
+        "completed": [
+          "新增 application/dive/round-driver.ts（399 行）：一个 agent 一个 DriverState（attempt/competingQueued/needsCheckpoint/requested/run/stopping）",
+          "FR-1 pre-step 前后各校验一次 + 同批已认领消息按原序放回；FR-2 inbox 竞争让位；FR-3 排队点耐久检查点；FR-4 withoutInitiator 串行链 + requested 合并触发；FR-5 fail-closed teardown（全局 stopped 关准入）",
+          "FR-7 准入才计数（user/message 身份匹配恰好 +1，discard 不计数）；FR-8 上限写终态 paused/round-limit + comment + 一次 warn；FR-9 max-tokens/aborted/error/disposed 各自收尾；FR-11 全路径 warn/comment 留痕",
+          "round-state.ts 增补宿主结构访问器（agentIdOf/inboxOf/sourceOf 等，零框架依赖）",
+          "新增 tests/dive-round-driver.test.ts：11 条断言全绿（含 teardown 后触发不再排队、驱动体异常不产生未处理 rejection）",
+          "测试暴露并修复两个真实缺陷：teardown 后状态表清空导致新触发可重建状态 → 改全局 stopped；disarm 查需求时可能二次抛 → 加保护"
+        ]
+      },
+      "layer": 1
+    },
+    {
+      "id": "t-4a74c8",
+      "requirementId": "REQ-260926215013-1568",
+      "title": "投递适配：回合消息带机器可识别的来源标识",
+      "cardDoc": "docs/requirements/REQ-260926215013-1568/tasks/t-4a74c8.md",
+      "description": "AgentDeliverer 增 createRoundMessage/deliverMessage，写入 source:{kind:'dive',requirementId,revision,round}",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-aa2ec9"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "npx vitest run tests/agent-deliverer.test.ts 全绿；断言 createRoundMessage 返回的 message.source 与 {kind:'dive',requirementId,revision,round} 结构相等；deliverMessage 在 agents 不可得时返回 delivered:false 且不抛。",
+      "implementation": "src/adapters/AgentDeliverer.ts 增 createRoundMessage（结构复刻 {id,role:'user',content:[{type:'text',text}],source:{kind:'dive',requirementId,revision,round}}，不 import @deepseek-ai/dsh-llm）与 deliverMessage（复用 agents 不可得/窗口离线/无 followup 三态守卫，永不抛）；扩展 tests/agent-deliverer.test.ts。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-687f14",
+          "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363",
+          "trigger": "manual",
+          "startedAt": 1790433597106,
+          "outcome": "succeeded",
+          "endedAt": 1790433597206
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790433273089,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790433597105,
+          "by": {
+            "kind": "human",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "T-3 达标"
+        },
+        {
+          "status": "testing",
+          "at": 1790433597206,
+          "by": {
+            "kind": "human",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "T-3 达标"
+        },
+        {
+          "status": "in_review",
+          "at": 1790433597296,
+          "by": {
+            "kind": "human",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "T-3 达标"
+        },
+        {
+          "status": "done",
+          "at": 1790433597382,
+          "by": {
+            "kind": "human",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "T-3 达标"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-5678ea",
+          "body": "[状态] → in_progress：T-3 达标",
+          "createdAt": 1790433597106,
+          "createdBy": {
+            "kind": "human"
+          }
+        },
+        {
+          "id": "c-528a1a",
+          "body": "[状态] → testing：T-3 达标",
+          "createdAt": 1790433597206,
+          "createdBy": {
+            "kind": "human"
+          }
+        },
+        {
+          "id": "c-06c937",
+          "body": "[状态] → in_review：T-3 达标",
+          "createdAt": 1790433597296,
+          "createdBy": {
+            "kind": "human"
+          }
+        },
+        {
+          "id": "c-e9cf46",
+          "body": "[状态] → done：T-3 达标",
+          "createdAt": 1790433597382,
+          "createdBy": {
+            "kind": "human"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790433273089,
+      "updatedAt": 1790433597467,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+      },
+      "updatedBy": {
+        "kind": "human",
+        "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+      },
+      "lastReport": {
+        "at": 1790433597467,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/adapters/AgentDeliverer.ts",
+          "packages/web/dsh-pmboard/tests/agent-deliverer.test.ts"
+        ],
+        "completed": [
+          "AgentDeliverer 改为实现 DiveRoundDeliveryPort（在既有 deliver 之上）",
+          "新增 createRoundMessage：结构复刻 UserMessage，source={kind:'dive',requirementId,revision,round}，返回 {message,messageId}（不投递）",
+          "新增 deliverMessage：原样投递已构造消息，复用三态守卫（agents 不可得 / 离线 / 无 followup / 抛错），永不抛",
+          "deliver/deliverMessage 共用私有 publish（形状纪律单点）",
+          "扩展 tests/agent-deliverer.test.ts：新增 2 条断言（source 字段完整、原样投递与离线不抛），9/9 通过"
+        ]
+      },
+      "layer": 1
+    },
+    {
+      "id": "t-cab4a2",
+      "requirementId": "REQ-260926215013-1568",
+      "title": "会话驱动器组合：一拍内的定序与原采集行为不变（含向后兼容）",
+      "cardDoc": "docs/requirements/REQ-260926215013-1568/tasks/t-cab4a2.md",
+      "description": "抽出 idle-capture-actions.ts；session-driver 增可选 round 依赖并按「复位→采集→请求驱动」定序",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-0ddfb1"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "npx vitest run tests/capture-hook.test.ts tests/dive-session-driver-wiring.test.ts tests/isolate-node-context.test.ts 全绿（不注入 round 端口时行为与改动前一致）；wc -l src/application/dive/session-driver.ts 输出行数不超过 400。",
+      "implementation": "抽出 src/application/dive/idle-capture-actions.ts（withAddressSection/milestoneReminderFor 逐字搬移）；src/application/dive/session-driver.ts 增可选 deps.round（DiveRoundDriver），onAgentStatus(idle) 内按「复位 competingQueued → 采集跑批 → requestDrive」定序，session/event 尾部调 round.onSessionEvent；不注入 round 时退化为原行为（旧调用方兼容）。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-3fd44c",
+          "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363",
+          "trigger": "auto",
+          "startedAt": 1790433613229,
+          "outcome": "succeeded",
+          "endedAt": 1790433657868
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790433273089,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790433613229,
+          "by": {
+            "kind": "system",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "照卡执行 T-4"
+        },
+        {
+          "status": "testing",
+          "at": 1790433657868,
+          "by": {
+            "kind": "human",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "T-4 达标"
+        },
+        {
+          "status": "in_review",
+          "at": 1790433657953,
+          "by": {
+            "kind": "human",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "T-4 达标"
+        },
+        {
+          "status": "done",
+          "at": 1790433658038,
+          "by": {
+            "kind": "human",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "T-4 达标"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-2d22f8",
+          "body": "[状态] → in_progress：照卡执行 T-4",
+          "createdAt": 1790433613229,
+          "createdBy": {
+            "kind": "system"
+          }
+        },
+        {
+          "id": "c-48dd4c",
+          "body": "[状态] → testing：T-4 达标",
+          "createdAt": 1790433657868,
+          "createdBy": {
+            "kind": "human"
+          }
+        },
+        {
+          "id": "c-fec5c6",
+          "body": "[状态] → in_review：T-4 达标",
+          "createdAt": 1790433657953,
+          "createdBy": {
+            "kind": "human"
+          }
+        },
+        {
+          "id": "c-406c0f",
+          "body": "[状态] → done：T-4 达标",
+          "createdAt": 1790433658038,
+          "createdBy": {
+            "kind": "human"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790433273089,
+      "updatedAt": 1790433658128,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+      },
+      "updatedBy": {
+        "kind": "human",
+        "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+      },
+      "lastReport": {
+        "at": 1790433658128,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/application/dive/session-driver.ts",
+          "packages/web/dsh-pmboard/src/application/dive/idle-capture-actions.ts"
+        ],
+        "completed": [
+          "抽出 application/dive/idle-capture-actions.ts（addressSectionFor / milestoneReminderFor，逐字搬移，纯函数）",
+          "session-driver.ts 增可选 deps.round（DiveRoundDriver）：onAgentStatus(idle) 按「round 复位 competingQueued → 采集跑批 driveIdle → requestDrive」定序",
+          "session/event 尾部把事件转交 round 半做回合簿记（admission / turn-end 收尾）",
+          "deps.round 缺省 = 纯采集/簿记（与改动前逐字一致，向后兼容）",
+          "session-driver.ts 从 397 行降到 356 行（尺寸门禁内，为 round 半接线腾出空间）"
+        ]
+      },
+      "layer": 2
+    },
+    {
+      "id": "t-1aa789",
+      "requirementId": "REQ-260926215013-1568",
+      "title": "Dive 服务接线：订阅收归服务、requirement-moved 不再直接续跑",
+      "cardDoc": "docs/requirements/REQ-260926215013-1568/tasks/t-1aa789.md",
+      "description": "重写 ReqboardDiveManager 持有全部订阅并委托 round 半；index/pm-capture-root 接线；新增 wiring 单测",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-4a74c8",
+        "t-cab4a2"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "npx vitest run tests/dive-manager-wiring.test.ts 全绿（7 条订阅全部成立；requirement-moved 后 deliverMessage 未被调用、agent 空闲后才投递一次；teardown() 后触发不再投递）；grep -c followup src/application/dive/ReqboardDiveManager.ts 输出 0。",
+      "implementation": "重写 src/application/dive/ReqboardDiveManager.ts：constructor(ctx, store)；构造内订阅 agent/pre-step、agent/inbox/inserted|claimed|discarded、agent/error、agent/disposed、reqboard/requirement-moved（委托 round 半，成立/失败均留痕）；requirement-moved 只置 needsCheckpoint + requestDrive；暴露 roundDriver()/teardown()；删除 shouldContinue/triggerContinuation/incrementRound/checkAndContinue。改 src/index.ts（new ReqboardDiveManager(ctx, store)、构造 ctx 端口、登记 teardown disposer）与 src/wiring/pm-capture-root.ts（注入 round 端口 + 订阅缺失响亮 warn）。新增 tests/dive-manager-wiring.test.ts。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-d50a17",
+          "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363",
+          "trigger": "manual",
+          "startedAt": 1790434027392,
+          "outcome": "succeeded",
+          "endedAt": 1790434027497
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790433273089,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790434027392,
+          "by": {
+            "kind": "human",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "T-5 达标"
+        },
+        {
+          "status": "testing",
+          "at": 1790434027497,
+          "by": {
+            "kind": "human",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "T-5 达标"
+        },
+        {
+          "status": "in_review",
+          "at": 1790434027588,
+          "by": {
+            "kind": "human",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "T-5 达标"
+        },
+        {
+          "status": "done",
+          "at": 1790434027676,
+          "by": {
+            "kind": "human",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "T-5 达标"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-3291d0",
+          "body": "[状态] → in_progress：T-5 达标",
+          "createdAt": 1790434027392,
+          "createdBy": {
+            "kind": "human"
+          }
+        },
+        {
+          "id": "c-ca2560",
+          "body": "[状态] → testing：T-5 达标",
+          "createdAt": 1790434027497,
+          "createdBy": {
+            "kind": "human"
+          }
+        },
+        {
+          "id": "c-dd64d6",
+          "body": "[状态] → in_review：T-5 达标",
+          "createdAt": 1790434027588,
+          "createdBy": {
+            "kind": "human"
+          }
+        },
+        {
+          "id": "c-d664ce",
+          "body": "[状态] → done：T-5 达标",
+          "createdAt": 1790434027676,
+          "createdBy": {
+            "kind": "human"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790433273089,
+      "updatedAt": 1790434027775,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+      },
+      "updatedBy": {
+        "kind": "human",
+        "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+      },
+      "lastReport": {
+        "at": 1790434027775,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/application/dive/round-subscriptions.ts",
+          "packages/web/dsh-pmboard/src/application/dive/ReqboardDiveManager.ts",
+          "packages/web/dsh-pmboard/src/wiring/pm-capture-root.ts",
+          "packages/web/dsh-pmboard/src/index.ts",
+          "packages/web/dsh-pmboard/tests/dive-manager-wiring.test.ts"
+        ],
+        "completed": [
+          "新增 application/dive/round-subscriptions.ts：七路订阅接线（pre-step / inbox inserted·claimed·discarded / error / disposed / requirement-moved），订阅失败逐条响亮告警，返回合并解绑",
+          "重写 ReqboardDiveManager：构造注入 DiveRoundPorts，持有七路订阅并完全委托 round 半；暴露 roundDriver()/teardown()；删除 shouldContinue/triggerContinuation/incrementRound/checkAndContinue（全仓 0 处 followup）",
+          "wiring/pm-capture-root.ts 增可选 deps.round 并透传给 session-driver",
+          "index.ts：把 Dive 服务实例化下移到 createCaptureRuntime 之后；构造 round 端口（repo/agents/fiberActive/delivery=deliverer/cancel/whenIdle/checkpoint=store.read/renderRoundText/now/logger）；登记 teardown disposer；装配时注入 round: diveManager.roundDriver()",
+          "新增 tests/dive-manager-wiring.test.ts：6 条断言（七路订阅齐全、总线缺失时七条告警、忙时不投递/空闲起 1 轮、pre-step 转发拒伪造、teardown 后不投递、manager 内 0 处 followup）"
+        ]
+      },
+      "layer": 3
+    },
+    {
+      "id": "t-620dc0",
+      "requirementId": "REQ-260926215013-1568",
+      "title": "对齐验收：11 个 FR 的可证伪单测",
+      "cardDoc": "docs/requirements/REQ-260926215013-1568/tasks/t-620dc0.md",
+      "description": "新增 tests/dive-manager-alignment.test.ts，TC-01…TC-11 逐条断言",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-1aa789"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "npx vitest run tests/dive-manager-alignment.test.ts 输出 Tests 数不少于 11、failed 0；每条 FR-1…FR-11 至少一条断言（含 FR-11 六条路径留痕断言）。",
+      "implementation": "新增 tests/dive-manager-alignment.test.ts（文件头 // serves: FR-1 … FR-11），按设计 test-cases.md 的 TC-01…TC-11 逐条断言；fake ReqboardRepository + fake agents（可切 status）+ 可编排 checkpoint promise + 记录型 logger/deliverMessage。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-ce44a2",
+          "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363",
+          "trigger": "manual",
+          "startedAt": 1790434062622,
+          "outcome": "succeeded",
+          "endedAt": 1790434062717
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790433273089,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790434062622,
+          "by": {
+            "kind": "human",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "T-6 达标"
+        },
+        {
+          "status": "testing",
+          "at": 1790434062717,
+          "by": {
+            "kind": "human",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "T-6 达标"
+        },
+        {
+          "status": "in_review",
+          "at": 1790434062806,
+          "by": {
+            "kind": "human",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "T-6 达标"
+        },
+        {
+          "status": "done",
+          "at": 1790434062892,
+          "by": {
+            "kind": "human",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "T-6 达标"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-6cb129",
+          "body": "[状态] → in_progress：T-6 达标",
+          "createdAt": 1790434062622,
+          "createdBy": {
+            "kind": "human"
+          }
+        },
+        {
+          "id": "c-7d3740",
+          "body": "[状态] → testing：T-6 达标",
+          "createdAt": 1790434062717,
+          "createdBy": {
+            "kind": "human"
+          }
+        },
+        {
+          "id": "c-67cff4",
+          "body": "[状态] → in_review：T-6 达标",
+          "createdAt": 1790434062806,
+          "createdBy": {
+            "kind": "human"
+          }
+        },
+        {
+          "id": "c-1ffd4d",
+          "body": "[状态] → done：T-6 达标",
+          "createdAt": 1790434062892,
+          "createdBy": {
+            "kind": "human"
+          }
+        }
+      ],
+      "version": 5,
+      "createdAt": 1790433273089,
+      "updatedAt": 1790434062892,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+      },
+      "updatedBy": {
+        "kind": "human",
+        "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+      },
+      "layer": 4
+    },
+    {
+      "id": "t-2b3e57",
+      "requirementId": "REQ-260926215013-1568",
+      "title": "迁移与兼容核查 + 回归发版",
+      "cardDoc": "docs/requirements/REQ-260926215013-1568/tasks/t-2b3e57.md",
+      "description": "旧台账读容错/旧调用方兼容/回滚路径核查 + tsc 基线 + relink + 重启 :13080 + 复跑回归",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-620dc0"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "python3 scripts/relink-profile.py --check 退出码 0；npx vitest run tests/capture-hook.test.ts tests/dive-session-driver-wiring.test.ts tests/isolate-node-context.test.ts 全绿且 npx tsc --noEmit -p tsconfig.json 错误数不高于基线；curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:13080/ 输出 200。",
+      "implementation": "核查旧台账读容错（缺 phase/activation 不驱动）、旧调用方兼容（createDiveSessionDriver 不传 round 仍可用）、回滚路径（revert + relink + kickstart）；记录 tsc 基线错误数并对比；python3 scripts/relink-profile.py 与重启 :13080 后复跑三个回归套件。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-ac2bf4",
+          "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363",
+          "trigger": "auto",
+          "startedAt": 1790434075736,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "end": {
+              "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363",
+              "seq": 12882,
+              "at": 1790434274642,
+              "totals": {
+                "uncachedInputTokens": 7199574,
+                "outputTokens": 2132569,
+                "cacheReadTokens": 333235825,
+                "cacheWriteTokens": 3521290
+              },
+              "source": "projection"
+            }
+          },
+          "endedAt": 1790434274767
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790433273089,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790434075736,
+          "by": {
+            "kind": "system",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "T-7 迁移兼容+回归发版"
+        },
+        {
+          "status": "testing",
+          "at": 1790434274767,
+          "by": {
+            "kind": "human",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "T-7 达标"
+        },
+        {
+          "status": "in_review",
+          "at": 1790434274854,
+          "by": {
+            "kind": "human",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "T-7 达标"
+        },
+        {
+          "status": "done",
+          "at": 1790434274959,
+          "by": {
+            "kind": "human",
+            "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+          },
+          "reason": "T-7 达标"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-0d3336",
+          "body": "[状态] → in_progress：T-7 迁移兼容+回归发版",
+          "createdAt": 1790434075736,
+          "createdBy": {
+            "kind": "system"
+          }
+        },
+        {
+          "id": "c-6cb141",
+          "body": "[状态] → testing：T-7 达标",
+          "createdAt": 1790434274767,
+          "createdBy": {
+            "kind": "human"
+          }
+        },
+        {
+          "id": "c-b36ec9",
+          "body": "[状态] → in_review：T-7 达标",
+          "createdAt": 1790434274854,
+          "createdBy": {
+            "kind": "human"
+          }
+        },
+        {
+          "id": "c-7e4f71",
+          "body": "[状态] → done：T-7 达标",
+          "createdAt": 1790434274959,
+          "createdBy": {
+            "kind": "human"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790433273089,
+      "updatedAt": 1790434274959,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+      },
+      "updatedBy": {
+        "kind": "human",
+        "sessionId": "session-c5ea210f-afc3-4735-a4d1-f9058b378363"
+      },
+      "lastReport": {
+        "at": 1790434274639,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/tests/t7-legacy-tolerance.test.ts",
+          "packages/web/dsh-pmboard/dist/index.mjs"
+        ],
+        "completed": [
+          "迁移/兼容核查：旧数据用阶段名当 phase（老写法）或没有 dive 字段 → isDrivableRequirement 判否，不会被驱动；未知阶段上限回落 10（新增 tests/t7-legacy-tolerance.test.ts 3/3 锁定）",
+          "向后兼容：session-driver 的 round 依赖可选，不注入时行为与改动前逐字一致（旧调用方/脚本不受影响）",
+          "回滚路径：git revert + relink + launchctl kickstart（已在设计文档写明）",
+          "python3 scripts/relink-profile.py --check → 退出码 0（5 个条目均符号链接、无副本漂移）",
+          "npx vitest run tests/capture-hook.test.ts tests/dive-session-driver-wiring.test.ts tests/isolate-node-context.test.ts → 3 文件 63/63 通过",
+          "npx vitest run（6 个对齐/回归文件）→ 52/52 通过",
+          "npx tsc --noEmit -p tsconfig.json → 140 个错误（改动前基线 145，净减 5）",
+          "重建 dist（pnpm build，22:48）并重启 :13080；进程存活（PID 13808）、看板 API 正常响应"
+        ]
+      },
+      "layer": 5
+    }
+  ],
+  "edges": [
+    {
+      "from": "t-aa2ec9",
+      "to": "t-0ddfb1"
+    },
+    {
+      "from": "t-aa2ec9",
+      "to": "t-4a74c8"
+    },
+    {
+      "from": "t-0ddfb1",
+      "to": "t-cab4a2"
+    },
+    {
+      "from": "t-4a74c8",
+      "to": "t-1aa789"
+    },
+    {
+      "from": "t-cab4a2",
+      "to": "t-1aa789"
+    },
+    {
+      "from": "t-1aa789",
+      "to": "t-620dc0"
+    },
+    {
+      "from": "t-620dc0",
+      "to": "t-2b3e57"
+    }
+  ],
+  "layers": [
+    {
+      "layer": 0,
+      "tasks": [
+        "t-aa2ec9"
+      ]
+    },
+    {
+      "layer": 1,
+      "tasks": [
+        "t-0ddfb1",
+        "t-4a74c8"
+      ]
+    },
+    {
+      "layer": 2,
+      "tasks": [
+        "t-cab4a2"
+      ]
+    },
+    {
+      "layer": 3,
+      "tasks": [
+        "t-1aa789"
+      ]
+    },
+    {
+      "layer": 4,
+      "tasks": [
+        "t-620dc0"
+      ]
+    },
+    {
+      "layer": 5,
+      "tasks": [
+        "t-2b3e57"
+      ]
+    }
+  ],
+  "ready": [],
+  "updated_at": "2026-09-28T23:14:14.433Z"
+}

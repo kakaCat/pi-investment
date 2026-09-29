@@ -1,0 +1,297 @@
+{
+  "generated_at": "2026-09-27T15:57:23.248Z",
+  "card": "t-6df9a0（看板实测回归·联调）",
+  "requirement": "REQ-260927202051-f6df",
+  "target": {
+    "base": "http://127.0.0.1:13080",
+    "workspace": "/Users/yunpeng/pi-investment/agent-dh",
+    "port": 13080
+  },
+  "truth": {
+    "ledger_schemaVersion": 9,
+    "ledger_has_tasks": false,
+    "requirements": 82,
+    "queue_files": 51,
+    "queue_tasks": 616,
+    "queue_total": 29,
+    "ledger_revision_before_reads": 5957,
+    "ledger_revision_after_reads": 5957,
+    "ledger_revision_after_rejects": 5957,
+    "queue_fingerprint_before_reads": "24e293dbe012c5b500cd1308fa392876",
+    "queue_fingerprint_after_reads": "24e293dbe012c5b500cd1308fa392876",
+    "queue_fingerprint_after_rejects": "24e293dbe012c5b500cd1308fa392876",
+    "queue_file_md5": {
+      "REQ-202609262349-1518": "24edc29f6af92701c0478e358fd07a69",
+      "REQ-24e15d": "d49178ffb87822420ce1b0678cec0524",
+      "REQ-260922012924-2e29": "f4a1e214dbb7918c6d2316619e128a91",
+      "REQ-260922133212-dd5b": "0bc9459c24da1a6f730deacef22d0d11",
+      "REQ-260922182505-0924": "38b5b4e98b3925f67fd22434631bb0e3",
+      "REQ-260922182638-0777": "94c56441b081fd203ef15bed6f6a60aa",
+      "REQ-260922213356-4a45": "bc670ec833c1c541dacd06b1fbbb9c10",
+      "REQ-260923134706-e72f": "8b1f348452746110e5c0c5321d0a0597",
+      "REQ-260923222557-d3b0": "eee31afa93841f7c7b632c09cafe4846",
+      "REQ-260924002956-f37c": "de0a6acb6b20ddb2cb866d9bb6b4737c",
+      "REQ-260924104605-ad0a": "b5df8abee89914144357007380f61202",
+      "REQ-260924213231-b1c4": "ecd40bce2ab33bef41c7436c7ee5232d",
+      "REQ-260925110957-552d": "1d31cb93d43a24aa79551c109cf278b0",
+      "REQ-260925172227-2d61": "282701aa6f2be0509b2235850f379a2e",
+      "REQ-260925212722-96e7": "89adf5bd76b0df8f006e4861067d118c",
+      "REQ-260925234037-1503": "dedb7742328aaec4fc25e536de98a1d2",
+      "REQ-260926140539-457b": "52048a07a60ff86329b09dbc9c56cb84",
+      "REQ-260926205654-163a": "3903c626b118abf5ba6d4279b655437f",
+      "REQ-260926215013-1568": "a3205cdcb5c83e852433d705bf3fcd7e",
+      "REQ-260927100007-b8ba": "b0cb769166fc57094ea6a187ece785ea",
+      "REQ-260927121324-abde": "020ba2a17e8f076d8b3d1f2ae11a2431",
+      "REQ-260927123256-196b": "3012fe78ed1ab7558256916e906abf1d",
+      "REQ-260927144541-0481": "a70a57403f190f83fdb1fc86c742687e",
+      "REQ-260927202051-f6df": "949e402fab22134191c4dee395b61e71",
+      "REQ-2d1c74": "95973432c478eae98ac326eb1dafbfbf",
+      "REQ-2e9473": "8d2197b1c435e46a43970e984fe655b6",
+      "REQ-308b9a": "faa79305046aa16ed35aa59075abed4d",
+      "REQ-31e11f": "5aa2329a6e81c37f6cbf5e2b306567fe",
+      "REQ-327bdf": "ce78b68a82e39c81ce2440853949c671",
+      "REQ-422af1": "efdebaa5bbc05a1a6b3eb8678ef58507",
+      "REQ-47939a": "2268e9a1c7dd9fb039cca82c0d909bec",
+      "REQ-4842fe": "0c6940926842e302bf2b001207ec5038",
+      "REQ-48d896": "96fed431ce68d96daa9e585890929172",
+      "REQ-640a55": "73b56e865105b11df2f8bc56b9eba8a2",
+      "REQ-6f39b5": "3b156e94875f0b27a93963a0507c1866",
+      "REQ-81aabd": "09f30a24be0c2e0c6ab25b52e091a775",
+      "REQ-84bea5": "fdca4016953f67daa2e6e770ee8225ab",
+      "REQ-9494f9": "a6abbfe3db5d2d620acec9da8931280e",
+      "REQ-9f4a44": "3339ba765d22716f38e113ebbcb3b4ce",
+      "REQ-a33899": "c0340f177b03f9cfc6241ac21a8a7837",
+      "REQ-a458a6": "61bc1b6536bfd51ef53eaa89b74ccd5b",
+      "REQ-a8d582": "53f7c9349b8727e2bc1aa59d196321cc",
+      "REQ-b545fe": "34b185dfcd3de3d4d1288da6f3faaf86",
+      "REQ-b63a7d": "876ed20464e2bdf296eff99aea133670",
+      "REQ-c48f99": "9ef4e1f355d49dcae6711064467ecf10",
+      "REQ-c9f899": "493e488d8bfd5daabda51889e002045a",
+      "REQ-d3e61a": "bd3f71aaa2708ca680937ae3e6281379",
+      "REQ-e3b6a0": "b22c36336e4df4f8ba72d95178f8553c",
+      "REQ-f0579a": "a07207b2f76f6f90e2bfd1e1352a5484",
+      "REQ-f6307c": "91964b09d14742cd412deb62426c2a56",
+      "REQ-ff20ca": "156d2845658799eddf8df9f06a8a183e"
+    }
+  },
+  "passed": 36,
+  "failed": 0,
+  "checks": [
+    {
+      "group": "truth",
+      "name": "磁盘真值可读（台账 + 队列文件）",
+      "pass": true,
+      "detail": "台账 schemaVersion=9 有 tasks 键=false requirements=82 queue.json=51 tasks=616"
+    },
+    {
+      "group": "truth",
+      "name": "队列 requirementId 与目录一一对应（无串档）",
+      "pass": true,
+      "detail": "全部 616 条一致"
+    },
+    {
+      "group": "A1 /state",
+      "name": "请求样例 GET /dashboard/api/reqboard/state → 200 且信封 {success:true}",
+      "pass": true,
+      "detail": "HTTP=200 success=true"
+    },
+    {
+      "group": "A1 /state",
+      "name": "requirements 与台账逐项一致（数量+顺序）",
+      "pass": true,
+      "detail": "HTTP=82 台账=82"
+    },
+    {
+      "group": "A1 /state",
+      "name": "tasks 数量 = Σ 各 queue.json 任务数",
+      "pass": true,
+      "detail": "HTTP=616 磁盘=616"
+    },
+    {
+      "group": "A1 /state",
+      "name": "tasks 顺序 = 需求字典序分组 + 组内队列顺序（listAll 契约）",
+      "pass": true,
+      "detail": "id 序列逐项相同（616 条）"
+    },
+    {
+      "group": "A1 /state",
+      "name": "出口剥离派生字段 layer（TaskStore D3 契约）",
+      "pass": true,
+      "detail": "0 条带 layer"
+    },
+    {
+      "group": "A1 /state",
+      "name": "逐任务逐字段与队列文件一致（去 layer 后键集+值全等）",
+      "pass": true,
+      "detail": "616 条逐字段一致"
+    },
+    {
+      "group": "A1 /state",
+      "name": "ready 映射键 = 台账全部需求（顺序一致）",
+      "pass": true,
+      "detail": "82 个键"
+    },
+    {
+      "group": "A1 /state",
+      "name": "需求内 ready = status:todo 且依赖全 done（顺序=任务数组顺序）",
+      "pass": true,
+      "detail": "抽查 51 个有队列需求全部一致"
+    },
+    {
+      "group": "A2 /requirements/summary",
+      "name": "请求样例 GET /requirements/summary → 200",
+      "pass": true,
+      "detail": "HTTP=200 rows=34"
+    },
+    {
+      "group": "A2 /requirements/summary",
+      "name": "本需求摘要计数 = 队列真值（tasksTotal/tasksDone）",
+      "pass": true,
+      "detail": "REQ-260927202051-f6df tasksTotal=29/29 tasksDone=26/26"
+    },
+    {
+      "group": "A3 /requirements/:id/stages",
+      "name": "请求样例 GET /requirements/<REQ>/stages → 200",
+      "pass": true,
+      "detail": "HTTP=200 currentStage=implementing stages=7"
+    },
+    {
+      "group": "A3 /requirements/:id/stages",
+      "name": "拆分节点任务投影 = 队列任务（29 条：id 顺序 + 契约字段 + 无契约外键）",
+      "pass": true,
+      "detail": "29 条投影逐字段一致（StageTaskRef 契约）"
+    },
+    {
+      "group": "A3 /requirements/:id/stages",
+      "name": "实施节点任务投影 = 队列任务（含 executions）",
+      "pass": true,
+      "detail": "29 条投影逐字段一致（StageTaskExecution 契约）"
+    },
+    {
+      "group": "A3 /requirements/:id/stages",
+      "name": "阶段视图响应无 layer 派生字段泄漏",
+      "pass": true,
+      "detail": "响应文本不含 \"layer\""
+    },
+    {
+      "group": "A4 /requirements/:id/stage/:stage",
+      "name": "请求样例 GET /requirements/<REQ>/stage/implementing → 200 且任务投影 = 队列任务",
+      "pass": true,
+      "detail": "HTTP=200 tasks=29 逐字段一致"
+    },
+    {
+      "group": "A4 /requirements/:id/stage/:stage",
+      "name": "非法 stage → 400 invalid_input",
+      "pass": true,
+      "detail": "HTTP=400 code=invalid_input"
+    },
+    {
+      "group": "A5 token / marks",
+      "name": "请求样例 GET /requirements/<REQ>/token → 200 且 byStage = 全节点",
+      "pass": true,
+      "detail": "HTTP=200 byStage=7 totals={\"cacheReadTokens\":217639610,\"cacheWriteTokens\":56350,\"outputTokens\":664335,\"uncachedInputTokens\":3578343}"
+    },
+    {
+      "group": "A5 token / marks",
+      "name": "请求样例 GET /requirements/<REQ>/marks → 200 且接收标记值域可追溯（队列 id ∪ 计划键）",
+      "pass": true,
+      "detail": "HTTP=200 clauses=8 unreceived=0 越界值=0"
+    },
+    {
+      "group": "A5 token / marks",
+      "name": "marks 抽扫：解析出的真实任务 id 全部命中队列文件（读方确从队列出数）",
+      "pass": true,
+      "detail": "扫描 51 个有队列需求；含真实 id 解析的 19 个；未命中 0"
+    },
+    {
+      "group": "A5 token / marks",
+      "name": "不存在需求 → 404 not_found",
+      "pass": true,
+      "detail": "HTTP=404 code=not_found"
+    },
+    {
+      "group": "A6 /session/:sid/progress",
+      "name": "请求样例 GET /session/<sid>/progress → 200 且 progress 计数 = 队列真值",
+      "pass": true,
+      "detail": "HTTP=200 sid=session-3936d77f-2391-4042-8305-9b0fb5e9d2b8 target=REQ-260927202051-f6df total=29/29 done=26/26"
+    },
+    {
+      "group": "A7 路由契约",
+      "name": "GET /health → 200 {status:ok}",
+      "pass": true,
+      "detail": "HTTP=200 body={\"success\":true,\"data\":{\"status\":\"ok\"}}"
+    },
+    {
+      "group": "A7 路由契约",
+      "name": "未知路由 → 404 {success:false, code:not_found}",
+      "pass": true,
+      "detail": "HTTP=404 body={\"success\":false,\"error\":\"未知路由：GET /dashboard/api/reqboard/definitely-not-a-route\",\"code\":\"not_found\"}"
+    },
+    {
+      "group": "B 写接口契约（零副作用）",
+      "name": "只读阶段零写队列：全部 queue.json 指纹前后一致",
+      "pass": true,
+      "detail": "before=after=24e293dbe012c5b500cd1308fa392876（51 个队列文件）"
+    },
+    {
+      "group": "B 写接口契约（零副作用）",
+      "name": "POST /task/move 不存在 id → 404 not_found",
+      "pass": true,
+      "detail": "HTTP=404 body={\"success\":false,\"error\":\"任务 t-deadbeef0001不存在\",\"code\":\"not_found\"}"
+    },
+    {
+      "group": "B 写接口契约（零副作用）",
+      "name": "POST /task/move 缺 id → 404 not_found（不误判为成功）",
+      "pass": true,
+      "detail": "HTTP=404 body={\"success\":false,\"error\":\"任务 不存在\",\"code\":\"not_found\"}"
+    },
+    {
+      "group": "B 写接口契约（零副作用）",
+      "name": "POST /task/move 非法流转（done→todo）→ 400 invalid_transition",
+      "pass": true,
+      "detail": "HTTP=400 id=t-9d53f4 body={\"success\":false,\"error\":\"存量卡不允许 done→todo；该角色合法边：todo→in_progress、todo→canceled、in_progress→integrating、in_progress→testing、in_progress→tod"
+    },
+    {
+      "group": "B 写接口契约（零副作用）",
+      "name": "POST /task/move 非法 to → 400 invalid_input",
+      "pass": true,
+      "detail": "HTTP=400 body={\"success\":false,\"error\":\"任务状态必须是：todo, in_progress, integrating, testing, in_review, done, canceled"
+    },
+    {
+      "group": "B 写接口契约（零副作用）",
+      "name": "POST /task/update 不存在 id → 404 not_found",
+      "pass": true,
+      "detail": "HTTP=404 body={\"success\":false,\"error\":\"任务 t-deadbeef0001不存在\",\"code\":\"not_found\"}"
+    },
+    {
+      "group": "B 写接口契约（零副作用）",
+      "name": "POST /task/create 需求不存在 → 404 not_found（不隐式建档）",
+      "pass": true,
+      "detail": "HTTP=404 body={\"success\":false,\"error\":\"需求 REQ-does-not-exist-000000不存在\",\"code\":\"not_found\"}"
+    },
+    {
+      "group": "B 写接口契约（零副作用）",
+      "name": "POST /comment 目标不存在 → 4xx（不静默成功）",
+      "pass": true,
+      "detail": "HTTP=400 code=invalid_input body={\"success\":false,\"error\":\"target 必须是 req/task\",\"code\":\"invalid_input\"}"
+    },
+    {
+      "group": "B 写接口契约（零副作用）",
+      "name": "POST /task/move done→in_progress（actor=agent）→ 403 human_gate（人工闸门）",
+      "pass": true,
+      "detail": "HTTP=403 id=t-9d53f4 body={\"success\":false,\"error\":\"该任务转移为人工闸门，仅人可操作\",\"code\":\"human_gate\"}"
+    },
+    {
+      "group": "B 写接口契约（零副作用）",
+      "name": "拒绝路径零副作用：全部 queue.json 指纹不变",
+      "pass": true,
+      "detail": "before=after=24e293dbe012c5b500cd1308fa392876"
+    },
+    {
+      "group": "B 写接口契约（零副作用）",
+      "name": "拒绝路径零副作用：需求目录数不变（未隐式建档）",
+      "pass": true,
+      "detail": "before=69 after=69"
+    }
+  ]
+}

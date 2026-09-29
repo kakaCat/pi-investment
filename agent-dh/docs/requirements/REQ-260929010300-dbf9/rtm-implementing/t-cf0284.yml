@@ -1,0 +1,38 @@
+task:
+  id: t-cf0284
+  title: 画布 id 参数化 + 挂载实例表·复核
+  status: done
+  implements: |-
+    改 packages/web/dsh-pmboard/src/client/views/dag-view.ts：①模块级单槽 activeDispose 换成 const disposers = new Map<string, () => void>()，disposeDagCanvas(canvasId) 只释放同名条目；②mountDagCanvas 用 document.getElementById(canvasId) 定位画布、openTaskDetail(taskId, canvasId) 定位锚点、挂载完成写入 disposers.set(canvasId, ...)；③改 packages/web/dsh-pmboard/src/client/dag-mount.ts：tryMountDagCanvas(tasks, ready?, canvasId='dag-canvas') 透传 canvasId。
+
+    [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+  serves: []
+  depends_on:
+    - t-2e30df
+  phase: implement
+  side: frontend
+  workflow_params:
+    REQ_ID: REQ-260929010300-dbf9
+    TASK_ID: t-cf0284
+    TASK_TITLE: 画布 id 参数化 + 挂载实例表·复核
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: frontend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-09-28T18:19:38.801Z
+    - phase: doc
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-260929010300-dbf9
+  generated_at: 2026-09-28T18:19:38.801Z
+  version: 2
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-09-28T18:19:38.801Z

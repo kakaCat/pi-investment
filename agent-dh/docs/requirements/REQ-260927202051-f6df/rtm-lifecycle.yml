@@ -6,7 +6,7 @@ requirement:
   source_session: session-3936d77f-2391-4042-8305-9b0fb5e9d2b8
   dir: /Users/yunpeng/pi-investment/agent-dh/docs/requirements/REQ-260927202051-f6df
 lifecycle:
-  current_stage: decomposing
+  current_stage: accepting
   stage_count: 7
   stage_list:
     - draft
@@ -21,12 +21,12 @@ lifecycle:
       status: completed
       enabled: true
       entered_at: 2026-09-27T12:20:51.444Z
-      completed_at: 2026-09-27T12:54:40.347Z
+      completed_at: 2026-09-27T16:07:59.706Z
     - stage: brainstorming
       status: completed
       enabled: true
       entered_at: 2026-09-27T12:20:51.444Z
-      completed_at: 2026-09-27T12:54:40.347Z
+      completed_at: 2026-09-27T16:07:59.706Z
       artifacts:
         - kind: requirement
           path: docs/requirements/REQ-260927202051-f6df/requirement.md
@@ -39,7 +39,7 @@ lifecycle:
       status: completed
       enabled: true
       entered_at: 2026-09-27T12:20:51.444Z
-      completed_at: 2026-09-27T12:54:40.347Z
+      completed_at: 2026-09-27T16:07:59.706Z
       artifacts:
         - kind: design
           path: docs/requirements/REQ-260927202051-f6df/design/queue-schema.md
@@ -65,18 +65,382 @@ lifecycle:
           path: docs/requirements/REQ-260927202051-f6df/design/migration.md
           confirmed_at: 2026-09-27T12:51:39.884Z
     - stage: decomposing
+      status: completed
+      enabled: true
+      entered_at: 2026-09-27T12:20:51.444Z
+      completed_at: 2026-09-27T16:07:59.706Z
+      artifacts:
+        - kind: decomposition
+          path: docs/requirements/REQ-260927202051-f6df/decomposition.md
+          confirmed_at: 2026-09-27T12:54:40.347Z
+    - stage: implementing
+      status: completed
+      enabled: true
+      entered_at: 2026-09-27T12:20:51.444Z
+      completed_at: 2026-09-27T16:07:59.706Z
+      artifacts:
+        - kind: task_detail
+          path: docs/requirements/REQ-260927202051-f6df/tasks/t-87f0da.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927202051-f6df/tasks/t-0e7fac.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927202051-f6df/tasks/t-394339.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927202051-f6df/tasks/t-e96a0c.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927202051-f6df/tasks/t-bc1ba6.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927202051-f6df/tasks/t-2417da.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927202051-f6df/tasks/t-66797c.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927202051-f6df/tasks/t-0c7f17.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927202051-f6df/tasks/t-860900.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927202051-f6df/tasks/t-8d4af7.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927202051-f6df/tasks/t-05925b.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927202051-f6df/tasks/t-fa3e16.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927202051-f6df/tasks/t-faf303.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927202051-f6df/tasks/t-03254f.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927202051-f6df/tasks/t-dfc245.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927202051-f6df/tasks/t-e77b06.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927202051-f6df/tasks/t-d1aa0f.md
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/domain/queue/QueueTypes.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/tests/queue-types.test.ts
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/rtm-decomposing.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/rtm-implementing/t-87f0da.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/rtm-implementing.yml
+        - kind: task_detail
+          path: docs/requirements/REQ-260927202051-f6df/tasks/t-796a50.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927202051-f6df/tasks/t-b34b32.md
+        - kind: task_output
+          path: packages/web/dsh-pmboard/tests/queue-types-integration.test.ts
+        - kind: task_detail
+          path: docs/requirements/REQ-260927202051-f6df/tasks/t-43e512.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927202051-f6df/tasks/t-c6026b.md
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/advance-log.md
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/rtm-implementing/t-43e512.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/rtm-implementing/t-796a50.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/rtm-implementing/t-b34b32.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/rtm-implementing/t-c6026b.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/notes/read-sites-use-cases.md
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/domain/queue/topology.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/tests/queue/topology.test.ts
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/notes/read-sites-http.md
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/rtm-implementing/t-0e7fac.yml
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/domain/queue/validateQueue.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/tests/queue/validateQueue.test.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/tests/queue/fixtures.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/repositories/QueueRepository.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/tests/queue/QueueRepository.test.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/repositories/QueueTaskStore.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/application/ports.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/tests/queue/QueueTaskStore.test.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/shared/protocol.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/adapters/JsonLedgerRepository.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/tests/queue/ledger-v9.test.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/scripts/migrate-ledger.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/tests/migrate-ledger-v8v9.test.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/tests/migrate-contract.test.ts
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/notes/migration-dryrun-baseline.json
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/notes/migration-dryrun-baseline.md
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/rtm-implementing/t-03254f.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/rtm-implementing/t-2417da.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/rtm-implementing/t-394339.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/rtm-implementing/t-bc1ba6.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/rtm-implementing/t-dfc245.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/rtm-implementing/t-e96a0c.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/rtm-implementing/t-faf303.yml
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/application/internal/rollup.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/application/internal/plan-landing.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/application/internal/confirm-settle.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/application/use-cases/queue-access.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/tests/t9-usecase-queue-refactor.test.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/application/use-cases/Decompose.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/tests/t11-decompose-queue-write.test.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/application/use-cases/ExecuteTask.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/application/use-cases/MoveTask.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/application/use-cases/AdvanceChain.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/tests/t12-queue-readonly-ordering.test.ts
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/rtm-implementing/t-05925b.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/rtm-implementing/t-860900.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/rtm-implementing/t-fa3e16.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/verification-evidence.md
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/http/routes.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/http/routers/shared.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/http/routers/stages.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/http/routers/tasks.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/http/routers/requirements.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/http/routers/verdicts.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/index.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/tools/AdvanceTool/AdvanceTool.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/tools/RunStatusTool/RunStatusTool.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/tools/TaskStatusTool/TaskStatusTool.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/application/internal/support.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/application/internal/capture-section.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/application/query/QueryState.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/application/dive/idle-capture-actions.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/application/gate/handlers/h3-inject.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/gate-wiring.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/wiring/pm-capture-root.ts
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/rtm-implementing/t-0c7f17.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/rtm-implementing/t-66797c.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/rtm-implementing/t-8d4af7.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/queue.json
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/rtm-implementing/t-d1aa0f.yml
+        - kind: task_output
+          path: packages/web/dsh-pmboard/tests/t17-queue-e2e.test.ts
+        - kind: task_output
+          path: docs/architecture/project-manual.md
+        - kind: task_output
+          path: docs/requirements/REQ-260927202051-f6df/verification-evidence.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927202051-f6df/tasks/t-5be8c6.md
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/rtm-implementing/t-5be8c6.yml
+        - kind: task_detail
+          path: docs/requirements/REQ-260927202051-f6df/tasks/t-315ea1.md
+        - kind: task_output
+          path: packages/web/dsh-pmboard/tests/queue/topology-integration.test.ts
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/rtm-implementing/t-315ea1.yml
+        - kind: task_detail
+          path: docs/requirements/REQ-260927202051-f6df/tasks/t-1e2054.md
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/rtm-implementing/t-1e2054.yml
+        - kind: task_detail
+          path: docs/requirements/REQ-260927202051-f6df/tasks/t-a21eb3.md
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/rtm-implementing/t-a21eb3.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/cdp-board-check.mjs
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/shots-before-restart/01-board-lanes.png
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/shots-before-restart/02-board-list.png
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/shots-before-restart/03-tasks-gantt.png
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/shots-before-restart/04-req-detail.png
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/shots-before-restart/SUMMARY.json
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/notes/workflow-switch-plan.md
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/notes/ops-repair/req-lock-repair-arm.sh
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/notes/ops-repair/req-lock-repair.py
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/notes/ops-repair/README.md
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/shots-after-restart/01-board-lanes.png
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/shots-after-restart/02-board-list.png
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/shots-after-restart/03-tasks-gantt.png
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/shots-after-restart/04-req-detail.png
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/shots-after-restart/SUMMARY.json
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/run-after-restart.console.log
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/route-probe.console.log
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/route-probe.mjs
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/run-report-after-restart.md
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/integration-probe.mjs
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/integration-summary.json
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/integration-console.log
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/integration-record.md
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/test-run/route-probe.console.log
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/test-run/cdp-board-check.console.log
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/test-run/shots/01-board-lanes.png
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/test-run/shots/02-board-list.png
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/test-run/shots/03-tasks-gantt.png
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/test-run/shots/04-req-detail.png
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/test-run/queue-unit.console.log
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/test-run/report.md
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/test-run/shots/SUMMARY.json
+        - kind: task_detail
+          path: docs/requirements/REQ-260927202051-f6df/tasks/t-c130ca.md
+        - kind: task_output
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/run-report-after-restart.md
+        - kind: task_output
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/run-after-restart.console.log
+        - kind: task_output
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/route-probe.mjs
+        - kind: task_output
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/route-probe.console.log
+        - kind: task_output
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/shots-after-restart/SUMMARY.json
+        - kind: task_output
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/shots-after-restart/01-board-lanes.png
+        - kind: task_output
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/shots-after-restart/02-board-list.png
+        - kind: task_output
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/shots-after-restart/03-tasks-gantt.png
+        - kind: task_output
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/shots-after-restart/04-req-detail.png
+        - kind: task_detail
+          path: docs/requirements/REQ-260927202051-f6df/tasks/t-6df9a0.md
+        - kind: task_output
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/integration-probe.mjs
+        - kind: task_output
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/integration-summary.json
+        - kind: task_output
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/integration-record.md
+        - kind: task_output
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/integration-console.log
+        - kind: task_detail
+          path: docs/requirements/REQ-260927202051-f6df/tasks/t-f4c9f5.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927202051-f6df/tasks/t-10122a.md
+        - kind: task_output
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/test-run/report.md
+        - kind: task_output
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/test-run/cdp-board-check.console.log
+        - kind: task_output
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/test-run/route-probe.console.log
+        - kind: task_output
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/test-run/queue-unit.console.log
+        - kind: task_output
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/test-run/shots/SUMMARY.json
+        - kind: task_output
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/test-run/shots/01-board-lanes.png
+        - kind: task_output
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/test-run/shots/02-board-list.png
+        - kind: task_output
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/test-run/shots/03-tasks-gantt.png
+        - kind: task_output
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/test-run/shots/04-req-detail.png
+    - stage: accepting
       status: in_progress
       enabled: true
       entered_at: 2026-09-27T12:20:51.444Z
       artifacts:
-        - kind: decomposition
-          path: docs/requirements/REQ-260927202051-f6df/decomposition.md
-    - stage: implementing
-      status: pending
-      enabled: true
-    - stage: accepting
-      status: pending
-      enabled: true
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/verification-addendum.md
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/rtm-implementing/t-c130ca.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/rtm-implementing/t-6df9a0.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/rtm-implementing/t-f4c9f5.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/rtm-implementing/t-10122a.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/reviews/board-live-review.md
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/tests/test-evidence.md
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/rtm-accepting.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/targeted-suite-after-fix.console.log
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/notes/board-live/targeted-suite.console.log
+        - kind: verification
+          path: docs/requirements/REQ-260927202051-f6df/verification.md
+          confirmed_at: 2026-09-27T16:07:59.706Z
     - stage: done
       status: pending
       enabled: true
@@ -84,8 +448,8 @@ metadata:
   stage: lifecycle
   requirement_id: REQ-260927202051-f6df
   generated_at: 2026-09-27T12:20:51.672Z
-  version: 15
+  version: 19
   generated_by: dsh-pmboard
   rtm_version: "1.0"
   file_path: /Users/yunpeng/pi-investment/agent-dh/docs/requirements/REQ-260927202051-f6df/rtm-lifecycle.yml
-  last_updated: 2026-09-27T12:54:40.517Z
+  last_updated: 2026-09-27T16:07:59.848Z

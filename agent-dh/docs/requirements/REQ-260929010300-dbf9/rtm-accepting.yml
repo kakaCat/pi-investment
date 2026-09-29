@@ -1,0 +1,214 @@
+metadata:
+  stage: accepting
+  requirement_id: REQ-260929010300-dbf9
+  generated_at: 2026-09-28T18:20:16.132Z
+  version: 15
+  generated_by: dsh-pmboard
+  last_updated: 2026-09-28T23:46:40.663Z
+inputs:
+  tasks:
+    - id: t-d03789
+      title: 定契约：入参结构类型收敛 + 面板画布常量
+      status: done
+    - id: t-6f9d7f
+      title: 画布 id 参数化 + 挂载实例表
+      status: done
+    - id: t-284b0a
+      title: 会话面板两处 DAG 块改调同一构建函数
+      status: done
+    - id: t-3ed4b5
+      title: 会话面板挂载钩子（DOM 就绪后挂载）
+      status: done
+    - id: t-d1a7f7
+      title: DAG 骨架皮肤换成 np 苹果风
+      status: done
+    - id: t-757283
+      title: 迁移与兼容核验 + 需求详情回归
+      status: done
+    - id: t-ee4384
+      title: 定契约：入参结构类型收敛 + 面板画布常量·研发
+      status: done
+    - id: t-1fadb6
+      title: 定契约：入参结构类型收敛 + 面板画布常量·联调
+      status: done
+    - id: t-cc9e3a
+      title: 定契约：入参结构类型收敛 + 面板画布常量·复核
+      status: done
+    - id: t-470baa
+      title: 定契约：入参结构类型收敛 + 面板画布常量·测试
+      status: done
+    - id: t-3f8d67
+      title: 画布 id 参数化 + 挂载实例表·研发
+      status: done
+    - id: t-2e30df
+      title: 画布 id 参数化 + 挂载实例表·联调
+      status: done
+    - id: t-cf0284
+      title: 画布 id 参数化 + 挂载实例表·复核
+      status: done
+    - id: t-c53e93
+      title: 画布 id 参数化 + 挂载实例表·测试
+      status: done
+    - id: t-c0dad0
+      title: 会话面板两处 DAG 块改调同一构建函数·研发
+      status: done
+    - id: t-32a952
+      title: 会话面板两处 DAG 块改调同一构建函数·联调
+      status: done
+    - id: t-89278b
+      title: 会话面板两处 DAG 块改调同一构建函数·复核
+      status: done
+    - id: t-3b43fd
+      title: 会话面板两处 DAG 块改调同一构建函数·测试
+      status: done
+    - id: t-b1db02
+      title: 会话面板挂载钩子（DOM 就绪后挂载）·研发
+      status: done
+    - id: t-3dfb5d
+      title: 会话面板挂载钩子（DOM 就绪后挂载）·联调
+      status: done
+    - id: t-aeb8eb
+      title: 会话面板挂载钩子（DOM 就绪后挂载）·复核
+      status: done
+    - id: t-bf779f
+      title: 会话面板挂载钩子（DOM 就绪后挂载）·测试
+      status: done
+    - id: t-2069e2
+      title: DAG 骨架皮肤换成 np 苹果风·研发
+      status: done
+    - id: t-0c43f8
+      title: DAG 骨架皮肤换成 np 苹果风·联调
+      status: done
+    - id: t-6fed57
+      title: DAG 骨架皮肤换成 np 苹果风·复核
+      status: done
+    - id: t-a195b8
+      title: DAG 骨架皮肤换成 np 苹果风·测试
+      status: done
+    - id: t-7125de
+      title: 迁移与兼容核验 + 需求详情回归·研发
+      status: done
+    - id: t-74e548
+      title: 迁移与兼容核验 + 需求详情回归·复核
+      status: done
+    - id: t-7ee744
+      title: 迁移与兼容核验 + 需求详情回归·测试
+      status: done
+outputs:
+  test_cases:
+    - id: TC-1
+      title: 父卡（6）
+      covers:
+        - t-d03789
+        - t-6f9d7f
+        - t-284b0a
+        - t-3ed4b5
+        - t-d1a7f7
+        - t-757283
+      validates: []
+      source: tests/acceptance-run.md
+    - id: TC-2
+      title: 子卡（23）
+      covers:
+        - t-ee4384
+        - t-1fadb6
+        - t-cc9e3a
+        - t-470baa
+        - t-3f8d67
+        - t-2e30df
+        - t-cf0284
+        - t-c53e93
+        - t-c0dad0
+        - t-32a952
+        - t-89278b
+        - t-3b43fd
+        - t-b1db02
+        - t-3dfb5d
+        - t-aeb8eb
+        - t-bf779f
+        - t-2069e2
+        - t-0c43f8
+        - t-6fed57
+        - t-a195b8
+        - t-7125de
+        - t-74e548
+        - t-7ee744
+      validates: []
+      source: tests/acceptance-run.md
+traceability:
+  task_to_tests:
+    t-d03789:
+      - TC-1
+    t-6f9d7f:
+      - TC-1
+    t-284b0a:
+      - TC-1
+    t-3ed4b5:
+      - TC-1
+    t-d1a7f7:
+      - TC-1
+    t-757283:
+      - TC-1
+    t-ee4384:
+      - TC-2
+    t-1fadb6:
+      - TC-2
+    t-cc9e3a:
+      - TC-2
+    t-470baa:
+      - TC-2
+    t-3f8d67:
+      - TC-2
+    t-2e30df:
+      - TC-2
+    t-cf0284:
+      - TC-2
+    t-c53e93:
+      - TC-2
+    t-c0dad0:
+      - TC-2
+    t-32a952:
+      - TC-2
+    t-89278b:
+      - TC-2
+    t-3b43fd:
+      - TC-2
+    t-b1db02:
+      - TC-2
+    t-3dfb5d:
+      - TC-2
+    t-aeb8eb:
+      - TC-2
+    t-bf779f:
+      - TC-2
+    t-2069e2:
+      - TC-2
+    t-0c43f8:
+      - TC-2
+    t-6fed57:
+      - TC-2
+    t-a195b8:
+      - TC-2
+    t-7125de:
+      - TC-2
+    t-74e548:
+      - TC-2
+    t-7ee744:
+      - TC-2
+  fr_to_tests:
+    FR-1: []
+    FR-2: []
+    FR-6: []
+    FR-3: []
+    FR-5: []
+    FR-4: []
+    FR-7: []
+coverage:
+  testing:
+    total: 29
+    covered: 29
+    uncovered: []
+    rate: 100
+    total_tasks: 29
+    tested_tasks: 29
+    untested: []

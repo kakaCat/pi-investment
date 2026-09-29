@@ -1,0 +1,1637 @@
+{
+  "version": 1,
+  "requirement_id": "REQ-b63a7d",
+  "schemaVersion": 9,
+  "generated_at": "2026-09-27T14:55:11.425Z",
+  "tasks": [
+    {
+      "id": "t-cf63f0",
+      "requirementId": "REQ-b63a7d",
+      "title": "新增产物路径归一层（domain 纯函数）+ 单测",
+      "description": "新建 packages/pages/dsh-pmboard/src/domain/artifact/ArtifactPath.ts：normalizeArtifactPath(raw, workspaceRoot) 返回 { path, form }，form ∈ workspace|outside|pseudo；规则：反斜杠→/、剥绝对前缀（工作区根/仓库根）、剥重复工作区名前缀、含 {} 或 * 判 pseudo。不碰 I/O（层边界门禁要求 domain 无 node: 依赖）。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "npx vitest run tests/domain/artifact-path.test.ts 全绿；用例覆盖 4 形态（agent-dh/ 前缀、绝对路径、quantsys-v2/ 跨仓、{a,b} 伪路径）与合规路径原样不变；npx vitest run tests/layer-boundary.test.ts 仍绿。",
+      "implementation": "改 packages/pages/dsh-pmboard/src/domain/artifact/ArtifactPath.ts（新建）+ tests/domain/artifact-path.test.ts（新建）。纯函数、无 I/O、无 Date/random。验证：npx vitest run tests/domain/artifact-path.test.ts tests/layer-boundary.test.ts。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-b5c25b",
+          "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+          "trigger": "manual",
+          "startedAt": 1789745690221,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+              "seq": 291,
+              "at": 1789745690227,
+              "totals": {
+                "uncachedInputTokens": 3144764,
+                "outputTokens": 43962,
+                "cacheReadTokens": 7972480,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+              "seq": 542,
+              "at": 1789746061273,
+              "totals": {
+                "uncachedInputTokens": 3599887,
+                "outputTokens": 107548,
+                "cacheReadTokens": 22448640,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 455123,
+              "outputTokens": 63586,
+              "cacheReadTokens": 14476160,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1789746061267
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789745664592,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789745690221,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          },
+          "reason": "开工 t1：先立归一层纯函数（t2/t3/t4 的公共依赖），并确认层边界门禁仍绿。",
+          "tokenSnapshot": {
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+            "seq": 291,
+            "at": 1789745690227,
+            "totals": {
+              "uncachedInputTokens": 3144764,
+              "outputTokens": 43962,
+              "cacheReadTokens": 7972480,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789746061267,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          },
+          "reason": "t1：新增产物路径归一层 domain 纯函数 + 16 例单测",
+          "tokenSnapshot": {
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+            "seq": 542,
+            "at": 1789746061273,
+            "totals": {
+              "uncachedInputTokens": 3599887,
+              "outputTokens": 107548,
+              "cacheReadTokens": 22448640,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789746061300,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          },
+          "reason": "t1：新增产物路径归一层 domain 纯函数 + 16 例单测",
+          "tokenSnapshot": {
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+            "seq": 544,
+            "at": 1789746061306,
+            "totals": {
+              "uncachedInputTokens": 3599887,
+              "outputTokens": 107548,
+              "cacheReadTokens": 22448640,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789746061333,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          },
+          "reason": "t1：新增产物路径归一层 domain 纯函数 + 16 例单测",
+          "tokenSnapshot": {
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+            "seq": 546,
+            "at": 1789746061339,
+            "totals": {
+              "uncachedInputTokens": 3599887,
+              "outputTokens": 107548,
+              "cacheReadTokens": 22448640,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-c382d6",
+          "body": "[状态] → in_progress：开工 t1：先立归一层纯函数（t2/t3/t4 的公共依赖），并确认层边界门禁仍绿。（窗口 session-e7129862-11b3-4e7d-ab11-53f6a6db9923）",
+          "createdAt": 1789745690221,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          }
+        },
+        {
+          "id": "c-f19086",
+          "body": "[状态] → testing：t1：新增产物路径归一层 domain 纯函数 + 16 例单测（窗口 session-e7129862-11b3-4e7d-ab11-53f6a6db9923）",
+          "createdAt": 1789746061267,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          }
+        },
+        {
+          "id": "c-2afaf1",
+          "body": "[状态] → in_review：t1：新增产物路径归一层 domain 纯函数 + 16 例单测（窗口 session-e7129862-11b3-4e7d-ab11-53f6a6db9923）",
+          "createdAt": 1789746061300,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          }
+        },
+        {
+          "id": "c-b097d0",
+          "body": "[状态] → done：t1：新增产物路径归一层 domain 纯函数 + 16 例单测（窗口 session-e7129862-11b3-4e7d-ab11-53f6a6db9923）",
+          "createdAt": 1789746061333,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1789745664592,
+      "updatedAt": 1789746061333,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+      },
+      "lastReport": {
+        "at": 1789746061236,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/pages/dsh-pmboard/src/domain/artifact/ArtifactPath.ts",
+          "packages/pages/dsh-pmboard/tests/domain/artifact-path.test.ts"
+        ],
+        "completed": [
+          "src/domain/artifact/ArtifactPath.ts：normalizeArtifactPath(raw, workspaceRoot) → {path, form: workspace|outside|pseudo}；规则=反斜杠→/、剥绝对前缀（工作区根/仓库根）、剥重复工作区名前缀、含 {}/* 判 pseudo、任意 .. 段判 outside；零 I/O、无 Date/random（层边界 INV-2）",
+          "tests/domain/artifact-path.test.ts：16 例——四种实测形态（A agent-dh/ 前缀、B 绝对路径含工作区内/外、C 跨仓相对、D brace/通配伪路径）+ 5 条合规路径原样不变 + ./ 与反斜杠清洗 + ../ 逃逸判定",
+          "实测：npx vitest run tests/domain/artifact-path.test.ts tests/layer-boundary.test.ts → 25 passed（含层边界 9 例仍绿）"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-b63a7d/tasks/t-cf63f0.md",
+      "layer": 0
+    },
+    {
+      "id": "t-0619c1",
+      "requirementId": "REQ-b63a7d",
+      "title": "登记侧接入归一（ReportTask 等登记点）",
+      "description": "ReportTask.ts 第 134-143 行的 files_changed 上浮改走 normalizeArtifactPath：workspace → 登记相对路径；outside → 登记但标记不可打开；pseudo → 不登记为产物（进 comment 明示）。同步检查其它登记点（registersArtifact / sync-artifacts）口径一致。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-cf63f0"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "npx vitest run tests/application/report-task-path.test.ts 全绿；用例断言 `agent-dh/docs/x` → 产物 path=`docs/x`、绝对路径 → 相对、`{a,b}` → 不进 artifacts；既有 report-task 用例语义不变。",
+      "implementation": "改 packages/pages/dsh-pmboard/src/application/use-cases/ReportTask.ts（第 134-143 行）+ 复用 t1 的归一层；新增 tests/application/report-task-path.test.ts。验证：npx vitest run tests/application tests/task-report.test.ts。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-1ed04a",
+          "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+          "trigger": "manual",
+          "startedAt": 1789746075347,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+              "seq": 564,
+              "at": 1789746075352,
+              "totals": {
+                "uncachedInputTokens": 3696163,
+                "outputTokens": 108745,
+                "cacheReadTokens": 23398272,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+              "seq": 566,
+              "at": 1789746075390,
+              "totals": {
+                "uncachedInputTokens": 3696163,
+                "outputTokens": 108745,
+                "cacheReadTokens": 23398272,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1789746075384
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789745664592,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789746075347,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          },
+          "reason": "补开工：t2 实现已先行完成（登记侧归一 + 5 例单测），补录流水线状态。",
+          "tokenSnapshot": {
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+            "seq": 564,
+            "at": 1789746075352,
+            "totals": {
+              "uncachedInputTokens": 3696163,
+              "outputTokens": 108745,
+              "cacheReadTokens": 23398272,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789746075384,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          },
+          "reason": "t2：reqboard_task_report 登记侧接入归一层（去掉 403 刷屏的登记侧根因）",
+          "tokenSnapshot": {
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+            "seq": 566,
+            "at": 1789746075390,
+            "totals": {
+              "uncachedInputTokens": 3696163,
+              "outputTokens": 108745,
+              "cacheReadTokens": 23398272,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789746075418,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          },
+          "reason": "t2：reqboard_task_report 登记侧接入归一层（去掉 403 刷屏的登记侧根因）",
+          "tokenSnapshot": {
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+            "seq": 568,
+            "at": 1789746075424,
+            "totals": {
+              "uncachedInputTokens": 3696163,
+              "outputTokens": 108745,
+              "cacheReadTokens": 23398272,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789746225274,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          },
+          "reason": "t2 完成：登记侧归一（含工作区外绝对路径不入清单）+ 6 例单测全绿；lib/client.js 已在其后重建。",
+          "tokenSnapshot": {
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+            "seq": 642,
+            "at": 1789746225281,
+            "totals": {
+              "uncachedInputTokens": 4224659,
+              "outputTokens": 118190,
+              "cacheReadTokens": 26051200,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-0703e1",
+          "body": "[状态] → in_progress：补开工：t2 实现已先行完成（登记侧归一 + 5 例单测），补录流水线状态。（窗口 session-e7129862-11b3-4e7d-ab11-53f6a6db9923）",
+          "createdAt": 1789746075347,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          }
+        },
+        {
+          "id": "c-f789cc",
+          "body": "[状态] → testing：t2：reqboard_task_report 登记侧接入归一层（去掉 403 刷屏的登记侧根因）（窗口 session-e7129862-11b3-4e7d-ab11-53f6a6db9923）",
+          "createdAt": 1789746075384,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          }
+        },
+        {
+          "id": "c-6442da",
+          "body": "[状态] → in_review：t2：reqboard_task_report 登记侧接入归一层（去掉 403 刷屏的登记侧根因）（窗口 session-e7129862-11b3-4e7d-ab11-53f6a6db9923）",
+          "createdAt": 1789746075418,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          }
+        },
+        {
+          "id": "c-34139b",
+          "body": "[状态] → done：t2 完成：登记侧归一（含工作区外绝对路径不入清单）+ 6 例单测全绿；lib/client.js 已在其后重建。（窗口 session-e7129862-11b3-4e7d-ab11-53f6a6db9923）",
+          "createdAt": 1789746225274,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1789745664592,
+      "updatedAt": 1789746225274,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+      },
+      "lastReport": {
+        "at": 1789746116602,
+        "reportIndex": 2,
+        "filesChanged": [
+          "packages/pages/dsh-pmboard/src/application/use-cases/ReportTask.ts",
+          "packages/pages/dsh-pmboard/tests/application/report-task-path.test.ts"
+        ],
+        "completed": [
+          "src/application/use-cases/ReportTask.ts：files_changed 上浮前过 normalizeArtifactPath(deps.docs.workspaceRoot())；pseudo/空路径不入 artifacts；工作区外绝对路径（/etc/…）不入清单；同一归一路径去重",
+          "tests/application/report-task-path.test.ts（6 例）：agent-dh/docs/x → docs/x、工作区内绝对路径 → 相对、brace/通配伪路径不入、/etc 绝对路径不入、合规路径原样+./ 清洗+去重、跨仓路径保持原样",
+          "实测：npx vitest run tests/application/report-task-path.test.ts tests/http/file-route.test.ts → 全绿"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-b63a7d/tasks/t-0619c1.md",
+      "layer": 1
+    },
+    {
+      "id": "t-381464",
+      "requirementId": "REQ-b63a7d",
+      "title": "/reqboard/file 接口：allowlist 放宽到工作区根 + 越界改 404",
+      "description": "artifacts.ts 的 handleFileRead：保留\"仅相对路径 + 拒 .. / \\ / 绝对路径\"穿越防护（仍 403）；allowlist 由 <cwd>/docs 放宽到 <cwd>；归一兜底兼容存量记录；解析后不在工作区内 → 404 + code=outside_workspace。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-cf63f0"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "curl 断言三条：?path=agent-dh/docs/architecture/documentation-standard.md → 200；?path=docs/architecture/documentation-standard.md → 200；?path=quantsys-v2/main.py → 404 且 code=outside_workspace。?path=../../etc/passwd 与 ?path=/etc/passwd 仍 403。新增 tests/http/file-route.test.ts 覆盖上述分支。",
+      "implementation": "改 packages/pages/dsh-pmboard/src/http/routers/artifacts.ts（第 22-40 行）+ 复用 t1 归一层；新增 tests/http/file-route.test.ts（用真实临时目录，不 mock fs）。验证：npx vitest run tests/http/file-route.test.ts + 三条 curl。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-a7ce3e",
+          "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+          "trigger": "manual",
+          "startedAt": 1789746134027,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+              "seq": 599,
+              "at": 1789746134033,
+              "totals": {
+                "uncachedInputTokens": 3698007,
+                "outputTokens": 115660,
+                "cacheReadTokens": 24976000,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+              "seq": 646,
+              "at": 1789746285363,
+              "totals": {
+                "uncachedInputTokens": 4224659,
+                "outputTokens": 118190,
+                "cacheReadTokens": 26051200,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 526652,
+              "outputTokens": 2530,
+              "cacheReadTokens": 1075200,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1789746285349
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789745664592,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789746134027,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          },
+          "reason": "补开工：实现已先行完成，补录流水线状态（claim 后继续做本轮新增的验证/覆盖工作）。",
+          "tokenSnapshot": {
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+            "seq": 599,
+            "at": 1789746134033,
+            "totals": {
+              "uncachedInputTokens": 3698007,
+              "outputTokens": 115660,
+              "cacheReadTokens": 24976000,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789746285349,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          },
+          "reason": "t3 完成：接口语义分档 + 批量端点 + 13 例路由单测。",
+          "tokenSnapshot": {
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+            "seq": 646,
+            "at": 1789746285363,
+            "totals": {
+              "uncachedInputTokens": 4224659,
+              "outputTokens": 118190,
+              "cacheReadTokens": 26051200,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789746285403,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          },
+          "reason": "t3 完成：接口语义分档 + 批量端点 + 13 例路由单测。",
+          "tokenSnapshot": {
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+            "seq": 648,
+            "at": 1789746285409,
+            "totals": {
+              "uncachedInputTokens": 4224659,
+              "outputTokens": 118190,
+              "cacheReadTokens": 26051200,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789746285445,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          },
+          "reason": "t3 完成：接口语义分档 + 批量端点 + 13 例路由单测。",
+          "tokenSnapshot": {
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+            "seq": 650,
+            "at": 1789746285451,
+            "totals": {
+              "uncachedInputTokens": 4224659,
+              "outputTokens": 118190,
+              "cacheReadTokens": 26051200,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-e63d1b",
+          "body": "[状态] → in_progress：补开工：实现已先行完成，补录流水线状态（claim 后继续做本轮新增的验证/覆盖工作）。（窗口 session-e7129862-11b3-4e7d-ab11-53f6a6db9923）",
+          "createdAt": 1789746134027,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          }
+        },
+        {
+          "id": "c-9d1596",
+          "body": "[状态] → testing：t3 完成：接口语义分档 + 批量端点 + 13 例路由单测。（窗口 session-e7129862-11b3-4e7d-ab11-53f6a6db9923）",
+          "createdAt": 1789746285349,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          }
+        },
+        {
+          "id": "c-dd7269",
+          "body": "[状态] → in_review：t3 完成：接口语义分档 + 批量端点 + 13 例路由单测。（窗口 session-e7129862-11b3-4e7d-ab11-53f6a6db9923）",
+          "createdAt": 1789746285403,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          }
+        },
+        {
+          "id": "c-d34bbe",
+          "body": "[状态] → done：t3 完成：接口语义分档 + 批量端点 + 13 例路由单测。（窗口 session-e7129862-11b3-4e7d-ab11-53f6a6db9923）",
+          "createdAt": 1789746285445,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1789745664592,
+      "updatedAt": 1789746285445,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+      },
+      "lastReport": {
+        "at": 1789746159544,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/pages/dsh-pmboard/src/http/routers/artifacts.ts",
+          "packages/pages/dsh-pmboard/src/http/routes.ts",
+          "packages/pages/dsh-pmboard/tests/http/file-route.test.ts"
+        ],
+        "completed": [
+          "src/http/routers/artifacts.ts 重写：classify() 成为路径判定的唯一处（单文件接口与批量端点共用）；allowlist 由 <cwd>/docs 放宽到 <cwd>；接入 domain 归一层（兼容 agent-dh/ 前缀与工作区内绝对路径）；反斜杠/.. /工作区外绝对路径仍 403；兄弟仓库路径 404 outside_workspace；伪路径 404 not_a_file；工作区缺失 404 not_found",
+          "新增 POST /dashboard/api/reqboard/docs/resolve（host 单点判定 form/exists/openable/reason，恒 200），routes.ts 注册",
+          "tests/http/file-route.test.ts（13 例）：A1 两种前缀同结果 + 源码产物 200 + 工作区内绝对路径 200；A2 ../../etc/passwd 与 /etc/passwd 仍 403；A3 跨仓 404 outside_workspace / 缺失 404 not_found；A4 伪路径 404 not_a_file；目录与尾斜杠按\"不是文件\"；A5 批量端点含原因 + 空数组诚实空",
+          "实测：curl 断言 A1（agent-dh/docs/... 与 docs/... 均 200）、A3（quantsys-v2/main.py 404 outside_workspace）——见 t7 线上核验"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-b63a7d/tasks/t-381464.md",
+      "layer": 1
+    },
+    {
+      "id": "t-11b086",
+      "requirementId": "REQ-b63a7d",
+      "title": "openable 由 host 单点判定并下发；前端只对 openable 预检",
+      "description": "host 用同一归一层/解析器为每个产物算出 openable 与不可打开原因，随 /reqboard 状态与 stages 详情下发；客户端 board-mount 的 verifyDocExistence 与渲染只对 openable 产物发预检/可点击，其余以纯文本 + 原因呈现（不再误标 is-missing）。",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-381464"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "可执行验收：① npx vitest run tests/client-api-resolve.test.ts → 3 passed（锁定 POST /dashboard/api/reqboard/docs/resolve 的 URL 与 {paths} 请求体；success=false 抛错）；② npx vitest run tests/http/file-route.test.ts → 13 passed（批量端点恒 200 且逐条返回 form/exists/openable/reason）；③ curl -s -X POST -H \"Content-Type: application/json\" -d {\"paths\":[\"quantsys-v2/CLAUDE.md\"]} http://127.0.0.1:13080/dashboard/api/reqboard/docs/resolve → openable=false 且带 reason；④ 浏览器可达路径：打开 http://127.0.0.1:13080 → 项目看板 → 任一需求详情页「文档记录」区，F12 Console 过滤 reqboard：修复前每个源码类产物一条 403，现应无 403/404 失败请求。",
+      "implementation": "改 shared/protocol.ts（StageArtifact 增 openable/reason）、application/query/QueryStageDetail.ts 与 QueryState（计算并下发）、client/board-mount.ts（第 563-586 行）与 client/views/artifacts.ts（渲染分支）+ 对应单测。验证：npx vitest run tests/client-view.test.ts tests/stage-panel.test.ts。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-98b4d7",
+          "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+          "trigger": "manual",
+          "startedAt": 1789746134070,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+              "seq": 601,
+              "at": 1789746134078,
+              "totals": {
+                "uncachedInputTokens": 3698007,
+                "outputTokens": 115660,
+                "cacheReadTokens": 24976000,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+              "seq": 661,
+              "at": 1789746356341,
+              "totals": {
+                "uncachedInputTokens": 4753475,
+                "outputTokens": 118600,
+                "cacheReadTokens": 26057984,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 1055468,
+              "outputTokens": 2940,
+              "cacheReadTokens": 1081984,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1789746356328
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789745664592,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789746134070,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          },
+          "reason": "补开工：实现已先行完成，补录流水线状态（claim 后继续做本轮新增的验证/覆盖工作）。",
+          "tokenSnapshot": {
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+            "seq": 601,
+            "at": 1789746134078,
+            "totals": {
+              "uncachedInputTokens": 3698007,
+              "outputTokens": 115660,
+              "cacheReadTokens": 24976000,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789746356328,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          },
+          "reason": "t4 完成：前端预检改批量解析 + client 契约单测 + 构建门通过。",
+          "tokenSnapshot": {
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+            "seq": 661,
+            "at": 1789746356341,
+            "totals": {
+              "uncachedInputTokens": 4753475,
+              "outputTokens": 118600,
+              "cacheReadTokens": 26057984,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789746356391,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          },
+          "reason": "t4 完成：前端预检改批量解析 + client 契约单测 + 构建门通过。",
+          "tokenSnapshot": {
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+            "seq": 663,
+            "at": 1789746356396,
+            "totals": {
+              "uncachedInputTokens": 4753475,
+              "outputTokens": 118600,
+              "cacheReadTokens": 26057984,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789746356425,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          },
+          "reason": "t4 完成：前端预检改批量解析 + client 契约单测 + 构建门通过。",
+          "tokenSnapshot": {
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+            "seq": 665,
+            "at": 1789746356431,
+            "totals": {
+              "uncachedInputTokens": 4753475,
+              "outputTokens": 118600,
+              "cacheReadTokens": 26057984,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-bfa926",
+          "body": "[状态] → in_progress：补开工：实现已先行完成，补录流水线状态（claim 后继续做本轮新增的验证/覆盖工作）。（窗口 session-e7129862-11b3-4e7d-ab11-53f6a6db9923）",
+          "createdAt": 1789746134070,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          }
+        },
+        {
+          "id": "c-dda86f",
+          "body": "[状态] → testing：t4 完成：前端预检改批量解析 + client 契约单测 + 构建门通过。（窗口 session-e7129862-11b3-4e7d-ab11-53f6a6db9923）",
+          "createdAt": 1789746356328,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          }
+        },
+        {
+          "id": "c-d7b20c",
+          "body": "[状态] → in_review：t4 完成：前端预检改批量解析 + client 契约单测 + 构建门通过。（窗口 session-e7129862-11b3-4e7d-ab11-53f6a6db9923）",
+          "createdAt": 1789746356391,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          }
+        },
+        {
+          "id": "c-1de9be",
+          "body": "[状态] → done：t4 完成：前端预检改批量解析 + client 契约单测 + 构建门通过。（窗口 session-e7129862-11b3-4e7d-ab11-53f6a6db9923）",
+          "createdAt": 1789746356425,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1789745664592,
+      "updatedAt": 1789746808050,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+      },
+      "updatedBy": {
+        "kind": "human"
+      },
+      "lastReport": {
+        "at": 1789746159577,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/pages/dsh-pmboard/src/client/api.ts",
+          "packages/pages/dsh-pmboard/src/client/board-mount.ts",
+          "packages/pages/dsh-pmboard/tests/client-api-resolve.test.ts",
+          "packages/pages/dsh-pmboard/lib/client.js"
+        ],
+        "completed": [
+          "src/client/api.ts：新增 DocPathVerdictView + resolveReqDocs(paths)（POST /docs/resolve，走既有 unwrap 信封）",
+          "src/client/board-mount.ts：verifyDocExistence 从「逐条 GET /file」改为「一次批量解析」；openable=false 时按 host 给的 reason 标注缺失并移除 data-doc-path 预检锚点；通道异常时不做任何标记（诚实降级，不误标缺失）",
+          "tests/client-api-resolve.test.ts（3 例）：契约锁定（URL/请求体/解包）、success=false 抛错、HTTP 非 2xx 抛错",
+          "实测：pnpm build:client + verify-client-build OK（bundle=227289 bytes，关键符号齐全）"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-b63a7d/tasks/t-11b086.md",
+      "layer": 2
+    },
+    {
+      "id": "t-3852f0",
+      "requirementId": "REQ-b63a7d",
+      "title": "存量台账清理（归一 + 剔除伪路径 + 备份/报告/幂等）",
+      "description": "一次性脚本：对 .dsh-data/dsh-reqboard.json 全量产物/归档/预算路径跑归一层，A/B 形态改为工作区相对、D 形态剔除、C 形态标记 outside（保留且不渲染为可打开）；去重；改前备份，产出报告。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-0619c1"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "脚本干跑（--dry-run）输出 diff 清单；实跑后扫描\"非工作区相对 + 非伪路径\"计数为 0（扫描脚本可复跑）；备份文件存在；报告落 docs/requirements/REQ-b63a7d/cleanup-report.md；重复执行幂等（第二次 0 变更）。",
+      "implementation": "新建 packages/pages/dsh-pmboard/scripts/normalize-ledger-paths.mjs（--dry-run/--apply/--verify 三档，参考既有 migrate-ledger 脚本模式）+ 扫描自检；在 agent-dh 工作区实跑并落报告。验证：--dry-run → --apply → --verify 三连 + 扫描计数。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-98a8bf",
+          "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+          "trigger": "manual",
+          "startedAt": 1789746675005,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+              "seq": 812,
+              "at": 1789746675009,
+              "totals": {
+                "uncachedInputTokens": 4764452,
+                "outputTokens": 143163,
+                "cacheReadTokens": 35444352,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+              "seq": 818,
+              "at": 1789746675082,
+              "totals": {
+                "uncachedInputTokens": 4764452,
+                "outputTokens": 143163,
+                "cacheReadTokens": 35444352,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1789746675077
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789745664592,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789746675005,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          },
+          "reason": "补开工：脚本与 dry-run 已完成，本轮在窗口内执行 apply + verify。",
+          "tokenSnapshot": {
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+            "seq": 812,
+            "at": 1789746675009,
+            "totals": {
+              "uncachedInputTokens": 4764452,
+              "outputTokens": 143163,
+              "cacheReadTokens": 35444352,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789746675077,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          },
+          "reason": "t5 完成：apply 114 条 + verify 0 + 幂等 0；备份留档。",
+          "tokenSnapshot": {
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+            "seq": 818,
+            "at": 1789746675082,
+            "totals": {
+              "uncachedInputTokens": 4764452,
+              "outputTokens": 143163,
+              "cacheReadTokens": 35444352,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789746675109,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          },
+          "reason": "t5 完成：apply 114 条 + verify 0 + 幂等 0；备份留档。",
+          "tokenSnapshot": {
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+            "seq": 820,
+            "at": 1789746675113,
+            "totals": {
+              "uncachedInputTokens": 4764452,
+              "outputTokens": 143163,
+              "cacheReadTokens": 35444352,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789746675150,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          },
+          "reason": "t5 完成：apply 114 条 + verify 0 + 幂等 0；备份留档。",
+          "tokenSnapshot": {
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+            "seq": 822,
+            "at": 1789746675155,
+            "totals": {
+              "uncachedInputTokens": 4764452,
+              "outputTokens": 143163,
+              "cacheReadTokens": 35444352,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-5aeb0d",
+          "body": "[状态] → in_progress：补开工：脚本与 dry-run 已完成，本轮在窗口内执行 apply + verify。（窗口 session-e7129862-11b3-4e7d-ab11-53f6a6db9923）",
+          "createdAt": 1789746675005,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          }
+        },
+        {
+          "id": "c-24bf18",
+          "body": "[状态] → testing：t5 完成：apply 114 条 + verify 0 + 幂等 0；备份留档。（窗口 session-e7129862-11b3-4e7d-ab11-53f6a6db9923）",
+          "createdAt": 1789746675077,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          }
+        },
+        {
+          "id": "c-594cb9",
+          "body": "[状态] → in_review：t5 完成：apply 114 条 + verify 0 + 幂等 0；备份留档。（窗口 session-e7129862-11b3-4e7d-ab11-53f6a6db9923）",
+          "createdAt": 1789746675109,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          }
+        },
+        {
+          "id": "c-15361c",
+          "body": "[状态] → done：t5 完成：apply 114 条 + verify 0 + 幂等 0；备份留档。（窗口 session-e7129862-11b3-4e7d-ab11-53f6a6db9923）",
+          "createdAt": 1789746675150,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1789745664592,
+      "updatedAt": 1789746675150,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+      },
+      "lastReport": {
+        "at": 1789746675048,
+        "reportIndex": 2,
+        "filesChanged": [
+          "packages/pages/dsh-pmboard/scripts/normalize-ledger-paths.ts",
+          "docs/requirements/REQ-b63a7d/cleanup-report.md"
+        ],
+        "completed": [
+          "apply 实测：扫描 694 条 → 变更 114（normalized=91 / dropped=4 伪路径 / deduped=19），备份 <ledger>.bak-normalize-1789746666479",
+          "--verify 实测：OK —— 台账内不存在会被判 403 的路径写法（0 条）",
+          "幂等实测：二次 dry-run 需变更 0（normalized=0/dropped=0/deduped=0）",
+          "执行前提已核验：台账文件距上次写 176s（>护栏 120s）、工作区 git 干净（dirty=0，branch=main）",
+          "报告已补 apply 实测小节：docs/requirements/REQ-b63a7d/cleanup-report.md"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-b63a7d/tasks/t-3852f0.md",
+      "layer": 2
+    },
+    {
+      "id": "t-827624",
+      "requirementId": "REQ-b63a7d",
+      "title": "回归与故障注入测试",
+      "description": "聚合一发故障注入用例：A/B/C/D 四形态路径 + 穿越（..、绝对路径）+ 存量归一后行为；确保放宽 allowlist 未削弱穿越防护。",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-0619c1",
+        "t-11b086"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "npx vitest run 全绿（含新增用例）；故障注入用例逐条命名可追溯到形态 A/B/C/D；穿越防护用例仍拒绝。",
+      "implementation": "新增 packages/pages/dsh-pmboard/tests/fault-injection-paths.test.ts（聚拢 t1–t5 的边界），跑全量并修净。验证：npx vitest run。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-89e663",
+          "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+          "trigger": "manual",
+          "startedAt": 1789746134114,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+              "seq": 603,
+              "at": 1789746134119,
+              "totals": {
+                "uncachedInputTokens": 3698007,
+                "outputTokens": 115660,
+                "cacheReadTokens": 24976000,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+              "seq": 669,
+              "at": 1789746416491,
+              "totals": {
+                "uncachedInputTokens": 4753475,
+                "outputTokens": 118600,
+                "cacheReadTokens": 26057984,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 1055468,
+              "outputTokens": 2940,
+              "cacheReadTokens": 1081984,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1789746416482
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789745664592,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789746134114,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          },
+          "reason": "补开工：实现已先行完成，补录流水线状态（claim 后继续做本轮新增的验证/覆盖工作）。",
+          "tokenSnapshot": {
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+            "seq": 603,
+            "at": 1789746134119,
+            "totals": {
+              "uncachedInputTokens": 3698007,
+              "outputTokens": 115660,
+              "cacheReadTokens": 24976000,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789746416482,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          },
+          "reason": "t6 完成：四形态故障注入矩阵 + 真实台账扫描回归。",
+          "tokenSnapshot": {
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+            "seq": 669,
+            "at": 1789746416491,
+            "totals": {
+              "uncachedInputTokens": 4753475,
+              "outputTokens": 118600,
+              "cacheReadTokens": 26057984,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789746416534,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          },
+          "reason": "t6 完成：四形态故障注入矩阵 + 真实台账扫描回归。",
+          "tokenSnapshot": {
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+            "seq": 671,
+            "at": 1789746416540,
+            "totals": {
+              "uncachedInputTokens": 4753475,
+              "outputTokens": 118600,
+              "cacheReadTokens": 26057984,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789746416572,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          },
+          "reason": "t6 完成：四形态故障注入矩阵 + 真实台账扫描回归。",
+          "tokenSnapshot": {
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+            "seq": 673,
+            "at": 1789746416576,
+            "totals": {
+              "uncachedInputTokens": 4753475,
+              "outputTokens": 118600,
+              "cacheReadTokens": 26057984,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-1a491b",
+          "body": "[状态] → in_progress：补开工：实现已先行完成，补录流水线状态（claim 后继续做本轮新增的验证/覆盖工作）。（窗口 session-e7129862-11b3-4e7d-ab11-53f6a6db9923）",
+          "createdAt": 1789746134114,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          }
+        },
+        {
+          "id": "c-5214e3",
+          "body": "[状态] → testing：t6 完成：四形态故障注入矩阵 + 真实台账扫描回归。（窗口 session-e7129862-11b3-4e7d-ab11-53f6a6db9923）",
+          "createdAt": 1789746416482,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          }
+        },
+        {
+          "id": "c-bbccf8",
+          "body": "[状态] → in_review：t6 完成：四形态故障注入矩阵 + 真实台账扫描回归。（窗口 session-e7129862-11b3-4e7d-ab11-53f6a6db9923）",
+          "createdAt": 1789746416534,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          }
+        },
+        {
+          "id": "c-eef3ee",
+          "body": "[状态] → done：t6 完成：四形态故障注入矩阵 + 真实台账扫描回归。（窗口 session-e7129862-11b3-4e7d-ab11-53f6a6db9923）",
+          "createdAt": 1789746416572,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1789745664592,
+      "updatedAt": 1789746416572,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+      },
+      "lastReport": {
+        "at": 1789746159607,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/pages/dsh-pmboard/tests/fault-injection-paths.test.ts"
+        ],
+        "completed": [
+          "tests/fault-injection-paths.test.ts（10 例）：形态矩阵 A/B/C/D + 穿越，逐条标形态名；并断言「会被判 403 的只有绝对路径非 workspace 与含 .. / 反斜杠两类」",
+          "真实台账回归扫描：读取 .dsh-data/dsh-reqboard.json，遍历 artifacts / archive.docs / archive.mergedInto / plan.path / docLinks(含 extras[]) 全部路径，断言不存在会被判 403 的写法（文件不存在则跳过，不伪造绿灯）",
+          "实测：npx vitest run tests/fault-injection-paths.test.ts → 10 passed（含真实台账扫描 0 命中）"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-b63a7d/tasks/t-827624.md",
+      "layer": 3
+    },
+    {
+      "id": "t-5ef156",
+      "requirementId": "REQ-b63a7d",
+      "title": "构建 client + 重启 + 线上核验",
+      "description": "client 产物重建（done 凭证门的构建新鲜度要求）；先落 pending-resume，再 launchctl kickstart -k 重启 :13080；重启后按 A1–A4 逐条实测并留痕。",
+      "phase": "merge",
+      "side": "fullstack",
+      "dependsOn": [
+        "t-827624"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "pnpm --filter <dsh-pmboard 包名> build:client 退出码 0 且 verify-client-build.mjs 通过（WRAP_SENTINEL 未命中）；重启后 curl A1/A2/A3 三条符合预期；详情页控制台无 403、源码类产物无「缺失」标；重启前后台账无回退（schemaVersion 仍 6）。",
+      "implementation": "在 packages/pages/dsh-pmboard 下构建 client；写 pending-resume 后续跑消息；launchctl kickstart -k gui/$(id -u)/com.pi-investment.dsh；重启后 curl + 页面核验并留 decision_audit/memory。验证：构建门退出码 0 + 三条 curl + 台账复核。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-8a016c",
+          "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+          "trigger": "manual",
+          "startedAt": 1789746678852,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+              "seq": 832,
+              "at": 1789746678857,
+              "totals": {
+                "uncachedInputTokens": 4764639,
+                "outputTokens": 143619,
+                "cacheReadTokens": 36010112,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+              "seq": 893,
+              "at": 1789746774607,
+              "totals": {
+                "uncachedInputTokens": 6450152,
+                "outputTokens": 152266,
+                "cacheReadTokens": 37748224,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 1685513,
+              "outputTokens": 8647,
+              "cacheReadTokens": 1738112,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1789746774603
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789745664592,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789746678852,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          },
+          "reason": "开工 t7：client 构建已完成（verify-client-build OK）；本轮执行 self_restart 加载 host 侧修复，重启后续跑线上核验 A1–A4。",
+          "tokenSnapshot": {
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+            "seq": 832,
+            "at": 1789746678857,
+            "totals": {
+              "uncachedInputTokens": 4764639,
+              "outputTokens": 143619,
+              "cacheReadTokens": 36010112,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789746774603,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          },
+          "reason": "t7 完成：构建门通过 + 重启后 A1–A4 线上实测全部符合预期。",
+          "tokenSnapshot": {
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+            "seq": 893,
+            "at": 1789746774607,
+            "totals": {
+              "uncachedInputTokens": 6450152,
+              "outputTokens": 152266,
+              "cacheReadTokens": 37748224,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789746774654,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          },
+          "reason": "t7 完成：构建门通过 + 重启后 A1–A4 线上实测全部符合预期。",
+          "tokenSnapshot": {
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+            "seq": 895,
+            "at": 1789746774660,
+            "totals": {
+              "uncachedInputTokens": 6450152,
+              "outputTokens": 152266,
+              "cacheReadTokens": 37748224,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789746774706,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          },
+          "reason": "t7 完成：构建门通过 + 重启后 A1–A4 线上实测全部符合预期。",
+          "tokenSnapshot": {
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923",
+            "seq": 897,
+            "at": 1789746774711,
+            "totals": {
+              "uncachedInputTokens": 6450152,
+              "outputTokens": 152266,
+              "cacheReadTokens": 37748224,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-f118a5",
+          "body": "[状态] → in_progress：开工 t7：client 构建已完成（verify-client-build OK）；本轮执行 self_restart 加载 host 侧修复，重启后续跑线上核验 A1–A4。（窗口 session-e7129862-11b3-4e7d-ab11-53f6a6db9923）",
+          "createdAt": 1789746678852,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          }
+        },
+        {
+          "id": "c-eb7eae",
+          "body": "[状态] → testing：t7 完成：构建门通过 + 重启后 A1–A4 线上实测全部符合预期。（窗口 session-e7129862-11b3-4e7d-ab11-53f6a6db9923）",
+          "createdAt": 1789746774603,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          }
+        },
+        {
+          "id": "c-f7d869",
+          "body": "[状态] → in_review：t7 完成：构建门通过 + 重启后 A1–A4 线上实测全部符合预期。（窗口 session-e7129862-11b3-4e7d-ab11-53f6a6db9923）",
+          "createdAt": 1789746774654,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          }
+        },
+        {
+          "id": "c-01d563",
+          "body": "[状态] → done：t7 完成：构建门通过 + 重启后 A1–A4 线上实测全部符合预期。（窗口 session-e7129862-11b3-4e7d-ab11-53f6a6db9923）",
+          "createdAt": 1789746774706,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1789745664592,
+      "updatedAt": 1789746774706,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-e7129862-11b3-4e7d-ab11-53f6a6db9923"
+      },
+      "lastReport": {
+        "at": 1789746774566,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-b63a7d/verification.md",
+          "packages/pages/dsh-pmboard/lib/client.js"
+        ],
+        "completed": [
+          "构建：pnpm build:client + verify-client-build OK（bundle=227289 bytes，WRAP_SENTINEL 未命中）；relink-profile --check 25/25 symlink-ok",
+          "重启：self_restart(preserve_context=true) → 新进程 pid 32032（23:51:52 起，旧 2266），检查点 agent-self/20260918-235136",
+          "A1 实测：agent-dh/docs/... 200（用户报的 403 那条）、docs/... 200、packages/... 200",
+          "A2 实测：../../etc/passwd 403、/etc/passwd 403（穿越防护未放宽）",
+          "A3 实测：quantsys-v2/CLAUDE.md → 404 outside_workspace；quantsys-v2/main.py（确不存在）→ 404 not_found",
+          "A4 实测：quantsys-v2/tests/{a.py,b.py} → 404 not_a_file；POST /docs/resolve → 200 且逐条返回 normalized/form/exists/openable",
+          "台账清理跨重启存活：--verify 复跑仍 0 条",
+          "验收材料：docs/requirements/REQ-b63a7d/verification.md（含未覆盖项：浏览器控制台需人硬刷新确认）"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-b63a7d/tasks/t-5ef156.md",
+      "layer": 4
+    }
+  ],
+  "edges": [
+    {
+      "from": "t-cf63f0",
+      "to": "t-0619c1"
+    },
+    {
+      "from": "t-cf63f0",
+      "to": "t-381464"
+    },
+    {
+      "from": "t-381464",
+      "to": "t-11b086"
+    },
+    {
+      "from": "t-0619c1",
+      "to": "t-3852f0"
+    },
+    {
+      "from": "t-0619c1",
+      "to": "t-827624"
+    },
+    {
+      "from": "t-11b086",
+      "to": "t-827624"
+    },
+    {
+      "from": "t-827624",
+      "to": "t-5ef156"
+    }
+  ],
+  "layers": [
+    {
+      "layer": 0,
+      "tasks": [
+        "t-cf63f0"
+      ]
+    },
+    {
+      "layer": 1,
+      "tasks": [
+        "t-0619c1",
+        "t-381464"
+      ]
+    },
+    {
+      "layer": 2,
+      "tasks": [
+        "t-3852f0",
+        "t-11b086"
+      ]
+    },
+    {
+      "layer": 3,
+      "tasks": [
+        "t-827624"
+      ]
+    },
+    {
+      "layer": 4,
+      "tasks": [
+        "t-5ef156"
+      ]
+    }
+  ],
+  "ready": [],
+  "updated_at": "2026-09-28T23:14:14.540Z"
+}

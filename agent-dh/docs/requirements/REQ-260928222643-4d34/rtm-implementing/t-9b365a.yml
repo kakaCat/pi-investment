@@ -1,0 +1,33 @@
+task:
+  id: t-9b365a
+  title: board-mount.ts 挂载时 takeBoardFocus 初始化 mode
+  status: todo
+  implements: board-mount.ts 挂载时 const focusReqId = takeBoardFocus()，据此把 mode 初始化为 {kind:'req',reqId} 否则 {kind:'board'}；陈旧 id 走既有 L240 回退，不动 render/fetchAll/SSE；扩展 tests/board-attach.test.ts 加 TC-7/TC-8 并补 serves 头。
+  serves: []
+  depends_on:
+    - t-3e952f
+  phase: implement
+  side: frontend
+  workflow_params:
+    REQ_ID: REQ-260928222643-4d34
+    TASK_ID: t-9b365a
+    TASK_TITLE: board-mount.ts 挂载时 takeBoardFocus 初始化 mode
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: frontend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-09-28T14:59:53.908Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-260928222643-4d34
+  generated_at: 2026-09-28T14:59:53.908Z
+  version: 2
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-09-28T14:59:53.909Z

@@ -1,7 +1,7 @@
 task:
   id: t-bbf915
   title: RTM 快速读取接口
-  status: todo
+  status: done
   implements: ""
   serves:
     - FR-8
@@ -18,18 +18,20 @@ task:
     SIDE: backend
     PHASE: implement
   workflow_total: 2
-  workflow_done: 1
+  workflow_done: 2
   workflow:
     - phase: implement
-      status: pending
+      status: done
+      started_at: 2026-09-27T03:21:47.231Z
+      completed_at: 2026-09-27T03:21:47.642Z
     - phase: ui
       status: done
 metadata:
   stage: implementing
   requirement_id: REQ-202609262349-1518
   generated_at: 2026-09-27T01:34:27.549Z
-  version: 2
+  version: 6
   generated_by: dsh-pmboard
   detail_dir: rtm-implementing/
   detail_count: 2
-  last_updated: 2026-09-27T01:36:06.828Z
+  last_updated: 2026-09-27T03:21:47.643Z

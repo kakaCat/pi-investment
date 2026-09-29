@@ -1,0 +1,33 @@
+task:
+  id: t-144707
+  title: 集成测试与文档
+  status: todo
+  implements: 编写 integration.ts，集成所有模块，实现主渲染流程。更新 build-demo.py 和 template.html，加载所有 JS 模块。用真实队列文件（小图 12 卡、中图 20 卡、压力图 65 卡）测试。编写 README.md 说明使用方法。接收 FR-1 至 FR-7 全部功能点。
+  serves: []
+  depends_on:
+    - t-73c392
+    - t-d379c7
+  phase: test
+  side: fullstack
+  workflow_params:
+    REQ_ID: REQ-260928001915-f978
+    TASK_ID: t-144707
+    TASK_TITLE: 集成测试与文档
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: fullstack
+    PHASE: test
+  workflow_total: 1
+  workflow_done: 0
+  workflow:
+    - phase: test
+      status: pending
+metadata:
+  stage: implementing
+  requirement_id: REQ-260928001915-f978
+  generated_at: 2026-09-28T03:01:02.226Z
+  version: 1
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-09-28T03:01:02.226Z

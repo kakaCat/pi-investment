@@ -1,0 +1,136 @@
+
+ RUN  v2.1.9 /Users/yunpeng/pi-investment/agent-dh/packages/web/dsh-pmboard
+
+ ✓ tests/queue/topology.test.ts (17 tests) 4ms
+ ✓ tests/queue/validateQueue.test.ts (20 tests) 9ms
+ ✓ tests/queue/v9-harness-contract.test.ts (14 tests) 9ms
+ ✓ tests/queue/topology-integration.test.ts (3 tests) 87ms
+stdout | tests/migrate-contract.test.ts > TC-7.1/7.3/7.4/7.5 真实台账数据驱动比对（零字段丢失） > 源侧现算 → 目标侧逐一相等（计数/分组/状态分布/依赖/归属）
+[TC-7.x] v8 备份（活台账已迁移） /Users/yunpeng/pi-investment/agent-dh/.dsh-data/dsh-reqboard.json.backup-remove-sheet（revision=4559，455 条任务） → 队列 43 份 / 迁移 455 任务 / 未迁移 0 条 / dependsOn 563 条 / 状态 {"done":433,"in_progress":6,"todo":16} / 跳过需求 0 个
+
+ ✓ tests/migrate-contract.test.ts (6 tests) 92ms
+ ✓ tests/queue/ledger-v9.test.ts (16 tests) 182ms
+ ✓ tests/run-status-tool.test.ts (6 tests) 6ms
+ ✓ tests/queue-types.test.ts (4 tests) 2ms
+ ✓ tests/queue-types-integration.test.ts (4 tests) 3ms
+ ✓ tests/queue/QueueRepository.test.ts (14 tests) 402ms
+stdout | tests/t17-queue-e2e.test.ts > t17 端到端：新建需求 → 拆分落队列 → 台账零新增 → 推进 → ready 更新 > 一条真实连续链跑到底（真实仓储 + 临时工作区）
+[t17] ① 立项： REQ-000001 状态 draft
+
+ ✓ tests/t9-usecase-queue-refactor.test.ts (6 tests) 178ms
+ ✓ tests/queue/ledger-migrations-trace.test.ts (3 tests) 68ms
+ ✓ tests/t11-decompose-queue-write.test.ts (3 tests) 88ms
+stdout | tests/t17-queue-e2e.test.ts > t17 端到端：新建需求 → 拆分落队列 → 台账零新增 → 推进 → ready 更新 > 一条真实连续链跑到底（真实仓储 + 临时工作区）
+[reqboard] [reqboard] 产物已登记，请人审阅确认
+需求：REQ-000001 
+节点：brainstorming
+产物：docs/requirements/REQ-000001/requirement.md（kind=requirement）
+确认入口：项目看板 → 需求卡 → 「待确认」一键确认
+
+ ✓ tests/queue/queue-path.test.ts (7 tests) 2ms
+ ✓ tests/advance-agent-handle.test.ts (4 tests) 1ms
+stdout | tests/t17-queue-e2e.test.ts > t17 端到端：新建需求 → 拆分落队列 → 台账零新增 → 推进 → ready 更新 > 一条真实连续链跑到底（真实仓储 + 临时工作区）
+[t17] ② 需求产物确认 → 状态 design
+
+stdout | tests/t17-queue-e2e.test.ts > t17 端到端：新建需求 → 拆分落队列 → 台账零新增 → 推进 → ready 更新 > 一条真实连续链跑到底（真实仓储 + 临时工作区）
+[reqboard] [reqboard] 产物已登记，请人审阅确认
+需求：REQ-000001 
+节点：design
+产物：docs/requirements/REQ-000001/design/architecture.md（kind=design）
+确认入口：项目看板 → 需求卡 → 「待确认」一键确认
+[reqboard] [reqboard] 产物已登记，请人审阅确认
+需求：REQ-000001 
+节点：design
+产物：docs/requirements/REQ-000001/design/data-model.md（kind=design）
+确认入口：项目看板 → 需求卡 → 「待确认」一键确认
+[reqboard] [reqboard] 产物已登记，请人审阅确认
+需求：REQ-000001 
+节点：design
+产物：docs/requirements/REQ-000001/design/interfaces.md（kind=design）
+确认入口：项目看板 → 需求卡 → 「待确认」一键确认
+[reqboard] [reqboard] 产物已登记，请人审阅确认
+需求：REQ-000001 
+节点：design
+产物：docs/requirements/REQ-000001/design/test-cases.md（kind=design）
+确认入口：项目看板 → 需求卡 → 「待确认」一键确认
+[reqboard] [reqboard] 产物已登记，请人审阅确认
+需求：REQ-000001 
+节点：design
+产物：docs/requirements/REQ-000001/design/use-cases.md（kind=design）
+确认入口：项目看板 → 需求卡 → 「待确认」一键确认
+
+ ✓ tests/t12-queue-readonly-ordering.test.ts (5 tests) 200ms
+stdout | tests/t17-queue-e2e.test.ts > t17 端到端：新建需求 → 拆分落队列 → 台账零新增 → 推进 → ready 更新 > 一条真实连续链跑到底（真实仓储 + 临时工作区）
+[t17] ③ 设计确认 → 状态 decomposing
+
+stdout | tests/t17-queue-e2e.test.ts > t17 端到端：新建需求 → 拆分落队列 → 台账零新增 → 推进 → ready 更新 > 一条真实连续链跑到底（真实仓储 + 临时工作区）
+[reqboard] [reqboard] 产物已登记，请人审阅确认
+需求：REQ-000001 
+节点：decomposing
+产物：docs/requirements/REQ-000001/decomposition.md（kind=decomposition）
+确认入口：项目看板 → 需求卡 → 「待确认」一键确认
+[t17] ④ 计划提交： pending_approval 任务数 2
+[t17] 台账 hasTasks（批准前）= false
+
+ ✓ tests/queue/QueueTaskStore.test.ts (25 tests) 624ms
+stdout | tests/t17-queue-e2e.test.ts > t17 端到端：新建需求 → 拆分落队列 → 台账零新增 → 推进 → ready 更新 > 一条真实连续链跑到底（真实仓储 + 临时工作区）
+[t17] ⑤ 队列生成： <tmp>/docs/requirements/REQ-000001/queue.json
+[t17]    任务= t-00000d:todo,t-00000e:todo ready= [ 't-00000d' ] layers= [{"layer":0,"tasks":["t-00000d"]},{"layer":1,"tasks":["t-00000e"]}]
+[t17] ⑥ 台账 hasTasks（批准后）= false ｜文本含 "tasks" = true （故 grep 会假绿）
+
+stdout | tests/t17-queue-e2e.test.ts > t17 端到端：新建需求 → 拆分落队列 → 台账零新增 → 推进 → ready 更新 > 一条真实连续链跑到底（真实仓储 + 临时工作区）
+[t17] ⑦ 父卡开工 → 子卡 t-000012,t-000013,t-000014,t-000015 ｜ready = [ 't-000012' ]
+Queue ready tasks: t-000012 (requirement REQ-000001)
+
+stdout | tests/t17-queue-e2e.test.ts > t17 端到端：新建需求 → 拆分落队列 → 台账零新增 → 推进 → ready 更新 > 一条真实连续链跑到底（真实仓储 + 临时工作区）
+Queue ready tasks: t-000013 (requirement REQ-000001)
+
+stdout | tests/t17-queue-e2e.test.ts > t17 端到端：新建需求 → 拆分落队列 → 台账零新增 → 推进 → ready 更新 > 一条真实连续链跑到底（真实仓储 + 临时工作区）
+Queue ready tasks: t-000014 (requirement REQ-000001)
+
+ ✓ tests/queue/tool-deps-fixture.test.ts (4 tests) 5ms
+stdout | tests/t17-queue-e2e.test.ts > t17 端到端：新建需求 → 拆分落队列 → 台账零新增 → 推进 → ready 更新 > 一条真实连续链跑到底（真实仓储 + 临时工作区）
+Queue ready tasks: t-000015 (requirement REQ-000001)
+
+stdout | tests/t17-queue-e2e.test.ts > t17 端到端：新建需求 → 拆分落队列 → 台账零新增 → 推进 → ready 更新 > 一条真实连续链跑到底（真实仓储 + 临时工作区）
+[t17] ⑦ 卡一闭环 → ready [ 't-00000d' ] → [ 't-00000e' ]
+
+stdout | tests/t17-queue-e2e.test.ts > t17 端到端：新建需求 → 拆分落队列 → 台账零新增 → 推进 → ready 更新 > 一条真实连续链跑到底（真实仓储 + 临时工作区）
+[t17] ⑦ 父卡开工 → 子卡 t-00001b,t-00001c,t-00001d,t-00001e ｜ready = [ 't-00001b' ]
+Queue ready tasks: t-00001b (requirement REQ-000001)
+
+stdout | tests/t17-queue-e2e.test.ts > t17 端到端：新建需求 → 拆分落队列 → 台账零新增 → 推进 → ready 更新 > 一条真实连续链跑到底（真实仓储 + 临时工作区）
+Queue ready tasks: t-00001c (requirement REQ-000001)
+
+ ✓ tests/migrate-ledger-v8v9.test.ts (24 tests) 948ms
+   ✓ v8→v9 真实 CLI 进程 > --dry-run --json / --apply / --verify / 幂等 / --rollback 全链路 447ms
+stdout | tests/t17-queue-e2e.test.ts > t17 端到端：新建需求 → 拆分落队列 → 台账零新增 → 推进 → ready 更新 > 一条真实连续链跑到底（真实仓储 + 临时工作区）
+Queue ready tasks: t-00001d (requirement REQ-000001)
+
+stdout | tests/t17-queue-e2e.test.ts > t17 端到端：新建需求 → 拆分落队列 → 台账零新增 → 推进 → ready 更新 > 一条真实连续链跑到底（真实仓储 + 临时工作区）
+Queue ready tasks: t-00001e (requirement REQ-000001)
+
+stdout | tests/t17-queue-e2e.test.ts > t17 端到端：新建需求 → 拆分落队列 → 台账零新增 → 推进 → ready 更新 > 一条真实连续链跑到底（真实仓储 + 临时工作区）
+[t17] ⑧ 两卡闭环 → ready [] ｜需求侧状态 accepting ｜队列任务数 10
+[t17] ⑨ 终态：台账 hasTasks = false ｜队列任务数 = 10
+
+ ✓ tests/t17-queue-e2e.test.ts (1 test) 680ms
+   ✓ t17 端到端：新建需求 → 拆分落队列 → 台账零新增 → 推进 → ready 更新 > 一条真实连续链跑到底（真实仓储 + 临时工作区） 680ms
+ ✓ tests/output-contract.test.ts (27 tests) 278ms
+stderr | tests/t16-http-queue-integration.test.ts > t16 联调：reqboard HTTP 面 × queue.json（真实 handler + 真实文件） > 队列损坏时的读方行为：/state 不崩、该需求任务缺席、损坏文件被隔离（不冒充空队列为正常）
+[queue] 队列 JSON 解析失败，已隔离：/var/folders/qn/h_w8cd2961l633mj3gkjgvjr0000gn/T/pmboard-t16-integrate-4DuNg6/docs/requirements/REQ-260928000645-d763/queue.json → /var/folders/qn/h_w8cd2961l633mj3gkjgvjr0000gn/T/pmboard-t16-integrate-4DuNg6/docs/requirements/REQ-260928000645-d763/queue.json.corrupt-1790525205301（Expected property name or '}' in JSON at position 2 (line 1 column 3)）
+
+ ✓ tests/t16-http-queue-integration.test.ts (2 tests) 423ms
+   ✓ t16 联调：reqboard HTTP 面 × queue.json（真实 handler + 真实文件） > 建卡/流转/改卡全链：任务只进 queue.json，台账无 tasks，读回与磁盘真值一致 398ms
+ ✓ tests/read-sites-equivalence.test.ts (8 tests) 461ms
+
+ Test Files  23 passed (23)
+      Tests  223 passed (223)
+   Start at  00:06:43
+   Duration  1.46s (transform 1.10s, setup 0ms, collect 4.85s, tests 4.75s, environment 2ms, prepare 1.06s)
+
+npm notice
+npm notice New major version of npm available! 10.9.8 -> 12.1.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.1.0
+npm notice To update run: npm install -g npm@12.1.0
+npm notice

@@ -2,9 +2,9 @@ metadata:
   stage: decomposing
   requirement_id: REQ-260927202051-f6df
   generated_at: 2026-09-27T12:54:40.510Z
-  version: 86
+  version: 100
   generated_by: dsh-pmboard
-  last_updated: 2026-09-27T14:16:46.470Z
+  last_updated: 2026-09-27T16:03:35.455Z
 inputs:
   requirements: []
   design_sections:
@@ -557,14 +557,14 @@ outputs:
   tasks:
     - id: t-87f0da
       title: 定义队列类型与任务契约
-      implements: ""
+      implements: "新建 packages/web/dsh-pmboard/src/domain/queue/QueueTypes.ts。导出 QUEUE_VERSION=1 与类型：QueueFile（version/requirement_id/schemaVersion/generated_at/updated_at?/tasks/edges/layers/ready）、QueueTask = TaskRecord & { layer: number }（从 src/shared/protocol.ts import TaskRecord，不重定义字段）、QueueEdge{from,to}、QueueLayer{layer,tasks}、ValidationIssue{rule,message,path?}、ValidationResult{passed,issues}。严禁裁剪 TaskRecord 字段——少一个字段就破坏读方只换数据源的最小回归路径。"
       serves: []
       depends_on: []
       phase: implement
       side: backend
     - id: t-0e7fac
       title: 实现 DAG 拓扑分层与派生视图
-      implements: ""
+      implements: 新建 src/domain/queue/topology.ts，实现纯函数：computeLayers(tasks)（Kahn 入度分层；有环抛 Error 含 CIRCULAR）、computeEdges(tasks)（由 dependsOn 展开）、computeReady(tasks)（依赖全 done 且自身 todo 者入 ready）。computeReady 必须是唯一实现，写路径不得另写一份（否则 V-5 假就绪/漏就绪必现）。配 topology.test.ts 覆盖线性/菱形/多层/环/空/多 ready/依赖已 done 七种形状。
       serves: []
       depends_on:
         - t-87f0da
@@ -572,7 +572,7 @@ outputs:
       side: backend
     - id: t-394339
       title: 实现队列数据校验 V-1~V-6
-      implements: ""
+      implements: 新建 src/domain/queue/validateQueue.ts，实现纯函数 validateQueueFile(file) → ValidationResult（不抛错，失败只填 issues）。逐条实现：V-1 必填字段完整性；V-2 tasks[].id 唯一；V-3 引用完整性（dependsOn/edges/layers/ready 的 id 均在 tasks 内，且 task.requirementId === queue.requirement_id 防跨档）；V-4 层级一致性；V-5 ready 双向一致性（假就绪与漏就绪）；V-6 无环性（复用 topology 环检测）。
       serves: []
       depends_on:
         - t-87f0da
@@ -580,7 +580,7 @@ outputs:
       side: backend
     - id: t-e96a0c
       title: 实现队列仓储与原子写入
-      implements: ""
+      implements: 新建 src/repositories/QueueRepository.ts。load(requirementId)：读 docs/requirements/<REQ>/queue.json → JSON 解析 → validateQueueFile；不存在/解析失败/校验失败均返回 undefined（解析失败时隔离改名为 .corrupt-<ts> 并告警）。save(requirementId, file)：先 validateQueueFile，通过才调 adapters/JsonLedgerRepository.ts 已导出的 persistAtomic 原子写（temp+fsync+rename），失败抛 QUEUE_VALIDATION_FAILED 且不落盘。pathOf 返回队列文件路径。
       serves: []
       depends_on:
         - t-87f0da
@@ -590,7 +590,7 @@ outputs:
       side: backend
     - id: t-bc1ba6
       title: 实现 TaskStore 端口与队列实现
-      implements: ""
+      implements: 在 src/application/ports.ts 定义 TaskStore 端口（get/listByRequirement/readQueue/mutate/createMany/subscribe）；新建 src/repositories/QueueTaskStore.ts 实现之：按需求懒加载 queue.json + 内存缓存；写路径强制重读文件后合并（不信任缓存），重算 edges/layers/ready → 校验 → 原子写 → 失效缓存 → 广播 TaskChange。createMany 幂等（已存在 id 跳过）。
       serves: []
       depends_on:
         - t-e96a0c
@@ -598,7 +598,7 @@ outputs:
       side: backend
     - id: t-2417da
       title: 台账 schema v9：移除 tasks
-      implements: ""
+      implements: 改 src/shared/protocol.ts（REQBOARD_SCHEMA_VERSION 8→9；ReqboardLedger 去 tasks；emptyLedger 同步）、src/application/ports.ts（去 ledger.tasks）、src/adapters/JsonLedgerRepository.ts（isPlausibleLedger 不再要求 tasks；mutate 去 tasks 通道；LedgerChange 去 tasks）。关键硬约束：加载到 schemaVersion<9 或存在非空 tasks 时抛 LEDGER_REQUIRES_MIGRATION 拒绝启动，不得静默丢弃 587 条任务。
       serves: []
       depends_on:
         - t-bc1ba6
@@ -606,7 +606,7 @@ outputs:
       side: backend
     - id: t-66797c
       title: 读方改造 A：看板与 HTTP 路由
-      implements: ""
+      implements: 改 src/http/routers/stages.ts（看板任务页与甘特的数据源）、tasks.ts、requirements.ts、verdicts.ts：任务一律经 deps.taskStore 取（listByRequirement/get/readQueue），删除对 ledger.tasks 的直接读取；路由处理函数按需改 async。保持返回 JSON 形状逐字段不变——这是看板不回归的前提。
       serves: []
       depends_on:
         - t-2417da
@@ -614,7 +614,7 @@ outputs:
       side: backend
     - id: t-0c7f17
       title: 读方改造 B：执行工具
-      implements: ""
+      implements: 改 src/tools/AdvanceTool、RunStatusTool、TaskStatusTool、TaskReportTool：任务读取改经 taskStore；TaskReportTool 的汇报写回落 taskStore.mutate（不再 repo.mutate 写 tasks）。保持工具输出 schema 与字段不变（工具契约不得回归）。
       serves: []
       depends_on:
         - t-2417da
@@ -622,7 +622,7 @@ outputs:
       side: backend
     - id: t-860900
       title: 读方改造 C：用例层
-      implements: ""
+      implements: 改 src/application/use-cases/ 下涉及任务的用例（Decompose 除外，见 t11；含 AdvanceChain、TaskTree、ReportTask、AmendTaskAcceptance、IsolateNodeContext、SubtaskTeamRun、AcceptSheet、SubmitVerification、MoveRequirement、MoveTask、ExecuteTask）。任务改 taskStore；repo.mutate 只改需求/分诊。含任务的用例必须遵守顺序契约：taskStore.mutate 先于 repo.mutate。
       serves: []
       depends_on:
         - t-2417da
@@ -630,7 +630,7 @@ outputs:
       side: backend
     - id: t-8d4af7
       title: 读方改造 D：门禁、查询与 Dive
-      implements: ""
+      implements: 改 src/application/internal/*（plan-landing、lazy-expand、rollup、rtm-yaml、rework-update、verdicts、failure-handling、support、confirm-settle、agent-handle、capture-section、verification-doc-writer）、src/application/query/*（QueryState、QueryStageDetail、QueryRequirementToken）、src/application/dive/idle-capture-actions.ts、src/application/gate/handlers/h3-inject.ts。完成后跑全仓 grep 断言零残留。
       serves: []
       depends_on:
         - t-2417da
@@ -638,7 +638,7 @@ outputs:
       side: backend
     - id: t-05925b
       title: 接线 Decompose：任务写入队列
-      implements: ""
+      implements: 改 src/application/use-cases/Decompose.ts：拆分成功后调 taskStore.createMany 写入该需求 queue.json，返回体新增 queue_file 字段；删除原 repo.mutate 写 tasks 的分支；队列生成失败记警告不中断主流程（任务已无法回退到台账，故生成失败必须显式告警而非静默）。
       serves: []
       depends_on:
         - t-bc1ba6
@@ -647,7 +647,7 @@ outputs:
       side: backend
     - id: t-fa3e16
       title: 接线 ExecuteTask/MoveTask：读队列与顺序契约
-      implements: ""
+      implements: 改 src/application/use-cases/ExecuteTask.ts：执行前经 taskStore 取该需求任务与 ready，日志打印 ready 列表；父卡字段（acceptance/implementation/context/dependsSummary/parentId）取自队列；本步骤不得写队列。改 MoveTask.ts：状态改 taskStore.mutate（先）→ 重算派生视图并原子写 → 再 repo.mutate 改需求状态（后）。顺序在代码里固定并加打点以便测试断言。
       serves: []
       depends_on:
         - t-05925b
@@ -655,7 +655,7 @@ outputs:
       side: backend
     - id: t-faf303
       title: 实现 v8→v9 迁移变换与 CLI
-      implements: ""
+      implements: 在 scripts/migrate-ledger.ts 追加 v8→v9 变换 migrateV8toV9（纯函数，内部 structuredClone）与 CLI 四态：--dry-run（默认，报告不落盘）/--apply/--verify/--rollback。按 requirementId 分组 tasks → 构造 QueueFile（schemaVersion:9）→ computeLayers/Edges/Ready → validateQueueFile → 写各需求 queue.json（D-7）→ 再改台账：删 tasks、schemaVersion=9、migrations 追加留痕（D-8）→ 原子替换（D-9）。顺序固定，反序会产生双向丢失。
       serves: []
       depends_on:
         - t-e96a0c
@@ -664,7 +664,7 @@ outputs:
       side: backend
     - id: t-03254f
       title: 迁移安全：白名单、幂等与 orphan
-      implements: ""
+      implements: 在 scripts/migrate-ledger.ts 补齐安全护栏：① 逐路径白名单（只允许 schemaVersion / migrations / tasks 删除三类差异，出现其他差异即中止且不落盘）；② 幂等（已是 v9 时 --apply 无操作，报告 already_v9）；③ orphan 处理（requirementId 缺失或指向不存在需求的任务计入报告且不迁移，宁可不迁也不串档）；④ 备份（迁移前复制为 <ledger>.backup-<ts>，为回滚提供依据）。
       serves: []
       depends_on:
         - t-faf303
@@ -672,7 +672,7 @@ outputs:
       side: backend
     - id: t-dfc245
       title: 迁移契约比对：587 条零字段丢失
-      implements: ""
+      implements: 写迁移契约测试（scripts/__tests__/migrate-contract.test.ts）：对真实台账副本跑迁移，逐字段深比对源 ledger.tasks 与目标 queue.tasks（去掉 layer）；点名断言关键字段未丢（少迁 lastRun 会让子卡完工凭证门静默失效）；全量断言 465 条 dependsOn 在目标队列内可解析；断言状态分布与需求归属一致。
       serves: []
       depends_on:
         - t-03254f
@@ -680,7 +680,7 @@ outputs:
       side: backend
     - id: t-e77b06
       title: 看板实测回归（真实打开页面）
-      implements: ""
+      implements: 迁移与读方改造完成后，重启 :13080（走 scripts/start.sh 或 launchctl kickstart），真实打开看板任务页与甘特/阶段视图，逐项核对任务可见性与数量、依赖连线、需求详情；记录页面截图路径。本卡是最高风险的验收点——单测绿不等于看板不回归，必须以浏览器实开为准。
       serves: []
       depends_on:
         - t-66797c
@@ -693,7 +693,7 @@ outputs:
       side: backend
     - id: t-d1aa0f
       title: 端到端验收与文档同步
-      implements: ""
+      implements: 写端到端验收脚本 scripts/e2e-queue.ts 走全链路并输出前后对照；同步更新 docs/architecture/ 对应章节（归档时需申报 manual_updates）；跑 pnpm build 与 plugin-schema 冒烟；跑 wiki_probe.py 自检死链；汇总可复核证据清单提交验收材料。
       serves: []
       depends_on:
         - t-dfc245
@@ -702,14 +702,20 @@ outputs:
       side: doc
     - id: t-796a50
       title: 定义队列类型与任务契约·研发
-      implements: ""
+      implements: |-
+        新建 packages/web/dsh-pmboard/src/domain/queue/QueueTypes.ts。导出 QUEUE_VERSION=1 与类型：QueueFile（version/requirement_id/schemaVersion/generated_at/updated_at?/tasks/edges/layers/ready）、QueueTask = TaskRecord & { layer: number }（从 src/shared/protocol.ts import TaskRecord，不重定义字段）、QueueEdge{from,to}、QueueLayer{layer,tasks}、ValidationIssue{rule,message,path?}、ValidationResult{passed,issues}。严禁裁剪 TaskRecord 字段——少一个字段就破坏读方只换数据源的最小回归路径。
+
+        [子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要
       serves: []
       depends_on: []
       phase: implement
       side: backend
     - id: t-b34b32
       title: 定义队列类型与任务契约·联调
-      implements: ""
+      implements: |-
+        新建 packages/web/dsh-pmboard/src/domain/queue/QueueTypes.ts。导出 QUEUE_VERSION=1 与类型：QueueFile（version/requirement_id/schemaVersion/generated_at/updated_at?/tasks/edges/layers/ready）、QueueTask = TaskRecord & { layer: number }（从 src/shared/protocol.ts import TaskRecord，不重定义字段）、QueueEdge{from,to}、QueueLayer{layer,tasks}、ValidationIssue{rule,message,path?}、ValidationResult{passed,issues}。严禁裁剪 TaskRecord 字段——少一个字段就破坏读方只换数据源的最小回归路径。
+
+        [子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致
       serves: []
       depends_on:
         - t-796a50
@@ -717,7 +723,10 @@ outputs:
       side: backend
     - id: t-43e512
       title: 定义队列类型与任务契约·复核
-      implements: ""
+      implements: |-
+        新建 packages/web/dsh-pmboard/src/domain/queue/QueueTypes.ts。导出 QUEUE_VERSION=1 与类型：QueueFile（version/requirement_id/schemaVersion/generated_at/updated_at?/tasks/edges/layers/ready）、QueueTask = TaskRecord & { layer: number }（从 src/shared/protocol.ts import TaskRecord，不重定义字段）、QueueEdge{from,to}、QueueLayer{layer,tasks}、ValidationIssue{rule,message,path?}、ValidationResult{passed,issues}。严禁裁剪 TaskRecord 字段——少一个字段就破坏读方只换数据源的最小回归路径。
+
+        [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
       serves: []
       depends_on:
         - t-b34b32
@@ -725,7 +734,10 @@ outputs:
       side: backend
     - id: t-c6026b
       title: 定义队列类型与任务契约·测试
-      implements: ""
+      implements: |-
+        新建 packages/web/dsh-pmboard/src/domain/queue/QueueTypes.ts。导出 QUEUE_VERSION=1 与类型：QueueFile（version/requirement_id/schemaVersion/generated_at/updated_at?/tasks/edges/layers/ready）、QueueTask = TaskRecord & { layer: number }（从 src/shared/protocol.ts import TaskRecord，不重定义字段）、QueueEdge{from,to}、QueueLayer{layer,tasks}、ValidationIssue{rule,message,path?}、ValidationResult{passed,issues}。严禁裁剪 TaskRecord 字段——少一个字段就破坏读方只换数据源的最小回归路径。
+
+        [子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）
       serves: []
       depends_on:
         - t-43e512
@@ -733,7 +745,10 @@ outputs:
       side: backend
     - id: t-5be8c6
       title: 实现 DAG 拓扑分层与派生视图·研发
-      implements: ""
+      implements: |-
+        新建 src/domain/queue/topology.ts，实现纯函数：computeLayers(tasks)（Kahn 入度分层；有环抛 Error 含 CIRCULAR）、computeEdges(tasks)（由 dependsOn 展开）、computeReady(tasks)（依赖全 done 且自身 todo 者入 ready）。computeReady 必须是唯一实现，写路径不得另写一份（否则 V-5 假就绪/漏就绪必现）。配 topology.test.ts 覆盖线性/菱形/多层/环/空/多 ready/依赖已 done 七种形状。
+
+        [子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要
       serves: []
       depends_on:
         - t-87f0da
@@ -741,7 +756,10 @@ outputs:
       side: backend
     - id: t-315ea1
       title: 实现 DAG 拓扑分层与派生视图·联调
-      implements: ""
+      implements: |-
+        新建 src/domain/queue/topology.ts，实现纯函数：computeLayers(tasks)（Kahn 入度分层；有环抛 Error 含 CIRCULAR）、computeEdges(tasks)（由 dependsOn 展开）、computeReady(tasks)（依赖全 done 且自身 todo 者入 ready）。computeReady 必须是唯一实现，写路径不得另写一份（否则 V-5 假就绪/漏就绪必现）。配 topology.test.ts 覆盖线性/菱形/多层/环/空/多 ready/依赖已 done 七种形状。
+
+        [子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致
       serves: []
       depends_on:
         - t-5be8c6
@@ -749,7 +767,10 @@ outputs:
       side: backend
     - id: t-1e2054
       title: 实现 DAG 拓扑分层与派生视图·复核
-      implements: ""
+      implements: |-
+        新建 src/domain/queue/topology.ts，实现纯函数：computeLayers(tasks)（Kahn 入度分层；有环抛 Error 含 CIRCULAR）、computeEdges(tasks)（由 dependsOn 展开）、computeReady(tasks)（依赖全 done 且自身 todo 者入 ready）。computeReady 必须是唯一实现，写路径不得另写一份（否则 V-5 假就绪/漏就绪必现）。配 topology.test.ts 覆盖线性/菱形/多层/环/空/多 ready/依赖已 done 七种形状。
+
+        [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
       serves: []
       depends_on:
         - t-315ea1
@@ -757,11 +778,63 @@ outputs:
       side: backend
     - id: t-a21eb3
       title: 实现 DAG 拓扑分层与派生视图·测试
-      implements: ""
+      implements: |-
+        新建 src/domain/queue/topology.ts，实现纯函数：computeLayers(tasks)（Kahn 入度分层；有环抛 Error 含 CIRCULAR）、computeEdges(tasks)（由 dependsOn 展开）、computeReady(tasks)（依赖全 done 且自身 todo 者入 ready）。computeReady 必须是唯一实现，写路径不得另写一份（否则 V-5 假就绪/漏就绪必现）。配 topology.test.ts 覆盖线性/菱形/多层/环/空/多 ready/依赖已 done 七种形状。
+
+        [子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）
       serves: []
       depends_on:
         - t-1e2054
       phase: implement
+      side: backend
+    - id: t-c130ca
+      title: 看板实测回归（真实打开页面）·研发
+      implements: |-
+        迁移与读方改造完成后，重启 :13080（走 scripts/start.sh 或 launchctl kickstart），真实打开看板任务页与甘特/阶段视图，逐项核对任务可见性与数量、依赖连线、需求详情；记录页面截图路径。本卡是最高风险的验收点——单测绿不等于看板不回归，必须以浏览器实开为准。
+
+        [子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要
+      serves: []
+      depends_on:
+        - t-66797c
+        - t-0c7f17
+        - t-860900
+        - t-8d4af7
+        - t-fa3e16
+        - t-03254f
+      phase: test
+      side: backend
+    - id: t-6df9a0
+      title: 看板实测回归（真实打开页面）·联调
+      implements: |-
+        迁移与读方改造完成后，重启 :13080（走 scripts/start.sh 或 launchctl kickstart），真实打开看板任务页与甘特/阶段视图，逐项核对任务可见性与数量、依赖连线、需求详情；记录页面截图路径。本卡是最高风险的验收点——单测绿不等于看板不回归，必须以浏览器实开为准。
+
+        [子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致
+      serves: []
+      depends_on:
+        - t-c130ca
+      phase: test
+      side: backend
+    - id: t-f4c9f5
+      title: 看板实测回归（真实打开页面）·复核
+      implements: |-
+        迁移与读方改造完成后，重启 :13080（走 scripts/start.sh 或 launchctl kickstart），真实打开看板任务页与甘特/阶段视图，逐项核对任务可见性与数量、依赖连线、需求详情；记录页面截图路径。本卡是最高风险的验收点——单测绿不等于看板不回归，必须以浏览器实开为准。
+
+        [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-6df9a0
+      phase: test
+      side: backend
+    - id: t-10122a
+      title: 看板实测回归（真实打开页面）·测试
+      implements: |-
+        迁移与读方改造完成后，重启 :13080（走 scripts/start.sh 或 launchctl kickstart），真实打开看板任务页与甘特/阶段视图，逐项核对任务可见性与数量、依赖连线、需求详情；记录页面截图路径。本卡是最高风险的验收点——单测绿不等于看板不回归，必须以浏览器实开为准。
+
+        [子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）
+      serves: []
+      depends_on:
+        - t-f4c9f5
+      phase: test
       side: backend
 traceability:
   design_to_tasks:

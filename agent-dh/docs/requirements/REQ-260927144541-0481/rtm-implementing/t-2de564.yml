@@ -1,0 +1,33 @@
+task:
+  id: t-2de564
+  title: 单卡状态说实话：改读台账执行记录，不再读没人写的旧段落·研发
+  status: todo
+  implements: ""
+  serves: []
+  depends_on:
+    - t-3e3ebb
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-260927144541-0481
+    TASK_ID: t-2de564
+    TASK_TITLE: 单卡状态说实话：改读台账执行记录，不再读没人写的旧段落·研发
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-09-27T10:34:54.256Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-260927144541-0481
+  generated_at: 2026-09-27T10:34:54.255Z
+  version: 2
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-09-27T10:34:54.257Z

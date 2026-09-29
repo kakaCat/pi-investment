@@ -1,0 +1,162 @@
+metadata:
+  stage: implementing
+  requirement_id: REQ-260929010300-dbf9
+  generated_at: 2026-09-28T17:23:49.923Z
+  version: 35
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 29
+  last_updated: 2026-09-28T18:19:40.786Z
+inputs:
+  tasks:
+    - id: t-d03789
+      title: 定契约：入参结构类型收敛 + 面板画布常量
+      status: done
+    - id: t-6f9d7f
+      title: 画布 id 参数化 + 挂载实例表
+      status: done
+    - id: t-284b0a
+      title: 会话面板两处 DAG 块改调同一构建函数
+      status: done
+    - id: t-3ed4b5
+      title: 会话面板挂载钩子（DOM 就绪后挂载）
+      status: done
+    - id: t-d1a7f7
+      title: DAG 骨架皮肤换成 np 苹果风
+      status: done
+    - id: t-757283
+      title: 迁移与兼容核验 + 需求详情回归
+      status: done
+    - id: t-ee4384
+      title: 定契约：入参结构类型收敛 + 面板画布常量·研发
+      status: done
+    - id: t-1fadb6
+      title: 定契约：入参结构类型收敛 + 面板画布常量·联调
+      status: done
+    - id: t-cc9e3a
+      title: 定契约：入参结构类型收敛 + 面板画布常量·复核
+      status: done
+    - id: t-470baa
+      title: 定契约：入参结构类型收敛 + 面板画布常量·测试
+      status: done
+    - id: t-3f8d67
+      title: 画布 id 参数化 + 挂载实例表·研发
+      status: done
+    - id: t-2e30df
+      title: 画布 id 参数化 + 挂载实例表·联调
+      status: done
+    - id: t-cf0284
+      title: 画布 id 参数化 + 挂载实例表·复核
+      status: done
+    - id: t-c53e93
+      title: 画布 id 参数化 + 挂载实例表·测试
+      status: done
+    - id: t-c0dad0
+      title: 会话面板两处 DAG 块改调同一构建函数·研发
+      status: done
+    - id: t-32a952
+      title: 会话面板两处 DAG 块改调同一构建函数·联调
+      status: done
+    - id: t-89278b
+      title: 会话面板两处 DAG 块改调同一构建函数·复核
+      status: done
+    - id: t-3b43fd
+      title: 会话面板两处 DAG 块改调同一构建函数·测试
+      status: done
+    - id: t-b1db02
+      title: 会话面板挂载钩子（DOM 就绪后挂载）·研发
+      status: done
+    - id: t-3dfb5d
+      title: 会话面板挂载钩子（DOM 就绪后挂载）·联调
+      status: done
+    - id: t-aeb8eb
+      title: 会话面板挂载钩子（DOM 就绪后挂载）·复核
+      status: done
+    - id: t-bf779f
+      title: 会话面板挂载钩子（DOM 就绪后挂载）·测试
+      status: done
+    - id: t-2069e2
+      title: DAG 骨架皮肤换成 np 苹果风·研发
+      status: done
+    - id: t-0c43f8
+      title: DAG 骨架皮肤换成 np 苹果风·联调
+      status: done
+    - id: t-6fed57
+      title: DAG 骨架皮肤换成 np 苹果风·复核
+      status: done
+    - id: t-a195b8
+      title: DAG 骨架皮肤换成 np 苹果风·测试
+      status: done
+    - id: t-7125de
+      title: 迁移与兼容核验 + 需求详情回归·研发
+      status: done
+    - id: t-74e548
+      title: 迁移与兼容核验 + 需求详情回归·复核
+      status: done
+    - id: t-7ee744
+      title: 迁移与兼容核验 + 需求详情回归·测试
+      status: done
+status:
+  tasks_total: 29
+  tasks_done: 29
+  tasks_in_progress: 0
+  tasks_todo: 0
+tasks:
+  - id: t-d03789
+    status: done
+  - id: t-6f9d7f
+    status: done
+  - id: t-284b0a
+    status: done
+  - id: t-3ed4b5
+    status: done
+  - id: t-d1a7f7
+    status: done
+  - id: t-757283
+    status: done
+  - id: t-ee4384
+    status: done
+  - id: t-1fadb6
+    status: done
+  - id: t-cc9e3a
+    status: done
+  - id: t-470baa
+    status: done
+  - id: t-3f8d67
+    status: done
+  - id: t-2e30df
+    status: done
+  - id: t-cf0284
+    status: done
+  - id: t-c53e93
+    status: done
+  - id: t-c0dad0
+    status: done
+  - id: t-32a952
+    status: done
+  - id: t-89278b
+    status: done
+  - id: t-3b43fd
+    status: done
+  - id: t-b1db02
+    status: done
+  - id: t-3dfb5d
+    status: done
+  - id: t-aeb8eb
+    status: done
+  - id: t-bf779f
+    status: done
+  - id: t-2069e2
+    status: done
+  - id: t-0c43f8
+    status: done
+  - id: t-6fed57
+    status: done
+  - id: t-a195b8
+    status: done
+  - id: t-7125de
+    status: done
+  - id: t-74e548
+    status: done
+  - id: t-7ee744
+    status: done

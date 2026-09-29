@@ -1,0 +1,38 @@
+task:
+  id: t-c969a8
+  title: 实现卡片样式渲染器·复核
+  status: done
+  implements: |-
+    编写 card-renderer.ts，实现 renderCard 函数，根据任务数据渲染 7 个视觉元素：ID、类型徽标、端侧徽标、标题、状态底色、父卡标识（左侧蓝条）、ready 绿点。卡片尺寸 208×72px，支持传入位置坐标。接收 FR-2。
+
+    [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+  serves: []
+  depends_on:
+    - t-92496d
+  phase: implement
+  side: frontend
+  workflow_params:
+    REQ_ID: REQ-260928001915-f978
+    TASK_ID: t-c969a8
+    TASK_TITLE: 实现卡片样式渲染器·复核
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: frontend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-09-28T05:49:34.049Z
+    - phase: doc
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-260928001915-f978
+  generated_at: 2026-09-28T05:49:34.049Z
+  version: 2
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-09-28T05:49:34.050Z

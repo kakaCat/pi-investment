@@ -1,0 +1,33 @@
+task:
+  id: t-022248
+  title: 门禁固化：声明与行为不一致由测试拦住·联调
+  status: todo
+  implements: ""
+  serves: []
+  depends_on:
+    - t-b02159
+  phase: test
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-260927144541-0481
+    TASK_ID: t-022248
+    TASK_TITLE: 门禁固化：声明与行为不一致由测试拦住·联调
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: test
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: test
+      status: done
+      completed_at: 2026-09-27T11:00:21.549Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-260927144541-0481
+  generated_at: 2026-09-27T11:00:21.549Z
+  version: 2
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-09-27T11:00:21.551Z

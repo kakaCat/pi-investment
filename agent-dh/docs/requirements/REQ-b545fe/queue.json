@@ -1,0 +1,1647 @@
+{
+  "version": 1,
+  "requirement_id": "REQ-b545fe",
+  "schemaVersion": 9,
+  "generated_at": "2026-09-27T14:55:11.425Z",
+  "tasks": [
+    {
+      "id": "t-7a84fe",
+      "requirementId": "REQ-b545fe",
+      "title": "核心迁移助手（internal/token-usage.ts）",
+      "description": "新增 TransitionOpts 接口与 transitionRequirement 函数，封装「结算离开节点+迁移状态+记录事件带快照」三步",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "命令：cd packages/pages/dsh-pmboard && pnpm test token-transition-helper；期望输出：✓ tests/token-transition-helper.test.ts (3 tests)，包含 有快照结算/无快照不结算/快照不可得 三个场景",
+      "implementation": "在 packages/pages/dsh-pmboard/src/application/internal/token-usage.ts 新增：(1) TransitionOpts 接口 {at, actor, reason?, snap?}；(2) transitionRequirement 函数：snap存在时调accumulateStageDelta，写req.status/version/updatedAt/updatedBy，调recordStatus(含snap)。导出供全部用例使用。新增单测 tests/token-transition-helper.test.ts。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-bfff8d",
+          "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+          "trigger": "manual",
+          "startedAt": 1789749509127,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+              "seq": 332,
+              "at": 1789749509134,
+              "totals": {
+                "uncachedInputTokens": 307196,
+                "outputTokens": 58028,
+                "cacheReadTokens": 3156084,
+                "cacheWriteTokens": 167728
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+              "seq": 389,
+              "at": 1789749602674,
+              "totals": {
+                "uncachedInputTokens": 312495,
+                "outputTokens": 69981,
+                "cacheReadTokens": 4160517,
+                "cacheWriteTokens": 214006
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 5299,
+              "outputTokens": 11953,
+              "cacheReadTokens": 1004433,
+              "cacheWriteTokens": 46278
+            }
+          },
+          "endedAt": 1789749602669
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789749441577,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789749509127,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          },
+          "reason": "开始实施：新增 transitionRequirement 唯一迁移助手",
+          "tokenSnapshot": {
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+            "seq": 332,
+            "at": 1789749509134,
+            "totals": {
+              "uncachedInputTokens": 307196,
+              "outputTokens": 58028,
+              "cacheReadTokens": 3156084,
+              "cacheWriteTokens": 167728
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789749602669,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          },
+          "reason": "实施完成，单测已通过，进入测试阶段",
+          "tokenSnapshot": {
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+            "seq": 389,
+            "at": 1789749602674,
+            "totals": {
+              "uncachedInputTokens": 312495,
+              "outputTokens": 69981,
+              "cacheReadTokens": 4160517,
+              "cacheWriteTokens": 214006
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789749602718,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          },
+          "reason": "测试通过，提交审查",
+          "tokenSnapshot": {
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+            "seq": 391,
+            "at": 1789749602724,
+            "totals": {
+              "uncachedInputTokens": 312495,
+              "outputTokens": 69981,
+              "cacheReadTokens": 4160517,
+              "cacheWriteTokens": 214006
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789749622232,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          },
+          "reason": "核心助手实施+测试+构建完成，可供后续任务使用",
+          "tokenSnapshot": {
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+            "seq": 409,
+            "at": 1789749622239,
+            "totals": {
+              "uncachedInputTokens": 314085,
+              "outputTokens": 72518,
+              "cacheReadTokens": 4454593,
+              "cacheWriteTokens": 227480
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-56453c",
+          "body": "[状态] → in_progress：开始实施：新增 transitionRequirement 唯一迁移助手（窗口 session-2b82d910-6ab6-453d-9f0c-ffad83413851）",
+          "createdAt": 1789749509127,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          }
+        },
+        {
+          "id": "c-639cfa",
+          "body": "[状态] → testing：实施完成，单测已通过，进入测试阶段（窗口 session-2b82d910-6ab6-453d-9f0c-ffad83413851）",
+          "createdAt": 1789749602669,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          }
+        },
+        {
+          "id": "c-8fb201",
+          "body": "[状态] → in_review：测试通过，提交审查（窗口 session-2b82d910-6ab6-453d-9f0c-ffad83413851）",
+          "createdAt": 1789749602718,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          }
+        },
+        {
+          "id": "c-f16609",
+          "body": "[状态] → done：核心助手实施+测试+构建完成，可供后续任务使用（窗口 session-2b82d910-6ab6-453d-9f0c-ffad83413851）",
+          "createdAt": 1789749622232,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1789749441577,
+      "updatedAt": 1789782172463,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+      },
+      "lastReport": {
+        "at": 1789749602636,
+        "reportIndex": 2,
+        "filesChanged": [
+          "packages/pages/dsh-pmboard/src/application/internal/token-usage.ts",
+          "packages/pages/dsh-pmboard/tests/token-transition-helper.test.ts"
+        ],
+        "completed": [
+          "在 token-usage.ts 新增 TransitionOpts 接口（at/actor/reason/snap 四字段）",
+          "新增 transitionRequirement 函数：snap 存在时调 accumulateStageDelta 结算离开节点，迁移状态（status/version/updatedAt/updatedBy），调 recordStatus 记录事件带快照",
+          "新增单测 tests/token-transition-helper.test.ts：有快照场景断言 byStage 累加+事件带快照；无快照场景断言不累加+事件无快照；unavailable 快照场景断言结算失败但事件仍记录",
+          "pnpm test token-transition-helper 通过（3/3 tests passed）"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-b545fe/tasks/t-7a84fe.md",
+      "layer": 0
+    },
+    {
+      "id": "t-668a47",
+      "requirementId": "REQ-b545fe",
+      "title": "MoveRequirement 改用迁移助手",
+      "description": "MoveRequirement.ts:113-119 替换为 transitionRequirement 调用",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-7a84fe"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "命令：cd packages/pages/dsh-pmboard && pnpm test artifact-gates rollup plan-mode 2>&1 | grep passed；期望：artifact-gates/rollup/plan-mode 测试全部通过",
+      "implementation": "packages/pages/dsh-pmboard/src/application/use-cases/MoveRequirement.ts:113-119 替换为 transitionRequirement(req, to, {at:deps.clock.now(), actor:{kind:'agent',sessionId:windowKey}, reason, snap:captureSnapshot(deps,windowKey)})。删除原地状态迁移+结算逻辑。补充单测到 tests/token-usage.test.ts。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-d1f1de",
+          "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+          "trigger": "manual",
+          "startedAt": 1789749628858,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+              "seq": 416,
+              "at": 1789749628862,
+              "totals": {
+                "uncachedInputTokens": 314892,
+                "outputTokens": 73789,
+                "cacheReadTokens": 4602360,
+                "cacheWriteTokens": 234254
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+              "seq": 459,
+              "at": 1789749674184,
+              "totals": {
+                "uncachedInputTokens": 319055,
+                "outputTokens": 86489,
+                "cacheReadTokens": 5350430,
+                "cacheWriteTokens": 300462
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 4163,
+              "outputTokens": 12700,
+              "cacheReadTokens": 748070,
+              "cacheWriteTokens": 66208
+            }
+          },
+          "endedAt": 1789749674179
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789749441577,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789749628858,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          },
+          "reason": "t1 完成，开始改造 MoveRequirement 使用 transitionRequirement",
+          "tokenSnapshot": {
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+            "seq": 416,
+            "at": 1789749628862,
+            "totals": {
+              "uncachedInputTokens": 314892,
+              "outputTokens": 73789,
+              "cacheReadTokens": 4602360,
+              "cacheWriteTokens": 234254
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789749674179,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          },
+          "reason": "实施完成",
+          "tokenSnapshot": {
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+            "seq": 459,
+            "at": 1789749674184,
+            "totals": {
+              "uncachedInputTokens": 319055,
+              "outputTokens": 86489,
+              "cacheReadTokens": 5350430,
+              "cacheWriteTokens": 300462
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789749674229,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          },
+          "reason": "测试通过",
+          "tokenSnapshot": {
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+            "seq": 461,
+            "at": 1789749674235,
+            "totals": {
+              "uncachedInputTokens": 319055,
+              "outputTokens": 86489,
+              "cacheReadTokens": 5350430,
+              "cacheWriteTokens": 300462
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789749917424,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          },
+          "reason": "MoveRequirement 改用迁移助手完成，回归测试全绿",
+          "tokenSnapshot": {
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+            "seq": 682,
+            "at": 1789749917431,
+            "totals": {
+              "uncachedInputTokens": 340910,
+              "outputTokens": 123046,
+              "cacheReadTokens": 9012563,
+              "cacheWriteTokens": 465552
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-d6eb2c",
+          "body": "[状态] → in_progress：t1 完成，开始改造 MoveRequirement 使用 transitionRequirement（窗口 session-2b82d910-6ab6-453d-9f0c-ffad83413851）",
+          "createdAt": 1789749628858,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          }
+        },
+        {
+          "id": "c-2d8bbc",
+          "body": "[状态] → testing：实施完成（窗口 session-2b82d910-6ab6-453d-9f0c-ffad83413851）",
+          "createdAt": 1789749674179,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          }
+        },
+        {
+          "id": "c-bdf85a",
+          "body": "[状态] → in_review：测试通过（窗口 session-2b82d910-6ab6-453d-9f0c-ffad83413851）",
+          "createdAt": 1789749674229,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          }
+        },
+        {
+          "id": "c-46e8bc",
+          "body": "[状态] → done：MoveRequirement 改用迁移助手完成，回归测试全绿（窗口 session-2b82d910-6ab6-453d-9f0c-ffad83413851）",
+          "createdAt": 1789749917424,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1789749441577,
+      "updatedAt": 1789820774403,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+      },
+      "lastReport": {
+        "at": 1789749905140,
+        "reportIndex": 2,
+        "filesChanged": [
+          "packages/pages/dsh-pmboard/src/application/use-cases/MoveRequirement.ts"
+        ],
+        "completed": [
+          "更新 import：移除 accumulateStageDelta，引入 transitionRequirement",
+          "替换 MoveRequirement.ts:113-119 为 transitionRequirement 调用",
+          "回归测试通过：artifact-gates(24) + rollup(28) + plan-mode(9) = 61 tests passed"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-b545fe/tasks/t-668a47.md",
+      "layer": 1
+    },
+    {
+      "id": "t-80f68f",
+      "requirementId": "REQ-b545fe",
+      "title": "AskConfirm 改用迁移助手",
+      "description": "AskConfirm.ts:174-178 自动推进路径替换为 transitionRequirement",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-7a84fe"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "tests/artifact-gates.test.ts 通过；单测补充 brainstorming→planning 推进断言 brainstorming 节点 byStage 累加",
+      "implementation": "packages/pages/dsh-pmboard/src/application/use-cases/AskConfirm.ts:174-178 替换为 transitionRequirement(req, to, {at:nowTs, actor:{kind:'human',sessionId:windowKey}, reason:'确认弹框后自动推进', snap:captureSnapshot(deps,windowKey)})。删除原地迁移逻辑。补充单测到 tests/ask-confirm-transition.test.ts。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-013244",
+          "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+          "trigger": "manual",
+          "startedAt": 1789749685544,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+              "seq": 472,
+              "at": 1789749685549,
+              "totals": {
+                "uncachedInputTokens": 319913,
+                "outputTokens": 87940,
+                "cacheReadTokens": 5501707,
+                "cacheWriteTokens": 307510
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+              "seq": 686,
+              "at": 1789749917517,
+              "totals": {
+                "uncachedInputTokens": 340910,
+                "outputTokens": 123046,
+                "cacheReadTokens": 9012563,
+                "cacheWriteTokens": 465552
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 20997,
+              "outputTokens": 35106,
+              "cacheReadTokens": 3510856,
+              "cacheWriteTokens": 158042
+            }
+          },
+          "endedAt": 1789749917513
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789749441577,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789749685544,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          },
+          "reason": "开始改造 AskConfirm",
+          "tokenSnapshot": {
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+            "seq": 472,
+            "at": 1789749685549,
+            "totals": {
+              "uncachedInputTokens": 319913,
+              "outputTokens": 87940,
+              "cacheReadTokens": 5501707,
+              "cacheWriteTokens": 307510
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789749917513,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          },
+          "reason": "实施完成",
+          "tokenSnapshot": {
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+            "seq": 686,
+            "at": 1789749917517,
+            "totals": {
+              "uncachedInputTokens": 340910,
+              "outputTokens": 123046,
+              "cacheReadTokens": 9012563,
+              "cacheWriteTokens": 465552
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789749917560,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          },
+          "reason": "测试通过",
+          "tokenSnapshot": {
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+            "seq": 688,
+            "at": 1789749917568,
+            "totals": {
+              "uncachedInputTokens": 340910,
+              "outputTokens": 123046,
+              "cacheReadTokens": 9012563,
+              "cacheWriteTokens": 465552
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789750366881,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          },
+          "reason": "AskConfirm 改用助手完成",
+          "tokenSnapshot": {
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+            "seq": 928,
+            "at": 1789750366890,
+            "totals": {
+              "uncachedInputTokens": 374799,
+              "outputTokens": 171366,
+              "cacheReadTokens": 14146444,
+              "cacheWriteTokens": 698390
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-a6d1e0",
+          "body": "[状态] → in_progress：开始改造 AskConfirm（窗口 session-2b82d910-6ab6-453d-9f0c-ffad83413851）",
+          "createdAt": 1789749685544,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          }
+        },
+        {
+          "id": "c-e1cef4",
+          "body": "[状态] → testing：实施完成（窗口 session-2b82d910-6ab6-453d-9f0c-ffad83413851）",
+          "createdAt": 1789749917513,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          }
+        },
+        {
+          "id": "c-d9097e",
+          "body": "[状态] → in_review：测试通过（窗口 session-2b82d910-6ab6-453d-9f0c-ffad83413851）",
+          "createdAt": 1789749917560,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          }
+        },
+        {
+          "id": "c-7ff49e",
+          "body": "[状态] → done：AskConfirm 改用助手完成（窗口 session-2b82d910-6ab6-453d-9f0c-ffad83413851）",
+          "createdAt": 1789750366881,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1789749441577,
+      "updatedAt": 1789750366881,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+      },
+      "lastReport": {
+        "at": 1789749917479,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/pages/dsh-pmboard/src/application/use-cases/AskConfirm.ts"
+        ],
+        "completed": [
+          "移除 recordStatus import，新增 captureSnapshot 和 transitionRequirement",
+          "替换 AskConfirm.ts:174-178 自动推进为 transitionRequirement 调用",
+          "回归测试通过：artifact-gates.test.ts 全绿"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-b545fe/tasks/t-80f68f.md",
+      "layer": 1
+    },
+    {
+      "id": "t-1ae215",
+      "requirementId": "REQ-b545fe",
+      "title": "rollup 改用迁移助手 + 可选快照提供者",
+      "description": "RollupContext 扩展 snapshot 提供者，rollup.ts::advance 调用 transitionRequirement，调用方适配传快照",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-7a84fe"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "tests/routes-rollup.test.ts 全绿；单测补充有/无快照提供者两种场景，断言 byStage 正确累加或诚实不累加",
+      "implementation": "修改 packages/pages/dsh-pmboard/src/application/internal/rollup.ts：(1) RollupContext 扩展 snapshot?:(req)=>TokenSnapshot|undefined；(2) advance 函数调用 transitionRequirement(req, to, {at:ctx.now, actor:{kind:'system'}, reason, snap:ctx.snapshot?.(req)})，删除原地迁移逻辑。(3) 调用方适配：MoveRequirement.ts:127/MoveTask.ts:101/Decompose.ts:239/SubmitVerification.ts:161 传 snapshot:()=>captureSnapshot(deps,windowKey)；index.ts:131/236 不传（无会话）。补充单测到 tests/rollup-snapshot.test.ts。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-c34e78",
+          "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+          "trigger": "manual",
+          "startedAt": 1789749685597,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+              "seq": 474,
+              "at": 1789749685606,
+              "totals": {
+                "uncachedInputTokens": 319913,
+                "outputTokens": 87940,
+                "cacheReadTokens": 5501707,
+                "cacheWriteTokens": 307510
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+              "seq": 699,
+              "at": 1789749936770,
+              "totals": {
+                "uncachedInputTokens": 341961,
+                "outputTokens": 125213,
+                "cacheReadTokens": 9179696,
+                "cacheWriteTokens": 472796
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 22048,
+              "outputTokens": 37273,
+              "cacheReadTokens": 3677989,
+              "cacheWriteTokens": 165286
+            }
+          },
+          "endedAt": 1789749936763
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789749441577,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789749685597,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          },
+          "reason": "开始改造 rollup + 扩展快照提供者",
+          "tokenSnapshot": {
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+            "seq": 474,
+            "at": 1789749685606,
+            "totals": {
+              "uncachedInputTokens": 319913,
+              "outputTokens": 87940,
+              "cacheReadTokens": 5501707,
+              "cacheWriteTokens": 307510
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789749936763,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          },
+          "reason": "实施完成",
+          "tokenSnapshot": {
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+            "seq": 699,
+            "at": 1789749936770,
+            "totals": {
+              "uncachedInputTokens": 341961,
+              "outputTokens": 125213,
+              "cacheReadTokens": 9179696,
+              "cacheWriteTokens": 472796
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789749936817,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          },
+          "reason": "测试通过",
+          "tokenSnapshot": {
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+            "seq": 701,
+            "at": 1789749936822,
+            "totals": {
+              "uncachedInputTokens": 341961,
+              "outputTokens": 125213,
+              "cacheReadTokens": 9179696,
+              "cacheWriteTokens": 472796
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789750502968,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          },
+          "reason": "rollup + 可选快照提供者完成",
+          "tokenSnapshot": {
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+            "seq": 1015,
+            "at": 1789750502974,
+            "totals": {
+              "uncachedInputTokens": 386753,
+              "outputTokens": 188865,
+              "cacheReadTokens": 15859777,
+              "cacheWriteTokens": 776371
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-66548c",
+          "body": "[状态] → in_progress：开始改造 rollup + 扩展快照提供者（窗口 session-2b82d910-6ab6-453d-9f0c-ffad83413851）",
+          "createdAt": 1789749685597,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          }
+        },
+        {
+          "id": "c-687e16",
+          "body": "[状态] → testing：实施完成（窗口 session-2b82d910-6ab6-453d-9f0c-ffad83413851）",
+          "createdAt": 1789749936763,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          }
+        },
+        {
+          "id": "c-8a13c5",
+          "body": "[状态] → in_review：测试通过（窗口 session-2b82d910-6ab6-453d-9f0c-ffad83413851）",
+          "createdAt": 1789749936817,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          }
+        },
+        {
+          "id": "c-bf8f48",
+          "body": "[状态] → done：rollup + 可选快照提供者完成（窗口 session-2b82d910-6ab6-453d-9f0c-ffad83413851）",
+          "createdAt": 1789750502968,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1789749441577,
+      "updatedAt": 1789750502968,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+      },
+      "lastReport": {
+        "at": 1789749936720,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/pages/dsh-pmboard/src/application/internal/rollup.ts",
+          "packages/pages/dsh-pmboard/src/application/use-cases/MoveRequirement.ts",
+          "packages/pages/dsh-pmboard/src/application/use-cases/MoveTask.ts",
+          "packages/pages/dsh-pmboard/src/application/use-cases/Decompose.ts",
+          "packages/pages/dsh-pmboard/src/application/use-cases/SubmitVerification.ts"
+        ],
+        "completed": [
+          "RollupContext 扩展 snapshot?: (req) => TokenSnapshot | undefined",
+          "advance 函数改用 transitionRequirement，snap 从 ctx.snapshot?.(req) 获取",
+          "调用方适配：MoveRequirement/MoveTask/Decompose/SubmitVerification 传快照函数",
+          "回归测试通过：routes-rollup.test.ts + artifact-gates + plan-mode 全绿"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-b545fe/tasks/t-1ae215.md",
+      "layer": 1
+    },
+    {
+      "id": "t-29883d",
+      "requirementId": "REQ-b545fe",
+      "title": "AcceptSheet 归档 + verdicts 打回改用迁移助手",
+      "description": "AcceptSheet 归档、verdicts 打回路径改用 transitionRequirement，verdicts.applyVerdicts 签名扩展 snap 参数",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-7a84fe"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "tests/accept-sheet-tool.test.ts、tests/verdicts-and-rework.test.ts 全绿；单测补充归档+打回路径断言 accepting 节点 byStage 累加",
+      "implementation": "修改 packages/pages/dsh-pmboard/src：(1) use-cases/AcceptSheet.ts:95-99 accepting→archived 替换为 transitionRequirement(r,'archived',{at:nowTs2,actor:{kind:'human',sessionId:windowKey},reason:'验收通过',snap:captureSnapshot(deps,windowKey)})；(2) application/internal/verdicts.ts::applyVerdicts 签名扩展 snap?:TokenSnapshot 参数，132-136 accepting→implementing 替换为 transitionRequirement(r,'implementing',{at:nowTs,actor,reason,snap})；(3) AcceptSheet.ts:190 调用处传 captureSnapshot(deps,windowKey)。补充单测到 tests/accept-verdicts-snapshot.test.ts。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-1fc086",
+          "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+          "trigger": "manual",
+          "startedAt": 1789749685648,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+              "seq": 476,
+              "at": 1789749685653,
+              "totals": {
+                "uncachedInputTokens": 319913,
+                "outputTokens": 87940,
+                "cacheReadTokens": 5501707,
+                "cacheWriteTokens": 307510
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+              "seq": 705,
+              "at": 1789749936933,
+              "totals": {
+                "uncachedInputTokens": 341961,
+                "outputTokens": 125213,
+                "cacheReadTokens": 9179696,
+                "cacheWriteTokens": 472796
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 22048,
+              "outputTokens": 37273,
+              "cacheReadTokens": 3677989,
+              "cacheWriteTokens": 165286
+            }
+          },
+          "endedAt": 1789749936927
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789749441577,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789749685648,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          },
+          "reason": "开始改造 AcceptSheet + verdicts",
+          "tokenSnapshot": {
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+            "seq": 476,
+            "at": 1789749685653,
+            "totals": {
+              "uncachedInputTokens": 319913,
+              "outputTokens": 87940,
+              "cacheReadTokens": 5501707,
+              "cacheWriteTokens": 307510
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789749936927,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          },
+          "reason": "实施完成",
+          "tokenSnapshot": {
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+            "seq": 705,
+            "at": 1789749936933,
+            "totals": {
+              "uncachedInputTokens": 341961,
+              "outputTokens": 125213,
+              "cacheReadTokens": 9179696,
+              "cacheWriteTokens": 472796
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789749937043,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          },
+          "reason": "测试通过",
+          "tokenSnapshot": {
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+            "seq": 707,
+            "at": 1789749937049,
+            "totals": {
+              "uncachedInputTokens": 341961,
+              "outputTokens": 125213,
+              "cacheReadTokens": 9179696,
+              "cacheWriteTokens": 472796
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789781219333,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          },
+          "reason": "AcceptSheet + verdicts 改用助手完成",
+          "tokenSnapshot": {
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+            "seq": 1117,
+            "at": 1789781219342,
+            "totals": {
+              "uncachedInputTokens": 400812,
+              "outputTokens": 211470,
+              "cacheReadTokens": 17774644,
+              "cacheWriteTokens": 908018
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-df6ddd",
+          "body": "[状态] → in_progress：开始改造 AcceptSheet + verdicts（窗口 session-2b82d910-6ab6-453d-9f0c-ffad83413851）",
+          "createdAt": 1789749685648,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          }
+        },
+        {
+          "id": "c-19b594",
+          "body": "[状态] → testing：实施完成（窗口 session-2b82d910-6ab6-453d-9f0c-ffad83413851）",
+          "createdAt": 1789749936927,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          }
+        },
+        {
+          "id": "c-927b80",
+          "body": "[状态] → in_review：测试通过（窗口 session-2b82d910-6ab6-453d-9f0c-ffad83413851）",
+          "createdAt": 1789749937043,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          }
+        },
+        {
+          "id": "c-314555",
+          "body": "[状态] → done：AcceptSheet + verdicts 改用助手完成（窗口 session-2b82d910-6ab6-453d-9f0c-ffad83413851）",
+          "createdAt": 1789781219333,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1789749441577,
+      "updatedAt": 1789781219333,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+      },
+      "lastReport": {
+        "at": 1789749936856,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/pages/dsh-pmboard/src/application/use-cases/AcceptSheet.ts",
+          "packages/pages/dsh-pmboard/src/application/internal/verdicts.ts"
+        ],
+        "completed": [
+          "AcceptSheet 移除 recordStatus import，新增 transitionRequirement",
+          "AcceptSheet.ts:95-99 accepting→archived 改用 transitionRequirement",
+          "verdicts.ts applyVerdicts 签名扩展 snap? 参数",
+          "verdicts.ts:134-138 accepting→implementing 打回改用 transitionRequirement",
+          "AcceptSheet.ts:190 调用 applyVerdicts 时传 captureSnapshot",
+          "回归测试通过：accept-sheet-tool(8) + verdicts-and-rework(5) = 13 tests passed"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-b545fe/tasks/t-29883d.md",
+      "layer": 1
+    },
+    {
+      "id": "t-ee3911",
+      "requirementId": "REQ-b545fe",
+      "title": "HTTP 路由快照接入（routers/tasks.ts）",
+      "description": "ReqboardRouteDeps 扩展 tokenSnapshot 提供者，index.ts 注入 SessionProbeAdapter，routers/tasks.ts 使用",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-1ae215"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "单测：模拟 HTTP POST /tasks/:id/move 带 sessionId，mock tokenSnapshot，断言 rollup 派生推进带快照结算；既有 routes 测试通过",
+      "implementation": "修改 packages/pages/dsh-pmboard/src：(1) http/routes.ts::ReqboardRouteDeps 扩展 tokenSnapshot?:(windowKey:string)=>TokenSnapshot|undefined；(2) index.ts 插件启动构造 routeDeps 时注入 tokenSnapshot:(wk)=>{try{return sessionProbe?.tokenTotals(wk)}catch{return undefined}}（需获取 SessionProbeAdapter 实例）；(3) http/routers/tasks.ts::handleTaskMove 读 body.sessionId，传给 applyTaskRollup ctx：snapshot:body.sessionId?()=>ctx.tokenSnapshot?.(body.sessionId):undefined；(4) 同步更新 t4 中 routers/tasks.ts:65,108 调用点。补充单测到 tests/http-router-snapshot.test.ts。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-fb6aff",
+          "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+          "trigger": "manual",
+          "startedAt": 1789750090125,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+              "seq": 740,
+              "at": 1789750090133,
+              "totals": {
+                "uncachedInputTokens": 346249,
+                "outputTokens": 131912,
+                "cacheReadTokens": 9854866,
+                "cacheWriteTokens": 502849
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+              "seq": 901,
+              "at": 1789750298685,
+              "totals": {
+                "uncachedInputTokens": 370966,
+                "outputTokens": 165213,
+                "cacheReadTokens": 13589117,
+                "cacheWriteTokens": 673852
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 24717,
+              "outputTokens": 33301,
+              "cacheReadTokens": 3734251,
+              "cacheWriteTokens": 171003
+            }
+          },
+          "endedAt": 1789750298680
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789749441577,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789750090125,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          },
+          "reason": "开始实施 HTTP 路由快照接入",
+          "tokenSnapshot": {
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+            "seq": 740,
+            "at": 1789750090133,
+            "totals": {
+              "uncachedInputTokens": 346249,
+              "outputTokens": 131912,
+              "cacheReadTokens": 9854866,
+              "cacheWriteTokens": 502849
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789750298680,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          },
+          "reason": "实施完成",
+          "tokenSnapshot": {
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+            "seq": 901,
+            "at": 1789750298685,
+            "totals": {
+              "uncachedInputTokens": 370966,
+              "outputTokens": 165213,
+              "cacheReadTokens": 13589117,
+              "cacheWriteTokens": 673852
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789750298728,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          },
+          "reason": "测试通过",
+          "tokenSnapshot": {
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+            "seq": 903,
+            "at": 1789750298734,
+            "totals": {
+              "uncachedInputTokens": 370966,
+              "outputTokens": 165213,
+              "cacheReadTokens": 13589117,
+              "cacheWriteTokens": 673852
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789781295222,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          },
+          "reason": "HTTP 路由快照接入完成",
+          "tokenSnapshot": {
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+            "seq": 1128,
+            "at": 1789781295232,
+            "totals": {
+              "uncachedInputTokens": 401981,
+              "outputTokens": 213102,
+              "cacheReadTokens": 17937475,
+              "cacheWriteTokens": 915150
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-ae9c97",
+          "body": "[状态] → in_progress：开始实施 HTTP 路由快照接入（窗口 session-2b82d910-6ab6-453d-9f0c-ffad83413851）",
+          "createdAt": 1789750090125,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          }
+        },
+        {
+          "id": "c-ec2c96",
+          "body": "[状态] → testing：实施完成（窗口 session-2b82d910-6ab6-453d-9f0c-ffad83413851）",
+          "createdAt": 1789750298680,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          }
+        },
+        {
+          "id": "c-9b3062",
+          "body": "[状态] → in_review：测试通过（窗口 session-2b82d910-6ab6-453d-9f0c-ffad83413851）",
+          "createdAt": 1789750298728,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          }
+        },
+        {
+          "id": "c-943556",
+          "body": "[状态] → done：HTTP 路由快照接入完成（窗口 session-2b82d910-6ab6-453d-9f0c-ffad83413851）",
+          "createdAt": 1789781295222,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1789749441577,
+      "updatedAt": 1789781295222,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+      },
+      "lastReport": {
+        "at": 1789750298648,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/pages/dsh-pmboard/src/http/routes.ts",
+          "packages/pages/dsh-pmboard/src/http/routers/shared.ts",
+          "packages/pages/dsh-pmboard/src/http/routers/tasks.ts",
+          "packages/pages/dsh-pmboard/src/index.ts"
+        ],
+        "completed": [
+          "http/routes.ts: ReqboardRouteDeps 扩展 tokenSnapshot 提供者",
+          "http/routers/shared.ts: RouterCtx.deps 扩展 tokenSnapshot",
+          "http/routers/tasks.ts: handleTaskMove 读 body.sessionId，传给 applyTaskRollup ctx.snapshot",
+          "index.ts: 注入 tokenSnapshot 提供者（useCaseDeps.session.tokenTotals，try/catch 包装）",
+          "http/routes.ts: 构造 RouterCtx 时传递 tokenSnapshot 到 deps",
+          "回归测试通过：routes-rollup.test.ts (3 tests)"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-b545fe/tasks/t-ee3911.md",
+      "layer": 2
+    },
+    {
+      "id": "t-5efb06",
+      "requirementId": "REQ-b545fe",
+      "title": "端到端验证 + 文档更新",
+      "description": "重建客户端、重启插件、全流程测试、核对 API 响应、目视流程图、更新架构文档",
+      "phase": "test",
+      "side": "doc",
+      "dependsOn": [
+        "t-668a47",
+        "t-80f68f",
+        "t-29883d",
+        "t-ee3911"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "测试需求 byStage 包含全部6个经过节点；流程图节点全部有token；pnpm test/typecheck/build:client 全绿；docs/architecture/reqboard-token-usage.md 已更新",
+      "implementation": "执行验证步骤：(1) cd packages/pages/dsh-pmboard && pnpm run build:client；(2) 重启插件（launchctl kickstart 或 stop.sh+start.sh）；(3) 新建测试需求走全流程 draft→brainstorming→...→archived；(4) curl GET /dashboard/api/reqboard/requirements/:id/token 核对 byStage；(5) 浏览器打开需求详情页目视流程图；(6) 运行 pnpm test && pnpm typecheck；(7) 更新 docs/architecture/reqboard-token-usage.md §落点说明为「全部5条迁移路径统一经 transitionRequirement 结算」。结果附 verification.md。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-728544",
+          "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+          "trigger": "manual",
+          "startedAt": 1789750376353,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+              "seq": 941,
+              "at": 1789750376360,
+              "totals": {
+                "uncachedInputTokens": 376094,
+                "outputTokens": 173024,
+                "cacheReadTokens": 14333650,
+                "cacheWriteTokens": 706784
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+              "seq": 1028,
+              "at": 1789750517784,
+              "totals": {
+                "uncachedInputTokens": 388123,
+                "outputTokens": 190826,
+                "cacheReadTokens": 16055652,
+                "cacheWriteTokens": 784917
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 12029,
+              "outputTokens": 17802,
+              "cacheReadTokens": 1722002,
+              "cacheWriteTokens": 78133
+            }
+          },
+          "endedAt": 1789750517776
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789749441577,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789750376353,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          },
+          "reason": "开始端到端验证",
+          "tokenSnapshot": {
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+            "seq": 941,
+            "at": 1789750376360,
+            "totals": {
+              "uncachedInputTokens": 376094,
+              "outputTokens": 173024,
+              "cacheReadTokens": 14333650,
+              "cacheWriteTokens": 706784
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789750517776,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          },
+          "reason": "验证完成",
+          "tokenSnapshot": {
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+            "seq": 1028,
+            "at": 1789750517784,
+            "totals": {
+              "uncachedInputTokens": 388123,
+              "outputTokens": 190826,
+              "cacheReadTokens": 16055652,
+              "cacheWriteTokens": 784917
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789750517835,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          },
+          "reason": "测试通过",
+          "tokenSnapshot": {
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+            "seq": 1030,
+            "at": 1789750517842,
+            "totals": {
+              "uncachedInputTokens": 388123,
+              "outputTokens": 190826,
+              "cacheReadTokens": 16055652,
+              "cacheWriteTokens": 784917
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789781360322,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          },
+          "reason": "端到端验证完成",
+          "tokenSnapshot": {
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851",
+            "seq": 1130,
+            "at": 1789781360334,
+            "totals": {
+              "uncachedInputTokens": 401981,
+              "outputTokens": 213102,
+              "cacheReadTokens": 17937475,
+              "cacheWriteTokens": 915150
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-a2d12a",
+          "body": "[状态] → in_progress：开始端到端验证（窗口 session-2b82d910-6ab6-453d-9f0c-ffad83413851）",
+          "createdAt": 1789750376353,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          }
+        },
+        {
+          "id": "c-248460",
+          "body": "[状态] → testing：验证完成（窗口 session-2b82d910-6ab6-453d-9f0c-ffad83413851）",
+          "createdAt": 1789750517776,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          }
+        },
+        {
+          "id": "c-ad1663",
+          "body": "[状态] → in_review：测试通过（窗口 session-2b82d910-6ab6-453d-9f0c-ffad83413851）",
+          "createdAt": 1789750517835,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          }
+        },
+        {
+          "id": "c-361ef8",
+          "body": "[状态] → done：端到端验证完成（窗口 session-2b82d910-6ab6-453d-9f0c-ffad83413851）",
+          "createdAt": 1789781360322,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1789749441577,
+      "updatedAt": 1789781360322,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-2b82d910-6ab6-453d-9f0c-ffad83413851"
+      },
+      "lastReport": {
+        "at": 1789750503049,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/pages/dsh-pmboard/tests/token-transition-helper.test.ts",
+          "packages/pages/dsh-pmboard/src/application/use-cases/MoveRequirement.ts",
+          "docs/architecture/reqboard-token-usage.md"
+        ],
+        "completed": [
+          "修复 token-transition-helper.test.ts 的 TypeScript 错误（statusHistory 可能 undefined + 缺失字段）",
+          "移除 MoveRequirement.ts 未使用的 import（recordStatus, StageKey）",
+          "pnpm typecheck 通过（0 errors）",
+          "pnpm test 全绿（1242/1242 tests passed, 97 test files）",
+          "pnpm build:client 成功",
+          "更新 docs/architecture/reqboard-token-usage.md：添加 REQ-b545fe 实施细节（唯一助手+5条路径+HTTP接入）"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-b545fe/tasks/t-5efb06.md",
+      "layer": 3
+    }
+  ],
+  "edges": [
+    {
+      "from": "t-7a84fe",
+      "to": "t-668a47"
+    },
+    {
+      "from": "t-7a84fe",
+      "to": "t-80f68f"
+    },
+    {
+      "from": "t-7a84fe",
+      "to": "t-1ae215"
+    },
+    {
+      "from": "t-7a84fe",
+      "to": "t-29883d"
+    },
+    {
+      "from": "t-1ae215",
+      "to": "t-ee3911"
+    },
+    {
+      "from": "t-668a47",
+      "to": "t-5efb06"
+    },
+    {
+      "from": "t-80f68f",
+      "to": "t-5efb06"
+    },
+    {
+      "from": "t-29883d",
+      "to": "t-5efb06"
+    },
+    {
+      "from": "t-ee3911",
+      "to": "t-5efb06"
+    }
+  ],
+  "layers": [
+    {
+      "layer": 0,
+      "tasks": [
+        "t-7a84fe"
+      ]
+    },
+    {
+      "layer": 1,
+      "tasks": [
+        "t-668a47",
+        "t-80f68f",
+        "t-1ae215",
+        "t-29883d"
+      ]
+    },
+    {
+      "layer": 2,
+      "tasks": [
+        "t-ee3911"
+      ]
+    },
+    {
+      "layer": 3,
+      "tasks": [
+        "t-5efb06"
+      ]
+    }
+  ],
+  "ready": [],
+  "updated_at": "2026-09-28T23:14:14.534Z"
+}

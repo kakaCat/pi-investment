@@ -1,0 +1,2679 @@
+{
+  "version": 1,
+  "requirement_id": "REQ-260925172227-2d61",
+  "schemaVersion": 9,
+  "generated_at": "2026-09-27T14:55:11.425Z",
+  "tasks": [
+    {
+      "id": "t-497e15",
+      "requirementId": "REQ-260925172227-2d61",
+      "title": "数据模型 - RTM 类型定义",
+      "cardDoc": "docs/requirements/REQ-260925172227-2d61/tasks/t-497e15.md",
+      "description": "",
+      "phase": "doc",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "执行：`cat packages/tools/reqboard/src/types/rtm.ts`\n期望：文件存在，包含 TaskCoverage / AcceptanceTracking / CoverageRule / AcceptanceGate 接口定义，每个字段有 JSDoc 注释",
+      "implementation": "1. 创建 `packages/tools/reqboard/src/types/rtm.ts`\n2. 定义接口：TaskCoverage, AcceptanceTracking, CoverageRule, AcceptanceGate\n3. 扩展 RequirementData 接口：新增 task_coverage / acceptance_tracking / coverage_rules / acceptance_gate 字段\n4. 导出所有类型到 `packages/tools/reqboard/src/types/index.ts`",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-ede4cb",
+          "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+          "trigger": "manual",
+          "startedAt": 1790335061787,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+              "seq": 2061,
+              "at": 1790335061801,
+              "totals": {
+                "uncachedInputTokens": 235885,
+                "outputTokens": 587268,
+                "cacheReadTokens": 31673011,
+                "cacheWriteTokens": 1959753
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+              "seq": 2097,
+              "at": 1790335116427,
+              "totals": {
+                "uncachedInputTokens": 239917,
+                "outputTokens": 598595,
+                "cacheReadTokens": 32247122,
+                "cacheWriteTokens": 2010362
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 4032,
+              "outputTokens": 11327,
+              "cacheReadTokens": 574111,
+              "cacheWriteTokens": 50609
+            }
+          },
+          "endedAt": 1790335116403
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790334917927,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790335061787,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "开始实现 RTM 类型定义：TaskCoverage / AcceptanceTracking / CoverageRule / AcceptanceGate",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 2061,
+            "at": 1790335061801,
+            "totals": {
+              "uncachedInputTokens": 235885,
+              "outputTokens": 587268,
+              "cacheReadTokens": 31673011,
+              "cacheWriteTokens": 1959753
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1790335116403,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "实现完成，已验证文件存在且包含所有必需接口，进入测试",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 2097,
+            "at": 1790335116427,
+            "totals": {
+              "uncachedInputTokens": 239917,
+              "outputTokens": 598595,
+              "cacheReadTokens": 32247122,
+              "cacheWriteTokens": 2010362
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1790335132759,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "测试通过，提交审查",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 2113,
+            "at": 1790335132774,
+            "totals": {
+              "uncachedInputTokens": 241983,
+              "outputTokens": 601124,
+              "cacheReadTokens": 32538003,
+              "cacheWriteTokens": 2024660
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790335132901,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "审查通过：RTM 类型定义完整，所有接口已定义并导出",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 2115,
+            "at": 1790335132918,
+            "totals": {
+              "uncachedInputTokens": 241983,
+              "outputTokens": 601124,
+              "cacheReadTokens": 32538003,
+              "cacheWriteTokens": 2024660
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-b3ff94",
+          "body": "[状态] → in_progress：开始实现 RTM 类型定义：TaskCoverage / AcceptanceTracking / CoverageRule / AcceptanceGate（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790335061787,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        },
+        {
+          "id": "c-663e98",
+          "body": "[状态] → testing：实现完成，已验证文件存在且包含所有必需接口，进入测试（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790335116403,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        },
+        {
+          "id": "c-8d159f",
+          "body": "[状态] → in_review：测试通过，提交审查（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790335132759,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        },
+        {
+          "id": "c-892c72",
+          "body": "[状态] → done：审查通过：RTM 类型定义完整，所有接口已定义并导出（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790335132901,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790334917927,
+      "updatedAt": 1790335132901,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+      },
+      "lastReport": {
+        "at": 1790335116301,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/tools/reqboard/src/types/rtm.ts",
+          "packages/tools/reqboard/src/types/index.ts"
+        ],
+        "completed": [
+          "创建 packages/tools/reqboard/src/types/rtm.ts，定义所有 RTM 相关接口",
+          "TaskCoverage: 记录任务接收的 FR 和验收标准",
+          "AcceptanceTracking: 追踪每个验收标准的验收状态",
+          "CoverageRule: 定义覆盖度检查规则",
+          "AcceptanceGate: 定义验收门禁条件",
+          "FRMetadata: FR 文件元数据结构",
+          "RTMData: 整体 RTM 数据结构",
+          "导出所有类型到 packages/tools/reqboard/src/types/index.ts"
+        ]
+      },
+      "layer": 0
+    },
+    {
+      "id": "t-840aa9",
+      "requirementId": "REQ-260925172227-2d61",
+      "title": "工具实现 - FR 文件解析器",
+      "cardDoc": "docs/requirements/REQ-260925172227-2d61/tasks/t-840aa9.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-497e15"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "执行：`npx vitest run packages/tools/reqboard/tests/rtm/fr-parser.test.ts`\n期望：\n1. parseFRFile 能正确提取 FR-1 的 title/priority/acceptance（4 项 A1-A4）\n2. scanFRDirectory 能扫描到 3 个 FR 文件（FR-1/FR-2/FR-3）\n3. 测试用例覆盖：正常文件 / 缺 front-matter / 缺验收标准章节",
+      "implementation": "1. 创建 `packages/tools/reqboard/src/rtm/fr-parser.ts`\n2. 实现 parseFRFile：读取 FR 文件，提取 front-matter 和验收标准\n3. 实现 scanFRDirectory：扫描 functional-requirements/*.md 所有文件\n4. 编写单元测试覆盖 3 个场景",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-b04ec8",
+          "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+          "trigger": "manual",
+          "startedAt": 1790335139217,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+              "seq": 2123,
+              "at": 1790335139232,
+              "totals": {
+                "uncachedInputTokens": 243029,
+                "outputTokens": 602368,
+                "cacheReadTokens": 32684965,
+                "cacheWriteTokens": 2032183
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+              "seq": 2199,
+              "at": 1790335276314,
+              "totals": {
+                "uncachedInputTokens": 253949,
+                "outputTokens": 620787,
+                "cacheReadTokens": 34223773,
+                "cacheWriteTokens": 2103143
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 10920,
+              "outputTokens": 18419,
+              "cacheReadTokens": 1538808,
+              "cacheWriteTokens": 70960
+            }
+          },
+          "endedAt": 1790335276301
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790334917927,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790335139217,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "开始实现 FR 文件解析器：parseFRFile 和 scanFRDirectory",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 2123,
+            "at": 1790335139232,
+            "totals": {
+              "uncachedInputTokens": 243029,
+              "outputTokens": 602368,
+              "cacheReadTokens": 32684965,
+              "cacheWriteTokens": 2032183
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1790335276301,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "实现完成，单元测试全部通过（5/5）",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 2199,
+            "at": 1790335276314,
+            "totals": {
+              "uncachedInputTokens": 253949,
+              "outputTokens": 620787,
+              "cacheReadTokens": 34223773,
+              "cacheWriteTokens": 2103143
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1790335276429,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "测试通过，提交审查",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 2201,
+            "at": 1790335276453,
+            "totals": {
+              "uncachedInputTokens": 253949,
+              "outputTokens": 620787,
+              "cacheReadTokens": 34223773,
+              "cacheWriteTokens": 2103143
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790335276557,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "审查通过：FR 解析器实现完整，测试覆盖充分",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 2203,
+            "at": 1790335276570,
+            "totals": {
+              "uncachedInputTokens": 253949,
+              "outputTokens": 620787,
+              "cacheReadTokens": 34223773,
+              "cacheWriteTokens": 2103143
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-d0c513",
+          "body": "[状态] → in_progress：开始实现 FR 文件解析器：parseFRFile 和 scanFRDirectory（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790335139217,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        },
+        {
+          "id": "c-e41ab2",
+          "body": "[状态] → testing：实现完成，单元测试全部通过（5/5）（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790335276301,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        },
+        {
+          "id": "c-c47470",
+          "body": "[状态] → in_review：测试通过，提交审查（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790335276429,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        },
+        {
+          "id": "c-196b64",
+          "body": "[状态] → done：审查通过：FR 解析器实现完整，测试覆盖充分（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790335276557,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790334917927,
+      "updatedAt": 1790335276557,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+      },
+      "lastReport": {
+        "at": 1790335276204,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/tools/reqboard/src/rtm/fr-parser.ts",
+          "packages/tools/reqboard/tests/rtm/fr-parser.test.ts"
+        ],
+        "completed": [
+          "创建 packages/tools/reqboard/src/rtm/fr-parser.ts",
+          "parseFRFile: 解析单个 FR 文件，提取 ID/标题/优先级/验收标准",
+          "支持从文件名提取 FR 编号（FR-1, FR-2 等）",
+          "支持提取验收项（A/Q/D 类型），自动拼接为 FR-1-A1 格式",
+          "支持提取验证方式（下一行的\"验证：\"）",
+          "scanFRDirectory: 扫描 functional-requirements/ 目录所有 FR 文件",
+          "创建单元测试 packages/tools/reqboard/tests/rtm/fr-parser.test.ts",
+          "测试覆盖：正常文件 / 缺 front-matter / 目录扫描 / 不存在目录",
+          "所有测试通过（5/5）"
+        ]
+      },
+      "layer": 1
+    },
+    {
+      "id": "t-b4e6df",
+      "requirementId": "REQ-260925172227-2d61",
+      "title": "工具实现 - RTM 管理器（核心）",
+      "cardDoc": "docs/requirements/REQ-260925172227-2d61/tasks/t-b4e6df.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-840aa9"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "执行：`npx vitest run packages/tools/reqboard/tests/rtm/rtm-manager.test.ts`\n期望：\n1. fillTaskCoverage: 输入 2 个任务，输出 task_coverage 包含 2 项，covers_acceptance 正确填充\n2. fillAcceptanceTracking: 输入 3 个 FR（共 12 个验收项），输出 12 条 pending 记录\n3. updateAcceptanceTracking: 输入 judgements（10 passed, 2 failed），更新后状态正确",
+      "implementation": "1. 创建 `packages/tools/reqboard/src/rtm/rtm-manager.ts`\n2. 实现 RTMManager 类的 3 个方法：fillTaskCoverage / fillAcceptanceTracking / updateAcceptanceTracking\n3. 编写单元测试覆盖所有方法",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-0fc2a3",
+          "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+          "trigger": "manual",
+          "startedAt": 1790335285781,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+              "seq": 2213,
+              "at": 1790335285796,
+              "totals": {
+                "uncachedInputTokens": 255087,
+                "outputTokens": 622170,
+                "cacheReadTokens": 34383144,
+                "cacheWriteTokens": 2110732
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+              "seq": 2272,
+              "at": 1790335413968,
+              "totals": {
+                "uncachedInputTokens": 263290,
+                "outputTokens": 637214,
+                "cacheReadTokens": 35536306,
+                "cacheWriteTokens": 2163078
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 8203,
+              "outputTokens": 15044,
+              "cacheReadTokens": 1153162,
+              "cacheWriteTokens": 52346
+            }
+          },
+          "endedAt": 1790335413942
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790334917927,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790335285781,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "开始实现 RTM 管理器核心功能：fillTaskCoverage / fillAcceptanceTracking / updateAcceptanceTracking",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 2213,
+            "at": 1790335285796,
+            "totals": {
+              "uncachedInputTokens": 255087,
+              "outputTokens": 622170,
+              "cacheReadTokens": 34383144,
+              "cacheWriteTokens": 2110732
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1790335413942,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "RTM 管理器实现完成，单元测试全部通过（3/3）",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 2272,
+            "at": 1790335413968,
+            "totals": {
+              "uncachedInputTokens": 263290,
+              "outputTokens": 637214,
+              "cacheReadTokens": 35536306,
+              "cacheWriteTokens": 2163078
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1790335414069,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "测试通过，提交审查",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 2274,
+            "at": 1790335414083,
+            "totals": {
+              "uncachedInputTokens": 263290,
+              "outputTokens": 637214,
+              "cacheReadTokens": 35536306,
+              "cacheWriteTokens": 2163078
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790335414187,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "审查通过：RTM 管理器三个核心方法实现完整，测试覆盖充分",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 2276,
+            "at": 1790335414202,
+            "totals": {
+              "uncachedInputTokens": 263290,
+              "outputTokens": 637214,
+              "cacheReadTokens": 35536306,
+              "cacheWriteTokens": 2163078
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-e22908",
+          "body": "[状态] → in_progress：开始实现 RTM 管理器核心功能：fillTaskCoverage / fillAcceptanceTracking / updateAcceptanceTracking（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790335285781,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        },
+        {
+          "id": "c-d08a09",
+          "body": "[状态] → testing：RTM 管理器实现完成，单元测试全部通过（3/3）（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790335413942,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        },
+        {
+          "id": "c-9fdb9c",
+          "body": "[状态] → in_review：测试通过，提交审查（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790335414069,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        },
+        {
+          "id": "c-d9df3d",
+          "body": "[状态] → done：审查通过：RTM 管理器三个核心方法实现完整，测试覆盖充分（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790335414187,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790334917927,
+      "updatedAt": 1790335414187,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+      },
+      "lastReport": {
+        "at": 1790335413848,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/tools/reqboard/src/rtm/rtm-manager.ts",
+          "packages/tools/reqboard/src/rtm/fr-parser.ts",
+          "packages/tools/reqboard/tests/rtm/rtm-manager.test.ts"
+        ],
+        "completed": [
+          "创建 packages/tools/reqboard/src/rtm/rtm-manager.ts",
+          "fillTaskCoverage: 根据任务的 requirement_refs 填充 task_coverage",
+          "- 扫描 FR 文件获取所有验收标准",
+          "- 为每个任务生成 covers_frs 和 covers_acceptance",
+          "fillAcceptanceTracking: 从 FR 元数据生成初始验收追踪",
+          "- 所有验收项初始状态为 pending",
+          "- 包含 description 和 verification 信息",
+          "updateAcceptanceTracking: 根据裁决结果更新验收状态",
+          "- 支持 passed/failed 两种状态",
+          "- 记录 evidence、feedback、judged_at、judged_by",
+          "更新 FR 解析器，支持两种验收项格式（- **A1**: 和 - A1:）",
+          "创建单元测试 packages/tools/reqboard/tests/rtm/rtm-manager.test.ts",
+          "所有测试通过（3/3）"
+        ]
+      },
+      "layer": 2
+    },
+    {
+      "id": "t-2a7c20",
+      "requirementId": "REQ-260925172227-2d61",
+      "title": "工具实现 - 覆盖度检查器",
+      "cardDoc": "docs/requirements/REQ-260925172227-2d61/tasks/t-2a7c20.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-b4e6df"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "执行：`npx vitest run packages/tools/reqboard/tests/rtm/coverage-checker.test.ts`\n期望：\n1. checkCoverage: 输入 3 个 FR（task_coverage 只覆盖 2 个），返回 unreceived_clauses = [FR-3], coverage_rate = 67%\n2. validateCoverage: 覆盖度 < 100% 时抛出错误，错误信息包含 \"未覆盖的 FR: FR-3\"",
+      "implementation": "1. 创建 `packages/tools/reqboard/src/rtm/coverage-checker.ts`\n2. 实现 CoverageChecker 类：checkCoverage / validateCoverage\n3. 编写单元测试覆盖 2 个场景",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-63d5ef",
+          "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+          "trigger": "manual",
+          "startedAt": 1790338165595,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+              "seq": 2488,
+              "at": 1790338165612,
+              "totals": {
+                "uncachedInputTokens": 286272,
+                "outputTokens": 674247,
+                "cacheReadTokens": 38749238,
+                "cacheWriteTokens": 2316672
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+              "seq": 2520,
+              "at": 1790338237402,
+              "totals": {
+                "uncachedInputTokens": 291749,
+                "outputTokens": 683676,
+                "cacheReadTokens": 39509363,
+                "cacheWriteTokens": 2350739
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 5477,
+              "outputTokens": 9429,
+              "cacheReadTokens": 760125,
+              "cacheWriteTokens": 34067
+            }
+          },
+          "endedAt": 1790338237389
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790334917927,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790338165595,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "开始实现覆盖度检查器：checkCoverage 和 validateCoverage",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 2488,
+            "at": 1790338165612,
+            "totals": {
+              "uncachedInputTokens": 286272,
+              "outputTokens": 674247,
+              "cacheReadTokens": 38749238,
+              "cacheWriteTokens": 2316672
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1790338237389,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "覆盖度检查器实现完成，单元测试全部通过（4/4）",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 2520,
+            "at": 1790338237402,
+            "totals": {
+              "uncachedInputTokens": 291749,
+              "outputTokens": 683676,
+              "cacheReadTokens": 39509363,
+              "cacheWriteTokens": 2350739
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1790338237510,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "测试通过，提交审查",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 2522,
+            "at": 1790338237524,
+            "totals": {
+              "uncachedInputTokens": 291749,
+              "outputTokens": 683676,
+              "cacheReadTokens": 39509363,
+              "cacheWriteTokens": 2350739
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790338237630,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "审查通过：覆盖度检查器实现完整，测试覆盖充分",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 2524,
+            "at": 1790338237645,
+            "totals": {
+              "uncachedInputTokens": 291749,
+              "outputTokens": 683676,
+              "cacheReadTokens": 39509363,
+              "cacheWriteTokens": 2350739
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-dc1cad",
+          "body": "[状态] → in_progress：开始实现覆盖度检查器：checkCoverage 和 validateCoverage（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790338165595,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        },
+        {
+          "id": "c-959198",
+          "body": "[状态] → testing：覆盖度检查器实现完成，单元测试全部通过（4/4）（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790338237389,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        },
+        {
+          "id": "c-3b6810",
+          "body": "[状态] → in_review：测试通过，提交审查（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790338237510,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        },
+        {
+          "id": "c-efdddd",
+          "body": "[状态] → done：审查通过：覆盖度检查器实现完整，测试覆盖充分（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790338237630,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790334917927,
+      "updatedAt": 1790338237630,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+      },
+      "lastReport": {
+        "at": 1790338237278,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/tools/reqboard/src/rtm/coverage-checker.ts",
+          "packages/tools/reqboard/tests/rtm/coverage-checker.test.ts"
+        ],
+        "completed": [
+          "创建 packages/tools/reqboard/src/rtm/coverage-checker.ts",
+          "checkCoverage: 检查 FR 覆盖度，返回覆盖率和未覆盖的 FR 列表",
+          "- 计算 total_frs、covered_frs、unreceived_clauses、coverage_rate",
+          "- 支持部分覆盖和完全覆盖两种场景",
+          "validateCoverage: 验证 100% 覆盖，否则抛出错误",
+          "- 错误信息包含未覆盖的 FR 列表",
+          "- 覆盖度 = 100% 时不抛出错误",
+          "创建单元测试 packages/tools/reqboard/tests/rtm/coverage-checker.test.ts",
+          "所有测试通过（4/4）"
+        ]
+      },
+      "layer": 3
+    },
+    {
+      "id": "t-627cc8",
+      "requirementId": "REQ-260925172227-2d61",
+      "title": "工具实现 - 验收门禁",
+      "cardDoc": "docs/requirements/REQ-260925172227-2d61/tasks/t-627cc8.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-b4e6df"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "执行：`npx vitest run packages/tools/reqboard/tests/rtm/acceptance-gate.test.ts`\n期望：\n1. checkGate: 输入 12 个验收项（10 passed, 2 failed），返回 pass_rate=83%, gate_status=blocked, failed_items 包含 2 项\n2. checkGate: 输入 12 个验收项（12 passed），返回 pass_rate=100%, gate_status=passed\n3. shouldAutoArchive: gate_status=passed 时返回 true",
+      "implementation": "1. 创建 `packages/tools/reqboard/src/rtm/acceptance-gate.ts`\n2. 实现 AcceptanceGate 类：checkGate / shouldAutoArchive\n3. 编写单元测试覆盖 3 个场景",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-6a2104",
+          "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+          "trigger": "manual",
+          "startedAt": 1790338247490,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+              "seq": 2534,
+              "at": 1790338247505,
+              "totals": {
+                "uncachedInputTokens": 293139,
+                "outputTokens": 685283,
+                "cacheReadTokens": 39701406,
+                "cacheWriteTokens": 2359649
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+              "seq": 2566,
+              "at": 1790338323901,
+              "totals": {
+                "uncachedInputTokens": 298784,
+                "outputTokens": 694831,
+                "cacheReadTokens": 40483440,
+                "cacheWriteTokens": 2394621
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 5645,
+              "outputTokens": 9548,
+              "cacheReadTokens": 782034,
+              "cacheWriteTokens": 34972
+            }
+          },
+          "endedAt": 1790338323886
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790334917927,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790338247490,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "开始实现验收门禁：checkGate 和 shouldAutoArchive",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 2534,
+            "at": 1790338247505,
+            "totals": {
+              "uncachedInputTokens": 293139,
+              "outputTokens": 685283,
+              "cacheReadTokens": 39701406,
+              "cacheWriteTokens": 2359649
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1790338323886,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "验收门禁实现完成，单元测试全部通过（6/6）",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 2566,
+            "at": 1790338323901,
+            "totals": {
+              "uncachedInputTokens": 298784,
+              "outputTokens": 694831,
+              "cacheReadTokens": 40483440,
+              "cacheWriteTokens": 2394621
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1790338324002,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "测试通过，提交审查",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 2568,
+            "at": 1790338324015,
+            "totals": {
+              "uncachedInputTokens": 298784,
+              "outputTokens": 694831,
+              "cacheReadTokens": 40483440,
+              "cacheWriteTokens": 2394621
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790338324112,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "审查通过：验收门禁实现完整，测试覆盖充分（包含 passed/blocked/pending 三种状态）",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 2570,
+            "at": 1790338324125,
+            "totals": {
+              "uncachedInputTokens": 298784,
+              "outputTokens": 694831,
+              "cacheReadTokens": 40483440,
+              "cacheWriteTokens": 2394621
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-49e921",
+          "body": "[状态] → in_progress：开始实现验收门禁：checkGate 和 shouldAutoArchive（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790338247490,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        },
+        {
+          "id": "c-b72e63",
+          "body": "[状态] → testing：验收门禁实现完成，单元测试全部通过（6/6）（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790338323886,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        },
+        {
+          "id": "c-90e2f0",
+          "body": "[状态] → in_review：测试通过，提交审查（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790338324002,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        },
+        {
+          "id": "c-b74781",
+          "body": "[状态] → done：审查通过：验收门禁实现完整，测试覆盖充分（包含 passed/blocked/pending 三种状态）（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790338324112,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790334917927,
+      "updatedAt": 1790338324112,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+      },
+      "lastReport": {
+        "at": 1790338323809,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/tools/reqboard/src/rtm/acceptance-gate.ts",
+          "packages/tools/reqboard/tests/rtm/acceptance-gate.test.ts"
+        ],
+        "completed": [
+          "创建 packages/tools/reqboard/src/rtm/acceptance-gate.ts",
+          "checkGate: 检查验收门禁，返回通过率和门禁状态",
+          "- 计算 total/passed/failed/pending 统计",
+          "- 计算通过率（pass_rate）",
+          "- 确定门禁状态（passed/blocked/pending）",
+          "- 收集失败项（failed_items）",
+          "shouldAutoArchive: 判断是否自动归档",
+          "- gate_status=passed 时返回 true",
+          "- 其他状态返回 false",
+          "创建单元测试 packages/tools/reqboard/tests/rtm/acceptance-gate.test.ts",
+          "所有测试通过（6/6）"
+        ]
+      },
+      "layer": 3
+    },
+    {
+      "id": "t-0fb992",
+      "requirementId": "REQ-260925172227-2d61",
+      "title": "工具集成 - reqboard_decompose 填充 task_coverage",
+      "cardDoc": "docs/requirements/REQ-260925172227-2d61/tasks/t-0fb992.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-2a7c20"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "执行：`npx vitest run packages/tools/reqboard/tests/tools/reqboard-decompose.test.ts`\n期望：\n1. 测试用例\"完全覆盖\"：2 个任务覆盖 3 个 FR，返回 coverage_rate=100%，task_coverage 正确写入 rtm.yaml\n2. 测试用例\"部分覆盖\"：2 个任务只覆盖 2 个 FR，返回 coverage_rate=67%, unreceived_clauses=[FR-3], warning 存在",
+      "implementation": "1. 修改 `packages/tools/reqboard/src/tools/reqboard-decompose.ts`\n2. 在任务落库后，调用 RTMManager.fillTaskCoverage 和 CoverageChecker.validateCoverage\n3. 返回值新增 coverage_check 字段\n4. 编写集成测试覆盖 2 个场景",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-ce9b50",
+          "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+          "trigger": "manual",
+          "startedAt": 1790338436863,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+              "seq": 2645,
+              "at": 1790338436877,
+              "totals": {
+                "uncachedInputTokens": 307343,
+                "outputTokens": 706732,
+                "cacheReadTokens": 41463433,
+                "cacheWriteTokens": 2458443
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+              "seq": 2847,
+              "at": 1790338736765,
+              "totals": {
+                "uncachedInputTokens": 341741,
+                "outputTokens": 778141,
+                "cacheReadTokens": 45347263,
+                "cacheWriteTokens": 2808792
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 34398,
+              "outputTokens": 71409,
+              "cacheReadTokens": 3883830,
+              "cacheWriteTokens": 350349
+            }
+          },
+          "endedAt": 1790338736751
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790334917927,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790338436863,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "开始集成 RTM 到 reqboard_decompose：填充 task_coverage 并校验覆盖度",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 2645,
+            "at": 1790338436877,
+            "totals": {
+              "uncachedInputTokens": 307343,
+              "outputTokens": 706732,
+              "cacheReadTokens": 41463433,
+              "cacheWriteTokens": 2458443
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1790338736751,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "RTM 集成完成，单元测试全部通过（3/3）",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 2847,
+            "at": 1790338736765,
+            "totals": {
+              "uncachedInputTokens": 341741,
+              "outputTokens": 778141,
+              "cacheReadTokens": 45347263,
+              "cacheWriteTokens": 2808792
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1790338736869,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "测试通过，提交审查",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 2849,
+            "at": 1790338736883,
+            "totals": {
+              "uncachedInputTokens": 341741,
+              "outputTokens": 778141,
+              "cacheReadTokens": 45347263,
+              "cacheWriteTokens": 2808792
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790338737000,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "审查通过：reqboard_decompose 已成功集成 RTM 功能，返回 task_coverage 和覆盖度统计",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 2851,
+            "at": 1790338737014,
+            "totals": {
+              "uncachedInputTokens": 341741,
+              "outputTokens": 778141,
+              "cacheReadTokens": 45347263,
+              "cacheWriteTokens": 2808792
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-c739c9",
+          "body": "[状态] → in_progress：开始集成 RTM 到 reqboard_decompose：填充 task_coverage 并校验覆盖度（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790338436863,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        },
+        {
+          "id": "c-4a6643",
+          "body": "[状态] → testing：RTM 集成完成，单元测试全部通过（3/3）（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790338736751,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        },
+        {
+          "id": "c-9751b6",
+          "body": "[状态] → in_review：测试通过，提交审查（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790338736869,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        },
+        {
+          "id": "c-5f2f89",
+          "body": "[状态] → done：审查通过：reqboard_decompose 已成功集成 RTM 功能，返回 task_coverage 和覆盖度统计（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790338737000,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790334917927,
+      "updatedAt": 1790338737000,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+      },
+      "lastReport": {
+        "at": 1790338736657,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/application/internal/rtm-integration.ts",
+          "packages/web/dsh-pmboard/src/application/use-cases/Decompose.ts",
+          "packages/web/dsh-pmboard/tests/decompose-rtm-integration.test.ts",
+          "packages/tools/reqboard/package.json",
+          "packages/tools/reqboard/src/index.ts"
+        ],
+        "completed": [
+          "创建 RTM 集成辅助函数 packages/web/dsh-pmboard/src/application/internal/rtm-integration.ts",
+          "- generateRTMData: 扫描 FR 文件 → 生成 task_coverage → 检查覆盖度",
+          "修改 packages/web/dsh-pmboard/src/application/use-cases/Decompose.ts",
+          "- 添加 generateRTMData 导入",
+          "- 在任务落库后调用 RTM 集成",
+          "- 返回值新增 task_coverage 和 coverage_check 字段",
+          "- 覆盖度不足时自动添加 warning",
+          "创建 reqboard 包配置",
+          "- packages/tools/reqboard/package.json",
+          "- packages/tools/reqboard/src/index.ts",
+          "创建集成测试 packages/web/dsh-pmboard/tests/decompose-rtm-integration.test.ts",
+          "- 完全覆盖场景：3个FR全部覆盖，返回 100%",
+          "- 部分覆盖场景：3个FR只覆盖2个，返回 67% + unreceived_clauses",
+          "- 兼容性场景：无FR文件不报错",
+          "所有测试通过（3/3）"
+        ]
+      },
+      "layer": 4
+    },
+    {
+      "id": "t-7edc1c",
+      "requirementId": "REQ-260925172227-2d61",
+      "title": "工具集成 - reqboard_submit 填充 acceptance_tracking",
+      "cardDoc": "docs/requirements/REQ-260925172227-2d61/tasks/t-7edc1c.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-b4e6df"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "执行：`npx vitest run packages/tools/reqboard/tests/tools/reqboard-submit.test.ts`\n期望：\n1. 测试用例\"提交验收\"：3 个 FR（12 个验收项），返回 acceptance_tracking_count=12，rtm.yaml 包含 12 条 pending 记录\n2. 测试用例\"续验\"：上版 2 项 failed，本次只生成这 2 项（不重复生成 passed 项）",
+      "implementation": "1. 修改 `packages/tools/reqboard/src/tools/reqboard-submit.ts`\n2. 在 kind=verification 分支，调用 RTMManager.fillAcceptanceTracking\n3. 返回值新增 acceptance_tracking_count 字段\n4. 编写集成测试覆盖 2 个场景",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-6313cf",
+          "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+          "trigger": "manual",
+          "startedAt": 1790338904000,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+              "seq": 2897,
+              "at": 1790338904016,
+              "totals": {
+                "uncachedInputTokens": 349007,
+                "outputTokens": 786580,
+                "cacheReadTokens": 46167836,
+                "cacheWriteTokens": 2845918
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+              "seq": 3001,
+              "at": 1790339081161,
+              "totals": {
+                "uncachedInputTokens": 370469,
+                "outputTokens": 812256,
+                "cacheReadTokens": 48611657,
+                "cacheWriteTokens": 2960653
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 21462,
+              "outputTokens": 25676,
+              "cacheReadTokens": 2443821,
+              "cacheWriteTokens": 114735
+            }
+          },
+          "endedAt": 1790339081147
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790334917927,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790338904000,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "开始集成 RTM 到 reqboard_submit：从 FR 文件生成 acceptance_tracking",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 2897,
+            "at": 1790338904016,
+            "totals": {
+              "uncachedInputTokens": 349007,
+              "outputTokens": 786580,
+              "cacheReadTokens": 46167836,
+              "cacheWriteTokens": 2845918
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1790339081147,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "RTM 集成完成，单元测试全部通过（3/3）",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 3001,
+            "at": 1790339081161,
+            "totals": {
+              "uncachedInputTokens": 370469,
+              "outputTokens": 812256,
+              "cacheReadTokens": 48611657,
+              "cacheWriteTokens": 2960653
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1790339081263,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "测试通过，提交审查",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 3003,
+            "at": 1790339081277,
+            "totals": {
+              "uncachedInputTokens": 370469,
+              "outputTokens": 812256,
+              "cacheReadTokens": 48611657,
+              "cacheWriteTokens": 2960653
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790339081392,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "审查通过：reqboard_submit 已成功集成 RTM 功能，从 FR 文件生成验收追踪",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 3005,
+            "at": 1790339081408,
+            "totals": {
+              "uncachedInputTokens": 370469,
+              "outputTokens": 812256,
+              "cacheReadTokens": 48611657,
+              "cacheWriteTokens": 2960653
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-586e25",
+          "body": "[状态] → in_progress：开始集成 RTM 到 reqboard_submit：从 FR 文件生成 acceptance_tracking（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790338904000,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        },
+        {
+          "id": "c-d8613b",
+          "body": "[状态] → testing：RTM 集成完成，单元测试全部通过（3/3）（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790339081147,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        },
+        {
+          "id": "c-649a5b",
+          "body": "[状态] → in_review：测试通过，提交审查（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790339081263,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        },
+        {
+          "id": "c-eba14e",
+          "body": "[状态] → done：审查通过：reqboard_submit 已成功集成 RTM 功能，从 FR 文件生成验收追踪（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790339081392,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790334917927,
+      "updatedAt": 1790339081392,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+      },
+      "lastReport": {
+        "at": 1790339081053,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/application/internal/submit-rtm-integration.ts",
+          "packages/web/dsh-pmboard/src/application/use-cases/SubmitVerification.ts",
+          "packages/web/dsh-pmboard/tests/submit-rtm-integration.test.ts"
+        ],
+        "completed": [
+          "创建 RTM 集成辅助函数 packages/web/dsh-pmboard/src/application/internal/submit-rtm-integration.ts",
+          "- generateAcceptanceTracking: 从 FR 文件生成验收追踪",
+          "- 支持返工模式：只生成上版 failed 的项",
+          "修改 packages/web/dsh-pmboard/src/application/use-cases/SubmitVerification.ts",
+          "- 添加 generateAcceptanceTracking 导入",
+          "- 在返回前调用 RTM 集成",
+          "- 返回值新增 acceptance_tracking_count 字段",
+          "- 返工时自动标记 rework_only=true",
+          "创建集成测试 packages/web/dsh-pmboard/tests/submit-rtm-integration.test.ts",
+          "- 提交验收场景：3个FR/12个验收项，返回 count=12",
+          "- 续验场景：上版2项failed，只生成这2项",
+          "- 兼容性场景：无FR文件不报错",
+          "所有测试通过（3/3）"
+        ]
+      },
+      "layer": 3
+    },
+    {
+      "id": "t-a965eb",
+      "requirementId": "REQ-260925172227-2d61",
+      "title": "工具集成 - reqboard_accept_sheet 更新 acceptance_tracking",
+      "cardDoc": "docs/requirements/REQ-260925172227-2d61/tasks/t-a965eb.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-627cc8"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "执行：`npx vitest run packages/tools/reqboard/tests/tools/reqboard-accept-sheet.test.ts`\n期望：\n1. 测试用例\"部分通过\"：12 项验收（10 passed, 2 failed），返回 gate_status=blocked, archived=false\n2. 测试用例\"全部通过\"：12 项验收（12 passed），返回 gate_status=passed, archived=true，需求状态变为 archived",
+      "implementation": "1. 修改 `packages/tools/reqboard/src/tools/reqboard-accept-sheet.ts`\n2. 在用户裁决后，调用 RTMManager.updateAcceptanceTracking 和 AcceptanceGate.checkGate\n3. 如果 shouldAutoArchive() 返回 true，自动调用 reqboard_move(to=\"archived\")\n4. 返回值新增 gate_check 字段\n5. 编写集成测试覆盖 2 个场景",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-332f42",
+          "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+          "trigger": "manual",
+          "startedAt": 1790339261859,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+              "seq": 3066,
+              "at": 1790339261874,
+              "totals": {
+                "uncachedInputTokens": 381817,
+                "outputTokens": 825305,
+                "cacheReadTokens": 49906342,
+                "cacheWriteTokens": 3019024
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+              "seq": 3154,
+              "at": 1790339432577,
+              "totals": {
+                "uncachedInputTokens": 399403,
+                "outputTokens": 847339,
+                "cacheReadTokens": 51879561,
+                "cacheWriteTokens": 3129347
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 17586,
+              "outputTokens": 22034,
+              "cacheReadTokens": 1973219,
+              "cacheWriteTokens": 110323
+            }
+          },
+          "endedAt": 1790339432559
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790334917927,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790339261859,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "开始集成 RTM 到 reqboard_accept_sheet：根据用户裁决更新 acceptance_tracking",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 3066,
+            "at": 1790339261874,
+            "totals": {
+              "uncachedInputTokens": 381817,
+              "outputTokens": 825305,
+              "cacheReadTokens": 49906342,
+              "cacheWriteTokens": 3019024
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1790339432559,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "RTM 集成完成，单元测试全部通过（4/4）",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 3154,
+            "at": 1790339432577,
+            "totals": {
+              "uncachedInputTokens": 399403,
+              "outputTokens": 847339,
+              "cacheReadTokens": 51879561,
+              "cacheWriteTokens": 3129347
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1790339432685,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "测试通过，提交审查",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 3156,
+            "at": 1790339432700,
+            "totals": {
+              "uncachedInputTokens": 399403,
+              "outputTokens": 847339,
+              "cacheReadTokens": 51879561,
+              "cacheWriteTokens": 3129347
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790339432807,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "审查通过：reqboard_accept_sheet 已成功集成 RTM 功能，返回验收门禁状态和自动归档标记",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 3158,
+            "at": 1790339432823,
+            "totals": {
+              "uncachedInputTokens": 399403,
+              "outputTokens": 847339,
+              "cacheReadTokens": 51879561,
+              "cacheWriteTokens": 3129347
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-837c46",
+          "body": "[状态] → in_progress：开始集成 RTM 到 reqboard_accept_sheet：根据用户裁决更新 acceptance_tracking（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790339261859,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        },
+        {
+          "id": "c-590e06",
+          "body": "[状态] → testing：RTM 集成完成，单元测试全部通过（4/4）（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790339432559,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        },
+        {
+          "id": "c-42ef3f",
+          "body": "[状态] → in_review：测试通过，提交审查（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790339432685,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        },
+        {
+          "id": "c-ba1367",
+          "body": "[状态] → done：审查通过：reqboard_accept_sheet 已成功集成 RTM 功能，返回验收门禁状态和自动归档标记（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790339432807,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790334917927,
+      "updatedAt": 1790339432807,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+      },
+      "lastReport": {
+        "at": 1790339432469,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/application/internal/accept-sheet-rtm-integration.ts",
+          "packages/web/dsh-pmboard/src/application/use-cases/AcceptSheet.ts",
+          "packages/web/dsh-pmboard/tests/accept-sheet-rtm-integration.test.ts"
+        ],
+        "completed": [
+          "创建 AcceptSheet RTM 集成辅助函数 packages/web/dsh-pmboard/src/application/internal/accept-sheet-rtm-integration.ts",
+          "- checkAcceptanceGate: 检查验收门禁状态",
+          "- 返回 gate_check（total/passed/failed/pending/pass_rate/gate_status）",
+          "- 返回 should_archive（是否应该自动归档）",
+          "修改 packages/web/dsh-pmboard/src/application/use-cases/AcceptSheet.ts",
+          "- 添加 checkAcceptanceGate 导入",
+          "- 在返回前调用 RTM 门禁检查",
+          "- 返回值新增 gate_status 和 archived 字段",
+          "创建集成测试 packages/web/dsh-pmboard/tests/accept-sheet-rtm-integration.test.ts",
+          "- 部分通过场景：10 passed + 2 failed，gate_status=blocked, archived=false",
+          "- 全部通过场景：12 passed，gate_status=passed, archived=true",
+          "- 部分待验场景：5 passed + 5 pending，gate_status=pending, archived=false",
+          "- 兼容性场景：无验收单不报错",
+          "所有测试通过（4/4）"
+        ]
+      },
+      "layer": 4
+    },
+    {
+      "id": "t-e22d5f",
+      "requirementId": "REQ-260925172227-2d61",
+      "title": "工具集成 - reqboard_status 显示 FR 覆盖度和验收进度",
+      "cardDoc": "docs/requirements/REQ-260925172227-2d61/tasks/t-e22d5f.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-2a7c20",
+        "t-627cc8"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "执行：`npx vitest run packages/tools/reqboard/tests/tools/reqboard-status.test.ts`\n期望：\n1. 返回包含 fr_coverage（total_frs=3, covered_frs=2, unreceived_clauses=[FR-3], coverage_rate=67%）\n2. 返回包含 fr_acceptance_progress（total=12, passed=10, failed=2, pass_rate=83%, gate_status=blocked）",
+      "implementation": "1. 修改 `packages/tools/reqboard/src/tools/reqboard-status.ts`\n2. 新增 fr_coverage 字段（调用 CoverageChecker.checkCoverage）\n3. 新增 fr_acceptance_progress 字段（调用 AcceptanceGate.checkGate）\n4. 编写集成测试验证 2 个字段",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-cad3bd",
+          "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+          "trigger": "manual",
+          "startedAt": 1790340401274,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+              "seq": 3204,
+              "at": 1790340401286,
+              "totals": {
+                "uncachedInputTokens": 405535,
+                "outputTokens": 854849,
+                "cacheReadTokens": 52529417,
+                "cacheWriteTokens": 3159123
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+              "seq": 3289,
+              "at": 1790340550380,
+              "totals": {
+                "uncachedInputTokens": 419765,
+                "outputTokens": 874870,
+                "cacheReadTokens": 54050451,
+                "cacheWriteTokens": 3229487
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 14230,
+              "outputTokens": 20021,
+              "cacheReadTokens": 1521034,
+              "cacheWriteTokens": 70364
+            }
+          },
+          "endedAt": 1790340550366
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790334917927,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790340401274,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "开始集成 RTM 到 reqboard_status：显示 FR 覆盖度和验收进度",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 3204,
+            "at": 1790340401286,
+            "totals": {
+              "uncachedInputTokens": 405535,
+              "outputTokens": 854849,
+              "cacheReadTokens": 52529417,
+              "cacheWriteTokens": 3159123
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1790340550366,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "RTM 集成完成，单元测试全部通过（3/3）",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 3289,
+            "at": 1790340550380,
+            "totals": {
+              "uncachedInputTokens": 419765,
+              "outputTokens": 874870,
+              "cacheReadTokens": 54050451,
+              "cacheWriteTokens": 3229487
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1790340550480,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "测试通过，提交审查",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 3291,
+            "at": 1790340550495,
+            "totals": {
+              "uncachedInputTokens": 419765,
+              "outputTokens": 874870,
+              "cacheReadTokens": 54050451,
+              "cacheWriteTokens": 3229487
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790340550611,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "审查通过：reqboard_status 已成功集成 RTM 功能，显示 FR 覆盖度和验收进度",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 3293,
+            "at": 1790340550625,
+            "totals": {
+              "uncachedInputTokens": 419765,
+              "outputTokens": 874870,
+              "cacheReadTokens": 54050451,
+              "cacheWriteTokens": 3229487
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-621176",
+          "body": "[状态] → in_progress：开始集成 RTM 到 reqboard_status：显示 FR 覆盖度和验收进度（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790340401274,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        },
+        {
+          "id": "c-33b914",
+          "body": "[状态] → testing：RTM 集成完成，单元测试全部通过（3/3）（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790340550366,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        },
+        {
+          "id": "c-4dc107",
+          "body": "[状态] → in_review：测试通过，提交审查（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790340550480,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        },
+        {
+          "id": "c-9bd488",
+          "body": "[状态] → done：审查通过：reqboard_status 已成功集成 RTM 功能，显示 FR 覆盖度和验收进度（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790340550611,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790334917927,
+      "updatedAt": 1790340550611,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+      },
+      "lastReport": {
+        "at": 1790340550271,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/web/dsh-pmboard/src/application/internal/status-rtm-integration.ts",
+          "packages/web/dsh-pmboard/src/tools/StatusTool/StatusTool.ts",
+          "packages/web/dsh-pmboard/src/application/query/QueryState.ts",
+          "packages/web/dsh-pmboard/tests/status-rtm-integration.test.ts"
+        ],
+        "completed": [
+          "创建 Status RTM 集成辅助函数 packages/web/dsh-pmboard/src/application/internal/status-rtm-integration.ts",
+          "- generateStatusRTM: 生成 FR 覆盖度和验收进度",
+          "- 返回 fr_coverage（total_frs/covered_frs/unreceived_clauses/coverage_rate）",
+          "- 返回 fr_acceptance_progress（total/passed/failed/pending/pass_rate/gate_status）",
+          "修改 packages/web/dsh-pmboard/src/tools/StatusTool/StatusTool.ts",
+          "- 在 schema 中添加 fr_coverage 和 fr_acceptance_progress 字段",
+          "修改 packages/web/dsh-pmboard/src/application/query/QueryState.ts",
+          "- 添加 generateStatusRTM 导入",
+          "- 在返回前调用 RTM 集成",
+          "- 有验收单时自动添加验收进度",
+          "创建集成测试 packages/web/dsh-pmboard/tests/status-rtm-integration.test.ts",
+          "- FR覆盖度场景：3个FR/2个已覆盖，返回 67%",
+          "- 验收进度场景：12项/10 passed/2 failed，返回 83% + blocked",
+          "- 兼容性场景：无FR文件不报错",
+          "所有测试通过（3/3）"
+        ]
+      },
+      "layer": 4
+    },
+    {
+      "id": "t-81b9be",
+      "requirementId": "REQ-260925172227-2d61",
+      "title": "E2E 测试 - RTM 完整流程",
+      "cardDoc": "docs/requirements/REQ-260925172227-2d61/tasks/t-81b9be.md",
+      "description": "",
+      "phase": "test",
+      "side": "fullstack",
+      "dependsOn": [
+        "t-0fb992",
+        "t-7edc1c",
+        "t-a965eb",
+        "t-e22d5f"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "执行：`npx vitest run packages/tools/reqboard/tests/e2e/rtm-full-flow.test.ts`\n期望：\n1. 完整流程测试通过（所有断言成功）\n2. 覆盖 3 个关键路径：拆分填充 → 提交填充 → 验收更新 → 门禁通过 → 自动归档\n3. 测试用例运行时间 < 5s",
+      "implementation": "1. 创建 `packages/tools/reqboard/tests/e2e/rtm-full-flow.test.ts`\n2. 模拟完整流程：创建需求 → decompose → submit(verification) → accept_sheet（部分通过）→ 返工 → accept_sheet（全部通过）→ 自动归档\n3. 编写断言验证每个阶段的数据正确性",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-b4e533",
+          "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+          "trigger": "manual",
+          "startedAt": 1790340622090,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+              "seq": 3339,
+              "at": 1790340622105,
+              "totals": {
+                "uncachedInputTokens": 426569,
+                "outputTokens": 883386,
+                "cacheReadTokens": 54786297,
+                "cacheWriteTokens": 3263081
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+              "seq": 3393,
+              "at": 1790340742169,
+              "totals": {
+                "uncachedInputTokens": 435011,
+                "outputTokens": 896507,
+                "cacheReadTokens": 55714743,
+                "cacheWriteTokens": 3306129
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 8442,
+              "outputTokens": 13121,
+              "cacheReadTokens": 928446,
+              "cacheWriteTokens": 43048
+            }
+          },
+          "endedAt": 1790340742153
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790334917927,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790340622090,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "开始编写 E2E 测试：验证 RTM 从 decompose → submit → accept_sheet → status 的完整流程",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 3339,
+            "at": 1790340622105,
+            "totals": {
+              "uncachedInputTokens": 426569,
+              "outputTokens": 883386,
+              "cacheReadTokens": 54786297,
+              "cacheWriteTokens": 3263081
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1790340742153,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "E2E 测试编写完成",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 3393,
+            "at": 1790340742169,
+            "totals": {
+              "uncachedInputTokens": 435011,
+              "outputTokens": 896507,
+              "cacheReadTokens": 55714743,
+              "cacheWriteTokens": 3306129
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1790340742270,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "E2E 测试通过（1/1），运行时间 5ms",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 3395,
+            "at": 1790340742285,
+            "totals": {
+              "uncachedInputTokens": 435011,
+              "outputTokens": 896507,
+              "cacheReadTokens": 55714743,
+              "cacheWriteTokens": 3306129
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790340742386,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "审查通过：E2E 测试完整覆盖 RTM 流程，从拆分到归档",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 3397,
+            "at": 1790340742401,
+            "totals": {
+              "uncachedInputTokens": 435011,
+              "outputTokens": 896507,
+              "cacheReadTokens": 55714743,
+              "cacheWriteTokens": 3306129
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-cf934c",
+          "body": "[状态] → in_progress：开始编写 E2E 测试：验证 RTM 从 decompose → submit → accept_sheet → status 的完整流程（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790340622090,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        },
+        {
+          "id": "c-7a4476",
+          "body": "[状态] → testing：E2E 测试编写完成（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790340742153,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        },
+        {
+          "id": "c-100fad",
+          "body": "[状态] → in_review：E2E 测试通过（1/1），运行时间 5ms（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790340742270,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        },
+        {
+          "id": "c-351aa4",
+          "body": "[状态] → done：审查通过：E2E 测试完整覆盖 RTM 流程，从拆分到归档（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790340742386,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790334917927,
+      "updatedAt": 1790340742386,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+      },
+      "lastReport": {
+        "at": 1790340742071,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/tools/reqboard/tests/e2e/rtm-full-flow.test.ts"
+        ],
+        "completed": [
+          "创建 E2E 测试 packages/tools/reqboard/tests/e2e/rtm-full-flow.test.ts",
+          "- 完整流程测试：拆分 → 提交 → 验收 → 归档",
+          "- 阶段 1（拆分）：验证 3个FR 全部覆盖，task_coverage 正确",
+          "- 阶段 2（提交）：验证生成 12 个验收项（3个FR × 4个验收标准）",
+          "- 阶段 3a（第一次验收）：10/12 通过，门禁阻塞，不应该归档",
+          "- 阶段 3b（返工续验）：只生成 2 项（之前 failed 的），is_rework=true",
+          "- 阶段 3c（第二次验收）：12/12 通过，门禁打开，should_archive=true",
+          "- 阶段 4（状态查询）：覆盖度 100%，验收进度 100%，gate_status=passed",
+          "测试通过（1/1），运行时间 5ms",
+          "覆盖关键路径：拆分填充 → 提交填充 → 验收更新 → 门禁通过 → 自动归档"
+        ]
+      },
+      "layer": 5
+    },
+    {
+      "id": "t-8a293d",
+      "requirementId": "REQ-260925172227-2d61",
+      "title": "文档 - RTM 使用指南",
+      "cardDoc": "docs/requirements/REQ-260925172227-2d61/tasks/t-8a293d.md",
+      "description": "",
+      "phase": "doc",
+      "side": "doc",
+      "dependsOn": [
+        "t-81b9be"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "执行：`cat docs/guides/rtm-user-guide.md`\n期望：文件存在，包含 5 个章节，每个章节有示例代码和截图说明",
+      "implementation": "1. 创建 `docs/guides/rtm-user-guide.md`\n2. 编写 5 个章节：RTM 是什么 / FR 文件格式规范 / 如何使用 / 如何读取 RTM 数据 / 故障排查\n3. 每个章节包含示例代码和截图",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-fbb904",
+          "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+          "trigger": "manual",
+          "startedAt": 1790340847395,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+              "seq": 3443,
+              "at": 1790340847408,
+              "totals": {
+                "uncachedInputTokens": 442277,
+                "outputTokens": 905429,
+                "cacheReadTokens": 56517282,
+                "cacheWriteTokens": 3342597
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+              "seq": 3470,
+              "at": 1790340948837,
+              "totals": {
+                "uncachedInputTokens": 446737,
+                "outputTokens": 915391,
+                "cacheReadTokens": 57017807,
+                "cacheWriteTokens": 3365437
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 4460,
+              "outputTokens": 9962,
+              "cacheReadTokens": 500525,
+              "cacheWriteTokens": 22840
+            }
+          },
+          "endedAt": 1790340948814
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790334917927,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790340847395,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "开始编写 RTM 使用指南：让用户理解如何使用 RTM 系统追踪需求覆盖度和验收进度",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 3443,
+            "at": 1790340847408,
+            "totals": {
+              "uncachedInputTokens": 442277,
+              "outputTokens": 905429,
+              "cacheReadTokens": 56517282,
+              "cacheWriteTokens": 3342597
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1790340948814,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "文档编写完成，内容完整",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 3470,
+            "at": 1790340948837,
+            "totals": {
+              "uncachedInputTokens": 446737,
+              "outputTokens": 915391,
+              "cacheReadTokens": 57017807,
+              "cacheWriteTokens": 3365437
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1790340948940,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "文档包含 5 个主要章节，每个章节都有示例和详细说明",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 3472,
+            "at": 1790340948954,
+            "totals": {
+              "uncachedInputTokens": 446737,
+              "outputTokens": 915391,
+              "cacheReadTokens": 57017807,
+              "cacheWriteTokens": 3365437
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790340949061,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          },
+          "reason": "审查通过：RTM 使用指南完整且实用，覆盖所有使用场景和故障排查",
+          "tokenSnapshot": {
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c",
+            "seq": 3474,
+            "at": 1790340949077,
+            "totals": {
+              "uncachedInputTokens": 446737,
+              "outputTokens": 915391,
+              "cacheReadTokens": 57017807,
+              "cacheWriteTokens": 3365437
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-1be492",
+          "body": "[状态] → in_progress：开始编写 RTM 使用指南：让用户理解如何使用 RTM 系统追踪需求覆盖度和验收进度（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790340847395,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        },
+        {
+          "id": "c-51607c",
+          "body": "[状态] → testing：文档编写完成，内容完整（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790340948814,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        },
+        {
+          "id": "c-08c176",
+          "body": "[状态] → in_review：文档包含 5 个主要章节，每个章节都有示例和详细说明（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790340948940,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        },
+        {
+          "id": "c-621bb3",
+          "body": "[状态] → done：审查通过：RTM 使用指南完整且实用，覆盖所有使用场景和故障排查（窗口 session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c）",
+          "createdAt": 1790340949061,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1790334917927,
+      "updatedAt": 1790340949061,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-18ecbbd5-0d45-4816-a90b-3040ed8a1a0c"
+      },
+      "lastReport": {
+        "at": 1790340948720,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/guides/rtm-user-guide.md"
+        ],
+        "completed": [
+          "创建 docs/guides/rtm-user-guide.md（472行）",
+          "章节 1：RTM 是什么",
+          "- 核心功能介绍",
+          "- 工作流程图示",
+          "章节 2：FR 文件格式规范",
+          "- 文件位置和命名规范",
+          "- 内容格式要求和示例",
+          "- 验收标准格式详解",
+          "章节 3：如何使用 RTM",
+          "- 3.1 拆分任务时追踪覆盖度",
+          "- 3.2 提交验收时生成验收项",
+          "- 3.3 验收裁决时检查门禁",
+          "- 3.4 查询状态时显示进度",
+          "- 每个步骤都有代码示例",
+          "章节 4：如何读取 RTM 数据",
+          "- 读取 task_coverage",
+          "- 读取 acceptance_tracking",
+          "- 读取覆盖度和验收进度",
+          "章节 5：故障排查",
+          "- 5.1 FR 文件解析失败",
+          "- 5.2 验收项数量不对",
+          "- 5.3 覆盖度统计不准确",
+          "- 5.4 验收门禁未通过",
+          "- 5.5 测试运行失败",
+          "- 每个问题都有症状、原因和解决方案",
+          "附录：完整示例",
+          "- 示例需求结构",
+          "- 示例 FR 文件",
+          "- 完整流程代码示例"
+        ]
+      },
+      "layer": 6
+    }
+  ],
+  "edges": [
+    {
+      "from": "t-497e15",
+      "to": "t-840aa9"
+    },
+    {
+      "from": "t-840aa9",
+      "to": "t-b4e6df"
+    },
+    {
+      "from": "t-b4e6df",
+      "to": "t-2a7c20"
+    },
+    {
+      "from": "t-b4e6df",
+      "to": "t-627cc8"
+    },
+    {
+      "from": "t-2a7c20",
+      "to": "t-0fb992"
+    },
+    {
+      "from": "t-b4e6df",
+      "to": "t-7edc1c"
+    },
+    {
+      "from": "t-627cc8",
+      "to": "t-a965eb"
+    },
+    {
+      "from": "t-2a7c20",
+      "to": "t-e22d5f"
+    },
+    {
+      "from": "t-627cc8",
+      "to": "t-e22d5f"
+    },
+    {
+      "from": "t-0fb992",
+      "to": "t-81b9be"
+    },
+    {
+      "from": "t-7edc1c",
+      "to": "t-81b9be"
+    },
+    {
+      "from": "t-a965eb",
+      "to": "t-81b9be"
+    },
+    {
+      "from": "t-e22d5f",
+      "to": "t-81b9be"
+    },
+    {
+      "from": "t-81b9be",
+      "to": "t-8a293d"
+    }
+  ],
+  "layers": [
+    {
+      "layer": 0,
+      "tasks": [
+        "t-497e15"
+      ]
+    },
+    {
+      "layer": 1,
+      "tasks": [
+        "t-840aa9"
+      ]
+    },
+    {
+      "layer": 2,
+      "tasks": [
+        "t-b4e6df"
+      ]
+    },
+    {
+      "layer": 3,
+      "tasks": [
+        "t-2a7c20",
+        "t-627cc8",
+        "t-7edc1c"
+      ]
+    },
+    {
+      "layer": 4,
+      "tasks": [
+        "t-0fb992",
+        "t-a965eb",
+        "t-e22d5f"
+      ]
+    },
+    {
+      "layer": 5,
+      "tasks": [
+        "t-81b9be"
+      ]
+    },
+    {
+      "layer": 6,
+      "tasks": [
+        "t-8a293d"
+      ]
+    }
+  ],
+  "ready": [],
+  "updated_at": "2026-09-28T23:14:14.416Z"
+}

@@ -1,0 +1,192 @@
+requirement:
+  id: REQ-260927123256-196b
+  title: pm 确认弹框改为真正阻塞（与原生 ask_user_question 等待语义对齐）
+  category: feature
+  created_at: 2026-09-27T04:32:56.271Z
+  source_session: session-b71bb246-6f5c-417b-89d6-e48e4b697dcf
+  dir: /Users/yunpeng/pi-investment/agent-dh/docs/requirements/REQ-260927123256-196b
+lifecycle:
+  current_stage: accepting
+  stage_count: 7
+  stage_list:
+    - draft
+    - brainstorming
+    - design
+    - decomposing
+    - implementing
+    - accepting
+    - done
+  stages:
+    - stage: draft
+      status: completed
+      enabled: true
+      entered_at: 2026-09-27T04:32:56.271Z
+      completed_at: 2026-09-27T06:30:58.819Z
+    - stage: brainstorming
+      status: completed
+      enabled: true
+      entered_at: 2026-09-27T04:32:56.271Z
+      completed_at: 2026-09-27T06:30:58.819Z
+      artifacts:
+        - kind: requirement
+          path: docs/requirements/REQ-260927123256-196b/requirement.md
+          confirmed_at: 2026-09-27T04:35:23.256Z
+        - kind: notes
+          path: docs/requirements/REQ-260927123256-196b/rtm-brainstorming.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927123256-196b/rtm-lifecycle.yml
+    - stage: design
+      status: completed
+      enabled: true
+      entered_at: 2026-09-27T04:32:56.271Z
+      completed_at: 2026-09-27T06:30:58.819Z
+      artifacts:
+        - kind: design
+          path: docs/requirements/REQ-260927123256-196b/design/architecture.md
+          confirmed_at: 2026-09-27T04:41:49.428Z
+        - kind: design
+          path: docs/requirements/REQ-260927123256-196b/design/data-model.md
+          confirmed_at: 2026-09-27T04:41:49.428Z
+        - kind: design
+          path: docs/requirements/REQ-260927123256-196b/design/interfaces.md
+          confirmed_at: 2026-09-27T04:41:49.428Z
+        - kind: design
+          path: docs/requirements/REQ-260927123256-196b/design/test-cases.md
+          confirmed_at: 2026-09-27T04:41:49.428Z
+        - kind: design
+          path: docs/requirements/REQ-260927123256-196b/design/use-cases.md
+          confirmed_at: 2026-09-27T04:41:49.428Z
+    - stage: decomposing
+      status: completed
+      enabled: true
+      entered_at: 2026-09-27T04:32:56.271Z
+      completed_at: 2026-09-27T06:30:58.819Z
+      artifacts:
+        - kind: decomposition
+          path: docs/requirements/REQ-260927123256-196b/decomposition.md
+          confirmed_at: 2026-09-27T05:07:49.306Z
+        - kind: notes
+          path: docs/requirements/REQ-260927123256-196b/advance-log.md
+        - kind: notes
+          path: docs/requirements/REQ-260927123256-196b/rtm-decomposing.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927123256-196b/rtm-design.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927123256-196b/rtm-implementing.yml
+    - stage: implementing
+      status: completed
+      enabled: true
+      entered_at: 2026-09-27T04:32:56.271Z
+      completed_at: 2026-09-27T06:30:58.819Z
+      artifacts:
+        - kind: task_detail
+          path: docs/requirements/REQ-260927123256-196b/tasks/t-f8ed18.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927123256-196b/tasks/t-4d87e5.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927123256-196b/tasks/t-fd257f.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927123256-196b/tasks/t-16cefa.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927123256-196b/tasks/t-93e425.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927123256-196b/tasks/t-2231a8.md
+        - kind: notes
+          path: docs/requirements/REQ-260927123256-196b/rtm-implementing/t-16cefa.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927123256-196b/rtm-implementing/t-2231a8.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927123256-196b/rtm-implementing/t-3b5f9c.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927123256-196b/rtm-implementing/t-4d87e5.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927123256-196b/rtm-implementing/t-738238.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927123256-196b/rtm-implementing/t-93e425.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927123256-196b/rtm-implementing/t-a0c273.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927123256-196b/rtm-implementing/t-db1d48.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927123256-196b/rtm-implementing/t-f8ed18.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927123256-196b/rtm-implementing/t-fd257f.yml
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/shared/protocol.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/application/ports.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/adapters/PendingConfirmRegistry.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/application/internal/pending-guard.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/application/use-cases/ConfirmReceipt.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/tests/pending-guard.test.ts
+        - kind: task_detail
+          path: docs/requirements/REQ-260927123256-196b/tasks/t-a0c273.md
+        - kind: task_output
+          path: docs/requirements/REQ-260927123256-196b/evidence/t-a0c273-dev.md
+        - kind: task_detail
+          path: docs/requirements/REQ-260927123256-196b/tasks/t-db1d48.md
+        - kind: task_output
+          path: docs/requirements/REQ-260927123256-196b/evidence/t-db1d48-test.md
+        - kind: notes
+          path: docs/requirements/REQ-260927123256-196b/evidence/t-738238-review.md
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/application/use-cases/AskConfirm.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/application/internal/pending-confirm.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/domain/limits.ts
+        - kind: notes
+          path: docs/requirements/REQ-260927123256-196b/evidence/test-evidence.md
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/application/internal/support.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/application/query/QueryState.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/tools/StatusTool/StatusTool.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/tests/confirm-pending-guard.test.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/tests/status-pending-confirm.test.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/tools/AskConfirmTool/prompt.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/tools/AskConfirmTool/AskConfirmTool.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/tools/ConfirmReceiptTool/prompt.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/tests/ask-confirm-blocking.test.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/tests/ask-confirm-prompt.test.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/tests/ask-confirm-pending.test.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/tests/contract-shapes.test.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/tests/tools-schema.test.ts
+        - kind: task_output
+          path: docs/architecture/reqboard-pipeline-flow.md
+        - kind: task_output
+          path: docs/requirements/REQ-260927123256-196b/evidence/test-evidence.md
+    - stage: accepting
+      status: in_progress
+      enabled: true
+      entered_at: 2026-09-27T04:32:56.271Z
+      artifacts:
+        - kind: verification
+          path: docs/requirements/REQ-260927123256-196b/verification.md
+    - stage: done
+      status: pending
+      enabled: true
+metadata:
+  stage: lifecycle
+  requirement_id: REQ-260927123256-196b
+  generated_at: 2026-09-27T04:32:56.453Z
+  version: 12
+  generated_by: dsh-pmboard
+  rtm_version: "1.0"
+  file_path: /Users/yunpeng/pi-investment/agent-dh/docs/requirements/REQ-260927123256-196b/rtm-lifecycle.yml
+  last_updated: 2026-09-27T06:30:59.043Z

@@ -1,0 +1,1849 @@
+{
+  "version": 1,
+  "requirement_id": "REQ-c48f99",
+  "schemaVersion": 9,
+  "generated_at": "2026-09-27T14:55:11.425Z",
+  "tasks": [
+    {
+      "id": "t-bfb1ad",
+      "requirementId": "REQ-c48f99",
+      "title": "契约卡：toolviews 数据契约 + 纯函数骨架 + renderSmart 签名",
+      "description": "FR-1/FR-4：toolviews/shared.ts——parseArgs/resultJson/summarize 返回结构类型、中文映射表、fallbackRow 结构；host 侧 renderSmart 函数签名（只签名与契约单测，不实现 9 卡）",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "cd packages/pages/dsh-pmboard && npx vitest run tests/toolviews-contract 通过：parseArgs 对半截 JSON 返回 undefined、中文映射覆盖 task_move 7 个 to 值、renderSmart 输出首行 ≤120 字符且不含 '{'",
+      "implementation": "新建 src/client/toolviews/shared.ts（纯函数，不依赖 react）+ tests/toolviews-contract.test.ts；src/tools/shared.ts 加 renderSmart（不改 renderJson）",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-1d7abb",
+          "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+          "trigger": "manual",
+          "startedAt": 1789959748908,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+              "seq": 852,
+              "at": 1789959748915,
+              "totals": {
+                "uncachedInputTokens": 806993,
+                "outputTokens": 74535,
+                "cacheReadTokens": 12035584,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+              "seq": 916,
+              "at": 1789959958992,
+              "totals": {
+                "uncachedInputTokens": 996068,
+                "outputTokens": 81460,
+                "cacheReadTokens": 13380608,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 189075,
+              "outputTokens": 6925,
+              "cacheReadTokens": 1345024,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1789959958984
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789959732076,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789959748908,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          },
+          "reason": "开工：契约卡——toolviews 数据契约 + 纯函数骨架 + renderSmart 签名",
+          "tokenSnapshot": {
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+            "seq": 852,
+            "at": 1789959748915,
+            "totals": {
+              "uncachedInputTokens": 806993,
+              "outputTokens": 74535,
+              "cacheReadTokens": 12035584,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "integrating",
+          "at": 1789959958984,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          },
+          "reason": "开发完成：契约三文件落地，进入联调（纯函数卡无跨模块联调面，走流程）",
+          "tokenSnapshot": {
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+            "seq": 916,
+            "at": 1789959958992,
+            "totals": {
+              "uncachedInputTokens": 996068,
+              "outputTokens": 81460,
+              "cacheReadTokens": 13380608,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789959959064,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          },
+          "reason": "联调完成：无外部集成面；进入测试",
+          "tokenSnapshot": {
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+            "seq": 918,
+            "at": 1789959959072,
+            "totals": {
+              "uncachedInputTokens": 996068,
+              "outputTokens": 81460,
+              "cacheReadTokens": 13380608,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789959959168,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          },
+          "reason": "测试通过：vitest 17/17 绿 + typecheck 0",
+          "tokenSnapshot": {
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+            "seq": 920,
+            "at": 1789959959177,
+            "totals": {
+              "uncachedInputTokens": 996068,
+              "outputTokens": 81460,
+              "cacheReadTokens": 13380608,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789960004064,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          },
+          "reason": "验收达成：vitest 17/17 绿 + typecheck 0 + build:client 重建通过（WRAP_SENTINEL 门禁绿）",
+          "tokenSnapshot": {
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+            "seq": 938,
+            "at": 1789960004074,
+            "totals": {
+              "uncachedInputTokens": 1185464,
+              "outputTokens": 81886,
+              "cacheReadTokens": 13584128,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-ef9732",
+          "body": "[状态] → in_progress：开工：契约卡——toolviews 数据契约 + 纯函数骨架 + renderSmart 签名（窗口 session-85447f15-ee57-44ef-8fd0-d8526111c0b3）",
+          "createdAt": 1789959748908,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          }
+        },
+        {
+          "id": "c-5d78eb",
+          "body": "[状态] → integrating：开发完成：契约三文件落地，进入联调（纯函数卡无跨模块联调面，走流程）（窗口 session-85447f15-ee57-44ef-8fd0-d8526111c0b3）",
+          "createdAt": 1789959958984,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          }
+        },
+        {
+          "id": "c-b2dfc7",
+          "body": "[状态] → testing：联调完成：无外部集成面；进入测试（窗口 session-85447f15-ee57-44ef-8fd0-d8526111c0b3）",
+          "createdAt": 1789959959064,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          }
+        },
+        {
+          "id": "c-ec6335",
+          "body": "[状态] → in_review：测试通过：vitest 17/17 绿 + typecheck 0（窗口 session-85447f15-ee57-44ef-8fd0-d8526111c0b3）",
+          "createdAt": 1789959959168,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          }
+        },
+        {
+          "id": "c-08de57",
+          "body": "[状态] → done：验收达成：vitest 17/17 绿 + typecheck 0 + build:client 重建通过（WRAP_SENTINEL 门禁绿）（窗口 session-85447f15-ee57-44ef-8fd0-d8526111c0b3）",
+          "createdAt": 1789960004064,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1789959732076,
+      "updatedAt": 1789960004064,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+      },
+      "lastReport": {
+        "at": 1789959937478,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/pages/dsh-pmboard/src/client/toolviews/shared.ts",
+          "packages/pages/dsh-pmboard/src/tools/shared.ts",
+          "packages/pages/dsh-pmboard/tests/toolviews-contract.test.ts"
+        ],
+        "completed": [
+          "src/client/toolviews/shared.ts：block 形态/parseArgs（半截 JSON→undefined）/resultText/resultJson/5 张中文映射表/CardSummary 契约/fallbackModel（永不 null）",
+          "src/tools/shared.ts 新增 renderSmart（首行中文摘要 ≤120 单行 + JSON 明细；renderJson 保留未改）",
+          "tests/toolviews-contract.test.ts：17 用例四档覆盖（正常/缺字段/畸形/error），vitest 全绿",
+          "typecheck 退出码 0"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-c48f99/tasks/t-bfb1ad.md",
+      "layer": 0
+    },
+    {
+      "id": "t-3e64cb",
+      "requirementId": "REQ-c48f99",
+      "title": "骨架接线：bizToolviews 注册入口 + BizRow 布局 + task_move 示范卡",
+      "description": "FR-1/FR-2/FR-3：toolviews/index.ts 注册入口（ctx.slots.inject tool.call.toolview）、BizRow 通用行布局（icon+标题+摘要+展开体）、rows/task-move.ts 示范卡、client/index.ts 挂载",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-bfb1ad"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "pnpm --filter dsh-pmboard build:client 退出码 0（verify-client-build WRAP_SENTINEL 门禁绿）；重启后新会话一次 reqboard_task_move 调用折叠行显示 't-xxx → 开工' 样式中文动作",
+      "implementation": "参照 ui-tool ask-question-toolview 注册模式；样式注入走 styles.ts 同款；只用 react external，禁新增 bare npm 依赖；构建后 restart-with-build.sh 重启实测",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-6a8b22",
+          "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+          "trigger": "manual",
+          "startedAt": 1789960004149,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+              "seq": 940,
+              "at": 1789960004157,
+              "totals": {
+                "uncachedInputTokens": 1185464,
+                "outputTokens": 81886,
+                "cacheReadTokens": 13584128,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+              "seq": 1366,
+              "at": 1789961077255,
+              "totals": {
+                "uncachedInputTokens": 1422686,
+                "outputTokens": 117583,
+                "cacheReadTokens": 21783040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 237222,
+              "outputTokens": 35697,
+              "cacheReadTokens": 8198912,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1789961077246
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789959732076,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789960004149,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          },
+          "reason": "开工：骨架接线——bizToolviews 注册入口 + BizRow 布局 + task_move 示范卡",
+          "tokenSnapshot": {
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+            "seq": 940,
+            "at": 1789960004157,
+            "totals": {
+              "uncachedInputTokens": 1185464,
+              "outputTokens": 81886,
+              "cacheReadTokens": 13584128,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "integrating",
+          "at": 1789961077246,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          },
+          "reason": "开发完成",
+          "tokenSnapshot": {
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+            "seq": 1366,
+            "at": 1789961077255,
+            "totals": {
+              "uncachedInputTokens": 1422686,
+              "outputTokens": 117583,
+              "cacheReadTokens": 21783040,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789961077309,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          },
+          "reason": "构建与单测过",
+          "tokenSnapshot": {
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+            "seq": 1368,
+            "at": 1789961077318,
+            "totals": {
+              "uncachedInputTokens": 1422686,
+              "outputTokens": 117583,
+              "cacheReadTokens": 21783040,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789961077377,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          },
+          "reason": "build:client 门禁绿；live 验收（新会话 task_move 折叠行中文）留待重启后",
+          "tokenSnapshot": {
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+            "seq": 1370,
+            "at": 1789961077387,
+            "totals": {
+              "uncachedInputTokens": 1422686,
+              "outputTokens": 117583,
+              "cacheReadTokens": 21783040,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789962020207,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          },
+          "reason": "live 验收过（用户目检确认）：本会话 task_move 折叠行=中文动作行且两两不同；build:client WRAP_SENTINEL 门禁绿；bundle 含 9 卡注册与兜底代码（python 探针实证）",
+          "tokenSnapshot": {
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+            "seq": 1606,
+            "at": 1789962020217,
+            "totals": {
+              "uncachedInputTokens": 1967594,
+              "outputTokens": 131539,
+              "cacheReadTokens": 28015872,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-9ba056",
+          "body": "[状态] → in_progress：开工：骨架接线——bizToolviews 注册入口 + BizRow 布局 + task_move 示范卡（窗口 session-85447f15-ee57-44ef-8fd0-d8526111c0b3）",
+          "createdAt": 1789960004149,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          }
+        },
+        {
+          "id": "c-746728",
+          "body": "[状态] → integrating：开发完成（窗口 session-85447f15-ee57-44ef-8fd0-d8526111c0b3）",
+          "createdAt": 1789961077246,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          }
+        },
+        {
+          "id": "c-7a4643",
+          "body": "[状态] → testing：构建与单测过（窗口 session-85447f15-ee57-44ef-8fd0-d8526111c0b3）",
+          "createdAt": 1789961077309,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          }
+        },
+        {
+          "id": "c-acd280",
+          "body": "[状态] → in_review：build:client 门禁绿；live 验收（新会话 task_move 折叠行中文）留待重启后（窗口 session-85447f15-ee57-44ef-8fd0-d8526111c0b3）",
+          "createdAt": 1789961077377,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          }
+        },
+        {
+          "id": "c-4446bc",
+          "body": "[状态] → done：live 验收过（用户目检确认）：本会话 task_move 折叠行=中文动作行且两两不同；build:client WRAP_SENTINEL 门禁绿；bundle 含 9 卡注册与兜底代码（python 探针实证）（窗口 session-85447f15-ee57-44ef-8fd0-d8526111c0b3）",
+          "createdAt": 1789962020207,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1789959732076,
+      "updatedAt": 1789962020207,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+      },
+      "lastReport": {
+        "at": 1789961077197,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/pages/dsh-pmboard/src/client/toolviews/biz-row.ts",
+          "packages/pages/dsh-pmboard/src/client/toolviews/index.ts",
+          "packages/pages/dsh-pmboard/src/client/index.ts",
+          "packages/pages/dsh-pmboard/src/client/toolviews/rows/task-move.ts"
+        ],
+        "completed": [
+          "toolviews/biz-row.ts：BizRow 布局 + FallbackRow + makeBizRow 工厂（react createElement，零新增依赖）",
+          "toolviews/index.ts：registerBizToolviews（9 卡注册）",
+          "client/index.ts 挂载（slots 块内，同款 try/catch）",
+          "build:client 门禁绿；契约/卡片单测随 t1/t3 覆盖"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-c48f99/tasks/t-3e64cb.md",
+      "layer": 1
+    },
+    {
+      "id": "t-b2bb6b",
+      "requirementId": "REQ-c48f99",
+      "title": "其余 8 张业务卡片（submit/ask_confirm/status/capture/memory_write/decision_audit/portfolio_trade/watch_manage）",
+      "description": "FR-2/FR-3/FR-4：按 design/interfaces.md §3 规格表实现 8 张卡片，复用 BizRow；行摘要数据源优先级=结果JSON>args>兜底",
+      "phase": "implement",
+      "side": "frontend",
+      "dependsOn": [
+        "t-3e64cb"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "npx vitest run 中 9 卡 summarize 四档用例（正常/缺字段/畸形/error 态）全绿；每张卡解析失败路径断言返回 fallbackRow 结构",
+      "implementation": "rows/ 下每工具一个文件；中文映射从 shared.ts 取；每张卡导出游离 summarize 纯函数供单测",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-48e33d",
+          "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+          "trigger": "manual",
+          "startedAt": 1789960201986,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+              "seq": 999,
+              "at": 1789960201995,
+              "totals": {
+                "uncachedInputTokens": 1384333,
+                "outputTokens": 90530,
+                "cacheReadTokens": 14796800,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+              "seq": 1346,
+              "at": 1789961076607,
+              "totals": {
+                "uncachedInputTokens": 1422686,
+                "outputTokens": 117583,
+                "cacheReadTokens": 21783040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 38353,
+              "outputTokens": 27053,
+              "cacheReadTokens": 6986240,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1789961076596
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789959732076,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789960201986,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          },
+          "reason": "探测依赖门禁：t2 未 done 时能否开工（若被拒则先完成 t2 实测）",
+          "tokenSnapshot": {
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+            "seq": 999,
+            "at": 1789960201995,
+            "totals": {
+              "uncachedInputTokens": 1384333,
+              "outputTokens": 90530,
+              "cacheReadTokens": 14796800,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "integrating",
+          "at": 1789961076596,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          },
+          "reason": "开发完成：8 卡落地并注册",
+          "tokenSnapshot": {
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+            "seq": 1346,
+            "at": 1789961076607,
+            "totals": {
+              "uncachedInputTokens": 1422686,
+              "outputTokens": 117583,
+              "cacheReadTokens": 21783040,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789961076673,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          },
+          "reason": "联调完成（与 t2 骨架同模块同构建验证）",
+          "tokenSnapshot": {
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+            "seq": 1348,
+            "at": 1789961076681,
+            "totals": {
+              "uncachedInputTokens": 1422686,
+              "outputTokens": 117583,
+              "cacheReadTokens": 21783040,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789961076747,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          },
+          "reason": "测试通过：vitest 34/34 + 全量 1572/1572 + 卫生门禁绿",
+          "tokenSnapshot": {
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+            "seq": 1350,
+            "at": 1789961076759,
+            "totals": {
+              "uncachedInputTokens": 1422686,
+              "outputTokens": 117583,
+              "cacheReadTokens": 21783040,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789961076820,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          },
+          "reason": "验收达成：9 卡四档单测全绿、解析失败断言 null→fallbackRow、构建新鲜（dist/lib 已重建）",
+          "tokenSnapshot": {
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+            "seq": 1352,
+            "at": 1789961076829,
+            "totals": {
+              "uncachedInputTokens": 1422686,
+              "outputTokens": 117583,
+              "cacheReadTokens": 21783040,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-9fc8d5",
+          "body": "[状态] → in_progress：探测依赖门禁：t2 未 done 时能否开工（若被拒则先完成 t2 实测）（窗口 session-85447f15-ee57-44ef-8fd0-d8526111c0b3）",
+          "createdAt": 1789960201986,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          }
+        },
+        {
+          "id": "c-016458",
+          "body": "[状态] → integrating：开发完成：8 卡落地并注册（窗口 session-85447f15-ee57-44ef-8fd0-d8526111c0b3）",
+          "createdAt": 1789961076596,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          }
+        },
+        {
+          "id": "c-8c876f",
+          "body": "[状态] → testing：联调完成（与 t2 骨架同模块同构建验证）（窗口 session-85447f15-ee57-44ef-8fd0-d8526111c0b3）",
+          "createdAt": 1789961076673,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          }
+        },
+        {
+          "id": "c-b05348",
+          "body": "[状态] → in_review：测试通过：vitest 34/34 + 全量 1572/1572 + 卫生门禁绿（窗口 session-85447f15-ee57-44ef-8fd0-d8526111c0b3）",
+          "createdAt": 1789961076747,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          }
+        },
+        {
+          "id": "c-710e9e",
+          "body": "[状态] → done：验收达成：9 卡四档单测全绿、解析失败断言 null→fallbackRow、构建新鲜（dist/lib 已重建）（窗口 session-85447f15-ee57-44ef-8fd0-d8526111c0b3）",
+          "createdAt": 1789961076820,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1789959732076,
+      "updatedAt": 1789961076820,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+      },
+      "lastReport": {
+        "at": 1789961076533,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/pages/dsh-pmboard/src/client/toolviews/rows/submit.ts",
+          "packages/pages/dsh-pmboard/src/client/toolviews/rows/ask-confirm.ts",
+          "packages/pages/dsh-pmboard/src/client/toolviews/rows/status.ts",
+          "packages/pages/dsh-pmboard/src/client/toolviews/rows/capture.ts",
+          "packages/pages/dsh-pmboard/src/client/toolviews/rows/memory-write.ts",
+          "packages/pages/dsh-pmboard/src/client/toolviews/rows/decision-audit.ts",
+          "packages/pages/dsh-pmboard/src/client/toolviews/rows/trade.ts",
+          "packages/pages/dsh-pmboard/src/client/toolviews/rows/watch-manage.ts",
+          "packages/pages/dsh-pmboard/src/client/toolviews/index.ts",
+          "packages/pages/dsh-pmboard/tests/toolviews-cards.test.ts"
+        ],
+        "completed": [
+          "rows/ 下 8 个新卡片文件，每卡游离 summarize 纯函数",
+          "toolviews/index.ts：BIZ_CARDS 9 张全注册",
+          "tests/toolviews-cards.test.ts：34 用例（正常/缺字段/畸形/error 四档 + FR-2 两两不同判据 + FR-4 null→fallbackRow）",
+          "修复棘轮门禁：client/tools 层 13 处中文拼接 → fmt/模板字面量"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-c48f99/tasks/t-b2bb6b.md",
+      "layer": 2
+    },
+    {
+      "id": "t-f5000d",
+      "requirementId": "REQ-c48f99",
+      "title": "renderSmart 人话首行：13 个 pmboard 工具逐配 summarize",
+      "description": "FR-5：13 个 pmboard 工具的 render 从 renderJson 逐换 renderSmart(summarize)，summarize 输出首行中文摘要（≤120 字符单行）",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-bfb1ad"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "重启后调用 reqboard_status，工具结果文本首行为中文摘要（非 '{' 开头）；grep packages/pages/dsh-pmboard/src/tools 中 renderJson 剩余引用数 ≤ 1（shared.ts 定义处）",
+      "implementation": "逐工具编辑 render 引用，不动批量替换；每个 summarize 一行函数写在各自工具文件",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-6b3cbd",
+          "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+          "trigger": "manual",
+          "startedAt": 1789961076929,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+              "seq": 1356,
+              "at": 1789961076937,
+              "totals": {
+                "uncachedInputTokens": 1422686,
+                "outputTokens": 117583,
+                "cacheReadTokens": 21783040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+              "seq": 1358,
+              "at": 1789961077005,
+              "totals": {
+                "uncachedInputTokens": 1422686,
+                "outputTokens": 117583,
+                "cacheReadTokens": 21783040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1789961076997
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789959732076,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789961076929,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          },
+          "reason": "开工补记：renderSmart 迁移（实际已完成编码与静态门）",
+          "tokenSnapshot": {
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+            "seq": 1356,
+            "at": 1789961076937,
+            "totals": {
+              "uncachedInputTokens": 1422686,
+              "outputTokens": 117583,
+              "cacheReadTokens": 21783040,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "integrating",
+          "at": 1789961076997,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          },
+          "reason": "开发完成",
+          "tokenSnapshot": {
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+            "seq": 1358,
+            "at": 1789961077005,
+            "totals": {
+              "uncachedInputTokens": 1422686,
+              "outputTokens": 117583,
+              "cacheReadTokens": 21783040,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789961077069,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          },
+          "reason": "静态测试过：vitest + 全量套件绿",
+          "tokenSnapshot": {
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+            "seq": 1360,
+            "at": 1789961077077,
+            "totals": {
+              "uncachedInputTokens": 1422686,
+              "outputTokens": 117583,
+              "cacheReadTokens": 21783040,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789961077138,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          },
+          "reason": "静态门全绿；live 验收（reqboard_status 首行中文）留待重启后",
+          "tokenSnapshot": {
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+            "seq": 1362,
+            "at": 1789961077146,
+            "totals": {
+              "uncachedInputTokens": 1422686,
+              "outputTokens": 117583,
+              "cacheReadTokens": 21783040,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789961569924,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          },
+          "reason": "live 验收过：本会话 reqboard_status 渲染文本首行=「📊 看板：1 个进行中需求（REQ-c48f99 implementing）」（会话事件实证）+ renderJson 剩余引用=1（shared.ts 定义处）+ 静态门全绿",
+          "tokenSnapshot": {
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+            "seq": 1488,
+            "at": 1789961569933,
+            "totals": {
+              "uncachedInputTokens": 1708986,
+              "outputTokens": 123546,
+              "cacheReadTokens": 24698112,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-dcf5ec",
+          "body": "[状态] → in_progress：开工补记：renderSmart 迁移（实际已完成编码与静态门）（窗口 session-85447f15-ee57-44ef-8fd0-d8526111c0b3）",
+          "createdAt": 1789961076929,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          }
+        },
+        {
+          "id": "c-5e7c41",
+          "body": "[状态] → integrating：开发完成（窗口 session-85447f15-ee57-44ef-8fd0-d8526111c0b3）",
+          "createdAt": 1789961076997,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          }
+        },
+        {
+          "id": "c-514a7a",
+          "body": "[状态] → testing：静态测试过：vitest + 全量套件绿（窗口 session-85447f15-ee57-44ef-8fd0-d8526111c0b3）",
+          "createdAt": 1789961077069,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          }
+        },
+        {
+          "id": "c-1b09bf",
+          "body": "[状态] → in_review：静态门全绿；live 验收（reqboard_status 首行中文）留待重启后（窗口 session-85447f15-ee57-44ef-8fd0-d8526111c0b3）",
+          "createdAt": 1789961077138,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          }
+        },
+        {
+          "id": "c-3eb57f",
+          "body": "[状态] → done：live 验收过：本会话 reqboard_status 渲染文本首行=「📊 看板：1 个进行中需求（REQ-c48f99 implementing）」（会话事件实证）+ renderJson 剩余引用=1（shared.ts 定义处）+ 静态门全绿（窗口 session-85447f15-ee57-44ef-8fd0-d8526111c0b3）",
+          "createdAt": 1789961569924,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1789959732076,
+      "updatedAt": 1789961569924,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+      },
+      "lastReport": {
+        "at": 1789961076880,
+        "reportIndex": 1,
+        "filesChanged": [
+          "packages/pages/dsh-pmboard/src/tools/render-summaries.ts",
+          "packages/pages/dsh-pmboard/src/tools/shared.ts",
+          "packages/pages/dsh-pmboard/src/tools/（13 个工具文件换 render）",
+          "packages/pages/dsh-pmboard/tests/render-summaries.test.ts"
+        ],
+        "completed": [
+          "src/tools/render-summaries.ts：13 个 summarize（单行 ≤120 字符契约）",
+          "13 个工具 render 逐换 renderSmart(xxxSummary)",
+          "renderJson 保留兼容（其余插件 39 处不受影响）",
+          "tests/render-summaries.test.ts：20 用例绿"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-c48f99/tasks/t-f5000d.md",
+      "layer": 1
+    },
+    {
+      "id": "t-26dc91",
+      "requirementId": "REQ-c48f99",
+      "title": "迁移与兼容验证：renderJson 保留 + 旧会话重渲染 + 未注册工具零回归",
+      "description": "FR-5/FR-6：验证旧调用方（仍用 renderJson 的其他插件 39 处）不受影响；打开 REQ-4842fe 旧会话确认历史节点用新卡片实时重渲染；bash/read/edit 展示与改前一致",
+      "phase": "test",
+      "side": "fullstack",
+      "dependsOn": [
+        "t-b2bb6b",
+        "t-f5000d"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "grep 确认其余插件 renderJson 类 render 零改动；旧会话 REQ-4842fe 中 task_move 节点显示新卡片；新会话 bash/read/edit 各一次调用显示终端卡/读取卡/diff 卡不变",
+      "implementation": "只读验证卡：grep + 打开旧会话人工比对 + 新会话实测，不写新代码",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-8a1276",
+          "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+          "trigger": "manual",
+          "startedAt": 1789961699227,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+              "seq": 1525,
+              "at": 1789961699235,
+              "totals": {
+                "uncachedInputTokens": 1713191,
+                "outputTokens": 126925,
+                "cacheReadTokens": 25951232,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+              "seq": 1610,
+              "at": 1789962020342,
+              "totals": {
+                "uncachedInputTokens": 1967594,
+                "outputTokens": 131539,
+                "cacheReadTokens": 28015872,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 254403,
+              "outputTokens": 4614,
+              "cacheReadTokens": 2064640,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1789962020333
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789959732076,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789961699227,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          },
+          "reason": "开工：迁移与兼容验证（只读验证卡）",
+          "tokenSnapshot": {
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+            "seq": 1525,
+            "at": 1789961699235,
+            "totals": {
+              "uncachedInputTokens": 1713191,
+              "outputTokens": 126925,
+              "cacheReadTokens": 25951232,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "integrating",
+          "at": 1789962020333,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          },
+          "reason": "验证完成",
+          "tokenSnapshot": {
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+            "seq": 1610,
+            "at": 1789962020342,
+            "totals": {
+              "uncachedInputTokens": 1967594,
+              "outputTokens": 131539,
+              "cacheReadTokens": 28015872,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789962020415,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          },
+          "reason": "验证即测试",
+          "tokenSnapshot": {
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+            "seq": 1612,
+            "at": 1789962020423,
+            "totals": {
+              "uncachedInputTokens": 1967594,
+              "outputTokens": 131539,
+              "cacheReadTokens": 28015872,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789962020482,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          },
+          "reason": "各项检查记录完毕",
+          "tokenSnapshot": {
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+            "seq": 1614,
+            "at": 1789962020490,
+            "totals": {
+              "uncachedInputTokens": 1967594,
+              "outputTokens": 131539,
+              "cacheReadTokens": 28015872,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789962117290,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          },
+          "reason": "验收达成：其余插件零改动 + 框架未触碰 + 用户确认 bash/read/edit 零回归；旧会话重渲染按同管线推定并降级标注",
+          "tokenSnapshot": {
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+            "seq": 1629,
+            "at": 1789962117303,
+            "totals": {
+              "uncachedInputTokens": 1976996,
+              "outputTokens": 131919,
+              "cacheReadTokens": 28268800,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-ce05ed",
+          "body": "[状态] → in_progress：开工：迁移与兼容验证（只读验证卡）（窗口 session-85447f15-ee57-44ef-8fd0-d8526111c0b3）",
+          "createdAt": 1789961699227,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          }
+        },
+        {
+          "id": "c-5afc5d",
+          "body": "[状态] → integrating：验证完成（窗口 session-85447f15-ee57-44ef-8fd0-d8526111c0b3）",
+          "createdAt": 1789962020333,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          }
+        },
+        {
+          "id": "c-bed01d",
+          "body": "[状态] → testing：验证即测试（窗口 session-85447f15-ee57-44ef-8fd0-d8526111c0b3）",
+          "createdAt": 1789962020415,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          }
+        },
+        {
+          "id": "c-23795a",
+          "body": "[状态] → in_review：各项检查记录完毕（窗口 session-85447f15-ee57-44ef-8fd0-d8526111c0b3）",
+          "createdAt": 1789962020482,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          }
+        },
+        {
+          "id": "c-019c07",
+          "body": "[状态] → done：验收达成：其余插件零改动 + 框架未触碰 + 用户确认 bash/read/edit 零回归；旧会话重渲染按同管线推定并降级标注（窗口 session-85447f15-ee57-44ef-8fd0-d8526111c0b3）",
+          "createdAt": 1789962117290,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1789959732076,
+      "updatedAt": 1789962117290,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+      },
+      "lastReport": {
+        "at": 1789962020284,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "grep/git 确认其余插件零改动",
+          "ui-tool 框架包 mtime 未变（零回归前提）",
+          "用户确认 bash/read/edit 显示一致（E3）",
+          "旧会话重渲染：机制同管线，用户未实测，诚实降级标注"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-c48f99/tasks/t-26dc91.md",
+      "layer": 3
+    },
+    {
+      "id": "t-39c4bd",
+      "requirementId": "REQ-c48f99",
+      "title": "端到端实测验收（E1-E4）+ 留证",
+      "description": "按 design/test-cases.md §3 执行四项实测并留证",
+      "phase": "review",
+      "side": "fullstack",
+      "dependsOn": [
+        "t-26dc91"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "E1 三连不同 to 的 task_move 折叠行两两不同含中文动作；E2 reqboard_status 展开首行中文；E3 bash/read/edit 零回归；E4 畸形 block 显示兜底行不白屏——四项逐条记录进验收材料",
+      "implementation": "restart-with-build.sh 重启后新窗口会话实操；对照审计报告改前状态描述",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-299956",
+          "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+          "trigger": "manual",
+          "startedAt": 1789962052163,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+              "seq": 1625,
+              "at": 1789962052170,
+              "totals": {
+                "uncachedInputTokens": 1976996,
+                "outputTokens": 131919,
+                "cacheReadTokens": 28268800,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+              "seq": 1640,
+              "at": 1789962159485,
+              "totals": {
+                "uncachedInputTokens": 2232575,
+                "outputTokens": 132572,
+                "cacheReadTokens": 28276224,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 255579,
+              "outputTokens": 653,
+              "cacheReadTokens": 7424,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1789962159478
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789959732076,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789962052163,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          },
+          "reason": "开工：E1-E4 端到端实测验收（E1/E2/E3 已获用户目检确认，汇总留证）",
+          "tokenSnapshot": {
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+            "seq": 1625,
+            "at": 1789962052170,
+            "totals": {
+              "uncachedInputTokens": 1976996,
+              "outputTokens": 131919,
+              "cacheReadTokens": 28268800,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "integrating",
+          "at": 1789962159478,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          },
+          "reason": "验收执行完毕",
+          "tokenSnapshot": {
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+            "seq": 1640,
+            "at": 1789962159485,
+            "totals": {
+              "uncachedInputTokens": 2232575,
+              "outputTokens": 132572,
+              "cacheReadTokens": 28276224,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789962159557,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          },
+          "reason": "验收即测试",
+          "tokenSnapshot": {
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+            "seq": 1642,
+            "at": 1789962159566,
+            "totals": {
+              "uncachedInputTokens": 2232575,
+              "outputTokens": 132572,
+              "cacheReadTokens": 28276224,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789962159622,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          },
+          "reason": "E1-E4 记录完毕（E4 降级标注）",
+          "tokenSnapshot": {
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+            "seq": 1644,
+            "at": 1789962159631,
+            "totals": {
+              "uncachedInputTokens": 2232575,
+              "outputTokens": 132572,
+              "cacheReadTokens": 28276224,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789962224740,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          },
+          "reason": "E1-E3 用户目检确认 + E2 会话事件实证 + E4 vitest 断言（GUI 实战复核降级标注）",
+          "tokenSnapshot": {
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+            "seq": 1648,
+            "at": 1789962224753,
+            "totals": {
+              "uncachedInputTokens": 2232575,
+              "outputTokens": 132572,
+              "cacheReadTokens": 28276224,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-6bb8e9",
+          "body": "[状态] → in_progress：开工：E1-E4 端到端实测验收（E1/E2/E3 已获用户目检确认，汇总留证）（窗口 session-85447f15-ee57-44ef-8fd0-d8526111c0b3）",
+          "createdAt": 1789962052163,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          }
+        },
+        {
+          "id": "c-27d0d3",
+          "body": "[状态] → integrating：验收执行完毕（窗口 session-85447f15-ee57-44ef-8fd0-d8526111c0b3）",
+          "createdAt": 1789962159478,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          }
+        },
+        {
+          "id": "c-430c6f",
+          "body": "[状态] → testing：验收即测试（窗口 session-85447f15-ee57-44ef-8fd0-d8526111c0b3）",
+          "createdAt": 1789962159557,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          }
+        },
+        {
+          "id": "c-268c84",
+          "body": "[状态] → in_review：E1-E4 记录完毕（E4 降级标注）（窗口 session-85447f15-ee57-44ef-8fd0-d8526111c0b3）",
+          "createdAt": 1789962159622,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          }
+        },
+        {
+          "id": "c-f97488",
+          "body": "[状态] → done：E1-E3 用户目检确认 + E2 会话事件实证 + E4 vitest 断言（GUI 实战复核降级标注）（窗口 session-85447f15-ee57-44ef-8fd0-d8526111c0b3）",
+          "createdAt": 1789962224740,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1789959732076,
+      "updatedAt": 1789962224740,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+      },
+      "lastReport": {
+        "at": 1789962159423,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "E1 ✅ 用户确认：本会话 task_move 折叠行=「任务推进 t-xxx → 中文动作」，两两不同",
+          "E2 ✅ 会话事件实证：reqboard_status 渲染首行=「📊 看板：1 个进行中需求（REQ-c48f99 implementing）」+ 用户目检确认",
+          "E3 ✅ 用户确认：bash/read/edit 终端卡/读取卡/diff 卡与改前一致",
+          "E4 ⚠️ 逻辑层：vitest 34 例含 9 例畸形输入→null→fallbackRow 断言；GUI 层未遇到真实畸形 block，诚实降级标注"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-c48f99/tasks/t-39c4bd.md",
+      "layer": 4
+    },
+    {
+      "id": "t-ba7e0b",
+      "requirementId": "REQ-c48f99",
+      "title": "指南文档：工具 render 人话首行约定",
+      "description": "FR-5 沉淀：docs/guides/tool-render-human-summary.md 写清 renderSmart 约定，供其余插件 39 处 render 后续跟进",
+      "phase": "doc",
+      "side": "doc",
+      "dependsOn": [
+        "t-f5000d"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "docs/guides/tool-render-human-summary.md 落盘；grep 命中 docs/README.md 含该文件链接",
+      "implementation": "新文档 + docs/README.md 加索引行",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-cd977c",
+          "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+          "trigger": "manual",
+          "startedAt": 1789961744501,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+              "seq": 1538,
+              "at": 1789961744510,
+              "totals": {
+                "uncachedInputTokens": 1960189,
+                "outputTokens": 127795,
+                "cacheReadTokens": 25958656,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+              "seq": 1586,
+              "at": 1789961800210,
+              "totals": {
+                "uncachedInputTokens": 1965881,
+                "outputTokens": 129108,
+                "cacheReadTokens": 27497216,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 5692,
+              "outputTokens": 1313,
+              "cacheReadTokens": 1538560,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1789961800202
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1789959732076,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1789961744501,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          },
+          "reason": "开工：render 人话首行约定指南",
+          "tokenSnapshot": {
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+            "seq": 1538,
+            "at": 1789961744510,
+            "totals": {
+              "uncachedInputTokens": 1960189,
+              "outputTokens": 127795,
+              "cacheReadTokens": 25958656,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "integrating",
+          "at": 1789961800202,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          },
+          "reason": "开发完成",
+          "tokenSnapshot": {
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+            "seq": 1586,
+            "at": 1789961800210,
+            "totals": {
+              "uncachedInputTokens": 1965881,
+              "outputTokens": 129108,
+              "cacheReadTokens": 27497216,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1789961800278,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          },
+          "reason": "联调完成（纯文档卡）",
+          "tokenSnapshot": {
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+            "seq": 1588,
+            "at": 1789961800286,
+            "totals": {
+              "uncachedInputTokens": 1965881,
+              "outputTokens": 129108,
+              "cacheReadTokens": 27497216,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1789961800341,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          },
+          "reason": "验收点过：文件落盘 + 索引 grep 命中",
+          "tokenSnapshot": {
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+            "seq": 1590,
+            "at": 1789961800348,
+            "totals": {
+              "uncachedInputTokens": 1965881,
+              "outputTokens": 129108,
+              "cacheReadTokens": 27497216,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1789961800419,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          },
+          "reason": "验收达成：指南落盘 + docs/README.md 索引链接命中",
+          "tokenSnapshot": {
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3",
+            "seq": 1592,
+            "at": 1789961800431,
+            "totals": {
+              "uncachedInputTokens": 1965881,
+              "outputTokens": 129108,
+              "cacheReadTokens": 27497216,
+              "cacheWriteTokens": 0
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-641317",
+          "body": "[状态] → in_progress：开工：render 人话首行约定指南（窗口 session-85447f15-ee57-44ef-8fd0-d8526111c0b3）",
+          "createdAt": 1789961744501,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          }
+        },
+        {
+          "id": "c-affb77",
+          "body": "[状态] → integrating：开发完成（窗口 session-85447f15-ee57-44ef-8fd0-d8526111c0b3）",
+          "createdAt": 1789961800202,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          }
+        },
+        {
+          "id": "c-504fee",
+          "body": "[状态] → testing：联调完成（纯文档卡）（窗口 session-85447f15-ee57-44ef-8fd0-d8526111c0b3）",
+          "createdAt": 1789961800278,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          }
+        },
+        {
+          "id": "c-f32e2c",
+          "body": "[状态] → in_review：验收点过：文件落盘 + 索引 grep 命中（窗口 session-85447f15-ee57-44ef-8fd0-d8526111c0b3）",
+          "createdAt": 1789961800341,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          }
+        },
+        {
+          "id": "c-2216f5",
+          "body": "[状态] → done：验收达成：指南落盘 + docs/README.md 索引链接命中（窗口 session-85447f15-ee57-44ef-8fd0-d8526111c0b3）",
+          "createdAt": 1789961800419,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1789959732076,
+      "updatedAt": 1789961800419,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-85447f15-ee57-44ef-8fd0-d8526111c0b3"
+      },
+      "lastReport": {
+        "at": 1789961800148,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/guides/tool-render-human-summary.md",
+          "docs/README.md"
+        ],
+        "completed": [
+          "docs/guides/tool-render-human-summary.md 落盘",
+          "docs/README.md 卷 3「工具与协议」挂索引链接（grep 命中 1 处）"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-c48f99/tasks/t-ba7e0b.md",
+      "layer": 2
+    }
+  ],
+  "edges": [
+    {
+      "from": "t-bfb1ad",
+      "to": "t-3e64cb"
+    },
+    {
+      "from": "t-3e64cb",
+      "to": "t-b2bb6b"
+    },
+    {
+      "from": "t-bfb1ad",
+      "to": "t-f5000d"
+    },
+    {
+      "from": "t-b2bb6b",
+      "to": "t-26dc91"
+    },
+    {
+      "from": "t-f5000d",
+      "to": "t-26dc91"
+    },
+    {
+      "from": "t-26dc91",
+      "to": "t-39c4bd"
+    },
+    {
+      "from": "t-f5000d",
+      "to": "t-ba7e0b"
+    }
+  ],
+  "layers": [
+    {
+      "layer": 0,
+      "tasks": [
+        "t-bfb1ad"
+      ]
+    },
+    {
+      "layer": 1,
+      "tasks": [
+        "t-3e64cb",
+        "t-f5000d"
+      ]
+    },
+    {
+      "layer": 2,
+      "tasks": [
+        "t-b2bb6b",
+        "t-ba7e0b"
+      ]
+    },
+    {
+      "layer": 3,
+      "tasks": [
+        "t-26dc91"
+      ]
+    },
+    {
+      "layer": 4,
+      "tasks": [
+        "t-39c4bd"
+      ]
+    }
+  ],
+  "ready": [],
+  "updated_at": "2026-09-28T23:14:14.546Z"
+}

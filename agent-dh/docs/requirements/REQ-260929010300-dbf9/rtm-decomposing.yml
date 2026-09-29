@@ -1,0 +1,472 @@
+metadata:
+  stage: decomposing
+  requirement_id: REQ-260929010300-dbf9
+  generated_at: 2026-09-28T17:23:49.922Z
+  version: 35
+  generated_by: dsh-pmboard
+  last_updated: 2026-09-28T18:19:40.792Z
+inputs:
+  requirements: []
+  design_sections:
+    - ref: design/architecture.md#现状与目标
+      title: 现状与目标 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-6
+      file: design/architecture.md
+      section: 现状与目标
+    - ref: design/architecture.md#模块职责与数据流
+      title: 模块职责与数据流 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-5
+      file: design/architecture.md
+      section: 模块职责与数据流
+    - ref: design/architecture.md#皮肤真源与迁移
+      title: 皮肤真源与迁移 `
+      serves:
+        - FR-6
+      file: design/architecture.md
+      section: 皮肤真源与迁移
+    - ref: design/architecture.md#单例到多实例挂载生命周期
+      title: 单例到多实例（挂载生命周期） `
+      serves:
+        - FR-3
+        - FR-4
+      file: design/architecture.md
+      section: 单例到多实例挂载生命周期
+    - ref: design/data-model.md#持久化数据零变更
+      title: 持久化数据：零变更 `
+      serves:
+        - FR-3
+        - FR-7
+      file: design/data-model.md
+      section: 持久化数据零变更
+    - ref: design/data-model.md#运行时结构与不变量
+      title: 运行时结构与不变量 `
+      serves:
+        - FR-3
+        - FR-4
+      file: design/data-model.md
+      section: 运行时结构与不变量
+    - ref: design/data-model.md#入参结构类型收敛不伪造
+      title: 入参结构类型（收敛，不伪造） `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-7
+      file: design/data-model.md
+      section: 入参结构类型收敛不伪造
+    - ref: design/interfaces.md#三个入口签名
+      title: 三个入口签名 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/interfaces.md
+      section: 三个入口签名
+    - ref: design/interfaces.md#常量与调用方契约
+      title: 常量与调用方契约 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/interfaces.md
+      section: 常量与调用方契约
+    - ref: design/interfaces.md#DOM-与样式契约
+      title: DOM 与样式契约 `
+      serves:
+        - FR-1
+        - FR-6
+      file: design/interfaces.md
+      section: DOM-与样式契约
+    - ref: design/use-cases.md#用例总览
+      title: 用例总览 `
+      serves:
+        - FR-1
+        - FR-2
+      file: design/use-cases.md
+      section: 用例总览
+    - ref: design/use-cases.md#主用例
+      title: 主用例 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-7
+      file: design/use-cases.md
+      section: 主用例
+    - ref: design/use-cases.md#异常与边界
+      title: 异常与边界 `
+      serves:
+        - FR-4
+        - FR-5
+        - FR-7
+      file: design/use-cases.md
+      section: 异常与边界
+    - ref: design/use-cases.md#范围外
+      title: 范围外 `
+      serves:
+        - FR-6
+      file: design/use-cases.md
+      section: 范围外
+outputs:
+  tasks:
+    - id: t-d03789
+      title: 定契约：入参结构类型收敛 + 面板画布常量
+      implements: 改 packages/web/dsh-pmboard/src/client/views/dag-view.ts：①新增并导出 DagTaskLike（id/title/status/phase/side/dependsOn + 可选 parentId/stageKind/cardDoc），把 buildDagCanvas/mountDagCanvas/buildDagData 的入参从 TaskRecord[] 收敛到该结构类型；②新增并导出 PANEL_DAG_CONTAINER_ID='np-dag-canvas-container' 与 PANEL_DAG_CANVAS_ID='np-dag-canvas'；③buildDagCanvas(tasks, containerId='dag-canvas-container', canvasId='dag-canvas')、mountDagCanvas(tasks, ready?, canvasId='dag-canvas') 新参数改可选。本卡不改挂载生命周期、不改任何调用方。
+      serves: []
+      depends_on: []
+      phase: implement
+      side: frontend
+    - id: t-6f9d7f
+      title: 画布 id 参数化 + 挂载实例表
+      implements: 改 packages/web/dsh-pmboard/src/client/views/dag-view.ts：①模块级单槽 activeDispose 换成 const disposers = new Map<string, () => void>()，disposeDagCanvas(canvasId) 只释放同名条目；②mountDagCanvas 用 document.getElementById(canvasId) 定位画布、openTaskDetail(taskId, canvasId) 定位锚点、挂载完成写入 disposers.set(canvasId, ...)；③改 packages/web/dsh-pmboard/src/client/dag-mount.ts：tryMountDagCanvas(tasks, ready?, canvasId='dag-canvas') 透传 canvasId。
+      serves: []
+      depends_on:
+        - t-d03789
+      phase: implement
+      side: frontend
+    - id: t-284b0a
+      title: 会话面板两处 DAG 块改调同一构建函数
+      implements: 改 packages/web/dsh-pmboard/src/client/node-panel.ts：renderDecomposingInfo 的「📊 DAG 层级」块与 renderImplViews 的 [DAG] 页签块，从 renderDag(...) 改为 buildDagCanvas(tasks, PANEL_DAG_CONTAINER_ID, PANEL_DAG_CANVAS_ID)（自 views/dag-view.ts import）；renderDag 保留函数、不再有调用点。
+      serves: []
+      depends_on:
+        - t-d03789
+      phase: implement
+      side: frontend
+    - id: t-3ed4b5
+      title: 会话面板挂载钩子（DOM 就绪后挂载）
+      implements: 改 packages/web/dsh-pmboard/src/client/conversation-progress.ts：新增 useEffect（依赖 detailOpen / selectedStage / stageOverview），从 stageOverview.stages 取所选阶段，stage 为 implementing 或 decomposing 时读 body.tasks 并调 tryMountDagCanvas(tasks, undefined, PANEL_DAG_CANVAS_ID)；不传 ready（对齐 FR-7 标注「推导」），阶段或任务缺失时不调用。
+      serves: []
+      depends_on:
+        - t-6f9d7f
+        - t-284b0a
+      phase: implement
+      side: frontend
+    - id: t-d1a7f7
+      title: DAG 骨架皮肤换成 np 苹果风
+      implements: "改 packages/web/dsh-pmboard/src/client/styles/dag.ts 的 DAG_CSS：面板用白底 + --dsh-pm-np-line-soft 描边 + 12px 圆角；标题用 --dsh-pm-np-text；-head 用 #f5f5f7（--dsh-pm-np-bg）底 + 下描边；-sub 与 -legend 用 --dsh-pm-np-text3 / -text2；-btn 与 -flowstat span 用 980px 胶囊，is-on 用 --dsh-pm-np-blue 实底；滚动条 8px 圆角。类名、styles.ts 的拼接与 scripts/verify-client-build.mjs 一律不动。"
+      serves: []
+      depends_on:
+        - t-d03789
+      phase: ui
+      side: frontend
+    - id: t-757283
+      title: 迁移与兼容核验 + 需求详情回归
+      implements: "①核验需求详情调用方零改动（views/stage-detail.ts 的 buildDag 仍走缺省参数）；②核验画布卡绘制零改动（src/client/dag/card-renderer.ts 无 diff）；③把「两处 DAG 面板 DOM 类名集合逐项相同」写成断言加入 tests/node-panel.test.ts；④给 tests/dag-view.test.ts、tests/node-panel.test.ts、tests/client-view.test.ts、tests/dag-styles.test.ts 补文件头 serves: 声明；⑤把回滚路径写进任务卡文档（还原 renderDag 两处调用 + 回滚 styles/dag.ts）。"
+      serves: []
+      depends_on:
+        - t-6f9d7f
+        - t-284b0a
+        - t-3ed4b5
+        - t-d1a7f7
+      phase: test
+      side: frontend
+    - id: t-ee4384
+      title: 定契约：入参结构类型收敛 + 面板画布常量·研发
+      implements: |-
+        改 packages/web/dsh-pmboard/src/client/views/dag-view.ts：①新增并导出 DagTaskLike（id/title/status/phase/side/dependsOn + 可选 parentId/stageKind/cardDoc），把 buildDagCanvas/mountDagCanvas/buildDagData 的入参从 TaskRecord[] 收敛到该结构类型；②新增并导出 PANEL_DAG_CONTAINER_ID='np-dag-canvas-container' 与 PANEL_DAG_CANVAS_ID='np-dag-canvas'；③buildDagCanvas(tasks, containerId='dag-canvas-container', canvasId='dag-canvas')、mountDagCanvas(tasks, ready?, canvasId='dag-canvas') 新参数改可选。本卡不改挂载生命周期、不改任何调用方。
+
+        [子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要
+      serves: []
+      depends_on: []
+      phase: implement
+      side: frontend
+    - id: t-1fadb6
+      title: 定契约：入参结构类型收敛 + 面板画布常量·联调
+      implements: |-
+        改 packages/web/dsh-pmboard/src/client/views/dag-view.ts：①新增并导出 DagTaskLike（id/title/status/phase/side/dependsOn + 可选 parentId/stageKind/cardDoc），把 buildDagCanvas/mountDagCanvas/buildDagData 的入参从 TaskRecord[] 收敛到该结构类型；②新增并导出 PANEL_DAG_CONTAINER_ID='np-dag-canvas-container' 与 PANEL_DAG_CANVAS_ID='np-dag-canvas'；③buildDagCanvas(tasks, containerId='dag-canvas-container', canvasId='dag-canvas')、mountDagCanvas(tasks, ready?, canvasId='dag-canvas') 新参数改可选。本卡不改挂载生命周期、不改任何调用方。
+
+        [子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致
+      serves: []
+      depends_on:
+        - t-ee4384
+      phase: implement
+      side: frontend
+    - id: t-cc9e3a
+      title: 定契约：入参结构类型收敛 + 面板画布常量·复核
+      implements: |-
+        改 packages/web/dsh-pmboard/src/client/views/dag-view.ts：①新增并导出 DagTaskLike（id/title/status/phase/side/dependsOn + 可选 parentId/stageKind/cardDoc），把 buildDagCanvas/mountDagCanvas/buildDagData 的入参从 TaskRecord[] 收敛到该结构类型；②新增并导出 PANEL_DAG_CONTAINER_ID='np-dag-canvas-container' 与 PANEL_DAG_CANVAS_ID='np-dag-canvas'；③buildDagCanvas(tasks, containerId='dag-canvas-container', canvasId='dag-canvas')、mountDagCanvas(tasks, ready?, canvasId='dag-canvas') 新参数改可选。本卡不改挂载生命周期、不改任何调用方。
+
+        [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-1fadb6
+      phase: implement
+      side: frontend
+    - id: t-470baa
+      title: 定契约：入参结构类型收敛 + 面板画布常量·测试
+      implements: |-
+        改 packages/web/dsh-pmboard/src/client/views/dag-view.ts：①新增并导出 DagTaskLike（id/title/status/phase/side/dependsOn + 可选 parentId/stageKind/cardDoc），把 buildDagCanvas/mountDagCanvas/buildDagData 的入参从 TaskRecord[] 收敛到该结构类型；②新增并导出 PANEL_DAG_CONTAINER_ID='np-dag-canvas-container' 与 PANEL_DAG_CANVAS_ID='np-dag-canvas'；③buildDagCanvas(tasks, containerId='dag-canvas-container', canvasId='dag-canvas')、mountDagCanvas(tasks, ready?, canvasId='dag-canvas') 新参数改可选。本卡不改挂载生命周期、不改任何调用方。
+
+        [子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）
+      serves: []
+      depends_on:
+        - t-cc9e3a
+      phase: implement
+      side: frontend
+    - id: t-3f8d67
+      title: 画布 id 参数化 + 挂载实例表·研发
+      implements: |-
+        改 packages/web/dsh-pmboard/src/client/views/dag-view.ts：①模块级单槽 activeDispose 换成 const disposers = new Map<string, () => void>()，disposeDagCanvas(canvasId) 只释放同名条目；②mountDagCanvas 用 document.getElementById(canvasId) 定位画布、openTaskDetail(taskId, canvasId) 定位锚点、挂载完成写入 disposers.set(canvasId, ...)；③改 packages/web/dsh-pmboard/src/client/dag-mount.ts：tryMountDagCanvas(tasks, ready?, canvasId='dag-canvas') 透传 canvasId。
+
+        [子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要
+      serves: []
+      depends_on:
+        - t-d03789
+      phase: implement
+      side: frontend
+    - id: t-2e30df
+      title: 画布 id 参数化 + 挂载实例表·联调
+      implements: |-
+        改 packages/web/dsh-pmboard/src/client/views/dag-view.ts：①模块级单槽 activeDispose 换成 const disposers = new Map<string, () => void>()，disposeDagCanvas(canvasId) 只释放同名条目；②mountDagCanvas 用 document.getElementById(canvasId) 定位画布、openTaskDetail(taskId, canvasId) 定位锚点、挂载完成写入 disposers.set(canvasId, ...)；③改 packages/web/dsh-pmboard/src/client/dag-mount.ts：tryMountDagCanvas(tasks, ready?, canvasId='dag-canvas') 透传 canvasId。
+
+        [子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致
+      serves: []
+      depends_on:
+        - t-3f8d67
+      phase: implement
+      side: frontend
+    - id: t-cf0284
+      title: 画布 id 参数化 + 挂载实例表·复核
+      implements: |-
+        改 packages/web/dsh-pmboard/src/client/views/dag-view.ts：①模块级单槽 activeDispose 换成 const disposers = new Map<string, () => void>()，disposeDagCanvas(canvasId) 只释放同名条目；②mountDagCanvas 用 document.getElementById(canvasId) 定位画布、openTaskDetail(taskId, canvasId) 定位锚点、挂载完成写入 disposers.set(canvasId, ...)；③改 packages/web/dsh-pmboard/src/client/dag-mount.ts：tryMountDagCanvas(tasks, ready?, canvasId='dag-canvas') 透传 canvasId。
+
+        [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-2e30df
+      phase: implement
+      side: frontend
+    - id: t-c53e93
+      title: 画布 id 参数化 + 挂载实例表·测试
+      implements: |-
+        改 packages/web/dsh-pmboard/src/client/views/dag-view.ts：①模块级单槽 activeDispose 换成 const disposers = new Map<string, () => void>()，disposeDagCanvas(canvasId) 只释放同名条目；②mountDagCanvas 用 document.getElementById(canvasId) 定位画布、openTaskDetail(taskId, canvasId) 定位锚点、挂载完成写入 disposers.set(canvasId, ...)；③改 packages/web/dsh-pmboard/src/client/dag-mount.ts：tryMountDagCanvas(tasks, ready?, canvasId='dag-canvas') 透传 canvasId。
+
+        [子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）
+      serves: []
+      depends_on:
+        - t-cf0284
+      phase: implement
+      side: frontend
+    - id: t-c0dad0
+      title: 会话面板两处 DAG 块改调同一构建函数·研发
+      implements: |-
+        改 packages/web/dsh-pmboard/src/client/node-panel.ts：renderDecomposingInfo 的「📊 DAG 层级」块与 renderImplViews 的 [DAG] 页签块，从 renderDag(...) 改为 buildDagCanvas(tasks, PANEL_DAG_CONTAINER_ID, PANEL_DAG_CANVAS_ID)（自 views/dag-view.ts import）；renderDag 保留函数、不再有调用点。
+
+        [子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要
+      serves: []
+      depends_on:
+        - t-d03789
+      phase: implement
+      side: frontend
+    - id: t-32a952
+      title: 会话面板两处 DAG 块改调同一构建函数·联调
+      implements: |-
+        改 packages/web/dsh-pmboard/src/client/node-panel.ts：renderDecomposingInfo 的「📊 DAG 层级」块与 renderImplViews 的 [DAG] 页签块，从 renderDag(...) 改为 buildDagCanvas(tasks, PANEL_DAG_CONTAINER_ID, PANEL_DAG_CANVAS_ID)（自 views/dag-view.ts import）；renderDag 保留函数、不再有调用点。
+
+        [子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致
+      serves: []
+      depends_on:
+        - t-c0dad0
+      phase: implement
+      side: frontend
+    - id: t-89278b
+      title: 会话面板两处 DAG 块改调同一构建函数·复核
+      implements: |-
+        改 packages/web/dsh-pmboard/src/client/node-panel.ts：renderDecomposingInfo 的「📊 DAG 层级」块与 renderImplViews 的 [DAG] 页签块，从 renderDag(...) 改为 buildDagCanvas(tasks, PANEL_DAG_CONTAINER_ID, PANEL_DAG_CANVAS_ID)（自 views/dag-view.ts import）；renderDag 保留函数、不再有调用点。
+
+        [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-32a952
+      phase: implement
+      side: frontend
+    - id: t-3b43fd
+      title: 会话面板两处 DAG 块改调同一构建函数·测试
+      implements: |-
+        改 packages/web/dsh-pmboard/src/client/node-panel.ts：renderDecomposingInfo 的「📊 DAG 层级」块与 renderImplViews 的 [DAG] 页签块，从 renderDag(...) 改为 buildDagCanvas(tasks, PANEL_DAG_CONTAINER_ID, PANEL_DAG_CANVAS_ID)（自 views/dag-view.ts import）；renderDag 保留函数、不再有调用点。
+
+        [子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）
+      serves: []
+      depends_on:
+        - t-89278b
+      phase: implement
+      side: frontend
+    - id: t-b1db02
+      title: 会话面板挂载钩子（DOM 就绪后挂载）·研发
+      implements: |-
+        改 packages/web/dsh-pmboard/src/client/conversation-progress.ts：新增 useEffect（依赖 detailOpen / selectedStage / stageOverview），从 stageOverview.stages 取所选阶段，stage 为 implementing 或 decomposing 时读 body.tasks 并调 tryMountDagCanvas(tasks, undefined, PANEL_DAG_CANVAS_ID)；不传 ready（对齐 FR-7 标注「推导」），阶段或任务缺失时不调用。
+
+        [子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要
+      serves: []
+      depends_on:
+        - t-6f9d7f
+        - t-284b0a
+      phase: implement
+      side: frontend
+    - id: t-3dfb5d
+      title: 会话面板挂载钩子（DOM 就绪后挂载）·联调
+      implements: |-
+        改 packages/web/dsh-pmboard/src/client/conversation-progress.ts：新增 useEffect（依赖 detailOpen / selectedStage / stageOverview），从 stageOverview.stages 取所选阶段，stage 为 implementing 或 decomposing 时读 body.tasks 并调 tryMountDagCanvas(tasks, undefined, PANEL_DAG_CANVAS_ID)；不传 ready（对齐 FR-7 标注「推导」），阶段或任务缺失时不调用。
+
+        [子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致
+      serves: []
+      depends_on:
+        - t-b1db02
+      phase: implement
+      side: frontend
+    - id: t-aeb8eb
+      title: 会话面板挂载钩子（DOM 就绪后挂载）·复核
+      implements: |-
+        改 packages/web/dsh-pmboard/src/client/conversation-progress.ts：新增 useEffect（依赖 detailOpen / selectedStage / stageOverview），从 stageOverview.stages 取所选阶段，stage 为 implementing 或 decomposing 时读 body.tasks 并调 tryMountDagCanvas(tasks, undefined, PANEL_DAG_CANVAS_ID)；不传 ready（对齐 FR-7 标注「推导」），阶段或任务缺失时不调用。
+
+        [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-3dfb5d
+      phase: implement
+      side: frontend
+    - id: t-bf779f
+      title: 会话面板挂载钩子（DOM 就绪后挂载）·测试
+      implements: |-
+        改 packages/web/dsh-pmboard/src/client/conversation-progress.ts：新增 useEffect（依赖 detailOpen / selectedStage / stageOverview），从 stageOverview.stages 取所选阶段，stage 为 implementing 或 decomposing 时读 body.tasks 并调 tryMountDagCanvas(tasks, undefined, PANEL_DAG_CANVAS_ID)；不传 ready（对齐 FR-7 标注「推导」），阶段或任务缺失时不调用。
+
+        [子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）
+      serves: []
+      depends_on:
+        - t-aeb8eb
+      phase: implement
+      side: frontend
+    - id: t-2069e2
+      title: DAG 骨架皮肤换成 np 苹果风·研发
+      implements: |-
+        改 packages/web/dsh-pmboard/src/client/styles/dag.ts 的 DAG_CSS：面板用白底 + --dsh-pm-np-line-soft 描边 + 12px 圆角；标题用 --dsh-pm-np-text；-head 用 #f5f5f7（--dsh-pm-np-bg）底 + 下描边；-sub 与 -legend 用 --dsh-pm-np-text3 / -text2；-btn 与 -flowstat span 用 980px 胶囊，is-on 用 --dsh-pm-np-blue 实底；滚动条 8px 圆角。类名、styles.ts 的拼接与 scripts/verify-client-build.mjs 一律不动。
+
+        [子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要
+      serves: []
+      depends_on:
+        - t-d03789
+      phase: ui
+      side: frontend
+    - id: t-0c43f8
+      title: DAG 骨架皮肤换成 np 苹果风·联调
+      implements: |-
+        改 packages/web/dsh-pmboard/src/client/styles/dag.ts 的 DAG_CSS：面板用白底 + --dsh-pm-np-line-soft 描边 + 12px 圆角；标题用 --dsh-pm-np-text；-head 用 #f5f5f7（--dsh-pm-np-bg）底 + 下描边；-sub 与 -legend 用 --dsh-pm-np-text3 / -text2；-btn 与 -flowstat span 用 980px 胶囊，is-on 用 --dsh-pm-np-blue 实底；滚动条 8px 圆角。类名、styles.ts 的拼接与 scripts/verify-client-build.mjs 一律不动。
+
+        [子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致
+      serves: []
+      depends_on:
+        - t-2069e2
+      phase: ui
+      side: frontend
+    - id: t-6fed57
+      title: DAG 骨架皮肤换成 np 苹果风·复核
+      implements: |-
+        改 packages/web/dsh-pmboard/src/client/styles/dag.ts 的 DAG_CSS：面板用白底 + --dsh-pm-np-line-soft 描边 + 12px 圆角；标题用 --dsh-pm-np-text；-head 用 #f5f5f7（--dsh-pm-np-bg）底 + 下描边；-sub 与 -legend 用 --dsh-pm-np-text3 / -text2；-btn 与 -flowstat span 用 980px 胶囊，is-on 用 --dsh-pm-np-blue 实底；滚动条 8px 圆角。类名、styles.ts 的拼接与 scripts/verify-client-build.mjs 一律不动。
+
+        [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-0c43f8
+      phase: ui
+      side: frontend
+    - id: t-a195b8
+      title: DAG 骨架皮肤换成 np 苹果风·测试
+      implements: |-
+        改 packages/web/dsh-pmboard/src/client/styles/dag.ts 的 DAG_CSS：面板用白底 + --dsh-pm-np-line-soft 描边 + 12px 圆角；标题用 --dsh-pm-np-text；-head 用 #f5f5f7（--dsh-pm-np-bg）底 + 下描边；-sub 与 -legend 用 --dsh-pm-np-text3 / -text2；-btn 与 -flowstat span 用 980px 胶囊，is-on 用 --dsh-pm-np-blue 实底；滚动条 8px 圆角。类名、styles.ts 的拼接与 scripts/verify-client-build.mjs 一律不动。
+
+        [子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）
+      serves: []
+      depends_on:
+        - t-6fed57
+      phase: ui
+      side: frontend
+    - id: t-7125de
+      title: 迁移与兼容核验 + 需求详情回归·研发
+      implements: |-
+        ①核验需求详情调用方零改动（views/stage-detail.ts 的 buildDag 仍走缺省参数）；②核验画布卡绘制零改动（src/client/dag/card-renderer.ts 无 diff）；③把「两处 DAG 面板 DOM 类名集合逐项相同」写成断言加入 tests/node-panel.test.ts；④给 tests/dag-view.test.ts、tests/node-panel.test.ts、tests/client-view.test.ts、tests/dag-styles.test.ts 补文件头 serves: 声明；⑤把回滚路径写进任务卡文档（还原 renderDag 两处调用 + 回滚 styles/dag.ts）。
+
+        [子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要
+      serves: []
+      depends_on:
+        - t-6f9d7f
+        - t-284b0a
+        - t-3ed4b5
+        - t-d1a7f7
+      phase: test
+      side: frontend
+    - id: t-74e548
+      title: 迁移与兼容核验 + 需求详情回归·复核
+      implements: |-
+        ①核验需求详情调用方零改动（views/stage-detail.ts 的 buildDag 仍走缺省参数）；②核验画布卡绘制零改动（src/client/dag/card-renderer.ts 无 diff）；③把「两处 DAG 面板 DOM 类名集合逐项相同」写成断言加入 tests/node-panel.test.ts；④给 tests/dag-view.test.ts、tests/node-panel.test.ts、tests/client-view.test.ts、tests/dag-styles.test.ts 补文件头 serves: 声明；⑤把回滚路径写进任务卡文档（还原 renderDag 两处调用 + 回滚 styles/dag.ts）。
+
+        [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-7125de
+      phase: test
+      side: frontend
+    - id: t-7ee744
+      title: 迁移与兼容核验 + 需求详情回归·测试
+      implements: |-
+        ①核验需求详情调用方零改动（views/stage-detail.ts 的 buildDag 仍走缺省参数）；②核验画布卡绘制零改动（src/client/dag/card-renderer.ts 无 diff）；③把「两处 DAG 面板 DOM 类名集合逐项相同」写成断言加入 tests/node-panel.test.ts；④给 tests/dag-view.test.ts、tests/node-panel.test.ts、tests/client-view.test.ts、tests/dag-styles.test.ts 补文件头 serves: 声明；⑤把回滚路径写进任务卡文档（还原 renderDag 两处调用 + 回滚 styles/dag.ts）。
+
+        [子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）
+      serves: []
+      depends_on:
+        - t-74e548
+      phase: test
+      side: frontend
+traceability:
+  design_to_tasks:
+    design/architecture.md#现状与目标: []
+    design/architecture.md#模块职责与数据流: []
+    design/architecture.md#皮肤真源与迁移: []
+    design/architecture.md#单例到多实例挂载生命周期: []
+    design/data-model.md#持久化数据零变更: []
+    design/data-model.md#运行时结构与不变量: []
+    design/data-model.md#入参结构类型收敛不伪造: []
+    design/interfaces.md#三个入口签名: []
+    design/interfaces.md#常量与调用方契约: []
+    design/interfaces.md#DOM-与样式契约: []
+    design/use-cases.md#用例总览: []
+    design/use-cases.md#主用例: []
+    design/use-cases.md#异常与边界: []
+    design/use-cases.md#范围外: []
+  fr_to_tasks:
+    FR-1: []
+    FR-2: []
+    FR-6: []
+    FR-3: []
+    FR-5: []
+    FR-4: []
+    FR-7: []
+coverage:
+  implementation:
+    total: 14
+    covered: 0
+    uncovered:
+      - design/architecture.md#现状与目标
+      - design/architecture.md#模块职责与数据流
+      - design/architecture.md#皮肤真源与迁移
+      - design/architecture.md#单例到多实例挂载生命周期
+      - design/data-model.md#持久化数据零变更
+      - design/data-model.md#运行时结构与不变量
+      - design/data-model.md#入参结构类型收敛不伪造
+      - design/interfaces.md#三个入口签名
+      - design/interfaces.md#常量与调用方契约
+      - design/interfaces.md#DOM-与样式契约
+      - design/use-cases.md#用例总览
+      - design/use-cases.md#主用例
+      - design/use-cases.md#异常与边界
+      - design/use-cases.md#范围外
+    rate: 0
+    total_designs: 14
+    covered_designs: 0

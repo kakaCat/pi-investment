@@ -1,0 +1,59 @@
+requirement:
+  id: REQ-i0001
+  title: 需求
+  category: feature
+  created_at: 1970-01-01T00:00:00.001Z
+  source_session: session-req-001
+  dir: /Users/yunpeng/pi-investment/agent-dh/packages/web/dsh-pmboard/docs/requirements/REQ-i0001
+lifecycle:
+  current_stage: decomposing
+  stage_count: 7
+  stage_list:
+    - draft
+    - brainstorming
+    - design
+    - decomposing
+    - implementing
+    - accepting
+    - done
+  stages:
+    - stage: draft
+      status: completed
+      enabled: true
+      entered_at: 1970-01-01T00:00:00.001Z
+      completed_at: 1970-01-01T00:16:40.000Z
+    - stage: brainstorming
+      status: completed
+      enabled: true
+      entered_at: 1970-01-01T00:00:00.001Z
+      completed_at: 1970-01-01T00:16:40.000Z
+    - stage: design
+      status: completed
+      enabled: true
+      entered_at: 1970-01-01T00:00:00.001Z
+      completed_at: 1970-01-01T00:16:40.000Z
+    - stage: decomposing
+      status: in_progress
+      enabled: true
+      entered_at: 1970-01-01T00:00:00.001Z
+      artifacts:
+        - kind: decomposition
+          path: docs/requirements/REQ-i0001/decomposition.md
+    - stage: implementing
+      status: pending
+      enabled: true
+    - stage: accepting
+      status: pending
+      enabled: true
+    - stage: done
+      status: pending
+      enabled: true
+metadata:
+  stage: lifecycle
+  requirement_id: REQ-i0001
+  generated_at: 2026-09-27T05:58:52.035Z
+  version: 10
+  generated_by: dsh-pmboard
+  rtm_version: "1.0"
+  file_path: /Users/yunpeng/pi-investment/agent-dh/packages/web/dsh-pmboard/docs/requirements/REQ-i0001/rtm-lifecycle.yml
+  last_updated: 2026-09-27T06:00:39.364Z

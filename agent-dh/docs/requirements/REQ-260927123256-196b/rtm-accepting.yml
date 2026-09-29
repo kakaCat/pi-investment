@@ -1,0 +1,189 @@
+metadata:
+  stage: accepting
+  requirement_id: REQ-260927123256-196b
+  generated_at: 2026-09-27T06:30:23.560Z
+  version: 3
+  generated_by: dsh-pmboard
+  last_updated: 2026-09-27T06:30:59.041Z
+inputs:
+  tasks:
+    - id: t-f8ed18
+      title: 先定契约：挂起确认能标出「被中止」，判定口径只留一处
+      status: done
+    - id: t-4d87e5
+      title: 确认弹框改为阻塞等待：人不作答，agent 就停在这一步
+      status: done
+    - id: t-fd257f
+      title: 等待期间不许偷偷往下走，状态页能看出在等谁
+      status: done
+    - id: t-16cefa
+      title: 工具说明写清「默认会等你」：显式宽限等于主动放弃等待
+      status: done
+    - id: t-93e425
+      title: 把等待语义的每条分支都钉成测试
+      status: done
+    - id: t-2231a8
+      title: 老调用方与既有确认链路不回退，流程文档同步
+      status: done
+    - id: t-a0c273
+      title: 先定契约：挂起确认能标出「被中止」，判定口径只留一处·研发
+      status: done
+    - id: t-3b5f9c
+      title: 先定契约：挂起确认能标出「被中止」，判定口径只留一处·联调
+      status: done
+    - id: t-738238
+      title: 先定契约：挂起确认能标出「被中止」，判定口径只留一处·复核
+      status: done
+    - id: t-db1d48
+      title: 先定契约：挂起确认能标出「被中止」，判定口径只留一处·测试
+      status: done
+outputs:
+  test_cases:
+    - id: TC-1
+      title: "TC-1: 缺省阻塞——ask 永不 resolve 时工具 200ms 仍未返回"
+      covers:
+        - t-4d87e5
+        - t-93e425
+      validates:
+        - FR-1
+      source: tasks/test.md
+    - id: TC-2
+      title: "TC-2: 阻塞中登记未作答记录（守卫拦写），作答返回后守卫释放"
+      covers:
+        - t-4d87e5
+        - t-fd257f
+        - t-93e425
+      validates:
+        - FR-1
+        - FR-2
+      source: tasks/test.md
+    - id: TC-3
+      title: "TC-3: 显式宽限才非阻塞；未装配能力 / 非法值显式拒绝"
+      covers:
+        - t-4d87e5
+        - t-93e425
+      validates:
+        - FR-3
+      source: tasks/test.md
+    - id: TC-4
+      title: "TC-4: 中止留痕——pending+ticket+interrupted，status 可见，写路径仍被拒"
+      covers:
+        - t-f8ed18
+        - t-4d87e5
+        - t-93e425
+      validates:
+        - FR-4
+      source: tasks/test.md
+    - id: TC-5
+      title: "TC-5: 取消——中性返回、无 pending/ticket、守卫放行、台账无落章"
+      covers:
+        - t-4d87e5
+        - t-93e425
+      validates:
+        - FR-1
+        - FR-6
+      source: tasks/test.md
+    - id: TC-6
+      title: "TC-6: 停手守卫拦写与台账落章即解除（不死锁）"
+      covers:
+        - t-fd257f
+        - t-93e425
+        - t-a0c273
+      validates:
+        - FR-2
+        - FR-4
+      source: tasks/test.md
+    - id: TC-7
+      title: "TC-7: reqboard_status.pending_confirms 投影与陈旧记录过滤"
+      covers:
+        - t-fd257f
+        - t-93e425
+      validates:
+        - FR-4
+      source: tasks/test.md
+    - id: TC-8
+      title: "TC-8: 契约形状——端口 5 方法 / PendingConfirmation 增 interruptedAt / 回执 4 键不变"
+      covers:
+        - t-f8ed18
+        - t-a0c273
+        - t-3b5f9c
+        - t-738238
+        - t-db1d48
+        - t-93e425
+        - t-2231a8
+      validates:
+        - FR-4
+        - FR-6
+      source: tasks/test.md
+    - id: TC-9
+      title: "TC-9: 文案契约——工具描述/提示词含「缺省阻塞」"
+      covers:
+        - t-16cefa
+        - t-93e425
+      validates:
+        - FR-5
+      source: tasks/test.md
+    - id: TC-10
+      title: "TC-10: 兼容性回归——既有确认链路不退化"
+      covers:
+        - t-2231a8
+        - t-93e425
+      validates:
+        - FR-6
+      source: tasks/test.md
+traceability:
+  task_to_tests:
+    t-f8ed18:
+      - TC-4
+      - TC-8
+    t-4d87e5:
+      - TC-1
+      - TC-2
+      - TC-3
+      - TC-4
+      - TC-5
+    t-fd257f:
+      - TC-2
+      - TC-6
+      - TC-7
+    t-16cefa:
+      - TC-9
+    t-93e425:
+      - TC-1
+      - TC-2
+      - TC-3
+      - TC-4
+      - TC-5
+      - TC-6
+      - TC-7
+      - TC-8
+      - TC-9
+      - TC-10
+    t-2231a8:
+      - TC-8
+      - TC-10
+    t-a0c273:
+      - TC-6
+      - TC-8
+    t-3b5f9c:
+      - TC-8
+    t-738238:
+      - TC-8
+    t-db1d48:
+      - TC-8
+  fr_to_tests:
+    FR-1: []
+    FR-3: []
+    FR-4: []
+    FR-2: []
+    FR-5: []
+    FR-6: []
+coverage:
+  testing:
+    total: 10
+    covered: 10
+    uncovered: []
+    rate: 100
+    total_tasks: 10
+    tested_tasks: 10
+    untested: []

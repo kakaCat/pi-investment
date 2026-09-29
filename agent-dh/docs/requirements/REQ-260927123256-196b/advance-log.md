@@ -1,0 +1,11 @@
+# 推进事件日志
+- 2026-09-27T04:45:09.313Z [OPEN_PARENT] parent=t-f8ed18 subtask=- ok：父卡 t-f8ed18 自动开工并落子卡 4 张
+- 2026-09-27T04:47:09.260Z [RUN_SUBTASK] parent=t-f8ed18 subtask=t-a0c273 failed：子卡凭证不过：workflow run 未完成（stopReason=cancelled: workflow run cancelled: workflow signal aborted；cancelled: workflow run cancelled: workflow signal aborted）（REQBOARD_SUBTASK_GATE）
+- 2026-09-27T04:49:17.484Z [RUN_SUBTASK] parent=t-f8ed18 subtask=t-a0c273 failed：子卡凭证不过：workflow run 未完成（stopReason=start_failed: Cannot read properties of undefined (reading 'session')；start_failed: Cannot read properties of undefined (reading 'session')）（REQBOARD_SUBTASK_GATE）
+- 2026-09-27T04:51:38.834Z [RUN_SUBTASK] parent=t-f8ed18 subtask=t-a0c273 failed：子卡凭证不过：改动文件不存在或 mtime 早于开工时刻 1790484698692（REQBOARD_SUBTASK_GATE）
+- 2026-09-27T05:10:27.602Z [RUN_SUBTASK] parent=t-f8ed18 subtask=t-a0c273 failed：子卡凭证不过：改动文件不存在或 mtime 早于开工时刻 1790485686483（REQBOARD_SUBTASK_GATE）
+- 2026-09-27T05:28:04.289Z [RUN_SUBTASK] parent=t-f8ed18 subtask=t-a0c273 failed：子卡凭证不过：改动文件不存在或 mtime 早于开工时刻 1790486806963（REQBOARD_SUBTASK_GATE）
+- 2026-09-27T05:36:01.526Z [RUN_SUBTASK] parent=t-f8ed18 subtask=t-3b5f9c failed：子卡凭证不过：workflow run 未完成（stopReason=cancelled: workflow run cancelled: workflow signal aborted；cancelled: workflow run cancelled: workflow signal aborted）（REQBOARD_SUBTASK_GATE）
+- 2026-09-27T05:40:10.058Z [RUN_SUBTASK] parent=t-f8ed18 subtask=t-3b5f9c ok：子卡 t-3b5f9c 执行完成
+- 2026-09-27T05:42:52.019Z [RUN_SUBTASK] parent=t-f8ed18 subtask=t-738238 ok：子卡 t-738238 执行完成
+- 2026-09-27T05:43:25.189Z [RUN_SUBTASK] parent=t-f8ed18 subtask=t-db1d48 failed：子卡凭证不过：汇报未给出改动文件（缺少文件系统证据）（REQBOARD_SUBTASK_GATE）

@@ -1,0 +1,40 @@
+task:
+  id: t-71aeb3
+  title: styles/node-panel.ts 新增入口按钮与失败提示两条规则
+  status: todo
+  implements: 新增 .dsh-pm-np-board-entry（flex:none、min-height、胶囊、hover）与 .dsh-pm-cprog-detail-panel .dsh-pm-np-entry-err 两条作用域内规则；不动 head-time 的 margin-left:auto；tests/node-panel-styles.test.ts 加 TC-14。
+  serves: []
+  depends_on:
+    - t-2eb71d
+    - t-e481a4
+  phase: ui
+  side: frontend
+  workflow_params:
+    REQ_ID: REQ-260928222643-4d34
+    TASK_ID: t-71aeb3
+    TASK_TITLE: styles/node-panel.ts 新增入口按钮与失败提示两条规则
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: frontend
+    PHASE: ui
+  workflow_total: 4
+  workflow_done: 1
+  workflow:
+    - phase: ui
+      status: pending
+    - phase: implement
+      status: done
+      completed_at: 2026-09-28T14:59:54.104Z
+    - phase: test
+      status: pending
+    - phase: commit
+      status: pending
+metadata:
+  stage: implementing
+  requirement_id: REQ-260928222643-4d34
+  generated_at: 2026-09-28T14:59:54.104Z
+  version: 2
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 4
+  last_updated: 2026-09-28T14:59:54.105Z

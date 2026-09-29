@@ -1,0 +1,560 @@
+metadata:
+  stage: decomposing
+  requirement_id: REQ-260927144541-0481
+  generated_at: 2026-09-27T06:51:16.527Z
+  version: 42
+  generated_by: dsh-pmboard
+  last_updated: 2026-09-27T11:18:06.121Z
+inputs:
+  requirements: []
+  design_sections:
+    - ref: design/architecture.md#分层与两族边界
+      title: 分层与两族边界 <!--
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+      file: design/architecture.md
+      section: 分层与两族边界
+    - ref: design/architecture.md#本需求改动落点
+      title: 本需求改动落点 <!--
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+      file: design/architecture.md
+      section: 本需求改动落点
+    - ref: design/architecture.md#不变量
+      title: 不变量 <!--
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+      file: design/architecture.md
+      section: 不变量
+    - ref: design/architecture.md#回滚路径
+      title: 回滚路径 <!--
+      serves:
+        - FR-2
+        - FR-4
+        - FR-7
+      file: design/architecture.md
+      section: 回滚路径
+    - ref: design/data-model.md#复用既有结构
+      title: 复用既有结构 <!--
+      serves:
+        - FR-1
+        - FR-3
+        - FR-4
+        - FR-5
+      file: design/data-model.md
+      section: 复用既有结构
+    - ref: design/data-model.md#新增视图模型
+      title: 新增视图模型 <!--
+      serves:
+        - FR-3
+        - FR-4
+      file: design/data-model.md
+      section: 新增视图模型
+    - ref: design/data-model.md#约束
+      title: 约束 <!--
+      serves:
+        - FR-3
+        - FR-4
+      file: design/data-model.md
+      section: 约束
+    - ref: design/interfaces.md#接口清单
+      title: 接口清单 <!--
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+      file: design/interfaces.md
+      section: 接口清单
+    - ref: design/interfaces.md#I-1-reqboardtaskrun
+      title: I-1 reqboard_task_run <!--
+      serves:
+        - FR-1
+        - FR-2
+        - FR-6
+      file: design/interfaces.md
+      section: I-1-reqboardtaskrun
+    - ref: design/interfaces.md#I-2-reqboardtaskexecute
+      title: I-2 reqboard_task_execute <!--
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: I-2-reqboardtaskexecute
+    - ref: design/interfaces.md#I-3-reqboardtasktree新增只读
+      title: I-3 reqboard_task_tree（新增，只读） <!--
+      serves:
+        - FR-3
+      file: design/interfaces.md
+      section: I-3-reqboardtasktree新增只读
+    - ref: design/interfaces.md#I-4-reqboardtaskstatus
+      title: I-4 reqboard_task_status <!--
+      serves:
+        - FR-4
+        - FR-6
+      file: design/interfaces.md
+      section: I-4-reqboardtaskstatus
+    - ref: design/interfaces.md#I-5-reqboardtaskmove
+      title: I-5 reqboard_task_move <!--
+      serves:
+        - FR-5
+      file: design/interfaces.md
+      section: I-5-reqboardtaskmove
+    - ref: design/interfaces.md#I-6-契约门禁
+      title: I-6 契约门禁 <!--
+      serves:
+        - FR-7
+      file: design/interfaces.md
+      section: I-6-契约门禁
+    - ref: design/interfaces.md#错误语义
+      title: 错误语义 <!--
+      serves:
+        - FR-1
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-7
+      file: design/interfaces.md
+      section: 错误语义
+    - ref: design/use-cases.md#UC-1-起链后一眼看清父子结构
+      title: UC-1 起链后一眼看清父子结构 <!--
+      serves:
+        - FR-3
+        - FR-4
+      file: design/use-cases.md
+      section: UC-1-起链后一眼看清父子结构
+    - ref: design/use-cases.md#UC-2-用错边推进被解释而不是只被拒
+      title: UC-2 用错边推进被解释，而不是只被拒 <!--
+      serves:
+        - FR-5
+      file: design/use-cases.md
+      section: UC-2-用错边推进被解释而不是只被拒
+    - ref: design/use-cases.md#UC-3-验收标准不可执行时当场能改
+      title: UC-3 验收标准不可执行时当场能改 <!--
+      serves:
+        - FR-5
+      file: design/use-cases.md
+      section: UC-3-验收标准不可执行时当场能改
+    - ref: design/use-cases.md#UC-4-维护者新增工具时被门禁兜底
+      title: UC-4 维护者新增工具时被门禁兜底 <!--
+      serves:
+        - FR-2
+        - FR-7
+      file: design/use-cases.md
+      section: UC-4-维护者新增工具时被门禁兜底
+    - ref: design/use-cases.md#范围外另行立项
+      title: 范围外（另行立项） <!--
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: 范围外另行立项
+outputs:
+  tasks:
+    - id: t-3e3ebb
+      title: 先定契约：任务/链工具的入参与返回长什么样
+      implements: ""
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-d50859
+      title: 链只留一个入口：起链工具收口，别名不再各跑一套
+      implements: ""
+      serves: []
+      depends_on:
+        - t-3e3ebb
+      phase: implement
+      side: backend
+    - id: t-acd60f
+      title: 一眼看清父子：新增「父卡→子卡」结构查询
+      implements: ""
+      serves: []
+      depends_on:
+        - t-3e3ebb
+      phase: implement
+      side: backend
+    - id: t-039d31
+      title: 单卡状态说实话：改读台账执行记录，不再读没人写的旧段落
+      implements: ""
+      serves: []
+      depends_on:
+        - t-3e3ebb
+      phase: implement
+      side: backend
+    - id: t-ac97a2
+      title: 推错状态要说清：报错带上角色与合法边，验收标准能当场改
+      implements: ""
+      serves: []
+      depends_on:
+        - t-3e3ebb
+      phase: implement
+      side: backend
+    - id: t-507969
+      title: 超时归位：投递/查询类工具不再挂交互式长超时
+      implements: ""
+      serves: []
+      depends_on:
+        - t-d50859
+        - t-acd60f
+        - t-039d31
+      phase: implement
+      side: backend
+    - id: t-5e64cd
+      title: 门禁固化：声明与行为不一致由测试拦住
+      implements: ""
+      serves: []
+      depends_on:
+        - t-d50859
+        - t-acd60f
+        - t-039d31
+        - t-ac97a2
+        - t-507969
+      phase: test
+      side: backend
+    - id: t-bd7439
+      title: 兼容收尾：老调用方不退化 + 工具面与流程文档同步
+      implements: ""
+      serves: []
+      depends_on:
+        - t-5e64cd
+      phase: test
+      side: fullstack
+    - id: t-c42bc0
+      title: 先定契约：任务/链工具的入参与返回长什么样·研发
+      implements: ""
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-91b37e
+      title: 先定契约：任务/链工具的入参与返回长什么样·联调
+      implements: ""
+      serves: []
+      depends_on:
+        - t-c42bc0
+      phase: implement
+      side: backend
+    - id: t-52933e
+      title: 先定契约：任务/链工具的入参与返回长什么样·复核
+      implements: ""
+      serves: []
+      depends_on:
+        - t-91b37e
+      phase: implement
+      side: backend
+    - id: t-2838a8
+      title: 先定契约：任务/链工具的入参与返回长什么样·测试
+      implements: ""
+      serves: []
+      depends_on:
+        - t-52933e
+      phase: implement
+      side: backend
+    - id: t-b079ef
+      title: 链只留一个入口：起链工具收口，别名不再各跑一套·研发
+      implements: ""
+      serves: []
+      depends_on:
+        - t-3e3ebb
+      phase: implement
+      side: backend
+    - id: t-4ef7ab
+      title: 链只留一个入口：起链工具收口，别名不再各跑一套·联调
+      implements: ""
+      serves: []
+      depends_on:
+        - t-b079ef
+      phase: implement
+      side: backend
+    - id: t-226f18
+      title: 链只留一个入口：起链工具收口，别名不再各跑一套·复核
+      implements: ""
+      serves: []
+      depends_on:
+        - t-4ef7ab
+      phase: implement
+      side: backend
+    - id: t-6fd3e4
+      title: 链只留一个入口：起链工具收口，别名不再各跑一套·测试
+      implements: ""
+      serves: []
+      depends_on:
+        - t-226f18
+      phase: implement
+      side: backend
+    - id: t-3f8bb3
+      title: 一眼看清父子：新增「父卡→子卡」结构查询·研发
+      implements: ""
+      serves: []
+      depends_on:
+        - t-3e3ebb
+      phase: implement
+      side: backend
+    - id: t-4b44d7
+      title: 一眼看清父子：新增「父卡→子卡」结构查询·联调
+      implements: ""
+      serves: []
+      depends_on:
+        - t-3f8bb3
+      phase: implement
+      side: backend
+    - id: t-f42b5a
+      title: 一眼看清父子：新增「父卡→子卡」结构查询·复核
+      implements: ""
+      serves: []
+      depends_on:
+        - t-4b44d7
+      phase: implement
+      side: backend
+    - id: t-ca640c
+      title: 一眼看清父子：新增「父卡→子卡」结构查询·测试
+      implements: ""
+      serves: []
+      depends_on:
+        - t-f42b5a
+      phase: implement
+      side: backend
+    - id: t-2de564
+      title: 单卡状态说实话：改读台账执行记录，不再读没人写的旧段落·研发
+      implements: ""
+      serves: []
+      depends_on:
+        - t-3e3ebb
+      phase: implement
+      side: backend
+    - id: t-e2ccda
+      title: 单卡状态说实话：改读台账执行记录，不再读没人写的旧段落·联调
+      implements: ""
+      serves: []
+      depends_on:
+        - t-2de564
+      phase: implement
+      side: backend
+    - id: t-ebe92d
+      title: 单卡状态说实话：改读台账执行记录，不再读没人写的旧段落·复核
+      implements: ""
+      serves: []
+      depends_on:
+        - t-e2ccda
+      phase: implement
+      side: backend
+    - id: t-46d23f
+      title: 单卡状态说实话：改读台账执行记录，不再读没人写的旧段落·测试
+      implements: ""
+      serves: []
+      depends_on:
+        - t-ebe92d
+      phase: implement
+      side: backend
+    - id: t-c65b1a
+      title: 推错状态要说清：报错带上角色与合法边，验收标准能当场改·研发
+      implements: ""
+      serves: []
+      depends_on:
+        - t-3e3ebb
+      phase: implement
+      side: backend
+    - id: t-061657
+      title: 推错状态要说清：报错带上角色与合法边，验收标准能当场改·联调
+      implements: ""
+      serves: []
+      depends_on:
+        - t-c65b1a
+      phase: implement
+      side: backend
+    - id: t-c67876
+      title: 推错状态要说清：报错带上角色与合法边，验收标准能当场改·复核
+      implements: ""
+      serves: []
+      depends_on:
+        - t-061657
+      phase: implement
+      side: backend
+    - id: t-008040
+      title: 推错状态要说清：报错带上角色与合法边，验收标准能当场改·测试
+      implements: ""
+      serves: []
+      depends_on:
+        - t-c67876
+      phase: implement
+      side: backend
+    - id: t-59916c
+      title: 超时归位：投递/查询类工具不再挂交互式长超时·研发
+      implements: ""
+      serves: []
+      depends_on:
+        - t-d50859
+        - t-acd60f
+        - t-039d31
+      phase: implement
+      side: backend
+    - id: t-d80c2b
+      title: 超时归位：投递/查询类工具不再挂交互式长超时·联调
+      implements: ""
+      serves: []
+      depends_on:
+        - t-59916c
+      phase: implement
+      side: backend
+    - id: t-fc43f2
+      title: 超时归位：投递/查询类工具不再挂交互式长超时·复核
+      implements: ""
+      serves: []
+      depends_on:
+        - t-d80c2b
+      phase: implement
+      side: backend
+    - id: t-773fbf
+      title: 超时归位：投递/查询类工具不再挂交互式长超时·测试
+      implements: ""
+      serves: []
+      depends_on:
+        - t-fc43f2
+      phase: implement
+      side: backend
+    - id: t-b02159
+      title: 门禁固化：声明与行为不一致由测试拦住·研发
+      implements: ""
+      serves: []
+      depends_on:
+        - t-d50859
+        - t-acd60f
+        - t-039d31
+        - t-ac97a2
+        - t-507969
+      phase: test
+      side: backend
+    - id: t-022248
+      title: 门禁固化：声明与行为不一致由测试拦住·联调
+      implements: ""
+      serves: []
+      depends_on:
+        - t-b02159
+      phase: test
+      side: backend
+    - id: t-8ec036
+      title: 门禁固化：声明与行为不一致由测试拦住·复核
+      implements: ""
+      serves: []
+      depends_on:
+        - t-022248
+      phase: test
+      side: backend
+    - id: t-5a4790
+      title: 门禁固化：声明与行为不一致由测试拦住·测试
+      implements: ""
+      serves: []
+      depends_on:
+        - t-8ec036
+      phase: test
+      side: backend
+    - id: t-73e493
+      title: 兼容收尾：老调用方不退化 + 工具面与流程文档同步·研发
+      implements: ""
+      serves: []
+      depends_on:
+        - t-5e64cd
+      phase: test
+      side: fullstack
+    - id: t-3b7673
+      title: 兼容收尾：老调用方不退化 + 工具面与流程文档同步·联调
+      implements: ""
+      serves: []
+      depends_on:
+        - t-73e493
+      phase: test
+      side: fullstack
+    - id: t-bfe2a8
+      title: 兼容收尾：老调用方不退化 + 工具面与流程文档同步·复核
+      implements: ""
+      serves: []
+      depends_on:
+        - t-3b7673
+      phase: test
+      side: fullstack
+    - id: t-417698
+      title: 兼容收尾：老调用方不退化 + 工具面与流程文档同步·测试
+      implements: ""
+      serves: []
+      depends_on:
+        - t-bfe2a8
+      phase: test
+      side: fullstack
+traceability:
+  design_to_tasks:
+    design/architecture.md#分层与两族边界: []
+    design/architecture.md#本需求改动落点: []
+    design/architecture.md#不变量: []
+    design/architecture.md#回滚路径: []
+    design/data-model.md#复用既有结构: []
+    design/data-model.md#新增视图模型: []
+    design/data-model.md#约束: []
+    design/interfaces.md#接口清单: []
+    design/interfaces.md#I-1-reqboardtaskrun: []
+    design/interfaces.md#I-2-reqboardtaskexecute: []
+    design/interfaces.md#I-3-reqboardtasktree新增只读: []
+    design/interfaces.md#I-4-reqboardtaskstatus: []
+    design/interfaces.md#I-5-reqboardtaskmove: []
+    design/interfaces.md#I-6-契约门禁: []
+    design/interfaces.md#错误语义: []
+    design/use-cases.md#UC-1-起链后一眼看清父子结构: []
+    design/use-cases.md#UC-2-用错边推进被解释而不是只被拒: []
+    design/use-cases.md#UC-3-验收标准不可执行时当场能改: []
+    design/use-cases.md#UC-4-维护者新增工具时被门禁兜底: []
+    design/use-cases.md#范围外另行立项: []
+  fr_to_tasks:
+    FR-1: []
+    FR-2: []
+    FR-3: []
+    FR-4: []
+    FR-5: []
+    FR-6: []
+    FR-7: []
+coverage:
+  implementation:
+    total: 20
+    covered: 0
+    uncovered:
+      - design/architecture.md#分层与两族边界
+      - design/architecture.md#本需求改动落点
+      - design/architecture.md#不变量
+      - design/architecture.md#回滚路径
+      - design/data-model.md#复用既有结构
+      - design/data-model.md#新增视图模型
+      - design/data-model.md#约束
+      - design/interfaces.md#接口清单
+      - design/interfaces.md#I-1-reqboardtaskrun
+      - design/interfaces.md#I-2-reqboardtaskexecute
+      - design/interfaces.md#I-3-reqboardtasktree新增只读
+      - design/interfaces.md#I-4-reqboardtaskstatus
+      - design/interfaces.md#I-5-reqboardtaskmove
+      - design/interfaces.md#I-6-契约门禁
+      - design/interfaces.md#错误语义
+      - design/use-cases.md#UC-1-起链后一眼看清父子结构
+      - design/use-cases.md#UC-2-用错边推进被解释而不是只被拒
+      - design/use-cases.md#UC-3-验收标准不可执行时当场能改
+      - design/use-cases.md#UC-4-维护者新增工具时被门禁兜底
+      - design/use-cases.md#范围外另行立项
+    rate: 0
+    total_designs: 20
+    covered_designs: 0

@@ -1,0 +1,830 @@
+{
+  "version": 1,
+  "requirement_id": "REQ-260922182505-0924",
+  "schemaVersion": 9,
+  "generated_at": "2026-09-27T14:55:11.425Z",
+  "tasks": [
+    {
+      "id": "t-31d4d5",
+      "requirementId": "REQ-260922182505-0924",
+      "title": "复现死代码现状并建立回归基线",
+      "description": "确认 triage 兼容路径仍在运行（grep 清单 + 路由在线可达），并记录当前全量测试失败集作为回归对比基线。技术细节：grep -rn triage src/ 清单落盘；vitest run packages/web/dsh-pmboard 失败集落盘为 baseline；部署实例 curl /dashboard/api/reqboard/triage 确认当前返回 200。",
+      "phase": "analysis",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "docs/requirements/REQ-260922182505-0924/ 下存在 baseline 记录（grep 清单 + vitest 失败集），且记录了 triage 路由当前在线可达的证据（curl 状态码）。",
+      "implementation": "在 dsh-pmboard 包目录执行 grep -rn \"triage\" src/ --include=\"*.ts\" 与 npx vitest run，把失败测试名清单写入 baseline 文件；curl 线上 :13080 的 triage 路由记录状态码。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-15c640",
+          "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf",
+          "trigger": "manual",
+          "startedAt": 1790078905400,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf",
+              "seq": 2093,
+              "at": 1790078905413,
+              "totals": {
+                "uncachedInputTokens": 8748456,
+                "outputTokens": 186933,
+                "cacheReadTokens": 57674038,
+                "cacheWriteTokens": 18197
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf",
+              "seq": 2184,
+              "at": 1790079179570,
+              "totals": {
+                "uncachedInputTokens": 8828914,
+                "outputTokens": 190567,
+                "cacheReadTokens": 58488118,
+                "cacheWriteTokens": 18197
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 80458,
+              "outputTokens": 3634,
+              "cacheReadTokens": 814080,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790079179560
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790078881762,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790078905400,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf"
+          },
+          "reason": "开工：复现死代码现状并建立回归基线",
+          "tokenSnapshot": {
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf",
+            "seq": 2093,
+            "at": 1790078905413,
+            "totals": {
+              "uncachedInputTokens": 8748456,
+              "outputTokens": 186933,
+              "cacheReadTokens": 57674038,
+              "cacheWriteTokens": 18197
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "integrating",
+          "at": 1790079179560,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf"
+          },
+          "reason": "分析任务无联调对象，按状态机推进（基线产物已落盘）",
+          "tokenSnapshot": {
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf",
+            "seq": 2184,
+            "at": 1790079179570,
+            "totals": {
+              "uncachedInputTokens": 8828914,
+              "outputTokens": 190567,
+              "cacheReadTokens": 58488118,
+              "cacheWriteTokens": 18197
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1790079179649,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf"
+          },
+          "reason": "基线可复核性自检：baseline.md/三份证据文件已落盘并可重新采集比对",
+          "tokenSnapshot": {
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf",
+            "seq": 2186,
+            "at": 1790079179661,
+            "totals": {
+              "uncachedInputTokens": 8828914,
+              "outputTokens": 190567,
+              "cacheReadTokens": 58488118,
+              "cacheWriteTokens": 18197
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1790079179729,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf"
+          },
+          "reason": "基线记录完整：grep 127行/22文件、curl 200 证据、91条失败集，验收标准达成",
+          "tokenSnapshot": {
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf",
+            "seq": 2188,
+            "at": 1790079179738,
+            "totals": {
+              "uncachedInputTokens": 8828914,
+              "outputTokens": 190567,
+              "cacheReadTokens": 58488118,
+              "cacheWriteTokens": 18197
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790079179806,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf"
+          },
+          "reason": "t1 复现与基线建立完成",
+          "tokenSnapshot": {
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf",
+            "seq": 2190,
+            "at": 1790079179814,
+            "totals": {
+              "uncachedInputTokens": 8828914,
+              "outputTokens": 190567,
+              "cacheReadTokens": 58488118,
+              "cacheWriteTokens": 18197
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-4d0e14",
+          "body": "[状态] → in_progress：开工：复现死代码现状并建立回归基线（窗口 session-9faaac35-2641-473c-a5dc-ea6e6d11efbf）",
+          "createdAt": 1790078905400,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf"
+          }
+        },
+        {
+          "id": "c-1095be",
+          "body": "[状态] → integrating：分析任务无联调对象，按状态机推进（基线产物已落盘）（窗口 session-9faaac35-2641-473c-a5dc-ea6e6d11efbf）",
+          "createdAt": 1790079179560,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf"
+          }
+        },
+        {
+          "id": "c-45586c",
+          "body": "[状态] → testing：基线可复核性自检：baseline.md/三份证据文件已落盘并可重新采集比对（窗口 session-9faaac35-2641-473c-a5dc-ea6e6d11efbf）",
+          "createdAt": 1790079179649,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf"
+          }
+        },
+        {
+          "id": "c-e80d58",
+          "body": "[状态] → in_review：基线记录完整：grep 127行/22文件、curl 200 证据、91条失败集，验收标准达成（窗口 session-9faaac35-2641-473c-a5dc-ea6e6d11efbf）",
+          "createdAt": 1790079179729,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf"
+          }
+        },
+        {
+          "id": "c-953b53",
+          "body": "[状态] → done：t1 复现与基线建立完成（窗口 session-9faaac35-2641-473c-a5dc-ea6e6d11efbf）",
+          "createdAt": 1790079179806,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1790078881762,
+      "updatedAt": 1790079179806,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf"
+      },
+      "lastReport": {
+        "at": 1790079122034,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-260922182505-0924/baseline.md",
+          "docs/requirements/REQ-260922182505-0924/baseline-grep.txt",
+          "docs/requirements/REQ-260922182505-0924/baseline-curl.txt",
+          "docs/requirements/REQ-260922182505-0924/baseline-test-failures.txt"
+        ],
+        "completed": [
+          "grep 基线：127 行命中 / 22 文件 → baseline-grep.txt",
+          "线上路由证据：GET /dashboard/api/reqboard/triage 返回 200 → baseline-curl.txt",
+          "vitest 全量基线：10 failed files / 91 failed tests（1571 passed）→ baseline-test-failures.txt",
+          "基线汇总说明 → baseline.md"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-260922182505-0924/tasks/t-31d4d5.md",
+      "layer": 0
+    },
+    {
+      "id": "t-8d1d4f",
+      "requirementId": "REQ-260922182505-0924",
+      "title": "删除 triage 兼容路径与 .bak 文件",
+      "description": "按 design/design.md 的 21 文件处置表执行：删 routers/triage.ts 与 3 个 .bak；摘除 routes/window/support/CaptureRequirement/QueryState/StatusTool/Predicates/board-mount/board/api/types/styles/view 中的 triage 代码；同步删改引用 triage 的测试；protocol.ts 契约、JsonLedgerRepository、rollup 读取、migration v4 fixture 冻结不动。",
+      "phase": "implement",
+      "side": "fullstack",
+      "dependsOn": [
+        "t-31d4d5"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "① npx tsc --noEmit（或等价构建）通过；② grep -rn \"triage\" src/ 仅剩 protocol.ts 冻结契约、JsonLedgerRepository 管道、rollup 读取与历史注释；③ ls src/application/internal/*.bak* 为空；④ vitest run 失败集与 t1 基线差集为空。",
+      "implementation": "按 design/architecture.md 的顺序：先摘调用方（capture/create/QueryState/前端）→ 再删定义（window/support/Predicates）→ 最后删路由与文件，每步保持可编译；测试文件随删随改。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-910b67",
+          "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf",
+          "trigger": "manual",
+          "startedAt": 1790079189341,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf",
+              "seq": 2199,
+              "at": 1790079189350,
+              "totals": {
+                "uncachedInputTokens": 8908522,
+                "outputTokens": 190827,
+                "cacheReadTokens": 58495798,
+                "cacheWriteTokens": 18197
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf",
+              "seq": 2732,
+              "at": 1790080008690,
+              "totals": {
+                "uncachedInputTokens": 9068081,
+                "outputTokens": 220129,
+                "cacheReadTokens": 65403446,
+                "cacheWriteTokens": 18197
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 159559,
+              "outputTokens": 29302,
+              "cacheReadTokens": 6907648,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790080008680
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790078881762,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790079189341,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf"
+          },
+          "reason": "开工：按设计处置表删除 triage 兼容路径与 .bak 文件（顺序：调用方→定义→路由/文件）",
+          "tokenSnapshot": {
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf",
+            "seq": 2199,
+            "at": 1790079189350,
+            "totals": {
+              "uncachedInputTokens": 8908522,
+              "outputTokens": 190827,
+              "cacheReadTokens": 58495798,
+              "cacheWriteTokens": 18197
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "integrating",
+          "at": 1790080008680,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf"
+          },
+          "reason": "删除完成：前后端 triage 残留全摘，tsc clean（纯删除无联调对象，按状态机推进）",
+          "tokenSnapshot": {
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf",
+            "seq": 2732,
+            "at": 1790080008690,
+            "totals": {
+              "uncachedInputTokens": 9068081,
+              "outputTokens": 220129,
+              "cacheReadTokens": 65403446,
+              "cacheWriteTokens": 18197
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1790080008774,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf"
+          },
+          "reason": "自测通过：vitest 全量失败集 86=86 与 t1 基线差集为空；grep 只剩冻结契约与历史注释；.bak 已清空",
+          "tokenSnapshot": {
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf",
+            "seq": 2734,
+            "at": 1790080008784,
+            "totals": {
+              "uncachedInputTokens": 9068081,
+              "outputTokens": 220129,
+              "cacheReadTokens": 65403446,
+              "cacheWriteTokens": 18197
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1790080008851,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf"
+          },
+          "reason": "四项验收标准全部达成，证据（after-grep/after-test-failures）已落盘",
+          "tokenSnapshot": {
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf",
+            "seq": 2736,
+            "at": 1790080008860,
+            "totals": {
+              "uncachedInputTokens": 9068081,
+              "outputTokens": 220129,
+              "cacheReadTokens": 65403446,
+              "cacheWriteTokens": 18197
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790080008929,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf"
+          },
+          "reason": "t2 删除主体完成，交 t3 做独立部署验证",
+          "tokenSnapshot": {
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf",
+            "seq": 2738,
+            "at": 1790080008937,
+            "totals": {
+              "uncachedInputTokens": 9068081,
+              "outputTokens": 220129,
+              "cacheReadTokens": 65403446,
+              "cacheWriteTokens": 18197
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-bd3e60",
+          "body": "[状态] → in_progress：开工：按设计处置表删除 triage 兼容路径与 .bak 文件（顺序：调用方→定义→路由/文件）（窗口 session-9faaac35-2641-473c-a5dc-ea6e6d11efbf）",
+          "createdAt": 1790079189341,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf"
+          }
+        },
+        {
+          "id": "c-3a2a03",
+          "body": "[状态] → integrating：删除完成：前后端 triage 残留全摘，tsc clean（纯删除无联调对象，按状态机推进）（窗口 session-9faaac35-2641-473c-a5dc-ea6e6d11efbf）",
+          "createdAt": 1790080008680,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf"
+          }
+        },
+        {
+          "id": "c-94b6fd",
+          "body": "[状态] → testing：自测通过：vitest 全量失败集 86=86 与 t1 基线差集为空；grep 只剩冻结契约与历史注释；.bak 已清空（窗口 session-9faaac35-2641-473c-a5dc-ea6e6d11efbf）",
+          "createdAt": 1790080008774,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf"
+          }
+        },
+        {
+          "id": "c-16791d",
+          "body": "[状态] → in_review：四项验收标准全部达成，证据（after-grep/after-test-failures）已落盘（窗口 session-9faaac35-2641-473c-a5dc-ea6e6d11efbf）",
+          "createdAt": 1790080008851,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf"
+          }
+        },
+        {
+          "id": "c-35358f",
+          "body": "[状态] → done：t2 删除主体完成，交 t3 做独立部署验证（窗口 session-9faaac35-2641-473c-a5dc-ea6e6d11efbf）",
+          "createdAt": 1790080008929,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1790078881762,
+      "updatedAt": 1790080008929,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf"
+      },
+      "lastReport": {
+        "at": 1790079999191,
+        "reportIndex": 1,
+        "filesChanged": [
+          "src/http/routers/triage.ts（删除）",
+          "src/application/internal/support.ts.bak2/.bak3/.bak4（删除）",
+          "src/http/routes.ts",
+          "src/index.ts",
+          "src/gate-wiring.ts",
+          "src/adapters/CaptureHook.ts",
+          "src/application/internal/window.ts",
+          "src/application/internal/support.ts",
+          "src/application/internal/capture-section.ts",
+          "src/application/use-cases/CaptureRequirement.ts",
+          "src/application/query/QueryState.ts",
+          "src/tools/StatusTool/StatusTool.ts",
+          "src/tools/StatusTool/prompt.ts",
+          "src/domain/status/Predicates.ts",
+          "src/shared/protocol.ts（仅注释口径更新，契约未动）",
+          "src/client/api.ts",
+          "src/client/types.ts",
+          "src/client/view.ts",
+          "src/client/views/board.ts",
+          "src/client/board-mount.ts",
+          "src/client/styles/base.ts",
+          "tests/api-client.test.ts",
+          "tests/capture.test.ts",
+          "tests/capture-hook.test.ts",
+          "tests/client-view.test.ts",
+          "tests/reqboard.test.ts",
+          "docs/requirements/REQ-260922182505-0924/after-test-failures.txt",
+          "docs/requirements/REQ-260922182505-0924/after-grep.txt"
+        ],
+        "completed": [
+          "删文件：routers/triage.ts + support.ts.bak2/.bak3/.bak4",
+          "摘调用方：CaptureRequirement 前置检查、capture-section pending 分支、QueryState has_pending/pending_triage_id、StatusTool schema+prompt",
+          "删定义：window.ts hasPendingSuggestion/pendingSuggestionFor、support.ts findPending、Predicates isPendingTriage/isResolvedTriage",
+          "摘路由：routes.ts 4 挂载点+import、index.ts 注册日志、CaptureHook 日志文案",
+          "摘前端：api.ts 4 接口、types.ts TriageRecord/TriageList、views/board.ts buildTriage、board-mount.ts 视图状态机+action 处理器、styles/base.ts triage CSS、view.ts 导出",
+          "冻结保留：protocol.ts TriageRecord/台账 triages 字段、JsonLedgerRepository 管道、RollupSpec/rollup 读取（注释更新为只读兼容口径）",
+          "测试同步：api-client/capture/capture-hook/client-view/reqboard 五个测试文件的 triage 用例删除或改写",
+          "验收：tsc clean；grep 只剩冻结契约与历史注释；.bak 为空；vitest 失败集 86=86 与基线差集为空"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-260922182505-0924/tasks/t-8d1d4f.md",
+      "layer": 1
+    },
+    {
+      "id": "t-9311e7",
+      "requirementId": "REQ-260922182505-0924",
+      "title": "全量回归与部署后独立验证",
+      "description": "独立于修复卡复核\"修好了\"：全量回归对比基线 + 部署后验证 triage 路由 404 与看板正常渲染无 triage 面板。",
+      "phase": "test",
+      "side": "fullstack",
+      "dependsOn": [
+        "t-8d1d4f"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "① vitest run packages/web/dsh-pmboard 失败集与 t1 基线差集为空（复核，非修复卡自证）；② 部署后 curl /dashboard/api/reqboard/triage 返回 not_found/404；③ 看板页面正常打开渲染、无 triage 视图入口；④ migration v4 fixture 测试保持绿（老台账照常加载的锁定证据）。",
+      "implementation": "重跑全量 vitest 并与 baseline 文件 diff；经 restart-with-build.sh 部署后 curl 四个 triage 端点验证 404；浏览器打开看板确认渲染正常。",
+      "context": "",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-aa0c8e",
+          "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf",
+          "trigger": "manual",
+          "startedAt": 1790080042138,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf",
+              "seq": 2747,
+              "at": 1790080042148,
+              "totals": {
+                "uncachedInputTokens": 9142713,
+                "outputTokens": 221218,
+                "cacheReadTokens": 65490486,
+                "cacheWriteTokens": 18197
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf",
+              "seq": 2854,
+              "at": 1790080288033,
+              "totals": {
+                "uncachedInputTokens": 9306503,
+                "outputTokens": 226376,
+                "cacheReadTokens": 67486774,
+                "cacheWriteTokens": 18197
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 163790,
+              "outputTokens": 5158,
+              "cacheReadTokens": 1996288,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790080288023
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790078881762,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790080042138,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf"
+          },
+          "reason": "开工：独立回归复核 + 部署后验证（独立实例 :13081，不影响当前会话）",
+          "tokenSnapshot": {
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf",
+            "seq": 2747,
+            "at": 1790080042148,
+            "totals": {
+              "uncachedInputTokens": 9142713,
+              "outputTokens": 221218,
+              "cacheReadTokens": 65490486,
+              "cacheWriteTokens": 18197
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "integrating",
+          "at": 1790080288023,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf"
+          },
+          "reason": "验证任务无联调对象（独立实例已验证端到端行为）",
+          "tokenSnapshot": {
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf",
+            "seq": 2854,
+            "at": 1790080288033,
+            "totals": {
+              "uncachedInputTokens": 9306503,
+              "outputTokens": 226376,
+              "cacheReadTokens": 67486774,
+              "cacheWriteTokens": 18197
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "testing",
+          "at": 1790080288106,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf"
+          },
+          "reason": "独立回归 86=86 差集为空 + 4 端点 404 + fixture 9/9 绿",
+          "tokenSnapshot": {
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf",
+            "seq": 2856,
+            "at": 1790080288118,
+            "totals": {
+              "uncachedInputTokens": 9306503,
+              "outputTokens": 226376,
+              "cacheReadTokens": 67486774,
+              "cacheWriteTokens": 18197
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "in_review",
+          "at": 1790080288183,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf"
+          },
+          "reason": "四项验收标准全部达成，证据落盘（t3-deploy-verification.md）",
+          "tokenSnapshot": {
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf",
+            "seq": 2858,
+            "at": 1790080288193,
+            "totals": {
+              "uncachedInputTokens": 9306503,
+              "outputTokens": 226376,
+              "cacheReadTokens": 67486774,
+              "cacheWriteTokens": 18197
+            },
+            "source": "projection"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1790080288258,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf"
+          },
+          "reason": "t3 独立验证完成",
+          "tokenSnapshot": {
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf",
+            "seq": 2860,
+            "at": 1790080288266,
+            "totals": {
+              "uncachedInputTokens": 9306503,
+              "outputTokens": 226376,
+              "cacheReadTokens": 67486774,
+              "cacheWriteTokens": 18197
+            },
+            "source": "projection"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-076376",
+          "body": "[状态] → in_progress：开工：独立回归复核 + 部署后验证（独立实例 :13081，不影响当前会话）（窗口 session-9faaac35-2641-473c-a5dc-ea6e6d11efbf）",
+          "createdAt": 1790080042138,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf"
+          }
+        },
+        {
+          "id": "c-592879",
+          "body": "[状态] → integrating：验证任务无联调对象（独立实例已验证端到端行为）（窗口 session-9faaac35-2641-473c-a5dc-ea6e6d11efbf）",
+          "createdAt": 1790080288023,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf"
+          }
+        },
+        {
+          "id": "c-266484",
+          "body": "[状态] → testing：独立回归 86=86 差集为空 + 4 端点 404 + fixture 9/9 绿（窗口 session-9faaac35-2641-473c-a5dc-ea6e6d11efbf）",
+          "createdAt": 1790080288106,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf"
+          }
+        },
+        {
+          "id": "c-efb047",
+          "body": "[状态] → in_review：四项验收标准全部达成，证据落盘（t3-deploy-verification.md）（窗口 session-9faaac35-2641-473c-a5dc-ea6e6d11efbf）",
+          "createdAt": 1790080288183,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf"
+          }
+        },
+        {
+          "id": "c-815dff",
+          "body": "[状态] → done：t3 独立验证完成（窗口 session-9faaac35-2641-473c-a5dc-ea6e6d11efbf）",
+          "createdAt": 1790080288258,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1790078881762,
+      "updatedAt": 1790080288258,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-9faaac35-2641-473c-a5dc-ea6e6d11efbf"
+      },
+      "lastReport": {
+        "at": 1790080287958,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-260922182505-0924/t3-deploy-verification.md",
+          "docs/requirements/REQ-260922182505-0924/t3-independent-failures.txt"
+        ],
+        "completed": [
+          "独立回归复核：vitest 失败集 86=86 与 t1 基线差集为空 → t3-independent-failures.txt",
+          "部署后验证：4 个 triage 端点全部 404 not_found（既有未知路由信封）",
+          "看板验证：状态接口 200 + 前后端产物 0 处 triage 引用 + 页面行为与现役实例逐点一致",
+          "migration v4 fixture：9/9 全绿（老台账兼容锁定证据）",
+          "验证证据汇总 → t3-deploy-verification.md",
+          "调试实例 :13081 已停，pidfile 恢复指向 :13080"
+        ]
+      },
+      "cardDoc": "docs/requirements/REQ-260922182505-0924/tasks/t-9311e7.md",
+      "layer": 2
+    }
+  ],
+  "edges": [
+    {
+      "from": "t-31d4d5",
+      "to": "t-8d1d4f"
+    },
+    {
+      "from": "t-8d1d4f",
+      "to": "t-9311e7"
+    }
+  ],
+  "layers": [
+    {
+      "layer": 0,
+      "tasks": [
+        "t-31d4d5"
+      ]
+    },
+    {
+      "layer": 1,
+      "tasks": [
+        "t-8d1d4f"
+      ]
+    },
+    {
+      "layer": 2,
+      "tasks": [
+        "t-9311e7"
+      ]
+    }
+  ],
+  "ready": []
+}

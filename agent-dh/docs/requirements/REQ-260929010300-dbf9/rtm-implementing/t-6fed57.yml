@@ -1,0 +1,47 @@
+task:
+  id: t-6fed57
+  title: DAG 骨架皮肤换成 np 苹果风·复核
+  status: done
+  implements: |-
+    改 packages/web/dsh-pmboard/src/client/styles/dag.ts 的 DAG_CSS：面板用白底 + --dsh-pm-np-line-soft 描边 + 12px 圆角；标题用 --dsh-pm-np-text；-head 用 #f5f5f7（--dsh-pm-np-bg）底 + 下描边；-sub 与 -legend 用 --dsh-pm-np-text3 / -text2；-btn 与 -flowstat span 用 980px 胶囊，is-on 用 --dsh-pm-np-blue 实底；滚动条 8px 圆角。类名、styles.ts 的拼接与 scripts/verify-client-build.mjs 一律不动。
+
+    [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+  serves: []
+  depends_on:
+    - t-0c43f8
+  phase: ui
+  side: frontend
+  workflow_params:
+    REQ_ID: REQ-260929010300-dbf9
+    TASK_ID: t-6fed57
+    TASK_TITLE: DAG 骨架皮肤换成 np 苹果风·复核
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: frontend
+    PHASE: ui
+  workflow_total: 5
+  workflow_done: 5
+  workflow:
+    - phase: ui
+      status: done
+      completed_at: 2026-09-28T18:19:40.294Z
+    - phase: implement
+      status: done
+      completed_at: 2026-09-28T18:19:40.294Z
+    - phase: test
+      status: done
+      completed_at: 2026-09-28T18:19:40.294Z
+    - phase: commit
+      status: done
+      completed_at: 2026-09-28T18:19:40.294Z
+    - phase: doc
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-260929010300-dbf9
+  generated_at: 2026-09-28T18:19:40.293Z
+  version: 2
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 5
+  last_updated: 2026-09-28T18:19:40.294Z

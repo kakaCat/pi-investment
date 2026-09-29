@@ -1,0 +1,30 @@
+metadata:
+  stage: decomposing
+  requirement_id: REQ-i0001
+  generated_at: 2026-09-27T05:58:52.031Z
+  version: 10
+  generated_by: dsh-pmboard
+  last_updated: 2026-09-27T06:00:39.359Z
+inputs:
+  requirements: []
+  design_sections: []
+outputs:
+  tasks:
+    - id: t-bbbb01
+      title: 已落库卡
+      implements: ""
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+traceability:
+  design_to_tasks: {}
+  fr_to_tasks: {}
+coverage:
+  implementation:
+    total: 0
+    covered: 0
+    uncovered: []
+    rate: 100
+    total_designs: 0
+    covered_designs: 0

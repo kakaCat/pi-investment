@@ -3,7 +3,7 @@ id: page-plugin-contract
 title: 页面插件契约
 type: architecture
 status: living
-updated: 2026-09-16
+updated: 2026-09-28
 owners: [w-1cee2467]
 tags: [architecture, pages, gui]
 ---
@@ -49,6 +49,22 @@ ctx.sidebarRight.openResource(sessionFileAddress(sessionId, path))
 3. **sessionId 来源**：会话槽位注入优先；看板等无会话上下文场景用 sessions 快照「当前会话」。
 4. **为什么不用弹窗**：模态弹窗遮挡对话区，破坏「人看文档 → 对话交流改进」的人机回路
    （REQ-31e11f 设计的第一环）。右栏并排常驻，回路才能转起来。
+
+## 页面注册：main 插槽 + sidebar.panellist（2026-09-28，REQ-260928185112-e20d）
+
+**页面导航要走框架插槽，不要自贴 DOM 覆盖层。** 此前 8 个面板都往会话列 append 容器、靠
+`html[data-dsh-<panel>-active]` 属性 + CSS 显隐，结果「面板不参与布局导航」：点窗口 chip 时
+框架已切了会话（`replaceMain` 调 `ctx.layout.selectPanel(null)`），面板却仍盖在上层——只能靠
+`closeHostPanel()` 手工补丁模拟，用户眼里就是「点 chip 不切会话」。
+
+正确形态（**一个 panel id 同时注册两端**）：
+- 主列：`ctx.slots.register({ name: 'main', key: PANEL_ID }, Component)`（keyed / root；保留键 `conversation` 归对话）；
+- 侧栏：`ctx.slots.register({ name: 'sidebar.panellist', id: PANEL_ID, order, label }, Icon)`；
+- 导航：打开 `ctx.layout.selectPanel(PANEL_ID)`；回对话 / 跳会话前 `selectPanel(null)`（**不改当前 Session**）；侧栏条目点击由 sidebar 自己触发；
+- 收敛点：`registerPagePanel(ctx, { id, label, order?, Component, Icon? })` 一次注册两端并返回幂等 disposer——两端 id 同源是框架契约（`MainPanelId`），手写两份必然漂移。
+
+样板与其余 4 页迁移清单：`docs/requirements/REQ-260928185112-e20d/`（看板 dsh-pmboard 已迁；
+execution / genome / holdings / bulletin 的入口 / 属性 / CSS / 工作量 / 风险见 `migration-checklist.md`）。
 
 ## 依据
 
