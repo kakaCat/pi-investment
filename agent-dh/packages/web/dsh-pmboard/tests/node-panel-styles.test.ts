@@ -108,3 +108,21 @@ describe('TC-11 node-panel 样式作用域', () => {
     expect(NODE_PANEL_CSS).not.toMatch(/\.dsh-pm-np-dag-node \.dsh-pm-np-card-title\s*\{[^}]*white-space:\s*nowrap/)
   })
 })
+
+// REQ-260928222643-4d34 · serves: FR-1, FR-3
+describe('TC-14 项目看板入口与失败提示样式（REQ-260928222643-4d34）', () => {
+  it('入口按钮规则：作用域内 + 不裁切可点（flex:none + min-height）', () => {
+    const sels = selectorsOf(NODE_PANEL_CSS)
+    expect(sels.some(s => s.includes('.dsh-pm-np-board-entry'))).toBe(true)
+    expect(NODE_PANEL_CSS).toMatch(/.dsh-pm-np-board-entry\s*\{[^}]*flex:\s*none/)
+    expect(NODE_PANEL_CSS).toMatch(/.dsh-pm-np-board-entry\s*\{[^}]*min-height:\s*\d/)
+  })
+
+  it('失败提示规则作用域内（仅本面板外壳）', () => {
+    expect(NODE_PANEL_CSS).toContain('.dsh-pm-cprog-detail-panel .dsh-pm-np-entry-err')
+  })
+
+  it('head 行保留 flex-wrap（窄面板换行不裁切）', () => {
+    expect(NODE_PANEL_CSS).toMatch(/.dsh-pm-np-head\s*\{[^}]*flex-wrap:\s*wrap/)
+  })
+})

@@ -2,12 +2,10 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import {
   RtmAccepting,
-  TestCase,
   TestingCoverage,
   TaskToTestsMap,
-  RtmMetadata,
   TaskItem,
-} from '../types/rtm';
+} from '../../types/rtm.js';
 
 /**
  * 测试用例解析结果
@@ -30,7 +28,6 @@ async function parseTestDocument(filePath: string): Promise<ParsedTestCase[]> {
     
     const testCases: ParsedTestCase[] = [];
     let currentTestCase: Partial<ParsedTestCase> | null = null;
-    let testCaseCounter = 1;
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();

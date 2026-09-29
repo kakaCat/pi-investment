@@ -37,6 +37,9 @@ const must = [
   'dsh-pm-confirm-artifact', // t7 卡面确认按钮
   'dsh-pm-sn-task',          // v4 任务执行列表行（单节点工作记录）
   'dsh-pm-injection-info',   // REQ-422af1 t11 「本次注入了什么」只读块
+  'dsh-pm-dag-panel',        // REQ-260928001915-f978 真 DAG 画布面板
+  'dsh-pm-np-board-entry',   // REQ-260928222643-4d34 FR-1 会话节点面板「项目看板 ↗」入口
+  'dsh-pm-np-entry-err',     // REQ-260928222643-4d34 FR-3 入口失败就地提示（不静默、不白屏）
 ]
 const missing = must.filter((k) => !bundle.includes(k))
 if (missing.length > 0) fail('产物缺少关键符号：' + missing.join(', '))

@@ -27,6 +27,7 @@ import {
   type TaskRecord,
 } from '../../shared/protocol.js'
 import { clearDocSync } from '../../domain/workflow/DocSyncSpec.js'
+import type { StageKind } from '../../domain/task/SubtaskTemplate.js'
 import { applyTaskRollup } from './rollup.js'
 import { captureSnapshot } from './token-usage.js'
 import { registerArtifact } from './artifact-gates.js'
@@ -46,6 +47,13 @@ export interface PlanTaskDraft {
   implementation: string
   context: string
   dependsOn: string[]
+  /**
+   * 子卡段逃生舱口（REQ-260928185112-e20d）：显式覆盖"这张卡落哪几段"。
+   * 此前协议层收下了 stages，但**没有经本结构传到 TaskRecord**，于是拆分节点写了也不生效。
+   */
+  stages?: StageKind[]
+  /** 本卡无接口可联调 → 不落联调子卡（与 TaskRecord.skipIntegration 同语义）。 */
+  skipIntegration?: boolean
 }
 
 /** 落库后的轻量投影（工具返回体用）。 */
@@ -119,6 +127,10 @@ export async function landPlanTasks(deps: UseCaseDeps, input: LandPlanTasksInput
       acceptance: d.acceptance,
       implementation: d.implementation,
       context: d.context,
+      // 子卡段控制（REQ-260928185112-e20d）：显式 stages 覆盖默认；无接口的卡可跳过联调段。
+      // 不填时落 undefined → 展开时按卡 phase、其次需求分类兜底（resolveSubtaskStages）。
+      ...(d.stages !== undefined ? { stages: [...d.stages] } : {}),
+      ...(d.skipIntegration === true ? { skipIntegration: true } : {}),
       // 从 refsByKey Map 中获取该任务的 requirement_refs（REQ-260925172227-2d61 RTM 覆盖度追踪）
       requirementRefs: refsByKey.get(d.key) ?? [],
       status: 'todo',

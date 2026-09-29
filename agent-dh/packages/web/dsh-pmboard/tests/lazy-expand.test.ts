@@ -11,7 +11,7 @@ import type { TaskRecord } from '../src/shared/protocol.js'
 
 const exec = { agent: { id: 'session-w-001' } }
 
-function seed(over: { category?: 'feature' | 'bug' | 'refactor'; stages?: string[]; skipIntegration?: boolean; parentDependsOn?: string[] } = {}) {
+function seed(over: { category?: 'feature' | 'bug' | 'refactor'; stages?: string[]; skipIntegration?: boolean; parentDependsOn?: string[]; phase?: string; side?: string } = {}) {
   const h = makeHarness()
   // autoRun=true 才走自动链（懒展开）；手动/存量流程保持五段状态机（双模共存）。
   h.repo.ledger.requirements = [req({ id: 'REQ-000001', status: 'implementing', category: over.category ?? 'feature', autoRun: true })]
@@ -25,6 +25,8 @@ function seed(over: { category?: 'feature' | 'bug' | 'refactor'; stages?: string
       status: 'todo',
       title: '父卡',
       dependsOn: over.parentDependsOn ?? [],
+      ...(over.phase !== undefined ? { phase: over.phase as never } : {}),
+      ...(over.side !== undefined ? { side: over.side as never } : {}),
       ...(over.stages !== undefined ? { stages: over.stages as never } : {}),
       ...(over.skipIntegration !== undefined ? { skipIntegration: over.skipIntegration } : {}),
     }),
@@ -117,5 +119,65 @@ describe('懒展开（FR-3）', () => {
     let code: string | undefined
     try { await executeMoveTask(h.deps, { task_id: first.id, to: 'integrating' }, exec) } catch (err) { code = (err as { code?: string }).code }
     expect(code).toBe('invalid_transition')
+  })
+})
+
+/**
+ * phase 兜底（REQ-260928185112-e20d，2026-09-28 实测）：此前子卡段只由**需求分类**决定，
+ * 于是一张 phase=doc 的文档卡、一张 phase=test 的验证卡都吃同一套 4 段（含联调段）。
+ * 口径：显式 stages > 卡 phase > 需求分类；未映射的 phase 仍回落到需求分类，不静默削段。
+ */
+describe('子卡段：显式 stages > 卡 phase > 需求分类（REQ-260928185112-e20d）', () => {
+  it('phase=doc（文档卡）→ dev→review，不落联调/测试段', async () => {
+    const h = seed({ phase: 'doc' })
+    await executeMoveTask(h.deps, { task_id: 't-p', to: 'in_progress' }, exec)
+    expect(subsOf(h).map(s => s.stageKind)).toEqual(['dev', 'review'])
+  })
+
+  it('phase=test（验证卡）→ dev→review→test：无新接口，故不落联调段', async () => {
+    const h = seed({ phase: 'test' })
+    await executeMoveTask(h.deps, { task_id: 't-p', to: 'in_progress' }, exec)
+    expect(subsOf(h).map(s => s.stageKind)).toEqual(['dev', 'review', 'test'])
+  })
+
+  it('phase=review（复核卡）→ 只落复核段；phase=merge → dev→review', async () => {
+    const hr = seed({ phase: 'review' })
+    await executeMoveTask(hr.deps, { task_id: 't-p', to: 'in_progress' }, exec)
+    expect(subsOf(hr).map(s => s.stageKind)).toEqual(['review'])
+    const hm = seed({ phase: 'merge' })
+    await executeMoveTask(hm.deps, { task_id: 't-p', to: 'in_progress' }, exec)
+    expect(subsOf(hm).map(s => s.stageKind)).toEqual(['dev', 'review'])
+  })
+
+  it('显式 stages 优先于 phase 兜底（逃生舱口不被默认模板覆盖）', async () => {
+    const h = seed({ phase: 'doc', stages: ['dev', 'integrate', 'review', 'test'] })
+    await executeMoveTask(h.deps, { task_id: 't-p', to: 'in_progress' }, exec)
+    expect(subsOf(h).map(s => s.stageKind)).toEqual(['dev', 'integrate', 'review', 'test'])
+  })
+
+  it('未映射的 phase（implement）→ 仍按需求分类（feature 四段），不静默削段', async () => {
+    const h = seed({ phase: 'implement' })
+    await executeMoveTask(h.deps, { task_id: 't-p', to: 'in_progress' }, exec)
+    expect(subsOf(h).map(s => s.stageKind)).toEqual(['dev', 'integrate', 'review', 'test'])
+  })
+
+  it('phase 兜底后仍可被 skipIntegration 再裁联调段（doc 卡本就是 2 段，保持不变）', async () => {
+    const h = seed({ phase: 'doc', skipIntegration: true })
+    await executeMoveTask(h.deps, { task_id: 't-p', to: 'in_progress' }, exec)
+    expect(subsOf(h).map(s => s.stageKind)).toEqual(['dev', 'review'])
+  })
+
+  // side 兜底与「接口面不猜」（REQ-260928185112-e20d 统一方案）：
+  // 只有 doc 侧有明确答案；frontend/backend 一律回需求分类——代码不猜「要不要与别的模块对接」。
+  it('phase 未映射但 side=doc → 文档卡两段（不落联调/测试段）', async () => {
+    const h = seed({ phase: 'implement', side: 'doc' })
+    await executeMoveTask(h.deps, { task_id: 't-p', to: 'in_progress' }, exec)
+    expect(subsOf(h).map(s => s.stageKind)).toEqual(['dev', 'review'])
+  })
+
+  it('side=frontend 不猜接口面 → 仍按需求分类（保守保留联调段，需显式声明才删）', async () => {
+    const h = seed({ phase: 'implement', side: 'frontend' })
+    await executeMoveTask(h.deps, { task_id: 't-p', to: 'in_progress' }, exec)
+    expect(subsOf(h).map(s => s.stageKind)).toEqual(['dev', 'integrate', 'review', 'test'])
   })
 })

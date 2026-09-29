@@ -140,10 +140,21 @@ export function boundSectionText(
       lines.push(`**阶段**：${task.phase} | **端侧**：${task.side}`)
       lines.push('')
       lines.push('---')
+      // 卡片层契约（2026-09-28）：合法边由**卡片角色**决定——父卡（有子卡）与子卡只有
+      // todo→in_progress→done（TaskStatus 的 PARENT_/SUBTASK_TRANSITIONS 对 integrating/
+      // testing/in_review 无出边），照旧文案推进必吃 invalid_transition；只有存量卡走五段。
+      const hasKids = (tasks ?? []).some(t => t.parentId === task.id)
+      const isSubtask = task.parentId !== undefined
       lines.push('请按照任务说明执行。完成后推进任务状态：')
-      lines.push(`- 开发完成 → reqboard_task_move({ task_id: '${task.id}', to: 'integrating', reason: '...' })`)
-      lines.push(`- 联调完成 → reqboard_task_move({ task_id: '${task.id}', to: 'testing', reason: '...' })`)
-      lines.push(`- 测试通过 → reqboard_task_move({ task_id: '${task.id}', to: 'in_review', reason: '...' })`)
+      if (hasKids || isSubtask) {
+        lines.push(`- 完成 → reqboard_task_move({ task_id: '${task.id}', to: 'done', reason: '...' })`)
+        lines.push('  （本卡是父卡/子卡：合法边只有 todo → in_progress → done；联调/复核/测试由子卡链各阶段承载）')
+      } else {
+        lines.push(`- 开发完成 → reqboard_task_move({ task_id: '${task.id}', to: 'integrating', reason: '...' })`)
+        lines.push(`- 联调完成 → reqboard_task_move({ task_id: '${task.id}', to: 'testing', reason: '...' })`)
+        lines.push(`- 测试通过 → reqboard_task_move({ task_id: '${task.id}', to: 'in_review', reason: '...' })`)
+        lines.push('  （本卡是存量卡：无子卡链，走五段状态机）')
+      }
       lines.push('')
       lines.push('查看所有任务：reqboard_status()')
       lines.push('')
@@ -202,7 +213,8 @@ export function boundSectionText(
     '- 方案敲定 → reqboard_decompose 把需求拆成任务 DAG 落库（真拆分：写台账任务卡，',
     '  看板「任务」页与甘特图据此渲染；depends_on 用批次内 key 引用同批任务）；',
     '- 拆分后需求会自动进入拆分态；任务开工/完成用 reqboard_task_move 推进',
-    '  （todo → in_progress → testing → in_review → done；开工时会自动记一段执行时间）；',
+    '  （父卡/子卡：todo → in_progress → done；存量卡：todo → in_progress → testing → in_review → done；',
+    '  开工时会自动记一段执行时间）；',
     '- 任务全部 done 时系统自动把需求推进到 accepting（验收）；交付并自检通过后',
     '  用 reqboard_move 自行推进到 done。',
     '- 只有「取消需求/归档/取消任务」必须人操作（agent 调用会被代码级拒绝）。',

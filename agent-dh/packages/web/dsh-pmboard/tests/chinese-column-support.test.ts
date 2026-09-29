@@ -44,7 +44,9 @@ describe('中文列名支持 - BUG 修复验证', () => {
     expect(normalized[1].dependsOn).toEqual(['t1'])
     
     expect(normalized[2].key).toBe('t3')
-    expect(normalized[2].dependsOn).toEqual(['t1', 't2'])
+    // 2026-09-29（REQ-260929010300-dbf9 用户裁定 B「数据侧」）：dependsOn 落库前做**传递归约**，
+    // 只保留直接前置。t3 依赖 t1,t2；而 t2 依赖 t1，故 t1 冗余被折叠（保序）⇒ ['t2']。
+    expect(normalized[2].dependsOn).toEqual(['t2'])
   })
 
   it('应该优先使用 dependsOn，然后 depends_on，最后才是中文"依赖"', () => {

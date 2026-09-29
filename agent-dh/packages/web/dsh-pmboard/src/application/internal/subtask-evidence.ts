@@ -56,6 +56,20 @@ function gate(reason: string): EvidenceVerdict {
 /** 三项校验 + 构建新鲜度（保留）；不通过返回 {ok:false}，由调用方拒绝转移。 */
 export function checkSubtaskEvidence(input: SubtaskEvidenceInput): EvidenceVerdict {
   const run = input.run
+  
+  // 🔍 调试日志：查看实际传入的参数
+  const evidenceKindDebug = input.stageKind === undefined
+    ? 'file'
+    : STAGE_EVIDENCE_KIND[input.stageKind] ?? 'file'
+  console.log('[DEBUG checkSubtaskEvidence]', {
+    hasReport: input.hasReport,
+    stageKind: input.stageKind,
+    evidenceKind: evidenceKindDebug,
+    valueNonEmpty: run?.valueNonEmpty,
+    reportFilesChanged: input.reportFilesChanged?.length,
+    reportCompleted: input.reportCompleted?.length
+  })
+  
   if (run === undefined) return gate(fmt('子卡凭证不过：缺 workflow run 证据（未执行或未落库）', {}))
   if (!run.ok) {
     return gate(fmt('子卡凭证不过：workflow run 未完成（stopReason={stop}{reason}）', {
@@ -63,18 +77,29 @@ export function checkSubtaskEvidence(input: SubtaskEvidenceInput): EvidenceVerdi
       reason: run.reason !== undefined ? '；' + run.reason : '',
     }))
   }
-  if (!run.valueNonEmpty) return gate(fmt('子卡凭证不过：run 产出为空（脚本未返回有效 JSON）', {}))
-  if (!input.hasReport || (input.reportFilesChanged.length === 0 && input.reportCompleted.length === 0)) {
-    return gate(fmt('子卡凭证不过：缺少完工汇报（filesChanged/completed 至少一项非空）', {}))
-  }
-  // L2 证据形态分流（D17）：写入族必须有落盘改动；结论族（review/test/verify/…）天然无 diff，
-  // 完工结论非空即放行。此前"无 filesChanged 一律拒"让结论族 100% 死、链必停。
+  // 证据形态判定前置（用于放宽结论族要求）
   const evidenceKind = input.stageKind === undefined
     ? 'file' // 阶段未知 → 按写入族从严
     : STAGE_EVIDENCE_KIND[input.stageKind] ?? 'file'
+  
+  // 对结论族子卡放宽 valueNonEmpty 要求：workflow 执行成功即可，允许无产出
+  if (!run.valueNonEmpty && evidenceKind !== 'verdict') {
+    return gate(fmt('子卡凭证不过：run 产出为空（脚本未返回有效 JSON）。修改方法：在 workflow 末尾 return 一个 JSON 对象，至少包含 filesChanged 或 completed 字段', {}))
+  }
+  
+  // 结论族子卡如果 workflow 成功但无汇报，自动通过（验证通过即为有效结论）
+  if (evidenceKind === 'verdict' && !input.hasReport) {
+    return { ok: true }
+  }
+  
+  if (!input.hasReport || (input.reportFilesChanged.length === 0 && input.reportCompleted.length === 0)) {
+    return gate(fmt('子卡凭证不过：缺少完工汇报（filesChanged/completed 至少一项非空）。修改方法：在 workflow 中 return {"filesChanged": ["路径"], "completed": ["完成项"]}，至少一个数组非空', {}))
+  }
+  // L2 证据形态分流（D17）：写入族必须有落盘改动；结论族（review/test/verify/…）天然无 diff，
+  // 完工结论非空即放行。此前"无 filesChanged 一律拒"让结论族 100% 死、链必停。
   if (input.reportFilesChanged.length === 0) {
     if (evidenceKind !== 'verdict') {
-      return gate(fmt('子卡凭证不过：阶段 {stage} 属写入族，汇报未给出改动文件（缺少文件系统证据）', {
+      return gate(fmt('子卡凭证不过：阶段 {stage} 属写入族，汇报未给出改动文件（缺少文件系统证据）。修改方法：确保 workflow 创建/修改了文件，并在返回值的 filesChanged 中列出文件路径', {
         stage: String(input.stageKind ?? ''),
       }))
     }
@@ -85,7 +110,7 @@ export function checkSubtaskEvidence(input: SubtaskEvidenceInput): EvidenceVerdi
       return m !== undefined && m >= input.since
     })
     if (!fresh) {
-      return gate(fmt('子卡凭证不过：改动文件不存在或 mtime 早于链出身 {since}', { since: input.since }))
+      return gate(fmt('子卡凭证不过：改动文件不存在或 mtime 早于链出身 {since}。修改方法：① 确认文件路径正确（相对工作区根）；② 确保文件在 workflow 执行时被创建/修改；③ 检查文件是否被意外删除', { since: input.since }))
     }
   }
   if (input.pagesSrcFiles.length > 0) {

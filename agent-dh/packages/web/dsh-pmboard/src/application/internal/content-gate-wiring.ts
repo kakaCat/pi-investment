@@ -454,7 +454,7 @@ export async function checkFullTraceability(
   const designDir = `docs/requirements/${req.id}/design`
   
   // 提取需求条款
-  const requirementDoc = docs.read?.(requirementPath)
+  const requirementDoc = await docs.read?.(requirementPath)
   const frList = requirementDoc ? extractClauseDefinitions(parseDocument(requirementDoc)) : []
   
   // 提取设计章节

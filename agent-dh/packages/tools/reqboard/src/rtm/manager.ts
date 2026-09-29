@@ -3,11 +3,6 @@ import * as path from 'path';
 import * as yaml from 'yaml';
 import {
   RtmLifecycle,
-  RtmBrainstorming,
-  RtmDesign,
-  RtmDecomposing,
-  RtmImplementing,
-  RtmAccepting,
   AnyRtm,
   RtmStage,
   RTM_FILENAMES,

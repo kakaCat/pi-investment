@@ -16,6 +16,7 @@ import { submitVerification } from '../../application/use-cases/SubmitVerificati
 import { submitArchive } from '../../application/use-cases/SubmitArchive.js'
 import { submitDesignArtifacts } from '../../application/use-cases/SubmitDesignArtifacts.js'
 import { normalizeText, ALL_TASK_PHASES, ALL_TASK_SIDES, SUBMIT_KINDS } from '../../shared/protocol.js'
+import { STAGE_KINDS } from '../../domain/task/SubtaskTemplate.js'
 import { reject, assertNoPendingConfirm } from '../../application/internal/support.js'
 import { renderSmart } from '../shared.js'
 import { submitSummary } from '../render-summaries.js'
@@ -50,7 +51,8 @@ export function defineSubmitTool(deps: UseCaseDeps) {
       change_note: { type: 'string', description: '变更原因（已确认/已批准后重交时必填）：改了什么/为什么，下游标"待同步"' },
       tasks: {
         type: 'array',
-        description: 'kind=plan 的任务表（可选，1-50 项）；每项须含 implementation 与可证伪 acceptance',
+        description: 'kind=plan 的任务表（可选，1-50 项）；每项须含 implementation 与可证伪 acceptance；'
+          + '另可用 stages / skipIntegration 精确控制该卡的子卡段（不填 = 按卡 phase、其次需求分类的默认模板）',
         items: {
           type: 'object',
           additionalProperties: false,
@@ -60,6 +62,13 @@ export function defineSubmitTool(deps: UseCaseDeps) {
             description: { type: 'string', description: '任务说明（改哪些文件/接口）' },
             phase: { type: 'string', description: 'doc / ui / analysis / implement / test / review / merge', enum: [...ALL_TASK_PHASES] },
             side: { type: 'string', description: 'frontend / backend / fullstack / doc', enum: [...ALL_TASK_SIDES] },
+            stages: {
+              type: 'array',
+              description: '本卡的子卡段（可选，覆盖默认模板）：受控枚举 ' + STAGE_KINDS.join('/ ')
+                + '；不填 = 按卡 phase（doc→研发+复核、test→研发+复核+测试…）、其次按需求分类兜底',
+              items: { type: 'string' },
+            },
+            skipIntegration: { type: 'boolean', description: '本卡无接口可联调时设 true → 不落联调子卡（可选）' },
             depends_on: { type: 'array', description: '依赖的计划内 key', items: { type: 'string' } },
             acceptance: { type: 'string', description: '验收标准（可验证：跑什么、看到什么算过；空话/缺锚点打回）' },
             implementation: { type: 'string', description: '实施方案（必填：改哪些文件、步骤、验证方式——拆分卡≠实施卡）' },

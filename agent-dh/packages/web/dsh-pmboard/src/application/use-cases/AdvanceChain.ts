@@ -27,7 +27,7 @@ import { executeSubtask } from './ExecuteTask.js'
 import { expandSubtasks } from '../internal/lazy-expand.js'
 import { applyTaskRollup } from '../internal/rollup.js'
 import { assertDoneEvidence } from '../internal/support.js'
-import { classifyFailure, rollbackSubtask } from '../internal/failure-handling.js'
+import { classifyFailure, isTransientAbort, rollbackSubtask } from '../internal/failure-handling.js'
 import {
   type AdvanceEvent,
   type AdvanceRecord,
@@ -215,7 +215,7 @@ async function finalizeParent(deps: UseCaseDeps, parentId: string, startedAt: nu
   }
 }
 
-async function runSubtaskStep(deps: UseCaseDeps, parentId: string, subtaskId: string, startedAt: number, exec?: unknown): Promise<AdvanceStep> {
+async function runSubtaskStep(deps: UseCaseDeps, parentId: string, subtaskId: string, startedAt: number, exec?: unknown, runSignal?: AbortSignal): Promise<AdvanceStep> {
   // REQ-4842fe design/architecture §3：`parent: exec.agent`——调用者 agent 必须一路透传到引擎，
   // 否则 workflow-ptc 读 request.parent.session 直接抛错（start_failed）。缺 exec 时保持原样，
   // 由引擎显式失败（不静默成功）。
@@ -223,6 +223,8 @@ async function runSubtaskStep(deps: UseCaseDeps, parentId: string, subtaskId: st
     subtaskId,
     windowKey: 'system',
     ...(exec !== undefined ? { exec } : {}),
+    // Phase2：把**后台 job 的 signal** 透传下去（取消权归工作单元，不是派发它的 turn）。
+    ...(runSignal !== undefined ? { runSignal } : {}),
   })
   return stepOf(
     'RUN_SUBTASK',
@@ -253,10 +255,10 @@ async function rollupStep(deps: UseCaseDeps, requirementId: string, startedAt: n
   return stepOf('ROLLUP', ok ? 'ok' : 'noop', ok ? '需求已全部任务完成，滚进验收' : '暂不可 rollup', startedAt, deps.clock.now())
 }
 
-async function runSelection(deps: UseCaseDeps, requirementId: string, sel: AdvanceSelection, startedAt: number, exec?: unknown): Promise<AdvanceStep> {
+async function runSelection(deps: UseCaseDeps, requirementId: string, sel: AdvanceSelection, startedAt: number, exec?: unknown, runSignal?: AbortSignal): Promise<AdvanceStep> {
   if (sel.event === 'OPEN_PARENT' && sel.parentId !== undefined) return openParent(deps, requirementId, sel.parentId, startedAt, exec)
   if (sel.event === 'FINALIZE_PARENT' && sel.parentId !== undefined) return finalizeParent(deps, sel.parentId, startedAt, exec)
-  if (sel.event === 'RUN_SUBTASK' && sel.subtaskId !== undefined) return runSubtaskStep(deps, sel.parentId ?? '', sel.subtaskId, startedAt, exec)
+  if (sel.event === 'RUN_SUBTASK' && sel.subtaskId !== undefined) return runSubtaskStep(deps, sel.parentId ?? '', sel.subtaskId, startedAt, exec, runSignal)
   if (sel.event === 'ROLLUP') return rollupStep(deps, requirementId, startedAt, exec)
   return stepOf('PAUSE', 'skipped', '无对应事件实现', startedAt, deps.clock.now())
 }
@@ -270,6 +272,8 @@ async function driveChain(
   requirementId: string,
   exec: unknown,
   isAborted: () => boolean,
+  /** 承载本次链的后台 job 的 signal（Phase2）；同步兼容路径不传 → 子卡回落调用方 turn 的 signal。 */
+  runSignal?: AbortSignal,
 ): Promise<{ steps: AdvanceStep[]; stopped: AdvanceStop }> {
   inflight.add(requirementId)
   const steps: AdvanceStep[] = []
@@ -313,7 +317,7 @@ async function driveChain(
       }
 
       const startedAt = deps.clock.now()
-      const step = await runSelection(deps, requirementId, sel, startedAt, exec)
+      const step = await runSelection(deps, requirementId, sel, startedAt, exec, runSignal)
       steps.push(step)
       await appendHistory(deps, requirementId, {
         at: deps.clock.now(),
@@ -345,6 +349,22 @@ async function driveChain(
             const changed = rollbackSubtask(tasks, subId, deps.clock.now(), deps.ids, failure)
             return changed ? tasks : undefined
           })
+        }
+        // 瞬断类（abort 族）在同一 job 内自动重试一次（REQ-260928185112-e20d Phase2）：
+        // 判据看**退回后的 attempt**（首次失败 → attempt=1），故最多重试一次；
+        // 其余失败（凭证门/空产出/引擎缺失）行为不变：停下 + 告警 + 请人处置。
+        if (step.subtaskId !== undefined && isTransientAbort(step.detail)) {
+          const afterAttempt = (await taskStoreOf(deps).get(step.subtaskId))?.attempt ?? 2
+          if (afterAttempt <= 1) {
+            const retryAt = deps.clock.now()
+            await appendHistory(deps, requirementId, {
+              at: retryAt, requirementId, event: 'RETRY', outcome: 'skipped', durationMs: 0,
+              subtaskId: step.subtaskId, parentId: step.parentId,
+              detail: fmt('子卡 {id} 瞬断，同一 job 内自动重试一次（{why}）', { id: step.subtaskId, why: step.detail.slice(0, 120) }),
+            })
+            steps.push(stepOf('RETRY', 'skipped', step.detail, retryAt, retryAt, { subtaskId: step.subtaskId, parentId: step.parentId }))
+            continue
+          }
         }
         await pauseRequirement(deps, requirementId, 'fail', step.detail)
         steps.push(stepOf('PAUSE', 'skipped', step.detail, deps.clock.now(), deps.clock.now()))
@@ -391,43 +411,72 @@ async function driveChain(
  */
 export async function advanceRequirement(deps: UseCaseDeps, requirementId: string, exec?: unknown): Promise<AdvanceOutcome> {
   // 1. 前置校验：单飞锁 + 需求态
+  // 失败要响亮（2026-09-28 实测）：**每条早退路径**都必须给出 dispatched:false + 人话 reason。
+  // 此前早退不设 dispatched，工具壳的 `out.dispatched === false` 判断漏过它们，于是走成功回执、
+  // 带上 job_id/run_id=undefined 返回——undefined 不是 lossless JSON，dsh-tools 的
+  // snapshotJsonValue 直接抛 ["value is not lossless JSON"]，agent 只拿到无信息的硬错误、只能猜。
   if (inflight.has(requirementId)) {
-    return { requirementId, steps: [], stopped: 'locked' }
+    return {
+      requirementId, steps: [], stopped: 'locked', dispatched: false,
+      reason: '该需求已有推进事件在本进程内运行（in-flight），本次未投递新任务；请等待当前 run 结束或稍后重试',
+    }
   }
 
   const snapshot0 = deps.repo.snapshot()
   const req0 = snapshot0.requirements.find((r) => r.id === requirementId)
   if (req0 === undefined) {
-    return { requirementId, steps: [], stopped: 'not_found' }
+    return {
+      requirementId, steps: [], stopped: 'not_found', dispatched: false,
+      reason: fmt('需求 {id} 不存在，无法推进', { id: requirementId }),
+    }
   }
   if (req0.autoRun !== true) {
-    return { requirementId, steps: [], stopped: 'not_autorun' }
+    return {
+      requirementId, steps: [], stopped: 'not_autorun', dispatched: false,
+      reason: '自动链未开启（autoRun=false）——请人工确认后再触发 reqboard_task_run 续跑',
+    }
   }
   if (TERMINAL_REQ.has(req0.status)) {
-    return { requirementId, steps: [], stopped: 'terminal' }
+    return {
+      requirementId, steps: [], stopped: 'terminal', dispatched: false,
+      reason: fmt('需求已到终态（status={status}），无需再推进', { status: req0.status }),
+    }
   }
 
   const now0 = deps.clock.now()
   if (req0.advance?.lockAt !== undefined && now0 - req0.advance.lockAt < LIMITS.advanceLockStaleMs) {
-    return { requirementId, steps: [], stopped: 'locked' }
+    return {
+      requirementId, steps: [], stopped: 'locked', dispatched: false,
+      reason: fmt('该需求已有 run 在跑（runId={runId}，锁未过期），本次未投递；请等待其结束或稍后重试', {
+        runId: req0.advance.runId ?? '(未知)',
+      }),
+    }
   }
 
-  // 2. 幂等检查：是否已有 active run
+  // 2. 残留锁回收（2026-09-28 实测死锁）：走到这里说明 lockAt 缺省或已过期 ⇒ 没有活 job 在跑。
+  //    driveChain 正常收尾会清 lockAt/runId，但**进程被杀/重启时 finally 不执行**，
+  //    advance.runId 会永久留下；旧逻辑只看「runId 是否存在」就判「已有 run 在跑」，
+  //    于是该需求此后**再也无法投递**（实测：quick_restart 后恒返回 REQBOARD_ADVANCE_LOCKED，
+  //    连启动恢复扫描 scanAndResume 也被同一判断挡下——"崩溃不丢链"的承诺因此失效）。
+  //    锁已过期即视为残留：显式回收后继续投递（无残留时不写盘，保持幂等）。
   if (req0.advance?.runId !== undefined) {
-    return {
-      requirementId,
-      steps: [],
-      stopped: 'locked',
-      dispatched: false,
-      reason: `该需求已有 run 在跑（runId=${req0.advance.runId}）`,
-      existing_run_id: req0.advance.runId,
-    }
+    await deps.repo.mutate('advance-stale-reclaim', (ledger) => {
+      const req = ledger.requirements.find((r) => r.id === requirementId)
+      if (req?.advance === undefined) return undefined
+      if (req.advance.runId === undefined && req.advance.lockAt === undefined) return undefined
+      req.advance.lockAt = undefined
+      req.advance.runId = undefined
+      return { requirements: [req] }
+    })
   }
 
   // 3. 无后台任务端口 → 同步兼容路径（驱动逻辑与投递路径共用 driveChain）
   if (deps.jobs === undefined || !deps.jobs.available()) {
     const { steps, stopped } = await driveChain(deps, requirementId, exec, () => false)
-    return { requirementId, steps, stopped, dispatched: false }
+    return {
+      requirementId, steps, stopped, dispatched: false,
+      reason: fmt('无后台任务端口：已同步推进并停于 stopped={s}', { s: stopped }),
+    }
   }
 
   // 4. 生成 runId 并认领
@@ -450,7 +499,9 @@ export async function advanceRequirement(deps: UseCaseDeps, requirementId: strin
       label: `REQ ${requirementId}`,
       owner: (exec as { agent?: unknown })?.agent,
       run: async (signal?: AbortSignal) => {
-        await driveChain(deps, requirementId, exec, () => signal?.aborted ?? false)
+        // Phase2：job 的 signal 一路透传到子卡 run —— 取消权归工作单元（job），
+        // 而不是派发它的那个 turn（turn 结束不再掐掉正在跑的子卡）。
+        await driveChain(deps, requirementId, exec, () => signal?.aborted ?? false, signal ?? undefined)
       },
     })
   } catch (err) {

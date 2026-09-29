@@ -1,16 +1,15 @@
 /**
- * 项目看板 board-mount —— 生命周期委托 ./board-shell；
- * 页面保留视图状态机（board / req-detail / task-detail）、
+ * 项目看板 board-mount —— 视图状态机（board / req-detail / task-detail）、
  * fetch/render、事件委派、SSE 订阅与会话跳转。
+ *
+ * 唯一挂载路径：`attachBoard(container)`（REQ-260928185112-e20d FR-2，宿主模式）——把事件委派、
+ * fetch、SSE 订阅与轮询/可见性整体挂到宿主给的容器上，返回清理函数；宿主卸载即释放。
+ * 旧命令式路径（mountBoard + 独立壳模块的容器注入/互斥激活/外部点击关闭）已于 REQ-47939a
+ * 「拆除旧机制」卡整段删除。
  *
  * @module dsh-pmboard/client/board-mount
  */
 import type { BoardState, RequirementRecord } from './types.ts'
-import {
-  PANEL_NAME,
-  ACTIVE_ATTR,
-  OTHER_ACTIVE_ATTRS,
-} from './dom.ts'
 import {
   buildBoard, buildEmpty, buildError, buildReqDetail, buildTaskDetail, buildTasksPage,
   defaultListDirFor, LIST_PAGE_SIZE_DEFAULT, LIST_PAGE_SIZES,
@@ -18,14 +17,16 @@ import {
 } from './view.ts'
 import * as api from './api.ts'
 import { openDocInSidebar, resolveCurrentSessionId, setDocWorkspaceContext } from './open-doc.ts'
-import { archivedSessionIds, jumpToSession, windowServiceAccess, type SessionJumpResult } from './session-jump.ts'
-import { createBoardShell } from './board-shell.js'
+import { archivedSessionIds, handleSessionJump, jumpToSession, windowServiceAccess, type SessionJumpResult } from './session-jump.ts'
 import { fmt } from '../domain/text/fmt.js'
+// REQ-260928222643-4d34 FR-2：一次性定位交接——挂载时消费节点面板登记的 REQ id
+import * as boardFocus from './board-focus.ts'
 import { renderStageNode } from './stage-panel.ts'
 import { hasInjectionWindow, renderInjectionInfo } from './injection-info.ts'
 import { renderTokenPlaceholder, renderTokenTab } from './token-info.ts'
 import { renderMarksBlock, renderMarksPlaceholder } from './marks-info.ts'
 import { updateTraceabilityView } from './traceability-handler.js'
+import { tryMountDagCanvas } from './dag-mount.js'
 import type { StageOverview, StageKey } from '../shared/protocol.ts'
 
 const POLL_MS = 20000
@@ -122,14 +123,6 @@ type ViewMode =
   | { kind: 'task'; taskId: string }
   | { kind: 'tasks' }
 
-export interface BoardController {
-  openBoard(): void
-  closeBoard(): void
-  toggleBoard(): void
-  getSnapshot(): { boardOpen: boolean }
-  refresh(): void
-}
-
 /**
  * 会话跳转结果的**明确反馈**（REQ-31e11f #5：不允许点了没反应）。
  * 'opened' 不打扰（已经跳过去了）；其余结果必须能说清“为什么没跳”。
@@ -143,7 +136,7 @@ export function jumpResultMessage(result: SessionJumpResult, sid: string): strin
     case 'missing':
       return '该会话不在当前会话列表（' + short + '）：可能已删除或不在当前工作区'
     case 'unavailable':
-      return '会话服务暂不可用（页面注入未就绪），请刷新页面后重试'
+      return '会话导航服务不可用（uiWorkspace 未注入），请刷新页面后重试'
     case 'opened':
       return ''
     default:
@@ -151,18 +144,47 @@ export function jumpResultMessage(result: SessionJumpResult, sid: string): strin
   }
 }
 
-export function createBoardController(): BoardController {
-  const ctrl: BoardController = {
-    openBoard: () => {}, closeBoard: () => {}, toggleBoard: () => {},
-    getSnapshot: () => ({ boardOpen: false }),
-    refresh: () => {},
-  }
-  return ctrl
+/** 宿主挂载参数（attachBoard / createBoardAttachment）。 */
+export interface AttachBoardOptions {
+  /**
+   * 由看板自行驱动轮询（宿主模式，默认 true）。
+   * false = 轮询交给外部驱动，本函数只绑事件、SSE 与可见性（供旧式外部轮询者使用）。
+   */
+  poll?: boolean
+  /** 轮询间隔（毫秒），默认 POLL_MS（20s）。 */
+  pollMs?: number
+  /**
+   * 面板是否可见；返回 false 时**跳过本轮刷新**（不阻断挂载、SSE 与事件委派）。
+   * 宿主用 usePanelInfo().activePanelId === PANEL_ID 作防御性门闩；缺省恒可见。
+   */
+  isActive?: () => boolean
 }
 
-export function mountBoard(controller: BoardController): () => void {
+/** 附着体句柄：宿主可用 refresh 主动刷新；dispose 释放监听/订阅/定时器（幂等）。 */
+export interface BoardAttachment {
+  refresh(): void
+  dispose(): void
+}
+
+/** 宿主「恒在看」兜底（未提供可见性门闩时）。 */
+const ALWAYS_ACTIVE = (): boolean => true
+
+/**
+ * 把命令式看板挂到宿主给的容器上 —— 集中承担容器上的 click/change 事件委派、
+ * fetchAll、startEvents 订阅、轮询与 visibilitychange）整体下沉到这里；返回句柄由宿主决定
+ * 何时 refresh / dispose。
+ *
+ * 为什么不重写：看板是命令式 DOM 视图，React 宿主（page/host.ts）只提供容器与生命周期。
+ */
+export function createBoardAttachment(container: HTMLElement, options: AttachBoardOptions = {}): BoardAttachment {
+  const { poll = true, pollMs = POLL_MS, isActive = ALWAYS_ACTIVE } = options
   let state: BoardState | undefined
-  let mode: ViewMode = { kind: 'board' }
+  // REQ-260928222643-4d34 FR-2：挂载时消费一次「请定位到该需求」的一次性意图（取走即清）。
+  // 看板 mode 是挂载闭包内局部变量，故只能在挂载时读；无意图 → 默认看板视图。
+  const focusReqId = boardFocus.takeBoardFocus()
+  let mode: ViewMode = focusReqId !== undefined
+    ? { kind: 'req', reqId: focusReqId }
+    : { kind: 'board' }
   // 看板视图种类（泳道 / 列表）——纯前端偏好，不入台账；切换即重绘
   let boardView: BoardViewKind = readViewPref()
   // 列表视图的排序 / 分页状态（同样纯前端；page 不持久，回来不落在空页）
@@ -173,8 +195,11 @@ export function mountBoard(controller: BoardController): () => void {
   let listPage = 1
   // 需求详情里当前选中的阶段节点（分段控件选中态；跨 SSE 重绘保留）
   let activeStage: string | undefined
-  let viewEl: HTMLElement | undefined
+  // 容器由宿主提供——挂载即绑定，dispose 即解绑
+  let viewEl: HTMLElement | undefined = container
   let unsubEvents: (() => void) | undefined
+  let pollTimer: number | undefined
+  let disposed = false
 
   const listOpts = (): ListViewOpts => ({
     sortKey: listSortKey, sortDir: listSortDir, page: listPage, pageSize: listPageSize,
@@ -216,6 +241,9 @@ export function mountBoard(controller: BoardController): () => void {
         break
       case 'req': {
         const req = state.requirements.find(r => r.id === cur.reqId)
+        // DAG 画布与绿点共用同一份事实源：需求任务 + 队列 ready[]（缺 ready 时画布标「推导」）
+        const reqTasks = req === undefined ? [] : state.tasks.filter(t => t.requirementId === req.id)
+        const reqReady = req === undefined ? undefined : state.ready?.[req.id]
         viewEl.innerHTML = req
           ? buildReqDetail(req, state.tasks, Date.now(), archivedSids())
           : buildBoard(state, Date.now(), boardView, listOpts(), archivedSids())
@@ -231,6 +259,8 @@ export function mountBoard(controller: BoardController): () => void {
           void loadTokenTab(req.id)
           // REQ-d3e61a T-5：条款接收状态（打开详情即取，红名单第一时间可见）
           void loadMarksBlock(req.id)
+          // 挂载 DAG Canvas（REQ-260928001915-f978）：真依赖边 + 悬停/钉住 + 关键路径/只看主线
+          tryMountDagCanvas(reqTasks, reqReady)
         }
         break
       }
@@ -257,6 +287,18 @@ export function mountBoard(controller: BoardController): () => void {
       state = s
       // FR-4：缓存服务端工作区根——open-doc 打开与显示文档统一走绝对路径（与查看会话工作区解耦）
       setDocWorkspaceContext(s.workspaceRoot, s.homeDir)
+
+      // 🔧 修复：刷新时重置 activeStage 为需求当前状态
+      // 如果当前在需求详情页，将 activeStage 重置为该需求的当前状态
+      // 这样刷新后 tab 会自动回到"当前阶段"，不会因为 SSE 刷新破坏用户选择的 tab 位置
+      // 取快照后再收窄：mode 是可被事件回调改写的闭包变量，回调里直接读 mode.reqId 不受收窄约束
+      const cur = mode
+      if (cur.kind === 'req') {
+        const req = s.requirements.find(r => r.id === cur.reqId)
+        if (req) {
+          activeStage = req.status
+        }
+      }
       render()
     } catch (err) {
       if (viewEl !== undefined) viewEl.innerHTML = buildError(String(err))
@@ -273,6 +315,7 @@ export function mountBoard(controller: BoardController): () => void {
 
   const onClick = (ev: MouseEvent): void => {
     const target = ev.target as Element
+    console.log('[pmboard] onClick', { target, tagName: target.tagName, className: target.className })
     // 分页控件由 render/pagination 渲染（data-pmpage，无 data-action）
     const pageEl = target.closest<HTMLElement>('[data-pmpage]')
     if (pageEl !== null && state !== undefined) {
@@ -281,8 +324,10 @@ export function mountBoard(controller: BoardController): () => void {
       return
     }
     const el = target.closest<HTMLElement>('[data-action]')
+    console.log('[pmboard] found data-action element:', { el, action: el?.dataset.action, state: !!state })
     if (el === null || state === undefined) return
     const action = el.dataset.action ?? ''
+    console.log('[pmboard] handling action:', action)
 
     switch (action) {
       case 'refresh':
@@ -452,9 +497,30 @@ export function mountBoard(controller: BoardController): () => void {
       case 'open-req':
         if (el.dataset.req) { activeStage = undefined; mode = { kind: 'req', reqId: el.dataset.req }; render() }
         return
-      case 'open-task':
-        if (el.dataset.task) { mode = { kind: 'task', taskId: el.dataset.task }; render() }
+      case 'open-task': {
+        const taskId = el.dataset.task
+        if (!taskId) return
+        // 切换到任务详情页
+        mode = { kind: 'task', taskId }
+        render()
+        // 同时跳转到该任务所属需求的会话窗口（延迟执行，等待服务就绪）
+        const task = state.tasks.find(t => t.id === taskId)
+        if (task) {
+          const req = state.requirements.find(r => r.id === task.requirementId)
+          if (req?.sourceSessionId) {
+            // 延迟 100ms，确保会话服务已初始化
+            setTimeout(() => {
+              void jumpToSession(windowServiceAccess(), req.sourceSessionId!)
+                .then(result => {
+                  const msg = jumpResultMessage(result, req.sourceSessionId!)
+                  if (msg !== '') console.log('[pmboard] 会话跳转:', msg)
+                })
+                .catch(e => console.error('[pmboard] 会话跳转失败:', e))
+            }, 100)
+          }
+        }
         return
+      }
       case 'open-tasks':
         activeStage = undefined
         mode = { kind: 'tasks' }
@@ -504,20 +570,10 @@ export function mountBoard(controller: BoardController): () => void {
         return
       }
       case 'jump-session': {
+        console.log('[pmboard] jump-session action triggered', { el, dataset: el.dataset })
         const sid = el.dataset.sid
-        if (!sid) return
-        // 渲染时已知归档（chip 带 data-archived）→ 不发起跳转，直接给原因。
-        // 旧实现把归档 chip 渲染成无 data-action 的灰 span，点击静默无反应（#5 真因）。
-        if (el.dataset.archived === 'true') {
-          window.alert(jumpResultMessage('archived', sid))
-          return
-        }
-        void jumpToSession(windowServiceAccess(), sid)
-          .then(result => {
-            const msg = jumpResultMessage(result, sid)
-            if (msg !== '') window.alert(msg)
-          })
-          .catch(e => window.alert('会话跳转失败：' + String(e)))
+        console.log('[pmboard] jump-session: sid =', sid)
+        void handleSessionJump(sid)
         return
       }
       case 'verify-pass': {
@@ -752,47 +808,53 @@ export function mountBoard(controller: BoardController): () => void {
     }
   }
 
-  // ---- board-shell 生命周期 --------------------------------------------
+  // ---- 挂载：事件委派 + SSE + 轮询/可见性 ------------------------------
 
-  const shell = createBoardShell({
-    prefix: 'dsh-pm',
-    panelName: PANEL_NAME,
-    activeAttr: ACTIVE_ATTR,
-    otherActiveAttrs: OTHER_ACTIVE_ATTRS,
-    pollMs: POLL_MS,
-    pauseOnHidden: true,
-    buildContainer: () => {
-      const el = document.createElement('div')
-      el.dataset.dshPmView = ''
-      el.className = 'dsh-pm-view'
-      return el
-    },
-    onMount: (container) => {
-      viewEl = container
-      container.addEventListener('click', onClick)
-      container.addEventListener('change', onChange)
-      void fetchAll()
-      startEvents()
-      return () => {
-        container.removeEventListener('click', onClick)
-        container.removeEventListener('change', onChange)
-        unsubEvents?.()
-        unsubEvents = undefined
-        viewEl = undefined
-      }
-    },
-    onPoll: () => { void fetchAll() },
-    onOpen: () => { void fetchAll() },
-  })
+  // 容器上的 click/change 事件委派（渲染出的卡片按钮全走这里）
+  container.addEventListener('click', onClick)
+  container.addEventListener('change', onChange)
+  // 挂载即拉一次；SSE 订阅随 disposer 释放
+  void fetchAll()
+  startEvents()
 
-  const ctrl = controller as any
-  ctrl.openBoard = shell.open
-  ctrl.closeBoard = shell.close
-  ctrl.toggleBoard = shell.toggle
-  ctrl.getSnapshot = () => ({ boardOpen: shell.isActive() })
-  ctrl.refresh = () => { void fetchAll() }
-
-  return () => {
-    shell.dispose()
+  const stopPolling = (): void => {
+    if (pollTimer !== undefined) { window.clearInterval(pollTimer); pollTimer = undefined }
   }
+  const startPolling = (): void => {
+    stopPolling()
+    // isActive 是每次 tick 才求值：宿主的面板可见性变化不需要重挂容器
+    pollTimer = window.setInterval(() => { if (!disposed && isActive()) void fetchAll() }, pollMs)
+  }
+  const onVisibility = (): void => {
+    if (document.hidden) stopPolling()
+    else startPolling()
+  }
+  if (poll) {
+    document.addEventListener('visibilitychange', onVisibility)
+    startPolling()
+  }
+
+  return {
+    refresh: () => { void fetchAll() },
+    dispose: () => {
+      if (disposed) return
+      disposed = true
+      container.removeEventListener('click', onClick)
+      container.removeEventListener('change', onChange)
+      unsubEvents?.()
+      unsubEvents = undefined
+      stopPolling()
+      if (poll) document.removeEventListener('visibilitychange', onVisibility)
+      viewEl = undefined
+    },
+  }
+}
+
+/**
+ * 宿主入口（REQ-260928185112-e20d FR-2）：attachBoard(container) → 清理函数。
+ * 薄转发：让「挂载即在看」的 React 宿主不必知道内部句柄形状。
+ */
+export function attachBoard(container: HTMLElement, options: AttachBoardOptions = {}): () => void {
+  const attachment = createBoardAttachment(container, options)
+  return () => { attachment.dispose() }
 }

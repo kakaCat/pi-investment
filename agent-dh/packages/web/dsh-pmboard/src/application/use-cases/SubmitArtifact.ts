@@ -17,7 +17,7 @@ import { applyDocSync, clearDocSync, docSyncDownstream } from '../../domain/work
 import { openRequirementsFor } from '../internal/window.js'
 import { registerArtifact } from '../internal/artifact-gates.js'
 import { stampCheckpoint } from '../internal/interruption.js'
-import { checkNumberChainGate, checkDesignServesGate, checkRequirementDocFormatGate, assertArtifactOpenable } from '../internal/content-gate-wiring.js'
+import { checkNumberChainGate, checkDesignServesGate, checkRequirementDocFormatGate, assertArtifactOpenable, assertClauseCoverageGate } from '../internal/content-gate-wiring.js'
 import { missingCategoryDocs } from '../internal/category-doc-sets.js'
 import { envelope } from '../internal/gate-feedback.js'
 import {
@@ -240,6 +240,16 @@ export async function submitPlanArtifact(deps: UseCaseDeps, args: unknown, exec:
             }),
             'REQBOARD_MISSING_REQUIRED_DOC',
           )
+        }
+      }
+
+      // ── FR 覆盖度检查（提交时检查，而非批准时才报错）────────────────────────
+      // 如果用户传了 tasks 参数，提前检查 FR 覆盖度，避免提交成功但批准时才发现问题
+      const rawTasks = (a.tasks ?? []) as unknown[]
+      if (rawTasks.length > 0) {
+        const coverageFailure = await assertClauseCoverageGate(deps.docs, target, rawTasks)
+        if (coverageFailure !== undefined) {
+          reject(coverageFailure.message, coverageFailure.code)
         }
       }
 

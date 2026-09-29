@@ -34,6 +34,7 @@ import { JsonQueueRepository } from '../src/repositories/QueueRepository.js'
 import { QueueTaskStore } from '../src/repositories/QueueTaskStore.js'
 import { createReqboardHandler } from '../src/http/routes.js'
 import { readyTasks, type RequirementRecord, type TaskRecord } from '../src/shared/protocol.js'
+import { transitiveReduce } from '../src/domain/queue/transitiveReduction.js'
 import { countDoneTasks, countUnfinishedTasks } from '../src/domain/status/Predicates.js'
 
 const FIXTURE = join(dirname(fileURLToPath(import.meta.url)), 'fixtures/read-sites-v8-ledger.json')
@@ -55,9 +56,27 @@ const REVISION = fixture.revision
 /** 夹具涉及的需求（原序去重）。 */
 const REQ_IDS = [...new Set(V8_TASKS.map(t => t.requirementId))]
 
-/** 迁移前的旧表达式：直接吃 v8 台账 tasks[] 数组（与改造前读方逐字同式）。 */
+/**
+ * 写路径的依赖归一化（2026-09-29 · REQ-260929010300-dbf9 用户裁定 B「数据侧」）：
+ * `createMany` 会把 `dependsOn` 归约为**直接前置**（传递闭包 → 直接前置），
+ * 故本用例的"迁移后期望值"必须先做**同一份**归约，才能继续用"逐字节"口径判等价。
+ * 归约保持可达性 ⇒ 除 `dependsOn` 外所有字段与顺序都不变；这仍是真实迁移的前后对照，
+ * 只是把「写路径会归一化依赖」这条**新契约**显式入账（不是放宽断言）。
+ */
+function reduceLedgerDeps(tasks: readonly TaskRecord[]): Map<string, string[]> {
+  const reduced = new Map<string, string[]>()
+  for (const reqId of REQ_IDS) {
+    const scoped = tasks.filter(t => t.requirementId === reqId)
+    const graph = new Map(scoped.map(t => [t.id, t.dependsOn ?? []]))
+    for (const [id, deps] of transitiveReduce(graph)) reduced.set(id, deps)
+  }
+  return reduced
+}
+const REDUCED_DEPS = reduceLedgerDeps(V8_TASKS)
+
+/** 迁移前的旧表达式：直接吃 v8 台账 tasks[] 数组（与改造前读方逐字同式；依赖按新契约归一化）。 */
 const before = {
-  stateTasks: () => V8_TASKS.map(t => ({ ...t })),
+  stateTasks: () => V8_TASKS.map(t => ({ ...t, dependsOn: REDUCED_DEPS.get(t.id) ?? t.dependsOn })),
   readyMap: () => Object.fromEntries(
     V9_REQUIREMENTS.map(r => [r.id, readyTasks(V8_TASKS, r.id).map(t => t.id)]),
   ),

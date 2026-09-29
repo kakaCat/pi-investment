@@ -18,7 +18,7 @@ import { fmt } from '../../domain/text/fmt.js'
 import { describeConflicts, findWorkSurfaceConflicts } from '../internal/conflict-check.js'
 import { assertClauseCoverageGate, requirementRefsOf } from '../internal/content-gate-wiring.js'
 import { reject, agentIdFromExec, requireLiveDriver } from '../internal/support.js'
-import { landPlanTasks } from '../internal/plan-landing.js'
+import { landPlanTasks, type PlanTaskDraft } from '../internal/plan-landing.js'
 import { queueRelativePath } from '../../domain/queue/queuePath.js'
 import { taskStoreOf } from './queue-access.js'
 
@@ -94,10 +94,7 @@ export async function executeDecompose(deps: UseCaseDeps, args: unknown, exec: a
       //   normalizePlanTasks 强制，人工把关在「拆分确认门」（decomposing→implementing）。
       //  路径 B（计划携带任务表，兼容旧流程）：落库以批准的计划为准；显式传 tasks 时
       //   key 集合必须一致（防「批了 A、落库 B」）。
-      let draft: Array<{
-        key: string; title: string; description: string; phase: string; side: string
-        acceptance: string; implementation: string; context: string; dependsOn: string[]
-      }>
+      let draft: PlanTaskDraft[]
       if (planTasks.length === 0) {
         if (a.tasks === undefined || !Array.isArray(a.tasks) || a.tasks.length === 0) {
           reject(
@@ -117,6 +114,10 @@ export async function executeDecompose(deps: UseCaseDeps, args: unknown, exec: a
           implementation: t.implementation ?? '',
           context: '',
           dependsOn: [...(t.dependsOn ?? [])],
+          // 子卡段控制（REQ-260928185112-e20d）：两条路径（创作型 tasks / 计划携带任务表）都要透传，
+          // 否则拆分节点写了 stages/skipIntegration，落库时照样丢。
+          ...(t.stages !== undefined ? { stages: [...t.stages] } : {}),
+          ...(t.skipIntegration === true ? { skipIntegration: true } : {}),
         }))
       } else {
         // 显式传 tasks 时，key 集合必须与批准的计划一致——防止「批了 A、落库 B」
@@ -148,6 +149,10 @@ export async function executeDecompose(deps: UseCaseDeps, args: unknown, exec: a
           implementation: t.implementation ?? '',
           context: '',
           dependsOn: [...(t.dependsOn ?? [])],
+          // 子卡段控制（REQ-260928185112-e20d）：两条路径（创作型 tasks / 计划携带任务表）都要透传，
+          // 否则拆分节点写了 stages/skipIntegration，落库时照样丢。
+          ...(t.stages !== undefined ? { stages: [...t.stages] } : {}),
+          ...(t.skipIntegration === true ? { skipIntegration: true } : {}),
         }))
       }
       // 薄卡检测（REQ-2e9473 t04）：新计划在 plan_submit 已被强制要求 implementation（t03），

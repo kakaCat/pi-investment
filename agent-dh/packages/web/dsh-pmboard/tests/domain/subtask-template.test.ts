@@ -66,9 +66,12 @@ describe('显式 stages 逃生舱口（FR-1b）', () => {
     if (!r.ok) expect(r.error).toContain('写代码')
   })
 
-  it('1.4b 空数组被拒', () => {
+  // 2026-09-28 卡片层契约：空数组从「非法」改为「显式声明本卡不落链（solo）」——
+  // undefined=未指定（走映射）/ []=明确无链，两者必须可区分，否则"不需子卡"与"未生成"永远分不清。
+  it('1.4b 空数组 = 显式无链（solo），合法', () => {
     const r = validateExplicitStages([])
-    expect(r.ok).toBe(false)
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value).toEqual([])
   })
 
   it('1.4c 重复项被拒', () => {

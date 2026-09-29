@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>会话节点面板 ·「去项目看板」入口位置对照</title>
+<style>
+/* ===== 设计令牌（与真实实现同源：styles/base.ts + styles/node-panel.ts） ===== */
+:root{
+  --dsw-border: rgba(0,0,0,.12);
+  --dsw-bg: #fff;
+  --dsw-bg-secondary: #f5f5f7;
+  --dsw-hover: #ebebf0;
+  --dsw-text-primary:#1d1d1f;
+  --dsw-text-secondary:#6e6e73;
+  --pm-line: rgba(0,0,0,.12);
+  --pm-line-strong: rgba(0,0,0,.28);
+  --pm-bg-soft:#f5f5f7;
+  --pm-c-draft:#9aa4b2; --pm-c-brainstorming:#f0a020; --pm-c-design:#c2255c;
+  --pm-c-decomposing:#8e44ad; --pm-c-implementing:#4a7dff; --pm-c-accepting:#17a2b8;
+  --pm-c-done:#28a745; --pm-c-archived:#6c757d;
+  --dsh-pm-np-text:#1d1d1f; --dsh-pm-np-text2:#6e6e73; --dsh-pm-np-text3:#86868b;
+  --dsh-pm-np-line:rgba(0,0,0,.12); --dsh-pm-np-line-soft:rgba(0,0,0,.08);
+  --dsh-pm-np-bg:#f5f5f7; --dsh-pm-np-bg-hover:#ebebf0;
+  --dsh-pm-np-blue:#0071e3; --dsh-pm-np-green:#34c759; --dsh-pm-np-red:#dc3545; --dsh-pm-np-amber:#ff9500;
+}
+* { box-sizing: border-box; }
+body{
+  margin:0; background:#eef0f3; color:var(--dsw-text-primary);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Helvetica Neue",Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.page{ max-width:1200px; margin:0 auto; padding:28px 20px 90px; }
+.page h1{ font-size:22px; margin:0 0 6px; letter-spacing:-.01em; }
+.page .lede{ color:var(--dsw-text-secondary); font-size:13.5px; line-height:1.75; margin:0 0 14px; }
+.page .lede code{ background:rgba(0,0,0,.06); border-radius:4px; padding:1px 5px; font-size:12px; font-family:ui-monospace,monospace; }
+.summary{ width:100%; border-collapse:collapse; background:#fff; border-radius:12px; overflow:hidden;
+  box-shadow:0 1px 3px rgba(0,0,0,.06); font-size:12.5px; }
+.summary th,.summary td{ padding:9px 12px; text-align:left; border-bottom:1px solid rgba(0,0,0,.06); vertical-align:top; }
+.summary th{ background:#f7f8fa; font-weight:600; color:var(--dsw-text-secondary); white-space:nowrap; }
+.summary tr:last-child td{ border-bottom:none; }
+.summary .pick{ color:#248a3d; font-weight:600; }
+.summary .meh{ color:#b26a00; }
+
+/* ===== 方案卡片 ===== */
+.variant{ background:#fff; border:1px solid rgba(0,0,0,.08); border-radius:14px; padding:16px; margin:18px 0;
+  box-shadow:0 1px 3px rgba(0,0,0,.05); }
+.variant > header{ display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
+.variant h2{ font-size:15px; margin:0; letter-spacing:-.01em; }
+.badge{ background:#1d1d1f; color:#fff; border-radius:980px; padding:3px 10px; font-size:11.5px; font-weight:600; white-space:nowrap; }
+.badge.ghost{ background:rgba(0,0,0,.08); color:var(--dsw-text-secondary); }
+.tag{ border-radius:980px; padding:2px 9px; font-size:11px; font-weight:600; }
+.tag.rec{ background:rgba(52,199,89,.14); color:#248a3d; }
+.tag.warn{ background:rgba(255,149,0,.16); color:#b26a00; }
+.layout{ display:grid; grid-template-columns:1fr 268px; gap:16px; align-items:start; }
+.verdict{ font-size:12.5px; line-height:1.7; color:var(--dsw-text-secondary); }
+.verdict b{ color:var(--dsw-text-primary); display:block; font-size:12px; margin:10px 0 2px; }
+.verdict ul{ margin:0 0 0 16px; padding:0; }
+.verdict li{ margin:2px 0; }
+
+/* ===== 会话外框（mock） ===== */
+.frame{ position:relative; background:#f7f8fa; border:1px solid rgba(0,0,0,.08); border-radius:12px;
+  overflow:hidden; min-height:640px; }
+.conv-head{ display:flex; align-items:center; gap:12px; padding:10px 14px; background:#fff;
+  border-bottom:1px solid rgba(0,0,0,.07); }
+.conv-title{ font-size:13px; font-weight:600; color:var(--dsw-text-primary); white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis; }
+.conv-sub{ font-size:11px; color:var(--dsw-text-secondary); white-space:nowrap; }
+.conv-utils{ margin-left:auto; display:flex; align-items:center; gap:8px; }
+.conv-body{ padding:16px 18px 24px; display:flex; flex-direction:column; gap:16px; }
+.msg{ display:flex; gap:10px; font-size:13px; line-height:1.7; }
+.msg .who{ flex:none; width:64px; font-size:11px; color:var(--dsw-text-secondary); padding-top:2px; }
+.msg .text{ max-width:min(560px,78%); }
+.msg.user .text{ background:#fff; border:1px solid rgba(0,0,0,.07); border-radius:10px; padding:8px 12px; }
+.msg.tool .text{ font-family:ui-monospace,monospace; font-size:11.5px; color:var(--dsw-text-secondary);
+  background:rgba(0,0,0,.04); border-radius:8px; padding:6px 10px; }
+
+/* ===== 真实流程图样式（styles/board.ts） ===== */
+.dsh-pm-cprog{ position:relative; display:inline-flex; align-items:center; flex-direction:column; gap:8px; }
+.dsh-pm-cprog-inline{ display:inline-flex; align-items:center; gap:10px;
+  border:1px solid var(--dsw-border); border-radius:12px; background:var(--dsw-bg-secondary);
+  padding:6px 12px; cursor:pointer; transition:all .2s ease; }
+.dsh-pm-cprog-inline:hover{ background:var(--dsw-hover); border-color:rgba(74,125,255,.4); box-shadow:0 2px 8px rgba(74,125,255,.1); }
+.dsh-pm-cprog-inline-count{ font-size:11px; color:var(--dsw-text-secondary); font-variant-numeric:tabular-nums;
+  font-weight:500; padding-left:6px; border-left:1px solid var(--dsw-border); }
+.dsh-pm-flow{ display:flex; align-items:stretch; gap:0; overflow-x:auto; padding:2px 0; }
+.dsh-pm-flow-node{ display:flex; flex-direction:column; align-items:center; gap:4px; min-width:58px;
+  cursor:pointer; transition:transform .2s ease; }
+.dsh-pm-flow-node:hover{ transform:translateY(-2px); }
+.dsh-pm-flow-dot{ width:22px; height:22px; border-radius:50%; flex:none; display:flex; align-items:center;
+  justify-content:center; font-size:11px; font-weight:600; background:var(--pm-bg-soft);
+  color:var(--dsw-text-secondary); border:1px solid var(--pm-line);
+  transition:background .2s ease, box-shadow .2s ease, transform .2s ease; }
+.dsh-pm-flow-node[data-state="pending"] .dsh-pm-flow-dot{ background:transparent; border:1px solid var(--pm-line-strong); color:#9a9aa0; }
+.dsh-pm-flow-node[data-state="done"] .dsh-pm-flow-dot{ background:var(--pm-c-done); border-color:var(--pm-c-done); color:#fff; }
+.dsh-pm-flow-node[data-state="current"] .dsh-pm-flow-dot{ background:var(--pm-c-implementing); border-color:var(--pm-c-implementing);
+  color:#fff; box-shadow:0 0 0 3px rgba(74,125,255,.25); }
+.dsh-pm-flow-node[data-selected="true"] .dsh-pm-flow-dot{ box-shadow:0 0 0 3px rgba(74,125,255,.3); transform:scale(1.08); }
+.dsh-pm-flow-node[data-selected="true"] .dsh-pm-flow-label{ font-weight:700; color:#2f5fd0; }
+.dsh-pm-flow-label{ font-size:10px; color:var(--dsw-text-secondary); white-space:nowrap; }
+.dsh-pm-flow-node[data-state="done"] .dsh-pm-flow-label{ color:#1e7e34; }
+.dsh-pm-flow-node[data-state="current"] .dsh-pm-flow-label{ color:#2f5fd0; font-weight:600; }
+.dsh-pm-flow-link{ width:16px; height:2px; border-radius:1px; margin-top:10px; flex:none; background:rgba(128,128,128,.22); }
+.dsh-pm-flow-link[data-state="done"]{ background:rgba(40,167,69,.6); }
+.dsh-pm-flow-meta{ display:flex; align-items:baseline; gap:4px; white-space:nowrap; }
+.dsh-pm-flow-token{ font-size:10px; color:var(--dsw-text-primary); font-variant-numeric:tabular-nums; }
+
+/* ===== 真实面板样式（styles/node-panel.ts；mock 里宽度收窄到 640px 便于并排看） ===== */
+.dsh-pm-cprog-detail-panel{ position:absolute; top:calc(100% + 8px); right:0; z-index:60;
+  width:min(640px,calc(100vw - 130px)); max-height:470px; overflow-y:auto;
+  background:#fff; border:1px solid var(--dsh-pm-np-line); border-radius:10px;
+  box-shadow:0 8px 28px rgba(0,0,0,.18); padding:12px 14px; color:var(--dsh-pm-np-text);
+  display:flex; flex-direction:column; gap:10px; text-align:left; }
+.dsh-pm-cprog-detail-panel .dsh-pm-np-close{ position:absolute; top:10px; right:12px; z-index:2;
+  width:26px; height:26px; border-radius:50%; border:none; cursor:pointer; background:var(--dsh-pm-np-bg);
+  color:var(--dsh-pm-np-text2); font-size:15px; line-height:1; }
+.dsh-pm-np{ display:flex; flex-direction:column; gap:10px; text-align:left; font-size:13.5px; }
+.dsh-pm-np-req{ display:flex; align-items:center; gap:8px; padding-right:30px; }
+.dsh-pm-np-req-pill{ flex:none; background:rgba(0,113,227,.1); color:var(--dsh-pm-np-blue);
+  border-radius:980px; padding:2px 9px; font-size:11.5px; font-weight:600; font-variant-numeric:tabular-nums; }
+.dsh-pm-np-req-title{ font-size:15px; font-weight:600; letter-spacing:-.01em; color:var(--dsh-pm-np-text);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.dsh-pm-np-head{ display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
+.dsh-pm-np-head-state{ flex:none; border-radius:980px; padding:2px 9px; font-size:11.5px; font-weight:600;
+  background:var(--dsh-pm-np-bg); color:var(--dsh-pm-np-text2); }
+.dsh-pm-np-head-state[data-state="current"]{ background:rgba(0,113,227,.12); color:var(--dsh-pm-np-blue); }
+.dsh-pm-np-head-title{ font-size:13px; color:var(--dsh-pm-np-text2); }
+.dsh-pm-np-head-time{ margin-left:auto; font-size:12px; color:var(--dsh-pm-np-text3); }
+.dsh-pm-np-fold{ border-radius:12px; }
+.dsh-pm-np-fold > summary{ list-style:none; cursor:pointer; user-select:none; display:flex; align-items:center;
+  gap:8px; background:var(--dsh-pm-np-bg); border-radius:12px; padding:10px 12px; }
+.dsh-pm-np-fold > summary::-webkit-details-marker{ display:none; }
+.dsh-pm-np-fold-icon{ color:var(--dsh-pm-np-text3); font-size:12px; transition:transform .2s; }
+.dsh-pm-np-fold[open] > summary .dsh-pm-np-fold-icon{ transform:rotate(90deg); }
+.dsh-pm-np-fold-text{ font-size:14px; font-weight:600; letter-spacing:-.01em; }
+.dsh-pm-np-fold-body{ padding:12px 4px 2px; display:flex; flex-direction:column; gap:10px; }
+.dsh-pm-np-doclist{ display:block; background:#fff; border:1px solid var(--dsh-pm-np-line-soft);
+  border-radius:12px; overflow:hidden; }
+.dsh-pm-np-docitem{ display:flex; align-items:center; gap:8px; width:100%; text-align:left; padding:10px 12px;
+  border:none; background:#fff; cursor:pointer; font:inherit; font-size:13px; color:var(--dsh-pm-np-text); }
+.dsh-pm-np-docitem-arrow{ margin-left:auto; color:#c7c7cc; }
+.dsh-pm-np-sec-label{ font-size:12.5px; font-weight:600; }
+.dsh-pm-np-dag{ display:flex; flex-direction:column; gap:8px; }
+.dsh-pm-np-dag-layer{ display:flex; align-items:flex-start; gap:10px; }
+.dsh-pm-np-dag-label{ flex:0 0 auto; min-width:120px; font-size:11.5px; color:var(--dsh-pm-np-text3); padding-top:5px; }
+.dsh-pm-np-dag-row{ display:flex; flex-wrap:wrap; gap:6px; }
+.dsh-pm-np-dag-node{ display:flex; flex-direction:column; gap:2px; text-align:left; font:inherit;
+  background:#fff; border:none; border-radius:9px; padding:6px 8px; flex:0 0 208px; width:208px;
+  min-height:44px; box-shadow:0 1px 3px rgba(0,0,0,.08); overflow:hidden; }
+.dsh-pm-np-card-id{ font-family:ui-monospace,monospace; font-size:10px; color:#a3abb8; }
+.dsh-pm-np-card-title{ font-size:11.5px; font-weight:500; line-height:15px; color:#1f2733; }
+.dsh-pm-np-dag-node[data-status="done"]{ background:rgba(52,199,89,.08); }
+.dsh-pm-np-dag-node[data-status="in_progress"]{ background:rgba(0,113,227,.06); }
+.dsh-pm-np-dag-node[data-status="todo"]{ background:#fafafa; }
+
+/* ===== 候选按钮（高亮标注用） ===== */
+.cand{ font:inherit; cursor:pointer; border-radius:980px; animation:candPulse 1.8s ease-in-out infinite;
+  outline:2px dashed var(--dsh-pm-np-amber); outline-offset:2px; }
+@keyframes candPulse{
+  0%,100%{ outline-color:rgba(255,149,0,.95); box-shadow:0 0 0 0 rgba(255,149,0,.35); }
+  50%{ outline-color:rgba(255,149,0,.45); box-shadow:0 0 0 6px rgba(255,149,0,.12); }
+}
+.cand-ghost{ border:1px solid rgba(0,113,227,.35); background:rgba(0,113,227,.08); color:var(--dsh-pm-np-blue);
+  font-size:11.5px; font-weight:600; padding:3px 10px; white-space:nowrap; }
+.cand-chip{ border:1px solid rgba(0,113,227,.35); background:#fff; color:var(--dsh-pm-np-blue);
+  font-size:11px; font-weight:600; padding:4px 9px; white-space:nowrap; }
+.cand-primary{ border:none; background:var(--dsh-pm-np-blue); color:#fff; font-size:12.5px; font-weight:600;
+  padding:7px 16px; white-space:nowrap; }
+.cand-foot{ position:sticky; bottom:-12px; margin:6px -14px -12px; padding:10px 14px;
+  background:rgba(255,255,255,.96); border-top:1px solid var(--dsh-pm-np-line-soft);
+  display:flex; align-items:center; justify-content:flex-end; gap:10px; border-radius:0 0 10px 10px; }
+.cand-foot .hint{ margin-right:auto; font-size:11.5px; color:var(--dsh-pm-np-text3); }
+/* ① 放 REQ 行：× 在绝对定位右侧，按钮要挤在它左边 → 行右内边距得加大 */
+.dsh-pm-np-req .cand-ghost{ margin-left:auto; }
+.dsh-pm-np-req.has-cand{ padding-right:64px; }
+/* ④ 放流程条尾部 */
+.dsh-pm-cprog-inline .cand-chip{ margin-left:2px; }
+
+@media (max-width: 900px){
+  .layout{ grid-template-columns:1fr; }
+  .dsh-pm-cprog-detail-panel{ width:min(560px,calc(100vw - 60px)); }
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>会话流程节点：「去项目看板」入口放哪里</h1>
+  <p class="lede">
+    现状：点会话顶部（header 右侧）流程条的任一节点，只弹出下面这个内联面板（<code>conversation-progress.ts</code> 的
+    <code>setDetailOpen(true)</code>），<b>没有任何一条通往「项目看板 → 该需求详情」的路</b>。
+    下面 4 个方案是同一个面板的 4 种入口位置（橙虚线框 = 新按钮）。面板宽按 640px 呈现（真实为 min(720px, 100vw-130px)，最高 68vh）。
+  </p>
+
+  <table class="summary">
+    <thead><tr><th>方案</th><th>位置</th><th>核心优势</th><th>代价</th><th>结论</th></tr></thead>
+    <tbody>
+      <tr><td>①</td><td>面板头 REQ 行右侧（× 左边）</td><td>打开面板即可见，位置固定不随滚动；与「REQ 胶囊 + 标题」同排，语义就是「这条需求的更多入口」</td><td>标题行右内边距要从 30px 提到 ~64px；窄屏标题被压短</td><td class="pick">首推</td></tr>
+      <tr><td>②</td><td>状态行（与「12 分钟前」同排）</td><td>不用改标题行留白；与状态/时间绑定，读起来像「这条需求现在这样，去全景看」</td><td>head 行 <code>flex-wrap:wrap</code>，窄屏会掉到第二行；挤占时间的位置感</td><td class="meh">次选</td></tr>
+      <tr><td>③</td><td>面板底部 sticky 操作条（主按钮）</td><td>动线自然（读完详情再决定跳走）；主按钮最显眼，不会被折叠块埋掉</td><td>多占一行高度；内容不足时底条悬在中间；面板本身是 68vh 滚动容器，实现要 sticky</td><td class="meh">次选</td></tr>
+      <tr><td>④</td><td>流程条尾部（面板关着也能点）</td><td>路径最短、常驻可见；最贴合「会话右侧上面的节点」这句话</td><td>加宽 header 里的流程条（已有 overflow-x:auto）；与「点节点=开详情」并列，需要视觉上区分</td><td class="pick">可作为主入口</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ================= 现状 ================= -->
+  <section class="variant">
+    <header><span class="badge ghost">现状</span><h2>点节点只开内联面板 —— 这条需求没有去项目看板的入口</h2></header>
+    <div class="layout">
+      <div class="frame" id="host-v0"></div>
+      <aside class="verdict">
+        <b>现状说明</b>
+        面板头部只有右上角一个 <code>×</code>（绝对定位，行内留白 30px）；节点的点击语义被内联面板独占了。
+        <b>缺口</b>
+        想从「这个节点」走到「看板里的完整需求详情」（含 Token / 追溯 / 条款接收 / 验收单），只能先关面板、再去左侧栏点「项目看板」、再找需求——三步。
+      </aside>
+    </div>
+  </section>
+
+  <!-- ================= ① ================= -->
+  <section class="variant">
+    <header><span class="badge">方案 ①</span><h2>面板头 REQ 行右侧（× 左边）</h2><span class="tag rec">首推</span></header>
+    <div class="layout">
+      <div class="frame" id="host-v1"></div>
+      <aside class="verdict">
+        <b>改哪里</b>
+        <code>node-panel.ts</code> 的 <code>renderHead()</code> 在 <code>.dsh-pm-np-req</code> 行尾加按钮；
+        <code>styles/node-panel.ts</code> 里把 <code>.dsh-pm-np-req</code> 的 <code>padding-right</code> 从 30px 提到 ~64px 给 × 让位。
+        <b>为什么好</b>
+        <ul>
+          <li>面板是 68vh 滚动容器，按钮固定在头部 = 无论滚到哪都看得见</li>
+          <li>「REQ-xxxx + 标题」这一行本来就是"这条需求是谁"，入口放同排最自然也最好找</li>
+        </ul>
+        <b>注意</b>
+        <ul>
+          <li>窄屏标题被压短（本来就有 ellipsis，影响可控）</li>
+          <li>文案建议短：<code>项目看板 ↗</code>，不要用长句</li>
+        </ul>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ================= ② ================= -->
+  <section class="variant">
+    <header><span class="badge">方案 ②</span><h2>状态行右端（「12 分钟前」右侧）</h2></header>
+    <div class="layout">
+      <div class="frame" id="host-v2"></div>
+      <aside class="verdict">
+        <b>改哪里</b>
+        <code>renderHead()</code> 的 <code>.dsh-pm-np-head</code> 里，<code>head-time</code> 之后追加。
+        <b>为什么可以</b>
+        <ul>
+          <li>不必动标题行的留白，改动最小</li>
+          <li>与「进行中 + 一句话 + 时间」同排，读感是"现状 → 全景"</li>
+        </ul>
+        <b>注意</b>
+        <ul>
+          <li>该行是 <code>flex-wrap:wrap</code>：面板窄 / 文案长时会换行到第二行，位置不稳</li>
+          <li><code>head-time</code> 靠 <code>margin-left:auto</code> 靠右，按钮跟在它后面会贴着面板右缘</li>
+        </ul>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ================= ③ ================= -->
+  <section class="variant">
+    <header><span class="badge">方案 ③</span><h2>面板底部 sticky 操作条（主按钮）</h2></header>
+    <div class="layout">
+      <div class="frame" id="host-v3"></div>
+      <aside class="verdict">
+        <b>改哪里</b>
+        <code>conversation-progress.ts</code> 的 panelChildren 里追加一条（现在那里只 push 了 <code>×</code> 和面板主体）。
+        <b>为什么可以</b>
+        <ul>
+          <li>动线最顺：看完节点详情 → 决定"我要看全的" → 底部一点</li>
+          <li>主按钮形态最显眼，也是唯一能承载"主操作"重量的位置</li>
+        </ul>
+        <b>注意</b>
+        <ul>
+          <li>面板只有几十字内容时，底条会贴着内容悬在中间（sticky 只在滚动时才贴底）</li>
+          <li>比 ①② 多占一行高度，面板本就 68vh，空间紧张</li>
+        </ul>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ================= ④ ================= -->
+  <section class="variant">
+    <header><span class="badge">方案 ④</span><h2>流程条尾部（面板不打开也能点）</h2><span class="tag rec">路径最短</span></header>
+    <div class="layout">
+      <div class="frame" id="host-v4"></div>
+      <aside class="verdict">
+        <b>改哪里</b>
+        <code>conversation-progress.ts</code> 里 <code>dsh-pm-cprog-inline</code> 的 <code>count</code> 之后加一个 chip。
+        <b>为什么好</b>
+        <ul>
+          <li>一步到位，不用先开面板；面板关着也常驻可见</li>
+          <li>最贴合你的原话——入口就长在「会话右侧上面的节点」旁边</li>
+        </ul>
+        <b>注意</b>
+        <ul>
+          <li>流程条会变宽（在 header 里，已有 <code>overflow-x:auto</code> 兜底）</li>
+          <li>与"点节点 = 开详情"并列，需要靠分隔线 / 图标把两种点击语义分开</li>
+        </ul>
+      </aside>
+    </div>
+  </section>
+
+  <p class="lede">
+    <b>我的建议</b>：④ 做常用入口（点一下就到位，不回退现有节点点击语义），① 作为面板内的固定入口（面板打开时的第二落点）。
+    若只想要一个：选 ①——改动最小、位置最稳、和 × 不抢（把行内右留白从 30px 提到 64px 即可）。
+  </p>
+</div>
+
+<!-- ====== 面板模板（真标记结构，JS 克隆出 5 帧） ====== -->
+<template id="tpl-frame">
+  <div class="conv-head">
+    <div>
+      <div class="conv-title">看板接入 DSH 原生页面机制</div>
+      <div class="conv-sub">session-f17b3bd0 · 投资脑</div>
+    </div>
+    <div class="conv-utils">
+      <div class="dsh-pm-cprog">
+        <div class="dsh-pm-cprog-inline" title="点击节点查看详情">
+          <div class="dsh-pm-flow">
+            <div class="dsh-pm-flow-node" data-state="done"><span class="dsh-pm-flow-dot">✓</span>
+              <div class="dsh-pm-flow-meta"><span class="dsh-pm-flow-label">立项</span><span class="dsh-pm-flow-token">12.4k</span></div></div>
+            <div class="dsh-pm-flow-link" data-state="done"></div>
+            <div class="dsh-pm-flow-node" data-state="done"><span class="dsh-pm-flow-dot">✓</span>
+              <div class="dsh-pm-flow-meta"><span class="dsh-pm-flow-label">需求分析</span><span class="dsh-pm-flow-token">33.1k</span></div></div>
+            <div class="dsh-pm-flow-link" data-state="done"></div>
+            <div class="dsh-pm-flow-node" data-state="done"><span class="dsh-pm-flow-dot">✓</span>
+              <div class="dsh-pm-flow-meta"><span class="dsh-pm-flow-label">设计</span><span class="dsh-pm-flow-token">48.7k</span></div></div>
+            <div class="dsh-pm-flow-link" data-state="done"></div>
+            <div class="dsh-pm-flow-node" data-state="current" data-selected="true"><span class="dsh-pm-flow-dot">●</span>
+              <div class="dsh-pm-flow-meta"><span class="dsh-pm-flow-label">拆分</span><span class="dsh-pm-flow-token">21.9k</span></div></div>
+            <div class="dsh-pm-flow-link" data-state="pending"></div>
+            <div class="dsh-pm-flow-node" data-state="pending"><span class="dsh-pm-flow-dot">5</span>
+              <div class="dsh-pm-flow-meta"><span class="dsh-pm-flow-label">实施</span></div></div>
+            <div class="dsh-pm-flow-link" data-state="pending"></div>
+            <div class="dsh-pm-flow-node" data-state="pending"><span class="dsh-pm-flow-dot">6</span>
+              <div class="dsh-pm-flow-meta"><span class="dsh-pm-flow-label">验收</span></div></div>
+            <div class="dsh-pm-flow-link" data-state="pending"></div>
+            <div class="dsh-pm-flow-node" data-state="pending"><span class="dsh-pm-flow-dot">7</span>
+              <div class="dsh-pm-flow-meta"><span class="dsh-pm-flow-label">归档</span></div></div>
+          </div>
+          <span class="dsh-pm-cprog-inline-count">5/15</span>
+          <span class="slot" data-slot="bar"></span>
+        </div>
+
+        <div class="dsh-pm-cprog-detail-panel">
+          <button type="button" class="dsh-pm-np-close" aria-label="关闭">×</button>
+          <div class="dsh-pm-np" data-stage="decomposing" data-state="current">
+            <div class="dsh-pm-np-req">
+              <span class="dsh-pm-np-req-pill">REQ-260928185112-e20d</span>
+              <span class="dsh-pm-np-req-title">看板接入 DSH 原生页面机制</span>
+              <span class="slot" data-slot="req"></span>
+            </div>
+            <div class="dsh-pm-np-head">
+              <span class="dsh-pm-np-head-state" data-state="current">进行中</span>
+              <span class="dsh-pm-np-head-title">拆分计划已批准，任务卡已落库（9 张父卡）</span>
+              <span class="dsh-pm-np-head-time">12 分钟前</span>
+              <span class="slot" data-slot="head"></span>
+            </div>
+            <details class="dsh-pm-np-fold" open>
+              <summary><span class="dsh-pm-np-fold-icon">▸</span><span class="dsh-pm-np-fold-text">ℹ️ 基础信息</span></summary>
+              <div class="dsh-pm-np-fold-body">
+                <div class="dsh-pm-np-doclist">
+                  <button type="button" class="dsh-pm-np-docitem"><span>📄</span><span>拆分计划：decomposition.md</span><span class="dsh-pm-np-docitem-arrow">→</span></button>
+                </div>
+                <div class="dsh-pm-np-sec-label">📊 DAG 层级</div>
+                <div class="dsh-pm-np-dag">
+                  <div class="dsh-pm-np-dag-layer"><div class="dsh-pm-np-dag-label">第 1 层 · 无依赖</div>
+                    <div class="dsh-pm-np-dag-row">
+                      <span class="dsh-pm-np-dag-node" data-status="done"><span class="dsh-pm-np-card-id">t1</span><span class="dsh-pm-np-card-title">立项链路五处收口</span></span>
+                      <span class="dsh-pm-np-dag-node" data-status="done"><span class="dsh-pm-np-card-id">t2</span><span class="dsh-pm-np-card-title">主列页面宿主注册</span></span>
+                    </div>
+                  </div>
+                  <div class="dsh-pm-np-dag-layer"><div class="dsh-pm-np-dag-label">第 2 层 · 2 个可并行</div>
+                    <div class="dsh-pm-np-dag-row">
+                      <span class="dsh-pm-np-dag-node" data-status="in_progress"><span class="dsh-pm-np-card-id">t3</span><span class="dsh-pm-np-card-title">侧栏条目标识同源</span></span>
+                      <span class="dsh-pm-np-dag-node" data-status="todo"><span class="dsh-pm-np-card-id">t4</span><span class="dsh-pm-np-card-title">拆除旧覆盖层机制</span></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </details>
+            <details class="dsh-pm-np-fold">
+              <summary><span class="dsh-pm-np-fold-icon">▸</span><span class="dsh-pm-np-fold-text">🔄 执行流程</span></summary>
+            </details>
+          </div>
+          <span class="slot" data-slot="foot"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="conv-body">
+    <div class="msg user"><div class="who">你</div><div class="text">这个节点看完我想直接去看板里这条需求的完整详情，怎么走？</div></div>
+    <div class="msg"><div class="who">投资脑</div><div class="text">现在只能先关面板 → 侧栏点「项目看板」→ 再找到这条需求，共三步。</div></div>
+    <div class="msg tool"><div class="who"></div><div class="text">⏺ conversation-progress.ts · 节点 onClick 只做 setDetailOpen(true)</div></div>
+  </div>
+</template>
+
+<script>
+(function () {
+  var tpl = document.getElementById('tpl-frame');
+  var BTN = {
+    req: '<button type="button" class="cand cand-ghost" title="在项目看板打开该需求详情">项目看板 ↗</button>',
+    head: '<button type="button" class="cand cand-ghost" title="在项目看板打开该需求详情">项目看板 ↗</button>',
+    foot: '<div class="cand-foot"><span class="hint">完整详情：Token / 追溯 / 条款接收 / 验收单</span><button type="button" class="cand cand-primary">在项目看板打开 →</button></div>',
+    bar: '<button type="button" class="cand cand-chip" title="在项目看板打开该需求详情">↗ 项目看板</button>'
+  };
+  function mount(hostId, slotName) {
+    var host = document.getElementById(hostId);
+    if (!host) return;
+    var frag = tpl.content.cloneNode(true);
+    if (slotName) {
+      var slot = frag.querySelector('[data-slot="' + slotName + '"]');
+      if (slot) slot.outerHTML = BTN[slotName];
+      if (slotName === 'req') {
+        var reqRow = frag.querySelector('.dsh-pm-np-req');
+        if (reqRow) reqRow.classList.add('has-cand');
+      }
+    }
+    var rest = frag.querySelectorAll('.slot');
+    for (var i = 0; i < rest.length; i++) rest[i].remove();
+    host.appendChild(frag);
+  }
+  mount('host-v0', null);
+  mount('host-v1', 'req');
+  mount('host-v2', 'head');
+  mount('host-v3', 'foot');
+  mount('host-v4', 'bar');
+
+  // 锚点直达：index.html#v1 只看方案 ①（便于截图 / 分享单方案）
+  var want = window.location.hash.replace('#', '');
+  if (want) {
+    var sections = document.querySelectorAll('.variant');
+    for (var j = 0; j < sections.length; j++) {
+      var frame = sections[j].querySelector('.frame');
+      var key = frame && frame.id ? frame.id.replace('host-', '') : '';
+      sections[j].style.display = (key === want) ? '' : 'none';
+    }
+  }
+})();
+</script>
+</body>
+</html>

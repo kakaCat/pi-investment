@@ -217,6 +217,8 @@ export interface TaskRecord {
   scope: { apis: string[]; tables: string[]; files: string[] }
   acceptance: string
   context: string
+  /** 自足任务卡文档路径（有值 = DAG 画布上单击该卡可打开；2026-09-29 裁定 F 恢复旧分层列表行为） */
+  cardDoc?: string
   skipIntegration?: boolean
   /** 有值 = 子卡（指向父卡 id）；父卡不存子卡列表，由 parentId 反查（单一事实源） */
   parentId?: string
@@ -224,6 +226,8 @@ export interface TaskRecord {
   stageKind?: StageKind
   /** 失败重跑次数（缺省 0） */
   attempt?: number
+  /** 显式声明的子卡段：`[]` = 本卡不落链（solo）；缺省 = 未指定走映射（卡片层契约 2026-09-28） */
+  stages?: StageKind[]
   /** 计划改动的文件路径列表（写集；用于并行调度冲突检测） */
   filesPlanned?: string[]
   status: TaskStatus

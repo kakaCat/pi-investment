@@ -16,11 +16,17 @@
 import { createElement as h, useState, useEffect, useRef, type ReactNode } from 'react'
 import { openDocInSidebar } from './open-doc.ts'
 import { renderNodePanel } from './node-panel.ts'
-import { fetchStageOverview, fetchInjectionInfo, fetchIsolationLog } from './api.ts'
+// REQ-260929010300-dbf9 FR-4/FR-5：会话面板 DAG 块挂 Canvas 真图（常量/挂载入口单一源）
+import { tryMountDagCanvas } from './dag-mount.ts'
+import { PANEL_DAG_CANVAS_ID } from './views/dag-view.js'
+import { fetchStageOverview, fetchState, subscribeEvents } from './api.ts'
 import type { StageOverview, StageKey } from '../shared/protocol.ts'
 import { CATEGORY_FLOW_PROFILES, fmtTokens } from '../shared/protocol.ts'
-import type { InjectionInfoEntry } from './injection-info.ts'
-import type { IsolationLogEntry } from './node-panel-process.ts'
+// REQ-260928222643-4d34 FR-1/FR-2/FR-3：项目看板入口（校验 + 一次性定位交接 + 导航唯一来源）
+import { requestBoardFocus } from './board-focus.ts'
+import { activateBoardEntry } from './board-entry.ts'
+import { getPageLayout } from './page/page-runtime.ts'
+import { PANEL_ID } from './dom.ts'
 
 const BASE = '/dashboard/api/reqboard'
 
@@ -110,11 +116,14 @@ export function RequirementProgressAction(props: RequirementProgressProps): Reac
   const [stageOverview, setStageOverview] = useState<StageOverview | null>(null)
   const [stageOverviewLoading, setStageOverviewLoading] = useState<boolean>(false)
   const [stageOverviewErr, setStageOverviewErr] = useState<string>('')
-  // REQ-260923134706-e72f t6：执行流程折叠的注入/隔离留痕（随面板打开拉取，失败静默空态）
-  const [injection, setInjection] = useState<InjectionInfoEntry[]>([])
-  const [isolation, setIsolation] = useState<IsolationLogEntry[]>([])
+  // REQ-260928222643-4d34 FR-3：入口失败就地提示（面板内可见，不静默）
+  const [entryError, setEntryError] = useState<string>('')
   const wrapRef = useRef<HTMLDivElement | null>(null)
   const lastSid = useRef<string | undefined>(undefined)
+
+  // 关闭面板。REQ-260928222643-4d34 FR-2（P-3 实现约束）：必须在 \`if (!detailOpen) return\` 早退
+  // **之前**声明——点击委派 effect 无条件执行，晚声明会让它拿不到。
+  const closePanel = (): void => { setDetailOpen(false); setSelectedStage(null) }
 
 
   // 数据：挂载即拉一次，之后 15s 轮询（进度是辅助信息，失败静默不打扰）。
@@ -179,23 +188,24 @@ export function RequirementProgressAction(props: RequirementProgressProps): Reac
     return () => { alive = false }
   }, [detailOpen, reqIdForStage, reqUpdatedAt])
 
-  // REQ-260923134706-e72f t6：面板打开时拉取该需求来源窗口的注入/隔离留痕，
-  // 供「执行流程」折叠做 规定 vs 实际 对照（无留痕 → 空态，不红不打扰）。
-  const reqSourceSid = data?.requirement?.sourceSessionId
+  // 订阅任务变更事件，实时刷新泳道图（修复：任务状态变更时需求 updatedAt 不变导致泳道不更新）
   useEffect(() => {
-    if (!detailOpen || reqIdForStage === undefined) { setInjection([]); setIsolation([]); return }
-    let alive = true
-    // 注入/隔离留痕的 windowKey = 完整会话 id（实测 injection-log/isolation-log 均存 session-xxx 全码），
-    // 不是 w- 短码——直接用 sourceSessionId 过滤，windowCodeFromSessionId 会失配返回空。
-    const windowKey = typeof reqSourceSid === 'string' && reqSourceSid.length > 0 ? reqSourceSid : undefined
-    fetchInjectionInfo(windowKey, 20)
-      .then((r) => { if (alive) setInjection(r.available === false ? [] : r.entries) })
-      .catch(() => { if (alive) setInjection([]) })
-    fetchIsolationLog(windowKey, 20)
-      .then((r) => { if (alive) setIsolation(r.available === false ? [] : r.entries) })
-      .catch(() => { if (alive) setIsolation([]) })
-    return () => { alive = false }
-  }, [detailOpen, reqIdForStage, reqSourceSid])
+    if (!detailOpen || reqIdForStage === undefined) return
+    
+    // 订阅 SSE 事件
+    const unsubscribe = subscribeEvents((_revision, kind) => {
+      // 任务相关事件立即刷新 stageOverview
+      if (kind === 'task-moved' || kind === 'task-updated' || kind === 'task-created') {
+        let alive = true
+        fetchStageOverview(reqIdForStage)
+          .then((d) => { if (alive) setStageOverview(d) })
+          .catch((e) => { if (alive) setStageOverviewErr((e as Error).message) })
+        return () => { alive = false }
+      }
+    })
+    
+    return () => unsubscribe()
+  }, [detailOpen, reqIdForStage])
 
   // REQ-260923134706-e72f t6：实施节点 [流程图][泳道] tab 切换（注入 HTML 内的委托监听）。
   useEffect(() => {
@@ -234,6 +244,52 @@ export function RequirementProgressAction(props: RequirementProgressProps): Reac
     document.addEventListener('click', onClick)
     return () => document.removeEventListener('click', onClick)
   }, [injectedId])
+
+  // REQ-260928222643-4d34 FR-1/FR-2/FR-3：项目看板入口。先校验（activateBoardEntry）后切页；
+  // 失败就地提示且**不切页**；成功关面板再 layout.selectPanel(PANEL_ID)（导航唯一来源）。
+  useEffect(() => {
+    const onClick = (ev: MouseEvent): void => {
+      const t = (ev.target as HTMLElement).closest('[data-action="np-board-entry"]') as HTMLElement | null
+      if (t === null) return
+      ev.preventDefault()
+      const reqId = t.getAttribute('data-req') ?? ''
+      void (async () => {
+        setEntryError('')
+        const verdict = await activateBoardEntry(reqId, {
+          isKnown: async (id: string) => {
+            const s = await fetchState()
+            return (s.requirements ?? []).some((r) => r.id === id)
+          },
+          requestFocus: requestBoardFocus,
+          layout: getPageLayout(),
+        })
+        if (!verdict.ok) { setEntryError(verdict.message); return }
+        closePanel()
+        getPageLayout()?.selectPanel(PANEL_ID)
+      })()
+    }
+    document.addEventListener('click', onClick)
+    return () => document.removeEventListener('click', onClick)
+  }, [])
+
+  // REQ-260929010300-dbf9 FR-4/FR-5：面板 HTML 进 DOM 之后（effect 在 commit 后运行）再挂
+  // Canvas DAG。tryMountDagCanvas 内部 rAF + getElementById 存在性检查：面板没展开 / 当前阶段
+  // 没有画布时静默返回（不抛、不空白）。不传 ready（面板 payload 无队列 ready[]）→ 统计条
+  // 如实标「推导」（FR-7）；canvasId 用面板专用常量，与需求详情 #dag-canvas 互不抢占。
+  useEffect(() => {
+    if (!detailOpen || stageOverview === null) return
+    const stageKey = selectedStage ?? stageOverview.currentStage
+    if (stageKey !== 'implementing' && stageKey !== 'decomposing') return
+    const detail = stageOverview.stages.find(s => s.stage === stageKey)
+    if (detail === undefined) return
+    // 只有「拆分 / 实施」两个节点的 body 带任务列表（其余节点 body 无 tasks 字段）：
+    // 先按实际阶段收窄类型再取 body.tasks，非这两个阶段一律不挂（阶段缺失/任务缺失都不调用）。
+    const tasks = detail.stage === 'implementing' || detail.stage === 'decomposing'
+      ? detail.body.tasks
+      : undefined
+    if (tasks === undefined || tasks.length === 0) return
+    tryMountDagCanvas(tasks, undefined, PANEL_DAG_CANVAS_ID)
+  }, [detailOpen, selectedStage, stageOverview])
 
   const req = data?.requirement
   if (data === null || data.hasRequirement !== true || req === undefined || req === null) return null
@@ -308,7 +364,6 @@ export function RequirementProgressAction(props: RequirementProgressProps): Reac
   if (!detailOpen) return h('div', { className: 'dsh-pm-cprog', ref: wrapRef }, flowChart)
 
   // ---- 详情面板（REQ-260923134706-e72f t6：node-panel 渲染器，苹果风，无遮罩/无底部按钮）----
-  const closePanel = (): void => { setDetailOpen(false); setSelectedStage(null) }
   const panelChildren: ReactNode[] = [
     // × 关闭按钮（右上角，取代原「收起」）
     h('button', { key: 'x', type: 'button', className: 'dsh-pm-np-close', 'aria-label': '关闭', onClick: closePanel }, '×'),
@@ -318,6 +373,10 @@ export function RequirementProgressAction(props: RequirementProgressProps): Reac
       h('div', { key: 'closed', className: 'dsh-pm-cprog-panel-note' },
         '本会话已无进行中需求 —— 以上是最近关联的需求（已完成/已归档），可作为「这个会话做了什么」的回顾。'),
     )
+  }
+  // REQ-260928222643-4d34 FR-3：入口失败就地可见（role=alert；不 console、不静默）
+  if (entryError.length > 0) {
+    panelChildren.push(h('div', { key: 'entry-err', role: 'alert', className: 'dsh-pm-np-entry-err' }, entryError))
   }
   if (stageOverviewLoading && stageOverview === null) {
     panelChildren.push(h('div', { key: 'ld', className: 'dsh-pm-cprog-empty' }, '详情加载中…'))
@@ -332,8 +391,6 @@ export function RequirementProgressAction(props: RequirementProgressProps): Reac
           overview: stageOverview,
           stage: (selectedStage ?? stageOverview.currentStage) as StageKey,
           requirement: { id: req.id ?? '', title, promptDifficulty: req.promptDifficulty ?? null, category: req.category ?? undefined },
-          injection,
-          isolation,
         }),
       },
     }))

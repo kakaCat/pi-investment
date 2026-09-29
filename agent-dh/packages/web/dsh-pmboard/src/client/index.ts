@@ -3,19 +3,27 @@
  *
  * DSH dual-half contract: package.json declares dsh.client + exports["./client"];
  * shell serves bundle at /plugins/??dsh-pmboard/client.js.
+ *
+ * 2026-09-28（REQ-260928185112-e20d FR-1/FR-2/FR-3）：看板从「会话列 DOM 覆盖层 +
+ * 侧栏底部入口按钮」迁到 DSH 原生页面机制——page/register.ts 一次注册 \`main\`（keyed）
+ * 与 \`sidebar.panellist\`（id 同源），导航交给 ctx.layout.selectPanel。
+ * 本文件因此不再注册入口按钮、不再监听入口自定义事件、不再自己造看板生命周期壳
+ * （挂载下沉到 main 插槽宿主 page/host.ts；旧机制文件由后续卡拆除）。
  */
-import { createBoardController, mountBoard } from './board-mount.ts'
-import { ReqboardFooterAction, injectFooterStyles, OPEN_EVENT } from './footer-action.ts'
 import { RequirementProgressAction } from './conversation-progress.ts'
 import { injectStyles } from './styles.ts'
 import { registerBizToolviews } from './toolviews/index.ts'
-import { PANEL_NAME, PANEL_LABEL } from './dom.ts'
+import { PANEL_NAME } from './dom.ts'
+import { registerPmboardPage } from './page/register.ts'
+import { clearPageLayout, setPageLayout, type PageLayoutFace } from './page/page-runtime.ts'
 
 export const name = 'dsh-pmboard/client'
 // sidebarRight（REQ-ff20ca t5）：官方右侧栏导航面——Cordis 要求服务先声明 inject
 // 才允许访问（否则抛 "cannot get property without inject"）。该服务由 web-app 随
 // 官方 UI 插件组提供，实测存在；声明后插件等待它就绪再激活。
-export const inject: string[] = ['slots', 'sessions', 'workspaces', 'sidebarRight']
+// layout（REQ-260928185112-e20d FR-3）：ctx.layout.selectPanel(id|null) 是页面导航的唯一来源，
+// 看板不再自己维护显示状态；缺声明会被 Cordis 服务访问守卫拒绝。
+export const inject: string[] = ['slots', 'sessions', 'workspaces', 'uiWorkspace', 'sidebarRight', 'layout']
 
 interface SlotsService {
   inject(slot: string, thunk: () => unknown): unknown
@@ -26,6 +34,10 @@ interface ApplyContext {
   slots?: SlotsService
   sessions?: unknown
   workspaces?: unknown
+  /** DSH 官方会话导航服务（uiWorkspace.openSession = 选中会话并显示对话） */
+  uiWorkspace?: unknown
+  /** DSH 官方页面导航服务（layout.selectPanel(id|null)：null = 回当前对话） */
+  layout?: PageLayoutFace
 }
 
 declare global {
@@ -33,72 +45,51 @@ declare global {
     __dshReqboardClient?: { dispose(): void }
     __dshPmSessions?: unknown
     __dshPmWorkspaces?: unknown
+    __dshPmUiWorkspace?: unknown
     __dshPmCtx?: ApplyContext
   }
 }
 
 export function apply(ctx: ApplyContext): void {
   try {
-    injectFooterStyles()
     injectStyles()
 
     // HMR guard: dispose previous apply
     window.__dshReqboardClient?.dispose()
 
+    // 页面运行环境：layout 交模块级 page-runtime，供 session-jump 惰性读取
+    // （服务可能晚于 apply 提供，故 apply 时只做「有则存、无则留空」的粗粒度投射）。
+    setPageLayout(ctx.layout)
+
     // 供 session-jump 惰性读取（服务可能晚于 apply 提供）
     window.__dshPmCtx = ctx
     window.__dshPmSessions = ctx.sessions
     window.__dshPmWorkspaces = ctx.workspaces
+    window.__dshPmUiWorkspace = ctx.uiWorkspace
 
-    const controller = createBoardController()
-    const disposeBoard = mountBoard(controller)
-
-    const onOpen = (event: Event): void => {
-      const detail = (event as CustomEvent<{ open?: boolean; req?: string }>).detail
-      if (detail?.open === true) {
-        controller.openBoard()
-        // 如果传入了 req 参数，打开需求详情页
-        if (detail.req) {
-          // 等待看板打开后，通过触发 data-action="open-req" 事件来打开详情
-          setTimeout(() => {
-            const reqCard = document.querySelector(`[data-req="${detail.req}"]`)
-            if (reqCard) {
-              // 模拟点击需求卡片，触发 open-req 事件
-              reqCard.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-            }
-          }, 200)
-        }
-      } else {
-        controller.toggleBoard()
-      }
+    // 页面两端注册（main keyed 插槽 + sidebar.panellist 条目，同源 id）：取代原来的
+    // 侧栏底部入口按钮（footer action）。注册失败不拖垮其余接线（进度条 / 业务卡片）。
+    let disposePage: (() => void) | undefined
+    try {
+      disposePage = registerPmboardPage(ctx)
+    } catch (e) {
+      console.error('[dsh-pmboard] Failed to register page panel:', e)
     }
-    window.addEventListener(OPEN_EVENT, onOpen)
 
     window.__dshReqboardClient = {
       dispose: () => {
-        window.removeEventListener(OPEN_EVENT, onOpen)
-        disposeBoard()
-        controller.closeBoard()
+        disposePage?.()
+        disposePage = undefined
+        clearPageLayout()
         delete window.__dshPmCtx
         delete window.__dshPmSessions
         delete window.__dshPmWorkspaces
+        delete window.__dshPmUiWorkspace
       },
     }
 
     const slots = ctx.slots
     if (slots) {
-      // 侧边栏底部按钮（项目看板入口）
-      try {
-        slots.inject('sidebar.footer.action', () =>
-          slots.register(
-            { name: 'sidebar.footer.action', id: PANEL_NAME, order: 110, label: PANEL_LABEL },
-            ReqboardFooterAction,
-          ),
-        )
-      } catch (e) {
-        console.error('[dsh-pmboard] Failed to register sidebar.footer.action:', e)
-      }
-
       // 会话标题栏的「需求进度」流程图：session 作用域槽位会把 sessionId 交给 inject，
       // 组件据此查该会话绑定的需求进度（无绑定需求 → 渲染 null，槽位不占位）。
       // order: 5 让它显示在模式选择器后面（模式选择器通常是 order: 10）

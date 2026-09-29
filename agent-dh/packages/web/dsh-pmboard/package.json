@@ -58,7 +58,8 @@
       "inject": [
         "slots",
         "sessions",
-        "workspaces"
+        "workspaces",
+        "layout"
       ]
     }
   }

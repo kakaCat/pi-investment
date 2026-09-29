@@ -40,7 +40,8 @@ export const LIMITS = {
   /** 推进事件链（REQ-4842fe FR-11/FR-12）：单飞锁 stale、连续 noop 熔断、父卡并发上限、单次调用步数上限。 */
   advanceLockStaleMs: 15 * 60_000,
   advanceNoopBreaker: 5,
-  advanceMaxParallelParents: 3,
+  /** 同需求并行父卡上限（2026-09-28 用户裁定：3 → 10，原值偏紧致 t-29b629 类卡无法开工）。 */
+  advanceMaxParallelParents: 10,
   advanceMaxStepsPerCall: 20,
   /** 工具超时（毫秒）：读类 / 写入类 / 需人弹框类。 */
   timeoutReadMs: 15_000,

@@ -85,6 +85,21 @@ export function isNonEmptyValue(v: unknown): boolean {
  * 容易按当前目录报短路径（如 src/...）——于是真实存在的文件被判"不存在"，子卡恒不过门。
  * 这里把仓库根绝对路径写进提示词，要求 filesChanged 用仓库根相对路径（或绝对路径）。
  */
+/**
+ * 本步边界（REQ-260928185112-e20d P0-1 验收切片）——每个阶段**只对自己那一段负责**。
+ *
+ * 为什么需要：子卡此前普遍带着"父卡验收全文"，于是 dev 段去跑 build/grep 零命中、
+ * integrate 与 test 段各跑一遍同一批命令（实测 integrate 6 张卡共 24.7 min、**零落盘产出**）。
+ * 口径：**父卡的终态验收命令只在 test 段执行**；其余段只做本卡范围内的活，不越界、不重复。
+ */
+const STAGE_SCOPE_RULE: Readonly<Record<string, string>> = {
+  dev: '【本步边界】只做本卡范围内的改动与本地验证（改动落盘 + 与本卡文件相关的测试/命令）。**不要**执行父卡的终态验收命令（全量测试 / build:client / grep 零命中等）——那属于测试段。',
+  integrate: '【本步边界】只做本卡范围的接口对接与**真实一次调用**验证（给请求样例 + 实际响应）。**不要**重复跑父卡终态验收命令（属测试段），**不要**为此改写实现（属研发段）。',
+  review: '【本步边界】只给"设计与实现是否偏离"的逐条结论与依据。**不要**改代码，**不要**跑父卡终态验收命令（属测试段）。',
+  test: '【本步边界】父卡的终态验收命令由本段执行：逐条跑并贴命令 + 退出码 + 计数摘要。**不要**改代码；跑不过就如实报失败并给出失败输出。',
+  doc: '【本步边界】只写本卡声明的文档产物，并给一条可复核命令（cat/grep 看到什么算过）。不要改代码。',
+}
+
 export function buildSubtaskPrompt(parent: TaskRecord, subtask: TaskRecord, label: string, workspaceRoot?: string): string {
   const root = typeof workspaceRoot === 'string' && workspaceRoot.length > 0 ? workspaceRoot : undefined
   const wsBase = root === undefined ? undefined : root.replace(/\\/g, '/').replace(/\/+$/, '').split('/').filter((s) => s.length > 0).pop()
@@ -100,6 +115,13 @@ export function buildSubtaskPrompt(parent: TaskRecord, subtask: TaskRecord, labe
   // '汇报未给出改动文件' 退回、链暂停；同一张卡重跑仍复现（出现多次，非偶发）。
   // 这里只**如实转述门的要求**，不改判定逻辑（decomposition §1.3 边界）。
   const stageKey = String(subtask.stageKind ?? '') as StageKind
+  const scopeRule = STAGE_SCOPE_RULE[stageKey] ?? ''
+  // P0-2：产出契约与脚本 schema 同源（写入族 filesChanged / 结论族 verdict），避免"提示词要 completed、
+  // schema 只有 filesChanged+summary"这种错配导致 schema 校验必败、产出被判空。
+  const evidenceFamily = STAGE_EVIDENCE_KIND[stageKey] ?? 'file'
+  const outputContract = evidenceFamily === 'verdict'
+    ? '{"verdict":"pass 或 fail","summary":"结论与依据摘要","evidence":["命令与输出摘要", ...],"issues":["发现的问题，无则空数组"]}'
+    : '{"filesChanged":["相对仓库根路径（或以仓库根开头的绝对路径）", ...],"summary":"做了什么、完成了哪些项","evidence":["命令与输出摘要", ...]}'
   const evidenceRule = STAGE_EVIDENCE_KIND[stageKey] === 'verdict'
     ? '【本阶段凭证形态】结论族：本阶段产出是判断/输出（复核意见、测试输出、联调结论），把结论写进 completed 即算完工，不要为凑 filesChanged 编造改动文件。'
     : '【本阶段凭证形态】写入族：本阶段完工必须有落盘产出（代码改动 / 联调记录 / 测试用例等），并把真实存在的路径写进 filesChanged——只交结论会被凭证门退回（REQBOARD_SUBTASK_GATE），链会就此停下。'
@@ -115,10 +137,12 @@ ${parent.implementation ?? '（父卡未写实施方案）'}
 
 【父卡需求背景】
 ${parent.context || '（无）'}
+${scopeRule}
 ${evidenceRule}
 ${pathContract}
-【产出要求】完成后**只输出一个 JSON 对象**，不要额外解释：
-{"filesChanged":["相对仓库根路径（或以仓库根开头的绝对路径）", ...],"completed":["完成项", ...],"evidence":["命令与输出摘要", ...]}`
+【产出要求】完成后**只输出一个 JSON 对象**，不要额外解释；字段必须与下面的形状**逐字对齐**
+（schema 是 additionalProperties:false：多写字段会被判产出无效、本条白跑）：
+${outputContract}`
 }
 
 export interface ExecuteSubtaskInput {
@@ -127,6 +151,11 @@ export interface ExecuteSubtaskInput {
   windowKey: string
   /** 调用者（透传给引擎作 parent 归属）。 */
   exec?: unknown
+  /**
+   * 本次 run 的取消权（Phase2）：**优先于调用方 turn 的 signal**。
+   * 自动链投递路径传的是后台 job 的 signal（job 是工作单元）；同步兼容路径不传 → 回落 exec.signal。
+   */
+  runSignal?: AbortSignal
 }
 
 export interface ExecuteSubtaskResult {
@@ -241,7 +270,10 @@ export async function executeSubtask(deps: UseCaseDeps, input: ExecuteSubtaskInp
         meta: { name: 'reqboard-subtask-' + String(task.stageKind ?? 'x'), description: fmt('子卡执行：{title}', { title: task.title }) },
         args: { subtaskId: task.id, parentId: parent.id, stageKind: String(task.stageKind ?? ''), schema },
         parent: (runExec as { agent?: unknown } | undefined)?.agent,
-        signal: (runExec as { signal?: AbortSignal } | undefined)?.signal,
+        // REQ-260928185112-e20d Phase2：取消权归**承载链的后台 job**；只有拿不到 job signal 时
+        // （同步兼容路径 / 看板直投）才回落到调用方 turn 的 signal。此前一律用 turn 的 signal →
+        // turn 一结束，链里下一张子卡 0.1–3.6s 瞬断（实测 4 次）并连带 2 次长跑被掐。
+        signal: input.runSignal ?? (runExec as { signal?: AbortSignal } | undefined)?.signal,
       })
       if (started.ok) {
         outcome = { ok: true }
@@ -355,13 +387,27 @@ export async function executeSubtask(deps: UseCaseDeps, input: ExecuteSubtaskInp
   } catch (err) {
     const code = (err as { code?: string }).code ?? 'REQBOARD_SUBTASK_GATE'
     const reason = (err as Error).message ?? String(err)
+    // 🔍 调试日志：凭证门失败
+    console.log('[DEBUG ExecuteTask catch]', {
+      taskId: task.id,
+      stageKind: task.stageKind,
+      code,
+      reason: reason.substring(0, 100)
+    })
     const failedAt = deps.clock.now()
     await store.mutate(task.requirementId, (tasks) => {
       const t = tasks.find((x) => x.id === task.id)
       if (t === undefined) return undefined
       // 收尾唯一入口（FR-5）：失败同样闭合 running 并写 end/delta（error 一并落账）。
       closeExecutions(t, { at: failedAt, outcome: 'failed', error: reason }, snapshotForWindow(deps, sessionKey))
-      t.version += 1
+      // 🔧 修复：凭证门失败时回退子卡到 todo，避免卡在 in_progress
+      if (t.status === 'in_progress' && isSubtask(t)) {
+        transitionTask(t, 'todo', { at: failedAt, actor, role: 'subtask' })
+        t.attempt = (t.attempt ?? 0) + 1
+        console.log('[DEBUG] 子卡凭证门失败，回退到 todo，attempt:', t.attempt)
+      } else {
+        t.version += 1
+      }
       t.updatedAt = failedAt
       t.updatedBy = actor
       return tasks

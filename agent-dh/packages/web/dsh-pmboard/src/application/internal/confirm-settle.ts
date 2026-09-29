@@ -255,6 +255,9 @@ export async function applyConfirmDecision(
         implementation: t.implementation ?? '',
         context: '',
         dependsOn: [...(t.dependsOn ?? [])],
+        // 子卡段控制（REQ-260928185112-e20d）：G3 批准合并拆分这条路径同样要透传。
+        ...(t.stages !== undefined ? { stages: [...t.stages] } : {}),
+        ...(t.skipIntegration === true ? { skipIntegration: true } : {}),
       }))
       const refsByKey = new Map<string, string[]>()
       for (const raw of rawTaskInputs) {

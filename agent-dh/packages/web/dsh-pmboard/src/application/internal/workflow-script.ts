@@ -14,6 +14,7 @@
  * @module dsh-pmboard/application/internal/workflow-script
  */
 import { fmt } from '../../domain/text/fmt.js'
+import { STAGE_EVIDENCE_KIND, type StageKind } from '../../domain/task/SubtaskTemplate.js'
 
 /** 引擎注入脚本的**全部** hook（唯一事实源；生成器只允许用其中子集）。 */
 export const WORKFLOW_HOOKS = ['agent', 'parallel', 'pipeline', 'phase', 'log'] as const
@@ -81,24 +82,42 @@ export interface SubtaskScriptInput {
 export function generateSubtaskScript(input: SubtaskScriptInput): string {
   const prompt = typeof input.prompt === 'string' ? input.prompt : ''
   // REQ-260925110957-552d: 生成的脚本使用 agent(prompt, {schema})
-  const schema = {
-    type: 'object',
-    properties: {
-      filesChanged: {
-        type: 'array',
-        items: { type: 'string' },
-        description: '改动的文件路径列表（相对工作区路径）'
-      },
-      summary: {
-        type: 'string',
-        description: '执行摘要：做了什么、完成了哪些项'
+  // REQ-260928185112-e20d P0-2（每步结构化产出）：按**证据族**给 schema。
+  // 写入族必须交 filesChanged（凭证门按文件核）；结论族交 verdict + 证据摘要（凭证门不要求落盘）。
+  // 关键修复：此前两类共用 filesChanged+summary，而**提示词却要求子代理输出 {filesChanged,completed,evidence}**
+  // —— completed/evidence 不在 properties 里且 additionalProperties:false ⇒ schema 校验必败、产出被判空
+  // （本需求实测 2 次「run 产出为空」白跑 4.4 min）。现在 schema 与提示词的产出契约逐字段对齐。
+  const family = STAGE_EVIDENCE_KIND[String(input.stageKind ?? '') as StageKind] ?? 'file'
+  const schema = family === 'verdict'
+    ? {
+        type: 'object',
+        properties: {
+          verdict: { type: 'string', description: "本步结论：'pass' 或 'fail'" },
+          evidence: { type: 'array', items: { type: 'string' }, description: '命令与输出摘要（结论依据）' },
+          issues: { type: 'array', items: { type: 'string' }, description: '发现的问题/偏离（无则空数组）' },
+          summary: { type: 'string', description: '执行摘要：做了什么、结论是什么' },
+        },
+        required: ['verdict', 'summary'],
+        additionalProperties: false,
       }
-    },
-    required: ['filesChanged', 'summary'],
-    additionalProperties: false
-  }
+    : {
+        type: 'object',
+        properties: {
+          filesChanged: {
+            type: 'array',
+            items: { type: 'string' },
+            description: '改动的文件路径列表（相对工作区路径）',
+          },
+          evidence: { type: 'array', items: { type: 'string' }, description: '命令与输出摘要' },
+          summary: { type: 'string', description: '执行摘要：做了什么、完成了哪些项' },
+        },
+        required: ['filesChanged', 'summary'],
+        additionalProperties: false,
+      }
+  // phase(步名) 就是**进度事件**（引擎发 workflow/phase，observe-only）：宿主据此认「现在第几步」。
+  // 此前恒为 phase("执行")，四段长得一模一样，宿主无法分步、泳道也无法显示步进。
   const script = [
-    'phase("执行");',
+    'phase(' + JSON.stringify(String(input.stageLabel || input.stageKind || '执行')) + ');',
     'log(' + JSON.stringify(fmt('子卡 {kind} 开工：{label}', { kind: input.stageKind, label: input.stageLabel })) + ');',
     'const out = await agent(' + JSON.stringify(prompt) + ', { schema: ' + JSON.stringify(schema) + ' });',
     'return { ok: out !== null, output: out };',

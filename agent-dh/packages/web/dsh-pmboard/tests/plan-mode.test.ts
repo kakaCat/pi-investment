@@ -131,6 +131,30 @@ describe('计划闸门（拆分前必须先有计划且获批）', () => {
     expect(ledger.requirements[0].comments.some(c => c.body.includes('[拆分] 按已批准的拆分计划落库 2 个任务'))).toBe(true)
   })
 
+  // REQ-260928185112-e20d：此前 stages 只到协议层（normalizePlanTasks 收下，但 draft 映射没往下传），
+  // skipIntegration 在计划表里根本没有入口——于是"这张卡只要 dev+review""这张卡无接口可联调"
+  // 在拆分节点表达不出来，全部落成同一套 4 段（实测 6 张联调卡 19.2 min 零文件产出）。
+  it('计划任务的 stages / skipIntegration 一路落到队列卡（REQ-260928185112-e20d）', async () => {
+    await seed('decomposing')
+    await submitPlan([
+      { key: 'doc', title: '写迁移清单', phase: 'doc', side: 'doc', acceptance: '跑 cat migration.md 看到 4 行表格', implementation: '写 docs/requirements/REQ-abc123/migration.md', stages: ['dev', 'review'] },
+      { key: 'impl', title: '新增 helper', phase: 'implement', side: 'frontend', depends_on: ['doc'], acceptance: '跑 npx vitest run tests/helper.test.ts 全绿', implementation: '加 packages/web/dsh-pmboard/src/helper.ts', skipIntegration: true },
+    ])
+
+    // ① 计划落库时字段还在（未被 normalizePlanTasks 丢）
+    const plan = store.snapshot().requirements[0]?.plan
+    expect(plan?.tasks.find(t => t.key === 'doc')?.stages).toEqual(['dev', 'review'])
+    expect(plan?.tasks.find(t => t.key === 'impl')?.skipIntegration).toBe(true)
+
+    // ② 拆分落库后仍在新队列卡上（拆分节点 → 实施节点这条链的信息不再丢）
+    await post('/req/plan/approve', { id: 'REQ-abc123' })
+    const out = await run(decompose, {})
+    expect(out.success).toBe(true)
+    const tasks = await queueTasksOf('REQ-abc123')
+    expect(tasks.find(t => t.title === '写迁移清单')?.stages).toEqual(['dev', 'review'])
+    expect(tasks.find(t => t.title === '新增 helper')?.skipIntegration).toBe(true)
+  })
+
   it('传与批准计划不一致的 tasks → 拒绝（防「批了 A 落库 B」）', async () => {
     await seed('decomposing')
     await submitPlan()

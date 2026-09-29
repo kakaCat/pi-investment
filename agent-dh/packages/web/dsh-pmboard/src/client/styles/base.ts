@@ -1,7 +1,8 @@
 /**
  * pmboard 样式分片 · base（REQ-47939a t12 从 styles.ts 机械拆分，原文件 9-399 行）。
- * 基础层：设计 token（:root 变量）+ 侧栏入口 + 看板容器/通用 + 泳道/需求卡/归档条 + 详情框架（头/DAG/任务列/任务表/评论）+ 待归类 + 验收归档区块。
- * 注意：本文件是原单文件 CSS 模板的**连续区段**，由 styles.ts 按原物理顺序拼接，拼接结果与拆分前逐字节一致。
+ * 基础层：设计 token（:root 变量）+ 看板容器/通用 + 泳道/需求卡/归档条 + 详情框架（头/DAG/任务列/任务表/评论）+ 待归类 + 验收归档区块。
+ * 注意：本文件由 styles.ts 按原物理顺序拼接（REQ-47939a 拆除旧机制卡已删除侧栏入口与
+ * 旧覆盖层显隐属性选择器区段，故不再与拆分前逐字节一致）。
  */
 export const BASE_CSS = `
 /* ================================================================== */
@@ -36,38 +37,12 @@ export const BASE_CSS = `
   --pm-c-warn: #b07800;
 }
 
-/* ---- 侧栏入口（footer-action 同款，保留原类名以兼容既有注入） ---- */
-.dsh-reqboard-foot {
-  display: flex; align-items: center; gap: 8px;
-  border: none; background: transparent; color: var(--dsw-text-secondary, inherit);
-  font: inherit; font-size: 13px; cursor: pointer;
-  -webkit-appearance: none; appearance: none;
-}
-.dsh-reqboard-foot:hover { background: var(--dsw-hover, rgba(128,128,128,.12)); color: var(--dsw-text-primary, inherit); }
-.dsh-reqboard-foot:active { background: var(--dsw-active, rgba(128,128,128,.2)); }
-.dsh-reqboard-foot.wide {
-  width: calc(100% - 8px); margin: 2px 4px; padding: 6px 10px;
-  border-radius: 8px; justify-content: flex-start; text-align: left;
-}
-.dsh-reqboard-foot.rail {
-  width: 36px; height: 36px; margin: 4px auto; border-radius: 8px;
-  justify-content: center; padding: 0;
-}
-.dsh-reqboard-foot-icon { display: inline-flex; flex: none; }
-.dsh-reqboard-foot.rail .dsh-reqboard-foot-label { display: none; }
-.dsh-reqboard-foot-icon svg { width: 16px; height: 16px; }
-
-/* ---- 看板容器：激活时隐藏中心列其他子元素（对齐 taskboard 模式） ---- */
-html[data-dsh-pm-active] [data-pane="conversation"] > *:not([data-dsh-pm-view]),
-html[data-dsh-pm-active] [class*="centerCol"] > *:not([data-dsh-pm-view]),
-html[data-dsh-pm-active] .dshDesktopConversationSurface > *:not([data-dsh-pm-view]) { display: none !important; }
-
+/* ---- 主列页面容器（DSH 原生 main 插槽占用者；旧 DOM 覆盖层的隐藏规则已随旧机制拆除） ---- */
 .dsh-pm-view {
-  display: none;
+  display: flex;
   flex-direction: column;
   height: 100%; overflow: hidden;
 }
-html[data-dsh-pm-active] .dsh-pm-view { display: flex; }
 
 /* ---- 通用 ---- */
 .dsh-pm-board { display: flex; flex-direction: column; height: 100%; overflow: hidden; }

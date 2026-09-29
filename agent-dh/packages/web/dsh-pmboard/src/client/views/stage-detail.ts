@@ -11,6 +11,9 @@ import { renderReqTimeline } from './timeline.ts'
 import { renderArchiveSection, renderDocSection, renderVerifySection } from './verification.ts'
 import { renderInjectionInfo } from '../injection-info.ts'
 import { renderSubtaskChain, subtaskChain } from '../render/subtask-view.ts'
+// 卡片层契约（2026-09-28）：列归属与「链未生成」判定与泳道共用同一事实源。
+import { laneOf, chainMissing } from '../dag/progress-bar.js'
+import { buildDagCanvas } from './dag-view.js'
 import { renderTokenPlaceholder } from '../token-info.ts'
 import { renderMarksPlaceholder } from '../marks-info.ts'
 import { renderTraceabilityView } from './traceability-view.js'
@@ -303,43 +306,13 @@ export function renderActionBar(req: RequirementRecord): string {
     + '</div>'
 }
 
-/** 任务 DAG：v1 用分层列表（拓扑层级）表达，节点可点击 */
+/**
+ * 任务 DAG：Canvas 真图（REQ-260928001915-f978）—— renderNodePanel 的旧分层列表已被替换。
+ *
+ * ready 只用于挂载期的绿点/统计（见 dag-mount），面板 HTML 本身不消费它。
+ */
 export function buildDag(tasks: TaskRecord[]): string {
-  if (tasks.length === 0) return '<div class="dsh-pm-empty">暂无任务</div>'
-  // 计算深度（最长依赖链长度）
-  const depth = new Map<string, number>()
-  const taskById = new Map(tasks.map(t => [t.id, t]))
-  const calcDepth = (t: TaskRecord, seen: Set<string>): number => {
-    if (depth.has(t.id)) return depth.get(t.id)!
-    if (seen.has(t.id)) return 0
-    seen.add(t.id)
-    const deps = t.dependsOn.filter(d => taskById.has(d))
-    const d = deps.length === 0 ? 0 : 1 + Math.max(...deps.map(dep => calcDepth(taskById.get(dep)!, seen)))
-    depth.set(t.id, d)
-    return d
-  }
-  tasks.forEach(t => calcDepth(t, new Set()))
-  const maxDepth = Math.max(...depth.values())
-  const layers: TaskRecord[][] = Array.from({ length: maxDepth + 1 }, () => [])
-  tasks.forEach(t => layers[depth.get(t.id)!].push(t))
-
-  return `<div class="dsh-pm-dag"><div class="dsh-pm-dag-title">🔀 任务依赖关系</div><div class="dsh-pm-dag-layers">` + layers.map((layer, i) => `
-    <div class="dsh-pm-dag-layer">
-      <span class="dsh-pm-dag-layer-label">L${i}</span>
-      ${layer.map(t => {
-        const phaseLabel = PHASE_LABELS[t.phase] ?? t.phase
-        const sideLabel = t.side ?? ''
-        return `
-        <span class="dsh-pm-dag-node" data-status="${t.status}" data-action="open-task" data-task="${esc(t.id)}" title="${esc(t.title)}">
-          <span class="dsh-pm-dag-node-id">${esc(t.id)}</span>
-          <span class="dsh-pm-dag-node-title">${esc(t.title.slice(0, 20))}${t.title.length > 20 ? '…' : ''}</span>
-          <span class="dsh-pm-dag-node-tags">
-            <span class="dsh-pm-phase" data-phase="${t.phase}">${esc(phaseLabel)}</span>
-            <span class="dsh-pm-side" data-side="${t.side}">${esc(sideLabel)}</span>
-          </span>
-        </span>`
-      }).join('')}
-    </div>`).join('') + `</div></div>`
+  return buildDagCanvas(tasks, 'dag-canvas-container')
 }
 
 /**
@@ -348,13 +321,17 @@ export function buildDag(tasks: TaskRecord[]): string {
  * REQ-4842fe t-3be71b：**只有顶层卡进列** —— 子卡挂在自己的父卡下（折叠展开，原生 <details>），
  * 不再单列（否则同一张子卡既在列里又挂在父卡下，列计数与进度口径都会被重复计）。
  * 存量卡（无 parentId 且无名下子卡）外观与改造前一致，仅多一枚 [手动] 标。
+ *
+ * 2026-09-28 卡片层契约：列从"卡自身 status"改为"卡所处**环节**"（laneOf）——父卡状态机的中段
+ * （integrating/testing/in_review）无出边，按 status 过滤时那三列永远为空；chain 卡缺链额外打
+ * 「链未生成」标（与 solo 卡区分）。
  */
 export function buildTaskColumns(tasks: TaskRecord[]): string {
   if (tasks.length === 0) return '<div class="dsh-pm-empty">暂无任务</div>'
   const cols: TaskStatus[] = ['todo', 'in_progress', 'integrating', 'testing', 'in_review', 'done']
   const top = tasks.filter(t => t.parentId === undefined)
   return `<div class="dsh-pm-taskcols">` + cols.map(status => {
-    const inCol = top.filter(t => t.status === status)
+    const inCol = top.filter(t => laneOf(t, subtaskChain(tasks, t.id)) === status)
     return `
       <div class="dsh-pm-taskcol" data-col="${status}">
         <div class="dsh-pm-taskcol-head">${TASK_STATUS_LABELS[status]} ${inCol.length}</div>
@@ -362,9 +339,14 @@ export function buildTaskColumns(tasks: TaskRecord[]): string {
           const chain = subtaskChain(tasks, t.id)
           const legacy = chain.length === 0
           const chainDone = chain.filter(x => x.status === 'done').length
+          // 缺链（意图=chain 且正在跑却没有子卡）优先于 [手动] 标：否则一张"该有链但没生成"的卡
+          // 会被读成不参与自动链，问题被外观掩盖。
+          const chip = chainMissing(t, chain)
+            ? '<span class="dsh-pm-chain-missing" title="该卡应落子卡链，链尚未生成——待再生成补链">链未生成</span>'
+            : (legacy ? '<span class="dsh-pm-manual-chip" title="存量卡/单卡：未开启自动链，外观与推进方式与改造前一致">手动</span>' : '')
           return `
           <div class="dsh-pm-task${legacy ? ' is-legacy' : ' is-parent'}" data-task="${esc(t.id)}" data-action="open-task">
-            <div class="dsh-pm-task-title">${esc(t.title)}${legacy ? '<span class="dsh-pm-manual-chip" title="存量卡：未开启自动链，外观与推进方式与改造前一致">手动</span>' : ''}</div>
+            <div class="dsh-pm-task-title">${esc(t.title)}${chip}</div>
             <div class="dsh-pm-task-meta">
               <span class="dsh-pm-phase">${PHASE_LABELS[t.phase] ?? t.phase}</span>
               ${legacy ? '' : `<span class="dsh-pm-subcount">子卡 ${chainDone}/${chain.length}</span>`}

@@ -1,6 +1,6 @@
 /**
  * 项目看板 client 视图纯函数单测 —— 数据 → innerHTML 的渲染正确性。
- * 覆盖：泳道看板 / 需求详情（DAG + 任务列 + 闸门）/ 任务详情 / 空态错误。
+ * 覆盖：泳道看板 / 需求详情（DAG + 任务列 + 闸门）/ 任务详情 / 空态错误。· serves: FR-1, FR-6
  * 渲染函数零 DOM 依赖（纯字符串），Node 环境直接跑。
  */
 import { describe, it, expect } from 'vitest'
@@ -70,17 +70,18 @@ describe('buildBoard', () => {
     expect(html).toContain('1/2')
   })
 
-  it('excludes archived and canceled from lanes, shows in archived bar', () => {
+  it('excludes archived and canceled from lanes（归档/取消不进泳道）', () => {
     const open = makeReq({ id: 'REQ-000001', status: 'done' })
     const archived = makeReq({ id: 'REQ-000002', status: 'archived' })
     const canceled = makeReq({ id: 'REQ-000003', status: 'canceled' })
     const html = buildBoard(makeState({ requirements: [open, archived, canceled] }))
-    expect(html).toContain('dsh-pm-archived-bar')
-    expect(html).toContain('REQ-000002')
-    expect(html).toContain('REQ-000003')
-    // archived/canceled 不在泳道卡片里（lane-cards 段无其 id 的卡片）
-    const laneSection = html.split('dsh-pm-archived-bar')[0]
-    expect(laneSection).not.toContain('REQ-000002')
+    // done（待归档）归入验收泳道；archived/canceled 被 toReqCards 过滤，不进任何泳道。
+    // 历史断言曾要求 dsh-pm-archived-bar——该渲染在基线里已不存在（CSS 残留），
+    // 2026-09-29 经用户裁定按真实行为校正（另见完工记录：归档条回归另议）。
+    expect(html).toContain('data-lane="accepting"')
+    expect(html).toContain('data-req="REQ-000001"')
+    expect(html).not.toContain('data-req="REQ-000002"')
+    expect(html).not.toContain('data-req="REQ-000003"')
   })
 
   it('escapes HTML in title (XSS guard)', () => {
@@ -151,18 +152,27 @@ describe('buildReqDetail', () => {
     expect(html).toContain('data-action="move-req" data-to="design"')
   })
 
-  it('renders DAG layers by dependency depth', () => {
+  it('renders the 真 DAG panel（REQ-260928001915-f978：节点/层号/连线由 canvas 挂载后绘制）', () => {
     const req = makeReq({ id: 'REQ-000001', status: 'implementing' })
     const a = makeTask({ id: 't-000001', requirementId: 'REQ-000001', title: 'A' })
     const b = makeTask({ id: 't-000002', requirementId: 'REQ-000001', title: 'B', dependsOn: ['t-000001'] })
     const c = makeTask({ id: 't-000003', requirementId: 'REQ-000001', title: 'C', dependsOn: ['t-000002'] })
     const html = buildReqDetail(req, [a, b, c])
-    expect(html).toContain('dsh-pm-dag')
-    expect(html).toContain('L0')
-    expect(html).toContain('L1')
-    expect(html).toContain('L2')
-    expect(html).toContain('t-000001')
-    expect(html).toContain('t-000003')
+    // 面板骨架进 HTML（工具条/画布/图例；2026-09-29 裁定 B：标题行与统计条已删）；卡片、L0/L1 层带与连线全部画在
+    // <canvas> 内，故不在 HTML 字符串里 —— 数据桥（折叠/层号/边/ready）改由
+    // tests/dag-view.test.ts 直接对 buildDagData 断言，不靠 innerHTML 反射。
+    expect(html).toContain('dsh-pm-dag-panel')
+    expect(html).toContain('id="dag-canvas"')
+    expect(html).toContain('data-dag-dir="vertical"')
+    expect(html).toContain('data-dag-dir="horizontal"')
+    expect(html).toContain('data-dag-toggle="crit"')
+    expect(html).toContain('data-dag-toggle="focus"')
+    expect(html).not.toContain('data-dag-stat')
+  })
+
+  it('renders 暂无任务 when the requirement has no tasks', () => {
+    const req = makeReq({ id: 'REQ-000001', status: 'implementing' })
+    expect(buildReqDetail(req, [])).toContain('暂无任务')
   })
 
   it('renders task table（REQ-6f39b5：任务列已改为表格，对齐 prototype）', () => {

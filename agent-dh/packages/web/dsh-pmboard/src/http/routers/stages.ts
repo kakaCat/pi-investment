@@ -227,6 +227,11 @@ export function createStagesRouter(ctx: RouterCtx) {
           acceptance: t.acceptance,
           updatedAt: t.updatedAt,
           durationMs: t.executions.reduce((s, e) => s + Math.max(0, (e.endedAt ?? e.startedAt) - e.startedAt), 0),
+          // REQ-260928185112-e20d P1：泳道要显示"每张父卡走到第几步"。父子关系与阶段**队列里本来就有**，
+          // 此前手工挑字段时被丢掉 → 前端只能把父卡与子卡平铺在同一列，看不出进度。
+          ...(t.parentId !== undefined ? { parentId: t.parentId } : {}),
+          ...(t.stageKind !== undefined ? { stageKind: t.stageKind } : {}),
+          ...(t.attempt !== undefined ? { attempt: t.attempt } : {}),
         })),
     })
   }

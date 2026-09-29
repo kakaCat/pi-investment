@@ -114,16 +114,25 @@ export function defineAdvanceTool(deps: UseCaseDeps) {
       // REQ-260925110957-552d: advanceRequirement 已改为投递式，立即返回
       const out = await advanceRequirement(deps, requirementId, exec)
 
-      // 失败要响亮：投递失败不冒充满分回执
-      if (out.dispatched === false) {
-        return {
-          success: false,
-          task_id: taskId,
-          requirement_id: requirementId,
-          status: 'error',
-          error: out.reason ?? '投递失败',
-          code: out.reason?.includes('jobs') ? 'DSH_JOBS_UNAVAILABLE' : 'REQBOARD_DISPATCH_FAILED',
-        }
+      // 失败要响亮：**只要不是明确 dispatched**，一律走结构化错误回执。
+      // 判别式从 `=== false` 收紧为 `!== true`（2026-09-28 实测）：早退路径（in-flight / 锁在跑 /
+      // 终态 / 需求不存在）此前不设 dispatched，会漏过 `=== false` 掉进成功分支，返回
+      // job_id/run_id=undefined —— undefined 不是 lossless JSON，dsh-tools 的 snapshotJsonValue
+      // 会把它整体转成无信息的 "value is not lossless JSON" 硬错误，agent 只能猜。
+      // 现在每种 stopped 都映射到可检索的 code + 人话 reason，回执键全为字符串。
+      if (out.dispatched !== true) {
+        const code = out.reason?.includes('jobs')
+          ? 'DSH_JOBS_UNAVAILABLE'
+          : out.stopped === 'locked'
+            ? 'REQBOARD_ADVANCE_LOCKED'
+            : out.stopped === 'not_found'
+              ? 'REQBOARD_REQ_NOT_FOUND'
+              : out.stopped === 'not_autorun'
+                ? 'REQBOARD_NOT_AUTORUN'
+                : out.stopped === 'terminal'
+                  ? 'REQBOARD_REQ_TERMINAL'
+                  : 'REQBOARD_DISPATCH_FAILED'
+        return errorOut(taskId, requirementId, code, out.reason ?? fmt('推进未投递（stopped={s}）', { s: out.stopped }))
       }
 
       // 投递成功：立即返回（不等执行完成）。
@@ -139,8 +148,9 @@ export function defineAdvanceTool(deps: UseCaseDeps) {
         task_id: taskId,
         requirement_id: requirementId,
         status: 'dispatched',
-        job_id: out.job_id,
-        run_id: out.run_id,
+        // 条件展开：即便上游异常漏字段，也绝不把 undefined 带进回执（见上：undefined 会被绑定层拒收）。
+        ...(out.job_id !== undefined ? { job_id: out.job_id } : {}),
+        ...(out.run_id !== undefined ? { run_id: out.run_id } : {}),
         running: runningSubtaskIds(after, requirementId),
         next_ready: nextReady,
         chain: { done: progress.subtasksDone, total: progress.subtasksTotal },

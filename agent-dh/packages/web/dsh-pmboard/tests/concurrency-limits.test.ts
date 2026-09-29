@@ -1,7 +1,7 @@
 /**
  * 并发上限与冲突两级防线测试（REQ-4842fe t9）——对应 design/test-cases.md §6。
  *
- * 口径：同需求 in_progress 父卡 ≤3；互无依赖父卡并行且 rollup 正常；子卡依赖不跨父卡；
+ * 口径：同需求 in_progress 父卡 ≤ LIMITS.advanceMaxParallelParents；互无依赖父卡并行且 rollup 正常；子卡依赖不跨父卡；
  * 拆分期改动面重叠即拒；运行期 mtime 跨卡覆盖判失败。
  */
 import { describe, it, expect } from 'vitest'
@@ -28,20 +28,20 @@ class OkRunner implements WorkflowRunner {
 }
 
 describe('父卡并发上限（6.1）', () => {
-  it('第 4 张父卡开工被拒（REQBOARD_PARENT_LIMIT）', async () => {
+  it('第 N+1 张父卡开工被拒（REQBOARD_PARENT_LIMIT）', async () => {
+    // 口径跟随常量：上限改数值时本用例自动跟随，避免"测试把上限钉死"（2026-09-28）。
+    const N = LIMITS.advanceMaxParallelParents
     const h = makeHarness()
     h.repo.ledger.requirements = [req({ id: 'REQ-000001', status: 'implementing', category: 'feature', autoRun: true })]
     await h.setTasks('REQ-000001', [
-      task({ id: 't-p1', requirementId: 'REQ-000001', status: 'in_progress', title: 'p1' }),
-      task({ id: 't-p2', requirementId: 'REQ-000001', status: 'in_progress', title: 'p2' }),
-      task({ id: 't-p3', requirementId: 'REQ-000001', status: 'in_progress', title: 'p3' }),
-      task({ id: 't-p4', requirementId: 'REQ-000001', status: 'todo', title: 'p4' }),
+      ...Array.from({ length: N }, (_, i) => task({ id: 't-p' + (i + 1), requirementId: 'REQ-000001', status: 'in_progress', title: 'p' + (i + 1) })),
+      task({ id: 't-pX', requirementId: 'REQ-000001', status: 'todo', title: 'px' }),
     ])
     let code: string | undefined
-    try { await executeMoveTask(h.deps, { task_id: 't-p4', to: 'in_progress' }, exec) } catch (err) { code = (err as { code?: string }).code }
+    try { await executeMoveTask(h.deps, { task_id: 't-pX', to: 'in_progress' }, exec) } catch (err) { code = (err as { code?: string }).code }
     expect(code).toBe('REQBOARD_PARENT_LIMIT')
-    expect((await h.tasksOf('REQ-000001')).find(t => t.id === 't-p4')!.status).toBe('todo')
-    expect(LIMITS.advanceMaxParallelParents).toBe(3)
+    expect((await h.tasksOf('REQ-000001')).find(t => t.id === 't-pX')!.status).toBe('todo')
+    expect(LIMITS.advanceMaxParallelParents).toBe(10)
   })
 })
 

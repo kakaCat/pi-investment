@@ -64,6 +64,18 @@ export const NODE_PANEL_CSS = `
 .dsh-pm-np-head-state[data-state="done"] { background: rgba(52,199,89,.14); color: #248a3d; }
 .dsh-pm-np-head-title { font-size: 13px; color: var(--dsh-pm-np-text2); }
 .dsh-pm-np-head-time { margin-left: auto; font-size: 12px; color: var(--dsh-pm-np-text3); }
+/* REQ-260928222643-4d34 FR-1：项目看板入口——不压缩、不裁切，保留可点面积（窄面板换行可接受） */
+.dsh-pm-np-board-entry {
+  flex: none; min-height: 20px; padding: 1px 8px; border-radius: 980px;
+  font-size: 11.5px; line-height: 18px; white-space: nowrap; cursor: pointer;
+  border: 1px solid var(--dsh-pm-np-blue); color: var(--dsh-pm-np-blue); background: transparent;
+}
+.dsh-pm-np-board-entry:hover { background: rgba(0,113,227,.08); }
+
+/* REQ-260928222643-4d34 FR-3：入口失败就地可见提示（不静默） */
+.dsh-pm-cprog-detail-panel .dsh-pm-np-entry-err {
+  color: #c0392b; font-size: 12px; line-height: 1.5; padding: 6px 2px;
+}
 
 /* ===== 折叠块（原生 <details>） ===== */
 .dsh-pm-np-fold { border-radius: 12px; }
@@ -226,6 +238,8 @@ export const NODE_PANEL_CSS = `
 .dsh-pm-np-card[data-status="testing"], .dsh-pm-np-dag-node[data-status="testing"] { background: rgba(255,149,0,.08); }
 .dsh-pm-np-card[data-status="in_review"], .dsh-pm-np-dag-node[data-status="in_review"] { background: rgba(233,30,99,.06); }
 .dsh-pm-np-card[data-status="done"], .dsh-pm-np-dag-node[data-status="done"] { background: rgba(52,199,89,.08); }
+/* 链未生成（卡片层契约 2026-09-28）：chain 卡缺链必须与 solo 卡视觉可分，否则"没子卡"两种含义又混回去。 */
+.dsh-pm-np-chain-missing { display: inline-block; margin-top: 2px; padding: 0 5px; border-radius: 4px; font-size: 10px; background: rgba(240,160,32,.16); color: #a86a00; }
 
 /* ===== 执行流程三段 ===== */
 .dsh-pm-np-sec { display: flex; flex-direction: column; gap: 6px; }

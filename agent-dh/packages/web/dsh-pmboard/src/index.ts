@@ -41,6 +41,8 @@ import {
   defineTaskMoveTool,
   defineRunStatusTool,
   defineTaskTreeTool,
+  defineTaskAdoptTool,
+  defineRegenerateTool,
 } from './tools/index.js';
 import { FileDocRepository } from './adapters/FileDocRepository.js'
 import { InjectionLogFile } from './adapters/InjectionLogFile.js'
@@ -462,10 +464,14 @@ export function apply(ctx: Context, config?: PluginConfig): void {
         disposers.push(toolsCtx.tools.register(defineRunStatusTool(useCaseDeps)));
         // REQ-260927144541-0481 FR-3：只读父子结构视图（reqboard_task_tree）
         disposers.push(toolsCtx.tools.register(defineTaskTreeTool(useCaseDeps)));
+        // 归属补救：把缺 parentId 的卡挂回父卡下（2026-09-28）
+        disposers.push(toolsCtx.tools.register(defineTaskAdoptTool(useCaseDeps)));
+        // 卡片层契约（2026-09-28）：子卡链再生成（补链）+ 只读诊断。
+        disposers.push(toolsCtx.tools.register(defineRegenerateTool(useCaseDeps)));
       }, name + ': tools');
       logger.info(
         'agent tools registered (13): reqboard_create / reqboard_capture / reqboard_status / reqboard_task_run / reqboard_task_execute / reqboard_task_status / '
-        + 'reqboard_task_report / reqboard_submit(kind) / reqboard_ask_confirm / reqboard_confirm_receipt / reqboard_accept_sheet / reqboard_note_interruption / reqboard_clear_pause / reqboard_move / reqboard_task_move',
+        + 'reqboard_task_report / reqboard_submit(kind) / reqboard_ask_confirm / reqboard_confirm_receipt / reqboard_accept_sheet / reqboard_note_interruption / reqboard_clear_pause / reqboard_move / reqboard_task_move / reqboard_task_adopt',
       );
     },
   );

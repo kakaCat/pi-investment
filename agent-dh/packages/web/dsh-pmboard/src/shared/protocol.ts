@@ -20,6 +20,8 @@ import type { MainStageKey, RequirementStatus, StageKey } from '../domain/requir
 import type { TaskStatus } from '../domain/task/TaskStatus.js'
 import type { RequirementCategory } from '../domain/requirement/Requirement.js'
 import type { ArtifactKind, ArchiveDoc, ArchiveDocRule } from '../domain/artifact/ArtifactSpec.js'
+// 依赖传递归约（零 import 纯函数）：计划任务表的 depends_on 同样只保留**直接前置**。
+import { transitiveReduce } from '../domain/queue/transitiveReduction.js'
 
 // ---------------------------------------------------------------------------
 // 提示词难度级别（用于注入不同复杂度的提示词）
@@ -407,6 +409,12 @@ export interface StageTaskRef {
   stageKind?: StageKind
   /** 失败重跑次数（默认 0；失败回退时 +1） */
   attempt?: number
+  /**
+   * 该卡显式声明的子卡段（卡片层契约 2026-09-28）：
+   * `[]` = **本卡不落链（solo）**；缺省 = 未指定走映射（chain 默认）。
+   * 视图靠它区分「不需子卡」与「需要但未生成」——没有它就只剩"有没有子卡"这一结果判据。
+   */
+  stages?: StageKind[]
 }
 
 export interface StageTaskExecution extends StageTaskRef {
@@ -607,9 +615,17 @@ export interface PlanTask {
   executorHint?: ExecutorHint
   /**
    * 显式子卡 stages（REQ-4842fe FR-1b 逃生舱口）：覆盖映射表，受控枚举、非空、去重。
-   * 用于映射表盖不住的新流程；不填 = 按卡类型走默认模板。
+   * 用于映射表盖不住的新流程；不填 = 按卡 phase / 需求分类走默认模板。
+   *
+   * 2026-09-28（REQ-260928185112-e20d）：本字段此前**只到协议层为止**——normalizePlanTasks 收它、
+   * 但 Decompose/plan-landing 的 draft 映射没往下传，于是拆分节点写了也到不了子卡展开。
    */
   stages?: StageKind[]
+  /**
+   * 本卡无接口可联调 → 不落联调子卡（REQ-260928185112-e20d）：与 TaskRecord.skipIntegration 同语义。
+   * 此前只有 HTTP 建卡路由能设（routers/tasks.ts），**拆分节点表达不出来**——计划表里没有这个入口。
+   */
+  skipIntegration?: boolean
 }
 
 /**
@@ -809,6 +825,8 @@ export function normalizePlanTasks(raw: unknown): PlanTask[] {
     const stagesVerdict = o.stages === undefined || o.stages === null ? undefined : validateExplicitStages(o.stages as unknown[])
     if (stagesVerdict !== undefined && !stagesVerdict.ok) bad(stagesVerdict.error)
     const stages = stagesVerdict !== undefined && stagesVerdict.ok ? stagesVerdict.value : undefined
+    // 无接口可联调（REQ-260928185112-e20d）：计划表可显式声明，避免"零调用方"的卡也挂联调段。
+    const skipIntegration = (o.skipIntegration ?? o.skip_integration) === true
     out.push({
       key,
       title: normalizeTitle(o.title),
@@ -820,11 +838,21 @@ export function normalizePlanTasks(raw: unknown): PlanTask[] {
       ...(implementation.length > 0 ? { implementation } : {}),
       ...(executorHint !== undefined ? { executorHint } : {}),
       ...(stages !== undefined ? { stages } : {}),
+      ...(skipIntegration ? { skipIntegration } : {}),
     })
   })
   // 第二遍依赖引用校验（自依赖/悬空/前向引用）——规则在 domain/task/Acceptability.ts（t2）。
   const refCheck = checkPlanTaskReferences(out.map(t => ({ key: t.key, dependsOn: t.dependsOn ?? [] })))
   if (!refCheck.ok) bad(refCheck.reason)
+  // 第三遍：**传递归约**（2026-09-29 用户裁定 B「数据侧」）。计划里写「全部前置」是作者的
+  // 习惯性写法（如 t6 依赖 t2,t3,t4,t5），但 t2/t3 已由 t4 蕴含——落库前归约成「直接前置」，
+  // 使计划、队列、画布三处的依赖口径一致，不再各自折叠（唯一实现在 domain/queue/transitiveReduction）。
+  // 归约只删有替代路径的项、保序，因此"只引用前面已定义的 key"这条不变量不受影响。
+  const reducedDeps = transitiveReduce(new Map(out.map(t => [t.key, t.dependsOn ?? []])))
+  for (const t of out) {
+    const next = reducedDeps.get(t.key)
+    if (next !== undefined) t.dependsOn = next
+  }
   for (const t of out) {
     const acc = checkAcceptance(t.key, t.acceptance ?? '')
     if (!acc.ok) bad(acc.reason)
@@ -875,7 +903,7 @@ export function asReqCategory(raw: unknown): RequirementCategory {
 // ---------------------------------------------------------------------------
 
 /** 推进事件类型（一次事件 = 需求上的一小步）。 */
-export type AdvanceEvent = 'OPEN_PARENT' | 'RUN_SUBTASK' | 'FINALIZE_PARENT' | 'ROLLUP' | 'PAUSE'
+export type AdvanceEvent = 'OPEN_PARENT' | 'RUN_SUBTASK' | 'FINALIZE_PARENT' | 'ROLLUP' | 'RETRY' | 'PAUSE'
 
 /** 一次推进事件的留痕（台账 `advance.history[]`；看板与排障消费）。 */
 export interface AdvanceRecord {

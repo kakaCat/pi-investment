@@ -304,6 +304,16 @@ function toStageTaskRef(t: TaskRecord): StageTaskRef {
     acceptance: t.acceptance,
     ...(t.cardDoc !== undefined ? { cardDoc: t.cardDoc } : {}),
     ...(t.executorHint !== undefined ? { executorHint: t.executorHint } : {}),
+    // REQ-260928185112-e20d P1 修复：子卡层字段必须投影出去。
+    // StageTaskRef 早已声明 parentId/stageKind/attempt，但本投影是**手工挑字段**的，
+    // 子卡层落地时没跟着更新 ⇒ 装配器把所有子卡都当成了平级父卡
+    // （线上实测：35 张卡「父卡=35 子卡=0」），泳道拿不到父子关系、画不出父卡进度条。
+    ...(t.parentId !== undefined ? { parentId: t.parentId } : {}),
+    ...(t.stageKind !== undefined ? { stageKind: t.stageKind } : {}),
+    ...(t.attempt !== undefined ? { attempt: t.attempt } : {}),
+    // 卡片层契约（2026-09-28）：意图字段同样必须投影——泳道要靠它区分
+    // 「solo（不需链）」与「chain 未生成」，否则视图只能看"有没有子卡"这个结果。
+    ...(t.stages !== undefined ? { stages: t.stages } : {}),
   }
 }
 function toStageTaskExecution(t: TaskRecord): StageTaskExecution {

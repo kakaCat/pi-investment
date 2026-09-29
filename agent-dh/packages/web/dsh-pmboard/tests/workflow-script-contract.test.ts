@@ -34,6 +34,20 @@ describe('脚本契约门禁（3.1 / 9.2）', () => {
     expect(() => assertScriptContract(script)).not.toThrow()
   })
 
+  // P0-2（REQ-260928185112-e20d）：schema 按证据族分流，phase() 带步名（进度事件）。
+  it('按证据族给 schema，且 phase(步名) 可被宿主当进度事件', () => {
+    const verdictScript = generateSubtaskScript({ stageKind: 'review', stageLabel: '复核', prompt: '给偏离结论' })
+    expect(verdictScript).toContain('"verdict"')
+    expect(verdictScript).not.toContain('"filesChanged"')
+    expect(verdictScript).toContain('phase("复核")')
+    const fileScript = generateSubtaskScript({ stageKind: 'dev', stageLabel: '研发', prompt: '改 x.ts' })
+    expect(fileScript).toContain('"filesChanged"')
+    expect(fileScript).not.toContain('"verdict"')
+    expect(fileScript).toContain('phase("研发")')
+    expect(() => assertScriptContract(verdictScript)).not.toThrow()
+    expect(() => assertScriptContract(fileScript)).not.toThrow()
+  })
+
   it('含 ctx.subagent 的脚本在生成阶段即被门禁拒绝（历史事故 A）', () => {
     const bad = 'const out = await ctx.subagent({ prompt: "干活" }); return { ok: out !== null };'
     expect(codeOf(() => assertScriptContract(bad))).toBe('workflow_script_contract')

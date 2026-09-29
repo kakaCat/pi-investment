@@ -242,7 +242,6 @@ export function checkMultipleGates(checks: {
 
   const allPassed = failedGates.length === 0;
   const totalChecks = Object.keys(checks).length;
-  const passedChecks = totalChecks - failedGates.length;
 
   const summary = allPassed
     ? `✅ 所有 ${totalChecks} 个门禁都已通过`

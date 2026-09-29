@@ -3,7 +3,8 @@
  * 类前缀 dsh-pm-（与 shell 隔离）；隐藏规则对齐 taskboard/execution 模式。
  *
  * REQ-47939a t12：原 1886 行单文件已按连续区段分层到 styles/*.ts；
- * 本文件按**原物理顺序**拼接（拼接结果与拆分前逐字节一致），注入接口不变。
+ * 本文件按**原物理顺序**拼接，注入接口不变（REQ-47939a 拆除旧机制卡删除了 base 中的
+ * 侧栏入口与旧覆盖层显隐属性选择器区段，故拼接结果不再与拆分前逐字节一致）。
  */
 import { BASE_CSS } from './styles/base.ts'
 import { BOARD_CSS } from './styles/board.ts'
@@ -15,6 +16,7 @@ import { MARKS_CSS } from './styles/marks.ts'
 import { SUBTASK_CSS } from './styles/subtask.ts'
 import { NODE_PANEL_CSS } from './styles/node-panel.ts'
 import { TRACEABILITY_CSS } from './styles/traceability.ts'
+import { DAG_CSS } from './styles/dag.ts'
 
 const CSS_TAG = 'dsh-pmboard/styles.css'
 
@@ -24,7 +26,8 @@ const CSS_TAG = 'dsh-pmboard/styles.css'
 // REQ-4842fe t-3be71b：SUBTASK_CSS 追加在末尾（纯新增区段，不改既有选择器）
 // REQ-260923134706-e72f t5：NODE_PANEL_CSS 追加在末尾（纯新增区段，不改既有选择器）
 // REQ-260926140539-457b FR-6：TRACEABILITY_CSS 追加在末尾（纯新增区段，不改既有选择器）
-const CSS = BASE_CSS + DETAIL_CSS + FILES_CSS + BOARD_CSS + PANEL_CSS + TOKEN_CSS + MARKS_CSS + SUBTASK_CSS + NODE_PANEL_CSS + TRACEABILITY_CSS
+// REQ-260928001915-f978：DAG_CSS（真 DAG 画布面板）追加在末尾（纯新增区段，不改既有选择器）
+const CSS = BASE_CSS + DETAIL_CSS + FILES_CSS + BOARD_CSS + PANEL_CSS + TOKEN_CSS + MARKS_CSS + SUBTASK_CSS + NODE_PANEL_CSS + TRACEABILITY_CSS + DAG_CSS
 
 export function injectStyles(): void {
   if (typeof document === 'undefined') return

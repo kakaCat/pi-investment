@@ -4,7 +4,8 @@
  * 设计依据：design/data-model.md §2。三条口径：
  *  ① 映射表是**数据化配置**：新增卡类型 = 加一行（不改代码）；
  *  ② 未映射类型回退 dev → review（保守两卡，避免模板缺失时落空）；
- *  ③ 显式 stages 逃生舱口（FR-1b）：受控枚举、非空、去重，用于映射表盖不住的新流程。
+ *  ③ 显式 stages 逃生舱口（FR-1b）：受控枚举、去重，用于映射表盖不住的新流程；
+ *     **空数组 = 显式声明本卡不落链（solo）**（2026-09-28 卡片层契约）。
  *
  * 本文件是纯数据 + 纯函数：不 import node:/@deepseek-ai/，不碰时间与随机数（沿用 domain 层纪律）。
  */
@@ -114,7 +115,6 @@ export const STAGE_ACCEPTANCE: Readonly<Record<StageKind, string>> = {
 export const STAGE_EVIDENCE_KIND: Readonly<Record<StageKind, 'file' | 'verdict'>> = {
   // 写入族：必须留下落盘改动
   dev: 'file',
-  integrate: 'file',
   repro: 'file',
   fix: 'file',
   prepare: 'file',
@@ -122,6 +122,7 @@ export const STAGE_EVIDENCE_KIND: Readonly<Record<StageKind, 'file' | 'verdict'>
   change: 'file',
   apply: 'file',
   // 结论族：产出是判断/输出，天然无 diff
+  integrate: 'verdict',
   review: 'verdict',
   test: 'verdict',
   regress: 'verdict',
@@ -145,17 +146,65 @@ export function stagesForCardType(type: string | undefined | null): readonly Sta
   return hit ?? DEFAULT_FALLBACK_STAGES
 }
 
+/**
+ * 卡 phase → 默认子卡段（REQ-260928185112-e20d，2026-09-28）。
+ *
+ * 为什么需要：`stagesForCardType` 只认**需求分类**，于是同一需求下所有父卡落同一套子卡链。
+ * 2026-09-28 实测（REQ-260928185112-e20d：7 父卡 × 4 段 = 28 段，分类 refactor）：
+ * 计划自述「零调用方纯新增」的卡照样挂联调段、phase=test 的验证卡照样先挂 dev 段、
+ * phase=doc 的文档卡也是 4 段；6 张联调卡共 19.2 min **零文件产出**（占该需求有效执行时间 34%）。
+ *
+ * 口径：只收「阶段语义与需求分类明显不同」的相位；未列出的（implement / ui / data…）继续按
+ * 需求分类走映射表——**不做静默降级**，避免悄悄削掉本来就该有的联调/测试段。
+ * 显式 `stages` 永远优先于本表（逃生舱口）；`skipIntegration` 仍可再裁掉联调段。
+ * 段序沿用 2026-09-20 用户裁定：复核在前、测试在后。
+ */
+export const PHASE_STAGES: Readonly<Record<string, readonly StageKind[]>> = {
+  /** 文档卡：无接口可联调，也没有独立的测试段（与 SUBTASK_TEMPLATES.doc 同口径）。 */
+  doc: SUBTASK_TEMPLATES.doc,
+  /** 复核卡：产出就是复核结论（与 review-only 同口径）。 */
+  review: SUBTASK_TEMPLATES['review-only'],
+  /** 合并卡：不新增接口（与 chore 同口径）。 */
+  merge: SUBTASK_TEMPLATES.chore,
+  /** 分析/取数卡：取数 → 分析 → 复核，没有研发与联调段。 */
+  analysis: SUBTASK_TEMPLATES.analysis,
+  /** 验证卡：要写验证脚本(dev)→复核(review)→跑(test)，但**没有新接口可联调**，故不落 integrate。 */
+  test: ['dev', 'review', 'test'],
+}
+
+/** 按父卡 phase 取默认子卡段；未映射（含 undefined/未知相位）→ undefined，由调用方退回需求分类映射表。 */
+export function stagesForPhase(phase: string | undefined | null): readonly StageKind[] | undefined {
+  if (phase === undefined || phase === null) return undefined
+  return PHASE_STAGES[String(phase).trim().toLowerCase()]
+}
+
+/**
+ * 按父卡 side 取默认子卡段（REQ-260928185112-e20d 统一方案）——只有 `doc` 侧有明确答案：
+ * 纯文档卡既无接口可联调、也没有独立测试段（与 SUBTASK_TEMPLATES.doc 同口径）。
+ *
+ * 其余端侧（frontend/backend/fullstack）**一律返回 undefined**，回到需求分类口径——
+ * "这张卡有没有接口面"是**计划侧才能声明的事实**（skipIntegration / stages），代码不猜：
+ * 从端侧推断"是否要与别的模块对接"必然猜错，猜错就是静默削段。
+ */
+export function stagesForSide(side: string | undefined | null): readonly StageKind[] | undefined {
+  if (side === undefined || side === null) return undefined
+  return String(side).trim().toLowerCase() === 'doc' ? SUBTASK_TEMPLATES.doc : undefined
+}
+
 export type ExplicitStagesVerdict =
   | { ok: true; value: StageKind[] }
   | { ok: false; error: string }
 
 /**
- * 校验显式 stages 逃生舱口（FR-1b）：① 必须是数组且非空；② 元素取自受控枚举；③ 不得重复。
- * 返回结构化原因，调用方拼错误码 REQBOARD_STAGES_INVALID。
+ * 校验显式 stages 逃生舱口（FR-1b）：① 必须是数组（**空数组 = 显式无链，合法**，2026-09-28）；
+ * ② 元素取自受控枚举；③ 不得重复。返回结构化原因，调用方拼错误码 REQBOARD_STAGES_INVALID。
  */
 export function validateExplicitStages(stages: readonly unknown[]): ExplicitStagesVerdict {
   if (!Array.isArray(stages)) return { ok: false, error: 'stages 必须是数组' }
-  if (stages.length === 0) return { ok: false, error: 'stages 不得为空数组' }
+  // 空数组 = **显式声明「本卡不落子卡链」（solo）**（2026-09-28 卡片层契约）：
+  // `undefined` = 未指定（走 phase → side → 需求分类映射）；`[]` = 明确无链——两者必须可区分，
+  // 否则"没子卡"永远分不清「不需子卡」与「需要但未生成」。
+  if (stages.length === 0) return { ok: true, value: [] }
   const out: StageKind[] = []
   const seen = new Set<string>()
   for (const raw of stages) {

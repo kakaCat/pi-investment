@@ -83,6 +83,26 @@ describe('reqboard_task_run（FR-1/FR-2）', () => {
     expect(declared.has('blocked')).toBe(false)
     expect(declared.has('stopped')).toBe(false)
   })
+
+  it('FR-2b 已有 run 在跑（locked）→ 结构化错误 + 回执是 lossless JSON（不吐 undefined）', async () => {
+    const h = seed()
+    h.deps.jobs = jobsPort() as never
+    // 锁新鲜 = 该需求已有 run。旧实现走成功回执并带 job_id/run_id=undefined，
+    // 绑定层（dsh-tools snapshotJsonValue）把它转成无信息的
+    // "tool \"reqboard_task_run\" returned invalid output: value is not lossless JSON"。
+    const locked = req({ status: 'implementing', autoRun: true })
+    locked.advance = { lockAt: h.clock.t, runId: 'run-inflight' }
+    h.repo.ledger.requirements = [locked]
+
+    const out = await run(defineAdvanceTool(h.deps), { task_id: 't-p' })
+    expect(out.success).toBe(false)
+    expect(out.status).toBe('error')
+    expect(out.code).toBe('REQBOARD_ADVANCE_LOCKED')
+    expect(typeof out.error).toBe('string')
+    expect(String(out.error)).toContain('run-inflight')
+    // 关键回归：绑定层要求 lossless JSON——含 undefined 的对象 JSON 往返后不再相等。
+    expect(JSON.parse(JSON.stringify(out))).toEqual(out)
+  })
 })
 
 describe('reqboard_task_execute（FR-1：兼容别名是真委托）', () => {

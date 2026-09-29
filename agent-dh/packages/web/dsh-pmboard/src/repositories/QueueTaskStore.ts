@@ -23,7 +23,7 @@
 import type { TaskChange, TaskStore } from '../application/ports.js'
 import { QUEUE_VERSION, type QueueFile, type QueueTask } from '../domain/queue/QueueTypes.js'
 import type { TaskRecord } from '../shared/protocol.js'
-import { computeEdges, computeLayers, computeReady } from '../domain/queue/topology.js'
+import { normalizeQueueFile } from '../domain/queue/normalizeQueue.js'
 import { QUEUE_ERROR, type QueueRepository } from './QueueRepository.js'
 
 /** 队列写入时对应台账 schema 版本（v9：台账已无 tasks）。 */
@@ -182,8 +182,13 @@ export class QueueTaskStore implements TaskStore {
       next.updated_at = new Date(this.now()).toISOString()
       await this.repo.save(requirementId, next)
       this.commit(requirementId, next)
-      this.notify({ requirementId, kind: 'task-created', tasks: fresh.map(toRecord), revision: this.revisions.get(requirementId) ?? 0 })
-      return fresh.map(toRecord)
+      // 返回值取 **归一化后的落盘态**（`next`），不取入参 `fresh`：recompute 会把 dependsOn
+      // 归约为直接前置，若返回入参副本，调用方（拆分落库的 decomposition.md / 任务卡 / 评论）
+      // 会拿到与磁盘不一致的依赖——同一个事实两处口径分叉。
+      const freshIds = new Set(fresh.map((t) => t.id))
+      const normalizedFresh = next.tasks.filter((t) => freshIds.has(t.id)).map(toRecord)
+      this.notify({ requirementId, kind: 'task-created', tasks: normalizedFresh, revision: this.revisions.get(requirementId) ?? 0 })
+      return normalizedFresh
     })
   }
 
@@ -250,15 +255,20 @@ export class QueueTaskStore implements TaskStore {
 
   // ── 内部 ──────────────────────────────────────────────────────────────
 
-  /** 重算派生视图（唯一实现来源：topology）。返回**新对象**，不改入参。 */
+  /**
+   * 重算派生视图 —— **唯一实现来源 = `domain/queue/normalizeQueue.normalizeQueueFile`**。
+   *
+   * 2026-09-29（REQ-260929010300-dbf9 · 用户裁定 B「数据侧」）起，本方法除了原先的
+   * layer/edges/layers/ready 重算，还多了一步**传递归约**：把 `tasks[].dependsOn`
+   * 从「全部前置（传递闭包）」归一为「直接前置」。理由：闭包是拆分时的写法习惯
+   * （线上实测 33/55 份队列带冗余前置），但它是**存储冗余**——每个消费者（画布 / 依赖列 /
+   * 任务表）都要各自再折一次。前移到写入这一处后，磁盘上的依赖即直接前置。
+   *
+   * 归约保持可达性 ⇒ layer/ready 结果不变（语义等价，只去冗余）。见 normalizeQueue 文件头。
+   * 返回**新对象**，不改入参。
+   */
   private recompute(file: QueueFile): QueueFile {
-    const layers = computeLayers(file.tasks)
-    const layerOf = new Map<string, number>()
-    for (const layer of layers) {
-      for (const id of layer.tasks) if (!layerOf.has(id)) layerOf.set(id, layer.layer)
-    }
-    const tasks = file.tasks.map((t) => ({ ...t, layer: layerOf.get(t.id) ?? t.layer }))
-    return { ...file, tasks, edges: computeEdges(tasks), layers: computeLayers(tasks), ready: computeReady(tasks) }
+    return normalizeQueueFile(file)
   }
 
   /** 写成功后：换缓存 + 刷索引 + bump 进程内 revision。 */

@@ -213,9 +213,10 @@ details.dsh-pm-fold > .dsh-pm-fold-body { padding: 10px 12px; border-top: 1px so
 /* 任务总览表标题列 */
 .dsh-pm-ttitle { font-size: 12px; color: var(--dsw-text-primary, #333); }
 
-/* 属性锚（非 class，dom.ts：data-dsh-pm-active / data-dsh-pm-entry）——板容器基础约束 */
-html[data-dsh-pm-active] .dsh-pm-board,
-html[data-dsh-pm-entry] .dsh-pm-board { min-height: 0; }
+/* 属性锚（非 class，dom.ts：data-dsh-pm-view / data-dsh-pm-entry）——板容器基础约束
+ * （原覆盖层显隐属性锚随旧机制拆除，改锚在 main 插槽容器 data-dsh-pm-view 上） */
+[data-dsh-pm-view] .dsh-pm-board,
+[data-dsh-pm-entry] .dsh-pm-board { min-height: 0; }
 
 /* 卡面操作行：同高按钮，间距统一 */
 .dsh-pm-card-actions .dsh-pm-btn { margin: 0; }
