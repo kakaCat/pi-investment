@@ -915,9 +915,50 @@
       "implementation": "① 6+ 处悬空 import 改到现存位置：tools/backfill_factors.py:24、tools/backfill_factors_standalone.py:19、scripts/tools/retrain_pipeline.py:19、scripts/train_hs300_xgboost.py:185、tests/test_factor_compute_stage.py:18 指向 domain/backtest/engine/strategy_base.py 等；domain/quantlib/engine/{ensemble_vote_strategy,multi_factor_swing_strategy}.py 从同包 import 不存在的 strategy_base/strategy_combiner/strategy_factory 需改路径。② 人工裁决 domain/quantlib/base_calculator.py(501 行) 与 domain/quantlib/core/base_calculator.py(327 行) 两个不同类对象，建议收敛到 core 并逐调用方改导入。",
       "context": "",
       "requirementRefs": [],
-      "status": "todo",
+      "status": "done",
       "blocked": false,
-      "executions": [],
+      "executions": [
+        {
+          "id": "e-469f10",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790850066436,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 3798,
+              "at": 1790850066443,
+              "totals": {
+                "uncachedInputTokens": 1030756,
+                "outputTokens": 368115,
+                "cacheReadTokens": 224440192,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 4289,
+              "at": 1790851376306,
+              "totals": {
+                "uncachedInputTokens": 1250919,
+                "outputTokens": 416980,
+                "cacheReadTokens": 245452032,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 220163,
+              "outputTokens": 48865,
+              "cacheReadTokens": 21011840,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790851376291
+        }
+      ],
       "statusHistory": [
         {
           "status": "todo",
@@ -927,12 +968,49 @@
             "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
           },
           "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790850066436,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "开工：修悬空 import（指向已删模块）并裁决 BaseCalculator 双类。先精确枚举坏引用。"
+        },
+        {
+          "status": "done",
+          "at": 1790851376291,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "父卡收尾：四张子卡完成；11 处悬空 import 全修、BaseCalculator 收敛为单一实现（同一类对象）、收集错误归零；偏离与过程风险均已如实留痕。"
         }
       ],
-      "comments": [],
-      "version": 1,
+      "comments": [
+        {
+          "id": "c-79d9bf",
+          "body": "[状态] → in_progress：开工：修悬空 import（指向已删模块）并裁决 BaseCalculator 双类。先精确枚举坏引用。（reqboard_task_move）",
+          "createdAt": 1790850066436,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-a7a1f3",
+          "body": "[状态] → done：父卡收尾：四张子卡完成；11 处悬空 import 全修、BaseCalculator 收敛为单一实现（同一类对象）、收集错误归零；偏离与过程风险均已如实留痕。（reqboard_task_move）",
+          "createdAt": 1790851376291,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
       "createdAt": 1790838470861,
-      "updatedAt": 1790838470861,
+      "updatedAt": 1790851376291,
       "createdBy": {
         "kind": "agent",
         "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
@@ -941,7 +1019,38 @@
         "kind": "agent",
         "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
       },
-      "layer": 2
+      "layer": 2,
+      "lastReport": {
+        "at": 1790851314292,
+        "reportIndex": 1,
+        "filesChanged": [
+          "domain/quantlib/base_calculator.py",
+          "domain/quantlib/core/base_calculator.py",
+          "tools/backfill_factors.py",
+          "tools/backfill_factors_standalone.py",
+          "scripts/tools/retrain_pipeline.py",
+          "tests/test_factor_compute_stage.py",
+          "examples/signal_generation_example.py"
+        ],
+        "completed": [
+          "① 悬空 import 全修（11 处 / 8 文件）：FactorStage 4 处改指 domain.backtest.stages.factor_stage；strategy_base/combiner/factory 4 处改指 domain.backtest.engine.*；examples 与测试 patch 路径各 1 处；残留坏引用 grep = 0",
+          "① 配套删除死测试 tests/migration/test_watch_backlog_convergence.py（依赖的一次性脚本从未入库）→ **全仓收集错误 1 → 0**（6429 tests collected）",
+          "② BaseCalculator 双类收敛（按用户裁决以 501 版为唯一正本）：core 侧改为转发壳，两条导入路径返回**同一个类对象**（此前 isinstance 跨路径静默为假）；7 个对外符号两处同物",
+          "② 验收：`grep -c \"^class BaseCalculator\"` 合计 **1**；`import tools.backfill_factors` / `ensemble_vote_strategy` 等 4 条命令实测通过",
+          "收敛中的两次自我纠错并修复：① 12 个模块因抽象方法契约不同无法实例化（327 版无抽象方法、501 版 calculate 为 @abstractmethod）→ 去抽象化并给明确 NotImplementedError；② 9 个测试因计时口径不同失败（327 写 metadata.execution_time_ms、501 写顶层 calculation_time）→ **加法兼容两份都写**",
+          "② 零行为变化处理：handle_calculation_error 逐字搬入正本（全仓另有两份同名不同实现），原有但无人调用的 _validate_positive_number 随旧版移除",
+          "**如实记录的偏离**：本卡 10 个改动文件中 3 个被 .gitignore 排除（两个 WIP 策略草稿 + scripts/train_hs300_xgboost.py），其修复仅存本地、无入库产物；验收②在本机成立但不产生版本控制内的交付",
+          "**如实记录的过程风险**：验证脚本可启动时误触发了运维脚本的批量回填（backfill_factors.py 无参数解析，--help 直接开跑）——已核实零数据写入（10-01 因子 0 行、最新仍 09-30、无残留进程），并把\"该脚本无 --dry-run/无参数校验\"记入汇报",
+          "**如实记录的证据口径教训**：e2e 用例带 skip_if_api_down，使测试基线依赖服务在线状态；收尾时测试数变化（36→46 failed）已用**回退实验**证明与服务状态相关、与本卡无关，而非当作本卡引入",
+          "四张子卡（研发/联调/复核/测试）全部完成"
+        ]
+      },
+      "lastRun": {
+        "at": 1790851314292,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
     },
     {
       "id": "t-2d52a7",
@@ -7529,6 +7638,598 @@
         "stopReason": "reported",
         "valueNonEmpty": true
       }
+    },
+    {
+      "id": "t-bb3890",
+      "requirementId": "REQ-261001145152-3982",
+      "title": "修悬空 import + 裁决 BaseCalculator 双类·研发",
+      "description": "子卡阶段：研发",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-504421"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "implementation": "① 6+ 处悬空 import 改到现存位置：tools/backfill_factors.py:24、tools/backfill_factors_standalone.py:19、scripts/tools/retrain_pipeline.py:19、scripts/train_hs300_xgboost.py:185、tests/test_factor_compute_stage.py:18 指向 domain/backtest/engine/strategy_base.py 等；domain/quantlib/engine/{ensemble_vote_strategy,multi_factor_swing_strategy}.py 从同包 import 不存在的 strategy_base/strategy_combiner/strategy_factory 需改路径。② 人工裁决 domain/quantlib/base_calculator.py(501 行) 与 domain/quantlib/core/base_calculator.py(327 行) 两个不同类对象，建议收敛到 core 并逐调用方改导入。\n\n[子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "context": "",
+      "parentId": "t-3f2444",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-f2f2df",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790850642386,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 4059,
+              "at": 1790850642393,
+              "totals": {
+                "uncachedInputTokens": 1239047,
+                "outputTokens": 397296,
+                "cacheReadTokens": 237020032,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 4073,
+              "at": 1790850701638,
+              "totals": {
+                "uncachedInputTokens": 1239809,
+                "outputTokens": 397554,
+                "cacheReadTokens": 237448576,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 762,
+              "outputTokens": 258,
+              "cacheReadTokens": 428544,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790850701624
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-cc96ae",
+          "body": "[状态] → in_progress：研发段：修 11 处悬空 import，并按裁决把 BaseCalculator 收敛为单一实现（501 版为正本）。（reqboard_task_move）",
+          "createdAt": 1790850642386,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-335887",
+          "body": "[状态] → done：研发段完成：11 处悬空 import 全修、收集错误归零、BaseCalculator 收敛为单一实现且对照测试与基线逐字一致。（reqboard_task_move）",
+          "createdAt": 1790850701624,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790850066436,
+      "updatedAt": 1790850701624,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790850066436,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790850642386,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "研发段：修 11 处悬空 import，并按裁决把 BaseCalculator 收敛为单一实现（501 版为正本）。"
+        },
+        {
+          "status": "done",
+          "at": 1790850701624,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "研发段完成：11 处悬空 import 全修、收集错误归零、BaseCalculator 收敛为单一实现且对照测试与基线逐字一致。"
+        }
+      ],
+      "layer": 2,
+      "lastReport": {
+        "at": 1790850642499,
+        "reportIndex": 1,
+        "filesChanged": [
+          "domain/quantlib/core/base_calculator.py",
+          "domain/quantlib/base_calculator.py",
+          "tools/backfill_factors.py",
+          "tools/backfill_factors_standalone.py",
+          "scripts/tools/retrain_pipeline.py",
+          "scripts/train_hs300_xgboost.py",
+          "tests/test_factor_compute_stage.py",
+          "examples/signal_generation_example.py",
+          "domain/quantlib/engine/ensemble_vote_strategy.py",
+          "domain/quantlib/engine/multi_factor_swing_strategy.py"
+        ],
+        "completed": [
+          "① 悬空 import 全修（11 处 / 8 文件）：`domain.quantlib.stages.factor_stage` → `domain.backtest.stages.factor_stage`（4 处：tools×2、scripts×2）；`domain.quantlib.engine.strategy_{base,combiner,factory}` → `domain.backtest.engine.*`（4 处）；examples 的 StrategyCombiner 1 处；test_factor_compute_stage 的 patch 路径前缀改正 1 处",
+          "① 配套：删除 `tests/migration/test_watch_backlog_convergence.py`（它 import 的一次性脚本已不存在且从未入库；经用户追认）→ **全仓收集错误从 1 归零**（6429 tests collected, 0 errors）",
+          "① 验收：8 条原悬空模块实测可导入；残留坏引用 grep **0**",
+          "② BaseCalculator 收敛（按用户裁决：501 行版为唯一正本）：`domain/quantlib/core/base_calculator.py` 改为转发壳，两条导入路径现在是**同一个类对象**（`A is B → True`），7 个对外符号（BaseCalculator / CalculatorFactory / CalculationResult / validate_inputs / timing_decorator / cache_result / handle_calculation_error）在两处可用且为同一对象",
+          "② 验收③：`grep -c \"^class BaseCalculator\"` → 正本 1 处、转发壳 0 处（合计 1）",
+          "② 零行为变化处理：`handle_calculation_error` 的实现**逐字搬入**正本（全仓另有 2 份同名但实现不同的：core/exceptions.py 相似度 0.53、quantlib/exceptions.py 0.31）——保留消费方原先真正调用的那一份；原有但无人调用的 `_validate_positive_number` 随旧版移除",
+          "**自我纠错 1**：首轮收敛后**12 个测试模块收集失败**——旧 327 版整个类没有任何抽象方法，而 501 版把 `calculate` 设为 @abstractmethod，于是 factor 家族（只实现 get_supported_methods）变成\"抽象类无法实例化\"。已把 `calculate` 去抽象化并给出明确的 NotImplementedError（代价：失去\"实例化即发现未实现\"的护栏，改由调用时报错兜底，已在代码中注明）",
+          "**自我纠错 2**：随后出现 **9 个测试失败**（`test_*_timing_metadata` 一族）——根因是两版计时口径不同（327 写 `metadata.execution_time_ms` 毫秒、501 写顶层 `calculation_time` 秒）。已改为**加法兼容**（两份都写），而非二选一",
+          "② 验收④：改动前后对照测试（目标组）**逐字一致**——基线 36 failed / 842 passed / 1 error → 收敛后 36 failed / 842 passed / 1 error，新增失败 0",
+          "过程留痕：服务在施工期间被外部回收两次（本会话后台作业表清空连带回收子进程），探针两次都如实报警；已改用 `nohup` 方式启动（脱离作业表），当前 /docs 200、health 200、探针 exit 0、四路调度仍全关"
+        ]
+      },
+      "lastRun": {
+        "at": 1790850642499,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-66f644",
+      "requirementId": "REQ-261001145152-3982",
+      "title": "修悬空 import + 裁决 BaseCalculator 双类·联调",
+      "description": "子卡阶段：联调",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-bb3890"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）",
+      "implementation": "① 6+ 处悬空 import 改到现存位置：tools/backfill_factors.py:24、tools/backfill_factors_standalone.py:19、scripts/tools/retrain_pipeline.py:19、scripts/train_hs300_xgboost.py:185、tests/test_factor_compute_stage.py:18 指向 domain/backtest/engine/strategy_base.py 等；domain/quantlib/engine/{ensemble_vote_strategy,multi_factor_swing_strategy}.py 从同包 import 不存在的 strategy_base/strategy_combiner/strategy_factory 需改路径。② 人工裁决 domain/quantlib/base_calculator.py(501 行) 与 domain/quantlib/core/base_calculator.py(327 行) 两个不同类对象，建议收敛到 core 并逐调用方改导入。\n\n[子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）",
+      "context": "",
+      "parentId": "t-3f2444",
+      "stageKind": "integrate",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-097226",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790850707764,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 4085,
+              "at": 1790850707772,
+              "totals": {
+                "uncachedInputTokens": 1240149,
+                "outputTokens": 398518,
+                "cacheReadTokens": 237878144,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 4117,
+              "at": 1790850832860,
+              "totals": {
+                "uncachedInputTokens": 1241875,
+                "outputTokens": 401082,
+                "cacheReadTokens": 238967552,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 1726,
+              "outputTokens": 2564,
+              "cacheReadTokens": 1089408,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790850832842
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-c101a6",
+          "body": "[状态] → in_progress：联调段：验证修好的引用不只是\"能导入\"，而是调用方真能跑起来。（reqboard_task_move）",
+          "createdAt": 1790850707764,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-6da262",
+          "body": "[状态] → done：联调段完成：两侧类均可实例化并真跑出结果、计时双口径并存、类对象唯一、服务端到端正常；顺带记录运维脚本无参数校验的风险。（reqboard_task_move）",
+          "createdAt": 1790850832842,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790850066436,
+      "updatedAt": 1790850832842,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790850066436,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790850707764,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "联调段：验证修好的引用不只是\"能导入\"，而是调用方真能跑起来。"
+        },
+        {
+          "status": "done",
+          "at": 1790850832842,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "联调段完成：两侧类均可实例化并真跑出结果、计时双口径并存、类对象唯一、服务端到端正常；顺带记录运维脚本无参数校验的风险。"
+        }
+      ],
+      "layer": 3,
+      "lastReport": {
+        "at": 1790850773619,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "联调②：factor 家族可实例化并**真能调用**——`MomentumFactors().macd(klines)` 成功，且结果同时带两种计时口径（顶层 `calculation_time` 与 `metadata.execution_time_ms`），证明加法兼容对两侧都成立",
+          "联调③：timeseries（501 侧）`TimeSeriesAnalyzer.analyze_trend()` 调用成功，两种计时键同时存在；收敛没有破坏该侧",
+          "联调④：类对象一致性达成——finrl 继承的基类与 factors 使用的基类，`is` 唯一正本（这正是收敛要解决的问题：此前 isinstance 跨路径静默为假）",
+          "联调⑤：服务端到端正常——/docs 200、K 线接口返回 09-30 数据（新进程加载收敛后的代码无异常）",
+          "联调①（**意外发现一个真问题，如实记录**）：我原想用 `python tools/backfill_factors.py --help` 验证\"脚本能启动\"，结果它**没有参数解析**（无 argparse），`--help` 被忽略并**直接开始回填**（日志：开始回填因子历史 2025-10-16~2026-10-01，目标 500 只）。因管道 `head -3` 触发 SIGPIPE 提前终止，**未写入任何数据**（已核实：10-01 因子 0 行、最新仍 09-30、无残留进程）。风险记录：该运维脚本无 `--help`/无 dry-run/无参数校验，误运行即开始批量写库，建议后续加 `--dry-run` 与参数解析（超出本卡范围，未擅自改）",
+          "局限（如实记录）：本子卡模板验收命令写的是 `npx vitest run`（TS 工具链），与本仓 Python 栈不匹配；已按 import + 实调用 + HTTP 实测执行"
+        ]
+      },
+      "lastRun": {
+        "at": 1790850773619,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-73b221",
+      "requirementId": "REQ-261001145152-3982",
+      "title": "修悬空 import + 裁决 BaseCalculator 双类·复核",
+      "description": "子卡阶段：复核",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-66f644"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "implementation": "① 6+ 处悬空 import 改到现存位置：tools/backfill_factors.py:24、tools/backfill_factors_standalone.py:19、scripts/tools/retrain_pipeline.py:19、scripts/train_hs300_xgboost.py:185、tests/test_factor_compute_stage.py:18 指向 domain/backtest/engine/strategy_base.py 等；domain/quantlib/engine/{ensemble_vote_strategy,multi_factor_swing_strategy}.py 从同包 import 不存在的 strategy_base/strategy_combiner/strategy_factory 需改路径。② 人工裁决 domain/quantlib/base_calculator.py(501 行) 与 domain/quantlib/core/base_calculator.py(327 行) 两个不同类对象，建议收敛到 core 并逐调用方改导入。\n\n[子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-3f2444",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-b74bdc",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790850838338,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 4129,
+              "at": 1790850838345,
+              "totals": {
+                "uncachedInputTokens": 1242275,
+                "outputTokens": 401946,
+                "cacheReadTokens": 239406592,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 4179,
+              "at": 1790850987490,
+              "totals": {
+                "uncachedInputTokens": 1246184,
+                "outputTokens": 407924,
+                "cacheReadTokens": 241211648,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 3909,
+              "outputTokens": 5978,
+              "cacheReadTokens": 1805056,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790850987475
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-a492d6",
+          "body": "[状态] → in_progress：复核段：核对修正目标是否正确、删除是否真无残留引用、改动范围是否越界。（reqboard_task_move）",
+          "createdAt": 1790850838338,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-3a81c9",
+          "body": "[状态] → done：复核段完成：修正目标与删除均干净；查出 1 处实质偏离（3 个被忽略文件的修复无法入库），已如实记录。（reqboard_task_move）",
+          "createdAt": 1790850987475,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790850066436,
+      "updatedAt": 1790850987475,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790850066436,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790850838338,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "复核段：核对修正目标是否正确、删除是否真无残留引用、改动范围是否越界。"
+        },
+        {
+          "status": "done",
+          "at": 1790850987475,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "复核段完成：修正目标与删除均干净；查出 1 处实质偏离（3 个被忽略文件的修复无法入库），已如实记录。"
+        }
+      ],
+      "layer": 4,
+      "lastReport": {
+        "at": 1790850928416,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "复核①：4 个修正目标全部真实存在且类名正确（FactorStage / StrategyBase / StrategyCombiner / StrategyFactory 逐个 hasattr 验证）",
+          "复核②：死测试删除后**代码侧无任何残留引用**（grep 仅命中任务卡的历史台账记录，属正常留痕）",
+          "复核③（**实质偏离，如实记录**）：本卡改动 10 个文件中有 **3 个被 .gitignore 排除**，其修复只存在于本地磁盘、**无法进入版本控制**——① `domain/quantlib/engine/ensemble_vote_strategy.py` 与 `multi_factor_swing_strategy.py`（.gitignore 第 52-53 行**显式点名忽略**，`git log` 显示**从未入库**）；② `scripts/train_hs300_xgboost.py`（scripts/ 按 t-d4199a 裁定保持忽略）。后果：卡片验收② `import ensemble_vote_strategy` 在**本机成立**，但不产生可入库产物；在全新检出环境里这些文件根本不存在（因此也不存在悬空 import）",
+          "复核③ 补充：这两个被忽略的策略模块只被 `domain/backtest/engine/strategy_factory.py` 的 `_STRATEGY_MODULES` 以**字符串名**引用，而该工厂对\"文件不存在\"按设计静默跳过（可选策略），故不构成缺陷；`domain/backtest/engine/__init__.py` 另有一行注释明写 `# TODO: File not yet implemented`——即它们是**本地 WIP 草稿**。是否入库/迁到工厂实际扫描的 `domain/backtest/engine/` 属仓主决策（涉及 WIP 代码去留），未擅自处理",
+          "复核④：`domain.quantlib.core` 未导出 `CalculatorFactory` —— **非回归**，与 HEAD 对照确认改动前也只导出 `BaseCalculator`；该符号仍可从 `core.base_calculator`（转发壳）与 `infrastructure.quantlib.core` 取到",
+          "偏离结论：**有 1 处偏离**（上述③，属\"验收对象不在版本控制内\"，非实现错误）；其余无偏离。依据：4 个目标模块存在性验证、残留引用 grep、HEAD 对照、工厂可选策略语义"
+        ]
+      },
+      "lastRun": {
+        "at": 1790850928416,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-560297",
+      "requirementId": "REQ-261001145152-3982",
+      "title": "修悬空 import + 裁决 BaseCalculator 双类·测试",
+      "description": "子卡阶段：测试",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-73b221"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "implementation": "① 6+ 处悬空 import 改到现存位置：tools/backfill_factors.py:24、tools/backfill_factors_standalone.py:19、scripts/tools/retrain_pipeline.py:19、scripts/train_hs300_xgboost.py:185、tests/test_factor_compute_stage.py:18 指向 domain/backtest/engine/strategy_base.py 等；domain/quantlib/engine/{ensemble_vote_strategy,multi_factor_swing_strategy}.py 从同包 import 不存在的 strategy_base/strategy_combiner/strategy_factory 需改路径。② 人工裁决 domain/quantlib/base_calculator.py(501 行) 与 domain/quantlib/core/base_calculator.py(327 行) 两个不同类对象，建议收敛到 core 并逐调用方改导入。\n\n[子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "context": "",
+      "parentId": "t-3f2444",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-1e0da2",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790850992641,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 4191,
+              "at": 1790850992649,
+              "totals": {
+                "uncachedInputTokens": 1246602,
+                "outputTokens": 408735,
+                "cacheReadTokens": 241671040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 4271,
+              "at": 1790851309324,
+              "totals": {
+                "uncachedInputTokens": 1250284,
+                "outputTokens": 415812,
+                "cacheReadTokens": 244728960,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 3682,
+              "outputTokens": 7077,
+              "cacheReadTokens": 3057920,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790851309305
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-5229b2",
+          "body": "[状态] → in_progress：测试段：卡片四条验收命令作为最终证据。（reqboard_task_move）",
+          "createdAt": 1790850992641,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-335df2",
+          "body": "[状态] → done：测试段完成：四条验收达成（含收集错误归零）；收尾时测试数变化已用回退实验证明与服务状态相关、与本卡无关。（reqboard_task_move）",
+          "createdAt": 1790851309305,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790850066436,
+      "updatedAt": 1790851309305,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790850066436,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790850992641,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "测试段：卡片四条验收命令作为最终证据。"
+        },
+        {
+          "status": "done",
+          "at": 1790851309305,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "测试段完成：四条验收达成（含收集错误归零）；收尾时测试数变化已用回退实验证明与服务状态相关、与本卡无关。"
+        }
+      ],
+      "layer": 5,
+      "lastReport": {
+        "at": 1790851242711,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "验收①：卡片点名的 import 逐个实测通过——tools.backfill_factors ✅、tools.backfill_factors_standalone ✅、domain.quantlib.engine.ensemble_vote_strategy ✅、domain.quantlib.engine.multi_factor_swing_strategy ✅",
+          "验收②：`python -c \"import domain.quantlib.engine.ensemble_vote_strategy\"` 不报错（局限见复核段：该文件被 .gitignore 排除，修复仅存本地）",
+          "验收③：`grep -c \"^class BaseCalculator\"` → 正本 1 处、转发壳 0 处（合计 **1**）",
+          "验收④：全仓收集 **6429 tests / 0 collection errors**（删除死测试前的状态是 1 error）",
+          "**对照证据的严谨处理（重要）**：定向测试组在收尾时从 36 failed/842 passed/34 skipped 变为 46 failed/851 passed/15 skipped。逐项查明后确认**与本卡无关**，证据链三条：① 决定性实验——把两个 BaseCalculator 文件**回退到改动前**，`test_cci_metadata`/`test_sar_metadata`/`test_macd_calculation`/`test_factor_calculator_v14` **照样失败**（说明失败与收敛无关）；② 计数差正好落在跳过数上（34→15，少跳过 19），而代码里确有 `skip_if_api_down`（tests/e2e/test_strategy_factor_bridge.py:44-46）；③ 施工期间服务被外部回收过两次（那时 API 不可达→e2e 自动跳过），收尾时服务已用 nohup 拉起（API 在线→e2e 开始真跑，暴露其既有失败）",
+          "结论：本卡验收④在**同等服务状态**下成立——收敛后那一次同条件对照（服务不可达期间）与基线**逐字一致**（36 failed / 842 passed / 1 error，新增失败 0）；收尾时的差异已被证明来自服务状态而非本卡改动",
+          "经验教训（建议沉淀为规范）：e2e 用例带 `skip_if_api_down`，使\"测试基线\"**依赖服务在线状态**——不同状态的两次跑分不可直接比较；报证据时必须同时记录服务状态，否则会把\"跳过变执行\"误读成\"新引入失败\""
+        ]
+      },
+      "lastRun": {
+        "at": 1790851242711,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
     }
   ],
   "edges": [
@@ -7727,6 +8428,22 @@
     {
       "from": "t-fb9b61",
       "to": "t-6e7b28"
+    },
+    {
+      "from": "t-504421",
+      "to": "t-bb3890"
+    },
+    {
+      "from": "t-bb3890",
+      "to": "t-66f644"
+    },
+    {
+      "from": "t-66f644",
+      "to": "t-73b221"
+    },
+    {
+      "from": "t-73b221",
+      "to": "t-560297"
     }
   ],
   "layers": [
@@ -7773,6 +8490,7 @@
         "t-723156",
         "t-a70b3c",
         "t-05079e",
+        "t-bb3890",
         "t-a9cbe0",
         "t-c6d950",
         "t-805d4c",
@@ -7791,6 +8509,7 @@
         "t-3da04c",
         "t-7d0be1",
         "t-9dd27b",
+        "t-66f644",
         "t-245f18",
         "t-9254d9",
         "t-1f1299",
@@ -7806,6 +8525,7 @@
         "t-78d5a3",
         "t-f3d965",
         "t-fb9b61",
+        "t-73b221",
         "t-65e702",
         "t-6d1800",
         "t-d7750a"
@@ -7816,12 +8536,12 @@
       "tasks": [
         "t-646e7f",
         "t-a7d164",
-        "t-6e7b28"
+        "t-6e7b28",
+        "t-560297"
       ]
     }
   ],
   "ready": [
-    "t-3f2444",
     "t-2d52a7",
     "t-59468b",
     "t-4f6f4b",
@@ -7832,5 +8552,5 @@
     "t-008062",
     "t-9b20eb"
   ],
-  "updated_at": "2026-10-01T10:19:56.750Z"
+  "updated_at": "2026-10-01T10:42:56.307Z"
 }

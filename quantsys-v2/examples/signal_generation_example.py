@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 
 from domain.quantlib.engine.strategy_runner import StrategyRunner
 from adapters.outbound.repositories import StrategyORMRepository
-from domain.quantlib.engine.strategy_combiner import StrategyCombiner
+from domain.backtest.engine.strategy_combiner import StrategyCombiner
 
 
 def generate_sample_klines(symbol: str = "000001.SZ", days: int = 100) -> list:

@@ -2,11 +2,11 @@ metadata:
   stage: implementing
   requirement_id: REQ-261001145152-3982
   generated_at: 2026-10-01T07:07:50.908Z
-  version: 147
+  version: 162
   generated_by: dsh-pmboard
   detail_dir: rtm-implementing/
-  detail_count: 59
-  last_updated: 2026-10-01T10:19:56.795Z
+  detail_count: 63
+  last_updated: 2026-10-01T10:42:56.346Z
 inputs:
   tasks:
     - id: t-c63378
@@ -29,7 +29,7 @@ inputs:
       status: done
     - id: t-3f2444
       title: 修悬空 import + 裁决 BaseCalculator 双类
-      status: todo
+      status: done
     - id: t-2d52a7
       title: 调度去重：4 套 → 1 套（分步灰度）
       status: todo
@@ -186,11 +186,23 @@ inputs:
     - id: t-6e7b28
       title: 删重复实现（零引用项）·测试
       status: done
+    - id: t-bb3890
+      title: 修悬空 import + 裁决 BaseCalculator 双类·研发
+      status: done
+    - id: t-66f644
+      title: 修悬空 import + 裁决 BaseCalculator 双类·联调
+      status: done
+    - id: t-73b221
+      title: 修悬空 import + 裁决 BaseCalculator 双类·复核
+      status: done
+    - id: t-560297
+      title: 修悬空 import + 裁决 BaseCalculator 双类·测试
+      status: done
 status:
-  tasks_total: 59
-  tasks_done: 48
+  tasks_total: 63
+  tasks_done: 53
   tasks_in_progress: 0
-  tasks_todo: 11
+  tasks_todo: 10
 tasks:
   - id: t-c63378
     status: done
@@ -205,7 +217,7 @@ tasks:
   - id: t-9ccd5e
     status: done
   - id: t-3f2444
-    status: todo
+    status: done
   - id: t-2d52a7
     status: todo
   - id: t-59468b
@@ -309,4 +321,12 @@ tasks:
   - id: t-fb9b61
     status: done
   - id: t-6e7b28
+    status: done
+  - id: t-bb3890
+    status: done
+  - id: t-66f644
+    status: done
+  - id: t-73b221
+    status: done
+  - id: t-560297
     status: done

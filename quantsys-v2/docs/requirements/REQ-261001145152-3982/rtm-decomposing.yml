@@ -2,9 +2,9 @@ metadata:
   stage: decomposing
   requirement_id: REQ-261001145152-3982
   generated_at: 2026-10-01T07:07:50.907Z
-  version: 147
+  version: 162
   generated_by: dsh-pmboard
-  last_updated: 2026-10-01T10:19:56.825Z
+  last_updated: 2026-10-01T10:42:56.372Z
 inputs:
   requirements:
     - id: FR-1
@@ -1200,6 +1200,50 @@ outputs:
       serves: []
       depends_on:
         - t-fb9b61
+      phase: implement
+      side: backend
+    - id: t-bb3890
+      title: 修悬空 import + 裁决 BaseCalculator 双类·研发
+      implements: |-
+        ① 6+ 处悬空 import 改到现存位置：tools/backfill_factors.py:24、tools/backfill_factors_standalone.py:19、scripts/tools/retrain_pipeline.py:19、scripts/train_hs300_xgboost.py:185、tests/test_factor_compute_stage.py:18 指向 domain/backtest/engine/strategy_base.py 等；domain/quantlib/engine/{ensemble_vote_strategy,multi_factor_swing_strategy}.py 从同包 import 不存在的 strategy_base/strategy_combiner/strategy_factory 需改路径。② 人工裁决 domain/quantlib/base_calculator.py(501 行) 与 domain/quantlib/core/base_calculator.py(327 行) 两个不同类对象，建议收敛到 core 并逐调用方改导入。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-504421
+      phase: implement
+      side: backend
+    - id: t-66f644
+      title: 修悬空 import + 裁决 BaseCalculator 双类·联调
+      implements: |-
+        ① 6+ 处悬空 import 改到现存位置：tools/backfill_factors.py:24、tools/backfill_factors_standalone.py:19、scripts/tools/retrain_pipeline.py:19、scripts/train_hs300_xgboost.py:185、tests/test_factor_compute_stage.py:18 指向 domain/backtest/engine/strategy_base.py 等；domain/quantlib/engine/{ensemble_vote_strategy,multi_factor_swing_strategy}.py 从同包 import 不存在的 strategy_base/strategy_combiner/strategy_factory 需改路径。② 人工裁决 domain/quantlib/base_calculator.py(501 行) 与 domain/quantlib/core/base_calculator.py(327 行) 两个不同类对象，建议收敛到 core 并逐调用方改导入。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-bb3890
+      phase: implement
+      side: backend
+    - id: t-73b221
+      title: 修悬空 import + 裁决 BaseCalculator 双类·复核
+      implements: |-
+        ① 6+ 处悬空 import 改到现存位置：tools/backfill_factors.py:24、tools/backfill_factors_standalone.py:19、scripts/tools/retrain_pipeline.py:19、scripts/train_hs300_xgboost.py:185、tests/test_factor_compute_stage.py:18 指向 domain/backtest/engine/strategy_base.py 等；domain/quantlib/engine/{ensemble_vote_strategy,multi_factor_swing_strategy}.py 从同包 import 不存在的 strategy_base/strategy_combiner/strategy_factory 需改路径。② 人工裁决 domain/quantlib/base_calculator.py(501 行) 与 domain/quantlib/core/base_calculator.py(327 行) 两个不同类对象，建议收敛到 core 并逐调用方改导入。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-66f644
+      phase: implement
+      side: backend
+    - id: t-560297
+      title: 修悬空 import + 裁决 BaseCalculator 双类·测试
+      implements: |-
+        ① 6+ 处悬空 import 改到现存位置：tools/backfill_factors.py:24、tools/backfill_factors_standalone.py:19、scripts/tools/retrain_pipeline.py:19、scripts/train_hs300_xgboost.py:185、tests/test_factor_compute_stage.py:18 指向 domain/backtest/engine/strategy_base.py 等；domain/quantlib/engine/{ensemble_vote_strategy,multi_factor_swing_strategy}.py 从同包 import 不存在的 strategy_base/strategy_combiner/strategy_factory 需改路径。② 人工裁决 domain/quantlib/base_calculator.py(501 行) 与 domain/quantlib/core/base_calculator.py(327 行) 两个不同类对象，建议收敛到 core 并逐调用方改导入。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-73b221
       phase: implement
       side: backend
 traceability:
