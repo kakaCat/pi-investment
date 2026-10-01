@@ -368,7 +368,7 @@ class GrangerCausalityCalculator(BaseCalculator):
                         'bic': round(fitted.bic, 4),
                         'hqic': round(fitted.hqic, 4)
                     }
-                except:
+                except Exception:
                     continue
 
             return self._create_result_dict(

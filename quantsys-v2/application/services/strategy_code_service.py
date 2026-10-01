@@ -87,7 +87,7 @@ def _is_empty_df_or_list(data) -> bool:
     # 对于 list 或其他序列类型
     try:
         return len(data) == 0
-    except:
+    except Exception:
         return not bool(data)
 
 
@@ -105,7 +105,7 @@ def _get_length(data) -> int:
         return 0
     try:
         return len(data)
-    except:
+    except Exception:
         return 0
 
 

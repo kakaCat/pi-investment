@@ -228,7 +228,7 @@ class ImpliedVolatilityCalculator(BaseCalculator):
             try:
                 model_price = self._black_scholes_price(S, K, T, r, sigma, option_type, q)
                 return model_price - option_price
-            except:
+            except Exception:
                 return np.inf
 
         try:
@@ -356,7 +356,7 @@ class ImpliedVolatilityCalculator(BaseCalculator):
                     )
                     iv_surface[i, j] = result['value']
                     convergence_map[i, j] = result['metadata']['converged']
-                except:
+                except Exception:
                     iv_surface[i, j] = np.nan
                     convergence_map[i, j] = False
 

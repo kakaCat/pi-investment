@@ -73,7 +73,7 @@ class MeanReversionStrategy(StrategyBase):
                     rsi = self._calculate_rsi(closes, 14)
                     if rsi < 30:
                         rsi_confirm = 1.2  # RSI超卖，增强信号
-                except:
+                except Exception:
                     pass
 
             confidence = min(0.85, 0.6 + (threshold - dist_to_lower) * 10) * rsi_confirm
@@ -95,7 +95,7 @@ class MeanReversionStrategy(StrategyBase):
                     rsi = self._calculate_rsi(closes, 14)
                     if rsi > 70:
                         rsi_confirm = 1.2  # RSI超买，增强信号
-                except:
+                except Exception:
                     pass
 
             confidence = min(0.85, 0.6 + (threshold - dist_to_upper) * 10) * rsi_confirm

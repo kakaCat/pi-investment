@@ -774,7 +774,7 @@ class TimeSeriesAnalyzer(BaseCalculator):
                         'statistic': float(test.test_statistic),
                         'pvalue': float(test.pvalue)
                     }
-                except:
+                except Exception:
                     pass
 
             return self._create_result_dict(
