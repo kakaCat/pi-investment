@@ -654,7 +654,42 @@ df['sell'] = df['score'] < 0.3
 | Dividends | `DataProviderManager.get_dividends()` | Same as above |
 | Sector constituents (板块成分) | `DataProviderManager.get_sector_stocks(sector)` | Same as above |
 | Business logic | `DataService.kline.*` | `application/services/data_service.py` |
-| Database CRUD | `Repository` classes | `adapters/outbound/repositories/`（73 文件 / 84 类；⚠️ `infrastructure/repositories/` **目录不存在**，2026-10-01 实测） |
+| Database CRUD | `Repository` classes | `adapters/outbound/repositories/`（73 文件；⚠️ `infrastructure/` **下没有** repositories 子目录，2026-10-01 实测） |
+
+### 仓储双轨口径（sync / async，2026-10-01 裁定 · REQ-261001145152-3982 t-52c511）
+
+`adapters/outbound/repositories/` 里对 8 个实体各有 **sync 与 async 两份实现**
+（`x_repository.py` / `x_async_repository.py`：stock / signal / portfolio / simulation /
+factor / backtest / stock_pool / signal_execution）。
+另有 **async-only 模块**（`p2_async_repositories.py`：MLModel / Position / FundFlow / DataQuality
+四个 Async 仓储，无 sync 对应）——它们同样遵守下面的第 1~3 条。
+
+**实测现状（2026-10-01）**：两条轨**都在服务线上功能，谁都不能直接删**——
+- sync 轨 8 文件 **5,551 行**，被 **52 个文件**引用（CLI、调度、adapters、多个服务）；
+- async 轨 8 文件 **1,618 行**，只被 **2 处**仓储引用，但其中 `realtime_signals_async` 路由
+  已在 `main.py` 注册、`charts_async.py` 正是 K 线图表接口的实现路径（此前 greenlet 缺失
+  导致它静默返回空数组的那条链路）。
+
+> 数字可复现（在 `quantsys-v2/` 下执行）：
+> ```bash
+> wc -l adapters/outbound/repositories/{stock,signal,portfolio,simulation,factor,backtest,stock_pool,signal_execution}_repository.py | tail -1
+> wc -l adapters/outbound/repositories/{stock,signal,portfolio,simulation,factor,backtest,stock_pool,signal_execution}_async_repository.py | tail -1
+> grep -rln "outbound.repositories\.\(stock\|signal\|portfolio\|simulation\|factor\|backtest\|stock_pool\|signal_execution\)_repository" --include='*.py' . | grep -v venv | wc -l   # 52
+> grep -rln "outbound.repositories\.\(stock\|signal\|portfolio\|simulation\|factor\|backtest\|stock_pool\|signal_execution\)_async_repository" --include='*.py' . | grep -v venv | wc -l   # 2
+> ```
+> （口径提醒：引用数随 grep 模式变——写成 `_repository` 前缀会连 async 的一起命中，
+> 故此处用**精确到实体名**的模式。2026-10-01 复核时正是这样发现初稿写的 54/1,418 不准确。）
+
+**口径（新代码照此选）**：
+1. **FastAPI 异步路由 / async 服务** → 用 `x_async_repository.py`（`AsyncBaseORMRepository`）；
+2. **CLI、调度任务、其它同步上下文** → 用 `x_repository.py`；
+3. **不要为同一实体再新建第三份实现**；需要新实体时按上述两条各建一份或只建实际需要的那份；
+4. **已知不一致（本次不重构，仅登记）**：两侧拆分粒度不同——async 轨按实体拆类
+   （如 `simulation_async_repository.py` 内 `SimulationAccount/Position/Trade` 三个 Async 仓储），
+   sync 轨偏聚合（`simulation_repository.py` 单文件单仓储类 + helper）。新代码沿用**本轨既有粒度**，
+   不要顺手"对齐"成另一种（会牵动调用方）；
+5. 收敛成单轨属**架构级改造**（要么改写 3 个异步路由、要么迁移 52 个调用方），
+   不在本需求范围；做之前先按上面第 1~2 条评估影响面。
 
 ### Example
 

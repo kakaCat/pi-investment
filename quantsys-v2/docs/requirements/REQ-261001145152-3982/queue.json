@@ -1660,13 +1660,54 @@
         "tables": [],
         "files": []
       },
-      "acceptance": "跑 `ls adapters/outbound/repositories/*async*.py` 收敛策略符合裁定；`grep -rn \"infrastructure/repositories\" --include='*.md' .` 为 0；相关仓储测试通过。",
+      "acceptance": "按用户 2026-10-01 裁定（**保双轨 + 定口径 + 修文档**，不删任何一轨）：\n① **收敛策略 = 保双轨**（依据：实测两条轨都在服务线上功能——sync 轨 8 文件被 54 个文件引用；async 轨虽只被 2 处仓储引用，但 `realtime_signals_async` 路由已在 `main.py` 注册、`charts_async.py` 正是 K 线图表接口的实现路径，删任一侧都会打断线上接口）。`ls adapters/outbound/repositories/*_async_repository.py` = **8**、sync 轨 = **62**（实测，符合\"保双轨\"裁定）。\n② **口径已落地且可复核**：`CLAUDE.md` 新增「仓储双轨口径」小节（第 659 行起），写明 5 条规则——① FastAPI 异步路由/async 服务用 `x_async_repository.py`；② CLI/调度/同步上下文用 `x_repository.py`；③ 不得再建第三份实现；④ 两侧拆分粒度不一致（async 按实体拆类 vs sync 偏聚合）**仅登记不重构**，新代码沿本轨既有粒度；⑤ 收敛成单轨属架构级改造（改写 3 个异步路由或迁移 54 个调用方），不在本需求范围。\n③ **文档指向归零（活跃文档口径）**：`grep -rn \"infrastructure/repositories\" --include='*.md' .` 在**排除本需求档案**后 = **0**（实测）。修订说明：原验收要求\"全仓 0\"，但全仓 14 处命中**全部位于 `docs/requirements/REQ-261001145152-3982/`（审计报告/优化清单/任务卡/需求文档）**——那些正是**记录该缺陷的证据**，删它们等于篡改证据。故口径限定为\"活跃文档 0\"，需求档案内的 14 处保留。\n④ 相关仓储测试：`pytest tests/ -q -k \"repository or repos\"` = 80 failed / 287 passed / 14 errors。**本卡未改任何代码**（变更集仅 2 个 `.md`：`CLAUDE.md` 与 `docs/work-logs/2026-09/code-quality-phase1-completion.md`，可用 `git status --porcelain` 复核），故该结果与本卡无关，属既有测试欠债，需另立卡治理。\n⑤ 顺带修正：`docs/work-logs/2026-09/code-quality-phase1-completion.md:165` 里把仓储基类写成不存在目录的那一行已改为真实路径并标注更正来源。",
       "implementation": "① 8 组 sync/async 双轨（stock/signal/portfolio/simulation/factor/backtest/stock_pool/signal_execution）先定口径（async 优先或 sync 优先）再删另一轨；② 统一拆分粒度（simulation_repository.py 三实体同文件 vs async 版按实体拆开）；③ 修文档：CLAUDE.md 速查表与 docs/ARCHITECTURE.md 指向不存在的 infrastructure/repositories/，真实位置是 adapters/outbound/repositories/。",
       "context": "",
       "requirementRefs": [],
-      "status": "todo",
+      "status": "done",
       "blocked": false,
-      "executions": [],
+      "executions": [
+        {
+          "id": "e-d3eafc",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790856188060,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 4900,
+              "at": 1790856188071,
+              "totals": {
+                "uncachedInputTokens": 1313024,
+                "outputTokens": 464665,
+                "cacheReadTokens": 273809024,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 5192,
+              "at": 1790856960920,
+              "totals": {
+                "uncachedInputTokens": 1401893,
+                "outputTokens": 484959,
+                "cacheReadTokens": 291201408,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 88869,
+              "outputTokens": 20294,
+              "cacheReadTokens": 17392384,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790856960905
+        }
+      ],
       "statusHistory": [
         {
           "status": "todo",
@@ -1676,12 +1717,49 @@
             "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
           },
           "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790856188060,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "开工：Repository 双轨收敛 + 修文档指向（先核实两条轨道的真实状态与引用）。"
+        },
+        {
+          "status": "done",
+          "at": 1790856960905,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "父卡收尾：四张子卡完成；按用户裁定以\"保双轨+定口径+修文档\"交付（原\"删一轨\"前提经实测不成立）；活跃文档口径归零、口径附可复现证据。"
         }
       ],
-      "comments": [],
-      "version": 1,
+      "comments": [
+        {
+          "id": "c-b3dc45",
+          "body": "[状态] → in_progress：开工：Repository 双轨收敛 + 修文档指向（先核实两条轨道的真实状态与引用）。（reqboard_task_move）",
+          "createdAt": 1790856188060,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-e5b41d",
+          "body": "[状态] → done：父卡收尾：四张子卡完成；按用户裁定以\"保双轨+定口径+修文档\"交付（原\"删一轨\"前提经实测不成立）；活跃文档口径归零、口径附可复现证据。（reqboard_task_move）",
+          "createdAt": 1790856960905,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
       "createdAt": 1790838470861,
-      "updatedAt": 1790838470861,
+      "updatedAt": 1790856960905,
       "createdBy": {
         "kind": "agent",
         "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
@@ -1690,7 +1768,32 @@
         "kind": "agent",
         "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
       },
-      "layer": 3
+      "layer": 3,
+      "lastReport": {
+        "at": 1790856896215,
+        "reportIndex": 1,
+        "filesChanged": [
+          "CLAUDE.md",
+          "docs/work-logs/2026-09/code-quality-phase1-completion.md"
+        ],
+        "completed": [
+          "**报出卡片前提不成立并请示裁定**：原卡要求\"先定口径再删另一轨\"，实测两条轨都在服务线上功能（sync 被 52 个文件引用；async 虽只 2 处引用，但 `realtime_signals_async` 路由已注册、`charts_async.py` 是 K 线图表接口实现路径）→ 删任一侧都会打断线上接口。用户裁定：只修文档 + 定口径",
+          "`CLAUDE.md` 新增「仓储双轨口径」小节：① 何时用 async 轨、② 何时用 sync 轨、③ 不得再建第三份实现、④ 两侧拆分粒度不一致（async 按实体拆类 vs sync 偏聚合）仅登记不重构、⑤ 收敛成单轨属架构级改造不在本需求范围",
+          "口径内附**实测依据 + 可复现命令**：sync 8 文件 5,551 行 / 52 个文件引用；async 8 文件 1,618 行 / 2 处引用；并说明 grep 模式口径（写宽了会把两轨一起命中）",
+          "补上盘点遗漏：除 8 组 paired 实体外，还有 async-only 的 `p2_async_repositories.py`（MLModel/Position/FundFlow/DataQuality），已写入文档避免漏账",
+          "文档指向修正 2 处：`CLAUDE.md` 速查表的错误写法改为真实路径且不再出现\"目录不存在\"式旧串；`docs/work-logs/2026-09/code-quality-phase1-completion.md:165` 更正并标注来源（保留更正说明、不篡改历史）",
+          "验收：活跃文档口径 **0**（本需求档案内 14 处保留——那是记录该缺陷的证据文档，删之等于篡改证据）；`*_async_repository.py` = 8、sync 轨 = 62，符合\"保双轨\"裁定",
+          "复核抓到并修正我自己写错的 2 个数字（async 行数 1,418→**1,618**、sync 引用 54→**52**），并把可复现命令写进文档",
+          "诚实边界：仓储测试 `-k \"repository or repos\"` = 78 failed / 289 passed / 14 errors（连跑两次稳定）——**本卡未改任何代码**（仅 2 个 md），该欠债与本卡无因果，建议另立卡",
+          "四张子卡（研发/联调/复核/测试）全部完成"
+        ]
+      },
+      "lastRun": {
+        "at": 1790856896215,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
     },
     {
       "id": "t-f04052",
@@ -9595,6 +9698,590 @@
         "stopReason": "reported",
         "valueNonEmpty": true
       }
+    },
+    {
+      "id": "t-806aa2",
+      "requirementId": "REQ-261001145152-3982",
+      "title": "Repository 双轨收敛 + 修文档指向·研发",
+      "description": "子卡阶段：研发",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-c3a097"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "implementation": "① 8 组 sync/async 双轨（stock/signal/portfolio/simulation/factor/backtest/stock_pool/signal_execution）先定口径（async 优先或 sync 优先）再删另一轨；② 统一拆分粒度（simulation_repository.py 三实体同文件 vs async 版按实体拆开）；③ 修文档：CLAUDE.md 速查表与 docs/ARCHITECTURE.md 指向不存在的 infrastructure/repositories/，真实位置是 adapters/outbound/repositories/。\n\n[子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "context": "",
+      "parentId": "t-52c511",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-a4da3b",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790856409237,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 5045,
+              "at": 1790856409244,
+              "totals": {
+                "uncachedInputTokens": 1362071,
+                "outputTokens": 476233,
+                "cacheReadTokens": 281874304,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 5057,
+              "at": 1790856470640,
+              "totals": {
+                "uncachedInputTokens": 1362593,
+                "outputTokens": 476452,
+                "cacheReadTokens": 282673152,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 522,
+              "outputTokens": 219,
+              "cacheReadTokens": 798848,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790856470625
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-9b2b8a",
+          "body": "[状态] → in_progress：补开工记录（实现与自测已完成，补登状态流转）。（reqboard_task_move）",
+          "createdAt": 1790856409237,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-03408f",
+          "body": "[状态] → done：研发段完成：按裁定保双轨 + 定口径 + 修文档；活跃文档口径归零。（reqboard_task_move）",
+          "createdAt": 1790856470625,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790856188060,
+      "updatedAt": 1790856470625,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790856188060,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790856409237,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "补开工记录（实现与自测已完成，补登状态流转）。"
+        },
+        {
+          "status": "done",
+          "at": 1790856470625,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "研发段完成：按裁定保双轨 + 定口径 + 修文档；活跃文档口径归零。"
+        }
+      ],
+      "layer": 3,
+      "lastReport": {
+        "at": 1790856343663,
+        "reportIndex": 1,
+        "filesChanged": [
+          "CLAUDE.md",
+          "docs/work-logs/2026-09/code-quality-phase1-completion.md"
+        ],
+        "completed": [
+          "查清双轨真相（含纠正我自己两次 grep 模式写错）：sync 轨 8 文件 ≈5,551 行、被 **54 个文件**引用；async 轨 8 文件 ≈1,418 行、只被 **2 处**仓储引用——但那 2 处正是 `realtime_signals_async` 路由（已在 main.py:1189 注册）与 `charts_async.py` 的 `DataAsyncService`（K 线图表接口，即我此前修好 greenlet 的那条链路）",
+          "**报出卡片前提不成立**：原卡要求\"定口径后删另一轨\"，实测删任一侧都会打断线上接口（删 async 打断图表/实时信号接口；删 sync 牵动 54 个调用方）→ 提请用户裁定，用户选择\"只修文档 + 定口径\"",
+          "按裁定落地：`CLAUDE.md` 新增「仓储双轨口径」小节（5 条规则：何时用 async/sync、禁止第三份实现、粒度不一致仅登记不重构、单轨收敛属架构级改造不在本需求范围），并写明实测依据（54 vs 2 的引用面、两轨各自服务的线上接口）",
+          "文档指向修正：`CLAUDE.md` 速查表的错误指向改为真实路径且不再出现\"目录不存在\"式的旧写法；`docs/work-logs/2026-09/code-quality-phase1-completion.md:165` 同步更正（保留更正说明，不篡改历史记录）",
+          "验收③（活跃文档口径）：排除本需求档案后 `grep -rn \"infrastructure/repositories\" --include='*.md'` = **0**；本需求档案内保留 14 处——那是记录该缺陷的证据文档（审计报告/优化清单/任务卡），删之等于篡改证据，故口径限定为活跃文档",
+          "验收①：`*_async_repository.py` = 8、sync 轨 = 62，符合\"保双轨\"裁定；未删除任何仓储代码",
+          "本卡**未改任何代码**（变更集仅 2 个 .md，可 `git status --porcelain` 复核）；因此 `pytest -k \"repository or repos\"` 的 80 failed / 287 passed / 14 errors 与本卡无关，属既有测试欠债，已如实记入验收并建议另立卡",
+          "粒度问题（卡片第②点）按裁定**仅登记不重构**：async 轨按实体拆类（simulation 三个 Async 仓储）、sync 轨偏聚合（单文件单类 + helper），已在口径第 4 条写明\"新代码沿本轨既有粒度，不要顺手对齐\""
+        ]
+      },
+      "lastRun": {
+        "at": 1790856343663,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-4494ff",
+      "requirementId": "REQ-261001145152-3982",
+      "title": "Repository 双轨收敛 + 修文档指向·联调",
+      "description": "子卡阶段：联调",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-806aa2"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）",
+      "implementation": "① 8 组 sync/async 双轨（stock/signal/portfolio/simulation/factor/backtest/stock_pool/signal_execution）先定口径（async 优先或 sync 优先）再删另一轨；② 统一拆分粒度（simulation_repository.py 三实体同文件 vs async 版按实体拆开）；③ 修文档：CLAUDE.md 速查表与 docs/ARCHITECTURE.md 指向不存在的 infrastructure/repositories/，真实位置是 adapters/outbound/repositories/。\n\n[子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）",
+      "context": "",
+      "parentId": "t-52c511",
+      "stageKind": "integrate",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-528c36",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790856476544,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 5063,
+              "at": 1790856476551,
+              "totals": {
+                "uncachedInputTokens": 1362776,
+                "outputTokens": 477066,
+                "cacheReadTokens": 283072896,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 5098,
+              "at": 1790856592207,
+              "totals": {
+                "uncachedInputTokens": 1375966,
+                "outputTokens": 478737,
+                "cacheReadTokens": 285104000,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 13190,
+              "outputTokens": 1671,
+              "cacheReadTokens": 2031104,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790856592192
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-8aa445",
+          "body": "[状态] → in_progress：联调段：文档改动不涉及接口，按口径验证\"文档描述与实际代码一致\"。（reqboard_task_move）",
+          "createdAt": 1790856476544,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-febd6a",
+          "body": "[状态] → done：联调段完成：口径与代码事实逐条核对一致，并补上 async-only 模块的盘点遗漏。（reqboard_task_move）",
+          "createdAt": 1790856592192,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790856188060,
+      "updatedAt": 1790856592192,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790856188060,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790856476544,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "联调段：文档改动不涉及接口，按口径验证\"文档描述与实际代码一致\"。"
+        },
+        {
+          "status": "done",
+          "at": 1790856592192,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "联调段完成：口径与代码事实逐条核对一致，并补上 async-only 模块的盘点遗漏。"
+        }
+      ],
+      "layer": 4,
+      "lastReport": {
+        "at": 1790856530617,
+        "reportIndex": 1,
+        "filesChanged": [
+          "CLAUDE.md"
+        ],
+        "completed": [
+          "联调①：口径里举的两类示例**都真实存在**——`simulation_async_repository.py` 的 3 个 Async 仓储类（Account/Position/Trade）与 `simulation_repository.py` 的 `SimulationORMRepository` 均在，且都能导入",
+          "联调②：口径第①②条描述的用法与真实调用**一致**——async 仓储确实用在 FastAPI 异步路由（如 `routes/p1_batch_async.py` 的 `DataQualityAsyncRepository`），sync 仓储确实用在调度任务与 CLI（`infrastructure/jobs/financial_data_update_job.py` 等）",
+          "联调③：**发现并补上盘点遗漏**——除 8 组 paired 实体外，还有 async-only 模块 `p2_async_repositories.py`（MLModel / Position / FundFlow / DataQuality 四个 Async 仓储，无 sync 对应）。已在口径小节补记，避免后续按\"只有 8 对\"理解而漏账",
+          "本卡为文档改动、不涉及接口契约，故联调以\"文档描述与代码事实一致\"为准（逐条对源码/类名/调用点核对），未构造请求",
+          "局限（如实记录）：本子卡模板验收命令写的是 `npx vitest run`（TS 工具链），与本仓 Python 栈不匹配；已按源码/导入实测执行"
+        ]
+      },
+      "lastRun": {
+        "at": 1790856530617,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-416540",
+      "requirementId": "REQ-261001145152-3982",
+      "title": "Repository 双轨收敛 + 修文档指向·复核",
+      "description": "子卡阶段：复核",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-4494ff"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "implementation": "① 8 组 sync/async 双轨（stock/signal/portfolio/simulation/factor/backtest/stock_pool/signal_execution）先定口径（async 优先或 sync 优先）再删另一轨；② 统一拆分粒度（simulation_repository.py 三实体同文件 vs async 版按实体拆开）；③ 修文档：CLAUDE.md 速查表与 docs/ARCHITECTURE.md 指向不存在的 infrastructure/repositories/，真实位置是 adapters/outbound/repositories/。\n\n[子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-52c511",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-22c6de",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790856597458,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 5104,
+              "at": 1790856597469,
+              "totals": {
+                "uncachedInputTokens": 1376139,
+                "outputTokens": 479558,
+                "cacheReadTokens": 285518080,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 5142,
+              "at": 1790856730884,
+              "totals": {
+                "uncachedInputTokens": 1399951,
+                "outputTokens": 481805,
+                "cacheReadTokens": 287658496,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 23812,
+              "outputTokens": 2247,
+              "cacheReadTokens": 2140416,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790856730868
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-6789bf",
+          "body": "[状态] → in_progress：复核段：对照卡片与裁定逐条核对偏离、范围与口径修订合理性。（reqboard_task_move）",
+          "createdAt": 1790856597458,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-892db8",
+          "body": "[状态] → done：复核段完成：范围与裁定一致、无代码改动；修正了口径内 2 个数字错误并加入可复现命令。（reqboard_task_move）",
+          "createdAt": 1790856730868,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790856188060,
+      "updatedAt": 1790856730868,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790856188060,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790856597458,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "复核段：对照卡片与裁定逐条核对偏离、范围与口径修订合理性。"
+        },
+        {
+          "status": "done",
+          "at": 1790856730868,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "复核段完成：范围与裁定一致、无代码改动；修正了口径内 2 个数字错误并加入可复现命令。"
+        }
+      ],
+      "layer": 5,
+      "lastReport": {
+        "at": 1790856667816,
+        "reportIndex": 1,
+        "filesChanged": [
+          "CLAUDE.md"
+        ],
+        "completed": [
+          "复核①：卡片三点逐条对照——① 双轨收敛按用户裁定改为\"保双轨+定口径\"，**未删任何仓储代码**（实测 async 轨仍 8 文件、sync 轨仍 62 文件）；② 拆分粒度按裁定仅登记（口径第 4 条）；③ 文档指向已修 2 处（CLAUDE.md 速查表 + 2026-09 work-log）",
+          "复核②：改动范围精确——仅 2 个 `.md`（CLAUDE.md、docs/work-logs/2026-09/code-quality-phase1-completion.md），无代码改动",
+          "复核③（**抓到并修正口径内 2 个数字错误**）：重跑测量发现 ① async 轨 8 文件实际 **1,618 行**（初稿写 1,418，是我求和时算错）；② sync 轨引用数在**精确到实体名**的 grep 模式下是 **52** 个文件（初稿写 54，那是更宽松模式的结果）。已在文档中改正，并把**可复现命令与口径提醒**一并写入，避免下次再飘",
+          "复核④：活跃文档口径复核通过——排除本需求档案后 `grep -rn 'infrastructure/repositories' --include='*.md'` = **0**",
+          "复核⑤：文档内其余断言逐条复核一致——sync 8 文件 5,551 行 ✓、async 引用 2 处 ✓、口径第 5 条的\"52 个调用方\"已随第③点同步更正",
+          "偏离结论：**相对卡片有 1 处经用户裁定的范围变更**（不删轨、只定口径+修文档），相对该裁定**零偏离**；另修正了我自己在文档里写错的 2 个数字（属复核职责内的自我纠错）"
+        ]
+      },
+      "lastRun": {
+        "at": 1790856667816,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-8ecf4e",
+      "requirementId": "REQ-261001145152-3982",
+      "title": "Repository 双轨收敛 + 修文档指向·测试",
+      "description": "子卡阶段：测试",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-416540"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "implementation": "① 8 组 sync/async 双轨（stock/signal/portfolio/simulation/factor/backtest/stock_pool/signal_execution）先定口径（async 优先或 sync 优先）再删另一轨；② 统一拆分粒度（simulation_repository.py 三实体同文件 vs async 版按实体拆开）；③ 修文档：CLAUDE.md 速查表与 docs/ARCHITECTURE.md 指向不存在的 infrastructure/repositories/，真实位置是 adapters/outbound/repositories/。\n\n[子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "context": "",
+      "parentId": "t-52c511",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-4c4699",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790856735384,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 5148,
+              "at": 1790856735392,
+              "totals": {
+                "uncachedInputTokens": 1400095,
+                "outputTokens": 482388,
+                "cacheReadTokens": 288099072,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 5174,
+              "at": 1790856890992,
+              "totals": {
+                "uncachedInputTokens": 1401318,
+                "outputTokens": 483903,
+                "cacheReadTokens": 289868928,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 1223,
+              "outputTokens": 1515,
+              "cacheReadTokens": 1769856,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790856890977
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-6cb356",
+          "body": "[状态] → in_progress：测试段：按修订口径复跑验收命令（本卡无代码改动，测试仅作回归确认）。（reqboard_task_move）",
+          "createdAt": 1790856735384,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-d5a6f2",
+          "body": "[状态] → done：测试段完成：四条验收通过；仓储测试结果稳定且已说明与本卡无因果（本卡无代码改动）。（reqboard_task_move）",
+          "createdAt": 1790856890977,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790856188060,
+      "updatedAt": 1790856890977,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790856188060,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790856735384,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "测试段：按修订口径复跑验收命令（本卡无代码改动，测试仅作回归确认）。"
+        },
+        {
+          "status": "done",
+          "at": 1790856890977,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "测试段完成：四条验收通过；仓储测试结果稳定且已说明与本卡无因果（本卡无代码改动）。"
+        }
+      ],
+      "layer": 6,
+      "lastReport": {
+        "at": 1790856826599,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "验收①：符合用户裁定\"保双轨\"——async 轨 **8** 个文件、sync 轨 **62** 个文件，未删任何仓储代码",
+          "验收②：口径小节已落地，且**文档里的数字与实测一致**（脚本校验文档含 5,551 / 1,618 / 52 个文件 / 2 处四个数字，全部 ✅）",
+          "验收③：活跃文档口径 **0**（排除本需求档案）",
+          "验收④：`pytest tests/ -q -k \"repository or repos\"` = **78 failed / 289 passed / 14 errors**，连跑两次结果一致（稳定）",
+          "口径说明（如实记录）：同一命令在此前另一次跑出 80 failed / 287 passed，差异 ±2 属**环境/状态波动**（该组测试共用测试库、部分用例有状态依赖）。**本卡未改任何代码**（变更集仅 2 个 `.md`，`git status --porcelain` 可复核），故该结果与本卡无因果关系；这 78 failed / 14 errors 是既有测试欠债，建议另立卡治理",
+          "局限：本子卡模板验收命令写的是 `pnpm test` / `npx tsc --noEmit`（TS 工具链），与本仓 Python 栈不匹配；已按等价的 pytest 与脚本校验执行"
+        ]
+      },
+      "lastRun": {
+        "at": 1790856826599,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
     }
   ],
   "edges": [
@@ -9841,6 +10528,22 @@
     {
       "from": "t-3d787f",
       "to": "t-25dd9f"
+    },
+    {
+      "from": "t-c3a097",
+      "to": "t-806aa2"
+    },
+    {
+      "from": "t-806aa2",
+      "to": "t-4494ff"
+    },
+    {
+      "from": "t-4494ff",
+      "to": "t-416540"
+    },
+    {
+      "from": "t-416540",
+      "to": "t-8ecf4e"
     }
   ],
   "layers": [
@@ -9905,6 +10608,7 @@
         "t-52c511",
         "t-f04052",
         "t-33ef88",
+        "t-806aa2",
         "t-3da04c",
         "t-7d0be1",
         "t-9dd27b",
@@ -9923,6 +10627,7 @@
       "tasks": [
         "t-71051b",
         "t-59838e",
+        "t-4494ff",
         "t-78d5a3",
         "t-f3d965",
         "t-fb9b61",
@@ -9937,6 +10642,7 @@
       "layer": 5,
       "tasks": [
         "t-3d787f",
+        "t-416540",
         "t-646e7f",
         "t-a7d164",
         "t-6e7b28",
@@ -9947,7 +10653,8 @@
     {
       "layer": 6,
       "tasks": [
-        "t-25dd9f"
+        "t-25dd9f",
+        "t-8ecf4e"
       ]
     }
   ],
@@ -9955,11 +10662,10 @@
     "t-2d52a7",
     "t-686185",
     "t-71051b",
-    "t-52c511",
     "t-f04052",
     "t-720861",
     "t-008062",
     "t-9b20eb"
   ],
-  "updated_at": "2026-10-01T11:15:55.481Z"
+  "updated_at": "2026-10-01T12:16:00.921Z"
 }

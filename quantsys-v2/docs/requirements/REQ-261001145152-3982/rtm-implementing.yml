@@ -2,11 +2,11 @@ metadata:
   stage: implementing
   requirement_id: REQ-261001145152-3982
   generated_at: 2026-10-01T07:07:50.908Z
-  version: 192
+  version: 207
   generated_by: dsh-pmboard
   detail_dir: rtm-implementing/
-  detail_count: 71
-  last_updated: 2026-10-01T11:15:55.524Z
+  detail_count: 75
+  last_updated: 2026-10-01T12:16:00.968Z
 inputs:
   tasks:
     - id: t-c63378
@@ -50,7 +50,7 @@ inputs:
       status: todo
     - id: t-52c511
       title: Repository 双轨收敛 + 修文档指向
-      status: todo
+      status: done
     - id: t-f04052
       title: 数据访问规则收口 + provider 归位
       status: todo
@@ -222,11 +222,23 @@ inputs:
     - id: t-25dd9f
       title: 消 application 层 12 处顶层越层导入·测试
       status: done
+    - id: t-806aa2
+      title: Repository 双轨收敛 + 修文档指向·研发
+      status: done
+    - id: t-4494ff
+      title: Repository 双轨收敛 + 修文档指向·联调
+      status: done
+    - id: t-416540
+      title: Repository 双轨收敛 + 修文档指向·复核
+      status: done
+    - id: t-8ecf4e
+      title: Repository 双轨收敛 + 修文档指向·测试
+      status: done
 status:
-  tasks_total: 71
-  tasks_done: 63
+  tasks_total: 75
+  tasks_done: 68
   tasks_in_progress: 0
-  tasks_todo: 8
+  tasks_todo: 7
 tasks:
   - id: t-c63378
     status: done
@@ -255,7 +267,7 @@ tasks:
   - id: t-71051b
     status: todo
   - id: t-52c511
-    status: todo
+    status: done
   - id: t-f04052
     status: todo
   - id: t-720861
@@ -369,4 +381,12 @@ tasks:
   - id: t-3d787f
     status: done
   - id: t-25dd9f
+    status: done
+  - id: t-806aa2
+    status: done
+  - id: t-4494ff
+    status: done
+  - id: t-416540
+    status: done
+  - id: t-8ecf4e
     status: done

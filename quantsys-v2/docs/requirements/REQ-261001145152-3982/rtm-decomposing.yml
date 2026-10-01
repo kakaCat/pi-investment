@@ -2,9 +2,9 @@ metadata:
   stage: decomposing
   requirement_id: REQ-261001145152-3982
   generated_at: 2026-10-01T07:07:50.907Z
-  version: 192
+  version: 207
   generated_by: dsh-pmboard
-  last_updated: 2026-10-01T11:15:55.548Z
+  last_updated: 2026-10-01T12:16:00.995Z
 inputs:
   requirements:
     - id: FR-1
@@ -1332,6 +1332,50 @@ outputs:
       serves: []
       depends_on:
         - t-3d787f
+      phase: implement
+      side: backend
+    - id: t-806aa2
+      title: Repository 双轨收敛 + 修文档指向·研发
+      implements: |-
+        ① 8 组 sync/async 双轨（stock/signal/portfolio/simulation/factor/backtest/stock_pool/signal_execution）先定口径（async 优先或 sync 优先）再删另一轨；② 统一拆分粒度（simulation_repository.py 三实体同文件 vs async 版按实体拆开）；③ 修文档：CLAUDE.md 速查表与 docs/ARCHITECTURE.md 指向不存在的 infrastructure/repositories/，真实位置是 adapters/outbound/repositories/。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-c3a097
+      phase: implement
+      side: backend
+    - id: t-4494ff
+      title: Repository 双轨收敛 + 修文档指向·联调
+      implements: |-
+        ① 8 组 sync/async 双轨（stock/signal/portfolio/simulation/factor/backtest/stock_pool/signal_execution）先定口径（async 优先或 sync 优先）再删另一轨；② 统一拆分粒度（simulation_repository.py 三实体同文件 vs async 版按实体拆开）；③ 修文档：CLAUDE.md 速查表与 docs/ARCHITECTURE.md 指向不存在的 infrastructure/repositories/，真实位置是 adapters/outbound/repositories/。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-806aa2
+      phase: implement
+      side: backend
+    - id: t-416540
+      title: Repository 双轨收敛 + 修文档指向·复核
+      implements: |-
+        ① 8 组 sync/async 双轨（stock/signal/portfolio/simulation/factor/backtest/stock_pool/signal_execution）先定口径（async 优先或 sync 优先）再删另一轨；② 统一拆分粒度（simulation_repository.py 三实体同文件 vs async 版按实体拆开）；③ 修文档：CLAUDE.md 速查表与 docs/ARCHITECTURE.md 指向不存在的 infrastructure/repositories/，真实位置是 adapters/outbound/repositories/。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-4494ff
+      phase: implement
+      side: backend
+    - id: t-8ecf4e
+      title: Repository 双轨收敛 + 修文档指向·测试
+      implements: |-
+        ① 8 组 sync/async 双轨（stock/signal/portfolio/simulation/factor/backtest/stock_pool/signal_execution）先定口径（async 优先或 sync 优先）再删另一轨；② 统一拆分粒度（simulation_repository.py 三实体同文件 vs async 版按实体拆开）；③ 修文档：CLAUDE.md 速查表与 docs/ARCHITECTURE.md 指向不存在的 infrastructure/repositories/，真实位置是 adapters/outbound/repositories/。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-416540
       phase: implement
       side: backend
 traceability:
