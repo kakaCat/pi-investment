@@ -618,9 +618,50 @@
       "implementation": "infrastructure/config/__init__.py 的 get_config 目前只 return default，却有 29 处生产调用（含 persistence/database/engine.py 取 DSN、jwt_manager.py、llm_service.py、websocket_server.py、cli/main.py）。二选一：让 get_config 真读 pydantic settings，或逐处改调用方到 get_settings() 后删除该兼容层，一次性做完。",
       "context": "",
       "requirementRefs": [],
-      "status": "todo",
+      "status": "done",
       "blocked": false,
-      "executions": [],
+      "executions": [
+        {
+          "id": "e-e1e2bc",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790846748298,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 3171,
+              "at": 1790846748305,
+              "totals": {
+                "uncachedInputTokens": 346498,
+                "outputTokens": 316504,
+                "cacheReadTokens": 163928704,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 3434,
+              "at": 1790847450671,
+              "totals": {
+                "uncachedInputTokens": 365923,
+                "outputTokens": 341078,
+                "cacheReadTokens": 190763520,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 19425,
+              "outputTokens": 24574,
+              "cacheReadTokens": 26834816,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790847450654
+        }
+      ],
       "statusHistory": [
         {
           "status": "todo",
@@ -630,12 +671,49 @@
             "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
           },
           "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790846748298,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "开工：修 get_config 空壳（当前只 return default，却有 29 处生产调用，导致配置静默走默认值）。"
+        },
+        {
+          "status": "done",
+          "at": 1790847450654,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "父卡收尾：四张子卡完成；get_config 由空壳改为真实配置对象，13 条调用路径实测可用、验收三条全绿。"
         }
       ],
-      "comments": [],
-      "version": 1,
+      "comments": [
+        {
+          "id": "c-7ce4d9",
+          "body": "[状态] → in_progress：开工：修 get_config 空壳（当前只 return default，却有 29 处生产调用，导致配置静默走默认值）。（reqboard_task_move）",
+          "createdAt": 1790846748298,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-2a6733",
+          "body": "[状态] → done：父卡收尾：四张子卡完成；get_config 由空壳改为真实配置对象，13 条调用路径实测可用、验收三条全绿。（reqboard_task_move）",
+          "createdAt": 1790847450654,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
       "createdAt": 1790838470861,
-      "updatedAt": 1790838470861,
+      "updatedAt": 1790847450654,
       "createdBy": {
         "kind": "agent",
         "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
@@ -644,7 +722,29 @@
         "kind": "agent",
         "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
       },
-      "layer": 2
+      "layer": 2,
+      "lastReport": {
+        "at": 1790847386478,
+        "reportIndex": 1,
+        "filesChanged": [
+          "infrastructure/config/__init__.py"
+        ],
+        "completed": [
+          "get_config 从空壳改为有真实数据支撑的兼容配置对象：无参返回 _CompatConfig（database/external/logging/redis/app 五个视图 + 顶层透传），带键依次查 环境变量 → settings 摊平表（含 pydantic alias）→ default",
+          "查清并补齐调用方真实契约：database.url/async_url/database、redis.host/port/password、logging.level/format、app.quantsys_api_url/host/ws_port、external.deepseek_api_key/tushare_token、app.jwt_secret_key/sentry_dsn/quant_db_path/memory_recall_cosine_floor 共 13 条路径",
+          "设计取舍：真未配置的环境变量驱动项**抛 AttributeError**（保留调用方自带兜底语义——返回 None 会把\"取不到就用 0.30\"变成\"返回 None\"）；有真实来源的一律给真值",
+          "验收全绿：get_config('PGHOST','FALLBACK')='127.0.0.1'；无参返回可用配置对象；服务重启后启动日志 0 error / 0 warning / 0 DSN 异常",
+          "回归：服务 /docs 与 /api/health 均 200、K 线接口返回 09-30 数据、探针 exit 0、护栏 hook 正常；配置测试 3 failed/74 passed 与基线逐用例一致（既有失败，非本次引入）",
+          "修复过程中自我纠正 1 次：首版只桥接 database/external，复核时逐条读调用方才发现 redis/logging/app 一组仍会 AttributeError，已补齐",
+          "四张子卡（研发/联调/复核/测试）全部完成"
+        ]
+      },
+      "lastRun": {
+        "at": 1790847386478,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
     },
     {
       "id": "t-9ccd5e",
@@ -6160,6 +6260,592 @@
         "stopReason": "reported",
         "valueNonEmpty": true
       }
+    },
+    {
+      "id": "t-a70b3c",
+      "requirementId": "REQ-261001145152-3982",
+      "title": "修 get_config() 空壳·研发",
+      "description": "子卡阶段：研发",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-504421"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "改动已落盘，相关测试或命令跑通并附输出摘要",
+      "implementation": "infrastructure/config/__init__.py 的 get_config 目前只 return default，却有 29 处生产调用（含 persistence/database/engine.py 取 DSN、jwt_manager.py、llm_service.py、websocket_server.py、cli/main.py）。二选一：让 get_config 真读 pydantic settings，或逐处改调用方到 get_settings() 后删除该兼容层，一次性做完。\n\n[子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要",
+      "context": "",
+      "parentId": "t-649eb9",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-881e72",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790846894371,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 3276,
+              "at": 1790846894378,
+              "totals": {
+                "uncachedInputTokens": 357851,
+                "outputTokens": 329211,
+                "cacheReadTokens": 174617088,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 3290,
+              "at": 1790846956564,
+              "totals": {
+                "uncachedInputTokens": 358571,
+                "outputTokens": 329473,
+                "cacheReadTokens": 175892096,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 720,
+              "outputTokens": 262,
+              "cacheReadTokens": 1275008,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790846956551
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-34c904",
+          "body": "[状态] → in_progress：研发段：把 get_config 从空壳改成有真实数据支撑的兼容配置对象。（reqboard_task_move）",
+          "createdAt": 1790846894371,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-8fe119",
+          "body": "[状态] → done：研发段完成：get_config 由空壳改为有真实数据支撑的兼容配置对象；三条验收命令均通过（含前后对照证明真生效）。（reqboard_task_move）",
+          "createdAt": 1790846956551,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790846748298,
+      "updatedAt": 1790846956551,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790846748298,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790846894371,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "研发段：把 get_config 从空壳改成有真实数据支撑的兼容配置对象。"
+        },
+        {
+          "status": "done",
+          "at": 1790846956551,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "研发段完成：get_config 由空壳改为有真实数据支撑的兼容配置对象；三条验收命令均通过（含前后对照证明真生效）。"
+        }
+      ],
+      "layer": 2,
+      "lastReport": {
+        "at": 1790846894476,
+        "reportIndex": 1,
+        "filesChanged": [
+          "infrastructure/config/__init__.py"
+        ],
+        "completed": [
+          "查清真实调用面：17 处真调用（不是 29——原统计把 `self.get_config(...)` 这类同名方法算进去了），分布在 engine/async_base_repository/jwt_manager/llm_service/sentry_config/rate_limiter/websocket_server/cli/memory 等",
+          "查清契约真相：调用方期望**带属性的嵌套对象**（config.database.url / config.app.jwt_secret_key / config.external.deepseek_api_key），而桩返回 {} → 全部抛 AttributeError 后被 except 吞掉（典型后果：DSN 静默退回环境变量）",
+          "额外查实：jwt_secret_key / sentry_dsn / deepseek_api_key 三个名字**全仓零定义**（只在调用方被引用），DatabaseSettings 只有 database_url 属性而非 url/async_url/database —— 即\"空壳\"之外还有一层\"契约从未实现\"",
+          "实现修复：get_config() 无参时返回 _CompatConfig（真实 settings + database/external/app 三个视图 + 其余属性透传）；带键时依次查 环境变量 → settings 摊平表（含 pydantic alias）→ default",
+          "验收①：`get_config('PGHOST','FALLBACK')` → '127.0.0.1'（真实值，不再是 FALLBACK）",
+          "验收②（前后对照，证明真生效）：改前 `config.database.url` 抛 AttributeError → 改后返回 postgresql://<user>@127.0.0.1:5432/quant_investment",
+          "验收③：重启服务后启动日志 **0 error / 0 warning**，无任何 DSN/配置异常；/docs 200、db_connected=true、K 线接口返回 09-30 数据",
+          "回归判定：config 相关测试 3 个失败，已用**基线对照**证实改动前就存在（同一组用例在旧版本上同样 3 failed），非本次引入",
+          "顺带核实无密码回归：.env 里 `PGPASSWORD=` 本就是空值（长度 0，本机 PG 走 trust），故改后 URL 不带密码与改前一致"
+        ]
+      },
+      "lastRun": {
+        "at": 1790846894476,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-7d0be1",
+      "requirementId": "REQ-261001145152-3982",
+      "title": "修 get_config() 空壳·联调",
+      "description": "子卡阶段：联调",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-a70b3c"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "接口联调通过：给出请求样例与期望响应，实际返回与预期一致",
+      "implementation": "infrastructure/config/__init__.py 的 get_config 目前只 return default，却有 29 处生产调用（含 persistence/database/engine.py 取 DSN、jwt_manager.py、llm_service.py、websocket_server.py、cli/main.py）。二选一：让 get_config 真读 pydantic settings，或逐处改调用方到 get_settings() 后删除该兼容层，一次性做完。\n\n[子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致",
+      "context": "",
+      "parentId": "t-649eb9",
+      "stageKind": "integrate",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-187eca",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790846961150,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 3296,
+              "at": 1790846961158,
+              "totals": {
+                "uncachedInputTokens": 358886,
+                "outputTokens": 330061,
+                "cacheReadTokens": 176529920,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 3316,
+              "at": 1790847072490,
+              "totals": {
+                "uncachedInputTokens": 360639,
+                "outputTokens": 330713,
+                "cacheReadTokens": 178446976,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 1753,
+              "outputTokens": 652,
+              "cacheReadTokens": 1917056,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790847072475
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-e8d51f",
+          "body": "[状态] → in_progress：联调段：验证各真实调用方在修复后是否拿到可用值（而非被吞的异常）。（reqboard_task_move）",
+          "createdAt": 1790846961150,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-4acd63",
+          "body": "[状态] → done：联调段完成：7 条调用链全通、DSN 改由 config 提供、服务端到端可用且启动日志干净。（reqboard_task_move）",
+          "createdAt": 1790847072475,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790846748298,
+      "updatedAt": 1790847072475,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790846748298,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790846961150,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "联调段：验证各真实调用方在修复后是否拿到可用值（而非被吞的异常）。"
+        },
+        {
+          "status": "done",
+          "at": 1790847072475,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "联调段完成：7 条调用链全通、DSN 改由 config 提供、服务端到端可用且启动日志干净。"
+        }
+      ],
+      "layer": 3,
+      "lastReport": {
+        "at": 1790847010840,
+        "reportIndex": 1,
+        "filesChanged": [
+          "infrastructure/config/__init__.py"
+        ],
+        "completed": [
+          "逐个真实调用方路径验证通过（7/7）：engine→config.database.url、async_base_repository→async_url 与 database、jwt_manager→app.jwt_secret_key、sentry_config→app.sentry_dsn、llm_service→external.deepseek_api_key、以及 rate_limiter/websocket/cli 走的透传属性",
+          "DSN 来源已切换到 config（优先级 2）：`_resolve_db_dsn()` 实测返回 postgresql://<user>@127.0.0.1:5432/quant_investment —— 改前这一步抛 AttributeError，只能退回环境变量拼装",
+          "服务重启后端到端可用：/docs 200、health db_connected=true、K 线接口返回 2026-09-30 数据；启动日志 0 error / 0 warning",
+          "未配置的密钥（jwt_secret_key / sentry_dsn / deepseek_api_key）现返回明确 None —— 调用方原本就按\"取不到就 warn/降级\"写，现在拿到的是明确的 None 而不是被吞掉的 AttributeError"
+        ]
+      },
+      "lastRun": {
+        "at": 1790847010840,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-f3d965",
+      "requirementId": "REQ-261001145152-3982",
+      "title": "修 get_config() 空壳·复核",
+      "description": "子卡阶段：复核",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-7d0be1"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "implementation": "infrastructure/config/__init__.py 的 get_config 目前只 return default，却有 29 处生产调用（含 persistence/database/engine.py 取 DSN、jwt_manager.py、llm_service.py、websocket_server.py、cli/main.py）。二选一：让 get_config 真读 pydantic settings，或逐处改调用方到 get_settings() 后删除该兼容层，一次性做完。\n\n[子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-649eb9",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-89f4a3",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790847077665,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 3322,
+              "at": 1790847077672,
+              "totals": {
+                "uncachedInputTokens": 360857,
+                "outputTokens": 331375,
+                "cacheReadTokens": 179086848,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 3390,
+              "at": 1790847262388,
+              "totals": {
+                "uncachedInputTokens": 364230,
+                "outputTokens": 338610,
+                "cacheReadTokens": 186200448,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 3373,
+              "outputTokens": 7235,
+              "cacheReadTokens": 7113600,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790847262374
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-7dec4b",
+          "body": "[状态] → in_progress：复核段：确认改动向后兼容——特别是有没有调用方按字典用法消费 get_config()。（reqboard_task_move）",
+          "createdAt": 1790847077665,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-7b90c1",
+          "body": "[状态] → done：复核段完成：首版不完整已在复核中补齐（redis/logging/app 视图），13 条路径逐条实测，既有 3 个测试失败经基线对照确认非本次引入。（reqboard_task_move）",
+          "createdAt": 1790847262374,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790846748298,
+      "updatedAt": 1790847262374,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790846748298,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790847077665,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "复核段：确认改动向后兼容——特别是有没有调用方按字典用法消费 get_config()。"
+        },
+        {
+          "status": "done",
+          "at": 1790847262374,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "复核段完成：首版不完整已在复核中补齐（redis/logging/app 视图），13 条路径逐条实测，既有 3 个测试失败经基线对照确认非本次引入。"
+        }
+      ],
+      "layer": 4,
+      "lastReport": {
+        "at": 1790847200387,
+        "reportIndex": 1,
+        "filesChanged": [
+          "infrastructure/config/__init__.py"
+        ],
+        "completed": [
+          "复核①（发现并当场补齐不完整修复）：首版只桥接了 database/external/app(jwt,sentry)，复核逐个读调用方后发现它们还在用 config.redis.host/port/password、config.logging.level/.format、config.app.quantsys_api_url/host/ws_port、quant_db_path、memory_recall_cosine_floor —— 这些路径仍会 AttributeError。已补 _CompatRedis（复用既有 get_redis_config 真值）、_CompatLogging（level/format → log_level/log_format 名字映射）、扩展 _CompatApp",
+          "复核②（设计决策，避免修一坑挖一坑）：纯环境变量驱动且调用方自带兜底的名字（jwt_secret_key/sentry_dsn/quantsys_api_host/ws_port/quant_db_path/memory_recall_cosine_floor）在**未配置时抛 AttributeError** 而非返回 None——因为 memory/service.py 写的是 `try: return config.app.memory_recall_cosine_floor except AttributeError: return 0.30`，返回 None 会让它返回 None 而不是 0.30。\"取不到\"与\"取到空值\"必须区分",
+          "复核③：改动面为**单文件纯增量**（infrastructure/config/__init__.py），未改任何调用方 → 不存在\"改坏调用点\"的风险；对旧行为的兼容性由\"属性找不到仍抛 AttributeError\"保证",
+          "复核④（逐路径实测 13 条）：database.url / database.async_url / database.database / redis.host / redis.port / logging.level / logging.format / app.quantsys_api_url 均返回真实值；jwt_secret_key / sentry_dsn / memory_recall_cosine_floor / tushare_token 未配置→按预期抛 AttributeError（调用方兜底生效）；external.deepseek_api_key → None（llm_service 判空后抛\"未配置\"提示，语义正确）",
+          "复核⑤：最终版服务重启后 /docs 200、db_connected=true、K 线接口返回 09-30 数据、启动日志 0 error / 0 warning、探针 exit 0",
+          "复核⑥：配置相关测试仍为 3 failed / 74 passed——与基线逐用例对照一致，确认这 3 个是**既有失败**（ConfigMerging 与 ValidationReport，与 get_config 无关），非本次引入"
+        ]
+      },
+      "lastRun": {
+        "at": 1790847200387,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-a7d164",
+      "requirementId": "REQ-261001145152-3982",
+      "title": "修 get_config() 空壳·测试",
+      "description": "子卡阶段：测试",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-f3d965"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "目标命令输出全绿（贴命令与结果摘要）",
+      "implementation": "infrastructure/config/__init__.py 的 get_config 目前只 return default，却有 29 处生产调用（含 persistence/database/engine.py 取 DSN、jwt_manager.py、llm_service.py、websocket_server.py、cli/main.py）。二选一：让 get_config 真读 pydantic settings，或逐处改调用方到 get_settings() 后删除该兼容层，一次性做完。\n\n[子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）",
+      "context": "",
+      "parentId": "t-649eb9",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-d39fa0",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790847266460,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 3396,
+              "at": 1790847266467,
+              "totals": {
+                "uncachedInputTokens": 364433,
+                "outputTokens": 339230,
+                "cacheReadTokens": 186850432,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 3416,
+              "at": 1790847381430,
+              "totals": {
+                "uncachedInputTokens": 365332,
+                "outputTokens": 340152,
+                "cacheReadTokens": 188805120,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 899,
+              "outputTokens": 922,
+              "cacheReadTokens": 1954688,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790847381416
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-3c5210",
+          "body": "[状态] → in_progress：测试段：把三条验收命令与回归项作为最终证据跑一遍。（reqboard_task_move）",
+          "createdAt": 1790847266460,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-4fdaaa",
+          "body": "[状态] → done：测试段完成：三条验收与三项回归全绿；既有 3 个测试失败经基线对照确认非本次引入；hook 跳过分支顺带得到实测。（reqboard_task_move）",
+          "createdAt": 1790847381416,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790846748298,
+      "updatedAt": 1790847381416,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790846748298,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790847266460,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "测试段：把三条验收命令与回归项作为最终证据跑一遍。"
+        },
+        {
+          "status": "done",
+          "at": 1790847381416,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "测试段完成：三条验收与三项回归全绿；既有 3 个测试失败经基线对照确认非本次引入；hook 跳过分支顺带得到实测。"
+        }
+      ],
+      "layer": 5,
+      "lastReport": {
+        "at": 1790847315948,
+        "reportIndex": 1,
+        "filesChanged": [
+          "infrastructure/config/__init__.py"
+        ],
+        "completed": [
+          "验收①：`get_config(\"PGHOST\",\"FALLBACK\")` = '127.0.0.1'（真实值）",
+          "验收②：无参调用返回 `_CompatConfig`（改前是 dict `{}`，后续属性访问必抛 AttributeError）且 `c.database.url` 可用",
+          "验收③：启动日志 error=0 / warning=0 / dsn 相关=0",
+          "回归①：服务端到端 /docs=200、health=200",
+          "回归②：配置相关测试 3 failed / 74 passed —— 与基线逐用例对照一致，属既有失败（ConfigMerging / ValidationReport，与 get_config 无关）",
+          "回归③：探针 exit=0；护栏 hook 正常",
+          "额外收获（补上此前声明为\"未验证\"的一项）：hook 的\"本次提交未涉及 quantsys-v2 即跳过\"分支**本次得到实测**——因当前无暂存内容，它打印 `⏭️ 本次提交未涉及 quantsys-v2，跳过架构检查`，证明该分支可正常触发（此前只做过语法与代码复核）"
+        ]
+      },
+      "lastRun": {
+        "at": 1790847315948,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
     }
   ],
   "edges": [
@@ -6326,6 +7012,22 @@
     {
       "from": "t-1f1299",
       "to": "t-d7750a"
+    },
+    {
+      "from": "t-504421",
+      "to": "t-a70b3c"
+    },
+    {
+      "from": "t-a70b3c",
+      "to": "t-7d0be1"
+    },
+    {
+      "from": "t-7d0be1",
+      "to": "t-f3d965"
+    },
+    {
+      "from": "t-f3d965",
+      "to": "t-a7d164"
     }
   ],
   "layers": [
@@ -6370,6 +7072,7 @@
         "t-c3a097",
         "t-008062",
         "t-723156",
+        "t-a70b3c",
         "t-a9cbe0",
         "t-c6d950",
         "t-805d4c",
@@ -6386,6 +7089,7 @@
         "t-52c511",
         "t-f04052",
         "t-3da04c",
+        "t-7d0be1",
         "t-245f18",
         "t-9254d9",
         "t-1f1299",
@@ -6399,6 +7103,7 @@
       "tasks": [
         "t-71051b",
         "t-78d5a3",
+        "t-f3d965",
         "t-65e702",
         "t-6d1800",
         "t-d7750a"
@@ -6407,12 +7112,12 @@
     {
       "layer": 5,
       "tasks": [
-        "t-646e7f"
+        "t-646e7f",
+        "t-a7d164"
       ]
     }
   ],
   "ready": [
-    "t-649eb9",
     "t-9ccd5e",
     "t-3f2444",
     "t-2d52a7",
@@ -6425,5 +7130,5 @@
     "t-008062",
     "t-9b20eb"
   ],
-  "updated_at": "2026-10-01T09:18:38.202Z"
+  "updated_at": "2026-10-01T09:37:30.671Z"
 }

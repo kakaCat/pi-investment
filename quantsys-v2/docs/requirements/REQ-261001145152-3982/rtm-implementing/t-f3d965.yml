@@ -1,0 +1,38 @@
+task:
+  id: t-f3d965
+  title: 修 get_config() 空壳·复核
+  status: done
+  implements: |-
+    infrastructure/config/__init__.py 的 get_config 目前只 return default，却有 29 处生产调用（含 persistence/database/engine.py 取 DSN、jwt_manager.py、llm_service.py、websocket_server.py、cli/main.py）。二选一：让 get_config 真读 pydantic settings，或逐处改调用方到 get_settings() 后删除该兼容层，一次性做完。
+
+    [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+  serves: []
+  depends_on:
+    - t-7d0be1
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261001145152-3982
+    TASK_ID: t-f3d965
+    TASK_TITLE: 修 get_config() 空壳·复核
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-01T09:34:22.431Z
+    - phase: review
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261001145152-3982
+  generated_at: 2026-10-01T09:31:17.709Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-01T09:34:22.432Z

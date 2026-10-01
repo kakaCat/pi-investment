@@ -2,9 +2,9 @@ metadata:
   stage: decomposing
   requirement_id: REQ-261001145152-3982
   generated_at: 2026-10-01T07:07:50.907Z
-  version: 117
+  version: 132
   generated_by: dsh-pmboard
-  last_updated: 2026-10-01T09:18:38.260Z
+  last_updated: 2026-10-01T09:37:30.743Z
 inputs:
   requirements:
     - id: FR-1
@@ -1112,6 +1112,50 @@ outputs:
       serves: []
       depends_on:
         - t-1f1299
+      phase: implement
+      side: backend
+    - id: t-a70b3c
+      title: 修 get_config() 空壳·研发
+      implements: |-
+        infrastructure/config/__init__.py 的 get_config 目前只 return default，却有 29 处生产调用（含 persistence/database/engine.py 取 DSN、jwt_manager.py、llm_service.py、websocket_server.py、cli/main.py）。二选一：让 get_config 真读 pydantic settings，或逐处改调用方到 get_settings() 后删除该兼容层，一次性做完。
+
+        [子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要
+      serves: []
+      depends_on:
+        - t-504421
+      phase: implement
+      side: backend
+    - id: t-7d0be1
+      title: 修 get_config() 空壳·联调
+      implements: |-
+        infrastructure/config/__init__.py 的 get_config 目前只 return default，却有 29 处生产调用（含 persistence/database/engine.py 取 DSN、jwt_manager.py、llm_service.py、websocket_server.py、cli/main.py）。二选一：让 get_config 真读 pydantic settings，或逐处改调用方到 get_settings() 后删除该兼容层，一次性做完。
+
+        [子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致
+      serves: []
+      depends_on:
+        - t-a70b3c
+      phase: implement
+      side: backend
+    - id: t-f3d965
+      title: 修 get_config() 空壳·复核
+      implements: |-
+        infrastructure/config/__init__.py 的 get_config 目前只 return default，却有 29 处生产调用（含 persistence/database/engine.py 取 DSN、jwt_manager.py、llm_service.py、websocket_server.py、cli/main.py）。二选一：让 get_config 真读 pydantic settings，或逐处改调用方到 get_settings() 后删除该兼容层，一次性做完。
+
+        [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-7d0be1
+      phase: implement
+      side: backend
+    - id: t-a7d164
+      title: 修 get_config() 空壳·测试
+      implements: |-
+        infrastructure/config/__init__.py 的 get_config 目前只 return default，却有 29 处生产调用（含 persistence/database/engine.py 取 DSN、jwt_manager.py、llm_service.py、websocket_server.py、cli/main.py）。二选一：让 get_config 真读 pydantic settings，或逐处改调用方到 get_settings() 后删除该兼容层，一次性做完。
+
+        [子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）
+      serves: []
+      depends_on:
+        - t-f3d965
       phase: implement
       side: backend
 traceability:

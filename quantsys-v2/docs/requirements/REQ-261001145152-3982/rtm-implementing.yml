@@ -2,11 +2,11 @@ metadata:
   stage: implementing
   requirement_id: REQ-261001145152-3982
   generated_at: 2026-10-01T07:07:50.908Z
-  version: 117
+  version: 132
   generated_by: dsh-pmboard
   detail_dir: rtm-implementing/
-  detail_count: 51
-  last_updated: 2026-10-01T09:18:38.238Z
+  detail_count: 55
+  last_updated: 2026-10-01T09:37:30.712Z
 inputs:
   tasks:
     - id: t-c63378
@@ -23,7 +23,7 @@ inputs:
       status: done
     - id: t-649eb9
       title: 修 get_config() 空壳
-      status: todo
+      status: done
     - id: t-9ccd5e
       title: 删重复实现（零引用项）
       status: todo
@@ -162,11 +162,23 @@ inputs:
     - id: t-d7750a
       title: 装外部存活与数据新鲜度探针·测试
       status: done
+    - id: t-a70b3c
+      title: 修 get_config() 空壳·研发
+      status: done
+    - id: t-7d0be1
+      title: 修 get_config() 空壳·联调
+      status: done
+    - id: t-f3d965
+      title: 修 get_config() 空壳·复核
+      status: done
+    - id: t-a7d164
+      title: 修 get_config() 空壳·测试
+      status: done
 status:
-  tasks_total: 51
-  tasks_done: 38
+  tasks_total: 55
+  tasks_done: 43
   tasks_in_progress: 0
-  tasks_todo: 13
+  tasks_todo: 12
 tasks:
   - id: t-c63378
     status: done
@@ -177,7 +189,7 @@ tasks:
   - id: t-504421
     status: done
   - id: t-649eb9
-    status: todo
+    status: done
   - id: t-9ccd5e
     status: todo
   - id: t-3f2444
@@ -269,4 +281,12 @@ tasks:
   - id: t-1f1299
     status: done
   - id: t-d7750a
+    status: done
+  - id: t-a70b3c
+    status: done
+  - id: t-7d0be1
+    status: done
+  - id: t-f3d965
+    status: done
+  - id: t-a7d164
     status: done
