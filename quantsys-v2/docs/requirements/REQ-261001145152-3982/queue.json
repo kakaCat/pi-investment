@@ -766,9 +766,50 @@
       "implementation": "删除：① infrastructure/quantlib/adapters/ 6 个克隆模块（2068 行，已确认零外部引用）；② infrastructure/quantlib/core/{base_calculator,exceptions}.py（516 行；core/pipeline.py 不可删，tests/test_pipeline.py 与 tests/test_integration.py 直接 import）；③ 13 个 .bak（8097 行，未被 git 跟踪）+ 18 个孤儿 __pycache__ + 9 个空壳包。",
       "context": "",
       "requirementRefs": [],
-      "status": "todo",
+      "status": "done",
       "blocked": false,
-      "executions": [],
+      "executions": [
+        {
+          "id": "e-9d1963",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790849342915,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 3523,
+              "at": 1790849342923,
+              "totals": {
+                "uncachedInputTokens": 387720,
+                "outputTokens": 347797,
+                "cacheReadTokens": 199401984,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 3773,
+              "at": 1790849996750,
+              "totals": {
+                "uncachedInputTokens": 1026395,
+                "outputTokens": 365005,
+                "cacheReadTokens": 222476544,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 638675,
+              "outputTokens": 17208,
+              "cacheReadTokens": 23074560,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790849996732
+        }
+      ],
       "statusHistory": [
         {
           "status": "todo",
@@ -778,12 +819,49 @@
             "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
           },
           "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790849342915,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "开工：删除零引用重复实现（已取删除前基线：tests/test_pipeline.py+test_integration.py = 6 failed/11 passed；infrastructure.quantlib.adapters 外部引用 0；.bak 13 个；孤儿 __pycache__ 18 个；空壳包 9 个）。"
+        },
+        {
+          "status": "done",
+          "at": 1790849996732,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "父卡收尾：四张子卡完成；删除 ~10,684 行重复/备份代码 + 27 个目录，三项验收达成，回归全通，未破坏任何对外 API。"
         }
       ],
-      "comments": [],
-      "version": 1,
+      "comments": [
+        {
+          "id": "c-e2a743",
+          "body": "[状态] → in_progress：开工：删除零引用重复实现（已取删除前基线：tests/test_pipeline.py+test_integration.py = 6 failed/11 passed；infrastructure.quantlib.adapters 外部引用 0；.bak 13 个；孤儿 __pycache__ 18 个；空壳包 9 个）。（reqboard_task_move）",
+          "createdAt": 1790849342915,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-6261ce",
+          "body": "[状态] → done：父卡收尾：四张子卡完成；删除 ~10,684 行重复/备份代码 + 27 个目录，三项验收达成，回归全通，未破坏任何对外 API。（reqboard_task_move）",
+          "createdAt": 1790849996732,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
       "createdAt": 1790838470861,
-      "updatedAt": 1790838470861,
+      "updatedAt": 1790849996732,
       "createdBy": {
         "kind": "agent",
         "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
@@ -792,7 +870,30 @@
         "kind": "agent",
         "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
       },
-      "layer": 2
+      "layer": 2,
+      "lastReport": {
+        "at": 1790849932212,
+        "reportIndex": 1,
+        "filesChanged": [
+          "infrastructure/quantlib/core/__init__.py",
+          "infrastructure/quantlib/core/data_validator.py"
+        ],
+        "completed": [
+          "删除 6 个克隆适配器模块（2,068 行）——保留 `adapters/__init__.py` 转发壳（8 处消费者依赖，实测公共 API 不变）",
+          "删除 core/base_calculator.py + core/exceptions.py（516 行，与 domain.quantlib.core 下同名文件 md5 逐字相同）；core/__init__.py 与 data_validator.py 改指 domain 正本，对外 API 与 __all__ 不变",
+          "删除 13 个 .bak（8,097 行，全部未被 git 跟踪）+ 18 个孤儿 __pycache__ + 9 个空壳包 → 合计约 **10,684 行 + 27 个目录**",
+          "三项验收：pytest 6 failed/11 passed 与删除前逐字一致；外部引用 0；.bak 0",
+          "回归：新进程端到端可用（/docs、health、K 线读接口）；5 条关键导入全通；业务消费方（factor_layering_service / opportunity_scoring_service / di container）可导入",
+          "**自我纠错并留痕**：首轮删除漏掉包内相对导入（`from .exceptions import`，绝对路径 grep 查不到），被 test_integration 收集失败当场抓到，已改为指向 domain 正本并在代码内注释说明",
+          "四张子卡（研发/联调/复核/测试）全部完成；复核结论\"无偏离\"，删除量与审计承诺对齐"
+        ]
+      },
+      "lastRun": {
+        "at": 1790849932212,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
     },
     {
       "id": "t-3f2444",
@@ -6846,6 +6947,588 @@
         "stopReason": "reported",
         "valueNonEmpty": true
       }
+    },
+    {
+      "id": "t-05079e",
+      "requirementId": "REQ-261001145152-3982",
+      "title": "删重复实现（零引用项）·研发",
+      "description": "子卡阶段：研发",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-504421"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "implementation": "删除：① infrastructure/quantlib/adapters/ 6 个克隆模块（2068 行，已确认零外部引用）；② infrastructure/quantlib/core/{base_calculator,exceptions}.py（516 行；core/pipeline.py 不可删，tests/test_pipeline.py 与 tests/test_integration.py 直接 import）；③ 13 个 .bak（8097 行，未被 git 跟踪）+ 18 个孤儿 __pycache__ + 9 个空壳包。\n\n[子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "context": "",
+      "parentId": "t-9ccd5e",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-8ff70e",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790849486179,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 3633,
+              "at": 1790849486188,
+              "totals": {
+                "uncachedInputTokens": 1019966,
+                "outputTokens": 356513,
+                "cacheReadTokens": 208254720,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 3671,
+              "at": 1790849599129,
+              "totals": {
+                "uncachedInputTokens": 1021876,
+                "outputTokens": 358718,
+                "cacheReadTokens": 212103680,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 1910,
+              "outputTokens": 2205,
+              "cacheReadTokens": 3848960,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790849599113
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-2a0f64",
+          "body": "[状态] → in_progress：研发段：删除零引用重复实现（含一次自我纠错）。（reqboard_task_move）",
+          "createdAt": 1790849486179,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-64d2c9",
+          "body": "[状态] → done：研发段完成：删除 ~10,684 行重复/备份代码 + 27 个缓存与空壳目录；三项验收全部达成；期间自查出并修好一处漏删的相对导入。（reqboard_task_move）",
+          "createdAt": 1790849599113,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790849342915,
+      "updatedAt": 1790849599113,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790849342915,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790849486179,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "研发段：删除零引用重复实现（含一次自我纠错）。"
+        },
+        {
+          "status": "done",
+          "at": 1790849599113,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "研发段完成：删除 ~10,684 行重复/备份代码 + 27 个缓存与空壳目录；三项验收全部达成；期间自查出并修好一处漏删的相对导入。"
+        }
+      ],
+      "layer": 2,
+      "lastReport": {
+        "at": 1790849486316,
+        "reportIndex": 1,
+        "filesChanged": [
+          "infrastructure/quantlib/core/__init__.py",
+          "infrastructure/quantlib/core/data_validator.py"
+        ],
+        "completed": [
+          "删除 6 个克隆适配器模块（akshare/base/eastmoney/sina/factory/factor_calculator_adapter，共 2068 行）—— **保留 adapters/__init__.py 转发壳**（实测 8 处消费者按 `from infrastructure.quantlib.adapters import get_factor_adapter` 在用它，实测公共 API 仍可用）",
+          "删除 core/base_calculator.py 与 core/exceptions.py（516 行，与 domain.quantlib.core 下同名文件 **md5 逐字相同**）；同时把 core/__init__.py 的 import 改指 domain 正本，**对外 API 与 __all__ 不变**",
+          "删除 13 个 .bak（8,097 行，全部未被 git 跟踪）+ 18 个孤儿 __pycache__ + 9 个空壳包（逐个确认 .py 数为 0 才删）",
+          "删除总量：已跟踪 2,587 行 + 未跟踪 .bak 8,097 行 ≈ 10,684 行，另加 27 个缓存/空壳目录",
+          "**自我纠错（重要）**：首轮删除后 test_integration 收集失败——包内 `data_validator.py` 用的是**相对导入** `from .exceptions import ...`，而我删除前的引用检查只查了绝对路径形态，漏掉了这一类。已改为指向 domain 正本并在代码里留注释说明",
+          "验收①：`pytest tests/test_pipeline.py tests/test_integration.py -q` = **6 failed / 11 passed**，与删除前逐字一致（该 6 个失败为既有问题）",
+          "验收②：`grep -rn \"infrastructure\\.quantlib\\.adapters\\.\"` 外部命中 **0**（仅剩包内转发壳）",
+          "验收③：`find . -name '*.bak'` = **0**",
+          "回归：app 可导入（101 路由）；`infrastructure.quantlib.adapters` 转发壳、`infrastructure.quantlib.core` 公共 API、`data_validator` 均可用（转发壳会发 DeprecationWarning，属既有行为）"
+        ]
+      },
+      "lastRun": {
+        "at": 1790849486316,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-9dd27b",
+      "requirementId": "REQ-261001145152-3982",
+      "title": "删重复实现（零引用项）·联调",
+      "description": "子卡阶段：联调",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-05079e"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）",
+      "implementation": "删除：① infrastructure/quantlib/adapters/ 6 个克隆模块（2068 行，已确认零外部引用）；② infrastructure/quantlib/core/{base_calculator,exceptions}.py（516 行；core/pipeline.py 不可删，tests/test_pipeline.py 与 tests/test_integration.py 直接 import）；③ 13 个 .bak（8097 行，未被 git 跟踪）+ 18 个孤儿 __pycache__ + 9 个空壳包。\n\n[子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）",
+      "context": "",
+      "parentId": "t-9ccd5e",
+      "stageKind": "integrate",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-4aea0e",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790849603596,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 3677,
+              "at": 1790849603604,
+              "totals": {
+                "uncachedInputTokens": 1022081,
+                "outputTokens": 359334,
+                "cacheReadTokens": 212747008,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 3703,
+              "at": 1790849682598,
+              "totals": {
+                "uncachedInputTokens": 1023257,
+                "outputTokens": 360952,
+                "cacheReadTokens": 215328640,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 1176,
+              "outputTokens": 1618,
+              "cacheReadTokens": 2581632,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790849682582
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-8b8831",
+          "body": "[状态] → in_progress：联调段：用全新进程验证删除后的应用可正常加载与服务（覆盖静态导入与懒加载路径）。（reqboard_task_move）",
+          "createdAt": 1790849603596,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-e9407c",
+          "body": "[状态] → done：联调段完成：新进程端到端可用、两条导入链与业务消费方全通；期间服务被外部回收一次，探针如实报警并已恢复。（reqboard_task_move）",
+          "createdAt": 1790849682582,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790849342915,
+      "updatedAt": 1790849682582,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790849342915,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790849603596,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "联调段：用全新进程验证删除后的应用可正常加载与服务（覆盖静态导入与懒加载路径）。"
+        },
+        {
+          "status": "done",
+          "at": 1790849682582,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "联调段完成：新进程端到端可用、两条导入链与业务消费方全通；期间服务被外部回收一次，探针如实报警并已恢复。"
+        }
+      ],
+      "layer": 3,
+      "lastReport": {
+        "at": 1790849620305,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "联调①（最强证据）：**全新进程**加载删除后的代码并正常服务——/docs 200、health 200、/api/charts/kline 返回 09-30 数据（覆盖静态导入与懒加载两条路径）",
+          "联调②：删除涉及的两条导入链在进程外全部走通——adapters 转发壳 8 个符号齐备（get_factor_adapter/get_adapter/AkShare/EastMoney/Sina/BaseMarketAdapter 等）、core 公共 API 齐备（含 pipeline 与已改指 domain 的 base_calculator/exceptions）、本次修过相对导入的 data_validator 可导入",
+          "联调③：直接消费该转发壳的业务方均可导入——factor_layering_service、opportunity_scoring_service、infrastructure.di.container（真实符号是 Container / get_container()）",
+          "联调④（意外但重要，属真实故障而非构造）：本卡进行中服务曾整体不可用（端口无监听、探针 exit 2 报警、日志最后一条仍是正常 200 → 进程被外部回收而非崩溃），根因是**本会话后台作业注册表被清空、连带回收了子进程**；已重启服务并复查 /docs 200、探针 exit 0、四路调度仍全关。这既是\"后台进程不留存\"这一已知限制的实证，也是**探针第一次真实抓到故障**（此前只做过注入验证）",
+          "联调⑤：自我纠错——首版我臆造了 `DIContainer` 这个符号名导致 ImportError，实为 `Container`；模块本身导入一直是成功的。已按真实符号复测通过",
+          "局限（如实记录）：本子卡模板里的验收命令指向 `npx vitest run`（TS 工具链），与本仓 Python 栈不匹配，故按 pytest 与 import 实测执行"
+        ]
+      },
+      "lastRun": {
+        "at": 1790849620305,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-fb9b61",
+      "requirementId": "REQ-261001145152-3982",
+      "title": "删重复实现（零引用项）·复核",
+      "description": "子卡阶段：复核",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-9dd27b"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "implementation": "删除：① infrastructure/quantlib/adapters/ 6 个克隆模块（2068 行，已确认零外部引用）；② infrastructure/quantlib/core/{base_calculator,exceptions}.py（516 行；core/pipeline.py 不可删，tests/test_pipeline.py 与 tests/test_integration.py 直接 import）；③ 13 个 .bak（8097 行，未被 git 跟踪）+ 18 个孤儿 __pycache__ + 9 个空壳包。\n\n[子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-9ccd5e",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-fa749f",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790849687394,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 3709,
+              "at": 1790849687401,
+              "totals": {
+                "uncachedInputTokens": 1023517,
+                "outputTokens": 361758,
+                "cacheReadTokens": 215975040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 3729,
+              "at": 1790849804045,
+              "totals": {
+                "uncachedInputTokens": 1024558,
+                "outputTokens": 362885,
+                "cacheReadTokens": 217920384,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 1041,
+              "outputTokens": 1127,
+              "cacheReadTokens": 1945344,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790849804028
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-5b00da",
+          "body": "[状态] → in_progress：复核段：逐条核对删除依据是否成立、有无误删，以及验收三项。（reqboard_task_move）",
+          "createdAt": 1790849687394,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-0f3e44",
+          "body": "[状态] → done：复核段完成：删除依据逐条可复核、无误删、三项验收复跑全绿、删除量与审计承诺对齐，结论\"无偏离\"。（reqboard_task_move）",
+          "createdAt": 1790849804028,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790849342915,
+      "updatedAt": 1790849804028,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790849342915,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790849687394,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "复核段：逐条核对删除依据是否成立、有无误删，以及验收三项。"
+        },
+        {
+          "status": "done",
+          "at": 1790849804028,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "复核段完成：删除依据逐条可复核、无误删、三项验收复跑全绿、删除量与审计承诺对齐，结论\"无偏离\"。"
+        }
+      ],
+      "layer": 4,
+      "lastReport": {
+        "at": 1790849742850,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "复核①：四条删除依据均可独立复核——a) 6 个克隆模块在转发壳里 0 处引用（__init__ 走 adapters.outbound...providers 路径）；b) 两个 core 文件与 domain 逐字相同（删除前 md5 已核对）；c) .bak 在版本控制中 0 个；d) 9 个空壳包删除前 .py 数逐个确认为 0",
+          "复核②：无误删——`core/pipeline.py` 保留（3,503 字节，卡片明确要求不可删），`adapters/` 目录只剩 `__init__.py` 转发壳（8 处消费者依赖它）",
+          "复核③：卡片三项验收复跑全绿——pytest 6 failed/11 passed（与删除前逐字一致）、外部引用 0、.bak 0",
+          "复核④：删除量与审计承诺对齐——承诺 2,068（克隆）+ 516（core 两文件）+ 8,097（.bak）≈ 10,681 行；实际 2,587（已跟踪）+ 8,097（未跟踪 .bak），差 3 行为本次改写的两处 import 行",
+          "偏离结论：**无偏离**（设计要求的删除项逐条完成）。但有 1 处过程性纠正已在研发段记录：首轮删除漏掉了包内相对导入 `from .exceptions import`（绝对路径 grep 查不到这一类），由 test_integration 收集失败暴露并已改为指向 domain 正本",
+          "局限：本子卡模板验收命令写的是 `npx vitest run`（TS 工具链），与本仓 Python 栈不匹配；已按 pytest + import 实测执行并在汇报中记明"
+        ]
+      },
+      "lastRun": {
+        "at": 1790849742850,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-6e7b28",
+      "requirementId": "REQ-261001145152-3982",
+      "title": "删重复实现（零引用项）·测试",
+      "description": "子卡阶段：测试",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-fb9b61"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "implementation": "删除：① infrastructure/quantlib/adapters/ 6 个克隆模块（2068 行，已确认零外部引用）；② infrastructure/quantlib/core/{base_calculator,exceptions}.py（516 行；core/pipeline.py 不可删，tests/test_pipeline.py 与 tests/test_integration.py 直接 import）；③ 13 个 .bak（8097 行，未被 git 跟踪）+ 18 个孤儿 __pycache__ + 9 个空壳包。\n\n[子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "context": "",
+      "parentId": "t-9ccd5e",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-6805e1",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790849809078,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 3735,
+              "at": 1790849809085,
+              "totals": {
+                "uncachedInputTokens": 1024779,
+                "outputTokens": 363472,
+                "cacheReadTokens": 218569600,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 3755,
+              "at": 1790849926704,
+              "totals": {
+                "uncachedInputTokens": 1025750,
+                "outputTokens": 364124,
+                "cacheReadTokens": 220521344,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 971,
+              "outputTokens": 652,
+              "cacheReadTokens": 1951744,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790849926689
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-1c4cf5",
+          "body": "[状态] → in_progress：测试段：把卡片三项验收作为最终证据整体跑一遍，并加做导入回归。（reqboard_task_move）",
+          "createdAt": 1790849809078,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-973522",
+          "body": "[状态] → done：测试段完成：三项验收复跑全绿、5 条导入回归全通、护栏正常、体积未反弹。（reqboard_task_move）",
+          "createdAt": 1790849926689,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790849342915,
+      "updatedAt": 1790849926689,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790849342915,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790849809078,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "测试段：把卡片三项验收作为最终证据整体跑一遍，并加做导入回归。"
+        },
+        {
+          "status": "done",
+          "at": 1790849926689,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "测试段完成：三项验收复跑全绿、5 条导入回归全通、护栏正常、体积未反弹。"
+        }
+      ],
+      "layer": 5,
+      "lastReport": {
+        "at": 1790849864883,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "测试①：`pytest tests/test_pipeline.py tests/test_integration.py -q` = **6 failed / 11 passed**，与开工基线逐字一致（失败项为既有问题，非本次引入）",
+          "测试②：`grep -rn \"infrastructure\\.quantlib\\.adapters\\.\"` 外部命中 **0**",
+          "测试③：`find . -name '*.bak'` = **0**",
+          "测试④：导入回归 5 条全通（转发壳 get_factor_adapter / core 公共 API / 本次修过的 data_validator / factor_layering_service / domain 的 FactorStage）",
+          "测试⑤：护栏 hook 正常（当前无暂存内容 → 正确走跳过分支）；仓库体积 1.2G（未反弹）",
+          "局限（如实记录）：本子卡模板验收命令写的是 `pnpm test` 与 `npx tsc --noEmit`（TS 工具链）+ 失败数/错误数基线口径，与本仓 Python 栈不匹配（无 pnpm/tsc）；已按等价的 pytest 基线与 import 回归执行，并在汇报中记明口径差异"
+        ]
+      },
+      "lastRun": {
+        "at": 1790849864883,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
     }
   ],
   "edges": [
@@ -7028,6 +7711,22 @@
     {
       "from": "t-f3d965",
       "to": "t-a7d164"
+    },
+    {
+      "from": "t-504421",
+      "to": "t-05079e"
+    },
+    {
+      "from": "t-05079e",
+      "to": "t-9dd27b"
+    },
+    {
+      "from": "t-9dd27b",
+      "to": "t-fb9b61"
+    },
+    {
+      "from": "t-fb9b61",
+      "to": "t-6e7b28"
     }
   ],
   "layers": [
@@ -7073,6 +7772,7 @@
         "t-008062",
         "t-723156",
         "t-a70b3c",
+        "t-05079e",
         "t-a9cbe0",
         "t-c6d950",
         "t-805d4c",
@@ -7090,6 +7790,7 @@
         "t-f04052",
         "t-3da04c",
         "t-7d0be1",
+        "t-9dd27b",
         "t-245f18",
         "t-9254d9",
         "t-1f1299",
@@ -7104,6 +7805,7 @@
         "t-71051b",
         "t-78d5a3",
         "t-f3d965",
+        "t-fb9b61",
         "t-65e702",
         "t-6d1800",
         "t-d7750a"
@@ -7113,12 +7815,12 @@
       "layer": 5,
       "tasks": [
         "t-646e7f",
-        "t-a7d164"
+        "t-a7d164",
+        "t-6e7b28"
       ]
     }
   ],
   "ready": [
-    "t-9ccd5e",
     "t-3f2444",
     "t-2d52a7",
     "t-59468b",
@@ -7130,5 +7832,5 @@
     "t-008062",
     "t-9b20eb"
   ],
-  "updated_at": "2026-10-01T09:37:30.671Z"
+  "updated_at": "2026-10-01T10:19:56.750Z"
 }

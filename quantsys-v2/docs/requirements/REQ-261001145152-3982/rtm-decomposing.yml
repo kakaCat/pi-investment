@@ -2,9 +2,9 @@ metadata:
   stage: decomposing
   requirement_id: REQ-261001145152-3982
   generated_at: 2026-10-01T07:07:50.907Z
-  version: 132
+  version: 147
   generated_by: dsh-pmboard
-  last_updated: 2026-10-01T09:37:30.743Z
+  last_updated: 2026-10-01T10:19:56.825Z
 inputs:
   requirements:
     - id: FR-1
@@ -1156,6 +1156,50 @@ outputs:
       serves: []
       depends_on:
         - t-f3d965
+      phase: implement
+      side: backend
+    - id: t-05079e
+      title: 删重复实现（零引用项）·研发
+      implements: |-
+        删除：① infrastructure/quantlib/adapters/ 6 个克隆模块（2068 行，已确认零外部引用）；② infrastructure/quantlib/core/{base_calculator,exceptions}.py（516 行；core/pipeline.py 不可删，tests/test_pipeline.py 与 tests/test_integration.py 直接 import）；③ 13 个 .bak（8097 行，未被 git 跟踪）+ 18 个孤儿 __pycache__ + 9 个空壳包。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-504421
+      phase: implement
+      side: backend
+    - id: t-9dd27b
+      title: 删重复实现（零引用项）·联调
+      implements: |-
+        删除：① infrastructure/quantlib/adapters/ 6 个克隆模块（2068 行，已确认零外部引用）；② infrastructure/quantlib/core/{base_calculator,exceptions}.py（516 行；core/pipeline.py 不可删，tests/test_pipeline.py 与 tests/test_integration.py 直接 import）；③ 13 个 .bak（8097 行，未被 git 跟踪）+ 18 个孤儿 __pycache__ + 9 个空壳包。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-05079e
+      phase: implement
+      side: backend
+    - id: t-fb9b61
+      title: 删重复实现（零引用项）·复核
+      implements: |-
+        删除：① infrastructure/quantlib/adapters/ 6 个克隆模块（2068 行，已确认零外部引用）；② infrastructure/quantlib/core/{base_calculator,exceptions}.py（516 行；core/pipeline.py 不可删，tests/test_pipeline.py 与 tests/test_integration.py 直接 import）；③ 13 个 .bak（8097 行，未被 git 跟踪）+ 18 个孤儿 __pycache__ + 9 个空壳包。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-9dd27b
+      phase: implement
+      side: backend
+    - id: t-6e7b28
+      title: 删重复实现（零引用项）·测试
+      implements: |-
+        删除：① infrastructure/quantlib/adapters/ 6 个克隆模块（2068 行，已确认零外部引用）；② infrastructure/quantlib/core/{base_calculator,exceptions}.py（516 行；core/pipeline.py 不可删，tests/test_pipeline.py 与 tests/test_integration.py 直接 import）；③ 13 个 .bak（8097 行，未被 git 跟踪）+ 18 个孤儿 __pycache__ + 9 个空壳包。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-fb9b61
       phase: implement
       side: backend
 traceability:

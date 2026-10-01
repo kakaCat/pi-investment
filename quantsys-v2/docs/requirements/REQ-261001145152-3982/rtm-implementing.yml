@@ -2,11 +2,11 @@ metadata:
   stage: implementing
   requirement_id: REQ-261001145152-3982
   generated_at: 2026-10-01T07:07:50.908Z
-  version: 132
+  version: 147
   generated_by: dsh-pmboard
   detail_dir: rtm-implementing/
-  detail_count: 55
-  last_updated: 2026-10-01T09:37:30.712Z
+  detail_count: 59
+  last_updated: 2026-10-01T10:19:56.795Z
 inputs:
   tasks:
     - id: t-c63378
@@ -26,7 +26,7 @@ inputs:
       status: done
     - id: t-9ccd5e
       title: 删重复实现（零引用项）
-      status: todo
+      status: done
     - id: t-3f2444
       title: 修悬空 import + 裁决 BaseCalculator 双类
       status: todo
@@ -174,11 +174,23 @@ inputs:
     - id: t-a7d164
       title: 修 get_config() 空壳·测试
       status: done
+    - id: t-05079e
+      title: 删重复实现（零引用项）·研发
+      status: done
+    - id: t-9dd27b
+      title: 删重复实现（零引用项）·联调
+      status: done
+    - id: t-fb9b61
+      title: 删重复实现（零引用项）·复核
+      status: done
+    - id: t-6e7b28
+      title: 删重复实现（零引用项）·测试
+      status: done
 status:
-  tasks_total: 55
-  tasks_done: 43
+  tasks_total: 59
+  tasks_done: 48
   tasks_in_progress: 0
-  tasks_todo: 12
+  tasks_todo: 11
 tasks:
   - id: t-c63378
     status: done
@@ -191,7 +203,7 @@ tasks:
   - id: t-649eb9
     status: done
   - id: t-9ccd5e
-    status: todo
+    status: done
   - id: t-3f2444
     status: todo
   - id: t-2d52a7
@@ -289,4 +301,12 @@ tasks:
   - id: t-f3d965
     status: done
   - id: t-a7d164
+    status: done
+  - id: t-05079e
+    status: done
+  - id: t-9dd27b
+    status: done
+  - id: t-fb9b61
+    status: done
+  - id: t-6e7b28
     status: done
