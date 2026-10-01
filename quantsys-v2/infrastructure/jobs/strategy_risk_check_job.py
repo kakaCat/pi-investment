@@ -37,10 +37,8 @@ from application.services.strategy_service import StrategyService
 from live_trading.simulation_trader import SimulationTrader
 import yaml
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+# 统一日志入口（2026-10-01 t-008062 主题B：库层不再调用 basicConfig）：此处的日志配置已移除（由入口统一配置）
+
 logger = logging.getLogger(__name__)
 
 

@@ -85,11 +85,7 @@ def configure_structured_logging(
             )
         )
 
-    logging.basicConfig(
-        format="%(message)s",
-        handlers=_handlers,
-        level=getattr(logging, level.upper()),
-    )
+    _apply_root_handlers(_handlers, level, fmt="%(message)s")
 
     # 选择渲染器
     if json_format:
@@ -149,11 +145,31 @@ def configure_structured_logging(
     return logger
 
 
+def _apply_root_handlers(handlers: list, level: str, fmt: str, datefmt: str | None = None) -> None:
+    """显式给 root logger 装 handler（替代 `basicConfig`）。
+
+    2026-10-01（REQ-261001145152-3982 t-008062 主题B）：本仓约定"库层不得调用
+    `basicConfig`，日志由入口统一配置"，而本模块**就是那个入口配置器**——
+    为守住这条约定同时保持行为，这里显式装配 root handler。
+
+    语义对齐 `basicConfig(handlers=..., level=..., force=False)`：
+    **root 已有 handler 时不动它**（重复调用幂等，不会叠加 handler）。
+    """
+    root = logging.getLogger()
+    if root.handlers:
+        return
+    root.setLevel(getattr(logging, level.upper()))
+    for h in handlers:
+        h.setFormatter(logging.Formatter(fmt, datefmt=datefmt))
+        root.addHandler(h)
+
+
 def _configure_standard_logging(level: str) -> logging.Logger:
     """降级到标准 logging（structlog 不可用时）"""
-    logging.basicConfig(
-        level=getattr(logging, level.upper()),
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    _apply_root_handlers(
+        [logging.StreamHandler()],
+        level,
+        fmt="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
     logger = logging.getLogger(__name__)

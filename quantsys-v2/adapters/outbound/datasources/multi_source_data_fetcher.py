@@ -426,10 +426,9 @@ class MultiSourceDataFetcher:
 
 if __name__ == '__main__':
     # 测试多数据源获取器
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s [%(levelname)s] %(message)s'
-    )
+    from infrastructure.logging import configure_structured_logging
+    configure_structured_logging(level="INFO", json_format=False)  # 统一日志入口（2026-10-01 t-008062 主题B：库层不再调用 basicConfig）
+
 
     fetcher = MultiSourceDataFetcher()
 

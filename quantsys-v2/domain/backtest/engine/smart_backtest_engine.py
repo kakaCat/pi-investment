@@ -392,7 +392,8 @@ def simple_ma_strategy(df: pd.DataFrame, fast: int = 5, slow: int = 20) -> pd.Da
 
 def main():
     """使用示例"""
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
+    # 统一日志入口（2026-10-01 t-008062 主题B：库层不再调用 basicConfig）：此处的日志配置已移除（由入口统一配置）
+
 
     # 生成测试数据
     print("生成测试数据...")
