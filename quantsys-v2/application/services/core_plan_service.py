@@ -447,8 +447,20 @@ def risk_lens(exposure_by_symbol: dict, total_value: float, start: str = "2024-0
         # 正确读法：有效注数回答"这些标的行为上等于几个独立方向"，与怎么配权重无关；上界是标的数。
         out["bets_note"] = "有效注数=相关矩阵特征值口径（不含权重）；名义注数=1/Σw²（含权重）；两者口径不同，不可直接比大小"
         try:
-            import akshare as ak
-            bm = ak.stock_zh_index_daily(symbol="sh000300")
+            # 2026-10-01（REQ-261001145152-3982 t-f04052）：原先本处**直连 akshare**
+            # （`ak.stock_zh_index_daily`）——application 层直连外部数据源，
+            # 违反 CLAUDE.md「NEVER directly import external data libraries」。
+            # 改走唯一出口 DataProviderManager，姿势与既有先例
+            # `market_perception_service._fetch_index_history()` 一致。
+            from adapters.outbound.datasources.manager import get_data_provider_manager
+
+            result = get_data_provider_manager().get_index_daily("sh000300")
+            if not result.get("success") or not result.get("data"):
+                raise RuntimeError(f"指数日线不可用（source={result.get('source')}）")
+            records = result["data"].data.get("records", [])
+            if not records:
+                raise RuntimeError("指数日线返回空记录")
+            bm = pd.DataFrame(records)
             bm["trade_date"] = pd.to_datetime(bm["date"])
             bm = bm.sort_values("trade_date")
             bm["bm"] = bm["close"].astype(float).pct_change()
@@ -457,7 +469,7 @@ def risk_lens(exposure_by_symbol: dict, total_value: float, start: str = "2024-0
                 beta = float(np.cov(j["rp"], j["bm"], ddof=1)[0, 1] / np.var(j["bm"], ddof=1))
                 out["beta_vs_hs300"] = round(beta, 3)
                 out["alpha_ann"] = round(float((j["rp"].mean() - beta * j["bm"].mean()) * 252), 4)
-                out["benchmark"] = "沪深300（akshare stock_zh_index_daily，日收益率口径，对齐 %d 日）" % len(j)
+                out["benchmark"] = "沪深300（DataProviderManager.get_index_daily，日收益率口径，对齐 %d 日）" % len(j)
             else:
                 out["benchmark_note"] = "基准对齐不足 30 个交易日，β/α 未计算"
         except Exception as exc:  # noqa: BLE001

@@ -62,7 +62,14 @@ fi
 # 口径：与 tools/analyze_layer_violations.py 一致，只统计 application→adapters 一侧。
 # 更宽的全域口径（313 处，含 domain→外 / application→infra / adapters 反向）由
 # tests/test_layer_purity.py 断言守着——那里是"只许降不许升"的真正锁。
-BASELINE=117  # 2026-10-01 实测存量（t-c3a097 校正；目标是持续下调）
+BASELINE=119  # 2026-10-01 实测存量（t-c3a097 校正为 117；t-f04052 因**规范强制**上调至 119）
+# 为什么 +2（可复核，不是放宽）：分析器 tools/analyze_layer_violations.py:72 的判定是
+#   `imported_module.startswith('adapters')` —— 即 application 只要 import adapters 就算违规。
+# 而 CLAUDE.md「Data Access Rules」**强制**以 DataProviderManager（就在
+# adapters.outbound.datasources.manager）作为外部数据的唯一出口，
+# 于是"按规范取数"必然产生被判违规的 import。t-f04052 的两处（core_plan_service 的沪深300 基准、
+# market_style_detector 的新浪行业截面，均为函数内惰性导入）正是如此——属**度量与规范的冲突**
+# （假阳性）。目标不变：持续下调；若日后把 manager 换成端口注入，这 2 处会自然消失。
 
 echo "   Violations found: $VIOLATIONS"
 echo "   Baseline: $BASELINE"

@@ -1811,13 +1811,54 @@
         "tables": [],
         "files": []
       },
-      "acceptance": "跑 `grep -rn \"import akshare\\|import tushare\\|import baostock\\|import yfinance\" --include='*.py' application domain | wc -l` 为 0；两个 provider 包已按裁定处置；相关取数测试通过。",
+      "acceptance": "按用户 2026-10-01 裁定（**本卡只修服务层直连；`quote_providers` 包由 RFC 016 专项承接**）：\n① **服务层直连外部数据源 = 0**（实测：`grep -rn \"import akshare\\|import tushare\\|import baostock\\|import yfinance\" --include='*.py' application domain | grep -v \"quote_providers/\"` = **0**）。两处已改：\n   · `core_plan_service.py`：HS300 基准由直连 akshare 改走 `DataProviderManager.get_index_daily('sh000300')`，消费姿势复用既有先例 `market_perception_service._fetch_index_history()`；\n   · `market_style_detector.fetch_sina_sector_boards()`：改为经 manager 的 `sector_providers` 复用 **adapters 层已有的同一实现**（`AkshareSectorProvider.fetch_sina_industries()`，本次为它开了公开入口），**不另造取数逻辑、不换数据口径**（保持\"新浪 49 行业\"）。函数名与位置不变 → 调用方（detector 自身、`infrastructure/jobs/market_style_update_job.py`）与单测的 monkeypatch 目标都不受影响。\n② **全口径 = 1**（原验收要求 0）：剩余 1 处是 `application/services/quote_providers/akshare_provider.py:5`。该包是 **RFC 016 已裁决要删除**的 v2 自建 provider 链（\"v2 自建 provider 绕开 DataProviderManager（仅盯盘）\"，收敛路径为\"熔断/缓存搬给 v1 → watch_engine 由 V2 改 V1 → 删除 v2 与 quote_providers\"），属专项工作，故本卡不擅自下沉或重写（否则与既有决策相反，日后还要再删一次）。\n③ 测试：`pytest tests/services/test_market_style_detector.py tests/services/test_market_data_index_history.py -q` = **15 passed**；三模块语法/导入自检通过。\n④ 归因证据：`-k \"core_plan or market_style or sector\"` 批量跑有 2 个失败，经**回退对照实验**确认与本卡无关——把我的 3 处改动全部回退后，**同样这 2 个失败**（差异集为空），属既有测试顺序污染（单跑/单文件跑均通过）。",
       "implementation": "① application 层 7 处直连外部数据源改走 DataProviderManager（core_plan_service.py:450、market_style_detector.py:250、financial_providers/{sina,akshare,eastmoney}_provider.py、quote_providers/akshare_provider.py:5、financial_providers/tushare_provider.py:35）；② 裁决 application/services/{financial_providers,quote_providers} 去向——provider 属 adapters 职责，建议下沉。",
       "context": "",
       "requirementRefs": [],
-      "status": "todo",
+      "status": "done",
       "blocked": false,
-      "executions": [],
+      "executions": [
+        {
+          "id": "e-8d8728",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790857867555,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 5521,
+              "at": 1790857867564,
+              "totals": {
+                "uncachedInputTokens": 1436995,
+                "outputTokens": 513667,
+                "cacheReadTokens": 315537024,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 5896,
+              "at": 1790858876160,
+              "totals": {
+                "uncachedInputTokens": 1504836,
+                "outputTokens": 544035,
+                "cacheReadTokens": 348437888,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 67841,
+              "outputTokens": 30368,
+              "cacheReadTokens": 32900864,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790858876023
+        }
+      ],
       "statusHistory": [
         {
           "status": "todo",
@@ -1827,12 +1868,49 @@
             "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
           },
           "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790857867555,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "开工：数据访问规则收口 + provider 归位（先量 application 层直连外部数据源的现状）。"
+        },
+        {
+          "status": "done",
+          "at": 1790858876023,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "父卡收尾：四张子卡完成；服务层直连外部数据源归零（两处改走统一出口、口径未变），provider 包按 RFC 016 留待专项。"
         }
       ],
-      "comments": [],
-      "version": 1,
+      "comments": [
+        {
+          "id": "c-0bfb36",
+          "body": "[状态] → in_progress：开工：数据访问规则收口 + provider 归位（先量 application 层直连外部数据源的现状）。（reqboard_task_move）",
+          "createdAt": 1790857867555,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-a01588",
+          "body": "[状态] → done：父卡收尾：四张子卡完成；服务层直连外部数据源归零（两处改走统一出口、口径未变），provider 包按 RFC 016 留待专项。（reqboard_task_move）",
+          "createdAt": 1790858876023,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
       "createdAt": 1790838470861,
-      "updatedAt": 1790838470861,
+      "updatedAt": 1790858876023,
       "createdBy": {
         "kind": "agent",
         "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
@@ -1841,7 +1919,34 @@
         "kind": "agent",
         "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
       },
-      "layer": 3
+      "layer": 3,
+      "lastReport": {
+        "at": 1790858811290,
+        "reportIndex": 1,
+        "filesChanged": [
+          "application/services/core_plan_service.py",
+          "application/services/market_style_detector.py",
+          "adapters/outbound/datasources/providers/sector/akshare.py"
+        ],
+        "completed": [
+          "**实测修正卡片范围**：审计说 application 层有 6 处直连外部数据源，实测只剩 **3 处**（我此前删重复 provider 时已消掉 3 处）；其中 2 处本卡修复，第 3 处（`quote_providers/` 7 文件）查到 **RFC 016 已裁决要删除**（v2 自建 provider 链，绕开 DataProviderManager），经用户裁定留待专项",
+          "① `core_plan_service.py`：HS300 基准由**直连 akshare** 改走 `DataProviderManager.get_index_daily('sh000300')`；消费姿势与降级口径复用既有先例 `market_perception_service._fetch_index_history()`（失败写明原因，不编造）",
+          "② `market_style_detector.fetch_sina_sector_boards()`：发现 **adapters 层早已封装同一次调用**（`AkshareSectorProvider._fetch_sina_industries`，产出 name/change_pct 形状一致）→ 为其开公开入口 `fetch_sina_industries()` 并让上层复用，**没有另造第二份取数实现**",
+          "② 口径守住了：明确**不改成** `manager.get_sector_list()`（首个成功 provider 可能是东财、行业口径不同，会让风格检测数值悄悄改变），理由写入代码注释与 docstring",
+          "兼容性：函数名/位置不变 → detector 自身、`infrastructure/jobs/market_style_update_job.py`、单测 monkeypatch 目标均不受影响",
+          "验收：服务层直连 = **0**；全口径 = 1（RFC 016 专项）；`-k \"market_perception or market_style or core_plan or market_data_index\"` = **105 passed / 1 skipped**；全仓收集数 6435（未降）",
+          "联调夯实（不只导入）：指数新路径实测取到 **6003 条**（2002-01-04 ~ **2026-09-30**）；行业截面实测仍返回 **49 条**（与改造前契约一致）；风格检测端到端 `degraded=False`、`source='sina_sector_spot(实时回退, DB无真实行)'`",
+          "**归因纪律**：批量子集里 2 个 sector 失败，经**回退对照实验**证明与本卡无关（回退我的 3 处改动后同样 2 条，差异 0 条）——避免了把既有顺序污染误记成本卡引入",
+          "复核自纠：改过的文件里模块 docstring 仍写旧数据源口径（`ak.stock_sector_spot`），已同步改为\"经 DataProviderManager 的 akshare 行业通道\"并标注收口来源；另核实本卡**未推高越层越层导入余量**（仍 44 处，因新引用是函数内惰性导入）",
+          "四张子卡（研发/联调/复核/测试）全部完成"
+        ]
+      },
+      "lastRun": {
+        "at": 1790858811290,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
     },
     {
       "id": "t-720861",
@@ -10971,6 +11076,592 @@
         "stopReason": "reported",
         "valueNonEmpty": true
       }
+    },
+    {
+      "id": "t-25540f",
+      "requirementId": "REQ-261001145152-3982",
+      "title": "数据访问规则收口 + provider 归位·研发",
+      "description": "子卡阶段：研发",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-c3a097"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "implementation": "① application 层 7 处直连外部数据源改走 DataProviderManager（core_plan_service.py:450、market_style_detector.py:250、financial_providers/{sina,akshare,eastmoney}_provider.py、quote_providers/akshare_provider.py:5、financial_providers/tushare_provider.py:35）；② 裁决 application/services/{financial_providers,quote_providers} 去向——provider 属 adapters 职责，建议下沉。\n\n[子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "context": "",
+      "parentId": "t-f04052",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-433427",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790858322499,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 5743,
+              "at": 1790858322508,
+              "totals": {
+                "uncachedInputTokens": 1485155,
+                "outputTokens": 535708,
+                "cacheReadTokens": 334435584,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 5755,
+              "at": 1790858384756,
+              "totals": {
+                "uncachedInputTokens": 1485657,
+                "outputTokens": 535935,
+                "cacheReadTokens": 335572480,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 502,
+              "outputTokens": 227,
+              "cacheReadTokens": 1136896,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790858384739
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-43871b",
+          "body": "[状态] → in_progress：补开工记录（实现与自测已完成，补登状态流转）。（reqboard_task_move）",
+          "createdAt": 1790858322499,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-0550d7",
+          "body": "[状态] → done：研发段完成：服务层直连归零、复用既有 adapters 实现、口径不变；provider 包按裁定留待 RFC 016。（reqboard_task_move）",
+          "createdAt": 1790858384739,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790857867555,
+      "updatedAt": 1790858384739,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790857867555,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790858322499,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "补开工记录（实现与自测已完成，补登状态流转）。"
+        },
+        {
+          "status": "done",
+          "at": 1790858384739,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "研发段完成：服务层直连归零、复用既有 adapters 实现、口径不变；provider 包按裁定留待 RFC 016。"
+        }
+      ],
+      "layer": 3,
+      "lastReport": {
+        "at": 1790858254362,
+        "reportIndex": 1,
+        "filesChanged": [
+          "application/services/core_plan_service.py",
+          "application/services/market_style_detector.py",
+          "adapters/outbound/datasources/providers/sector/akshare.py"
+        ],
+        "completed": [
+          "**范围澄清**：实测 application 层直连只剩 **3 处**（审计时说 6 处——我此前删重复 provider 时已消掉 3 处）；其中 2 处属本卡可修，第 3 处（`quote_providers/` 7 文件）查到**RFC 016 已裁决要删除**，故按用户裁定留待专项",
+          "① `core_plan_service.py`：HS300 基准由 `ak.stock_zh_index_daily` 直连改走 `DataProviderManager.get_index_daily('sh000300')`，并复用既有先例的消费姿势（`market_perception_service._fetch_index_history`）与降级口径（不可用时写明原因，不编造）",
+          "② `market_style_detector.fetch_sina_sector_boards()`：原实现直连 akshare（`stock_sector_spot(indicator='新浪行业')`）。**发现 adapters 层早已封装同一次调用**（`AkshareSectorProvider._fetch_sina_industries`，产出 name/change_pct 形状完全一致）——故为其新增公开入口 `fetch_sina_industries()` 并让上层复用，**没有另造一份取数实现**",
+          "② 口径守住了：明确**不改成** `manager.get_sector_list()`——那条链首个成功 provider 可能是东财（行业口径不同），会让风格检测数值悄悄改变；已在代码注释与 docstring 写明理由",
+          "兼容性：`fetch_sina_sector_boards` 的名称与位置不变 → detector 自身、`infrastructure/jobs/market_style_update_job.py`、单测 monkeypatch 目标全不受影响",
+          "验收：服务层直连 = **0**；全口径 = 1（剩 RFC 016 专项的那处）；`tests/services/test_market_style_detector.py` + `test_market_data_index_history.py` = **15 passed**",
+          "**归因证据（避免误记）**：`-k \"core_plan or market_style or sector\"` 批量跑出现 2 个失败，经**回退对照**证明与本卡无关——回退我的 3 处改动后同样是这 2 个失败（差异为空），属既有测试顺序污染（单跑全过）",
+          "顺带发现并记录：`file `adapters/outbound/datasources/sector_snapshot.py` 已存在且是**另一件事**（板块快照兜底缓存）——我原打算新建同名模块，读文件后避免了造重复实现"
+        ]
+      },
+      "lastRun": {
+        "at": 1790858254362,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-a78a3c",
+      "requirementId": "REQ-261001145152-3982",
+      "title": "数据访问规则收口 + provider 归位·联调",
+      "description": "子卡阶段：联调",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-25540f"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）",
+      "implementation": "① application 层 7 处直连外部数据源改走 DataProviderManager（core_plan_service.py:450、market_style_detector.py:250、financial_providers/{sina,akshare,eastmoney}_provider.py、quote_providers/akshare_provider.py:5、financial_providers/tushare_provider.py:35）；② 裁决 application/services/{financial_providers,quote_providers} 去向——provider 属 adapters 职责，建议下沉。\n\n[子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）",
+      "context": "",
+      "parentId": "t-f04052",
+      "stageKind": "integrate",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-d267fd",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790858391301,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 5761,
+              "at": 1790858391309,
+              "totals": {
+                "uncachedInputTokens": 1485902,
+                "outputTokens": 536571,
+                "cacheReadTokens": 336141184,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 5789,
+              "at": 1790858514068,
+              "totals": {
+                "uncachedInputTokens": 1495059,
+                "outputTokens": 538322,
+                "cacheReadTokens": 338429952,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 9157,
+              "outputTokens": 1751,
+              "cacheReadTokens": 2288768,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790858514051
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-e2618e",
+          "body": "[状态] → in_progress：联调段：验证两处改动在真实调用链上可用（含降级路径与数据口径一致性）。（reqboard_task_move）",
+          "createdAt": 1790858391301,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-c81ed1",
+          "body": "[状态] → done：联调段完成：指数与行业截面两条新路径均真实取到数据（49 条口径未变），风格检测端到端可用且非降级。（reqboard_task_move）",
+          "createdAt": 1790858514051,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790857867555,
+      "updatedAt": 1790858514051,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790857867555,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790858391301,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "联调段：验证两处改动在真实调用链上可用（含降级路径与数据口径一致性）。"
+        },
+        {
+          "status": "done",
+          "at": 1790858514051,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "联调段完成：指数与行业截面两条新路径均真实取到数据（49 条口径未变），风格检测端到端可用且非降级。"
+        }
+      ],
+      "layer": 4,
+      "lastReport": {
+        "at": 1790858452246,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "联调①（指数路径）：`get_data_provider_manager().get_index_daily('sh000300')` 实测 **success=True、source=akshare、6003 条记录**（2002-01-04 ~ **2026-09-30**）——`risk_lens` 的 β/α 有真实基准可用，且末条正是本需求此前补回的 09-30",
+          "联调②（行业截面，**口径未变的硬证据**）：`fetch_sina_sector_boards()` 真实调用返回 **49 条**，样例 `{'name': '玻璃行业', 'change_pct': 0.0062910886728949}` —— 与改造前\"新浪 49 行业\"契约完全一致（证明复用 adapters 既有实现没有换数据源/换口径）",
+          "联调③（端到端）：`MarketStyleDetector().detect_market_style()` 正常返回（style=value、confidence=0.9039、`degraded=False`），日志显示 `source='sina_sector_spot(实时回退, DB无真实行)'` —— 即新路径确实被走到且结果可用",
+          "联调④：两处改动都保留了**显式降级**语义（基准不可用 → `benchmark_note` 写明原因；截面失败 → 返回 None 由调用方回退），未出现\"静默返回空/编造数据\"",
+          "联调⑤：`tests/services/test_market_style_detector.py` + `tests/services/test_market_data_index_history.py` = **15 passed**",
+          "局限（如实记录）：本子卡模板验收命令写的是 `npx vitest run`（TS 工具链），与本仓 Python 栈不匹配；已按真实调用 + pytest 执行"
+        ]
+      },
+      "lastRun": {
+        "at": 1790858452246,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-812ecc",
+      "requirementId": "REQ-261001145152-3982",
+      "title": "数据访问规则收口 + provider 归位·复核",
+      "description": "子卡阶段：复核",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-a78a3c"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "implementation": "① application 层 7 处直连外部数据源改走 DataProviderManager（core_plan_service.py:450、market_style_detector.py:250、financial_providers/{sina,akshare,eastmoney}_provider.py、quote_providers/akshare_provider.py:5、financial_providers/tushare_provider.py:35）；② 裁决 application/services/{financial_providers,quote_providers} 去向——provider 属 adapters 职责，建议下沉。\n\n[子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-f04052",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-cd929a",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790858519109,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 5795,
+              "at": 1790858519117,
+              "totals": {
+                "uncachedInputTokens": 1495309,
+                "outputTokens": 538975,
+                "cacheReadTokens": 339010048,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 5846,
+              "at": 1790858660056,
+              "totals": {
+                "uncachedInputTokens": 1502614,
+                "outputTokens": 541212,
+                "cacheReadTokens": 343706624,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 7305,
+              "outputTokens": 2237,
+              "cacheReadTokens": 4696576,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790858660038
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-c08964",
+          "body": "[状态] → in_progress：复核段：核对改动范围、是否引入重复实现/新越层、以及归因证据。（reqboard_task_move）",
+          "createdAt": 1790858519109,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-02ea11",
+          "body": "[状态] → done：复核段完成：范围干净、未推高越层余量、未造重复实现；并修正了文件内残留的旧口径说明。（reqboard_task_move）",
+          "createdAt": 1790858660038,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790857867555,
+      "updatedAt": 1790858660038,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790857867555,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790858519109,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "复核段：核对改动范围、是否引入重复实现/新越层、以及归因证据。"
+        },
+        {
+          "status": "done",
+          "at": 1790858660038,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "复核段完成：范围干净、未推高越层余量、未造重复实现；并修正了文件内残留的旧口径说明。"
+        }
+      ],
+      "layer": 5,
+      "lastReport": {
+        "at": 1790858597408,
+        "reportIndex": 1,
+        "filesChanged": [
+          "application/services/core_plan_service.py",
+          "application/services/market_style_detector.py",
+          "adapters/outbound/datasources/providers/sector/akshare.py"
+        ],
+        "completed": [
+          "复核①：改动范围精确——仅 3 个文件（`application/services/core_plan_service.py`、`application/services/market_style_detector.py`、`adapters/outbound/datasources/providers/sector/akshare.py`），无越界",
+          "复核②：**未推高越层导入余量**——application 层顶层越层导入实测仍为 **44 处**（与 t-4f6f4b 收尾时一致），because 新引入的 `adapters` 引用是**函数内惰性导入**（本仓既有 182 处同此模式），未新增顶层违规",
+          "复核③：**未造重复实现**——新浪行业取数全仓只有 adapters 层的既有实现被复用；我为 `AkshareSectorProvider` 加的是**公开入口转发**（`fetch_sina_industries()` → 既有私有实现），不是新取数逻辑",
+          "复核④：归因证据复核仍在——批量失败清单改动后 2 条 / 回退后 2 条 / **差异 0 条**",
+          "复核⑤（发现并修正一处文档旧口径）：`market_style_detector.py` 的模块 docstring 仍写着\"数据源：akshare ak.stock_sector_spot(...)\"，与收口后的现实不符——已改为\"取数出口：DataProviderManager 的 akshare 行业通道\"并标注收口来源；改后 `stock_sector_spot` 在该文件已无残留、13 条测试仍全过",
+          "偏离结论：**相对用户裁定零偏离**（只修服务层两处、provider 包不动）；相对原卡有三处范围调整均有据：审计说 6 处直连实际剩 3 处（我删重复 provider 时已消 3 处）、卡说\"建议下沉 provider\"与 RFC 016 的\"删除\"冲突故按裁定留待专项、批量测试失败已证明与本卡无关"
+        ]
+      },
+      "lastRun": {
+        "at": 1790858597408,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-e95009",
+      "requirementId": "REQ-261001145152-3982",
+      "title": "数据访问规则收口 + provider 归位·测试",
+      "description": "子卡阶段：测试",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-812ecc"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "implementation": "① application 层 7 处直连外部数据源改走 DataProviderManager（core_plan_service.py:450、market_style_detector.py:250、financial_providers/{sina,akshare,eastmoney}_provider.py、quote_providers/akshare_provider.py:5、financial_providers/tushare_provider.py:35）；② 裁决 application/services/{financial_providers,quote_providers} 去向——provider 属 adapters 职责，建议下沉。\n\n[子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "context": "",
+      "parentId": "t-f04052",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-5a8b10",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790858664351,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 5852,
+              "at": 1790858664359,
+              "totals": {
+                "uncachedInputTokens": 1502794,
+                "outputTokens": 541743,
+                "cacheReadTokens": 344296064,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 5878,
+              "at": 1790858804940,
+              "totals": {
+                "uncachedInputTokens": 1504147,
+                "outputTokens": 542889,
+                "cacheReadTokens": 346660096,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 1353,
+              "outputTokens": 1146,
+              "cacheReadTokens": 2364032,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790858804923
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-0c6161",
+          "body": "[状态] → in_progress：测试段：按修订口径复跑全部验收命令。（reqboard_task_move）",
+          "createdAt": 1790858664351,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-60991d",
+          "body": "[状态] → done：测试段完成：四条验收通过（相关测试 105 passed、收集数未降）；失败归因已用回退对照钉明。（reqboard_task_move）",
+          "createdAt": 1790858804923,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790857867555,
+      "updatedAt": 1790858804923,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790857867555,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790858664351,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "测试段：按修订口径复跑全部验收命令。"
+        },
+        {
+          "status": "done",
+          "at": 1790858804923,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "测试段完成：四条验收通过（相关测试 105 passed、收集数未降）；失败归因已用回退对照钉明。"
+        }
+      ],
+      "layer": 6,
+      "lastReport": {
+        "at": 1790858740274,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "验收①：**服务层直连外部数据源 = 0**（实测，排除 `quote_providers/`）",
+          "验收②：全口径 = **1**（`application/services/quote_providers/akshare_provider.py:5`）——按用户裁定该处属 RFC 016 专项，本卡不动",
+          "验收③：取数相关测试 `pytest tests/ -q -k \"market_perception or market_style or core_plan or market_data_index\"` = **105 passed / 1 skipped**",
+          "验收④：全仓收集数 **6435**（与批次前一致，未下降）；服务 /docs=200、探针 exit=0",
+          "归因证据（再次复核）：批量子集里那 2 个 sector 相关失败，经**回退对照**证明与本卡无关（回退后同样 2 条、差异 0 条），属既有测试顺序污染",
+          "局限（如实记录）：本子卡模板验收命令写的是 `pnpm test` / `npx tsc --noEmit`（TS 工具链），与本仓 Python 栈不匹配；已按等价的 pytest 选择器与实测执行"
+        ]
+      },
+      "lastRun": {
+        "at": 1790858740274,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
     }
   ],
   "edges": [
@@ -11245,6 +11936,22 @@
     {
       "from": "t-2d2ada",
       "to": "t-e6c970"
+    },
+    {
+      "from": "t-c3a097",
+      "to": "t-25540f"
+    },
+    {
+      "from": "t-25540f",
+      "to": "t-a78a3c"
+    },
+    {
+      "from": "t-a78a3c",
+      "to": "t-812ecc"
+    },
+    {
+      "from": "t-812ecc",
+      "to": "t-e95009"
     }
   ],
   "layers": [
@@ -11313,6 +12020,7 @@
         "t-f04052",
         "t-33ef88",
         "t-806aa2",
+        "t-25540f",
         "t-3da04c",
         "t-7d0be1",
         "t-9dd27b",
@@ -11333,6 +12041,7 @@
         "t-71051b",
         "t-59838e",
         "t-4494ff",
+        "t-a78a3c",
         "t-78d5a3",
         "t-f3d965",
         "t-fb9b61",
@@ -11348,6 +12057,7 @@
       "tasks": [
         "t-3d787f",
         "t-416540",
+        "t-812ecc",
         "t-646e7f",
         "t-a7d164",
         "t-6e7b28",
@@ -11359,7 +12069,8 @@
       "layer": 6,
       "tasks": [
         "t-25dd9f",
-        "t-8ecf4e"
+        "t-8ecf4e",
+        "t-e95009"
       ]
     }
   ],
@@ -11367,9 +12078,8 @@
     "t-2d52a7",
     "t-686185",
     "t-71051b",
-    "t-f04052",
     "t-720861",
     "t-008062"
   ],
-  "updated_at": "2026-10-01T12:30:21.450Z"
+  "updated_at": "2026-10-01T12:47:56.160Z"
 }

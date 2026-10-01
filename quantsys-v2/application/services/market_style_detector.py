@@ -5,8 +5,11 @@
 默认 'growth'/0.33，从未读取任何真实行情。审计判定为"壳层假实现"。
 
 修复后：以【真实新浪行业板块截面】驱动风格判定。
-  - 数据源：akshare ak.stock_sector_spot(indicator='新浪行业')，49 个行业当日涨跌幅
+  - 数据源：**新浪 49 个行业当日涨跌幅**
     （盘中=实时截面；盘后/凌晨=最近一个交易日的收盘截面）。
+    取数出口：`DataProviderManager` 的 akshare 行业通道
+    （`AkshareSectorProvider.fetch_sina_industries()`）——2026-10-01 前本层直连 akshare，
+    违反"外部数据只在 adapters 层直连"（REQ-261001145152-3982 t-f04052 已收口）。
   - 映射：显式行业→风格桶表（value/growth/cycle + 排除混合题材类），映射规则透明可审计，
     归类依据写于各桶常量注释。无法归类的行业（次新股/开发区/综合等）不计分但统计覆盖率。
   - 分数：桶内行业涨跌幅中位数 → 相对最弱桶平移 → 归一化份额（与旧契约 scores 语义一致）。
@@ -243,31 +246,39 @@ def _degraded_result(error: str, detection_date: Optional[str] = None) -> Dict[s
 
 def fetch_sina_sector_boards() -> Optional[List[Dict[str, Any]]]:
     """
-    拉取新浪 49 行业当日/最近收盘截面（akshare，~0.1s）。
+    拉取新浪 49 行业当日/最近收盘截面（~0.1s，经 DataProviderManager 的 akshare 通道）。
     失败/空返回 None（由调用方走 DB 回退或显式降级）。
+
+    2026-10-01（REQ-261001145152-3982 t-f04052）：原实现在本文件里**直连 akshare**
+    （违反 CLAUDE.md「NEVER directly import external data libraries」）。
+    现改为**复用 adapters 层已有的同一实现**（`AkshareSectorProvider` 的新浪行业通道），
+    既不重复造取数逻辑，也不改变数据口径——保持"新浪 49 行业"不变。
+
+    口径提醒：**不要**改成 `manager.get_sector_list()`——那条链首个成功的 provider 可能是
+    东财（行业口径不同），会让上层风格检测的数值悄悄改变。
     """
+    # 惰性 import（避免 application 模块顶层引用 adapters；本仓既有的 182 处函数内跨层导入同此处理）
+    from adapters.outbound.datasources.manager import get_data_provider_manager
+
     try:
-        import akshare as ak
-    except Exception as e:  # pragma: no cover
-        logger.error(f"akshare import failed: {e}")
-        return None
-    try:
-        df = ak.stock_sector_spot(indicator='新浪行业')
-    except Exception as e:
+        manager = get_data_provider_manager()
+        providers = getattr(manager, "sector_providers", []) or []
+        akshare_provider = next(
+            (p for p in providers if getattr(p, "name", "") == "akshare"), None
+        )
+        if akshare_provider is None:
+            logger.error("sector_providers 里没有 akshare 通道，新浪行业截面不可用")
+            return None
+        rows = akshare_provider.fetch_sina_industries()
+        boards = [
+            {"name": str(r.get("name", "")).strip(), "change_pct": _f(r.get("change_pct"))}
+            for r in (rows or [])
+        ]
+        boards = [b for b in boards if b["name"] and b["change_pct"] is not None]
+        return boards or None
+    except Exception as e:  # noqa: BLE001 —— 失败即显式降级，由调用方决定回退
         logger.error(f"新浪行业数据拉取失败: {e}")
         return None
-    if df is None or df.empty:
-        return None
-    if '板块' not in df.columns or '涨跌幅' not in df.columns:
-        logger.error(f"新浪行业返回列异常: {list(df.columns)}")
-        return None
-    boards = []
-    for _, row in df.iterrows():
-        boards.append({'name': str(row['板块']).strip(), 'change_pct': _f(row['涨跌幅'])})
-    boards = [b for b in boards if b['name'] and b['change_pct'] is not None]
-    if not boards:
-        return None
-    return boards
 
 
 class MarketStyleDetector:

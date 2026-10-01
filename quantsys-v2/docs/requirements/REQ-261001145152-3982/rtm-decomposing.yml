@@ -2,9 +2,9 @@ metadata:
   stage: decomposing
   requirement_id: REQ-261001145152-3982
   generated_at: 2026-10-01T07:07:50.907Z
-  version: 222
+  version: 237
   generated_by: dsh-pmboard
-  last_updated: 2026-10-01T12:30:21.523Z
+  last_updated: 2026-10-01T12:47:56.246Z
 inputs:
   requirements:
     - id: FR-1
@@ -1419,6 +1419,50 @@ outputs:
       serves: []
       depends_on:
         - t-2d2ada
+      phase: implement
+      side: backend
+    - id: t-25540f
+      title: 数据访问规则收口 + provider 归位·研发
+      implements: |-
+        ① application 层 7 处直连外部数据源改走 DataProviderManager（core_plan_service.py:450、market_style_detector.py:250、financial_providers/{sina,akshare,eastmoney}_provider.py、quote_providers/akshare_provider.py:5、financial_providers/tushare_provider.py:35）；② 裁决 application/services/{financial_providers,quote_providers} 去向——provider 属 adapters 职责，建议下沉。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-c3a097
+      phase: implement
+      side: backend
+    - id: t-a78a3c
+      title: 数据访问规则收口 + provider 归位·联调
+      implements: |-
+        ① application 层 7 处直连外部数据源改走 DataProviderManager（core_plan_service.py:450、market_style_detector.py:250、financial_providers/{sina,akshare,eastmoney}_provider.py、quote_providers/akshare_provider.py:5、financial_providers/tushare_provider.py:35）；② 裁决 application/services/{financial_providers,quote_providers} 去向——provider 属 adapters 职责，建议下沉。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-25540f
+      phase: implement
+      side: backend
+    - id: t-812ecc
+      title: 数据访问规则收口 + provider 归位·复核
+      implements: |-
+        ① application 层 7 处直连外部数据源改走 DataProviderManager（core_plan_service.py:450、market_style_detector.py:250、financial_providers/{sina,akshare,eastmoney}_provider.py、quote_providers/akshare_provider.py:5、financial_providers/tushare_provider.py:35）；② 裁决 application/services/{financial_providers,quote_providers} 去向——provider 属 adapters 职责，建议下沉。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-a78a3c
+      phase: implement
+      side: backend
+    - id: t-e95009
+      title: 数据访问规则收口 + provider 归位·测试
+      implements: |-
+        ① application 层 7 处直连外部数据源改走 DataProviderManager（core_plan_service.py:450、market_style_detector.py:250、financial_providers/{sina,akshare,eastmoney}_provider.py、quote_providers/akshare_provider.py:5、financial_providers/tushare_provider.py:35）；② 裁决 application/services/{financial_providers,quote_providers} 去向——provider 属 adapters 职责，建议下沉。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-812ecc
       phase: implement
       side: backend
 traceability:
