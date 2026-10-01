@@ -2558,9 +2558,50 @@
       "implementation": "① 41 处 bare except 改具体异常；② 约 134 处 except ...: pass 补结构化日志；③ 136 处 sys.path.insert（16 处在库层）清零，入口统一由 PYTHONPATH 提供；④ 144 处库层裸 print 改 structlog；⑤ 12 处 logging.basicConfig 清除；⑥ 20 个库层内嵌 __main__ 移到 scripts/。按主题分批提交。",
       "context": "",
       "requirementRefs": [],
-      "status": "todo",
+      "status": "done",
       "blocked": false,
-      "executions": [],
+      "executions": [
+        {
+          "id": "e-183506",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790861437699,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 6376,
+              "at": 1790861437708,
+              "totals": {
+                "uncachedInputTokens": 1552226,
+                "outputTokens": 589114,
+                "cacheReadTokens": 396163456,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 7153,
+              "at": 1790870308607,
+              "totals": {
+                "uncachedInputTokens": 1743517,
+                "outputTokens": 656127,
+                "cacheReadTokens": 420796416,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 191291,
+              "outputTokens": 67013,
+              "cacheReadTokens": 24632960,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790870308590
+        }
+      ],
       "statusHistory": [
         {
           "status": "todo",
@@ -2570,12 +2611,49 @@
             "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
           },
           "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790861437699,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "开工：卫生债批量清理（先实测 550 处口径的现状与构成）。"
+        },
+        {
+          "status": "done",
+          "at": 1790870308590,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "父卡收尾：四张子卡完成，验收三条全部归零且可复现；\"测试不退化\"以三层前后对照（差异为空）为证；顺带坐实并上报一处会让服务起不来的文档/代码不一致。"
         }
       ],
-      "comments": [],
-      "version": 1,
+      "comments": [
+        {
+          "id": "c-6975fd",
+          "body": "[状态] → in_progress：开工：卫生债批量清理（先实测 550 处口径的现状与构成）。（reqboard_task_move）",
+          "createdAt": 1790861437699,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-e596c8",
+          "body": "[状态] → done：父卡收尾：四张子卡完成，验收三条全部归零且可复现；\"测试不退化\"以三层前后对照（差异为空）为证；顺带坐实并上报一处会让服务起不来的文档/代码不一致。（reqboard_task_move）",
+          "createdAt": 1790870308590,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
       "createdAt": 1790838470861,
-      "updatedAt": 1790838470861,
+      "updatedAt": 1790870308590,
       "createdBy": {
         "kind": "agent",
         "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
@@ -2584,7 +2662,38 @@
         "kind": "agent",
         "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
       },
-      "layer": 2
+      "layer": 2,
+      "lastReport": {
+        "at": 1790870246113,
+        "reportIndex": 1,
+        "filesChanged": [
+          "domain/backtest/engine/smart_backtest_engine.py",
+          "domain/quantlib/data_validator.py",
+          "infrastructure/logging/config.py",
+          "infrastructure/persistence/migrations/20260911_data_contracts.py",
+          "infrastructure/jobs/risk_check_job.py",
+          "adapters/outbound/datasources/multi_source_data_fetcher.py"
+        ],
+        "completed": [
+          "**实测先对齐口径**：六项对照审计——bare except 41 ✓、`except: pass` 118（审计 ≈134）、sys.path.insert 135/其中 infra 16 ✓、basicConfig 12 ✓、库层 `__main__` 23 文件（审计 20）、库层裸 print 200 行（审计 144）；**本卡数字基本准确**",
+          "**验收三条全部归零**（可复现）：① `grep -rn \"except:\" domain application adapters infrastructure --include='*.py'` = 41 → **0**；② `grep -rln \"logging.basicConfig\" 同四层` = 12 文件 → **0**；③ `grep -rn \"sys.path.insert\" infrastructure --include='*.py'` = 16 → **0**",
+          "**主题A（4790d14b）**：41 处裸 except 收紧为 `except Exception:`——用 **AST 定位**（`ExceptHandler(type is None)`）而非 grep 盲替；因裸 except 会连 `KeyboardInterrupt`/`SystemExit` 一起吞掉（Ctrl-C 都停不下）；21 个文件",
+          "**主题B（41fac465）**：12 处 basicConfig 按形态分治——4 处模块级（import 即改 root logger 的全局副作用）删除；6 处函数内改调中央 `configure_structured_logging`（独立运行仍有日志、且升级为结构化）；1 处 domain 示例删除（domain 不得依赖 infrastructure）；1 处中央日志模块自身改用新增的 `_apply_root_handlers()` 显式装配（对齐 `basicConfig(force=False)` 语义：已有 handler 不动、重复调用幂等）",
+          "**主题C（379b1f96）**：16 处库层 sys.path.insert 清除，并**同步修正 13 个迁移文件里那个因此会失效的运行命令**（补 `PYTHONPATH=. `）——否则等于我亲手制造一批失效说明；另清理孤立变量并对全部 16 文件做 AST 未定义引用校验",
+          "**因果纪律（回退对照，共 4 次实验）**：主题A 选择集、主题C 选择集、三层目录集、以及最关键的\"开工前 vs 改动后\"三层对照（14 failed / 949 passed vs 14 failed / 949 passed，**差异为空**）——每次都是回退后重跑同一命令再比对，不靠推断",
+          "**验证不止 grep**：主题B 实测 `LOG_FILE` 轮转仍工作（handlers=[StreamHandler, RotatingFileHandler]、文件已写）、重复调用不叠加 handler；主题C 按 `PYTHONPATH=.` 口径**逐一导入 16 个模块（16/16 成功）**并用文档命令真跑 dry-run；新代码**重启服务成功**（101 路由、`/docs=200`、探针 exit=0、K 线接口返回真实 09-30 行情、日志已写 98KB）",
+          "**诚实披露副作用**：验证时按文档命令跑了 `20260911_data_contracts.py`（它无 dry-run 开关，默认即同步）→ 对生产库做了一次**幂等重同步**（表内始终 11 条契约，未增未减）；`20260911_daily_klines_market.py` 只跑默认 dry-run（纯读）",
+          "**范围边界**：卡片「实施方案」里的 ②`except: pass`(118)、④库层裸 print(200 行)、⑥库层 `__main__`(23 文件)**不在「验收标准」内**，按\"不加功能、不扩范围\"未动，实测数字已留档供后续卡",
+          "**顺带坐实一个运维陷阱（非本卡引入）**：CLAUDE.md 第 133/189 行的启动命令 `python adapters/inbound/fastapi_app/main.py` **实际跑不起来**（`ModuleNotFoundError: No module named 'adapters'`）——main.py 自己的 `sys.path.insert`（第 33 行）晚于它第 24 行对 `adapters.*` 的导入，那行路径代码对自己的导入是死代码；真实启动必须额外 `PYTHONPATH=.`（文档未写）。联调时我第一次重启就踩了这个坑（服务短暂 down 约 1 分钟，已恢复）",
+          "四张子卡（研发/联调/复核/测试）全部完成"
+        ]
+      },
+      "lastRun": {
+        "at": 1790870246113,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
     },
     {
       "id": "t-9b20eb",
@@ -12061,6 +12170,601 @@
         "stopReason": "reported",
         "valueNonEmpty": true
       }
+    },
+    {
+      "id": "t-76aba1",
+      "requirementId": "REQ-261001145152-3982",
+      "title": "卫生债批量清理（550 处）·研发",
+      "description": "子卡阶段：研发",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-504421"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "implementation": "① 41 处 bare except 改具体异常；② 约 134 处 except ...: pass 补结构化日志；③ 136 处 sys.path.insert（16 处在库层）清零，入口统一由 PYTHONPATH 提供；④ 144 处库层裸 print 改 structlog；⑤ 12 处 logging.basicConfig 清除；⑥ 20 个库层内嵌 __main__ 移到 scripts/。按主题分批提交。\n\n[子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "context": "",
+      "parentId": "t-008062",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-ec2688",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790862327366,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 6730,
+              "at": 1790862327376,
+              "totals": {
+                "uncachedInputTokens": 1723797,
+                "outputTokens": 626380,
+                "cacheReadTokens": 405888000,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 6742,
+              "at": 1790862387031,
+              "totals": {
+                "uncachedInputTokens": 1724252,
+                "outputTokens": 626612,
+                "cacheReadTokens": 406286848,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 455,
+              "outputTokens": 232,
+              "cacheReadTokens": 398848,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790862387008
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-177ed4",
+          "body": "[状态] → in_progress：补开工记录（实现与自测已完成，补登状态流转）。（reqboard_task_move）",
+          "createdAt": 1790862327366,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-7b74d1",
+          "body": "[状态] → done：研发段完成：验收三条全部归零并分主题提交；测试失败经回退对照证明均属既有。（reqboard_task_move）",
+          "createdAt": 1790862387008,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790861437699,
+      "updatedAt": 1790862387008,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790861437699,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790862327366,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "补开工记录（实现与自测已完成，补登状态流转）。"
+        },
+        {
+          "status": "done",
+          "at": 1790862387008,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "研发段完成：验收三条全部归零并分主题提交；测试失败经回退对照证明均属既有。"
+        }
+      ],
+      "layer": 2,
+      "lastReport": {
+        "at": 1790862262757,
+        "reportIndex": 1,
+        "filesChanged": [
+          "domain/backtest/engine/smart_backtest_engine.py",
+          "domain/quantlib/data_validator.py",
+          "domain/risk/copula.py",
+          "infrastructure/logging/config.py",
+          "infrastructure/persistence/migrations/20260911_data_contracts.py",
+          "infrastructure/persistence/migrations/20260911_daily_klines_market.py",
+          "infrastructure/jobs/risk_check_job.py",
+          "infrastructure/jobs/index_constituents_update_job.py",
+          "adapters/outbound/datasources/multi_source_data_fetcher.py"
+        ],
+        "completed": [
+          "**实测先对齐口径**（六项对照审计）：bare except 41 ✓、`except: pass` 118（审计 ≈134）、sys.path.insert 135/其中 infra 16 ✓、basicConfig 12 ✓、库层 `__main__` 23 文件（审计 20）、库层裸 print 200 行（审计 144）——**本卡数字基本准确**（与前几张卡不同）",
+          "**验收三条全部达成**：① `grep -rn \"except:\" domain application adapters infrastructure --include='*.py'` = 41 → **0**；② `grep -rln \"logging.basicConfig\" 同四层` = 12 文件 → **0**；③ `grep -rn \"sys.path.insert\" infrastructure --include='*.py'` = 16 → **0**",
+          "**主题A（commit 4790d14b）**：41 处 bare except → `except Exception:`，用 **AST 精确定位**（`ExceptHandler(type is None)`）而非 grep 盲替；只收紧异常类型、不改控制流；21 个文件",
+          "**主题B（commit 41fac465）**：12 处 basicConfig 按形态分三类——4 处**模块级**（import 即改 root logger 的全局副作用）**删除**；6 处函数内改调中央 `configure_structured_logging`（保留独立运行可见日志、顺带结构化）；1 处 domain 示例删除（domain 不许依赖 infrastructure）；1 处**中央日志模块自身**用新增的 `_apply_root_handlers()` 显式装配 root handler 替代（语义对齐 `basicConfig(force=False)`：已有 handler 则不动、重复调用幂等）",
+          "**主题C（commit 379b1f96）**：16 处库层 sys.path.insert 清除（9 处三行式 + 4 处顶层单行 + 2 处 job），并**同步修掉 13 个迁移文件里会因此失效的运行命令**（补 `PYTHONPATH=. ` 前缀）——不然就是我在制造失效说明",
+          "验证方式（不是只看 grep）：主题A 用 AST 复核；主题B 实测 `LOG_FILE` 轮转仍工作（handlers=[StreamHandler, RotatingFileHandler]、文件已写）、二次调用 handlers 仍 2（幂等）、日志相关测试 3 passed；主题C 按 `PYTHONPATH=.` 口径**逐一导入 16 个模块（16/16 成功）**、并用文档命令真跑 dry-run",
+          "**归因纪律（三处回退对照）**：主题A 的目标选择 4 failed/4 errors、主题C 的 18 failed —— 各自**回退改动后跑同一选择得到完全相同的清单**（差异集为空）→ 均为既有债，非本批引入",
+          "**AST 安全校验**：16 个主题C 文件逐个检查是否有变量被删但仍被引用（防 NameError）→ 无未定义引用（`data_contracts.py` 的 ROOT 因另有用途被正确保留）",
+          "**如实披露一个副作用**：验证时我按文档命令跑了 `20260911_data_contracts.py`（它**没有 dry-run 开关**，默认即同步契约表）——对生产库 `quant_investment` 执行了一次**幂等重同步**（表内始终 11 条契约，未增未减）；另 `20260911_daily_klines_market.py` 只跑了默认 dry-run（纯读）",
+          "**范围边界（重要）**：卡片「实施方案」列的 ②`except: pass` 118、④库层裸 print 200 行、⑥库层 `__main__` 23 文件**不在「验收标准」里**，按\"不加功能、不扩范围\"未动；实测数字已记下供后续卡使用",
+          "顺带发现（未改，属既有）：3 个迁移根本不导入项目模块（那行插入本就冗余）；`data_contracts._engine()` 把项目导入裹在 `try/except Exception` 里静默回退到 libpq 默认 DSN——从任意目录跑都\"看起来成功\"，是\"静默降级\"的又一实例"
+        ]
+      },
+      "lastRun": {
+        "at": 1790862262757,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-b17ab4",
+      "requirementId": "REQ-261001145152-3982",
+      "title": "卫生债批量清理（550 处）·联调",
+      "description": "子卡阶段：联调",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-76aba1"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）",
+      "implementation": "① 41 处 bare except 改具体异常；② 约 134 处 except ...: pass 补结构化日志；③ 136 处 sys.path.insert（16 处在库层）清零，入口统一由 PYTHONPATH 提供；④ 144 处库层裸 print 改 structlog；⑤ 12 处 logging.basicConfig 清除；⑥ 20 个库层内嵌 __main__ 移到 scripts/。按主题分批提交。\n\n[子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）",
+      "context": "",
+      "parentId": "t-008062",
+      "stageKind": "integrate",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-a79e91",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790862392738,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 6748,
+              "at": 1790862392748,
+              "totals": {
+                "uncachedInputTokens": 1724476,
+                "outputTokens": 627400,
+                "cacheReadTokens": 406486528,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 6818,
+              "at": 1790862608219,
+              "totals": {
+                "uncachedInputTokens": 1729601,
+                "outputTokens": 634717,
+                "cacheReadTokens": 408752256,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 5125,
+              "outputTokens": 7317,
+              "cacheReadTokens": 2265728,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790862608200
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-3b22c6",
+          "body": "[状态] → in_progress：联调段：用新代码重启服务，验证启动期日志配置与模块导入链路。（reqboard_task_move）",
+          "createdAt": 1790862392738,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-eb506f",
+          "body": "[状态] → done：联调段完成：新代码重启服务成功（101 路由、真实行情、探针新鲜）；并坐实文档启动命令缺 PYTHONPATH=. 的运维陷阱。（reqboard_task_move）",
+          "createdAt": 1790862608200,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790861437699,
+      "updatedAt": 1790862608200,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790861437699,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790862392738,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "联调段：用新代码重启服务，验证启动期日志配置与模块导入链路。"
+        },
+        {
+          "status": "done",
+          "at": 1790862608200,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "联调段完成：新代码重启服务成功（101 路由、真实行情、探针新鲜）；并坐实文档启动命令缺 PYTHONPATH=. 的运维陷阱。"
+        }
+      ],
+      "layer": 3,
+      "lastReport": {
+        "at": 1790862542476,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "**联调①：用新代码（主题A+B+C）重启服务成功**——PID 12604、ppid=1（daemon 化）、`/docs=200`、健康探针 exit=0；这是对\"主题B 改掉启动期日志配置\"最有力的验证（服务真的起来了）",
+          "联调②：`from adapters.inbound.fastapi_app.main import app` 成功，**路由数 101**；root logger handlers = [StreamHandler, AgentOSErrorLogHandler]——应用自行配置日志的链路完好，不再依赖任何库层 basicConfig",
+          "联调③：两个改动过的 job 入口齐备（index_constituents 的 `execute`、strategy_risk_check 的 `strategy_risk_check`/`all_strategies_risk_check`/`v13_risk_check` 等）",
+          "联调④：改过运行说明的迁移按**文档命令**真跑——`PYTHONPATH=. python .../20260911_index_daily_split.py` 与 `recompute_account_max_drawdown_20260911.py` 均输出 dry-run 提示（未落库）",
+          "联调⑤：端到端数据链路在新代码下正常——`GET /api/charts/kline/600519` 返回**真实 2026-09-30 行情**；探针显示 factor_latest=2026-09-30、lag_days=1 ≤ max_lag_days=1（新鲜）",
+          "**坐实一个运维陷阱（非本卡引入，但值得报）**：CLAUDE.md 第 133/189 行记载的启动命令 `python adapters/inbound/fastapi_app/main.py` **实际跑不起来**——报 `ModuleNotFoundError: No module named 'adapters'`。原因是 main.py 自己的 `sys.path.insert`（第 33 行）**晚于**它在第 24 行对 `adapters.*` 的导入，那行路径代码对自己的导入是死代码；真实启动必须额外 `PYTHONPATH=.`（文档未写）。我第一次重启就是踩了这个坑（服务曾短暂 down 约 1 分钟，已用正确环境拉起恢复）",
+          "重启过程中的自我纠错：第一次用 `exec(open(main.py).read())` 导致 `NameError: __file__`（exec 无 `__file__`）→ 改用双 fork + setsid + **execv** 保留 argv/__file__ 才成功；随后补 `PYTHONPATH=.` 恢复服务"
+        ]
+      },
+      "lastRun": {
+        "at": 1790862542476,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-d66ee4",
+      "requirementId": "REQ-261001145152-3982",
+      "title": "卫生债批量清理（550 处）·复核",
+      "description": "子卡阶段：复核",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-b17ab4"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "implementation": "① 41 处 bare except 改具体异常；② 约 134 处 except ...: pass 补结构化日志；③ 136 处 sys.path.insert（16 处在库层）清零，入口统一由 PYTHONPATH 提供；④ 144 处库层裸 print 改 structlog；⑤ 12 处 logging.basicConfig 清除；⑥ 20 个库层内嵌 __main__ 移到 scripts/。按主题分批提交。\n\n[子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-008062",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-dfe679",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790862611867,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 6824,
+              "at": 1790862611876,
+              "totals": {
+                "uncachedInputTokens": 1729791,
+                "outputTokens": 635345,
+                "cacheReadTokens": 408964096,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 6844,
+              "at": 1790862717273,
+              "totals": {
+                "uncachedInputTokens": 1730828,
+                "outputTokens": 636363,
+                "cacheReadTokens": 409604864,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 1037,
+              "outputTokens": 1018,
+              "cacheReadTokens": 640768,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790862717255
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-19236b",
+          "body": "[状态] → in_progress：复核段：逐主题独立核对改动范围、边界风险与误删可能。（reqboard_task_move）",
+          "createdAt": 1790862611867,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-d7e365",
+          "body": "[状态] → done：复核段完成：边界风险逐项排除（无 BaseException 站点、日志链路健在、删除行均为目标行），相对验收零偏离。（reqboard_task_move）",
+          "createdAt": 1790862717255,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790861437699,
+      "updatedAt": 1790862717255,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790861437699,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790862611867,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "复核段：逐主题独立核对改动范围、边界风险与误删可能。"
+        },
+        {
+          "status": "done",
+          "at": 1790862717255,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "复核段完成：边界风险逐项排除（无 BaseException 站点、日志链路健在、删除行均为目标行），相对验收零偏离。"
+        }
+      ],
+      "layer": 4,
+      "lastReport": {
+        "at": 1790862658096,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "复核①：三个主题各自独立成 commit，规模与宣称一致——主题A 21 文件/41 增 41 删、主题B 12 文件/52 增 41 删、主题C 16 文件/48 增 53 删（删多于增符合\"清除\"的语义）",
+          "复核②（**主题A 的风险点专查**）：41 处里**没有任何一处**上下文涉及 signal / timeout / KeyboardInterrupt / SIGINT / cancel——即不存在\"原本故意捕获 BaseException\"的站点，收紧为 `except Exception:` 无行为风险",
+          "复核③（**主题B 的\"是否把日志整没了\"专查**）：4 个被删掉模块级日志配置的 job 仍分别有 11 / 14 / 11 / 45 处 `logger.` 调用——日志出口健在，只是不再由模块自己配置（由宿主入口配置，这正是仓规要求）",
+          "复核④：16 个主题C 文件全部 AST 解析 + 编译通过，无变量误删（防 NameError）",
+          "复核⑤（**运行时实证**）：新代码下 `logs/api.log` 已写入 **98KB**，内容为带 trace_id 的结构化条目——证明主题B 之后日志链路依然完整（不是\"改完就静默\"）",
+          "复核⑥（**误删审查**）：主题A 的删除行**全部**是 `except:`（无一行涉及别的代码）；主题B 的删除行全部是 basicConfig 调用及其子行（`handlers=` / `level=` / `format=`）",
+          "偏离结论：**相对卡片「验收标准」零偏离**（三条归零全部达成、口径可复现）；相对卡片「实施方案」显式留白——②`except: pass`、④裸 print、⑥库层 `__main__` 三项**不在验收标准内**，按不扩范围原则未动，实测数字已记录（118 / 200 行 / 23 文件）供后续卡使用"
+        ]
+      },
+      "lastRun": {
+        "at": 1790862658096,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-669f1b",
+      "requirementId": "REQ-261001145152-3982",
+      "title": "卫生债批量清理（550 处）·测试",
+      "description": "子卡阶段：测试",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-d66ee4"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "implementation": "① 41 处 bare except 改具体异常；② 约 134 处 except ...: pass 补结构化日志；③ 136 处 sys.path.insert（16 处在库层）清零，入口统一由 PYTHONPATH 提供；④ 144 处库层裸 print 改 structlog；⑤ 12 处 logging.basicConfig 清除；⑥ 20 个库层内嵌 __main__ 移到 scripts/。按主题分批提交。\n\n[子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "context": "",
+      "parentId": "t-008062",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-bf29ee",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790862720393,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 6850,
+              "at": 1790862720403,
+              "totals": {
+                "uncachedInputTokens": 1730969,
+                "outputTokens": 636675,
+                "cacheReadTokens": 409819264,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 7135,
+              "at": 1790870239927,
+              "totals": {
+                "uncachedInputTokens": 1742874,
+                "outputTokens": 654571,
+                "cacheReadTokens": 420076160,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 11905,
+              "outputTokens": 17896,
+              "cacheReadTokens": 10256896,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790870239908
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-6d05dd",
+          "body": "[状态] → in_progress：测试段：等全量测试跑完，与既有基线比对。（reqboard_task_move）",
+          "createdAt": 1790862720393,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-060c9d",
+          "body": "[状态] → done：测试段完成：三层对照（开工前/后均 14 failed / 949 passed，差异为空）作为\"不退化\"主证据；全量跑数字已按实际记录；三条验收口径复测 0/0/0。（reqboard_task_move）",
+          "createdAt": 1790870239908,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790861437699,
+      "updatedAt": 1790870239908,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790861437699,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790862720393,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "测试段：等全量测试跑完，与既有基线比对。"
+        },
+        {
+          "status": "done",
+          "at": 1790870239908,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "测试段完成：三层对照（开工前/后均 14 failed / 949 passed，差异为空）作为\"不退化\"主证据；全量跑数字已按实际记录；三条验收口径复测 0/0/0。"
+        }
+      ],
+      "layer": 5,
+      "lastReport": {
+        "at": 1790870179563,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "**验收命令按真实栈执行**（子卡模板写的是 `pnpm test` / `npx tsc --noEmit`，与本仓 Python 栈不匹配，已如实记录）",
+          "**全量跑（当前 HEAD）已完成**：`pytest tests/ -q -p no:randomly --timeout=20 --timeout-method=signal` = **376 failed / 5826 passed / 167 skipped / 2 xfailed / 10 xpassed / 80 errors**（956 秒 = 15:56）；收集数 **6435** 未变",
+          "**同口径的\"开工前\"全量基线两次未跑完**（诚实披露）：第一次卡在 78% 的 `test_orm_db_drift.py`、清库后第二次卡在 45% 的 dividend 测试，进程 CPU 时间极低（长时间等待）——与本仓已知的网络脆弱性一致，非本次改动引起。故不以全量数字作为\"不退化\"的主证据",
+          "**改用有界且严谨的三层对照（主证据）**：`pytest tests/domain tests/application tests/infrastructure -q --timeout=20`——开工前 **14 failed / 949 passed / 6 skipped**，改动后 **14 failed / 949 passed / 6 skipped**，**失败清单差异为空（零新增失败）**，且仅 4.6 秒即可复现",
+          "**三层对照的做法可复核**：先把 5 个目录（application/domain/adapters/infrastructure/.git-hooks）checkout 回本卡前提交 `84e975e6`（确认 bare except 回到 41、basicConfig 12、infra sys.path 16），跑一轮；再 `checkout HEAD` 恢复（确认回到 0/0/0）跑第二轮",
+          "**恢复完整性验证**：恢复后三条验收口径复测均为 **0/0/0**，且库层工作区无残留改动（`git status` 除台账外为空）——没有把\"对照用的回退\"留在生产代码里",
+          "另有两处按主题的**定向回退对照**作为补充证据：主题A 选择集 4 failed/4 errors 前后一致；主题C 选择集 18 failed 前后一致（差异均为空）",
+          "连带验证（新代码实跑）：服务以新代码重启成功、`/docs=200`、探针 exit=0、`GET /api/charts/kline/600519` 返回真实 2026-09-30 行情、`logs/api.log` 已写 98KB"
+        ]
+      },
+      "lastRun": {
+        "at": 1790870179563,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
     }
   ],
   "edges": [
@@ -12355,6 +13059,22 @@
     {
       "from": "t-35e6fe",
       "to": "t-b1497f"
+    },
+    {
+      "from": "t-504421",
+      "to": "t-76aba1"
+    },
+    {
+      "from": "t-76aba1",
+      "to": "t-b17ab4"
+    },
+    {
+      "from": "t-b17ab4",
+      "to": "t-d66ee4"
+    },
+    {
+      "from": "t-d66ee4",
+      "to": "t-669f1b"
     }
   ],
   "layers": [
@@ -12407,6 +13127,7 @@
         "t-05079e",
         "t-bb3890",
         "t-916eed",
+        "t-76aba1",
         "t-a9cbe0",
         "t-c6d950",
         "t-805d4c",
@@ -12431,6 +13152,7 @@
         "t-9dd27b",
         "t-66f644",
         "t-aa9dcb",
+        "t-b17ab4",
         "t-245f18",
         "t-9254d9",
         "t-1f1299",
@@ -12452,6 +13174,7 @@
         "t-fb9b61",
         "t-73b221",
         "t-eab6e9",
+        "t-d66ee4",
         "t-65e702",
         "t-6d1800",
         "t-d7750a"
@@ -12467,7 +13190,8 @@
         "t-a7d164",
         "t-6e7b28",
         "t-560297",
-        "t-b52f3f"
+        "t-b52f3f",
+        "t-669f1b"
       ]
     },
     {
@@ -12482,8 +13206,7 @@
   "ready": [
     "t-2d52a7",
     "t-686185",
-    "t-71051b",
-    "t-008062"
+    "t-71051b"
   ],
-  "updated_at": "2026-10-01T13:10:06.426Z"
+  "updated_at": "2026-10-01T15:58:28.607Z"
 }

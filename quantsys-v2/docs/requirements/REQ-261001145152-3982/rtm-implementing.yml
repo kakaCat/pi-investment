@@ -2,11 +2,11 @@ metadata:
   stage: implementing
   requirement_id: REQ-261001145152-3982
   generated_at: 2026-10-01T07:07:50.908Z
-  version: 247
+  version: 262
   generated_by: dsh-pmboard
   detail_dir: rtm-implementing/
-  detail_count: 85
-  last_updated: 2026-10-01T13:10:06.475Z
+  detail_count: 89
+  last_updated: 2026-10-01T15:58:28.658Z
 inputs:
   tasks:
     - id: t-c63378
@@ -68,7 +68,7 @@ inputs:
       status: done
     - id: t-008062
       title: 卫生债批量清理（550 处）
-      status: todo
+      status: done
     - id: t-9b20eb
       title: scripts/tools 归位
       status: done
@@ -264,11 +264,23 @@ inputs:
     - id: t-b1497f
       title: docs 分层归位（140 个 md）·复核
       status: done
+    - id: t-76aba1
+      title: 卫生债批量清理（550 处）·研发
+      status: done
+    - id: t-b17ab4
+      title: 卫生债批量清理（550 处）·联调
+      status: done
+    - id: t-d66ee4
+      title: 卫生债批量清理（550 处）·复核
+      status: done
+    - id: t-669f1b
+      title: 卫生债批量清理（550 处）·测试
+      status: done
 status:
-  tasks_total: 85
-  tasks_done: 81
+  tasks_total: 89
+  tasks_done: 86
   tasks_in_progress: 0
-  tasks_todo: 4
+  tasks_todo: 3
 tasks:
   - id: t-c63378
     status: done
@@ -309,7 +321,7 @@ tasks:
   - id: t-f777da
     status: done
   - id: t-008062
-    status: todo
+    status: done
   - id: t-9b20eb
     status: done
   - id: t-d878d7
@@ -439,4 +451,12 @@ tasks:
   - id: t-35e6fe
     status: done
   - id: t-b1497f
+    status: done
+  - id: t-76aba1
+    status: done
+  - id: t-b17ab4
+    status: done
+  - id: t-d66ee4
+    status: done
+  - id: t-669f1b
     status: done

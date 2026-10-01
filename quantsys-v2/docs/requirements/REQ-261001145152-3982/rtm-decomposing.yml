@@ -2,9 +2,9 @@ metadata:
   stage: decomposing
   requirement_id: REQ-261001145152-3982
   generated_at: 2026-10-01T07:07:50.907Z
-  version: 247
+  version: 262
   generated_by: dsh-pmboard
-  last_updated: 2026-10-01T13:10:06.501Z
+  last_updated: 2026-10-01T15:58:28.686Z
 inputs:
   requirements:
     - id: FR-1
@@ -1486,6 +1486,50 @@ outputs:
         - t-35e6fe
       phase: doc
       side: doc
+    - id: t-76aba1
+      title: 卫生债批量清理（550 处）·研发
+      implements: |-
+        ① 41 处 bare except 改具体异常；② 约 134 处 except ...: pass 补结构化日志；③ 136 处 sys.path.insert（16 处在库层）清零，入口统一由 PYTHONPATH 提供；④ 144 处库层裸 print 改 structlog；⑤ 12 处 logging.basicConfig 清除；⑥ 20 个库层内嵌 __main__ 移到 scripts/。按主题分批提交。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-504421
+      phase: implement
+      side: backend
+    - id: t-b17ab4
+      title: 卫生债批量清理（550 处）·联调
+      implements: |-
+        ① 41 处 bare except 改具体异常；② 约 134 处 except ...: pass 补结构化日志；③ 136 处 sys.path.insert（16 处在库层）清零，入口统一由 PYTHONPATH 提供；④ 144 处库层裸 print 改 structlog；⑤ 12 处 logging.basicConfig 清除；⑥ 20 个库层内嵌 __main__ 移到 scripts/。按主题分批提交。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-76aba1
+      phase: implement
+      side: backend
+    - id: t-d66ee4
+      title: 卫生债批量清理（550 处）·复核
+      implements: |-
+        ① 41 处 bare except 改具体异常；② 约 134 处 except ...: pass 补结构化日志；③ 136 处 sys.path.insert（16 处在库层）清零，入口统一由 PYTHONPATH 提供；④ 144 处库层裸 print 改 structlog；⑤ 12 处 logging.basicConfig 清除；⑥ 20 个库层内嵌 __main__ 移到 scripts/。按主题分批提交。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-b17ab4
+      phase: implement
+      side: backend
+    - id: t-669f1b
+      title: 卫生债批量清理（550 处）·测试
+      implements: |-
+        ① 41 处 bare except 改具体异常；② 约 134 处 except ...: pass 补结构化日志；③ 136 处 sys.path.insert（16 处在库层）清零，入口统一由 PYTHONPATH 提供；④ 144 处库层裸 print 改 structlog；⑤ 12 处 logging.basicConfig 清除；⑥ 20 个库层内嵌 __main__ 移到 scripts/。按主题分批提交。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-d66ee4
+      phase: implement
+      side: backend
 traceability:
   design_to_tasks:
     design/architecture.md#目标与总体方案: []
