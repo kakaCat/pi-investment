@@ -14,15 +14,14 @@
 CREATE INDEX IF NOT EXISTS，且每项都先查 information_schema —— 重复执行的变更数应为 0。
 
 用法（**由父 agent 在真库执行，子任务不跑**）：
-  ./venv/bin/python infrastructure/persistence/migrations/20260918b_watch_runtime_complete.py
+  PYTHONPATH=. ./venv/bin/python infrastructure/persistence/migrations/20260918b_watch_runtime_complete.py
   （第二次执行应打印：变更数 0）
 """
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[3]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+# 2026-10-01（t-008062 主题C）：此处原有一行 sys.path 插入 —— 路径改由入口提供，
+# 运行方式见本文件头部说明（需 `PYTHONPATH=.`）。库层不得自行改 sys.path。
 
 SCHEMA = 'quant'
 

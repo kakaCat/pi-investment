@@ -20,21 +20,22 @@
 全部语句 IF NOT EXISTS / CREATE OR REPLACE，可重复执行；回填按 symbol 前缀分段 UPDATE。
 
 用法：
-    ./venv/bin/python infrastructure/persistence/migrations/20260911_daily_klines_market.py            # dry-run（默认）
-    ./venv/bin/python infrastructure/persistence/migrations/20260911_daily_klines_market.py --apply
+    PYTHONPATH=. ./venv/bin/python infrastructure/persistence/migrations/20260911_daily_klines_market.py            # dry-run（默认）
+    PYTHONPATH=. ./venv/bin/python infrastructure/persistence/migrations/20260911_daily_klines_market.py --apply
 
 ## 测试库也要跑（实测坑）
 ORM 模型加了 market 字段后，**测试库 quant_test 的 daily_klines 仍是旧 schema**，
 tests/test_kline_repository.py 立刻报 "column daily_klines.market does not exist"（1 failed / 22 passed）。
 测试库需同样执行本迁移：
-    ./venv/bin/python infrastructure/persistence/migrations/20260911_daily_klines_market.py \
+    PYTHONPATH=. ./venv/bin/python infrastructure/persistence/migrations/20260911_daily_klines_market.py \
         --apply --dsn postgresql+psycopg2:///quant_test
 """
 import argparse
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+# 2026-10-01（t-008062 主题C）：此处原有一行 sys.path 插入 —— 路径改由入口提供，
+# 运行方式见本文件头部说明（需 `PYTHONPATH=.`）。库层不得自行改 sys.path。
 
 from sqlalchemy import create_engine, text  # noqa: E402
 

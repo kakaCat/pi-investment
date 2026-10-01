@@ -11,14 +11,13 @@
   频次超限（一直响）/ 静默超时（一直不响）/ 阶段滞留 / 快到期，都要回到 agent 复核。
   复核结果以 watch_triggers 的 meta_review 态进入未处置清单（复用现有流转），无需新队列。
 
-用法：./venv/bin/python infrastructure/persistence/migrations/20260911_watch_interventions.py
+用法：PYTHONPATH=. ./venv/bin/python infrastructure/persistence/migrations/20260911_watch_interventions.py
 """
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[3]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+# 2026-10-01（t-008062 主题C）：此处原有一行 sys.path 插入 —— 路径改由入口提供，
+# 运行方式见本文件头部说明（需 `PYTHONPATH=.`）。库层不得自行改 sys.path。
 
 DDL = [
     """CREATE TABLE IF NOT EXISTS quant.watch_interventions (

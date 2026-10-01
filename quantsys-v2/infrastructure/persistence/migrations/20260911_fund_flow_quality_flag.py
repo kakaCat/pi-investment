@@ -16,14 +16,13 @@ quant.daily_klines 做同 symbol+trade_date 比对，60,211 条可比对行中 *
 消费者规避：WHERE quality_flag IS NULL。
 幂等：重复执行安全（IF NOT EXISTS + 按 suspect 表回填）。
 
-用法：QUANT_DATABASE_URL=... ./venv/bin/python infrastructure/persistence/migrations/20260911_fund_flow_quality_flag.py
+用法：QUANT_DATABASE_URL=... PYTHONPATH=. ./venv/bin/python infrastructure/persistence/migrations/20260911_fund_flow_quality_flag.py
 """
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[3]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+# 2026-10-01（t-008062 主题C）：此处原有一行 sys.path 插入 —— 路径改由入口提供，
+# 运行方式见本文件头部说明（需 `PYTHONPATH=.`）。库层不得自行改 sys.path。
 
 DDL = [
     "ALTER TABLE quant.stock_fund_flow ADD COLUMN IF NOT EXISTS quality_flag VARCHAR(32)",

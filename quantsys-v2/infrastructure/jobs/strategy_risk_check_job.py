@@ -27,8 +27,8 @@ import logging
 from typing import Dict, List, Optional
 
 # 添加项目路径
-project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
+# 2026-10-01（t-008062 主题C）：此处原有一行 sys.path 插入 —— 路径改由入口提供，
+# 运行方式见本文件头部说明（需 `PYTHONPATH=.`）。库层不得自行改 sys.path。
 
 from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
 from adapters.outbound.repositories.kline_repository import KlineORMRepository as KlineRepository

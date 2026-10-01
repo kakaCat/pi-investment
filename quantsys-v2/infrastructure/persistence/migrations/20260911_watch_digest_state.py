@@ -4,14 +4,13 @@
 导致重启即清零重计——实测重启后 escalated 重计、每日预算形同虚设。
 摘要门要真的"与触发数解耦"，状态必须落库。
 
-用法：./venv/bin/python infrastructure/persistence/migrations/20260911_watch_digest_state.py
+用法：PYTHONPATH=. ./venv/bin/python infrastructure/persistence/migrations/20260911_watch_digest_state.py
 """
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[3]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+# 2026-10-01（t-008062 主题C）：此处原有一行 sys.path 插入 —— 路径改由入口提供，
+# 运行方式见本文件头部说明（需 `PYTHONPATH=.`）。库层不得自行改 sys.path。
 
 DDL = [
     """CREATE TABLE IF NOT EXISTS quant.watch_digest_state (
