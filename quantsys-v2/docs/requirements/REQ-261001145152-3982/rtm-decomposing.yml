@@ -2,9 +2,9 @@ metadata:
   stage: decomposing
   requirement_id: REQ-261001145152-3982
   generated_at: 2026-10-01T07:07:50.907Z
-  version: 162
+  version: 177
   generated_by: dsh-pmboard
-  last_updated: 2026-10-01T10:42:56.372Z
+  last_updated: 2026-10-01T11:03:07.287Z
 inputs:
   requirements:
     - id: FR-1
@@ -1244,6 +1244,50 @@ outputs:
       serves: []
       depends_on:
         - t-73b221
+      phase: implement
+      side: backend
+    - id: t-916eed
+      title: 删 5 个孤儿的重复 provider·研发
+      implements: |-
+        删除 application/services/financial_providers/ 下 {eastmoney,sina,akshare,tencent,tushare}_provider.py 共 792 行（无任何实例化方）；datasources/manager.py:104 实际装配的是 adapters 树里的 SinaFinancialProvider / EastmoneyFinancialProvider / AkshareFinancialStatementProvider，删前确认装配链。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-504421
+      phase: implement
+      side: backend
+    - id: t-aa9dcb
+      title: 删 5 个孤儿的重复 provider·联调
+      implements: |-
+        删除 application/services/financial_providers/ 下 {eastmoney,sina,akshare,tencent,tushare}_provider.py 共 792 行（无任何实例化方）；datasources/manager.py:104 实际装配的是 adapters 树里的 SinaFinancialProvider / EastmoneyFinancialProvider / AkshareFinancialStatementProvider，删前确认装配链。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-916eed
+      phase: implement
+      side: backend
+    - id: t-eab6e9
+      title: 删 5 个孤儿的重复 provider·复核
+      implements: |-
+        删除 application/services/financial_providers/ 下 {eastmoney,sina,akshare,tencent,tushare}_provider.py 共 792 行（无任何实例化方）；datasources/manager.py:104 实际装配的是 adapters 树里的 SinaFinancialProvider / EastmoneyFinancialProvider / AkshareFinancialStatementProvider，删前确认装配链。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-aa9dcb
+      phase: implement
+      side: backend
+    - id: t-b52f3f
+      title: 删 5 个孤儿的重复 provider·测试
+      implements: |-
+        删除 application/services/financial_providers/ 下 {eastmoney,sina,akshare,tencent,tushare}_provider.py 共 792 行（无任何实例化方）；datasources/manager.py:104 实际装配的是 adapters 树里的 SinaFinancialProvider / EastmoneyFinancialProvider / AkshareFinancialStatementProvider，删前确认装配链。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-eab6e9
       phase: implement
       side: backend
 traceability:

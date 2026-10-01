@@ -2,11 +2,11 @@ metadata:
   stage: implementing
   requirement_id: REQ-261001145152-3982
   generated_at: 2026-10-01T07:07:50.908Z
-  version: 162
+  version: 177
   generated_by: dsh-pmboard
   detail_dir: rtm-implementing/
-  detail_count: 63
-  last_updated: 2026-10-01T10:42:56.346Z
+  detail_count: 67
+  last_updated: 2026-10-01T11:03:07.260Z
 inputs:
   tasks:
     - id: t-c63378
@@ -35,7 +35,7 @@ inputs:
       status: todo
     - id: t-59468b
       title: 删 5 个孤儿的重复 provider
-      status: todo
+      status: done
     - id: t-c3a097
       title: 挂上分层护栏（hook + 基线 + 纯净性断言）
       status: done
@@ -198,11 +198,23 @@ inputs:
     - id: t-560297
       title: 修悬空 import + 裁决 BaseCalculator 双类·测试
       status: done
+    - id: t-916eed
+      title: 删 5 个孤儿的重复 provider·研发
+      status: done
+    - id: t-aa9dcb
+      title: 删 5 个孤儿的重复 provider·联调
+      status: done
+    - id: t-eab6e9
+      title: 删 5 个孤儿的重复 provider·复核
+      status: done
+    - id: t-b52f3f
+      title: 删 5 个孤儿的重复 provider·测试
+      status: done
 status:
-  tasks_total: 63
-  tasks_done: 53
+  tasks_total: 67
+  tasks_done: 58
   tasks_in_progress: 0
-  tasks_todo: 10
+  tasks_todo: 9
 tasks:
   - id: t-c63378
     status: done
@@ -221,7 +233,7 @@ tasks:
   - id: t-2d52a7
     status: todo
   - id: t-59468b
-    status: todo
+    status: done
   - id: t-c3a097
     status: done
   - id: t-4f6f4b
@@ -329,4 +341,12 @@ tasks:
   - id: t-73b221
     status: done
   - id: t-560297
+    status: done
+  - id: t-916eed
+    status: done
+  - id: t-aa9dcb
+    status: done
+  - id: t-eab6e9
+    status: done
+  - id: t-b52f3f
     status: done
