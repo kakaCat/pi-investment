@@ -1,0 +1,38 @@
+task:
+  id: t-3da04c
+  title: 挂上分层护栏（hook + 基线 + 纯净性断言）·联调
+  status: done
+  implements: |-
+    ① git config core.hooksPath .git-hooks；② .git-hooks/pre-commit 的 BASELINE 7 → 117 并按方向拆分（区分允许的 inbound 与真违规）；③ 新增分层纯净性断言测试（把当前违规数写成断言，只许降不许升）。
+
+    [子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致
+  serves: []
+  depends_on:
+    - t-723156
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261001145152-3982
+    TASK_ID: t-3da04c
+    TASK_TITLE: 挂上分层护栏（hook + 基线 + 纯净性断言）·联调
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-01T08:50:50.818Z
+    - phase: commit
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261001145152-3982
+  generated_at: 2026-10-01T08:47:18.039Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-01T08:50:50.819Z

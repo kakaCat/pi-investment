@@ -30,7 +30,7 @@ cd pi-investment/quantsys-v2
 # 使用 Python 3.13
 /opt/homebrew/bin/python3.13 -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
+pip install -e .
 ```
 
 ### 3. 安装 Git Hooks

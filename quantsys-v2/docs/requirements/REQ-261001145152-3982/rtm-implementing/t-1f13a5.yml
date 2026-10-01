@@ -1,0 +1,38 @@
+task:
+  id: t-1f13a5
+  title: 体积与虚拟环境（先清 5.2G）·复核
+  status: done
+  implements: |-
+    ① 先清 live_trading/logs/（5.2G，纯运行日志且 git 跟踪 0）；② 统一到一个 venv（对齐 .python-version 3.13，清掉另一套 642M）；③ 日志轮转（logrotate 或 RotatingFileHandler），覆盖 live_trading/ 与主 logs/；④ 清历史大日志与 htmlcov/（157M）。
+
+    [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+  serves: []
+  depends_on:
+    - t-e3df07
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261001145152-3982
+    TASK_ID: t-1f13a5
+    TASK_TITLE: 体积与虚拟环境（先清 5.2G）·复核
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-01T07:41:37.861Z
+    - phase: review
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261001145152-3982
+  generated_at: 2026-10-01T07:39:52.908Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-01T07:41:37.861Z

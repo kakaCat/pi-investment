@@ -1,0 +1,1326 @@
+metadata:
+  stage: decomposing
+  requirement_id: REQ-261001145152-3982
+  generated_at: 2026-10-01T07:07:50.907Z
+  version: 117
+  generated_by: dsh-pmboard
+  last_updated: 2026-10-01T09:18:38.260Z
+inputs:
+  requirements:
+    - id: FR-1
+      title: 资产与分层盘点
+      source: requirement.md
+      line: 116
+    - id: FR-2
+      title: 重复实现与分叉盘点
+      source: requirement.md
+      line: 120
+    - id: FR-3
+      title: 调度与运行态盘点
+      source: requirement.md
+      line: 124
+    - id: FR-4
+      title: 依赖与环境可复现性盘点
+      source: requirement.md
+      line: 128
+    - id: FR-5
+      title: 文档与仓库卫生盘点
+      source: requirement.md
+      line: 133
+    - id: FR-6
+      title: 优化清单（本需求的核心产物）
+      source: requirement.md
+      line: 138
+    - id: FR-7
+      title: 判定标准可证伪
+      source: requirement.md
+      line: 145
+  design_sections:
+    - ref: design/architecture.md#目标与总体方案
+      title: 目标与总体方案（
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 目标与总体方案
+    - ref: design/architecture.md#模块改动地图
+      title: 模块改动地图（
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 模块改动地图
+    - ref: design/architecture.md#数据结构变更
+      title: 数据结构变更（
+      serves:
+        - FR-6
+      file: design/architecture.md
+      section: 数据结构变更
+    - ref: design/architecture.md#接口变更
+      title: 接口变更（
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 接口变更
+    - ref: design/architecture.md#依赖关系
+      title: 依赖关系（
+      serves:
+        - FR-4
+      file: design/architecture.md
+      section: 依赖关系
+    - ref: design/architecture.md#目录结构
+      title: 目录结构（
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 目录结构
+    - ref: design/architecture.md#关键算法流程
+      title: 关键算法/流程（
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 关键算法流程
+    - ref: design/architecture.md#安全性能考虑
+      title: 安全/性能考虑（
+      serves:
+        - FR-3
+      file: design/architecture.md
+      section: 安全性能考虑
+    - ref: design/architecture.md#测试策略
+      title: 测试策略（
+      serves:
+        - FR-7
+      file: design/architecture.md
+      section: 测试策略
+    - ref: design/architecture.md#错误处理
+      title: 错误处理（
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 错误处理
+    - ref: design/architecture.md#配置项
+      title: 配置项（
+      serves:
+        - FR-4
+      file: design/architecture.md
+      section: 配置项
+    - ref: design/architecture.md#监控埋点
+      title: 监控埋点（
+      serves:
+        - FR-3
+      file: design/architecture.md
+      section: 监控埋点
+    - ref: design/architecture.md#部署变更
+      title: 部署变更（
+      serves:
+        - FR-3
+      file: design/architecture.md
+      section: 部署变更
+    - ref: design/architecture.md#文档更新清单
+      title: 文档更新清单（
+      serves:
+        - FR-5
+      file: design/architecture.md
+      section: 文档更新清单
+    - ref: design/architecture.md#遗留问题
+      title: 遗留问题（
+      serves:
+        - FR-5
+      file: design/architecture.md
+      section: 遗留问题
+    - ref: design/audit-report.md#TLDR
+      title: TL;DR（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+      file: design/audit-report.md
+      section: TLDR
+    - ref: design/audit-report.md#总览表
+      title: 总览表（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+      file: design/audit-report.md
+      section: 总览表
+    - ref: design/audit-report.md#1
+      title: 资产与分层盘点（
+      serves:
+        - FR-1
+      file: design/audit-report.md
+      section: "1"
+    - ref: design/audit-report.md#1.1
+      title: 规模分布（
+      serves:
+        - FR-1
+      file: design/audit-report.md
+      section: "1.1"
+    - ref: design/audit-report.md#1.2
+      title: 超大文件（>800 行 = 38 个；生产四层 30 个）（
+      serves:
+        - FR-1
+      file: design/audit-report.md
+      section: "1.2"
+    - ref: design/audit-report.md#1.3
+      title: 分层违规（自带工具口径，AST 精确）（
+      serves:
+        - FR-1
+      file: design/audit-report.md
+      section: "1.3"
+    - ref: design/audit-report.md#1.4
+      title: 环形依赖（
+      serves:
+        - FR-1
+      file: design/audit-report.md
+      section: "1.4"
+    - ref: design/audit-report.md#1.5
+      title: 另一条被自身违反的强制规则：数据访问（
+      serves:
+        - FR-1
+      file: design/audit-report.md
+      section: "1.5"
+    - ref: design/audit-report.md#2
+      title: 重复实现与分叉盘点（
+      serves:
+        - FR-2
+      file: design/audit-report.md
+      section: "2"
+    - ref: design/audit-report.md#2.0
+      title: 一处前提修正（先破后立）（
+      serves:
+        - FR-2
+      file: design/audit-report.md
+      section: "2.0"
+    - ref: design/audit-report.md#2.1
+      title: 复制清单（按风险降序）（
+      serves:
+        - FR-2
+      file: design/audit-report.md
+      section: "2.1"
+    - ref: design/audit-report.md#2.2
+      title: 已排除的"伪重复"（避免误导）（
+      serves:
+        - FR-2
+      file: design/audit-report.md
+      section: "2.2"
+    - ref: design/audit-report.md#2.3
+      title: 为什么"分叉"比"重复"更严重（
+      serves:
+        - FR-2
+      file: design/audit-report.md
+      section: "2.3"
+    - ref: design/audit-report.md#3
+      title: 调度与运行态盘点（
+      serves:
+        - FR-3
+      file: design/audit-report.md
+      section: "3"
+    - ref: design/audit-report.md#3.1
+      title: 四套调度器并存（
+      serves:
+        - FR-3
+      file: design/audit-report.md
+      section: "3.1"
+    - ref: design/audit-report.md#3.2
+      title: DB 里的重复任务（`quant.scheduler_tasks`：26 启用 / 7 禁用）（
+      serves:
+        - FR-3
+      file: design/audit-report.md
+      section: "3.2"
+    - ref: design/audit-report.md#3.3
+      title: 运行态：服务已停 18 天（本报告最紧的一条）（
+      serves:
+        - FR-3
+      file: design/audit-report.md
+      section: "3.3"
+    - ref: design/audit-report.md#4
+      title: 依赖与环境可复现性盘点（
+      serves:
+        - FR-4
+      file: design/audit-report.md
+      section: "4"
+    - ref: design/audit-report.md#4.1
+      title: 两套依赖清单，完整的那套被埋了（
+      serves:
+        - FR-4
+      file: design/audit-report.md
+      section: "4.1"
+    - ref: design/audit-report.md#4.2
+      title: 硬 import 但未安装 → 119 个测试模块连收集都过不去（
+      serves:
+        - FR-4
+      file: design/audit-report.md
+      section: "4.2"
+    - ref: design/audit-report.md#4.3
+      title: 与历史事故记录直接冲突的声明（
+      serves:
+        - FR-4
+      file: design/audit-report.md
+      section: "4.3"
+    - ref: design/audit-report.md#4.4
+      title: 静态检查与 CI（
+      serves:
+        - FR-4
+      file: design/audit-report.md
+      section: "4.4"
+    - ref: design/audit-report.md#5
+      title: 文档与仓库卫生盘点（
+      serves:
+        - FR-5
+      file: design/audit-report.md
+      section: "5"
+    - ref: design/audit-report.md#5.1
+      title: 文档分层违规（
+      serves:
+        - FR-5
+      file: design/audit-report.md
+      section: "5.1"
+    - ref: design/audit-report.md#5.2
+      title: git 跟踪的产物（
+      serves:
+        - FR-5
+      file: design/audit-report.md
+      section: "5.2"
+    - ref: design/audit-report.md#5.3
+      title: 体积垃圾（
+      serves:
+        - FR-5
+      file: design/audit-report.md
+      section: "5.3"
+    - ref: design/audit-report.md#5.4
+      title: 卫生债指标（
+      serves:
+        - FR-5
+      file: design/audit-report.md
+      section: "5.4"
+    - ref: design/audit-report.md#5.5
+      title: 空壳与幽灵模块（正确性风险，非风格问题）（
+      serves:
+        - FR-5
+      file: design/audit-report.md
+      section: "5.5"
+    - ref: design/audit-report.md#5.6
+      title: 文档 vs 代码：8 条矛盾（
+      serves:
+        - FR-5
+      file: design/audit-report.md
+      section: "5.6"
+    - ref: design/audit-report.md#5.7
+      title: 一个正例（值得作为模板）（
+      serves:
+        - FR-5
+      file: design/audit-report.md
+      section: "5.7"
+    - ref: design/audit-report.md#5.8
+      title: 孤儿模块：两种口径差 5 倍，恰恰说明"不能靠静态扫描删代码"（
+      serves:
+        - FR-5
+      file: design/audit-report.md
+      section: "5.8"
+    - ref: design/audit-report.md#5.9
+      title: scripts / tools：一次性脚本与误置测试（
+      serves:
+        - FR-5
+      file: design/audit-report.md
+      section: "5.9"
+    - ref: design/data-model.md#新增修改的数据结构
+      title: 新增/修改的数据结构（
+      serves:
+        - FR-6
+      file: design/data-model.md
+      section: 新增修改的数据结构
+    - ref: design/data-model.md#BacklogItem优化条目
+      title: BacklogItem（优化条目） （
+      serves:
+        - FR-6
+      file: design/data-model.md
+      section: BacklogItem优化条目
+    - ref: design/data-model.md#Priority优先级枚举
+      title: Priority（优先级枚举） （
+      serves:
+        - FR-6
+      file: design/data-model.md
+      section: Priority优先级枚举
+    - ref: design/data-model.md#现状数据事实只读采集无变更
+      title: 现状数据事实（只读采集，**无变更**）（
+      serves:
+        - FR-3
+      file: design/data-model.md
+      section: 现状数据事实只读采集无变更
+    - ref: design/data-model.md#SchedulerTask-现状quantschedulertasks
+      title: SchedulerTask 现状（`quant.scheduler_tasks`） （
+      serves:
+        - FR-3
+      file: design/data-model.md
+      section: SchedulerTask-现状quantschedulertasks
+    - ref: design/data-model.md#DailyKline-新鲜度quantdailyklines
+      title: DailyKline 新鲜度（`quant.daily_klines`） （
+      serves:
+        - FR-3
+      file: design/data-model.md
+      section: DailyKline-新鲜度quantdailyklines
+    - ref: design/data-model.md#InProcessJobRunquantinprocessjobruns
+      title: InProcessJobRun（`quant.inprocess_job_runs`） （
+      serves:
+        - FR-3
+      file: design/data-model.md
+      section: InProcessJobRunquantinprocessjobruns
+    - ref: design/data-model.md#LiveTradingLogArtifactslivetradinglogs
+      title: LiveTradingLogArtifacts（`live_trading/logs/`） （
+      serves:
+        - FR-5
+      file: design/data-model.md
+      section: LiveTradingLogArtifactslivetradinglogs
+    - ref: design/interfaces.md#新增修改的工具接口
+      title: 新增/修改的工具接口（
+      serves:
+        - FR-7
+      file: design/interfaces.md
+      section: 新增修改的工具接口
+    - ref: design/interfaces.md#复现命令接口15-条
+      title: 复现命令接口（15 条） （
+      serves:
+        - FR-7
+      file: design/interfaces.md
+      section: 复现命令接口15-条
+    - ref: design/interfaces.md#文档交付接口体检报告
+      title: 文档交付接口：体检报告 （
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: 文档交付接口体检报告
+    - ref: design/interfaces.md#文档交付接口优化清单
+      title: 文档交付接口：优化清单 （
+      serves:
+        - FR-6
+      file: design/interfaces.md
+      section: 文档交付接口优化清单
+    - ref: design/interfaces.md#删除的接口
+      title: 删除的接口（
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: 删除的接口
+    - ref: design/interfaces.md#HTTP-API-变更
+      title: HTTP API 变更（
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: HTTP-API-变更
+    - ref: design/optimization-backlog.md#TLDR
+      title: TL;DR（
+      serves:
+        - FR-6
+        - FR-7
+      file: design/optimization-backlog.md
+      section: TLDR
+    - ref: design/optimization-backlog.md#1
+      title: 条目契约（清单的数据契约）（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: "1"
+    - ref: design/optimization-backlog.md#1.0
+      title: 接口适用性说明（为什么没有运行时接口）（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: "1.0"
+    - ref: design/optimization-backlog.md#1.1
+      title: 条目字段契约（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: "1.1"
+    - ref: design/optimization-backlog.md#2
+      title: 批 1 · P0 运行态（最高优先，今天）（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: "2"
+    - ref: design/optimization-backlog.md#P0-1-把服务救活并留下谁在跑的证据
+      title: P0-1 把服务救活并留下"谁在跑"的证据（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: P0-1-把服务救活并留下谁在跑的证据
+    - ref: design/optimization-backlog.md#P0-2-数据补跑K-线滞后-20-天
+      title: P0-2 数据补跑（K 线滞后 20 天）（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: P0-2-数据补跑K-线滞后-20-天
+    - ref: design/optimization-backlog.md#P0-3-给静默死亡装自动探针本仓已经栽过-3-次
+      title: P0-3 给"静默死亡"装自动探针（本仓已经栽过 3 次）（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: P0-3-给静默死亡装自动探针本仓已经栽过-3-次
+    - ref: design/optimization-backlog.md#3
+      title: 批 2 · P1 正确性（本周）（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: "3"
+    - ref: design/optimization-backlog.md#P1-1-依赖声明收口让测试能跑
+      title: P1-1 依赖声明收口（让测试能跑）（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: P1-1-依赖声明收口让测试能跑
+    - ref: design/optimization-backlog.md#P1-2-修-getconfig-空壳正确性缺陷非风格
+      title: P1-2 修 `get_config()` 空壳（正确性缺陷，非风格）（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: P1-2-修-getconfig-空壳正确性缺陷非风格
+    - ref: design/optimization-backlog.md#P1-3-删重复实现纯删除收益最高
+      title: P1-3 删重复实现（纯删除，收益最高）（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: P1-3-删重复实现纯删除收益最高
+    - ref: design/optimization-backlog.md#P1-4-修悬空-import-裁决-BaseCalculator-双类
+      title: P1-4 修悬空 import + 裁决 `BaseCalculator` 双类（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: P1-4-修悬空-import-裁决-BaseCalculator-双类
+    - ref: design/optimization-backlog.md#P1-5-调度去重4-套-1-套
+      title: P1-5 调度去重：4 套 → 1 套（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: P1-5-调度去重4-套-1-套
+    - ref: design/optimization-backlog.md#P1-6-删-5-个孤儿的重复-provider792-行数据访问规则的活标本
+      title: P1-6 删 5 个孤儿的重复 provider（792 行，数据访问规则的活标本）（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: P1-6-删-5-个孤儿的重复-provider792-行数据访问规则的活标本
+    - ref: design/optimization-backlog.md#4
+      title: 批 3 · P2 结构（2~3 周，需先有 P1-1 的测试基线）（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: "4"
+    - ref: design/optimization-backlog.md#P2-1-挂上护栏必须最先做否则改完继续漂
+      title: P2-1 挂上护栏（**必须最先做**，否则改完继续漂）（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: P2-1-挂上护栏必须最先做否则改完继续漂
+    - ref: design/optimization-backlog.md#P2-2-消-application-层-12-处顶层越层导入
+      title: P2-2 消 application 层 12 处顶层越层导入（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: P2-2-消-application-层-12-处顶层越层导入
+    - ref: design/optimization-backlog.md#P2-3-拆两个文件级上帝
+      title: P2-3 拆两个"文件级上帝"（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: P2-3-拆两个文件级上帝
+    - ref: design/optimization-backlog.md#P2-4-端口与-DI-收敛
+      title: P2-4 端口与 DI 收敛（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: P2-4-端口与-DI-收敛
+    - ref: design/optimization-backlog.md#P2-5-Repository-双轨收敛-修文档指向
+      title: P2-5 Repository 双轨收敛 + 修文档指向（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: P2-5-Repository-双轨收敛-修文档指向
+    - ref: design/optimization-backlog.md#P2-6-数据访问规则收口-provider-归位
+      title: P2-6 数据访问规则收口 + provider 归位（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: P2-6-数据访问规则收口-provider-归位
+    - ref: design/optimization-backlog.md#5
+      title: 批 4 · P3 卫生（随时可做，可与批 3 并行）（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: "5"
+    - ref: design/optimization-backlog.md#P3-1-docs-分层归位140-个-md
+      title: P3-1 docs 分层归位（140 个 md）（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: P3-1-docs-分层归位140-个-md
+    - ref: design/optimization-backlog.md#P3-2-git-里的产物出库
+      title: P3-2 git 里的产物出库（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: P3-2-git-里的产物出库
+    - ref: design/optimization-backlog.md#P3-3-体积与虚拟环境
+      title: P3-3 体积与虚拟环境（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: P3-3-体积与虚拟环境
+    - ref: design/optimization-backlog.md#P3-4-修-CLAUDEmd-的-8-条矛盾
+      title: P3-4 修 CLAUDE.md 的 8 条矛盾（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: P3-4-修-CLAUDEmd-的-8-条矛盾
+    - ref: design/optimization-backlog.md#P3-5-卫生债批量清理
+      title: P3-5 卫生债批量清理（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: P3-5-卫生债批量清理
+    - ref: design/optimization-backlog.md#P3-6-scripts-tools-归位删一次性脚本-回收误置测试
+      title: P3-6 scripts / tools 归位：删一次性脚本 + 回收误置测试（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: P3-6-scripts-tools-归位删一次性脚本-回收误置测试
+    - ref: design/optimization-backlog.md#6
+      title: 复现校验（本设计的验收口径）（
+      serves:
+        - FR-7
+      file: design/optimization-backlog.md
+      section: "6"
+    - ref: design/optimization-backlog.md#7
+      title: 迁移与兼容设计（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: "7"
+    - ref: design/use-cases.md#场景总览
+      title: 场景总览 <!--
+      serves:
+        - FR-1
+        - FR-6
+      file: design/use-cases.md
+      section: 场景总览
+    - ref: design/use-cases.md#UC-1-人类排期
+      title: UC-1 人类排期 <!--
+      serves:
+        - FR-6
+      file: design/use-cases.md
+      section: UC-1-人类排期
+    - ref: design/use-cases.md#UC-2-Agent-领任务实施
+      title: UC-2 Agent 领任务实施 <!--
+      serves:
+        - FR-3
+        - FR-6
+      file: design/use-cases.md
+      section: UC-2-Agent-领任务实施
+    - ref: design/use-cases.md#UC-3-新会话-新人接手
+      title: UC-3 新会话 / 新人接手 <!--
+      serves:
+        - FR-1
+        - FR-5
+      file: design/use-cases.md
+      section: UC-3-新会话-新人接手
+outputs:
+  tasks:
+    - id: t-c63378
+      title: 把 V2 服务救活并留下运行证据
+      implements: 确认现网拉起方式（~/Library/LaunchAgents/com.pi-investment.v2-api.plist 已不存在，需按实际部署方式重建或改用其它守护）；启动 adapters/inbound/fastapi_app/main.py；首次启动经 checkfirst 建 quant.inprocess_job_runs 表。不改业务代码。
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-a4d449
+      title: 补跑中断的行情与因子数据
+      implements: 服务恢复后按既有链路补跑 kline_update → 因子 → 筹码分布，全部走 DataProviderManager 现有入口，禁止新写脚本绕开数据访问层。
+      serves: []
+      depends_on:
+        - t-c63378
+      phase: implement
+      side: backend
+    - id: t-cf3f82
+      title: 装外部存活与数据新鲜度探针
+      implements: 在外部（不依赖被监控进程）新增 1~2 个探针：进程/端口心跳（5001 + 8080）与数据新鲜度（max(trade_date) 落后最近交易日 >1 天告警）；复用 NotificationFacade，不新写通知通道。
+      serves: []
+      depends_on:
+        - t-c63378
+      phase: implement
+      side: backend
+    - id: t-504421
+      title: 依赖声明收口（pyproject 为唯一权威）
+      implements: 把 docs/misc/requirements.txt 的 47 个包并入 pyproject.toml；修正 psycopg2-binary → psycopg2（2026-08-11 double-OpenSSL 事故）；在新 venv 验证后再切换生产环境。
+      serves: []
+      depends_on:
+        - t-c63378
+      phase: implement
+      side: backend
+    - id: t-649eb9
+      title: 修 get_config() 空壳
+      implements: infrastructure/config/__init__.py 的 get_config 目前只 return default，却有 29 处生产调用（含 persistence/database/engine.py 取 DSN、jwt_manager.py、llm_service.py、websocket_server.py、cli/main.py）。二选一：让 get_config 真读 pydantic settings，或逐处改调用方到 get_settings() 后删除该兼容层，一次性做完。
+      serves: []
+      depends_on:
+        - t-504421
+      phase: implement
+      side: backend
+    - id: t-9ccd5e
+      title: 删重复实现（零引用项）
+      implements: 删除：① infrastructure/quantlib/adapters/ 6 个克隆模块（2068 行，已确认零外部引用）；② infrastructure/quantlib/core/{base_calculator,exceptions}.py（516 行；core/pipeline.py 不可删，tests/test_pipeline.py 与 tests/test_integration.py 直接 import）；③ 13 个 .bak（8097 行，未被 git 跟踪）+ 18 个孤儿 __pycache__ + 9 个空壳包。
+      serves: []
+      depends_on:
+        - t-504421
+      phase: implement
+      side: backend
+    - id: t-3f2444
+      title: 修悬空 import + 裁决 BaseCalculator 双类
+      implements: ① 6+ 处悬空 import 改到现存位置：tools/backfill_factors.py:24、tools/backfill_factors_standalone.py:19、scripts/tools/retrain_pipeline.py:19、scripts/train_hs300_xgboost.py:185、tests/test_factor_compute_stage.py:18 指向 domain/backtest/engine/strategy_base.py 等；domain/quantlib/engine/{ensemble_vote_strategy,multi_factor_swing_strategy}.py 从同包 import 不存在的 strategy_base/strategy_combiner/strategy_factory 需改路径。② 人工裁决 domain/quantlib/base_calculator.py(501 行) 与 domain/quantlib/core/base_calculator.py(327 行) 两个不同类对象，建议收敛到 core 并逐调用方改导入。
+      serves: []
+      depends_on:
+        - t-504421
+      phase: implement
+      side: backend
+    - id: t-2d52a7
+      title: 调度去重：4 套 → 1 套（分步灰度）
+      implements: ① 先只禁用 DB 内重复任务（quant.scheduler_tasks 中 4 个 cron 时点各 2~3 个启用任务，保留一份）；② UnifiedScheduler 二选一：补驱动循环或删除（连同 config/scheduler_jobs.yml 86 行 + 路由 + 测试）——其 start() 只翻标志位、生产无人调 run_job；③ 统一文档里的 USE_AGENT_OS_SCHEDULER 与真实开关 AGENT_OS_ENABLED。必须观察一周后才删。
+      serves: []
+      depends_on:
+        - t-c63378
+      phase: implement
+      side: backend
+    - id: t-59468b
+      title: 删 5 个孤儿的重复 provider
+      implements: 删除 application/services/financial_providers/ 下 {eastmoney,sina,akshare,tencent,tushare}_provider.py 共 792 行（无任何实例化方）；datasources/manager.py:104 实际装配的是 adapters 树里的 SinaFinancialProvider / EastmoneyFinancialProvider / AkshareFinancialStatementProvider，删前确认装配链。
+      serves: []
+      depends_on:
+        - t-504421
+      phase: implement
+      side: backend
+    - id: t-c3a097
+      title: 挂上分层护栏（hook + 基线 + 纯净性断言）
+      implements: ① git config core.hooksPath .git-hooks；② .git-hooks/pre-commit 的 BASELINE 7 → 117 并按方向拆分（区分允许的 inbound 与真违规）；③ 新增分层纯净性断言测试（把当前违规数写成断言，只许降不许升）。
+      serves: []
+      depends_on:
+        - t-504421
+      phase: implement
+      side: backend
+    - id: t-4f6f4b
+      title: 消 application 层 12 处顶层越层导入
+      implements: 12 处顶层越层导入改为经 port/工厂注入或按裁定口径下沉；application/notification/notification_factory.py:20,28,29,30 的 infrastructure.config.settings 与 notification.channels.* 顶层导入移至 infrastructure 侧装配；删除 application/services/scheduler.py 的 `from infrastructure.scheduler.scheduler import *` 通配壳。
+      serves: []
+      depends_on:
+        - t-c3a097
+      phase: implement
+      side: backend
+    - id: t-686185
+      title: 拆两个文件级上帝
+      implements: 纯文件级拆分（保持函数签名与注册表不变）：application/services/scheduler_tasks.py（1607 行 / 0 类 35 个顶层函数）按 job 域分文件；adapters/inbound/fastapi_app/daily_jobs_bootstrap.py（1147 行 / 42 个顶层函数）拆为 daily_jobs/{pipeline,jobs_health,pools}.py + 保留薄注册层。
+      serves: []
+      depends_on:
+        - t-c3a097
+      phase: implement
+      side: backend
+    - id: t-71051b
+      title: 端口与 DI 收敛
+      implements: ① 端口去重：domain/ports/repository_ports.py 与 repository_ports_extended.py 有 7 个同名接口，保留一份并 re-export，另有 domain/{trading,portfolio,watch}/ports/ 第三套需裁决；② DI 收敛为 1 套入口（service_factory 893 行 / enhanced_service_factory 543 行 / service_registry 662 行 / di/container.py 四套并存）；③ 87 处直连 adapters.outbound.repositories 改走端口。
+      serves: []
+      depends_on:
+        - t-4f6f4b
+      phase: implement
+      side: backend
+    - id: t-52c511
+      title: Repository 双轨收敛 + 修文档指向
+      implements: ① 8 组 sync/async 双轨（stock/signal/portfolio/simulation/factor/backtest/stock_pool/signal_execution）先定口径（async 优先或 sync 优先）再删另一轨；② 统一拆分粒度（simulation_repository.py 三实体同文件 vs async 版按实体拆开）；③ 修文档：CLAUDE.md 速查表与 docs/ARCHITECTURE.md 指向不存在的 infrastructure/repositories/，真实位置是 adapters/outbound/repositories/。
+      serves: []
+      depends_on:
+        - t-c3a097
+      phase: implement
+      side: backend
+    - id: t-f04052
+      title: 数据访问规则收口 + provider 归位
+      implements: ① application 层 7 处直连外部数据源改走 DataProviderManager（core_plan_service.py:450、market_style_detector.py:250、financial_providers/{sina,akshare,eastmoney}_provider.py、quote_providers/akshare_provider.py:5、financial_providers/tushare_provider.py:35）；② 裁决 application/services/{financial_providers,quote_providers} 去向——provider 属 adapters 职责，建议下沉。
+      serves: []
+      depends_on:
+        - t-c3a097
+      phase: implement
+      side: backend
+    - id: t-720861
+      title: docs 分层归位（140 个 md）
+      implements: 给 monorepo 根的 tools/cleanup_quantsys_v2_docs.py 加 --dry-run；先 dry-run 输出迁移清单供人审，再执行迁移；同步处理 docs/ 根下 3 个 .py 示例；最后跑 wiki 死链自检。
+      serves: []
+      depends_on: []
+      phase: doc
+      side: doc
+    - id: t-d4199a
+      title: git 产物出库（含 ignore 失效项）
+      implements: ① git rm --cached 清 98 个 .pyc/.pkl/.log；② 处理 ignore 规则失效的已入库产物：.pi-invest/ 19 个、test_reports/ 1、data/ 1；③ 决定 scripts/（170）与 tools/（55）是入库还是忽略——当前自相矛盾（.gitignore 写 scripts/ 却仍在跟踪），必须二选一；④ git mv ERROR_TRACKING.md docs/work-logs/2026-09/。
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-6a02e6
+      title: 体积与虚拟环境（先清 5.2G）
+      implements: ① 先清 live_trading/logs/（5.2G，纯运行日志且 git 跟踪 0）；② 统一到一个 venv（对齐 .python-version 3.13，清掉另一套 642M）；③ 日志轮转（logrotate 或 RotatingFileHandler），覆盖 live_trading/ 与主 logs/；④ 清历史大日志与 htmlcov/（157M）。
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-f777da
+      title: 修 CLAUDE.md 的 8 条矛盾
+      implements: 逐条改写 quantsys-v2/CLAUDE.md：入口路径（api/server.py、cli/main.py）、requirements.txt、DATA_ACCESS_GUIDE.md、Flask 回滚栈、infrastructure/repositories/、unified_scheduler 已删、USE_AGENT_OS_SCHEDULER、launchd plist；同步修 9 份提到 `pip install -r requirements.txt` 的文档。
+      serves: []
+      depends_on: []
+      phase: doc
+      side: doc
+    - id: t-008062
+      title: 卫生债批量清理（550 处）
+      implements: "① 41 处 bare except 改具体异常；② 约 134 处 except ...: pass 补结构化日志；③ 136 处 sys.path.insert（16 处在库层）清零，入口统一由 PYTHONPATH 提供；④ 144 处库层裸 print 改 structlog；⑤ 12 处 logging.basicConfig 清除；⑥ 20 个库层内嵌 __main__ 移到 scripts/。按主题分批提交。"
+      serves: []
+      depends_on:
+        - t-504421
+      phase: implement
+      side: backend
+    - id: t-9b20eb
+      title: scripts/tools 归位
+      implements: ① 删 5 个已确认 0 引用的日期戳脚本（calibrate_20260723_{v13,v14}_return.py、migrate_20260720_multi_account.py、migrate_20260813_{action_case_unify,scheduler_tasks}.py）；② 14 个误置 test_*.py 从 scripts/ git mv 到 tests/ 并更新文档引用（test_orm*.py 被文档引用 10~11 次，不可盲删）；③ 7 个 _v2/_fixed 补丁产物逐个反查调用方后处理；④ 新脚本一律进已有分类子目录（94 个仍平铺在 scripts/ 根）。
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-d878d7
+      title: 把 V2 服务救活并留下运行证据·研发
+      implements: |-
+        确认现网拉起方式（~/Library/LaunchAgents/com.pi-investment.v2-api.plist 已不存在，需按实际部署方式重建或改用其它守护）；启动 adapters/inbound/fastapi_app/main.py；首次启动经 checkfirst 建 quant.inprocess_job_runs 表。不改业务代码。
+
+        [子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-d51b25
+      title: 把 V2 服务救活并留下运行证据·联调
+      implements: |-
+        确认现网拉起方式（~/Library/LaunchAgents/com.pi-investment.v2-api.plist 已不存在，需按实际部署方式重建或改用其它守护）；启动 adapters/inbound/fastapi_app/main.py；首次启动经 checkfirst 建 quant.inprocess_job_runs 表。不改业务代码。
+
+        [子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致
+      serves: []
+      depends_on:
+        - t-d878d7
+      phase: implement
+      side: backend
+    - id: t-f2c01b
+      title: 把 V2 服务救活并留下运行证据·复核
+      implements: |-
+        确认现网拉起方式（~/Library/LaunchAgents/com.pi-investment.v2-api.plist 已不存在，需按实际部署方式重建或改用其它守护）；启动 adapters/inbound/fastapi_app/main.py；首次启动经 checkfirst 建 quant.inprocess_job_runs 表。不改业务代码。
+
+        [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-d51b25
+      phase: implement
+      side: backend
+    - id: t-cd55bf
+      title: 把 V2 服务救活并留下运行证据·测试
+      implements: |-
+        确认现网拉起方式（~/Library/LaunchAgents/com.pi-investment.v2-api.plist 已不存在，需按实际部署方式重建或改用其它守护）；启动 adapters/inbound/fastapi_app/main.py；首次启动经 checkfirst 建 quant.inprocess_job_runs 表。不改业务代码。
+
+        [子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）
+      serves: []
+      depends_on:
+        - t-f2c01b
+      phase: implement
+      side: backend
+    - id: t-6a8b02
+      title: 补跑中断的行情与因子数据·研发
+      implements: |-
+        服务恢复后按既有链路补跑 kline_update → 因子 → 筹码分布，全部走 DataProviderManager 现有入口，禁止新写脚本绕开数据访问层。
+
+        [子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要
+      serves: []
+      depends_on:
+        - t-c63378
+      phase: implement
+      side: backend
+    - id: t-a9cbe0
+      title: 补跑中断的行情与因子数据·联调
+      implements: |-
+        服务恢复后按既有链路补跑 kline_update → 因子 → 筹码分布，全部走 DataProviderManager 现有入口，禁止新写脚本绕开数据访问层。
+
+        [子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致
+      serves: []
+      depends_on:
+        - t-6a8b02
+      phase: implement
+      side: backend
+    - id: t-245f18
+      title: 补跑中断的行情与因子数据·复核
+      implements: |-
+        服务恢复后按既有链路补跑 kline_update → 因子 → 筹码分布，全部走 DataProviderManager 现有入口，禁止新写脚本绕开数据访问层。
+
+        [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-a9cbe0
+      phase: implement
+      side: backend
+    - id: t-65e702
+      title: 补跑中断的行情与因子数据·测试
+      implements: |-
+        服务恢复后按既有链路补跑 kline_update → 因子 → 筹码分布，全部走 DataProviderManager 现有入口，禁止新写脚本绕开数据访问层。
+
+        [子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）
+      serves: []
+      depends_on:
+        - t-245f18
+      phase: implement
+      side: backend
+    - id: t-0cff3a
+      title: 修 CLAUDE.md 的 8 条矛盾·研发
+      implements: |-
+        逐条改写 quantsys-v2/CLAUDE.md：入口路径（api/server.py、cli/main.py）、requirements.txt、DATA_ACCESS_GUIDE.md、Flask 回滚栈、infrastructure/repositories/、unified_scheduler 已删、USE_AGENT_OS_SCHEDULER、launchd plist；同步修 9 份提到 `pip install -r requirements.txt` 的文档。
+
+        [子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要
+      serves: []
+      depends_on: []
+      phase: doc
+      side: doc
+    - id: t-f273d1
+      title: 修 CLAUDE.md 的 8 条矛盾·复核
+      implements: |-
+        逐条改写 quantsys-v2/CLAUDE.md：入口路径（api/server.py、cli/main.py）、requirements.txt、DATA_ACCESS_GUIDE.md、Flask 回滚栈、infrastructure/repositories/、unified_scheduler 已删、USE_AGENT_OS_SCHEDULER、launchd plist；同步修 9 份提到 `pip install -r requirements.txt` 的文档。
+
+        [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-0cff3a
+      phase: doc
+      side: doc
+    - id: t-15448b
+      title: 体积与虚拟环境（先清 5.2G）·研发
+      implements: |-
+        ① 先清 live_trading/logs/（5.2G，纯运行日志且 git 跟踪 0）；② 统一到一个 venv（对齐 .python-version 3.13，清掉另一套 642M）；③ 日志轮转（logrotate 或 RotatingFileHandler），覆盖 live_trading/ 与主 logs/；④ 清历史大日志与 htmlcov/（157M）。
+
+        [子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-e3df07
+      title: 体积与虚拟环境（先清 5.2G）·联调
+      implements: |-
+        ① 先清 live_trading/logs/（5.2G，纯运行日志且 git 跟踪 0）；② 统一到一个 venv（对齐 .python-version 3.13，清掉另一套 642M）；③ 日志轮转（logrotate 或 RotatingFileHandler），覆盖 live_trading/ 与主 logs/；④ 清历史大日志与 htmlcov/（157M）。
+
+        [子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致
+      serves: []
+      depends_on:
+        - t-15448b
+      phase: implement
+      side: backend
+    - id: t-1f13a5
+      title: 体积与虚拟环境（先清 5.2G）·复核
+      implements: |-
+        ① 先清 live_trading/logs/（5.2G，纯运行日志且 git 跟踪 0）；② 统一到一个 venv（对齐 .python-version 3.13，清掉另一套 642M）；③ 日志轮转（logrotate 或 RotatingFileHandler），覆盖 live_trading/ 与主 logs/；④ 清历史大日志与 htmlcov/（157M）。
+
+        [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-e3df07
+      phase: implement
+      side: backend
+    - id: t-9c79c3
+      title: 体积与虚拟环境（先清 5.2G）·测试
+      implements: |-
+        ① 先清 live_trading/logs/（5.2G，纯运行日志且 git 跟踪 0）；② 统一到一个 venv（对齐 .python-version 3.13，清掉另一套 642M）；③ 日志轮转（logrotate 或 RotatingFileHandler），覆盖 live_trading/ 与主 logs/；④ 清历史大日志与 htmlcov/（157M）。
+
+        [子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）
+      serves: []
+      depends_on:
+        - t-1f13a5
+      phase: implement
+      side: backend
+    - id: t-d8f0c3
+      title: git 产物出库（含 ignore 失效项）·研发
+      implements: |-
+        ① git rm --cached 清 98 个 .pyc/.pkl/.log；② 处理 ignore 规则失效的已入库产物：.pi-invest/ 19 个、test_reports/ 1、data/ 1；③ 决定 scripts/（170）与 tools/（55）是入库还是忽略——当前自相矛盾（.gitignore 写 scripts/ 却仍在跟踪），必须二选一；④ git mv ERROR_TRACKING.md docs/work-logs/2026-09/。
+
+        [子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-b5cdb6
+      title: git 产物出库（含 ignore 失效项）·联调
+      implements: |-
+        ① git rm --cached 清 98 个 .pyc/.pkl/.log；② 处理 ignore 规则失效的已入库产物：.pi-invest/ 19 个、test_reports/ 1、data/ 1；③ 决定 scripts/（170）与 tools/（55）是入库还是忽略——当前自相矛盾（.gitignore 写 scripts/ 却仍在跟踪），必须二选一；④ git mv ERROR_TRACKING.md docs/work-logs/2026-09/。
+
+        [子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致
+      serves: []
+      depends_on:
+        - t-d8f0c3
+      phase: implement
+      side: backend
+    - id: t-c95f22
+      title: git 产物出库（含 ignore 失效项）·复核
+      implements: |-
+        ① git rm --cached 清 98 个 .pyc/.pkl/.log；② 处理 ignore 规则失效的已入库产物：.pi-invest/ 19 个、test_reports/ 1、data/ 1；③ 决定 scripts/（170）与 tools/（55）是入库还是忽略——当前自相矛盾（.gitignore 写 scripts/ 却仍在跟踪），必须二选一；④ git mv ERROR_TRACKING.md docs/work-logs/2026-09/。
+
+        [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-b5cdb6
+      phase: implement
+      side: backend
+    - id: t-d9bc61
+      title: git 产物出库（含 ignore 失效项）·测试
+      implements: |-
+        ① git rm --cached 清 98 个 .pyc/.pkl/.log；② 处理 ignore 规则失效的已入库产物：.pi-invest/ 19 个、test_reports/ 1、data/ 1；③ 决定 scripts/（170）与 tools/（55）是入库还是忽略——当前自相矛盾（.gitignore 写 scripts/ 却仍在跟踪），必须二选一；④ git mv ERROR_TRACKING.md docs/work-logs/2026-09/。
+
+        [子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）
+      serves: []
+      depends_on:
+        - t-c95f22
+      phase: implement
+      side: backend
+    - id: t-7c9c03
+      title: 依赖声明收口（pyproject 为唯一权威）·研发
+      implements: |-
+        把 docs/misc/requirements.txt 的 47 个包并入 pyproject.toml；修正 psycopg2-binary → psycopg2（2026-08-11 double-OpenSSL 事故）；在新 venv 验证后再切换生产环境。
+
+        [子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要
+      serves: []
+      depends_on:
+        - t-c63378
+      phase: implement
+      side: backend
+    - id: t-c6d950
+      title: 依赖声明收口（pyproject 为唯一权威）·联调
+      implements: |-
+        把 docs/misc/requirements.txt 的 47 个包并入 pyproject.toml；修正 psycopg2-binary → psycopg2（2026-08-11 double-OpenSSL 事故）；在新 venv 验证后再切换生产环境。
+
+        [子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致
+      serves: []
+      depends_on:
+        - t-7c9c03
+      phase: implement
+      side: backend
+    - id: t-9254d9
+      title: 依赖声明收口（pyproject 为唯一权威）·复核
+      implements: |-
+        把 docs/misc/requirements.txt 的 47 个包并入 pyproject.toml；修正 psycopg2-binary → psycopg2（2026-08-11 double-OpenSSL 事故）；在新 venv 验证后再切换生产环境。
+
+        [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-c6d950
+      phase: implement
+      side: backend
+    - id: t-6d1800
+      title: 依赖声明收口（pyproject 为唯一权威）·测试
+      implements: |-
+        把 docs/misc/requirements.txt 的 47 个包并入 pyproject.toml；修正 psycopg2-binary → psycopg2（2026-08-11 double-OpenSSL 事故）；在新 venv 验证后再切换生产环境。
+
+        [子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）
+      serves: []
+      depends_on:
+        - t-9254d9
+      phase: implement
+      side: backend
+    - id: t-723156
+      title: 挂上分层护栏（hook + 基线 + 纯净性断言）·研发
+      implements: |-
+        ① git config core.hooksPath .git-hooks；② .git-hooks/pre-commit 的 BASELINE 7 → 117 并按方向拆分（区分允许的 inbound 与真违规）；③ 新增分层纯净性断言测试（把当前违规数写成断言，只许降不许升）。
+
+        [子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要
+      serves: []
+      depends_on:
+        - t-504421
+      phase: implement
+      side: backend
+    - id: t-3da04c
+      title: 挂上分层护栏（hook + 基线 + 纯净性断言）·联调
+      implements: |-
+        ① git config core.hooksPath .git-hooks；② .git-hooks/pre-commit 的 BASELINE 7 → 117 并按方向拆分（区分允许的 inbound 与真违规）；③ 新增分层纯净性断言测试（把当前违规数写成断言，只许降不许升）。
+
+        [子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致
+      serves: []
+      depends_on:
+        - t-723156
+      phase: implement
+      side: backend
+    - id: t-78d5a3
+      title: 挂上分层护栏（hook + 基线 + 纯净性断言）·复核
+      implements: |-
+        ① git config core.hooksPath .git-hooks；② .git-hooks/pre-commit 的 BASELINE 7 → 117 并按方向拆分（区分允许的 inbound 与真违规）；③ 新增分层纯净性断言测试（把当前违规数写成断言，只许降不许升）。
+
+        [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-3da04c
+      phase: implement
+      side: backend
+    - id: t-646e7f
+      title: 挂上分层护栏（hook + 基线 + 纯净性断言）·测试
+      implements: |-
+        ① git config core.hooksPath .git-hooks；② .git-hooks/pre-commit 的 BASELINE 7 → 117 并按方向拆分（区分允许的 inbound 与真违规）；③ 新增分层纯净性断言测试（把当前违规数写成断言，只许降不许升）。
+
+        [子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）
+      serves: []
+      depends_on:
+        - t-78d5a3
+      phase: implement
+      side: backend
+    - id: t-b0f994
+      title: 装外部存活与数据新鲜度探针·研发
+      implements: |-
+        在外部（不依赖被监控进程）新增 1~2 个探针：进程/端口心跳（5001 + 8080）与数据新鲜度（max(trade_date) 落后最近交易日 >1 天告警）；复用 NotificationFacade，不新写通知通道。
+
+        [子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要
+      serves: []
+      depends_on:
+        - t-c63378
+      phase: implement
+      side: backend
+    - id: t-805d4c
+      title: 装外部存活与数据新鲜度探针·联调
+      implements: |-
+        在外部（不依赖被监控进程）新增 1~2 个探针：进程/端口心跳（5001 + 8080）与数据新鲜度（max(trade_date) 落后最近交易日 >1 天告警）；复用 NotificationFacade，不新写通知通道。
+
+        [子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致
+      serves: []
+      depends_on:
+        - t-b0f994
+      phase: implement
+      side: backend
+    - id: t-1f1299
+      title: 装外部存活与数据新鲜度探针·复核
+      implements: |-
+        在外部（不依赖被监控进程）新增 1~2 个探针：进程/端口心跳（5001 + 8080）与数据新鲜度（max(trade_date) 落后最近交易日 >1 天告警）；复用 NotificationFacade，不新写通知通道。
+
+        [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-805d4c
+      phase: implement
+      side: backend
+    - id: t-d7750a
+      title: 装外部存活与数据新鲜度探针·测试
+      implements: |-
+        在外部（不依赖被监控进程）新增 1~2 个探针：进程/端口心跳（5001 + 8080）与数据新鲜度（max(trade_date) 落后最近交易日 >1 天告警）；复用 NotificationFacade，不新写通知通道。
+
+        [子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）
+      serves: []
+      depends_on:
+        - t-1f1299
+      phase: implement
+      side: backend
+traceability:
+  design_to_tasks:
+    design/architecture.md#目标与总体方案: []
+    design/architecture.md#模块改动地图: []
+    design/architecture.md#数据结构变更: []
+    design/architecture.md#接口变更: []
+    design/architecture.md#依赖关系: []
+    design/architecture.md#目录结构: []
+    design/architecture.md#关键算法流程: []
+    design/architecture.md#安全性能考虑: []
+    design/architecture.md#测试策略: []
+    design/architecture.md#错误处理: []
+    design/architecture.md#配置项: []
+    design/architecture.md#监控埋点: []
+    design/architecture.md#部署变更: []
+    design/architecture.md#文档更新清单: []
+    design/architecture.md#遗留问题: []
+    design/audit-report.md#TLDR: []
+    design/audit-report.md#总览表: []
+    design/audit-report.md#1: []
+    design/audit-report.md#1.1: []
+    design/audit-report.md#1.2: []
+    design/audit-report.md#1.3: []
+    design/audit-report.md#1.4: []
+    design/audit-report.md#1.5: []
+    design/audit-report.md#2: []
+    design/audit-report.md#2.0: []
+    design/audit-report.md#2.1: []
+    design/audit-report.md#2.2: []
+    design/audit-report.md#2.3: []
+    design/audit-report.md#3: []
+    design/audit-report.md#3.1: []
+    design/audit-report.md#3.2: []
+    design/audit-report.md#3.3: []
+    design/audit-report.md#4: []
+    design/audit-report.md#4.1: []
+    design/audit-report.md#4.2: []
+    design/audit-report.md#4.3: []
+    design/audit-report.md#4.4: []
+    design/audit-report.md#5: []
+    design/audit-report.md#5.1: []
+    design/audit-report.md#5.2: []
+    design/audit-report.md#5.3: []
+    design/audit-report.md#5.4: []
+    design/audit-report.md#5.5: []
+    design/audit-report.md#5.6: []
+    design/audit-report.md#5.7: []
+    design/audit-report.md#5.8: []
+    design/audit-report.md#5.9: []
+    design/data-model.md#新增修改的数据结构: []
+    design/data-model.md#BacklogItem优化条目: []
+    design/data-model.md#Priority优先级枚举: []
+    design/data-model.md#现状数据事实只读采集无变更: []
+    design/data-model.md#SchedulerTask-现状quantschedulertasks: []
+    design/data-model.md#DailyKline-新鲜度quantdailyklines: []
+    design/data-model.md#InProcessJobRunquantinprocessjobruns: []
+    design/data-model.md#LiveTradingLogArtifactslivetradinglogs: []
+    design/interfaces.md#新增修改的工具接口: []
+    design/interfaces.md#复现命令接口15-条: []
+    design/interfaces.md#文档交付接口体检报告: []
+    design/interfaces.md#文档交付接口优化清单: []
+    design/interfaces.md#删除的接口: []
+    design/interfaces.md#HTTP-API-变更: []
+    design/optimization-backlog.md#TLDR: []
+    design/optimization-backlog.md#1: []
+    design/optimization-backlog.md#1.0: []
+    design/optimization-backlog.md#1.1: []
+    design/optimization-backlog.md#2: []
+    design/optimization-backlog.md#P0-1-把服务救活并留下谁在跑的证据: []
+    design/optimization-backlog.md#P0-2-数据补跑K-线滞后-20-天: []
+    design/optimization-backlog.md#P0-3-给静默死亡装自动探针本仓已经栽过-3-次: []
+    design/optimization-backlog.md#3: []
+    design/optimization-backlog.md#P1-1-依赖声明收口让测试能跑: []
+    design/optimization-backlog.md#P1-2-修-getconfig-空壳正确性缺陷非风格: []
+    design/optimization-backlog.md#P1-3-删重复实现纯删除收益最高: []
+    design/optimization-backlog.md#P1-4-修悬空-import-裁决-BaseCalculator-双类: []
+    design/optimization-backlog.md#P1-5-调度去重4-套-1-套: []
+    design/optimization-backlog.md#P1-6-删-5-个孤儿的重复-provider792-行数据访问规则的活标本: []
+    design/optimization-backlog.md#4: []
+    design/optimization-backlog.md#P2-1-挂上护栏必须最先做否则改完继续漂: []
+    design/optimization-backlog.md#P2-2-消-application-层-12-处顶层越层导入: []
+    design/optimization-backlog.md#P2-3-拆两个文件级上帝: []
+    design/optimization-backlog.md#P2-4-端口与-DI-收敛: []
+    design/optimization-backlog.md#P2-5-Repository-双轨收敛-修文档指向: []
+    design/optimization-backlog.md#P2-6-数据访问规则收口-provider-归位: []
+    design/optimization-backlog.md#5: []
+    design/optimization-backlog.md#P3-1-docs-分层归位140-个-md: []
+    design/optimization-backlog.md#P3-2-git-里的产物出库: []
+    design/optimization-backlog.md#P3-3-体积与虚拟环境: []
+    design/optimization-backlog.md#P3-4-修-CLAUDEmd-的-8-条矛盾: []
+    design/optimization-backlog.md#P3-5-卫生债批量清理: []
+    design/optimization-backlog.md#P3-6-scripts-tools-归位删一次性脚本-回收误置测试: []
+    design/optimization-backlog.md#6: []
+    design/optimization-backlog.md#7: []
+    design/use-cases.md#场景总览: []
+    design/use-cases.md#UC-1-人类排期: []
+    design/use-cases.md#UC-2-Agent-领任务实施: []
+    design/use-cases.md#UC-3-新会话-新人接手: []
+  fr_to_tasks:
+    FR-1: []
+    FR-2: []
+    FR-3: []
+    FR-4: []
+    FR-5: []
+    FR-6: []
+    FR-7: []
+coverage:
+  implementation:
+    total: 96
+    covered: 0
+    uncovered:
+      - design/architecture.md#目标与总体方案
+      - design/architecture.md#模块改动地图
+      - design/architecture.md#数据结构变更
+      - design/architecture.md#接口变更
+      - design/architecture.md#依赖关系
+      - design/architecture.md#目录结构
+      - design/architecture.md#关键算法流程
+      - design/architecture.md#安全性能考虑
+      - design/architecture.md#测试策略
+      - design/architecture.md#错误处理
+      - design/architecture.md#配置项
+      - design/architecture.md#监控埋点
+      - design/architecture.md#部署变更
+      - design/architecture.md#文档更新清单
+      - design/architecture.md#遗留问题
+      - design/audit-report.md#TLDR
+      - design/audit-report.md#总览表
+      - design/audit-report.md#1
+      - design/audit-report.md#1.1
+      - design/audit-report.md#1.2
+      - design/audit-report.md#1.3
+      - design/audit-report.md#1.4
+      - design/audit-report.md#1.5
+      - design/audit-report.md#2
+      - design/audit-report.md#2.0
+      - design/audit-report.md#2.1
+      - design/audit-report.md#2.2
+      - design/audit-report.md#2.3
+      - design/audit-report.md#3
+      - design/audit-report.md#3.1
+      - design/audit-report.md#3.2
+      - design/audit-report.md#3.3
+      - design/audit-report.md#4
+      - design/audit-report.md#4.1
+      - design/audit-report.md#4.2
+      - design/audit-report.md#4.3
+      - design/audit-report.md#4.4
+      - design/audit-report.md#5
+      - design/audit-report.md#5.1
+      - design/audit-report.md#5.2
+      - design/audit-report.md#5.3
+      - design/audit-report.md#5.4
+      - design/audit-report.md#5.5
+      - design/audit-report.md#5.6
+      - design/audit-report.md#5.7
+      - design/audit-report.md#5.8
+      - design/audit-report.md#5.9
+      - design/data-model.md#新增修改的数据结构
+      - design/data-model.md#BacklogItem优化条目
+      - design/data-model.md#Priority优先级枚举
+      - design/data-model.md#现状数据事实只读采集无变更
+      - design/data-model.md#SchedulerTask-现状quantschedulertasks
+      - design/data-model.md#DailyKline-新鲜度quantdailyklines
+      - design/data-model.md#InProcessJobRunquantinprocessjobruns
+      - design/data-model.md#LiveTradingLogArtifactslivetradinglogs
+      - design/interfaces.md#新增修改的工具接口
+      - design/interfaces.md#复现命令接口15-条
+      - design/interfaces.md#文档交付接口体检报告
+      - design/interfaces.md#文档交付接口优化清单
+      - design/interfaces.md#删除的接口
+      - design/interfaces.md#HTTP-API-变更
+      - design/optimization-backlog.md#TLDR
+      - design/optimization-backlog.md#1
+      - design/optimization-backlog.md#1.0
+      - design/optimization-backlog.md#1.1
+      - design/optimization-backlog.md#2
+      - design/optimization-backlog.md#P0-1-把服务救活并留下谁在跑的证据
+      - design/optimization-backlog.md#P0-2-数据补跑K-线滞后-20-天
+      - design/optimization-backlog.md#P0-3-给静默死亡装自动探针本仓已经栽过-3-次
+      - design/optimization-backlog.md#3
+      - design/optimization-backlog.md#P1-1-依赖声明收口让测试能跑
+      - design/optimization-backlog.md#P1-2-修-getconfig-空壳正确性缺陷非风格
+      - design/optimization-backlog.md#P1-3-删重复实现纯删除收益最高
+      - design/optimization-backlog.md#P1-4-修悬空-import-裁决-BaseCalculator-双类
+      - design/optimization-backlog.md#P1-5-调度去重4-套-1-套
+      - design/optimization-backlog.md#P1-6-删-5-个孤儿的重复-provider792-行数据访问规则的活标本
+      - design/optimization-backlog.md#4
+      - design/optimization-backlog.md#P2-1-挂上护栏必须最先做否则改完继续漂
+      - design/optimization-backlog.md#P2-2-消-application-层-12-处顶层越层导入
+      - design/optimization-backlog.md#P2-3-拆两个文件级上帝
+      - design/optimization-backlog.md#P2-4-端口与-DI-收敛
+      - design/optimization-backlog.md#P2-5-Repository-双轨收敛-修文档指向
+      - design/optimization-backlog.md#P2-6-数据访问规则收口-provider-归位
+      - design/optimization-backlog.md#5
+      - design/optimization-backlog.md#P3-1-docs-分层归位140-个-md
+      - design/optimization-backlog.md#P3-2-git-里的产物出库
+      - design/optimization-backlog.md#P3-3-体积与虚拟环境
+      - design/optimization-backlog.md#P3-4-修-CLAUDEmd-的-8-条矛盾
+      - design/optimization-backlog.md#P3-5-卫生债批量清理
+      - design/optimization-backlog.md#P3-6-scripts-tools-归位删一次性脚本-回收误置测试
+      - design/optimization-backlog.md#6
+      - design/optimization-backlog.md#7
+      - design/use-cases.md#场景总览
+      - design/use-cases.md#UC-1-人类排期
+      - design/use-cases.md#UC-2-Agent-领任务实施
+      - design/use-cases.md#UC-3-新会话-新人接手
+    rate: 0
+    total_designs: 96
+    covered_designs: 0

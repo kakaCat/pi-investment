@@ -66,9 +66,28 @@ def configure_structured_logging(
         return _configure_standard_logging(level)
 
     # 配置标准库 logging（structlog 的底层）
+    # 2026-10-01（REQ-261001145152-3982 t-6a02e6）：补**可选的文件轮转**。
+    # 背景（实测）：本仓日志此前只走 stdout，靠调用方 shell 重定向落盘 →
+    # 单文件涨到 174M/168M 且从不轮转（logs/ 曾达 355M，live_trading/logs 达 5.2G）。
+    # 设 LOG_FILE 即启用轮转；不设则行为与改前完全一致（仅 stdout）。
+    _handlers: list = [logging.StreamHandler(sys.stdout)]
+    _log_file = os.getenv('LOG_FILE')
+    if _log_file:
+        from logging.handlers import RotatingFileHandler
+        from pathlib import Path as _Path
+
+        _max_bytes = int(os.getenv('LOG_MAX_BYTES', str(50 * 1024 * 1024)))  # 默认 50MB
+        _backups = int(os.getenv('LOG_BACKUPS', '5'))
+        _Path(_log_file).parent.mkdir(parents=True, exist_ok=True)
+        _handlers.append(
+            RotatingFileHandler(
+                _log_file, maxBytes=_max_bytes, backupCount=_backups, encoding='utf-8'
+            )
+        )
+
     logging.basicConfig(
         format="%(message)s",
-        stream=sys.stdout,
+        handlers=_handlers,
         level=getattr(logging, level.upper()),
     )
 

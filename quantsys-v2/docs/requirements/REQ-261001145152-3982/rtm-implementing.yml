@@ -1,0 +1,272 @@
+metadata:
+  stage: implementing
+  requirement_id: REQ-261001145152-3982
+  generated_at: 2026-10-01T07:07:50.908Z
+  version: 117
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 51
+  last_updated: 2026-10-01T09:18:38.238Z
+inputs:
+  tasks:
+    - id: t-c63378
+      title: 把 V2 服务救活并留下运行证据
+      status: done
+    - id: t-a4d449
+      title: 补跑中断的行情与因子数据
+      status: done
+    - id: t-cf3f82
+      title: 装外部存活与数据新鲜度探针
+      status: done
+    - id: t-504421
+      title: 依赖声明收口（pyproject 为唯一权威）
+      status: done
+    - id: t-649eb9
+      title: 修 get_config() 空壳
+      status: todo
+    - id: t-9ccd5e
+      title: 删重复实现（零引用项）
+      status: todo
+    - id: t-3f2444
+      title: 修悬空 import + 裁决 BaseCalculator 双类
+      status: todo
+    - id: t-2d52a7
+      title: 调度去重：4 套 → 1 套（分步灰度）
+      status: todo
+    - id: t-59468b
+      title: 删 5 个孤儿的重复 provider
+      status: todo
+    - id: t-c3a097
+      title: 挂上分层护栏（hook + 基线 + 纯净性断言）
+      status: done
+    - id: t-4f6f4b
+      title: 消 application 层 12 处顶层越层导入
+      status: todo
+    - id: t-686185
+      title: 拆两个文件级上帝
+      status: todo
+    - id: t-71051b
+      title: 端口与 DI 收敛
+      status: todo
+    - id: t-52c511
+      title: Repository 双轨收敛 + 修文档指向
+      status: todo
+    - id: t-f04052
+      title: 数据访问规则收口 + provider 归位
+      status: todo
+    - id: t-720861
+      title: docs 分层归位（140 个 md）
+      status: todo
+    - id: t-d4199a
+      title: git 产物出库（含 ignore 失效项）
+      status: done
+    - id: t-6a02e6
+      title: 体积与虚拟环境（先清 5.2G）
+      status: done
+    - id: t-f777da
+      title: 修 CLAUDE.md 的 8 条矛盾
+      status: done
+    - id: t-008062
+      title: 卫生债批量清理（550 处）
+      status: todo
+    - id: t-9b20eb
+      title: scripts/tools 归位
+      status: todo
+    - id: t-d878d7
+      title: 把 V2 服务救活并留下运行证据·研发
+      status: done
+    - id: t-d51b25
+      title: 把 V2 服务救活并留下运行证据·联调
+      status: done
+    - id: t-f2c01b
+      title: 把 V2 服务救活并留下运行证据·复核
+      status: done
+    - id: t-cd55bf
+      title: 把 V2 服务救活并留下运行证据·测试
+      status: done
+    - id: t-6a8b02
+      title: 补跑中断的行情与因子数据·研发
+      status: done
+    - id: t-a9cbe0
+      title: 补跑中断的行情与因子数据·联调
+      status: done
+    - id: t-245f18
+      title: 补跑中断的行情与因子数据·复核
+      status: done
+    - id: t-65e702
+      title: 补跑中断的行情与因子数据·测试
+      status: done
+    - id: t-0cff3a
+      title: 修 CLAUDE.md 的 8 条矛盾·研发
+      status: done
+    - id: t-f273d1
+      title: 修 CLAUDE.md 的 8 条矛盾·复核
+      status: done
+    - id: t-15448b
+      title: 体积与虚拟环境（先清 5.2G）·研发
+      status: done
+    - id: t-e3df07
+      title: 体积与虚拟环境（先清 5.2G）·联调
+      status: done
+    - id: t-1f13a5
+      title: 体积与虚拟环境（先清 5.2G）·复核
+      status: done
+    - id: t-9c79c3
+      title: 体积与虚拟环境（先清 5.2G）·测试
+      status: done
+    - id: t-d8f0c3
+      title: git 产物出库（含 ignore 失效项）·研发
+      status: done
+    - id: t-b5cdb6
+      title: git 产物出库（含 ignore 失效项）·联调
+      status: done
+    - id: t-c95f22
+      title: git 产物出库（含 ignore 失效项）·复核
+      status: done
+    - id: t-d9bc61
+      title: git 产物出库（含 ignore 失效项）·测试
+      status: done
+    - id: t-7c9c03
+      title: 依赖声明收口（pyproject 为唯一权威）·研发
+      status: done
+    - id: t-c6d950
+      title: 依赖声明收口（pyproject 为唯一权威）·联调
+      status: done
+    - id: t-9254d9
+      title: 依赖声明收口（pyproject 为唯一权威）·复核
+      status: done
+    - id: t-6d1800
+      title: 依赖声明收口（pyproject 为唯一权威）·测试
+      status: done
+    - id: t-723156
+      title: 挂上分层护栏（hook + 基线 + 纯净性断言）·研发
+      status: done
+    - id: t-3da04c
+      title: 挂上分层护栏（hook + 基线 + 纯净性断言）·联调
+      status: done
+    - id: t-78d5a3
+      title: 挂上分层护栏（hook + 基线 + 纯净性断言）·复核
+      status: done
+    - id: t-646e7f
+      title: 挂上分层护栏（hook + 基线 + 纯净性断言）·测试
+      status: done
+    - id: t-b0f994
+      title: 装外部存活与数据新鲜度探针·研发
+      status: done
+    - id: t-805d4c
+      title: 装外部存活与数据新鲜度探针·联调
+      status: done
+    - id: t-1f1299
+      title: 装外部存活与数据新鲜度探针·复核
+      status: done
+    - id: t-d7750a
+      title: 装外部存活与数据新鲜度探针·测试
+      status: done
+status:
+  tasks_total: 51
+  tasks_done: 38
+  tasks_in_progress: 0
+  tasks_todo: 13
+tasks:
+  - id: t-c63378
+    status: done
+  - id: t-a4d449
+    status: done
+  - id: t-cf3f82
+    status: done
+  - id: t-504421
+    status: done
+  - id: t-649eb9
+    status: todo
+  - id: t-9ccd5e
+    status: todo
+  - id: t-3f2444
+    status: todo
+  - id: t-2d52a7
+    status: todo
+  - id: t-59468b
+    status: todo
+  - id: t-c3a097
+    status: done
+  - id: t-4f6f4b
+    status: todo
+  - id: t-686185
+    status: todo
+  - id: t-71051b
+    status: todo
+  - id: t-52c511
+    status: todo
+  - id: t-f04052
+    status: todo
+  - id: t-720861
+    status: todo
+  - id: t-d4199a
+    status: done
+  - id: t-6a02e6
+    status: done
+  - id: t-f777da
+    status: done
+  - id: t-008062
+    status: todo
+  - id: t-9b20eb
+    status: todo
+  - id: t-d878d7
+    status: done
+  - id: t-d51b25
+    status: done
+  - id: t-f2c01b
+    status: done
+  - id: t-cd55bf
+    status: done
+  - id: t-6a8b02
+    status: done
+  - id: t-a9cbe0
+    status: done
+  - id: t-245f18
+    status: done
+  - id: t-65e702
+    status: done
+  - id: t-0cff3a
+    status: done
+  - id: t-f273d1
+    status: done
+  - id: t-15448b
+    status: done
+  - id: t-e3df07
+    status: done
+  - id: t-1f13a5
+    status: done
+  - id: t-9c79c3
+    status: done
+  - id: t-d8f0c3
+    status: done
+  - id: t-b5cdb6
+    status: done
+  - id: t-c95f22
+    status: done
+  - id: t-d9bc61
+    status: done
+  - id: t-7c9c03
+    status: done
+  - id: t-c6d950
+    status: done
+  - id: t-9254d9
+    status: done
+  - id: t-6d1800
+    status: done
+  - id: t-723156
+    status: done
+  - id: t-3da04c
+    status: done
+  - id: t-78d5a3
+    status: done
+  - id: t-646e7f
+    status: done
+  - id: t-b0f994
+    status: done
+  - id: t-805d4c
+    status: done
+  - id: t-1f1299
+    status: done
+  - id: t-d7750a
+    status: done

@@ -40,9 +40,16 @@ QuantSys V2 is built with hexagonal architecture, dual anti-corruption layer, an
 
 ### 1. Install Dependencies
 
+**权威声明是 `pyproject.toml`**（仓库根目录**没有** `requirements.txt`——
+完整清单历史上曾被放在 `docs/misc/requirements.txt`，属归档位置，勿按它装环境）：
+
 ```bash
-pip install -r requirements.txt
+pip install -e .            # 或 pip install -e ".[dev]"（含 pytest/black/ruff/mypy）
 ```
+
+> ⚠️ 2026-10-01 实测（REQ-261001145152-3982）：`pyproject.toml` 当时**只声明 13 个包**，
+> 而代码实际硬依赖的 `pybreaker` / `pydantic-settings` / `jieba` 等**未声明也未安装**，
+> 导致 119 个测试模块连 import 都失败。声明的收口由该需求的 t-504421 承担。
 
 ### 2. Database Configuration
 
@@ -114,9 +121,11 @@ pytest --cov=. --cov-report=html
 ### ⚠️ 重要: Flask → FastAPI 迁移（2026-08-02 更新：已切换）
 
 **现状**：生产 5001 端口自 2026-08-02 起由 FastAPI
-`adapters/inbound/fastapi_app/main.py` 提供服务（nohup 启动，日志 `logs/fastapi_5001.log`）。
-Flask `adapters/inbound/api/server.py` 已停止，仅保留作紧急回滚。
-新功能**只写 FastAPI 路由**，不再维护 Flask parity。
+`adapters/inbound/fastapi_app/main.py` 提供服务。
+**Flask 层已于 2026-08-19（commit `54851df0`）整体删除**（145 文件 / −32,517 行，全仓
+`@app.route` 命中数为 0）——**不存在"Flask 回滚栈"**：`adapters/inbound/api/` 只剩 3 个
+未被 git 跟踪的 `.bak`，且没有 `server.py`。要回滚请用 git 历史，不要在现网找 Flask 入口。
+新功能**只写 FastAPI 路由**。
 `start_all.py` 已不存在。
 
 ```bash
@@ -126,10 +135,7 @@ python adapters/inbound/fastapi_app/main.py
 # 启动 FastAPI WebSocket (端口 5003)
 python adapters/inbound/fastapi_app/websocket_server.py
 
-# （回滚/现状）启动旧 Flask REST API (端口 5001)
-python adapters/inbound/api/server.py
-
-# CLI (不受迁移影响)
+# CLI
 python adapters/inbound/cli/main.py stock search --q 平安
 
 # CLI - Indicator Commands
@@ -138,11 +144,10 @@ python adapters/inbound/cli/main.py indicators create --name "策略名" --code 
 python adapters/inbound/cli/main.py indicators update --id 1 --code "新代码"
 python adapters/inbound/cli/main.py indicators run --id 1 --symbol 600000.SH
 python adapters/inbound/cli/main.py indicators backtest --id 1 --symbol 600000.SH --start 2024-01-01 --end 2024-12-31
-
-# 迁移工具
-python check_migration.py        # 检查迁移完成度
-python auto_migrate.py --help     # 自动生成路由模板
 ```
+
+> 迁移工具 `check_migration.py` / `auto_migrate.py` 与旧 Flask 入口已于同一批次删除，
+> 二者均**不存在**（2026-10-01 实测）。
 
 ### WatchEngine 实时盯盘（2026-07-22 新增；2026-08-12 迁移宿主）
 
@@ -160,18 +165,53 @@ WatchEngine 常驻线程**由 FastAPI `adapters/inbound/fastapi_app/main.py` 的
 - **orchestrator_bootstrap**：DailyOrchestrator tick（T+1 结转/信号推送/挂单撮合）+ IntradayMonitor（止损止盈）
 - **watch_bootstrap**：WatchEngine 实时盯盘
 
-`scheduler_daemon.py`/`supervisor.py`/`manage_scheduler.py`/`unified_scheduler.py` 已于
-2026-08-13 删除（daemon 无 launchd 守护，08-05 死讯静默 8 天致 T+1 中断、盯盘消失两起事故）。
-旧 `quant.scheduler_task_configs` 表已全禁用（任务迁入 scheduler_tasks），表保留供回滚。
-部署/重启：`launchctl kickstart -k gui/501/com.pi-investment.v2-api`（日志在 `~/v2-api.log`，
-**不是** logs/fastapi_5001.log）。Flask 路由 `scheduler_enterprise.py` 随回滚栈保留，
-其中 daemon 相关注释已标注，随 Flask 删除批次清理。
+`scheduler_daemon.py`/`supervisor.py`/`manage_scheduler.py` 已于 2026-08-13 删除
+（daemon 无 launchd 守护，08-05 死讯静默 8 天致 T+1 中断、盯盘消失两起事故）。
+**但 `unified_scheduler.py` 并没有被删除**——它仍在 `infrastructure/scheduler/`，且被 `main.py`
+的 lifespan 启动（2026-10-01 实测：它的 `start()` 只把 `_running` 置 True，**没有驱动循环**，
+生产代码无人调 `run_job`，`config/scheduler_jobs.yml` 的 4 个任务实际永不触发）。
 
-### Flask (已废弃，仅用于回滚)
+> ⚠️ **调度实为 4 路并存**（2026-10-01 实测，详见
+> `docs/requirements/REQ-261001145152-3982/design/audit-report.md` §3）：
+> ① Agent OS webhook（8080 不可达时注册失败）→ ② 回退 `APSchedulerService`（读 `quant.scheduler_tasks`）
+> → ③ DailyJobs 宿主线程（`daily_jobs_bootstrap.py` 硬编码 9 个 JobDef）
+> → ④ `UnifiedScheduler`（空转）。且 DB 内 4 个 cron 时点各有 2~3 个启用任务重复。
+> 去重由该需求的 t-2d52a7 承担。
+
+旧 `quant.scheduler_task_configs` 表已全禁用（任务迁入 scheduler_tasks），表保留供回滚。
+
+**部署/重启（2026-10-01 实测修正）**：`~/Library/LaunchAgents/com.pi-investment.v2-api.plist`
+**不存在**，故文档里长期流传的 `launchctl kickstart -k gui/501/com.pi-investment.v2-api` **无法执行**。
+当前实际拉起方式是**手工前台/后台启动**：
+
 ```bash
-# ⚠️ 以下命令已不再使用，保留仅供紧急回滚
-# python adapters/inbound/api/server.py              # 旧 Flask API
-# python adapters/inbound/api/server_websocket.py   # 旧 Flask-SocketIO
+# 常规启动（会同时拉起 4 路调度）
+python adapters/inbound/fastapi_app/main.py
+
+# 只起 API、不起任何调度（数据滞后需先补数据时用；见下方"调度总开关"）
+DISABLE_APSCHEDULER=true DISABLE_DAILY_JOBS=true \
+DISABLE_UNIFIED_SCHEDULER=true DISABLE_WATCH_ENGINE=true \
+python adapters/inbound/fastapi_app/main.py
+```
+
+**调度总开关（2026-10-01 新增）**：`DISABLE_APSCHEDULER=true` 关掉 APScheduler 回退路径——
+此前只有 `DISABLE_DAILY_JOBS` 与 `DISABLE_UNIFIED_SCHEDULER`，**关不掉回退路径**，
+于是"服务一重启就补跑已过点任务"（在滞后数据上开火）。四个开关默认均为 false（行为不变）。
+
+**日志轮转（2026-10-01 新增，`infrastructure/logging/config.py`）**：日志此前只走 stdout，
+靠调用方 shell 重定向落盘 → 出现过 174M/168M 的单文件与 5.2G 的 `live_trading/logs/`。
+现在设 `LOG_FILE` 即启用按大小轮转（不设则行为不变）：
+
+```bash
+LOG_FILE=logs/api.log LOG_MAX_BYTES=52428800 LOG_BACKUPS=5 python adapters/inbound/fastapi_app/main.py
+```
+
+### Flask (已于 2026-08-19 整体删除，**无回滚栈**)
+```bash
+# ❌ 以下入口均不存在（2026-10-01 实测）：
+# python adapters/inbound/api/server.py              # 旧 Flask API（文件已删）
+# python adapters/inbound/api/server_websocket.py    # 旧 Flask-SocketIO（文件已删）
+# 需要旧行为请从 git 历史 commit 54851df0^ 取回，不要在现网查找 Flask 入口。
 ```
 
 ## Architecture
@@ -573,7 +613,11 @@ df['sell'] = df['score'] < 0.3
 
 ## Active Conventions
 
-- Only use official entry points: `api/server.py`, `api/server_websocket.py`, `cli/main.py`
+- Only use official entry points（2026-10-01 修正为真实路径）：
+  `adapters/inbound/fastapi_app/main.py`（API，5001）、
+  `adapters/inbound/fastapi_app/websocket_server.py`（WS，5003）、
+  `adapters/inbound/cli/main.py`（CLI）。
+  ⚠️ 旧写法 `api/server.py` / `api/server_websocket.py` / `cli/main.py` **均不存在**。
 - No `_backup`, `_v2`, `_old`, `_new` parallel files in `api/` or `cli/`
 - Delete obsolete code after references are removed; example code goes to `docs/examples/`
 - Test coverage target: > 80% for core modules
@@ -596,7 +640,8 @@ df['sell'] = df['score'] < 0.3
    - ✅ `Repository` for database access
 
 3. **Before writing data-related code**
-   - Read `DATA_ACCESS_GUIDE.md` (mandatory)
+   - 数据访问规范见本文件「⚠️ Data Access Rules」一节 + `docs/DATA_ACCESS_GUIDE.md`
+     （⚠️ 2026-10-01 实测：根目录**没有** `DATA_ACCESS_GUIDE.md`，历史文档已失；以本文件该节为准）
    - Check if functionality already exists in `DataProviderManager`
    - Ask "Am I reinventing the wheel?"
 
@@ -609,7 +654,7 @@ df['sell'] = df['score'] < 0.3
 | Dividends | `DataProviderManager.get_dividends()` | Same as above |
 | Sector constituents (板块成分) | `DataProviderManager.get_sector_stocks(sector)` | Same as above |
 | Business logic | `DataService.kline.*` | `application/services/data_service.py` |
-| Database CRUD | `Repository` classes | `infrastructure/repositories/` |
+| Database CRUD | `Repository` classes | `adapters/outbound/repositories/`（73 文件 / 84 类；⚠️ `infrastructure/repositories/` **目录不存在**，2026-10-01 实测） |
 
 ### Example
 
@@ -634,7 +679,9 @@ df = ak.stock_zh_a_hist(symbol='600519', ...)  # DON'T DO THIS!
 | `scripts/update_klines_multi_source.py` | ⚠️ DEPRECATED (2026-07-17) | `scripts/update_klines_recommended.py` |
 | `scripts/batch_update_klines.py` | ⚠️ Legacy, avoid | `DataProviderManager.get_klines()` |
 
-**Full documentation**: See `DATA_ACCESS_GUIDE.md`
+**Full documentation**: 见本文件「⚠️ Data Access Rules」一节；原 `DATA_ACCESS_GUIDE.md`
+已不存在（2026-10-01 实测），其唯一入口 API 是
+`adapters/outbound/datasources/manager.py` 的 `get_data_provider_manager()`。
 
 ## Backend Service Principles for Agent Support
 
@@ -750,7 +797,9 @@ Based on game-theoretic intelligence requirements:
 ## Scheduler Migration to Agent OS (WP-15)
 
 **Migration Date**: 2026-08-16  
-**Status**: ✅ COMPLETE
+**Status**: ⚠️ 代码已实现，但**当前不生效**（2026-10-01 实测：Agent OS 8080 不可达 →
+启动时注册失败 → 全部回退到本地 `APSchedulerService`）。本节描述的是**设计意图**，不是现网运行态；
+现网运行态见上文「调度架构」小节的 4 路并存说明。
 
 All scheduled jobs have been migrated from local `SchedulerService` to **Agent OS Scheduler** via webhook integration.
 
@@ -786,7 +835,7 @@ Agent OS Scheduler (result tracking)
    - Delegates to existing service methods
    - Returns structured result dictionaries
 
-4. **Job Registration** (`scripts/register_jobs_to_agent_os.py`)
+4. **Job Registration** (`tools/register_jobs_to_agent_os.py`；⚠️ 旧写法 `scripts/...` 不存在)
    - Defines all 30+ job schedules and metadata
    - Idempotent registration (skips existing jobs)
    - Auto-runs on FastAPI startup
@@ -828,31 +877,32 @@ All jobs are registered with owner `quantsys-v2`:
 
 ### Feature Flag
 
-Control scheduler mode via environment variable:
+控制调度归属的环境变量（2026-10-01 修正为**真实**开关——旧文档写的
+`USE_AGENT_OS_SCHEDULER` 在代码里**零引用**，是个不存在的开关）：
 
 ```bash
-# Use Agent OS Scheduler (default)
-USE_AGENT_OS_SCHEDULER=true
-
-# Fall back to local SchedulerService
-USE_AGENT_OS_SCHEDULER=false
+AGENT_OS_ENABLED=true          # 默认 true：启动时尝试注册到 Agent OS（8080 不可达则回退）
+DISABLE_APSCHEDULER=true       # 关掉 APScheduler 回退路径（只起 API，不起调度）
+DISABLE_DAILY_JOBS=true        # 关掉 DailyJobs 宿主线程
+DISABLE_UNIFIED_SCHEDULER=true # 关掉 UnifiedScheduler
+DISABLE_WATCH_ENGINE=true      # 关掉实时盯盘线程
 ```
 
 The system automatically falls back to local scheduler if Agent OS is unreachable.
 
 ### Monitoring
 
-Monitor jobs using the CLI script:
+Monitor jobs using the CLI script（⚠️ 路径修正如实测：在 `tools/`，不在 `scripts/`）:
 
 ```bash
 # Show all registered jobs
-python scripts/monitor_scheduler.py
+python tools/monitor_scheduler.py
 
 # Show scheduler statistics
-python scripts/monitor_scheduler.py --stats
+python tools/monitor_scheduler.py --stats
 
 # Show recent executions
-python scripts/monitor_scheduler.py --executions 20
+python tools/monitor_scheduler.py --executions 20
 ```
 
 Or query Agent OS directly:
@@ -877,19 +927,22 @@ If needed, manually register jobs:
 
 ```bash
 cd quantsys-v2
-python scripts/register_jobs_to_agent_os.py
+python tools/register_jobs_to_agent_os.py
 ```
 
 Registration is idempotent and skips jobs that already exist.
 
 ### Rollback Plan
 
-If Agent OS Scheduler fails:
+If Agent OS Scheduler fails（2026-10-01 修正：原第 1、2 步给出的开关与 launchctl 标签**都不存在**）:
 
-1. **Set environment variable**: `USE_AGENT_OS_SCHEDULER=false` in `.env`
-2. **Restart service**: `sudo launchctl kickstart -k system/com.pi-investment.v2-api`
-3. **Verify**: Check logs show "Local SchedulerService background thread started (fallback mode)"
-4. **Confirm**: Jobs run correctly with legacy scheduler
+1. **什么都不用设**：Agent OS 不可达时启动会自动回退到 `APSchedulerService`（无需开关）。
+   若要**显式禁用**某一路调度，用 `DISABLE_APSCHEDULER` / `DISABLE_DAILY_JOBS` /
+   `DISABLE_UNIFIED_SCHEDULER`（见上文"调度总开关"）。
+2. **重启服务**：没有 launchd 守护（`com.pi-investment.v2-api.plist` 不存在），
+   直接重启 `python adapters/inbound/fastapi_app/main.py` 进程即可。
+3. **Verify**: 日志出现 `✅ APScheduler started (fallback mode)`。
+4. **Confirm**: `select max(started_at) from quant.scheduler_runs` 随任务执行刷新。
 
 ### Database Schema
 
@@ -903,9 +956,10 @@ For Agent OS jobs, a placeholder task is created in `quant.scheduler_tasks` to m
 
 ### Legacy Code
 
-**Deprecated** (will be removed 2026-09-01):
-- `infrastructure/scheduler/scheduler.py` - Legacy SchedulerService
-- Direct database operations in SchedulerService
+**2026-10-01 实测修正**：原文写"`infrastructure/scheduler/scheduler.py` 将于 2026-09-01 移除"——
+**它并没有被移除**，至今仍被 22 个文件引用（adapters/api/application/infrastructure/scripts/tests），
+但 `run_loop` 已不再由 lifespan 启动（现网由 `APSchedulerService` + DailyJobs 线程承担）。
+它现在处于"文件很大、引用很多、但不驱动生产调度"的悬置状态，去留由 t-2d52a7 裁定。
 
 **Preserved**:
 - Job handler business logic (reused by webhook handlers)

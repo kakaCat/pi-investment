@@ -345,7 +345,7 @@ def my_method(self, data):
 
 ```bash
 cd quantsys-v2
-pip install -r requirements.txt
+pip install -e .
 ```
 
 ### 运行测试

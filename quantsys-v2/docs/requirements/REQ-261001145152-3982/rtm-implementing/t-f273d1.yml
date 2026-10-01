@@ -1,0 +1,47 @@
+task:
+  id: t-f273d1
+  title: 修 CLAUDE.md 的 8 条矛盾·复核
+  status: done
+  implements: |-
+    逐条改写 quantsys-v2/CLAUDE.md：入口路径（api/server.py、cli/main.py）、requirements.txt、DATA_ACCESS_GUIDE.md、Flask 回滚栈、infrastructure/repositories/、unified_scheduler 已删、USE_AGENT_OS_SCHEDULER、launchd plist；同步修 9 份提到 `pip install -r requirements.txt` 的文档。
+
+    [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+  serves: []
+  depends_on:
+    - t-0cff3a
+  phase: doc
+  side: doc
+  workflow_params:
+    REQ_ID: REQ-261001145152-3982
+    TASK_ID: t-f273d1
+    TASK_TITLE: 修 CLAUDE.md 的 8 条矛盾·复核
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: doc
+    PHASE: doc
+  workflow_total: 5
+  workflow_done: 5
+  workflow:
+    - phase: doc
+      status: done
+      completed_at: 2026-10-01T07:36:25.938Z
+    - phase: implement
+      status: done
+      completed_at: 2026-10-01T07:36:25.938Z
+    - phase: test
+      status: done
+      completed_at: 2026-10-01T07:36:25.938Z
+    - phase: commit
+      status: done
+      completed_at: 2026-10-01T07:36:25.938Z
+    - phase: review
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261001145152-3982
+  generated_at: 2026-10-01T07:36:19.824Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 5
+  last_updated: 2026-10-01T07:36:25.938Z

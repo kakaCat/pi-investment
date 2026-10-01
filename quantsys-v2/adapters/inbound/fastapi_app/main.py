@@ -248,7 +248,15 @@ async def lifespan(app: FastAPI):
 
         # 本地 APScheduler 作为备用（仅当 Agent OS 不可用时启动）
         # 2026-09-01: 从手写调度器迁移到 APScheduler 框架
-        if not use_agent_os_scheduler:
+        # 2026-10-01（REQ-261001145152-3982 t-c63378）：补一个**总开关**。
+        # 背景（实测）：服务停摆 18 天后重启时，APScheduler 会立刻补跑「已过点的启用任务」，
+        # 包括 15:30 的「每日信号执行」「恐慌抄底每日扫描」——等于在滞后 20 天的数据上开火，
+        # 并发飞书通知。原有 DISABLE_DAILY_JOBS / DISABLE_UNIFIED_SCHEDULER 都关不掉这条路径，
+        # 故补 DISABLE_APSCHEDULER：置 true 时只起 API、不起任何调度（默认 false = 行为不变）。
+        _apscheduler_disabled = os.getenv('DISABLE_APSCHEDULER', '').lower() == 'true'
+        if _apscheduler_disabled:
+            logger.warning("⚠️ APScheduler disabled via DISABLE_APSCHEDULER（只起 API，不起调度）")
+        elif not use_agent_os_scheduler:
             try:
                 from infrastructure.scheduler.apscheduler_service import APSchedulerService
                 from adapters.outbound.repositories.scheduler_repository import SchedulerRepository
