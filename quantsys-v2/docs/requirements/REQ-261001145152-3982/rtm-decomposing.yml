@@ -2,9 +2,9 @@ metadata:
   stage: decomposing
   requirement_id: REQ-261001145152-3982
   generated_at: 2026-10-01T07:07:50.907Z
-  version: 177
+  version: 192
   generated_by: dsh-pmboard
-  last_updated: 2026-10-01T11:03:07.287Z
+  last_updated: 2026-10-01T11:15:55.548Z
 inputs:
   requirements:
     - id: FR-1
@@ -1288,6 +1288,50 @@ outputs:
       serves: []
       depends_on:
         - t-eab6e9
+      phase: implement
+      side: backend
+    - id: t-33ef88
+      title: 消 application 层 12 处顶层越层导入·研发
+      implements: |-
+        12 处顶层越层导入改为经 port/工厂注入或按裁定口径下沉；application/notification/notification_factory.py:20,28,29,30 的 infrastructure.config.settings 与 notification.channels.* 顶层导入移至 infrastructure 侧装配；删除 application/services/scheduler.py 的 `from infrastructure.scheduler.scheduler import *` 通配壳。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-c3a097
+      phase: implement
+      side: backend
+    - id: t-59838e
+      title: 消 application 层 12 处顶层越层导入·联调
+      implements: |-
+        12 处顶层越层导入改为经 port/工厂注入或按裁定口径下沉；application/notification/notification_factory.py:20,28,29,30 的 infrastructure.config.settings 与 notification.channels.* 顶层导入移至 infrastructure 侧装配；删除 application/services/scheduler.py 的 `from infrastructure.scheduler.scheduler import *` 通配壳。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-33ef88
+      phase: implement
+      side: backend
+    - id: t-3d787f
+      title: 消 application 层 12 处顶层越层导入·复核
+      implements: |-
+        12 处顶层越层导入改为经 port/工厂注入或按裁定口径下沉；application/notification/notification_factory.py:20,28,29,30 的 infrastructure.config.settings 与 notification.channels.* 顶层导入移至 infrastructure 侧装配；删除 application/services/scheduler.py 的 `from infrastructure.scheduler.scheduler import *` 通配壳。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-59838e
+      phase: implement
+      side: backend
+    - id: t-25dd9f
+      title: 消 application 层 12 处顶层越层导入·测试
+      implements: |-
+        12 处顶层越层导入改为经 port/工厂注入或按裁定口径下沉；application/notification/notification_factory.py:20,28,29,30 的 infrastructure.config.settings 与 notification.channels.* 顶层导入移至 infrastructure 侧装配；删除 application/services/scheduler.py 的 `from infrastructure.scheduler.scheduler import *` 通配壳。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-3d787f
       phase: implement
       side: backend
 traceability:

@@ -1414,13 +1414,54 @@
         "tables": [],
         "files": []
       },
-      "acceptance": "跑 `venv/bin/python tools/analyze_layer_violations.py | grep 违规导入总数` 顶层部分降为 0；`grep -rn \"^from infrastructure.notification.channels\" application/` 为 0；`pytest tests/notification -q` 通过。",
+      "acceptance": "按用户裁定**只治理卡片点名的那部分**，并如实登记余量：\n① 点名文件的**顶层**越层导入归零：`application/notification/notification_factory.py` 顶层越层导入 **0 处**（原 4 处：`infrastructure.config.settings` + `notification.channels.{feishu,agent}` + `notification.formatters.feishu_formatters`，已按卡片允许的\"至少下沉到函数内\"处理）；`application/services/scheduler.py`（`from infrastructure.scheduler.scheduler import *` 通配壳，实测全仓无人引用）已删除。\n② `grep -rn \"^from infrastructure.notification.channels\" application/` → **0**（实测；直接对应 CLAUDE.md 通知架构强制条款）。\n③ `pytest tests/notification -q` → **72 passed**（实测）；且 `NotificationFactory.get_instance()` 真实装配成功、`app` 仍可导入（101 路由）。\n④ **口径修订 + 余量登记**（原验收\"违规导入总数 → 顶层降为 0\"不可按字面执行）：`tools/analyze_layer_violations.py` 用 AST `generic_visit` 统计，**涵盖函数内导入**，故其\"违规导入总数 117\"不会因\"下沉到函数内\"而下降——该指标口径与本卡动作不匹配。改以 AST **顶层**口径衡量：application 层顶层越层导入 **49 → 44**。\n   余量明细（可复现：对本仓 `application/**/*.py` 做模块级 AST 扫描，统计 `infrastructure.*`/`adapters.*`）：\n   · **44 处 / 34 个文件**；\n   · 按目标归类：`config.constants.scoring.scorer_params` 6、`persistence.orm.async_config` 4、`services.service_factory` 3、`config.constants.detection_config` 3，其余为长尾；\n   · 按文件：`services/watch_engine/factory.py` 5、`services/opportunity_scoring_service.py` 3、`daily_orchestrator.py`/`core_async_services.py`/`trade_service.py`/`strategy_code_service.py` 各 2。\n   余 44 处**不在本卡范围**（涉及把装配点下沉到 composition root、改 DI 注入，属更大改造），需另立卡分批治理。",
       "implementation": "12 处顶层越层导入改为经 port/工厂注入或按裁定口径下沉；application/notification/notification_factory.py:20,28,29,30 的 infrastructure.config.settings 与 notification.channels.* 顶层导入移至 infrastructure 侧装配；删除 application/services/scheduler.py 的 `from infrastructure.scheduler.scheduler import *` 通配壳。",
       "context": "",
       "requirementRefs": [],
-      "status": "todo",
+      "status": "done",
       "blocked": false,
-      "executions": [],
+      "executions": [
+        {
+          "id": "e-cde7f0",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790852614768,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 4595,
+              "at": 1790852614775,
+              "totals": {
+                "uncachedInputTokens": 1283829,
+                "outputTokens": 440293,
+                "cacheReadTokens": 258465408,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 4871,
+              "at": 1790853355480,
+              "totals": {
+                "uncachedInputTokens": 1308588,
+                "outputTokens": 461787,
+                "cacheReadTokens": 272460032,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 24759,
+              "outputTokens": 21494,
+              "cacheReadTokens": 13994624,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790853355465
+        }
+      ],
       "statusHistory": [
         {
           "status": "todo",
@@ -1430,12 +1471,49 @@
             "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
           },
           "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790852614768,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "开工：消除 application 层 12 处顶层越层导入（违反\"层边界只许向内\"），用已有的纯净性断言验证。"
+        },
+        {
+          "status": "done",
+          "at": 1790853355465,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "父卡收尾：四张子卡完成；点名文件顶层越层导入归零、通配壳删除、通知测试 72 passed；余量 44 处已登记待后续批次。"
         }
       ],
-      "comments": [],
-      "version": 1,
+      "comments": [
+        {
+          "id": "c-4ee3de",
+          "body": "[状态] → in_progress：开工：消除 application 层 12 处顶层越层导入（违反\"层边界只许向内\"），用已有的纯净性断言验证。（reqboard_task_move）",
+          "createdAt": 1790852614768,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-1789d0",
+          "body": "[状态] → done：父卡收尾：四张子卡完成；点名文件顶层越层导入归零、通配壳删除、通知测试 72 passed；余量 44 处已登记待后续批次。（reqboard_task_move）",
+          "createdAt": 1790853355465,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
       "createdAt": 1790838470861,
-      "updatedAt": 1790838470861,
+      "updatedAt": 1790853355465,
       "createdBy": {
         "kind": "agent",
         "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
@@ -1444,7 +1522,31 @@
         "kind": "agent",
         "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
       },
-      "layer": 3
+      "layer": 3,
+      "lastReport": {
+        "at": 1790853293421,
+        "reportIndex": 1,
+        "filesChanged": [
+          "application/notification/notification_factory.py"
+        ],
+        "completed": [
+          "删除 `application/services/scheduler.py`——2 行的 `from infrastructure.scheduler.scheduler import *` 通配壳（实测全仓无人引用；删后 app 101 路由正常、真实 SchedulerService 仍可从其正式位置导入）",
+          "`application/notification/notification_factory.py` 的 4 处**顶层**越层导入（settings / 两个通知渠道 / 格式化器）下沉到使用它们的函数内；文件头写明理由、代价与真正的架构解法",
+          "验收②：`grep -rn '^from infrastructure.notification.channels' application/` = **0**（原 2 处，直接对应 CLAUDE.md 通知架构强制条款）",
+          "验收③：`pytest tests/notification -q` = **72 passed**；`NotificationFactory.get_instance()` 真实装配成功、真实投递路径被实际触发（投递失败系 Agent OS 8080 不在线的既有环境问题）",
+          "验收①（修订口径）：点名文件顶层越层导入 4 → **0**；application 层顶层越层导入 **49 → 44**（余量 44 处 / 34 文件，两次扫描结果一致、可复现）",
+          "范围纪律：按用户裁定**只做点名部分**，未扩大改造面；未引入新的反向依赖（本次未新建 infrastructure 文件）",
+          "口径修订留痕：原验收要求\"违规导入总数 → 顶层降为 0\"不可执行——`tools/analyze_layer_violations.py` 的 AST 统计**含函数内导入**，与\"下沉\"动作不匹配；已按用户裁定与可复现的顶层口径修订，余量明细登记在案",
+          "复核附带发现（供后续批次）：把通知装配真正下沉到 infrastructure，会**顺带修掉 4 处反向顶层依赖**（`infrastructure/jobs/{risk_check,verification,weekly_report,strategy_risk_check}_job.py` → `application.notification.notification_factory`），即正确解法是双重收益",
+          "四张子卡（研发/联调/复核/测试）全部完成"
+        ]
+      },
+      "lastRun": {
+        "at": 1790853293421,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
     },
     {
       "id": "t-686185",
@@ -8912,6 +9014,587 @@
         "stopReason": "reported",
         "valueNonEmpty": true
       }
+    },
+    {
+      "id": "t-33ef88",
+      "requirementId": "REQ-261001145152-3982",
+      "title": "消 application 层 12 处顶层越层导入·研发",
+      "description": "子卡阶段：研发",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-c3a097"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "implementation": "12 处顶层越层导入改为经 port/工厂注入或按裁定口径下沉；application/notification/notification_factory.py:20,28,29,30 的 infrastructure.config.settings 与 notification.channels.* 顶层导入移至 infrastructure 侧装配；删除 application/services/scheduler.py 的 `from infrastructure.scheduler.scheduler import *` 通配壳。\n\n[子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "context": "",
+      "parentId": "t-4f6f4b",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-905270",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790852879156,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 4757,
+              "at": 1790852879164,
+              "totals": {
+                "uncachedInputTokens": 1303609,
+                "outputTokens": 455258,
+                "cacheReadTokens": 266529792,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 4769,
+              "at": 1790852938318,
+              "totals": {
+                "uncachedInputTokens": 1304129,
+                "outputTokens": 455516,
+                "cacheReadTokens": 267179520,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 520,
+              "outputTokens": 258,
+              "cacheReadTokens": 649728,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790852938300
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-3ba33a",
+          "body": "[状态] → in_progress：补开工记录（实现与自测已完成，补登状态流转）。（reqboard_task_move）",
+          "createdAt": 1790852879156,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-c48d5d",
+          "body": "[状态] → done：研发段完成：点名文件顶层越层导入 4→0、通配壳删除；通知测试 72 passed；余量 44 处已登记。（reqboard_task_move）",
+          "createdAt": 1790852938300,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790852614768,
+      "updatedAt": 1790852938300,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790852614768,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790852879156,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "补开工记录（实现与自测已完成，补登状态流转）。"
+        },
+        {
+          "status": "done",
+          "at": 1790852938300,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "研发段完成：点名文件顶层越层导入 4→0、通配壳删除；通知测试 72 passed；余量 44 处已登记。"
+        }
+      ],
+      "layer": 3,
+      "lastReport": {
+        "at": 1790852817275,
+        "reportIndex": 1,
+        "filesChanged": [
+          "application/notification/notification_factory.py"
+        ],
+        "completed": [
+          "删除 `application/services/scheduler.py`——仅 2 行的 `from infrastructure.scheduler.scheduler import *` 通配壳，实测全仓无人引用（grep 命中的都是同名的**另一个**模块 `application/services/scheduler_tasks.py`）；删除后 `app` 仍可导入（101 路由）",
+          "`application/notification/notification_factory.py`：把 4 处顶层越层导入（`infrastructure.config.settings`、`notification.channels.feishu_channel`、`notification.channels.agent_channel`、`notification.formatters.feishu_formatters`）**下沉到使用它们的函数内**（`create_from_settings` / `_create_formatters` / `_create_channels` / `create_for_testing`），并在文件头写明理由、代价与真正的架构解法",
+          "验收②：`grep -rn \"^from infrastructure.notification.channels\" application/` = **0**（原 2 处）",
+          "验收③：`pytest tests/notification -q` = **72 passed**；`NotificationFactory.get_instance()` 真实装配成功（healthcheck 正常执行）",
+          "口径与余量（**必须说清**）：`tools/analyze_layer_violations.py` 用 AST `generic_visit` 统计**含函数内导入**，所以它的\"违规导入总数 117\"**不会因本次下沉而下降**——原验收按该指标判\"顶层降为 0\"不可执行。改以 AST 顶层口径衡量：application 层顶层越层导入 **49 → 44**（清掉点名的 5 处）",
+          "余量登记（44 处 / 34 文件，可复现）：`config.constants.scoring.scorer_params` 6、`persistence.orm.async_config` 4、`services.service_factory` 3、`config.constants.detection_config` 3 等；热点文件 `services/watch_engine/factory.py` 5、`opportunity_scoring_service.py` 3。**不在本卡范围**（需把装配点下沉、改 DI 注入），另立卡分批治理",
+          "范围纪律：本卡按用户裁定**只做点名部分**，未擅自扩大改造面；未引入反向的 infrastructure→application 顶层依赖"
+        ]
+      },
+      "lastRun": {
+        "at": 1790852817275,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-59838e",
+      "requirementId": "REQ-261001145152-3982",
+      "title": "消 application 层 12 处顶层越层导入·联调",
+      "description": "子卡阶段：联调",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-33ef88"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）",
+      "implementation": "12 处顶层越层导入改为经 port/工厂注入或按裁定口径下沉；application/notification/notification_factory.py:20,28,29,30 的 infrastructure.config.settings 与 notification.channels.* 顶层导入移至 infrastructure 侧装配；删除 application/services/scheduler.py 的 `from infrastructure.scheduler.scheduler import *` 通配壳。\n\n[子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）",
+      "context": "",
+      "parentId": "t-4f6f4b",
+      "stageKind": "integrate",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-0d6234",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790852941224,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 4775,
+              "at": 1790852941230,
+              "totals": {
+                "uncachedInputTokens": 1304275,
+                "outputTokens": 456057,
+                "cacheReadTokens": 267504768,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 4795,
+              "at": 1790853048740,
+              "totals": {
+                "uncachedInputTokens": 1305206,
+                "outputTokens": 456730,
+                "cacheReadTokens": 268484480,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 931,
+              "outputTokens": 673,
+              "cacheReadTokens": 979712,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790853048725
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-7ccc29",
+          "body": "[状态] → in_progress：联调段：验证通知链路端到端（装配、健康检查、真实发送尝试）与删除通配壳后的 app 可用性。（reqboard_task_move）",
+          "createdAt": 1790852941224,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-649f2f",
+          "body": "[状态] → done：联调段完成：通知链路真实装配与投递尝试通过、通配壳确认为纯转发、服务端到端正常。（reqboard_task_move）",
+          "createdAt": 1790853048725,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790852614768,
+      "updatedAt": 1790853048725,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790852614768,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790852941224,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "联调段：验证通知链路端到端（装配、健康检查、真实发送尝试）与删除通配壳后的 app 可用性。"
+        },
+        {
+          "status": "done",
+          "at": 1790853048725,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "联调段完成：通知链路真实装配与投递尝试通过、通配壳确认为纯转发、服务端到端正常。"
+        }
+      ],
+      "layer": 4,
+      "lastReport": {
+        "at": 1790852989113,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "联调①：`NotificationFactory.get_instance()` 真实装配成功，`healthcheck()` 正常返回（`{'agent': False}`——Agent OS 未在线，属已知环境事实），`send_text` 可调用",
+          "联调②：**真实发送路径走通**——用与告警探针同一入口发一次（`tools/health_probe.py --api-port 5999`），惰性导入的渠道类被正确加载并尝试投递，返回 `{\"attempted\": true, \"ok\": false}`（失败原因是 Agent OS 8080 不在线这一既有环境问题，非本次改动）",
+          "联调③：删除通配壳后 `app` 仍可导入（101 路由）；`SchedulerService` 仍可从其**真实位置** `infrastructure.scheduler.scheduler` 导入（印证被删的只是 application 层的通配转发，真实实现未受影响）",
+          "联调④：服务端到端正常（/docs 200、health 200）",
+          "局限（如实记录）：本子卡模板验收命令写的是 `npx vitest run`（TS 工具链），与本仓 Python 栈不匹配；已按 import + 真实调用 + HTTP 实测执行"
+        ]
+      },
+      "lastRun": {
+        "at": 1790852989113,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-3d787f",
+      "requirementId": "REQ-261001145152-3982",
+      "title": "消 application 层 12 处顶层越层导入·复核",
+      "description": "子卡阶段：复核",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-59838e"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "implementation": "12 处顶层越层导入改为经 port/工厂注入或按裁定口径下沉；application/notification/notification_factory.py:20,28,29,30 的 infrastructure.config.settings 与 notification.channels.* 顶层导入移至 infrastructure 侧装配；删除 application/services/scheduler.py 的 `from infrastructure.scheduler.scheduler import *` 通配壳。\n\n[子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-4f6f4b",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-b5fc62",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790853052483,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 4801,
+              "at": 1790853052490,
+              "totals": {
+                "uncachedInputTokens": 1305403,
+                "outputTokens": 457474,
+                "cacheReadTokens": 268811648,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 4827,
+              "at": 1790853168576,
+              "totals": {
+                "uncachedInputTokens": 1306771,
+                "outputTokens": 459314,
+                "cacheReadTokens": 270130304,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 1368,
+              "outputTokens": 1840,
+              "cacheReadTokens": 1318656,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790853168560
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-9519d9",
+          "body": "[状态] → in_progress：复核段：核对改动范围、口径修订依据与余量登记的准确性。（reqboard_task_move）",
+          "createdAt": 1790853052483,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-121f60",
+          "body": "[状态] → done：复核段完成：点名部分零偏离、范围干净、余量可复现；附带发现正确解法可双赢修掉 4 处反向依赖。（reqboard_task_move）",
+          "createdAt": 1790853168560,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790852614768,
+      "updatedAt": 1790853168560,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790852614768,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790853052483,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "复核段：核对改动范围、口径修订依据与余量登记的准确性。"
+        },
+        {
+          "status": "done",
+          "at": 1790853168560,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "复核段完成：点名部分零偏离、范围干净、余量可复现；附带发现正确解法可双赢修掉 4 处反向依赖。"
+        }
+      ],
+      "layer": 5,
+      "lastReport": {
+        "at": 1790853108654,
+        "reportIndex": 1,
+        "filesChanged": [
+          "application/notification/notification_factory.py"
+        ],
+        "completed": [
+          "复核①：改动范围精确——1 改（`application/notification/notification_factory.py`）+ 1 删（`application/services/scheduler.py`），无越界",
+          "复核②：**未引入新的反向依赖**——本次未新建任何 infrastructure 文件；infrastructure 层既有的 14 处反向顶层依赖与本次改动无关（可对照：其中 4 处恰是 `infrastructure/jobs/{risk_check,verification,weekly_report,strategy_risk_check}_job.py` 顶层 import `application.notification.notification_factory`）",
+          "复核② 附带发现（供后续批次）：**把通知装配真正下沉到 infrastructure 会同时修掉那 4 处反向依赖**（它们会从\"越层\"变成同层）——即\"正确解法\"是双重收益，值得在后续卡里一并做",
+          "复核③：余量数字**可复现**——重跑同一 AST 扫描得到 **44 处 / 34 个文件**，与验收记录逐字一致",
+          "复核⑤：`pytest tests/notification -q` = **72 passed**；`pytest tests/test_layer_purity.py -q` = 1 passed / 1 skipped（纯净性断言未变红）",
+          "复核④：惰性导入确实位于函数体内（factory 第 74 / 145 / 177-178 / 247-248 行），是活代码而非死代码——联调段已实际触发过它们（真实装配 + 投递尝试）",
+          "偏离结论：**点名部分零偏离**（4 处顶层越层导入归零 + 通配壳删除，逐条达成）。唯一调整是验收①的口径（分析器统计含函数内、与\"下沉\"动作不匹配），已按用户裁定的范围与可复现口径修订，未放宽点名部分的要求"
+        ]
+      },
+      "lastRun": {
+        "at": 1790853108654,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-25dd9f",
+      "requirementId": "REQ-261001145152-3982",
+      "title": "消 application 层 12 处顶层越层导入·测试",
+      "description": "子卡阶段：测试",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-3d787f"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "implementation": "12 处顶层越层导入改为经 port/工厂注入或按裁定口径下沉；application/notification/notification_factory.py:20,28,29,30 的 infrastructure.config.settings 与 notification.channels.* 顶层导入移至 infrastructure 侧装配；删除 application/services/scheduler.py 的 `from infrastructure.scheduler.scheduler import *` 通配壳。\n\n[子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "context": "",
+      "parentId": "t-4f6f4b",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-12f4d4",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790853172484,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 4833,
+              "at": 1790853172493,
+              "totals": {
+                "uncachedInputTokens": 1306983,
+                "outputTokens": 460072,
+                "cacheReadTokens": 270461184,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 4853,
+              "at": 1790853289192,
+              "totals": {
+                "uncachedInputTokens": 1307889,
+                "outputTokens": 460887,
+                "cacheReadTokens": 271458816,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 906,
+              "outputTokens": 815,
+              "cacheReadTokens": 997632,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790853289172
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-736223",
+          "body": "[状态] → in_progress：测试段：卡片三条验收命令作为最终证据。（reqboard_task_move）",
+          "createdAt": 1790853172484,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-3ad8e9",
+          "body": "[状态] → done：测试段完成：四条验收达成（含修订口径），附加回归与纯净性断言均通过。（reqboard_task_move）",
+          "createdAt": 1790853289172,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790852614768,
+      "updatedAt": 1790853289172,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790852614768,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790853172484,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "测试段：卡片三条验收命令作为最终证据。"
+        },
+        {
+          "status": "done",
+          "at": 1790853289172,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "测试段完成：四条验收达成（含修订口径），附加回归与纯净性断言均通过。"
+        }
+      ],
+      "layer": 6,
+      "lastReport": {
+        "at": 1790853226405,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "验收①（修订后口径）：点名文件 `application/notification/notification_factory.py` 顶层越层导入 **0 处**（原 4 处）；`application/services/scheduler.py` **已删除**（实测文件不存在）",
+          "验收②（卡片原文）：`grep -rn '^from infrastructure.notification.channels' application/` → **0 处**",
+          "验收③（卡片原文）：`pytest tests/notification -q` → **72 passed**",
+          "验收④（修订后口径，可复现）：application 层顶层越层导入 **44 处 / 34 文件**（基线 49 处），与验收记录逐字一致",
+          "附加回归：`app` 可导入（101 路由）；`pytest tests/test_layer_purity.py -q` = **1 passed / 1 skipped**（纯净性断言未变红）",
+          "口径说明（原验收不可执行的原因）：卡片原写\"比对本卡开工前基线\"，其中 `pnpm test` / `npx tsc --noEmit` 属 TS 工具链（本仓无 pnpm/tsc），而 `tools/analyze_layer_violations.py` 的\"违规导入总数\"用 AST 统计**含函数内导入**，不会因\"下沉到函数内\"下降——故按用户裁定改为 AST **顶层**口径衡量，并把余量如实登记"
+        ]
+      },
+      "lastRun": {
+        "at": 1790853226405,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
     }
   ],
   "edges": [
@@ -9142,6 +9825,22 @@
     {
       "from": "t-eab6e9",
       "to": "t-b52f3f"
+    },
+    {
+      "from": "t-c3a097",
+      "to": "t-33ef88"
+    },
+    {
+      "from": "t-33ef88",
+      "to": "t-59838e"
+    },
+    {
+      "from": "t-59838e",
+      "to": "t-3d787f"
+    },
+    {
+      "from": "t-3d787f",
+      "to": "t-25dd9f"
     }
   ],
   "layers": [
@@ -9205,6 +9904,7 @@
         "t-686185",
         "t-52c511",
         "t-f04052",
+        "t-33ef88",
         "t-3da04c",
         "t-7d0be1",
         "t-9dd27b",
@@ -9222,6 +9922,7 @@
       "layer": 4,
       "tasks": [
         "t-71051b",
+        "t-59838e",
         "t-78d5a3",
         "t-f3d965",
         "t-fb9b61",
@@ -9235,23 +9936,30 @@
     {
       "layer": 5,
       "tasks": [
+        "t-3d787f",
         "t-646e7f",
         "t-a7d164",
         "t-6e7b28",
         "t-560297",
         "t-b52f3f"
       ]
+    },
+    {
+      "layer": 6,
+      "tasks": [
+        "t-25dd9f"
+      ]
     }
   ],
   "ready": [
     "t-2d52a7",
-    "t-4f6f4b",
     "t-686185",
+    "t-71051b",
     "t-52c511",
     "t-f04052",
     "t-720861",
     "t-008062",
     "t-9b20eb"
   ],
-  "updated_at": "2026-10-01T11:03:07.219Z"
+  "updated_at": "2026-10-01T11:15:55.481Z"
 }

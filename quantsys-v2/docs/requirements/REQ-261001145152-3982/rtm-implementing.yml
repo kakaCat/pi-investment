@@ -2,11 +2,11 @@ metadata:
   stage: implementing
   requirement_id: REQ-261001145152-3982
   generated_at: 2026-10-01T07:07:50.908Z
-  version: 177
+  version: 192
   generated_by: dsh-pmboard
   detail_dir: rtm-implementing/
-  detail_count: 67
-  last_updated: 2026-10-01T11:03:07.260Z
+  detail_count: 71
+  last_updated: 2026-10-01T11:15:55.524Z
 inputs:
   tasks:
     - id: t-c63378
@@ -41,7 +41,7 @@ inputs:
       status: done
     - id: t-4f6f4b
       title: 消 application 层 12 处顶层越层导入
-      status: todo
+      status: done
     - id: t-686185
       title: 拆两个文件级上帝
       status: todo
@@ -210,11 +210,23 @@ inputs:
     - id: t-b52f3f
       title: 删 5 个孤儿的重复 provider·测试
       status: done
+    - id: t-33ef88
+      title: 消 application 层 12 处顶层越层导入·研发
+      status: done
+    - id: t-59838e
+      title: 消 application 层 12 处顶层越层导入·联调
+      status: done
+    - id: t-3d787f
+      title: 消 application 层 12 处顶层越层导入·复核
+      status: done
+    - id: t-25dd9f
+      title: 消 application 层 12 处顶层越层导入·测试
+      status: done
 status:
-  tasks_total: 67
-  tasks_done: 58
+  tasks_total: 71
+  tasks_done: 63
   tasks_in_progress: 0
-  tasks_todo: 9
+  tasks_todo: 8
 tasks:
   - id: t-c63378
     status: done
@@ -237,7 +249,7 @@ tasks:
   - id: t-c3a097
     status: done
   - id: t-4f6f4b
-    status: todo
+    status: done
   - id: t-686185
     status: todo
   - id: t-71051b
@@ -349,4 +361,12 @@ tasks:
   - id: t-eab6e9
     status: done
   - id: t-b52f3f
+    status: done
+  - id: t-33ef88
+    status: done
+  - id: t-59838e
+    status: done
+  - id: t-3d787f
+    status: done
+  - id: t-25dd9f
     status: done
