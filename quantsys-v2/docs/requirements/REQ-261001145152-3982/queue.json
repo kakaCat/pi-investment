@@ -1962,13 +1962,54 @@
         "tables": [],
         "files": []
       },
-      "acceptance": "跑 `find docs -maxdepth 1 -name \"*.md\" | wc -l` 只剩 1（README.md）；`python3 agent-dh/scripts/wiki_probe.py` 无死链/孤儿页；`git status` 显示 rename 而非增删。",
+      "acceptance": "按用户 2026-10-01 裁定（**先修工具、不做 140 文件整迁**）：\n① **低风险归位完成**：项目根只剩 `CLAUDE.md` + `README.md`（实测）；`docs/` 根 `.py` = **0**（3 个示例经 `git mv` → `docs/examples/`，git 记 **`R`×3**）；2 个散落文档 → `docs/work-logs/2026-09/`（未被 git 跟踪，仅本地）。\n② **工具修复完成且可复核**（`tools/cleanup_quantsys_v2_docs.py`）：本机 `python3`（3.8.10）下不再崩溃（原 `tuple[str,str]` 必崩）；`--dry-run` / `--root` / `--update-refs` 三参数可用（`--help` 实测）；**缺目录时 exit=2 且打印 ❌**（修正入口未传播返回码的问题）；`--root docs --dry-run` 实测扫描 **140** / 待迁 **139**（README.md 保留），全程未改任何文件。\n③ **140 文件整迁按裁定不做**：故原验收第 1 条（`find docs -maxdepth 1 -name '*.md' | wc -l` = 1）本卡**不达成且不预期达成**——实测为 **140**（含 README.md）；已交付**可审的 dry-run 迁移清单**（分类：misc 82 / work-logs 44 / scheduler 11 / api 1 / architecture 1）与两个已知缺口（规则偏粗需扩、`--update-refs` 会扫整个 monorepo），留待专门窗口执行。\n④ 原验收第 2 条（`wiki_probe` 无死链）**不适用**：该探针源码自带声明\"**只对 agent-dh 的文档树判失败**，其他项目/根 docs 的历史页只做提示\"，不校验本仓 `docs`。\n⑤ 原验收第 3 条（git 显示 rename 而非增删）**对已移动的 3 个示例成立**（实测 `R×3`，历史可 `--follow` 追溯）。",
       "implementation": "给 monorepo 根的 tools/cleanup_quantsys_v2_docs.py 加 --dry-run；先 dry-run 输出迁移清单供人审，再执行迁移；同步处理 docs/ 根下 3 个 .py 示例；最后跑 wiki 死链自检。",
       "context": "",
       "requirementRefs": [],
-      "status": "todo",
+      "status": "done",
       "blocked": false,
-      "executions": [],
+      "executions": [
+        {
+          "id": "e-1c4101",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790859525946,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 6039,
+              "at": 1790859525954,
+              "totals": {
+                "uncachedInputTokens": 1515628,
+                "outputTokens": 560445,
+                "cacheReadTokens": 362395136,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 6343,
+              "at": 1790860206426,
+              "totals": {
+                "uncachedInputTokens": 1547993,
+                "outputTokens": 586864,
+                "cacheReadTokens": 394144256,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 32365,
+              "outputTokens": 26419,
+              "cacheReadTokens": 31749120,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790860206409
+        }
+      ],
       "statusHistory": [
         {
           "status": "todo",
@@ -1978,12 +2019,49 @@
             "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
           },
           "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790859525946,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "开工：docs 分层归位（先量现状、引用面与死链风险）。"
+        },
+        {
+          "status": "done",
+          "at": 1790860206409,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "父卡收尾：两张子卡完成；按裁定交付\"修好迁移工具 + 低风险归位 + 可审 dry-run 清单\"，140 文件整迁留待专窗；原验收三条的达成/不适用已逐条修订留痕。"
         }
       ],
-      "comments": [],
-      "version": 1,
+      "comments": [
+        {
+          "id": "c-d18785",
+          "body": "[状态] → in_progress：开工：docs 分层归位（先量现状、引用面与死链风险）。（reqboard_task_move）",
+          "createdAt": 1790859525946,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-62feeb",
+          "body": "[状态] → done：父卡收尾：两张子卡完成；按裁定交付\"修好迁移工具 + 低风险归位 + 可审 dry-run 清单\"，140 文件整迁留待专窗；原验收三条的达成/不适用已逐条修订留痕。（reqboard_task_move）",
+          "createdAt": 1790860206409,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
       "createdAt": 1790838470861,
-      "updatedAt": 1790838470861,
+      "updatedAt": 1790860206409,
       "createdBy": {
         "kind": "agent",
         "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
@@ -1992,7 +2070,32 @@
         "kind": "agent",
         "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
       },
-      "layer": 0
+      "layer": 0,
+      "lastReport": {
+        "at": 1790860140974,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/examples/exception_handling_migration_guide.py",
+          "docs/examples/orm_session_migration_example.py",
+          "docs/examples/scheduler_tasks_migration_example.py"
+        ],
+        "completed": [
+          "**实测推翻卡片四个前提**（逐条可复核）：① 卡片点名的迁移工具扫的是 **quantsys-v2 项目根**（只剩 2 个散落文件），不是 `docs/` 根（140 个文件在那里）；② 该工具在本机 `python3`（**3.8.10**）下**直接崩溃**；③ 它**不处理引用**——实测 **235 处**（99 个不同路径）指向 docs/ 根；④ 验收依赖的 `agent-dh/scripts/wiki_probe.py` 源码自带声明\"**只对 agent-dh 的文档树判失败**\"，不校验本仓 docs",
+          "按用户裁定\"先修工具、不做整迁\"推进，并把原卡\"本轮就迁 140 个\"的范围明确降级留痕",
+          "工具修好并可用：py3.8 不再崩、新增 `--dry-run`/`--root`/`--update-refs`、**缺目录响亮失败（exit=2）**；实测 `--root docs --dry-run` 扫描 140 / 待迁 139（README.md 保留），分类 misc 82 / work-logs 44 / scheduler 11 / api 1 / architecture 1",
+          "**自查出并修掉自己 3 个 bug**：① 引用改写初版多拼 `docs/` 前缀 → 预估恒为 0（修后为 118 个文件）；② 目录不存在时静默报 0 个文件；③ 入口未传播返回码 → 退出码恒为 0",
+          "低风险归位完成：3 个 `.py` 示例 `git mv` → `docs/examples/`（git 记 **R×3**）；2 个散落文档 → `docs/work-logs/2026-09/`（未跟踪，仅本地）；项目根只剩 CLAUDE.md + README.md、docs/ 根 `.py` 归零",
+          "交付后续窗口可直接用的东西：一条可审的 dry-run 清单 + 两个已知缺口说明（分类规则偏粗需先扩、`--update-refs` 会扫整个 monorepo 需先看数量）",
+          "诚实边界：原验收第①条（docs 根只剩 1 个 md）本卡**不达成**——按裁定未做整迁，实测仍为 140；第②条（wiki_probe 死链）**不适用**（该探针不管本仓 docs）；第③条（git rename）对已移动的 3 个示例**成立**",
+          "两张子卡（研发/复核）全部完成"
+        ]
+      },
+      "lastRun": {
+        "at": 1790860140974,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
     },
     {
       "id": "t-d4199a",
@@ -11662,6 +11765,302 @@
         "stopReason": "reported",
         "valueNonEmpty": true
       }
+    },
+    {
+      "id": "t-35e6fe",
+      "requirementId": "REQ-261001145152-3982",
+      "title": "docs 分层归位（140 个 md）·研发",
+      "description": "子卡阶段：研发",
+      "phase": "doc",
+      "side": "doc",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "implementation": "给 monorepo 根的 tools/cleanup_quantsys_v2_docs.py 加 --dry-run；先 dry-run 输出迁移清单供人审，再执行迁移；同步处理 docs/ 根下 3 个 .py 示例；最后跑 wiki 死链自检。\n\n[子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "context": "",
+      "parentId": "t-720861",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-25e059",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790859958598,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 6242,
+              "at": 1790859958607,
+              "totals": {
+                "uncachedInputTokens": 1538937,
+                "outputTokens": 580816,
+                "cacheReadTokens": 383537408,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 6254,
+              "at": 1790860021645,
+              "totals": {
+                "uncachedInputTokens": 1539539,
+                "outputTokens": 581047,
+                "cacheReadTokens": 384853504,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 602,
+              "outputTokens": 231,
+              "cacheReadTokens": 1316096,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790860021628
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-b4aa80",
+          "body": "[状态] → in_progress：补开工记录（实现与自测已完成，补登状态流转）。（reqboard_task_move）",
+          "createdAt": 1790859958598,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-f5cbec",
+          "body": "[状态] → done：研发段完成：工具已修好并产出可审 dry-run 清单；低风险归位完成；140 文件整迁按裁定留待专窗。（reqboard_task_move）",
+          "createdAt": 1790860021628,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 5,
+      "createdAt": 1790859525946,
+      "updatedAt": 1790860021628,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790859525946,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790859958598,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "补开工记录（实现与自测已完成，补登状态流转）。"
+        },
+        {
+          "status": "done",
+          "at": 1790860021628,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "研发段完成：工具已修好并产出可审 dry-run 清单；低风险归位完成；140 文件整迁按裁定留待专窗。"
+        }
+      ],
+      "layer": 0,
+      "lastReport": {
+        "at": 1790859892682,
+        "reportIndex": 2,
+        "filesChanged": [
+          "docs/examples/exception_handling_migration_guide.py",
+          "docs/examples/orm_session_migration_example.py",
+          "docs/examples/scheduler_tasks_migration_example.py"
+        ],
+        "completed": [
+          "**实测推翻卡片四个前提**（逐个可复核）：① 卡片点名的 `tools/cleanup_quantsys_v2_docs.py` 扫的是 **quantsys-v2 项目根**（只剩 2 个散落文件），不是 `docs/` 根（140 个文件在那里）；② 该工具在本机 `python3`（**3.8.10**）下**直接崩**（`tuple[str,str]` 不支持）；③ 它**不处理引用**——实测 **235 处**引用（99 个不同路径）指向 docs/ 根；④ 验收依赖的 `agent-dh/scripts/wiki_probe.py` 自己声明**只对 agent-dh 文档树判失败**，不校验本仓 docs",
+          "按用户裁定推进：**先修工具、不做 140 文件整迁**（卡面 executorHint 亦建议优先新窗口/subagent 执行）",
+          "工具修补四处：① `from __future__ import annotations` 修 py3.8 崩溃；② 新增 `--dry-run`；③ 新增 `--root`（默认项目根，`--root docs` 指向真正待迁的 140 个）；④ 新增 `--update-refs`（迁移后重写 `docs/<旧>`→`docs/<新>`，排除 .git/venv/node_modules）",
+          "**自查出并修掉自己的 bug**：`update_references` 初版多拼了一次 `docs/` 前缀（去找 `docs/docs/...`），引用改写预估恒为 0；修正后预估 **118 个文件**会被触及",
+          "dry-run 证据（全程未改盘）：项目根模式 2 个待迁；`--root docs --dry-run` 扫描 **140**、待迁 **139**（README.md 保留）、分类 misc 82 / work-logs 44 / scheduler 11 / api 1 / architecture 1",
+          "低风险归位已做：3 个 `.py` 示例 `git mv` → `docs/examples/`（git 记 `R`，可入库）；2 个散落文档 → `docs/work-logs/2026-09/`（**未被 git 跟踪**，仅本地）；项目根现在只剩 CLAUDE.md + README.md、docs/ 根 `.py` 归零",
+          "**留给后续窗口的缺口**（已写进工具 docstring）：① 分类规则偏粗且滞后——82 个落 misc，还出现规则里无目标目录的 `scheduler`(11)，整迁前需扩规则并按规范复核去向；② `--update-refs` 扫**整个 monorepo**（会触及 agent-dh 等其它项目文件），执行前务必先看 dry-run 数量"
+        ]
+      },
+      "lastRun": {
+        "at": 1790859816116,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-b1497f",
+      "requirementId": "REQ-261001145152-3982",
+      "title": "docs 分层归位（140 个 md）·复核",
+      "description": "子卡阶段：复核",
+      "phase": "doc",
+      "side": "doc",
+      "dependsOn": [
+        "t-35e6fe"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "implementation": "给 monorepo 根的 tools/cleanup_quantsys_v2_docs.py 加 --dry-run；先 dry-run 输出迁移清单供人审，再执行迁移；同步处理 docs/ 根下 3 个 .py 示例；最后跑 wiki 死链自检。\n\n[子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-720861",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-ea6551",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790860026765,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 6260,
+              "at": 1790860026776,
+              "totals": {
+                "uncachedInputTokens": 1539712,
+                "outputTokens": 581627,
+                "cacheReadTokens": 385511936,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 6325,
+              "at": 1790860134317,
+              "totals": {
+                "uncachedInputTokens": 1547302,
+                "outputTokens": 585781,
+                "cacheReadTokens": 392133760,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 7590,
+              "outputTokens": 4154,
+              "cacheReadTokens": 6621824,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790860134295
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-5f3e28",
+          "body": "[状态] → in_progress：复核段：核对工具修补是否到位、dry-run 计划质量、以及本卡范围与裁定的偏离。（reqboard_task_move）",
+          "createdAt": 1790860026765,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-fa6846",
+          "body": "[状态] → done：复核段完成：工具两处\"失败不响亮\"已修（缺目录 exit=2）、rename 经完整视角确认为 R×3、dry-run 未改任何数据文件。（reqboard_task_move）",
+          "createdAt": 1790860134295,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790859525946,
+      "updatedAt": 1790860134295,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790859525946,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790860026765,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "复核段：核对工具修补是否到位、dry-run 计划质量、以及本卡范围与裁定的偏离。"
+        },
+        {
+          "status": "done",
+          "at": 1790860134295,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "复核段完成：工具两处\"失败不响亮\"已修（缺目录 exit=2）、rename 经完整视角确认为 R×3、dry-run 未改任何数据文件。"
+        }
+      ],
+      "layer": 1,
+      "lastReport": {
+        "at": 1790860071255,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/examples/exception_handling_migration_guide.py",
+          "docs/examples/orm_session_migration_example.py",
+          "docs/examples/scheduler_tasks_migration_example.py"
+        ],
+        "completed": [
+          "复核①：工具参数齐备——`--help` 实测列出 `--root` / `--dry-run` / `--yes` / `--update-refs` 四项及各自说明；python3.8 下 `py_compile` 通过（原版在此必崩）",
+          "复核②（**发现并修掉一个\"失败不响亮\"**）：`--root no_such_dir` 时初版会静默打印\"扫描到 0 个文件 + dry-run 结束\"——使用者会误以为\"没有要迁的文件\"；已改为打印 ❌ 并返回 2",
+          "复核② 续（**再修一处**）：即使返回 2，入口仍是裸 `main()` → **退出码恒为 0**（在脚本/CI 里会被当成成功）；已改为 `raise SystemExit(main())`，实测缺目录 exit=**2**、正常 exit=**0**",
+          "复核③：低风险归位证据——项目根只剩 `CLAUDE.md`+`README.md`；`docs/` 根 `.py` = **0**；`docs/examples/` 新增 3 个；2 个散落文档移入 `docs/work-logs/2026-09/`",
+          "复核④：git **确认记 `R`（重命名）**——3 个示例均显示 `R  docs/<旧> -> docs/examples/<新>`（此前只筛 examples 目录看到的是 `A`，是过滤视角造成的误读，已用完整视角核实）",
+          "复核⑤：dry-run 全程**未改任何数据文件**——工作区除 3 条 rename 与工具自身修改外无其它变化",
+          "偏离结论：**相对用户裁定零偏离**；相对原卡有 4 处前提被实测推翻（工具目标目录错、本机崩溃、不处理引用、wiki_probe 不校验本仓 docs），逐条已在验收与汇报中留痕，未按错误前提硬做"
+        ]
+      },
+      "lastRun": {
+        "at": 1790860071255,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
     }
   ],
   "edges": [
@@ -11952,6 +12351,10 @@
     {
       "from": "t-812ecc",
       "to": "t-e95009"
+    },
+    {
+      "from": "t-35e6fe",
+      "to": "t-b1497f"
     }
   ],
   "layers": [
@@ -11968,7 +12371,8 @@
         "t-0cff3a",
         "t-15448b",
         "t-d8f0c3",
-        "t-98fce1"
+        "t-98fce1",
+        "t-35e6fe"
       ]
     },
     {
@@ -11985,7 +12389,8 @@
         "t-f273d1",
         "t-e3df07",
         "t-b5cdb6",
-        "t-1a4d3e"
+        "t-1a4d3e",
+        "t-b1497f"
       ]
     },
     {
@@ -12078,8 +12483,7 @@
     "t-2d52a7",
     "t-686185",
     "t-71051b",
-    "t-720861",
     "t-008062"
   ],
-  "updated_at": "2026-10-01T12:47:56.160Z"
+  "updated_at": "2026-10-01T13:10:06.426Z"
 }

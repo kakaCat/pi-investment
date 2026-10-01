@@ -2,9 +2,9 @@ metadata:
   stage: decomposing
   requirement_id: REQ-261001145152-3982
   generated_at: 2026-10-01T07:07:50.907Z
-  version: 237
+  version: 247
   generated_by: dsh-pmboard
-  last_updated: 2026-10-01T12:47:56.246Z
+  last_updated: 2026-10-01T13:10:06.501Z
 inputs:
   requirements:
     - id: FR-1
@@ -1465,6 +1465,27 @@ outputs:
         - t-812ecc
       phase: implement
       side: backend
+    - id: t-35e6fe
+      title: docs 分层归位（140 个 md）·研发
+      implements: |-
+        给 monorepo 根的 tools/cleanup_quantsys_v2_docs.py 加 --dry-run；先 dry-run 输出迁移清单供人审，再执行迁移；同步处理 docs/ 根下 3 个 .py 示例；最后跑 wiki 死链自检。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on: []
+      phase: doc
+      side: doc
+    - id: t-b1497f
+      title: docs 分层归位（140 个 md）·复核
+      implements: |-
+        给 monorepo 根的 tools/cleanup_quantsys_v2_docs.py 加 --dry-run；先 dry-run 输出迁移清单供人审，再执行迁移；同步处理 docs/ 根下 3 个 .py 示例；最后跑 wiki 死链自检。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-35e6fe
+      phase: doc
+      side: doc
 traceability:
   design_to_tasks:
     design/architecture.md#目标与总体方案: []

@@ -2,11 +2,11 @@ metadata:
   stage: implementing
   requirement_id: REQ-261001145152-3982
   generated_at: 2026-10-01T07:07:50.908Z
-  version: 237
+  version: 247
   generated_by: dsh-pmboard
   detail_dir: rtm-implementing/
-  detail_count: 83
-  last_updated: 2026-10-01T12:47:56.218Z
+  detail_count: 85
+  last_updated: 2026-10-01T13:10:06.475Z
 inputs:
   tasks:
     - id: t-c63378
@@ -56,7 +56,7 @@ inputs:
       status: done
     - id: t-720861
       title: docs 分层归位（140 个 md）
-      status: todo
+      status: done
     - id: t-d4199a
       title: git 产物出库（含 ignore 失效项）
       status: done
@@ -258,11 +258,17 @@ inputs:
     - id: t-e95009
       title: 数据访问规则收口 + provider 归位·测试
       status: done
+    - id: t-35e6fe
+      title: docs 分层归位（140 个 md）·研发
+      status: done
+    - id: t-b1497f
+      title: docs 分层归位（140 个 md）·复核
+      status: done
 status:
-  tasks_total: 83
-  tasks_done: 78
+  tasks_total: 85
+  tasks_done: 81
   tasks_in_progress: 0
-  tasks_todo: 5
+  tasks_todo: 4
 tasks:
   - id: t-c63378
     status: done
@@ -295,7 +301,7 @@ tasks:
   - id: t-f04052
     status: done
   - id: t-720861
-    status: todo
+    status: done
   - id: t-d4199a
     status: done
   - id: t-6a02e6
@@ -429,4 +435,8 @@ tasks:
   - id: t-812ecc
     status: done
   - id: t-e95009
+    status: done
+  - id: t-35e6fe
+    status: done
+  - id: t-b1497f
     status: done

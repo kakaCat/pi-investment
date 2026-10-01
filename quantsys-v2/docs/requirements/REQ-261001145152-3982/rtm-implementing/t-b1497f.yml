@@ -1,0 +1,47 @@
+task:
+  id: t-b1497f
+  title: docs 分层归位（140 个 md）·复核
+  status: done
+  implements: |-
+    给 monorepo 根的 tools/cleanup_quantsys_v2_docs.py 加 --dry-run；先 dry-run 输出迁移清单供人审，再执行迁移；同步处理 docs/ 根下 3 个 .py 示例；最后跑 wiki 死链自检。
+
+    [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+  serves: []
+  depends_on:
+    - t-35e6fe
+  phase: doc
+  side: doc
+  workflow_params:
+    REQ_ID: REQ-261001145152-3982
+    TASK_ID: t-b1497f
+    TASK_TITLE: docs 分层归位（140 个 md）·复核
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: doc
+    PHASE: doc
+  workflow_total: 5
+  workflow_done: 5
+  workflow:
+    - phase: doc
+      status: done
+      completed_at: 2026-10-01T13:08:54.380Z
+    - phase: implement
+      status: done
+      completed_at: 2026-10-01T13:08:54.380Z
+    - phase: test
+      status: done
+      completed_at: 2026-10-01T13:08:54.380Z
+    - phase: commit
+      status: done
+      completed_at: 2026-10-01T13:08:54.380Z
+    - phase: review
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261001145152-3982
+  generated_at: 2026-10-01T13:07:06.822Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 5
+  last_updated: 2026-10-01T13:08:54.381Z
