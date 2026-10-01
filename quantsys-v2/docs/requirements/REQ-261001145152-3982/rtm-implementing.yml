@@ -2,11 +2,11 @@ metadata:
   stage: implementing
   requirement_id: REQ-261001145152-3982
   generated_at: 2026-10-01T07:07:50.908Z
-  version: 207
+  version: 222
   generated_by: dsh-pmboard
   detail_dir: rtm-implementing/
-  detail_count: 75
-  last_updated: 2026-10-01T12:16:00.968Z
+  detail_count: 79
+  last_updated: 2026-10-01T12:30:21.496Z
 inputs:
   tasks:
     - id: t-c63378
@@ -71,7 +71,7 @@ inputs:
       status: todo
     - id: t-9b20eb
       title: scripts/tools 归位
-      status: todo
+      status: done
     - id: t-d878d7
       title: 把 V2 服务救活并留下运行证据·研发
       status: done
@@ -234,11 +234,23 @@ inputs:
     - id: t-8ecf4e
       title: Repository 双轨收敛 + 修文档指向·测试
       status: done
+    - id: t-98fce1
+      title: scripts/tools 归位·研发
+      status: done
+    - id: t-1a4d3e
+      title: scripts/tools 归位·联调
+      status: done
+    - id: t-2d2ada
+      title: scripts/tools 归位·复核
+      status: done
+    - id: t-e6c970
+      title: scripts/tools 归位·测试
+      status: done
 status:
-  tasks_total: 75
-  tasks_done: 68
+  tasks_total: 79
+  tasks_done: 73
   tasks_in_progress: 0
-  tasks_todo: 7
+  tasks_todo: 6
 tasks:
   - id: t-c63378
     status: done
@@ -281,7 +293,7 @@ tasks:
   - id: t-008062
     status: todo
   - id: t-9b20eb
-    status: todo
+    status: done
   - id: t-d878d7
     status: done
   - id: t-d51b25
@@ -389,4 +401,12 @@ tasks:
   - id: t-416540
     status: done
   - id: t-8ecf4e
+    status: done
+  - id: t-98fce1
+    status: done
+  - id: t-1a4d3e
+    status: done
+  - id: t-2d2ada
+    status: done
+  - id: t-e6c970
     status: done

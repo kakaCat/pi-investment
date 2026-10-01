@@ -2,9 +2,9 @@ metadata:
   stage: decomposing
   requirement_id: REQ-261001145152-3982
   generated_at: 2026-10-01T07:07:50.907Z
-  version: 207
+  version: 222
   generated_by: dsh-pmboard
-  last_updated: 2026-10-01T12:16:00.995Z
+  last_updated: 2026-10-01T12:30:21.523Z
 inputs:
   requirements:
     - id: FR-1
@@ -1376,6 +1376,49 @@ outputs:
       serves: []
       depends_on:
         - t-416540
+      phase: implement
+      side: backend
+    - id: t-98fce1
+      title: scripts/tools 归位·研发
+      implements: |-
+        ① 删 5 个已确认 0 引用的日期戳脚本（calibrate_20260723_{v13,v14}_return.py、migrate_20260720_multi_account.py、migrate_20260813_{action_case_unify,scheduler_tasks}.py）；② 14 个误置 test_*.py 从 scripts/ git mv 到 tests/ 并更新文档引用（test_orm*.py 被文档引用 10~11 次，不可盲删）；③ 7 个 _v2/_fixed 补丁产物逐个反查调用方后处理；④ 新脚本一律进已有分类子目录（94 个仍平铺在 scripts/ 根）。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-1a4d3e
+      title: scripts/tools 归位·联调
+      implements: |-
+        ① 删 5 个已确认 0 引用的日期戳脚本（calibrate_20260723_{v13,v14}_return.py、migrate_20260720_multi_account.py、migrate_20260813_{action_case_unify,scheduler_tasks}.py）；② 14 个误置 test_*.py 从 scripts/ git mv 到 tests/ 并更新文档引用（test_orm*.py 被文档引用 10~11 次，不可盲删）；③ 7 个 _v2/_fixed 补丁产物逐个反查调用方后处理；④ 新脚本一律进已有分类子目录（94 个仍平铺在 scripts/ 根）。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-98fce1
+      phase: implement
+      side: backend
+    - id: t-2d2ada
+      title: scripts/tools 归位·复核
+      implements: |-
+        ① 删 5 个已确认 0 引用的日期戳脚本（calibrate_20260723_{v13,v14}_return.py、migrate_20260720_multi_account.py、migrate_20260813_{action_case_unify,scheduler_tasks}.py）；② 14 个误置 test_*.py 从 scripts/ git mv 到 tests/ 并更新文档引用（test_orm*.py 被文档引用 10~11 次，不可盲删）；③ 7 个 _v2/_fixed 补丁产物逐个反查调用方后处理；④ 新脚本一律进已有分类子目录（94 个仍平铺在 scripts/ 根）。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-1a4d3e
+      phase: implement
+      side: backend
+    - id: t-e6c970
+      title: scripts/tools 归位·测试
+      implements: |-
+        ① 删 5 个已确认 0 引用的日期戳脚本（calibrate_20260723_{v13,v14}_return.py、migrate_20260720_multi_account.py、migrate_20260813_{action_case_unify,scheduler_tasks}.py）；② 14 个误置 test_*.py 从 scripts/ git mv 到 tests/ 并更新文档引用（test_orm*.py 被文档引用 10~11 次，不可盲删）；③ 7 个 _v2/_fixed 补丁产物逐个反查调用方后处理；④ 新脚本一律进已有分类子目录（94 个仍平铺在 scripts/ 根）。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-2d2ada
       phase: implement
       side: backend
 traceability:

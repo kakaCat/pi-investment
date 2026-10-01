@@ -2392,13 +2392,54 @@
         "tables": [],
         "files": []
       },
-      "acceptance": "跑 `ls scripts/test_*.py | wc -l` 为 0；5 个一次性脚本已删；`grep -rn \"scripts/test_orm\" --include='*.md' .` 为 0 或指向新路径；`pytest --collect-only -q` 收集数比迁移前增加。",
+      "acceptance": "按用户裁定**只做\"可入库、零风险\"那部分**（其余标的在版本控制之外，登记待办不硬做）：\n① `scripts/` 下**已跟踪**的 `test_*.py` = **0**（实测：`git ls-files 'quantsys-v2/scripts/test_*.py'` 计数 0）。原验收写\"`ls scripts/test_*.py | wc -l` = 0\"**不可达成**：剩余 11 个全部未被 git 跟踪（`scripts/` 按 t-d4199a 裁定保持忽略），迁入 `tests/` 会让一批从未跑过的用例开始运行。\n② 一次性脚本：**删 2 个**（`calibrate_20260723_{v13,v14}_return.py`，引用数 0、未跟踪）。原验收\"5 个已删\"**不成立**：另 3 个 `migrate_20260720_multi_account` / `migrate_20260813_action_case_unify` / `migrate_20260813_scheduler_tasks` **正被 4 个测试文件 import**（审计 grep 漏了 `tests/`），删之会打断测试——已保留并实测三者仍可导入。\n③ 文档引用：`grep -rn \"scripts/test_orm\" --include='*.md'` 仍为 34 处且**全部有效**（那些文件未跟踪、仍在原处）。本卡移动/改名的 3 个文件旧路径引用 = **0**（实测无残留）。\n④ `pytest --collect-only -q` 收集数 **6429 → 6435**（+6，来自移入的 2 个测试文件，移动后 **6 passed**）。\n⑤ 额外修复：改名后的 `scripts/check_migration_syntax.py` 有真 bug（用 `Path(__file__).parent` 当仓库根 → 每项都报\"文件不存在\"），已修并实测输出 `🎉 所有检查通过`；从任意 cwd 运行同样成立。\n⑥ 范围外登记（写入 `docs/work-logs/2026-10/scripts-inventory-and-corrections.md`）：94 个平铺 .py 中仅 19 个受版本控制、11 个未跟踪 test 文件、4 个未跟踪补丁产物的现状与理由。",
       "implementation": "① 删 5 个已确认 0 引用的日期戳脚本（calibrate_20260723_{v13,v14}_return.py、migrate_20260720_multi_account.py、migrate_20260813_{action_case_unify,scheduler_tasks}.py）；② 14 个误置 test_*.py 从 scripts/ git mv 到 tests/ 并更新文档引用（test_orm*.py 被文档引用 10~11 次，不可盲删）；③ 7 个 _v2/_fixed 补丁产物逐个反查调用方后处理；④ 新脚本一律进已有分类子目录（94 个仍平铺在 scripts/ 根）。",
       "context": "",
       "requirementRefs": [],
-      "status": "todo",
+      "status": "done",
       "blocked": false,
-      "executions": [],
+      "executions": [
+        {
+          "id": "e-0a10ae",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790857000739,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 5215,
+              "at": 1790857000751,
+              "totals": {
+                "uncachedInputTokens": 1406627,
+                "outputTokens": 487229,
+                "cacheReadTokens": 292541824,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 5492,
+              "at": 1790857821450,
+              "totals": {
+                "uncachedInputTokens": 1432105,
+                "outputTokens": 510406,
+                "cacheReadTokens": 313549312,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 25478,
+              "outputTokens": 23177,
+              "cacheReadTokens": 21007488,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790857821433
+        }
+      ],
       "statusHistory": [
         {
           "status": "todo",
@@ -2408,12 +2449,49 @@
             "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
           },
           "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790857000739,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "开工：scripts/tools 归位（处置 80 个已跟踪历史脚本的去留 + 目录口径）。"
+        },
+        {
+          "status": "done",
+          "at": 1790857821433,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "父卡收尾：四张子卡完成；按裁定只做可入库零风险部分（删 2、移 2、改名 1、修 1 个检查器 bug），三处前提偏差与范围外余量已留痕。"
         }
       ],
-      "comments": [],
-      "version": 1,
+      "comments": [
+        {
+          "id": "c-0374d3",
+          "body": "[状态] → in_progress：开工：scripts/tools 归位（处置 80 个已跟踪历史脚本的去留 + 目录口径）。（reqboard_task_move）",
+          "createdAt": 1790857000739,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-013e95",
+          "body": "[状态] → done：父卡收尾：四张子卡完成；按裁定只做可入库零风险部分（删 2、移 2、改名 1、修 1 个检查器 bug），三处前提偏差与范围外余量已留痕。（reqboard_task_move）",
+          "createdAt": 1790857821433,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
       "createdAt": 1790838470861,
-      "updatedAt": 1790838470861,
+      "updatedAt": 1790857821433,
       "createdBy": {
         "kind": "agent",
         "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
@@ -2422,7 +2500,34 @@
         "kind": "agent",
         "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
       },
-      "layer": 0
+      "layer": 0,
+      "lastReport": {
+        "at": 1790857757893,
+        "reportIndex": 1,
+        "filesChanged": [
+          "scripts/check_migration_syntax.py",
+          "tests/test_batch_fundamentals_fix.py",
+          "tests/test_stock_resolve_fix.py",
+          "docs/work-logs/2026-10/scripts-inventory-and-corrections.md"
+        ],
+        "completed": [
+          "**实测推翻卡片三处前提**（逐条留痕）：① \"5 个日期戳脚本 0 引用可直删\"→ 只有 **2 个**是 0 引用，另 3 个被 **4 个测试文件 import**（审计 grep 范围漏 `tests/`）；② \"14 个 test_*.py 迁到 tests/\"→ 其中 **11 个未被 git 跟踪**，`scripts/test_orm` 被文档引用 **34 次**；③ \"7 个 _v2/_fixed 补丁产物\"→ 实际只有 **4 个**且全部未跟踪",
+          "删 2 个真无引用的一次性脚本（未跟踪，仅本地）：`scripts/calibrate_20260723_{v13,v14}_return.py`",
+          "保留 3 个被测试依赖的迁移脚本，并**用反证实验钉死该决策**：临时拿掉 `migrate_20260720_multi_account.py` → 相关测试文件立刻出现 **17 errors**（import 失败）；恢复后 import 类错误 0",
+          "`git mv` 2 个真测试进 `tests/`（`test_batch_fundamentals_fix` / `test_stock_resolve_fix`）：移动后 **6 passed**，全仓收集数 **6429 → 6435**；git 以 `R`（重命名）记录，历史可追溯",
+          "把\"名为 test 实为检查器\"的脚本改名为 `scripts/check_migration_syntax.py`（它不收集任何测试）",
+          "**顺带修掉该检查器的真 bug**（`Path(__file__).parent` 当仓库根 → 每项报\"文件不存在\"，长期假报失败）：修正后实测 `🎉 所有检查通过！迁移成功！`，任意 cwd 均可运行——即那批 provider 迁移本来就是完成的",
+          "结论沉淀到跟踪文档 `docs/work-logs/2026-10/scripts-inventory-and-corrections.md`（65 行）：三处更正、处置清单、范围外余量（94 个平铺文件仅 19 个受版本控制等）、可复用教训（grep 范围即结论边界；\"未跟踪\"要先测）、新脚本放置规范（一次性→scripts/oneoff/ 且显式 git add -f；真测试必须放 tests/；检查器用 check_/verify_ 前缀）",
+          "诚实边界：本卡大头（75 个未跟踪文件、11 个未跟踪 test 文件、4 个未跟踪补丁产物）**在版本控制之外**，处置只改本地磁盘、仓库看不到差异——已如实登记而非假装完成",
+          "四张子卡（研发/联调/复核/测试）全部完成"
+        ]
+      },
+      "lastRun": {
+        "at": 1790857757893,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
     },
     {
       "id": "t-d878d7",
@@ -10282,6 +10387,590 @@
         "stopReason": "reported",
         "valueNonEmpty": true
       }
+    },
+    {
+      "id": "t-98fce1",
+      "requirementId": "REQ-261001145152-3982",
+      "title": "scripts/tools 归位·研发",
+      "description": "子卡阶段：研发",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "implementation": "① 删 5 个已确认 0 引用的日期戳脚本（calibrate_20260723_{v13,v14}_return.py、migrate_20260720_multi_account.py、migrate_20260813_{action_case_unify,scheduler_tasks}.py）；② 14 个误置 test_*.py 从 scripts/ git mv 到 tests/ 并更新文档引用（test_orm*.py 被文档引用 10~11 次，不可盲删）；③ 7 个 _v2/_fixed 补丁产物逐个反查调用方后处理；④ 新脚本一律进已有分类子目录（94 个仍平铺在 scripts/ 根）。\n\n[子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "context": "",
+      "parentId": "t-9b20eb",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-132386",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790857288174,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 5363,
+              "at": 1790857288181,
+              "totals": {
+                "uncachedInputTokens": 1426057,
+                "outputTokens": 503746,
+                "cacheReadTokens": 303780352,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 5375,
+              "at": 1790857349964,
+              "totals": {
+                "uncachedInputTokens": 1426665,
+                "outputTokens": 503981,
+                "cacheReadTokens": 304747008,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 608,
+              "outputTokens": 235,
+              "cacheReadTokens": 966656,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790857349949
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-ccf129",
+          "body": "[状态] → in_progress：补开工记录（实现与自测已完成，补登状态流转）。（reqboard_task_move）",
+          "createdAt": 1790857288174,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-9f559a",
+          "body": "[状态] → done：研发段完成：删 2 / 移 2 / 改名 1 / 修 1 个检查器 bug；偏差与范围外余量已写入 work-log。（reqboard_task_move）",
+          "createdAt": 1790857349949,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790857000739,
+      "updatedAt": 1790857349949,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790857000739,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790857288174,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "补开工记录（实现与自测已完成，补登状态流转）。"
+        },
+        {
+          "status": "done",
+          "at": 1790857349949,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "研发段完成：删 2 / 移 2 / 改名 1 / 修 1 个检查器 bug；偏差与范围外余量已写入 work-log。"
+        }
+      ],
+      "layer": 0,
+      "lastReport": {
+        "at": 1790857221856,
+        "reportIndex": 1,
+        "filesChanged": [
+          "scripts/check_migration_syntax.py",
+          "docs/work-logs/2026-10/scripts-inventory-and-corrections.md"
+        ],
+        "completed": [
+          "**实测推翻卡片三处前提**（详见 work-log）：① 卡说 5 个日期戳脚本 0 引用可直删，实测只有 2 个是 0 引用，另 3 个**正被 4 个测试文件 import**（审计 grep 范围漏了 `tests/`）；② 14 个 scripts/test_*.py 中 **11 个未被 git 跟踪**，`scripts/test_orm` 被文档引用 **34 次**（非卡说 10~11）；③ 卡说 7 个 _v2/_fixed 补丁产物，实测只有 **4 个**且全部未跟踪",
+          "删除 2 个真无引用的一次性脚本：`scripts/calibrate_20260723_{v13,v14}_return.py`（未跟踪 → 仅本地）",
+          "保留 3 个迁移脚本并实测可用：`migrate_20260720_multi_account` / `migrate_20260813_action_case_unify` / `migrate_20260813_scheduler_tasks` —— 它们是 4 个测试文件的夹具，删之会打断测试",
+          "`git mv` 2 个真测试进 `tests/`：`test_batch_fundamentals_fix.py`、`test_stock_resolve_fix.py`（移动后 **6 passed**；全仓收集数 **6429 → 6435**）",
+          "把\"名为 test 实为检查器\"的 `scripts/test_migration_syntax.py` 改名为 `scripts/check_migration_syntax.py`（它不收集任何测试）",
+          "**顺带修掉该检查器的真 bug**：它用 `Path(__file__).parent` 当仓库根，导致每一项都把仓库相对路径拼成 `scripts/application/...` 而报\"文件不存在\"——长期假报失败。修正后实跑输出 `🎉 所有检查通过！迁移成功！`，从任意 cwd 运行同样成立（说明那批 provider 迁移本来就是完成的）",
+          "结论写入跟踪文档：`docs/work-logs/2026-10/scripts-inventory-and-corrections.md`（含三处更正、处置清单、范围外余量、可复用教训、新脚本放置规范）",
+          "范围外如实登记：94 个平铺 .py 仅 **19 个受版本控制**（75 个未跟踪/被忽略）；剩余 11 个 test_*.py 全部未跟踪；4 个补丁产物全部未跟踪——这些都改不动仓库",
+          "验收①③④⑤逐条达成；②（5 个脚本）与\"test_*.py 归零\"两项按实测修订，未硬做会打断测试或改不了仓库的事"
+        ]
+      },
+      "lastRun": {
+        "at": 1790857221856,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-1a4d3e",
+      "requirementId": "REQ-261001145152-3982",
+      "title": "scripts/tools 归位·联调",
+      "description": "子卡阶段：联调",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-98fce1"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）",
+      "implementation": "① 删 5 个已确认 0 引用的日期戳脚本（calibrate_20260723_{v13,v14}_return.py、migrate_20260720_multi_account.py、migrate_20260813_{action_case_unify,scheduler_tasks}.py）；② 14 个误置 test_*.py 从 scripts/ git mv 到 tests/ 并更新文档引用（test_orm*.py 被文档引用 10~11 次，不可盲删）；③ 7 个 _v2/_fixed 补丁产物逐个反查调用方后处理；④ 新脚本一律进已有分类子目录（94 个仍平铺在 scripts/ 根）。\n\n[子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）",
+      "context": "",
+      "parentId": "t-9b20eb",
+      "stageKind": "integrate",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-66c23f",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790857354627,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 5381,
+              "at": 1790857354636,
+              "totals": {
+                "uncachedInputTokens": 1426845,
+                "outputTokens": 504441,
+                "cacheReadTokens": 305230720,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 5407,
+              "at": 1790857492139,
+              "totals": {
+                "uncachedInputTokens": 1427921,
+                "outputTokens": 506073,
+                "cacheReadTokens": 307173376,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 1076,
+              "outputTokens": 1632,
+              "cacheReadTokens": 1942656,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790857492124
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-562df1",
+          "body": "[状态] → in_progress：联调段：验证移动/改名后脚本与测试的真实可用性，以及被保留脚本对测试的支撑。（reqboard_task_move）",
+          "createdAt": 1790857354627,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-d91483",
+          "body": "[状态] → done：联调段完成：反证实验证明保留 3 个迁移脚本是必须的（删则 17 个 import 错误）；检查器与移入测试均实测通过。（reqboard_task_move）",
+          "createdAt": 1790857492124,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790857000739,
+      "updatedAt": 1790857492124,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790857000739,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790857354627,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "联调段：验证移动/改名后脚本与测试的真实可用性，以及被保留脚本对测试的支撑。"
+        },
+        {
+          "status": "done",
+          "at": 1790857492124,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "联调段完成：反证实验证明保留 3 个迁移脚本是必须的（删则 17 个 import 错误）；检查器与移入测试均实测通过。"
+        }
+      ],
+      "layer": 1,
+      "lastReport": {
+        "at": 1790857429588,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "联调①：**反证实验证明保留是对的**——把 `migrate_20260720_multi_account.py` 临时改名后，`tests/test_multi_account_domain.py` 从\"有成败混杂\"直接变成 **17 errors**（import 失败）；恢复后 import 类错误数 = **0**。即：按原卡\"直删 5 个\"会打断这批测试文件",
+          "联调②：被保留脚本支撑的 4 个测试文件当前为 18 failed / 21 passed / 1 error，其中 **import 类错误 0**（失败原因是测试自身与测试库状态，与本卡无关）",
+          "联调③：改名后的 `scripts/check_migration_syntax.py` **从任意 cwd 运行都通过**（`🎉 所有检查通过！迁移成功！`）——修复前的\"全项报文件不存在\"已消除",
+          "联调④：移入 `tests/` 的两个测试在整套里可被选中并 **6 passed**（`-k \"batch_fundamentals_fix or stock_resolve_fix\"`）",
+          "联调⑤：全仓收集数 6435，`app` 可导入（101 路由），服务 /docs 200、探针 exit 0——脚本层改动对应用无影响",
+          "局限（如实记录）：本子卡模板验收命令写的是 `npx vitest run`（TS 工具链），与本仓 Python 栈不匹配；已按 pytest 与脚本实跑执行"
+        ]
+      },
+      "lastRun": {
+        "at": 1790857429588,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-2d2ada",
+      "requirementId": "REQ-261001145152-3982",
+      "title": "scripts/tools 归位·复核",
+      "description": "子卡阶段：复核",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-1a4d3e"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "implementation": "① 删 5 个已确认 0 引用的日期戳脚本（calibrate_20260723_{v13,v14}_return.py、migrate_20260720_multi_account.py、migrate_20260813_{action_case_unify,scheduler_tasks}.py）；② 14 个误置 test_*.py 从 scripts/ git mv 到 tests/ 并更新文档引用（test_orm*.py 被文档引用 10~11 次，不可盲删）；③ 7 个 _v2/_fixed 补丁产物逐个反查调用方后处理；④ 新脚本一律进已有分类子目录（94 个仍平铺在 scripts/ 根）。\n\n[子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-9b20eb",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-7d6af5",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790857496837,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 5413,
+              "at": 1790857496844,
+              "totals": {
+                "uncachedInputTokens": 1428178,
+                "outputTokens": 506563,
+                "cacheReadTokens": 307660032,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 5433,
+              "at": 1790857605740,
+              "totals": {
+                "uncachedInputTokens": 1429433,
+                "outputTokens": 507468,
+                "cacheReadTokens": 309124864,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 1255,
+              "outputTokens": 905,
+              "cacheReadTokens": 1464832,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790857605725
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-7a0391",
+          "body": "[状态] → in_progress：复核段：核对改动范围、跟踪状态与\"可入库\"判定的准确性。（reqboard_task_move）",
+          "createdAt": 1790857496837,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-38605c",
+          "body": "[状态] → done：复核段完成：范围精确、重命名历史保留、口径达成；\"可入库 vs 仅本地\"判定已核清。（reqboard_task_move）",
+          "createdAt": 1790857605725,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790857000739,
+      "updatedAt": 1790857605725,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790857000739,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790857496837,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "复核段：核对改动范围、跟踪状态与\"可入库\"判定的准确性。"
+        },
+        {
+          "status": "done",
+          "at": 1790857605725,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "复核段完成：范围精确、重命名历史保留、口径达成；\"可入库 vs 仅本地\"判定已核清。"
+        }
+      ],
+      "layer": 2,
+      "lastReport": {
+        "at": 1790857542878,
+        "reportIndex": 1,
+        "filesChanged": [
+          "scripts/check_migration_syntax.py",
+          "tests/test_batch_fundamentals_fix.py",
+          "tests/test_stock_resolve_fix.py"
+        ],
+        "completed": [
+          "复核①：改动范围精确且都是本卡目标——3 个文件重命名/移动（git 识别为 `R`）、其中改名那个同时带内容修改（`M`）、新增 1 个 work-log 目录；删掉的 2 个脚本因未跟踪故不出现在 git 状态里（与汇报一致）",
+          "复核②：**重命名历史被 git 正确识别**（3 条均为 `R` 状态，非\"删一个加一个\"），后续 `git log --follow` 仍可追溯",
+          "复核③：验收口径达成——已跟踪的 `scripts/test_*.py` = **0**；未跟踪残留 11 个（与 work-log 登记一致，属版本控制之外）",
+          "复核④：work-log（65 行）覆盖了三处前提更正、处置清单、范围外余量、可复用教训与新脚本规范",
+          "复核⑤：\"可入库\"判定经得起检查——本卡触碰的 3 个跟踪文件都真实进入了 git 索引；删的 2 个、以及未处理的 75 个平铺文件确实都不在版本控制内（不是我没做，而是改不动仓库）",
+          "偏离结论：**相对用户裁定零偏离**（只做可入库零风险部分）；相对原卡有 3 处**经实测推翻的前提**（5 个脚本只有 2 个可删、14 个 test 文件只有 3 个可迁、7 个补丁产物实际 4 个），已在验收与 work-log 中逐条留痕，未按错误前提硬做"
+        ]
+      },
+      "lastRun": {
+        "at": 1790857542878,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-e6c970",
+      "requirementId": "REQ-261001145152-3982",
+      "title": "scripts/tools 归位·测试",
+      "description": "子卡阶段：测试",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-2d2ada"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "implementation": "① 删 5 个已确认 0 引用的日期戳脚本（calibrate_20260723_{v13,v14}_return.py、migrate_20260720_multi_account.py、migrate_20260813_{action_case_unify,scheduler_tasks}.py）；② 14 个误置 test_*.py 从 scripts/ git mv 到 tests/ 并更新文档引用（test_orm*.py 被文档引用 10~11 次，不可盲删）；③ 7 个 _v2/_fixed 补丁产物逐个反查调用方后处理；④ 新脚本一律进已有分类子目录（94 个仍平铺在 scripts/ 根）。\n\n[子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "context": "",
+      "parentId": "t-9b20eb",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-f7bdb2",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790857610705,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 5439,
+              "at": 1790857610715,
+              "totals": {
+                "uncachedInputTokens": 1429592,
+                "outputTokens": 508095,
+                "cacheReadTokens": 309613952,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 5474,
+              "at": 1790857752551,
+              "totals": {
+                "uncachedInputTokens": 1431367,
+                "outputTokens": 509276,
+                "cacheReadTokens": 312070144,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 1775,
+              "outputTokens": 1181,
+              "cacheReadTokens": 2456192,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790857752536
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-9fdc94",
+          "body": "[状态] → in_progress：测试段：按修订口径复跑全部验收命令。（reqboard_task_move）",
+          "createdAt": 1790857610705,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-dc4de6",
+          "body": "[状态] → done：测试段完成：五条验收全部达成（含收集数 +6、检查器真通过）。（reqboard_task_move）",
+          "createdAt": 1790857752536,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790857000739,
+      "updatedAt": 1790857752536,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790857000739,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790857610705,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "测试段：按修订口径复跑全部验收命令。"
+        },
+        {
+          "status": "done",
+          "at": 1790857752536,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "测试段完成：五条验收全部达成（含收集数 +6、检查器真通过）。"
+        }
+      ],
+      "layer": 3,
+      "lastReport": {
+        "at": 1790857687592,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "验收①：已跟踪的 `scripts/test_*.py` = **0**（`git ls-files` 口径）",
+          "验收②：2 个真无引用的一次性脚本**已删**；3 个被测试 import 的迁移脚本 **3/3 在位**（保留决策已由反证实验证明必要）",
+          "验收③：两个移入 `tests/` 的文件旧路径引用 = **0**；改名那个的 2 处命中**都在\"记录这次改名\"的文档里**（work-log 与任务卡），属正确的历史留痕而非失效指针",
+          "验收④：`pytest --collect-only -q` = **6435 tests collected**（迁移前 6429，**+6**）",
+          "验收⑤：`scripts/check_migration_syntax.py` 输出 **🎉 所有检查通过！迁移成功！**（修复前是对每一项都报\"文件不存在\"）",
+          "局限（如实记录）：本子卡模板验收命令写的是 `pnpm test` / `npx tsc --noEmit`（TS 工具链），与本仓 Python 栈不匹配；已按等价的 git/pytest/脚本实测执行"
+        ]
+      },
+      "lastRun": {
+        "at": 1790857687592,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
     }
   ],
   "edges": [
@@ -10544,6 +11233,18 @@
     {
       "from": "t-416540",
       "to": "t-8ecf4e"
+    },
+    {
+      "from": "t-98fce1",
+      "to": "t-1a4d3e"
+    },
+    {
+      "from": "t-1a4d3e",
+      "to": "t-2d2ada"
+    },
+    {
+      "from": "t-2d2ada",
+      "to": "t-e6c970"
     }
   ],
   "layers": [
@@ -10559,7 +11260,8 @@
         "t-d878d7",
         "t-0cff3a",
         "t-15448b",
-        "t-d8f0c3"
+        "t-d8f0c3",
+        "t-98fce1"
       ]
     },
     {
@@ -10575,7 +11277,8 @@
         "t-d51b25",
         "t-f273d1",
         "t-e3df07",
-        "t-b5cdb6"
+        "t-b5cdb6",
+        "t-1a4d3e"
       ]
     },
     {
@@ -10597,7 +11300,8 @@
         "t-805d4c",
         "t-f2c01b",
         "t-1f13a5",
-        "t-c95f22"
+        "t-c95f22",
+        "t-2d2ada"
       ]
     },
     {
@@ -10619,7 +11323,8 @@
         "t-1f1299",
         "t-cd55bf",
         "t-9c79c3",
-        "t-d9bc61"
+        "t-d9bc61",
+        "t-e6c970"
       ]
     },
     {
@@ -10664,8 +11369,7 @@
     "t-71051b",
     "t-f04052",
     "t-720861",
-    "t-008062",
-    "t-9b20eb"
+    "t-008062"
   ],
-  "updated_at": "2026-10-01T12:16:00.921Z"
+  "updated_at": "2026-10-01T12:30:21.450Z"
 }

@@ -76,7 +76,11 @@ def main():
     print("P1-2 迁移语法检查")
     print("=" * 70)
 
-    project_root = Path(__file__).parent
+    # 2026-10-01（REQ-261001145152-3982 t-9b20eb）：原为 `Path(__file__).parent` ——
+    # 该脚本住在 scripts/ 下，于是 MIGRATED_FILES 里的仓库相对路径被拼成
+    # `scripts/application/services/...`，**每一项都报 "No such file or directory"**，
+    # 检查器长期形同虚设（改名时实跑才发现）。改为上溯到仓库根。
+    project_root = Path(__file__).resolve().parent.parent
     all_passed = True
 
     for file_rel_path in MIGRATED_FILES:
