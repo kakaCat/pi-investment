@@ -128,8 +128,14 @@ class TestDependencyResolution:
         service = EnhancedServiceFactory.resolve(MockServiceWithMultipleDeps)
         assert service.execute() == "processed_test_data_and_test_data"
 
-    def test_resolve_unregistered_service_raises_error(self):
-        """测试解析未注册的服务抛出异常"""
+    def test_resolve_unregistered_service_raises_error(self, real_service_resolution):
+        """解析未注册的服务必须抛 ValueError。
+
+        2026-10-02（REQ-261001145152-3982 审查）：本用例依赖 `real_service_resolution`
+        fixture 取回**真实**解析语义 —— 根 conftest 默认会把"未注册即抛 ValueError"
+        兜成 MagicMock（为让不关心真实服务的用例能收集），那会**掩盖这条契约**，
+        实测本用例因此报 `DID NOT RAISE ValueError`。
+        """
         with pytest.raises(ValueError, match="Service not registered"):
             EnhancedServiceFactory.resolve(ITestRepository)
 
@@ -169,8 +175,15 @@ class TestLifecycleManagement:
 class TestCircularDependencyDetection:
     """测试循环依赖检测"""
 
-    def test_circular_dependency_raises_error(self):
-        """测试循环依赖抛出异常"""
+    def test_circular_dependency_raises_error(self, real_service_resolution):
+        """循环依赖必须抛 ValueError。
+
+        2026-10-02（REQ-261001145152-3982 审查）：同 `test_resolve_unregistered_service_raises_error`，
+        本用例也需要 `real_service_resolution` —— 工厂**确实**有环检测并抛
+        `ValueError: Circular dependency detected`，但根 conftest 的 stub 会把
+        `ValueError` 兜成 MagicMock → 该异常被吞掉 → 用例拿不到预期异常，
+        反而以构造函数 TypeError（`ServiceB() takes no arguments`）收场，**报错指向完全无关的方向**。
+        """
         # 创建循环依赖：A -> B -> A
         # 注意：使用显式依赖声明而不是字符串注解
         class ServiceA:

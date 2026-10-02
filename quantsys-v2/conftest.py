@@ -33,6 +33,8 @@ except ImportError:
 # 而测试仍在直接调 `EnhancedServiceFactory.resolve`。只包一层会让另一条路径裸奔。
 # （前一版改动误把目标写成 `_esf.ServiceFactory`（enhanced 模块并无该类）→ 赋值抛错
 #  被下面的 except 吞掉 → 包装整体失效；此处改为按对象分别取原方法。）
+_ORIGINAL_RESOLVERS: dict = {}
+
 try:
     from unittest.mock import MagicMock as _MagicMock
     import infrastructure.services.enhanced_service_factory as _esf
@@ -46,10 +48,40 @@ try:
                 return _MagicMock()
         return staticmethod(_safe_resolve)
 
+    # 2026-10-02（REQ-261001145152-3982 审查）：把**原始解析器**留成逃生口。
+    # 本 stub 会把"未注册即抛 ValueError"兜成 MagicMock，便于不关心真实服务的用例收集；
+    # 但它同时**掩盖了"未注册必须报错"这条契约** —— 实测
+    # tests/unit/infrastructure/test_enhanced_service_factory.py 的
+    # test_resolve_unregistered_service_raises_error 因此必然失败（DID NOT RAISE）。
+    # 需要真实语义的用例用下面的 `real_service_resolution` fixture 取回原始实现。
+    _ORIGINAL_RESOLVERS["esf"] = _esf.EnhancedServiceFactory.resolve
+    _ORIGINAL_RESOLVERS["sf"] = _sf.ServiceFactory.resolve
     _esf.EnhancedServiceFactory.resolve = _make_safe(_esf.EnhancedServiceFactory.resolve)
     _sf.ServiceFactory.resolve = _make_safe(_sf.ServiceFactory.resolve)
 except Exception:
     pass  # If import fails, tests that need real services will still work
+
+
+@pytest.fixture
+def real_service_resolution():
+    """临时恢复 `ServiceFactory.resolve` / `EnhancedServiceFactory.resolve` 的**真实**语义。
+
+    默认 conftest 会把"未注册即抛 ValueError/KeyError"兜成 MagicMock，
+    以免不关心真实服务的用例因未注册而无法收集 —— 但这会**掩盖契约**。
+    需要验证"未注册必须报错"这类契约的用例，请显式依赖本 fixture。
+    """
+    import infrastructure.services.enhanced_service_factory as esf
+    import infrastructure.services.service_factory as sf
+
+    saved = (esf.EnhancedServiceFactory.resolve, sf.ServiceFactory.resolve)
+    if _ORIGINAL_RESOLVERS.get('esf') is not None:
+        esf.EnhancedServiceFactory.resolve = _ORIGINAL_RESOLVERS['esf']
+    if _ORIGINAL_RESOLVERS.get('sf') is not None:
+        sf.ServiceFactory.resolve = _ORIGINAL_RESOLVERS['sf']
+    try:
+        yield
+    finally:
+        esf.EnhancedServiceFactory.resolve, sf.ServiceFactory.resolve = saved
 
 
 # ── 测试环境限制 socket 默认超时（2026-10-02 · REQ-261001145152-3982 审查）──
