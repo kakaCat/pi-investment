@@ -244,7 +244,10 @@ class TestFactoryValidation:
 class TestValidationReport:
     """测试验证报告"""
 
-    def test_validate_and_report_success(self, capsys):
+    def test_validate_and_report_success(self, capsys, caplog):
+        # 2026-10-02（REQ-261001145152-3982 审查）：实现已从 `print` 改为**结构化日志**
+        # （`logger.info("✅ Configuration validation passed!")`），而断言仍在看 **stdout**
+        # → `assert '✅' in captured.out` 恒为空串而失败。改为断言**日志**内容。
         """测试成功验证的报告"""
         config = ServicesConfig(
             services={
@@ -261,11 +264,14 @@ class TestValidationReport:
 
         assert result == True
 
-        captured = capsys.readouterr()
-        assert '✅' in captured.out
-        assert 'passed' in captured.out.lower()
+        import logging as _logging
 
-    def test_validate_and_report_failure(self, capsys):
+        with caplog.at_level(_logging.INFO):
+            validator.validate_and_report(config)
+        assert '✅' in caplog.text
+        assert 'passed' in caplog.text.lower()
+
+    def test_validate_and_report_failure(self, capsys, caplog):
         """测试失败验证的报告"""
         config = ServicesConfig(
             services={
@@ -282,9 +288,12 @@ class TestValidationReport:
 
         assert result == False
 
-        captured = capsys.readouterr()
-        assert '❌' in captured.out
-        assert 'failed' in captured.out.lower()
+        import logging as _logging
+
+        with caplog.at_level(_logging.ERROR):
+            validator.validate_and_report(config)
+        assert '❌' in caplog.text
+        assert 'failed' in caplog.text.lower()
 
 
 class TestComplexDependencyGraph:

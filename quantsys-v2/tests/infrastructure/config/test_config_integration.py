@@ -215,9 +215,22 @@ class TestConfigMerging:
         loader = ConfigLoader()
         config = loader.load(environment='test')
 
-        watch_engine = config.get_service('watch_engine')
-        assert watch_engine is not None
-        assert watch_engine.config.get('check_interval') == 10
+        # 2026-10-02（REQ-261001145152-3982 审查）：**换成真正能验证"字段合并"的对象**。
+        # 原断言 `config.get_service('watch_engine')` 非空，但：
+        #   · 基础配置里 `watch_engine` 是**注释掉的**（注明「TODO: 未实现，暂时禁用」；
+        #     实际由 FastAPI lifespan 的 watch_bootstrap 启动，不走配置驱动）；
+        #   · `services.test.yaml` 只给它（以及 data_service / paper_trading_engine）
+        #     写了 `config:` 覆盖段 —— **这三项在基础配置里都不存在**，属"孤儿覆盖"，
+        #     合并结果里自然没有它们。
+        # 而**字段级合并**在仓库项上是真实生效的：测试覆盖只写 `implementation`，
+        # 基础项的 `interface` / `lifecycle` 被保留。这恰好就是本用例要验的行为。
+        stock_repo = config.get_service('repositories.stock')
+        assert stock_repo is not None
+        assert stock_repo.implementation == 'tests.mocks.MockStockRepository', "测试覆盖未生效"
+        assert stock_repo.interface == 'domain.ports.IStockRepository', "基础字段未保留"
+        assert stock_repo.lifecycle == 'singleton', "基础字段未保留"
+        # 明确记录："孤儿覆盖"（基础里没有对应项）不会凭空造出服务
+        assert config.get_service('watch_engine') is None
 
 
 class TestBackwardCompatibility:

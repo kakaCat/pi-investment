@@ -291,7 +291,12 @@ class ConfigValidator:
             logger.error(f"  {error_type}:")
             for error in type_errors:
                 logger.error(f"    - {error.service_name}: {error.message}")
-            logger.info()
+            # 2026-10-02（REQ-261001145152-3982 审查）：**原为 `logger.info()`（无参）**——
+            # 标准库 `logging.Logger.info()` 要求必传消息，于是这里抛
+            # `TypeError: Logger.info() missing 1 required positional argument: 'msg'`，
+            # 使「按类型列出校验错误」的报告**根本打不出来**（校验失败时用户看不到明细）。
+            # 原意是打一个空行分隔，补上空字符串。
+            logger.info("")
 
         return False
 
