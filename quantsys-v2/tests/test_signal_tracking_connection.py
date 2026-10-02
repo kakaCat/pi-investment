@@ -34,6 +34,16 @@ class _Cursor:
     def fetchall(self):
         return self._rows
 
+    def __iter__(self):
+        """2026-10-02（REQ-261001145152-3982 审查）：**补上迭代协议，对齐真实游标契约**。
+
+        生产代码用 `for row in cursor:` **流式迭代**（其注释："内存安全：流式迭代替代 fetchall()"），
+        这在 psycopg2 的真实游标上合法；而本假游标只有 `fetchall`，于是报
+        `TypeError: '_Cursor' object is not iterable`（实测 signal_tracking_repository.py:195/287）。
+        桩应当**复现真实对象的协议**，否则测出来的失败指向实现，实际是桩不完整。
+        """
+        return iter(self._rows)
+
     def close(self):
         self.closed = True
 
