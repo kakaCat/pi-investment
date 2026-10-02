@@ -14,8 +14,25 @@ router = APIRouter(tags=["Memory - 蒸馏"])
 
 
 def _get_distiller() -> MemoryDistiller:
-    """获取 MemoryDistiller 实例"""
-    return MemoryDistiller()
+    """获取 MemoryDistiller 实例
+
+    2026-10-02（REQ-261001145152-3982 审查）：**原实现是坏的**——
+    `MemoryDistiller.__init__` 要求必填 `memory_repo`，而这里空构造
+    → 每次调用都抛 `TypeError: missing 1 required positional argument: 'memory_repo'`，
+    本路由两个**线上已注册**端点（`/api/memory/distill/inputs`、`/candidates`）必然 500。
+
+    根因：`IMemoryRepository`（domain/ports/repository_ports_extended.py:288）
+    **只有端口、没有任何适配器实现**（全仓搜不到实现类），故此处无从注入。
+
+    这里改为**响亮失败**：503 + 写明原因，而不是让裸 TypeError 冒充未知故障
+    （「失败要响亮」；也让调用方一眼看出是"功能未接线"而非"查询出错"）。
+    待补上 IMemoryRepository 的适配器实现后，把本函数改成
+    `MemoryDistiller(memory_repo=<impl>)` 即可恢复。
+    """
+    raise HTTPException(
+        status_code=503,
+        detail="记忆蒸馏暂不可用：IMemoryRepository 端口尚无适配器实现（功能未接线）",
+    )
 
 
 @router.get("/api/memory/distill/inputs")

@@ -12,7 +12,7 @@ class TestMemoryDistiller:
 
     def test_collect_inputs_excludes_recall_source(self):
         """(a) collect_inputs 排除 source=recall 且 last_recalled_at 非空的条目"""
-        distiller = MemoryDistiller()
+        distiller = MemoryDistiller(memory_repo=MagicMock())
 
         # Mock MemoryRepository.list_filtered
         with patch.object(distiller._memory_repo, 'list_filtered') as mock_list:
@@ -64,7 +64,7 @@ class TestMemoryDistiller:
 
     def test_save_candidates_skips_empty_evidence(self):
         """(b) save_candidates 跳过 evidence_ids 为空的候选"""
-        distiller = MemoryDistiller()
+        distiller = MemoryDistiller(memory_repo=MagicMock())
 
         candidates = [
             {'title': 'rule1', 'content': 'content1', 'evidence_ids': [1, 2]},
@@ -90,7 +90,7 @@ class TestMemoryDistiller:
 
     def test_save_candidates_writes_testing_status(self):
         """(c) save_candidates 正常写入 testing 状态的条目"""
-        distiller = MemoryDistiller()
+        distiller = MemoryDistiller(memory_repo=MagicMock())
 
         candidates = [
             {'title': 'good rule', 'content': 'good content', 'evidence_ids': [10, 20]},
