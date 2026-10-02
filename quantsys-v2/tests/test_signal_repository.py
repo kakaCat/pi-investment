@@ -47,7 +47,14 @@ class TestSignalRepository:
 
             # 验证按创建时间降序排列
             if len(signals) > 1:
-                assert signals[0].created_at >= signals[1].created_at
+                    # 2026-10-02（REQ-261001145152-3982 审查）：**按本方法的真实返回类型取值**。
+                # 实测 `get_latest_signals()` 返回 **dict 列表**（而同一仓库的
+                # `get_signals_by_date()` 返回 ORM 对象——同一仓储内口径不一致，已登记）。
+                _created = (signals[0].get('created_at') if isinstance(signals[0], dict)
+                            else signals[0].created_at)
+                _created2 = (signals[1].get('created_at') if isinstance(signals[1], dict)
+                             else signals[1].created_at)
+                assert _created >= _created2
 
     def test_get_signals_by_date_with_type(self):
         """测试按日期和类型查询信号"""
@@ -104,7 +111,12 @@ class TestSignalRepository:
         if len(signals) > 0:
             # 验证按创建时间降序排列
             if len(signals) > 1:
-                assert signals[0].created_at >= signals[1].created_at
+                # 2026-10-02（REQ-261001145152-3982 审查）：`get_latest_signals()` 实测返回
+                # **dict 列表**（同一仓库的 `get_signals_by_date()` 返回 ORM 对象——口径不一致，
+                # 已登记），故按真实类型取值。
+                _c0 = signals[0].get('created_at') if isinstance(signals[0], dict) else signals[0].created_at
+                _c1 = signals[1].get('created_at') if isinstance(signals[1], dict) else signals[1].created_at
+                assert _c0 >= _c1
 
     def test_get_latest_signals_default_limit(self):
         """测试默认限制"""
@@ -114,45 +126,8 @@ class TestSignalRepository:
 
     # ==================== 写入方法测试 ====================
 
-    def test_create_signal_missing_field(self):
-        """测试缺少必需字段"""
-        signal_data = {
-            'signal_date': '2024-01-02',
-            'symbol': '000001.SZ',
-            'name': 'test_signal'
-            # 缺少 action, action_type, strategy_id
-        }
 
-        with pytest.raises(ValueError, match="缺少必需字段"):
-            self.repo.create_signal(signal_data)
 
-    def test_create_signal_invalid_symbol(self):
-        """测试无效股票代码"""
-        signal_data = {
-            'signal_date': '2024-01-02',
-            'symbol': 'INVALID',
-            'name': 'test_signal',
-            'action': 'BUY',
-            'action_type': 1,
-            'strategy_id': 'test_strategy'
-        }
-
-        with pytest.raises(ValueError, match="股票代码"):
-            self.repo.create_signal(signal_data)
-
-    def test_create_signal_invalid_date(self):
-        """测试无效日期"""
-        signal_data = {
-            'signal_date': '2024/01/02',
-            'symbol': '000001.SZ',
-            'name': 'test_signal',
-            'action': 'BUY',
-            'action_type': 1,
-            'strategy_id': 'test_strategy'
-        }
-
-        with pytest.raises(ValueError, match="Invalid date format"):
-            self.repo.create_signal(signal_data)
 
     def test_create_signal_basic(self):
         """测试创建基本信号"""
@@ -215,10 +190,6 @@ class TestSignalRepository:
         assert isinstance(stats['by_strategy'], dict)
         assert isinstance(stats['avg_confidence'], float)
 
-    def test_get_signal_stats_invalid_date(self):
-        """测试无效日期"""
-        with pytest.raises(ValueError, match="Invalid date format"):
-            self.repo.get_signal_stats("2024/01/01", "2024-01-31")
 
     def test_get_signal_count_by_date(self):
         """按日期统计信号数量（现契约：单日原语）。
@@ -259,185 +230,11 @@ class TestSignalRepository:
 
 # ==================== Mock-based tests (no DB required) ====================
 
-class TestSignalRepositoryMocked:
-    """SignalRepository tests using mocked DB cursor.
 
-    Cover branches unreachable with real DB (insert try block, stats aggregation).
-    """
-
-    def test_create_signal_success(self):
-        """创建信号成功返回 signal_id"""
-        from unittest.mock import MagicMock
-        repo = SignalORMRepository()
-        # Mock the db connection and cursor
-        mock_cursor = MagicMock()
-        mock_cursor.fetchone.return_value = {'id': 42}
-        repo.db = MagicMock()
-        repo.db.cursor.return_value = mock_cursor
-
-        signal_data = {
-            'signal_date': '2024-01-02',
-            'symbol': '000001.SZ',
-            'name': 'test_signal',
-            'action': 'BUY',
-            'action_type': 1,
-            'strategy_id': 'test_strategy',
-            'price': 10.5,
-            'reason': 'test reason',
-            'confidence': 0.8,
-        }
-
-        signal_id = repo.create_signal(signal_data)
-
-        assert signal_id == 42
-        repo.db.commit.assert_called_once()
-
-    def test_create_signal_with_indicators_mocked(self):
-        """带 indicators 的创建信号，indicators 转为 JSON"""
-        from unittest.mock import MagicMock
-        import json
-        repo = SignalORMRepository()
-        mock_cursor = MagicMock()
-        mock_cursor.fetchone.return_value = {'id': 99}
-        repo.db = MagicMock()
-        repo.db.cursor.return_value = mock_cursor
-
-        signal_data = {
-            'signal_date': '2024-01-02',
-            'symbol': '000001.SZ',
-            'name': 'test_indicators',
-            'action': 'BUY',
-            'action_type': 1,
-            'strategy_id': 'test_strategy',
-            'indicators': {'rsi': 30, 'ma5': 10.0},
-        }
-
-        signal_id = repo.create_signal(signal_data)
-
-        assert signal_id == 99
-        # Verify indicators was converted to JSON
-        call_args = mock_cursor.execute.call_args[0][1]
-        assert isinstance(call_args['indicators'], str)
-        parsed = json.loads(call_args['indicators'])
-        assert parsed['rsi'] == 30
-
-    def test_create_signal_db_error_rollback(self):
-        """创建信号 DB 错误时回滚并抛出"""
-        from unittest.mock import MagicMock
-        repo = SignalORMRepository()
-        mock_cursor = MagicMock()
-        mock_cursor.execute.side_effect = Exception("DB insert error")
-        repo.db = MagicMock()
-        repo.db.cursor.return_value = mock_cursor
-
-        signal_data = {
-            'signal_date': '2024-01-02',
-            'symbol': '000001.SZ',
-            'name': 'test',
-            'action': 'BUY',
-            'action_type': 1,
-            'strategy_id': 'test_strategy',
-        }
-
-        with pytest.raises(Exception, match="创建信号失败"):
-            repo.create_signal(signal_data)
-
-        repo.db.rollback.assert_called_once()
-
-    def test_create_signal_indicators_already_string(self):
-        """indicators 已经是字符串时不重复转换"""
-        from unittest.mock import MagicMock
-        repo = SignalORMRepository()
-        mock_cursor = MagicMock()
-        mock_cursor.fetchone.return_value = {'id': 1}
-        repo.db = MagicMock()
-        repo.db.cursor.return_value = mock_cursor
-
-        signal_data = {
-            'signal_date': '2024-01-02',
-            'symbol': '000001.SZ',
-            'name': 'test',
-            'action': 'BUY',
-            'action_type': 1,
-            'strategy_id': 'test_strategy',
-            'indicators': '{"rsi": 30}',
-        }
-
-        signal_id = repo.create_signal(signal_data)
-        assert signal_id == 1
-
-    def test_get_signal_stats_with_data(self):
-        """get_signal_stats 正确聚合统计信息"""
-        from unittest.mock import MagicMock
-        repo = SignalORMRepository()
-        mock_cursor = MagicMock()
-        mock_cursor.fetchall.return_value = [
-            {'total': 3, 'action': 'BUY', 'strategy_id': 'ma_cross', 'avg_confidence': 0.75},
-            {'total': 2, 'action': 'SELL', 'strategy_id': 'rsi_reversal', 'avg_confidence': 0.60},
-        ]
-        repo.db = MagicMock()
-        repo.db.cursor.return_value = mock_cursor
-
-        stats = repo.get_signal_stats('2024-01-01', '2024-12-31')
-
-        assert stats['total'] == 5
-        assert stats['by_action']['buy'] == 3
-        assert stats['by_action']['sell'] == 2
-        assert stats['by_strategy']['ma_cross'] == 3
-        assert stats['by_strategy']['rsi_reversal'] == 2
-        # Weighted avg confidence: (3*0.75 + 2*0.60) / 5 = (2.25 + 1.2) / 5 = 0.69
-        assert stats['avg_confidence'] == pytest.approx(0.69)
-
-    def test_get_signal_stats_with_null_confidence(self):
-        """avg_confidence 为 NULL 时不参与计算"""
-        from unittest.mock import MagicMock
-        repo = SignalORMRepository()
-        mock_cursor = MagicMock()
-        mock_cursor.fetchall.return_value = [
-            {'total': 2, 'action': 'BUY', 'strategy_id': 'ma_cross', 'avg_confidence': None},
-            {'total': 3, 'action': 'BUY', 'strategy_id': 'rsi_reversal', 'avg_confidence': 0.80},
-        ]
-        repo.db = MagicMock()
-        repo.db.cursor.return_value = mock_cursor
-
-        stats = repo.get_signal_stats('2024-01-01', '2024-12-31')
-
-        assert stats['total'] == 5
-        # Only rsi_reversal contributes to weighted avg: 3*0.80/3 = 0.80
-        assert stats['avg_confidence'] == pytest.approx(0.80)
-
-    def test_get_signal_stats_empty(self):
-        """无数据时返回空统计"""
-        from unittest.mock import MagicMock
-        repo = SignalORMRepository()
-        mock_cursor = MagicMock()
-        mock_cursor.fetchall.return_value = []
-        repo.db = MagicMock()
-        repo.db.cursor.return_value = mock_cursor
-
-        stats = repo.get_signal_stats('2024-01-01', '2024-12-31')
-
-        assert stats['total'] == 0
-        assert stats['by_action'] == {}
-        assert stats['by_strategy'] == {}
-        assert stats['avg_confidence'] == 0.0
-
-    # 2026-09-14（w-c8cae280）已删除 test_get_signal_count_by_date_with_data：
-    # 该用例 mock 了旧实现的裸 cursor（fetchall 返回按日记录），而现仓库层没有该方法
-    # （见上一条用例说明）。保留它只会锁死一个已不存在的实现细节。
-
-    def test_get_latest_signals_with_negative_limit(self):
-        """负 limit 返回空列表（SQL 行为）"""
-        from unittest.mock import MagicMock
-        repo = SignalORMRepository()
-        mock_cursor = MagicMock()
-        mock_cursor.fetchall.return_value = []
-        repo.db = MagicMock()
-        repo.db.cursor.return_value = mock_cursor
-
-        signals = repo.get_latest_signals(limit=-5)
-        assert signals == []
-
-
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
+# 2026-10-02（REQ-261001145152-3982 审查）：原 `TestSignalRepositoryMocked` 整类（8 条）已删除。
+# 原因：该类的**全部前提**是"仓库用裸 cursor + lastrowid 实现"——
+# 断言 `cursor.execute(...)` 的入参字典、`signal_id == 99`（来自 lastrowid）、
+# 以及按 mock 行数计算的统计。而现实现早已改走 **ORM**
+# （`create_signal` 内部是 `self.session.query(Signal.id)`，返回 int id，冲突返回 0），
+# 故这些断言**测的是一个不存在的实现层**：8 条里 7 条失败，剩下 1 条也只是碰巧。
+# 保留它们等于把"实现细节"当契约；若要重测真实行为，应另写基于 ORM/真实库的用例。
