@@ -57,10 +57,26 @@ def is_index_symbol(symbol: str) -> bool:
         # 该判定只读一行、且处在热路径，改用**池化游标**（借完即还，不占用 thread-local session）。
         from infrastructure.persistence.database.engine import db_cursor
         with db_cursor() as cur:
-            cur.execute('select list_date from quant.stocks where symbol = %s', (s,))
+            # 2026-10-02（REQ-261001145152-3982 审查）：**修掉一处"消歧永远失效"的缺陷**。
+            # 这里原为 `where symbol = %s`，传的是**裸代码**（如 '000001'），
+            # 而 `quant.stocks` 里存的是**带后缀**形式（实测该库中是 '000001.SZ' / '000001.SH'）
+            # → 永远查不中 → 走到末尾 `return True`，于是歧义代码（000001 既是上证指数
+            # 也是平安银行）**一律被当成指数**：其个股数据会被 `is_pseudo_symbol` 一路排除
+            # （成交额估算/统计口径直接漏掉它）。
+            # 现同时匹配裸代码与任何带后缀形式（.SH/.SZ/.BJ…）。
+            cur.execute(
+                "select symbol, list_date from quant.stocks "
+                "where symbol = %s or symbol like %s || '.%%' "
+                "limit 1",
+                (s, s),
+            )
             row = cur.fetchone()
-        if row is not None and row.get('list_date') is not None:
-            return False
+        if row is not None:
+            _sym = (row.get('symbol') or '')
+            # 带后缀（.SH/.SZ/.BJ…）本身已消歧：库里存在该股即判个股；
+            # 裸代码则仍需上市日期佐证（保留原有的保守口径，防占位行误判）。
+            if '.' in _sym or row.get('list_date') is not None:
+                return False
     except Exception as e:  # noqa: BLE001 - 查表失败保守按指数处理
         logger.warning(f"is_index_symbol stocks 校验失败 {s}: {e}")
     return True
