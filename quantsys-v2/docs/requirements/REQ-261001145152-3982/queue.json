@@ -1568,9 +1568,50 @@
       "implementation": "纯文件级拆分（保持函数签名与注册表不变）：application/services/scheduler_tasks.py（1607 行 / 0 类 35 个顶层函数）按 job 域分文件；adapters/inbound/fastapi_app/daily_jobs_bootstrap.py（1147 行 / 42 个顶层函数）拆为 daily_jobs/{pipeline,jobs_health,pools}.py + 保留薄注册层。",
       "context": "",
       "requirementRefs": [],
-      "status": "todo",
+      "status": "done",
       "blocked": false,
-      "executions": [],
+      "executions": [
+        {
+          "id": "e-b1230f",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790900022004,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 7182,
+              "at": 1790900022014,
+              "totals": {
+                "uncachedInputTokens": 1748878,
+                "outputTokens": 659652,
+                "cacheReadTokens": 421773568,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 7539,
+              "at": 1790900887435,
+              "totals": {
+                "uncachedInputTokens": 1778442,
+                "outputTokens": 707611,
+                "cacheReadTokens": 438796928,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 29564,
+              "outputTokens": 47959,
+              "cacheReadTokens": 17023360,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790900887418
+        }
+      ],
       "statusHistory": [
         {
           "status": "todo",
@@ -1580,12 +1621,49 @@
             "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
           },
           "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790900022004,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "开工：核对两个上帝文件的行数、函数分布与 JOBS 注册表，再定拆分方案。"
+        },
+        {
+          "status": "done",
+          "at": 1790900887418,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "父卡收尾：四张子卡完成；两个上帝文件已拆为 19 个模块 + 薄转发壳，三条验收（测试一致 / 文件 &lt;400 行 / JOBS diff 为空）实测达成，逐字搬运经源码哈希核对。"
         }
       ],
-      "comments": [],
-      "version": 1,
+      "comments": [
+        {
+          "id": "c-ee288a",
+          "body": "[状态] → in_progress：开工：核对两个上帝文件的行数、函数分布与 JOBS 注册表，再定拆分方案。（reqboard_task_move）",
+          "createdAt": 1790900022004,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-d7b301",
+          "body": "[状态] → done：父卡收尾：四张子卡完成；两个上帝文件已拆为 19 个模块 + 薄转发壳，三条验收（测试一致 / 文件 &lt;400 行 / JOBS diff 为空）实测达成，逐字搬运经源码哈希核对。（reqboard_task_move）",
+          "createdAt": 1790900887418,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
       "createdAt": 1790838470861,
-      "updatedAt": 1790838470861,
+      "updatedAt": 1790900887418,
       "createdBy": {
         "kind": "agent",
         "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
@@ -1594,7 +1672,47 @@
         "kind": "agent",
         "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
       },
-      "layer": 3
+      "layer": 3,
+      "lastReport": {
+        "at": 1790900824323,
+        "reportIndex": 1,
+        "filesChanged": [
+          "application/services/scheduler_tasks.py",
+          "application/services/scheduler_tasks_data.py",
+          "application/services/scheduler_tasks_signals.py",
+          "application/services/scheduler_tasks_reports.py",
+          "application/services/scheduler_tasks_factors.py",
+          "application/services/scheduler_tasks_models.py",
+          "application/services/scheduler_tasks_training_guard.py",
+          "application/services/scheduler_tasks_strategy.py",
+          "application/services/scheduler_tasks_runtime.py",
+          "application/services/scheduler_tasks_registry.py",
+          "application/services/scheduler_tasks_common.py",
+          "adapters/inbound/fastapi_app/daily_jobs_bootstrap.py",
+          "adapters/inbound/fastapi_app/daily_jobs/registry.py",
+          "adapters/inbound/fastapi_app/daily_jobs/runtime.py",
+          "tests/test_false_success_guard.py"
+        ],
+        "completed": [
+          "**拆法**：纯文件级搬运——函数体与签名**逐字未改**，原文件保留为**转发壳**（113 / 120 行），既有 60+ 处导入路径一行都不用改",
+          "① `application/services/scheduler_tasks.py`（**1607 行 / 35 函数**）→ 10 个模块（common/data/signals/reports/factors/training_guard/models/strategy/runtime/registry），注册表 `_TASK_HANDLERS`（25 条命令）迁入 registry",
+          "② `adapters/inbound/fastapi_app/daily_jobs_bootstrap.py`（**1147 行 / 42 函数**）→ 包 `daily_jobs/`（defs/alerting/pipeline/pools/health/interval/runtime/registry + `__init__`），JOBS（9 条）迁入 registry；**实际拆 8 个模块而非卡面写的 3 个**——3 份粗粒度会让单文件仍超 400 行（`_job_watch_rule_health` 单函数 169 行）",
+          "**等价性硬证据（三条验收全达）**：① 验收命令 `pytest tests/test_false_success_guard.py tests/e2e -q --timeout=30` 拆分前后均 **32 failed / 126 passed / 11 skipped / 2 errors**，FAILED 清单 diff **为空**；② 两个文件 1607/1147 → **113/120 行**，19 个新模块**最大 311 行**；③ JOBS 9 条 `job_id/handler/run_at/weekdays/description` **内容与顺序逐字段一致**（diff 为空）",
+          "**额外等价性核对**：`_TASK_HANDLERS` 25 条键集合与键→处理器映射完全一致、`list_available_commands()` 顺序一致、未知命令报错含可用列表；3 条间隔任务一致；公开名字无丢失（少掉的 15 个是原模块转发的 stdlib 导入，已 grep 确认无人依赖）",
+          "**逐字搬运的机器核对**：用 AST 取函数源码做哈希——`scheduler_tasks` 35/35 完全一致（0 改动）；`daily_jobs` 44 个定义中仅 5 个哈希不同，逐个 diff 后确认**差异只有 2 行**（一行注释 + 一行为破除循环依赖而加的函数内惰性导入）",
+          "**过程中自查自纠三处**：① 生成器 docstring 后少换行 → 语法错误（还原后重生成）；② 依赖分组算错导致 `alerting ↔ registry` **循环导入** → 改为对注册表一律函数内惰性导入；③ 拆分后 3 个测试因 patch/读源文件的目标随代码搬走而失败（**我引入的**）→ 只改观察点、不动断言，改后与拆分前结果一致",
+          "**测试适配 3 处（拆分的必然代价，已在代码注释与 commit 说明）**：`tests/test_false_success_guard.py` 中 2 个用例的 patch 目标改为 `daily_jobs.runtime`/`daily_jobs.alerting`；1 个用例的源码检查路径改为 `daily_jobs/runtime.py`",
+          "**更广回归对照**：`-k \"scheduler or daily_jobs or false_success or job_run or job_executor\"` 拆分前后均 **23 条失败/错误**，清单 diff 为空（对照做法：临时移走新模块 + checkout 父提交重跑，之后**已完整恢复并复验**：工作区干净、JOBS 一致、注册表 25 条）",
+          "**运行态验证**：拆分后的代码重启服务成功（101 路由、`/docs=200`、探针 exit=0、K 线接口返回真实行情）",
+          "四张子卡（研发/联调/复核/测试）全部完成"
+        ]
+      },
+      "lastRun": {
+        "at": 1790900824323,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
     },
     {
       "id": "t-71051b",
@@ -12765,6 +12883,610 @@
         "stopReason": "reported",
         "valueNonEmpty": true
       }
+    },
+    {
+      "id": "t-f235bc",
+      "requirementId": "REQ-261001145152-3982",
+      "title": "拆两个文件级上帝·研发",
+      "description": "子卡阶段：研发",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-c3a097"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "implementation": "纯文件级拆分（保持函数签名与注册表不变）：application/services/scheduler_tasks.py（1607 行 / 0 类 35 个顶层函数）按 job 域分文件；adapters/inbound/fastapi_app/daily_jobs_bootstrap.py（1147 行 / 42 个顶层函数）拆为 daily_jobs/{pipeline,jobs_health,pools}.py + 保留薄注册层。\n\n[子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "context": "",
+      "parentId": "t-686185",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-1a2eee",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790900373326,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 7413,
+              "at": 1790900373336,
+              "totals": {
+                "uncachedInputTokens": 1771583,
+                "outputTokens": 698633,
+                "cacheReadTokens": 432553728,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 7425,
+              "at": 1790900432606,
+              "totals": {
+                "uncachedInputTokens": 1772111,
+                "outputTokens": 698861,
+                "cacheReadTokens": 433165568,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 528,
+              "outputTokens": 228,
+              "cacheReadTokens": 611840,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790900432589
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-068987",
+          "body": "[状态] → in_progress：补开工记录（实现与自测已完成，补登状态流转）。（reqboard_task_move）",
+          "createdAt": 1790900373326,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-24788b",
+          "body": "[状态] → done：研发段完成：两个上帝文件已拆分（各模块 &lt;400 行），注册表/公开接口等价性已验证，验收命令逐条一致。（reqboard_task_move）",
+          "createdAt": 1790900432589,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790900022004,
+      "updatedAt": 1790900432589,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790900022004,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790900373326,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "补开工记录（实现与自测已完成，补登状态流转）。"
+        },
+        {
+          "status": "done",
+          "at": 1790900432589,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "研发段完成：两个上帝文件已拆分（各模块 &lt;400 行），注册表/公开接口等价性已验证，验收命令逐条一致。"
+        }
+      ],
+      "layer": 3,
+      "lastReport": {
+        "at": 1790900310727,
+        "reportIndex": 1,
+        "filesChanged": [
+          "application/services/scheduler_tasks.py",
+          "application/services/scheduler_tasks_common.py",
+          "application/services/scheduler_tasks_data.py",
+          "application/services/scheduler_tasks_signals.py",
+          "application/services/scheduler_tasks_reports.py",
+          "application/services/scheduler_tasks_factors.py",
+          "application/services/scheduler_tasks_training_guard.py",
+          "application/services/scheduler_tasks_models.py",
+          "application/services/scheduler_tasks_strategy.py",
+          "application/services/scheduler_tasks_runtime.py",
+          "application/services/scheduler_tasks_registry.py",
+          "adapters/inbound/fastapi_app/daily_jobs_bootstrap.py",
+          "adapters/inbound/fastapi_app/daily_jobs/__init__.py",
+          "adapters/inbound/fastapi_app/daily_jobs/defs.py",
+          "adapters/inbound/fastapi_app/daily_jobs/alerting.py",
+          "adapters/inbound/fastapi_app/daily_jobs/pipeline.py",
+          "adapters/inbound/fastapi_app/daily_jobs/pools.py",
+          "adapters/inbound/fastapi_app/daily_jobs/health.py",
+          "adapters/inbound/fastapi_app/daily_jobs/interval.py",
+          "adapters/inbound/fastapi_app/daily_jobs/runtime.py",
+          "adapters/inbound/fastapi_app/daily_jobs/registry.py",
+          "tests/test_false_success_guard.py"
+        ],
+        "completed": [
+          "**卡面前提逐条核实**：`scheduler_tasks.py` 1607 行 / 35 个顶层函数 ✓；`daily_jobs_bootstrap.py` 1147 行 / 42 个顶层函数 ✓；JOBS 在第 668 行且是全模块唯一注册表 ✓",
+          "**拆分方式：纯文件级搬运，函数体与签名逐字未改**，原文件保留为**转发壳**（113 行 / 120 行），既有 60+ 处导入路径全部不变（含 `from ...daily_jobs_bootstrap import JOBS` 这类）",
+          "① `scheduler_tasks.py`（1607 行）→ 10 个模块：common / data / signals / reports / factors / training_guard / models / strategy / runtime / registry；注册表 `_TASK_HANDLERS`（25 条命令）迁入 registry",
+          "② `daily_jobs_bootstrap.py`（1147 行）→ 包 `daily_jobs/`：defs / alerting / pipeline / pools / health / interval / runtime / registry（+ `__init__`）；JOBS（9 条）迁入 registry",
+          "**关键等价性证据（不是\"看起来没问题\"）**：JOBS 的 `job_id/handler/run_at/weekdays/description` **内容与顺序逐字段一致**（脚本比对 JSON，`True`）；3 条间隔任务一致；`_TASK_HANDLERS` **键集合与 键→处理器 映射完全一致**（25/25，差异字典为空）、`list_available_commands()` 顺序一致、未知命令报错仍列出可用命令",
+          "**拆分前先建基线**（避免事后无对照）：验收命令拆分前就是 **32 failed / 126 passed / 11 skipped / 2 errors**；拆分后**逐条一致**（FAILED 清单 diff 为空）",
+          "**过程中自查并修掉两类问题**：① 第一版生成器 docstring 后少换行 → 语法错误（已还原重生成）；② 依赖分组算错导致 `alerting ↔ registry` **循环导入**——改为对注册表（JOBS / _TASK_HANDLERS）一律**函数内惰性导入**，并把依赖按 owner 正确分组后重跑",
+          "**每个模块均 < 400 行**（最大：scheduler_tasks_models 311、daily_jobs/runtime 306）；两个原文件分别降到 113 / 120 行",
+          "**测试适配 3 处（拆分的必然代价，已逐条注明）**：`tests/test_false_success_guard.py` 中两个用例把 `_mark_running/_mark_done/_send_feishu` patch 在宿主模块上（实现搬走后 patch 落空）→ 改为 patch `daily_jobs.runtime` / `daily_jobs.alerting`；另一个用例**直接读宿主模块源文件**切片断言 → 改读 `daily_jobs/runtime.py`。**断言内容与行为未改**",
+          "**更广回归对照**：`-k \"scheduler or daily_jobs or false_success or job_run or job_executor\"` 拆分前后均 **23 条失败/错误**，清单 diff **为空**（零新增）"
+        ]
+      },
+      "lastRun": {
+        "at": 1790900310727,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-702be3",
+      "requirementId": "REQ-261001145152-3982",
+      "title": "拆两个文件级上帝·联调",
+      "description": "子卡阶段：联调",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-f235bc"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）",
+      "implementation": "纯文件级拆分（保持函数签名与注册表不变）：application/services/scheduler_tasks.py（1607 行 / 0 类 35 个顶层函数）按 job 域分文件；adapters/inbound/fastapi_app/daily_jobs_bootstrap.py（1147 行 / 42 个顶层函数）拆为 daily_jobs/{pipeline,jobs_health,pools}.py + 保留薄注册层。\n\n[子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）",
+      "context": "",
+      "parentId": "t-686185",
+      "stageKind": "integrate",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-0e2e80",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790900438197,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 7431,
+              "at": 1790900438210,
+              "totals": {
+                "uncachedInputTokens": 1772368,
+                "outputTokens": 699817,
+                "cacheReadTokens": 433471744,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 7463,
+              "at": 1790900586335,
+              "totals": {
+                "uncachedInputTokens": 1773859,
+                "outputTokens": 702056,
+                "cacheReadTokens": 435017600,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 1491,
+              "outputTokens": 2239,
+              "cacheReadTokens": 1545856,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790900586316
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-b75258",
+          "body": "[状态] → in_progress：联调段：验证拆分后应用导入链路、注册表查询与宿主纯函数行为。（reqboard_task_move）",
+          "createdAt": 1790900438197,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-1a4340",
+          "body": "[状态] → done：联调段完成：新代码重启服务成功（101 路由、行情正常、探针 0），注册表与判定函数行为正确。（reqboard_task_move）",
+          "createdAt": 1790900586316,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790900022004,
+      "updatedAt": 1790900586316,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790900022004,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790900438197,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "联调段：验证拆分后应用导入链路、注册表查询与宿主纯函数行为。"
+        },
+        {
+          "status": "done",
+          "at": 1790900586316,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "联调段完成：新代码重启服务成功（101 路由、行情正常、探针 0），注册表与判定函数行为正确。"
+        }
+      ],
+      "layer": 4,
+      "lastReport": {
+        "at": 1790900526981,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "联调①：应用上下文导入正常——`from adapters.inbound.fastapi_app.main import app` 成功，**路由数 101**；宿主与新模块的公开接口齐备（`JOBS` 9 条、命令注册表 25 条）",
+          "联调②：注册表与判定函数**行为正确**（用真实签名调用）——`is_due(今日未跑)=True`、`is_due(今日已成功)=False`、`catchup_due(有失败)` 返回布尔；`trigger_job('不存在的任务')` → `success=False` 且返回 9 个可用任务（错误路径未丢信息）",
+          "联调③：宿主入口可调用性确认——`start_daily_jobs` / `_jobs_loop` 均为可调用对象；`DISABLE_DAILY_JOBS` 开关语义未变（当前生产进程仍按你的既定选择全关调度）",
+          "联调④（**最强证据：用拆分后的新代码重启服务**）：PID 30829、ppid=1（daemon 化）、`/docs=200`、健康探针 exit=0、`GET /api/charts/kline/600519` 返回真实行情——拆成 19 个模块后，FastAPI 启动链路（含宿主模块导入）完好",
+          "联调⑤：三个被适配的测试用例复跑通过（`test_false_success_guard.py` 全绿部分：改动涉及的 3 个用例现与拆分前同结果）",
+          "自我纠错（两次）：我的联调脚本先后把 `is_due(job, now, last_run)` 误写成 `is_due(job, date)` 与 `is_due(job, None, date)` → 均是我调用错误（`TypeError`/`AttributeError`），非代码缺陷；按真实签名重测后行为正确"
+        ]
+      },
+      "lastRun": {
+        "at": 1790900526981,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-468f80",
+      "requirementId": "REQ-261001145152-3982",
+      "title": "拆两个文件级上帝·复核",
+      "description": "子卡阶段：复核",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-702be3"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "implementation": "纯文件级拆分（保持函数签名与注册表不变）：application/services/scheduler_tasks.py（1607 行 / 0 类 35 个顶层函数）按 job 域分文件；adapters/inbound/fastapi_app/daily_jobs_bootstrap.py（1147 行 / 42 个顶层函数）拆为 daily_jobs/{pipeline,jobs_health,pools}.py + 保留薄注册层。\n\n[子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-686185",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-1529af",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790900590969,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 7469,
+              "at": 1790900590978,
+              "totals": {
+                "uncachedInputTokens": 1774108,
+                "outputTokens": 702729,
+                "cacheReadTokens": 435328128,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 7495,
+              "at": 1790900701021,
+              "totals": {
+                "uncachedInputTokens": 1775978,
+                "outputTokens": 704508,
+                "cacheReadTokens": 436581248,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 1870,
+              "outputTokens": 1779,
+              "cacheReadTokens": 1253120,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790900701004
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-62915e",
+          "body": "[状态] → in_progress：复核段：核对拆分是否逐字搬运（无函数体改动）、有无遗漏或重复、以及测试适配是否改变断言。（reqboard_task_move）",
+          "createdAt": 1790900590969,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-0d4758",
+          "body": "[状态] → done：复核段完成：源码哈希核对证明逐字搬运（仅 5 处加了破环用的惰性导入），测试适配未改断言；规模与等价性证据齐全。（reqboard_task_move）",
+          "createdAt": 1790900701004,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790900022004,
+      "updatedAt": 1790900701004,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790900022004,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790900590969,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "复核段：核对拆分是否逐字搬运（无函数体改动）、有无遗漏或重复、以及测试适配是否改变断言。"
+        },
+        {
+          "status": "done",
+          "at": 1790900701004,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "复核段完成：源码哈希核对证明逐字搬运（仅 5 处加了破环用的惰性导入），测试适配未改断言；规模与等价性证据齐全。"
+        }
+      ],
+      "layer": 5,
+      "lastReport": {
+        "at": 1790900641050,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "**复核① 逐字搬运的硬核对（AST + 源码哈希）**：`scheduler_tasks` 拆分前后定义 **35 → 35**，**缺失 0、被改动 0**——函数体与签名逐字节一致",
+          "**复核② 同一方法核对 daily_jobs**：定义 **44 → 44**，缺失 0；有 5 个函数哈希不同（`_job_failure_watch` / `_jobs_loop` / `list_today_runs` / `start_daily_jobs` / `trigger_job`）——**逐个做逐行 diff，差异全部只有 2 行**：一行注释 + 一行 `from ...registry import JOBS` 的**函数内惰性导入**（为破除 registry ↔ 处理器的循环依赖），**无任何逻辑/签名改动**",
+          "**复核③ 测试适配只动了观察点**：`git show` 逐行核对——改动仅为 patch 目标（`host._mark_running` → `host_runtime._mark_running` 等）与源码检查路径（`host.__file__` → `host_runtime.__file__`）；**断言语句与预期值一字未动**",
+          "**复核④ 拆分前先建基线**（避免事后无对照）：验收命令拆分前 32 failed / 126 passed / 11 skipped / 2 errors",
+          "**复核⑤ 等价性证据齐全**：JOBS 9 条 `job_id/handler/run_at/weekdays/description` 内容+顺序逐字段一致；3 条间隔任务一致；`_TASK_HANDLERS` 25 条键集合与映射一致、`list_available_commands()` 顺序一致；公开名字（除原模块转发的 stdlib 导入外）无丢失，且经 grep 确认无人依赖那些转发导入",
+          "**复核⑥ 规模达成**：两个原文件 1607 / 1147 行 → 壳 **113 / 120 行**；所有新模块均 < 400（最大 311）",
+          "偏离结论：**相对验收标准零偏离**（三条全达）；相对卡面「实施方案」有一处**扩大**且已说明：卡面写 daily_jobs 拆 3 个文件，实际拆 8 个模块——因为按 3 份粗粒度分会让单文件仍超 400 行（`_job_watch_rule_health` 单函数 169 行、runtime 一族 ~300 行）"
+        ]
+      },
+      "lastRun": {
+        "at": 1790900641050,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-1b912c",
+      "requirementId": "REQ-261001145152-3982",
+      "title": "拆两个文件级上帝·测试",
+      "description": "子卡阶段：测试",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-468f80"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "implementation": "纯文件级拆分（保持函数签名与注册表不变）：application/services/scheduler_tasks.py（1607 行 / 0 类 35 个顶层函数）按 job 域分文件；adapters/inbound/fastapi_app/daily_jobs_bootstrap.py（1147 行 / 42 个顶层函数）拆为 daily_jobs/{pipeline,jobs_health,pools}.py + 保留薄注册层。\n\n[子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "context": "",
+      "parentId": "t-686185",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-bc2242",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790900704648,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 7501,
+              "at": 1790900704659,
+              "totals": {
+                "uncachedInputTokens": 1776154,
+                "outputTokens": 705094,
+                "cacheReadTokens": 436895872,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 7521,
+              "at": 1790900818500,
+              "totals": {
+                "uncachedInputTokens": 1777060,
+                "outputTokens": 706046,
+                "cacheReadTokens": 437844224,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 906,
+              "outputTokens": 952,
+              "cacheReadTokens": 948352,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790900818484
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-7c9585",
+          "body": "[状态] → in_progress：测试段：按验收命令复跑并做前后对照，另跑更广的相关回归。（reqboard_task_move）",
+          "createdAt": 1790900704648,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-1a3b5b",
+          "body": "[状态] → done：测试段完成：验收三条（测试前后一致 / 两文件与所有新模块 &lt;400 行 / JOBS diff 为空）均实测达成，另有更广回归零新增。（reqboard_task_move）",
+          "createdAt": 1790900818484,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1790900022004,
+      "updatedAt": 1790900818484,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790900022004,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790900704648,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "测试段：按验收命令复跑并做前后对照，另跑更广的相关回归。"
+        },
+        {
+          "status": "done",
+          "at": 1790900818484,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "测试段完成：验收三条（测试前后一致 / 两文件与所有新模块 &lt;400 行 / JOBS diff 为空）均实测达成，另有更广回归零新增。"
+        }
+      ],
+      "layer": 6,
+      "lastReport": {
+        "at": 1790900758095,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "**验收①（测试前后一致）**：`python -m pytest tests/test_false_success_guard.py tests/e2e -q --timeout=30`——拆分前 **32 failed / 126 passed / 11 skipped / 2 errors**，拆分后 **32 failed / 126 passed / 11 skipped / 2 errors**，FAILED 清单 **diff 为空**",
+          "**验收②（两个文件 < 400 行）**：`scheduler_tasks.py` 1607 → **113 行**；`daily_jobs_bootstrap.py` 1147 → **120 行**；全部 19 个新模块**最大 311 行**（无人超限）",
+          "**验收③（JOBS 内容与顺序 diff 为空）**：脚本比对 JSON 快照（`job_id/handler/run_at/weekdays/description` 五个字段逐条）→ `True`（9 条完全一致）",
+          "**补充回归**：更广选择 `-k \"scheduler or daily_jobs or false_success or job_run or job_executor\"` 拆分前后均 **23 条失败/错误**，清单 diff 为空（该对照是把新模块临时移走、checkout 回父提交后重跑得到的，之后已完整恢复并复验：工作区干净、JOBS 一致、注册表 25 条）",
+          "**运行态验证**：拆分后的代码重启服务成功（PID 30829、`/docs=200`、探针 exit=0、`/api/charts/kline/600519` 返回真实行情、路由数 101）",
+          "**验收命令口径说明**：子卡模板写的是 `pnpm test` / `npx tsc --noEmit`（TS 工具链），与本仓 Python 栈不匹配，已按等价 pytest 命令执行并记录"
+        ]
+      },
+      "lastRun": {
+        "at": 1790900758095,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
     }
   ],
   "edges": [
@@ -13075,6 +13797,22 @@
     {
       "from": "t-d66ee4",
       "to": "t-669f1b"
+    },
+    {
+      "from": "t-c3a097",
+      "to": "t-f235bc"
+    },
+    {
+      "from": "t-f235bc",
+      "to": "t-702be3"
+    },
+    {
+      "from": "t-702be3",
+      "to": "t-468f80"
+    },
+    {
+      "from": "t-468f80",
+      "to": "t-1b912c"
     }
   ],
   "layers": [
@@ -13147,6 +13885,7 @@
         "t-33ef88",
         "t-806aa2",
         "t-25540f",
+        "t-f235bc",
         "t-3da04c",
         "t-7d0be1",
         "t-9dd27b",
@@ -13169,6 +13908,7 @@
         "t-59838e",
         "t-4494ff",
         "t-a78a3c",
+        "t-702be3",
         "t-78d5a3",
         "t-f3d965",
         "t-fb9b61",
@@ -13186,6 +13926,7 @@
         "t-3d787f",
         "t-416540",
         "t-812ecc",
+        "t-468f80",
         "t-646e7f",
         "t-a7d164",
         "t-6e7b28",
@@ -13199,14 +13940,14 @@
       "tasks": [
         "t-25dd9f",
         "t-8ecf4e",
-        "t-e95009"
+        "t-e95009",
+        "t-1b912c"
       ]
     }
   ],
   "ready": [
     "t-2d52a7",
-    "t-686185",
     "t-71051b"
   ],
-  "updated_at": "2026-10-01T15:58:28.607Z"
+  "updated_at": "2026-10-02T00:28:07.435Z"
 }

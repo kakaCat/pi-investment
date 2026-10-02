@@ -2,11 +2,11 @@ metadata:
   stage: implementing
   requirement_id: REQ-261001145152-3982
   generated_at: 2026-10-01T07:07:50.908Z
-  version: 262
+  version: 277
   generated_by: dsh-pmboard
   detail_dir: rtm-implementing/
-  detail_count: 89
-  last_updated: 2026-10-01T15:58:28.658Z
+  detail_count: 93
+  last_updated: 2026-10-02T00:28:07.488Z
 inputs:
   tasks:
     - id: t-c63378
@@ -44,7 +44,7 @@ inputs:
       status: done
     - id: t-686185
       title: 拆两个文件级上帝
-      status: todo
+      status: done
     - id: t-71051b
       title: 端口与 DI 收敛
       status: todo
@@ -276,11 +276,23 @@ inputs:
     - id: t-669f1b
       title: 卫生债批量清理（550 处）·测试
       status: done
+    - id: t-f235bc
+      title: 拆两个文件级上帝·研发
+      status: done
+    - id: t-702be3
+      title: 拆两个文件级上帝·联调
+      status: done
+    - id: t-468f80
+      title: 拆两个文件级上帝·复核
+      status: done
+    - id: t-1b912c
+      title: 拆两个文件级上帝·测试
+      status: done
 status:
-  tasks_total: 89
-  tasks_done: 86
+  tasks_total: 93
+  tasks_done: 91
   tasks_in_progress: 0
-  tasks_todo: 3
+  tasks_todo: 2
 tasks:
   - id: t-c63378
     status: done
@@ -305,7 +317,7 @@ tasks:
   - id: t-4f6f4b
     status: done
   - id: t-686185
-    status: todo
+    status: done
   - id: t-71051b
     status: todo
   - id: t-52c511
@@ -459,4 +471,12 @@ tasks:
   - id: t-d66ee4
     status: done
   - id: t-669f1b
+    status: done
+  - id: t-f235bc
+    status: done
+  - id: t-702be3
+    status: done
+  - id: t-468f80
+    status: done
+  - id: t-1b912c
     status: done
