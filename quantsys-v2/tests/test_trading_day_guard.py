@@ -103,12 +103,34 @@ def test_check_source_kline(monkeypatch):
     assert v.source == SOURCE_KLINE and v.degraded is False
 
 
-def test_check_marks_intraday_heuristic_degraded(monkeypatch):
+
+@pytest.fixture
+def freeze_weekday(monkeypatch):
+    """把守卫眼里的"现在"冻结到一个**工作日**，消除"只在周末失败"的时间依赖。
+
+    2026-10-02（REQ-261001145152-3982 审查）：本文件三条用例用 `date(2025, 6, 4)`，
+    而守卫的第一条判据是 `if d.weekday() >= 5: return 周末` —— 于是它们
+    **只在工作日通过**（本轮实测恰逢 2026-10-03 周六 → 三条全红，
+    报错为 `'weekend' == 'intraday-recent-market'` 这类**看着像逻辑错**的形态）。
+    冻结到 2025-06-04（周三）后，判定与"今天是星期几"无关。
+    """
+    import application.services.trading_day_guard as tdg
+    from datetime import datetime as _dt, date as _date
+
+    class _FrozenDatetime(_dt):
+        @classmethod
+        def now(cls, tz=None):
+            return cls(2025, 6, 4, 10, 0, 0)
+
+    monkeypatch.setattr(tdg, 'datetime', _FrozenDatetime, raising=True)
+
+
+def test_check_marks_intraday_heuristic_degraded(monkeypatch, freeze_weekday):
     monkeypatch.setattr(
         TradingDayGuard, '_kline_stats',
-        staticmethod(lambda day: (False, date.today())),
+        staticmethod(lambda day: (False, date(2025, 6, 4))),
     )
-    v = TradingDayGuard.check(date.today())
+    v = TradingDayGuard.check(date(2025, 6, 4))
     assert v.is_trading_day is True
     assert v.source == SOURCE_INTRADAY and v.degraded is True
 
@@ -182,17 +204,17 @@ def test_kline_stats_coerces_string_latest_date_to_date(_fake_kline_repo):
     assert latest == date(2026, 9, 11)
 
 
-def test_today_intraday_heuristic_works_with_string_repo_date(_fake_kline_repo):
+def test_today_intraday_heuristic_works_with_string_repo_date(_fake_kline_repo, freeze_weekday):
     """端到端复现：今天无K线 + 取数层回字符串 → 必须给出判定而不是抛 TypeError。"""
     from application.services.trading_day_guard import TradingDayGuard
 
-    _fake_kline_repo(has_bar=False, latest=date.today().isoformat())
-    v = TradingDayGuard.check(date.today(), use_cache=False)   # 不得抛异常
+    _fake_kline_repo(has_bar=False, latest=date(2025, 6, 4).isoformat())
+    v = TradingDayGuard.check(date(2025, 6, 4), use_cache=False)   # 不得抛异常
     assert v.is_trading_day is True
     assert v.source == SOURCE_INTRADAY and v.degraded is True
 
 
-def test_check_tolerates_string_from_stats_even_if_coercion_is_lost(monkeypatch):
+def test_check_tolerates_string_from_stats_even_if_coercion_is_lost(monkeypatch, freeze_weekday):
     """契约级兜底：即使将来 _kline_stats 又回字符串，check() 也不得抛异常。
 
     与上两条的分工：上面测"归一化在不在"，这条测"就算归一化被后人删掉，
@@ -202,9 +224,9 @@ def test_check_tolerates_string_from_stats_even_if_coercion_is_lost(monkeypatch)
 
     monkeypatch.setattr(
         TradingDayGuard, '_kline_stats',
-        staticmethod(lambda day: (False, date.today().isoformat())),   # 故意回字符串
+        staticmethod(lambda day: (False, date(2025, 6, 4).isoformat())),   # 故意回字符串
     )
-    v = TradingDayGuard.check(date.today(), use_cache=False)   # 不得抛
+    v = TradingDayGuard.check(date(2025, 6, 4), use_cache=False)   # 不得抛
     assert v.is_trading_day is False
     assert v.source == SOURCE_COMPUTE_ERROR and v.degraded is True
 
