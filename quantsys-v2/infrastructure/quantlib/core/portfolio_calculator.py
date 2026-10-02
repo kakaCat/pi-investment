@@ -77,13 +77,18 @@ class PortfolioCalculator:
 
         cash = self.initial_cash
 
+        # 2026-10-02（REQ-261001145152-3982 审查）：**大小写兼容（真 bug，影响金额）**。
+        # 原为 `trade['action'] == 'buy'` / `== 'sell'`（只认小写），但**生产库两种写法并存**
+        # （实测 `quant.simulation_trades.action`：BUY 32 · SELL 21 · sell 16 · buy 9）——
+        # 只比小写会**静默忽略 53 行大写成交**，现金余额随之算错，且不报错。
         for trade in trades:
-            if trade['action'] == 'buy':
+            _act = str(trade.get('action', '')).strip().lower()
+            if _act == 'buy':
                 # Buy: decrease cash
                 cash -= trade['amount']
                 cash -= trade.get('fee', 0.0)
                 cash -= trade.get('stamp_duty', 0.0)
-            elif trade['action'] == 'sell':
+            elif _act == 'sell':
                 # Sell: increase cash
                 cash += trade['amount']
                 cash -= trade.get('fee', 0.0)

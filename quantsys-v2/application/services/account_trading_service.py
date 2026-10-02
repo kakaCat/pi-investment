@@ -154,7 +154,11 @@ class AccountTradingService:
         today = date.today().isoformat()
         trades = self.repo.get_trades_by_account(
             account_name, start_date=today, end_date=today)
-        buys = [t for t in trades if t.action == 'BUY']  # action 大写契约（08-13 统一）
+        # 2026-10-02（REQ-261001145152-3982 审查）：**兼容两种大小写写法**。
+        # 原为 `t.action == 'BUY'`（注释："action 大写契约（08-13 统一）"），
+        # 但本仓实际两套并存（策略/部分写入方给小写 'buy'）——按大写硬比会**静默漏掉这些持仓/成交**，
+        # 后果正是本护栏失效：限额不触发（实测 tests/test_account_daily_limits.py 三条全失败）。
+        buys = [t for t in trades if str(t.action).upper() == 'BUY']
         if len(buys) >= self.MAX_DAILY_BUY_COUNT:
             raise TradingError(
                 f'单日买入笔数超限: 今日已买 {len(buys)} 笔，'
