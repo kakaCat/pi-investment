@@ -75,6 +75,60 @@ COLUMNS = [
     ('simulation_pending_orders', 'price_source', 'text', '决策价来源（R-013 可追溯）'),
     ('simulation_pending_orders', 'fill_price', 'numeric(10,2)', '实际成交价'),
     ('simulation_pending_orders', 'slippage_bps', 'numeric(10,2)', '滑点基点（正=买贵/卖便宜=成本）'),
+    # ── 2026-10-02 追加：drift 门禁在**测试库**上报出的其余 4 列 ──
+    # balance_sheets.source / income_statements.source：生产有、测试库缺（镜像不全）
+    ('balance_sheets', 'source', 'varchar(50)', '数据来源: sina, eastmoney, akshare'),
+    ('income_statements', 'source', 'varchar(50)', '数据来源: sina, eastmoney, akshare'),
+    # watch_rules.action_hint / burst_count_window：**两库都缺**（真漂移），
+    # 而仓储内联模型 WatchRule 声明了它们、构造函数也传（INSERT 带列必炸）
+    ('watch_rules', 'action_hint', 'jsonb', '处置提示（RFC 011）'),
+    ('watch_rules', 'burst_count_window', 'integer', '突发计数窗口'),
+    # ── 2026-10-02 追加：watch_rules 的整组漂移（模型 35 列 vs 生产 13 列）──
+    # 盯盘噪音治理（RFC 011）的状态列。代码重度使用：suppress_until 32 处、
+    # escalation_policy 26 处、noise_state 21 处、lifecycle_stage 17 处——
+    # 而两库都缺 → 规则写入/状态更新一直在写不存在的列。
+    # 类型由 ORM 模型声明自动导出（jsonb/integer/timestamp/varchar/numeric）。
+    ('watch_rules', 'account', 'varchar(50)', 'account'),
+    ('watch_rules', 'notify_mode', 'varchar(20)', 'notify_mode'),
+    ('watch_rules', 'escalation_policy', 'jsonb', 'escalation_policy'),
+    ('watch_rules', 'intent', 'varchar(30)', 'intent'),
+    ('watch_rules', 'lifecycle_stage', 'varchar(30)', 'lifecycle_stage'),
+    ('watch_rules', 'scope', 'varchar(20)', 'scope'),
+    ('watch_rules', 'target', 'varchar(60)', 'target'),
+    ('watch_rules', 'linked_account', 'varchar(60)', 'linked_account'),
+    ('watch_rules', 'created_from', 'varchar(80)', 'created_from'),
+    ('watch_rules', 'next_action_hint', 'varchar(160)', 'next_action_hint'),
+    ('watch_rules', 'last_reviewed_at', 'timestamp', 'last_reviewed_at'),
+    ('watch_rules', 'review_interval_days', 'integer', 'review_interval_days'),
+    ('watch_rules', 'review_due_at', 'timestamp', 'review_due_at'),
+    ('watch_rules', 'last_burst_alert_at', 'timestamp', 'last_burst_alert_at'),
+    ('watch_rules', 'valuable_actions', 'integer', 'valuable_actions'),
+    ('watch_rules', 'valuable_reviews', 'integer', 'valuable_reviews'),
+    ('watch_rules', 'interventions', 'integer', 'interventions'),
+    ('watch_rules', 'noise_triggers', 'integer', 'noise_triggers'),
+    ('watch_rules', 'tokens_cost', 'numeric(12,4)', 'tokens_cost'),
+    ('watch_rules', 'last_value_at', 'timestamp', 'last_value_at'),
+    ('watch_rules', 'noise_state', 'varchar(16)', 'noise_state'),
+    ('watch_rules', 'suppress_until', 'timestamp', 'suppress_until'),
+    # ── 2026-10-02 追加：其余内联模型在**已存在表**上的缺列（通用扫描导出）──
+    # 另有 7 张表全库都不存在（audit_log / memory_entries / event_calendar /
+    # chip_* / evolution_strategy_runs 等）——它们属懒建或故意不进 metadata，
+    # **不在本迁移范围**：盲目建表会与运行时 create_all 冲突，须单独裁定。
+    ('watch_triggers', 'disposition', 'varchar(20)', 'disposition'),
+    ('watch_triggers', 'disposition_reason', 'text', 'disposition_reason'),
+    ('watch_triggers', 'disposition_by', 'varchar(50)', 'disposition_by'),
+    ('watch_triggers', 'disposition_at', 'timestamp', 'disposition_at'),
+    ('watch_triggers', 'dup_of', 'integer', 'dup_of'),
+    ('watch_triggers', 'suppressed', 'boolean', 'suppressed'),
+    ('watch_triggers', 'todo_id', 'integer', 'todo_id'),
+    ('automation_runs', 'run_metadata', 'text', 'run_metadata'),
+    ('stock_fund_flow', 'quality_flag', 'varchar(32)', 'quality_flag'),
+    ('strategy_configs', 'strategy_metadata', 'text', 'strategy_metadata'),
+    ('strategy_configs', 'structure_status', 'varchar(50)', 'structure_status'),
+    ('strategy_configs', 'performance_status', 'varchar(50)', 'performance_status'),
+    ('strategy_configs', 'performance_evidence', 'json', 'performance_evidence'),
+    ('strategy_configs', 'performance_checked_at', 'timestamp', 'performance_checked_at'),
+    ('pool_change_log', 'pool_name', 'text', 'pool_name'),
 ]
 
 # 先设上限再动手：等不到锁就报错，不挂死（见模块 docstring 的约定说明）
