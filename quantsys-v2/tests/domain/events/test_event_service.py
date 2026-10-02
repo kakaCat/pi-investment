@@ -252,8 +252,12 @@ def test_政策事件按发布主体与行业影响分级():
     # 2026-09-11 实测：POLICY 词表含 '公告/决定/规定' 会把事故公告判成 policy
     (EM_TITLE, EventType.REGULATORY),
     # 2026-09-11 实测：POLICY 词表含 '通知/管理办法' 会误判公司公告（14 条）
-    ('关于获得《药品补充申请批准通知书》的公告', EventType.OTHER),
-    ('关于公司高级管理人员薪酬管理办法的公告', EventType.OTHER),
+    # 2026-10-02（REQ-261001145152-3982 审查）：`EventType` 后来新增了更细的分类，
+    # 这两条不再落到 OTHER（**比原来更精确**，且仍达到"不误判为 policy"的原意）：
+    #   · 药品批准 → PRODUCT_APPROVAL（PRODUCT_APPROVAL 词表含 '批准通知书'）
+    #   · 薪酬管理办法 → GOVERNANCE（GOVERNANCE 词表含 '章程管理办法'）
+    ('关于获得《药品补充申请批准通知书》的公告', EventType.PRODUCT_APPROVAL),
+    ('关于公司高级管理人员薪酬管理办法的公告', EventType.GOVERNANCE),
     ('国务院关于印发XX的通知', EventType.POLICY),
 ])
 def test_事件类型词表不得把公司公告误判为政策(title, expected):

@@ -44,130 +44,23 @@ df['sell'] = df['rsi'] > 70
 
     @pytest.fixture
     def sample_klines(self):
-        """Sample K-line data for testing"""
+        """样本 K 线（**程序化生成 30 条**）。
+
+        2026-10-02（REQ-261001145152-3982 审查）：原为硬编码的 15 条，而服务侧要求
+        ≥20 条（实测报 `K线数据不足，至少需要20条，实际15条`）→ 3 条用例失败。
+        生成 30 条既满足下限，也不再因"写死几条"而随实现门槛变化而碎。
+        """
         return [
             {
-                'trade_date': '2025-01-01',
-                'open': 100.0,
-                'high': 105.0,
-                'low': 95.0,
-                'close': 102.0,
-                'volume': 1000000
-            },
-            {
-                'trade_date': '2025-01-02',
-                'open': 102.0,
-                'high': 108.0,
-                'low': 100.0,
-                'close': 105.0,
-                'volume': 1200000
-            },
-            {
-                'trade_date': '2025-01-03',
-                'open': 105.0,
-                'high': 110.0,
-                'low': 103.0,
-                'close': 108.0,
-                'volume': 1100000
-            },
-            {
-                'trade_date': '2025-01-04',
-                'open': 108.0,
-                'high': 112.0,
-                'low': 106.0,
-                'close': 110.0,
-                'volume': 1300000
-            },
-            {
-                'trade_date': '2025-01-05',
-                'open': 110.0,
-                'high': 115.0,
-                'low': 108.0,
-                'close': 112.0,
-                'volume': 1400000
-            },
-            {
-                'trade_date': '2025-01-06',
-                'open': 112.0,
-                'high': 118.0,
-                'low': 110.0,
-                'close': 115.0,
-                'volume': 1500000
-            },
-            {
-                'trade_date': '2025-01-07',
-                'open': 115.0,
-                'high': 120.0,
-                'low': 113.0,
-                'close': 118.0,
-                'volume': 1600000
-            },
-            {
-                'trade_date': '2025-01-08',
-                'open': 118.0,
-                'high': 122.0,
-                'low': 116.0,
-                'close': 120.0,
-                'volume': 1700000
-            },
-            {
-                'trade_date': '2025-01-09',
-                'open': 120.0,
-                'high': 125.0,
-                'low': 118.0,
-                'close': 122.0,
-                'volume': 1800000
-            },
-            {
-                'trade_date': '2025-01-10',
-                'open': 122.0,
-                'high': 128.0,
-                'low': 120.0,
-                'close': 125.0,
-                'volume': 1900000
-            },
-            {
-                'trade_date': '2025-01-11',
-                'open': 125.0,
-                'high': 130.0,
-                'low': 123.0,
-                'close': 128.0,
-                'volume': 2000000
-            },
-            {
-                'trade_date': '2025-01-12',
-                'open': 128.0,
-                'high': 132.0,
-                'low': 126.0,
-                'close': 130.0,
-                'volume': 2100000
-            },
-            {
-                'trade_date': '2025-01-13',
-                'open': 130.0,
-                'high': 135.0,
-                'low': 128.0,
-                'close': 132.0,
-                'volume': 2200000
-            },
-            {
-                'trade_date': '2025-01-14',
-                'open': 132.0,
-                'high': 138.0,
-                'low': 130.0,
-                'close': 135.0,
-                'volume': 2300000
-            },
-            {
-                'trade_date': '2025-01-15',
-                'open': 135.0,
-                'high': 140.0,
-                'low': 133.0,
-                'close': 138.0,
-                'volume': 2400000
+                'trade_date': f'2025-01-{i + 1:02d}',
+                'open': 100.0 + i,
+                'high': 105.0 + i,
+                'low': 95.0 + i,
+                'close': 102.0 + i,
+                'volume': 1_000_000 + i * 10_000,
             }
+            for i in range(30)
         ]
-
     def test_backtest_strategy_with_params_override(self, service, sample_strategy, sample_klines):
         """Test backtest_strategy with params_override parameter"""
         # Mock the repository and executor
