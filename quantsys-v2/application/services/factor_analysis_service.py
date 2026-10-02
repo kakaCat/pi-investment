@@ -2,6 +2,10 @@
 因子分析服务 - 基于 alphalens-reloaded
 提供专业的因子有效性分析
 """
+import base64  # 2026-10-02（REQ-261001145152-3982 审查）：原文件只在某个函数内局部 import，
+# 而 `_fig_to_base64()`（约 704 行）也用了 base64.b64encode 却**没有导入** →
+# 走到该行即抛 NameError: name 'base64' is not defined，即「因子分析 HTML 图表报告」
+# 整条链路不可用（tests/services/test_factor_report.py 的 3 条失败正是此因）。
 import pandas as pd
 import numpy as np
 from typing import Dict, List, Optional, Union, Tuple
@@ -724,6 +728,20 @@ class FactorAnalysisService:
         returns_result = self.calculate_returns_analysis(factor_data)
         turnover_result = self.calculate_turnover_analysis(factor_data)
 
+        # 2026-10-02（REQ-261001145152-3982 审查）：`returns_result` 此前**只算不渲染**——
+        # `calculate_returns_analysis()` 的结果（多周期收益差 / 分层收益，键形如 '1D'/'5D'/'10D'）
+        # 从未进入 HTML，报告整整缺一段收益分析（对照：ic_result 用了 9 处、turnover_result 3 处，
+        # 而 returns_result 仅此一处赋值）。tests/services/test_factor_report.py 的
+        # test_generate_report_multiple_periods 断言 '1D'/'5D'/'10D' 应出现，守的正是这条。
+        _spread = (returns_result or {}).get('mean_return_spread') or {}
+        _spread_rows = ''.join(
+            f'<div class="metric">'
+            f'<div class="metric-label">{period} 收益差（最高-最低分层）</div>'
+            f'<div class="metric-value">{(value * 100):.2f}%</div>'
+            f'</div>'
+            for period, value in _spread.items()
+        )
+
         html = f"""
 <!DOCTYPE html>
 <html>
@@ -838,6 +856,11 @@ class FactorAnalysisService:
                     {turnover_result['mean_turnover']:.2%}
                 </div>
             </div>
+        </div>
+
+        <h2>📈 多周期收益分析</h2>
+        <div class="metrics">
+            {_spread_rows or '<div class="metric"><div class="metric-label">多周期收益</div><div class="metric-value">无可用数据</div></div>'}
         </div>
 
         <h2>📊 可视化分析</h2>
