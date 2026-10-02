@@ -35,6 +35,14 @@ def _klines_as_dicts(kline_repo, symbol, start_date, end_date):
     return df.to_dicts()
 
 
+# 2026-10-02（REQ-261001145152-3982 审查）：**样本里的标的代码换成了正股**。
+# 原用例一律用 `000001.SH` —— 那是**上证指数**（平安银行是 `000001.SZ`），
+# 而写入侧有约束 `chk_daily_klines_no_indexrows`：会**主动跳过指数行**
+# （实测日志："Skip index rows for daily_klines (约束 chk_daily_klines_no_indexrows)"）→
+# 一行都没写进去 → 6 条用例全部报 "No data written to daily_klines"。
+# 这**不是仓库的错**（跳过指数行是刻意的），是样本选错了标的。改用 `600000.SH`（浦发银行）。
+
+
 class TestDataPipelineIntegration:
     """Integration test suite for the complete data pipeline."""
 
@@ -52,7 +60,7 @@ class TestDataPipelineIntegration:
     def sample_kline_data(self):
         """Sample K-line data for testing."""
         return pd.DataFrame({
-            'symbol': ['000001.SH', '000001.SH', '000001.SZ', '000001.SZ'],
+            'symbol': ['600000.SH', '600000.SH', '000001.SZ', '000001.SZ'],
             'trade_date': ['2024-01-02', '2024-01-03', '2024-01-02', '2024-01-03'],
             'open': [1800.0, 1820.0, 15.5, 15.8],
             'high': [1850.0, 1870.0, 16.0, 16.2],
@@ -68,7 +76,7 @@ class TestDataPipelineIntegration:
         """Cleanup test data after each test.
 
         ORM 仓储无 .db 裸连接属性，改用 session 执行原生 SQL。
-        写入侧会把 symbol 归一化为无后缀格式（'000001.SH' -> '000001'），
+        写入侧会把 symbol 归一化为无后缀格式（'600000.SH' -> '000001'），
         故清理按归一化 symbol + 测试日期范围限定，避免误删其他数据。
         """
         yield
@@ -104,7 +112,7 @@ class TestDataPipelineIntegration:
         kline_repo.save_daily_klines(records)
 
         # Verify data was written to database
-        klines = _klines_as_dicts(kline_repo, '000001.SH', '2024-01-02', '2024-01-03')
+        klines = _klines_as_dicts(kline_repo, '600000.SH', '2024-01-02', '2024-01-03')
 
         assert len(klines) > 0, "No data written to daily_klines"
 
@@ -129,7 +137,7 @@ class TestDataPipelineIntegration:
         """
         # Create sample data with duplicates
         duplicate_data = pd.DataFrame({
-            'symbol': ['000001.SH', '000001.SH', '000001.SH'],  # Same symbol
+            'symbol': ['600000.SH', '600000.SH', '600000.SH'],  # Same symbol
             'trade_date': ['2024-01-02', '2024-01-02', '2024-01-03'],  # Two same dates
             'open': [1800.0, 1800.0, 1820.0],
             'high': [1850.0, 1850.0, 1870.0],
@@ -145,7 +153,7 @@ class TestDataPipelineIntegration:
         kline_repo.save_daily_klines(records)
 
         # Query database and check for duplicates
-        # 写入侧 symbol 归一化为无后缀格式（'000001.SH' -> '000001'）
+        # 写入侧 symbol 归一化为无后缀格式（'600000.SH' -> '000001'）
         duplicates = kline_repo.session.execute(text("""
             SELECT symbol, trade_date, COUNT(*) as cnt
             FROM quant.daily_klines
@@ -173,7 +181,7 @@ class TestDataPipelineIntegration:
         """
         # Create sample data with reasonable price movements
         continuous_data = pd.DataFrame({
-            'symbol': ['000001.SH'] * 5,
+            'symbol': ['600000.SH'] * 5,
             'trade_date': ['2024-01-02', '2024-01-03', '2024-01-04', '2024-01-05', '2024-01-08'],
             'open': [1800.0, 1820.0, 1830.0, 1825.0, 1840.0],
             'high': [1850.0, 1870.0, 1880.0, 1875.0, 1890.0],
@@ -189,7 +197,7 @@ class TestDataPipelineIntegration:
         kline_repo.save_daily_klines(records)
 
         # Query historical data and calculate returns
-        klines = _klines_as_dicts(kline_repo, '000001.SH', '2024-01-02', '2024-01-08')
+        klines = _klines_as_dicts(kline_repo, '600000.SH', '2024-01-02', '2024-01-08')
 
         assert len(klines) > 1, "Need at least 2 records to check continuity"
 
@@ -218,7 +226,7 @@ class TestDataPipelineIntegration:
         """
         # Create data with some missing values filled by imputation
         data_with_imputed = pd.DataFrame({
-            'symbol': ['000001.SH', '000001.SH', '000001.SH'],
+            'symbol': ['600000.SH', '600000.SH', '600000.SH'],
             'trade_date': ['2024-01-02', '2024-01-03', '2024-01-04'],
             'open': [1800.0, 1800.0, 1830.0],  # Imputed from previous
             'high': [1850.0, 1870.0, 1880.0],
@@ -234,7 +242,7 @@ class TestDataPipelineIntegration:
         kline_repo.save_daily_klines(records)
 
         # Verify data was stored
-        klines = _klines_as_dicts(kline_repo, '000001.SH', '2024-01-02', '2024-01-04')
+        klines = _klines_as_dicts(kline_repo, '600000.SH', '2024-01-02', '2024-01-04')
 
         assert len(klines) > 0
 
@@ -258,7 +266,7 @@ class TestDataPipelineIntegration:
         """
         # Create data with corrected quality issues
         corrected_data = pd.DataFrame({
-            'symbol': ['000001.SH', '000001.SH', '000001.SH'],
+            'symbol': ['600000.SH', '600000.SH', '600000.SH'],
             'trade_date': ['2024-01-02', '2024-01-03', '2024-01-04'],
             'open': [1800.0, 1820.0, 1830.0],  # Corrected from negative
             'high': [1850.0, 1870.0, 1880.0],
@@ -274,7 +282,7 @@ class TestDataPipelineIntegration:
         kline_repo.save_daily_klines(records)
 
         # Verify data integrity
-        klines = _klines_as_dicts(kline_repo, '000001.SH', '2024-01-02', '2024-01-04')
+        klines = _klines_as_dicts(kline_repo, '600000.SH', '2024-01-02', '2024-01-04')
 
         assert len(klines) > 0
 
@@ -299,7 +307,7 @@ class TestDataPipelineIntegration:
         """
         # Create sufficient historical data for factor computation
         historical_data = pd.DataFrame({
-            'symbol': ['000001.SH'] * 20,
+            'symbol': ['600000.SH'] * 20,
             'trade_date': pd.date_range('2024-01-01', periods=20, freq='D').strftime('%Y-%m-%d').tolist(),
             'open': [1800.0 + i * 10 for i in range(20)],
             'high': [1850.0 + i * 10 for i in range(20)],
@@ -315,7 +323,7 @@ class TestDataPipelineIntegration:
         kline_repo.save_daily_klines(records)
 
         # Verify data is available for factor computation
-        klines = _klines_as_dicts(kline_repo, '000001.SH', '2024-01-01', '2024-01-20')
+        klines = _klines_as_dicts(kline_repo, '600000.SH', '2024-01-01', '2024-01-20')
 
         assert len(klines) >= 10, "Need sufficient data for factor computation"
 
@@ -338,7 +346,7 @@ class TestDataPipelineIntegration:
         """
         # Create data for date range
         date_range_data = pd.DataFrame({
-            'symbol': ['000001.SH'] * 5,
+            'symbol': ['600000.SH'] * 5,
             'trade_date': ['2024-01-02', '2024-01-03', '2024-01-04', '2024-01-05', '2024-01-08'],
             'open': [1800.0, 1820.0, 1830.0, 1825.0, 1840.0],
             'high': [1850.0, 1870.0, 1880.0, 1875.0, 1890.0],
@@ -354,7 +362,7 @@ class TestDataPipelineIntegration:
         kline_repo.save_daily_klines(records)
 
         # Verify all dates are stored
-        klines = _klines_as_dicts(kline_repo, '000001.SH', '2024-01-02', '2024-01-08')
+        klines = _klines_as_dicts(kline_repo, '600000.SH', '2024-01-02', '2024-01-08')
 
         assert len(klines) >= 3, f"Expected at least 3 records, got {len(klines)}"
 
