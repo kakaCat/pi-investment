@@ -13869,18 +13869,79 @@
       "stageKind": "integrate",
       "attempt": 0,
       "revisions": [],
-      "status": "todo",
+      "status": "done",
       "blocked": false,
-      "executions": [],
-      "comments": [],
-      "version": 1,
+      "executions": [
+        {
+          "id": "e-f10488",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790908051593,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 8791,
+              "at": 1790908051603,
+              "totals": {
+                "uncachedInputTokens": 2589910,
+                "outputTokens": 855372,
+                "cacheReadTokens": 534521984,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 9028,
+              "at": 1790909971960,
+              "totals": {
+                "uncachedInputTokens": 3266771,
+                "outputTokens": 884452,
+                "cacheReadTokens": 557674368,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 676861,
+              "outputTokens": 29080,
+              "cacheReadTokens": 23152384,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790909971941
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-d0e17b",
+          "body": "[状态] → in_progress：联调段：验证去重后的 ② 调度能真跑任务（用 API 手动触发一条，核对执行留痕）。（reqboard_task_move）",
+          "createdAt": 1790908051593,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-62a18b",
+          "body": "[状态] → done：联调段完成：② 链路端到端验证通过（触发真跑完并留痕）；抓出并修复\"5 条启用任务命令无实现\"（停用后启用 16→11、全部有效）；发现停用需追加 reload 才生效；调度器与库表已一致、噪音归零。（reqboard_task_move）",
+          "createdAt": 1790909971941,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 5,
       "createdAt": 1790901827987,
-      "updatedAt": 1790901827987,
+      "updatedAt": 1790909971941,
       "createdBy": {
         "kind": "system"
       },
       "updatedBy": {
-        "kind": "system"
+        "kind": "agent",
+        "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
       },
       "statusHistory": [
         {
@@ -13889,9 +13950,48 @@
           "by": {
             "kind": "system"
           }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790908051593,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "联调段：验证去重后的 ② 调度能真跑任务（用 API 手动触发一条，核对执行留痕）。"
+        },
+        {
+          "status": "done",
+          "at": 1790909971941,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "联调段完成：② 链路端到端验证通过（触发真跑完并留痕）；抓出并修复\"5 条启用任务命令无实现\"（停用后启用 16→11、全部有效）；发现停用需追加 reload 才生效；调度器与库表已一致、噪音归零。"
         }
       ],
-      "layer": 2
+      "layer": 2,
+      "lastReport": {
+        "at": 1790909887236,
+        "reportIndex": 2,
+        "filesChanged": [],
+        "completed": [
+          "**联调①（② 链路端到端可用）**：`GET /api/scheduler/tasks` → 32 条（分页），启用集合 **cron 零撞点**；`POST /api/scheduler/tasks/232/trigger` → `dispatched`，并落执行留痕 3360（最终 **success**，耗时 1,052,851 ms ≈ **17.5 分钟**——不是卡死而是很慢，已记录）",
+          "**联调②（既有成功案例）**：今日 `chan-scan-daily`、`daily-signal-push-fallback`、`pre-market-scan`、`每日数据质量检查` 各有 1 次 success ✓",
+          "**🔴 联调③（本轮抓出并修掉的真问题）**：系统性核对\"启用任务的命令是否都有实现\" → **16 条里 5 条的命令全仓零 handler（每次触发必失败）**：`risk_check`(235) · `data_pipeline_daily`(240) · `data_pipeline_weekly`(241) · `signal_monitor_realtime`(251) · `daily_equity_snapshot`(264)。其中 251 每 5 分钟失败一次、今日累计 21 次、近一小时 12 次",
+          "**联调④（处置，经用户逐条确认）**：5 条**全部停用**（它们本就每次失败，停用不改变任何实际行为、只停噪音）→ 启用集合 **16 → 11**，且**11 条的命令现在全部有 handler（无效 0）**",
+          "**联调⑤（发现停用不够、还需重载）**：停用 DB 行后 251 **仍在触发**（10:50 又失败一次）——因为任务已注册进 APScheduler 的 jobstore；调 `POST /api/scheduler/reload` 后 jobstore **11 条、task_251 已移除**，再观察 75 秒**运行记录数不再增长**（1951 → 1951）✅ 噪音彻底停止",
+          "**联调⑥（口径纠正，我先错后改）**：我最初建议把 240/241 \"接线\"到 `DataPipelineService.run_daily_update/run_full_rebuild`（依据是方法名精确对应）——**复查发现该服务生产从未接线（零生产调用方，只有测试用）**，接线等于**新做一项生产能力**（需要先定标的域/日期口径）。已向用户纠正并改为\"全停 + 记能力缺口\"",
+          "**联调最终态**：jobstore **11** = 库表启用 **11**（已同步）；验收① cron 撞点 **0**；验收③ `adapters/` 里 `unified_scheduler` **0**；服务 `/docs=200`、探针 exit=0；近 5 分钟调度 **0 成功 0 失败**（无噪音）",
+          "**能力缺口（已记录，待后续定夺）**：① 数据管道（`DataPipelineService` 存在但从未接线）；② 盘中实时信号扫描（`signal_monitor_realtime` 无实现；日频 `signal_generate` 已有）；③ 周度风险/组合分析（无实现；`risk_check_job` 是 V13 专用、`intraday_risk_check` 是盘中止损）；④ 账户净值快照（能力已在 ③ 编排器线程里跑，属重复故停用）"
+        ]
+      },
+      "lastRun": {
+        "at": 1790908220828,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
     },
     {
       "id": "t-50d053",
@@ -13915,18 +14015,79 @@
       "stageKind": "review",
       "attempt": 0,
       "revisions": [],
-      "status": "todo",
+      "status": "done",
       "blocked": false,
-      "executions": [],
-      "comments": [],
-      "version": 1,
+      "executions": [
+        {
+          "id": "e-c75915",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790909978763,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 9034,
+              "at": 1790909978772,
+              "totals": {
+                "uncachedInputTokens": 3267005,
+                "outputTokens": 885338,
+                "cacheReadTokens": 558336512,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 9054,
+              "at": 1790910057997,
+              "totals": {
+                "uncachedInputTokens": 3268218,
+                "outputTokens": 886747,
+                "cacheReadTokens": 560329856,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 1213,
+              "outputTokens": 1409,
+              "cacheReadTokens": 1993344,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1790910057979
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-9d9d39",
+          "body": "[状态] → in_progress：复核段：核对去重后的启用集合、jobstore 一致性、④ 删除无悬空引用、文档与现网一致。（reqboard_task_move）",
+          "createdAt": 1790909978763,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        },
+        {
+          "id": "c-d15824",
+          "body": "[状态] → done：复核段完成：库表与调度器逐条对齐（11=11）、④ 无悬空引用、配置已删、文档与现网一致；并留痕我自己两处口径纠正与\"停用需重载\"的坑。（reqboard_task_move）",
+          "createdAt": 1790910057979,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
       "createdAt": 1790901827987,
-      "updatedAt": 1790901827987,
+      "updatedAt": 1790910057979,
       "createdBy": {
         "kind": "system"
       },
       "updatedBy": {
-        "kind": "system"
+        "kind": "agent",
+        "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
       },
       "statusHistory": [
         {
@@ -13935,9 +14096,47 @@
           "by": {
             "kind": "system"
           }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790909978763,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "复核段：核对去重后的启用集合、jobstore 一致性、④ 删除无悬空引用、文档与现网一致。"
+        },
+        {
+          "status": "done",
+          "at": 1790910057979,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "复核段完成：库表与调度器逐条对齐（11=11）、④ 无悬空引用、配置已删、文档与现网一致；并留痕我自己两处口径纠正与\"停用需重载\"的坑。"
         }
       ],
-      "layer": 3
+      "layer": 3,
+      "lastReport": {
+        "at": 1790909994660,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "**复核①（库表 ↔ 调度器一致性）**：库表启用 **11** 条 vs ② jobstore **11** 条，且**逐条 id 完全对齐**（`task_232…task_262` 两侧字符串一致）——调度器实际在跑的就是库里启用的那 11 条，无多无少",
+          "**复核②（④ 删除后无悬空引用）**：全仓搜 `unified_scheduler` 只剩 4 处且都不是代码引用——2 处是**断言旧路径不存在的测试**（`assert not (repo_root / 'application/services/unified_scheduler.py').exists()`，属历史护栏，仍通过）、2 处是**历史注释**（\"原 register_*_to_scheduler（APScheduler/unified_scheduler 路线）\"）",
+          "**复核③（配置文件）**：`config/scheduler_jobs.yml` 已随 ④ 一并删除（`No such file or directory`）",
+          "**复核④（文档与现网一致）**：ADR-004 里写的复现命令实跑一致——cron 撞点 **0**；日志最近一次加载为 `Task loading complete: 11 loaded, 0 skipped`（即停用 5 条后的最新态）",
+          "**复核⑤（口子检查：是否有\"停了但仍会跑\"）**：已验证停用 DB 行不足够、须再 `POST /api/scheduler/reload`；重载后 `task_251` 从 jobstore 消失，观察 75 秒运行记录数不再增长 → **无残留触发**",
+          "**复核⑥（我自己的三处口径问题，已留痕）**：① 第一次报\"-3 违规\"时我查证是**他人冲突文件解析失败的假象**、未动护栏基线；② 我最初把 240/241 的\"接线\"判断建立在**方法名**上，复查发现该服务**生产从未接线**、已向用户纠正；③ 停用后未立即 reload 导致 251 又被触发一次，已定位并补齐",
+          "偏离结论：**相对验收标准零偏离**；相对卡面「实施方案」有两处**已获用户逐条确认**的调整：④ 删除未等\"观察一周\"（用户在本轮明确批准）、5 条坏任务改为停用 + 记能力缺口（用户确认）"
+        ]
+      },
+      "lastRun": {
+        "at": 1790909994660,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
     },
     {
       "id": "t-1027a9",
@@ -13961,18 +14160,69 @@
       "stageKind": "test",
       "attempt": 0,
       "revisions": [],
-      "status": "todo",
+      "status": "in_progress",
       "blocked": false,
-      "executions": [],
-      "comments": [],
-      "version": 1,
+      "executions": [
+        {
+          "id": "e-b259bb",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790910064616,
+          "outcome": "running",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 9060,
+              "at": 1790910064625,
+              "totals": {
+                "uncachedInputTokens": 3268471,
+                "outputTokens": 887600,
+                "cacheReadTokens": 560995200,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 9224,
+              "at": 1790910479624,
+              "totals": {
+                "uncachedInputTokens": 3471982,
+                "outputTokens": 908868,
+                "cacheReadTokens": 570529792,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 203511,
+              "outputTokens": 21268,
+              "cacheReadTokens": 9534592,
+              "cacheWriteTokens": 0
+            }
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-3e868b",
+          "body": "[状态] → in_progress：测试段：验证\"每 job 每日仅 1 条\"的结构性保证（唯一约束+幂等），记录当前基线与观察口径。（reqboard_task_move）",
+          "createdAt": 1790910064616,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 4,
       "createdAt": 1790901827987,
-      "updatedAt": 1790901827987,
+      "updatedAt": 1790910479620,
       "createdBy": {
         "kind": "system"
       },
       "updatedBy": {
-        "kind": "system"
+        "kind": "agent",
+        "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
       },
       "statusHistory": [
         {
@@ -13981,9 +14231,38 @@
           "by": {
             "kind": "system"
           }
+        },
+        {
+          "status": "in_progress",
+          "at": 1790910064616,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "测试段：验证\"每 job 每日仅 1 条\"的结构性保证（唯一约束+幂等），记录当前基线与观察口径。"
         }
       ],
-      "layer": 4
+      "layer": 4,
+      "claimedBy": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+      "claimedAt": 1790910064616,
+      "lastReport": {
+        "at": 1790910479620,
+        "reportIndex": 2,
+        "filesChanged": [],
+        "completed": [
+          "**傍晚前的\"能不能跑通\"检查（③ 侧）**：今晚要跑的 **7 个任务**逐个核对——① 每个都有**真实函数体**（`_job_watch_rule_health` 等，③ 不是 ② 那种字符串命令，天然没有\"命令不存在\"的坑）；② 逐个解析其**函数体内依赖并试导入**：**7/7 依赖全部可导入**（依赖数 4/2/2/0/4/2/1）",
+          "**宿主线程活着**：API `/api/jobs/inprocess/status` 返回今晚 7 个任务（`not_run`，各带排班点 16:30/16:45/17:20/19:05/20:30/20:35/21:10）；日志有 `✅ Registered: daily_jobs` + `✅ DailyJobs host thread started`；线程 `daily-jobs` 在册；API 进程已运行 1:56:15",
+          "**为什么做这一步**：本卡联调段刚在 ② 里抓到 **5 条命令无实现的坏任务**（一触发必失败、其中一条每 5 分钟刷失败）——同一类坑值得在 ③ 里**起飞前**排掉，否则要等到明早才发现某个任务连夜失败",
+          "**边界**：只做**只读**检查（解析函数 + 试导入依赖 + 看状态接口），**没有强制触发**任何任务——它们会写库/发告警，不该拿生产数据当试验场",
+          "**待办（明天/后天）**：今晚 16:30 起产生第一批观察数据，之后跑 `python tools/check_scheduler_dedup.py` 即得当日结果；\"连续 3 个交易日\"需等国庆假期后（约 10-09 起）累积"
+        ]
+      },
+      "lastRun": {
+        "at": 1790910081750,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
     },
     {
       "id": "t-ba5eca",
@@ -15076,8 +15355,6 @@
       ]
     }
   ],
-  "ready": [
-    "t-3bead2"
-  ],
-  "updated_at": "2026-10-02T01:33:16.810Z"
+  "ready": [],
+  "updated_at": "2026-10-02T03:07:59.633Z"
 }

@@ -2,9 +2,9 @@ metadata:
   stage: decomposing
   requirement_id: REQ-261001145152-3982
   generated_at: 2026-10-01T07:07:50.907Z
-  version: 297
+  version: 307
   generated_by: dsh-pmboard
-  last_updated: 2026-10-02T01:33:16.890Z
+  last_updated: 2026-10-02T03:07:59.755Z
 inputs:
   requirements:
     - id: FR-1

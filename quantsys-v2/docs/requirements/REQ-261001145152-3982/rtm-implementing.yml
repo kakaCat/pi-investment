@@ -2,11 +2,11 @@ metadata:
   stage: implementing
   requirement_id: REQ-261001145152-3982
   generated_at: 2026-10-01T07:07:50.908Z
-  version: 297
+  version: 307
   generated_by: dsh-pmboard
   detail_dir: rtm-implementing/
   detail_count: 101
-  last_updated: 2026-10-02T01:33:16.864Z
+  last_updated: 2026-10-02T03:07:59.725Z
 inputs:
   tasks:
     - id: t-c63378
@@ -293,13 +293,13 @@ inputs:
       status: done
     - id: t-3bead2
       title: 调度去重：4 套 → 1 套（分步灰度）·联调
-      status: todo
+      status: done
     - id: t-50d053
       title: 调度去重：4 套 → 1 套（分步灰度）·复核
-      status: todo
+      status: done
     - id: t-1027a9
       title: 调度去重：4 套 → 1 套（分步灰度）·测试
-      status: todo
+      status: in_progress
     - id: t-ba5eca
       title: 端口与 DI 收敛·研发
       status: done
@@ -314,9 +314,9 @@ inputs:
       status: done
 status:
   tasks_total: 101
-  tasks_done: 97
-  tasks_in_progress: 1
-  tasks_todo: 3
+  tasks_done: 99
+  tasks_in_progress: 2
+  tasks_todo: 0
 tasks:
   - id: t-c63378
     status: done
@@ -507,11 +507,11 @@ tasks:
   - id: t-9891e9
     status: done
   - id: t-3bead2
-    status: todo
+    status: done
   - id: t-50d053
-    status: todo
+    status: done
   - id: t-1027a9
-    status: todo
+    status: in_progress
   - id: t-ba5eca
     status: done
   - id: t-4da3bf
