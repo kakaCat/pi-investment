@@ -65,6 +65,16 @@ COLUMNS = [
      '决策打分 [-1,1]（P0a，2026-08-07）'),
     ('agent_decisions', 'score_band', 'varchar(20)',
      'big_win/small_win/neutral/small_loss/big_loss'),
+    # ── 2026-10-02 追加：对**生产库**扫出的反向漂移（测试库有、生产没有 → 查测试库的门禁看不见）──
+    # 代码确实在写这 5 列：simulation_repository.py:462 写 decision_at、
+    # account_trading_service.py:295 传 decision_price/price_source、
+    # execution_service.py:210 算 slippage_bps（撮合后回填 fill_price）。
+    # 类型取自 ORM 模型声明，与测试库现有定义逐一致。
+    ('simulation_pending_orders', 'decision_price', 'numeric(10,2)', '决策时价（滑点基准）'),
+    ('simulation_pending_orders', 'decision_at', 'timestamptz', '决策时刻'),
+    ('simulation_pending_orders', 'price_source', 'text', '决策价来源（R-013 可追溯）'),
+    ('simulation_pending_orders', 'fill_price', 'numeric(10,2)', '实际成交价'),
+    ('simulation_pending_orders', 'slippage_bps', 'numeric(10,2)', '滑点基点（正=买贵/卖便宜=成本）'),
 ]
 
 # 先设上限再动手：等不到锁就报错，不挂死（见模块 docstring 的约定说明）
