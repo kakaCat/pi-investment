@@ -23,8 +23,14 @@ class PandasTAAdapter(IndicatorAdapter):
     }
 
     def is_available(self) -> bool:
+        # 2026-10-02（REQ-261001145152-3982 审查）：**删掉一个不存在的导入**。
+        # 此处原为 `import domain.quantlib.engine.indicators._numba_compat` ——
+        # 实测该模块**全仓不存在**（`domain/quantlib/engine/indicators/` 目录本身就是空的），
+        # 于是这条 import 必然抛 ModuleNotFoundError，被下面的 `except ImportError` 吞掉
+        # → **is_available() 永远返回 False**，适配器整条链（calculate/list_indicators）
+        # 永远不可用 —— 而 `pandas_ta` 其实是装好的（实测可导入）。
+        # 判据只应看真实依赖，故改为只探 pandas_ta。
         try:
-            import domain.quantlib.engine.indicators._numba_compat  # noqa: F401
             import pandas_ta  # noqa: F401
             return True
         except ImportError:

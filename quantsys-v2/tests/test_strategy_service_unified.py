@@ -6,8 +6,11 @@ import pytest
 
 def _make_trader(**kwargs):
     """在 mock 重依赖的前提下构造 SimulationTrader"""
-    with patch('live_trading.simulation_trader.DataService'), \
-         patch('live_trading.simulation_trader.get_engine', return_value=MagicMock()), \
+    # 2026-10-02（REQ-261001145152-3982 审查）：**删掉对 DataService 的 patch** ——
+    # `live_trading.simulation_trader` 模块里**没有**这个名字（实测 AttributeError），
+    # 于是这组用例（5 条）全部在 patch 阶段就崩，根本没测到被测行为。
+    # 另两个名字在该模块里确实存在，保留。
+    with patch('live_trading.simulation_trader.get_engine', return_value=MagicMock()), \
          patch('live_trading.simulation_trader.SimulationORMRepository') as MockRepo:
         MockRepo.return_value.get_account.return_value = None
         from live_trading.simulation_trader import SimulationTrader
