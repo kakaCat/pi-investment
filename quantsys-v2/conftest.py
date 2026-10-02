@@ -147,8 +147,47 @@ def db_connection():
     # Ensure required tables exist for tests
     _ensure_test_tables(conn)
 
+    # 2026-10-02（REQ-261001145152-3982 审查）：登记这条共享连接，供下面
+    # `_release_shared_db_tx` 在每个用例结束后结束其上未结束的事务。
+    _SHARED_DB_CONN["conn"] = conn
+
     yield conn
+
+    # 收尾：丢弃测试期间可能残留的未结束事务，释放锁，再关闭。
+    _SHARED_DB_CONN["conn"] = None
+    conn.rollback()
     conn.close()
+
+
+# 2026-10-02（REQ-261001145152-3982 审查）：**泄漏事务的根因就在这条 session 级连接上**。
+#
+# `db_connection` 是 session 级（整轮测试共用一条连接），而 psycopg2 默认非 autocommit：
+# 任何一次 SELECT（如各文件的 fixture 用它查行情/标的）都会**开启事务且一直不结束** →
+# 这条连接在**整个测试会话期间**停在 `idle in transaction` 并**持续持有表锁**。
+# 实测（临时探针逐用例查 pg_stat_activity 抓到的）：它锁着
+# `quant.stock_pools` / `stocks` / `index_constituents`，直接导致
+# `tests/test_orm_db_drift` 的建表 DDL 撞满 30s `lock_timeout` 报错——
+# 这就是"那个门禁单独跑 6 passed、一进全量就 3 errors"的全部原因（全量里前三处 errors 同源）。
+#
+# 处置：每个用例结束即结束该连接上未结束的事务（`TRANSACTION_STATUS_IDLE` 之外才回滚）。
+# 只动"挂着没关"的读事务，**不改变**任何已显式 commit 的写用例语义，也不动其它连接。
+_SHARED_DB_CONN: dict = {"conn": None}
+
+
+@pytest.fixture(autouse=True)
+def _release_shared_db_tx():
+    """见 `db_connection` 上方说明：用完即结束其事务，别把表锁带到下一个用例。"""
+    yield
+    conn = _SHARED_DB_CONN["conn"]
+    if conn is None:
+        return
+    try:
+        from psycopg2.extensions import TRANSACTION_STATUS_IDLE
+
+        if conn.info.transaction_status != TRANSACTION_STATUS_IDLE:
+            conn.rollback()
+    except Exception:
+        pass
 
 
 def _ensure_test_tables(conn):
@@ -239,4 +278,5 @@ def _release_orm_session_after_test():
             close_session()
     except Exception:  # noqa: BLE001 —— 收尾清理不应影响测试结论
         pass
+
 
