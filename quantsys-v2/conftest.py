@@ -72,6 +72,84 @@ except Exception:  # noqa: BLE001 —— 拿不到环境变量也不该让收集
     _socket.setdefaulttimeout(5)
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# 会话级清理：治「测试写库不自清」造成的**跨轮污染**
+# （2026-10-02 · REQ-261001145152-3982 审查）
+#
+# 现象：测试用例自己 INSERT 数据后从不删除，残留不断累积。实测抓到过
+# `quant.signals` 里 `symbol='INVALID'` 的残留（全库才 2 行）、
+# `quant.index_constituents` 的残留（让"去重后应为 8 条"变成 10 条）。
+# 后果：凡"断言条数"的用例**假红或假绿**，且**同一份代码单跑与全量结果不同**，
+# 让人误判成代码缺陷。
+#
+# 做法（保守、可验证）：**会话开始记录这些表的 max(id)，会话结束时删掉其上的行**。
+#   · 只在**测试库**上做（DSN 由 _resolve_db_dsn() 解析，pytest 下必为 *_test）；
+#   · 只碰**有整型 id** 的白名单表（其余表跳过，宁少勿错）；
+#   · 只删**本次会话新增**的行（id > 会话起点 max(id)），不动既有数据；
+#   · 覆盖不到的仍逐条处置——这是兜底，不是"污染问题已解决"的挡箭牌。
+_SESSION_CLEANUP_TABLES = (
+    'quant.signals',
+    'quant.signal_executions',
+    'quant.signal_test_records',
+    'quant.stock_pools',
+    'quant.pool_change_log',
+    'quant.backtest_results',
+    'quant.strategy_configs',
+    'quant.inprocess_job_runs',
+    'quant.scheduler_runs',
+)
+
+
+@pytest.fixture(scope='session', autouse=True)
+def _prune_rows_written_by_tests():
+    """见上方说明：会话结束删除"本次会话写入"的行，避免跨轮污染。"""
+    import psycopg2
+
+    from infrastructure.persistence.database.engine import _resolve_db_dsn
+
+    dsn = _resolve_db_dsn()
+    if not dsn:
+        yield
+        return
+
+    marks = {}
+    conn = None
+    try:
+        conn = psycopg2.connect(dsn)
+        conn.autocommit = True
+        cur = conn.cursor()
+        for table in _SESSION_CLEANUP_TABLES:
+            try:
+                cur.execute(f'select coalesce(max(id), 0) from {table}')
+                marks[table] = cur.fetchone()[0]
+            except Exception:  # noqa: BLE001 - 表不存在/无 id 列都跳过
+                pass
+    except Exception:  # noqa: BLE001 - 连不上库时不影响测试
+        if conn:
+            conn.close()
+        yield
+        return
+
+    yield
+
+    removed = 0
+    try:
+        cur = conn.cursor()
+        for table, mark in marks.items():
+            try:
+                cur.execute(f'delete from {table} where id > %s', (mark,))
+                removed += cur.rowcount or 0
+            except Exception:  # noqa: BLE001
+                pass
+        cur.close()
+    except Exception:  # noqa: BLE001
+        pass
+    finally:
+        conn.close()
+    if removed:
+        print(f'\n  测试写入清理：删除本次会话新增 {removed} 行（{len(marks)} 张表受控）')
+
+
 # ── 排除 tests/manual/（2026-10-02 · REQ-261001145152-3982 审查）──
 # 该目录下 7 个文件**全部是手动验证脚本**：都有 `if __name__ == "__main__"`，
 # 且里面的 `test_*` 函数带形参（如 `def test_competition_analysis(symbol: str)`）——
