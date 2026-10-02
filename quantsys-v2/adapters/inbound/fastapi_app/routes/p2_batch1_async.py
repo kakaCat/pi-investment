@@ -169,7 +169,7 @@ async def get_market_fund_flow(
 # 2026-09-14（w-2129d492）：整段删除 /api/automation/* 与 /api/agent-intelligence/*。
 # 删除理由（实测核验，非"看起来没人用"）：
 #   · 业务归属 = 旧 Agent OS 自动化系统的读面板：其执行器 smart_scheduler.py 已无任何启动入口，
-#     调度 9 月初收敛到 UnifiedScheduler + quant.scheduler_tasks（另一张表）；
+#     调度归属见 ADR-004：业务的定时任务由 v2 自己调度（②APScheduler + ③DailyJobs）；
 #     quant.automation_tasks 里 3 条启用任务的 last_run_at 全部停在 2026-06-27，automation_runs 仅 1 条。
 #   · 无消费者：前端（web-frontend / agent-dh 页面）、agent-ts、agent-os(Go)、文档 全仓零调用；
 #     唯一引用方就是本文件与两处注册点（main.py / route_registrar.py）。

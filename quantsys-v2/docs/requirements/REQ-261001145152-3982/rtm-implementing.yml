@@ -2,11 +2,11 @@ metadata:
   stage: implementing
   requirement_id: REQ-261001145152-3982
   generated_at: 2026-10-01T07:07:50.908Z
-  version: 277
+  version: 278
   generated_by: dsh-pmboard
   detail_dir: rtm-implementing/
-  detail_count: 93
-  last_updated: 2026-10-02T00:28:07.488Z
+  detail_count: 97
+  last_updated: 2026-10-02T00:43:48.063Z
 inputs:
   tasks:
     - id: t-c63378
@@ -32,7 +32,7 @@ inputs:
       status: done
     - id: t-2d52a7
       title: 调度去重：4 套 → 1 套（分步灰度）
-      status: todo
+      status: in_progress
     - id: t-59468b
       title: 删 5 个孤儿的重复 provider
       status: done
@@ -288,11 +288,23 @@ inputs:
     - id: t-1b912c
       title: 拆两个文件级上帝·测试
       status: done
+    - id: t-9891e9
+      title: 调度去重：4 套 → 1 套（分步灰度）·研发
+      status: todo
+    - id: t-3bead2
+      title: 调度去重：4 套 → 1 套（分步灰度）·联调
+      status: todo
+    - id: t-50d053
+      title: 调度去重：4 套 → 1 套（分步灰度）·复核
+      status: todo
+    - id: t-1027a9
+      title: 调度去重：4 套 → 1 套（分步灰度）·测试
+      status: todo
 status:
-  tasks_total: 93
+  tasks_total: 97
   tasks_done: 91
-  tasks_in_progress: 0
-  tasks_todo: 2
+  tasks_in_progress: 1
+  tasks_todo: 5
 tasks:
   - id: t-c63378
     status: done
@@ -309,7 +321,7 @@ tasks:
   - id: t-3f2444
     status: done
   - id: t-2d52a7
-    status: todo
+    status: in_progress
   - id: t-59468b
     status: done
   - id: t-c3a097
@@ -480,3 +492,11 @@ tasks:
     status: done
   - id: t-1b912c
     status: done
+  - id: t-9891e9
+    status: todo
+  - id: t-3bead2
+    status: todo
+  - id: t-50d053
+    status: todo
+  - id: t-1027a9
+    status: todo

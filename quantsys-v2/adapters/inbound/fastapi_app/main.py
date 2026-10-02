@@ -365,18 +365,13 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("⚠️ DailyJobs disabled via DISABLE_DAILY_JOBS")
 
-    # P2.3: 启动统一调度器（YAML-config-driven）
-    if os.getenv('DISABLE_UNIFIED_SCHEDULER', '').lower() != 'true':
-        try:
-            from infrastructure.scheduler.unified_scheduler import get_scheduler
-            unified_scheduler = get_scheduler()
-            unified_scheduler.start()
-            app.state.unified_scheduler = unified_scheduler
-            logger.info("✅ UnifiedScheduler started", jobs_count=len(unified_scheduler.jobs))
-        except Exception as e:
-            logger.error(f"❌ UnifiedScheduler startup failed: {e}")
-    else:
-        logger.warning("⚠️ UnifiedScheduler disabled via DISABLE_UNIFIED_SCHEDULER")
+    # P2.3 的 YAML 配置驱动调度器已于 2026-10-02 **删除**（REQ-261001145152-3982 t-2d52a7）：
+    # 它的 start() 只把 _running 置 True、**没有驱动循环**，生产代码无人调 run_job，
+    # config/scheduler_jobs.yml 的 4 个任务从未真正触发——是"跑着却不干活"的第四条调度路径。
+    # 按用户裁定（业务的定时任务归 v2 自己调度），v2 侧只保留：
+    #   ② APSchedulerService（读 quant.scheduler_tasks，已去重）
+    #   ③ DailyJobs 宿主线程（核心数据任务）
+    # 连同它的 API 路由与专属 e2e 测试一并删除（P2.3 那套 YAML 配置驱动调度）。
 
     logger.info("📖 API Documentation: http://localhost:5001/docs")
     logger.info("📚 ReDoc: http://localhost:5001/redoc")
@@ -1301,14 +1296,8 @@ def register_routes():
         optional_failed.append("scheduler")
         logger.warning(f"⚠️ Failed to import scheduler_async: {e}")
 
-    # 统一调度器（P2.3 YAML-config-driven scheduler）
-    try:
-        from adapters.inbound.fastapi_app.routes.unified_scheduler_async import router as unified_scheduler_router
-        app.include_router(unified_scheduler_router)
-        logger.info("✅ Registered: unified_scheduler (P2.3)")
-    except ImportError as e:
-        optional_failed.append("unified_scheduler")
-        logger.warning(f"⚠️ Failed to import unified_scheduler_async: {e}")
+    # 统一调度器（P2.3 YAML-config-driven scheduler）的路由注册已于 2026-10-02 移除
+    # （t-2d52a7：调度器本体与其 API 路由一并删除，见 lifespan 中的说明）。
 
     # 统一事件总线（P2.4 unified event bus）
     try:

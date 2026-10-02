@@ -1072,9 +1072,31 @@
       "implementation": "① 先只禁用 DB 内重复任务（quant.scheduler_tasks 中 4 个 cron 时点各 2~3 个启用任务，保留一份）；② UnifiedScheduler 二选一：补驱动循环或删除（连同 config/scheduler_jobs.yml 86 行 + 路由 + 测试）——其 start() 只翻标志位、生产无人调 run_job；③ 统一文档里的 USE_AGENT_OS_SCHEDULER 与真实开关 AGENT_OS_ENABLED。必须观察一周后才删。",
       "context": "",
       "requirementRefs": [],
-      "status": "todo",
+      "status": "in_progress",
       "blocked": false,
-      "executions": [],
+      "executions": [
+        {
+          "id": "e-556b1d",
+          "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+          "trigger": "manual",
+          "startedAt": 1790901827987,
+          "outcome": "running",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+              "seq": 7779,
+              "at": 1790901827996,
+              "totals": {
+                "uncachedInputTokens": 1818614,
+                "outputTokens": 737772,
+                "cacheReadTokens": 451647360,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            }
+          }
+        }
+      ],
       "statusHistory": [
         {
           "status": "todo",
@@ -1084,12 +1106,31 @@
             "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
           },
           "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1790901827987,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          },
+          "reason": "开工：按用户批准的方案落地调度归属（v2 自调度；删 ④ 空转、AGENT_OS 调度权关、② 去重、③ 保留、写 ADR）。"
         }
       ],
-      "comments": [],
-      "version": 1,
+      "comments": [
+        {
+          "id": "c-8af9fc",
+          "body": "[状态] → in_progress：开工：按用户批准的方案落地调度归属（v2 自调度；删 ④ 空转、AGENT_OS 调度权关、② 去重、③ 保留、写 ADR）。（reqboard_task_move）",
+          "createdAt": 1790901827987,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
+          }
+        }
+      ],
+      "version": 2,
       "createdAt": 1790838470861,
-      "updatedAt": 1790838470861,
+      "updatedAt": 1790901827987,
       "createdBy": {
         "kind": "agent",
         "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
@@ -1098,7 +1139,9 @@
         "kind": "agent",
         "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
       },
-      "layer": 1
+      "layer": 1,
+      "claimedBy": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22",
+      "claimedAt": 1790901827987
     },
     {
       "id": "t-59468b",
@@ -13487,6 +13530,190 @@
         "stopReason": "reported",
         "valueNonEmpty": true
       }
+    },
+    {
+      "id": "t-9891e9",
+      "requirementId": "REQ-261001145152-3982",
+      "title": "调度去重：4 套 → 1 套（分步灰度）·研发",
+      "description": "子卡阶段：研发",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-c63378"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "implementation": "① 先只禁用 DB 内重复任务（quant.scheduler_tasks 中 4 个 cron 时点各 2~3 个启用任务，保留一份）；② UnifiedScheduler 二选一：补驱动循环或删除（连同 config/scheduler_jobs.yml 86 行 + 路由 + 测试）——其 start() 只翻标志位、生产无人调 run_job；③ 统一文档里的 USE_AGENT_OS_SCHEDULER 与真实开关 AGENT_OS_ENABLED。必须观察一周后才删。\n\n[子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "context": "",
+      "parentId": "t-2d52a7",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "todo",
+      "blocked": false,
+      "executions": [],
+      "comments": [],
+      "version": 1,
+      "createdAt": 1790901827987,
+      "updatedAt": 1790901827987,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790901827987,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 1
+    },
+    {
+      "id": "t-3bead2",
+      "requirementId": "REQ-261001145152-3982",
+      "title": "调度去重：4 套 → 1 套（分步灰度）·联调",
+      "description": "子卡阶段：联调",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-9891e9"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）",
+      "implementation": "① 先只禁用 DB 内重复任务（quant.scheduler_tasks 中 4 个 cron 时点各 2~3 个启用任务，保留一份）；② UnifiedScheduler 二选一：补驱动循环或删除（连同 config/scheduler_jobs.yml 86 行 + 路由 + 测试）——其 start() 只翻标志位、生产无人调 run_job；③ 统一文档里的 USE_AGENT_OS_SCHEDULER 与真实开关 AGENT_OS_ENABLED。必须观察一周后才删。\n\n[子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）",
+      "context": "",
+      "parentId": "t-2d52a7",
+      "stageKind": "integrate",
+      "attempt": 0,
+      "revisions": [],
+      "status": "todo",
+      "blocked": false,
+      "executions": [],
+      "comments": [],
+      "version": 1,
+      "createdAt": 1790901827987,
+      "updatedAt": 1790901827987,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790901827987,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 2
+    },
+    {
+      "id": "t-50d053",
+      "requirementId": "REQ-261001145152-3982",
+      "title": "调度去重：4 套 → 1 套（分步灰度）·复核",
+      "description": "子卡阶段：复核",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-3bead2"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "implementation": "① 先只禁用 DB 内重复任务（quant.scheduler_tasks 中 4 个 cron 时点各 2~3 个启用任务，保留一份）；② UnifiedScheduler 二选一：补驱动循环或删除（连同 config/scheduler_jobs.yml 86 行 + 路由 + 测试）——其 start() 只翻标志位、生产无人调 run_job；③ 统一文档里的 USE_AGENT_OS_SCHEDULER 与真实开关 AGENT_OS_ENABLED。必须观察一周后才删。\n\n[子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-2d52a7",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "todo",
+      "blocked": false,
+      "executions": [],
+      "comments": [],
+      "version": 1,
+      "createdAt": 1790901827987,
+      "updatedAt": 1790901827987,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790901827987,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 3
+    },
+    {
+      "id": "t-1027a9",
+      "requirementId": "REQ-261001145152-3982",
+      "title": "调度去重：4 套 → 1 套（分步灰度）·测试",
+      "description": "子卡阶段：测试",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-50d053"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "implementation": "① 先只禁用 DB 内重复任务（quant.scheduler_tasks 中 4 个 cron 时点各 2~3 个启用任务，保留一份）；② UnifiedScheduler 二选一：补驱动循环或删除（连同 config/scheduler_jobs.yml 86 行 + 路由 + 测试）——其 start() 只翻标志位、生产无人调 run_job；③ 统一文档里的 USE_AGENT_OS_SCHEDULER 与真实开关 AGENT_OS_ENABLED。必须观察一周后才删。\n\n[子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "context": "",
+      "parentId": "t-2d52a7",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "todo",
+      "blocked": false,
+      "executions": [],
+      "comments": [],
+      "version": 1,
+      "createdAt": 1790901827987,
+      "updatedAt": 1790901827987,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1790901827987,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 4
     }
   ],
   "edges": [
@@ -13813,6 +14040,22 @@
     {
       "from": "t-468f80",
       "to": "t-1b912c"
+    },
+    {
+      "from": "t-c63378",
+      "to": "t-9891e9"
+    },
+    {
+      "from": "t-9891e9",
+      "to": "t-3bead2"
+    },
+    {
+      "from": "t-3bead2",
+      "to": "t-50d053"
+    },
+    {
+      "from": "t-50d053",
+      "to": "t-1027a9"
     }
   ],
   "layers": [
@@ -13843,6 +14086,7 @@
         "t-6a8b02",
         "t-7c9c03",
         "t-b0f994",
+        "t-9891e9",
         "t-d51b25",
         "t-f273d1",
         "t-e3df07",
@@ -13869,6 +14113,7 @@
         "t-a9cbe0",
         "t-c6d950",
         "t-805d4c",
+        "t-3bead2",
         "t-f2c01b",
         "t-1f13a5",
         "t-c95f22",
@@ -13895,6 +14140,7 @@
         "t-245f18",
         "t-9254d9",
         "t-1f1299",
+        "t-50d053",
         "t-cd55bf",
         "t-9c79c3",
         "t-d9bc61",
@@ -13917,7 +14163,8 @@
         "t-d66ee4",
         "t-65e702",
         "t-6d1800",
-        "t-d7750a"
+        "t-d7750a",
+        "t-1027a9"
       ]
     },
     {
@@ -13946,8 +14193,8 @@
     }
   ],
   "ready": [
-    "t-2d52a7",
-    "t-71051b"
+    "t-71051b",
+    "t-9891e9"
   ],
-  "updated_at": "2026-10-02T00:28:07.435Z"
+  "updated_at": "2026-10-02T00:43:47.997Z"
 }

@@ -16,8 +16,10 @@
          一旦退出无人拉起，而监控原先跑在被监控进程里，进程一死监控同死。
          本作业把拉起权交给 launchd：KeepAlive 保证崩溃即拉起，RunAtLoad 保证登录即起。
          配套：deployment/launchd/com.pi-investment.health-probe.plist 独立探活（与进程无关）。
-         ⚠️ 调度开关（DISABLE_*）与既有运行态一致：**四路调度仍全关**，
-         去留由 t-2d52a7（调度去重 4 套 → 1 套）裁定后再改，不在本文件擅自打开。
+         ✅ 调度归属（2026-10-02 用户裁定 + t-2d52a7 落地）：业务的定时任务归 **v2 自己调度**——
+         本 plist **不再设任何 DISABLE_** 开关，故 ② APSchedulerService（读 quant.scheduler_tasks，
+         已去重到 16 条 / 无撞点）与 ③ DailyJobs 宿主（9 个核心数据任务）均按各自排班运行；
+         Agent OS 只负责 agent 自身任务（AGENT_OS_ENABLED=false，通知开关不受影响）。
          ⚠️ 自 2026-10-02 起 main.py 的路径引导已上移到文件顶部，故**不需要 PYTHONPATH**
          （此前文档里的启动命令照抄会失败，已修）。 -->
     <key>RunAtLoad</key><true/>
@@ -29,10 +31,6 @@
     <dict>
         <key>TZ</key><string>Asia/Shanghai</string>
         <key>LOG_FILE</key><string>logs/api.log</string>
-        <key>DISABLE_APSCHEDULER</key><string>true</string>
-        <key>DISABLE_DAILY_JOBS</key><string>true</string>
-        <key>DISABLE_UNIFIED_SCHEDULER</key><string>true</string>
-        <key>DISABLE_WATCH_ENGINE</key><string>true</string>
     </dict>
 </dict>
 </plist>

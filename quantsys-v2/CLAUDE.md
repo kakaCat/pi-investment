@@ -167,16 +167,23 @@ WatchEngine 常驻线程**由 FastAPI `adapters/inbound/fastapi_app/main.py` 的
 
 `scheduler_daemon.py`/`supervisor.py`/`manage_scheduler.py` 已于 2026-08-13 删除
 （daemon 无 launchd 守护，08-05 死讯静默 8 天致 T+1 中断、盯盘消失两起事故）。
-**但 `unified_scheduler.py` 并没有被删除**——它仍在 `infrastructure/scheduler/`，且被 `main.py`
-的 lifespan 启动（2026-10-01 实测：它的 `start()` 只把 `_running` 置 True，**没有驱动循环**，
-生产代码无人调 `run_job`，`config/scheduler_jobs.yml` 的 4 个任务实际永不触发）。
+`unified_scheduler.py`（那套 YAML 配置驱动、**空转**的第四条路径）已于 2026-10-02 随
+`config/scheduler_jobs.yml`、其 API 路由与专属 e2e 测试一并**删除**。
 
-> ⚠️ **调度实为 4 路并存**（2026-10-01 实测，详见
-> `docs/requirements/REQ-261001145152-3982/design/audit-report.md` §3）：
-> ① Agent OS webhook（8080 不可达时注册失败）→ ② 回退 `APSchedulerService`（读 `quant.scheduler_tasks`）
-> → ③ DailyJobs 宿主线程（`daily_jobs_bootstrap.py` 硬编码 9 个 JobDef）
-> → ④ `UnifiedScheduler`（空转）。且 DB 内 4 个 cron 时点各有 2~3 个启用任务重复。
-> 去重由该需求的 t-2d52a7 承担。
+> ✅ **调度归属已定案**（2026-10-02 · 用户裁定 · [ADR-004](docs/adr/004-scheduling-ownership.md)）：
+> **业务的定时任务由 v2 自己调度；agent-os 只调度 agent 自身任务**（即 `AGENT_OS_ENABLED=false`）。
+> v2 侧保留两条互补路径：
+> ① **`APSchedulerService`**（`infrastructure/scheduler/apscheduler_service.py`）读
+>    `quant.scheduler_tasks`，跑非核心数据类任务（实时信号监控/盘前扫描/缠论/策略验证/周报等）——
+>    2026-10-02 前它其实**一条都加载不了**（ORM 比库表多 `domain`/`task_type`/
+>    `misfire_grace_time_seconds` 三列，查询直接报错），已由迁移
+>    `infrastructure/persistence/migrations/20261002_scheduler_tasks_missing_columns.py` 修好；
+> ② **DailyJobs 宿主线程**（`daily_jobs_bootstrap.py`，9 个核心数据任务，带幂等/补跑/失败告警
+>    与 `quant.inprocess_job_runs` 留痕）。
+> 库表启用任务已去重 **26 → 16**、撞点组 **4 → 0**；`apscheduler_jobs` 里的僵尸条目
+> （11 条不在册）已清理 **27 → 16**。历史 4 路并存与重复的取证见
+> `docs/requirements/REQ-261001145152-3982/design/audit-report.md` §3。
+> ⚠️ 通知链路**不受影响**：`AGENT_OS_NOTIFY_ENABLED` 仍为 true（agent 优先、飞书降级）。
 
 旧 `quant.scheduler_task_configs` 表已全禁用（任务迁入 scheduler_tasks），表保留供回滚。
 
@@ -200,13 +207,15 @@ launchctl bootstrap gui/501 ~/Library/LaunchAgents/com.pi-investment.v2-api.plis
 # 手工前台启动（排障用；现在**不需要** PYTHONPATH —— 路径引导已在 main.py 顶部）
 python adapters/inbound/fastapi_app/main.py
 
-# 只起 API、不起任何调度（plist 里默认就是全关；手工启动时这样写）
+# 只起 API、不起任何调度（排障/补数据时用）
 DISABLE_APSCHEDULER=true DISABLE_DAILY_JOBS=true \
-DISABLE_UNIFIED_SCHEDULER=true DISABLE_WATCH_ENGINE=true \
+DISABLE_WATCH_ENGINE=true \
 python adapters/inbound/fastapi_app/main.py
 ```
 
-> ⚠️ **plist 里四路调度默认全关**（与既有运行态一致）——去留由 t-2d52a7（调度去重）裁定后再改。
+> ✅ **plist 里已不设任何 `DISABLE_*`**（2026-10-02 · t-2d52a7 落地后）：② APSchedulerService 与
+> ③ DailyJobs 都按各自排班运行。此前四路全关是为了在滞后 18 天的数据上避免误触发补跑。
+> 若要临时只起 API 停调度，见下方"调度总开关"手工启动那一段。
 > 另有独立探活守护 `com.pi-investment.health-probe`（每 300 秒，与 API 进程**无关**：
 > 进程死了它照样告警），plist 见 `deployment/launchd/`。
 
@@ -850,7 +859,8 @@ Based on game-theoretic intelligence requirements:
 **Migration Date**: 2026-08-16  
 **Status**: ⚠️ 代码已实现，但**当前不生效**（2026-10-01 实测：Agent OS 8080 不可达 →
 启动时注册失败 → 全部回退到本地 `APSchedulerService`）。本节描述的是**设计意图**，不是现网运行态；
-现网运行态见上文「调度架构」小节的 4 路并存说明。
+现网运行态**已按 [ADR-004](docs/adr/004-scheduling-ownership.md) 定案**：业务的定时任务由 v2 自己调度
+（`AGENT_OS_ENABLED=false`），本节描述的是已被取代的历史设计意图。
 
 All scheduled jobs have been migrated from local `SchedulerService` to **Agent OS Scheduler** via webhook integration.
 
@@ -932,11 +942,13 @@ All jobs are registered with owner `quantsys-v2`:
 `USE_AGENT_OS_SCHEDULER` 在代码里**零引用**，是个不存在的开关）：
 
 ```bash
-AGENT_OS_ENABLED=true          # 默认 true：启动时尝试注册到 Agent OS（8080 不可达则回退）
-DISABLE_APSCHEDULER=true       # 关掉 APScheduler 回退路径（只起 API，不起调度）
-DISABLE_DAILY_JOBS=true        # 关掉 DailyJobs 宿主线程
-DISABLE_UNIFIED_SCHEDULER=true # 关掉 UnifiedScheduler
-DISABLE_WATCH_ENGINE=true      # 关掉实时盯盘线程
+AGENT_OS_ENABLED=false         # 调度权归 v2（ADR-004）。代码默认仍是 true，但本仓 .env 已置 false；
+                               # 置 false 后启动不再尝试注册 Agent OS 调度器
+AGENT_OS_NOTIFY_ENABLED=true   # **通知**开关，与上面那个分开：仍 agent 优先、飞书降级
+DISABLE_APSCHEDULER=true       # 临时关掉 ② 库表调度（只起 API 时用）
+DISABLE_DAILY_JOBS=true        # 临时关掉 ③ DailyJobs 宿主线程
+DISABLE_WATCH_ENGINE=true      # 临时关掉实时盯盘线程
+# 注：DISABLE_UNIFIED_SCHEDULER 已随那条路径一起删除（2026-10-02）
 ```
 
 The system automatically falls back to local scheduler if Agent OS is unreachable.
@@ -989,7 +1001,7 @@ If Agent OS Scheduler fails（2026-10-01 修正：原第 1、2 步给出的开�
 
 1. **什么都不用设**：Agent OS 不可达时启动会自动回退到 `APSchedulerService`（无需开关）。
    若要**显式禁用**某一路调度，用 `DISABLE_APSCHEDULER` / `DISABLE_DAILY_JOBS` /
-   `DISABLE_UNIFIED_SCHEDULER`（见上文"调度总开关"）。
+   `DISABLE_WATCH_ENGINE`（见上文"调度总开关"）。
 2. **重启服务**（2026-10-02 更新：已有 launchd 守护）：
    `launchctl kickstart -k gui/501/com.pi-investment.v2-api`
    （plist 见 `deployment/launchd/com.pi-investment.v2-api.plist`；崩溃会被 KeepAlive 自动拉起，
@@ -1012,7 +1024,10 @@ For Agent OS jobs, a placeholder task is created in `quant.scheduler_tasks` to m
 **2026-10-01 实测修正**：原文写"`infrastructure/scheduler/scheduler.py` 将于 2026-09-01 移除"——
 **它并没有被移除**，至今仍被 22 个文件引用（adapters/api/application/infrastructure/scripts/tests），
 但 `run_loop` 已不再由 lifespan 启动（现网由 `APSchedulerService` + DailyJobs 线程承担）。
-它现在处于"文件很大、引用很多、但不驱动生产调度"的悬置状态，去留由 t-2d52a7 裁定。
+它现在处于"文件很大、引用很多、但不驱动生产调度"的悬置状态。
+**t-2d52a7 的裁定（2026-10-02）**：生产调度由 `APSchedulerService`（②，读 `quant.scheduler_tasks`）
+与 DailyJobs（③）承担，`scheduler.py` 的 `run_loop` **不再被启动**；其去留（删除 or 保留作库）
+不阻塞本次定案，留待后续单独评估——删除它会牵动 22 个引用方，须单独开卡。
 
 **Preserved**:
 - Job handler business logic (reused by webhook handlers)

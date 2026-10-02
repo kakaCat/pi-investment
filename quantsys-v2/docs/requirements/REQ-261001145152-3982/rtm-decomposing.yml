@@ -2,9 +2,9 @@ metadata:
   stage: decomposing
   requirement_id: REQ-261001145152-3982
   generated_at: 2026-10-01T07:07:50.907Z
-  version: 277
+  version: 278
   generated_by: dsh-pmboard
-  last_updated: 2026-10-02T00:28:07.516Z
+  last_updated: 2026-10-02T00:43:48.098Z
 inputs:
   requirements:
     - id: FR-1
@@ -1572,6 +1572,50 @@ outputs:
       serves: []
       depends_on:
         - t-468f80
+      phase: implement
+      side: backend
+    - id: t-9891e9
+      title: 调度去重：4 套 → 1 套（分步灰度）·研发
+      implements: |-
+        ① 先只禁用 DB 内重复任务（quant.scheduler_tasks 中 4 个 cron 时点各 2~3 个启用任务，保留一份）；② UnifiedScheduler 二选一：补驱动循环或删除（连同 config/scheduler_jobs.yml 86 行 + 路由 + 测试）——其 start() 只翻标志位、生产无人调 run_job；③ 统一文档里的 USE_AGENT_OS_SCHEDULER 与真实开关 AGENT_OS_ENABLED。必须观察一周后才删。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-c63378
+      phase: implement
+      side: backend
+    - id: t-3bead2
+      title: 调度去重：4 套 → 1 套（分步灰度）·联调
+      implements: |-
+        ① 先只禁用 DB 内重复任务（quant.scheduler_tasks 中 4 个 cron 时点各 2~3 个启用任务，保留一份）；② UnifiedScheduler 二选一：补驱动循环或删除（连同 config/scheduler_jobs.yml 86 行 + 路由 + 测试）——其 start() 只翻标志位、生产无人调 run_job；③ 统一文档里的 USE_AGENT_OS_SCHEDULER 与真实开关 AGENT_OS_ENABLED。必须观察一周后才删。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-9891e9
+      phase: implement
+      side: backend
+    - id: t-50d053
+      title: 调度去重：4 套 → 1 套（分步灰度）·复核
+      implements: |-
+        ① 先只禁用 DB 内重复任务（quant.scheduler_tasks 中 4 个 cron 时点各 2~3 个启用任务，保留一份）；② UnifiedScheduler 二选一：补驱动循环或删除（连同 config/scheduler_jobs.yml 86 行 + 路由 + 测试）——其 start() 只翻标志位、生产无人调 run_job；③ 统一文档里的 USE_AGENT_OS_SCHEDULER 与真实开关 AGENT_OS_ENABLED。必须观察一周后才删。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-3bead2
+      phase: implement
+      side: backend
+    - id: t-1027a9
+      title: 调度去重：4 套 → 1 套（分步灰度）·测试
+      implements: |-
+        ① 先只禁用 DB 内重复任务（quant.scheduler_tasks 中 4 个 cron 时点各 2~3 个启用任务，保留一份）；② UnifiedScheduler 二选一：补驱动循环或删除（连同 config/scheduler_jobs.yml 86 行 + 路由 + 测试）——其 start() 只翻标志位、生产无人调 run_job；③ 统一文档里的 USE_AGENT_OS_SCHEDULER 与真实开关 AGENT_OS_ENABLED。必须观察一周后才删。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-50d053
       phase: implement
       side: backend
 traceability:
