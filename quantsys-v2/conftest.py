@@ -177,3 +177,37 @@ def clean_db(db_connection):
     yield
     # Cleanup logic can be added here if needed
     # For now, tests are responsible for their own cleanup
+
+
+@pytest.fixture(autouse=True)
+def _release_orm_session_after_test():
+    """每个测试结束后归还 ORM 会话 —— 防 `idle in transaction` 持锁。
+
+    ## 为什么需要（2026-10-02 · REQ-261001145152-3982 审查，实测）
+
+    测试库里长期挂着多个 `idle in transaction` 连接，实测同时有 3 个，
+    分别锁着 `quant.stock_pools` / `quant.stocks` / `quant.index_constituents`。
+    根因在本仓的会话模型：`scoped_session` **懒加载**——首个查询即开启事务并持有连接
+    （`orm/config.py:171` 的注释已写明这一点），而**测试侧没有统一的收尾清理**。
+    `clean_db` 那个 fixture 也明说"tests are responsible for their own cleanup"。
+
+    后果不只是连接泄漏：**任何 DDL 都会无限等锁**。
+    实测 `tests/test_orm_db_drift.py`（要跑迁移 DDL）因此整套测试停在 78% 永远跑不完；
+    单跑该文件 2.88 秒正常 —— 典型测试间污染。
+
+    这里只做**归还**，不改测试断言；清理本身失败也不让测试变红
+    （漏清理的后果由下一步的锁等待兜底暴露，见该文件新增的 `lock_timeout`）。
+    """
+    yield
+    try:
+        # 先看有没有会话工厂：绝大多数测试不碰 ORM，这一步让它们零开销
+        # （实测每条测试多花约 14ms，6400 条即 ~90 秒；加了这个判断后基本抵消）。
+        from infrastructure.persistence.orm import config as _orm_config
+
+        if _orm_config._SessionFactory is not None:
+            from infrastructure.persistence.orm import close_session
+
+            close_session()
+    except Exception:  # noqa: BLE001 —— 收尾清理不应影响测试结论
+        pass
+
