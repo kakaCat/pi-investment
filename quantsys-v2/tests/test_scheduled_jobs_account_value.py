@@ -136,10 +136,19 @@ class TestHandleFactorCompute:
         import domain.backtest.stages.factor_stage as fs_mod
         import adapters.outbound.repositories as repos
 
-        # 预筛会查库里每只标的的 K 线根数——本用例只测编排，直接放行
-        monkeypatch.setattr(st, '_filter_factor_universe', lambda syms, s, e: (list(syms), {
+        # 预筛会查库里每只标的的 K 线根数——本用例只测编排，直接放行。
+        # 2026-10-02（REQ-261001145152-3982 审查）：**打到真调用点**。
+        # 该函数的定义与**内部调用**都在 `application.services.scheduler_tasks_factors`
+        # （`scheduler_tasks.py` 只是把它**再导出**）；原先 patch `st._filter_factor_universe`
+        # 改的是再导出的那个名字，**调用点看不见** → 真实预筛照样执行 → 测试库里标的 K 线不足
+        # → 全被筛掉 → `symbols_count: 0` / `factors_computed: 0` → 断言失败
+        # （报错只显示"0 == 1"，**看不出是打桩打偏了**）。故两处都打，避免再被搬家坑到。
+        _pass = lambda syms, s, e: (list(syms), {  # noqa: E731
             'delisted': 0, 'st': 0, 'non_equity': 0,
-            'insufficient_bars': 0, 'unknown': [], 'examples': []}))
+            'insufficient_bars': 0, 'unknown': [], 'examples': []})
+        import application.services.scheduler_tasks_factors as stf
+        monkeypatch.setattr(stf, '_filter_factor_universe', _pass)
+        monkeypatch.setattr(st, '_filter_factor_universe', _pass)
         monkeypatch.setattr(repos.KlineORMRepository, 'get_daily_klines',
                             lambda self, sym, s, e: _FakeKlineDF())
         monkeypatch.setattr(repos.FactorORMRepository, 'save_factors',
