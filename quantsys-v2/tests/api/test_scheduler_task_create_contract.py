@@ -62,8 +62,14 @@ def test_service_forwards_task_type_to_repository():
 
     class _Repo:
         def add_task(self, name, cron_expression, command,
-                     params=None, description=None, task_type="cron"):
-            recorded.update({"name": name, "command": command, "task_type": task_type})
+                     params=None, description=None, task_type="cron", domain=None):
+            # 2026-10-02（REQ-261001145152-3982 审查）：**补上 `domain`**。
+            # `SchedulerService.add_task()` 会把它一并转发
+            # （`repo.add_task(name, cron_expression, command, params, description, task_type, domain)`），
+            # 而本桩只有 6 个位置参数 → `TypeError: ... takes from 4 to 7 positional arguments
+            # but 8 were given`。domain 是六域打标字段（2026-09-13 REQ-c970e5 补声明）。
+            recorded.update({"name": name, "command": command,
+                             "task_type": task_type, "domain": domain})
             return 4242
 
     svc = SchedulerService(repo=_Repo())

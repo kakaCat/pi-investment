@@ -84,6 +84,22 @@ def real_service_resolution():
         esf.EnhancedServiceFactory.resolve, sf.ServiceFactory.resolve = saved
 
 
+# ── 规范化 NO_PROXY/no_proxy（2026-10-02 · REQ-261001145152-3982 审查）─────────
+# 现象：外部 shell 里 `NO_PROXY=localhost,127.0.0.1,::1,[::1]`（含**带方括号的 IPv6**），
+# 而 httpx 会把每个条目当 `host[:port]` 解析 → `[::1]` 被读成端口 `:1]` →
+# `httpx.InvalidURL: Invalid port: ':1]'`，**连 `httpx.AsyncClient()` 都建不出来**。
+# 实测影响：`tests/api/test_scheduler_webhook.py::test_get_agent_os_client_recreates_a_closed_singleton`
+# 直接失败（单跑亦失败），而根因**完全不在被测代码里**。
+# 测试进程不该被外部的代理写法拖垮：这里把不可解析的方括号条目去掉（保留 127.0.0.1/localhost 等）。
+for _var in ('NO_PROXY', 'no_proxy'):
+    _val = os.environ.get(_var)
+    if _val and '[' in _val:
+        _clean = ','.join(x.strip() for x in _val.split(',')
+                          if x.strip() and not (x.strip().startswith('[') or ']' in x))
+        if _clean:
+            os.environ[_var] = _clean
+
+
 # ── 测试环境限制 socket 默认超时（2026-10-02 · REQ-261001145152-3982 审查）──
 # 现象：少量测试**漏 mock**，会真的发起网络请求（实测
 # `tests/services/test_dividend_service.py` 的 TestScreenDividendStocks →
