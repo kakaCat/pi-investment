@@ -41,6 +41,17 @@ def client(mock_manager):
     ), patch(
         "adapters.outbound.datasources.manager.get_data_provider_manager",
         return_value=mock_manager,
+    ), patch(
+        # 2026-10-02（REQ-261001145152-3982 审查）：**必须补这一处，否则 mock 从未生效**。
+        # 路由模块在**导入时**就绑定了该名字
+        # （`data_provider_async.py`: `from adapters.outbound.datasources import get_data_provider_manager`），
+        # 上面两个 patch 只改包/模块的属性，**改不到路由模块里已绑定的引用** →
+        # 路由实际上一直在用**真实** manager。后果是**顺序依赖**：
+        #   · 单跑时真实 manager 的统计还是空的，响应恰好符合期望 → 19 passed；
+        #   · 全量里其它用例把它"喂热"后（实测响应变成
+        #     `{'tencent': {'success': 4, 'failure': ...}, ...}`），形状就变了 → 7 failed。
+        "adapters.inbound.fastapi_app.routes.data_provider_async.get_data_provider_manager",
+        return_value=mock_manager,
     ):
         app = FastAPI()
         from adapters.inbound.fastapi_app.routes.data_provider_async import router
