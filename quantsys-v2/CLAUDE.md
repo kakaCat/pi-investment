@@ -40,9 +40,16 @@ QuantSys V2 is built with hexagonal architecture, dual anti-corruption layer, an
 
 ### 1. Install Dependencies
 
+**权威声明是 `pyproject.toml`**（仓库根目录**没有** `requirements.txt`——
+完整清单历史上曾被放在 `docs/misc/requirements.txt`，属归档位置，勿按它装环境）：
+
 ```bash
-pip install -r requirements.txt
+pip install -e .            # 或 pip install -e ".[dev]"（含 pytest/black/ruff/mypy）
 ```
+
+> ⚠️ 2026-10-01 实测（REQ-261001145152-3982）：`pyproject.toml` 当时**只声明 13 个包**，
+> 而代码实际硬依赖的 `pybreaker` / `pydantic-settings` / `jieba` 等**未声明也未安装**，
+> 导致 119 个测试模块连 import 都失败。声明的收口由该需求的 t-504421 承担。
 
 ### 2. Database Configuration
 
@@ -114,9 +121,11 @@ pytest --cov=. --cov-report=html
 ### ⚠️ 重要: Flask → FastAPI 迁移（2026-08-02 更新：已切换）
 
 **现状**：生产 5001 端口自 2026-08-02 起由 FastAPI
-`adapters/inbound/fastapi_app/main.py` 提供服务（nohup 启动，日志 `logs/fastapi_5001.log`）。
-Flask `adapters/inbound/api/server.py` 已停止，仅保留作紧急回滚。
-新功能**只写 FastAPI 路由**，不再维护 Flask parity。
+`adapters/inbound/fastapi_app/main.py` 提供服务。
+**Flask 层已于 2026-08-19（commit `54851df0`）整体删除**（145 文件 / −32,517 行，全仓
+`@app.route` 命中数为 0）——**不存在"Flask 回滚栈"**：`adapters/inbound/api/` 只剩 3 个
+未被 git 跟踪的 `.bak`，且没有 `server.py`。要回滚请用 git 历史，不要在现网找 Flask 入口。
+新功能**只写 FastAPI 路由**。
 `start_all.py` 已不存在。
 
 ```bash
@@ -126,10 +135,7 @@ python adapters/inbound/fastapi_app/main.py
 # 启动 FastAPI WebSocket (端口 5003)
 python adapters/inbound/fastapi_app/websocket_server.py
 
-# （回滚/现状）启动旧 Flask REST API (端口 5001)
-python adapters/inbound/api/server.py
-
-# CLI (不受迁移影响)
+# CLI
 python adapters/inbound/cli/main.py stock search --q 平安
 
 # CLI - Indicator Commands
@@ -138,11 +144,10 @@ python adapters/inbound/cli/main.py indicators create --name "策略名" --code 
 python adapters/inbound/cli/main.py indicators update --id 1 --code "新代码"
 python adapters/inbound/cli/main.py indicators run --id 1 --symbol 600000.SH
 python adapters/inbound/cli/main.py indicators backtest --id 1 --symbol 600000.SH --start 2024-01-01 --end 2024-12-31
-
-# 迁移工具
-python check_migration.py        # 检查迁移完成度
-python auto_migrate.py --help     # 自动生成路由模板
 ```
+
+> 迁移工具 `check_migration.py` / `auto_migrate.py` 与旧 Flask 入口已于同一批次删除，
+> 二者均**不存在**（2026-10-01 实测）。
 
 ### WatchEngine 实时盯盘（2026-07-22 新增；2026-08-12 迁移宿主）
 
@@ -160,18 +165,78 @@ WatchEngine 常驻线程**由 FastAPI `adapters/inbound/fastapi_app/main.py` 的
 - **orchestrator_bootstrap**：DailyOrchestrator tick（T+1 结转/信号推送/挂单撮合）+ IntradayMonitor（止损止盈）
 - **watch_bootstrap**：WatchEngine 实时盯盘
 
-`scheduler_daemon.py`/`supervisor.py`/`manage_scheduler.py`/`unified_scheduler.py` 已于
-2026-08-13 删除（daemon 无 launchd 守护，08-05 死讯静默 8 天致 T+1 中断、盯盘消失两起事故）。
-旧 `quant.scheduler_task_configs` 表已全禁用（任务迁入 scheduler_tasks），表保留供回滚。
-部署/重启：`launchctl kickstart -k gui/501/com.pi-investment.v2-api`（日志在 `~/v2-api.log`，
-**不是** logs/fastapi_5001.log）。Flask 路由 `scheduler_enterprise.py` 随回滚栈保留，
-其中 daemon 相关注释已标注，随 Flask 删除批次清理。
+`scheduler_daemon.py`/`supervisor.py`/`manage_scheduler.py` 已于 2026-08-13 删除
+（daemon 无 launchd 守护，08-05 死讯静默 8 天致 T+1 中断、盯盘消失两起事故）。
+`unified_scheduler.py`（那套 YAML 配置驱动、**空转**的第四条路径）已于 2026-10-02 随
+`config/scheduler_jobs.yml`、其 API 路由与专属 e2e 测试一并**删除**。
 
-### Flask (已废弃，仅用于回滚)
+> ✅ **调度归属已定案**（2026-10-02 · 用户裁定 · [ADR-004](docs/adr/004-scheduling-ownership.md)）：
+> **业务的定时任务由 v2 自己调度；agent-os 只调度 agent 自身任务**（即 `AGENT_OS_ENABLED=false`）。
+> v2 侧保留两条互补路径：
+> ① **`APSchedulerService`**（`infrastructure/scheduler/apscheduler_service.py`）读
+>    `quant.scheduler_tasks`，跑非核心数据类任务（实时信号监控/盘前扫描/缠论/策略验证/周报等）——
+>    2026-10-02 前它其实**一条都加载不了**（ORM 比库表多 `domain`/`task_type`/
+>    `misfire_grace_time_seconds` 三列，查询直接报错），已由迁移
+>    `infrastructure/persistence/migrations/20261002_scheduler_tasks_missing_columns.py` 修好；
+> ② **DailyJobs 宿主线程**（`daily_jobs_bootstrap.py`，9 个核心数据任务，带幂等/补跑/失败告警
+>    与 `quant.inprocess_job_runs` 留痕）。
+> 库表启用任务已去重 **26 → 16**、撞点组 **4 → 0**；`apscheduler_jobs` 里的僵尸条目
+> （11 条不在册）已清理 **27 → 16**。历史 4 路并存与重复的取证见
+> `docs/requirements/REQ-261001145152-3982/design/audit-report.md` §3。
+> ⚠️ 通知链路**不受影响**：`AGENT_OS_NOTIFY_ENABLED` 仍为 true（agent 优先、飞书降级）。
+
+旧 `quant.scheduler_task_configs` 表已全禁用（任务迁入 scheduler_tasks），表保留供回滚。
+
+**部署/重启（2026-10-02 更新：已装 launchd 守护）**：`~/Library/LaunchAgents/com.pi-investment.v2-api.plist`
+**现已存在并已加载**（源自 `deployment/launchd/com.pi-investment.v2-api.plist`，
+2026-10-02 · REQ-261001145152-3982 · 用户裁定"装 launchd"）。
+动因：本服务先后静默死亡 3 次（08-02 盯盘消失一周 / 08-05 调度死讯静默 8 天 / 09-13 起因停摆 18 天），
+共同点都是**没有守护进程**。现在 `KeepAlive` + `RunAtLoad` 保证崩溃即被拉起。
+
 ```bash
-# ⚠️ 以下命令已不再使用，保留仅供紧急回滚
-# python adapters/inbound/api/server.py              # 旧 Flask API
-# python adapters/inbound/api/server_websocket.py   # 旧 Flask-SocketIO
+# ✅ 推荐：交给 launchd（崩溃自动拉起；实测 kill -9 后约 20 秒恢复）
+launchctl kickstart -k gui/501/com.pi-investment.v2-api    # 重启（-k 先杀后起）
+launchctl list | grep pi-investment                        # 看状态（第 2 列 = 上次退出码）
+launchctl print gui/501/com.pi-investment.v2-api | head    # 看详情/环境变量
+
+# 改配置后重新加载
+cp deployment/launchd/com.pi-investment.v2-api.plist ~/Library/LaunchAgents/
+launchctl bootout gui/501/com.pi-investment.v2-api
+launchctl bootstrap gui/501 ~/Library/LaunchAgents/com.pi-investment.v2-api.plist
+
+# 手工前台启动（排障用；现在**不需要** PYTHONPATH —— 路径引导已在 main.py 顶部）
+python adapters/inbound/fastapi_app/main.py
+
+# 只起 API、不起任何调度（排障/补数据时用）
+DISABLE_APSCHEDULER=true DISABLE_DAILY_JOBS=true \
+DISABLE_WATCH_ENGINE=true \
+python adapters/inbound/fastapi_app/main.py
+```
+
+> ✅ **plist 里已不设任何 `DISABLE_*`**（2026-10-02 · t-2d52a7 落地后）：② APSchedulerService 与
+> ③ DailyJobs 都按各自排班运行。此前四路全关是为了在滞后 18 天的数据上避免误触发补跑。
+> 若要临时只起 API 停调度，见下方"调度总开关"手工启动那一段。
+> 另有独立探活守护 `com.pi-investment.health-probe`（每 300 秒，与 API 进程**无关**：
+> 进程死了它照样告警），plist 见 `deployment/launchd/`。
+
+**调度总开关（2026-10-01 新增）**：`DISABLE_APSCHEDULER=true` 关掉 APScheduler 回退路径——
+此前只有 `DISABLE_DAILY_JOBS` 与 `DISABLE_UNIFIED_SCHEDULER`，**关不掉回退路径**，
+于是"服务一重启就补跑已过点任务"（在滞后数据上开火）。四个开关默认均为 false（行为不变）。
+
+**日志轮转（2026-10-01 新增，`infrastructure/logging/config.py`）**：日志此前只走 stdout，
+靠调用方 shell 重定向落盘 → 出现过 174M/168M 的单文件与 5.2G 的 `live_trading/logs/`。
+现在设 `LOG_FILE` 即启用按大小轮转（不设则行为不变）：
+
+```bash
+LOG_FILE=logs/api.log LOG_MAX_BYTES=52428800 LOG_BACKUPS=5 python adapters/inbound/fastapi_app/main.py
+```
+
+### Flask (已于 2026-08-19 整体删除，**无回滚栈**)
+```bash
+# ❌ 以下入口均不存在（2026-10-01 实测）：
+# python adapters/inbound/api/server.py              # 旧 Flask API（文件已删）
+# python adapters/inbound/api/server_websocket.py    # 旧 Flask-SocketIO（文件已删）
+# 需要旧行为请从 git 历史 commit 54851df0^ 取回，不要在现网查找 Flask 入口。
 ```
 
 ## Architecture
@@ -358,6 +423,34 @@ Technical infrastructure and cross-cutting concerns:
 - **Daemon** (`infrastructure/daemon/`) - Long-running daemon processes
 - **Config** (`infrastructure/config/`) - Configuration management
 - **Utils** (`infrastructure/utils/`) - Utility functions
+
+### DI 入口分层（2026-10-02 · REQ-261001145152-3982 t-71051b）
+
+**唯一入口 = `ServiceFactory`**（`infrastructure/services/service_factory.py`）。取服务一律走它：
+具名 getter（如 `get_stock_pool_service()`）或**按端口解析** `ServiceFactory.resolve(IStockRepository)`。
+下面两层是**内部实现层，调用方不该直接引用**：
+
+| 层 | 文件 | 职责 | 现状 |
+|---|---|---|---|
+| **入口** | `service_factory.py` | 调用方唯一入口（72 文件在用） | ✅ 权威 |
+| 内部层 | `enhanced_service_factory.py` | 端口→实现绑定与生命周期（`resolve`/`register`） | 仍有 34 个生产文件直接引用 → **待分批迁到入口** |
+| 内部层 | `service_registry.py` | `create_*` 工厂函数 + `register_all_services()` 注册 | 仍有 9 个生产文件直接引用 → **同上** |
+| ~~第四套~~ | ~~`infrastructure/di/`~~ | 死件（生产零引用，只有 2 个测试用） | **已删除**（连幽灵依赖 `dependency-injector` 一并移除） |
+
+> **端口归属裁决（2026-10-02 · 同一卡）**：除 `domain/ports/`（集中式端口库）外，
+> `domain/<域>/ports/` 还有一套**域内端口**（accounts / events / industry_chain / portfolio / trading）。
+> 二者有 2 个重名，实测**不是重复而是不同接口**，故**不合并、只裁归属**：
+> | 重名 | `domain/ports/` 侧 | 域内侧 | 裁决 |
+> |---|---|---|---|
+> | `IOrderRepository` | 1 方法桩（`get_orders`） | `domain/trading/ports/`（6 方法，含 create/cancel/update） | **域内为准**（域服务 `order_service` 用的就是它） |
+> | `IPositionRepository` | 1 方法桩（`get_positions`） | `domain/portfolio/ports/`（4 方法，`get_all_positions` 等） | **域内为准**；两侧方法名语义不同（`get_positions` ≠ `get_all_positions`），**不能互换** |
+> 集中库里的这两个桩仅剩 1 个调用方（`adapters/outbound/repositories/position_repository.py`），
+> 退役它需先对齐方法语义，属**逐点改造**，留作后续（勿当成机械替换）。
+
+> 历史观感是"4 套 DI 并存"，实测是**1 入口 + 2 内部层 + 1 死件**：`service_factory` 内部本就在
+> 调用另两层（`_ensure_enhanced_factory` / `_try_get_from_enhanced`），并非平行实现。
+> 收敛动作分两批（本卡只做了安全部分）：① 死件已删；② 34+9 个直接引用者分批改走
+> `ServiceFactory`（机械替换，但属运行时装配，需逐批验证）。
 
 ### Key Patterns
 
@@ -573,7 +666,11 @@ df['sell'] = df['score'] < 0.3
 
 ## Active Conventions
 
-- Only use official entry points: `api/server.py`, `api/server_websocket.py`, `cli/main.py`
+- Only use official entry points（2026-10-01 修正为真实路径）：
+  `adapters/inbound/fastapi_app/main.py`（API，5001）、
+  `adapters/inbound/fastapi_app/websocket_server.py`（WS，5003）、
+  `adapters/inbound/cli/main.py`（CLI）。
+  ⚠️ 旧写法 `api/server.py` / `api/server_websocket.py` / `cli/main.py` **均不存在**。
 - No `_backup`, `_v2`, `_old`, `_new` parallel files in `api/` or `cli/`
 - Delete obsolete code after references are removed; example code goes to `docs/examples/`
 - Test coverage target: > 80% for core modules
@@ -596,7 +693,8 @@ df['sell'] = df['score'] < 0.3
    - ✅ `Repository` for database access
 
 3. **Before writing data-related code**
-   - Read `DATA_ACCESS_GUIDE.md` (mandatory)
+   - 数据访问规范见本文件「⚠️ Data Access Rules」一节 + `docs/DATA_ACCESS_GUIDE.md`
+     （⚠️ 2026-10-01 实测：根目录**没有** `DATA_ACCESS_GUIDE.md`，历史文档已失；以本文件该节为准）
    - Check if functionality already exists in `DataProviderManager`
    - Ask "Am I reinventing the wheel?"
 
@@ -609,7 +707,42 @@ df['sell'] = df['score'] < 0.3
 | Dividends | `DataProviderManager.get_dividends()` | Same as above |
 | Sector constituents (板块成分) | `DataProviderManager.get_sector_stocks(sector)` | Same as above |
 | Business logic | `DataService.kline.*` | `application/services/data_service.py` |
-| Database CRUD | `Repository` classes | `infrastructure/repositories/` |
+| Database CRUD | `Repository` classes | `adapters/outbound/repositories/`（73 文件；⚠️ `infrastructure/` **下没有** repositories 子目录，2026-10-01 实测） |
+
+### 仓储双轨口径（sync / async，2026-10-01 裁定 · REQ-261001145152-3982 t-52c511）
+
+`adapters/outbound/repositories/` 里对 8 个实体各有 **sync 与 async 两份实现**
+（`x_repository.py` / `x_async_repository.py`：stock / signal / portfolio / simulation /
+factor / backtest / stock_pool / signal_execution）。
+另有 **async-only 模块**（`p2_async_repositories.py`：MLModel / Position / FundFlow / DataQuality
+四个 Async 仓储，无 sync 对应）——它们同样遵守下面的第 1~3 条。
+
+**实测现状（2026-10-01）**：两条轨**都在服务线上功能，谁都不能直接删**——
+- sync 轨 8 文件 **5,551 行**，被 **52 个文件**引用（CLI、调度、adapters、多个服务）；
+- async 轨 8 文件 **1,618 行**，只被 **2 处**仓储引用，但其中 `realtime_signals_async` 路由
+  已在 `main.py` 注册、`charts_async.py` 正是 K 线图表接口的实现路径（此前 greenlet 缺失
+  导致它静默返回空数组的那条链路）。
+
+> 数字可复现（在 `quantsys-v2/` 下执行）：
+> ```bash
+> wc -l adapters/outbound/repositories/{stock,signal,portfolio,simulation,factor,backtest,stock_pool,signal_execution}_repository.py | tail -1
+> wc -l adapters/outbound/repositories/{stock,signal,portfolio,simulation,factor,backtest,stock_pool,signal_execution}_async_repository.py | tail -1
+> grep -rln "outbound.repositories\.\(stock\|signal\|portfolio\|simulation\|factor\|backtest\|stock_pool\|signal_execution\)_repository" --include='*.py' . | grep -v venv | wc -l   # 52
+> grep -rln "outbound.repositories\.\(stock\|signal\|portfolio\|simulation\|factor\|backtest\|stock_pool\|signal_execution\)_async_repository" --include='*.py' . | grep -v venv | wc -l   # 2
+> ```
+> （口径提醒：引用数随 grep 模式变——写成 `_repository` 前缀会连 async 的一起命中，
+> 故此处用**精确到实体名**的模式。2026-10-01 复核时正是这样发现初稿写的 54/1,418 不准确。）
+
+**口径（新代码照此选）**：
+1. **FastAPI 异步路由 / async 服务** → 用 `x_async_repository.py`（`AsyncBaseORMRepository`）；
+2. **CLI、调度任务、其它同步上下文** → 用 `x_repository.py`；
+3. **不要为同一实体再新建第三份实现**；需要新实体时按上述两条各建一份或只建实际需要的那份；
+4. **已知不一致（本次不重构，仅登记）**：两侧拆分粒度不同——async 轨按实体拆类
+   （如 `simulation_async_repository.py` 内 `SimulationAccount/Position/Trade` 三个 Async 仓储），
+   sync 轨偏聚合（`simulation_repository.py` 单文件单仓储类 + helper）。新代码沿用**本轨既有粒度**，
+   不要顺手"对齐"成另一种（会牵动调用方）；
+5. 收敛成单轨属**架构级改造**（要么改写 3 个异步路由、要么迁移 52 个调用方），
+   不在本需求范围；做之前先按上面第 1~2 条评估影响面。
 
 ### Example
 
@@ -634,7 +767,9 @@ df = ak.stock_zh_a_hist(symbol='600519', ...)  # DON'T DO THIS!
 | `scripts/update_klines_multi_source.py` | ⚠️ DEPRECATED (2026-07-17) | `scripts/update_klines_recommended.py` |
 | `scripts/batch_update_klines.py` | ⚠️ Legacy, avoid | `DataProviderManager.get_klines()` |
 
-**Full documentation**: See `DATA_ACCESS_GUIDE.md`
+**Full documentation**: 见本文件「⚠️ Data Access Rules」一节；原 `DATA_ACCESS_GUIDE.md`
+已不存在（2026-10-01 实测），其唯一入口 API 是
+`adapters/outbound/datasources/manager.py` 的 `get_data_provider_manager()`。
 
 ## Backend Service Principles for Agent Support
 
@@ -750,7 +885,10 @@ Based on game-theoretic intelligence requirements:
 ## Scheduler Migration to Agent OS (WP-15)
 
 **Migration Date**: 2026-08-16  
-**Status**: ✅ COMPLETE
+**Status**: ⚠️ 代码已实现，但**当前不生效**（2026-10-01 实测：Agent OS 8080 不可达 →
+启动时注册失败 → 全部回退到本地 `APSchedulerService`）。本节描述的是**设计意图**，不是现网运行态；
+现网运行态**已按 [ADR-004](docs/adr/004-scheduling-ownership.md) 定案**：业务的定时任务由 v2 自己调度
+（`AGENT_OS_ENABLED=false`），本节描述的是已被取代的历史设计意图。
 
 All scheduled jobs have been migrated from local `SchedulerService` to **Agent OS Scheduler** via webhook integration.
 
@@ -786,7 +924,7 @@ Agent OS Scheduler (result tracking)
    - Delegates to existing service methods
    - Returns structured result dictionaries
 
-4. **Job Registration** (`scripts/register_jobs_to_agent_os.py`)
+4. **Job Registration** (`tools/register_jobs_to_agent_os.py`；⚠️ 旧写法 `scripts/...` 不存在)
    - Defines all 30+ job schedules and metadata
    - Idempotent registration (skips existing jobs)
    - Auto-runs on FastAPI startup
@@ -828,31 +966,34 @@ All jobs are registered with owner `quantsys-v2`:
 
 ### Feature Flag
 
-Control scheduler mode via environment variable:
+控制调度归属的环境变量（2026-10-01 修正为**真实**开关——旧文档写的
+`USE_AGENT_OS_SCHEDULER` 在代码里**零引用**，是个不存在的开关）：
 
 ```bash
-# Use Agent OS Scheduler (default)
-USE_AGENT_OS_SCHEDULER=true
-
-# Fall back to local SchedulerService
-USE_AGENT_OS_SCHEDULER=false
+AGENT_OS_ENABLED=false         # 调度权归 v2（ADR-004）。代码默认仍是 true，但本仓 .env 已置 false；
+                               # 置 false 后启动不再尝试注册 Agent OS 调度器
+AGENT_OS_NOTIFY_ENABLED=true   # **通知**开关，与上面那个分开：仍 agent 优先、飞书降级
+DISABLE_APSCHEDULER=true       # 临时关掉 ② 库表调度（只起 API 时用）
+DISABLE_DAILY_JOBS=true        # 临时关掉 ③ DailyJobs 宿主线程
+DISABLE_WATCH_ENGINE=true      # 临时关掉实时盯盘线程
+# 注：DISABLE_UNIFIED_SCHEDULER 已随那条路径一起删除（2026-10-02）
 ```
 
 The system automatically falls back to local scheduler if Agent OS is unreachable.
 
 ### Monitoring
 
-Monitor jobs using the CLI script:
+Monitor jobs using the CLI script（⚠️ 路径修正如实测：在 `tools/`，不在 `scripts/`）:
 
 ```bash
 # Show all registered jobs
-python scripts/monitor_scheduler.py
+python tools/monitor_scheduler.py
 
 # Show scheduler statistics
-python scripts/monitor_scheduler.py --stats
+python tools/monitor_scheduler.py --stats
 
 # Show recent executions
-python scripts/monitor_scheduler.py --executions 20
+python tools/monitor_scheduler.py --executions 20
 ```
 
 Or query Agent OS directly:
@@ -877,19 +1018,24 @@ If needed, manually register jobs:
 
 ```bash
 cd quantsys-v2
-python scripts/register_jobs_to_agent_os.py
+python tools/register_jobs_to_agent_os.py
 ```
 
 Registration is idempotent and skips jobs that already exist.
 
 ### Rollback Plan
 
-If Agent OS Scheduler fails:
+If Agent OS Scheduler fails（2026-10-01 修正：原第 1、2 步给出的开关与 launchctl 标签**都不存在**）:
 
-1. **Set environment variable**: `USE_AGENT_OS_SCHEDULER=false` in `.env`
-2. **Restart service**: `sudo launchctl kickstart -k system/com.pi-investment.v2-api`
-3. **Verify**: Check logs show "Local SchedulerService background thread started (fallback mode)"
-4. **Confirm**: Jobs run correctly with legacy scheduler
+1. **什么都不用设**：Agent OS 不可达时启动会自动回退到 `APSchedulerService`（无需开关）。
+   若要**显式禁用**某一路调度，用 `DISABLE_APSCHEDULER` / `DISABLE_DAILY_JOBS` /
+   `DISABLE_WATCH_ENGINE`（见上文"调度总开关"）。
+2. **重启服务**（2026-10-02 更新：已有 launchd 守护）：
+   `launchctl kickstart -k gui/501/com.pi-investment.v2-api`
+   （plist 见 `deployment/launchd/com.pi-investment.v2-api.plist`；崩溃会被 KeepAlive 自动拉起，
+   实测 kill -9 后约 20 秒恢复）。若无 launchd，再退回手工 `python adapters/inbound/fastapi_app/main.py`。
+3. **Verify**: 日志出现 `✅ APScheduler started (fallback mode)`。
+4. **Confirm**: `select max(started_at) from quant.scheduler_runs` 随任务执行刷新。
 
 ### Database Schema
 
@@ -903,9 +1049,13 @@ For Agent OS jobs, a placeholder task is created in `quant.scheduler_tasks` to m
 
 ### Legacy Code
 
-**Deprecated** (will be removed 2026-09-01):
-- `infrastructure/scheduler/scheduler.py` - Legacy SchedulerService
-- Direct database operations in SchedulerService
+**2026-10-01 实测修正**：原文写"`infrastructure/scheduler/scheduler.py` 将于 2026-09-01 移除"——
+**它并没有被移除**，至今仍被 22 个文件引用（adapters/api/application/infrastructure/scripts/tests），
+但 `run_loop` 已不再由 lifespan 启动（现网由 `APSchedulerService` + DailyJobs 线程承担）。
+它现在处于"文件很大、引用很多、但不驱动生产调度"的悬置状态。
+**t-2d52a7 的裁定（2026-10-02）**：生产调度由 `APSchedulerService`（②，读 `quant.scheduler_tasks`）
+与 DailyJobs（③）承担，`scheduler.py` 的 `run_loop` **不再被启动**；其去留（删除 or 保留作库）
+不阻塞本次定案，留待后续单独评估——删除它会牵动 22 个引用方，须单独开卡。
 
 **Preserved**:
 - Job handler business logic (reused by webhook handlers)

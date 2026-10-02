@@ -27,8 +27,8 @@ import logging
 from typing import Dict, List, Optional
 
 # 添加项目路径
-project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
+# 2026-10-01（t-008062 主题C）：此处原有一行 sys.path 插入 —— 路径改由入口提供，
+# 运行方式见本文件头部说明（需 `PYTHONPATH=.`）。库层不得自行改 sys.path。
 
 from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
 from adapters.outbound.repositories.kline_repository import KlineORMRepository as KlineRepository
@@ -37,10 +37,8 @@ from application.services.strategy_service import StrategyService
 from live_trading.simulation_trader import SimulationTrader
 import yaml
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+# 统一日志入口（2026-10-01 t-008062 主题B：库层不再调用 basicConfig）：此处的日志配置已移除（由入口统一配置）
+
 logger = logging.getLogger(__name__)
 
 

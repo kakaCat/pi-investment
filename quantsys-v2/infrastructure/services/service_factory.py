@@ -49,9 +49,38 @@ class ServiceFactory:
     """服务工厂类
 
     使用单例模式管理服务实例，替代shared.py的全局变量
+
+    **DI 唯一入口**（2026-10-02 · REQ-261001145152-3982 t-71051b · 用户裁定）：
+    取服务一律走这里。下面两层是**内部实现层**，调用方不该直接用：
+    - `EnhancedServiceFactory`（端口 → 实现的绑定与生命周期）；
+    - `service_registry`（`create_*` 工厂函数 + `register_all_services` 注册）。
+    历史上二者被 34 / 9 个生产文件直接引用，形成"4 套入口"的观感；
+    `infrastructure/di/`（第四套）已核实为**死件**并删除（连其幽灵依赖 dependency-injector）。
+    新代码用 `ServiceFactory.resolve(端口)` 或本类的具名 getter。
     """
 
     _instances = {}
+
+    @classmethod
+    def resolve(cls, service_type: Type[T]) -> T:
+        """按**端口**取实现——DI 唯一入口的端口解析面。
+
+        **与 `EnhancedServiceFactory.resolve` 逐字同语义**（2026-10-02 · t-71051b）：
+        ① 未注册 / 循环依赖 → **抛 `ValueError`**（不返回 None）；
+        ② **不做自动注册**（无隐式副作用）。
+
+        为什么这两点都必须守住：
+        - 返回 None 会把一路在清的「静默降级」重新引入——调用方拿着 None 继续跑，
+          错误延后到别处以更难查的形态爆出来；
+        - 若在这里顺手 `_ensure_enhanced_factory()`（注册全部服务），就改变了全局状态：
+          迁移实测中"未注册应报错"的用例因服务被顺带注册而失效（3 个用例由通过变失败）。
+          注册该由启动路径（`service_registry.register_all_services`）负责，不藏在 getter 里。
+
+        本类各具名 getter 仍走私有的 `_try_get_from_enhanced`（宽松口径：未注册返回 None 以便
+        回退旧实现），那是**入口内部**的降级策略，与这里的对外语义无关。
+        """
+        from .enhanced_service_factory import EnhancedServiceFactory
+        return EnhancedServiceFactory.resolve(service_type)
 
     @classmethod
     @lru_cache(maxsize=1)

@@ -21,8 +21,8 @@ import logging
 from datetime import datetime
 from pathlib import Path
 
-project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
+# 2026-10-01（t-008062 主题C）：此处原有一行 sys.path 插入 —— 路径改由入口提供，
+# 运行方式见本文件头部说明（需 `PYTHONPATH=.`）。库层不得自行改 sys.path。
 
 logger = logging.getLogger(__name__)
 
@@ -108,7 +108,8 @@ def execute(**params):
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s %(levelname)s %(name)s: %(message)s')
+    from infrastructure.logging import configure_structured_logging
+    configure_structured_logging(level="INFO", json_format=False)  # 统一日志入口（2026-10-01 t-008062 主题B：库层不再调用 basicConfig）
+
     result = execute()
     sys.exit(0 if result.get('success') else 1)

@@ -39,7 +39,7 @@ def is_dataframe_empty(df: Any) -> bool:
     # 回退到长度检查
     try:
         return len(df) == 0
-    except:
+    except Exception:
         return True
 
 
@@ -58,7 +58,7 @@ def dataframe_length(df: Any) -> int:
 
     try:
         return len(df)
-    except:
+    except Exception:
         return 0
 
 
@@ -95,7 +95,7 @@ def to_pandas(df: Any):
     try:
         import pandas as pd
         return pd.DataFrame(df)
-    except:
+    except Exception:
         return df
 
 
@@ -133,5 +133,5 @@ def to_polars(df: Any):
     try:
         import polars as pl
         return pl.DataFrame(df)
-    except:
+    except Exception:
         return df

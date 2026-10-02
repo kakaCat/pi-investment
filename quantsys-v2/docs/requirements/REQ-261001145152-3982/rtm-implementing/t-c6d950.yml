@@ -1,0 +1,36 @@
+task:
+  id: t-c6d950
+  title: 依赖声明收口（pyproject 为唯一权威）·联调
+  status: done
+  implements: |-
+    把 docs/misc/requirements.txt 的 47 个包并入 pyproject.toml；修正 psycopg2-binary → psycopg2（2026-08-11 double-OpenSSL 事故）；在新 venv 验证后再切换生产环境。
+
+    [子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致
+  serves: []
+  depends_on:
+    - t-7c9c03
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261001145152-3982
+    TASK_ID: t-c6d950
+    TASK_TITLE: 依赖声明收口（pyproject 为唯一权威）·联调
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-01T08:28:38.239Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261001145152-3982
+  generated_at: 2026-10-01T08:27:31.275Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-01T08:29:38.264Z

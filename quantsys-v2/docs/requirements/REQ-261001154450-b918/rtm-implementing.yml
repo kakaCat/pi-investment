@@ -1,0 +1,207 @@
+metadata:
+  stage: implementing
+  requirement_id: REQ-261001154450-b918
+  generated_at: 2026-10-01T08:58:01.162Z
+  version: 1
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 38
+  last_updated: 2026-10-01T08:58:01.162Z
+inputs:
+  tasks:
+    - id: t-55cb09
+      title: 定门规纯函数与状态契约
+      status: done
+    - id: t-bebc07
+      title: 验收裁决收口：两问一批 + 去占位 + 系统项必处置
+      status: done
+    - id: t-dc9156
+      title: 挂起确认 TTL 与过期回执
+      status: done
+    - id: t-e775c7
+      title: 计划引用通道与落库门禁
+      status: done
+    - id: t-3e89d1
+      title: 批准计划后自动投递一次链
+      status: done
+    - id: t-bfd9bb
+      title: 节流拒绝文案可执行化
+      status: in_progress
+    - id: t-2c1163
+      title: 收尾闭环可见：closingGap + 看板红标 + 下一步
+      status: todo
+    - id: t-243098
+      title: kb-probe K11：规范期望可达性
+      status: done
+    - id: t-3566b3
+      title: 兼容与回归：旧台账 / 旧挂起 / 旧回执 + 基线对照
+      status: todo
+    - id: t-fb9711
+      title: 端到端演练与验收证据
+      status: todo
+    - id: t-ac0851
+      title: 定门规纯函数与状态契约·研发
+      status: done
+    - id: t-8d6b60
+      title: 定门规纯函数与状态契约·联调
+      status: done
+    - id: t-0b6023
+      title: 定门规纯函数与状态契约·复核
+      status: done
+    - id: t-079ce6
+      title: 定门规纯函数与状态契约·测试
+      status: done
+    - id: t-bcea2d
+      title: kb-probe K11：规范期望可达性·研发
+      status: done
+    - id: t-64e2b2
+      title: kb-probe K11：规范期望可达性·联调
+      status: done
+    - id: t-b88eda
+      title: kb-probe K11：规范期望可达性·复核
+      status: done
+    - id: t-0e8126
+      title: kb-probe K11：规范期望可达性·测试
+      status: done
+    - id: t-8511d0
+      title: 验收裁决收口：两问一批 + 去占位 + 系统项必处置·研发
+      status: done
+    - id: t-e4b1e9
+      title: 验收裁决收口：两问一批 + 去占位 + 系统项必处置·联调
+      status: done
+    - id: t-ef2c27
+      title: 验收裁决收口：两问一批 + 去占位 + 系统项必处置·复核
+      status: done
+    - id: t-2a8717
+      title: 验收裁决收口：两问一批 + 去占位 + 系统项必处置·测试
+      status: done
+    - id: t-fa5f52
+      title: 挂起确认 TTL 与过期回执·研发
+      status: done
+    - id: t-a8d8e6
+      title: 挂起确认 TTL 与过期回执·联调
+      status: done
+    - id: t-715fd3
+      title: 挂起确认 TTL 与过期回执·复核
+      status: done
+    - id: t-be3d40
+      title: 挂起确认 TTL 与过期回执·测试
+      status: done
+    - id: t-f1a3ea
+      title: 计划引用通道与落库门禁·研发
+      status: done
+    - id: t-d56787
+      title: 计划引用通道与落库门禁·联调
+      status: done
+    - id: t-151af0
+      title: 计划引用通道与落库门禁·复核
+      status: done
+    - id: t-cd1a8b
+      title: 计划引用通道与落库门禁·测试
+      status: done
+    - id: t-5967fd
+      title: 批准计划后自动投递一次链·研发
+      status: done
+    - id: t-c7e355
+      title: 批准计划后自动投递一次链·联调
+      status: done
+    - id: t-79bd72
+      title: 批准计划后自动投递一次链·复核
+      status: done
+    - id: t-d92f6a
+      title: 批准计划后自动投递一次链·测试
+      status: done
+    - id: t-4ca7a3
+      title: 节流拒绝文案可执行化·研发
+      status: done
+    - id: t-99aeea
+      title: 节流拒绝文案可执行化·联调
+      status: done
+    - id: t-d09794
+      title: 节流拒绝文案可执行化·复核
+      status: done
+    - id: t-4deef0
+      title: 节流拒绝文案可执行化·测试
+      status: done
+status:
+  tasks_total: 38
+  tasks_done: 34
+  tasks_in_progress: 1
+  tasks_todo: 3
+tasks:
+  - id: t-55cb09
+    status: done
+  - id: t-bebc07
+    status: done
+  - id: t-dc9156
+    status: done
+  - id: t-e775c7
+    status: done
+  - id: t-3e89d1
+    status: done
+  - id: t-bfd9bb
+    status: in_progress
+  - id: t-2c1163
+    status: todo
+  - id: t-243098
+    status: done
+  - id: t-3566b3
+    status: todo
+  - id: t-fb9711
+    status: todo
+  - id: t-ac0851
+    status: done
+  - id: t-8d6b60
+    status: done
+  - id: t-0b6023
+    status: done
+  - id: t-079ce6
+    status: done
+  - id: t-bcea2d
+    status: done
+  - id: t-64e2b2
+    status: done
+  - id: t-b88eda
+    status: done
+  - id: t-0e8126
+    status: done
+  - id: t-8511d0
+    status: done
+  - id: t-e4b1e9
+    status: done
+  - id: t-ef2c27
+    status: done
+  - id: t-2a8717
+    status: done
+  - id: t-fa5f52
+    status: done
+  - id: t-a8d8e6
+    status: done
+  - id: t-715fd3
+    status: done
+  - id: t-be3d40
+    status: done
+  - id: t-f1a3ea
+    status: done
+  - id: t-d56787
+    status: done
+  - id: t-151af0
+    status: done
+  - id: t-cd1a8b
+    status: done
+  - id: t-5967fd
+    status: done
+  - id: t-c7e355
+    status: done
+  - id: t-79bd72
+    status: done
+  - id: t-d92f6a
+    status: done
+  - id: t-4ca7a3
+    status: done
+  - id: t-99aeea
+    status: done
+  - id: t-d09794
+    status: done
+  - id: t-4deef0
+    status: done

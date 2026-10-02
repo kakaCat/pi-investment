@@ -24,7 +24,8 @@ import argparse
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+# 2026-10-01（t-008062 主题C）：此处原有一行 sys.path 插入 —— 路径改由入口提供，
+# 运行方式见本文件头部说明（需 `PYTHONPATH=.`）。库层不得自行改 sys.path。
 
 import psycopg2  # noqa: E402
 

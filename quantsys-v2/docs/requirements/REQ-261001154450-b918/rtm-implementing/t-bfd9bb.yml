@@ -1,0 +1,33 @@
+task:
+  id: t-bfd9bb
+  title: 节流拒绝文案可执行化
+  status: in_progress
+  implements: support.ts 节流分支用剩余毫秒生成 message，含「剩余 N 秒」与合规路径（等待 / 由自动链关闭 / 单张推进）。
+  serves: []
+  depends_on:
+    - t-55cb09
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261001154450-b918
+    TASK_ID: t-bfd9bb
+    TASK_TITLE: 节流拒绝文案可执行化
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-01T08:58:01.161Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261001154450-b918
+  generated_at: 2026-10-01T08:58:01.160Z
+  version: 2
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-01T08:58:01.162Z

@@ -50,8 +50,8 @@ class PoolScannerService:
         from application.services.strategy_code_service import StrategyCodeService
 
         if self._pool_repo is None:
-            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
-            pool_repo = EnhancedServiceFactory.resolve(IStockPoolRepository)
+            from infrastructure.services.service_factory import ServiceFactory
+            pool_repo = ServiceFactory.resolve(IStockPoolRepository)
         else:
             pool_repo = self._pool_repo
         strategy_service = StrategyCodeService()
@@ -87,9 +87,9 @@ class PoolScannerService:
 
                     # 获取 Repository 实例
                     if self._kline_repo is None or self._strategy_repo is None:
-                        from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
-                        kline_repo = self._kline_repo or EnhancedServiceFactory.resolve(IKlineRepository)
-                        strategy_repo = self._strategy_repo or EnhancedServiceFactory.resolve(IStrategyRepository)
+                        from infrastructure.services.service_factory import ServiceFactory
+                        kline_repo = self._kline_repo or ServiceFactory.resolve(IKlineRepository)
+                        strategy_repo = self._strategy_repo or ServiceFactory.resolve(IStrategyRepository)
                     else:
                         kline_repo = self._kline_repo
                         strategy_repo = self._strategy_repo
@@ -154,8 +154,8 @@ class PoolScannerService:
 
             # 1. 获取K线数据
             if self._kline_repo is None:
-                from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
-                kline_repo = EnhancedServiceFactory.resolve(IKlineRepository)
+                from infrastructure.services.service_factory import ServiceFactory
+                kline_repo = ServiceFactory.resolve(IKlineRepository)
             else:
                 kline_repo = self._kline_repo
             end_date = datetime.now().date()
@@ -200,8 +200,8 @@ class PoolScannerService:
             from datetime import datetime, timedelta
 
             if self._kline_repo is None:
-                from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
-                kline_repo = EnhancedServiceFactory.resolve(IKlineRepository)
+                from infrastructure.services.service_factory import ServiceFactory
+                kline_repo = ServiceFactory.resolve(IKlineRepository)
             else:
                 kline_repo = self._kline_repo
 

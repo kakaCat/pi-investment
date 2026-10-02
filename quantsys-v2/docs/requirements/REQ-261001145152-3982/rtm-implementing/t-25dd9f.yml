@@ -1,0 +1,38 @@
+task:
+  id: t-25dd9f
+  title: 消 application 层 12 处顶层越层导入·测试
+  status: done
+  implements: |-
+    12 处顶层越层导入改为经 port/工厂注入或按裁定口径下沉；application/notification/notification_factory.py:20,28,29,30 的 infrastructure.config.settings 与 notification.channels.* 顶层导入移至 infrastructure 侧装配；删除 application/services/scheduler.py 的 `from infrastructure.scheduler.scheduler import *` 通配壳。
+
+    [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+  serves: []
+  depends_on:
+    - t-3d787f
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261001145152-3982
+    TASK_ID: t-25dd9f
+    TASK_TITLE: 消 application 层 12 处顶层越层导入·测试
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-01T11:14:49.234Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261001145152-3982
+  generated_at: 2026-10-01T11:12:52.538Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-01T11:14:49.235Z

@@ -1,0 +1,752 @@
+metadata:
+  stage: design
+  requirement_id: REQ-261001145152-3982
+  generated_at: 2026-10-01T06:57:54.622Z
+  version: 5
+  generated_by: dsh-pmboard
+  last_updated: 2026-10-01T07:06:47.802Z
+inputs:
+  requirements:
+    - id: FR-1
+      title: 资产与分层盘点
+      source: requirement.md
+      line: 116
+    - id: FR-2
+      title: 重复实现与分叉盘点
+      source: requirement.md
+      line: 120
+    - id: FR-3
+      title: 调度与运行态盘点
+      source: requirement.md
+      line: 124
+    - id: FR-4
+      title: 依赖与环境可复现性盘点
+      source: requirement.md
+      line: 128
+    - id: FR-5
+      title: 文档与仓库卫生盘点
+      source: requirement.md
+      line: 133
+    - id: FR-6
+      title: 优化清单（本需求的核心产物）
+      source: requirement.md
+      line: 138
+    - id: FR-7
+      title: 判定标准可证伪
+      source: requirement.md
+      line: 145
+outputs:
+  design_sections:
+    - ref: design/architecture.md#目标与总体方案
+      title: 目标与总体方案（
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 目标与总体方案
+    - ref: design/architecture.md#模块改动地图
+      title: 模块改动地图（
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 模块改动地图
+    - ref: design/architecture.md#数据结构变更
+      title: 数据结构变更（
+      serves:
+        - FR-6
+      file: design/architecture.md
+      section: 数据结构变更
+    - ref: design/architecture.md#接口变更
+      title: 接口变更（
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 接口变更
+    - ref: design/architecture.md#依赖关系
+      title: 依赖关系（
+      serves:
+        - FR-4
+      file: design/architecture.md
+      section: 依赖关系
+    - ref: design/architecture.md#目录结构
+      title: 目录结构（
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 目录结构
+    - ref: design/architecture.md#关键算法流程
+      title: 关键算法/流程（
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 关键算法流程
+    - ref: design/architecture.md#安全性能考虑
+      title: 安全/性能考虑（
+      serves:
+        - FR-3
+      file: design/architecture.md
+      section: 安全性能考虑
+    - ref: design/architecture.md#测试策略
+      title: 测试策略（
+      serves:
+        - FR-7
+      file: design/architecture.md
+      section: 测试策略
+    - ref: design/architecture.md#错误处理
+      title: 错误处理（
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 错误处理
+    - ref: design/architecture.md#配置项
+      title: 配置项（
+      serves:
+        - FR-4
+      file: design/architecture.md
+      section: 配置项
+    - ref: design/architecture.md#监控埋点
+      title: 监控埋点（
+      serves:
+        - FR-3
+      file: design/architecture.md
+      section: 监控埋点
+    - ref: design/architecture.md#部署变更
+      title: 部署变更（
+      serves:
+        - FR-3
+      file: design/architecture.md
+      section: 部署变更
+    - ref: design/architecture.md#文档更新清单
+      title: 文档更新清单（
+      serves:
+        - FR-5
+      file: design/architecture.md
+      section: 文档更新清单
+    - ref: design/architecture.md#遗留问题
+      title: 遗留问题（
+      serves:
+        - FR-5
+      file: design/architecture.md
+      section: 遗留问题
+    - ref: design/audit-report.md#TLDR
+      title: TL;DR（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+      file: design/audit-report.md
+      section: TLDR
+    - ref: design/audit-report.md#总览表
+      title: 总览表（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+      file: design/audit-report.md
+      section: 总览表
+    - ref: design/audit-report.md#1
+      title: 资产与分层盘点（
+      serves:
+        - FR-1
+      file: design/audit-report.md
+      section: "1"
+    - ref: design/audit-report.md#1.1
+      title: 规模分布（
+      serves:
+        - FR-1
+      file: design/audit-report.md
+      section: "1.1"
+    - ref: design/audit-report.md#1.2
+      title: 超大文件（>800 行 = 38 个；生产四层 30 个）（
+      serves:
+        - FR-1
+      file: design/audit-report.md
+      section: "1.2"
+    - ref: design/audit-report.md#1.3
+      title: 分层违规（自带工具口径，AST 精确）（
+      serves:
+        - FR-1
+      file: design/audit-report.md
+      section: "1.3"
+    - ref: design/audit-report.md#1.4
+      title: 环形依赖（
+      serves:
+        - FR-1
+      file: design/audit-report.md
+      section: "1.4"
+    - ref: design/audit-report.md#1.5
+      title: 另一条被自身违反的强制规则：数据访问（
+      serves:
+        - FR-1
+      file: design/audit-report.md
+      section: "1.5"
+    - ref: design/audit-report.md#2
+      title: 重复实现与分叉盘点（
+      serves:
+        - FR-2
+      file: design/audit-report.md
+      section: "2"
+    - ref: design/audit-report.md#2.0
+      title: 一处前提修正（先破后立）（
+      serves:
+        - FR-2
+      file: design/audit-report.md
+      section: "2.0"
+    - ref: design/audit-report.md#2.1
+      title: 复制清单（按风险降序）（
+      serves:
+        - FR-2
+      file: design/audit-report.md
+      section: "2.1"
+    - ref: design/audit-report.md#2.2
+      title: 已排除的"伪重复"（避免误导）（
+      serves:
+        - FR-2
+      file: design/audit-report.md
+      section: "2.2"
+    - ref: design/audit-report.md#2.3
+      title: 为什么"分叉"比"重复"更严重（
+      serves:
+        - FR-2
+      file: design/audit-report.md
+      section: "2.3"
+    - ref: design/audit-report.md#3
+      title: 调度与运行态盘点（
+      serves:
+        - FR-3
+      file: design/audit-report.md
+      section: "3"
+    - ref: design/audit-report.md#3.1
+      title: 四套调度器并存（
+      serves:
+        - FR-3
+      file: design/audit-report.md
+      section: "3.1"
+    - ref: design/audit-report.md#3.2
+      title: DB 里的重复任务（`quant.scheduler_tasks`：26 启用 / 7 禁用）（
+      serves:
+        - FR-3
+      file: design/audit-report.md
+      section: "3.2"
+    - ref: design/audit-report.md#3.3
+      title: 运行态：服务已停 18 天（本报告最紧的一条）（
+      serves:
+        - FR-3
+      file: design/audit-report.md
+      section: "3.3"
+    - ref: design/audit-report.md#4
+      title: 依赖与环境可复现性盘点（
+      serves:
+        - FR-4
+      file: design/audit-report.md
+      section: "4"
+    - ref: design/audit-report.md#4.1
+      title: 两套依赖清单，完整的那套被埋了（
+      serves:
+        - FR-4
+      file: design/audit-report.md
+      section: "4.1"
+    - ref: design/audit-report.md#4.2
+      title: 硬 import 但未安装 → 119 个测试模块连收集都过不去（
+      serves:
+        - FR-4
+      file: design/audit-report.md
+      section: "4.2"
+    - ref: design/audit-report.md#4.3
+      title: 与历史事故记录直接冲突的声明（
+      serves:
+        - FR-4
+      file: design/audit-report.md
+      section: "4.3"
+    - ref: design/audit-report.md#4.4
+      title: 静态检查与 CI（
+      serves:
+        - FR-4
+      file: design/audit-report.md
+      section: "4.4"
+    - ref: design/audit-report.md#5
+      title: 文档与仓库卫生盘点（
+      serves:
+        - FR-5
+      file: design/audit-report.md
+      section: "5"
+    - ref: design/audit-report.md#5.1
+      title: 文档分层违规（
+      serves:
+        - FR-5
+      file: design/audit-report.md
+      section: "5.1"
+    - ref: design/audit-report.md#5.2
+      title: git 跟踪的产物（
+      serves:
+        - FR-5
+      file: design/audit-report.md
+      section: "5.2"
+    - ref: design/audit-report.md#5.3
+      title: 体积垃圾（
+      serves:
+        - FR-5
+      file: design/audit-report.md
+      section: "5.3"
+    - ref: design/audit-report.md#5.4
+      title: 卫生债指标（
+      serves:
+        - FR-5
+      file: design/audit-report.md
+      section: "5.4"
+    - ref: design/audit-report.md#5.5
+      title: 空壳与幽灵模块（正确性风险，非风格问题）（
+      serves:
+        - FR-5
+      file: design/audit-report.md
+      section: "5.5"
+    - ref: design/audit-report.md#5.6
+      title: 文档 vs 代码：8 条矛盾（
+      serves:
+        - FR-5
+      file: design/audit-report.md
+      section: "5.6"
+    - ref: design/audit-report.md#5.7
+      title: 一个正例（值得作为模板）（
+      serves:
+        - FR-5
+      file: design/audit-report.md
+      section: "5.7"
+    - ref: design/audit-report.md#5.8
+      title: 孤儿模块：两种口径差 5 倍，恰恰说明"不能靠静态扫描删代码"（
+      serves:
+        - FR-5
+      file: design/audit-report.md
+      section: "5.8"
+    - ref: design/audit-report.md#5.9
+      title: scripts / tools：一次性脚本与误置测试（
+      serves:
+        - FR-5
+      file: design/audit-report.md
+      section: "5.9"
+    - ref: design/data-model.md#新增修改的数据结构
+      title: 新增/修改的数据结构（
+      serves:
+        - FR-6
+      file: design/data-model.md
+      section: 新增修改的数据结构
+    - ref: design/data-model.md#BacklogItem优化条目
+      title: BacklogItem（优化条目） （
+      serves:
+        - FR-6
+      file: design/data-model.md
+      section: BacklogItem优化条目
+    - ref: design/data-model.md#Priority优先级枚举
+      title: Priority（优先级枚举） （
+      serves:
+        - FR-6
+      file: design/data-model.md
+      section: Priority优先级枚举
+    - ref: design/data-model.md#现状数据事实只读采集无变更
+      title: 现状数据事实（只读采集，**无变更**）（
+      serves:
+        - FR-3
+      file: design/data-model.md
+      section: 现状数据事实只读采集无变更
+    - ref: design/data-model.md#SchedulerTask-现状quantschedulertasks
+      title: SchedulerTask 现状（`quant.scheduler_tasks`） （
+      serves:
+        - FR-3
+      file: design/data-model.md
+      section: SchedulerTask-现状quantschedulertasks
+    - ref: design/data-model.md#DailyKline-新鲜度quantdailyklines
+      title: DailyKline 新鲜度（`quant.daily_klines`） （
+      serves:
+        - FR-3
+      file: design/data-model.md
+      section: DailyKline-新鲜度quantdailyklines
+    - ref: design/data-model.md#InProcessJobRunquantinprocessjobruns
+      title: InProcessJobRun（`quant.inprocess_job_runs`） （
+      serves:
+        - FR-3
+      file: design/data-model.md
+      section: InProcessJobRunquantinprocessjobruns
+    - ref: design/data-model.md#LiveTradingLogArtifactslivetradinglogs
+      title: LiveTradingLogArtifacts（`live_trading/logs/`） （
+      serves:
+        - FR-5
+      file: design/data-model.md
+      section: LiveTradingLogArtifactslivetradinglogs
+    - ref: design/interfaces.md#新增修改的工具接口
+      title: 新增/修改的工具接口（
+      serves:
+        - FR-7
+      file: design/interfaces.md
+      section: 新增修改的工具接口
+    - ref: design/interfaces.md#复现命令接口15-条
+      title: 复现命令接口（15 条） （
+      serves:
+        - FR-7
+      file: design/interfaces.md
+      section: 复现命令接口15-条
+    - ref: design/interfaces.md#文档交付接口体检报告
+      title: 文档交付接口：体检报告 （
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: 文档交付接口体检报告
+    - ref: design/interfaces.md#文档交付接口优化清单
+      title: 文档交付接口：优化清单 （
+      serves:
+        - FR-6
+      file: design/interfaces.md
+      section: 文档交付接口优化清单
+    - ref: design/interfaces.md#删除的接口
+      title: 删除的接口（
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: 删除的接口
+    - ref: design/interfaces.md#HTTP-API-变更
+      title: HTTP API 变更（
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: HTTP-API-变更
+    - ref: design/optimization-backlog.md#TLDR
+      title: TL;DR（
+      serves:
+        - FR-6
+        - FR-7
+      file: design/optimization-backlog.md
+      section: TLDR
+    - ref: design/optimization-backlog.md#1
+      title: 条目契约（清单的数据契约）（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: "1"
+    - ref: design/optimization-backlog.md#1.0
+      title: 接口适用性说明（为什么没有运行时接口）（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: "1.0"
+    - ref: design/optimization-backlog.md#1.1
+      title: 条目字段契约（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: "1.1"
+    - ref: design/optimization-backlog.md#2
+      title: 批 1 · P0 运行态（最高优先，今天）（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: "2"
+    - ref: design/optimization-backlog.md#P0-1-把服务救活并留下谁在跑的证据
+      title: P0-1 把服务救活并留下"谁在跑"的证据（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: P0-1-把服务救活并留下谁在跑的证据
+    - ref: design/optimization-backlog.md#P0-2-数据补跑K-线滞后-20-天
+      title: P0-2 数据补跑（K 线滞后 20 天）（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: P0-2-数据补跑K-线滞后-20-天
+    - ref: design/optimization-backlog.md#P0-3-给静默死亡装自动探针本仓已经栽过-3-次
+      title: P0-3 给"静默死亡"装自动探针（本仓已经栽过 3 次）（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: P0-3-给静默死亡装自动探针本仓已经栽过-3-次
+    - ref: design/optimization-backlog.md#3
+      title: 批 2 · P1 正确性（本周）（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: "3"
+    - ref: design/optimization-backlog.md#P1-1-依赖声明收口让测试能跑
+      title: P1-1 依赖声明收口（让测试能跑）（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: P1-1-依赖声明收口让测试能跑
+    - ref: design/optimization-backlog.md#P1-2-修-getconfig-空壳正确性缺陷非风格
+      title: P1-2 修 `get_config()` 空壳（正确性缺陷，非风格）（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: P1-2-修-getconfig-空壳正确性缺陷非风格
+    - ref: design/optimization-backlog.md#P1-3-删重复实现纯删除收益最高
+      title: P1-3 删重复实现（纯删除，收益最高）（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: P1-3-删重复实现纯删除收益最高
+    - ref: design/optimization-backlog.md#P1-4-修悬空-import-裁决-BaseCalculator-双类
+      title: P1-4 修悬空 import + 裁决 `BaseCalculator` 双类（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: P1-4-修悬空-import-裁决-BaseCalculator-双类
+    - ref: design/optimization-backlog.md#P1-5-调度去重4-套-1-套
+      title: P1-5 调度去重：4 套 → 1 套（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: P1-5-调度去重4-套-1-套
+    - ref: design/optimization-backlog.md#P1-6-删-5-个孤儿的重复-provider792-行数据访问规则的活标本
+      title: P1-6 删 5 个孤儿的重复 provider（792 行，数据访问规则的活标本）（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: P1-6-删-5-个孤儿的重复-provider792-行数据访问规则的活标本
+    - ref: design/optimization-backlog.md#4
+      title: 批 3 · P2 结构（2~3 周，需先有 P1-1 的测试基线）（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: "4"
+    - ref: design/optimization-backlog.md#P2-1-挂上护栏必须最先做否则改完继续漂
+      title: P2-1 挂上护栏（**必须最先做**，否则改完继续漂）（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: P2-1-挂上护栏必须最先做否则改完继续漂
+    - ref: design/optimization-backlog.md#P2-2-消-application-层-12-处顶层越层导入
+      title: P2-2 消 application 层 12 处顶层越层导入（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: P2-2-消-application-层-12-处顶层越层导入
+    - ref: design/optimization-backlog.md#P2-3-拆两个文件级上帝
+      title: P2-3 拆两个"文件级上帝"（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: P2-3-拆两个文件级上帝
+    - ref: design/optimization-backlog.md#P2-4-端口与-DI-收敛
+      title: P2-4 端口与 DI 收敛（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: P2-4-端口与-DI-收敛
+    - ref: design/optimization-backlog.md#P2-5-Repository-双轨收敛-修文档指向
+      title: P2-5 Repository 双轨收敛 + 修文档指向（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: P2-5-Repository-双轨收敛-修文档指向
+    - ref: design/optimization-backlog.md#P2-6-数据访问规则收口-provider-归位
+      title: P2-6 数据访问规则收口 + provider 归位（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: P2-6-数据访问规则收口-provider-归位
+    - ref: design/optimization-backlog.md#5
+      title: 批 4 · P3 卫生（随时可做，可与批 3 并行）（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: "5"
+    - ref: design/optimization-backlog.md#P3-1-docs-分层归位140-个-md
+      title: P3-1 docs 分层归位（140 个 md）（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: P3-1-docs-分层归位140-个-md
+    - ref: design/optimization-backlog.md#P3-2-git-里的产物出库
+      title: P3-2 git 里的产物出库（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: P3-2-git-里的产物出库
+    - ref: design/optimization-backlog.md#P3-3-体积与虚拟环境
+      title: P3-3 体积与虚拟环境（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: P3-3-体积与虚拟环境
+    - ref: design/optimization-backlog.md#P3-4-修-CLAUDEmd-的-8-条矛盾
+      title: P3-4 修 CLAUDE.md 的 8 条矛盾（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: P3-4-修-CLAUDEmd-的-8-条矛盾
+    - ref: design/optimization-backlog.md#P3-5-卫生债批量清理
+      title: P3-5 卫生债批量清理（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: P3-5-卫生债批量清理
+    - ref: design/optimization-backlog.md#P3-6-scripts-tools-归位删一次性脚本-回收误置测试
+      title: P3-6 scripts / tools 归位：删一次性脚本 + 回收误置测试（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: P3-6-scripts-tools-归位删一次性脚本-回收误置测试
+    - ref: design/optimization-backlog.md#6
+      title: 复现校验（本设计的验收口径）（
+      serves:
+        - FR-7
+      file: design/optimization-backlog.md
+      section: "6"
+    - ref: design/optimization-backlog.md#7
+      title: 迁移与兼容设计（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: "7"
+    - ref: design/use-cases.md#场景总览
+      title: 场景总览 <!--
+      serves:
+        - FR-1
+        - FR-6
+      file: design/use-cases.md
+      section: 场景总览
+    - ref: design/use-cases.md#UC-1-人类排期
+      title: UC-1 人类排期 <!--
+      serves:
+        - FR-6
+      file: design/use-cases.md
+      section: UC-1-人类排期
+    - ref: design/use-cases.md#UC-2-Agent-领任务实施
+      title: UC-2 Agent 领任务实施 <!--
+      serves:
+        - FR-3
+        - FR-6
+      file: design/use-cases.md
+      section: UC-2-Agent-领任务实施
+    - ref: design/use-cases.md#UC-3-新会话-新人接手
+      title: UC-3 新会话 / 新人接手 <!--
+      serves:
+        - FR-1
+        - FR-5
+      file: design/use-cases.md
+      section: UC-3-新会话-新人接手
+traceability:
+  fr_to_design:
+    FR-1:
+      - design/architecture.md#目标与总体方案
+      - design/architecture.md#模块改动地图
+      - design/architecture.md#接口变更
+      - design/architecture.md#目录结构
+      - design/architecture.md#关键算法流程
+      - design/architecture.md#错误处理
+      - design/audit-report.md#TLDR
+      - design/audit-report.md#总览表
+      - design/audit-report.md#1
+      - design/audit-report.md#1.1
+      - design/audit-report.md#1.2
+      - design/audit-report.md#1.3
+      - design/audit-report.md#1.4
+      - design/audit-report.md#1.5
+      - design/interfaces.md#文档交付接口体检报告
+      - design/interfaces.md#删除的接口
+      - design/interfaces.md#HTTP-API-变更
+      - design/use-cases.md#场景总览
+      - design/use-cases.md#UC-3-新会话-新人接手
+    FR-2:
+      - design/audit-report.md#TLDR
+      - design/audit-report.md#总览表
+      - design/audit-report.md#2
+      - design/audit-report.md#2.0
+      - design/audit-report.md#2.1
+      - design/audit-report.md#2.2
+      - design/audit-report.md#2.3
+    FR-3:
+      - design/architecture.md#安全性能考虑
+      - design/architecture.md#监控埋点
+      - design/architecture.md#部署变更
+      - design/audit-report.md#TLDR
+      - design/audit-report.md#总览表
+      - design/audit-report.md#3
+      - design/audit-report.md#3.1
+      - design/audit-report.md#3.2
+      - design/audit-report.md#3.3
+      - design/data-model.md#现状数据事实只读采集无变更
+      - design/data-model.md#SchedulerTask-现状quantschedulertasks
+      - design/data-model.md#DailyKline-新鲜度quantdailyklines
+      - design/data-model.md#InProcessJobRunquantinprocessjobruns
+      - design/use-cases.md#UC-2-Agent-领任务实施
+    FR-4:
+      - design/architecture.md#依赖关系
+      - design/architecture.md#配置项
+      - design/audit-report.md#TLDR
+      - design/audit-report.md#总览表
+      - design/audit-report.md#4
+      - design/audit-report.md#4.1
+      - design/audit-report.md#4.2
+      - design/audit-report.md#4.3
+      - design/audit-report.md#4.4
+    FR-5:
+      - design/architecture.md#文档更新清单
+      - design/architecture.md#遗留问题
+      - design/audit-report.md#TLDR
+      - design/audit-report.md#总览表
+      - design/audit-report.md#5
+      - design/audit-report.md#5.1
+      - design/audit-report.md#5.2
+      - design/audit-report.md#5.3
+      - design/audit-report.md#5.4
+      - design/audit-report.md#5.5
+      - design/audit-report.md#5.6
+      - design/audit-report.md#5.7
+      - design/audit-report.md#5.8
+      - design/audit-report.md#5.9
+      - design/data-model.md#LiveTradingLogArtifactslivetradinglogs
+      - design/use-cases.md#UC-3-新会话-新人接手
+    FR-6:
+      - design/architecture.md#数据结构变更
+      - design/data-model.md#新增修改的数据结构
+      - design/data-model.md#BacklogItem优化条目
+      - design/data-model.md#Priority优先级枚举
+      - design/interfaces.md#文档交付接口优化清单
+      - design/optimization-backlog.md#TLDR
+      - design/optimization-backlog.md#1
+      - design/optimization-backlog.md#1.0
+      - design/optimization-backlog.md#1.1
+      - design/optimization-backlog.md#2
+      - design/optimization-backlog.md#P0-1-把服务救活并留下谁在跑的证据
+      - design/optimization-backlog.md#P0-2-数据补跑K-线滞后-20-天
+      - design/optimization-backlog.md#P0-3-给静默死亡装自动探针本仓已经栽过-3-次
+      - design/optimization-backlog.md#3
+      - design/optimization-backlog.md#P1-1-依赖声明收口让测试能跑
+      - design/optimization-backlog.md#P1-2-修-getconfig-空壳正确性缺陷非风格
+      - design/optimization-backlog.md#P1-3-删重复实现纯删除收益最高
+      - design/optimization-backlog.md#P1-4-修悬空-import-裁决-BaseCalculator-双类
+      - design/optimization-backlog.md#P1-5-调度去重4-套-1-套
+      - design/optimization-backlog.md#P1-6-删-5-个孤儿的重复-provider792-行数据访问规则的活标本
+      - design/optimization-backlog.md#4
+      - design/optimization-backlog.md#P2-1-挂上护栏必须最先做否则改完继续漂
+      - design/optimization-backlog.md#P2-2-消-application-层-12-处顶层越层导入
+      - design/optimization-backlog.md#P2-3-拆两个文件级上帝
+      - design/optimization-backlog.md#P2-4-端口与-DI-收敛
+      - design/optimization-backlog.md#P2-5-Repository-双轨收敛-修文档指向
+      - design/optimization-backlog.md#P2-6-数据访问规则收口-provider-归位
+      - design/optimization-backlog.md#5
+      - design/optimization-backlog.md#P3-1-docs-分层归位140-个-md
+      - design/optimization-backlog.md#P3-2-git-里的产物出库
+      - design/optimization-backlog.md#P3-3-体积与虚拟环境
+      - design/optimization-backlog.md#P3-4-修-CLAUDEmd-的-8-条矛盾
+      - design/optimization-backlog.md#P3-5-卫生债批量清理
+      - design/optimization-backlog.md#P3-6-scripts-tools-归位删一次性脚本-回收误置测试
+      - design/optimization-backlog.md#7
+      - design/use-cases.md#场景总览
+      - design/use-cases.md#UC-1-人类排期
+      - design/use-cases.md#UC-2-Agent-领任务实施
+    FR-7:
+      - design/architecture.md#测试策略
+      - design/interfaces.md#新增修改的工具接口
+      - design/interfaces.md#复现命令接口15-条
+      - design/optimization-backlog.md#TLDR
+      - design/optimization-backlog.md#6
+coverage:
+  design:
+    total: 7
+    covered: 7
+    uncovered: []
+    rate: 100
+    total_frs: 7
+    covered_frs: 7

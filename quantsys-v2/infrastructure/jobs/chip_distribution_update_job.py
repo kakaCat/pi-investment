@@ -46,8 +46,9 @@ def execute(**params):
 if __name__ == '__main__':
     import argparse
     import json
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s - %(levelname)s - %(message)s')
+    from infrastructure.logging import configure_structured_logging
+    configure_structured_logging(level="INFO", json_format=False)  # 统一日志入口（2026-10-01 t-008062 主题B：库层不再调用 basicConfig）
+
     parser = argparse.ArgumentParser()
     parser.add_argument('--limit', type=int, default=None)
     parser.add_argument('--symbol', type=str, default=None)

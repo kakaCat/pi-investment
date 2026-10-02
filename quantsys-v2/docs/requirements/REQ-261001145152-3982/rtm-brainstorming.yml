@@ -1,0 +1,43 @@
+metadata:
+  stage: brainstorming
+  requirement_id: REQ-261001145152-3982
+  generated_at: 2026-10-01T06:57:29.684Z
+  version: 4
+  generated_by: dsh-pmboard
+  last_updated: 2026-10-01T07:06:47.792Z
+outputs:
+  requirements:
+    - id: FR-1
+      title: 资产与分层盘点
+      source: requirement.md
+      line: 116
+    - id: FR-2
+      title: 重复实现与分叉盘点
+      source: requirement.md
+      line: 120
+    - id: FR-3
+      title: 调度与运行态盘点
+      source: requirement.md
+      line: 124
+    - id: FR-4
+      title: 依赖与环境可复现性盘点
+      source: requirement.md
+      line: 128
+    - id: FR-5
+      title: 文档与仓库卫生盘点
+      source: requirement.md
+      line: 133
+    - id: FR-6
+      title: 优化清单（本需求的核心产物）
+      source: requirement.md
+      line: 138
+    - id: FR-7
+      title: 判定标准可证伪
+      source: requirement.md
+      line: 145
+status:
+  artifacts:
+    - kind: requirement
+      path: docs/requirements/REQ-261001145152-3982/requirement.md
+      confirmed: true
+      confirmed_at: 2026-10-01T06:57:54.582Z

@@ -30,16 +30,16 @@ class DailySnapshotService:
         price_provider: Optional[PriceProvider] = None,
     ):
         if sim_repo is None:
-            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
-            sim_repo = EnhancedServiceFactory.resolve(ISimulationRepository)
+            from infrastructure.services.service_factory import ServiceFactory
+            sim_repo = ServiceFactory.resolve(ISimulationRepository)
         self.sim_repo = sim_repo
         self._price_provider = price_provider or self._default_price_provider
 
     @staticmethod
     def _default_price_provider(symbols: List[str], start: date, end: date) -> PriceMap:
         """默认价格源：本地 kline 库（不走网络）。返回 {symbol: {date_str: close}}"""
-        from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
-        repo = EnhancedServiceFactory.resolve(IKlineRepository)
+        from infrastructure.services.service_factory import ServiceFactory
+        repo = ServiceFactory.resolve(IKlineRepository)
         result: Dict[str, Dict[str, float]] = {}
         batch = repo.batch_get_kline(symbols, start.isoformat(), end.isoformat())
         for symbol, df in batch.items():
@@ -236,9 +236,9 @@ class EquitySnapshotJob:
 
     def _has_bar(self, target: date) -> bool:
         from domain.ports import IKlineRepository
-        from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+        from infrastructure.services.service_factory import ServiceFactory
         try:
-            klines = EnhancedServiceFactory.resolve(IKlineRepository).get_daily_klines(
+            klines = ServiceFactory.resolve(IKlineRepository).get_daily_klines(
                 symbol=_SNAPSHOT_REF_SYMBOL,
                 start_date=target.isoformat(), end_date=target.isoformat())
         finally:

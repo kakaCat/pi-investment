@@ -1,0 +1,39 @@
+task:
+  id: t-806aa2
+  title: Repository 双轨收敛 + 修文档指向·研发
+  status: done
+  implements: |-
+    ① 8 组 sync/async 双轨（stock/signal/portfolio/simulation/factor/backtest/stock_pool/signal_execution）先定口径（async 优先或 sync 优先）再删另一轨；② 统一拆分粒度（simulation_repository.py 三实体同文件 vs async 版按实体拆开）；③ 修文档：CLAUDE.md 速查表与 docs/ARCHITECTURE.md 指向不存在的 infrastructure/repositories/，真实位置是 adapters/outbound/repositories/。
+
+    [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+  serves: []
+  depends_on:
+    - t-c3a097
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261001145152-3982
+    TASK_ID: t-806aa2
+    TASK_TITLE: Repository 双轨收敛 + 修文档指向·研发
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      started_at: 2026-10-01T12:06:49.283Z
+      completed_at: 2026-10-01T12:07:50.681Z
+    - phase: doc
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261001145152-3982
+  generated_at: 2026-10-01T12:05:43.742Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-01T12:07:50.682Z

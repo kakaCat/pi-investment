@@ -555,7 +555,7 @@ class KalmanFilterCalculator(BaseCalculator):
                     if sign > 0:
                         ll_t = -0.5 * (logdet + innov.T @ np.linalg.inv(S) @ innov)
                         log_likelihood += float(ll_t)
-                except:
+                except Exception:
                     continue
 
         return log_likelihood
@@ -614,7 +614,7 @@ class KalmanFilterCalculator(BaseCalculator):
                     F=F, H=H, Q=Q, R=R
                 )
                 return -result['value']['log_likelihood']
-            except:
+            except Exception:
                 return 1e10
 
         try:

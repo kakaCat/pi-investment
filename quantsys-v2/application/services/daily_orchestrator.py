@@ -390,9 +390,9 @@ class DailyOrchestrator:
         """
         if self._simulation_repo is not None:
             return self._simulation_repo
-        from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+        from infrastructure.services.service_factory import ServiceFactory
         from domain.ports import ISimulationRepository
-        return EnhancedServiceFactory.resolve(ISimulationRepository)
+        return ServiceFactory.resolve(ISimulationRepository)
 
     def _active_accounts(self, repo) -> List[str]:
         """参与**账户级**动作的账户清单。

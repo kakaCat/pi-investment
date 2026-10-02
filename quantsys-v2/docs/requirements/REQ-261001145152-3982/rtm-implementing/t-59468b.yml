@@ -1,0 +1,35 @@
+task:
+  id: t-59468b
+  title: 删 5 个孤儿的重复 provider
+  status: done
+  implements: 删除 application/services/financial_providers/ 下 {eastmoney,sina,akshare,tencent,tushare}_provider.py 共 792 行（无任何实例化方）；datasources/manager.py:104 实际装配的是 adapters 树里的 SinaFinancialProvider / EastmoneyFinancialProvider / AkshareFinancialStatementProvider，删前确认装配链。
+  serves: []
+  depends_on:
+    - t-504421
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261001145152-3982
+    TASK_ID: t-59468b
+    TASK_TITLE: 删 5 个孤儿的重复 provider
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-01T11:03:07.254Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261001145152-3982
+  generated_at: 2026-10-01T10:43:58.093Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-01T11:03:07.255Z

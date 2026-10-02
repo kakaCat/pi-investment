@@ -62,6 +62,18 @@ class AkshareSectorProvider(MarketProvider):
 
     # ── 新浪行业板块 ─────────────────────────────────────────────
 
+    def fetch_sina_industries(self) -> list:
+        """公开入口：仅取「新浪行业」通道的板块行（name / change_pct 等）。
+
+        2026-10-01（REQ-261001145152-3982 t-f04052）：application 层的
+        `market_style_detector.fetch_sina_sector_boards()` 原先 `import akshare` 直连
+        （违反"外部数据只在 adapters 层直连"），而它要的数据**本类已实现**——
+        故开一个公开入口复用之，避免再抄一份取数逻辑。
+        注意：不能改用 `get_sector_list()` 替代，因为那条链首个成功的 provider 可能是
+        **东财**（行业口径与"新浪 49 行业"不同），会让上层风格检测的数值口径悄悄改变。
+        """
+        return self._fetch_sina_industries()
+
     def _fetch_sina_industries(self) -> list:
         """新浪行业板块（sina 通道，独立于东财）。
 

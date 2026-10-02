@@ -269,16 +269,16 @@ class DataPipelineService:
 
         # Stage 7: Storage (Application 层注入具体仓储,domain 只依赖接口)
         if self._kline_repo is None:
-            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
-            kline_repo = EnhancedServiceFactory.resolve(IKlineRepository)
+            from infrastructure.services.service_factory import ServiceFactory
+            kline_repo = ServiceFactory.resolve(IKlineRepository)
         else:
             kline_repo = self._kline_repo
         stages.append(StorageStage(kline_repo=kline_repo))
 
         # Stage 8: Factor Compute
         if self._factor_repo is None:
-            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
-            factor_repo = EnhancedServiceFactory.resolve(IFactorRepository)
+            from infrastructure.services.service_factory import ServiceFactory
+            factor_repo = ServiceFactory.resolve(IFactorRepository)
         else:
             factor_repo = self._factor_repo
         stages.append(FactorComputeStage(

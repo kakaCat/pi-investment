@@ -1,5 +1,11 @@
 # ADR-002: 调度系统迁移至 Agent OS Scheduler
 
+> ⚠️ **本 ADR 的调度归属部分已被 [ADR-004](004-scheduling-ownership.md) 取代（2026-10-02）**：
+> 定案为「业务的定时任务由 **v2 自己调度**；agent-os 只调度 agent 自身任务」，
+> 即 `AGENT_OS_ENABLED=false`。本文保留作为历史决策记录（webhook 接收端与 job handler
+> 仍在代码中复用），**不要再按本文把 v2 业务任务迁往 Agent OS**。
+
+
 **状态**: 已采纳 ✅  
 **日期**: 2026-08-16  
 **决策者**: 开发团队  

@@ -15,7 +15,7 @@ cd /Users/mac/Documents/ai/pi-investment/quantsys-v2
 pip install sentry-sdk structlog python-json-logger pyjwt flask-limiter
 
 # 或从 requirements.txt 安装
-pip install -r requirements.txt
+pip install -e .
 ```
 
 ---
