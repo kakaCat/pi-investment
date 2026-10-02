@@ -12,7 +12,18 @@
 """
 import pytest
 
-import adapters.inbound.fastapi_app.daily_jobs_bootstrap as m
+# 2026-10-02（REQ-261001145152-3982 审查）：**打桩点又搬了一次家**，这次换到
+# `daily_jobs.pipeline`。该文件自己记载过两次同类事故（接缝变了、打桩点没跟），
+# 本次是第三次：巡检函数已从 `daily_jobs_bootstrap` 移到
+# `adapters/inbound/fastapi_app/daily_jobs/pipeline.py`，而测试仍在旧模块上
+# `monkeypatch.setattr(..., raising=True)` —— 旧模块里这些名字还在（所以没报错），
+# 但巡检**不读旧模块** → 打桩全不生效 → 读到真实（陈旧）数据 → 三条分支都判 stale。
+# 实测新模块命名空间里 `_job_freshness_guard` / `_last_trading_day` / `_kline_coverage` /
+# `_job_failure_watch` / `_send_feishu` 五者齐备，故统一打到新模块。
+import adapters.inbound.fastapi_app.daily_jobs.pipeline as m
+# `_summarize_result` 仍在 `daily_jobs/alerting.py`（pipeline 只从它导入了另外两个符号），
+# 故那条用例单独指向 alerting。
+import adapters.inbound.fastapi_app.daily_jobs.alerting as alerting
 
 
 # 2026-09-14（w-32314d00，REQ-24e15d B4-c4）：原来的 _FakeEngine 打桩的是
@@ -76,7 +87,7 @@ def test_stale_path_still_alerts(monkeypatch):
 
 
 def test_summarize_result_surfaces_coverage():
-    text = m._summarize_result({'status': 'fresh', 'kline_coverage': '5262/5281',
+    text = alerting._summarize_result({'status': 'fresh', 'kline_coverage': '5262/5281',
                                 'kline_stale': 19, 'factor_latest': '2026-09-11'})
     assert 'kline_coverage=5262/5281' in text
     assert 'kline_stale=19' in text
