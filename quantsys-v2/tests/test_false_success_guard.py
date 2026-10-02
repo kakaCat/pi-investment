@@ -143,12 +143,17 @@ def test_run_task_marks_failed_on_nested_failure():
 
 def test_inprocess_host_marks_failed_on_inner_failure(monkeypatch):
     from adapters.inbound.fastapi_app import daily_jobs_bootstrap as host
+    # 2026-10-01（t-686185）：宿主模块已按职责拆入 daily_jobs/ 包——
+    # `_mark_running/_mark_done` 现在住在 runtime、`_send_feishu` 住在 alerting，
+    # 故 patch 目标须跟着实现走（打在转发壳上不再生效）。断言与行为完全不变。
+    from adapters.inbound.fastapi_app.daily_jobs import alerting as host_alerting
+    from adapters.inbound.fastapi_app.daily_jobs import runtime as host_runtime
 
     marks = []
-    monkeypatch.setattr(host, '_mark_running', lambda *a, **k: None)
-    monkeypatch.setattr(host, '_mark_done',
+    monkeypatch.setattr(host_runtime, '_mark_running', lambda *a, **k: None)
+    monkeypatch.setattr(host_runtime, '_mark_done',
                         lambda job_id, run_date, status, **kw: marks.append((status, kw)))
-    monkeypatch.setattr(host, '_send_feishu', lambda *a, **k: True)
+    monkeypatch.setattr(host_alerting, '_send_feishu', lambda *a, **k: True)
 
     job = host.JobDef('fake_job', dtime(0, 0), (0, 1, 2, 3, 4, 5, 6),
                       lambda: {'kline_sync': {'status': 'error', 'error': 'nested boom'}},
@@ -161,12 +166,14 @@ def test_inprocess_host_marks_failed_on_inner_failure(monkeypatch):
 
 def test_inprocess_host_marks_success_for_clean_result(monkeypatch):
     from adapters.inbound.fastapi_app import daily_jobs_bootstrap as host
+    from adapters.inbound.fastapi_app.daily_jobs import alerting as host_alerting
+    from adapters.inbound.fastapi_app.daily_jobs import runtime as host_runtime
 
     marks = []
-    monkeypatch.setattr(host, '_mark_running', lambda *a, **k: None)
-    monkeypatch.setattr(host, '_mark_done',
+    monkeypatch.setattr(host_runtime, '_mark_running', lambda *a, **k: None)
+    monkeypatch.setattr(host_runtime, '_mark_done',
                         lambda job_id, run_date, status, **kw: marks.append((status, kw)))
-    monkeypatch.setattr(host, '_send_feishu', lambda *a, **k: True)
+    monkeypatch.setattr(host_alerting, '_send_feishu', lambda *a, **k: True)
 
     job = host.JobDef('fake_job', dtime(0, 0), (0, 1, 2, 3, 4, 5, 6),
                       lambda: {'symbols_updated': 10}, '测试任务')
@@ -258,8 +265,12 @@ def test_orphan_reap_logs_single_warning_not_error():
     quant.inprocess_job_runs（status=failed）+ _job_failure_watch 巡检，足够可追溯。
     """
     from adapters.inbound.fastapi_app import daily_jobs_bootstrap as host
+    # 2026-10-01（t-686185）：源码检查须指向**实现所在文件**——宿主模块已拆入
+    # daily_jobs/ 包，`_reap_orphan_runs` / `_jobs_loop` 都住在 daily_jobs/runtime.py；
+    # 转发壳里已无这两个函数体（原写法会在 src.index 处报错）。断言不变。
+    from adapters.inbound.fastapi_app.daily_jobs import runtime as host_runtime
 
-    src = Path(host.__file__).read_text(encoding='utf-8')
+    src = Path(host_runtime.__file__).read_text(encoding='utf-8')
     body = src[src.index('def _reap_orphan_runs'):src.index('def _jobs_loop')]
     assert 'logger.warning(' in body, '孤儿判死必须用 warning'
     assert 'logger.error("inprocess_job_orphan_reaped"' not in body, '不得再按行打 error'
