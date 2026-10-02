@@ -14,6 +14,17 @@ import os
 from pathlib import Path
 from contextlib import asynccontextmanager
 
+# ── 路径引导必须在**任何项目内导入之前** ──────────────────────────────
+# 2026-10-02（REQ-261001145152-3982 · 用户裁定"修"）：原先这段在文件中部（第 31-34 行），
+# 而本文件第 24 行就已经 `from adapters.inbound...` —— 于是文档里写的
+# `python adapters/inbound/fastapi_app/main.py` **必然报 ModuleNotFoundError: No module named
+# 'adapters'**（脚本模式下 sys.path[0] 是脚本自身目录，不是项目根；那行路径代码对自己的
+# 导入是死代码，只有在被 import 时才生效）。真实启动一直隐含依赖 `PYTHONPATH=.`，文档却没写。
+# 现在把引导提前：照文档命令直接可跑，不依赖外部环境变量。
+project_root = Path(__file__).resolve().parent.parent.parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -28,10 +39,7 @@ from dotenv import load_dotenv
 env_path = Path(__file__).resolve().parent.parent.parent.parent / '.env'
 load_dotenv(env_path)
 
-# 确保项目根目录在 PYTHONPATH
-project_root = Path(__file__).resolve().parent.parent.parent.parent
-if str(project_root) not in sys.path:
-    sys.path.insert(0, str(project_root))
+# （路径引导已上移至文件顶部，见上）
 
 # 统一使用结构化日志配置
 from infrastructure.logging import configure_structured_logging
