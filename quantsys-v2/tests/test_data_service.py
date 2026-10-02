@@ -5,14 +5,44 @@ import pytest
 from application.services.data_service import DataService
 
 
+def _build_service() -> DataService:
+    """按 P2-3 的约定注入仓库构造 DataService。
+
+    2026-10-02（REQ-261001145152-3982 审查）：本文件原先一律 `DataService()`——
+    而该类自 P2-3 起**不再自动实例化接口**（docstring 明写"必须通过依赖注入提供
+    Repository"），于是所有仓库为 None，测试全数因
+    `'NoneType' object has no attribute ...` 失败。此处改为注入真实仓库，
+    使其回到"对测试库做集成验证"的本意。
+    """
+    from adapters.outbound.repositories.backtest_repository import BacktestORMRepository
+    from adapters.outbound.repositories.factor_repository import FactorORMRepository
+    from adapters.outbound.repositories.kline_repository import KlineORMRepository
+    from adapters.outbound.repositories.portfolio_repository import PortfolioORMRepository
+    from adapters.outbound.repositories.signal_repository import SignalORMRepository
+    from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
+    from adapters.outbound.repositories.stock_repository import StockORMRepository
+    from adapters.outbound.repositories.strategy_repository import StrategyORMRepository
+
+    return DataService(
+        stock_repo=StockORMRepository(),
+        kline_repo=KlineORMRepository(),
+        signal_repo=SignalORMRepository(),
+        factor_repo=FactorORMRepository(),
+        portfolio_repo=PortfolioORMRepository(),
+        simulation_repo=SimulationORMRepository(),
+        backtest_repo=BacktestORMRepository(),
+        strategy_repo=StrategyORMRepository(),
+    )
+
+
 class TestStockQueries:
     """股票综合查询测试"""
 
     def setup_method(self):
-        self.service = DataService()
+        self.service = _build_service()
 
     def teardown_method(self):
-        self.service.close()
+        self.service.cleanup()  # 真实方法名是 cleanup；原先调 close() 不存在 → 每个测试 teardown 报错
 
     def test_get_stock_full_data(self):
         """测试获取股票完整数据"""
@@ -64,10 +94,10 @@ class TestPortfolioQueries:
     """组合分析测试"""
 
     def setup_method(self):
-        self.service = DataService()
+        self.service = _build_service()
 
     def teardown_method(self):
-        self.service.close()
+        self.service.cleanup()  # 真实方法名是 cleanup；原先调 close() 不存在 → 每个测试 teardown 报错
 
     def test_get_portfolio_overview(self):
         result = self.service.get_portfolio_overview()
@@ -93,10 +123,10 @@ class TestMarketQueries:
     """市场全景测试"""
 
     def setup_method(self):
-        self.service = DataService()
+        self.service = _build_service()
 
     def teardown_method(self):
-        self.service.close()
+        self.service.cleanup()  # 真实方法名是 cleanup；原先调 close() 不存在 → 每个测试 teardown 报错
 
     def test_get_market_overview(self):
         result = self.service.get_market_overview()
@@ -124,10 +154,10 @@ class TestBacktestWorkflow:
     """回测工作流测试"""
 
     def setup_method(self):
-        self.service = DataService()
+        self.service = _build_service()
 
     def teardown_method(self):
-        self.service.close()
+        self.service.cleanup()  # 真实方法名是 cleanup；原先调 close() 不存在 → 每个测试 teardown 报错
 
     def test_get_backtest_workflow_data(self):
         result = self.service.get_backtest_workflow_data(
@@ -176,10 +206,10 @@ class TestBatchOperations:
     """批量操作测试"""
 
     def setup_method(self):
-        self.service = DataService()
+        self.service = _build_service()
 
     def teardown_method(self):
-        self.service.close()
+        self.service.cleanup()  # 真实方法名是 cleanup；原先调 close() 不存在 → 每个测试 teardown 报错
 
     def test_batch_get_klines(self):
         symbols = ["000001.SZ", "000002.SZ"]
@@ -217,10 +247,10 @@ class TestRiskSummary:
     """风险综合测试"""
 
     def setup_method(self):
-        self.service = DataService()
+        self.service = _build_service()
 
     def teardown_method(self):
-        self.service.close()
+        self.service.cleanup()  # 真实方法名是 cleanup；原先调 close() 不存在 → 每个测试 teardown 报错
 
     def test_get_risk_summary(self):
         result = self.service.get_risk_summary()
@@ -237,10 +267,10 @@ class TestDataIntegrity:
     """数据完整性测试"""
 
     def setup_method(self):
-        self.service = DataService()
+        self.service = _build_service()
 
     def teardown_method(self):
-        self.service.close()
+        self.service.cleanup()  # 真实方法名是 cleanup；原先调 close() 不存在 → 每个测试 teardown 报错
 
     def test_check_data_integrity(self):
         result = self.service.check_data_integrity("000001.SZ")
