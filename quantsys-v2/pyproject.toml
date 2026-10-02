@@ -80,7 +80,6 @@ dependencies = [
     "PyJWT>=2.8.0",               # 2026-10-01 补声明（infrastructure/auth/jwt_manager.py）
     "prometheus_client>=0.19.0",  # 2026-10-01 补声明（4 处指标端点）
     "sentry-sdk>=1.40.0",
-    "dependency-injector>=4.41.0",
 
     # ── 记忆检索（混合检索 W1.3）─────────────────────────────────
     "jieba>=0.42.1",              # 2026-10-01 补声明：domain/memory/hybrid_search.py 模块级硬导入
