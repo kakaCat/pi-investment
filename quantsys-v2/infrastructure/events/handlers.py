@@ -9,15 +9,19 @@ logger = logging.getLogger(__name__)
 
 
 def __get_connection_manager():
-    """延迟导入 WebSocket 管理器（避免 FastAPI 环境下导入 flask_socketio 失败）"""
-    try:
-        from adapters.inbound.api.websocket import get_connection_manager
-        # 2026-09-14（w-c8cae280）：上面导入的是 get_connection_manager，这里却调用
-        # _get_connection_manager() → NameError；且外层只 catch ImportError，NameError 会直接炸出去。
-        return get_connection_manager()
-    except ImportError as e:
-        logger.debug(f"WebSocket manager not available (expected in FastAPI-only env): {e}")
-        return None
+    """WebSocket 连接管理器——**恒返回 None**（Flask 层已删除）。
+
+    2026-10-02（REQ-261001145152-3982 审查·清理 Flask 残留）：
+    原实现是「延迟 import `adapters.inbound.api.websocket`，ImportError 就返回 None」。
+    但该模块**随 Flask 层在 2026-08-19（commit 54851df0）一并删除**——这个 import
+    现在必然失败，整段 try/except 成了死代码（且日志里那句
+    "expected in FastAPI-only env" 会让人误以为还有 Flask 环境）。
+
+    行为**不变**：调用方（3 处，均先判 `if manager:`）继续拿到 None，
+    仍然记一行 debug 保持可观测；只是不再去 import 一个不存在的模块。
+    """
+    logger.debug("WebSocket manager not available (Flask layer removed 2026-08-19)")
+    return None
 
 
 async def on_quote_update(data: dict):
