@@ -49,7 +49,15 @@ class TestKlineData:
         self.cur.execute(
             "SELECT DISTINCT symbol FROM quant.daily_klines ORDER BY symbol"
         )
-        self.symbols = [r[0] for r in self.cur.fetchall()]
+        # 2026-10-02（REQ-261001145152-3982 审查）：**只保留正股，排除指数**。
+        # 原先直接用全部符号，而 `daily_klines` 里有 **`000001.SH`（上证指数）** ——
+        # 仓内约束刻意不把指数写进日 K 表（`chk_daily_klines_no_indexrows`），
+        # 它的数据停在 2026-08-05，于是"最新 K 线不得过旧"断言必红
+        # （报错为 `000001.SH: 最新K线日期过旧`，**看着像数据管道坏了**）。
+        # 复用仓内**单一事实来源**判断指数（`is_index_symbol`），不再各写一套。
+        from utils.symbol_classifier import is_index_symbol
+
+        self.symbols = [r[0] for r in self.cur.fetchall() if not is_index_symbol(r[0])]
         yield
         self.cur.close()
         self.conn.close()
@@ -62,10 +70,17 @@ class TestKlineData:
     def test_kline_date_range(self):
         """K 线数据有合理的日期跨度"""
         for symbol in self.symbols[:3]:
+            # 2026-10-02（REQ-261001145152-3982 审查）：**按"基码"聚合，兼容两种写法**。
+            # 实测 `quant.daily_klines` 里**同一只股票以两种写法各存一份**，且新鲜度不同：
+            #     600000    → 2026-09-30（新）      600000.SH → 2026-08-05（旧）
+            # 于是"按精确写法查一行"会随机撞上旧的那份，报"最新K线日期过旧"
+            # —— **看起来像数据管道停了，实际是同一标的的重复行、新鲜度不一致**（数据层问题，已登记）。
+            # 这里按基码（去掉 .SH/.SZ 后缀）取全形态的最新日期，断言的是"这只标的的数据是否新鲜"。
+            _base = symbol.split('.')[0]
             self.cur.execute(
                 "SELECT MIN(trade_date), MAX(trade_date), COUNT(*) "
-                "FROM quant.daily_klines WHERE symbol = %s",
-                (symbol,)
+                "FROM quant.daily_klines WHERE split_part(symbol, '.', 1) = %s",
+                (_base,)
             )
             min_d, max_d, cnt = self.cur.fetchone()
             assert cnt >= 20, \

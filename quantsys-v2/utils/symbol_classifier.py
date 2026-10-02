@@ -46,6 +46,19 @@ def is_index_symbol(symbol: str) -> bool:
         return False
     if s.startswith('399') and len(s) == 6 and s.isdigit():
         return True
+    # 2026-10-02（REQ-261001145152-3982 审查）：**带后缀的代码无歧义，直接用后缀判定**。
+    # `INDEX_WHITELIST` 里存的是**裸码**（实测：'000001'/'000300'/'399001'…共 10 个），
+    # 于是 `is_index_symbol('000001.SH')` 会因 `'000001.SH' not in INDEX_WHITELIST` 判定为
+    # **False（当成个股）** —— 而 `.SH` + `000001` 恰恰就是**上证指数**（平安银行是 `000001.SZ`）。
+    # 实测后果：e2e 用 `000001.SH` 断言"K 线要新鲜"，而指数被刻意挡在 `daily_klines` 之外
+    # （约束 `chk_daily_klines_no_indexrows`）→ 数据停在 2026-08-05 → 报"最新K线日期过旧"，
+    # **看起来像数据管道坏了**。
+    # 判定口径：指数代码两族，`000xxx` 归沪市（`.SH`）、`399xxx` 归深市（`.SZ`）。
+    if '.' in s:
+        _base, _suffix = s.split('.', 1)
+        if _base in INDEX_WHITELIST:
+            return (_suffix.upper() == 'SZ') if _base.startswith('399') else (_suffix.upper() == 'SH')
+        return False
     if s not in INDEX_WHITELIST:
         return False
     try:
