@@ -65,6 +65,13 @@ def _pending_order(**overrides):
         shares=100, amount=None, price_limit=None, reason=REASON,
         execute_at='market_open', status='pending',
         fail_reason=None, executed_trade_id=None,
+        # 2026-10-02（REQ-261001145152-3982 审查）：补上 decision_price。
+        # `account_trading_service` 执行挂单时读 `po.decision_price` 作为滑点基准
+        # （该列正是本次补齐的 51 列之一：simulation_pending_orders.decision_price），
+        # 而本假对象此前缺此属性 → 2 条用例报
+        # AttributeError: 'types.SimpleNamespace' object has no attribute 'decision_price'。
+        # 这里给一个值（而非 None），以便滑点分支真正被走到。
+        decision_price=10.0,
     )
     defaults.update(overrides)
     return SimpleNamespace(**defaults)
@@ -256,8 +263,11 @@ class TestExecutePendingOrders:
         assert result['failed'] == 0
         assert result['details'][0]['status'] == 'executed'
         assert result['details'][0]['trade_id'] == 7
+        # 2026-10-02（REQ-261001145152-3982 审查）：生产调用后来增加了滑点留痕
+        # （fill_price / slippage_bps，M5 闭环），而本断言写于此前 → 补上这两个 kwarg。
+        # 数值自洽：假订单 decision_price=10.0，成交价也是 10.0 → 滑点 0 bps。
         repo.update_pending_order_status.assert_called_once_with(
-            1, 'executed', executed_trade_id=7)
+            1, 'executed', executed_trade_id=7, fill_price=10.0, slippage_bps=0.0)
 
     def test_guardrail_rejection_marks_failed(self, repo, calendar):
         """护栏拒绝（如账户不存在）→ failed + fail_reason"""
