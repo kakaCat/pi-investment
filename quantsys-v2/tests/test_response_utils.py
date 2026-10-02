@@ -1,4 +1,10 @@
 """
+
+# 2026-10-02（REQ-261001145152-3982 审查）：`update_strategy()` 现在调的是
+# **`strategy_repo.update_user_strategy(...)`**（2026-09-13 起显式改走用户策略写方法），
+# 而本文件仍断言 `strategy_repo.update(...)` → 3 条用例报
+# "Expected 'update' to be called once. Called 0 times."。已按现调用对齐。
+
 测试 core.response_utils 模块
 """
 import pytest
@@ -181,7 +187,7 @@ class TestStrategyNotebookUpdate:
             'code_type': 'indicator',
             'metadata': {'source': 'validator'}
         }
-        service.strategy_repo.update.return_value = {
+        service.strategy_repo.update_user_strategy.return_value = {
             'id': 7,
             'metadata': {
                 'source': 'validator',
@@ -203,7 +209,7 @@ class TestStrategyNotebookUpdate:
 
         service.update_strategy(strategy_id=7, notebook=notebook)
 
-        service.strategy_repo.update.assert_called_once_with(
+        service.strategy_repo.update_user_strategy.assert_called_once_with(
             7,
             {
                 'metadata': {
@@ -221,7 +227,7 @@ class TestStrategyNotebookUpdate:
             'code_type': 'indicator',
             'metadata': {}
         }
-        service.strategy_repo.update.return_value = {'id': 7}
+        service.strategy_repo.update_user_strategy.return_value = {'id': 7}
 
         service.update_strategy(
             strategy_id=7,
@@ -233,7 +239,7 @@ class TestStrategyNotebookUpdate:
             }
         )
 
-        service.strategy_repo.update.assert_called_once_with(
+        service.strategy_repo.update_user_strategy.assert_called_once_with(
             7,
             {
                 'metadata': {
@@ -263,7 +269,7 @@ class TestStrategyNotebookUpdate:
                 'source': 'manual'
             }
         }
-        service.strategy_repo.update.return_value = {'id': 7}
+        service.strategy_repo.update_user_strategy.return_value = {'id': 7}
         mocker.patch.object(service, 'validate_code', return_value={
             'valid': True,
             'params': [],
@@ -273,7 +279,7 @@ class TestStrategyNotebookUpdate:
 
         service.update_strategy(strategy_id=7, code="df['buy'] = False")
 
-        update_data = service.strategy_repo.update.call_args.args[1]
+        update_data = service.strategy_repo.update_user_strategy.call_args.args[1]
         assert update_data['metadata'] == {
             'notebook': {
                 'pros': '趋势明确',

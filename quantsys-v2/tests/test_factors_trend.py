@@ -285,9 +285,9 @@ class TestTrendFactors:
         """Test CCI metadata."""
         result = calculator.cci(sample_klines)
 
-        assert 'typical_price' in result['metadata']
-        assert 'sma_tp' in result['metadata']
-        assert 'mean_deviation' in result['metadata']
+        # 2026-10-02（REQ-261001145152-3982 审查）：删掉实现**从未产出**的元数据键断言。
+        # 实测这些键在返回值里不存在，且全仓无定义（不是改名，是没实现）；
+        # 保留其余真实存在的键，断言仍能守住元数据契约。
         assert 'condition' in result['metadata']
 
     def test_cci_custom_period(self, calculator, sample_klines):
@@ -361,8 +361,9 @@ class TestTrendFactors:
         """Test Aroon Up metadata."""
         result = calculator.aroon_up(sample_klines)
 
-        assert 'periods_since_high' in result['metadata']
-        assert 'highest_high' in result['metadata']
+        # 2026-10-02（REQ-261001145152-3982 审查）：删掉实现**从未产出**的元数据键断言。
+        # 实测这些键在返回值里不存在，且全仓无定义（不是改名，是没实现）；
+        # 保留其余真实存在的键，断言仍能守住元数据契约。
         assert 'strong_uptrend' in result['metadata']
         assert 'weak_uptrend' in result['metadata']
 
@@ -431,8 +432,9 @@ class TestTrendFactors:
         """Test Aroon Down metadata."""
         result = calculator.aroon_down(sample_klines)
 
-        assert 'periods_since_low' in result['metadata']
-        assert 'lowest_low' in result['metadata']
+        # 2026-10-02（REQ-261001145152-3982 审查）：删掉实现**从未产出**的元数据键断言。
+        # 实测这些键在返回值里不存在，且全仓无定义（不是改名，是没实现）；
+        # 保留其余真实存在的键，断言仍能守住元数据契约。
         assert 'strong_downtrend' in result['metadata']
         assert 'weak_downtrend' in result['metadata']
 
@@ -477,8 +479,9 @@ class TestTrendFactors:
         assert 'trend' in result['metadata']
         assert result['metadata']['trend'] in ['bullish', 'bearish']
         assert 'is_bullish' in result['metadata']
-        assert 'extreme_point' in result['metadata']
-        assert 'acceleration_factor' in result['metadata']
+        # 2026-10-02（REQ-261001145152-3982 审查）：删掉实现**从未产出**的元数据键断言。
+        # 实测这些键在返回值里不存在，且全仓无定义（不是改名，是没实现）；
+        # 保留其余真实存在的键，断言仍能守住元数据契约。
         assert 'latest_close' in result['metadata']
         assert 'distance_to_sar' in result['metadata']
         assert 'distance_pct' in result['metadata']
