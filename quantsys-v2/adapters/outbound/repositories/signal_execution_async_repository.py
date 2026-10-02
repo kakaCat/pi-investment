@@ -65,11 +65,11 @@ class SignalExecutionAsyncRepository(AsyncBaseORMRepository[SignalExecution]):
             if status:
                 stmt = stmt.where(SignalExecution.status == status)
             if start_date:
-                stmt = stmt.where(SignalExecution.executed_at >= start_date)
+                stmt = stmt.where(SignalExecution.execution_date >= start_date)
             if end_date:
-                stmt = stmt.where(SignalExecution.executed_at <= end_date)
+                stmt = stmt.where(SignalExecution.execution_date <= end_date)
 
-            stmt = stmt.order_by(desc(SignalExecution.executed_at)).limit(limit)
+            stmt = stmt.order_by(desc(SignalExecution.execution_date)).limit(limit)
 
             result = await self.session.execute(stmt)
             executions = result.scalars().all()
@@ -143,7 +143,7 @@ class SignalExecutionAsyncRepository(AsyncBaseORMRepository[SignalExecution]):
         return {
             'id': execution.id,
             'signal_id': execution.signal_id,
-            'executed_at': execution.executed_at.isoformat() if execution.executed_at else None,
+            'executed_at': execution.execution_date.isoformat() if execution.execution_date else None,
             'status': execution.status,
             'execution_price': execution.execution_price,
             'execution_quantity': execution.execution_quantity,

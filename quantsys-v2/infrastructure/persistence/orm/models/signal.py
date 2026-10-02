@@ -165,7 +165,8 @@ class SignalExecution(Base):
     __table_args__ = (
         # 索引
         Index('idx_signal_executions_signal_id', 'signal_id'),
-        Index('idx_signal_executions_executed_at', 'executed_at'),
+        # 2026-10-02（REQ-...）：原为 executed_at 建索引，而**生产库没有该列** → 一并去除
+        Index('idx_signal_executions_execution_date', 'execution_date'),
         Index('idx_signal_executions_status', 'status'),
         # Schema
         {'schema': 'quant'}
@@ -183,15 +184,33 @@ class SignalExecution(Base):
     )
 
     # 执行信息
-    executed_at = Column(
-        DateTime(timezone=True),
-        nullable=False,
-        default=datetime.utcnow,
-        comment='执行时间'
-    )
+
     execution_price = Column(Float, comment='执行价格')
-    execution_amount = Column(Float, comment='执行数量')
-    execution_volume = Column(Float, comment='执行金额')
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # 2026-10-02（REQ-261001145152-3982 审查）：**补齐与生产库一致的真实列**。
+    #
+    # 本模型此前声明的 `executed_at` / `execution_amount` / `execution_volume` /
+    # `error_message` **生产库没有**（那是模型单方面的命名）；而生产库的
+    # `execution_date` / `quantity` 是 **NOT NULL**，模型又没声明它们 ——
+    # 于是任何 INSERT 都失败：仓库 `create_execution(...)` 传 `execution_date=` 直接
+    # `TypeError: 'execution_date' is an invalid keyword argument`，即使不传该参数
+    # 也会撞 `execution_date`/`quantity` 的 NOT NULL 约束。
+    # 实测该方法**每次都返回 None**（异常被 except 吞掉），线上
+    # `POST /api/signal-executions`（executions_async）因此建不出执行记录。
+    #
+    # 谁对：**仓库与生产库一致**（`signal_id, execution_date, execution_price, quantity,
+    # commission, status`），模型是脱节的一方 —— 故按生产库补列，而不是改仓库。
+    # ⚠️ 保留上面那 4 个"模型单方面"的列（测试库里有、可空），避免牵动其它引用。
+    # ─────────────────────────────────────────────────────────────────────────
+    execution_date = Column(Date, nullable=False, comment='执行日期（生产库 NOT NULL）')
+    quantity = Column(Integer, nullable=False, comment='数量（生产库 NOT NULL）')
+    commission = Column(Float, comment='佣金')
+    pnl = Column(Float, comment='盈亏')
+    close_date = Column(Date, comment='平仓日期')
+    close_price = Column(Float, comment='平仓价格')
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, comment='创建时间')
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, comment='更新时间')
 
     # 状态
     status = Column(
@@ -199,7 +218,6 @@ class SignalExecution(Base):
         default='pending',
         comment='执行状态(pending/success/failed)'
     )
-    error_message = Column(Text, comment='错误信息')
 
     # 关系映射
     signal = relationship('Signal', back_populates='executions')
@@ -215,10 +233,9 @@ class SignalExecution(Base):
         return {
             'id': self.id,
             'signal_id': self.signal_id,
-            'executed_at': self.executed_at.isoformat() if self.executed_at else None,
+            'execution_date': self.execution_date.isoformat() if self.execution_date else None,
             'execution_price': self.execution_price,
-            'execution_amount': self.execution_amount,
-            'execution_volume': self.execution_volume,
+            'quantity': self.quantity,
+            'commission': self.commission,
             'status': self.status,
-            'error_message': self.error_message,
         }
