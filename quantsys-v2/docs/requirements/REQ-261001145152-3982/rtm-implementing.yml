@@ -2,11 +2,11 @@ metadata:
   stage: implementing
   requirement_id: REQ-261001145152-3982
   generated_at: 2026-10-01T07:07:50.908Z
-  version: 278
+  version: 297
   generated_by: dsh-pmboard
   detail_dir: rtm-implementing/
-  detail_count: 97
-  last_updated: 2026-10-02T00:43:48.063Z
+  detail_count: 101
+  last_updated: 2026-10-02T01:33:16.864Z
 inputs:
   tasks:
     - id: t-c63378
@@ -47,7 +47,7 @@ inputs:
       status: done
     - id: t-71051b
       title: 端口与 DI 收敛
-      status: todo
+      status: done
     - id: t-52c511
       title: Repository 双轨收敛 + 修文档指向
       status: done
@@ -290,7 +290,7 @@ inputs:
       status: done
     - id: t-9891e9
       title: 调度去重：4 套 → 1 套（分步灰度）·研发
-      status: todo
+      status: done
     - id: t-3bead2
       title: 调度去重：4 套 → 1 套（分步灰度）·联调
       status: todo
@@ -300,11 +300,23 @@ inputs:
     - id: t-1027a9
       title: 调度去重：4 套 → 1 套（分步灰度）·测试
       status: todo
+    - id: t-ba5eca
+      title: 端口与 DI 收敛·研发
+      status: done
+    - id: t-4da3bf
+      title: 端口与 DI 收敛·联调
+      status: done
+    - id: t-216e3c
+      title: 端口与 DI 收敛·复核
+      status: done
+    - id: t-0efb76
+      title: 端口与 DI 收敛·测试
+      status: done
 status:
-  tasks_total: 97
-  tasks_done: 91
+  tasks_total: 101
+  tasks_done: 97
   tasks_in_progress: 1
-  tasks_todo: 5
+  tasks_todo: 3
 tasks:
   - id: t-c63378
     status: done
@@ -331,7 +343,7 @@ tasks:
   - id: t-686185
     status: done
   - id: t-71051b
-    status: todo
+    status: done
   - id: t-52c511
     status: done
   - id: t-f04052
@@ -493,10 +505,18 @@ tasks:
   - id: t-1b912c
     status: done
   - id: t-9891e9
-    status: todo
+    status: done
   - id: t-3bead2
     status: todo
   - id: t-50d053
     status: todo
   - id: t-1027a9
     status: todo
+  - id: t-ba5eca
+    status: done
+  - id: t-4da3bf
+    status: done
+  - id: t-216e3c
+    status: done
+  - id: t-0efb76
+    status: done

@@ -2,9 +2,9 @@ metadata:
   stage: decomposing
   requirement_id: REQ-261001145152-3982
   generated_at: 2026-10-01T07:07:50.907Z
-  version: 278
+  version: 297
   generated_by: dsh-pmboard
-  last_updated: 2026-10-02T00:43:48.098Z
+  last_updated: 2026-10-02T01:33:16.890Z
 inputs:
   requirements:
     - id: FR-1
@@ -1616,6 +1616,50 @@ outputs:
       serves: []
       depends_on:
         - t-50d053
+      phase: implement
+      side: backend
+    - id: t-ba5eca
+      title: 端口与 DI 收敛·研发
+      implements: |-
+        ① 端口去重：domain/ports/repository_ports.py 与 repository_ports_extended.py 有 7 个同名接口，保留一份并 re-export，另有 domain/{trading,portfolio,watch}/ports/ 第三套需裁决；② DI 收敛为 1 套入口（service_factory 893 行 / enhanced_service_factory 543 行 / service_registry 662 行 / di/container.py 四套并存）；③ 87 处直连 adapters.outbound.repositories 改走端口。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-4f6f4b
+      phase: implement
+      side: backend
+    - id: t-4da3bf
+      title: 端口与 DI 收敛·联调
+      implements: |-
+        ① 端口去重：domain/ports/repository_ports.py 与 repository_ports_extended.py 有 7 个同名接口，保留一份并 re-export，另有 domain/{trading,portfolio,watch}/ports/ 第三套需裁决；② DI 收敛为 1 套入口（service_factory 893 行 / enhanced_service_factory 543 行 / service_registry 662 行 / di/container.py 四套并存）；③ 87 处直连 adapters.outbound.repositories 改走端口。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-ba5eca
+      phase: implement
+      side: backend
+    - id: t-216e3c
+      title: 端口与 DI 收敛·复核
+      implements: |-
+        ① 端口去重：domain/ports/repository_ports.py 与 repository_ports_extended.py 有 7 个同名接口，保留一份并 re-export，另有 domain/{trading,portfolio,watch}/ports/ 第三套需裁决；② DI 收敛为 1 套入口（service_factory 893 行 / enhanced_service_factory 543 行 / service_registry 662 行 / di/container.py 四套并存）；③ 87 处直连 adapters.outbound.repositories 改走端口。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-4da3bf
+      phase: implement
+      side: backend
+    - id: t-0efb76
+      title: 端口与 DI 收敛·测试
+      implements: |-
+        ① 端口去重：domain/ports/repository_ports.py 与 repository_ports_extended.py 有 7 个同名接口，保留一份并 re-export，另有 domain/{trading,portfolio,watch}/ports/ 第三套需裁决；② DI 收敛为 1 套入口（service_factory 893 行 / enhanced_service_factory 543 行 / service_registry 662 行 / di/container.py 四套并存）；③ 87 处直连 adapters.outbound.repositories 改走端口。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-216e3c
       phase: implement
       side: backend
 traceability:
