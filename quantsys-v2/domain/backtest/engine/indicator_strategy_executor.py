@@ -101,8 +101,16 @@ class IndicatorStrategyExecutor:
         # 如果代码定义了 calc_indicator 函数，且 df 没有 buy/sell 列，自动调用
         calc_func = namespace.get('calc_indicator')
         if callable(calc_func) and 'buy' not in namespace.get('df', pd.DataFrame()).columns and 'sell' not in namespace.get('df', pd.DataFrame()).columns:
+            # 2026-10-02（REQ-261001145152-3982 审查）：**原实现只挂 kline_df**，
+            # 而仓内按 `ctx.df` 写的策略代码实测有 11 处（`ctx.kline_df` 6 处，两种约定并存）
+            # → 凡写 `df = ctx.df` 的指标策略一律抛
+            # `AttributeError: 'Ctx' object has no attribute 'df'`
+            # （tests/e2e/test_custom_price_backtest.py 的 2 条 e2e 失败即此因）。
+            # 现**同时提供两个名字**（同一份 df），两种写法都能跑，不破坏既有代码。
+            _ctx_df = namespace.get('df')
             ctx = type('Ctx', (), {
-                'kline_df': namespace.get('df'),
+                'df': _ctx_df,
+                'kline_df': _ctx_df,
                 'params': namespace.get('params', {}),
             })()
             calc_indicator_df = calc_func(ctx)
