@@ -13,6 +13,16 @@ BACKTEST_API_URL = "http://127.0.0.1:5001/api/backtest/batch"
 BACKTEST_TIMEOUT = 300  # 5 minutes
 
 
+class BatchBacktestUnavailable(RuntimeError):
+    """批量回测能力不可用（2026-10-02 · REQ-261001145152-3982 审查新增）。
+
+    背景：`BACKTEST_API_URL`（`/api/backtest/batch`）随 Flask 层删除（commit 54851df0），
+    FastAPI 侧未重建。原实现在此情况下静默 `return []`，导致
+    `POST /api/pools/{id}/validate` **报 success:true 却零结果**。
+    本异常用于把该情况**响亮地**抛给调用方，杜绝"假成功"。
+    """
+
+
 class PoolValidationService:
     """Orchestrates multi-strategy validation against a stock pool.
 
@@ -171,7 +181,20 @@ class PoolValidationService:
         return validation_result
 
     def _call_batch_backtest(self, jobs: List[Dict], progress_emitter: Optional[ProgressEmitter] = None) -> List[Dict]:
-        """Call POST /api/backtest/batch and return results list."""
+        """Call POST /api/backtest/batch and return results list.
+
+        2026-10-02（REQ-261001145152-3982 审查）：**该端点早已不存在**——
+        `/api/backtest/batch` 属 Flask 层，随 commit 54851df0 整体删除，FastAPI 侧未重建
+        （线上 openapi 与仓内均查无此路由）。原实现把三种失败都吞成 `return []`，
+        于是实测线上 `POST /api/pools/3/validate` 返回
+        `{"success":true,"data":{"strategies_tested":76,"best_strategy":null,"rankings":[]}}`
+        ——**报了成功却一个回测都没跑**（静默降级，正是本仓明令禁止的形态；调用方拿到空排名
+        只会以为"这批策略都不行"）。
+
+        现改为**响亮失败**：端点不可用 / 无任何结果 → 抛 `BatchBacktestUnavailable`，
+        由路由转成明确的失败响应（路由已 catch Exception → 500 + success:false）。
+        接回真实批回测能力（改调现存端点或进程内调 StrategyBacktestService）后即可恢复。
+        """
         try:
             if progress_emitter:
                 progress_emitter.update(0, f"正在执行 {len(jobs)} 个回测任务...")
@@ -183,12 +206,17 @@ class PoolValidationService:
             )
             if resp.status_code != 200:
                 logger.error(f"Batch backtest failed: HTTP {resp.status_code}")
-                return []
+                raise BatchBacktestUnavailable(
+                    f"批量回测不可用：{BACKTEST_API_URL} 返回 HTTP {resp.status_code}"
+                    f"（该路由随 Flask 层删除，尚未接回替代能力）"
+                )
 
             data = resp.json()
             if not data.get('success'):
                 logger.error(f"Batch backtest error: {data.get('error')}")
-                return []
+                raise BatchBacktestUnavailable(
+                    f"批量回测失败：{data.get('error') or '未给出原因'}"
+                )
 
             results = data.get('data', {}).get('results', [])
             errors = data.get('data', {}).get('errors', [])
@@ -208,10 +236,16 @@ class PoolValidationService:
                     'profit_factor': r.get('profitFactor', 0),
                 })
 
+            # 一条结果都没有 → 绝不能当成"验证完成、这批策略都不行"上报（见上方说明）
+            if not normalized_results:
+                raise BatchBacktestUnavailable(
+                    f"批量回测未返回任何结果（提交 {len(jobs)} 个任务）"
+                )
+
             return normalized_results
         except requests.RequestException as e:
             logger.error(f"Batch backtest request failed: {e}")
-            return []
+            raise BatchBacktestUnavailable(f"批量回测请求失败：{e}") from e
 
     def _aggregate_by_strategy(self, results: List[Dict],
                                 strategy_map: Dict[int, str]) -> List[Dict]:

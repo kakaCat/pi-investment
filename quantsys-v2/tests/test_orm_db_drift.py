@@ -46,6 +46,15 @@ import os
 from pathlib import Path
 
 import pytest
+
+# 2026-10-02（REQ-261001145152-3982 审查）：**必须放宽 pytest 的超时**。
+# 本文件要跑迁移 DDL，而它自己设了 `lock_timeout=30s` —— 但全局 pytest 参数是
+# `--timeout=15`，于是**它自己的 30s 保护永远轮不到**：全量里一旦别的用例留着瞬时锁，
+# 它就在 15 秒被 pytest 杀掉，报成无信息量的 `Failed: Timeout (>15.0s)`（3 条 errors）。
+# 单跑则 0.9 秒通过 —— 正是"单独绿、全量红"的成因。
+# 这里把本文件的超时放到 60s：让**它自己的 30s lock_timeout** 说了算 ——
+# 真有长锁会以明确的锁超时信息失败（响亮且可诊断），瞬时锁则能正常等过去。
+pytestmark = pytest.mark.timeout(60)
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import class_mapper
 

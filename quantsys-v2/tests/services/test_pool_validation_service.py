@@ -51,9 +51,18 @@ class TestPoolValidationService:
     def test_validate_pool_builds_correct_jobs(self, mock_post, service):
         """Verify jobs = strategy × symbol cartesian product."""
         mock_post.return_value.status_code = 200
+        # 2026-10-02（REQ-261001145152-3982 审查）：**回测结果不能再是空列表**。
+        # 批回测端点（/api/backtest/batch）随 Flask 层删除后，服务已改为
+        # "零结果 = 能力不可用" 并抛 BatchBacktestUnavailable（杜绝线上那种
+        # success:true + rankings:[] 的假成功）。本用例关心的是**提交了哪些任务**，
+        # 故给一条结果让流程走完，jobs 断言原样保留。
         mock_post.return_value.json.return_value = {
             'success': True,
-            'data': {'results': [], 'errors': []},
+            'data': {'results': [{
+                'strategyId': 53, 'symbol': '600519.SH', 'annualReturn': 0.1,
+                'sharpeRatio': 1.0, 'maxDrawdown': -0.1, 'winRate': 0.5,
+                'profitFactor': 1.2,
+            }], 'errors': []},
         }
         service.validate_pool(1, strategy_ids=[53])
 
@@ -114,9 +123,18 @@ class TestPoolValidationService:
     def test_validate_pool_uses_all_strategies_when_none_specified(self, mock_post, service):
         """When strategy_ids is None, all active strategies are used."""
         mock_post.return_value.status_code = 200
+        # 2026-10-02（REQ-261001145152-3982 审查）：**回测结果不能再是空列表**。
+        # 批回测端点（/api/backtest/batch）随 Flask 层删除后，服务已改为
+        # "零结果 = 能力不可用" 并抛 BatchBacktestUnavailable（杜绝线上那种
+        # success:true + rankings:[] 的假成功）。本用例关心的是**提交了哪些任务**，
+        # 故给一条结果让流程走完，jobs 断言原样保留。
         mock_post.return_value.json.return_value = {
             'success': True,
-            'data': {'results': [], 'errors': []},
+            'data': {'results': [{
+                'strategyId': 53, 'symbol': '600519.SH', 'annualReturn': 0.1,
+                'sharpeRatio': 1.0, 'maxDrawdown': -0.1, 'winRate': 0.5,
+                'profitFactor': 1.2,
+            }], 'errors': []},
         }
         service.validate_pool(1, strategy_ids=None)
 
