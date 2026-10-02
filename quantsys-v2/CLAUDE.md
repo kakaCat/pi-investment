@@ -185,6 +185,26 @@ WatchEngine 常驻线程**由 FastAPI `adapters/inbound/fastapi_app/main.py` 的
 > `docs/requirements/REQ-261001145152-3982/design/audit-report.md` §3。
 > ⚠️ 通知链路**不受影响**：`AGENT_OS_NOTIFY_ENABLED` 仍为 true（agent 优先、飞书降级）。
 
+**启用集合体检（2026-10-02 · 同一需求的联调段，实测）**：打开调度后逐条核对"启用任务的 `command`
+是否真有实现"，发现 **5 条命令全仓零 handler（一触发必失败）**，已**停用**（它们本就每次失败，
+停用不改变实际行为、仅停噪音）：`risk_check`(235) · `data_pipeline_daily`(240) ·
+`data_pipeline_weekly`(241) · `signal_monitor_realtime`(251) · `daily_equity_snapshot`(264)。
+- 停用后启用集合 **16 → 11**，11 条命令**全部有效**；
+- ⚠️ **停用 DB 行不足以生效**：任务已注册进 APScheduler jobstore，须再调
+  `POST /api/scheduler/reload`（否则旧任务仍按原 cron 触发，实测停用后又被触发一次）；
+- **能力缺口（待后续定夺，别当成"已修复"）**：① 数据管道——`DataPipelineService` 存在但
+  **生产从未接线**（零调用方，仅测试用），接线前需先定标的域/日期口径；② 盘中实时信号扫描——
+  `signal_monitor_realtime` 无实现（日频 `signal_generate` 已有）；③ 周度风险/组合分析——无实现
+  （`risk_check_job` 是 V13 专用、`intraday_risk_check` 是盘中止损）；④ 账户净值快照——
+  能力已由 ③ 的编排器线程承担（`take_daily_snapshot`→`upsert_equity_snapshot`），DB 那条属重复。
+
+**验收自检（一条命令）**：`python tools/check_scheduler_dedup.py` —— 把本卡的验收三条
+（撞点 = 0 / 每 job 每日仅 1 条 success / `adapters/` 单一调度入口）固化成同一口径，
+退出码 0=全过、2=有判据未过、3=检查器自身出错。其中"每 job 每日仅 1 条"由
+`quant.inprocess_job_runs` 主键 `(job_id, run_date)` 结构性保证（实测插入第二条被拒），
+检查器真正盯的是 **status 是否 success** 与 **当天是否漏跑**；"连续 3 个交易日"是时间型条件，
+须等真实交易日累积（2026-10-02 起为国庆休市，判定窗口约 10-09 之后）。
+
 旧 `quant.scheduler_task_configs` 表已全禁用（任务迁入 scheduler_tasks），表保留供回滚。
 
 **部署/重启（2026-10-02 更新：已装 launchd 守护）**：`~/Library/LaunchAgents/com.pi-investment.v2-api.plist`
