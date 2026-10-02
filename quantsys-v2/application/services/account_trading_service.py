@@ -38,13 +38,31 @@ class AccountTradingService:
 
     def __init__(self, repo: Optional[ISimulationRepository] = None, calendar=None,
                  now_fn=None):
-        self.repo = repo
+        # 2026-10-02（REQ-261001145152-3982 审查）：**repo 改为懒解析**（见下面的 property）。
+        # 本文件早已记录过同类事故（daily_orchestrator._match_pending_orders 的注释：
+        # 「AccountTradingService() 无参构造时 repo=None，… 必炸 NoneType ——
+        #   该路径只在交易日 9:31 真实触发才暴露；教训：实例化依赖必须显式注入」），
+        # 但当时只在**那一个调用点**补了注入。实测仍有空构造的路径：
+        # tests/test_trade_cash_race.py 直接 `AccountTradingService()` → 并发买入全部失败
+        # （`'NoneType' object has no attribute 'get_account'`）。
+        # 按仓内 DI 口径（取服务走 ServiceFactory）统一懒解析，保护**所有**调用点。
+        self._repo = repo
         if calendar is None:
             from application.services.trading_calendar_service import TradingCalendarService
             calendar = TradingCalendarService()
         self.calendar = calendar
         # 时间源可注入（测试用固定时间）；默认真实时钟
         self.now_fn = now_fn or datetime.now
+
+    @property
+    def repo(self):
+        """持仓/账户仓储（未注入则按端口懒解析）。见 `__init__` 里的说明。"""
+        if self._repo is None:
+            from domain.ports import ISimulationRepository
+            from infrastructure.services.service_factory import ServiceFactory
+
+            self._repo = ServiceFactory.resolve(ISimulationRepository)
+        return self._repo
 
     def _get_price(self, symbol: str) -> float:
         from application.services.realtime_quote_service import RealtimeQuoteService

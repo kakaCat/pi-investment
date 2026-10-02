@@ -57,7 +57,14 @@ def account():
 def _buy(symbol, results):
     """每个线程独立 service/repo/session，模拟并发请求"""
     try:
-        svc = AccountTradingService()
+        # 2026-10-02（REQ-261001145152-3982 审查）：**显式注入真实仓储**。
+        # 本用例是"打真实库的并发竞态回归"，必须用真仓储；而空构造会走懒解析，
+        # 在测试环境里被 conftest 的容错 stub 兜成 **MagicMock**
+        # （未注册的端口 → MagicMock）→ `account.status != 'active'` 恒真
+        # → 触发"账户已归档，拒绝写操作"的误报。
+        from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
+
+        svc = AccountTradingService(repo=SimulationORMRepository())
         svc.execute_trade(
             account_name=ACCT, action='buy', symbol=symbol, shares=SHARES,
             price=PRICE, reason='并发竞态回归测试买入委托',
