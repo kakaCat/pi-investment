@@ -52,6 +52,26 @@ except Exception:
     pass  # If import fails, tests that need real services will still work
 
 
+# ── 测试环境限制 socket 默认超时（2026-10-02 · REQ-261001145152-3982 审查）──
+# 现象：少量测试**漏 mock**，会真的发起网络请求（实测
+# `tests/services/test_dividend_service.py` 的 TestScreenDividendStocks →
+# DataProviderManager.get_index_constituents → akshare → requests.get，而 akshare
+# 内部的 requests.get **不传 timeout**）。叠加 manager 的
+# `provider_timeout_seconds = 60` 与多源降级链，**每条测试要等数十秒甚至更久**，
+# 整套测试因此在 44% 处长时间无输出（超时栈显示线程卡在 requests.get）。
+#
+# 对策：在测试进程里把 socket 默认超时压到 5 秒——requests 未显式传 timeout 时会
+# 走这个默认值，于是"漏 mock 的网络调用"会**快速失败并报出真实错误**，
+# 而不是把整套测试拖死。需要真实慢网络的集成测试应显式传更长的 timeout。
+# 可用环境变量覆盖：QUANTSYS_TEST_SOCKET_TIMEOUT（秒）
+import socket as _socket
+
+try:
+    _socket.setdefaulttimeout(float(os.environ.get("QUANTSYS_TEST_SOCKET_TIMEOUT", "5")))
+except Exception:  # noqa: BLE001 —— 拿不到环境变量也不该让收集失败
+    _socket.setdefaulttimeout(5)
+
+
 def pytest_configure(config):
     """Load test environment variables before running tests."""
     # Get the project root directory
