@@ -374,7 +374,7 @@ class PoolScannerService:
         """
         
         pool_repo = IStockPoolRepository()
-        pools = pool_repo.get_all_pools()
+        pools = pool_repo.get_all()  # 2026-10-02（REQ-261001145152-3982 审查）：原调 get_all_pools()，该方法在 StockPoolRepository 里**不存在**（真名 get_all）→ 线上实测 500
 
         all_signals = []
         scan_results = []

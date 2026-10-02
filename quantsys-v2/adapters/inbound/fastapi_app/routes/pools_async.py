@@ -104,7 +104,7 @@ def get_scan_results():
 def get_scan_status():
     from adapters.outbound.repositories import StockPoolORMRepository
     pool_repo = StockPoolORMRepository()
-    pools = pool_repo.get_all_pools()
+    pools = pool_repo.get_all()  # 2026-10-02（REQ-261001145152-3982 审查）：原调 get_all_pools()，该方法在 StockPoolRepository 里**不存在**（真名 get_all）→ 线上实测 500
     pools_status = []
     enabled_count = 0
     disabled_count = 0

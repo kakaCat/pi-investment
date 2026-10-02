@@ -375,9 +375,14 @@ def get_sandbox_columns(symbol: Optional[str] = Query(None)):
     from adapters.outbound.repositories import KlineORMRepository
     kline_repo = KlineORMRepository()
     klines = kline_repo.get_latest(symbol, limit=1000)
-    if not klines:
+    # 2026-10-02（REQ-261001145152-3982 审查）：`get_latest()` 返回的是 **polars DataFrame**
+    # （其签名即 `-> pl.DataFrame`），而这里原写成 `if not klines:` —— 对 DataFrame 求布尔值
+    # 会抛 `the truth value of a DataFrame is ambiguous`，线上实测该端点 **500**
+    # （tests/migration parity 抓到：GET /api/indicators/sandbox-columns）。
+    # 现按空表判断，并显式转 pandas（下方用 pandas 语义做指标覆盖检查）。
+    if klines is None or len(klines) == 0:
         return error_response({'success': False, 'error': f'股票 {symbol} 无数据'}, 404)
-    df = pd.DataFrame(klines)
+    df = klines.to_pandas() if hasattr(klines, 'to_pandas') else pd.DataFrame(klines)
     columns_to_check = [
         'roe_q', 'gross_margin_q', 'net_profit_margin_q', 'debt_ratio_q',
         'revenue_growth_q', 'ocf_to_profit_q', 'current_ratio_q', 'roa_q', 'operating_margin_q',

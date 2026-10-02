@@ -456,6 +456,11 @@ class DataQualityService:
                 # 获取K线数据
                 klines = self.kline_repo.get_daily_klines(symbol, start_date, end_date)
 
+                # 注意（2026-10-02 · REQ-261001145152-3982 审查）：
+                # `get_daily_klines()` 返回 **polars DataFrame**，而
+                # `DataValidator.validate_klines()` 的**真实**契约也是 polars DataFrame
+                # （内部用 `klines.is_empty()` / `klines.to_dicts()`），尽管其形参标注
+                # 写的是 `List[Dict]`。**故此处不要做 DataFrame→list 的转换**。
                 # 验证K线数据
                 validation = self.validator.validate_klines(klines)
 

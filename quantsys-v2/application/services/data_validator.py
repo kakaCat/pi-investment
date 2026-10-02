@@ -77,7 +77,13 @@ class DataValidator:
 
             # 3. 涨跌幅验证（需要前一天的收盘价）
             if i > 0:
-                limit_errors = self._validate_price_limit(kline, klines[i-1])
+                # 2026-10-02（REQ-261001145152-3982 审查）：此处原写 `klines[i-1]` ——
+                # 而 `klines` 是**入参 DataFrame**（polars），按整数索引取到的是**列**而非行，
+                # 下游 `_validate_price_limit` 对列调 `.get(...)` 即抛
+                # `'DataFrame' object has no attribute 'get'`；线上实测
+                # `POST /api/data/validate` 因此 **500**（tests/migration parity 抓到）。
+                # 上一行元素必须取自**已转换的行列表**（`klines_list`）。
+                limit_errors = self._validate_price_limit(kline, klines_list[i - 1])
                 validation_errors.extend(limit_errors)
 
             if validation_errors:

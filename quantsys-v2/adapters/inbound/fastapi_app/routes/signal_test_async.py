@@ -40,6 +40,20 @@ def record_signal(payload: Optional[Dict[str, Any]] = Body(None)):
 def verify_signals(payload: Optional[Dict[str, Any]] = Body(None)):
     data = payload or {}
     days_after = data.get('days_after', 5)
+    # 2026-10-02（REQ-261001145152-3982 审查）：**入参越界会 500**。
+    # 原先直接把 days_after 交给 `date.today() - timedelta(days=days_after)`，
+    # 越界值（如 tests/migration 的 parity 用例传 999999）会让 Python 抛
+    # `OverflowError: date value out of range`（落到公元 1 年之前），端点于是以 500 收场
+    # （实测 `/api/signal-test/verify` 返回 500「date value out of range」）。
+    # 非法入参属**调用方错误**，应 400 明确告知，而不是把内部异常冒充成服务器故障。
+    try:
+        days_after = int(days_after)
+    except (TypeError, ValueError):
+        return error_response({'success': False, 'error': 'days_after 必须是整数'}, 400)
+    if not 0 <= days_after <= 3650:
+        return error_response(
+            {'success': False, 'error': 'days_after 超出允许范围（0-3650 天）'}, 400
+        )
     result = _test_log.verify_pending(days_after=days_after)
     return {'success': True, **result}
 
