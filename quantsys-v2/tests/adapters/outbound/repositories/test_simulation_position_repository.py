@@ -1,6 +1,11 @@
 # tests/adapters/outbound/repositories/test_simulation_position_repository.py
 import pytest
 from unittest.mock import Mock
+# 2026-10-02（REQ-261001145152-3982 审查）：**Mock 的字段名要跟现实现对齐**。
+# 仓库读的是 `profit_total` / `profit_total_rate`（2026-09-11 修过，见其代码注释），
+# 而本文件设的是旧名 `unrealized_pnl` / `unrealized_pnl_rate` → 未设的属性在 Mock 上
+# 访问会返回一个 Mock 对象 → `float(Mock)` 抛
+# `TypeError: float() argument must be a string or a real number, not 'Mock'`。
 from adapters.outbound.repositories.simulation_position_repository import SimulationPositionRepository
 from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
 
@@ -26,8 +31,8 @@ class TestSimulationPositionRepository:
         orm_position.avg_cost = 10.0
         orm_position.current_price = 12.0
         orm_position.market_value = 1200.0
-        orm_position.unrealized_pnl = 200.0
-        orm_position.unrealized_pnl_rate = 0.2
+        orm_position.profit_total = 200.0
+        orm_position.profit_total_rate = 0.2
         orm_position.created_at = None
         orm_position.updated_at = None
         mock_sim_repo.get_position.return_value = orm_position
@@ -62,8 +67,8 @@ class TestSimulationPositionRepository:
         orm_position1.avg_cost = 10.0
         orm_position1.current_price = 12.0
         orm_position1.market_value = 1200.0
-        orm_position1.unrealized_pnl = 200.0
-        orm_position1.unrealized_pnl_rate = 0.2
+        orm_position1.profit_total = 200.0
+        orm_position1.profit_total_rate = 0.2
         orm_position1.created_at = None
         orm_position1.updated_at = None
         
@@ -75,8 +80,8 @@ class TestSimulationPositionRepository:
         orm_position2.avg_cost = 15.0
         orm_position2.current_price = 16.0
         orm_position2.market_value = 3200.0
-        orm_position2.unrealized_pnl = 200.0
-        orm_position2.unrealized_pnl_rate = 0.067
+        orm_position2.profit_total = 200.0
+        orm_position2.profit_total_rate = 0.067
         orm_position2.created_at = None
         orm_position2.updated_at = None
         
