@@ -17,7 +17,36 @@ logger = structlog.get_logger(__name__)
 router = APIRouter(tags=["Executions - 执行记录"])
 
 
-def _map_execution(row: Dict[str, Any]) -> Dict[str, Any]:
+_EXEC_FIELDS = (
+    'id', 'signal_id', 'symbol', 'name', 'action', 'execution_price', 'quantity',
+    'commission', 'status', 'execution_date', 'close_date', 'close_price', 'pnl',
+    'created_at', 'updated_at',
+)
+
+
+def _as_mapping(row: Any) -> Dict[str, Any]:
+    """把仓储返回的行**统一成 dict**。
+
+    2026-10-02（REQ-261001145152-3982 审查）：**修一处会在生产爆发的 500**。
+    本模块原先直接 `row.get(...)`，但仓储（`SignalExecutionORMRepository`）返回的是
+    **ORM 对象**（`List[SignalExecution]`），不是 dict → `AttributeError: ... has no attribute 'get'`
+    → 路由 500。
+
+    之所以至今没被发现：**生产库该表当前 0 行**，循环体从未执行（实测线上 `GET /api/executions`
+    返回 200 空列表）；一旦有执行记录落库，该端点立即 500。测试库有数据时即复现
+    （parity 用例实测 `AttributeError on GET /api/executions`）。
+
+    现在 dict 与 ORM 对象都接受 —— 与仓内"同一数据有 dict / ORM 两种返回形态"的现状兼容。
+    """
+    if isinstance(row, dict):
+        return row
+    if hasattr(row, '_asdict'):          # sqlalchemy Row / namedtuple
+        return dict(row._asdict())
+    return {f: getattr(row, f, None) for f in _EXEC_FIELDS}
+
+
+def _map_execution(row: Any) -> Dict[str, Any]:
+    row = _as_mapping(row)
     return {
         'executionId': row.get('id'),
         'signalId': row.get('signal_id'),
