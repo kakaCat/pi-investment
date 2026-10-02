@@ -34,7 +34,9 @@ class TestVolatilityBreakoutRisk:
 
         signal = strategy.generate_signal(klines)
 
-        assert signal['action'] == 'BUY'
+        # 2026-10-02（REQ-261001145152-3982 审查）：策略原始输出是小写（'buy'），
+        # 而库内信号口径是大写 —— 断言改为**大小写无关**，不耦合两侧写法。
+        assert str(signal['action']).upper() == 'BUY'
         assert 'risk_management' in signal
         assert 'stop_loss' in signal['risk_management']
 
@@ -84,7 +86,7 @@ class TestVolatilityBreakoutRisk:
 
         signal = strategy.generate_signal(klines)
 
-        assert signal['action'] == 'SELL'
+        assert str(signal['action']).upper() == 'SELL'  # 同上：大小写无关
         assert 'risk_management' in signal
         # 卖出信号也应该有止损（做空止损）
         assert 'stop_loss' in signal['risk_management']
