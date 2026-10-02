@@ -337,7 +337,9 @@ class TestCombineSignals:
             result = runner.combine_signals(klines, mode='or')
 
         # Should still produce a result from the working strategy
-        assert result['action'] == 'BUY'
+        # 2026-10-02（REQ-261001145152-3982 审查）：`StrategyCombiner` 现在会**归一化动作大小写**
+        # （此前传大写会 KeyError 崩溃、票数还会被稀释），输出统一为小写 → 断言改为大小写无关。
+        assert str(result['action']).upper() == 'BUY'
 
     def test_combine_parses_json_params(self):
         """组合时正确解析 JSON 字符串参数"""
