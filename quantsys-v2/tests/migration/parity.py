@@ -23,6 +23,20 @@ def normalize(obj: Any, ignore_keys: FrozenSet[str] = DEFAULT_IGNORE) -> Any:
     return obj
 
 
+# 2026-10-02（REQ-261001145152-3982 审查）：**已登记的"故意不可用"端点**。
+# `/api/charts/*` 四个端点从 Flask 起就是坏的：`charts_async._import_visualizer()` 的
+# 文档字符串自陈「与 Flask charts.py 完全一致地逐字复制——其中 visualizer 未定义，
+# 会抛 NameError，被各端点捕获后返回 503。**保持该既有行为以冻结契约**」。
+# 实测佐证：上层 `quant` 包不存在，全仓（含上层）搜不到 `BacktestVisualizer` —— 它从未存在过。
+# 故这些端点的 503 是**冻结的既有行为**，不是服务器故障；在此**精确豁免**（不搞"一律容忍 5xx"）。
+KNOWN_FROZEN_UNAVAILABLE = frozenset({
+    "/api/charts/accuracy",
+    "/api/charts/equity",
+    "/api/charts/comparison",
+    "/api/charts/importance",
+})
+
+
 def assert_parity(fastapi_client, method: str, path: str, *,
                   params: Optional[dict] = None, json_body: Any = None,
                   ignore_keys: FrozenSet[str] = DEFAULT_IGNORE,
@@ -32,6 +46,8 @@ def assert_parity(fastapi_client, method: str, path: str, *,
     保留 flask_client 位置参数仅为兼容旧调用签名，不再使用。
     """
     resp = fastapi_client.request(method, path, params=params, json=json_body)
+    if resp.status_code == 503 and path in KNOWN_FROZEN_UNAVAILABLE:
+        return resp  # 见上方说明：冻结的既有不可用，不算故障
     assert resp.status_code < 500, (
         f"[{method} {path}] FastAPI 返回 {resp.status_code}: {resp.text[:400]}"
     )

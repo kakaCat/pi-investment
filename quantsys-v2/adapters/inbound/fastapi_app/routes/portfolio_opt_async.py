@@ -18,6 +18,7 @@ import structlog
 from adapters.inbound.fastapi_app.shared import api_response, handle_api_error
 from domain.quantlib.portfolio.markowitz import MarkowitzOptimizer
 from domain.quantlib.portfolio.black_litterman import BlackLittermanOptimizer
+from domain.quantlib.exceptions import ConfigurationError
 from domain.quantlib.portfolio.risk_parity import RiskParityOptimizer
 
 logger = structlog.get_logger(__name__)
@@ -113,14 +114,24 @@ def black_litterman_optimize(payload: Optional[Dict[str, Any]] = Body(None)):
     optimizer = BlackLittermanOptimizer(risk_free_rate=risk_free_rate)
 
     # 执行优化
-    result = optimizer.optimize(
-        market_weights=market_weights,
-        cov_matrix=cov_matrix,
-        views=views,
-        risk_aversion=risk_aversion,
-        tau=tau,
-        risk_free_rate=risk_free_rate
-    )
+    # 2026-10-02（REQ-261001145152-3982 审查）：**入参非法应回 400，而不是 500**。
+    # 优化器对形状不合法的 views 会抛 ValueError（如
+    # "Invalid parameter 'views': View 0 must have 'assets' and 'return' keys"），
+    # 此前一路冒到 @handle_api_error 变成 500（服务器故障），而它明明是**调用方错误**
+    # （线上实测 POST /api/portfolio/black-litterman/optimize 返回 500）。
+    try:
+        result = optimizer.optimize(
+            market_weights=market_weights,
+            cov_matrix=cov_matrix,
+            views=views,
+            risk_aversion=risk_aversion,
+            tau=tau,
+            risk_free_rate=risk_free_rate
+        )
+    except (ValueError, ConfigurationError) as e:
+        # 域内 `ConfigurationError`（domain.quantlib.exceptions）也是**入参**性质，
+        # 与本文件"缺字段"的处置保持一致：success=False + 原因，而不是 500。
+        return api_response(None, success=False, message=str(e))
 
     # 转换 numpy 数组为列表
     result = _convert_numpy_to_list(result)
