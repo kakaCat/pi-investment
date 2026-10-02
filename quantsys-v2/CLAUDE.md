@@ -103,6 +103,31 @@ Three-layer safety checks prevent accidental production database connections dur
 
 All layers verify that the database name ends with `_test` when pytest is detected.
 
+> **2026-10-02 实测修正（REQ-261001145152-3982 审查）**：上面这段描述的第 3 层**曾经是漏的**。
+> 异步引擎 `init_async_engine(dsn=...)` **只在 `dsn is None` 时才走带守卫的解析器**，
+> 显式传入 DSN 完全跳过校验——实测在 pytest 下传生产库 DSN
+> （`postgresql+asyncpg://.../quant_investment`）**未被拒绝**。
+> 现已把守卫抽成公共函数 `engine.assert_test_db_in_pytest(dsn)`（同步/异步共用），
+> 并由 `init_async_engine` 对**显式 DSN** 也调用它。
+> 另：该函数的第 4 条口径是新增的——**取不到库名就拒绝**（原先静默放行，等于连默认库绕过）。
+> 回归锁在 `tests/test_async_pool_safety.py`（改前 6 条全失败——它们测的是已被掏空成
+> no-op 壳的 `AsyncConnectionPool`；现改测真守卫，6 条原意逐条保留）。
+>
+> **测试库镜像**：迁移必须**两个库都跑**，否则 `tests/test_orm_db_drift.py` 会红——
+> 它比对的是模型与**测试库**。示例（注意显式 DSN，别指望 `PGDATABASE` 覆盖）：
+> ```bash
+> python infrastructure/persistence/migrations/<migration>.py --apply --dsn postgresql://mac@127.0.0.1:5432/quant_test
+> ```
+> 2026-10-02 修了两个迁移脚本的 bug：`20260911` 把 SQLAlchemy 的 `username` 键直接喂给
+> psycopg2（只认 `user`）→ 那条 `--dsn`（文档里就是给测试库用的）**从来没能跑过**；
+> `20261002` 的 verify 段在**空表**上 `row[0]` 抛 TypeError。
+>
+> ⚠️ **测试库 DDL 会被 `idle in transaction` 连接锁住**：实测同时挂过 3 个泄漏事务
+> （锁着 `stock_pools`/`stocks`/`index_constituents`），无上限的 DDL 会**无限等锁**——
+> 漂移门禁曾因此让整套测试停在 78% 永远跑不完。现状：漂移门禁已加 `lock_timeout=30s`
+> （挂死变响亮报错）；根 conftest 加了 `_release_orm_session_after_test` 自动归还会话
+> （零开销短路）。写迁移时请照样加 `lock_timeout`。
+
 ### 3. Run Tests
 
 ```bash
