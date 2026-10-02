@@ -97,9 +97,9 @@ def handle_factor_compute(params: Dict[str, Any] = None) -> Dict[str, Any]:
         # 获取股票列表（如果没有指定）
         symbols = params.get('symbols')
         if not symbols:
-            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+            from infrastructure.services.service_factory import ServiceFactory
             from domain.ports import IStockRepository
-            repo = EnhancedServiceFactory.resolve(IStockRepository)
+            repo = ServiceFactory.resolve(IStockRepository)
             stocks = repo.get_all(limit=params.get('max_symbols', 500))
             # 过滤指数代码（399开头、000300、000852、000016等）
             symbols = [

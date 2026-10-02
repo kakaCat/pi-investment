@@ -72,9 +72,9 @@ def handle_strategy_discover_weekly(params: Dict[str, Any] = None) -> Dict[str, 
         # 获取股票池
         symbols = params.get('symbols')
         if not symbols:
-            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+            from infrastructure.services.service_factory import ServiceFactory
             from domain.ports import IStockRepository
-            repo = EnhancedServiceFactory.resolve(IStockRepository)
+            repo = ServiceFactory.resolve(IStockRepository)
             stocks = repo.get_all(limit=50)  # 限制数量避免太慢
             symbols = [s['symbol'] for s in stocks]
 

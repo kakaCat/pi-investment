@@ -110,9 +110,9 @@ def handle_financial_data_update(params: Dict[str, Any] = None) -> Dict[str, Any
         # 获取股票列表
         symbols = params.get('symbols')
         if not symbols:
-            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+            from infrastructure.services.service_factory import ServiceFactory
             from domain.ports import IStockRepository
-            repo = EnhancedServiceFactory.resolve(IStockRepository)
+            repo = ServiceFactory.resolve(IStockRepository)
             stocks = repo.list_by_market(market='A', limit=500)
             symbols = [s.symbol for s in stocks]
 

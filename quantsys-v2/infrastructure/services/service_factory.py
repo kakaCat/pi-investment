@@ -62,13 +62,25 @@ class ServiceFactory:
     _instances = {}
 
     @classmethod
-    def resolve(cls, service_type: Type[T]) -> Optional[T]:
+    def resolve(cls, service_type: Type[T]) -> T:
         """按**端口**取实现——DI 唯一入口的端口解析面。
 
-        委托内部层 `EnhancedServiceFactory`（其注册是惰性的，先 `_ensure_enhanced_factory()`）。
-        未注册时返回 None（调用方自行降级），不抛异常——与既有 `_try_get_from_enhanced` 口径一致。
+        **与 `EnhancedServiceFactory.resolve` 逐字同语义**（2026-10-02 · t-71051b）：
+        ① 未注册 / 循环依赖 → **抛 `ValueError`**（不返回 None）；
+        ② **不做自动注册**（无隐式副作用）。
+
+        为什么这两点都必须守住：
+        - 返回 None 会把一路在清的「静默降级」重新引入——调用方拿着 None 继续跑，
+          错误延后到别处以更难查的形态爆出来；
+        - 若在这里顺手 `_ensure_enhanced_factory()`（注册全部服务），就改变了全局状态：
+          迁移实测中"未注册应报错"的用例因服务被顺带注册而失效（3 个用例由通过变失败）。
+          注册该由启动路径（`service_registry.register_all_services`）负责，不藏在 getter 里。
+
+        本类各具名 getter 仍走私有的 `_try_get_from_enhanced`（宽松口径：未注册返回 None 以便
+        回退旧实现），那是**入口内部**的降级策略，与这里的对外语义无关。
         """
-        return _try_get_from_enhanced(service_type)
+        from .enhanced_service_factory import EnhancedServiceFactory
+        return EnhancedServiceFactory.resolve(service_type)
 
     @classmethod
     @lru_cache(maxsize=1)

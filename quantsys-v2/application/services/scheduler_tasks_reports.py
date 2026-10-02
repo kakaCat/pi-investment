@@ -106,9 +106,9 @@ def handle_backtest_run(params: Dict[str, Any] = None) -> Dict[str, Any]:
         strategy_ids = params.get('strategy_ids')
         if not strategy_ids:
             # 获取所有启用的策略
-            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+            from infrastructure.services.service_factory import ServiceFactory
             from domain.ports import IStrategyRepository
-            repo = EnhancedServiceFactory.resolve(IStrategyRepository)
+            repo = ServiceFactory.resolve(IStrategyRepository)
             strategies = repo.list_enabled_strategies(limit=10)
             strategy_ids = [s.id for s in strategies]
 

@@ -57,11 +57,11 @@ def handle_pending_orders_match(params: Dict[str, Any] = None) -> Dict[str, Any]
 
     try:
         from application.services.account_trading_service import AccountTradingService
-        from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+        from infrastructure.services.service_factory import ServiceFactory
         from domain.ports import ISimulationRepository
 
         # 获取服务
-        repo = EnhancedServiceFactory.resolve(ISimulationRepository)
+        repo = ServiceFactory.resolve(ISimulationRepository)
         trading_service = AccountTradingService(repo=repo)
 
         # 执行撮合
