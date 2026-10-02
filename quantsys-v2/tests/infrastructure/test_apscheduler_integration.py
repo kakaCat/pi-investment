@@ -7,6 +7,7 @@ APScheduler 核心功能集成测试
 3. 支持不同的 task_type
 """
 import pytest
+from sqlalchemy import text
 from datetime import datetime
 from infrastructure.scheduler.apscheduler_service import APSchedulerService
 from adapters.outbound.repositories.scheduler_repository import SchedulerRepository
@@ -14,9 +15,21 @@ from infrastructure.persistence.orm import get_session
 
 
 def test_load_real_tasks_from_database():
-    """测试从真实数据库加载任务"""
+    """测试从真实数据库加载任务
+
+    2026-10-02（REQ-261001145152-3982 审查）：本用例需要**库里先有启用的任务**。
+    实测 `quant.scheduler_tasks`——生产 33 行（启用 11），而 **quant_test 是 0 行**，
+    于是 "应该至少加载一些启用的任务" 必然失败：属**数据前提缺失**，不是缺陷。
+    数据缺失时带原因跳过（与其它数据依赖用例同一口径）。
+    """
     session = get_session()
     repo = SchedulerRepository(session)
+
+    _enabled = session.execute(
+        text("select count(*) from quant.scheduler_tasks where is_enabled = true")
+    ).scalar()
+    if not _enabled:
+        pytest.skip("测试库 quant.scheduler_tasks 无启用任务（生产有 11 条）：本用例需数据铺底")
 
     # 使用内存数据库作为 APScheduler jobstore（避免污染真实数据）
     db_url = "sqlite:///:memory:"

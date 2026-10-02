@@ -34,7 +34,9 @@ class TestTurtleRisk:
 
         signal = strategy.generate_signal(klines)
 
-        assert signal['action'] == 'BUY'
+        # 2026-10-02（REQ-261001145152-3982 审查）：策略原始输出小写、库内口径大写，
+        # 断言改为**大小写无关**，两侧写法都不耦合。
+        assert str(signal['action']).upper() == 'BUY'
         assert 'risk_management' in signal
         assert 'stop_loss' in signal['risk_management']
 
@@ -67,7 +69,9 @@ class TestTurtleRisk:
 
         signal = strategy.generate_signal(klines)
 
-        assert signal['action'] == 'SELL'
+        # 2026-10-02（REQ-261001145152-3982 审查）：策略原始输出小写、库内口径大写，
+        # 断言改为**大小写无关**，两侧写法都不耦合。
+        assert str(signal['action']).upper() == 'SELL'
         assert 'risk_management' in signal
         assert 'stop_loss' in signal['risk_management']
         assert signal['risk_management']['stop_loss']['price'] > klines[-1]['close']
