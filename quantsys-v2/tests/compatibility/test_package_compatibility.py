@@ -15,7 +15,12 @@
 import sys
 import subprocess
 
-def test_package_compatibility(package_name, import_name=None):
+# 2026-10-02（REQ-261001145152-3982 审查）：本文件是**脚本**（末尾 main() 遍历包列表
+# 调用它），但函数名以 test_ 开头 → 被 pytest 当成测试收集，而 package_name 被
+# 当作 fixture 名 → 每次跑都报 `fixture 'package_name' not found`（1 error）。
+# 这里去掉 test_ 前缀（它做的是 pip install --dry-run / pip show，不是单测），
+# 保留脚本语义；如需单测应另写 parametrize 版本。
+def check_package_compatibility(package_name, import_name=None):
     """测试单个包的兼容性"""
     if import_name is None:
         import_name = package_name.replace('-', '_')
@@ -89,7 +94,7 @@ def main():
 
     results = {}
     for package_name, import_name in packages:
-        result = test_package_compatibility(package_name, import_name)
+        result = check_package_compatibility(package_name, import_name)
         results[package_name] = result
 
     # 汇总报告

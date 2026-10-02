@@ -339,5 +339,19 @@ class StrategyRunner:
         return combiner.combine(strategy_signals, weights=weights)
 
     def close(self):
-        """关闭数据库连接"""
-        self.repo.close()
+        """释放底层仓储持有的资源（若它提供清理钩子）。
+
+        2026-10-02（REQ-261001145152-3982 审查）：**原先无条件下调 `self.repo.close()`**，
+        而 `BaseORMRepository`（含 `StrategyORMRepository`）**没有 close 方法**
+        → 任何调用点都抛 `AttributeError: 'StrategyORMRepository' object has no attribute 'close'`。
+        实测这一处生产缺陷在测试里表现为 8 条错误（`tests/test_strategy_engine.py`
+        与 `test_strategy_engine_original.py` 的 runner fixture teardown）。
+
+        改为按能力探测：仓储若确实提供 `close` 就调，否则安静跳过
+        （ORM 轨的会话释放由 `infrastructure.persistence.orm.close_session()` 统一负责，
+        领域层不应反向依赖 infrastructure，故不在此处直接导入它）。
+        """
+        closer = getattr(self.repo, "close", None)
+        if callable(closer):
+            closer()
+
