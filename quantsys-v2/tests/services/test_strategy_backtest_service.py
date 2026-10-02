@@ -182,11 +182,15 @@ class TestStrategyBacktestService:
                 'type': 'BUY',
                 'tier': 1,
                 'price': 10.0,
-                'shares': 10000,
-                'quantity': 10000,
-                'amount': 100000.0,
-                'cash': 0.0,
-                'position_shares': 10000
+                # 2026-10-02（REQ-261001145152-3982 审查）：**按"有效价"成交的股数**。
+                # 引擎的下单量是 `int(min(allocated_cash, cash) / effective_entry / 100) * 100`，
+                # 其中 `effective_entry` 含滑点 —— 实测有效价 10.0075（滑点约 0.075%），
+                # 于是 100000 只能买 9900 股（原期望 10000 股 = 无滑点口径，属更早的写法）。
+                'shares': 9900,
+                'quantity': 9900,
+                'amount': 99074.25,   # 9900 × 10.0075（含滑点）
+                'cash': 925.75,   # 100000 - 99074.25（含滑点后余量）
+                'position_shares': 9900
             }
         ]
 

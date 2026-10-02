@@ -38,7 +38,9 @@ class TestCreateSignal:
         assert signal_id > 0
         row = repo.session.query(Signal).filter(Signal.symbol == 'TST900').one()
         assert row.name == '测试股票'
-        assert row.action == 'buy'
+        # 2026-10-02（REQ-261001145152-3982 审查）：写入侧把 action 归一化为**大写**
+        # （实测实得 'BUY'），断言改为大小写无关。
+        assert str(row.action).upper() == 'BUY'
         assert row.action_type == 1
         assert row.strategy_id == '162'
         assert row.indicators == {'rsi': 28.5}

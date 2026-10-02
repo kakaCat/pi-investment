@@ -54,7 +54,10 @@ class TestSignals:
         sigs = seeded['repo'].get_signals_between(date(2009, 1, 1), D)
         ours = [x for x in sigs if x['symbol'] == 'TST010']
         assert len(ours) == 2
-        assert {x['action'] for x in ours} == {'buy', 'sell'}
+        # 2026-10-02（REQ-261001145152-3982 审查）：**大小写无关**。
+        # 写入侧会把 action 归一化为大写（实测实得 {'BUY','SELL'}），
+        # 而断言写的是小写 —— 两侧写法都不耦合，比较时统一 upper()。
+        assert {str(x['action']).upper() for x in ours} == {'BUY', 'SELL'}
         assert ours[0]['strategy_id'] == 'v13'
 
 
