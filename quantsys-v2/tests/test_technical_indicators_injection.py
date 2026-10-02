@@ -1,4 +1,10 @@
 """
+
+2026-10-02（REQ-261001145152-3982 审查）：样本长度 30 → **60**。
+实测 `_inject_technical_indicators()` 对 30 行的输入，末行 `macd` 为 **NaN**
+（MACD 的平滑预热需要更长历史），60 行时 `macd=7.0` 正常。
+断言原意（"指标要真的注入出数值"）不变，只把样本给足。
+
 Tests for technical indicators injection in strategy code service
 """
 import pytest
@@ -16,7 +22,7 @@ class TestTechnicalIndicatorsInjection:
         # Prepare test K-lines (30 days for proper indicator calculation)
         klines = []
         base_price = 100.0
-        for i in range(30):
+        for i in range(60):   # 2026-10-02：MACD 预热需要更长的历史（30 行时末行 macd 为 NaN）
             # Simulate price movement
             price = base_price + (i % 10) - 5
             klines.append({
@@ -33,7 +39,7 @@ class TestTechnicalIndicatorsInjection:
 
         # Verify result is not None
         assert result is not None
-        assert len(result) == 30
+        assert len(result) == 60   # 同上：样本已加到 60 行
 
         # Verify technical indicator columns exist
         expected_indicators = [
