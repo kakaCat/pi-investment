@@ -437,6 +437,16 @@ Technical infrastructure and cross-cutting concerns:
 | 内部层 | `service_registry.py` | `create_*` 工厂函数 + `register_all_services()` 注册 | 仍有 9 个生产文件直接引用 → **同上** |
 | ~~第四套~~ | ~~`infrastructure/di/`~~ | 死件（生产零引用，只有 2 个测试用） | **已删除**（连幽灵依赖 `dependency-injector` 一并移除） |
 
+> **端口归属裁决（2026-10-02 · 同一卡）**：除 `domain/ports/`（集中式端口库）外，
+> `domain/<域>/ports/` 还有一套**域内端口**（accounts / events / industry_chain / portfolio / trading）。
+> 二者有 2 个重名，实测**不是重复而是不同接口**，故**不合并、只裁归属**：
+> | 重名 | `domain/ports/` 侧 | 域内侧 | 裁决 |
+> |---|---|---|---|
+> | `IOrderRepository` | 1 方法桩（`get_orders`） | `domain/trading/ports/`（6 方法，含 create/cancel/update） | **域内为准**（域服务 `order_service` 用的就是它） |
+> | `IPositionRepository` | 1 方法桩（`get_positions`） | `domain/portfolio/ports/`（4 方法，`get_all_positions` 等） | **域内为准**；两侧方法名语义不同（`get_positions` ≠ `get_all_positions`），**不能互换** |
+> 集中库里的这两个桩仅剩 1 个调用方（`adapters/outbound/repositories/position_repository.py`），
+> 退役它需先对齐方法语义，属**逐点改造**，留作后续（勿当成机械替换）。
+
 > 历史观感是"4 套 DI 并存"，实测是**1 入口 + 2 内部层 + 1 死件**：`service_factory` 内部本就在
 > 调用另两层（`_ensure_enhanced_factory` / `_try_get_from_enhanced`），并非平行实现。
 > 收敛动作分两批（本卡只做了安全部分）：① 死件已删；② 34+9 个直接引用者分批改走
