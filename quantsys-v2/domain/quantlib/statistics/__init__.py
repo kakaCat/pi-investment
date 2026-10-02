@@ -611,9 +611,16 @@ class StatisticalAnalyzer(BaseCalculator):
         # Perform KS test
         if distribution == 'norm':
             # Test against normal distribution with sample mean and std
+            # 2026-10-02（REQ-261001145152-3982 审查）：**改用显式 `stats.norm.cdf`**。
+            # 原写 `stats.kstest(data, 'norm', args=(mean, std))`（标准用法），但本环境
+            # scipy 1.18.0 内部走该字符串分支时抛
+            #   TypeError: ndtr() takes from 1 to 2 positional arguments but 3 were given
+            # ——实测**直接调 scipy 即失败**（与本仓无关，是构建里的缺陷）。
+            # 显式传 cdf 走的是另一条实现路径：实测成功，且结果与"先标准化再对 'norm' 检验"**逐位一致**
+            # （stat=0.0791 / p=0.8884）。语义相同，只是绕开该构建的坏路径。
             statistic, p_value = stats.kstest(
                 data,
-                'norm',
+                stats.norm.cdf,
                 args=(np.mean(data), np.std(data, ddof=1))
             )
         elif distribution == 'uniform':

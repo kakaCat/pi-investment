@@ -13,6 +13,17 @@ from domain.quantlib.timeseries import TimeSeriesAnalyzer
 from domain.quantlib.exceptions import DataValidationError, InsufficientDataError, ModelFitError
 
 
+# 2026-10-02（REQ-261001145152-3982 审查）：**GARCH 需要可选依赖 `arch`**，
+# 而该包既未安装、也未在 pyproject 声明（`import arch` 实测 ModuleNotFoundError）。
+# 适配到"能力不可用"这条既有口径：缺依赖时**精确跳过**（并写明原因），
+# 而不是让它以 `DependencyError` 混在失败里（同 `handle_api_error` 对缺依赖回 503 的处理）。
+import importlib.util as _ilu
+
+requires_arch = pytest.mark.skipif(
+    _ilu.find_spec('arch') is None,
+    reason="GARCH 需要可选依赖 'arch'（未安装、未在 pyproject 声明）——本环境无从验证",
+)
+
 class TestExtendedTimeSeriesMethods:
     """Test extended time series analysis methods."""
 
@@ -97,6 +108,7 @@ class TestExtendedTimeSeriesMethods:
         width_95 = pred_95['value']['upper_bound'][0] - pred_95['value']['lower_bound'][0]
         assert width_95 > width_90
 
+    @requires_arch
     def test_fit_garch(self):
         """Test GARCH model fitting."""
         np.random.seed(42)
@@ -112,6 +124,7 @@ class TestExtendedTimeSeriesMethods:
         assert 'next_volatility' in result['value']
         assert 'mean_volatility' in result['metadata']
 
+    @requires_arch
     def test_fit_garch_different_orders(self):
         """Test GARCH with different orders."""
         np.random.seed(42)
@@ -128,6 +141,7 @@ class TestExtendedTimeSeriesMethods:
         assert result_11['parameters']['p'] == 1
         assert result_21['parameters']['p'] == 2
 
+    @requires_arch
     def test_fit_garch_insufficient_data(self):
         """Test that GARCH rejects insufficient data."""
         returns = np.random.randn(30)  # Too short

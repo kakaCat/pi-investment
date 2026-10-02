@@ -122,12 +122,19 @@ class StrategyCodeService:
             strategy_repo: 策略仓库（可选，用于依赖注入）
             kline_repo: K线仓库（可选，用于依赖注入）
         """
-        self.strategy_repo = strategy_repo
-        self.kline_repo = kline_repo
+        # 2026-10-02（REQ-261001145152-3982 审查）：**改为懒解析**（见下面的 property）。
+        # 原实现直接 `self.strategy_repo = strategy_repo`（默认 None），而**生产侧大量调用方
+        # 是空构造**（实测 8 处 CLI 命令 + pool_scanner_service / strategy_discovery_service /
+        # signal_execution_scheduler / service_registry 等），于是 `self.strategy_repo` 恒为 None
+        # → 任何策略写入（create_strategy / update_strategy …）都崩
+        # `AttributeError: 'NoneType' object has no attribute 'create_user_strategy'`。
+        self._strategy_repo = strategy_repo
+        self._kline_repo = kline_repo
         self.indicator_executor = IndicatorStrategyExecutor()
         self.script_executor = ScriptStrategyExecutor()
         self.code_validator = CodeValidator()
         self.param_parser = ParamParser()
+
         self.attribution_calculator = RiskAttributionCalculator()
 
         # 数据提供者管理器
@@ -172,6 +179,33 @@ class StrategyCodeService:
         logger.info(f"因子计算器初始化完成（{total_factors}个因子可用）")
 
     # ==================== 策略管理 ====================
+
+
+    @property
+    def strategy_repo(self):
+        """策略仓库（未注入则按端口懒解析 —— 与 HeatmapService 等同类服务一致）。
+
+        2026-10-02（REQ-261001145152-3982 审查）：本类此前**不做懒解析**，
+        而生产侧有大量空构造（CLI / 多个服务），导致 `strategy_repo` 恒为 None、
+        策略写入一律 AttributeError。仓内的 DI 口径是"取服务走 ServiceFactory"，
+        故这里补上，与同类服务保持一致。
+        """
+        if self._strategy_repo is None:
+            from domain.ports import IStrategyRepository
+            from infrastructure.services.service_factory import ServiceFactory
+
+            self._strategy_repo = ServiceFactory.resolve(IStrategyRepository)
+        return self._strategy_repo
+
+    @property
+    def kline_repo(self):
+        """K 线仓库（未注入则按端口懒解析）。"""
+        if self._kline_repo is None:
+            from domain.ports import IKlineRepository
+            from infrastructure.services.service_factory import ServiceFactory
+
+            self._kline_repo = ServiceFactory.resolve(IKlineRepository)
+        return self._kline_repo
 
     def create_strategy(
         self,
