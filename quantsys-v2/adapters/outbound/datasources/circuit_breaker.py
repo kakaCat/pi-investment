@@ -159,6 +159,19 @@ class CircuitBreaker(ICircuitBreaker):
         logger.info(f"Circuit breaker '{self.name}' manually reset")
         self._breaker.close()
 
+    def open(self):
+        """Force the circuit breaker to OPEN state.
+
+        2026-10-02（REQ-261001145152-3982 审查）：**补此入口以修一处真实缺陷**——
+        本类内部用 pybreaker，而 pybreaker 只在自己包住调用时才累加失败计数；
+        上游 `DataProviderManager._record_failure()` 走的是**自己的**计数
+        （provider_stats['consecutive_failures']），从未把失败喂给熔断器，
+        于是**熔断永远不会因连续失败而触发**（`_is_circuit_broken` 恒为假，
+        形同死代码）。这里提供显式开断，由上游在计数达阈值时调用。
+        """
+        logger.warning(f"Circuit breaker '{self.name}' opened")
+        self._breaker.open()
+
     def get_state(self) -> Dict[str, Any]:
         """Get current circuit breaker state.
 

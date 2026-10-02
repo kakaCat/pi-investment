@@ -45,6 +45,11 @@ class TestProviderFailover:
 
         manager.quote_providers = [provider1, provider2]
         manager._init_stats()
+        # 2026-10-02（REQ-261001145152-3982 审查）：管理器默认 provider_timeout_seconds=60，
+        # 而本用例的 SlowProvider sleep(100) → 真等满 60 秒才降级（pytest 超时先杀），
+        # 既跑不过也拖慢整套（曾占 15s+ 的慢测试榜首）。把超时压到 1 秒：
+        # 同一条降级语义，秒级完成、可复现。
+        manager.provider_timeout_seconds = 1
 
         # 执行查询
         result = manager.get_quote("000001")
@@ -185,7 +190,12 @@ class TestCircuitBreaker:
         # 验证熔断已触发
         stats = manager.provider_stats["UnstableProvider"]
         assert stats['consecutive_failures'] == 3
-        assert stats['circuit_breaker_until'] > time.time()
+        # 2026-10-02（REQ-261001145152-3982 审查）：原先断言
+        # stats['circuit_breaker_until'] > time.time() —— 该键**生产从不写入**：
+        # 熔断已抽成 CircuitBreaker 类（adapters/outbound/datasources/circuit_breaker.py，
+        # 内部用 pybreaker），状态记在那张 _circuit_breakers 表里，不在 provider_stats。
+        # 故改为断言**熔断器的真实状态**（公开 API is_open）。
+        assert manager._circuit_breakers["UnstableProvider"].is_open() is True
 
     def test_circuit_broken_provider_is_skipped(self, manager):
         """测试：熔断中的provider被跳过"""
@@ -207,8 +217,8 @@ class TestCircuitBreaker:
         manager.quote_providers = [provider1, provider2]
         manager._init_stats()
 
-        # 手动触发熔断
-        manager.provider_stats["BrokenProvider"]['circuit_breaker_until'] = time.time() + 10
+        # 手动触发熔断（同一原因：改为直接开断熔断器，而不是写 provider_stats 里的旧键）
+        manager._circuit_breakers["BrokenProvider"]._breaker.open()
 
         # 执行查询
         result = manager.get_quote("000001")
@@ -235,7 +245,10 @@ class TestCircuitBreaker:
         manager._init_stats()
 
         # 设置熔断（但时间已过期）
-        manager.provider_stats["RecoveredProvider"]['circuit_breaker_until'] = time.time() - 1
+        # 同上：该键生产已不写；改为把熔断器开断并让其超时已过
+        _rcb = manager._circuit_breakers["RecoveredProvider"]
+        _rcb.open()
+        _rcb._opened_at = time.time() - _rcb.timeout - 1
 
         # 执行查询
         result = manager.get_quote("000001")
@@ -261,8 +274,16 @@ class TestCircuitBreaker:
         manager._init_stats()
 
         # 手动设置熔断状态
+        # 2026-10-02（REQ-261001145152-3982 审查）：原先写 provider_stats 的
+        # 'circuit_breaker_until'（生产从不写该键，熔断状态在 CircuitBreaker 里）
+        # → 改为直接把熔断器置为 OPEN。
         manager.provider_stats["TestProvider"]['consecutive_failures'] = 5
-        manager.provider_stats["TestProvider"]['circuit_breaker_until'] = time.time() - 1
+        _cb = manager._circuit_breakers["TestProvider"]
+        _cb.open()
+        # 关键：本用例测的是「熔断**已过期** → 允许一次试探调用 → 成功即复位」
+        # （CircuitBreaker.should_allow_call 的语义：OPEN 且 timeout 已过才放行）。
+        # 若不把 _opened_at 拨回过去，provider 会被正确跳过 → result['success'] 为 False。
+        _cb._opened_at = time.time() - _cb.timeout - 1
 
         # 执行成功调用
         result = manager.get_quote("000001")
@@ -271,7 +292,8 @@ class TestCircuitBreaker:
         assert result['success'] is True
         stats = manager.provider_stats["TestProvider"]
         assert stats['consecutive_failures'] == 0
-        assert stats['circuit_breaker_until'] == 0
+        # 同上：断言熔断器**真实状态**已复位（原断言 circuit_breaker_until == 0 已无对应实现）
+        assert manager._circuit_breakers["TestProvider"].is_open() is False
 
 
 class TestHealthScoreAdjustment:

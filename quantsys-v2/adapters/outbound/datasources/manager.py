@@ -570,6 +570,25 @@ class DataProviderManager(IDataProviderManager):
             self.provider_stats[provider_name]['consecutive_failures'] = consecutive
             self.provider_stats[provider_name]['last_attempt_time'] = time.time()
 
+            # 2026-10-02（REQ-261001145152-3982 审查）：**此前从不把失败喂给熔断器**——
+            # 本方法只累加 provider_stats 的计数，而 `_is_circuit_broken()` 查的是
+            # `_circuit_breakers[name].should_allow_call()`（内部 pybreaker）。
+            # pybreaker 只在自己包住调用时才计数，我们绕过了它 → **熔断永远不会触发**，
+            # 连续失败的 provider 会被一次次重试（每次还要等满 provider_timeout_seconds），
+            # 那段熔断检查形同死代码。这里在自家计数达阈值时显式开断。
+            _cb = self._circuit_breakers.get(provider_name)
+            if (
+                _cb is not None
+                and consecutive >= self._circuit_breaker_threshold
+                and not _cb.is_open()
+            ):
+                _cb.open()
+                logger.warning(
+                    f"Provider {provider_name} 连续失败 {consecutive} 次"
+                    f"（阈值 {self._circuit_breaker_threshold}）→ 熔断 "
+                    f"{self._circuit_breaker_duration}s"
+                )
+
     def _record_empty(self, provider_name: str):
         """Record an EMPTY result (provider healthy, query has no data)
 
