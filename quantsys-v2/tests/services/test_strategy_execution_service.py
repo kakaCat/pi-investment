@@ -9,13 +9,39 @@ from adapters.outbound.repositories.models.strategy_execution import (
 )
 
 
+# 2026-10-02（REQ-261001145152-3982 审查）：本文件的 patch 目标集体失效——
+# 原 fixture patch 的是 `strategy_execution_service.SignalORMRepository`，而该模块
+# **已不再导入这个类**：依赖改为按端口经 ServiceFactory.resolve(...) 解析
+# （见模块内 kline_repo/stock_repo/_strategy_repo 的延迟加载属性）。
+# 于是 patch 抛 AttributeError，本文件 6 条测试**全部 ERROR**。
+# 下面改为 patch 真实解析点，并按端口分派（只让信号仓库带定制行为，
+# 其余端口给通用 MagicMock，避免顺手把 kline/stock 也 mock 坏）。
+from domain.ports import (  # noqa: E402
+    IKlineRepository,
+    ISignalRepository,
+    IStockRepository,
+    IStrategyRepository,
+)
+
+
+def _fake_resolve(signal_repo):
+    def _resolve(port):
+        if port is ISignalRepository:
+            return signal_repo
+        return MagicMock()
+
+    return _resolve
+
+
 @pytest.fixture
 def mock_signal_repo():
-    with patch('application.services.strategy_execution_service.SignalORMRepository') as mock:
-        mock_instance = MagicMock()
-        mock_instance.create_signal.return_value = 123  # Mock signal ID
-        mock.return_value = mock_instance
-        yield mock
+    fake_signal = MagicMock()
+    fake_signal.create_signal.return_value = 123  # Mock signal ID
+    with patch(
+        'infrastructure.services.service_factory.ServiceFactory.resolve',
+        side_effect=_fake_resolve(fake_signal),
+    ):
+        yield fake_signal
 
 
 @pytest.fixture
