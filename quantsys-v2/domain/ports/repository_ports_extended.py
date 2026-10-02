@@ -12,45 +12,28 @@ import polars as pl
 
 # ==================== 已有的核心接口 ====================
 
-class IKlineRepository(ABC):
-    """K线数据仓储接口"""
-    @abstractmethod
-    def get_kline_data(self, symbol: str, start_date: Optional[str] = None,
-                       end_date: Optional[str] = None, period: str = 'daily') -> pl.DataFrame:
-        pass
+# ==================== 已有的核心接口（转引自 repository_ports） ====================
+# 2026-10-02（REQ-261001145152-3982 t-71051b）：此处原本**重复定义**了 6 个与
+# repository_ports.py 同名的接口，且方法更少（各 1 个 vs A 的 2~4 个）——
+# 于是**同一个名字经两条导入路径得到两种接口**
+# （application/services/data_service.py 正是从本模块导入了弱版本）。
+# 现改为转发：全仓同名接口只保留一处定义。
+from domain.ports.repository_ports import (  # noqa: F401
+    IKlineRepository,
+    ISignalRepository,
+    IPortfolioRepository,
+    IRiskRepository,
+    IFactorRepository,
+    IStrategyRepository,
+    ISchedulerRepository,   # 权威定义在 A（19 方法，quant.scheduler_tasks）；
+                            # 原 B 版同名 1 方法接口（实为 AutomationTaskRepository）已删除
+)
 
-class ISignalRepository(ABC):
-    """信号仓储接口"""
-    @abstractmethod
-    def create_signal(self, signal_data: Dict[str, Any]) -> int:
-        pass
 
-class IPortfolioRepository(ABC):
-    """组合仓储接口"""
-    @abstractmethod
-    def get_portfolio_history(self, portfolio_name: str, start_date: Optional[str] = None,
-                                end_date: Optional[str] = None) -> List[Dict[str, Any]]:
-        pass
 
-class IRiskRepository(ABC):
-    """风险仓储接口"""
-    @abstractmethod
-    def get_risk_metrics(self, symbol: Optional[str] = None, start_date: Optional[str] = None,
-                         end_date: Optional[str] = None) -> List[Dict[str, Any]]:
-        pass
 
-class IFactorRepository(ABC):
-    """因子仓储接口"""
-    @abstractmethod
-    def get_factor_data(self, symbol: str, factor_names: Optional[List[str]] = None,
-                        start_date: Optional[str] = None, end_date: Optional[str] = None) -> pl.DataFrame:
-        pass
 
-class IStrategyRepository(ABC):
-    """策略仓储接口"""
-    @abstractmethod
-    def get_strategy(self, strategy_id: int) -> Optional[Dict[str, Any]]:
-        pass
+
 
 
 # ==================== 新增接口 ====================
@@ -179,11 +162,10 @@ class ISchedulerConfigRepository(ABC):
     def get_config(self, config_key: str) -> Optional[Dict[str, Any]]:
         pass
 
-class ISchedulerRepository(ABC):
-    """调度器仓储接口"""
-    @abstractmethod
-    def get_scheduled_tasks(self) -> List[Dict[str, Any]]:
-        pass
+# 注：ISchedulerRepository 的**唯一权威定义**在 repository_ports.py（19 个方法，
+# 对应 quant.scheduler_tasks，由 SchedulerRepository 实现）。此处原先另有一个
+# 同名 1 方法版本（get_scheduled_tasks，实际属于 AutomationTaskRepository）——
+# 无任何消费者，2026-10-02 删除；要自动化任务端口请另起名字（勿再复用该名）。
 
 class IAgentKnowledgeRepository(ABC):
     """Agent 知识库仓储接口"""
