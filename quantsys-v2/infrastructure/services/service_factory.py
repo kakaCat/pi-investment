@@ -49,9 +49,26 @@ class ServiceFactory:
     """服务工厂类
 
     使用单例模式管理服务实例，替代shared.py的全局变量
+
+    **DI 唯一入口**（2026-10-02 · REQ-261001145152-3982 t-71051b · 用户裁定）：
+    取服务一律走这里。下面两层是**内部实现层**，调用方不该直接用：
+    - `EnhancedServiceFactory`（端口 → 实现的绑定与生命周期）；
+    - `service_registry`（`create_*` 工厂函数 + `register_all_services` 注册）。
+    历史上二者被 34 / 9 个生产文件直接引用，形成"4 套入口"的观感；
+    `infrastructure/di/`（第四套）已核实为**死件**并删除（连其幽灵依赖 dependency-injector）。
+    新代码用 `ServiceFactory.resolve(端口)` 或本类的具名 getter。
     """
 
     _instances = {}
+
+    @classmethod
+    def resolve(cls, service_type: Type[T]) -> Optional[T]:
+        """按**端口**取实现——DI 唯一入口的端口解析面。
+
+        委托内部层 `EnhancedServiceFactory`（其注册是惰性的，先 `_ensure_enhanced_factory()`）。
+        未注册时返回 None（调用方自行降级），不抛异常——与既有 `_try_get_from_enhanced` 口径一致。
+        """
+        return _try_get_from_enhanced(service_type)
 
     @classmethod
     @lru_cache(maxsize=1)

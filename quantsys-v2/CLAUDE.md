@@ -424,6 +424,24 @@ Technical infrastructure and cross-cutting concerns:
 - **Config** (`infrastructure/config/`) - Configuration management
 - **Utils** (`infrastructure/utils/`) - Utility functions
 
+### DI 入口分层（2026-10-02 · REQ-261001145152-3982 t-71051b）
+
+**唯一入口 = `ServiceFactory`**（`infrastructure/services/service_factory.py`）。取服务一律走它：
+具名 getter（如 `get_stock_pool_service()`）或**按端口解析** `ServiceFactory.resolve(IStockRepository)`。
+下面两层是**内部实现层，调用方不该直接引用**：
+
+| 层 | 文件 | 职责 | 现状 |
+|---|---|---|---|
+| **入口** | `service_factory.py` | 调用方唯一入口（72 文件在用） | ✅ 权威 |
+| 内部层 | `enhanced_service_factory.py` | 端口→实现绑定与生命周期（`resolve`/`register`） | 仍有 34 个生产文件直接引用 → **待分批迁到入口** |
+| 内部层 | `service_registry.py` | `create_*` 工厂函数 + `register_all_services()` 注册 | 仍有 9 个生产文件直接引用 → **同上** |
+| ~~第四套~~ | ~~`infrastructure/di/`~~ | 死件（生产零引用，只有 2 个测试用） | **已删除**（连幽灵依赖 `dependency-injector` 一并移除） |
+
+> 历史观感是"4 套 DI 并存"，实测是**1 入口 + 2 内部层 + 1 死件**：`service_factory` 内部本就在
+> 调用另两层（`_ensure_enhanced_factory` / `_try_get_from_enhanced`），并非平行实现。
+> 收敛动作分两批（本卡只做了安全部分）：① 死件已删；② 34+9 个直接引用者分批改走
+> `ServiceFactory`（机械替换，但属运行时装配，需逐批验证）。
+
 ### Key Patterns
 
 - **Dual Anti-Corruption Layer**: CLI/API/Scheduler → Services → Repositories
