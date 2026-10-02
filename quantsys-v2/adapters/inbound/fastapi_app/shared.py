@@ -142,7 +142,24 @@ def handle_api_error(f):
             return JSONResponse({"success": False, "error": str(e)}, status_code=400)
         except KeyError as e:
             return JSONResponse({"success": False, "error": f"缺少参数: {e}"}, status_code=400)
+        except (ImportError, ModuleNotFoundError) as e:
+            # 2026-10-02（REQ-261001145152-3982 审查）：**可选依赖缺失是「能力不可用」(503)**，
+            # 不是服务器故障(500)。例：`/api/timeseries/garch/*` 因未装 `arch` 包而报 500
+            # 「arch package not installed」。
+            logger.error(f"API依赖缺失: {e}")
+            return JSONResponse(
+                {"success": False, "error": f"功能不可用（缺少依赖）: {e}"}, status_code=503
+            )
         except Exception as e:
+            # 同一判据的补漏：域内异常会把「包未安装」包在消息里再抛，例如 GARCH 的
+            # `ModelFitError("arch package not installed. Install with: pip install arch")`。
+            # 判据只认这两句明确措辞，**不做宽松匹配**，免得把真正的模型拟合失败也降级成 503。
+            _msg = str(e).lower()
+            if "not installed" in _msg or "no module named" in _msg:
+                logger.error(f"API依赖缺失: {e}")
+                return JSONResponse(
+                    {"success": False, "error": f"功能不可用（缺少依赖）: {e}"}, status_code=503
+                )
             logger.error(f"API错误: {e}", exc_info=True)
             return JSONResponse({"success": False, "error": f"服务器内部错误: {e}"}, status_code=500)
 
