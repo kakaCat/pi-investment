@@ -72,6 +72,15 @@ except Exception:  # noqa: BLE001 —— 拿不到环境变量也不该让收集
     _socket.setdefaulttimeout(5)
 
 
+# ── 排除 tests/manual/（2026-10-02 · REQ-261001145152-3982 审查）──
+# 该目录下 7 个文件**全部是手动验证脚本**：都有 `if __name__ == "__main__"`，
+# 且里面的 `test_*` 函数带形参（如 `def test_competition_analysis(symbol: str)`）——
+# pytest 会把形参当 **fixture 名**去找，于是报 `fixture 'symbol' not found` 之类，
+# 表现为 8 条失败 + 1 条 ERROR（纯噪音，且掩盖真问题）。
+# 目录名 `manual` 本身就是"手动跑"的约定，故整体排除收集；
+# 要跑它们请直接 `python tests/manual/<file>.py`。
+collect_ignore_glob = ["tests/manual/*"]
+
 def pytest_configure(config):
     """Load test environment variables before running tests."""
     # Get the project root directory
