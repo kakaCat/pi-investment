@@ -16,6 +16,15 @@ repositories:
     lifecycle: singleton
     description: 'K线数据仓库'
 
+  # 热力图（2026-10-02 · REQ-261001145152-3982 审查补：此前**漏注册** →
+  # HeatmapService 走 ServiceFactory.resolve(IHeatmapRepository) 抛 ValueError，
+  # 线上 /api/market/heatmap 实测返回 "Service not registered: IHeatmapRepository"）
+  heatmap:
+    interface: domain.ports.repository_ports_extended.IHeatmapRepository
+    implementation: adapters.outbound.repositories.heatmap_repository.HeatmapRepository
+    lifecycle: singleton
+    description: '热力图聚合仓库（行业/个股温度与信号回放）'
+
   # 交易信号相关
   signal:
     interface: domain.ports.ISignalRepository

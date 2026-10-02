@@ -129,6 +129,20 @@ def _register_services_hardcoded():
         lifecycle=ServiceLifecycle.SINGLETON
     )
 
+    # Heatmap Repository
+    # 2026-10-02（REQ-261001145152-3982 审查）：**此前漏注册** →
+    # `HeatmapService.repo` 走 ServiceFactory.resolve(IHeatmapRepository) 时抛
+    # ValueError: Service not registered → 线上端点 `/api/market/heatmap` 实测返回
+    # {"success":false,"error":"热力图聚合失败: Service not registered: IHeatmapRepository"}。
+    # 服务原本就是好的，缺的只是这一行接线。
+    from domain.ports.repository_ports_extended import IHeatmapRepository
+    from adapters.outbound.repositories.heatmap_repository import HeatmapRepository
+    EnhancedServiceFactory.register(
+        IHeatmapRepository,
+        HeatmapRepository,
+        lifecycle=ServiceLifecycle.SINGLETON
+    )
+
     # Kline Repository
     from domain.ports import IKlineRepository
     from adapters.outbound.repositories.kline_repository import KlineORMRepository

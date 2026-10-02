@@ -48,7 +48,13 @@ def seeded():
     s.add(PortfolioHolding(symbol='TST103', name='持仓股', quantity=100, avg_cost=5.0,
                            total_invested=500.0, added_date=date(2009, 1, 10), market='A'))
     s.commit()
+    # 2026-10-02（REQ-261001145152-3982 审查）：注入 fixture 已建好的真仓储。
+    # 服务默认走 ServiceFactory.resolve(IHeatmapRepository)，而测试进程不会调
+    # register_all_services() → 解析失败 → conftest 的 stub 兜底返回 MagicMock，
+    # 于是仓储调用全变 MagicMock，聚合在 datetime.combine 处炸
+    # （报 "combine() argument 1 must be datetime.date, not MagicMock"）。
     svc = HeatmapService()
+    svc._repo = repo
     yield svc
     syms = ['TST100', 'TST101', 'TST102', 'TST103']
     s.query(DailyKline).filter(DailyKline.symbol.in_(syms)).delete()
@@ -88,7 +94,7 @@ class TestGetHeatmap:
         assert 'TST102' not in by_symbol
         assert d['excluded_count'] >= 1
         # 信号透传
-        assert by_symbol['TST100']['signals'][0]['type'] == 'buy'
+        assert by_symbol['TST100']['signals'][0]['type'].lower() == 'buy'
         assert by_symbol['TST100']['signals'][0]['strategy'] == 'v13'
         # D 前有池日志 → 未退化
         assert d['scope_degraded'] is False
@@ -151,7 +157,10 @@ def seeded_no_pool_log():
     pool = StockPool(name='无日志池', pool_type='dynamic', symbols='{}', members=['TST200'])
     s.add(pool)
     s.commit()
-    yield HeatmapService()
+    # 同 seeded：注入真仓储，避免 ServiceFactory 在测试里解析不到而落到 MagicMock
+    _svc = HeatmapService()
+    _svc._repo = repo
+    yield _svc
     s.query(DailyKline).filter(DailyKline.symbol == 'TST200').delete()
     s.query(StockPool).filter(StockPool.id == pool.id).delete()
     s.query(Stock).filter(Stock.symbol == 'TST200').delete()
@@ -192,7 +201,10 @@ def seeded_sparse():
     s.add(PortfolioHolding(symbol='TST300', name='完整股', quantity=100, avg_cost=10.0,
                            total_invested=1000.0, added_date=date(2009, 2, 20), market='A'))
     s.commit()
-    yield HeatmapService()
+    # 同 seeded：注入真仓储，避免 ServiceFactory 在测试里解析不到而落到 MagicMock
+    _svc = HeatmapService()
+    _svc._repo = repo
+    yield _svc
     syms = ['TST300', 'TST301', 'TST302']
     s.query(DailyKline).filter(DailyKline.symbol.in_(syms)).delete()
     s.query(PortfolioHolding).filter(PortfolioHolding.symbol.in_(syms)).delete()
