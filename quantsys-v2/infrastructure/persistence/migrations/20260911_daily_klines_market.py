@@ -138,7 +138,16 @@ def main() -> int:
     # 故另开一条独立 psycopg2 连接并从一开始就 autocommit。
     import psycopg2
 
-    conn2 = psycopg2.connect(**engine.url.translate_connect_args())
+    # 2026-10-02（REQ-261001145152-3982 审查）修 `--dsn` 路径的 bug：
+    # `engine.url.translate_connect_args()` 给出的键是 SQLAlchemy 口径的 **username**，
+    # 而 psycopg2 只认 **user** → 直接展开会报
+    # `ProgrammingError: invalid dsn: invalid connection option "username"`。
+    # 即该脚本的 `--dsn`（文档里就是给测试库用的那条）**从来没能跑过**。
+    # 这里把 username 映射成 user（其余键名两者一致），并在缺 user 时回退。
+    _cargs = dict(engine.url.translate_connect_args())
+    if 'username' in _cargs:
+        _cargs['user'] = _cargs.pop('username')
+    conn2 = psycopg2.connect(**_cargs)
     conn2.autocommit = True
     try:
         with conn2.cursor() as cur:

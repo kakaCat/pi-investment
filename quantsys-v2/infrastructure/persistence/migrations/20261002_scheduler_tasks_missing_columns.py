@@ -84,7 +84,13 @@ def main() -> int:
             conn.execute(text(stmt))
             print(f"[apply] {stmt}")
         row = conn.execute(text(VERIFY)).first()
-        print(f"[verify] 抽样首行: domain={row[0]!r} task_type={row[1]!r} misfire_grace={row[2]!r}")
+        # 2026-10-02 自查修正：**表为空时 .first() 返回 None**，原实现直接 row[0] →
+        # TypeError: 'NoneType' object is not subscriptable（在空表的测试库上必现，
+        # 而 test 库的 scheduler_tasks 恰恰是空的）。空表不是错误，DDL 一样已应用。
+        if row is None:
+            print("[verify] 表为空（无抽样行）；DDL 已应用")
+        else:
+            print(f"[verify] 抽样首行: domain={row[0]!r} task_type={row[1]!r} misfire_grace={row[2]!r}")
     print("[完成] scheduler_tasks 已与 ORM 模型一致")
     return 0
 
