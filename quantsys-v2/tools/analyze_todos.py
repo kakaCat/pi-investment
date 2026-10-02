@@ -81,6 +81,12 @@ def scan_todos(base_dir: Path, patterns: List[str] = None) -> List[TODOItem]:
 
     for pattern in patterns:
         for file_path in base_dir.rglob(pattern):
+            # 排除第三方/缓存目录（2026-10-02 · REQ-261001145152-3982 审查发现）
+            # 此前无排除，扫到 venv 里的第三方包 → 报"4431 个 TODO"，其中 4337 条
+            # 是别人的库；生产代码真实值是 94 条。噪音把真信号埋了。
+            # 口径与 analyze_complexity.py 一致（那里已有同样的排除）。
+            if any(part in str(file_path) for part in ('venv', 'node_modules', '.git/', '__pycache__')):
+                continue
             try:
                 with open(file_path, 'r', encoding='utf-8') as f:
                     lines = f.readlines()
