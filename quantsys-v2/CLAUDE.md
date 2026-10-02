@@ -180,19 +180,35 @@ WatchEngine 常驻线程**由 FastAPI `adapters/inbound/fastapi_app/main.py` 的
 
 旧 `quant.scheduler_task_configs` 表已全禁用（任务迁入 scheduler_tasks），表保留供回滚。
 
-**部署/重启（2026-10-01 实测修正）**：`~/Library/LaunchAgents/com.pi-investment.v2-api.plist`
-**不存在**，故文档里长期流传的 `launchctl kickstart -k gui/501/com.pi-investment.v2-api` **无法执行**。
-当前实际拉起方式是**手工前台/后台启动**：
+**部署/重启（2026-10-02 更新：已装 launchd 守护）**：`~/Library/LaunchAgents/com.pi-investment.v2-api.plist`
+**现已存在并已加载**（源自 `deployment/launchd/com.pi-investment.v2-api.plist`，
+2026-10-02 · REQ-261001145152-3982 · 用户裁定"装 launchd"）。
+动因：本服务先后静默死亡 3 次（08-02 盯盘消失一周 / 08-05 调度死讯静默 8 天 / 09-13 起因停摆 18 天），
+共同点都是**没有守护进程**。现在 `KeepAlive` + `RunAtLoad` 保证崩溃即被拉起。
 
 ```bash
-# 常规启动（会同时拉起 4 路调度）
+# ✅ 推荐：交给 launchd（崩溃自动拉起；实测 kill -9 后约 20 秒恢复）
+launchctl kickstart -k gui/501/com.pi-investment.v2-api    # 重启（-k 先杀后起）
+launchctl list | grep pi-investment                        # 看状态（第 2 列 = 上次退出码）
+launchctl print gui/501/com.pi-investment.v2-api | head    # 看详情/环境变量
+
+# 改配置后重新加载
+cp deployment/launchd/com.pi-investment.v2-api.plist ~/Library/LaunchAgents/
+launchctl bootout gui/501/com.pi-investment.v2-api
+launchctl bootstrap gui/501 ~/Library/LaunchAgents/com.pi-investment.v2-api.plist
+
+# 手工前台启动（排障用；现在**不需要** PYTHONPATH —— 路径引导已在 main.py 顶部）
 python adapters/inbound/fastapi_app/main.py
 
-# 只起 API、不起任何调度（数据滞后需先补数据时用；见下方"调度总开关"）
+# 只起 API、不起任何调度（plist 里默认就是全关；手工启动时这样写）
 DISABLE_APSCHEDULER=true DISABLE_DAILY_JOBS=true \
 DISABLE_UNIFIED_SCHEDULER=true DISABLE_WATCH_ENGINE=true \
 python adapters/inbound/fastapi_app/main.py
 ```
+
+> ⚠️ **plist 里四路调度默认全关**（与既有运行态一致）——去留由 t-2d52a7（调度去重）裁定后再改。
+> 另有独立探活守护 `com.pi-investment.health-probe`（每 300 秒，与 API 进程**无关**：
+> 进程死了它照样告警），plist 见 `deployment/launchd/`。
 
 **调度总开关（2026-10-01 新增）**：`DISABLE_APSCHEDULER=true` 关掉 APScheduler 回退路径——
 此前只有 `DISABLE_DAILY_JOBS` 与 `DISABLE_UNIFIED_SCHEDULER`，**关不掉回退路径**，
@@ -974,8 +990,10 @@ If Agent OS Scheduler fails（2026-10-01 修正：原第 1、2 步给出的开�
 1. **什么都不用设**：Agent OS 不可达时启动会自动回退到 `APSchedulerService`（无需开关）。
    若要**显式禁用**某一路调度，用 `DISABLE_APSCHEDULER` / `DISABLE_DAILY_JOBS` /
    `DISABLE_UNIFIED_SCHEDULER`（见上文"调度总开关"）。
-2. **重启服务**：没有 launchd 守护（`com.pi-investment.v2-api.plist` 不存在），
-   直接重启 `python adapters/inbound/fastapi_app/main.py` 进程即可。
+2. **重启服务**（2026-10-02 更新：已有 launchd 守护）：
+   `launchctl kickstart -k gui/501/com.pi-investment.v2-api`
+   （plist 见 `deployment/launchd/com.pi-investment.v2-api.plist`；崩溃会被 KeepAlive 自动拉起，
+   实测 kill -9 后约 20 秒恢复）。若无 launchd，再退回手工 `python adapters/inbound/fastapi_app/main.py`。
 3. **Verify**: 日志出现 `✅ APScheduler started (fallback mode)`。
 4. **Confirm**: `select max(started_at) from quant.scheduler_runs` 随任务执行刷新。
 

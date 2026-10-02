@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key><string>com.pi-investment.v2-api</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/mac/Documents/ai/pi-investment/quantsys-v2/venv/bin/python</string>
+        <string>-u</string>
+        <string>/Users/mac/Documents/ai/pi-investment/quantsys-v2/adapters/inbound/fastapi_app/main.py</string>
+    </array>
+    <key>WorkingDirectory</key><string>/Users/mac/Documents/ai/pi-investment/quantsys-v2</string>
+    <!-- QuantSys V2 API 守护（2026-10-02 立，REQ-261001145152-3982 · 用户裁定"装 launchd"）。
+         动因：本服务已静默死亡 3 次（08-02 盯盘消失一周 / 08-05 调度死讯静默 8 天 /
+         2026-10-01 实测停摆 18 天），共同点都是**没有守护进程**——手工 nohup 起的服务
+         一旦退出无人拉起，而监控原先跑在被监控进程里，进程一死监控同死。
+         本作业把拉起权交给 launchd：KeepAlive 保证崩溃即拉起，RunAtLoad 保证登录即起。
+         配套：deployment/launchd/com.pi-investment.health-probe.plist 独立探活（与进程无关）。
+         ⚠️ 调度开关（DISABLE_*）与既有运行态一致：**四路调度仍全关**，
+         去留由 t-2d52a7（调度去重 4 套 → 1 套）裁定后再改，不在本文件擅自打开。
+         ⚠️ 自 2026-10-02 起 main.py 的路径引导已上移到文件顶部，故**不需要 PYTHONPATH**
+         （此前文档里的启动命令照抄会失败，已修）。 -->
+    <key>RunAtLoad</key><true/>
+    <key>KeepAlive</key><true/>
+    <key>ThrottleInterval</key><integer>10</integer>
+    <key>StandardOutPath</key><string>/Users/mac/Documents/ai/pi-investment/quantsys-v2/logs/launchd-api.log</string>
+    <key>StandardErrorPath</key><string>/Users/mac/Documents/ai/pi-investment/quantsys-v2/logs/launchd-api.err.log</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>TZ</key><string>Asia/Shanghai</string>
+        <key>LOG_FILE</key><string>logs/api.log</string>
+        <key>DISABLE_APSCHEDULER</key><string>true</string>
+        <key>DISABLE_DAILY_JOBS</key><string>true</string>
+        <key>DISABLE_UNIFIED_SCHEDULER</key><string>true</string>
+        <key>DISABLE_WATCH_ENGINE</key><string>true</string>
+    </dict>
+</dict>
+</plist>
