@@ -61,7 +61,16 @@ class StrategyCombiner:
                 'reason': '无策略信号输入'
             }
 
-        actions = [s['action'] for s in signals]
+        # 2026-10-02（REQ-261001145152-3982 审查）：**在唯一收集点做大小写归一化**。
+        # 本仓 action 口径**两套并存**（策略原始输出小写 'buy'，库内/部分调用方大写 'BUY'），
+        # 而下游各模式都按小写实现：
+        #   · `_combine_weighted` 直接用 `action_scores[action]` 取字典 → 传大写即
+        #     **`KeyError: 'BUY'` 崩溃**（实测）；
+        #   · `_combine_majority` 用 `Counter(actions)` → 'BUY' 与 'buy' 被当成两票，
+        #     同向信号**票数被稀释**（2 票算成 1 票）；
+        #   · `_combine_and` / `_combine_or` 用 `set(actions)` → 同理把同一动作视作两个。
+        # 归一化放在这里，四种模式一次修好；输出也随之为小写的统一口径。
+        actions = [str(s['action']).strip().lower() for s in signals]
         confidences = [s['confidence'] for s in signals]
         reasons = [s.get('reason', '') for s in signals]
 
