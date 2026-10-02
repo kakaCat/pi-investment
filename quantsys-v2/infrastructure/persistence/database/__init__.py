@@ -20,9 +20,6 @@ from infrastructure.persistence.database.async_engine import (
 )
 from infrastructure.persistence.database.async_base_repository import (
     AsyncBaseRepository,
-    init_async_pool,  # Deprecated
-    close_async_pool,  # Deprecated
-    get_async_pool,  # Deprecated
 )
 
 __all__ = [
@@ -36,8 +33,5 @@ __all__ = [
     "get_async_engine",
     "get_async_pool_status",
     "AsyncBaseRepository",
-    "init_async_pool",  # Deprecated
-    "close_async_pool",  # Deprecated
-    "get_async_pool",  # Deprecated
     "TEST_DB_SUFFIX",
 ]

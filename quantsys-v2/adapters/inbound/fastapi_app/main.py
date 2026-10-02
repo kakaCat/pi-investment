@@ -417,9 +417,14 @@ async def lifespan(app: FastAPI):
 
     # 关闭线程池（优雅关闭，等待任务完成）
     try:
-        from infrastructure.threading.thread_pool import shutdown_all_pools
+        from infrastructure.concurrency.thread_manager import shutdown_all_pools
         logger.info("Shutting down thread pools...")
-        shutdown_all_pools(wait=True, timeout=30)
+        # 2026-10-02（REQ-261001145152-3982 审查·清理空转自研池）：原调用
+        # infrastructure.threading.thread_pool.shutdown_all_pools(wait=True, timeout=30)——
+        # 那套 ManagedThreadPool 的三个池入口全仓零调用者（无人往它提交任务），已删除。
+        # 改指**实际在用**的 infrastructure.concurrency.thread_manager：其 shutdown_all_pools
+        # 无 timeout 参数，语义同为 wait=True（等已提交任务跑完再返回）。
+        shutdown_all_pools(wait=True)
         logger.info("✅ All thread pools shut down")
     except Exception as e:
         logger.warning(f"⚠️ Thread pool shutdown failed: {e}")

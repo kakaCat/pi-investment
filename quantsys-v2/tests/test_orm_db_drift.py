@@ -238,6 +238,14 @@ def _apply_migration(dsn, path) -> str:
     conn.autocommit = True
     try:
         with conn.cursor() as cur:
+            # 2026-10-02（REQ-261001145152-3982 审查）：**加锁等待上限**。
+            # 原实现无任何超时：全量跑时若前面某个测试遗留未释放的锁/长事务，
+            # 这里的 ALTER TABLE 会**无限等锁**——实测 CPU 0%、无任何输出增长，
+            # 整套测试停在 78% 永远跑不完（单跑本文件 2.88s 正常，故属测试间污染）。
+            # 设上限后：等不到锁 → 30 秒后抛错并把锁等待这一事实报出来，
+            # 而不是让"无法得出结论"伪装成"还在跑"（失败要响亮）。
+            cur.execute("SET lock_timeout = '30s'")
+            cur.execute("SET statement_timeout = '120s'")
             cur.execute(path.read_text(encoding='utf-8'))
     except psycopg2.Error as e:
         if e.pgcode in _BENIGN_SQLSTATE:

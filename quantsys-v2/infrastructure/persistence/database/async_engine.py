@@ -64,9 +64,13 @@ async def init_async_engine(
         logger.info("AsyncEngine already initialized, skipping")
         return _async_engine
 
+    # 2026-10-02（REQ-261001145152-3982 审查）：**显式传入的 DSN 也要过 pytest 生产库守卫**。
+    # 原来只有 dsn is None 的分支会走带守卫的解析器，显式传 DSN 直接跳过校验（实测可连生产库）。
+    from infrastructure.persistence.database.engine import assert_test_db_in_pytest, _resolve_db_dsn
     if dsn is None:
-        from infrastructure.persistence.database.engine import _resolve_db_dsn
         dsn = _resolve_db_dsn()
+    else:
+        assert_test_db_in_pytest(dsn)
 
     if not dsn:
         raise RuntimeError(

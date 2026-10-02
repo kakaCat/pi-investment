@@ -20,6 +20,54 @@ TEST_DB_SUFFIX = "_test"
 __all__ = ["get_engine", "init_engine", "dispose_engine", "get_pool_status", "db_cursor", "_resolve_db_dsn", "TEST_DB_SUFFIX"]
 
 
+def assert_test_db_in_pytest(dsn: Optional[str]) -> None:
+    """pytest 环境下拒绝非测试库 DSN —— 分层防护的**公共实现**（同步/异步轨共用）。
+
+    2026-10-02（REQ-261001145152-3982 审查）：从 _resolve_db_dsn 内部抽出。
+    原因：异步引擎 init_async_engine() **只在 dsn is None 时才走解析器**，
+    显式传 DSN 就完全跳过这道校验 —— 实测在 pytest 下传生产库 DSN
+    （postgresql+asyncpg://.../quant_investment）**未被拒绝**，
+    即 CLAUDE.md 声称的"三层防护"在异步轨存在缺口。抽出后由异步引擎显式调用补齐。
+
+    判定口径（与原实现一致，新增第 4 条）：
+    1. 非 pytest 环境 / 空 DSN → 直接返回（不干预生产运行）；
+    2. 从**实际使用的 DSN** 里取库名（防 DATABASE_URL=prod + PGDATABASE=fake_test 绕过）；
+    3. 取不到则回退配置里的库名；
+    4. 仍取不到 → 拒绝（否则将连到默认库，等于绕过；原实现此处静默放行）；
+    5. 库名不以 _test 结尾 → 抛 RuntimeError。
+    """
+    if not dsn or "pytest" not in sys.modules:
+        return
+
+    match = re.search(r'://[^/]+/([^/?]+)(?:\?|$)', dsn)
+    db_name = match.group(1) if match else ""
+
+    if not db_name:
+        try:
+            # 与 _resolve_db_dsn 同口径：**函数内延迟导入**（模块级导入会牵动配置层初始化顺序）。
+            # ⚠️ 2026-10-02 自查修正：抽函数时漏了这行 → 此处直接 NameError，
+            # 而它被下面的 except 吞掉 → 「配置回退」实际从未生效（守卫退化为"永远取不到库名"）。
+            from infrastructure.config import get_config
+            db_name = get_config().database.database
+        except Exception:  # noqa: BLE001 —— 兼容层无配置属预期
+            db_name = ""
+
+    if not db_name:
+        raise RuntimeError(
+            "Security check failed: Detected pytest environment but cannot determine "
+            "database name (DSN carries no db name and PGDATABASE is not set). "
+            "Refusing to connect to the default database during tests."
+        )
+
+    if not db_name.endswith(TEST_DB_SUFFIX):
+        raise RuntimeError(
+            f"Security check failed: Detected pytest environment but "
+            f"database name '{db_name}' is not a test database. "
+            f"Test database name must end with '{TEST_DB_SUFFIX}'. "
+            f"This prevents accidental connection to production database during tests."
+        )
+
+
 def _resolve_db_dsn():
     """
     Resolve database DSN from Pydantic Settings configuration.
@@ -71,31 +119,8 @@ def _resolve_db_dsn():
             port = os.environ.get("PGPORT") or "5432"
             dsn = f"postgresql://{auth}{host}:{port}/{pg_db}"
 
-    # 安全检查：pytest 环境必须使用测试库
-    # 这是第二层防护，防止绕过 conftest.py 的情况
-    if dsn and "pytest" in sys.modules:
-        # Extract database name from the ACTUAL DSN being used (not env var)
-        # This prevents bypass via DATABASE_URL=prod + PGDATABASE=fake_test
-        # Parse from DSN first: postgresql://user:pass@host:port/dbname
-        # Handles both with and without query parameters
-        match = re.search(r'://[^/]+/([^/?]+)(?:\?|$)', dsn)
-        db_name = match.group(1) if match else ""
-
-        # If DSN parsing failed, try config
-        if not db_name:
-            try:
-                config = get_config()
-                db_name = config.database.database
-            except Exception:
-                pass
-
-        if db_name and not db_name.endswith(TEST_DB_SUFFIX):
-            raise RuntimeError(
-                f"Security check failed: Detected pytest environment but "
-                f"database name '{db_name}' is not a test database. "
-                f"Test database name must end with '{TEST_DB_SUFFIX}'. "
-                f"This prevents accidental connection to production database during tests."
-            )
+    # 安全检查：pytest 环境必须使用测试库（公共实现见 assert_test_db_in_pytest）
+    assert_test_db_in_pytest(dsn)
 
     if not dsn:
         logger.warning(

@@ -45,22 +45,6 @@ class DatabaseSettings(BaseSettings):
     )
 
 
-class ThreadPoolSettings(BaseSettings):
-    """线程池配置"""
-
-    default_workers: int = Field(default=10, alias="DEFAULT_POOL_WORKERS")
-    io_workers: int = Field(default=20, alias="IO_POOL_WORKERS")
-    compute_workers: int = Field(default=4, alias="COMPUTE_POOL_WORKERS")
-
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        populate_by_name=True,
-        extra="ignore",  # 忽略未定义的环境变量
-    )
-
-
 class SchedulerSettings(BaseSettings):
     """调度器配置"""
 
@@ -153,7 +137,6 @@ class AppSettings(BaseSettings):
 
     # 子配置
     database: DatabaseSettings = Field(default_factory=DatabaseSettings)
-    thread_pool: ThreadPoolSettings = Field(default_factory=ThreadPoolSettings)
     scheduler: SchedulerSettings = Field(default_factory=SchedulerSettings)
     external: ExternalServiceSettings = Field(default_factory=ExternalServiceSettings)
     logging: LoggingSettings = Field(default_factory=LoggingSettings)
