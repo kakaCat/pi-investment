@@ -51,10 +51,19 @@ class TestFactorCalculate:
         # 因子 API 直接返回 {current_price, factors, market, symbol} 无 success 包装
         if "success" in result and not result.get("success"):
             raise AssertionError(f"API 调用失败: {result}")
-        factors = result.get("factors", {})
-        # 也可能在 data.factors 中
-        if not factors:
-            factors = result.get("data", {}).get("factors", {})
+        factors = result.get("factors") or result.get("data", {}).get("factors") or []
+        # 2026-10-02（REQ-261001145152-3982 审查）：线上 `/api/stock/{symbol}/factors`
+        # 返回的 factors 是**记录列表**（每项含 factor_name / factor_value / factor_date …），
+        # 而本文件其余断言全部按 `factors[名称]` / `factors.get(名称)` 取值 →
+        # 于是报 'list' object has no attribute 'keys'/'get'、list indices must be integers。
+        # 在此做**形状归一化**（不改变被验证的事实；因子名本身两套命名线上都有，
+        # 测试期望的 rsi14 / macd / bollinger_* / ma5 实测确实存在）。
+        if isinstance(factors, list):
+            factors = {
+                row.get("factor_name"): row.get("factor_value")
+                for row in factors
+                if isinstance(row, dict) and row.get("factor_name")
+            }
         assert factors, f"API 返回无 factors: {list(result.keys())}"
         return factors
 
