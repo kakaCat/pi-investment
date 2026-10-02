@@ -198,6 +198,13 @@ WatchEngine 常驻线程**由 FastAPI `adapters/inbound/fastapi_app/main.py` 的
   （`risk_check_job` 是 V13 专用、`intraday_risk_check` 是盘中止损）；④ 账户净值快照——
   能力已由 ③ 的编排器线程承担（`take_daily_snapshot`→`upsert_equity_snapshot`），DB 那条属重复。
 
+**验收自检（一条命令）**：`python tools/check_scheduler_dedup.py` —— 把本卡的验收三条
+（撞点 = 0 / 每 job 每日仅 1 条 success / `adapters/` 单一调度入口）固化成同一口径，
+退出码 0=全过、2=有判据未过、3=检查器自身出错。其中"每 job 每日仅 1 条"由
+`quant.inprocess_job_runs` 主键 `(job_id, run_date)` 结构性保证（实测插入第二条被拒），
+检查器真正盯的是 **status 是否 success** 与 **当天是否漏跑**；"连续 3 个交易日"是时间型条件，
+须等真实交易日累积（2026-10-02 起为国庆休市，判定窗口约 10-09 之后）。
+
 旧 `quant.scheduler_task_configs` 表已全禁用（任务迁入 scheduler_tasks），表保留供回滚。
 
 **部署/重启（2026-10-02 更新：已装 launchd 守护）**：`~/Library/LaunchAgents/com.pi-investment.v2-api.plist`
