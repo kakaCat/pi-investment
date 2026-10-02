@@ -12,12 +12,25 @@ class TestStrategyOptimizer:
     def test_optimize_returns_sorted_results_by_sharpe(self):
         """测试优化返回按 Sharpe 排序的结果"""
         # Mock StrategyCodeService
+        # 2026-10-02（REQ-261001145152-3982 审查）：**mock 改为"按参数键控"**。
+        # 原写法是 `side_effect = [1.5, 2.0, 1.2]`（**按调用先后**依次返回），但优化器是
+        # **并行执行**（默认 10 个 worker），谁先回谁先拿到列表里的下一个值 →
+        # 参数与得分的对应关系被打乱，本用例**结构性 flaky**（本轮实测首位变成了
+        # {'fast': 5, 'slow': 50} 这个最低分组合）。改为按 `params_override` 查表，
+        # 与执行顺序无关。
+        _score_by_params = {
+            (5, 20):  {'sharpe_ratio': 1.5, 'total_return': 0.10, 'max_drawdown': -0.05, 'win_rate': 0.60},
+            (10, 30): {'sharpe_ratio': 2.0, 'total_return': 0.15, 'max_drawdown': -0.08, 'win_rate': 0.65},
+            (5, 50):  {'sharpe_ratio': 1.2, 'total_return': 0.08, 'max_drawdown': -0.03, 'win_rate': 0.55},
+        }
+
+        def _fake_backtest(*args, **kwargs):
+            override = kwargs.get('params_override') or {}
+            key = (override.get('fast'), override.get('slow'))
+            return _score_by_params[key]
+
         mock_service = Mock()
-        mock_service.backtest_strategy.side_effect = [
-            {'sharpe_ratio': 1.5, 'total_return': 0.10, 'max_drawdown': -0.05, 'win_rate': 0.60},
-            {'sharpe_ratio': 2.0, 'total_return': 0.15, 'max_drawdown': -0.08, 'win_rate': 0.65},
-            {'sharpe_ratio': 1.2, 'total_return': 0.08, 'max_drawdown': -0.03, 'win_rate': 0.55},
-        ]
+        mock_service.backtest_strategy.side_effect = _fake_backtest
 
         optimizer = StrategyOptimizer(mock_service)
         param_grid = [

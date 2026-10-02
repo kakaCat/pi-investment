@@ -193,27 +193,10 @@ class TestStockDataAPIs(unittest.TestCase):
         print("="*80)
 
 
-class TestAPIFixDocumentation(unittest.TestCase):
-    """测试修复文档的准确性"""
-
-    def test_fix_report_exists(self):
-        """测试：修复报告文件存在"""
-        import os
-        report_path = "/Users/mac/Documents/ai/pi-investment/DATA_SOURCE_FIX_REPORT.md"
-        self.assertTrue(os.path.exists(report_path), "修复报告应该存在")
-
-    def test_scripts_exist(self):
-        """测试：修复脚本文件存在"""
-        import os
-        scripts = [
-            "/Users/mac/Documents/ai/pi-investment/quantsys-v2/scripts/fetch_stock_news_fixed.py",
-            "/Users/mac/Documents/ai/pi-investment/quantsys-v2/scripts/fetch_stock_comprehensive.py",
-            "/Users/mac/Documents/ai/pi-investment/quantsys-v2/scripts/execute_data_fetch_600737.py"
-        ]
-        for script in scripts:
-            self.assertTrue(os.path.exists(script), f"脚本应该存在: {script}")
-
-
-if __name__ == '__main__':
-    # 运行测试
-    unittest.main(verbosity=2)
+# 2026-10-02（REQ-261001145152-3982 审查）：**删除 `TestAPIFixDocumentation`**。
+# 它断言三件事物存在，但都不可作为契约：
+#   · 报告路径写死 `/Users/mac/Documents/ai/pi-investment/DATA_SOURCE_FIX_REPORT.md`
+#     —— **绝对路径绑在某个开发机上**，换人/换机即失败，且该报告并不在仓内；
+#   · 三个脚本里 `scripts/execute_data_fetch_600737.py` 是**一次性排障脚本**，已被清理；
+#   · 这三点都属于"某次事故的现场留档"，不是可维护的行为契约。
+# 若确需保留一次性脚本的可追溯性，应由版本控制历史承担，而不是用例断言文件存在。
