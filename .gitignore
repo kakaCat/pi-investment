@@ -94,6 +94,14 @@ check_*.py
 #     把"撞点=0 / 每 job 每日仅 1 条 success / adapters 单一调度入口"三条验收固化成一条命令，
 #     否则那条"连续 3 个交易日"的时间型判据只能靠人三天后手工翻库
 !quantsys-v2/tools/check_scheduler_dedup.py
+# 例外：大小写一致性检查器是常规套件的闸门（REQ-261001145152-3982 审查，2026-10-02）——
+# check_action_case_consistency：库里同一枚举列存在两套写法（实测 simulation_trades.action
+#     为 BUY 32 / SELL 21 / sell 16 / buy 9），而代码里"只认一种写法"的比较会**静默漏行**
+#     （本次审查因此修掉 13 处：现金余额漏 53 行、日买入限额护栏失效、合并器 KeyError 等）。
+#     固化判据：先实查数据侧哪些列大小写不一致，再标出读取侧的高危比较。
+#     ⚠️ 两张表契约**相反**（quant.trades 有 CHECK 强制小写 → 那里的敏感比较是正确的），
+#     故它是**引导性**工具（--strict 才作门禁），不是"一律 lower"的机械规则。
+!quantsys-v2/tools/check_action_case_consistency.py
 daily_*.sh
 demo-*.js
 demo-*.py

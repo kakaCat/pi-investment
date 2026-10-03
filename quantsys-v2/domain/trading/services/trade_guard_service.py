@@ -433,7 +433,7 @@ class TradeGuardService:
         # 0. 组合回撤熔断硬拦截（M4-2，2026-09-10）：买入最优先检查——
         #    先于时段校验，熔断拒单不被"非交易时段"掩盖；
         #    挂单 9:31 撮合也走本方法（execute_pending_orders），同样覆盖。卖出放行（熔断要减仓）。
-        if action == 'BUY' and self.breaker_active_fn is not None and self.breaker_active_fn(account_name):
+        if str(action).upper() == 'BUY' and self.breaker_active_fn is not None and self.breaker_active_fn(account_name):
             raise TradingError(
                 '组合回撤熔断激活中，禁止新开仓（M4：60日最大回撤超8%触发；'
                 '卖出不受影响；解除条件=回撤修复至8%以内，由 m4_circuit_breaker_check 解除）',
@@ -455,7 +455,7 @@ class TradeGuardService:
             )
 
         # 3. 根据交易方向执行不同校验
-        if action == 'BUY':
+        if str(action).upper() == 'BUY':
             # 买入护栏
             trade_amount = shares * price
 
