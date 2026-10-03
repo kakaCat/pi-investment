@@ -20,6 +20,7 @@
 | `quant.memory_entries` | `POST /api/memory` | `500 UndefinedTable`（线上 curl 实测）；日志出现 272/137 次 |
 | `quant.event_calendar` | `_job_event_calendar_check`（每日 16:45） | 查询报错被吞 → 记 `no_event`（假成功）→ **并毒化共享会话** → 随后的终态记账报 `InFailedSqlTransaction` → 台账落成 **failed**（假失败）。完整链条见审计报告 §W |
 | `quant.chip_distribution_state` / `quant.chip_metrics` | 筹码分布计算/查询 | 功能不可用（日志 2 次 `UndefinedTable`） |
+| `quant.industry_chain` / `_member` / `_node` | `IndustryChainService` / `GET /api/industry-chains` | **端点 200 但走的是降级数据** —— DB 持久化路径实为死的（静默降级） |
 
 **③ 为什么"表里到底该有哪些列"不用猜**：4 张表**都有 ORM 模型** ——
 `EventCalendar` / `ChipState` / `ChipMetrics` / `MemoryEntryModel`。
@@ -45,9 +46,11 @@ PYTHONPATH=. ./venv/bin/python infrastructure/persistence/migrations/20261002_cr
 
 ## 回滚
 
-    4 张表在建表前**都不存在**（见上），故回滚即 `DROP TABLE`：
+    这 7 张表在建表前**都不存在**（见上），故回滚即 `DROP TABLE`：
     DROP TABLE IF EXISTS quant.event_calendar, quant.chip_distribution_state,
-                         quant.chip_metrics, quant.memory_entries CASCADE;
+                         quant.chip_metrics, quant.memory_entries,
+                         quant.industry_chain, quant.industry_chain_member,
+                         quant.industry_chain_node CASCADE;
 """
 from __future__ import annotations
 
@@ -57,7 +60,14 @@ import sys
 from sqlalchemy.schema import CreateIndex, CreateTable
 from sqlalchemy.dialects import postgresql
 
-TABLES = ('event_calendar', 'chip_distribution_state', 'chip_metrics', 'memory_entries')
+TABLES = (
+    # 第一批（2026-10-02 上午，用户授权 4 张）
+    'event_calendar', 'chip_distribution_state', 'chip_metrics', 'memory_entries',
+    # 第二批（2026-10-02，由本项顺带产出的检查器抓出；用户另行授权这 3 张）
+    # 产业链：确有代码在查（IndustryChainService + industry_chain_repository），
+    # 而线上 /api/industry-chains 返回 200 是**降级数据** —— DB 持久化路径原本是死的。
+    'industry_chain', 'industry_chain_member', 'industry_chain_node',
+)
 
 
 def _models():
@@ -65,7 +75,15 @@ def _models():
     from adapters.outbound.repositories.chip_repository import ChipState, ChipMetrics
     from adapters.outbound.repositories.memory_repository import MemoryEntryModel
 
-    models = (EventCalendar, ChipState, ChipMetrics, MemoryEntryModel)
+    # 产业链三张表的模型（ORM 模型模块里定义）
+    from infrastructure.persistence.orm.models.industry_chain import (
+        IndustryChain as IndustryChainORM,
+        IndustryChainMember as IndustryChainMemberORM,
+        IndustryChainNode as IndustryChainNodeORM,
+    )
+
+    models = (EventCalendar, ChipState, ChipMetrics, MemoryEntryModel,
+              IndustryChainORM, IndustryChainMemberORM, IndustryChainNodeORM)
     for m in models:
         if m.__table__.schema is None:
             m.__table__.schema = 'quant'
@@ -106,7 +124,7 @@ def main() -> int:
                 missing.append(name)
 
         if not missing:
-            print('  ✅ 4 张表都已存在，无需执行（幂等 no-op）')
+            print(f'  ✅ {len(TABLES)} 张表都已存在，无需执行（幂等 no-op）')
             return 0
 
         print(f'  待建: {missing}')
