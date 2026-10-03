@@ -254,7 +254,11 @@ def main():
 
     parser = argparse.ArgumentParser(description="批量复杂度分析和重构建议")
     parser.add_argument("--base-dir", type=str, default=".", help="基础目录")
-    parser.add_argument("--output", type=str, default="COMPLEXITY_REFACTORING_GUIDE.md", help="输出文件")
+    # 2026-10-02（REQ-261001145152-3982 审查）：默认输出从**仓根**改到 `docs/audits/`。
+    # 该文件是**一次性扫描报告**（2026-09-06 那份已按仓库惯例归位为
+    # docs/audits/2026-09-06-complexity-refactoring-audit.md），继续往仓根写会再次散落。
+    parser.add_argument("--output", type=str,
+                        default="docs/audits/complexity-refactoring-audit.md", help="输出文件")
     args = parser.parse_args()
 
     base_dir = Path(args.base_dir).resolve()
