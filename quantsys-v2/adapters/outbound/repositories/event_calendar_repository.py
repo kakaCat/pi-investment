@@ -91,6 +91,12 @@ class EventCalendarRepository(BaseORMRepository[EventCalendar]):
         except Exception as e:
             import structlog
             structlog.get_logger(__name__).error("list_upcoming failed", error=str(e))
+            # 2026-10-02（REQ-261001145152-3982 审查）：**吞异常必须回滚**。
+            # 实测链条：`quant.event_calendar` 表缺失 → 本方法报错被吞（上游只看到空结果、
+            # 任务仍记 no_event）→ **但事务未回滚** → 会话被毒化 → 随后的终态记账 UPDATE 失败
+            # → 台账落成 failed（假失败，并让"每 job 每日仅 1 条 success"的判据永远过不了）。
+            # 同仓 `memory_repository` 早就是正确写法（except 里先 `_safe_rollback()`）。
+            self._safe_rollback()
             return []
 
     def list_range(self, start: Optional[date] = None, end: Optional[date] = None,
@@ -113,6 +119,12 @@ class EventCalendarRepository(BaseORMRepository[EventCalendar]):
         except Exception as e:
             import structlog
             structlog.get_logger(__name__).error("list_range failed", error=str(e))
+            # 2026-10-02（REQ-261001145152-3982 审查）：**吞异常必须回滚**。
+            # 实测链条：`quant.event_calendar` 表缺失 → 本方法报错被吞（上游只看到空结果、
+            # 任务仍记 no_event）→ **但事务未回滚** → 会话被毒化 → 随后的终态记账 UPDATE 失败
+            # → 台账落成 failed（假失败，并让"每 job 每日仅 1 条 success"的判据永远过不了）。
+            # 同仓 `memory_repository` 早就是正确写法（except 里先 `_safe_rollback()`）。
+            self._safe_rollback()
             return []
 
     def upsert(self, event_type: str, event_date: date, title: str, **fields) -> Optional[EventCalendar]:
@@ -146,6 +158,12 @@ class EventCalendarRepository(BaseORMRepository[EventCalendar]):
         except Exception as e:
             import structlog
             structlog.get_logger(__name__).error("upsert failed", error=str(e), title=title)
+            # 2026-10-02（REQ-261001145152-3982 审查）：**吞异常必须回滚**。
+            # 实测链条：`quant.event_calendar` 表缺失 → 本方法报错被吞（上游只看到空结果、
+            # 任务仍记 no_event）→ **但事务未回滚** → 会话被毒化 → 随后的终态记账 UPDATE 失败
+            # → 台账落成 failed（假失败，并让"每 job 每日仅 1 条 success"的判据永远过不了）。
+            # 同仓 `memory_repository` 早就是正确写法（except 里先 `_safe_rollback()`）。
+            self._safe_rollback()
             return None
 
     def mark_status(self, event_id: int, status: str, meta_patch: Optional[dict] = None) -> Optional[EventCalendar]:
