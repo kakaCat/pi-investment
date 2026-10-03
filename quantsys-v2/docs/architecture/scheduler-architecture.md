@@ -1,5 +1,54 @@
 # 调度器重构架构图
 
+> ## ⚠️ 先读这一节：现状（2026-10-02 定案 · `REQ-261001145152-3982` 审查后）
+>
+> **下面正文描述的是历史设计（Agent OS webhook 调度）——它已被 ADR-004 取代，
+> 不要照着它改动现网。** 现网运行态如下。
+>
+> ### 归属已定案（[ADR-004](../adr/004-scheduling-ownership.md)）
+>
+> **业务的定时任务由 v2 自己调度；agent-os 只调度 agent 自身任务**（`AGENT_OS_ENABLED=false`）。
+> 因此本文第三、五节描述的「Agent OS Scheduler → webhook → 本地执行」链路**当前不生效**。
+>
+> ### 现网只有两条路径（互为补充，不要新增第三条）
+>
+> | | 承载 | 读什么 | 跑什么 |
+> |---|---|---|---|
+> | ① | `APSchedulerService`（`infrastructure/scheduler/apscheduler_service.py`） | `quant.scheduler_tasks` 表的 cron | 非核心数据类任务（实时信号监控 / 盘前扫描 / 缠论 / 策略验证 / 周报 …） |
+> | ② | DailyJobs 宿主线程（`adapters/inbound/fastapi_app/daily_jobs_bootstrap.py`） | 代码内注册表 | 9 个核心数据任务（带幂等 / 补跑 / 失败告警 + `quant.inprocess_job_runs` 留痕） |
+>
+> ### 2026-10-02 的收敛与实测数字（都可复跑）
+>
+> - 删掉了第四条路径 `unified_scheduler.py`（YAML 驱动、**空转**）及其配置、路由与专属 e2e；
+> - `infrastructure/scheduler/scheduler.py` 的 `run_loop` **不再被启动**（仍被 22 个文件引用，
+>   去留须**单独开卡**评估 —— 删除会牵动这些引用方）；
+> - 启用任务去重 **26 → 16**、cron 撞点组 **4 → 0**、`apscheduler_jobs` 僵尸条目 **27 → 16**；
+>   随后"启用集合体检"又**停用 5 条全仓零 handler 的命令**（一触发必失败）→ 启用集合 **16 → 11**，
+>   11 条命令**全部有效**。⚠️ 停用 DB 行**不足以生效**：任务已进 APScheduler jobstore，
+>   须再调 `POST /api/scheduler/reload`（实测停用后仍被触发过一次）。
+>
+> ### 本次审查修掉的两个真缺陷（都与调度直接相关）
+>
+> 1. **`APSchedulerService` 曾一条任务都加载不了** ✗：ORM 比 `quant.scheduler_tasks` 多
+>    `domain` / `task_type` / `misfire_grace_time_seconds` 三列 → 任何查询直接报 `UndefinedColumn`。
+>    已由迁移 `infrastructure/persistence/migrations/20261002_scheduler_tasks_missing_columns.py` 修好。
+> 2. **任务终态记账的"假失败"** ✗：daily jobs 共用宿主线程会话，更早某条 SQL 失败未回滚即**毒化会话**
+>    → 终态 `UPDATE` 报 `InFailedSqlTransaction` → 任务**干成了却记 failed**，
+>    并让"每 job 每日仅 1 条 success"的判据**永远过不了**。已修两处：
+>    `JobRunRepository.mark_done` **记账前先回滚**；`event_calendar_repository` 的吞异常处补
+>    `_safe_rollback()`（完整因果链见需求档案的审计报告 §W）。
+>
+> ### 运维与自检
+>
+> - **守护**：`launchd` 的 `com.pi-investment.v2-api`（`KeepAlive` + `RunAtLoad`，崩了自动拉起）；
+> - **总开关**：`DISABLE_APSCHEDULER` / `DISABLE_DAILY_JOBS` / `DISABLE_WATCH_ENGINE`（默认全 false）；
+> - **一条命令自检**：`python tools/check_scheduler_dedup.py`（撞点 = 0 / 每 job 每日仅 1 条 success /
+>   `adapters/` 单一调度入口），退出码 0 = 全过、2 = 有判据未过、3 = 检查器自身出错；
+> - ⚠️ 其中「**连续 3 个交易日**」是**时间型**判据，必须等真实交易日累积
+>   （2026-10-02 起国庆休市，判定窗口约 **10-09 之后**）—— 未达之前**不得**把它标成通过。
+
+---
+
 ## 一、新框架架构（3 层分离）
 
 ```

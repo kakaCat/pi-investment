@@ -363,3 +363,222 @@ decomposing 阶段把每条直接落成任务卡；字段与卡字段一一对�
 纯删除类改动直接 `git revert`；结构性改动回滚后须重跑当批的 `verify` 命令确认回到基线。
 
 **本轮不做**：不评价 V13/V14 策略收益、不动数据库表结构、不重构 `domain/quantlib` 的算法实现。
+
+---
+
+## 8. 批 5 · 本轮审查（2026-10-02）新发现（serves: FR-6）
+
+> 本节由 REQ-261001145152-3982 实施期追加。以下每条都**保留了可直接执行的证据**，
+> 且**刻意没有在本轮擅自实施**（原因逐条写明）。字段口径同 §1.1 条目契约。
+
+### P1-7 · 生产库缺表 —— **已完成**（7 张全部补齐，漂移归零；2026-10-02）
+
+**第一批（4 张）—— 已完成**：`event_calendar` / `chip_distribution_state` / `chip_metrics` /
+`memory_entries`；迁移脚本 `20261002_create_missing_orm_tables.py`（幂等）；
+生产已执行；冒烟 `POST /api/memory` **500 → 200**。
+
+**第二批（3 张）—— 已完成**（同日，用户单独授权"这 3 张"）：
+
+| 缺表 | 模型列数 | 谁在用 | 现状 |
+|---|---|---|---|
+| `quant.industry_chain` | 8 | `IndustryChainService` / 路由 `/api/industry-chains` | **端点返回 200，但走的是降级数据** —— 仓储确实在查这三张表，查询失败后静默降级 → **DB 持久化路径是死的，而外观健康**（又一次静默降级） |
+| `quant.industry_chain_member` | 17 | 同上（成员查询/计数） | 同上 |
+| `quant.industry_chain_node` | 10 | 同上（节点查询） | 同上 |
+
+**第二批执行结果**：单事务 3 CREATE TABLE + 4 CREATE INDEX；列数与模型**完全一致**（8/17/10）；
+迁移脚本已并入同一份（现覆盖 **7 张表**）；漂移检查器复核 **合计漂移 0 处**。
+
+**治本项（已落地）**：新增 `tools/check_orm_drift_vs_production.py` ——
+把漂移检查补上"**生产方向**"（原先只查测试库）。**刻意不进 pytest**（本仓有"测试禁止连生产"的三层防护），
+做成只读的显式命令。⚠️ 其输出是**模型驱动**的：报出的表可能只是"声明了但没人查"，
+须与"是否有代码在查它"一起判断（`industry_chain` 就是"确实有人查"的判例）。
+
+
+> 2026-10-02 复查扩展：原只登记了 `memory_entries` 一张，追查"假失败"时又核出**另两张**。
+> 三张都经 `information_schema` 在生产库实测确认**计数为 0**，且都有**活的代码在查它们**。
+
+| 缺失表 | 谁在用 | 生产影响（实测） |
+|---|---|---|
+| `quant.memory_entries` | `POST /api/memory` | 该端点必 **500**（`UndefinedTable`，已实测） |
+| `quant.event_calendar` | `_job_event_calendar_check`（每日 16:45） | 查询报错被吞 → 记 `no_event`（假成功）→ **并毒化会话**（见 §W 的假失败链条） |
+| `quant.chip_distribution_state` / `quant.chip_metrics` | 筹码分布计算/查询 | 该功能不可用（生产日志出现 2 次 `UndefinedTable`） |
+| `status` | **已完成** | DDL 由 ORM 模型生成并与测试库逐列校对；迁移脚本 `20261002_create_missing_orm_tables.py`（幂等）；生产单事务执行；冒烟 `POST /api/memory` **500 → 200** |
+
+原条目内容（保留）：
+
+| 字段 | 内容 |
+|---|---|
+| `priority` | P1 正确性 |
+| `title` | 补 `quant.memory_entries` 表（否则记忆写入在生产必 500） |
+| `evidence` | `curl -s -X POST http://127.0.0.1:5001/api/memory -H 'Content-Type: application/json' -d '{"content":"x","importance":0.3,"namespace":"default"}'` → **HTTP 500**，正文 `psycopg2.errors.UndefinedTable: relation "quant.memory_entries" does not exist`；`psql -d quant_investment -tAc "select count(*) from information_schema.tables where table_schema='quant' and table_name='memory_entries'"` → **0**（测试库为 1，由 `create_all` 造出） |
+| `action` | 定位写入该表的代码路径，补**ORM 模型 + 迁移**；按仓库规范**两个库都跑**（显式 DSN，勿依赖 `PGDATABASE`） |
+| `impact` | 1 张表；`POST /api/memory` 全部写入路径 |
+| `verify` | 迁移后：两库 `\dt quant.memory_entries` 均存在；`curl -X POST …/api/memory` 返回 2xx 且 `select count(*) from quant.memory_entries` > 0 |
+| `risk` | medium（生产 DDL） |
+| `cost` | 0.5 人日 |
+
+**本轮未做的原因**：生产建表属**生产变更**，须走流程；本轮已在 `tests/test_api_smoke.py` 里按"未铺设"精确跳过（其它 500 仍会响亮失败），并在 §X 登记。
+
+### P1-8 · 策略验证依赖已删除的端点 —— **已完成**（2026-10-02，裁定选 B）
+
+| 字段 | 内容 |
+|---|---|
+| `priority` | P1 正确性 |
+| `title` | 为 `StrategyValidationService` 选定批量回测的实现路径（A 或 B） |
+| `evidence` | `curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:5001/api/backtest/batch` → **404**；服务端日志 `Batch backtest API call failed: 404 Client Error`；`pytest tests/integration/test_strategy_validation_e2e.py` → 依赖该端点的两条已跳过 |
+| `action` | **已选 B**（用户裁定）：`_call_batch_backtest` 改为进程内 `ServiceFactory.get_strategy_code_service().backtest_strategy(...)` 逐任务执行；契约 `{results, errors}` 不变、单任务失败不中断整批 |
+| `impact` | `StrategyValidationService` 的批量回测路径；`/api/strategies/validate` 全链路 |
+| `verify` | ✅ `pytest tests/integration/test_strategy_validation_e2e.py` → **2 skipped → 2 passed**（守卫已删）；相关 10 passed。⚠️ 途中被**分层护栏 hook 拦下**（application 层 import adapters ✗）→ 改用 `ServiceFactory`，护栏回归 119 = 基线 119 |
+| `risk` | medium |
+| `cost` | A 约 0.5 人日 / B 约 1 人日 |
+
+**本轮未做的原因**：属**方案取舍**，按要求留给人拍板；测试已精确跳过（原因写全，未把 404 当"环境波动"）。
+
+### P2-7 · async 轨逐文件复核 —— **结论已出，删留待单独开卡**（2026-10-02 复核）
+
+| 字段 | 内容 |
+|---|---|
+| `priority` | P2 结构 |
+| `title` | 裁定 async 轨中零引用的 3 个仓储的去留 |
+| `evidence` | `grep -rnE "(import\|from)[^\n]*\b(simulation_async_repository\|factor_async_repository\|signal_execution_async_repository)\b" --include='*.py' .` → **0 处**；对应符号（`SimulationAccountAsyncRepository` 等）外部引用亦为 **0** |
+| `action` | 先按 `CLAUDE.md`「仓储双轨口径」复核"这两条轨是否仍在服务线上功能"；确认后可删（或标注保留理由） |
+| `impact` | 3 文件 / 约 605 行；无调用方 |
+| `verify` | 删除后 `python -c "from adapters.inbound.fastapi_app.main import app; print(len(app.routes))"` 成功且路由数不变；全量测试不新增失败 |
+| `risk` | medium（`CLAUDE.md` 有"两条轨都在服务线上功能，谁都不能直接删"的结论，**与本次零引用实测冲突**，需先裁） |
+| `cost` | 0.5 人日 |
+
+**本轮未做的原因**：**与仓库既有结论冲突**时，不自行推翻文档结论。
+
+### P2-8 · 5 个未接线模块 —— **已完成**（2026-10-02：重叠调研 + 按"重叠删/独有留"处置）
+
+| 字段 | 内容 |
+|---|---|
+| `priority` | P2 结构 |
+| `title` | 裁定未接线能力模块的去留（接线 or 删除） |
+| `evidence` | 严格零引用（模块路径与符号在全仓 py/yaml/json/md 语料中均无外部出现）：`domain/risk/stress_testing.py`(604) · `domain/risk/scenario_analysis.py`(552) · `domain/quantlib/hft_strategies/event_driven.py`(604) · `domain/quantlib/cross_asset_strategies/commodity_cta.py`(627) · `adapters/outbound/datasources/monitoring.py`(163) |
+| `action` | **已按"重叠调研"处置**：① `risk/stress_testing.py`、`risk/scenario_analysis.py` **删除**（与活的 `risk/stress_test.py` 同类能力重复）；② `datasources/monitoring.py` **删除**（`manager.py` 已有活的 `health_score`/`get_provider_health`，另两个函数无等价但零调用）；③ HFT `event_driven.py`、`commodity_cta.py` **保留并加路线图标注**（零等价，删=砍未接线能力） |
+| `impact` | 5 文件 / 约 2550 行 |
+| `verify` | ✅ 删除前逐项取证（三写法导入扫描 0 命中 / 测试 0 引用 / 删后 5 个符号全仓命中 0）；全量 `pytest tests/ -q` → **6140 passed / 0 errors**（2 条为全量 flake，各自单跑通过）；合计 **−1316 行** |
+| `risk` | **high**（删错即砍功能） |
+| `cost` | 1~2 人日（含逐个判断） |
+
+**本轮未做的原因**：这是**产品决定**，不是清理。
+
+### P3-7 · 剩余 9 条尾部测试失败（**已排除三种状态假设**）
+
+| 字段 | 内容 |
+|---|---|
+| `priority` | P3 卫生 |
+| `title` | 处理尾部 9 条（环境性 flaky + 测试数据前提） |
+| `evidence` | 分类：时序断言 2（`tests/*socket_watchdog*`，毫秒级）· 外部数据源 2~3（`test_lhb`/`test_macro`，线上实测 200 但数据空/源波动）· 顺序依赖 3（`test_get_balance`/`test_pool_refresh_daily…`，**单跑绿**）· 数据前提 2（e2e 全链路因子/价格）；**对照**：`main` 干净检出 302 failed/37 errors/23:24 ↔ 本分支 9 failed/0 errors/4:27 ⇒ 这 9 条是**存量尾部的子集** |
+| `action` | 三条方向**已被实测证伪**，勿重走：① 用例级 DB 行清理（86→85，慢 20%）；② `Balance` 签名被替换（探针报警 0 次）；③ 会话级统一注册服务（9 条不变）。建议改为**分诊**：时序类改注入时钟、外部源类按"诚实不可用"口径、数据前提类加精确跳过 |
+| `impact` | 约 9 条 / 8 个文件 |
+| `verify` | `pytest tests/ -q` 失败数下降且**不新增跳过掩盖逻辑错**；对每条改动给出单跑 + 全量两次结果 |
+| `risk` | low |
+| `cost` | 1 人日 |
+
+### P3-8 · 读取侧大小写比较的余量（**工具已固化**）
+
+| 字段 | 内容 |
+|---|---|
+| `priority` | P3 卫生 |
+| `title` | 用扫描器收敛剩余的大小写敏感比较 |
+| `evidence` | `python tools/check_action_case_consistency.py` → **109 处比较 / 高危 25**（含 `commodity_cta.py` 的 `action == 'open'` 属**异语义同名字段**误报、`backtest_stage.py` 属**局部已归一化**误报） |
+| `action` | 逐条判断"取值是否来自库/外部数据"：是 → 改大小写无关（参照本次 13 处）；否（内部受控枚举/局部已归一化）→ **不改** |
+| `impact` | 生产代码 5 个目录 |
+| `verify` | `python tools/check_action_case_consistency.py --strict` 退出码 0（高危清零）；相关测试与全量均不新增失败 |
+| `risk` | medium（改错会把"正确的敏感比较"改坏，如 `quant.trades` 受 CHECK 约束那处） |
+| `cost` | 1 人日 |
+
+**判据提醒（务必随卡带走）**：`quant.trades` 是 **CHECK 强制小写**（那里的敏感比较**正确**），`quant.simulation_trades` 是 **CHECK 强制大写** —— **两张表契约相反**，所以不能机械"一律 lower"。
+
+### P3-9 · 仓储"吞异常不回滚" —— **已完成**（同步轨候选清零；2026-10-02）
+
+| 字段 | 内容 |
+|---|---|
+| `priority` | P3 卫生（但**因果上**属正确性：会制造假失败） |
+| `title` | 把同步轨仓储的"吞异常"处补上回滚，消除会话毒化 |
+| `evidence` | **更正（2026-10-02 同日自查）**：初版写的「59 处」口径错了 —— 那个数把**纯 JSON 助手**与 **async 轨**都算了进来。按正确口径重扫（AST：取 `Try` 节点的 **try 体**里是否做 DB 操作、且 handler 有 return 无 raise 无 rollback、**排除** `*_async_repository.py`），同步轨只剩 **2 处**：`minute_kline_repository.py:187`（**不属缺陷**：用局部 session 且 `finally: session.close()`，关闭即释放事务）与 `simulation_repository.py:604`（**真候选**，已修）。已造成真实链条的那处 `event_calendar_repository.list_upcoming`（见 §W）亦已修。范式：`memory_repository`（except 里先 `_safe_rollback()`） |
+| `action` | 逐个核对：① 是否运行在**共享线程会话**上做 DB 操作（是 → 必须补回滚）；② 纯 JSON/序列化助手与 **async 轨**（`*_async_repository.py`，未接线且 async 会话语义不同）→ 另行判断 |
+| `impact` | 同步轨若干文件；每处一行改动 |
+| `verify` | 复跑扫描命令，同步轨高危数为 0；`pytest tests/ -q --timeout=15` 不新增失败；**构造用例**：让某仓储查询报错（如指向不存在的表）后，同一会话的后续写操作仍能成功 |
+| `risk` | low（每处只加一行 `_safe_rollback()`，且已有范式） |
+| `status` | **已完成**：`event_calendar_repository`（3 处，提交 8f535afb）、`simulation_repository`（1 处）。剩余同步轨候选 **0** |
+| `cost` | 0.5 人日 |
+| `depends_on` | — |
+
+**为什么标 P3 却很重要**：它本身不改行为（只是把"已经脏了的会话"清干净），
+但**不修就会持续制造假失败**：任务干成了、台账记 failed，而下游判据（如
+"每 job 每日仅 1 条 success"）因此**永远过不了**。本次 `t-2d52a7` 的验收就卡在这里。
+
+**逐文件复核表（可原样落卡；口径与 `CLAUDE.md` 同节一致）**：
+
+| 文件 | 生产导入者 | 测试引用 | 判定 |
+|---|---|---|---|
+| `p2_async_repositories.py` | **4**（3 个路由均已注册） | 有 | **活** |
+| `signal_async_repository.py` | **1**（`realtime_signals_async` 已注册） | — | **活** |
+| `stock_async_repository.py` | 1（非路由） | — | 待查 |
+| `backtest_async_repository.py` · `factor_async_repository.py` · `portfolio_async_repository.py` · `signal_execution_async_repository.py` · `simulation_async_repository.py` · `stock_pool_async_repository.py` | 0 | 0 | 无导入者 |
+
+**结论（我先前"与 CLAUDE.md 冲突"的说法不准确，在此更正）**：
+`CLAUDE.md` 说的是「**整轨**不能直接删」✓（成立：P2 批次与信号路由都在跑 ✓）；
+本表说的是「**其中 6 个文件无导入者**」✓（也成立 ✓）。**两句都对，不矛盾**。
+
+**若后续开卡删除，判据（照 P2-8 三重取证）**：
+1. 三种导入写法全扫 → 除自身外 0 命中；
+2. `tests/` 下 0 引用；
+3. 删除后其**类名**全仓（含 `tools/` 映射表、docstring、`__init__` 导出）0 命中 →
+   特别注意：本表几处"命中"实为 `tools/migrate_repository_imports.py` 的**映射表字符串**
+   与 `async_base.py` 的 **docstring 示例**，**都不是用法**（这是我当日把口径弄错两次的原因）。
+**并要求同步更新 `CLAUDE.md` 同节**，否则代码与文档再度矛盾。
+
+### P1-9 · `watch_triggers` 的 58 行无主触发 —— **撤回原判，不是缺陷**（2026-10-02 当日自查更正）
+
+**原登记（错误）**：说这是"写入侧没带 `rule_id`"的数据问题，要"查写入侧并堵住"。
+
+**实测推翻**：
+
+    psql -d quant_investment -tAc "select … from information_schema.table_constraints … where table_name='watch_triggers'"
+    → watch_triggers_rule_id_fkey | **SET NULL** | rule_id -> watch_rules.id
+
+即：**删掉一条盯盘规则时，外键 `ON DELETE SET NULL` 把它名下的触发记录 `rule_id` 置空** ——
+这是**有意设计**（保留触发历史，不让级联删除抹掉审计痕迹）。无主行的内容也印证这一点：
+`symbol=300345.SZ` + 完整 `condition`（`pnl_pct`）+ `notified=t`，是**真实触发记录**，不是脏数据。
+
+**⇒ 结论：写入侧没有 bug，无需"堵"；这 58 行属**预期存在**。**
+
+**但这条线索的另一半是真缺陷（已修，提交 b7565c29）**：既然"删规则 ⇒ 必然产生 NULL 组"，
+那么旧写法 `int(r[0])` 的异常路径**注定被触发** —— 实测 NULL 组排在第 0 位，
+于是 `get_rule_trigger_stats()` 在**生产恒返回空字典**（盯盘每条规则的今日触发/最近触发全空）。
+修法是**跳过 NULL + info 计数**，恰好与这条 FK 设计相容（NULL 不是"某条规则"）。
+
+**留给后人的唯一可选动作**：若希望报表里能区分"某规则已删"与"从未触发"，
+可在读侧按 `symbol`+`condition` 归并无主历史 —— 属**报表增强**，不是缺陷修复。
+**不要**给 `rule_id` 加 `NOT NULL`（会与这条 `SET NULL` 设计冲突，并在删规则时抛错）。
+
+---
+
+## 9. 判据工具台账（本需求产出的"可复跑筛子"）
+
+| 工具 | 用途 | 当前结论 |
+|---|---|---|
+| `tools/check_action_case_consistency.py` | 查库里枚举列大小写不一致 + 代码里会静默漏行的比较 | 109 处比较 / 高危 25（见 P3-8） |
+| `tools/check_orm_drift_vs_production.py` | **生产方向**的 ORM 漂移（原先只查测试库） | **漂移 0**（7 张缺表已补，见 P1-7） |
+| `tools/check_scheduler_dedup.py` | 调度去重的三条验收（本需求卡自带） | ①③ 过；② 等交易日累积 |
+| `tools/check_silent_fallbacks.py` | **失败与"空数据/成功"不可区分、且无 error 级痕迹**的路径 | 21 处候选；已手查最可疑者（`count_today` 可接受、`count_tasks`/`get_task*` 已修可见） |
+
+**为什么把"筛子"当交付物**：本次最难的三个 bug（盯盘统计恒空 / 调度"没有任务"误判 /
+生产缺表）都不是靠通读代码找到的，而是靠**一条可复跑的判据**缩小范围。
+工具把"经验"变成"可重复的动作"，下一个人才不必重新摸索 —— 这也是本需求文档的用途。
+
+**async 轨补充复核（同日的"静默兜底"判据扫描，2026-10-02）**：
+
+- 用 `tools/check_silent_fallbacks.py` 扫全仓（**不排除** async），**命中 0 处 async 文件** ✓
+  —— 活的两个（`p2_async_repositories.py`、`signal_async_repository.py`）失败时均为
+  `logger.error(...)` + 返回空值 ✓，**属"可见的降级"，不是静默兜底** ✓；
+- 其文件注释已自带**同一类故障的三次线上先例**（`ffc221de` /api/ml/models 恒空、
+  `f00fd8fe` /api/positions 与 /api/data-quality/report 恒空），根因是
+  「同名表 + `extend_existing=True`」二次声明污染 `__table__` → 撞未映射列 →
+  异常被 except 吞 → **接口恒空（假成功）**；2026-09-14 已改为 import 权威模型 ✓；
+- **声明已受验证**（不是抄注释）：三个端点实测均 **HTTP 200 + 真实数据**
+  （14,171 / 4,549 / 9,554 字节）✓。

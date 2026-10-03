@@ -47,6 +47,9 @@ tags: [wiki, index, home]
 
 - [通知系统迁移](guides/notification-migration.md)
 - [监控部署](guides/monitoring-deployment.md)
+- [诊断检查器使用指南（quantsys-v2）](../quantsys-v2/docs/guides/DIAGNOSTIC-CHECKS.md) —— 四把**只读筛子**：
+  调度自检 / **生产方向**的结构漂移 / 「静默兜底」（失败与空数据不可区分）/ 枚举大小写一致性；
+  含"命中≠bug"的读法与排障推荐顺序
 
 ### 提案 rfcs/
 
@@ -73,6 +76,9 @@ tags: [wiki, index, home]
 | 2026-09-13 | [项目说明书](architecture/project-manual.md) | 新建（金字塔 L1） | w-1cee2467 |
 | 2026-09-13 | [文档规范](DOCUMENT-MANAGEMENT-PLAN.md) | 增「Wiki 化：页面模型」「文档金字塔」「需求归档」三节 | w-1cee2467 |
 | 2026-09-13 | [需求归档规范](../agent-dh/docs/architecture/requirement-archive.md) | 归档=存底+合并；合并去向收敛到规范目录；说明书更新点强制 | w-1cee2467 |
+| 2026-10-02 | [诊断检查器使用指南](../quantsys-v2/docs/guides/DIAGNOSTIC-CHECKS.md) | 新建：把"外观正常、内里已死"三类故障的判据固化为 4 个只读检查器（含生产方向漂移——此前**从无守卫**） | REQ-261001145152-3982 |
+| 2026-10-02 | [调度器架构](../quantsys-v2/docs/architecture/scheduler-architecture.md) | 顶部新增「现状」节：归属定案（ADR-004，业务调度归 v2）+ 现网两条路径 + 收敛实测数字；标注正文为已取代的历史设计 | REQ-261001145152-3982 |
+| 2026-10-02 | [项目说明书](architecture/project-manual.md) | 「最近更新」增一行：结构漂移是**双向**的（生产库缺表 7 张曾致接口恒 500 / 台账假失败）、失败可能与空数据不可区分、兜底靠异常中断同为隐患 | REQ-261001145152-3982 |
 
 ## 待写页（stub，后续需求的候选）
 
