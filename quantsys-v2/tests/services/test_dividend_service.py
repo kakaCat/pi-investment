@@ -240,9 +240,20 @@ class TestGetDividendCalendar:
             dates = [e["date"] for e in result["events"]]
             assert dates == sorted(dates)
 
-    def test_get_dividend_calendar_different_events(self):
-        """Test different event types"""
+    def test_get_dividend_calendar_different_events(self, monkeypatch):
+        """Test different event types
+
+        2026-10-02（REQ-261001145152-3982 审查）：**打桩掉取数层，使用例只测它声明要测的东西**。
+
+        本用例断言的是**事件名映射**（`ex_dividend` → `除权除息日` 等，纯本地表），
+        但原实现先跑 `_get_stock_pool()` + `_batch_query_dividends()` —— 后者会**真的取数**
+        （实测两个数据源都失败：该接口已登记为"两源皆不可用"），于是结果随外网/时序而变：
+        **单跑绿、全量红**（本轮实测正是这种形态）。
+        `_batch_query_dividends` 的返回值不参与 `event_type` 计算，故打桩不影响本用例的判据。
+        """
         service = DividendService()
+        monkeypatch.setattr(service, '_get_stock_pool', lambda: ['600519'])
+        monkeypatch.setattr(service, '_batch_query_dividends', lambda pool: {})
 
         events = ["ex_dividend", "record_date", "pay_date"]
         event_names = ["除权除息日", "股权登记日", "派息日"]
