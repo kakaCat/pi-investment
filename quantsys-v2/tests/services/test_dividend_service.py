@@ -212,9 +212,17 @@ class TestScreenDividendStocks:
 
 
 class TestGetDividendCalendar:
-    def test_get_dividend_calendar_success(self):
-        """Test successful dividend calendar query"""
+    def test_get_dividend_calendar_success(self, monkeypatch):
+        """Test successful dividend calendar query
+
+        2026-10-02（REQ-261001145152-3982 审查）：**打桩取数层**（同 `..._different_events`）。
+        原用例不打桩 → 真的取数（该接口两个数据源都已登记为不可用）→
+        **全量跑时超时**（`Failed: Timeout (>15.0s)`），属环境依赖而非缺陷。
+        本用例断言的是"成功返回时的字段形状"，取数结果不参与断言。
+        """
         service = DividendService()
+        monkeypatch.setattr(service, '_get_stock_pool', lambda: ['600519'])
+        monkeypatch.setattr(service, '_batch_query_dividends', lambda pool: {})
         result = service.get_dividend_calendar(
             start_date="2026-06-01",
             end_date="2026-06-30",
@@ -227,9 +235,14 @@ class TestGetDividendCalendar:
         assert "events" in result
         assert isinstance(result["events"], list)
 
-    def test_get_dividend_calendar_sorted_by_date(self):
-        """Test that events are sorted by date"""
+    def test_get_dividend_calendar_sorted_by_date(self, monkeypatch):
+        """Test that events are sorted by date
+
+        2026-10-02（REQ-261001145152-3982 审查）：同上 —— 打桩取数层，消除"全量跑超时"。
+        """
         service = DividendService()
+        monkeypatch.setattr(service, '_get_stock_pool', lambda: ['600519'])
+        monkeypatch.setattr(service, '_batch_query_dividends', lambda pool: {})
         result = service.get_dividend_calendar(
             start_date="2026-01-01",
             end_date="2026-12-31",
