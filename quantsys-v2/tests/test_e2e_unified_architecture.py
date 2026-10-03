@@ -80,10 +80,14 @@ def test_e2e_architecture_summary():
     manager = get_data_provider_manager()
 
     # Verify all provider types are initialized
-    assert len(manager.quote_providers) == 5
-    assert len(manager.stock_providers) == 1
-    assert len(manager.dividend_providers) == 1
-    assert len(manager.market_providers) == 1
+    # 2026-10-02（REQ-261001145152-3982 审查）：**不再钉死数量，改为下界**。
+    # 原断言 `len(quote_providers) == 5` 已过时（实测 4：腾讯/新浪/东财/Akshare）——
+    # 这类"钉死数字"会随每次增删源而碎，而**下面已按名字检查** sina/eastmoney/akshare 是否在场，
+    # 那才是"源都初始化好了"的真正判据。故数量只保留下界（防"一个都没起"）。
+    assert len(manager.quote_providers) >= 4, [p.name for p in manager.quote_providers]
+    assert len(manager.stock_providers) >= 1
+    assert len(manager.dividend_providers) >= 1
+    assert len(manager.market_providers) >= 1
 
     # Verify provider names
     quote_names = [p.name for p in manager.quote_providers]

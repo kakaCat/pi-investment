@@ -65,7 +65,10 @@ class TestBackwardCompatibility:
             'reason': 'Legacy strategy signal'
         }
 
-        processor = SignalProcessor(DataService())
+        # 2026-10-02（REQ-261001145152-3982 审查）：`SignalProcessor.__init__()` 现**不收参数**
+        # （原为 `SignalProcessor(data_service)`）。本用例的**主题是"旧信号形状仍能被处理"**
+        # （legacy_signal 那个 dict），与依赖注入方式无关 —— 故去掉构造参数，保留原意。
+        processor = SignalProcessor()
         result = processor.process_signal(
             legacy_signal,
             '000001.SH',

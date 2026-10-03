@@ -206,7 +206,14 @@ class SignalProcessor:
             if field not in signal:
                 raise ValueError(f"Missing required field: {field}")
 
-        if signal['action'] not in ('buy', 'sell', 'hold'):
+        # 2026-10-02（REQ-261001145152-3982 审查）：**大小写无关**。
+        # 原为 `signal['action'] not in ('buy','sell','hold')` —— 只认小写，而**本仓两套口径并存**
+        # （策略原始输出小写，库内/历史调用方大写；实测 `simulation_trades.action` 的
+        #  BUY/SELL 占 53/78）。后果：**旧格式的 `{'action': 'BUY', …}` 会被直接拒绝**
+        # （`ValueError: Invalid action: BUY`）—— 正是
+        # `tests/test_backward_compatibility.py::test_signal_processor_handles_legacy_signals`
+        # 要守的那条兼容性，属**真实的 BC 断裂**。
+        if str(signal['action']).strip().lower() not in ('buy', 'sell', 'hold'):
             raise ValueError(f"Invalid action: {signal['action']}")
 
         if not 0 <= signal['confidence'] <= 1:
