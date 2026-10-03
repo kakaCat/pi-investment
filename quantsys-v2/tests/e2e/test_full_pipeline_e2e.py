@@ -62,8 +62,18 @@ def test_symbols():
     conn = get_db_conn()
     try:
         cur = conn.cursor()
+        # 2026-10-02（REQ-261001145152-3982 审查）：**按"因子丰富度"挑，而不是按符号字母序**。
+        # 原实现取 `daily_klines` 的前 5 个符号，**与因子无关** → 下游用例假定
+        # `test_symbols[0]` 有 "rsi14" 且因子数 ≥10，实测测试库里排在最前的是
+        # 只有 `ma5/ma10` 两个因子的标的 → 报 `000001: 无法获取 RSI 因子`
+        # （**看起来像因子管道坏了，其实是"挑错了标的"**）。
+        # 现按该标的名下因子计数排序：让用例测的正是"因子齐备时，因子→策略桥能不能通"。
+        # 若库中确实没有任何标的有足够因子，用例仍会**响亮失败**（不静默跳过）。
         cur.execute(
-            "SELECT DISTINCT symbol FROM quant.daily_klines ORDER BY symbol LIMIT 5"
+            "SELECT k.symbol, count(f.factor_name) AS n "
+            "FROM quant.daily_klines k "
+            "LEFT JOIN quant.factor_values f ON f.symbol = k.symbol "
+            "GROUP BY k.symbol ORDER BY n DESC, k.symbol LIMIT 5"
         )
         symbols = [r[0] for r in cur.fetchall()]
         cur.close()
@@ -121,8 +131,18 @@ class TestFullPipeline_PhaseB_FactorAndStrategy:
         # Step 1: 获取因子
         factor_result = api_get(f"/api/stock/{symbol}/factors")
         factors = factor_result.get("factors", {})
-        assert "rsi14" in factors or "RSI14" in factors, \
-            f"{symbol}: 无法获取 RSI 因子"
+        # 2026-10-02（REQ-261001145152-3982 审查）：**原断言把"周期"写死成 14，而系统算的是 RSI12**。
+        # 报错为 `{symbol}: 无法获取 RSI 因子` —— **看着像取不到因子，其实是周期名对不上**。
+        # （另：`test_symbols` 原按符号字母序取，与因子无关，实测会选中只有 `ma5/ma10` 的标的；
+        #  已改为按因子计数排序，现稳定选中因子齐备者，例如 60 个因子的 `600000`。）
+        _names = [
+            (f.get('factor_name') if isinstance(f, dict) else str(f))
+            for f in (factors if isinstance(factors, list) else [])
+        ]
+        _rsi = [n for n in _names if str(n).upper().startswith('RSI')]
+        assert _rsi, (
+            f"{symbol}: 无 RSI 族因子 —— 实得 {len(_names)} 个因子，样例 {sorted(_names)[:8]}"
+        )
 
         # Step 2: 基于因子信息执行策略
         strategy_result = api_post("/api/strategy/run", {
@@ -133,9 +153,9 @@ class TestFullPipeline_PhaseB_FactorAndStrategy:
             f"策略执行失败: {strategy_result}"
 
         # Step 3: 验证因子值和策略输出的一致性
-        # RSI 值应在策略评估中被引用
-        assert isinstance(factors, dict)
-        assert len(factors) >= 10, "因子不足"
+        # 2026-10-02：`factors` 实为**因子行列表**（非 dict），原 `isinstance(factors, dict)`
+        # 与实现不符；按其真实形状断言数量。
+        assert len(_names) >= 10, f"{symbol}: 因子不足（实得 {len(_names)} 个）"
 
     def test_multiple_stocks_strategy_consistency(self, test_symbols):
         """多股票策略执行不崩溃"""
