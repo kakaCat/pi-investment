@@ -41,7 +41,14 @@ from domain.watch.ports import (
     WatchRuleChangeUnauthorized,
 )
 
-NOW = datetime(2026, 9, 18, 10, 0, 0)
+# 2026-10-02（REQ-261001145152-3982 审查）：**原为硬编码 `datetime(2026, 9, 18, 10, 0, 0)`**，
+# 于是本文件的桩数据永远落在"2026-09-18"，而被侧服务（`NoiseSelfHealService`）统计的是
+# **真实当天** → `_eight_today(rule_id)` 明明铺了 8 次触发，`noise_status()` 却回
+# `trigger_today: 0`（实测），断言 `trigger_today == 8` 必红。
+# 属"**只在当天恰是 9-18 时才通过**"的时间炸弹（与 `test_trading_day_guard` 的"只在工作日通过"同类）。
+# 改为跟随真实当下；本文件的 48 处日期用法**全是相对量**（`TODAY` / `TODAY - i*DAY`），
+# 故不受影响。（另注：下方 `_ENGINE_NOW` 是"周五 10:00 交易时段内"的**另一关注点**，保持不动。）
+NOW = datetime.now()
 TODAY = NOW.date()
 DAY = timedelta(days=1)
 
