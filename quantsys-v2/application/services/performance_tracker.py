@@ -238,7 +238,7 @@ class PerformanceTracker:
                 stats = strategy_stats[strategy_name]
                 stats['total_trades'] += 1
 
-                if trade.action == 'BUY':  # action 大写契约（08-13 统一）
+                if str(trade.action).upper() == 'BUY':  # 2026-10-02：改为大小写无关（库里两套写法并存）
                     stats['buy_count'] += 1
                 else:
                     stats['sell_count'] += 1

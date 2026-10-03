@@ -205,7 +205,7 @@ class WeeklyReportJob:
         # 统计调仓次数（买入交易日期去重）
         rebalance_dates = set()
         for trade in trades:
-            if trade.action == 'BUY':
+            if str(trade.action).upper() == 'BUY':
                 rebalance_dates.add(trade.trade_date)
 
         rebalance_count = len(rebalance_dates)
@@ -241,7 +241,7 @@ class WeeklyReportJob:
 
         # 观察期进度
         all_trades = self.repo.get_trades_by_account(account_name=self.ACCOUNT_NAME)
-        total_rebalances = len({t.trade_date for t in all_trades if t.action == 'BUY'})
+        total_rebalances = len({t.trade_date for t in all_trades if str(t.action).upper() == 'BUY'})
         observation_cycles = self.config['feishu']['observation_period']['cycles']
         observation_progress = f"{total_rebalances}/{observation_cycles}"
 

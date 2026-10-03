@@ -85,8 +85,8 @@ class PaperTradingEngine:
             self._daily_buy_date = today
             self._daily_buy_count = 0
 
-        buy_signals = [s for s in signals if s.action == 'BUY']
-        sell_signals = [s for s in signals if s.action == 'SELL']
+        buy_signals = [s for s in signals if str(s.action).upper() == 'BUY']
+        sell_signals = [s for s in signals if str(s.action).upper() == 'SELL']
 
         for signal in sell_signals:
             price = (current_prices or {}).get(signal.symbol) or signal.price
@@ -411,7 +411,7 @@ class PaperTradingEngine:
             start_date=today_str,
             end_date=today_str,
         )
-        today_sells = [t for t in today_trades if t.action == 'SELL']
+        today_sells = [t for t in today_trades if str(t.action).upper() == 'SELL']
         today_pnl = sum(float(t.realized_pnl or 0) for t in today_sells)
 
         return {

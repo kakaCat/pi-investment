@@ -187,7 +187,7 @@ class TradeGuardService:
             start_date=today,
             end_date=today
         )
-        buys = [t for t in trades if t.action == 'BUY']
+        buys = [t for t in trades if str(t.action).upper() == 'BUY']
 
         # 校验笔数
         if len(buys) >= self.MAX_DAILY_BUY_COUNT:

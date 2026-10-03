@@ -232,10 +232,10 @@ def get_position(
         fee = float(trade.get('fee', 0) or 0)
         stamp = float(trade.get('stamp_duty', 0) or 0)
 
-        if trade['action'] == 'buy':
+        if str(trade.get('action', '')).lower() == 'buy':
             total_buy_qty += qty
             total_buy_amount += amt
-        elif trade['action'] == 'sell':
+        elif str(trade.get('action', '')).lower() == 'sell':
             total_sell_qty += qty
             total_sell_amount += amt
 
