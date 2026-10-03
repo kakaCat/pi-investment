@@ -122,6 +122,18 @@ class JobRunRepository(BaseORMRepository[InProcessJobRun]):
                 'error': None,
             },
         )
+        # 2026-10-02（REQ-261001145152-3982 审查）：**记账前先清会话**。
+        # 实证（`logs/api.log`）：`event_calendar_check` 2026-10-02 的 handler **已跑出结果**
+        # （`{"status": "no_event", "pending_in_window": 0, "notified": 0}`），
+        # 但本方法执行 UPDATE 时报
+        #   `psycopg2.errors.InFailedSqlTransaction: current transaction is aborted,
+        #    commands ignored until end of transaction block`
+        # —— 说明**调用方的会话已被 handler 内某条失败 SQL 毒化且未回滚**，
+        # 于是"任务成功、记账失败"，台账里落成 **failed**（**假失败**，并让下游
+        # "每 job 每日仅 1 条 success" 的判据永远过不了）。
+        # 终态记账是**独立的收尾动作**：无论 calling 事务此前发生过什么，都必须写得进去。
+        # 故先回滚一次（幂等、无副作用），再执行 UPDATE。
+        self._safe_rollback()
         try:
             self.session.execute(stmt)
             self.session.commit()
