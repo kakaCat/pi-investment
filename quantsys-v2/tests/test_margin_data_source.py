@@ -145,7 +145,17 @@ def test_unpublished_day_skips_without_retry(monkeypatch):
 
 
 def test_consecutive_real_failures_raise(monkeypatch):
-    """真实异常（非空返回）连续 3 个交易日失败 → 显式 DataSourceError，交由上层降级并如实标注。"""
+    """真实异常（非空返回）连续 3 个交易日失败 → 显式 DataSourceError，交由上层降级并如实标注。
+
+    2026-10-02（REQ-261001145152-3982 审查）：**打桩掉重试退避的 sleep**。
+    实现里重试用**指数退避**（`time.sleep(retry_delay)`，1→2→4 秒），
+    而本用例要触发 3 个交易日 × 3 次重试 → 真实等待累计 21 秒以上 →
+    报 `Failed: Timeout (>25.0s) from pytest-timeout`（**看起来像实现挂死**，其实是退避在等）。
+    重试类用例应把 sleep 置零：既保留"重试次数"的断言（9 次），又不真的等。
+    """
+    # 退避只影响等待时长，不影响重试次数；置零以让用例在毫秒级完成
+    monkeypatch.setattr('time.sleep', lambda *a, **k: None)
+
     calls = []
 
     def _boom(date):

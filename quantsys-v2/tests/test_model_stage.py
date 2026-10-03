@@ -85,7 +85,8 @@ class TestModelStagePrediction:
 
         assert "prediction" in result
         pred = result["prediction"]
-        assert pred["action"] == "hold"
+        # 2026-10-02（REQ-261001145152-3982 审查）：动作大小写两套口径并存，断言改为大小写无关。
+        assert str(pred["action"]).lower() == "hold"
         assert pred["model"] == "none"
         assert "message" in pred
 
