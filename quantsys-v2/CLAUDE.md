@@ -764,9 +764,10 @@ factor / backtest / stock_pool / signal_execution）。
 
 **实测现状（2026-10-01）**：两条轨**都在服务线上功能，谁都不能直接删**——
 - sync 轨 8 文件 **5,551 行**，被 **52 个文件**引用（CLI、调度、adapters、多个服务）；
-- async 轨 8 文件 **1,618 行**，只被 **2 处**仓储引用，但其中 `realtime_signals_async` 路由
-  已在 `main.py` 注册、`charts_async.py` 正是 K 线图表接口的实现路径（此前 greenlet 缺失
-  导致它静默返回空数组的那条链路）。
+- async 轨 8 文件 **1,618 行**：**整轨是活的，但逐文件看引用很不均**——
+  `realtime_signals_async` 路由已在 `main.py` 注册、`charts_async.py` 正是 K 线图表接口的
+  实现路径（此前 greenlet 缺失导致它静默返回空数组的那条链路）；
+  而多数 async 仓储文件**当前没有任何导入者**（逐文件数字见下方 2026-10-02 复核）。
 
 > 数字可复现（在 `quantsys-v2/` 下执行）：
 > ```bash
@@ -777,6 +778,27 @@ factor / backtest / stock_pool / signal_execution）。
 > ```
 > （口径提醒：引用数随 grep 模式变——写成 `_repository` 前缀会连 async 的一起命中，
 > 故此处用**精确到实体名**的模式。2026-10-01 复核时正是这样发现初稿写的 54/1,418 不准确。）
+
+**2026-10-02 逐文件复核（REQ-261001145152-3982 P2-7）**——async 轨 9 个文件的引用情况：
+
+| 文件 | 生产导入者 | 测试引用 | 判定 |
+|---|---|---|---|
+| `p2_async_repositories.py` | **4**（3 个路由均已注册） | 有 | **活** |
+| `signal_async_repository.py` | **1**（`realtime_signals_async` 已注册） | — | **活** |
+| `stock_async_repository.py` | 1（非路由） | — | 待查 |
+| `backtest_async_repository.py` | 0 | 0 | 无导入者 |
+| `factor_async_repository.py` | 0 | 0 | 无导入者 |
+| `portfolio_async_repository.py` | 0 | 0 | 无导入者 |
+| `signal_execution_async_repository.py` | 0 | 0 | 无导入者 |
+| `simulation_async_repository.py` | 0 | 0 | 无导入者 |
+| `stock_pool_async_repository.py` | 0 | 0 | 无导入者 |
+
+> ⚠️ **"无导入者"≠"可以直接删"**：删除前须按 P2-8 那套**三重取证**再确认
+> （三种导入写法 / 测试引用 / 删后符号是否悬空），并**同步更新本节**（否则代码与文档再度矛盾）。
+> ⚠️ **要看命中的性质**：2026-10-02 实测，上表几处"命中"其实是
+> `tools/migrate_repository_imports.py` 的**映射表字符串**、以及
+> `infrastructure/persistence/orm/async_base.py` 的 **docstring 示例** —— **都不是用法**。
+> （这两条正是我当日先把口径弄错两次的原因，记此以便后人一次看对。）
 
 **口径（新代码照此选）**：
 1. **FastAPI 异步路由 / async 服务** → 用 `x_async_repository.py`（`AsyncBaseORMRepository`）；
