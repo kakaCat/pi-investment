@@ -602,6 +602,13 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
                     total += float(row.amount or 0)
             return total
         except Exception as e:  # noqa: BLE001
+            # 2026-10-02（REQ-261001145152-3982 审查）：**按 0 处理前先回滚**。
+            # 本方法走的是 `self.session`（共享线程会话）：查询失败若不回滚，
+            # 该会话即进入 aborted 状态 → 同一线程后续的**终态记账**会报
+            # `InFailedSqlTransaction` 而落成假失败（同 §W 的链条；同仓
+            # `memory_repository` 早已是"except 里先 _safe_rollback()"的写法）。
+            # 语义不变：依然"按 0 处理"并 warning，只是不再让会话带着伤往下走。
+            self._safe_rollback()
             logger.warning(f"查询当日外部入金失败（按 0 处理）: {account_name} {day} {e}")
             return 0.0
 
