@@ -262,16 +262,38 @@ class SchedulerRepository(ISchedulerRepository):
         try:
             config = self.session.get(SchedulerTaskConfig, task_id)
             return self._row_to_dict(config)
-        except Exception:
+        except Exception as e:  # noqa: BLE001
             self._safe_rollback()
+            # 2026-10-02（REQ-261001145152-3982 审查）：**失败必须可见**。
+            # 原先这里 `except Exception: … return None/0` 是**静默**的 —— 而调用方会把它
+            # 读成业务事实，且这两种解释的后果完全不同：
+            #   · `apscheduler_service` 用它算 `expected`（启用任务数）→ 读失败得 0，
+            #     会被当成"没有任务要调度"（该服务里本就有
+            #     `reconcile_refuses_empty_desired_set` 这类护栏，说明该失败模式是已知的）；
+            #   · `scheduler_config_service` 用它判断"任务是否存在"→ 读失败得 None，
+            #     会被当成"不存在"而**重复创建**。
+            # 与同文件 `list_tasks` 的既有做法对齐：**记 error 再返回**（返回值不变，
+            # 不改调用方语义，只是不再让失败无声无息）。
+            logger.error(f"get_task 读取失败（返回 None，调用方无法与'任务不存在'区分）: task_id={task_id}: {e}", exc_info=True)
             return None
 
     def get_task_by_name(self, name: str) -> Optional[Dict[str, Any]]:
         try:
             config = self.session.query(SchedulerTaskConfig).filter_by(name=name).first()
             return self._row_to_dict(config)
-        except Exception:
+        except Exception as e:  # noqa: BLE001
             self._safe_rollback()
+            # 2026-10-02（REQ-261001145152-3982 审查）：**失败必须可见**。
+            # 原先这里 `except Exception: … return None/0` 是**静默**的 —— 而调用方会把它
+            # 读成业务事实，且这两种解释的后果完全不同：
+            #   · `apscheduler_service` 用它算 `expected`（启用任务数）→ 读失败得 0，
+            #     会被当成"没有任务要调度"（该服务里本就有
+            #     `reconcile_refuses_empty_desired_set` 这类护栏，说明该失败模式是已知的）；
+            #   · `scheduler_config_service` 用它判断"任务是否存在"→ 读失败得 None，
+            #     会被当成"不存在"而**重复创建**。
+            # 与同文件 `list_tasks` 的既有做法对齐：**记 error 再返回**（返回值不变，
+            # 不改调用方语义，只是不再让失败无声无息）。
+            logger.error(f"get_task_by_name 读取失败（返回 None，调用方无法与'任务不存在'区分）: name={name}: {e}", exc_info=True)
             return None
 
     def list_tasks(self, enabled_only: bool = False) -> List[Dict[str, Any]]:
@@ -293,8 +315,15 @@ class SchedulerRepository(ISchedulerRepository):
             if enabled_only:
                 query = query.filter_by(is_enabled=True)
             return query.scalar() or 0
-        except Exception:
+        except Exception as e:  # noqa: BLE001
             self._safe_rollback()
+            # 2026-10-02（REQ-261001145152-3982 审查）：**这一处返回 0 最危险** —— 原先静默，
+            # 而调用方 `apscheduler_service` 拿它算 `expected`（启用任务数）：
+            # 读失败得 0 会被当成"没有任务要调度"（该服务里本就有
+            # `reconcile_refuses_empty_desired_set` 这类护栏，说明该失败模式是已知的）。
+            # 与同文件 `list_tasks` 对齐：**记 error 再返回**（返回值不变，只让失败可见）。
+            logger.error(f"count_tasks 读取失败（返回 0，调用方无法与'没有任务'区分）: "
+                         f"enabled_only={enabled_only}: {e}", exc_info=True)
             return 0
 
     def enable_task(self, task_id: int) -> bool:
