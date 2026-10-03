@@ -48,7 +48,14 @@ class SimulationAccountRepository(IAccountRepository):
             account_name=orm_account.account_name,
             available_cash=float(orm_account.cash_available or 0),
             frozen_cash=float(orm_account.cash_frozen or 0),
-            total_value=float(orm_account.total_value or 0),
+            # 2026-10-02（REQ-261001145152-3982 审查）：**删掉这一行 —— 它让 get_balance() 必崩**。
+            # `Balance.total_value` 已改为 **@property 计算属性**（模型注释：
+            #   「total_value 改为 @property 计算属性，避免数据不一致风险」
+            #   = available_cash + frozen_cash + position_value），
+            # 构造参数里**没有** `total_value` → 传它即
+            #   `TypeError: Balance.__init__() got an unexpected keyword argument 'total_value'`
+            # → `get_balance()` 任何调用都抛错（端口方法整体不可用）。
+            # 删除后由模型自行计算，语义不变且消除不一致风险。
             position_value=float(orm_account.position_value or 0),
             peak_value=float(orm_account.peak_value or 0),
             cumulative_return=float(orm_account.cumulative_return or 0),
