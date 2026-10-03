@@ -362,9 +362,12 @@ class WatchTriggerRepository(BaseORMRepository[WatchTrigger]):
         现改走 self.session + ORM 聚合：func.count().filter(...) 编出同形状的
         count(*) FILTER (WHERE ...)，CURRENT_DATE 仍由数据库求值
         （func.current_date()，不用应用时钟，避免时区/时钟差改变"今日"口径）。
-        ⚠️ 刻意保留逐行 int(r[0]) 的取值方式及其边界：rule_id 为 NULL 的分组会让
-        int(None) 抛 TypeError，被下面的 except 捕获后返回**已累计的部分结果**——
-        这是旧实现的行为，本轮不修（另在报告中登记为既有缺陷）。
+        ✅ 2026-10-02（REQ-261001145152-3982 审查）：**上面这段"刻意保留"已废止，缺陷已修**。
+        原写法在 rule_id 为 NULL 的分组上 `int(None)` 抛错 → 被 except 捕获 →
+        循环**中断**，排在 NULL 之后的规则全部丢失（生产实测：89 行触发里 58 行无主、
+        有效规则仅 7 个 ⇒ 统计很可能整批为空），并每次记一条 warning（日志实测 122 次）。
+        现**显式跳过 NULL**（NULL 本就不属于"某条规则"），无主条数以 info 记数，
+        真实异常仍走 except 并回滚。
         """
         out = {}
         try:
@@ -379,8 +382,26 @@ class WatchTriggerRepository(BaseORMRepository[WatchTrigger]):
                 .group_by(WatchTrigger.rule_id)
                 .all()
             )
+            orphan = 0
             for r in rows:
+                # 2026-10-02（REQ-261001145152-3982 审查）：**显式跳过无主触发，不再靠异常中断**。
+                # 原写法 `out[int(r[0])] = …` 在 `rule_id` 为 NULL 的分组上抛 TypeError，
+                # 被下面的 except 捕获 → 只是"看起来回到了旧行为"，实际后果是：
+                #   ① 循环**中断**，排在 NULL 之后的规则**全部丢失**（不是"部分结果"，是静默漏数据）；
+                #   ② 每次调用都记一条 warning —— 生产日志实测 **122 次**（两个日志各 122）的噪音；
+                #   ③ 建表数据实测：`quant.watch_triggers` **89 行里 58 行 rule_id 为 NULL**，
+                #      而有效规则只有 **7 个** ⇒ 盯盘健康度报表很可能整批为空（功能失真，不止噪音）。
+                # 现按语义显式跳过（NULL 不是"某条规则"，本就不该出现在 per-rule 统计里），
+                # 统计条数用 info 记一次以便观察，真实异常仍走下面的 except 并回滚。
+                if r[0] is None:
+                    orphan += 1
+                    continue
                 out[int(r[0])] = {"today": int(r[1] or 0), "last_at": r[2]}
+            if orphan:
+                import structlog
+                structlog.get_logger(__name__).info(
+                    "批量触发统计：跳过无主触发（rule_id 为 NULL）", orphan_rows=orphan,
+                    rules=len(out))
         except Exception as e:
             self._safe_rollback()
             import structlog
