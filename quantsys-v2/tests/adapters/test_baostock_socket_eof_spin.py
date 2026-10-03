@@ -166,7 +166,13 @@ def test_watchdog_closes_inflight_socket_even_after_relogin(using_socket):
             decoy.close()
             srv.close()
 
-        assert time.time() - t0 < 5
+        # 2026-10-02（REQ-261001145152-3982 审查）：**阈值按"有效超时"给足余量**（同
+        # test_baostock_kline_relogin 那条）。看门狗超时是 1s，而根 conftest 为治 akshare
+        # "requests.get 不传 timeout" 设了 **socket 默认超时 5s** → 这条阻塞 recv 的真实耗时
+        # 由默认超时决定（实测 ~5.00s），卡在 `< 5` 上差几毫秒而失败。
+        # 保留原意（**不得永久挂住**），上界按 1 + 5 + 2 给足。
+        _budget = 1 + 5 + 2  # watchdog(1s) + conftest 默认 socket 超时(5s) + 调度余量(2s)
+        assert time.time() - t0 < _budget, f'elapsed={time.time() - t0:.3f}s ≥ {_budget}s' 
         assert inflight.fileno() == -1, '看门狗应已关闭本次调用持有的 socket'
     finally:
         provider_mod._clear_inflight(inflight)

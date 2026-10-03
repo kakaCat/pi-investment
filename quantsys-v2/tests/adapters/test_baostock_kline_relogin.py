@@ -125,4 +125,13 @@ def test_socket_watchdog_interrupts_blackhole():
         if hasattr(bs_context, 'default_socket'):
             delattr(bs_context, 'default_socket')
 
-    assert time.time() - t0 < 5, '看门狗未及时打断阻塞调用'
+    # 2026-10-02（REQ-261001145152-3982 审查）：**阈值按"有效超时"给足余量**。
+    # 用例给看门狗的超时是 **1s**，原断言写 `< 5`；但本仓根 conftest 为治 akshare
+    # "内部 requests.get 不传 timeout" 的问题，设了 **socket 默认超时 5s**
+    # （`socket.setdefaulttimeout(5)`）—— 于是这条阻塞 recv 的真实耗时由**默认超时**决定，
+    # 实测 **5.003s**，卡在 `< 5` 上差 3 毫秒而失败（**看着像"看门狗失效"**，其实是两个
+    # 超时值叠加）。这里保留原意（**不得永久挂住**），把上界按"看门狗超时 + 默认 socket 超时 + 余量"给足。
+    _budget = 1 + 5 + 2  # watchdog(1s) + conftest 默认 socket 超时(5s) + 调度余量(2s)
+    assert time.time() - t0 < _budget, (
+        f'看门狗未及时打断阻塞调用（elapsed={time.time() - t0:.3f}s ≥ {_budget}s）'
+    )
