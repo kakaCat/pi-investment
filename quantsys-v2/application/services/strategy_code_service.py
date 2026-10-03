@@ -207,6 +207,22 @@ class StrategyCodeService:
             self._kline_repo = ServiceFactory.resolve(IKlineRepository)
         return self._kline_repo
 
+    @strategy_repo.setter
+    def strategy_repo(self, value):
+        """允许**显式注入**（`svc.strategy_repo = repo`）。
+
+        2026-10-02（REQ-261001145152-3982 审查）：本类改为懒解析 property 后，
+        原先用属性赋值注入的用例报
+        `AttributeError: property 'strategy_repo' of 'StrategyCodeService' object has no setter`
+        —— 那是**我引入的回退**。仓内铁律是"实例化依赖必须显式注入"（见
+        daily_orchestrator 的教训注释），故 setter 必须保留：注入优先，未注入才懒解析。
+        """
+        self._strategy_repo = value
+
+    @kline_repo.setter
+    def kline_repo(self, value):
+        """同上：允许显式注入。"""
+        self._kline_repo = value
     def create_strategy(
         self,
         name: str,

@@ -64,6 +64,11 @@ class AccountTradingService:
             self._repo = ServiceFactory.resolve(ISimulationRepository)
         return self._repo
 
+    @repo.setter
+    def repo(self, value):
+        """允许**显式注入**（`svc.repo = repo`）—— 同 StrategyCodeService：注入优先，未注入才懒解析。"""
+        self._repo = value
+
     def _get_price(self, symbol: str) -> float:
         from application.services.realtime_quote_service import RealtimeQuoteService
         quote = RealtimeQuoteService().get_realtime_quote(symbol)
