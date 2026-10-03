@@ -4,37 +4,15 @@ from application.services.strategy_validation_service import StrategyValidationS
 from adapters.outbound.repositories import StockORMRepository, StrategyORMRepository
 
 
-@pytest.mark.integration
-def _skip_if_batch_backtest_endpoint_gone():
-    """依赖缺失（**方案待拍板**）→ 精确跳过，不粉饰成"通过"。
-
-    2026-10-02（REQ-261001145152-3982 审查）实测：
-        `POST http://127.0.0.1:5001/api/backtest/batch` → **404 Not Found**
-    （服务端日志：`Batch backtest API call failed: 404`）
-    该端点是**已被删除**的批量回测入口，而 `StrategyValidationService` 仍按它调用
-    → **策略验证流程当前是断的**（不是测试问题）。
-
-    替换方案是**取舍**（本会话开头即登记为待拍板项）：
-      A. 逐任务调 `/api/backtest/run`（复用既有端点，代价是 N 次 HTTP 往返）；
-      B. 改为进程内直接调 `StrategyBacktestService`（少一层 HTTP，但要处理并发与内存）。
-    在方案定下来之前，这里**跳过并写明原因**；**不**把 404 当"环境波动"糊过去。
-    """
-    import requests
-
-    try:
-        r = requests.post("http://127.0.0.1:5001/api/backtest/batch", json={}, timeout=5)
-    except Exception as e:  # noqa: BLE001 - 取不到服务也属"依赖不可用"
-        pytest.skip(f"批量回测端点不可达（依赖缺失，方案待拍板）: {e}")
-    if r.status_code == 404:
-        pytest.skip(
-            "依赖缺失：/api/backtest/batch 已删除（实测 404），而 StrategyValidationService 仍调用它 "
-            "→ 策略验证流程当前是断的。替换方案（逐任务调 /api/backtest/run vs 进程内调 "
-            "StrategyBacktestService）属**取舍**，需先拍板。"
-        )
+# 2026-10-02（REQ-261001145152-3982 · P1-8）：**移除"探测已删端点"的跳过守卫**。
+#
+# 该守卫此前的作用是：探测 `POST /api/backtest/batch` → 404 → 精确跳过，并写明
+# "策略验证流程当前是断的，替换方案属取舍、需先拍板"。**方案已裁定为 B（进程内调服务）**
+# 并已落地（见 `StrategyValidationService._call_batch_backtest` 的文档字符串），
+# 故本测试不再依赖那个端点，守卫随之删除 —— 让用例真正跑**进程内**这条路径。
 
 
 def test_strategy_validation_e2e():
-    _skip_if_batch_backtest_endpoint_gone()
     """
     End-to-end test: validate strategies with real database
 
@@ -90,7 +68,6 @@ def test_strategy_validation_e2e():
 
 @pytest.mark.integration
 def test_validation_report_persistence():
-    _skip_if_batch_backtest_endpoint_gone()
     """Test that validation reports are saved correctly"""
     # Arrange
     validation_service = StrategyValidationService()

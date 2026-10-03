@@ -6,7 +6,6 @@
 from domain.ports import IStockRepository, IStrategyRepository
 from typing import Dict, List, Optional
 import structlog
-import requests
 import time
 from datetime import datetime
 
@@ -211,21 +210,70 @@ class StrategyValidationService:
                 ]
             }
         """
-        url = "http://127.0.0.1:5001/api/backtest/batch"
-        payload = {
-            "jobs": jobs,
-            "start_date": start_date,
-            "end_date": end_date,
-            "initial_capital": 100000.0
-        }
+        # 2026-10-02（REQ-261001145152-3982 · P1-8 · 用户裁定选 **B：进程内调服务**）
+        #
+        # 背景：本方法原为 `POST http://127.0.0.1:5001/api/backtest/batch`，而该路由随
+        # Flask 层删除（commit 54851df0）后**未在 FastAPI 重建** —— 线上实测 **404**，
+        # 于是经 `validate_all_strategies()` 暴露的 HTTP 端点（`strategies_async.py`）
+        # 必然失败；日志里留下 `Batch backtest API call failed: 404 Client Error`。
+        #
+        # 为什么选 B（进程内）而不是 A（逐任务调 `/api/backtest/run`）：
+        #   · 本服务与回测服务**同进程**，绕自己的 HTTP 只是多一遍鉴权/序列化/超时；
+        #   · 仓内早有先例（`DailyOrchestrator` 直接调服务，不走自身 HTTP）；
+        #   · 验证要跑「策略 × 标的」数百个任务，A 的往返开销不可接受。
+        # 采用与**现存路由同一入口**：`get_strategy_service().backtest_strategy(...)`
+        # （注意：该别名是 getter 函数，必须调用后取实例，否则 'function' object has no attribute）。
+        #
+        # 保留原契约形状（`{'results': [...], 'errors': [...]}`），且**单个任务失败不中断整批** ——
+        # 与旧批量接口的语义一致；`errors` 里带上 strategy_id / symbol 便于上层归因。
+        # 取法遵分层：application 层**不得** import adapters（会被分层护栏 hook 拦下，
+        # 实测本次提交即被拦）。改用仓内 application 层既有写法：
+        # `ServiceFactory.get_strategy_code_service()`（同层 `strategy_evolution_service` 就是如此），
+        # 而 `backtest_strategy` 正定义在 `StrategyCodeService` 上。
+        from infrastructure.services.service_factory import ServiceFactory
 
-        try:
-            response = requests.post(url, json=payload, timeout=300)
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Batch backtest API call failed: {e}")
-            raise
+        results: List[Dict] = []
+        errors: List[Dict] = []
+
+        for job in jobs:
+            strategy_id = job.get('strategy_id')
+            symbol = job.get('symbol')
+            try:
+                raw = ServiceFactory.get_strategy_code_service().backtest_strategy(
+                    strategy_id=strategy_id,
+                    symbol=symbol,
+                    start_date=start_date,
+                    end_date=end_date,
+                    initial_cash=100000.0,
+                )
+            except Exception as e:  # noqa: BLE001 —— 单任务失败不拖垮整批
+                logger.warning(f"单任务回测失败（进程内）: strategy_id={strategy_id} "
+                               f"symbol={symbol}: {e}")
+                errors.append({'strategy_id': strategy_id, 'symbol': symbol, 'error': str(e)[:300]})
+                continue
+
+            if not isinstance(raw, dict) or raw.get('success') is False:
+                err = (raw or {}).get('error') if isinstance(raw, dict) else 'non-dict result'
+                errors.append({'strategy_id': strategy_id, 'symbol': symbol,
+                               'error': str(err or 'unknown')[:300]})
+                continue
+
+            # 字段口径对齐：本类 `_aggregate_by_strategy` 消费
+            # annual_return / sharpe_ratio / max_drawdown / win_rate / profit_factor。
+            # `backtest_strategy` 返回 `total_return`，语义等同**年化**口径的年化收益率见其文档，
+            # 故此处做一次显式映射（并在缺失时回落，避免 None 进聚合）。
+            results.append({
+                'strategy_id': strategy_id,
+                'symbol': symbol,
+                'annual_return': raw.get('annual_return', raw.get('total_return')),
+                'sharpe_ratio': raw.get('sharpe_ratio'),
+                'max_drawdown': raw.get('max_drawdown'),
+                'win_rate': raw.get('win_rate'),
+                'profit_factor': raw.get('profit_factor'),
+            })
+
+        logger.info(f"进程内批量回测完成: 成功 {len(results)} / 失败 {len(errors)}（共 {len(jobs)} 任务）")
+        return {'results': results, 'errors': errors}
 
     def validate_all_strategies(
         self,
