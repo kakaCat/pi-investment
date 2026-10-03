@@ -43,7 +43,15 @@ class TestTradeAutoRecord:
         _setup_account(svc)
         svc._get_price = lambda symbol: 10.0
 
-        with patch("application.services.decision_service.DecisionService") as MockDS:
+        # 2026-10-02（REQ-261001145152-3982 审查）：**必须同时打桩"真调用点"，否则结果依赖用例顺序**。
+        # 实现走的是 `ServiceFactory.get_decision_service()`（单例缓存），
+        # 而本用例原先只 patch `decision_service.DecisionService` —— 只要**别的用例先**把该实例
+        # 建出来（缓存生效），patch 就完全无效 → `record_decision` 从未被调用。
+        # 实测形态：**单跑绿、同跑红**（二分定位到 `tests/services/test_pending_orders.py` 是触发者）。
+        # 故这里同时 patch：① 类（构造路径）② 工厂 getter（缓存路径）。
+        with patch("application.services.decision_service.DecisionService") as MockDS, \
+             patch("infrastructure.services.service_factory.ServiceFactory.get_decision_service",
+                   return_value=MockDS.return_value):
             svc.execute_trade(
                 account_name="agent_virtual",
                 action="buy",
@@ -62,7 +70,15 @@ class TestTradeAutoRecord:
         _setup_account(svc)
         svc._get_price = lambda symbol: 10.0
 
-        with patch("application.services.decision_service.DecisionService") as MockDS:
+        # 2026-10-02（REQ-261001145152-3982 审查）：**必须同时打桩"真调用点"，否则结果依赖用例顺序**。
+        # 实现走的是 `ServiceFactory.get_decision_service()`（单例缓存），
+        # 而本用例原先只 patch `decision_service.DecisionService` —— 只要**别的用例先**把该实例
+        # 建出来（缓存生效），patch 就完全无效 → `record_decision` 从未被调用。
+        # 实测形态：**单跑绿、同跑红**（二分定位到 `tests/services/test_pending_orders.py` 是触发者）。
+        # 故这里同时 patch：① 类（构造路径）② 工厂 getter（缓存路径）。
+        with patch("application.services.decision_service.DecisionService") as MockDS, \
+             patch("infrastructure.services.service_factory.ServiceFactory.get_decision_service",
+                   return_value=MockDS.return_value):
             MockDS.return_value.record_decision.side_effect = Exception("db down")
             result = svc.execute_trade(
                 account_name="agent_virtual",
