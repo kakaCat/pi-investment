@@ -102,6 +102,13 @@ check_*.py
 #     ⚠️ 两张表契约**相反**（quant.trades 有 CHECK 强制小写 → 那里的敏感比较是正确的），
 #     故它是**引导性**工具（--strict 才作门禁），不是"一律 lower"的机械规则。
 !quantsys-v2/tools/check_action_case_consistency.py
+# 例外：ORM ↔ **生产库**漂移检查器（REQ-261001145152-3982 P1-7 治本项，2026-10-02）——
+# tests/test_orm_db_drift.py 只查"模型声明、**测试库**没有"这一个方向，**生产库反向漂移从无守卫**，
+# 于是攒出 7 张"ORM 有模型、生产库没表"的对象（其中 event_calendar 的缺失直接制造了假失败链条）。
+# ⚠️ 它**刻意不进 pytest**：本仓有"测试禁止连生产库"的三层防护，塞进套件会破坏该设计；
+#    故做成人工/巡检显式调用的**只读**命令。⚠️ 它的输出是**模型驱动**的（不是用法驱动），
+#    报出的表可能只是"声明了但没人查"—— 需与"是否有代码在查它"一起判断（见本次 industry_chain 的判例）。
+!quantsys-v2/tools/check_orm_drift_vs_production.py
 daily_*.sh
 demo-*.js
 demo-*.py
