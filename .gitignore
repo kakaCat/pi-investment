@@ -109,6 +109,13 @@ check_*.py
 #    故做成人工/巡检显式调用的**只读**命令。⚠️ 它的输出是**模型驱动**的（不是用法驱动），
 #    报出的表可能只是"声明了但没人查"—— 需与"是否有代码在查它"一起判断（见本次 industry_chain 的判例）。
 !quantsys-v2/tools/check_orm_drift_vs_production.py
+# 例外：「静默兜底」扫描器（REQ-261001145152-3982 审查，2026-10-02）——
+# 判据：**当一个读/写的失败，与"空结果 / 成功"在返回值上无法区分、且不留 error 级痕迹时，它就是隐患**
+# （调用方会照常往下走）。这条判据当日抓到一个真 bug：盯盘 get_rule_trigger_stats() 因无主触发
+# （外键 ON DELETE SET NULL 造成）在第一行抛错被吞 → **统计在生产恒返回空字典**。
+# ⚠️ 命中 ≠ bug：有合法的静默返回（如"账户不存在"与"算不出来"在调用方语义相同），
+#    本工具只把候选缩到可手查的范围；用 --strict 才会因命中而非零退出。
+!quantsys-v2/tools/check_silent_fallbacks.py
 daily_*.sh
 demo-*.js
 demo-*.py
