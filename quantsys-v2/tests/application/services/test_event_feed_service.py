@@ -344,11 +344,31 @@ def test_任务接受逗号分隔的标的参数():
     assert manager.symbol_calls[0][0] == ['600176', '600150']
 
 
-def test_build_event_ingest_jobs返回两个任务实例():
+def test_build_event_ingest_jobs返回全部任务实例():
+    """`build_event_ingest_jobs` 返回**全部**事件摄入任务。
+
+    2026-10-02（REQ-261001145152-3982 审查）：原用例名与断言停在"**两个**任务"
+    （`daily` + `policy`），而实现已扩到 **四个**（`event_feed_service.py` 的 docstring 也写着
+    「ingest_events_daily / ingest_events_policy / ingest_disclosure_calendar」并已含 history）
+    → 断言按**钉死的两项**比较必然失败（报 `[...events_history] == [...events_policy]`，
+    长度 4 vs 2，**看不出是实现扩了还是漏了**）。
+    现改为：**先断言 daily/policy 必须在**（守住原意），再断言"全部任务名无重复且超时为正"（守住形状），
+    不再把列表钉死成固定长度 —— 后续新增任务不会再把这条测试弄红。
+    """
     service = EventFeedService(manager=FakeManager(), repository=FakeRepo())
     jobs = build_event_ingest_jobs(service)
-    assert [j.name for j in jobs] == ['ingest_events_daily', 'ingest_events_policy']
+    names = [j.name for j in jobs]
+    # ①② 原意：核心两类必须在
+    assert 'ingest_events_daily' in names
+    assert 'ingest_events_policy' in names
+    # ③ 形状：名字唯一、超时为正
+    assert len(names) == len(set(names)), f'任务名重复: {names}'
     assert all(j.timeout_seconds > 0 for j in jobs)
+    # ④ 当前全集（实现新增任务时同步这里即可，而不是让测试变红）
+    assert set(names) == {
+        'ingest_events_daily', 'ingest_events_policy',
+        'ingest_disclosure_calendar', 'ingest_events_history',
+    }, f'任务全集与预期不符: {names}' 
 
 
 # ──────────────────────────── 依赖注入护栏 ────────────────────────────
