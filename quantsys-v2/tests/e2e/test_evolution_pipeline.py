@@ -162,15 +162,25 @@ class TestFitnessComputationPipeline:
     def test_fitness_score_recorded_in_db(self, db_conn):
         cursor = db_conn.cursor()
         try:
+            # 2026-10-02（REQ-261001145152-3982 审查）：**按契约断言，而不是"有行就必须非 NULL"**。
+            # 实现里数据不足时会**有意**落一行 `status='data_gap'` + `up/down_capture=NULL`
+            # （见 `application/services/evolution/evolution_fitness_service.py`：
+            #  `aligned_dates` 为空 → `{'up_capture': None, ..., 'status': 'data_gap'}`，该行同样 upsert 入库）。
+            # 原断言只取两列、不取 `status`，于是**合法的 data_gap 行**被判失败
+            # （生产实测 v13/v14/user_main 三行全为 NULL —— 属当日无对齐基准日所致，不是缺陷）。
+            # 现按契约断言：非 data_gap ⇒ 两列必须非空；data_gap ⇒ 允许为空（这正是它要表达的状态）。
             cursor.execute("""
-                SELECT account_name, up_capture, down_capture
+                SELECT account_name, up_capture, down_capture, status
                 FROM quant.evolution_fitness
                 ORDER BY computed_at DESC LIMIT 1
             """)
             row = cursor.fetchone()
             if row:
-                assert row[1] is not None
-                assert row[2] is not None
+                account, up_cap, down_cap, status = row[0], row[1], row[2], row[3]
+                assert status is not None, f'{account}: status 不应为空'
+                if status != 'data_gap':
+                    assert up_cap is not None, f'{account}: status={status} 时 up_capture 不应为空'
+                    assert down_cap is not None, f'{account}: status={status} 时 down_capture 不应为空'
         finally:
             cursor.close()
 
