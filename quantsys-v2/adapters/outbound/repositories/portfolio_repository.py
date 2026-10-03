@@ -785,9 +785,17 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
         )
 
         if action:
-            if action not in ('buy', 'sell'):
+            # 2026-10-02（REQ-261001145152-3982 审查）：**大小写兼容**。
+            # 原为 `action not in ('buy','sell')` + `Trade.action == action` ——
+            # 而 `quant.simulation_trades.action` 实测**两种写法并存**
+            # （BUY 32 · SELL 21 · sell 16 · buy 9）：
+            #   · 传 'BUY' → 直接**报错**（真实调用方会被拒）；
+            #   · 传 'buy' → 过滤条件**漏掉 32 行大写成交**（静默少数据）。
+            # 现统一小写后按 `lower(action)` 比较，两种写法都能正确命中。
+            _action = str(action).strip().lower()
+            if _action not in ('buy', 'sell'):
                 raise ValueError(f"无效的交易方向: {action}，必须是 buy 或 sell")
-            query = query.filter(Trade.action == action)
+            query = query.filter(func.lower(Trade.action) == _action)
 
         trades = query.order_by(
             Trade.trade_date.desc(), Trade.created_at.desc()
@@ -836,7 +844,8 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
             if field not in trade_data:
                 raise ValueError(f"缺少必需字段: {field}")
 
-        if trade_data['action'] not in ('buy', 'sell'):
+        # 同上：写入侧也按大小写无关校验（本仓两套写法并存，不能只认小写）
+        if str(trade_data['action']).strip().lower() not in ('buy', 'sell'):
             raise ValueError(f"无效的交易方向: {trade_data['action']}")
 
         _validate_symbol(trade_data['symbol'])

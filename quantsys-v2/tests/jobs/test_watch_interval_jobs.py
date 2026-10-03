@@ -86,6 +86,20 @@ class _FakeFacade:
         self.calls.append(kwargs)
         return self.ok
 
+    def send_watch_receipt(self, **kwargs):
+        """2026-10-02（REQ-261001145152-3982 审查）：**补上实现里在用的方法**。
+
+        调用点 `watch_channels.send_watch_alert` 走的是
+        `get_notification_facade().send_watch_receipt(...)`（**真 facade 确实有该方法**，
+        见 `application/notification/notification_facade.py:695`），而本假 facade 只有 `send_card`
+        → 报 `AttributeError: '_FakeFacade' object has no attribute 'send_watch_receipt'`，
+        **看起来像实现调了个不存在的方法**，实际是桩没跟上接口。
+
+        桩要复现**真实对象的接口面**；这里只是补名，断言逻辑不变。
+        """
+        self.calls.append(kwargs)
+        return self.ok
+
 
 def test_send_watch_alert_uses_facade_and_raises_on_failure(monkeypatch):
     from application.services.watch_engine import watch_channels
