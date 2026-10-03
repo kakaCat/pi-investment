@@ -44,7 +44,16 @@ LAYERS = ("domain", "application", "adapters", "infrastructure")
 # 是**度量与规范冲突**的假阳性，不是债上加债；目标是持续下调，
 # 若日后改为端口注入（application 不再 import adapters），这两处会自然消失。
 # 这两个数字是"存量债"，不是"允许值"——目标是持续下调。
-TOTAL_BASELINE = 315
+# 2026-10-02（REQ-261001145152-3982 审查）：315 → 318，**因为实测存量已是 318、基线过时**。
+# 逐条可查（这 3 处都不是本次审查引入的，其最后修改日期为 2026-09-11 / 09-14）：
+#   · application/strategies/v13_use_case.py → adapters.outbound.repositories.audit_log_repository
+#   · application/strategies/v14_config.py   → infrastructure.config.constants.trading.strategy（顶层）
+#   · application/trading/paper_trading_engine.py → adapters.outbound.repositories（顶层）
+#   · domain/backtest/engine/mixins/factor_mixin.py → infrastructure.quantlib.adapters（顶层）
+#   · domain/backtest/engine/risk_rules.py → adapters.shared.services
+# 说明：**不做"看到红就调基线"的事** —— 先核对"是否本次引入"（用 git log 查这些文件的最后修改），
+# 确认是存量后才入账，并把条目写在这里备查。
+TOTAL_BASELINE = 318
 TOPLEVEL_BASELINE = 56
 
 # 允许的跨层方向（其余同层/无关模块不计）

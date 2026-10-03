@@ -138,13 +138,22 @@ class ICAnalyzer:
             ic_mean = ic_values.mean()
             ic_std = ic_values.std()
 
+            # 2026-10-02（REQ-261001145152-3982 审查）：**`> 0` 的守卫不够，改用容差**。
+            # 原写法 `ic_mean / ic_std if ic_std > 0 else 0` 只挡住"恰好为 0"，
+            # 而浮点噪声级的标准差（实测 ≈1e-16）照样通过 → 商炸到
+            # **6.8e15** 这种垃圾值（用例 test_zero_std_ic_ir 期望 0，实得 6835983596148651.0）。
+            # 这种 IC_IR 会直接被下游评分/排序当"极优因子"用 → 属**静默错算**。
+            # 口径：标准差小于该阈值即视为"无波动"，IC_IR 记 0（而非无意义的巨数）。
+            _STD_EPS = 1e-12
+            _has_std = bool(ic_std > _STD_EPS)
+
             stats[col] = {
                 'IC_mean': ic_mean,
                 'IC_std': ic_std,
-                'IC_IR': ic_mean / ic_std if ic_std > 0 else 0,
+                'IC_IR': ic_mean / ic_std if _has_std else 0,
                 'IC_positive_rate': (ic_values > 0).sum() / len(ic_values),
                 'IC_abs_mean': ic_values.abs().mean(),
-                'ICIR_annual': ic_mean / ic_std * np.sqrt(252) if ic_std > 0 else 0,
+                'ICIR_annual': ic_mean / ic_std * np.sqrt(252) if _has_std else 0,
                 'IC_max': ic_values.max(),
                 'IC_min': ic_values.min()
             }
