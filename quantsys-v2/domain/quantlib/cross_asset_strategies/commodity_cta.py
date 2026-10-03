@@ -8,7 +8,18 @@ Commodity Trading Advisor (CTA) 策略
 1. 趋势跟踪 - 捕捉中长期趋势
 2. 均值回归 - 捕捉短期反转
 3. 多品种组合 - 分散风险
+
+⚠️ **未接线 · 路线图能力**（2026-10-02 · REQ-261001145152-3982 P2-8 重叠调研结论）
+
+跨资产（商品）CTA 策略：本模块提供 `TrendFollowingCTA` / `MeanReversionCTA` / `MultiAssetCTA`，
+全仓**无等价实现**（2026-10-02 实测：三个类在活代码里引用数均为 0，
+但股票端 `trend_following` / `mean_reversion` 是**策略模板**，与期货 CTA 不同物）。
+
+**故保留、不删**（删除等于砍掉一项尚未接线的能力，且会丢掉这套实现里的领域认知）。
+标注在此是为了让它**不再被误读成"死代码"**：待接线条件满足时（数据/账户/产品决定），
+应由调用方通过 `ServiceFactory` 接入，而不是新建第三份实现。
 """
+
 
 import numpy as np
 import pandas as pd

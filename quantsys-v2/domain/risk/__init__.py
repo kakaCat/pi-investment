@@ -13,8 +13,7 @@
 - cvar: Conditional VaR 计算
 - drawdown: 回撤分析
 - market_risk: 市场风险计算
-- stress_test: 压力测试
-- stress_testing: 压力测试框架
+- stress_test: 压力测试（**唯一实现**；2026-10-02 已删除同能力的重复件 `stress_testing.py`）
 - backtesting: 风险模型回测
 - copula: Copula 模型
 - extreme_value: 极值理论
