@@ -32,10 +32,18 @@ class TestKlineUpdateDispatch:
 
 
 class TestApplicationHandlerFallback:
-    def test_pool_refresh_daily_is_unknown_command(self, svc):
-        """当前 scheduler 未将 pool_refresh_daily 注册为有效命令，应抛出 ValueError。"""
-        with pytest.raises(ValueError, match="Unknown scheduler command"):
-            svc._execute_command('pool_refresh_daily', {})
+    # 2026-10-02（REQ-261001145152-3982 审查）：**删除 `test_pool_refresh_daily_is_unknown_command`**。
+    # 它断言的是**某一时刻的状态**（原 docstring：「**当前** scheduler 未将 pool_refresh_daily
+    # 注册为有效命令」），而这个状态**随导入顺序变化**：
+    #   · 单跑本文件 → 该命令未知 → 抛 ValueError → 用例绿；
+    #   · 跑全量前缀 → `application/jobs/trading_jobs.py`（其中定义
+    #     `command_name = "pool_refresh_daily"` 并带真实 handler）已被导入/注册 → 命令变已知
+    #     → 不抛错 → `DID NOT RAISE ValueError`（**报错看着像"未知命令没拦住"**）。
+    # 而"未知命令必须报错"这条**契约**已由**同文件的下一条** `test_unknown_command_still_raises`
+    # 用真正未知的命令名覆盖 → 本用例既脆弱又冗余，故删除。
+    # ⚠️ **开放问题（不在本次范围）**：`pool_refresh_daily` 到底**应不应该**可被 scheduler 派发？
+    #    它已有 handler（`scheduler_tasks.handle_pool_refresh_daily`）却在硬编码派发表之外 ——
+    #    若应可派发，属**能力缺口**（应接线）；若不应，应显式登记为未知。留给后续按需裁定。
 
     def test_unknown_command_still_raises(self, svc):
         with pytest.raises(ValueError, match="Unknown scheduler command"):
