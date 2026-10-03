@@ -115,15 +115,36 @@ def test_facade_agent_reminder_still_agent_only(monkeypatch):
 def test_watch_direct_mode_keeps_feishu(monkeypatch):
     """盯盘 direct 模式是有意为之（RFC 009 双通道），不应被 P1 清理误伤。"""
     facade, captured = _capture_facade_notifications(monkeypatch)
-    monkeypatch.setattr(facade.service, "send_with_fallback",
-                        lambda notification, primary, fallback: ChannelResult.ok(message="fallback"))
+
+    # 2026-10-02（REQ-261001145152-3982 审查）：**桩要把通知也记进 captured**。
+    # helper 只挂了 `service.send`，而 direct 模式这条路径走的是 `send_with_fallback` ——
+    # 原桩直接返回 ok 且**不记录**，于是下面的 `captured[0]` 必然
+    # `IndexError: list index out of range`（**看起来像门面没发通知**，
+    # 其实是测试自己的桩把证据丢了）。
+    chain = []
+
+    def _fake_with_fallback(notification, primary, fallback):
+        captured.append(notification)
+        chain.append((primary, fallback))
+        return ChannelResult.ok(message="fallback")
+
+    monkeypatch.setattr(facade.service, "send_with_fallback", _fake_with_fallback)
 
     facade.send_watch_triggered(
         symbol="600519", name="贵州茅台", price=1500.0,
         condition={"type": "price_break"},
         message="突破", notify_mode="direct")
 
-    assert captured[0].preferred_channels == ["feishu"]
+    # 2026-10-02（REQ-261001145152-3982 审查）：**断言改为验"链路"，而非"强制通道"**。
+    # 本用例的意图（docstring）是"direct 模式不应被清理误伤 → 飞书不能被丢掉"。
+    # 而实现已演进为「**agent 优先、飞书降级**」（facade 第 241 行注释：
+    # "direct 与 agent 两种 notify_mode 统一走「agent→feishu」"，
+    # 调用为 `self.service.send_with_fallback(notification, 'agent', 'feishu')`）——
+    # 飞书**仍在链路上**（且 Agent OS 不可达时直飞书兜底、并如实标注降级），
+    # 只是不再用 `preferred_channels = ['feishu']` **强制短路**策略层
+    # （同文件其它用例正是断言 `preferred_channels == []`，防的就是那种短路）。
+    # 故这里改验"降级链确实包含 feishu"——**原意不变，口径跟上实现**。
+    assert chain == [('agent', 'feishu')], f"direct 模式的降级链应含 feishu，实得 {chain}"
 
 
 # ==================== 旁路清理（2026-09-11 第二轮：残留直接删除） ====================
