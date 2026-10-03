@@ -43,7 +43,11 @@ class TestFactorCalculatorAdapter:
         adapter = FactorCalculatorAdapter()
 
         assert adapter is not None
-        assert len(adapter.calculators) == 6  # 6 calculator types
+        # 2026-10-02（REQ-261001145152-3982 审查）：**不再钉死数量**。
+        # 原断言 `== 6` 已过时（实测 8 类：fundamental / momentum / moving_average /
+        # other / reversal / trend / volatility / volume）。钉死数字会随每次新增计算器而碎，
+        # 而本用例的意图是"适配器把各类计算器都注册上了"——故改为下界 + 关键类别存在。
+        assert len(adapter.calculators) >= 6, f"计算器类别过少: {sorted(adapter.calculators)}"
         assert 'moving_average' in adapter.calculators
         assert 'momentum' in adapter.calculators
         assert 'volatility' in adapter.calculators
@@ -146,7 +150,20 @@ class TestFactorCalculatorAdapter:
             adapter.calculate('nonexistent_factor', sample_klines)
 
     def test_calculate_with_insufficient_data(self):
-        """Test calculation with insufficient data."""
+        """数据不足时的口径：**回落用全部可用点**（2026-10-02 核对为刻意设计）。
+
+        原断言是 `result is None`（"Should return None for insufficient data"），
+        但实现**刻意**不是这样 —— `MovingAverageFactors.calculate_ma` 里写着：
+
+            # Fallback logic: if insufficient data, use all available data
+            if actual_length < period:
+                logger.warning(f"MA{period}: insufficient data ({actual_length} < {period}), "
+                               f"using all available data points")
+                effective_period = actual_length
+
+        即"数据不够就用手上全部点算"，并**打 warning 留痕**（属**有意的降级**，不是静默）。
+        故断言改为：**等于可用点的均值**。
+        """
         adapter = FactorCalculatorAdapter()
 
         # Only 3 data points, not enough for MA5
@@ -158,8 +175,11 @@ class TestFactorCalculatorAdapter:
 
         result = adapter.calculate('ma5', short_klines)
 
-        # Should return None for insufficient data
-        assert result is None
+        expected = sum(k['close'] for k in short_klines) / len(short_klines)  # (103+106+105)/3
+        assert result is not None, "数据不足时应按实现口径回落计算，而不是返回 None"
+        assert result == pytest.approx(expected), (
+            f"数据不足时的回落口径应为可用点均值 {expected}，实得 {result}"
+        )
 
     def test_get_factor_info(self):
         """Test getting factor information."""

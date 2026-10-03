@@ -167,7 +167,7 @@ class TestFactorStage:
         stage = FactorStage()
 
         klines = []
-        for i in range(30):
+        for i in range(60):  # 2026-10-02：MACD 的 EMA 预热需要更长历史（30 行时 macd=0.0）
             klines.append({
                 "date": f"2026-05-{i+1:02d}",
                 "close": 100.0 + i * 0.5,
