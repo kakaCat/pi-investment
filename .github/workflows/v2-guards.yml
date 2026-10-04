@@ -1,5 +1,13 @@
 name: V2 判据门禁（护栏）
 
+# 2026-10-04 合并说明：原先还有一份 architecture-check.yml，已随本次合并删除。删除理由（实测）：
+#   它把 tools/analyze_layer_violations.py 的输出与一个写死的 BASELINE=7 比较并**阻断**，
+#   而该工具实测已报 117 起（tests/test_layer_purity.py 的 docstring 亦记载同一事实：
+#   "pre-commit 的 BASELINE 写着 7，实测违规 117（差 16 倍）"）——即每次触发都失败，
+#   还会在 PR 上贴一条数字错误的失败评论。护栏要在**有人走的路**上、且基线**与实测同源**，
+#   因此这里只保留一份：真正的棘轮 = tests/test_layer_purity.py（基线 318/56，带完整口径说明），
+#   工具输出只作交叉口径的只读报告。
+
 # 动因（2026-10-04）：本仓的"筛子"都已经存在（分层纯净性 / 静默兜底 / 大小写一致性 /
 # 悬空路径 / ORM 漂移 / 调度去重），但**只在有人想起来时才跑**；而仓库原有的两个
 # workflow 都触发不到日常工作分支（ci.yml 只认 feature/**、optimize/**；
