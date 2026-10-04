@@ -4,7 +4,7 @@ title: Agent-DH 启动指南
 summary: 运行目录与 profile 现状（DSH_HOME=.dsh-data）、启停与 launchd，含 GUI 401 根因与迁移/布局合并的坑。
 type: guide
 status: living
-updated: 2026-09-14
+updated: 2026-10-04
 ---
 
 # Agent-DH 启动指南
@@ -41,6 +41,25 @@ updated: 2026-09-14
 6. 切换后按 [定时巡检清单](routine-checks.md) 验服务与工具绑定。
 
 完整取证与回滚路径：[DSH_HOME 迁入项目内（事故复盘）](../work-logs/2026-09/dsh-home-migration-20260913.md)。
+
+## 从 DSH 实例内启动的坑（2026-10-04 实测）
+
+**症状**：在 DSH 应用内起的 shell（或 agent 会话）里跑 `./scripts/start.sh`，会**继承**那个实例的
+`DSH_HOME`（如 `~/.dsh`）与 `DSH_PROFILE`（如 `desktop`）。本脚本原样采信 → 按"外部模式"处理、
+不生成 profile 脚手架 → dsh 拒启：`profile "desktop" is managed exclusively by the Electron application`。
+同一份继承值还会让 `relink-profile.py` 去体检**别人的 home**（报一句"OK"而真正目标没查），
+让 `restart-with-build.sh` 把 manifest 写进一个不存在的 profile 并让 L1 报假失败。
+
+**现口径（三个脚本同一规则）**：环境值只在**本仓数据目录里真有该 profile** 时才算数，否则回落
+`agent-dh` 并**大声打印忽略了什么**。要显式用仓库外的 home 才需 opt-in：
+
+```bash
+./scripts/start.sh                                   # 正常：自动忽略继承值
+DSH_ALLOW_EXTERNAL_HOME=1 ./scripts/start.sh         # 逃生舱：确实要外置 home 时
+DSH_INVESTMENT_PROFILE=/abs/path ./scripts/relink-profile.py --check   # 显式指定 profile 目录
+```
+
+> 判据不是"有没有设"，而是"那个 home 里有没有本 profile"。**空集不是通过**。
 
 ## 架构变更
 
@@ -149,48 +168,59 @@ pnpm start
    rm ~/Library/LaunchAgents/com.pi-investment.dsh.plist
    ```
 
-## launchd 托管（可选）
+## launchd 托管 + 外部探针（2026-10-04 现役）
 
-如果需要开机自启和自动重启，可以创建 launchd 配置：
+本实例由 launchd 守护：`RunAtLoad` + `KeepAlive`（崩了自动拉起），配套一个**独立**的存活探针
+（与 API 进程无关，进程死了它照样跑）。plist 模板入库在 `deployment/launchd/`：
+
+| 文件 | 作用 |
+|---|---|
+| `deployment/launchd/com.pi-investment.dsh.plist` | 服务守护（:13080） |
+| `deployment/launchd/com.pi-investment.agent-dh-probe.plist` | 探针，5 分钟一轮 |
+| `scripts/launchd_launcher.py` | launchd 入口代理（见下"TCC"一节） |
+| `scripts/health_probe.py` | 判据：端口 + pidfile + HTTP(<500)；日志年龄只报不判；经 `FEISHU_WEBHOOK_URL` 告警，**状态翻转才发一次** |
 
 ```bash
-# 使用项目内的启动脚本
-cat > ~/Library/LaunchAgents/com.pi-investment.agent-dh.plist <<EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>com.pi-investment.agent-dh</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>/bin/bash</string>
-        <string>/Users/yunpeng/pi-investment/agent-dh/scripts/start.sh</string>
-        <string>13080</string>
-    </array>
-    <key>WorkingDirectory</key>
-    <string>/Users/yunpeng/pi-investment/agent-dh</string>
-    <key>RunAtLoad</key>
-    <true/>
-    <key>KeepAlive</key>
-    <true/>
-    <key>StandardOutPath</key>
-    <string>/Users/yunpeng/pi-investment/agent-dh/logs/stdout.log</string>
-    <key>StandardErrorPath</key>
-    <string>/Users/yunpeng/pi-investment/agent-dh/logs/stderr.log</string>
-</dict>
-</plist>
-EOF
+# 安装（模板改动后需重新 cp + bootstrap）
+cp deployment/launchd/*.plist ~/Library/LaunchAgents/
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.pi-investment.dsh.plist
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.pi-investment.agent-dh-probe.plist
 
-# 加载
-launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.pi-investment.agent-dh.plist
+# 重启（**唯一正确入口**；手工 ./scripts/start.sh 会被 KeepAlive 抢端口）
+launchctl kickstart -k gui/$(id -u)/com.pi-investment.dsh
 
-# 重启
-launchctl kickstart -k gui/$(id -u)/com.pi-investment.agent-dh
+# 停机（内部走 bootout）
+./scripts/stop.sh
 
-# 停止
-launchctl bootout gui/$(id -u)/com.pi-investment.agent-dh
+# 状态与日志
+launchctl list | grep com.pi-investment
+tail -f .dsh-data/state/launchd.out.log .dsh-data/state/agent-dh-probe.log
 ```
+
+⚠️ **不要用 `launchctl submit`**：RFC-016 记录过一次 submit 死循环，把所有实例杀掉 10.7 小时。
+
+### 为什么入口是 Python 而不是 bash（TCC，2026-10-04 实测）
+
+macOS 把 `~/Documents` 的读取**按二进制**授权。launchd 直接拉 `/bin/bash` 跑本仓脚本会被拒：
+
+```
+shell-init: error retrieving current directory: getcwd: Operation not permitted
+/bin/bash: .../scripts/start.sh: Operation not permitted      # launchctl 里退出码 126
+```
+
+对照实验（同一受保护文件，逐个二进制）：
+
+| 入口二进制 | launchd 下能读 `~/Documents`？ |
+|---|---|
+| `/bin/bash` | ❌ Operation not permitted |
+| `/usr/bin/python3`（系统） | ❌ Operation not permitted |
+| `/opt/homebrew/bin/python3`（shim） | ❌ 启动即退出码 78 |
+| **homebrew `Python.framework` 真身** | ✅ 可读，**且子进程继承**（`→ /bin/bash` 实测通过） |
+
+所以本作业的入口是已获授权的 framework Python，由 `scripts/launchd_launcher.py`
+再以**子进程**方式拉起 `scripts/start.sh`（授权被子进程继承）。
+**脆弱点**：plist 里写着 `/opt/homebrew/opt/python@3.13/...` 这条 opt 符号链接——
+哪天 python@3.13 被卸载/换次版本，服务与探针会**同时**起不来，改那一行即可。
 
 ## 故障排查
 
