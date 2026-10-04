@@ -92,7 +92,7 @@ tags: [index, wiki]
 | [工具审计清单](protocols/tool-audit.md) | protocol | living | 怎么查一个工具"说到的"是不是"做到的"（定期抽查 / 接手陌生插件时用）。 | 2026-09-13 |
 | [交易执行协议（Trade Execution Protocol）](protocols/trade-execution-protocol.md) | protocol | living | 交易打标协议 v1.0：每笔交易如何带 genome_version / rules_used 进经验库。 | 2026-09-14 |
 
-### 指南（怎么做 / 怎么排障） · `docs/guides`（27 页）
+### 指南（怎么做 / 怎么排障） · `docs/guides`（28 页）
 
 | 页 | type | status | 一句话 | 更新 |
 |---|---|---|---|---|
@@ -116,6 +116,7 @@ tags: [index, wiki]
 | [RTM YAML 追溯基础设施使用指南](guides/rtm-usage.md) | guide | living | 需求追溯的预构建索引：7 个 YAML 文件长什么样、在哪 7 个时刻自动更新、Dive 模式怎么 2ms 读它做决策、节点输入包怎么注入与压缩。 | 2026-09-26 |
 | [rtm-user-guide.md](guides/rtm-user-guide.md) | — | — | FR 文件必须放在需求目录下的 functional-requirements/ 子目录中： | — |
 | [技能装载机制（Skill Loading）——排障实录与标准流程](guides/skill-loading.md) | guide | living | 技能为什么看不见：两个 dsh home + skill registry 分层，以及正确的装载姿势。 | 2026-09-14 |
+| [agent-dh 冒烟清单（一条命令一项）](guides/smoke-checklist.md) | guide | living | 实例活着吗 / 代码生效了吗 / 身份与基因组对不对 / 模型通不通 / 能不能真去 v2 取数——按这个顺序，每项一条命令、都有期望输出。 | 2026-10-04 |
 | [task-execution-migration.md](guides/task-execution-migration.md) | — | — | 本指南说明如何从旧的任务执行方式迁移到基于 DSH Workflow 的新系统。 | — |
 | [工具 render 人话首行约定（renderSmart）](guides/tool-render-human-summary.md) | — | — | 工具的 output.render 返回文本必须是： | — |
 | [交易约束速查](guides/trading-constraints.md) | guide | living | 下单前要过的硬约束，一张表查完（完整纪律见 账户与交易纪律）。 | 2026-09-13 |

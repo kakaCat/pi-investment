@@ -222,6 +222,11 @@ shell-init: error retrieving current directory: getcwd: Operation not permitted
 **脆弱点**：plist 里写着 `/opt/homebrew/opt/python@3.13/...` 这条 opt 符号链接——
 哪天 python@3.13 被卸载/换次版本，服务与探针会**同时**起不来，改那一行即可。
 
+## 改完怎么验（冒烟清单）
+
+一条命令一项、含期望输出：[冒烟清单](smoke-checklist.md)。
+最常用的四条：端口 / 守护 / 探针 / 后端——见该页第 0 节。
+
 ## 故障排查
 
 ### 问题：找不到 @deepseek-ai/dsh
