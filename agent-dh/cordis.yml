@@ -121,7 +121,7 @@
 - id: genome
   name: '@pi-investment/genome'
   config:
-    genomeDir: /Users/yunpeng/pi-investment/agent-dh/.dsh-data/genome
+    genomeDir: /Users/mac/Documents/ai/pi-investment/agent-dh/.dsh-data/genome
 
 # 学习系统
 - id: learning
@@ -134,7 +134,7 @@
 - id: quantsys-v2-manager
   name: '@pi-investment/quantsys-v2-manager'
   config:
-    projectRoot: /Users/yunpeng/pi-investment/quantsys-v2
+    projectRoot: /Users/mac/Documents/ai/pi-investment/quantsys-v2
     port: 5001
     healthCheckUrl: http://localhost:5001/api/health
     startupScript: adapters/inbound/fastapi_app/main.py
@@ -145,7 +145,7 @@
 - id: agent-os-manager
   name: '@pi-investment/agent-os-manager'
   config:
-    projectRoot: /Users/yunpeng/pi-investment/agent-os
+    projectRoot: /Users/mac/Documents/ai/pi-investment/agent-os
     port: 8080
     healthCheckUrl: http://localhost:8080/health
     startCommand: ./bin/agent-os serve

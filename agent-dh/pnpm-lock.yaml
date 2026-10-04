@@ -1151,6 +1151,19 @@ importers:
         specifier: ^5.3.3
         version: 5.9.3
 
+  packages/tools/reqboard:
+    dependencies:
+      yaml:
+        specifier: ^2.3.4
+        version: 2.9.1
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.4
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+
   packages/tools/risk:
     dependencies:
       '@deepseek-ai/cordis':

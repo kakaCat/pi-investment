@@ -43,7 +43,20 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 # relink/体检一个没人跑的 home，再用它那份旧 start.sh 去撞 13080 端口。
 # 2026-09-14 合并：.dsh-home 已并入 .dsh-data（DSH_HOME 即数据目录），profile 随之下沉；
 # profile 名与 start.sh 保持同一规则（DSH_PROFILE，缺省 agent-dh）。
-PROFILE_DIR="${DSH_INVESTMENT_PROFILE:-$PROJECT_ROOT/.dsh-data/profiles/${DSH_PROFILE:-agent-dh}}"
+# 2026-10-04（本机实测）：DSH_PROFILE 会从"启动本脚本的那个 DSH 实例"继承下来
+# （实测继承到 desktop），于是体检/发版对象变成 .dsh-data/profiles/desktop ——
+# 一个不存在（或不该由本仓管）的 profile，还把 manifest 写进了它。
+# 与 start.sh / relink-profile.py 同一口径：环境值只在本仓数据目录里**真有该 profile**
+# 时才算数；DSH_INVESTMENT_PROFILE 是显式指定，照旧优先。
+_DSH_DATA="${PROJECT_ROOT}/.dsh-data"
+_PROFILE_NAME="${DSH_PROFILE:-agent-dh}"
+if [ -z "${DSH_INVESTMENT_PROFILE:-}" ] && [ ! -d "${_DSH_DATA}/profiles/${_PROFILE_NAME}" ]; then
+  if [ -n "${DSH_PROFILE:-}" ]; then
+    echo "注意: 忽略继承来的 DSH_PROFILE=${DSH_PROFILE}（${_DSH_DATA}/profiles/${DSH_PROFILE} 不存在）；按 agent-dh 处理。"
+  fi
+  _PROFILE_NAME="agent-dh"
+fi
+PROFILE_DIR="${DSH_INVESTMENT_PROFILE:-${PROJECT_ROOT}/.dsh-data/profiles/${_PROFILE_NAME}}"
 
 LAUNCHD_LABEL="com.pi-investment.dsh"
 LAUNCHD_PLIST="$HOME/Library/LaunchAgents/$LAUNCHD_LABEL.plist"

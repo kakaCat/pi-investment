@@ -29,7 +29,7 @@
     - id: agent-os-manager
       name: '@pi-investment/agent-os-manager'
       config:
-        projectRoot: /Users/yunpeng/pi-investment/agent-os
+        projectRoot: /Users/mac/Documents/ai/pi-investment/agent-os
         port: 8080
         healthCheckUrl: http://localhost:8080/health
         startCommand: ./bin/agent-os serve

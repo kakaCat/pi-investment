@@ -63,7 +63,17 @@ def current_profile_name():
     :13080 实跑的是 agent-dh —— 于是本脚本一直体检的是那个休眠的 investment 目录。
     两个来源不一致 = 又一次"体检对象整个是错的"，所以只保留 start.sh 那一个来源。
     """
-    return os.environ.get("DSH_PROFILE") or "agent-dh"
+    env = os.environ.get("DSH_PROFILE")
+    # 2026-10-04（本机实测）：DSH_PROFILE 会从"启动本脚本的那个 DSH 实例"继承下来
+    # （本机实测继承到 DSH_PROFILE=desktop）。直接采信会让本脚本体检
+    # .dsh-data/profiles/desktop —— 一个不存在（或不该由本仓管）的 profile。
+    # 规则（与 start.sh 顶部守卫同一口径）：环境值只在"本仓库数据目录里真有这个 profile"
+    # 或显式 DSH_ALLOW_EXTERNAL_HOME=1 时才认，否则回落缺省 agent-dh。
+    if env and os.environ.get("DSH_ALLOW_EXTERNAL_HOME") == "1":
+        return env
+    if env and os.path.isdir(os.path.join(os.path.dirname(HERE), ".dsh-data", "profiles", env)):
+        return env
+    return "agent-dh"
 
 
 def project_profile(profile_name=None):
@@ -88,7 +98,27 @@ def resolve_profile(cli=None):
     cands = []
     dsh_home = os.environ.get("DSH_HOME")
     if dsh_home:
-        cands.append(os.path.join(dsh_home, "profiles", current_profile_name()))
+        cand = os.path.join(dsh_home, "profiles", current_profile_name())
+        # 2026-10-04（本机实测）：继承来的 DSH_HOME 可能指向**别的 DSH 实例**的 home
+        # （典型：在 DSH 应用内起的 shell，DSH_HOME=~/.dsh、DSH_PROFILE=desktop）。
+        # 那时本脚本会去体检那个 home 的 profile，报一句「OK 2 个符号链接」，
+        # 而真正该体检的对象整个没被检查 —— 与 2026-09-13「体检对象错」同形。
+        # 规则：只接受**本仓库内**的 home；仓库外的候选一律忽略并喊出来。
+        project_root = os.path.dirname(HERE)  # agent-dh
+        try:
+            inside = os.path.commonpath(
+                [os.path.realpath(cand), os.path.realpath(project_root)]
+            ) == os.path.realpath(project_root)
+        except ValueError:
+            inside = False
+        if inside:
+            cands.append(cand)
+        else:
+            print(
+                f"⚠️ 忽略继承来的 DSH_HOME={dsh_home}（它指向本仓库之外的 profile：{cand}）\n"
+                f"   这不是现役布局；现役 profile 目录 = {project_profile()}",
+                file=sys.stderr,
+            )
     cands.append(project_profile())
     for c in cands:
         if os.path.isfile(os.path.join(c, "package.json")):

@@ -25,7 +25,7 @@ export interface Config {
 export default class QuantsysV2Manager extends Service {
   static inject = ['tools'];
   static Config = z.object({
-    projectRoot: z.string().default('/Users/yunpeng/pi-investment/quantsys-v2'),
+    projectRoot: z.string().default('/Users/mac/Documents/ai/pi-investment/quantsys-v2'),
     port: z.number().default(5001),
     healthCheckUrl: z.string().default('http://localhost:5001/api/health'),
     startupScript: z.string().default('adapters/inbound/fastapi_app/main.py'),

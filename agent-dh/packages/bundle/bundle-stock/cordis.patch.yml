@@ -61,7 +61,7 @@
     - id: quantsys-v2-manager
       name: '@pi-investment/quantsys-v2-manager'
       config:
-        projectRoot: /Users/yunpeng/pi-investment/quantsys-v2
+        projectRoot: /Users/mac/Documents/ai/pi-investment/quantsys-v2
         port: 5001
         healthCheckUrl: http://localhost:5001/api/health
         startupScript: adapters/inbound/fastapi_app/main.py

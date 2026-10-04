@@ -157,7 +157,7 @@
   name: '@deepseek-ai/dsh-skill-filesystem'
   config:
     customSkillDirs:
-      - /Users/yunpeng/pi-investment/agent-dh/skills
+      - /Users/mac/Documents/ai/pi-investment/agent-dh/skills
 
 # ========== LLM 配置 ==========
 - id: llm-deepseek

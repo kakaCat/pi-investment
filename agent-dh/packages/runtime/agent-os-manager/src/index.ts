@@ -21,7 +21,7 @@ export interface Config {
 export default class AgentOsManager extends Service {
   static inject = ['tools'];
   static Config = z.object({
-    projectRoot: z.string().default('/Users/yunpeng/pi-investment/agent-os'),
+    projectRoot: z.string().default('/Users/mac/Documents/ai/pi-investment/agent-os'),
     port: z.number().default(8080),
     healthCheckUrl: z.string().default('http://localhost:8080/health'),
     startCommand: z.string().default('./bin/agent-os serve'),

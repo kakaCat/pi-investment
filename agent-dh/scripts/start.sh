@@ -137,6 +137,23 @@ if ! _wait_port_free; then
   exit 1
 fi
 
+# ── 2026-10-04：忽略「从别的 DSH 实例继承来的」DSH_HOME / DSH_PROFILE ─────────
+# 症状（本机实测）：在 DSH 应用内起的 shell（或 agent 会话）里跑 ./scripts/start.sh，
+#   会继承 DSH_HOME=~/.dsh、DSH_PROFILE=desktop → 本脚本按「外部模式」处理，
+#   不生成 profile 脚手架，随后 dsh 拒启：
+#     error: profile "desktop" is managed exclusively by the Electron application
+#   同样的继承值还会让 relink-profile.py 去体检那个 home 的 profile（报「OK 2 个符号链接」），
+#   让真正该体检的对象整个逃过检查 —— 与 2026-09-13「体检对象错」同形。
+# 规则：除非显式 DSH_ALLOW_EXTERNAL_HOME=1（回滚到仓库外 home 的场景），一律忽略继承值。
+if [ "${DSH_ALLOW_EXTERNAL_HOME:-0}" != "1" ]; then
+  if [ -n "${DSH_HOME:-}" ] && [ "${DSH_HOME}" != "${PROJECT_ROOT}/.dsh-data" ]; then
+    echo "注意: 忽略继承来的 DSH_HOME=${DSH_HOME}（不是本实例的数据目录）。"
+    echo "      如需外置 home: DSH_ALLOW_EXTERNAL_HOME=1 ./scripts/start.sh"
+    unset DSH_HOME
+    unset DSH_PROFILE
+  fi
+fi
+
 # ── DSH 配置：项目内托管 / 外部 home 两种模式 ──────────────────────────
 # 运行身份（profile 名）可配置：默认 agent-dh（项目内 profile）；
 # 兼容现役旧布局时由 launchd 显式传 DSH_PROFILE=investment。
