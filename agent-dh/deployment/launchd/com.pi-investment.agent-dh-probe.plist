@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.pi-investment.agent-dh-probe</string>
+
+    <!-- 外部存活探针：与 API 进程**无关**（进程死了它照样跑），5 分钟一轮。
+         判据与告警口径见 scripts/health_probe.py 的 docstring。
+         入口同样必须是已获 TCC 授权的 Python（见上面服务注释）。
+         回滚：launchctl bootout gui/$(id -u)/com.pi-investment.agent-dh-probe -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/homebrew/opt/python@3.13/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python</string>
+        <string>/Users/mac/Documents/ai/pi-investment/agent-dh/scripts/health_probe.py</string>
+    </array>
+    <key>StartInterval</key>
+    <integer>300</integer>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/Users/mac/Documents/ai/pi-investment/agent-dh/.dsh-data/state/agent-dh-probe.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/mac/Documents/ai/pi-investment/agent-dh/.dsh-data/state/agent-dh-probe.err.log</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>TZ</key>
+        <string>Asia/Shanghai</string>
+    </dict>
+</dict>
+</plist>

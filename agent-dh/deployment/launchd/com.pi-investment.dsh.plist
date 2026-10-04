@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.pi-investment.dsh</string>
+
+    <!-- 2026-10-04 立：agent-dh（DSH profile，:13080）的守护。
+         动因：本系统历史上三次"静默死亡"，共同点是**没有守护进程**；
+         本机此前既无 launchd、也无探针，实例只挂在一个 agent 会话上。
+         重启：launchctl kickstart -k gui/$(id -u)/com.pi-investment.dsh
+         停机：scripts/stop.sh（内部走 bootout）。**不要用 launchctl submit**
+         （RFC-016 记录过一次 submit 死循环，杀掉所有实例 10.7h）。
+
+         ⚠️ 为什么入口是 Python 而不是 bash：macOS 的 TCC 把 ~/Documents 的读取
+         按二进制授权，launchd 直接拉 /bin/bash 会被拒（退出码 126，实测）。
+         homebrew 的 Python.framework 已获授权且子进程继承，故用它当入口代理，
+         由 scripts/launchd_launcher.py 再拉起 scripts/start.sh。
+         ⚠️ 下方 Python 路径是 brew 的 opt 稳定符号链接；若哪天 python@3.13 被
+         卸载/升级到别的次版本，本作业会起不来 —— 那时改这一行即可。 -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/homebrew/opt/python@3.13/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python</string>
+        <string>/Users/mac/Documents/ai/pi-investment/agent-dh/scripts/launchd_launcher.py</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>ThrottleInterval</key>
+    <integer>30</integer>
+
+    <key>StandardOutPath</key>
+    <string>/Users/mac/Documents/ai/pi-investment/agent-dh/.dsh-data/state/launchd.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/mac/Documents/ai/pi-investment/agent-dh/.dsh-data/state/launchd.err.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>TZ</key>
+        <string>Asia/Shanghai</string>
+    </dict>
+</dict>
+</plist>
