@@ -1,0 +1,70 @@
+name: V2 判据门禁（护栏）
+
+# 动因（2026-10-04）：本仓的"筛子"都已经存在（分层纯净性 / 静默兜底 / 大小写一致性 /
+# 悬空路径 / ORM 漂移 / 调度去重），但**只在有人想起来时才跑**；而仓库原有的两个
+# workflow 都触发不到日常工作分支（ci.yml 只认 feature/**、optimize/**；
+# architecture-check.yml 只认 main/develop），等于护栏挂在没人走的路上。
+#
+# 本文件把**不依赖数据库**的判据接进每次推送：
+#   ✅ 阻断型：tests/test_layer_purity.py（基线只减不增——这是唯一能让红灯变红的断言）
+#   ℹ️ 只报型：其余静态筛子（命中不等于 bug，它们本来就只出清单）
+#
+# ⚠️ 依赖生产库的两个判据**故意不在这里跑**（CI 没有那个库，跑了只会变成噪声）：
+#     tools/check_scheduler_dedup.py        —— 判"每 job 每日仅 1 条 success"，要查 scheduler_runs
+#     tools/check_orm_drift_vs_production.py —— 比对 ORM 与生产库表结构
+#   它们按文档在本机手动跑，或将来接一个带库的 runner。
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - develop
+      - 'feat/**'
+      - 'feature/**'
+      - 'optimize/**'
+    paths:
+      - 'quantsys-v2/**'
+      - '.github/workflows/v2-guards.yml'
+  pull_request:
+    paths:
+      - 'quantsys-v2/**'
+
+jobs:
+  guards:
+    name: 分层纯净性 + 静态筛子
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      # 判据是纯 AST 扫描（见 tests/test_layer_purity.py 头部注释），
+      # 因此只装 pytest —— 不装全量依赖，避免把"CI 装不上依赖"和"代码有问题"混成一件事。
+      - name: 安装判据依赖
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest
+
+      - name: 分层纯净性（阻断：基线只减不增）
+        working-directory: quantsys-v2
+        run: python -m pytest tests/test_layer_purity.py -q
+
+      - name: 分层违规统计（交叉口径，只报）
+        working-directory: quantsys-v2
+        continue-on-error: true
+        run: python tools/analyze_layer_violations.py
+
+      - name: 静默兜底扫描（命中≠bug，只报）
+        working-directory: quantsys-v2
+        continue-on-error: true
+        run: python tools/check_silent_fallbacks.py
+
+      - name: 大小写一致性（只报）
+        working-directory: quantsys-v2
+        continue-on-error: true
+        run: python tools/check_action_case_consistency.py
