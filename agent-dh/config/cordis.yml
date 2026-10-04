@@ -167,6 +167,28 @@
       - id: deepseek-v4-flash
         contextWindow: 128000
 
+# ========== 备用模型：Kimi（2026-10-04）==========
+# 动因：DeepSeek key 失效时（实测发生过：agent-ts/.env 里那把直连 api.deepseek.com 返回 401），
+# 实例的表现是「能开、能发消息、**每轮以 AUTH 失败结束**」——完全不可用。
+# 这个 provider 是第二条模型通路：主 key 挂了 / 限流 / 想换模型时，切过来即可继续干活。
+# key 放 .dsh-data/.env 的 KIMI_CODING_API_KEY（该目录不入库）。**不改默认路由。**
+- id: llm-pi-ai
+  name: '@deepseek-ai/dsh-llm-pi-ai'
+  config:
+    providers:
+      kimi-coding:
+        baseURL: https://api.kimi.com/coding/
+        apiKeyEnv: KIMI_CODING_API_KEY
+        models:
+          - id: kimi-for-coding
+            name: Kimi For Coding
+            contextWindow: 262144
+            maxTokens: 32768
+          - id: kimi-for-coding-highspeed
+            name: Kimi For Coding HighSpeed
+            contextWindow: 262144
+            maxTokens: 32768
+
 # ========== 系统提示词 ==========
 - id: system-prompt
   config:
