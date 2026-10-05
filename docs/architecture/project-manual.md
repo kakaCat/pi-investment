@@ -21,6 +21,7 @@ tags: [manual, l1, overview]
 
 | 日期 | 更新点 | 来源 |
 |---|---|---|
+| 2026-10-05 | **记忆不再由 quantsys-v2 承载**：v2 侧 15 个 /api/memory* 端点、`domain/memory`、两个记忆仓储、10 个测试文件与两处注册点全部删除，记忆相关表先备份后 DROP；记忆的**唯一后端是 agent 侧 agent-os（:8080，launchd 托管）**，agent-dh 的 4 个记忆工具与看板 M6 探针都指向它。教训：旧的召回审计端点长期返回「200 + 空数组」，而它查询的表在生产**从来就不存在**——**「返回 200」不等于「在工作」**。细节见 [memory-subsystem-retired.md](../../quantsys-v2/docs/architecture/memory-subsystem-retired.md) | REQ-261004202231-bb99 |
 | 2026-10-02 | **"查得到 ≠ 是对的"：三类"外观正常、内里已死"的故障有了可复跑的筛子**。① **结构漂移是双向的** —— 原先只查「模型声明、测试库没有」，**生产库缺表长期无人看守**，实测攒出 7 张（`memory_entries`/`event_calendar`/`chip_distribution_state`/`chip_metrics`/产业链 3 张），其中两张直接造成线上故障：`POST /api/memory` 恒 500、每日 16:45 的 `event_calendar_check` 查询报错被吞→**毒化共享会话**→任务干成了却记 failed，并让"每 job 每日仅 1 条 success"的判据永久失效；② **失败可能与"空数据/成功"不可区分** —— 判据为「**读/写的失败，与空结果或成功在返回值上无法区分、且不留 error 级痕迹**」；靠它抓到盯盘"每规则触发统计"**在生产恒返回空字典**（无主触发 `rule_id IS NULL` 排第一行 → `int(None)` 被吞）；③ **兜底要靠异常中断**同样是隐患（`scheduler.py` 的 `count_tasks` 失败静默返回 0 → 调用方读成"没有任务要调度"）。三把筛子 + 调度自检共 4 个只读检查器，用法与"命中≠bug"的读法见 [DIAGNOSTIC-CHECKS.md](../../quantsys-v2/docs/guides/DIAGNOSTIC-CHECKS.md)；调度归属与两条现网路径见 [scheduler-architecture.md](../../quantsys-v2/docs/architecture/scheduler-architecture.md) 顶部现状节 | REQ-261001145152-3982 |
 | 2026-09-29 | **任务依赖只存「直接前置」+ DAG 面板六条展示/交互口径**：`dependsOn` 的传递归约前移到写入侧（`domain/queue/transitiveReduction.ts` + `normalizeQueueFile`，存量走 `scripts/normalize-queue-deps.ts`；实测 98/646 条冗余边，迁移后 0）；会话面板 DAG 与需求详情同源——删标题/统计条、同层不折行、删父卡左侧蓝条、泳道不再展示 `n/N`、单击卡片打开任务卡文档。细节见 [reqboard-queue-storage.md](../../agent-dh/docs/architecture/reqboard-queue-storage.md) §7 与 [reqboard-node-panel.md](../../agent-dh/docs/architecture/reqboard-node-panel.md) §10 | REQ-260929010300-dbf9 |
 | 2026-09-27 | **任务卡从台账迁到按需求分片的队列文件**：`docs/requirements/<REQ>/queue.json` 成为任务的**唯一存储**（内含完整任务卡 + DAG 层级与 ready 队列），台账瘦身为 schemaVersion 9（只留需求 / 分诊 / 迁移留痕）；拆分、执行、状态流转三处都改以队列为准。迁移脚本带 `--dry-run / --apply / --verify / --rollback` 四态、白名单校验与幂等；**投产必须停机执行**（否则内存态旧快照会覆盖迁移成果）。交付证据与已知缺口见 [verification-evidence.md](../../agent-dh/docs/requirements/REQ-260927202051-f6df/verification-evidence.md) | REQ-260927202051-f6df |
@@ -53,6 +54,9 @@ PI Investment 是一个**由 AI agent 自主运行的投资系统**：agent 在�
 **agent-dh**（@Q@agent-dh/@Q@）是 DSH Profile：@Q@agent-dh/packages/@Q@ 下的插件包由 cordis 装载，
 向 agent 提供工具与页面插件；运行实例在 :13080（launchd 托管，重启走 @Q@launchctl kickstart -k@Q@）。
 
+**记忆（memory）不在 quantsys-v2**：2026-10-05 起 v2 不再提供任何记忆能力（15 个 `/api/memory*` 端点已删），
+记忆读写、召回审计与蒸馏都由 **agent 侧 agent-os（:8080，launchd 托管）** 承载；v2 只保留数据与量化。
+
 ## 3. 关键概念（术语表）
 
 | 术语 | 一句话解释 | 细节在哪 |
@@ -69,7 +73,8 @@ PI Investment 是一个**由 AI agent 自主运行的投资系统**：agent 在�
 
 ## 4. 怎么跑起来
 
-1. 后端：quantsys-v2（@Q@python start_all.py@Q@，:5001）
+1. 后端：quantsys-v2（@Q@python adapters/inbound/fastapi_app/main.py@Q@，:5001；历史文档写的 `start_all.py` 早已不存在）
+1b. 记忆后端：agent-os（@Q@./agent-os/bin/agent-os --config config.local.yaml serve@Q@，:8080；launchd 托管）
 2. 前端（可选）：web-frontend（@Q@npm run dev@Q@）
 3. agent / 看板：DSH profile（@Q@~/.dsh/profiles/.../start.sh@Q@，:13080；该端口由 launchd 托管）
 
@@ -80,6 +85,7 @@ PI Investment 是一个**由 AI agent 自主运行的投资系统**：agent 在�
 - 指南/排障：[docs/guides/](../guides/)
 - 策略研究：[docs/strategy-research/](../strategy-research/)
 - 子项目文档：[agent-dh/docs/](../../agent-dh/docs/)、[agent-ts/docs/](../../agent-ts/docs/)、[quantsys-v2/docs/](../../quantsys-v2/docs/)
+- **记忆下线**：[memory-subsystem-retired.md](../../quantsys-v2/docs/architecture/memory-subsystem-retired.md)、[agent-os 本机重建](../work-logs/2026-10/agent-os-restore.md)
 
 ## 6. 怎么维护（谁在什么时候改这一页）
 
