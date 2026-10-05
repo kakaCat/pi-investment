@@ -1,0 +1,39 @@
+task:
+  id: t-3d3ef2
+  title: 文档落档：v2 不再承载记忆
+  status: canceled
+  implements: 在 quantsys-v2/docs/architecture/ 下新增或追加一节：写明 v2 侧记忆子系统已下线、消费方摘除清单、以及「记忆归 agent 侧」的口径。
+  serves:
+    - FR-4
+  depends_on:
+    - t-cc1a66
+  phase: doc
+  side: doc
+  workflow_params:
+    REQ_ID: REQ-261004202231-bb99
+    TASK_ID: t-3d3ef2
+    TASK_TITLE: 文档落档：v2 不再承载记忆
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: doc
+    PHASE: doc
+  workflow_total: 4
+  workflow_done: 0
+  workflow:
+    - phase: doc
+      status: pending
+    - phase: implement
+      status: pending
+    - phase: test
+      status: pending
+    - phase: commit
+      status: pending
+metadata:
+  stage: implementing
+  requirement_id: REQ-261004202231-bb99
+  generated_at: 2026-10-04T12:33:29.844Z
+  version: 1
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 4
+  last_updated: 2026-10-04T12:33:29.844Z

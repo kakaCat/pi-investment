@@ -1,4 +1,7 @@
 -- 012_create_memory_entries_table_no_vector.sql
+-- ⚠️ 已作废（2026-10-05 · REQ-261004202231-bb99）：v2 记忆子系统已下线——
+-- 15 个 /api/memory* 端点全 404，domain/memory 与记忆仓储已删，记忆能力归 agent 侧（agent-os）。
+-- 本脚本**仅作历史与回滚依据保留，请勿再执行**；生产表已于同需求 t7 处置（先 pg_dump 再 DROP）。
 -- 统一记忆存储：替代散落的 MEMORY.md/daily jsonl/experience-base.json/agent_knowledge
 -- 设计：docs/superpowers/plans/2026-08-12-framework-evolution-roadmap.md W1.2
 -- 临时版本：不使用 pgvector（embedding 使用 TEXT 存储 JSON）

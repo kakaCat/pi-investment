@@ -139,7 +139,7 @@ export const CHECKPOINTS: Checkpoint[] = [
     line: 'engine',
     module: 'M6',
     name: '盘后经验沉淀',
-    verify: { type: 'v2_memory_kind', kind: 'experience' },
+    verify: { type: 'aos_memory_kind', kind: 'experience' },
     expectDays: '1-5',
     expectTime: '16:00',
     graceMinutes: 60,

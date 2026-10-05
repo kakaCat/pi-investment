@@ -1064,23 +1064,9 @@ def register_routes():
         optional_failed.append("chan")
         logger.warning(f"⚠️ Failed to import chan_async: {e}")
 
-    # 统一记忆存储（memory 域，W1.2 框架演进 P1）
-    try:
-        from adapters.inbound.fastapi_app.routes.memory_async import router as memory_router
-        app.include_router(memory_router)
-        logger.info("✅ Registered: memory (W1.2 统一记忆)")
-    except ImportError as e:
-        optional_failed.append("memory")
-        logger.warning(f"⚠️ Failed to import memory_async: {e}")
-
-    # 记忆蒸馏（memory distill 域，W1.5a T1）
-    try:
-        from adapters.inbound.fastapi_app.routes.memory_distill_async import router as memory_distill_router
-        app.include_router(memory_distill_router)
-        logger.info("✅ Registered: memory_distill (W1.5a 记忆蒸馏)")
-    except ImportError as e:
-        optional_failed.append("memory_distill")
-        logger.warning(f"⚠️ Failed to import memory_distill_async: {e}")
+    # 2026-10-04 · REQ-261004202231-bb99：memory / memory_distill 两个可选路由已随
+    # v2 记忆子系统下线（记忆归 agent 侧 agent-os）。此处**不留**宽容导入分支——
+    # 就是为了让"删干净"这一点可被 optional_failed 直接证明（多一个 memory 条目即失败）。
 
     # 知识库（knowledge 域，W1.1 修断链后补 FastAPI 路由——此前仅 Flask 有，5001 上 404）
     try:

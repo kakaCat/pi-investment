@@ -1,0 +1,32 @@
+task:
+  id: t-fdbc2a
+  title: "[重做] 删除 domain/memory 领域实现"
+  status: todo
+  implements: 删 domain/memory/ 目录（service.py、hybrid_search.py、embedding.py、distiller.py、models.py、__init__.py）；删前先跑反向断言确认无残留引用。
+  serves:
+    - FR-1
+  depends_on: []
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261004202231-bb99
+    TASK_ID: t-fdbc2a
+    TASK_TITLE: "[重做] 删除 domain/memory 领域实现"
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 0
+  workflow:
+    - phase: implement
+      status: pending
+metadata:
+  stage: implementing
+  requirement_id: REQ-261004202231-bb99
+  generated_at: 2026-10-04T12:33:29.851Z
+  version: 1
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-04T12:33:29.851Z

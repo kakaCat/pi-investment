@@ -1,10 +1,10 @@
 // 看板数据聚合器（P1）· 2026-09-03 全量重写
 // 数据链路契约基于真实 curl 打样（设计文档 §4.2）：
-//   tasks/runs/themes 无 data 键、regime/platform 有 data 键、health/memory 均无 → 每端点独立 pluck
+//   tasks/runs/themes 无 data 键、regime/platform 有 data 键、health 无 → 每端点独立 pluck
 // 状态语义（§5.4）：off_day 灰 / confirmed 绿 / failed 红 / late 黄 / pending 灰白 / unknown 紫灰
 // 关键修正：
 //   - regime/themes 在预期快照窗口（22:10 + 30min 宽限）内展示上一交易日属 pending，绝不 late/failed
-//   - memory 用真实 created_at 当日计数验证 m6（非占位）
+//   - memory 改查 agent-os（2026-10-04 · REQ-261004202231-bb99 FR-5），仍用真实 created_at 当日计数验证 m6（非占位）
 //   - genome 目录默认 ~/.dsh-agent-dh/genome（非 agent-dh/evolution 假路径）
 //   - DSH 日志取 state/launchd.{out,err}.log（非过期 profile-13080.log）
 //   - task/run 匹配用 String()（task id "258" 为字符串），run 错误主载为 payload.error（兼容顶层 error）
@@ -277,6 +277,7 @@ export class DataAggregationService {
     ]);
 
     const v2Available = healthR.v2Available;
+    const osAvailable = healthR.osAvailable;
     for (const [key, val] of Object.entries({
       'scheduler-runs': runsR.error, regime: regimeR.error, themes: themesR.error,
       memory: memoryR.error, genome: genomeR.error, orphaned: orphanedR.error,
@@ -285,7 +286,7 @@ export class DataAggregationService {
       if (val) degraded.push({ source: key, error: val });
     }
 
-    const checkpoints = this.verifyAllCheckpoints(v2Available, tasksR, runsR.runs, {
+    const checkpoints = this.verifyAllCheckpoints(v2Available, osAvailable, tasksR, runsR.runs, {
       regimeLatest: regimeR.latest, themesLatest: themesR.latest, memoryToday: memoryR.count,
       refluxRead: refluxR.read, refluxHasRecord: refluxR.hasRecord, refluxLessonCoverage: refluxR.lessonCoverage,
     }, genomeR.state);
@@ -318,7 +319,7 @@ export class DataAggregationService {
   }
 
   // ================= Health（4 行，并行探测） =================
-  private async fetchHealthRows(degraded: Array<{ source: string; error: string }>): Promise<{ rows: HealthStatus[]; v2Available: boolean }> {
+  private async fetchHealthRows(degraded: Array<{ source: string; error: string }>): Promise<{ rows: HealthStatus[]; v2Available: boolean; osAvailable: boolean }> {
     const t = this.opts.requestTimeoutMs ?? 4000;
     const v2 = this.v2Base;
     const os = this.osBase;
@@ -346,6 +347,8 @@ export class DataAggregationService {
 
     const rows: HealthStatus[] = [];
     let v2Available = false;
+    // 2026-10-04 · REQ-261004202231-bb99 FR-5：记忆探针改看 agent-os 可用性
+    let osAvailable = false;
     const totalMs = Date.now() - started;
 
     if (v2H.ok && v2H.value?.status === 'ok') {
@@ -378,6 +381,7 @@ export class DataAggregationService {
 
     // agent-os（v1 遗留，:8080）
     if (osH.ok && osH.value?.status === 'ok') {
+      osAvailable = true;
       rows.push({ name: 'agent-os', status: 'ok', port: 8080, metrics: { status: osH.value.status }, responseTimeMs: osH.ms });
     } else {
       rows.push({ name: 'agent-os', status: 'failed', port: 8080, responseTimeMs: osH.ms, error: osH.error });
@@ -420,7 +424,7 @@ export class DataAggregationService {
       responseTimeMs: totalMs,
     });
 
-    return { rows, v2Available };
+    return { rows, v2Available, osAvailable };
   }
   // ================= Scheduler 取数 =================
   private async fetchTasks(): Promise<TaskRunsResult> {
@@ -562,6 +566,7 @@ export class DataAggregationService {
   // ================= Checkpoints（registry × 状态机；数量以 checkpoint-registry.ts 为准） =================
   private verifyAllCheckpoints(
     v2Available: boolean,
+    osAvailable: boolean,
     tasksResult: TaskRunsResult,
     runs: SchedulerRun[],
     vs: { regimeLatest?: string; themesLatest?: string; memoryToday?: number; refluxRead?: boolean | null; refluxHasRecord?: boolean; refluxLessonCoverage?: number | null },
@@ -569,7 +574,7 @@ export class DataAggregationService {
   ): CheckpointResult[] {
     return CHECKPOINTS.map(cp => {
       try {
-        return this.verifyOne(cp, v2Available, tasksResult, runs, vs, genome);
+        return this.verifyOne(cp, v2Available, osAvailable, tasksResult, runs, vs, genome);
       } catch (e) {
         return { id: cp.id, line: cp.line, module: cp.module, name: cp.name, status: 'unknown', message: errMsg(e), blocksFlow: cp.blocksFlow, expectTime: cp.expectTime };
       }
@@ -579,6 +584,7 @@ export class DataAggregationService {
   private verifyOne(
     cp: Checkpoint,
     v2Available: boolean,
+    osAvailable: boolean,
     tasksResult: TaskRunsResult,
     runs: SchedulerRun[],
     vs: { regimeLatest?: string; themesLatest?: string; memoryToday?: number; refluxRead?: boolean | null; refluxHasRecord?: boolean; refluxLessonCoverage?: number | null },
@@ -595,8 +601,13 @@ export class DataAggregationService {
 
     // v2 依赖且 v2 不可达 → unknown（紫灰降级保护，防误报"业务没跑"）
     const vt = cp.verify.type;
-    if (!v2Available && (vt === 'scheduler_task' || vt === 'v2_regime' || vt === 'v2_themes' || vt === 'v2_memory_kind' || vt === 'decision_reflux_read')) {
+    if (!v2Available && (vt === 'scheduler_task' || vt === 'v2_regime' || vt === 'v2_themes' || vt === 'decision_reflux_read')) {
       return { ...base, status: 'unknown', message: 'v2 不可达（降级保护）' };
+    }
+    // 2026-10-04 · REQ-261004202231-bb99 FR-5：记忆归 agent 侧 —— 本条改看 agent-os 可用性；
+    // 不可达时同样 unknown，不允许退化成「今日无新增 experience」这类误报
+    if (!osAvailable && vt === 'aos_memory_kind') {
+      return { ...base, status: 'unknown', message: 'agent-os 不可达（降级保护）' };
     }
 
     if (vt === 'scheduler_task') {
@@ -646,7 +657,7 @@ export class DataAggregationService {
       return { ...base, status: 'pending', message: '等待快照落库（当前最近 ' + (latest || '无数据') + '）' };
     }
 
-    if (vt === 'v2_memory_kind') {
+    if (vt === 'aos_memory_kind') {
       const n = vs.memoryToday ?? 0;
       if (n > 0) return { ...base, status: 'confirmed', message: '今日新增 ' + n + ' 条 experience' };
       if (deadlinePassed) return { ...base, status: 'late', message: '今日无新增 experience 经验' };
@@ -717,12 +728,19 @@ export class DataAggregationService {
     }
   }
 
+  /**
+   * 2026-10-04 · REQ-261004202231-bb99 FR-5：记忆归 agent 侧。
+   * 原实现查 v2 的 memory/search 端点（namespace=experience）（该端点随本需求下线）；
+   * 现查 agent-os GET /api/v1/memory（list：category/tag/limit）→ { memories: [{ created_at }] }。
+   * 契约出处：agent-os-client/src/memory-client.ts（server contract verified live）。
+   * 同时兼容 items 键：服务端形状若回退，也不至于静默变 0（配合 errors.memory 显式降级）。
+   */
   private async fetchMemoryToday(): Promise<{ ok: boolean; count?: number; error?: string }> {
     try {
-      const json = await fetchJson<{ items?: Array<{ created_at?: string }> }>(
-        this.v2Base + '/api/memory/search?namespace=experience&limit=100'
+      const json = await fetchJson<{ memories?: Array<{ created_at?: string }>; items?: Array<{ created_at?: string }> }>(
+        this.osBase + '/api/v1/memory?category=experience&limit=100'
       );
-      const items = Array.isArray(json?.items) ? json.items : [];
+      const items = Array.isArray(json?.memories) ? json.memories : (Array.isArray(json?.items) ? json.items : []);
       const count = items.filter(it => {
         if (!it?.created_at) return false;
         const d = parseTs(it.created_at);

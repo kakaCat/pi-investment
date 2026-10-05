@@ -1,11 +1,10 @@
 /**
  * REQ-cf627b 验收测试（w-f436d4ea，2026-09-11）
  *
- * 覆盖三件事：
+ * 覆盖两件事：
  *  1. factor_calculate 资金类因子「静默全 0」护栏（契约：使用 2026-09-11 从线上后端
  *     curl 到的**真实响应**，而非手写理想 payload —— 后者曾让同类 bug 通过测试）
  *  2. index_constituents 新工具（真实后端 LIVE）
- *  3. memory_recall_audit 新工具（真实后端 LIVE）
  *
  * 运行：cd agent-dh && npx vitest run tests/req-cf627b-verify.test.ts
  *      LIVE=1 npx vitest run tests/req-cf627b-verify.test.ts   # 追加真实后端用例
@@ -14,7 +13,6 @@ import { describe, it, expect } from 'vitest';
 import { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 import { FactorCalculateTool } from '../../../packages/tools/factor/src/tools/FactorCalculateTool/FactorCalculateTool.js';
 import { IndexConstituentsTool } from '../../../packages/tools/investment/src/tools/IndexConstituentsTool/IndexConstituentsTool.js';
-import { RecallAuditTool } from '../../../packages/tools/memory/src/tools/RecallAuditTool/RecallAuditTool.js';
 
 const LIVE = process.env.LIVE === '1';
 const ctx = {} as any;
@@ -126,15 +124,6 @@ describe.skipIf(!LIVE)('REQ-cf627b 新工具与护栏（真实后端）', () => 
     const tool: any = new IndexConstituentsTool(bad);
     await expect(tool.execute({ symbol: '000300' }, ctx)).rejects.toThrow(/失败/);
   });
-
-  it('memory_recall_audit(stats)：返回真实召回统计与口径解读', async () => {
-    const tool: any = new RecallAuditTool(client);
-    const r: any = await tool.execute({ action: 'stats' }, ctx);
-    console.log('[recall_audit]', JSON.stringify({ total: r.total, injected: r.injected, suppressed: r.suppressed, rate: r.injection_rate, interp: r.interpretation?.slice(0, 80) }));
-    expect(r.total).toBeGreaterThan(0);
-    expect(typeof r.injection_rate).toBe('number');
-    expect(r.interpretation).toBeTruthy();
-  }, 60000);
 
   it('data_quality_report：新增资金因子探针必须出现在体检结果中', async () => {
     const { DataQualityReportTool } = await import('../../../packages/tools/data-manager/src/tools/DataQualityReportTool/DataQualityReportTool.js');

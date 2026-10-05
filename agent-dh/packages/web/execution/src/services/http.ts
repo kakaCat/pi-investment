@@ -1,7 +1,7 @@
 // 轻量自包含 HTTP 客户端（页面聚合层只读、端点固定，约 10 个）
 // 设计文档 §3：不依赖 @pi-investment/quantsys-v2-client（axios 重试放大延迟 + 语义不同）
 // §4.2 信封实测（2026-09-03）：
-//   - /api/health, /api/health/db, os /health, /api/memory/search → 裸对象（无 success/data）
+//   - /api/health, /api/health/db, os /health → 裸对象（无 success/data）
 //   - /api/health/platform/status, /api/market/perception/regime → {success,data:...}
 //   - /api/scheduler/tasks, /api/scheduler/runs, /api/market/perception/themes → {success, tasks|runs|themes...}（无 data 键）
 // 因此本模块只做 raw fetchJson（校验 HTTP 状态 + success===false 显式抛错），pluck 由调用点按端点契约做。

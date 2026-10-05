@@ -1,0 +1,33 @@
+task:
+  id: t-cc1a66
+  title: 删除记忆测试（10 文件）
+  status: canceled
+  implements: 删 tests/domain/memory/ 目录（含 __init__.py）；删前记录 pytest --collect-only 的总数作为基线。
+  serves:
+    - FR-1
+  depends_on:
+    - t-e64f6e
+  phase: test
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261004202231-bb99
+    TASK_ID: t-cc1a66
+    TASK_TITLE: 删除记忆测试（10 文件）
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: test
+  workflow_total: 1
+  workflow_done: 0
+  workflow:
+    - phase: test
+      status: pending
+metadata:
+  stage: implementing
+  requirement_id: REQ-261004202231-bb99
+  generated_at: 2026-10-04T12:33:29.844Z
+  version: 1
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-04T12:33:29.844Z

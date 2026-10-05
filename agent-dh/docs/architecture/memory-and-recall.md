@@ -3,7 +3,7 @@ id: memory-and-recall
 title: 记忆与召回
 type: architecture
 status: living
-updated: 2026-09-13
+updated: 2026-10-04
 owners: [w-1cee2467]
 tags: [architecture, memory, autonomy]
 ---
@@ -17,7 +17,10 @@ tags: [architecture, memory, autonomy]
 1. **写入口**：`memory_write`（结论，namespace: default / analysis / experience / decision）、`experience_write`（交易经验）、`decision_audit`（决策，供事后评估）。
 2. **读入口**：`memory_search`（语义检索，选对 namespace）、`experience_stats`（历史胜率）、`decision_scores`（决策评分回流）。
 3. **决策前必须检索（R-008）**：下单/分析前先查该标的与场景的历史教训，并在 reason 里写明检索结论（"已检索：无不良记录"也算）。
-4. **召回质量要能被观测**：`memory_recall_audit` 看注入率与压制原因——注入率低且原因是 `empty-result`，说明**库里没有**而不是检索坏了。
+4. **召回质量怎么观测（2026-10-04 变更）**：原 `memory_recall_audit` 工具随 quantsys-v2 记忆子系统一起下线
+   （REQ-261004202231-bb99）——它读的是 v2 的 `/api/memory/recall-audit/stats`，而那张表在生产**从来就不存在**，
+   等于一直在测空气。现在记忆统一在 agent-os，观测退回人工比对：**注入率低先查库里有没有、再怀疑检索**
+   （判断口径不变，只是不再有专门工具替你区分 `empty-result` 与检索失效）。
 5. **写清实体与关键词**：描述里带股票代码/需求号/模块名，否则未来的自己检索不到。
 
 ## 常见坑
@@ -29,7 +32,8 @@ tags: [architecture, memory, autonomy]
 ## 依据
 
 - R-008 / R-008 扩展（分析前读回流产出：业绩归因 + decision_scores）；
-- 实测：会话启动的记忆召回注入率偏低（7%），且早期"零命中"实为库中无内容（用 recall audit 区分）。
+- 实测：会话启动的记忆召回注入率偏低（7%），且早期「零命中」实为库中无内容（当时用 recall audit 区分；
+  该工具已于 2026-10-04 随 v2 记忆子系统下线，见上文第 4 条与 REQ-261004202231-bb99）。
 
 ## 相关页面
 

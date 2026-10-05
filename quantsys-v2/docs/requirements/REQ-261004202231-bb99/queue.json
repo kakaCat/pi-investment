@@ -1,0 +1,1128 @@
+{
+  "version": 1,
+  "requirement_id": "REQ-261004202231-bb99",
+  "schemaVersion": 9,
+  "generated_at": "2026-10-04T12:27:46.230Z",
+  "tasks": [
+    {
+      "id": "t-211fd3",
+      "requirementId": "REQ-261004202231-bb99",
+      "title": "摘除外部三处记忆消费方",
+      "cardDoc": "docs/requirements/REQ-261004202231-bb99/tasks/t-211fd3.md",
+      "description": "删 quantsys-v2-client 的 2 个 recall-audit 方法；删 web-frontend 的记忆页与路由；删 agent-dh 的 RecallAuditTool 及其注册行。",
+      "phase": "implement",
+      "side": "fullstack",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "① grep -rn 'api/memory' quantsys-v2-client web-frontend agent-dh/packages → 返回 0 命中；② web-frontend 执行 npm run build → 通过；③ agent-dh 重启后工具清单不包含 memory_recall_audit，其余 4 个记忆工具仍在。",
+      "implementation": "改 quantsys-v2-client/src/client.ts:2067-2084（删两方法）；删 web-frontend/src/services/api/memory.ts、views/Memory/{index,RecallAudit}.vue，并摘 router/index.ts:213-215 的 /memory 路由；删 agent-dh/packages/tools/memory/src/tools/RecallAuditTool/ 三文件与 src/index.ts:84 的注册行。",
+      "context": "",
+      "stages": [
+        "dev",
+        "review"
+      ],
+      "footprint": {
+        "files": 10,
+        "anchors": 3,
+        "chars": 900
+      },
+      "requirementRefs": [
+        "FR-2"
+      ],
+      "status": "canceled",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-d33502",
+          "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+          "trigger": "manual",
+          "startedAt": 1791116873393,
+          "outcome": "running",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+              "seq": 2956,
+              "at": 1791116873394,
+              "totals": {
+                "uncachedInputTokens": 1037266,
+                "outputTokens": 368981,
+                "cacheReadTokens": 93639936,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+                  "depth": 0,
+                  "seq": 2956,
+                  "totals": {
+                    "uncachedInputTokens": 1037266,
+                    "outputTokens": 368981,
+                    "cacheReadTokens": 93639936,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ],
+              "degradedMembers": [
+                "aeb875a0-895c-42bb-843c-cc6beff34c93",
+                "b3c91af4-4cfa-4132-abde-67922e8bf8e2",
+                "ef40b1d5-9fe4-4790-a85e-d3dbcdd42af4"
+              ],
+              "degradedReason": "member-unavailable"
+            }
+          }
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791116866171,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1791116873393,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "开工：按卡 t1 执行——先摘外部三处记忆消费方（顺序要求：t1 必须最先，否则消费方会变成指向 404 的活代码）。"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-b0853a",
+          "body": "[状态] → in_progress：开工：按卡 t1 执行——先摘外部三处记忆消费方（顺序要求：t1 必须最先，否则消费方会变成指向 404 的活代码）。（reqboard_task_move）",
+          "createdAt": 1791116873393,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          }
+        }
+      ],
+      "version": 2,
+      "createdAt": 1791116866171,
+      "updatedAt": 1791117176322,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+      },
+      "layer": 0,
+      "claimedBy": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+      "claimedAt": 1791116873393,
+      "revisions": [
+        {
+          "at": 1791117176322,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "kind": "rollback",
+          "reason": "范围变更（用户裁定：迁移到 agent-os + agent-ts 仍在使用）：回退到拆分阶段重报 9 卡计划；旧计划批准作废、旧卡作废，t1 已完成的代码改动保留并在新卡上重报。",
+          "changes": [
+            "status: in_progress→canceled"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "t-1d33ee",
+      "requirementId": "REQ-261004202231-bb99",
+      "title": "摘除 v2 记忆路由注册点",
+      "cardDoc": "docs/requirements/REQ-261004202231-bb99/tasks/t-1d33ee.md",
+      "description": "删 route_registrar 的两行路由表项与 main.py 的两段 include_router（连同 warning 分支）。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-211fd3"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "① 对 v2 启动日志 logs/launchd-api.log 执行 grep -c 'Registered: memory' → 返回 0；② 同一日志 grep 'optional_failed' 的条目与删除前一致（不变）；③ 复核 adapters/inbound/fastapi_app/main.py 不含 memory 字面量。",
+      "implementation": "改 adapters/inbound/fastapi_app/route_registrar.py:278-279；改 adapters/inbound/fastapi_app/main.py:1067-1083；重启 v2 后核对日志。",
+      "context": "",
+      "stages": [
+        "dev",
+        "review"
+      ],
+      "footprint": {
+        "files": 2,
+        "anchors": 3,
+        "chars": 400
+      },
+      "requirementRefs": [
+        "FR-1"
+      ],
+      "status": "canceled",
+      "blocked": false,
+      "executions": [],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791116866171,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        }
+      ],
+      "comments": [],
+      "version": 1,
+      "createdAt": 1791116866171,
+      "updatedAt": 1791117176322,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+      },
+      "layer": 1,
+      "revisions": [
+        {
+          "at": 1791117176322,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "kind": "rollback",
+          "reason": "范围变更（用户裁定：迁移到 agent-os + agent-ts 仍在使用）：回退到拆分阶段重报 9 卡计划；旧计划批准作废、旧卡作废，t1 已完成的代码改动保留并在新卡上重报。",
+          "changes": [
+            "status: todo→canceled"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "t-5c8b1b",
+      "requirementId": "REQ-261004202231-bb99",
+      "title": "删除 v2 记忆端点与仓储",
+      "cardDoc": "docs/requirements/REQ-261004202231-bb99/tasks/t-5c8b1b.md",
+      "description": "删两个路由文件与两个仓储文件。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-1d33ee"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "① curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:5001/api/memory/search → 返回 404；② 同法请求 /api/memory/health → 返回 404。",
+      "implementation": "删 adapters/inbound/fastapi_app/routes/memory_async.py 与 memory_distill_async.py；删 adapters/outbound/repositories/memory_repository.py 与 memory_recall_audit_repository.py。",
+      "context": "",
+      "stages": [
+        "dev",
+        "review"
+      ],
+      "footprint": {
+        "files": 4,
+        "anchors": 2,
+        "chars": 500
+      },
+      "requirementRefs": [
+        "FR-1"
+      ],
+      "status": "canceled",
+      "blocked": false,
+      "executions": [],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791116866171,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        }
+      ],
+      "comments": [],
+      "version": 1,
+      "createdAt": 1791116866171,
+      "updatedAt": 1791117176322,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+      },
+      "layer": 2,
+      "revisions": [
+        {
+          "at": 1791117176322,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "kind": "rollback",
+          "reason": "范围变更（用户裁定：迁移到 agent-os + agent-ts 仍在使用）：回退到拆分阶段重报 9 卡计划；旧计划批准作废、旧卡作废，t1 已完成的代码改动保留并在新卡上重报。",
+          "changes": [
+            "status: todo→canceled"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "t-e64f6e",
+      "requirementId": "REQ-261004202231-bb99",
+      "title": "删除 domain/memory 领域实现",
+      "cardDoc": "docs/requirements/REQ-261004202231-bb99/tasks/t-e64f6e.md",
+      "description": "删 domain/memory 全部 6 个文件。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-5c8b1b"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "① grep -rn 'MemoryService|MemoryRepository|domain.memory' domain/ application/ adapters/ infrastructure/ → 返回 0 命中；② 重启 v2 后启动日志不含 ImportError。",
+      "implementation": "删 domain/memory/ 目录（service.py、hybrid_search.py、embedding.py、distiller.py、models.py、__init__.py）；删前先跑反向断言确认无残留引用。",
+      "context": "",
+      "stages": [
+        "dev",
+        "review"
+      ],
+      "footprint": {
+        "files": 6,
+        "anchors": 2,
+        "chars": 500
+      },
+      "requirementRefs": [
+        "FR-1"
+      ],
+      "status": "canceled",
+      "blocked": false,
+      "executions": [],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791116866171,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        }
+      ],
+      "comments": [],
+      "version": 1,
+      "createdAt": 1791116866171,
+      "updatedAt": 1791117176322,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+      },
+      "layer": 3,
+      "revisions": [
+        {
+          "at": 1791117176322,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "kind": "rollback",
+          "reason": "范围变更（用户裁定：迁移到 agent-os + agent-ts 仍在使用）：回退到拆分阶段重报 9 卡计划；旧计划批准作废、旧卡作废，t1 已完成的代码改动保留并在新卡上重报。",
+          "changes": [
+            "status: todo→canceled"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "t-cc1a66",
+      "requirementId": "REQ-261004202231-bb99",
+      "title": "删除记忆测试（10 文件）",
+      "cardDoc": "docs/requirements/REQ-261004202231-bb99/tasks/t-cc1a66.md",
+      "description": "删 tests/domain/memory/ 全部 10 个文件。",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-e64f6e"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "① pytest tests/ -q --collect-only 后 grep -c domain/memory → 返回 0；② 用例总数与基线之差等于被删用例数（一致）。",
+      "implementation": "删 tests/domain/memory/ 目录（含 __init__.py）；删前记录 pytest --collect-only 的总数作为基线。",
+      "context": "",
+      "stages": [
+        "dev",
+        "review"
+      ],
+      "footprint": {
+        "files": 10,
+        "anchors": 2,
+        "chars": 400
+      },
+      "requirementRefs": [
+        "FR-1"
+      ],
+      "status": "canceled",
+      "blocked": false,
+      "executions": [],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791116866171,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        }
+      ],
+      "comments": [],
+      "version": 1,
+      "createdAt": 1791116866171,
+      "updatedAt": 1791117176322,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+      },
+      "layer": 4,
+      "revisions": [
+        {
+          "at": 1791117176322,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "kind": "rollback",
+          "reason": "范围变更（用户裁定：迁移到 agent-os + agent-ts 仍在使用）：回退到拆分阶段重报 9 卡计划；旧计划批准作废、旧卡作废，t1 已完成的代码改动保留并在新卡上重报。",
+          "changes": [
+            "status: todo→canceled"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "t-3d3ef2",
+      "requirementId": "REQ-261004202231-bb99",
+      "title": "文档落档：v2 不再承载记忆",
+      "cardDoc": "docs/requirements/REQ-261004202231-bb99/tasks/t-3d3ef2.md",
+      "description": "在 v2 侧文档中注明记忆不再由 v2 承载，并指向本需求 REQ id。",
+      "phase": "doc",
+      "side": "doc",
+      "dependsOn": [
+        "t-cc1a66"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "① 执行 python3 agent-dh/scripts/wiki_probe.py → 无新增死链/孤儿；② 落档文档中包含「记忆由 agent 侧承载」与 REQ-261004202231-bb99。",
+      "implementation": "在 quantsys-v2/docs/architecture/ 下新增或追加一节：写明 v2 侧记忆子系统已下线、消费方摘除清单、以及「记忆归 agent 侧」的口径。",
+      "context": "",
+      "stages": [
+        "dev",
+        "review"
+      ],
+      "footprint": {
+        "files": 3,
+        "anchors": 2,
+        "chars": 400
+      },
+      "requirementRefs": [
+        "FR-4"
+      ],
+      "status": "canceled",
+      "blocked": false,
+      "executions": [],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791116866171,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        }
+      ],
+      "comments": [],
+      "version": 1,
+      "createdAt": 1791116866171,
+      "updatedAt": 1791117176322,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+      },
+      "layer": 5,
+      "revisions": [
+        {
+          "at": 1791117176322,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "kind": "rollback",
+          "reason": "范围变更（用户裁定：迁移到 agent-os + agent-ts 仍在使用）：回退到拆分阶段重报 9 卡计划；旧计划批准作废、旧卡作废，t1 已完成的代码改动保留并在新卡上重报。",
+          "changes": [
+            "status: todo→canceled"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "t-02c0a2",
+      "requirementId": "REQ-261004202231-bb99",
+      "title": "处置记忆数据与迁移脚本（执行前须人确认）",
+      "cardDoc": "docs/requirements/REQ-261004202231-bb99/tasks/t-02c0a2.md",
+      "description": "按 migration.md 的 M-1/M-2：先 pg_dump，再 DROP memory_entries（生产 + 测试库）；迁移脚本保留并标注作废。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-5c8b1b"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "① ls -l /tmp/memory_entries_pre_drop.sql → 返回非空文件；② 需求评论里可查到人确认原文；③ psql -d quant_investment -c 'select count(*) from quant.memory_entries' → 返回 relation does not exist；④ pytest tests/test_orm_db_drift.py → 通过；⑤ scripts/migrations/013_migrate_agent_knowledge_to_memory_entries.sql 头部含作废标注。",
+      "implementation": "pg_dump -t quant.memory_entries quant_investment 输出到 /tmp/memory_entries_pre_drop.sql；对 quant_investment 与 quant_test 执行 DROP TABLE IF EXISTS quant.memory_entries；在 scripts/migrations/012_*.sql、013_*.sql、infrastructure/persistence/migrations/create_memory_recall_audit_table.sql 头部加作废标注。",
+      "context": "",
+      "stages": [
+        "dev",
+        "review"
+      ],
+      "footprint": {
+        "files": 1,
+        "anchors": 5,
+        "chars": 400
+      },
+      "requirementRefs": [
+        "FR-3"
+      ],
+      "status": "canceled",
+      "blocked": false,
+      "executions": [],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791116866171,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        }
+      ],
+      "comments": [],
+      "version": 1,
+      "createdAt": 1791116866171,
+      "updatedAt": 1791117176322,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+      },
+      "layer": 3,
+      "revisions": [
+        {
+          "at": 1791117176322,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "kind": "rollback",
+          "reason": "范围变更（用户裁定：迁移到 agent-os + agent-ts 仍在使用）：回退到拆分阶段重报 9 卡计划；旧计划批准作废、旧卡作废，t1 已完成的代码改动保留并在新卡上重报。",
+          "changes": [
+            "status: todo→canceled"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "t-3b3641",
+      "requirementId": "REQ-261004202231-bb99",
+      "title": "摘除外部三处记忆消费方·研发",
+      "description": "子卡阶段：研发",
+      "phase": "implement",
+      "side": "fullstack",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "implementation": "改 quantsys-v2-client/src/client.ts:2067-2084（删两方法）；删 web-frontend/src/services/api/memory.ts、views/Memory/{index,RecallAudit}.vue，并摘 router/index.ts:213-215 的 /memory 路由；删 agent-dh/packages/tools/memory/src/tools/RecallAuditTool/ 三文件与 src/index.ts:84 的注册行。\n\n[子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "context": "",
+      "parentId": "t-211fd3",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [
+        {
+          "at": 1791117176322,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "kind": "rollback",
+          "reason": "范围变更（用户裁定：迁移到 agent-os + agent-ts 仍在使用）：回退到拆分阶段重报 9 卡计划；旧计划批准作废、旧卡作废，t1 已完成的代码改动保留并在新卡上重报。",
+          "changes": [
+            "status: todo→canceled"
+          ]
+        }
+      ],
+      "status": "todo",
+      "blocked": false,
+      "executions": [],
+      "comments": [],
+      "version": 1,
+      "createdAt": 1791116873393,
+      "updatedAt": 1791117176322,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791116873393,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 0
+    },
+    {
+      "id": "t-cdb919",
+      "requirementId": "REQ-261004202231-bb99",
+      "title": "摘除外部三处记忆消费方·复核",
+      "description": "子卡阶段：复核",
+      "phase": "implement",
+      "side": "fullstack",
+      "dependsOn": [
+        "t-3b3641"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "implementation": "改 quantsys-v2-client/src/client.ts:2067-2084（删两方法）；删 web-frontend/src/services/api/memory.ts、views/Memory/{index,RecallAudit}.vue，并摘 router/index.ts:213-215 的 /memory 路由；删 agent-dh/packages/tools/memory/src/tools/RecallAuditTool/ 三文件与 src/index.ts:84 的注册行。\n\n[子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-211fd3",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [
+        {
+          "at": 1791117176322,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "kind": "rollback",
+          "reason": "范围变更（用户裁定：迁移到 agent-os + agent-ts 仍在使用）：回退到拆分阶段重报 9 卡计划；旧计划批准作废、旧卡作废，t1 已完成的代码改动保留并在新卡上重报。",
+          "changes": [
+            "status: todo→canceled"
+          ]
+        }
+      ],
+      "status": "todo",
+      "blocked": false,
+      "executions": [],
+      "comments": [],
+      "version": 1,
+      "createdAt": 1791116873393,
+      "updatedAt": 1791117176322,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791116873393,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 1
+    },
+    {
+      "id": "t-b17dec",
+      "requirementId": "REQ-261004202231-bb99",
+      "title": "[重做] 摘除外部三处记忆消费方",
+      "description": "删 quantsys-v2-client 的 2 个 recall-audit 方法；删 web-frontend 的记忆页与路由；删 agent-dh 的 RecallAuditTool 及其注册行。",
+      "phase": "implement",
+      "side": "fullstack",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "① grep -rn 'api/memory' quantsys-v2-client web-frontend agent-dh/packages → 返回 0 命中；② web-frontend 执行 npm run build → 通过；③ agent-dh 重启后工具清单不包含 memory_recall_audit，其余 4 个记忆工具仍在。",
+      "implementation": "改 quantsys-v2-client/src/client.ts:2067-2084（删两方法）；删 web-frontend/src/services/api/memory.ts、views/Memory/{index,RecallAudit}.vue，并摘 router/index.ts:213-215 的 /memory 路由；删 agent-dh/packages/tools/memory/src/tools/RecallAuditTool/ 三文件与 src/index.ts:84 的注册行。",
+      "context": "",
+      "requirementRefs": [
+        "FR-2"
+      ],
+      "reworkOf": "t-211fd3",
+      "stages": [],
+      "status": "todo",
+      "blocked": false,
+      "executions": [],
+      "comments": [],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791117176322,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "需求回退到 decomposing：由 t-211fd3 物化的重做卡"
+        }
+      ],
+      "version": 1,
+      "createdAt": 1791117176322,
+      "updatedAt": 1791117176322,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+      },
+      "layer": 0
+    },
+    {
+      "id": "t-c54cfc",
+      "requirementId": "REQ-261004202231-bb99",
+      "title": "[重做] 摘除 v2 记忆路由注册点",
+      "description": "删 route_registrar 的两行路由表项与 main.py 的两段 include_router（连同 warning 分支）。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "① 对 v2 启动日志 logs/launchd-api.log 执行 grep -c 'Registered: memory' → 返回 0；② 同一日志 grep 'optional_failed' 的条目与删除前一致（不变）；③ 复核 adapters/inbound/fastapi_app/main.py 不含 memory 字面量。",
+      "implementation": "改 adapters/inbound/fastapi_app/route_registrar.py:278-279；改 adapters/inbound/fastapi_app/main.py:1067-1083；重启 v2 后核对日志。",
+      "context": "",
+      "requirementRefs": [
+        "FR-1"
+      ],
+      "reworkOf": "t-1d33ee",
+      "stages": [],
+      "status": "todo",
+      "blocked": false,
+      "executions": [],
+      "comments": [],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791117176322,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "需求回退到 decomposing：由 t-1d33ee 物化的重做卡"
+        }
+      ],
+      "version": 1,
+      "createdAt": 1791117176322,
+      "updatedAt": 1791117176322,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+      },
+      "layer": 0
+    },
+    {
+      "id": "t-3a0393",
+      "requirementId": "REQ-261004202231-bb99",
+      "title": "[重做] 删除 v2 记忆端点与仓储",
+      "description": "删两个路由文件与两个仓储文件。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "① curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:5001/api/memory/search → 返回 404；② 同法请求 /api/memory/health → 返回 404。",
+      "implementation": "删 adapters/inbound/fastapi_app/routes/memory_async.py 与 memory_distill_async.py；删 adapters/outbound/repositories/memory_repository.py 与 memory_recall_audit_repository.py。",
+      "context": "",
+      "requirementRefs": [
+        "FR-1"
+      ],
+      "reworkOf": "t-5c8b1b",
+      "stages": [],
+      "status": "todo",
+      "blocked": false,
+      "executions": [],
+      "comments": [],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791117176322,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "需求回退到 decomposing：由 t-5c8b1b 物化的重做卡"
+        }
+      ],
+      "version": 1,
+      "createdAt": 1791117176322,
+      "updatedAt": 1791117176322,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+      },
+      "layer": 0
+    },
+    {
+      "id": "t-fdbc2a",
+      "requirementId": "REQ-261004202231-bb99",
+      "title": "[重做] 删除 domain/memory 领域实现",
+      "description": "删 domain/memory 全部 6 个文件。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "① grep -rn 'MemoryService|MemoryRepository|domain.memory' domain/ application/ adapters/ infrastructure/ → 返回 0 命中；② 重启 v2 后启动日志不含 ImportError。",
+      "implementation": "删 domain/memory/ 目录（service.py、hybrid_search.py、embedding.py、distiller.py、models.py、__init__.py）；删前先跑反向断言确认无残留引用。",
+      "context": "",
+      "requirementRefs": [
+        "FR-1"
+      ],
+      "reworkOf": "t-e64f6e",
+      "stages": [],
+      "status": "todo",
+      "blocked": false,
+      "executions": [],
+      "comments": [],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791117176322,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "需求回退到 decomposing：由 t-e64f6e 物化的重做卡"
+        }
+      ],
+      "version": 1,
+      "createdAt": 1791117176322,
+      "updatedAt": 1791117176322,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+      },
+      "layer": 0
+    },
+    {
+      "id": "t-611597",
+      "requirementId": "REQ-261004202231-bb99",
+      "title": "[重做] 删除记忆测试（10 文件）",
+      "description": "删 tests/domain/memory/ 全部 10 个文件。",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "① pytest tests/ -q --collect-only 后 grep -c domain/memory → 返回 0；② 用例总数与基线之差等于被删用例数（一致）。",
+      "implementation": "删 tests/domain/memory/ 目录（含 __init__.py）；删前记录 pytest --collect-only 的总数作为基线。",
+      "context": "",
+      "requirementRefs": [
+        "FR-1"
+      ],
+      "reworkOf": "t-cc1a66",
+      "stages": [],
+      "status": "todo",
+      "blocked": false,
+      "executions": [],
+      "comments": [],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791117176322,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "需求回退到 decomposing：由 t-cc1a66 物化的重做卡"
+        }
+      ],
+      "version": 1,
+      "createdAt": 1791117176322,
+      "updatedAt": 1791117176322,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+      },
+      "layer": 0
+    },
+    {
+      "id": "t-789e83",
+      "requirementId": "REQ-261004202231-bb99",
+      "title": "[重做] 文档落档：v2 不再承载记忆",
+      "description": "在 v2 侧文档中注明记忆不再由 v2 承载，并指向本需求 REQ id。",
+      "phase": "doc",
+      "side": "doc",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "① 执行 python3 agent-dh/scripts/wiki_probe.py → 无新增死链/孤儿；② 落档文档中包含「记忆由 agent 侧承载」与 REQ-261004202231-bb99。",
+      "implementation": "在 quantsys-v2/docs/architecture/ 下新增或追加一节：写明 v2 侧记忆子系统已下线、消费方摘除清单、以及「记忆归 agent 侧」的口径。",
+      "context": "",
+      "requirementRefs": [
+        "FR-4"
+      ],
+      "reworkOf": "t-3d3ef2",
+      "stages": [],
+      "status": "todo",
+      "blocked": false,
+      "executions": [],
+      "comments": [],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791117176322,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "需求回退到 decomposing：由 t-3d3ef2 物化的重做卡"
+        }
+      ],
+      "version": 1,
+      "createdAt": 1791117176322,
+      "updatedAt": 1791117176322,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+      },
+      "layer": 0
+    },
+    {
+      "id": "t-8a0060",
+      "requirementId": "REQ-261004202231-bb99",
+      "title": "[重做] 处置记忆数据与迁移脚本（执行前须人确认）",
+      "description": "按 migration.md 的 M-1/M-2：先 pg_dump，再 DROP memory_entries（生产 + 测试库）；迁移脚本保留并标注作废。",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "① ls -l /tmp/memory_entries_pre_drop.sql → 返回非空文件；② 需求评论里可查到人确认原文；③ psql -d quant_investment -c 'select count(*) from quant.memory_entries' → 返回 relation does not exist；④ pytest tests/test_orm_db_drift.py → 通过；⑤ scripts/migrations/013_migrate_agent_knowledge_to_memory_entries.sql 头部含作废标注。",
+      "implementation": "pg_dump -t quant.memory_entries quant_investment 输出到 /tmp/memory_entries_pre_drop.sql；对 quant_investment 与 quant_test 执行 DROP TABLE IF EXISTS quant.memory_entries；在 scripts/migrations/012_*.sql、013_*.sql、infrastructure/persistence/migrations/create_memory_recall_audit_table.sql 头部加作废标注。",
+      "context": "",
+      "requirementRefs": [
+        "FR-3"
+      ],
+      "reworkOf": "t-02c0a2",
+      "stages": [],
+      "status": "todo",
+      "blocked": false,
+      "executions": [],
+      "comments": [],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791117176322,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "需求回退到 decomposing：由 t-02c0a2 物化的重做卡"
+        }
+      ],
+      "version": 1,
+      "createdAt": 1791117176322,
+      "updatedAt": 1791117176322,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+      },
+      "layer": 0
+    }
+  ],
+  "edges": [
+    {
+      "from": "t-211fd3",
+      "to": "t-1d33ee"
+    },
+    {
+      "from": "t-1d33ee",
+      "to": "t-5c8b1b"
+    },
+    {
+      "from": "t-5c8b1b",
+      "to": "t-e64f6e"
+    },
+    {
+      "from": "t-e64f6e",
+      "to": "t-cc1a66"
+    },
+    {
+      "from": "t-cc1a66",
+      "to": "t-3d3ef2"
+    },
+    {
+      "from": "t-5c8b1b",
+      "to": "t-02c0a2"
+    },
+    {
+      "from": "t-3b3641",
+      "to": "t-cdb919"
+    }
+  ],
+  "layers": [
+    {
+      "layer": 0,
+      "tasks": [
+        "t-211fd3",
+        "t-3b3641",
+        "t-b17dec",
+        "t-c54cfc",
+        "t-3a0393",
+        "t-fdbc2a",
+        "t-611597",
+        "t-789e83",
+        "t-8a0060"
+      ]
+    },
+    {
+      "layer": 1,
+      "tasks": [
+        "t-1d33ee",
+        "t-cdb919"
+      ]
+    },
+    {
+      "layer": 2,
+      "tasks": [
+        "t-5c8b1b"
+      ]
+    },
+    {
+      "layer": 3,
+      "tasks": [
+        "t-e64f6e",
+        "t-02c0a2"
+      ]
+    },
+    {
+      "layer": 4,
+      "tasks": [
+        "t-cc1a66"
+      ]
+    },
+    {
+      "layer": 5,
+      "tasks": [
+        "t-3d3ef2"
+      ]
+    }
+  ],
+  "ready": [
+    "t-3b3641",
+    "t-b17dec",
+    "t-c54cfc",
+    "t-3a0393",
+    "t-fdbc2a",
+    "t-611597",
+    "t-789e83",
+    "t-8a0060"
+  ],
+  "updated_at": "2026-10-04T12:32:56.351Z"
+}

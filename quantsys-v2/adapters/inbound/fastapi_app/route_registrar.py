@@ -270,13 +270,15 @@ class RouteRegistrar:
         for name, path, prefix, desc in routes:
             self.register_optional_route(name, path, prefix=prefix, description=desc)
 
-    def register_memory_routes(self) -> None:
-        """注册记忆系统相关路由"""
-        logger.info("Registering memory routes...")
+    def register_knowledge_routes(self) -> None:
+        """注册知识库相关路由
+
+        2026-10-04 · REQ-261004202231-bb99：memory / memory_distill 两条已随 v2 记忆子系统下线
+        （记忆归 agent 侧 agent-os），本方法只剩 knowledge。
+        """
+        logger.info("Registering knowledge routes...")
 
         routes = [
-            ("memory", "adapters.inbound.fastapi_app.routes.memory_async", "", "W1.2 统一记忆"),
-            ("memory_distill", "adapters.inbound.fastapi_app.routes.memory_distill_async", "", "W1.5a 记忆蒸馏"),
             ("knowledge", "adapters.inbound.fastapi_app.routes.knowledge_async", "", "W1.1 FastAPI 补全"),
         ]
 
@@ -400,7 +402,7 @@ def register_routes(app) -> None:
     registrar.register_pool_routes()      # 复杂度: 1
     registrar.register_backtest_routes()  # 复杂度: 1
     registrar.register_ml_routes()        # 复杂度: 1
-    registrar.register_memory_routes()    # 复杂度: 1
+    registrar.register_knowledge_routes()    # 复杂度: 1
     registrar.register_evolution_routes() # 复杂度: 1
     registrar.register_report_routes()    # 复杂度: 1
     registrar.register_misc_routes()      # 复杂度: 1

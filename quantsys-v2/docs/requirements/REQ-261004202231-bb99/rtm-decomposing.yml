@@ -1,0 +1,381 @@
+metadata:
+  stage: decomposing
+  requirement_id: REQ-261004202231-bb99
+  generated_at: 2026-10-04T12:27:46.197Z
+  version: 3
+  generated_by: dsh-pmboard
+  last_updated: 2026-10-04T12:33:29.835Z
+inputs:
+  requirements: []
+  design_sections:
+    - ref: design/architecture.md#目标与判定
+      title: 目标与判定（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/architecture.md
+      section: 目标与判定
+    - ref: design/architecture.md#依赖与调用方清单
+      title: 依赖与调用方清单（
+      serves:
+        - FR-1
+        - FR-2
+      file: design/architecture.md
+      section: 依赖与调用方清单
+    - ref: design/architecture.md#分批设计一类改动一批
+      title: 分批设计：一类改动一批（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-4
+      file: design/architecture.md
+      section: 分批设计一类改动一批
+    - ref: design/architecture.md#行为等价验证设计
+      title: 行为等价验证设计（
+      serves:
+        - FR-1
+        - FR-2
+      file: design/architecture.md
+      section: 行为等价验证设计
+    - ref: design/architecture.md#验收口径
+      title: 验收口径（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/architecture.md
+      section: 验收口径
+    - ref: design/architecture.md#风险与回滚
+      title: 风险与回滚（
+      serves:
+        - FR-1
+        - FR-3
+      file: design/architecture.md
+      section: 风险与回滚
+    - ref: design/migration.md#现状
+      title: 现状（
+      serves:
+        - FR-3
+      file: design/migration.md
+      section: 现状
+    - ref: design/migration.md#处置方案
+      title: 处置方案（
+      serves:
+        - FR-3
+      file: design/migration.md
+      section: 处置方案
+    - ref: design/migration.md#回滚
+      title: 回滚（
+      serves:
+        - FR-3
+      file: design/migration.md
+      section: 回滚
+    - ref: design/migration.md#不做
+      title: 不做（
+      serves:
+        - FR-3
+      file: design/migration.md
+      section: 不做
+outputs:
+  tasks:
+    - id: t-211fd3
+      title: 摘除外部三处记忆消费方
+      implements: 改 quantsys-v2-client/src/client.ts:2067-2084（删两方法）；删 web-frontend/src/services/api/memory.ts、views/Memory/{index,RecallAudit}.vue，并摘 router/index.ts:213-215 的 /memory 路由；删 agent-dh/packages/tools/memory/src/tools/RecallAuditTool/ 三文件与 src/index.ts:84 的注册行。
+      serves:
+        - FR-2
+      depends_on: []
+      phase: implement
+      side: fullstack
+    - id: t-1d33ee
+      title: 摘除 v2 记忆路由注册点
+      implements: 改 adapters/inbound/fastapi_app/route_registrar.py:278-279；改 adapters/inbound/fastapi_app/main.py:1067-1083；重启 v2 后核对日志。
+      serves:
+        - FR-1
+      depends_on:
+        - t-211fd3
+      phase: implement
+      side: backend
+    - id: t-5c8b1b
+      title: 删除 v2 记忆端点与仓储
+      implements: 删 adapters/inbound/fastapi_app/routes/memory_async.py 与 memory_distill_async.py；删 adapters/outbound/repositories/memory_repository.py 与 memory_recall_audit_repository.py。
+      serves:
+        - FR-1
+      depends_on:
+        - t-1d33ee
+      phase: implement
+      side: backend
+    - id: t-e64f6e
+      title: 删除 domain/memory 领域实现
+      implements: 删 domain/memory/ 目录（service.py、hybrid_search.py、embedding.py、distiller.py、models.py、__init__.py）；删前先跑反向断言确认无残留引用。
+      serves:
+        - FR-1
+      depends_on:
+        - t-5c8b1b
+      phase: implement
+      side: backend
+    - id: t-cc1a66
+      title: 删除记忆测试（10 文件）
+      implements: 删 tests/domain/memory/ 目录（含 __init__.py）；删前记录 pytest --collect-only 的总数作为基线。
+      serves:
+        - FR-1
+      depends_on:
+        - t-e64f6e
+      phase: test
+      side: backend
+    - id: t-3d3ef2
+      title: 文档落档：v2 不再承载记忆
+      implements: 在 quantsys-v2/docs/architecture/ 下新增或追加一节：写明 v2 侧记忆子系统已下线、消费方摘除清单、以及「记忆归 agent 侧」的口径。
+      serves:
+        - FR-4
+      depends_on:
+        - t-cc1a66
+      phase: doc
+      side: doc
+    - id: t-02c0a2
+      title: 处置记忆数据与迁移脚本（执行前须人确认）
+      implements: pg_dump -t quant.memory_entries quant_investment 输出到 /tmp/memory_entries_pre_drop.sql；对 quant_investment 与 quant_test 执行 DROP TABLE IF EXISTS quant.memory_entries；在 scripts/migrations/012_*.sql、013_*.sql、infrastructure/persistence/migrations/create_memory_recall_audit_table.sql 头部加作废标注。
+      serves:
+        - FR-3
+      depends_on:
+        - t-5c8b1b
+      phase: implement
+      side: backend
+    - id: t-3b3641
+      title: 摘除外部三处记忆消费方·研发
+      implements: |-
+        改 quantsys-v2-client/src/client.ts:2067-2084（删两方法）；删 web-frontend/src/services/api/memory.ts、views/Memory/{index,RecallAudit}.vue，并摘 router/index.ts:213-215 的 /memory 路由；删 agent-dh/packages/tools/memory/src/tools/RecallAuditTool/ 三文件与 src/index.ts:84 的注册行。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on: []
+      phase: implement
+      side: fullstack
+    - id: t-cdb919
+      title: 摘除外部三处记忆消费方·复核
+      implements: |-
+        改 quantsys-v2-client/src/client.ts:2067-2084（删两方法）；删 web-frontend/src/services/api/memory.ts、views/Memory/{index,RecallAudit}.vue，并摘 router/index.ts:213-215 的 /memory 路由；删 agent-dh/packages/tools/memory/src/tools/RecallAuditTool/ 三文件与 src/index.ts:84 的注册行。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-3b3641
+      phase: implement
+      side: fullstack
+    - id: t-b17dec
+      title: "[重做] 摘除外部三处记忆消费方"
+      implements: 改 quantsys-v2-client/src/client.ts:2067-2084（删两方法）；删 web-frontend/src/services/api/memory.ts、views/Memory/{index,RecallAudit}.vue，并摘 router/index.ts:213-215 的 /memory 路由；删 agent-dh/packages/tools/memory/src/tools/RecallAuditTool/ 三文件与 src/index.ts:84 的注册行。
+      serves:
+        - FR-2
+      depends_on: []
+      phase: implement
+      side: fullstack
+    - id: t-c54cfc
+      title: "[重做] 摘除 v2 记忆路由注册点"
+      implements: 改 adapters/inbound/fastapi_app/route_registrar.py:278-279；改 adapters/inbound/fastapi_app/main.py:1067-1083；重启 v2 后核对日志。
+      serves:
+        - FR-1
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-3a0393
+      title: "[重做] 删除 v2 记忆端点与仓储"
+      implements: 删 adapters/inbound/fastapi_app/routes/memory_async.py 与 memory_distill_async.py；删 adapters/outbound/repositories/memory_repository.py 与 memory_recall_audit_repository.py。
+      serves:
+        - FR-1
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-fdbc2a
+      title: "[重做] 删除 domain/memory 领域实现"
+      implements: 删 domain/memory/ 目录（service.py、hybrid_search.py、embedding.py、distiller.py、models.py、__init__.py）；删前先跑反向断言确认无残留引用。
+      serves:
+        - FR-1
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-611597
+      title: "[重做] 删除记忆测试（10 文件）"
+      implements: 删 tests/domain/memory/ 目录（含 __init__.py）；删前记录 pytest --collect-only 的总数作为基线。
+      serves:
+        - FR-1
+      depends_on: []
+      phase: test
+      side: backend
+    - id: t-789e83
+      title: "[重做] 文档落档：v2 不再承载记忆"
+      implements: 在 quantsys-v2/docs/architecture/ 下新增或追加一节：写明 v2 侧记忆子系统已下线、消费方摘除清单、以及「记忆归 agent 侧」的口径。
+      serves:
+        - FR-4
+      depends_on: []
+      phase: doc
+      side: doc
+    - id: t-8a0060
+      title: "[重做] 处置记忆数据与迁移脚本（执行前须人确认）"
+      implements: pg_dump -t quant.memory_entries quant_investment 输出到 /tmp/memory_entries_pre_drop.sql；对 quant_investment 与 quant_test 执行 DROP TABLE IF EXISTS quant.memory_entries；在 scripts/migrations/012_*.sql、013_*.sql、infrastructure/persistence/migrations/create_memory_recall_audit_table.sql 头部加作废标注。
+      serves:
+        - FR-3
+      depends_on: []
+      phase: implement
+      side: backend
+traceability:
+  design_to_tasks:
+    design/architecture.md#目标与判定:
+      - t-211fd3
+      - t-1d33ee
+      - t-5c8b1b
+      - t-e64f6e
+      - t-cc1a66
+      - t-3d3ef2
+      - t-02c0a2
+      - t-b17dec
+      - t-c54cfc
+      - t-3a0393
+      - t-fdbc2a
+      - t-611597
+      - t-789e83
+      - t-8a0060
+    design/architecture.md#依赖与调用方清单:
+      - t-211fd3
+      - t-1d33ee
+      - t-5c8b1b
+      - t-e64f6e
+      - t-cc1a66
+      - t-b17dec
+      - t-c54cfc
+      - t-3a0393
+      - t-fdbc2a
+      - t-611597
+    design/architecture.md#分批设计一类改动一批:
+      - t-211fd3
+      - t-1d33ee
+      - t-5c8b1b
+      - t-e64f6e
+      - t-cc1a66
+      - t-3d3ef2
+      - t-b17dec
+      - t-c54cfc
+      - t-3a0393
+      - t-fdbc2a
+      - t-611597
+      - t-789e83
+    design/architecture.md#行为等价验证设计:
+      - t-211fd3
+      - t-1d33ee
+      - t-5c8b1b
+      - t-e64f6e
+      - t-cc1a66
+      - t-b17dec
+      - t-c54cfc
+      - t-3a0393
+      - t-fdbc2a
+      - t-611597
+    design/architecture.md#验收口径:
+      - t-211fd3
+      - t-1d33ee
+      - t-5c8b1b
+      - t-e64f6e
+      - t-cc1a66
+      - t-3d3ef2
+      - t-02c0a2
+      - t-b17dec
+      - t-c54cfc
+      - t-3a0393
+      - t-fdbc2a
+      - t-611597
+      - t-789e83
+      - t-8a0060
+    design/architecture.md#风险与回滚:
+      - t-1d33ee
+      - t-5c8b1b
+      - t-e64f6e
+      - t-cc1a66
+      - t-02c0a2
+      - t-c54cfc
+      - t-3a0393
+      - t-fdbc2a
+      - t-611597
+      - t-8a0060
+    design/migration.md#现状:
+      - t-02c0a2
+      - t-8a0060
+    design/migration.md#处置方案:
+      - t-02c0a2
+      - t-8a0060
+    design/migration.md#回滚:
+      - t-02c0a2
+      - t-8a0060
+    design/migration.md#不做:
+      - t-02c0a2
+      - t-8a0060
+  fr_to_tasks:
+    FR-1:
+      - t-211fd3
+      - t-1d33ee
+      - t-5c8b1b
+      - t-e64f6e
+      - t-cc1a66
+      - t-3d3ef2
+      - t-02c0a2
+      - t-b17dec
+      - t-c54cfc
+      - t-3a0393
+      - t-fdbc2a
+      - t-611597
+      - t-789e83
+      - t-8a0060
+    FR-2:
+      - t-211fd3
+      - t-1d33ee
+      - t-5c8b1b
+      - t-e64f6e
+      - t-cc1a66
+      - t-3d3ef2
+      - t-02c0a2
+      - t-b17dec
+      - t-c54cfc
+      - t-3a0393
+      - t-fdbc2a
+      - t-611597
+      - t-789e83
+      - t-8a0060
+    FR-3:
+      - t-211fd3
+      - t-1d33ee
+      - t-5c8b1b
+      - t-e64f6e
+      - t-cc1a66
+      - t-3d3ef2
+      - t-02c0a2
+      - t-b17dec
+      - t-c54cfc
+      - t-3a0393
+      - t-fdbc2a
+      - t-611597
+      - t-789e83
+      - t-8a0060
+    FR-4:
+      - t-211fd3
+      - t-1d33ee
+      - t-5c8b1b
+      - t-e64f6e
+      - t-cc1a66
+      - t-3d3ef2
+      - t-02c0a2
+      - t-b17dec
+      - t-c54cfc
+      - t-3a0393
+      - t-fdbc2a
+      - t-611597
+      - t-789e83
+      - t-8a0060
+coverage:
+  implementation:
+    total: 10
+    covered: 10
+    uncovered: []
+    rate: 100
+    total_designs: 10
+    covered_designs: 10

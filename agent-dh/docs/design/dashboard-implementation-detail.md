@@ -163,7 +163,7 @@ fetch 全部走服务端封装 http.ts：AbortController 超时（默认 4s，�
     | { type: "scheduler_task"; taskName: string; statusField?: "lastRun" | "todaySuccess" }
     | { type: "v2_regime" }                    // market/perception/regime 最新 trade_date
     | { type: "v2_themes" }                    // market/perception/themes 最新 trade_date
-    | { type: "v2_memory_kind"; kind: string } // memory/search 当日新增计数
+    | { type: "aos_memory_kind"; kind: string } // agent-os /api/v1/memory 当日新增计数
     | { type: "genome_file"; file: "genome.json" | "candidates.json" }
     | { type: "log_marker"; file: string; pattern: string };
 
@@ -211,7 +211,7 @@ fetch 全部走服务端封装 http.ts：AbortController 超时（默认 4s，�
 | M3 | m3_perf_backfill | 胜率回填 | scheduler_task: signal-perf-backfill-daily | 15:45 周一-五 | L1 |
 | M4 | m4_risk_check | 风控/熔断 | scheduler_task: v13-risk-check | 08:00 周一-五 | M5 |
 | M5 | m5_trade_verify | 交易对账 | scheduler_task: daily_trade_verify | 15:35 周一-五 | — |
-| M6 | m6_experience | 盘后经验沉淀 | v2_memory_kind: experience（当日新增>0）| 16:00+ 周一-五 | L1,L2 |
+| M6 | m6_experience | 盘后经验沉淀 | aos_memory_kind: experience（agent-os）（当日新增>0）| 16:00+ 周一-五 | L1,L2 |
 | L1 | l1_strategy_validate | 策略验证 | scheduler_task: daily-strategy-validation | 13:00 周一-五 | — |
 | L2 | l2_distill | 经验蒸馏 | genome_file: candidates.json（created_at 当日）或 scheduler_task 周蒸馏 | 16:00 周一-五 | — |
 | L3 | l3_gate | 验证门裁决 | genome_file: genome.json history（最新条目当日）| 每日（周日重点）| — |

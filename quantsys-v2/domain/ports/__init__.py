@@ -41,7 +41,6 @@ from .repository_ports_extended import (
     ISignalExecutionRepository,
     ISimulationRepository,
     IAsyncKlineRepository,
-    IMemoryRepository,
     ISchedulerConfigRepository,
     IHeatmapRepository,
 )
@@ -76,7 +75,6 @@ __all__ = [
     'ISignalExecutionRepository',
     'ISimulationRepository',
     'IAsyncKlineRepository',
-    'IMemoryRepository',
     'ISchedulerConfigRepository',
     'IHeatmapRepository',
 ]

@@ -1,0 +1,117 @@
+metadata:
+  stage: design
+  requirement_id: REQ-261004202231-bb99
+  generated_at: 2026-10-04T12:23:25.714Z
+  version: 3
+  generated_by: dsh-pmboard
+  last_updated: 2026-10-04T12:25:16.882Z
+inputs:
+  requirements: []
+outputs:
+  design_sections:
+    - ref: design/architecture.md#目标与判定
+      title: 目标与判定（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/architecture.md
+      section: 目标与判定
+    - ref: design/architecture.md#依赖与调用方清单
+      title: 依赖与调用方清单（
+      serves:
+        - FR-1
+        - FR-2
+      file: design/architecture.md
+      section: 依赖与调用方清单
+    - ref: design/architecture.md#分批设计一类改动一批
+      title: 分批设计：一类改动一批（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-4
+      file: design/architecture.md
+      section: 分批设计一类改动一批
+    - ref: design/architecture.md#行为等价验证设计
+      title: 行为等价验证设计（
+      serves:
+        - FR-1
+        - FR-2
+      file: design/architecture.md
+      section: 行为等价验证设计
+    - ref: design/architecture.md#验收口径
+      title: 验收口径（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/architecture.md
+      section: 验收口径
+    - ref: design/architecture.md#风险与回滚
+      title: 风险与回滚（
+      serves:
+        - FR-1
+        - FR-3
+      file: design/architecture.md
+      section: 风险与回滚
+    - ref: design/migration.md#现状
+      title: 现状（
+      serves:
+        - FR-3
+      file: design/migration.md
+      section: 现状
+    - ref: design/migration.md#处置方案
+      title: 处置方案（
+      serves:
+        - FR-3
+      file: design/migration.md
+      section: 处置方案
+    - ref: design/migration.md#回滚
+      title: 回滚（
+      serves:
+        - FR-3
+      file: design/migration.md
+      section: 回滚
+    - ref: design/migration.md#不做
+      title: 不做（
+      serves:
+        - FR-3
+      file: design/migration.md
+      section: 不做
+traceability:
+  fr_to_design:
+    FR-1:
+      - design/architecture.md#目标与判定
+      - design/architecture.md#依赖与调用方清单
+      - design/architecture.md#分批设计一类改动一批
+      - design/architecture.md#行为等价验证设计
+      - design/architecture.md#验收口径
+      - design/architecture.md#风险与回滚
+    FR-2:
+      - design/architecture.md#目标与判定
+      - design/architecture.md#依赖与调用方清单
+      - design/architecture.md#分批设计一类改动一批
+      - design/architecture.md#行为等价验证设计
+      - design/architecture.md#验收口径
+    FR-3:
+      - design/architecture.md#目标与判定
+      - design/architecture.md#验收口径
+      - design/architecture.md#风险与回滚
+      - design/migration.md#现状
+      - design/migration.md#处置方案
+      - design/migration.md#回滚
+      - design/migration.md#不做
+    FR-4:
+      - design/architecture.md#目标与判定
+      - design/architecture.md#分批设计一类改动一批
+      - design/architecture.md#验收口径
+coverage:
+  design:
+    total: 0
+    covered: 0
+    uncovered: []
+    rate: 100
+    total_frs: 0
+    covered_frs: 0

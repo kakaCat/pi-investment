@@ -1,0 +1,35 @@
+task:
+  id: t-cdb919
+  title: 摘除外部三处记忆消费方·复核
+  status: todo
+  implements: |-
+    改 quantsys-v2-client/src/client.ts:2067-2084（删两方法）；删 web-frontend/src/services/api/memory.ts、views/Memory/{index,RecallAudit}.vue，并摘 router/index.ts:213-215 的 /memory 路由；删 agent-dh/packages/tools/memory/src/tools/RecallAuditTool/ 三文件与 src/index.ts:84 的注册行。
+
+    [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+  serves: []
+  depends_on:
+    - t-3b3641
+  phase: implement
+  side: fullstack
+  workflow_params:
+    REQ_ID: REQ-261004202231-bb99
+    TASK_ID: t-cdb919
+    TASK_TITLE: 摘除外部三处记忆消费方·复核
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: fullstack
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 0
+  workflow:
+    - phase: implement
+      status: pending
+metadata:
+  stage: implementing
+  requirement_id: REQ-261004202231-bb99
+  generated_at: 2026-10-04T12:33:29.848Z
+  version: 1
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-04T12:33:29.848Z

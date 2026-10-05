@@ -2,9 +2,8 @@
 W3: API 端点冒烟测试
 确保重构后端点调用不 500
 
-覆盖端点:
-- /api/memory/search (GET)
-- /api/memory (POST)
+覆盖端点（2026-10-05 · REQ-261004202231-bb99：/api/memory* 全部随 v2 记忆子系统下线，
+本文件不再覆盖记忆端点；记忆能力归 agent 侧 agent-os）:
 - /api/market/sectors (GET)
 - /api/market/sector/{name} (GET)
 - /api/simulation/accounts/{account_name} (GET)（持仓+汇总，2026-09-10 起替代已删除的 /api/portfolio/positions|summary）
@@ -12,51 +11,10 @@ W3: API 端点冒烟测试
 - /api/backtest/run (POST)
 - /api/risk/metrics (GET)
 """
-import pytest
 import requests
 from typing import Dict, Any
 
 BASE_URL = "http://localhost:5001"
-
-def test_memory_search():
-    """测试记忆搜索接口"""
-    response = requests.get(f"{BASE_URL}/api/memory/search", params={"query": "test"}, timeout=10)
-    assert response.status_code != 500, f"memory/search 返回 500: {response.text}"
-    assert response.status_code == 200, f"memory/search 状态码: {response.status_code}"
-    data = response.json()
-    # 实际返回格式可能是 {"items": [...]} 或其他
-    assert isinstance(data, dict), f"返回非字典: {type(data)}"
-
-def test_memory_write():
-    """测试记忆写入接口
-
-    2026-10-02（REQ-261001145152-3982 审查）：**登记一处生产结构缺口，测试按"未铺设"跳过**。
-
-    实测（线上 5001，本轮）：
-        POST /api/memory → HTTP 500
-        {"message":"创建记忆失败: (psycopg2.errors.UndefinedTable)
-                    relation \"quant.memory_entries\" does not exist"}
-    而 `memory_entries` 在**全仓既没有 ORM 模型、也没有迁移**（只在测试库由 `create_all` 造出）
-    → 该功能在**生产没有落库结构**，记忆写入必然 500。
-
-    这里**不是**把 500 掩盖成"通过"：只在错误明确是"表不存在"（= 未铺设，属部署问题）时跳过并写明；
-    其它 500（逻辑错）仍会**响亮失败**。生产建表属生产变更，需另行按流程处理。
-    """
-    payload = {
-        "content": "测试记忆写入 - W3 冒烟测试",
-        "importance": 0.3,
-        "namespace": "default"
-    }
-    response = requests.post(f"{BASE_URL}/api/memory", json=payload, timeout=10)
-    if response.status_code == 500 and 'memory_entries' in response.text and 'does not exist' in response.text:
-        pytest.skip(
-            "生产库缺 quant.memory_entries（全仓无模型/迁移，仅测试库由 create_all 造出）"
-            "→ 记忆写入未铺设；属部署/结构缺口，不是逻辑缺陷"
-        )
-    assert response.status_code != 500, f"memory write 返回 500: {response.text}"
-    assert response.status_code in [200, 201], f"memory write 状态码: {response.status_code}"
-    data = response.json()
-    assert isinstance(data, dict), f"返回非字典: {type(data)}"
 
 def test_market_sectors():
     """测试板块列表接口"""

@@ -62,6 +62,17 @@ env -u DSH_PROFILE DSH_HOME=$PWD/.dsh-data node --import tsx/esm \
 | 现象 | 原因 | 现状 |
 |---|---|---|
 | 日志刷 `[AgentOSClient] Retrying … ECONNREFUSED 127.0.0.1:8080` | agent-os 未起 | 23 个工具（`memory_search`/`experience_*`/`learning_*`/`evolution_*`/`board_*`/`notification_*`/`agent_os_*`/`scheduler_manage`）无后端；**规则 R-008（决策前检索历史教训）因此落空** |
+
+> **替代路径（2026-10-04 实测，只读验证）**：记忆其实不必等 agent-os —— **v2 自己的记忆 API 是通的**：
+> `GET /api/memory/health` → ok；`GET /api/memory/export`（不带 q 的 search 亦可）→ 能列举；
+> **带 q 的中文检索可用**：`q=冒烟` → `total=3, strategy=bm25, source=bm25`（jieba 分词 + rank_bm25，
+> 服务日志 `memory hybrid search: q=冒烟 strategy=bm25 degraded=True found=3`）；写入也可用
+> （`memory_entries` 里已有冒烟测试写入的行）。
+> 唯一缺口是**向量半路**需要 ollama（`127.0.0.1:11434` 不可达）→ 现为纯 BM25 降级，响应如实标 `degraded=true`。
+> 注意判据口径：`q=test` 返回 `strategy=none` 是**没命中**（表里没这个词），不是搜索坏了。
+>
+> 因果链（本仓文档可查）：v2 的 `POST /api/memory` 曾**恒 500**，根因是生产库缺 `memory_entries` 表；
+> 该表已于 2026-10-02 补齐 —— 也就是说，当初"记忆迁去 agent-os"的理由已经消失。
 | `launchd.err.log` 里有 `/bin/bash: … Operation not permitted` | 2026-10-04 首装 launchd 时的 TCC 失败**历史行** | 历史留痕，不是现行故障（见 [STARTUP](STARTUP.md#为什么入口是-python-而不是-bashtcc2026-10-04-实测)） |
 | 探针偶发一条 FAIL 告警 | 安装/重启窗口内端口未起 | 探针只在**状态翻转**时发一次，恢复后自动回到 OK |
 
