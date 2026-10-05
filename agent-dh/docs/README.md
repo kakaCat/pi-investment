@@ -221,6 +221,7 @@ tags: [wiki, index, home, agent-dh]
 |---|---|---|
 | 2026-10-04 | [agent-dh 冒烟清单（一条命令一项）](guides/smoke-checklist.md) | 实例活着吗 / 代码生效了吗 / 身份与基因组对不对 / 模型通不通 / 能不能真去 v2 取数——按这个顺序，每项一条命令、都有期望输出。 |
 | 2026-10-04 | [Agent-DH 启动指南](guides/STARTUP.md) | 运行目录与 profile 现状（DSH_HOME=.dsh-data）、启停与 launchd，含 GUI 401 根因与迁移/布局合并的坑。 |
+| 2026-10-04 | [记忆与召回](architecture/memory-and-recall.md) | 结论写进哪、下次怎么被想起来、怎么知道检索有没有在工作。 |
 | 2026-10-04 | [全站页面索引（机器可读入口）](INDEX.md) | 这个 wiki 有哪些页、每页讲什么（一句话）——先读这张表，再决定打开哪页。 |
 | 2026-09-28 | [reqboard 任务存储：按需求分片的队列文件（queue.json）](architecture/reqboard-queue-storage.md) | 任务卡的唯一存储是 docs/requirements/<REQ>/queue.json（含 DAG 层级与 ready 队列），台账瘦身为 schemaVersion 9；拆分写队列、执行… |
 | 2026-09-28 | [需求流水线「唤醒」通道缺失 —— H4 空转 × Dive 永不介入（根因分析与修复方案）](architecture/reqboard-dive-wake-defect.md) | 人点头推进阶段后无人唤醒 agent 的根因与证据：闸门链 H4 无条件 skip（把唤醒委托给 Dive），而 Dive 起轮门槛 armed+active 全仓 0 命中（83/83 需… |
@@ -233,7 +234,6 @@ tags: [wiki, index, home, agent-dh]
 | 2026-09-25 | [需求看板实操（从立项到归档）](guides/reqboard-workflow.md) | 一个需求从冒出来到归档，具体敲哪些工具、卡在哪、错了怎么办。 |
 | 2026-09-25 | [agent-dh Wiki（归档文档首页 / 大纲）](README.md) | agent-dh 的 wiki 首页：10 卷大纲 + 从哪开始读 + 待写页——每个新会话先看这页。 |
 | 2026-09-23 | [节点详情面板（锚定式 node-panel）](architecture/reqboard-node-panel.md) | 会话流程条节点点开后的就地面板：锚定在流程条下方右侧、无遮罩无底栏；「基础信息」按节点给该看的，「执行流程」把该阶段提示词的纪律与真实台账做规定 vs 实际对照；实施节点改 DAG·泳道双视… |
-| 2026-09-23 | [六立项类型的流程差异（reqboard）](architecture/reqboard-category-flows.md) | feature/bug/refactor/spike/doc/chore 六类需求各自走什么节点、过哪些门、哪里生效哪里是缺口——以代码为准的实测记录。 |
 
 > 自动生成（`docs_index.py`）：按 front-matter 的 updated 倒序取前 15 页。
 <!-- AUTO:recent END -->

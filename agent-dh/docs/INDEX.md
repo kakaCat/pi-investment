@@ -3,7 +3,7 @@ id: docs-index
 title: 全站页面索引（机器可读入口）
 type: index
 status: living
-updated: 2026-10-04
+updated: 2026-10-05
 owners: [agent-dh]
 tags: [index, wiki]
 ---
@@ -49,7 +49,7 @@ tags: [index, wiki]
 | [agent-dh 术语表](architecture/glossary.md) | manual | living | 这些词分别指什么、去哪看细节。术语按"最容易混"排序。 | 2026-09-13 |
 | [身份系统与 agents.json](architecture/identity-and-agents-json.md) | architecture | living | 我是谁、账户从哪来、多窗口与多实例怎么区分。 | 2026-09-13 |
 | [旧订单体系废弃计划](architecture/legacy-system-deprecation-plan.md) | architecture | living | 旧 orders/holdings 体系的安全废弃计划与已删端点清单（2026-08-25）。 | 2026-09-14 |
-| [记忆与召回](architecture/memory-and-recall.md) | architecture | living | 结论写进哪、下次怎么被想起来、怎么知道检索有没有在工作。 | 2026-09-13 |
+| [记忆与召回](architecture/memory-and-recall.md) | architecture | living | 结论写进哪、下次怎么被想起来、怎么知道检索有没有在工作。 | 2026-10-04 |
 | [页面插件契约](architecture/page-plugin-contract.md) | architecture | living | 做一个 DSH 页面插件（GUI）要满足哪些契约；改动怎么生效。 | 2026-09-28 |
 | [插件模型与装载](architecture/plugin-model.md) | architecture | living | agent-dh 的插件是什么、怎么被加载、改完怎么才能生效、常见坑在哪。 | 2026-09-14 |
 | [pmboard-card-layer-contract.md](architecture/pmboard-card-layer-contract.md) | — | — | 根因一句话：「卡片层」与「子卡链层」两个抽象层在台账与观测面没有统一口径——判定靠结果（有没有子卡）而不是意图（该不该有），于是"不需子卡"和"需要但未生成"长得一模一样。 | — |
