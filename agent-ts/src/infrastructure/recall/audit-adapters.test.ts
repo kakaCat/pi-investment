@@ -1,222 +1,85 @@
-import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
-import { createRecallAuditPort } from './audit-v2-client.js';
-import { mkdir, rm, readFile } from 'node:fs/promises';
-import { join } from 'node:path';
-import { tmpdir } from 'node:os';
+/**
+ * 召回审计端口测试（2026-10-05 重写 · REQ-261004202231-bb99）
+ *
+ * 主题变化：原实现先 POST quantsys-v2、失败落 JSONL；v2 记忆子系统下线后改为先写 agent-os、
+ * 失败落 JSONL。这里**不依赖模块 mock**（本仓 ESM mock 不可靠），改用**假 CLI 脚本**驱动：
+ *   - AGENT_OS_CLI_PATH 指向临时脚本 → 由它决定成功/失败，并把收到的参数落盘供断言
+ *   - PI_INVEST_DIR 指向临时目录 → JSONL 回退的落点
+ * 三条路径：① 成功写 agent-os ② agent-os 失败 → JSONL ③ 两条都失败 → 不抛错
+ */
+import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { mkdtempSync, rmSync, existsSync, readFileSync, writeFileSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
+import { createRecallAuditPort } from './audit-agent-os-client.js';
 
-describe('createRecallAuditPort', () => {
-  let tempDir: string;
-  let originalEnv: NodeJS.ProcessEnv;
-  let originalFetch: typeof global.fetch;
+let tempDir: string;
+let fakeCli: string;
+let argsFile: string;
 
-  beforeEach(async () => {
-    // Create temp directory for tests
-    tempDir = join(tmpdir(), `recall-audit-test-${Date.now()}`);
-    await mkdir(tempDir, { recursive: true });
+const decision = {
+  ts: '2026-10-05T09:00:00Z',
+  sessionId: 'sess-1',
+  flow: 'chat',
+  queryText: '查询 600519',
+  strategy: 'bm25',
+  degraded: false,
+  gateResult: 'passed',
+  suppressReason: undefined,
+  hits: [{ memoryId: 7, score: 0.9, source: 'bm25', bm25Score: 0.9, vectorScore: undefined }],
+} as any;
 
-    // Save and override environment
-    originalEnv = { ...process.env };
-    process.env.PI_INVEST_DIR = tempDir;
-    process.env.QUANTSYS_V2_API_URL = 'http://test-v2-api:5001';
+beforeEach(() => {
+  tempDir = mkdtempSync(join(tmpdir(), 'recall-audit-test-'));
+  fakeCli = join(tempDir, 'fake-agent-os');
+  argsFile = join(tempDir, 'cli-args.txt');
+  process.env.PI_INVEST_DIR = tempDir;
+});
 
-    // Save original fetch
-    originalFetch = global.fetch;
+afterEach(() => {
+  delete process.env.AGENT_OS_CLI_PATH;
+  delete process.env.PI_INVEST_DIR;
+  if (tempDir) rmSync(tempDir, { recursive: true, force: true });
+});
+
+/** 造一个假 CLI：把收到的参数写入 argsFile，并按 exitCode/输出 模拟成功或失败 */
+function makeFakeCli(script: string) {
+  writeFileSync(fakeCli, script, { mode: 0o755 });
+  process.env.AGENT_OS_CLI_PATH = fakeCli;
+}
+
+describe('createRecallAuditPort（agent-os 版）', () => {
+  it('正常路径：把决策作为一条 recall-audit 记忆写进 agent-os，且不再落 JSONL', async () => {
+    makeFakeCli(`#!/bin/bash
+printf "%s " "$@" > "${argsFile}"
+echo '{"id":"mem-1"}'
+exit 0
+`);
+
+    await createRecallAuditPort().record(decision);
+
+    const args = readFileSync(argsFile, 'utf-8');
+    expect(args).toContain('memory write');
+    expect(args).toContain('recall-audit');
+    expect(args).toContain('sess-1');
+    expect(existsSync(join(tempDir, 'recall-audit.jsonl'))).toBe(false);
   });
 
-  afterEach(async () => {
-    // Restore environment
-    process.env = originalEnv;
+  it('agent-os 失败：回退 JSONL（文件被创建且含该条决策）', async () => {
+    makeFakeCli('#!/bin/bash\necho "boom" >&2\nexit 1\n');
 
-    // Restore fetch
-    global.fetch = originalFetch;
+    await createRecallAuditPort().record(decision);
 
-    // Clean up temp directory
-    try {
-      await rm(tempDir, { recursive: true, force: true });
-    } catch (err) {
-      // Ignore cleanup errors
-    }
-  });
-
-  it('should write to V2 API on success', async () => {
-    const mockFetch = jest.fn<typeof fetch>().mockResolvedValue({
-      ok: true,
-      status: 201,
-    } as Response);
-    global.fetch = mockFetch as any;
-
-    const port = createRecallAuditPort();
-    await port.record({
-      ts: '2026-08-13T10:00:00Z',
-      sessionId: 'sess-123',
-      flow: 'interactive-chat',
-      queryText: 'test query',
-      strategy: 'hybrid',
-      degraded: false,
-      gateResult: 'passed',
-      hits: [
-        { memoryId: 1, score: 0.85, source: 'vector', vectorScore: 0.85 },
-        { memoryId: 2, score: 0.75, source: 'both', bm25Score: 12.3, vectorScore: 0.75 },
-      ],
-    });
-
-    expect(mockFetch).toHaveBeenCalledTimes(1);
-    expect(mockFetch).toHaveBeenCalledWith(
-      'http://test-v2-api:5001/api/memory/recall-audit',
-      expect.objectContaining({
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: expect.any(String),
-      })
-    );
-
-    const callArgs = mockFetch.mock.calls[0] as any[];
-    const body = JSON.parse(callArgs[1].body);
-    expect(body).toEqual({
-      ts: '2026-08-13T10:00:00Z',
-      session_id: 'sess-123',
-      flow: 'interactive-chat',
-      query_text: 'test query',
-      strategy: 'hybrid',
-      degraded: false,
-      gate_result: 'passed',
-      suppress_reason: undefined,
-      hits: [
-        { memory_id: 1, score: 0.85, source: 'vector', vector_score: 0.85, bm25_score: undefined },
-        { memory_id: 2, score: 0.75, source: 'both', bm25_score: 12.3, vector_score: 0.75 },
-      ],
-    });
-
-    // JSONL file should not exist
     const jsonlPath = join(tempDir, 'recall-audit.jsonl');
-    await expect(readFile(jsonlPath, 'utf-8')).rejects.toThrow();
+    expect(existsSync(jsonlPath)).toBe(true);
+    expect(readFileSync(jsonlPath, 'utf-8')).toContain('sess-1');
   });
 
-  it('should fall back to JSONL when fetch rejects', async () => {
-    const mockFetch = jest.fn<typeof fetch>().mockRejectedValue(new Error('Network error'));
-    global.fetch = mockFetch as any;
+  it('两条路都失败：不抛错（fire-and-forget 契约）', async () => {
+    makeFakeCli('#!/bin/bash\nexit 1\n');
+    // JSONL 也写不进去：父目录不存在 → appendFile 报错
+    process.env.PI_INVEST_DIR = join(tempDir, 'nope', 'deeper');
 
-    const port = createRecallAuditPort();
-    await port.record({
-      ts: '2026-08-13T10:00:00Z',
-      sessionId: 'sess-456',
-      flow: 'skill-invocation',
-      queryText: 'fallback test',
-      strategy: 'vector',
-      degraded: true,
-      gateResult: 'suppressed',
-      suppressReason: 'empty-result',
-      hits: [],
-    });
-
-    expect(mockFetch).toHaveBeenCalledTimes(1);
-
-    // JSONL file should have the record
-    const jsonlPath = join(tempDir, 'recall-audit.jsonl');
-    const content = await readFile(jsonlPath, 'utf-8');
-    const lines = content.trim().split('\n');
-    expect(lines).toHaveLength(1);
-
-    const record = JSON.parse(lines[0]);
-    expect(record).toEqual({
-      ts: '2026-08-13T10:00:00Z',
-      sessionId: 'sess-456',
-      flow: 'skill-invocation',
-      queryText: 'fallback test',
-      strategy: 'vector',
-      degraded: true,
-      gateResult: 'suppressed',
-      suppressReason: 'empty-result',
-      hits: [],
-    });
-  });
-
-  it('should not throw when both V2 and JSONL fail', async () => {
-    const mockFetch = jest.fn<typeof fetch>().mockRejectedValue(new Error('Network error'));
-    global.fetch = mockFetch as any;
-
-    // Make JSONL fail by setting PI_INVEST_DIR to an invalid path
-    process.env.PI_INVEST_DIR = '/nonexistent/invalid/path/that/cannot/be/created';
-
-    const port = createRecallAuditPort();
-
-    // Should not throw — fire-and-forget contract
-    await expect(port.record({
-      ts: '2026-08-13T10:00:00Z',
-      flow: 'scheduled-task',
-      queryText: 'double failure',
-      strategy: 'bm25',
-      degraded: false,
-      gateResult: 'passed',
-      hits: [{ memoryId: 99, score: 0.5, source: 'bm25' }],
-    })).resolves.toBeUndefined();
-
-    expect(mockFetch).toHaveBeenCalledTimes(1);
-  });
-
-  it('should handle V2 API non-ok response and fall back', async () => {
-    const mockFetch = jest.fn<typeof fetch>().mockResolvedValue({
-      ok: false,
-      status: 500,
-    } as Response);
-    global.fetch = mockFetch as any;
-
-    const port = createRecallAuditPort();
-    await port.record({
-      ts: '2026-08-13T10:00:00Z',
-      flow: 'wake-event',
-      queryText: 'server error test',
-      strategy: 'hybrid',
-      degraded: false,
-      gateResult: 'passed',
-      hits: [{ memoryId: 10, score: 0.6, source: 'vector', vectorScore: 0.6 }],
-    });
-
-    expect(mockFetch).toHaveBeenCalledTimes(1);
-
-    // Should have fallen back to JSONL
-    const jsonlPath = join(tempDir, 'recall-audit.jsonl');
-    const content = await readFile(jsonlPath, 'utf-8');
-    expect(content.trim()).not.toBe('');
-  });
-
-  it('should respect 3s timeout', async () => {
-    let aborted = false;
-    const mockFetch = jest.fn<typeof fetch>().mockImplementation((url, init) => {
-      return new Promise((resolve, reject) => {
-        const signal = init?.signal as AbortSignal;
-        if (signal) {
-          signal.addEventListener('abort', () => {
-            aborted = true;
-            reject(new Error('aborted'));
-          });
-        }
-        // Never resolve to simulate hanging request
-      });
-    });
-    global.fetch = mockFetch as any;
-
-    const port = createRecallAuditPort();
-
-    const startTime = Date.now();
-    await port.record({
-      ts: '2026-08-13T10:00:00Z',
-      flow: 'interactive-chat',
-      queryText: 'timeout test',
-      strategy: 'hybrid',
-      degraded: false,
-      gateResult: 'passed',
-      hits: [],
-    });
-    const elapsed = Date.now() - startTime;
-
-    // Should abort around 3000ms and fall back to JSONL quickly
-    expect(elapsed).toBeLessThan(3500);
-    expect(aborted).toBe(true);
-
-    // JSONL should have the record
-    const jsonlPath = join(tempDir, 'recall-audit.jsonl');
-    const content = await readFile(jsonlPath, 'utf-8');
-    expect(content.trim()).not.toBe('');
+    await expect(createRecallAuditPort().record(decision)).resolves.toBeUndefined();
   });
 });

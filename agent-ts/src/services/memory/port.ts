@@ -9,7 +9,7 @@
  * - system_prompt_block: 返回静态提示词块（provider 状态说明）
  *
  * W1.4 实现两个 adapter：
- * - v2-client: 通过 quantsys-v2 的 /api/memory/* 接口
+ * - agent-os-provider: 通过 agent 侧 agent-os 记忆通道（2026-10-05 起唯一远端实现）
  * - file-fallback: 包装现有 memory-store.ts（降级）
  */
 

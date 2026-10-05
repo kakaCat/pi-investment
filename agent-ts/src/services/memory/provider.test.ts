@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
-import { V2MemoryProvider } from './v2-client.js';
+import { AgentOSMemoryProvider } from './agent-os-provider.js';
 import { FileFallbackProvider } from './file-fallback.js';
 import { initMemoryProvider, getMemoryProvider, resetMemoryProvider } from './provider-manager.js';
 import { mkdtempSync, rmSync } from 'fs';
@@ -25,37 +25,16 @@ describe('MemoryProvider', () => {
     resetMemoryProvider();
   });
 
-  describe('V2MemoryProvider', () => {
+  describe('AgentOSMemoryProvider', () => {
     it('should initialize with session context', async () => {
-      const provider = new V2MemoryProvider('http://127.0.0.1:5001');
+      const provider = new AgentOSMemoryProvider();
       await provider.initialize('test-session', {
         sessionKind: 'user',
         channel: 'terminal',
       });
 
-      expect(provider.name).toBe('v2-memory');
+      expect(provider.name).toBe('agent-os');
       expect(provider.isAvailable()).toBe(true);
-    });
-
-    it('should format recalled memory within budget', async () => {
-      const provider = new V2MemoryProvider('http://127.0.0.1:5001');
-      await provider.initialize('test-session', { sessionKind: 'user' });
-
-      // Mock search response
-      const mockSearch = jest.spyOn(provider as any, '_search');
-      mockSearch.mockResolvedValue({
-        items: [
-          { id: 1, title: 'Test Memory', content: 'This is a test memory', score: 0.9 },
-          { id: 2, title: 'Another Memory', content: 'Another test memory', score: 0.8 },
-        ],
-        total: 2,
-      });
-
-      const recalled = await provider.prefetch('test query', 'test-session', 3, 200);
-
-      expect(recalled).toBeTruthy();
-      expect(recalled.length).toBeLessThan(200);
-      mockSearch.mockRestore();
     });
   });
 
@@ -90,19 +69,19 @@ describe('MemoryProvider', () => {
       });
 
       expect(provider).toBeTruthy();
-      expect(provider.name).toMatch(/v2-memory|file-fallback/);
+      expect(provider.name).toMatch(/agent-os|file-fallback/);
 
       const retrieved = getMemoryProvider();
       expect(retrieved).toBe(provider);
     });
 
-    it('should fallback to file provider when v2 unavailable', async () => {
+    it('should fallback to file provider when agent-os unavailable', async () => {
       const provider = await initMemoryProvider({
         sessionId: 'test-session',
         sessionKind: 'user',
         channel: 'terminal',
         piDir: tempDir,
-        v2BaseUrl: 'http://localhost:9999', // 不存在的端口
+        forceFallback: true,
       });
 
       expect(provider.name).toBe('file-fallback');
@@ -157,38 +136,7 @@ describe('MemoryProvider', () => {
     });
   });
 
-  describe('Provenance', () => {
-    it('should include session metadata in writes', async () => {
-      const provider = new V2MemoryProvider('http://127.0.0.1:5001');
-      await provider.initialize('cron-session-123', {
-        sessionKind: 'cron',
-        channel: 'scheduler',
-      });
-
-      const mockWrite = jest.spyOn(provider as any, '_write');
-      mockWrite.mockResolvedValue({ id: 1 });
-
-      await provider.writeExperience({
-        scenario: 'Test',
-        conditions: [],
-        action: 'buy',
-        total_cases: 1,
-        win_rate: 1.0,
-        avg_return: 1.0,
-        recommendation: 'moderate',
-        reason: 'test',
-        confidence: 0.5,
-      });
-
-      expect(mockWrite).toHaveBeenCalled();
-      const call = mockWrite.mock.calls[0][0] as any;
-      expect(call.provenance).toEqual({
-        session_kind: 'cron',
-        channel: 'scheduler',
-        session_id: 'cron-session-123',
-      });
-
-      mockWrite.mockRestore();
-    });
-  });
+  // 2026-10-05 · REQ-261004202231-bb99：原 describe('Provenance') 用例对 V2MemoryProvider 的
+  // 私有 _write 打桩，而 v2 客户端已随记忆子系统删除 → 该用例随之移除。
+  // agent-os provider 的 provenance 由 agentOSMemoryWrite 的 metadata 承载（见 agent-os-provider）。
 });

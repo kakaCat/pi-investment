@@ -15,7 +15,7 @@ import type { MemorySearchResult } from "../../services/memory/port.js";
 import { getMemoryProvider } from "../../services/memory/provider-manager.js";
 import { RecallService } from "../../services/recall/recall-service.js";
 import type { RecallSearchPort, RecallAuditPort } from "../../services/recall/ports.js";
-import { createRecallAuditPort } from "../../infrastructure/recall/audit-v2-client.js";
+import { createRecallAuditPort } from "../../infrastructure/recall/audit-agent-os-client.js";
 import type { RecallFlow, RecallHit } from "../../domain/recall/types.js";
 
 /** 与 skill-guard.getExplicitSkillFromPrompt 同源：/skill:name 前缀（name = [a-z0-9-]+） */

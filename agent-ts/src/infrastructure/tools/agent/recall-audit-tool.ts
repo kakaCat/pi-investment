@@ -1,90 +1,77 @@
 /**
  * Recall Audit Tool - 召回审计工具
  *
- * 供记忆 Agent 查询召回日志、统计质量指标、标注反馈。
- * API 契约见 quantsys-v2/tests/domain/memory/test_recall_audit_routes.py
+ * 供记忆 Agent 查看召回日志与质量指标、标注反馈。
+ *
+ * 2026-10-05 · REQ-261004202231-bb99：原实现直连 quantsys-v2 的
+ * v2 的 recall-audit 三个端点（list / stats / feedback）。
+ * v2 记忆子系统下线后改走 agent-os：
+ *   - `list`     → agent-os `memory recall-audit`（namespace + limit）
+ *   - `stats`    → **客户端从 list 结果派生**（总数 / 注入数 / 抑制数 / 注入率）
+ *   - `feedback` → **能力已退役**：agent-os 没有逐条标注端点 → 显式报错，不静默假装成功
  */
 
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
+import { agentOSMemoryRecallAudit } from "../../agent-os/cli.js";
 
-const V2_API_BASE = process.env.QUANTSYS_V2_API_URL || "http://127.0.0.1:5001";
+const DEFAULT_NAMESPACE = "default";
 
 export const recallAuditTool: ToolDefinition = {
   name: "recall_audit",
   label: "召回审计",
   description:
-    "Query recall audit logs, view quality statistics, and provide feedback on recalled memories. " +
-    "Use 'list' to view recent recall events, 'stats' to analyze injection rates and quality metrics, " +
-    "'feedback' to annotate whether a recalled memory was relevant (agent feedback only).",
+    "Query recall audit logs and derive quality statistics from the agent-os memory backend. " +
+    "Use 'list' to view recent recall events, 'stats' to derive injection counts/rate from them. " +
+    "'feedback' is retired (the per-record annotation endpoint went away with quantsys-v2 memory).",
   promptSnippet: "需要查看召回日志或质量统计时",
   promptGuidelines: [
-    "用于审计记忆召回质量",
-    "查看注入率、分流统计、抑制原因",
-    "标注召回内容的相关性（仅限 agent 反馈）",
+    "用于审计记忆召回质量（数据源：agent-os）",
+    "list 支持 namespace 与 limit；stats 由 list 结果派生注入率",
+    "feedback 已随 v2 记忆子系统退役，不要调用",
   ],
   parameters: Type.Object({
     action: Type.Union(
       [Type.Literal("list"), Type.Literal("stats"), Type.Literal("feedback")],
       {
         description:
-          "Action to perform: 'list' (query audit logs), 'stats' (view aggregated metrics), 'feedback' (annotate relevance).",
+          "Action to perform: 'list' (query audit entries), 'stats' (derive metrics from entries), 'feedback' (retired).",
       }
     ),
-    // list action 参数
-    flow: Type.Optional(
+    namespace: Type.Optional(
       Type.String({
-        description: "Filter by flow type (e.g., 'chat', 'watch'). Only for 'list' action.",
+        description: "agent-os memory namespace to read recall audit from (default: 'default').",
       })
     ),
-    gate_result: Type.Optional(
-      Type.String({
-        description:
-          "Filter by gate result ('passed' = 已注入放行, 'suppressed' = 已抑制). Only for 'list' action.",
-      })
-    ),
-    suppressed_only: Type.Optional(
-      Type.Boolean({
-        description: "Show only suppressed recalls. Only for 'list' action.",
-      })
-    ),
-    page: Type.Optional(
+    limit: Type.Optional(
       Type.Integer({
-        description: "Page number for pagination (default: 1). Only for 'list' action.",
-        minimum: 1,
-      })
-    ),
-    page_size: Type.Optional(
-      Type.Integer({
-        description: "Items per page (default: 20, max: 100). Only for 'list' action.",
+        description: "Max entries to fetch (1-100, default 20). Used by 'list' and 'stats'.",
         minimum: 1,
         maximum: 100,
       })
     ),
-    date_from: Type.Optional(
-      Type.String({
-        description: "Start date filter (YYYY-MM-DD format). For 'list' and 'stats' actions.",
-      })
+    // 以下为 v2 时代的过滤参数：agent-os 记录里没有这些维度 → 收到时明确告知不支持，
+    // 而不是静默忽略（静默忽略会让调用方以为筛选生效）。
+    flow: Type.Optional(
+      Type.String({ description: "（已退役）v2 时代的 flow 过滤，agent-os 记录无此维度。" })
     ),
-    date_to: Type.Optional(
-      Type.String({
-        description: "End date filter (YYYY-MM-DD format). For 'list' and 'stats' actions.",
-      })
+    gate_result: Type.Optional(
+      Type.String({ description: "（已退役）v2 时代的门禁结果过滤。" })
     ),
-    // feedback action 参数
-    audit_id: Type.Optional(
-      Type.Integer({
-        description: "Audit record ID to provide feedback on. Required for 'feedback' action.",
-      })
+    suppressed_only: Type.Optional(
+      Type.Boolean({ description: "（已退役）v2 时代的仅看抑制。" })
     ),
-    memory_id: Type.Optional(
-      Type.Integer({
-        description: "Memory ID within the audit record. Required for 'feedback' action.",
-      })
+    page: Type.Optional(Type.Integer({ description: "（已退役）v2 时代的分页参数。" })),
+    page_size: Type.Optional(
+      Type.Integer({ description: "（已退役）v2 时代的分页参数；请改用 limit。", minimum: 1, maximum: 100 })
     ),
+    date_from: Type.Optional(Type.String({ description: "（已退役）v2 时代的日期过滤。" })),
+    date_to: Type.Optional(Type.String({ description: "（已退役）v2 时代的日期过滤。" })),
+    audit_id: Type.Optional(Type.Integer({ description: "（已退役）feedback 专用。" })),
+    memory_id: Type.Optional(Type.Integer({ description: "（已退役）feedback 专用。" })),
     feedback: Type.Optional(
       Type.Union([Type.Literal("relevant"), Type.Literal("irrelevant")], {
-        description: "Feedback value: 'relevant' or 'irrelevant'. Required for 'feedback' action.",
+        description: "（已退役）feedback 专用。",
       })
     ),
   }),
@@ -100,13 +87,8 @@ export const recallAuditTool: ToolDefinition = {
         return await handleFeedback(params);
       } else {
         return {
-          content: [
-            {
-              type: "text" as const,
-              text: `Unknown action: ${action}`,
-            },
-          ],
-          details: null,
+          content: [{ type: "text" as const, text: `未知 action: ${action}` }],
+          details: { error: `unknown action: ${action}` },
         };
       }
     } catch (error: any) {
@@ -114,7 +96,7 @@ export const recallAuditTool: ToolDefinition = {
         content: [
           {
             type: "text" as const,
-            text: `Error: ${error.message || String(error)}`,
+            text: `召回审计失败: ${error.message}`,
           },
         ],
         details: { error: error.message },
@@ -123,102 +105,73 @@ export const recallAuditTool: ToolDefinition = {
   },
 };
 
+/** 取 agent-os 的召回审计条目（两条 action 共用） */
+async function fetchEntries(params: any) {
+  const namespace = params.namespace || DEFAULT_NAMESPACE;
+  const limit = params.limit || params.page_size || 20;
+
+  const result = await agentOSMemoryRecallAudit(namespace, limit);
+  if (!result.success) {
+    throw new Error(result.error ?? 'agent-os memory recall-audit failed');
+  }
+  return { namespace, entries: result.data ?? [] };
+}
+
+const RETIRED_NOTE =
+  '注意：以下 v2 时代的参数已退役、当前实现不生效 —— flow / gate_result / suppressed_only / page / date_from / date_to' +
+  '（agent-os 的召回审计记录只含 id/namespace/query/resultsCount/timestamp）。';
+
 async function handleList(params: any) {
-  const queryParams = new URLSearchParams();
-  if (params.flow) queryParams.set("flow", params.flow);
-  if (params.gate_result) {
-    // DB 规范值为 passed/suppressed；'injected' 作为别名防御性映射到 passed
-    const gate = params.gate_result === "injected" ? "passed" : params.gate_result;
-    queryParams.set("gate_result", gate);
-  }
-  if (params.suppressed_only) queryParams.set("suppressed_only", "true");
-  if (params.page) queryParams.set("page", String(params.page));
-  if (params.page_size) queryParams.set("page_size", String(params.page_size));
-  if (params.date_from) queryParams.set("date_from", params.date_from);
-  if (params.date_to) queryParams.set("date_to", params.date_to);
-
-  const url = `${V2_API_BASE}/api/memory/recall-audit?${queryParams.toString()}`;
-  const response = await fetch(url);
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`HTTP ${response.status}: ${text}`);
-  }
-
-  const result = await response.json();
-  return {
-    content: [
-      {
-        type: "text" as const,
-        text: JSON.stringify(result, null, 2),
-      },
-    ],
-    details: result,
+  const { namespace, entries } = await fetchEntries(params);
+  const payload = {
+    namespace,
+    entries,
+    total: entries.length,
+    note: RETIRED_NOTE,
   };
+  return {
+    content: [{ type: "text" as const, text: JSON.stringify(payload, null, 2) }],
+    details: payload,
+  };
+}
+
+/**
+ * 纯函数：从 agent-os 的召回审计条目派生统计量（导出以便单测，无需后端）。
+ * 口径与 v2 保持同一意图（注入率），但维度更少（无 suppression 原因 / 分数直方图 / 分流策略）。
+ */
+export function deriveRecallStats(entries: Array<{ resultsCount?: number }>) {
+  const total = entries.length;
+  const injected = entries.filter((e) => (e?.resultsCount ?? 0) > 0).length;
+  const suppressed = total - injected;
+  const injectionRate = total > 0 ? injected / total : 0;
+  return { total, injected, suppressed, injection_rate: Number(injectionRate.toFixed(4)) };
 }
 
 async function handleStats(params: any) {
-  const queryParams = new URLSearchParams();
-  if (params.date_from) queryParams.set("date_from", params.date_from);
-  if (params.date_to) queryParams.set("date_to", params.date_to);
+  const { namespace, entries } = await fetchEntries(params);
 
-  const url = `${V2_API_BASE}/api/memory/recall-audit/stats?${queryParams.toString()}`;
-  const response = await fetch(url);
+  const { total, injected, suppressed, injection_rate } = deriveRecallStats(entries);
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`HTTP ${response.status}: ${text}`);
-  }
-
-  const result = await response.json();
+  const payload = {
+    namespace,
+    total,
+    injected,
+    suppressed,
+    injection_rate,
+    interpretation:
+      'injection_rate 低且 suppressed 占多数时，先确认记忆库里到底有没有内容（agent-os：memory search），再怀疑检索。',
+    note: '客户端派生（agent-os 无 stats 端点）；v2 时代的 suppression 原因 / 分数直方图等维度已随下线消失。',
+  };
   return {
-    content: [
-      {
-        type: "text" as const,
-        text: JSON.stringify(result, null, 2),
-      },
-    ],
-    details: result,
+    content: [{ type: "text" as const, text: JSON.stringify(payload, null, 2) }],
+    details: payload,
   };
 }
 
-async function handleFeedback(params: any) {
-  if (!params.audit_id) {
-    throw new Error("audit_id is required for feedback action");
-  }
-  if (!params.memory_id) {
-    throw new Error("memory_id is required for feedback action");
-  }
-  if (!params.feedback) {
-    throw new Error("feedback is required for feedback action");
-  }
-
-  const url = `${V2_API_BASE}/api/memory/recall-audit/${params.audit_id}/feedback`;
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      memory_id: params.memory_id,
-      feedback: params.feedback,
-      feedback_by: "agent", // 硬编码 agent 标注
-    }),
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`HTTP ${response.status}: ${text}`);
-  }
-
-  const result = await response.json();
-  return {
-    content: [
-      {
-        type: "text" as const,
-        text: `Feedback recorded: ${params.feedback} for memory ${params.memory_id}`,
-      },
-    ],
-    details: result,
-  };
+async function handleFeedback(_params: any): Promise<never> {
+  // 不静默成功：能力真的没了就响亮报错。
+  throw new Error(
+    'feedback 能力已随 quantsys-v2 记忆子系统下线（REQ-261004202231-bb99）：' +
+    'agent-os 不提供逐条召回标注端点。若确需该能力，请先在 agent-os 侧补端点再接线。'
+  );
 }

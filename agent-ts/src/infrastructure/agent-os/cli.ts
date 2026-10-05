@@ -7,13 +7,9 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import { existsSync } from 'fs';
 
 const execAsync = promisify(exec);
-
-// ES module __dirname equivalent
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 interface CLIResult<T = any> {
   success: boolean;
@@ -25,8 +21,20 @@ interface CLIResult<T = any> {
  * 获取 Agent OS CLI 路径（延迟计算，确保环境变量已加载）
  */
 function getAgentOSCLIPath(): string {
-  return process.env.AGENT_OS_CLI_PATH ||
-    path.join(__dirname, '../../../agent-os/agent-os');
+  if (process.env.AGENT_OS_CLI_PATH) {
+    return process.env.AGENT_OS_CLI_PATH;
+  }
+
+  // 2026-10-05 · REQ-261004202231-bb99：
+  // ① 原实现用 import.meta.url 推 __dirname —— jest（CJS/ts-jest）下编译不过，
+  //    而本模块现在会被记忆 provider 链在测试里加载；改为从 process.cwd() 推导。
+  // ② 默认路径原为 ../../../agent-os/agent-os（该文件从来不存在）；本机重建 agent-os 后
+  //    真实产物在 agent-os/bin/agent-os。
+  const candidates = [
+    path.resolve(process.cwd(), 'agent-os', 'bin', 'agent-os'),       // 从仓库根运行
+    path.resolve(process.cwd(), '..', 'agent-os', 'bin', 'agent-os'), // 从 agent-ts/ 运行
+  ];
+  return candidates.find(p => existsSync(p)) ?? candidates[0];
 }
 
 /**

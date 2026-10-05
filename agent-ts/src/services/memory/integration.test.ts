@@ -35,7 +35,7 @@ describe('Memory Integration - W1.4 验收', () => {
         sessionKind: 'user',
         channel: 'terminal',
         piDir: tempDir,
-        v2BaseUrl: 'http://localhost:9999', // 强制降级
+        forceFallback: true, // 强制降级
       });
 
       expect(provider.name).toBe('file-fallback');
@@ -71,7 +71,7 @@ describe('Memory Integration - W1.4 验收', () => {
         sessionKind: 'user',
         channel: 'terminal',
         piDir: tempDir,
-        v2BaseUrl: 'http://localhost:9999',
+        forceFallback: true,
       });
 
       // 应该降级到 file-fallback
@@ -87,7 +87,7 @@ describe('Memory Integration - W1.4 验收', () => {
         sessionKind: 'user',
         channel: 'terminal',
         piDir: tempDir,
-        v2BaseUrl: 'http://localhost:9999',
+        forceFallback: true,
       });
 
       // 准备测试数据：写入多条记忆
@@ -119,7 +119,7 @@ describe('Memory Integration - W1.4 验收', () => {
         sessionKind: 'user',
         channel: 'terminal',
         piDir: tempDir,
-        v2BaseUrl: 'http://localhost:9999',
+        forceFallback: true,
       });
 
       // 准备测试数据
@@ -153,7 +153,7 @@ describe('Memory Integration - W1.4 验收', () => {
         sessionKind: 'user',
         channel: 'terminal',
         piDir: tempDir,
-        v2BaseUrl: 'http://localhost:9999',
+        forceFallback: true,
       });
 
       // FileFallbackProvider 不会在文件中存储 provenance
@@ -179,7 +179,7 @@ describe('Memory Integration - W1.4 验收', () => {
         sessionKind: 'cron',
         channel: 'scheduler',
         piDir: tempDir,
-        v2BaseUrl: 'http://localhost:9999',
+        forceFallback: true,
       });
 
       const result = await provider.writeExperience({
@@ -203,7 +203,7 @@ describe('Memory Integration - W1.4 验收', () => {
         sessionKind: 'wake',
         channel: 'watch_engine',
         piDir: tempDir,
-        v2BaseUrl: 'http://localhost:9999',
+        forceFallback: true,
       });
 
       const result = await provider.writeExperience({
@@ -229,7 +229,7 @@ describe('Memory Integration - W1.4 验收', () => {
         sessionKind: 'user',
         channel: 'terminal',
         piDir: tempDir,
-        v2BaseUrl: 'http://localhost:9999',
+        forceFallback: true,
       });
 
       // 空内容不应触发写入（静默成功）

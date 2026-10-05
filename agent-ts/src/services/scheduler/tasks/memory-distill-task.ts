@@ -16,13 +16,10 @@ export const WEEKLY_MEMORY_DISTILL_PROMPT = `
 第一步：获取蒸馏输入
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-使用 runQuantV2 工具调用：
-- command: 'memory_distill_inputs'
-- params: { days: 7 }
-
-这会返回过去 7 天的：
-- episodes: 记忆条目（已有的经验记录）
-- decisions: 决策记录（交易、分析等决策）
+**2026-10-05 起输入来源已换**（REQ-261004202231-bb99：v2 的蒸馏输入端点已随记忆子系统下线）：
+请改用 \`memory_search\` 工具从 agent-os 记忆库读取过去 7 天的经验与决策：
+- \`memory_search\`（namespace=experience，按时间倒序取最近若干条）
+- \`recall_audit\`（action=list）看同期召回质量，辅助判断哪些经验真的被用上过
 
 检查返回的数据：
 - 有多少条 episodes？
@@ -65,9 +62,9 @@ export const WEEKLY_MEMORY_DISTILL_PROMPT = `
 第三步：提交候选
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-使用 runQuantV2 工具调用：
-- command: 'memory_distill_candidates'
-- params: { candidates: [ ...你蒸馏出的候选数组... ] }
+**2026-10-05 起提交方式已换**（v2 的蒸馏候选提交端点已随记忆子系统下线）：
+请改用 \`memory_write\` 工具把每条候选写进 agent-os 记忆库（namespace=experience），
+entry 里带上触发条件、行动建议与证据 id，便于日后按关键词检索。
 
 **注意**：
 - 如果没有蒸馏出任何高质量候选，传空数组 []

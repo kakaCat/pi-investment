@@ -484,9 +484,8 @@ const V2_ROUTES: Record<
   "agent.risk_update":        { path: "/api/agent/risk/update",        method: "POST" },
   "agent.strategy_weight":    { path: "/api/agent/strategy/weight",    method: "POST" },
 
-  // ── memory distillation (W1.5 - 记忆蒸馏) ──
-  "memory_distill_inputs":     { path: "/api/memory/distill/inputs",     method: "GET" },
-  "memory_distill_candidates": { path: "/api/memory/distill/candidates", method: "POST" },
+  // 2026-10-05 · REQ-261004202231-bb99：memory_distill_inputs / memory_distill_candidates
+  // 两条映射随 v2 记忆子系统下线删除（蒸馏链路改走 agent-os，见 scheduler/tasks/memory-distill-task.ts）。
 };
 
 /** v2 不支持但可用的命令名列表（用于调试） */
