@@ -2,9 +2,9 @@ metadata:
   stage: design
   requirement_id: REQ-261004202231-bb99
   generated_at: 2026-10-04T12:23:25.714Z
-  version: 3
+  version: 4
   generated_by: dsh-pmboard
-  last_updated: 2026-10-04T12:25:16.882Z
+  last_updated: 2026-10-05T02:09:37.179Z
 inputs:
   requirements: []
 outputs:
@@ -56,6 +56,55 @@ outputs:
         - FR-3
       file: design/architecture.md
       section: 风险与回滚
+    - ref: design/architecture.md#范围变更设计消费方迁移到-agent-os
+      title: 范围变更设计：消费方迁移到 agent-os（
+      serves:
+        - FR-5
+        - FR-6
+      file: design/architecture.md
+      section: 范围变更设计消费方迁移到-agent-os
+    - ref: design/architecture.md#FR-5-看板-M6-探针agent-dh
+      title: FR-5 · 看板 M6 探针（agent-dh）（
+      serves:
+        - FR-5
+      file: design/architecture.md
+      section: FR-5-看板-M6-探针agent-dh
+    - ref: design/architecture.md#FR-6-agent-ts-记忆链路4-处
+      title: FR-6 · agent-ts 记忆链路（4 处）（
+      serves:
+        - FR-6
+      file: design/architecture.md
+      section: FR-6-agent-ts-记忆链路4-处
+    - ref: design/data-model.md#处置前实测
+      title: 处置前（实测）
+      serves: []
+      file: design/data-model.md
+      section: 处置前实测
+    - ref: design/data-model.md#处置已执行
+      title: 处置（已执行）
+      serves: []
+      file: design/data-model.md
+      section: 处置已执行
+    - ref: design/data-model.md#不变式
+      title: 不变式
+      serves: []
+      file: design/data-model.md
+      section: 不变式
+    - ref: design/interfaces.md#删除的端点15-个删后全量-curl-全-404
+      title: 删除的端点（15 个，删后全量 curl 全 404）
+      serves: []
+      file: design/interfaces.md
+      section: 删除的端点15-个删后全量-curl-全-404
+    - ref: design/interfaces.md#删掉的消费方接口
+      title: 删掉的消费方接口
+      serves: []
+      file: design/interfaces.md
+      section: 删掉的消费方接口
+    - ref: design/interfaces.md#新的接口面agent-侧不属本仓
+      title: 新的接口面（agent 侧，不属本仓）
+      serves: []
+      file: design/interfaces.md
+      section: 新的接口面agent-侧不属本仓
     - ref: design/migration.md#现状
       title: 现状（
       serves:
@@ -107,6 +156,12 @@ traceability:
       - design/architecture.md#目标与判定
       - design/architecture.md#分批设计一类改动一批
       - design/architecture.md#验收口径
+    FR-5:
+      - design/architecture.md#范围变更设计消费方迁移到-agent-os
+      - design/architecture.md#FR-5-看板-M6-探针agent-dh
+    FR-6:
+      - design/architecture.md#范围变更设计消费方迁移到-agent-os
+      - design/architecture.md#FR-6-agent-ts-记忆链路4-处
 coverage:
   design:
     total: 0

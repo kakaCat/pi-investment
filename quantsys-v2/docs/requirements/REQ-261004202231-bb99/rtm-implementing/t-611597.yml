@@ -1,7 +1,7 @@
 task:
   id: t-611597
   title: "[重做] 删除记忆测试（10 文件）"
-  status: todo
+  status: done
   implements: 删 tests/domain/memory/ 目录（含 __init__.py）；删前记录 pytest --collect-only 的总数作为基线。
   serves:
     - FR-1
@@ -17,16 +17,17 @@ task:
     SIDE: backend
     PHASE: test
   workflow_total: 1
-  workflow_done: 0
+  workflow_done: 1
   workflow:
     - phase: test
-      status: pending
+      status: done
+      completed_at: 2026-10-05T02:01:46.313Z
 metadata:
   stage: implementing
   requirement_id: REQ-261004202231-bb99
   generated_at: 2026-10-04T12:33:29.852Z
-  version: 1
+  version: 6
   generated_by: dsh-pmboard
   detail_dir: rtm-implementing/
   detail_count: 1
-  last_updated: 2026-10-04T12:33:29.852Z
+  last_updated: 2026-10-05T02:06:07.738Z

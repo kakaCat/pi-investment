@@ -1,7 +1,7 @@
 task:
   id: t-8a0060
   title: "[重做] 处置记忆数据与迁移脚本（执行前须人确认）"
-  status: todo
+  status: done
   implements: pg_dump -t quant.memory_entries quant_investment 输出到 /tmp/memory_entries_pre_drop.sql；对 quant_investment 与 quant_test 执行 DROP TABLE IF EXISTS quant.memory_entries；在 scripts/migrations/012_*.sql、013_*.sql、infrastructure/persistence/migrations/create_memory_recall_audit_table.sql 头部加作废标注。
   serves:
     - FR-3
@@ -16,17 +16,21 @@ task:
     TEST_PATTERN: rtm
     SIDE: backend
     PHASE: implement
-  workflow_total: 1
-  workflow_done: 0
+  workflow_total: 2
+  workflow_done: 2
   workflow:
     - phase: implement
-      status: pending
+      status: done
+      started_at: 2026-10-05T02:01:47.780Z
+      completed_at: 2026-10-05T02:08:14.879Z
+    - phase: test
+      status: done
 metadata:
   stage: implementing
   requirement_id: REQ-261004202231-bb99
   generated_at: 2026-10-04T12:33:29.855Z
-  version: 1
+  version: 6
   generated_by: dsh-pmboard
   detail_dir: rtm-implementing/
-  detail_count: 1
-  last_updated: 2026-10-04T12:33:29.855Z
+  detail_count: 2
+  last_updated: 2026-10-05T02:08:14.880Z

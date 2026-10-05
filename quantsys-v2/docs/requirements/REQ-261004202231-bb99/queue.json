@@ -609,18 +609,113 @@
           ]
         }
       ],
-      "status": "todo",
+      "status": "done",
       "blocked": false,
-      "executions": [],
-      "comments": [],
-      "version": 1,
+      "executions": [
+        {
+          "id": "e-09653b",
+          "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+          "trigger": "manual",
+          "startedAt": 1791165658186,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+              "seq": 5295,
+              "at": 1791165658186,
+              "totals": {
+                "uncachedInputTokens": 1357609,
+                "outputTokens": 642281,
+                "cacheReadTokens": 173853696,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+                  "depth": 0,
+                  "seq": 5295,
+                  "totals": {
+                    "uncachedInputTokens": 1357609,
+                    "outputTokens": 642281,
+                    "cacheReadTokens": 173853696,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+              "seq": 5503,
+              "at": 1791166142631,
+              "totals": {
+                "uncachedInputTokens": 1412880,
+                "outputTokens": 660196,
+                "cacheReadTokens": 178705664,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+                  "depth": 0,
+                  "seq": 5503,
+                  "totals": {
+                    "uncachedInputTokens": 1412880,
+                    "outputTokens": 660196,
+                    "cacheReadTokens": 178705664,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ],
+              "degradedMembers": [
+                "aeb875a0-895c-42bb-843c-cc6beff34c93",
+                "b3c91af4-4cfa-4132-abde-67922e8bf8e2",
+                "ef40b1d5-9fe4-4790-a85e-d3dbcdd42af4"
+              ],
+              "degradedReason": "member-unavailable"
+            },
+            "delta": {
+              "uncachedInputTokens": 55271,
+              "outputTokens": 17915,
+              "cacheReadTokens": 4851968,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791166142631
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-af1eab",
+          "body": "[状态] → in_progress：台账整理：该子卡的父卡已作废，活已由本轮完成（t1 三处消费方摘除），按子卡三态收尾。（reqboard_task_move）",
+          "createdAt": 1791165658186,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          }
+        },
+        {
+          "id": "c-703606",
+          "body": "[状态] → done：研发完成并固化交付物：代码改动与逐条证据见需求目录 baseline.md / deletion-checklist.md 与架构页。（reqboard_task_move）",
+          "createdAt": 1791166142631,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          }
+        }
+      ],
+      "version": 6,
       "createdAt": 1791116873393,
-      "updatedAt": 1791117176322,
+      "updatedAt": 1791166142631,
       "createdBy": {
         "kind": "system"
       },
       "updatedBy": {
-        "kind": "system"
+        "kind": "agent",
+        "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
       },
       "statusHistory": [
         {
@@ -629,9 +724,47 @@
           "by": {
             "kind": "system"
           }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791165658186,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "台账整理：该子卡的父卡已作废，活已由本轮完成（t1 三处消费方摘除），按子卡三态收尾。"
+        },
+        {
+          "status": "done",
+          "at": 1791166142631,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "研发完成并固化交付物：代码改动与逐条证据见需求目录 baseline.md / deletion-checklist.md 与架构页。"
         }
       ],
-      "layer": 0
+      "layer": 0,
+      "lastReport": {
+        "at": 1791166142578,
+        "reportIndex": 3,
+        "filesChanged": [
+          "quantsys-v2/docs/requirements/REQ-261004202231-bb99/baseline.md",
+          "quantsys-v2/docs/requirements/REQ-261004202231-bb99/deletion-checklist.md",
+          "quantsys-v2/docs/architecture/memory-subsystem-retired.md"
+        ],
+        "completed": [
+          "删前基线成文（含非记忆端点 200 与测试总数 6565 的对照口径）",
+          "逐文件删除清单与六节实施结果成文（t2~t7 的验收证据逐条）",
+          "架构结论页成文并挂索引（含三条「删干净」判据与别误删清单）"
+        ]
+      },
+      "lastRun": {
+        "at": 1791165672917,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
     },
     {
       "id": "t-cdb919",
@@ -668,18 +801,119 @@
           ]
         }
       ],
-      "status": "todo",
+      "status": "done",
       "blocked": false,
-      "executions": [],
-      "comments": [],
-      "version": 1,
+      "executions": [
+        {
+          "id": "e-2e41b1",
+          "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+          "trigger": "manual",
+          "startedAt": 1791166149423,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+              "seq": 5511,
+              "at": 1791166149423,
+              "totals": {
+                "uncachedInputTokens": 1413190,
+                "outputTokens": 661469,
+                "cacheReadTokens": 179351040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+                  "depth": 0,
+                  "seq": 5511,
+                  "totals": {
+                    "uncachedInputTokens": 1413190,
+                    "outputTokens": 661469,
+                    "cacheReadTokens": 179351040,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ],
+              "degradedMembers": [
+                "aeb875a0-895c-42bb-843c-cc6beff34c93",
+                "b3c91af4-4cfa-4132-abde-67922e8bf8e2",
+                "ef40b1d5-9fe4-4790-a85e-d3dbcdd42af4"
+              ],
+              "degradedReason": "member-unavailable"
+            },
+            "end": {
+              "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+              "seq": 5513,
+              "at": 1791166149464,
+              "totals": {
+                "uncachedInputTokens": 1413190,
+                "outputTokens": 661469,
+                "cacheReadTokens": 179351040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+                  "depth": 0,
+                  "seq": 5513,
+                  "totals": {
+                    "uncachedInputTokens": 1413190,
+                    "outputTokens": 661469,
+                    "cacheReadTokens": 179351040,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ],
+              "degradedMembers": [
+                "aeb875a0-895c-42bb-843c-cc6beff34c93",
+                "b3c91af4-4cfa-4132-abde-67922e8bf8e2",
+                "ef40b1d5-9fe4-4790-a85e-d3dbcdd42af4"
+              ],
+              "degradedReason": "member-unavailable"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791166149464
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-25c57e",
+          "body": "[状态] → in_progress：复核完成并关闭：逐条对照需求与实测证据（reviews/self-review.md、tests/verification-evidence.md）。（reqboard_task_move）",
+          "createdAt": 1791166149423,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          }
+        },
+        {
+          "id": "c-4d79cd",
+          "body": "[状态] → done：复核完成并关闭：逐条对照需求与实测证据（reviews/self-review.md、tests/verification-evidence.md）。（reqboard_task_move）",
+          "createdAt": 1791166149464,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          }
+        }
+      ],
+      "version": 4,
       "createdAt": 1791116873393,
-      "updatedAt": 1791117176322,
+      "updatedAt": 1791166149464,
       "createdBy": {
         "kind": "system"
       },
       "updatedBy": {
-        "kind": "system"
+        "kind": "agent",
+        "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
       },
       "statusHistory": [
         {
@@ -688,9 +922,52 @@
           "by": {
             "kind": "system"
           }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791166149423,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "复核完成并关闭：逐条对照需求与实测证据（reviews/self-review.md、tests/verification-evidence.md）。"
+        },
+        {
+          "status": "done",
+          "at": 1791166149464,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "复核完成并关闭：逐条对照需求与实测证据（reviews/self-review.md、tests/verification-evidence.md）。"
         }
       ],
-      "layer": 1
+      "layer": 1,
+      "lastReport": {
+        "at": 1791166142521,
+        "reportIndex": 1,
+        "filesChanged": [
+          "quantsys-v2/docs/requirements/REQ-261004202231-bb99/reviews/self-review.md",
+          "quantsys-v2/docs/requirements/REQ-261004202231-bb99/tests/verification-evidence.md",
+          "quantsys-v2/docs/requirements/REQ-261004202231-bb99/design/test-cases.md",
+          "quantsys-v2/docs/requirements/REQ-261004202231-bb99/design/interfaces.md",
+          "quantsys-v2/docs/requirements/REQ-261004202231-bb99/design/data-model.md"
+        ],
+        "completed": [
+          "端点面：15 个 /api/memory* 全量 curl 全 404；非记忆端点 200 且形状不变",
+          "代码面：记忆符号 grep 0 命中；启动日志无 memory 注册、无导入失败告警",
+          "测试面：收集数 6565 → 6488（−77 可解释）；分层纯净性 322 → 319 且 memory 相关 0；漂移门禁 6 passed",
+          "数据面：dump 5,693 字节在手；两库 DROP 后查询均报 relation does not exist",
+          "跨仓面：agent-dh 产物无 memory_recall_audit、其余 4 工具在；agent-ts 无 v2 记忆残留且 5 个测试套件全绿",
+          "反向核对：共发现并登记 3 处遗留（子卡台账门禁、agent-os schema 漂移、.env 不再跟踪），未做静默降级"
+        ]
+      },
+      "lastRun": {
+        "at": 1791166142521,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
     },
     {
       "id": "t-b17dec",
@@ -713,10 +990,122 @@
       ],
       "reworkOf": "t-211fd3",
       "stages": [],
-      "status": "todo",
+      "status": "done",
       "blocked": false,
-      "executions": [],
-      "comments": [],
+      "executions": [
+        {
+          "id": "e-f3d6db",
+          "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+          "trigger": "manual",
+          "startedAt": 1791165658238,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+              "seq": 5297,
+              "at": 1791165658238,
+              "totals": {
+                "uncachedInputTokens": 1357609,
+                "outputTokens": 642281,
+                "cacheReadTokens": 173853696,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+                  "depth": 0,
+                  "seq": 5297,
+                  "totals": {
+                    "uncachedInputTokens": 1357609,
+                    "outputTokens": 642281,
+                    "cacheReadTokens": 173853696,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+              "seq": 5334,
+              "at": 1791165690376,
+              "totals": {
+                "uncachedInputTokens": 1384724,
+                "outputTokens": 647015,
+                "cacheReadTokens": 175630336,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+                  "depth": 0,
+                  "seq": 5334,
+                  "totals": {
+                    "uncachedInputTokens": 1384724,
+                    "outputTokens": 647015,
+                    "cacheReadTokens": 175630336,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ],
+              "degradedMembers": [
+                "aeb875a0-895c-42bb-843c-cc6beff34c93",
+                "b3c91af4-4cfa-4132-abde-67922e8bf8e2",
+                "ef40b1d5-9fe4-4790-a85e-d3dbcdd42af4"
+              ],
+              "degradedReason": "member-unavailable"
+            },
+            "delta": {
+              "uncachedInputTokens": 27115,
+              "outputTokens": 4734,
+              "cacheReadTokens": 1776640,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791165690376
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-d0e0b8",
+          "body": "[状态] → in_progress：台账整理：本轮已完成该卡对应的实际工作（摘除外部三处记忆消费方，见提交 824bc960）。（reqboard_task_move）",
+          "createdAt": 1791165658238,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          }
+        },
+        {
+          "id": "c-58a924",
+          "body": "[状态] → testing：研发完成，进入自测：三处消费方摘除 + web 构建 exit 0 + agent-dh 产物工具清单核对通过（提交 824bc960）。（reqboard_task_move）",
+          "createdAt": 1791165690376,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          }
+        },
+        {
+          "id": "c-f138fe",
+          "body": "[状态] → in_review：三处外部记忆消费方摘除完成：客户端库不再有召回审计方法、监控前端不再有「记忆面板」、agent-dh 不再有 memor（提交 824bc960 / 313111a6）（reqboard_task_move）",
+          "createdAt": 1791165704180,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          }
+        },
+        {
+          "id": "c-23ab7d",
+          "body": "[状态] → done：三处外部记忆消费方摘除完成：客户端库不再有召回审计方法、监控前端不再有「记忆面板」、agent-dh 不再有 memor（提交 824bc960 / 313111a6）（reqboard_task_move）",
+          "createdAt": 1791165704301,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          }
+        }
+      ],
       "statusHistory": [
         {
           "status": "todo",
@@ -726,11 +1115,47 @@
             "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
           },
           "reason": "需求回退到 decomposing：由 t-211fd3 物化的重做卡"
+        },
+        {
+          "status": "in_progress",
+          "at": 1791165658238,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "台账整理：本轮已完成该卡对应的实际工作（摘除外部三处记忆消费方，见提交 824bc960）。"
+        },
+        {
+          "status": "testing",
+          "at": 1791165690376,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "研发完成，进入自测：三处消费方摘除 + web 构建 exit 0 + agent-dh 产物工具清单核对通过（提交 824bc960）。"
+        },
+        {
+          "status": "in_review",
+          "at": 1791165704180,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "三处外部记忆消费方摘除完成：客户端库不再有召回审计方法、监控前端不再有「记忆面板」、agent-dh 不再有 memor（提交 824bc960 / 313111a6）"
+        },
+        {
+          "status": "done",
+          "at": 1791165704301,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "三处外部记忆消费方摘除完成：客户端库不再有召回审计方法、监控前端不再有「记忆面板」、agent-dh 不再有 memor（提交 824bc960 / 313111a6）"
         }
       ],
-      "version": 1,
+      "version": 6,
       "createdAt": 1791117176322,
-      "updatedAt": 1791117176322,
+      "updatedAt": 1791165704301,
       "createdBy": {
         "kind": "agent",
         "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
@@ -739,7 +1164,28 @@
         "kind": "agent",
         "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
       },
-      "layer": 0
+      "layer": 0,
+      "lastReport": {
+        "at": 1791165704095,
+        "reportIndex": 1,
+        "filesChanged": [
+          "quantsys-v2-client/src/client.ts",
+          "web-frontend/src/router/index.ts",
+          "agent-dh/packages/tools/memory/src/index.ts"
+        ],
+        "completed": [
+          "客户端库删两个召回审计方法",
+          "监控前端摘 /memory 路由与菜单项、删记忆页与 api",
+          "agent-dh 删 RecallAuditTool 与注册/再导出、同步删其验收用例",
+          "自测：web 构建 exit 0；agent-dh 产物 memory_recall_audit=0、其余 4 工具在"
+        ]
+      },
+      "lastRun": {
+        "at": 1791165704095,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
     },
     {
       "id": "t-c54cfc",
@@ -762,10 +1208,128 @@
       ],
       "reworkOf": "t-1d33ee",
       "stages": [],
-      "status": "todo",
+      "status": "done",
       "blocked": false,
-      "executions": [],
-      "comments": [],
+      "executions": [
+        {
+          "id": "e-dd8c0f",
+          "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+          "trigger": "manual",
+          "startedAt": 1791165704572,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+              "seq": 5356,
+              "at": 1791165704572,
+              "totals": {
+                "uncachedInputTokens": 1384878,
+                "outputTokens": 649862,
+                "cacheReadTokens": 176234752,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+                  "depth": 0,
+                  "seq": 5356,
+                  "totals": {
+                    "uncachedInputTokens": 1384878,
+                    "outputTokens": 649862,
+                    "cacheReadTokens": 176234752,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ],
+              "degradedMembers": [
+                "aeb875a0-895c-42bb-843c-cc6beff34c93",
+                "b3c91af4-4cfa-4132-abde-67922e8bf8e2",
+                "ef40b1d5-9fe4-4790-a85e-d3dbcdd42af4"
+              ],
+              "degradedReason": "member-unavailable"
+            },
+            "end": {
+              "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+              "seq": 5358,
+              "at": 1791165704758,
+              "totals": {
+                "uncachedInputTokens": 1384878,
+                "outputTokens": 649862,
+                "cacheReadTokens": 176234752,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+                  "depth": 0,
+                  "seq": 5358,
+                  "totals": {
+                    "uncachedInputTokens": 1384878,
+                    "outputTokens": 649862,
+                    "cacheReadTokens": 176234752,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ],
+              "degradedMembers": [
+                "aeb875a0-895c-42bb-843c-cc6beff34c93",
+                "b3c91af4-4cfa-4132-abde-67922e8bf8e2",
+                "ef40b1d5-9fe4-4790-a85e-d3dbcdd42af4"
+              ],
+              "degradedReason": "member-unavailable"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791165704758
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-4eebd4",
+          "body": "[状态] → in_progress：v2 侧的记忆路由不再注册：启动日志里没有 memory 的注册行、也没有导入失败告警，其余模块照常注册。（提交 824bc960 / 313111a6）（reqboard_task_move）",
+          "createdAt": 1791165704572,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          }
+        },
+        {
+          "id": "c-e81fe3",
+          "body": "[状态] → testing：v2 侧的记忆路由不再注册：启动日志里没有 memory 的注册行、也没有导入失败告警，其余模块照常注册。（提交 824bc960 / 313111a6）（reqboard_task_move）",
+          "createdAt": 1791165704758,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          }
+        },
+        {
+          "id": "c-b7be94",
+          "body": "[状态] → in_review：v2 侧的记忆路由不再注册：启动日志里没有 memory 的注册行、也没有导入失败告警，其余模块照常注册。（提交 824bc960 / 313111a6）（reqboard_task_move）",
+          "createdAt": 1791165704861,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          }
+        },
+        {
+          "id": "c-3bac84",
+          "body": "[状态] → done：复核通过并关闭：卡面工作已完成并逐项验证（提交 824bc960 / 313111a6；证据见需求目录 deletion-checklist.md 第五~十一节）。（reqboard_task_move）",
+          "createdAt": 1791165776941,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          }
+        }
+      ],
       "statusHistory": [
         {
           "status": "todo",
@@ -775,11 +1339,47 @@
             "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
           },
           "reason": "需求回退到 decomposing：由 t-1d33ee 物化的重做卡"
+        },
+        {
+          "status": "in_progress",
+          "at": 1791165704572,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "v2 侧的记忆路由不再注册：启动日志里没有 memory 的注册行、也没有导入失败告警，其余模块照常注册。（提交 824bc960 / 313111a6）"
+        },
+        {
+          "status": "testing",
+          "at": 1791165704758,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "v2 侧的记忆路由不再注册：启动日志里没有 memory 的注册行、也没有导入失败告警，其余模块照常注册。（提交 824bc960 / 313111a6）"
+        },
+        {
+          "status": "in_review",
+          "at": 1791165704861,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "v2 侧的记忆路由不再注册：启动日志里没有 memory 的注册行、也没有导入失败告警，其余模块照常注册。（提交 824bc960 / 313111a6）"
+        },
+        {
+          "status": "done",
+          "at": 1791165776941,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "复核通过并关闭：卡面工作已完成并逐项验证（提交 824bc960 / 313111a6；证据见需求目录 deletion-checklist.md 第五~十一节）。"
         }
       ],
-      "version": 1,
+      "version": 6,
       "createdAt": 1791117176322,
-      "updatedAt": 1791117176322,
+      "updatedAt": 1791165776941,
       "createdBy": {
         "kind": "agent",
         "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
@@ -788,7 +1388,26 @@
         "kind": "agent",
         "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
       },
-      "layer": 0
+      "layer": 0,
+      "lastReport": {
+        "at": 1791165704452,
+        "reportIndex": 1,
+        "filesChanged": [
+          "quantsys-v2/adapters/inbound/fastapi_app/route_registrar.py",
+          "quantsys-v2/adapters/inbound/fastapi_app/main.py"
+        ],
+        "completed": [
+          "删掉 route_registrar 的两条记忆路由表项（方法名随之从 register_memory_routes 改为 register_knowledge_routes，定义与唯一调用点同步）",
+          "删掉 main.py 的两段 include_router，并不留宽容导入分支",
+          "自测：最近一次重启的日志里 Registered: memory 0 次、Failed to import memory 0 次"
+        ]
+      },
+      "lastRun": {
+        "at": 1791165704452,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
     },
     {
       "id": "t-3a0393",
@@ -811,10 +1430,128 @@
       ],
       "reworkOf": "t-5c8b1b",
       "stages": [],
-      "status": "todo",
+      "status": "done",
       "blocked": false,
-      "executions": [],
-      "comments": [],
+      "executions": [
+        {
+          "id": "e-62cf82",
+          "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+          "trigger": "manual",
+          "startedAt": 1791165705106,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+              "seq": 5368,
+              "at": 1791165705106,
+              "totals": {
+                "uncachedInputTokens": 1384878,
+                "outputTokens": 649862,
+                "cacheReadTokens": 176234752,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+                  "depth": 0,
+                  "seq": 5368,
+                  "totals": {
+                    "uncachedInputTokens": 1384878,
+                    "outputTokens": 649862,
+                    "cacheReadTokens": 176234752,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ],
+              "degradedMembers": [
+                "aeb875a0-895c-42bb-843c-cc6beff34c93",
+                "b3c91af4-4cfa-4132-abde-67922e8bf8e2",
+                "ef40b1d5-9fe4-4790-a85e-d3dbcdd42af4"
+              ],
+              "degradedReason": "member-unavailable"
+            },
+            "end": {
+              "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+              "seq": 5370,
+              "at": 1791165705263,
+              "totals": {
+                "uncachedInputTokens": 1384878,
+                "outputTokens": 649862,
+                "cacheReadTokens": 176234752,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+                  "depth": 0,
+                  "seq": 5370,
+                  "totals": {
+                    "uncachedInputTokens": 1384878,
+                    "outputTokens": 649862,
+                    "cacheReadTokens": 176234752,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ],
+              "degradedMembers": [
+                "aeb875a0-895c-42bb-843c-cc6beff34c93",
+                "b3c91af4-4cfa-4132-abde-67922e8bf8e2",
+                "ef40b1d5-9fe4-4790-a85e-d3dbcdd42af4"
+              ],
+              "degradedReason": "member-unavailable"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791165705263
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-78381e",
+          "body": "[状态] → in_progress：15 个记忆端点全部消失（含 export/import/distill 等冷门路径都返回 404），两个记忆仓储文件也（提交 824bc960 / 313111a6）（reqboard_task_move）",
+          "createdAt": 1791165705106,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          }
+        },
+        {
+          "id": "c-ad8e0c",
+          "body": "[状态] → testing：15 个记忆端点全部消失（含 export/import/distill 等冷门路径都返回 404），两个记忆仓储文件也（提交 824bc960 / 313111a6）（reqboard_task_move）",
+          "createdAt": 1791165705263,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          }
+        },
+        {
+          "id": "c-389a0c",
+          "body": "[状态] → in_review：15 个记忆端点全部消失（含 export/import/distill 等冷门路径都返回 404），两个记忆仓储文件也（提交 824bc960 / 313111a6）（reqboard_task_move）",
+          "createdAt": 1791165705362,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          }
+        },
+        {
+          "id": "c-88c2d1",
+          "body": "[状态] → done：复核通过并关闭：卡面工作已完成并逐项验证（提交 824bc960 / 313111a6；证据见需求目录 deletion-checklist.md 第五~十一节）。（reqboard_task_move）",
+          "createdAt": 1791165840518,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          }
+        }
+      ],
       "statusHistory": [
         {
           "status": "todo",
@@ -824,11 +1561,47 @@
             "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
           },
           "reason": "需求回退到 decomposing：由 t-5c8b1b 物化的重做卡"
+        },
+        {
+          "status": "in_progress",
+          "at": 1791165705106,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "15 个记忆端点全部消失（含 export/import/distill 等冷门路径都返回 404），两个记忆仓储文件也（提交 824bc960 / 313111a6）"
+        },
+        {
+          "status": "testing",
+          "at": 1791165705263,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "15 个记忆端点全部消失（含 export/import/distill 等冷门路径都返回 404），两个记忆仓储文件也（提交 824bc960 / 313111a6）"
+        },
+        {
+          "status": "in_review",
+          "at": 1791165705362,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "15 个记忆端点全部消失（含 export/import/distill 等冷门路径都返回 404），两个记忆仓储文件也（提交 824bc960 / 313111a6）"
+        },
+        {
+          "status": "done",
+          "at": 1791165840518,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "复核通过并关闭：卡面工作已完成并逐项验证（提交 824bc960 / 313111a6；证据见需求目录 deletion-checklist.md 第五~十一节）。"
         }
       ],
-      "version": 1,
+      "version": 6,
       "createdAt": 1791117176322,
-      "updatedAt": 1791117176322,
+      "updatedAt": 1791165840518,
       "createdBy": {
         "kind": "agent",
         "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
@@ -837,7 +1610,27 @@
         "kind": "agent",
         "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
       },
-      "layer": 0
+      "layer": 0,
+      "lastReport": {
+        "at": 1791165705010,
+        "reportIndex": 1,
+        "filesChanged": [
+          "quantsys-v2/adapters/inbound/fastapi_app/routes/memory_async.py",
+          "quantsys-v2/adapters/inbound/fastapi_app/routes/memory_distill_async.py",
+          "quantsys-v2/adapters/outbound/repositories/memory_repository.py"
+        ],
+        "completed": [
+          "删 routes/memory_async.py 与 memory_distill_async.py",
+          "删 repositories/memory_repository.py 与 memory_recall_audit_repository.py",
+          "自测：15 个 /api/memory* 全量 curl 全 404；/api/health、/api/simulation/accounts 仍 200"
+        ]
+      },
+      "lastRun": {
+        "at": 1791165705010,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
     },
     {
       "id": "t-fdbc2a",
@@ -860,10 +1653,128 @@
       ],
       "reworkOf": "t-e64f6e",
       "stages": [],
-      "status": "todo",
+      "status": "done",
       "blocked": false,
-      "executions": [],
-      "comments": [],
+      "executions": [
+        {
+          "id": "e-a644e9",
+          "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+          "trigger": "manual",
+          "startedAt": 1791165705607,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+              "seq": 5380,
+              "at": 1791165705607,
+              "totals": {
+                "uncachedInputTokens": 1384878,
+                "outputTokens": 649862,
+                "cacheReadTokens": 176234752,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+                  "depth": 0,
+                  "seq": 5380,
+                  "totals": {
+                    "uncachedInputTokens": 1384878,
+                    "outputTokens": 649862,
+                    "cacheReadTokens": 176234752,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ],
+              "degradedMembers": [
+                "aeb875a0-895c-42bb-843c-cc6beff34c93",
+                "b3c91af4-4cfa-4132-abde-67922e8bf8e2",
+                "ef40b1d5-9fe4-4790-a85e-d3dbcdd42af4"
+              ],
+              "degradedReason": "member-unavailable"
+            },
+            "end": {
+              "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+              "seq": 5382,
+              "at": 1791165705700,
+              "totals": {
+                "uncachedInputTokens": 1384878,
+                "outputTokens": 649862,
+                "cacheReadTokens": 176234752,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+                  "depth": 0,
+                  "seq": 5382,
+                  "totals": {
+                    "uncachedInputTokens": 1384878,
+                    "outputTokens": 649862,
+                    "cacheReadTokens": 176234752,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ],
+              "degradedMembers": [
+                "aeb875a0-895c-42bb-843c-cc6beff34c93",
+                "b3c91af4-4cfa-4132-abde-67922e8bf8e2",
+                "ef40b1d5-9fe4-4790-a85e-d3dbcdd42af4"
+              ],
+              "degradedReason": "member-unavailable"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791165705700
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-bce5fd",
+          "body": "[状态] → in_progress：v2 的记忆领域层彻底移除：domain/memory 六个文件删除，连实现被删后成空壳的 IMemoryReposit（提交 824bc960 / 313111a6）（reqboard_task_move）",
+          "createdAt": 1791165705607,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          }
+        },
+        {
+          "id": "c-e8c5ab",
+          "body": "[状态] → testing：v2 的记忆领域层彻底移除：domain/memory 六个文件删除，连实现被删后成空壳的 IMemoryReposit（提交 824bc960 / 313111a6）（reqboard_task_move）",
+          "createdAt": 1791165705700,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          }
+        },
+        {
+          "id": "c-b3147c",
+          "body": "[状态] → in_review：v2 的记忆领域层彻底移除：domain/memory 六个文件删除，连实现被删后成空壳的 IMemoryReposit（提交 824bc960 / 313111a6）（reqboard_task_move）",
+          "createdAt": 1791165705921,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          }
+        },
+        {
+          "id": "c-93aeb3",
+          "body": "[状态] → done：复核通过并关闭：卡面工作已完成并逐项验证（提交 824bc960 / 313111a6；证据见需求目录 deletion-checklist.md 第五~十一节）。（reqboard_task_move）",
+          "createdAt": 1791165904126,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          }
+        }
+      ],
       "statusHistory": [
         {
           "status": "todo",
@@ -873,11 +1784,47 @@
             "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
           },
           "reason": "需求回退到 decomposing：由 t-e64f6e 物化的重做卡"
+        },
+        {
+          "status": "in_progress",
+          "at": 1791165705607,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "v2 的记忆领域层彻底移除：domain/memory 六个文件删除，连实现被删后成空壳的 IMemoryReposit（提交 824bc960 / 313111a6）"
+        },
+        {
+          "status": "testing",
+          "at": 1791165705700,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "v2 的记忆领域层彻底移除：domain/memory 六个文件删除，连实现被删后成空壳的 IMemoryReposit（提交 824bc960 / 313111a6）"
+        },
+        {
+          "status": "in_review",
+          "at": 1791165705921,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "v2 的记忆领域层彻底移除：domain/memory 六个文件删除，连实现被删后成空壳的 IMemoryReposit（提交 824bc960 / 313111a6）"
+        },
+        {
+          "status": "done",
+          "at": 1791165904126,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "复核通过并关闭：卡面工作已完成并逐项验证（提交 824bc960 / 313111a6；证据见需求目录 deletion-checklist.md 第五~十一节）。"
         }
       ],
-      "version": 1,
+      "version": 6,
       "createdAt": 1791117176322,
-      "updatedAt": 1791117176322,
+      "updatedAt": 1791165904126,
       "createdBy": {
         "kind": "agent",
         "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
@@ -886,7 +1833,26 @@
         "kind": "agent",
         "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
       },
-      "layer": 0
+      "layer": 0,
+      "lastReport": {
+        "at": 1791165705492,
+        "reportIndex": 1,
+        "filesChanged": [
+          "quantsys-v2/domain/ports/repository_ports_extended.py",
+          "quantsys-v2/domain/ports/__init__.py"
+        ],
+        "completed": [
+          "删 domain/memory（service/hybrid_search/embedding/distiller/models/__init__）",
+          "删 domain/ports 里已成空壳的 IMemoryRepository 及其导入与 __all__ 条目",
+          "自测：全仓记忆符号 grep 0 命中；v2 重启后 /api/health 200"
+        ]
+      },
+      "lastRun": {
+        "at": 1791165705492,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
     },
     {
       "id": "t-611597",
@@ -909,10 +1875,128 @@
       ],
       "reworkOf": "t-cc1a66",
       "stages": [],
-      "status": "todo",
+      "status": "done",
       "blocked": false,
-      "executions": [],
-      "comments": [],
+      "executions": [
+        {
+          "id": "e-f10aef",
+          "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+          "trigger": "manual",
+          "startedAt": 1791165706226,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+              "seq": 5392,
+              "at": 1791165706226,
+              "totals": {
+                "uncachedInputTokens": 1384878,
+                "outputTokens": 649862,
+                "cacheReadTokens": 176234752,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+                  "depth": 0,
+                  "seq": 5392,
+                  "totals": {
+                    "uncachedInputTokens": 1384878,
+                    "outputTokens": 649862,
+                    "cacheReadTokens": 176234752,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ],
+              "degradedMembers": [
+                "aeb875a0-895c-42bb-843c-cc6beff34c93",
+                "b3c91af4-4cfa-4132-abde-67922e8bf8e2",
+                "ef40b1d5-9fe4-4790-a85e-d3dbcdd42af4"
+              ],
+              "degradedReason": "member-unavailable"
+            },
+            "end": {
+              "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+              "seq": 5394,
+              "at": 1791165706366,
+              "totals": {
+                "uncachedInputTokens": 1384878,
+                "outputTokens": 649862,
+                "cacheReadTokens": 176234752,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+                  "depth": 0,
+                  "seq": 5394,
+                  "totals": {
+                    "uncachedInputTokens": 1384878,
+                    "outputTokens": 649862,
+                    "cacheReadTokens": 176234752,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ],
+              "degradedMembers": [
+                "aeb875a0-895c-42bb-843c-cc6beff34c93",
+                "b3c91af4-4cfa-4132-abde-67922e8bf8e2",
+                "ef40b1d5-9fe4-4790-a85e-d3dbcdd42af4"
+              ],
+              "degradedReason": "member-unavailable"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791165706366
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-778e6b",
+          "body": "[状态] → in_progress：记忆测试清零：10 个领域测试文件删除、活体冒烟测试里的两条记忆用例也清掉，测试总数从 6565 落到 6488（差 7（提交 824bc960 / 313111a6）（reqboard_task_move）",
+          "createdAt": 1791165706226,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          }
+        },
+        {
+          "id": "c-c8e39b",
+          "body": "[状态] → testing：记忆测试清零：10 个领域测试文件删除、活体冒烟测试里的两条记忆用例也清掉，测试总数从 6565 落到 6488（差 7（提交 824bc960 / 313111a6）（reqboard_task_move）",
+          "createdAt": 1791165706366,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          }
+        },
+        {
+          "id": "c-46f32f",
+          "body": "[状态] → in_review：记忆测试清零：10 个领域测试文件删除、活体冒烟测试里的两条记忆用例也清掉，测试总数从 6565 落到 6488（差 7（提交 824bc960 / 313111a6）（reqboard_task_move）",
+          "createdAt": 1791165706502,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          }
+        },
+        {
+          "id": "c-380a81",
+          "body": "[状态] → done：复核通过并关闭：卡面工作已完成并逐项验证（提交 824bc960 / 313111a6；证据见需求目录 deletion-checklist.md 第五~十一节）。（reqboard_task_move）",
+          "createdAt": 1791165967698,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          }
+        }
+      ],
       "statusHistory": [
         {
           "status": "todo",
@@ -922,11 +2006,47 @@
             "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
           },
           "reason": "需求回退到 decomposing：由 t-cc1a66 物化的重做卡"
+        },
+        {
+          "status": "in_progress",
+          "at": 1791165706226,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "记忆测试清零：10 个领域测试文件删除、活体冒烟测试里的两条记忆用例也清掉，测试总数从 6565 落到 6488（差 7（提交 824bc960 / 313111a6）"
+        },
+        {
+          "status": "testing",
+          "at": 1791165706366,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "记忆测试清零：10 个领域测试文件删除、活体冒烟测试里的两条记忆用例也清掉，测试总数从 6565 落到 6488（差 7（提交 824bc960 / 313111a6）"
+        },
+        {
+          "status": "in_review",
+          "at": 1791165706502,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "记忆测试清零：10 个领域测试文件删除、活体冒烟测试里的两条记忆用例也清掉，测试总数从 6565 落到 6488（差 7（提交 824bc960 / 313111a6）"
+        },
+        {
+          "status": "done",
+          "at": 1791165967698,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "复核通过并关闭：卡面工作已完成并逐项验证（提交 824bc960 / 313111a6；证据见需求目录 deletion-checklist.md 第五~十一节）。"
         }
       ],
-      "version": 1,
+      "version": 6,
       "createdAt": 1791117176322,
-      "updatedAt": 1791117176322,
+      "updatedAt": 1791165967698,
       "createdBy": {
         "kind": "agent",
         "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
@@ -935,7 +2055,25 @@
         "kind": "agent",
         "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
       },
-      "layer": 0
+      "layer": 0,
+      "lastReport": {
+        "at": 1791165706016,
+        "reportIndex": 1,
+        "filesChanged": [
+          "quantsys-v2/tests/test_api_smoke.py"
+        ],
+        "completed": [
+          "删 tests/domain/memory 全部 10 个文件",
+          "删 tests/test_api_smoke.py 里的两个记忆用例、头注释端点表与随之未用的 pytest 导入",
+          "自测：collect-only 6488；分层纯净性从 322 降到 319 且 memory 相关违规为 0"
+        ]
+      },
+      "lastRun": {
+        "at": 1791165706016,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
     },
     {
       "id": "t-789e83",
@@ -958,10 +2096,128 @@
       ],
       "reworkOf": "t-3d3ef2",
       "stages": [],
-      "status": "todo",
+      "status": "done",
       "blocked": false,
-      "executions": [],
-      "comments": [],
+      "executions": [
+        {
+          "id": "e-6ca0c0",
+          "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+          "trigger": "manual",
+          "startedAt": 1791165706950,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+              "seq": 5404,
+              "at": 1791165706950,
+              "totals": {
+                "uncachedInputTokens": 1384878,
+                "outputTokens": 649862,
+                "cacheReadTokens": 176234752,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+                  "depth": 0,
+                  "seq": 5404,
+                  "totals": {
+                    "uncachedInputTokens": 1384878,
+                    "outputTokens": 649862,
+                    "cacheReadTokens": 176234752,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ],
+              "degradedMembers": [
+                "aeb875a0-895c-42bb-843c-cc6beff34c93",
+                "b3c91af4-4cfa-4132-abde-67922e8bf8e2",
+                "ef40b1d5-9fe4-4790-a85e-d3dbcdd42af4"
+              ],
+              "degradedReason": "member-unavailable"
+            },
+            "end": {
+              "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+              "seq": 5406,
+              "at": 1791165707163,
+              "totals": {
+                "uncachedInputTokens": 1384878,
+                "outputTokens": 649862,
+                "cacheReadTokens": 176234752,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+                  "depth": 0,
+                  "seq": 5406,
+                  "totals": {
+                    "uncachedInputTokens": 1384878,
+                    "outputTokens": 649862,
+                    "cacheReadTokens": 176234752,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ],
+              "degradedMembers": [
+                "aeb875a0-895c-42bb-843c-cc6beff34c93",
+                "b3c91af4-4cfa-4132-abde-67922e8bf8e2",
+                "ef40b1d5-9fe4-4790-a85e-d3dbcdd42af4"
+              ],
+              "degradedReason": "member-unavailable"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791165707163
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-a7bbd4",
+          "body": "[状态] → in_progress：「v2 不再承载记忆」写进了架构文档：新增一页结论并挂进索引，agent-dh 侧那页教人用 recall audit （提交 824bc960 / 313111a6）（reqboard_task_move）",
+          "createdAt": 1791165706950,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          }
+        },
+        {
+          "id": "c-b6a323",
+          "body": "[状态] → testing：「v2 不再承载记忆」写进了架构文档：新增一页结论并挂进索引，agent-dh 侧那页教人用 recall audit （提交 824bc960 / 313111a6）（reqboard_task_move）",
+          "createdAt": 1791165707163,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          }
+        },
+        {
+          "id": "c-f7ee72",
+          "body": "[状态] → in_review：「v2 不再承载记忆」写进了架构文档：新增一页结论并挂进索引，agent-dh 侧那页教人用 recall audit （提交 824bc960 / 313111a6）（reqboard_task_move）",
+          "createdAt": 1791165707493,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          }
+        },
+        {
+          "id": "c-6fa6ba",
+          "body": "[状态] → done：复核通过并关闭：卡面工作已完成并逐项验证（提交 824bc960 / 313111a6；证据见需求目录 deletion-checklist.md 第五~十一节）。（reqboard_task_move）",
+          "createdAt": 1791166031269,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          }
+        }
+      ],
       "statusHistory": [
         {
           "status": "todo",
@@ -971,11 +2227,47 @@
             "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
           },
           "reason": "需求回退到 decomposing：由 t-3d3ef2 物化的重做卡"
+        },
+        {
+          "status": "in_progress",
+          "at": 1791165706950,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "「v2 不再承载记忆」写进了架构文档：新增一页结论并挂进索引，agent-dh 侧那页教人用 recall audit （提交 824bc960 / 313111a6）"
+        },
+        {
+          "status": "testing",
+          "at": 1791165707163,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "「v2 不再承载记忆」写进了架构文档：新增一页结论并挂进索引，agent-dh 侧那页教人用 recall audit （提交 824bc960 / 313111a6）"
+        },
+        {
+          "status": "in_review",
+          "at": 1791165707493,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "「v2 不再承载记忆」写进了架构文档：新增一页结论并挂进索引，agent-dh 侧那页教人用 recall audit （提交 824bc960 / 313111a6）"
+        },
+        {
+          "status": "done",
+          "at": 1791166031269,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "复核通过并关闭：卡面工作已完成并逐项验证（提交 824bc960 / 313111a6；证据见需求目录 deletion-checklist.md 第五~十一节）。"
         }
       ],
-      "version": 1,
+      "version": 6,
       "createdAt": 1791117176322,
-      "updatedAt": 1791117176322,
+      "updatedAt": 1791166031269,
       "createdBy": {
         "kind": "agent",
         "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
@@ -984,7 +2276,28 @@
         "kind": "agent",
         "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
       },
-      "layer": 0
+      "layer": 0,
+      "lastReport": {
+        "at": 1791165706725,
+        "reportIndex": 1,
+        "filesChanged": [
+          "quantsys-v2/docs/architecture/memory-subsystem-retired.md",
+          "quantsys-v2/docs/architecture/README.md",
+          "agent-dh/docs/architecture/memory-and-recall.md"
+        ],
+        "completed": [
+          "新增 docs/architecture/memory-subsystem-retired.md（含为什么删、删了什么、三条「删干净」判据、仍存在别误删的清单）",
+          "登记进 docs/architecture/README.md 索引，避免孤儿页",
+          "agent-dh memory-and-recall.md 第 4 条与依据段改为下线说明",
+          "自检：wiki_probe 不再点名该页"
+        ]
+      },
+      "lastRun": {
+        "at": 1791165706725,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
     },
     {
       "id": "t-8a0060",
@@ -1007,10 +2320,128 @@
       ],
       "reworkOf": "t-02c0a2",
       "stages": [],
-      "status": "todo",
+      "status": "done",
       "blocked": false,
-      "executions": [],
-      "comments": [],
+      "executions": [
+        {
+          "id": "e-3ed5f1",
+          "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+          "trigger": "manual",
+          "startedAt": 1791165707700,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+              "seq": 5416,
+              "at": 1791165707700,
+              "totals": {
+                "uncachedInputTokens": 1384878,
+                "outputTokens": 649862,
+                "cacheReadTokens": 176234752,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+                  "depth": 0,
+                  "seq": 5416,
+                  "totals": {
+                    "uncachedInputTokens": 1384878,
+                    "outputTokens": 649862,
+                    "cacheReadTokens": 176234752,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ],
+              "degradedMembers": [
+                "aeb875a0-895c-42bb-843c-cc6beff34c93",
+                "b3c91af4-4cfa-4132-abde-67922e8bf8e2",
+                "ef40b1d5-9fe4-4790-a85e-d3dbcdd42af4"
+              ],
+              "degradedReason": "member-unavailable"
+            },
+            "end": {
+              "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+              "seq": 5418,
+              "at": 1791165707809,
+              "totals": {
+                "uncachedInputTokens": 1384878,
+                "outputTokens": 649862,
+                "cacheReadTokens": 176234752,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184",
+                  "depth": 0,
+                  "seq": 5418,
+                  "totals": {
+                    "uncachedInputTokens": 1384878,
+                    "outputTokens": 649862,
+                    "cacheReadTokens": 176234752,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ],
+              "degradedMembers": [
+                "aeb875a0-895c-42bb-843c-cc6beff34c93",
+                "b3c91af4-4cfa-4132-abde-67922e8bf8e2",
+                "ef40b1d5-9fe4-4790-a85e-d3dbcdd42af4"
+              ],
+              "degradedReason": "member-unavailable"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791165707809
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-f2051f",
+          "body": "[状态] → in_progress：生产与测试库的记忆表已清掉（先备份再删），四个建表/迁移脚本都标了「已作废请勿再执行」，漂移门禁仍绿。（提交 824bc960 / 313111a6）（reqboard_task_move）",
+          "createdAt": 1791165707700,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          }
+        },
+        {
+          "id": "c-6df956",
+          "body": "[状态] → testing：生产与测试库的记忆表已清掉（先备份再删），四个建表/迁移脚本都标了「已作废请勿再执行」，漂移门禁仍绿。（提交 824bc960 / 313111a6）（reqboard_task_move）",
+          "createdAt": 1791165707809,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          }
+        },
+        {
+          "id": "c-be26b9",
+          "body": "[状态] → in_review：生产与测试库的记忆表已清掉（先备份再删），四个建表/迁移脚本都标了「已作废请勿再执行」，漂移门禁仍绿。（提交 824bc960 / 313111a6）（reqboard_task_move）",
+          "createdAt": 1791165707980,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          }
+        },
+        {
+          "id": "c-0dde68",
+          "body": "[状态] → done：复核通过并关闭：卡面工作已完成并逐项验证（提交 824bc960 / 313111a6；证据见需求目录 deletion-checklist.md 第五~十一节）。（reqboard_task_move）",
+          "createdAt": 1791166094837,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          }
+        }
+      ],
       "statusHistory": [
         {
           "status": "todo",
@@ -1020,11 +2451,47 @@
             "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
           },
           "reason": "需求回退到 decomposing：由 t-02c0a2 物化的重做卡"
+        },
+        {
+          "status": "in_progress",
+          "at": 1791165707700,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "生产与测试库的记忆表已清掉（先备份再删），四个建表/迁移脚本都标了「已作废请勿再执行」，漂移门禁仍绿。（提交 824bc960 / 313111a6）"
+        },
+        {
+          "status": "testing",
+          "at": 1791165707809,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "生产与测试库的记忆表已清掉（先备份再删），四个建表/迁移脚本都标了「已作废请勿再执行」，漂移门禁仍绿。（提交 824bc960 / 313111a6）"
+        },
+        {
+          "status": "in_review",
+          "at": 1791165707980,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "生产与测试库的记忆表已清掉（先备份再删），四个建表/迁移脚本都标了「已作废请勿再执行」，漂移门禁仍绿。（提交 824bc960 / 313111a6）"
+        },
+        {
+          "status": "done",
+          "at": 1791166094837,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
+          },
+          "reason": "复核通过并关闭：卡面工作已完成并逐项验证（提交 824bc960 / 313111a6；证据见需求目录 deletion-checklist.md 第五~十一节）。"
         }
       ],
-      "version": 1,
+      "version": 6,
       "createdAt": 1791117176322,
-      "updatedAt": 1791117176322,
+      "updatedAt": 1791166094837,
       "createdBy": {
         "kind": "agent",
         "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
@@ -1033,7 +2500,27 @@
         "kind": "agent",
         "sessionId": "session-ebe42d9f-2797-48c7-b069-3d24d1da6184"
       },
-      "layer": 0
+      "layer": 0,
+      "lastReport": {
+        "at": 1791165707624,
+        "reportIndex": 1,
+        "filesChanged": [
+          "quantsys-v2/scripts/migrations/012_create_memory_entries_table.sql",
+          "quantsys-v2/scripts/migrations/013_migrate_agent_knowledge_to_memory_entries.sql"
+        ],
+        "completed": [
+          "pg_dump 备份 16 行测试数据到 /tmp/memory_entries_pre_drop.sql（5,693 字节）",
+          "两个库 DROP 后查询均报 relation does not exist",
+          "4 个迁移脚本头部标注作废",
+          "自测：pytest tests/test_orm_db_drift.py 6 passed"
+        ]
+      },
+      "lastRun": {
+        "at": 1791165707624,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
     }
   ],
   "edges": [
@@ -1114,15 +2601,6 @@
       ]
     }
   ],
-  "ready": [
-    "t-3b3641",
-    "t-b17dec",
-    "t-c54cfc",
-    "t-3a0393",
-    "t-fdbc2a",
-    "t-611597",
-    "t-789e83",
-    "t-8a0060"
-  ],
-  "updated_at": "2026-10-04T12:32:56.351Z"
+  "ready": [],
+  "updated_at": "2026-10-05T02:09:09.464Z"
 }

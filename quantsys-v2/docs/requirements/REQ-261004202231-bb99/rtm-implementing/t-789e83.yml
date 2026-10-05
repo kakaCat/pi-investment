@@ -1,7 +1,7 @@
 task:
   id: t-789e83
   title: "[重做] 文档落档：v2 不再承载记忆"
-  status: todo
+  status: done
   implements: 在 quantsys-v2/docs/architecture/ 下新增或追加一节：写明 v2 侧记忆子系统已下线、消费方摘除清单、以及「记忆归 agent 侧」的口径。
   serves:
     - FR-4
@@ -17,22 +17,27 @@ task:
     SIDE: doc
     PHASE: doc
   workflow_total: 4
-  workflow_done: 0
+  workflow_done: 4
   workflow:
     - phase: doc
-      status: pending
+      status: done
+      completed_at: 2026-10-05T02:01:47.043Z
     - phase: implement
-      status: pending
+      status: done
+      started_at: 2026-10-05T02:01:47.109Z
+      completed_at: 2026-10-05T02:07:11.299Z
     - phase: test
-      status: pending
+      status: done
+      completed_at: 2026-10-05T02:07:11.299Z
     - phase: commit
-      status: pending
+      status: done
+      completed_at: 2026-10-05T02:07:11.299Z
 metadata:
   stage: implementing
   requirement_id: REQ-261004202231-bb99
   generated_at: 2026-10-04T12:33:29.854Z
-  version: 1
+  version: 6
   generated_by: dsh-pmboard
   detail_dir: rtm-implementing/
   detail_count: 4
-  last_updated: 2026-10-04T12:33:29.854Z
+  last_updated: 2026-10-05T02:07:11.299Z

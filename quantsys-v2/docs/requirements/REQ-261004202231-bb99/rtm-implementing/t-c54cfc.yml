@@ -1,7 +1,7 @@
 task:
   id: t-c54cfc
   title: "[重做] 摘除 v2 记忆路由注册点"
-  status: todo
+  status: done
   implements: 改 adapters/inbound/fastapi_app/route_registrar.py:278-279；改 adapters/inbound/fastapi_app/main.py:1067-1083；重启 v2 后核对日志。
   serves:
     - FR-1
@@ -17,16 +17,17 @@ task:
     SIDE: backend
     PHASE: implement
   workflow_total: 1
-  workflow_done: 0
+  workflow_done: 1
   workflow:
     - phase: implement
-      status: pending
+      status: done
+      completed_at: 2026-10-05T02:01:44.615Z
 metadata:
   stage: implementing
   requirement_id: REQ-261004202231-bb99
   generated_at: 2026-10-04T12:33:29.850Z
-  version: 1
+  version: 6
   generated_by: dsh-pmboard
   detail_dir: rtm-implementing/
   detail_count: 1
-  last_updated: 2026-10-04T12:33:29.850Z
+  last_updated: 2026-10-05T02:02:56.976Z

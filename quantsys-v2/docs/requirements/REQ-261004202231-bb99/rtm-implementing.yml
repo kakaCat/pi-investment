@@ -2,11 +2,11 @@ metadata:
   stage: implementing
   requirement_id: REQ-261004202231-bb99
   generated_at: 2026-10-04T12:27:46.198Z
-  version: 3
+  version: 46
   generated_by: dsh-pmboard
   detail_dir: rtm-implementing/
   detail_count: 16
-  last_updated: 2026-10-04T12:33:29.856Z
+  last_updated: 2026-10-05T02:09:09.515Z
 inputs:
   tasks:
     - id: t-211fd3
@@ -32,36 +32,36 @@ inputs:
       status: canceled
     - id: t-3b3641
       title: 摘除外部三处记忆消费方·研发
-      status: todo
+      status: done
     - id: t-cdb919
       title: 摘除外部三处记忆消费方·复核
-      status: todo
+      status: done
     - id: t-b17dec
       title: "[重做] 摘除外部三处记忆消费方"
-      status: todo
+      status: done
     - id: t-c54cfc
       title: "[重做] 摘除 v2 记忆路由注册点"
-      status: todo
+      status: done
     - id: t-3a0393
       title: "[重做] 删除 v2 记忆端点与仓储"
-      status: todo
+      status: done
     - id: t-fdbc2a
       title: "[重做] 删除 domain/memory 领域实现"
-      status: todo
+      status: done
     - id: t-611597
       title: "[重做] 删除记忆测试（10 文件）"
-      status: todo
+      status: done
     - id: t-789e83
       title: "[重做] 文档落档：v2 不再承载记忆"
-      status: todo
+      status: done
     - id: t-8a0060
       title: "[重做] 处置记忆数据与迁移脚本（执行前须人确认）"
-      status: todo
+      status: done
 status:
   tasks_total: 16
-  tasks_done: 0
+  tasks_done: 9
   tasks_in_progress: 0
-  tasks_todo: 16
+  tasks_todo: 7
 tasks:
   - id: t-211fd3
     status: canceled
@@ -78,20 +78,20 @@ tasks:
   - id: t-02c0a2
     status: canceled
   - id: t-3b3641
-    status: todo
+    status: done
   - id: t-cdb919
-    status: todo
+    status: done
   - id: t-b17dec
-    status: todo
+    status: done
   - id: t-c54cfc
-    status: todo
+    status: done
   - id: t-3a0393
-    status: todo
+    status: done
   - id: t-fdbc2a
-    status: todo
+    status: done
   - id: t-611597
-    status: todo
+    status: done
   - id: t-789e83
-    status: todo
+    status: done
   - id: t-8a0060
-    status: todo
+    status: done

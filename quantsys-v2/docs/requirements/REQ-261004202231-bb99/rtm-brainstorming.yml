@@ -2,9 +2,9 @@ metadata:
   stage: brainstorming
   requirement_id: REQ-261004202231-bb99
   generated_at: 2026-10-04T12:23:19.779Z
-  version: 3
+  version: 4
   generated_by: dsh-pmboard
-  last_updated: 2026-10-04T12:25:16.879Z
+  last_updated: 2026-10-05T02:09:37.176Z
 outputs:
   requirements: []
 status:

@@ -1,7 +1,7 @@
 task:
   id: t-b17dec
   title: "[重做] 摘除外部三处记忆消费方"
-  status: todo
+  status: done
   implements: 改 quantsys-v2-client/src/client.ts:2067-2084（删两方法）；删 web-frontend/src/services/api/memory.ts、views/Memory/{index,RecallAudit}.vue，并摘 router/index.ts:213-215 的 /memory 路由；删 agent-dh/packages/tools/memory/src/tools/RecallAuditTool/ 三文件与 src/index.ts:84 的注册行。
   serves:
     - FR-2
@@ -17,16 +17,18 @@ task:
     SIDE: fullstack
     PHASE: implement
   workflow_total: 1
-  workflow_done: 0
+  workflow_done: 1
   workflow:
     - phase: implement
-      status: pending
+      status: done
+      started_at: 2026-10-05T02:00:58.268Z
+      completed_at: 2026-10-05T02:01:44.219Z
 metadata:
   stage: implementing
   requirement_id: REQ-261004202231-bb99
   generated_at: 2026-10-04T12:33:29.849Z
-  version: 1
+  version: 6
   generated_by: dsh-pmboard
   detail_dir: rtm-implementing/
   detail_count: 1
-  last_updated: 2026-10-04T12:33:29.849Z
+  last_updated: 2026-10-05T02:01:44.378Z

@@ -1,0 +1,114 @@
+metadata:
+  stage: accepting
+  requirement_id: REQ-261004202231-bb99
+  generated_at: 2026-10-05T02:09:09.544Z
+  version: 3
+  generated_by: dsh-pmboard
+  last_updated: 2026-10-05T02:09:21.577Z
+inputs:
+  tasks:
+    - id: t-3b3641
+      title: 摘除外部三处记忆消费方·研发
+      status: done
+    - id: t-cdb919
+      title: 摘除外部三处记忆消费方·复核
+      status: done
+    - id: t-b17dec
+      title: "[重做] 摘除外部三处记忆消费方"
+      status: done
+    - id: t-c54cfc
+      title: "[重做] 摘除 v2 记忆路由注册点"
+      status: done
+    - id: t-3a0393
+      title: "[重做] 删除 v2 记忆端点与仓储"
+      status: done
+    - id: t-fdbc2a
+      title: "[重做] 删除 domain/memory 领域实现"
+      status: done
+    - id: t-611597
+      title: "[重做] 删除记忆测试（10 文件）"
+      status: done
+    - id: t-789e83
+      title: "[重做] 文档落档：v2 不再承载记忆"
+      status: done
+    - id: t-8a0060
+      title: "[重做] 处置记忆数据与迁移脚本（执行前须人确认）"
+      status: done
+outputs:
+  test_cases:
+    - id: TC-1
+      title: 任务覆盖对照（covers）
+      covers:
+        - t-211fd3
+        - t-3b3641
+        - t-b17dec
+        - t-1d33ee
+        - t-c54cfc
+        - t-5c8b1b
+        - t-3a0393
+        - t-e64f6e
+        - t-fdbc2a
+        - t-cc1a66
+        - t-611597
+        - t-only
+        - t-3d3ef2
+        - t-789e83
+        - t-02c0a2
+        - t-8a0060
+        - t-cdb919
+      validates: []
+      source: tests/verification-evidence.md
+traceability:
+  task_to_tests:
+    t-3b3641:
+      - TC-1
+    t-cdb919:
+      - TC-1
+    t-b17dec:
+      - TC-1
+    t-c54cfc:
+      - TC-1
+    t-3a0393:
+      - TC-1
+    t-fdbc2a:
+      - TC-1
+    t-611597:
+      - TC-1
+    t-789e83:
+      - TC-1
+    t-8a0060:
+      - TC-1
+    t-211fd3:
+      - TC-1
+    t-1d33ee:
+      - TC-1
+    t-5c8b1b:
+      - TC-1
+    t-e64f6e:
+      - TC-1
+    t-cc1a66:
+      - TC-1
+    t-only:
+      - TC-1
+    t-3d3ef2:
+      - TC-1
+    t-02c0a2:
+      - TC-1
+  fr_to_tests:
+    FR-1:
+      - TC-1
+    FR-2:
+      - TC-1
+    FR-3:
+      - TC-1
+    FR-4:
+      - TC-1
+coverage:
+  testing:
+    total: 9
+    covered: 9
+    uncovered: []
+    rate: 100
+    total_tasks: 9
+    tested_tasks: 9
+    untested: []
