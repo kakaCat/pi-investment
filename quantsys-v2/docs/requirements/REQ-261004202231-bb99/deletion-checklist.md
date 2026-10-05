@@ -167,3 +167,30 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:5001/api/health       
 导致新批准的 9 卡计划无法落库、t1~t8 的完工记录无法写入；且索引里的未合并条目使 `git commit` 被拒。
 两组数据（代码/文档）其实都已在盘上并逐项验证过。
 
+
+## 十一、t9 完成（agent-ts 记忆消费迁 agent-os · 2026-10-05）
+
+**背景**：agent-ts（旧 agent）仍在使用，其 4 处 v2 记忆消费必须迁到 agent-os，否则 v2 端点下线会把它打回文件存储。
+
+| # | 改动 | 文件 |
+|---|---|---|
+| 1 | provider 链首选 `AgentOSMemoryProvider`（原 `V2MemoryProvider` 删除），失败仍降 `FileFallbackProvider`；新增 `forceFallback` 测试接缝 | `services/memory/provider-manager.ts`（重写）、`v2-client.ts`（删） |
+| 2 | 召回审计工具：`list` 走 agent-os `memory recall-audit`；`stats` 由 list 结果**客户端派生**（导出纯函数 `deriveRecallStats`）；`feedback` **显式报错**（能力随 v2 退役，不静默成功） | `infrastructure/tools/agent/recall-audit-tool.ts` |
+| 3 | 审计写入：`audit-v2-client.ts` → `audit-agent-os-client.ts`（写 agent-os 记忆库，JSONL 回退保留；永不抛错） | `infrastructure/recall/` |
+| 4 | 蒸馏：`memory_distill_inputs` / `memory_distill_candidates` 两条端点映射**删除**；周蒸馏提示词改为 `memory_search` 读入 + `memory_write` 提交 | `adapters/quant/quant-v2-client.ts`、`scheduler/tasks/memory-distill-task.ts` |
+| 5 | 顺带修 `infrastructure/agent-os/cli.ts`：去掉 `import.meta`（jest 下编译不过，而该模块现在会被记忆 provider 链加载）+ 默认 CLI 路径修正为 `agent-os/bin/agent-os`（原路径 `../../agent-os/agent-os` **从来不存在**） |
+
+**验收结果**
+
+| 判据 | 结果 |
+|---|---|
+| `grep -rn 'api/memory' agent-ts/src` | **0 命中** ✓ |
+| 首选 provider = agent-os | provider 测试断言 `provider.name === 'agent-os'` 通过 ✓ |
+| 测试（本需求触及的 5 套） | `provider` / `integration` / `distill-task` / `audit-adapters` / `recall-audit-tool` **全绿（15+8+3 = 26 条）** ✓ |
+| 其余失败套件 | 属**既有**编译问题（`TS1378 top-level await`）——仓库自带样例 `infrastructure/tools/monitor/watch-manage-tool.test.ts` 同样报该错，与本次改动无关 |
+| 提交 | `313111a6`（15 文件 / +360 −1,322） |
+
+**测试写法备忘（踩过的坑）**：本仓 ESM 模块 mock 不可靠（`jest.unstable_mockModule` 动态 import 拿到缓存模块，失败信息还是空的）。改用两条确定路：
+① 把算法抽成**纯函数**直接单测（`deriveRecallStats`）；
+② 用**假 CLI 脚本**驱动 IO 路径（`AGENT_OS_CLI_PATH` 指向临时脚本，让脚本把参数落盘供断言）。
+
