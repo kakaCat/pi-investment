@@ -219,10 +219,10 @@ tags: [wiki, index, home, agent-dh]
 <!-- AUTO:recent BEGIN -->
 | 日期 | 页面 | 一句话 |
 |---|---|---|
+| 2026-10-05 | [全站页面索引（机器可读入口）](INDEX.md) | 这个 wiki 有哪些页、每页讲什么（一句话）——先读这张表，再决定打开哪页。 |
 | 2026-10-04 | [agent-dh 冒烟清单（一条命令一项）](guides/smoke-checklist.md) | 实例活着吗 / 代码生效了吗 / 身份与基因组对不对 / 模型通不通 / 能不能真去 v2 取数——按这个顺序，每项一条命令、都有期望输出。 |
 | 2026-10-04 | [Agent-DH 启动指南](guides/STARTUP.md) | 运行目录与 profile 现状（DSH_HOME=.dsh-data）、启停与 launchd，含 GUI 401 根因与迁移/布局合并的坑。 |
 | 2026-10-04 | [记忆与召回](architecture/memory-and-recall.md) | 结论写进哪、下次怎么被想起来、怎么知道检索有没有在工作。 |
-| 2026-10-04 | [全站页面索引（机器可读入口）](INDEX.md) | 这个 wiki 有哪些页、每页讲什么（一句话）——先读这张表，再决定打开哪页。 |
 | 2026-09-28 | [reqboard 任务存储：按需求分片的队列文件（queue.json）](architecture/reqboard-queue-storage.md) | 任务卡的唯一存储是 docs/requirements/<REQ>/queue.json（含 DAG 层级与 ready 队列），台账瘦身为 schemaVersion 9；拆分写队列、执行… |
 | 2026-09-28 | [需求流水线「唤醒」通道缺失 —— H4 空转 × Dive 永不介入（根因分析与修复方案）](architecture/reqboard-dive-wake-defect.md) | 人点头推进阶段后无人唤醒 agent 的根因与证据：闸门链 H4 无条件 skip（把唤醒委托给 Dive），而 Dive 起轮门槛 armed+active 全仓 0 命中（83/83 需… |
 | 2026-09-28 | [页面插件契约](architecture/page-plugin-contract.md) | 做一个 DSH 页面插件（GUI）要满足哪些契约；改动怎么生效。 |

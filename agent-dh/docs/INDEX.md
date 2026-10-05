@@ -18,7 +18,7 @@ tags: [index, wiki]
 
 | 页 | type | status | 一句话 | 更新 |
 |---|---|---|---|---|
-| [全站页面索引（机器可读入口）](INDEX.md) | index | living | 这个 wiki 有哪些页、每页讲什么（一句话）——先读这张表，再决定打开哪页。 | 2026-10-04 |
+| [全站页面索引（机器可读入口）](INDEX.md) | index | living | 这个 wiki 有哪些页、每页讲什么（一句话）——先读这张表，再决定打开哪页。 | 2026-10-05 |
 | [agent-dh Wiki（归档文档首页 / 大纲）](README.md) | manual | living | agent-dh 的 wiki 首页：10 卷大纲 + 从哪开始读 + 待写页——每个新会话先看这页。 | 2026-09-25 |
 | [🎊 Agent-DH v0.1.1 发布说明](RELEASE-NOTES-v0.1.1.md) | doc | living | v0.1.1（2026-08-18）发布说明：稳定性与可靠性改进清单（历史版本记录）。 | 2026-09-14 |
 | [card-types-integration.md](integration/card-types-integration.md) | — | — | 验证四轴类型系统（Phase/Side/Role/Status）的 TypeScript 接口定义是否正确导出和使用。 | — |
