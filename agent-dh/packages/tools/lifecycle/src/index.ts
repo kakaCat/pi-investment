@@ -11,6 +11,7 @@ import { assembleContextFor } from '@deepseek-ai/dsh-agent';
 import { renderPrompt } from '@deepseek-ai/dsh-system-prompt';
 import { AgentOSClient } from '@pi-investment/agent-os-client';
 import { buildDeliveryReceipt } from './deliveryReceipt';
+import { classifyInboxItem, collectDeliveredKeys } from './reminder-inbox.js';
 import { GitRepo } from './git.js';
 import { PendingResume, RestartResult, StateStore } from './state.js';
 import { NativeReminderScheduler, type NativeTask } from './native-scheduler.js';
@@ -344,31 +345,18 @@ v2_event_json: ${JSON.stringify(data)}
         const items: any[] = res?.memories || res?.items || [];
 
         // 防重复投递（2026-08-25 验收发现）：原记录永远不会被改（append-only），
-        // 仅凭记录的 delivered=false 会每分钟重复投递。先收集已投递标记的
-        // 关联键（task|fired_at），命中即跳过。
+        // 仅凭记录的 delivered=false 会每分钟重复投递。先收集**回执**的关联键
+        // （task|fired_at），命中即跳过。判定纯逻辑见 src/reminder-inbox.ts。
         const execRes: any = await this.aos.memory.search({ query: 'delivered', tag: 'office:reminder:exec', top_k: 100 });
         const execItems: any[] = execRes?.memories || execRes?.items || [];
-        const deliveredKeys = new Set<string>();
-        for (const e of execItems) {
-          try {
-            const ep = typeof e.content === 'string' ? JSON.parse(e.content) : e.content;
-            if (!ep) continue;
-            // 2026-10-07 修复（空提醒自循环）：回执同样带 office:reminder:<window> 收件箱标签，
-            // 轮询器会把自己的回执当新信件反复投递。此处把回执（含 delivered 字段）排除出收件箱。
-            if (ep.delivered) continue;
-            if (ep.task != null) deliveredKeys.add(`${ep.task}|${ep.fired_at ?? ''}`);
-          } catch { /* skip */ }
-        }
+        const deliveredKeys = collectDeliveredKeys(execItems);
 
         for (const it of items) {
-          let p: any = null;
-          try { p = typeof it.content === 'string' ? JSON.parse(it.content) : it.content; } catch { continue; }
-          if (!p || p.delivered) continue;
-          // 2026-10-07 修复（空提醒自循环）：task 与 prompt 同时为空的载荷不是任务，
-          // 是畸形/自身回执回声——投递出去就是一条内容为 undefined 的空提醒。
-          // 投递无意义且会（连同回执）每分钟自我重放，直接跳过。
-          if (!p.task && !p.prompt) continue;
-          if (deliveredKeys.has(`${p.task}|${p.fired_at ?? ''}`)) continue;  // 已投递过，跳过
+          // 2026-10-07 修复（空提醒自循环）：收件箱检索命中的多数不是信件——回执、
+          // 语义邻近的知识记录（纯 JSON、无 task/prompt）都在里面，逐条按纯判定过滤。
+          const decision = classifyInboxItem(it, deliveredKeys);
+          if (!decision.deliver) continue;
+          const p: any = decision.payload;
 
           // ① 找在线目标窗口
           const roots: any[] = this.ctx.agents.roots();
@@ -412,7 +400,11 @@ v2_event_json: ${JSON.stringify(data)}
             tags: ['office:delivered', 'office:reminder:exec'],
           });
         }
-      } catch { /* OS 宕机等异常静默，下轮重试 */ }
+      } catch (err: any) {
+        // 2026-10-07：原先静默吞掉所有异常，导致「轮询器挂了」与「有守卫在拦」在外部
+        // 完全不可区分（本次核验排查耗时正卡在这里）。异常必须留痕。
+        this.ctx.logger.warn(`lifecycle: reminder poll failed: ${err?.message ?? err}`);
+      }
     };
     this.reminderPollTimer = setInterval(poll, 60_000);
     poll().catch(() => {});  // 启动即查一轮
