@@ -17,7 +17,8 @@
  * 用法：node scripts/audit-tool-output-contract.mjs [--json]
  * 退出码：0=未发现可疑项；1=发现可疑项（可用于 CI/门禁）。
  *
- * 口径（与 packages/web/dsh-pmboard/tests/output-contract.test.ts 同源）：
+ * 口径（原与 packages/web/dsh-pmboard/tests/output-contract.test.ts 同源；该测试已随
+ * dsh-pmboard 插件于 2026-10-07 下线删除，口径固化在下方三条规则里）：
  *   · 只认"响应型"字面量：键集不完全属于 {requirements, tasks}（那是 store.mutate 的变更集）
  *   · 跳过回调实参区（.map/.filter/.forEach/.catch/.then/store.mutate）内的 return
  *   · 计入条件展开 \`...(cond ? { k } : {})\` 里的字段

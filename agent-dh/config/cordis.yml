@@ -209,9 +209,10 @@
         model: deepseek-v4-flash
         cwd: !!js process.cwd()
 # ========== Agent Teams 关闭（2026-09-27 用户裁定） ==========
-# 用户要求关闭 Agent Teams。生效后 pmboard 实施链的子卡执行走 workflow 兜底路径
-# （packages/web/dsh-pmboard/src/application/use-cases/ExecuteTask.ts:218 分支），
-# 不再 spawn 持久 Worker（无 reqboard-<父卡id> teammate、无 team_report_missing 白干）。
+# 用户要求关闭 Agent Teams，不再 spawn 持久 Worker（无 reqboard-<父卡id> teammate、
+# 无 team_report_missing 白干）。当时的具体触发场景是 pmboard 实施链的子卡执行
+# （其 ExecuteTask 走 workflow 兜底分支）；pmboard 插件已于 2026-10-07 整体下线，
+# 但这条用户裁定本身仍然生效，三行继续关闭。
 # 三行一起关（缺一不可）：
 #   agent-team       = TeamService 服务本体（关掉后 AgentTeamsAdapter.available()=false）
 #   tool-agent-team  = 模型侧工具（spawn_teammate / send_message / team_task_*），服务没了必空悬

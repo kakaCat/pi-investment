@@ -46,7 +46,6 @@ packages/
 ├── agent-dh-client/          # 客户端 API 库（保持不变）
 └── pages/                    # 页面组件包（保持不变）
     ├── bulletin/             # 公告板页面
-    ├── dsh-pmboard/          # 项目管理看板
     ├── execution/            # 执行面板
     ├── genome/               # 基因组页面
     ├── holdings/             # 持仓页面

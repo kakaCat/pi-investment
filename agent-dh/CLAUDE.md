@@ -123,33 +123,22 @@ Agent-DH 通过技能系统提供结构化任务执行能力：
 const briefing = await tools.skill({ name: 'session-briefing' });
 ```
 
-## Requirement Pipeline (需求流水线 - reqboard)
+## Requirement Pipeline (需求流水线 - reqboard) —— 已下线（2026-10-07）
 
-Agent-DH 集成了完整的需求管理流水线系统（dsh-pmboard），用于管理开发任务和需求：
+需求流水线原由 `packages/web/dsh-pmboard`（项目看板页面插件）提供，含 13 个
+`reqboard_*` 工具（立项 / 拆分 / 推进 / 确认 / 验收）与 GUI 看板视图。
+**该插件与承载它的 `packages/bundle/bundle-pmboard` 已于 2026-10-07 整体删除**，
+上述工具不再存在，不要再尝试调用：
 
-### 核心工具
+- 需求管理：`reqboard_status` / `reqboard_capture` / `reqboard_create` / `reqboard_move` / `reqboard_submit`
+- 任务执行：`reqboard_decompose` / `reqboard_task_move` / `reqboard_task_run` /
+  `reqboard_task_status` / `reqboard_task_tree` / `reqboard_task_report`
+- 确认与验收：`reqboard_ask_confirm` / `reqboard_confirm_receipt` / `reqboard_accept_sheet`
 
-#### 需求管理
-- `reqboard_status` - 查询本窗口 reqboard 绑定状态
-- `reqboard_capture` - 立项弹框（pm 专有）：识别到值得立项的新工作时一次完成立项四问
-- `reqboard_create` - 创建即立项（已明确取值时的手工路径）
-- `reqboard_move` - 推进需求阶段状态
-- `reqboard_submit` - 提交阶段产物（requirement/design/plan/verification/archive）
-
-#### 任务执行
-- `reqboard_decompose` - 把已批准的拆分计划落库成任务卡 DAG
-- `reqboard_task_move` - 推进任务状态
-- `reqboard_task_run` - 推进本窗口需求下的自动实施链（唯一链入口）
-- `reqboard_task_status` - 查询单张任务的执行状态
-- `reqboard_task_tree` - 查看父子卡结构
-- `reqboard_task_report` - 任务完成汇报
-
-#### 确认与验收
-- `reqboard_ask_confirm` - 关键确认（原子化：确认 → 落章 → 推进）
-- `reqboard_confirm_receipt` - 挂起确认回执
-- `reqboard_accept_sheet` - 验收单逐项弹框验收
-
-**流程示例**：参见 `docs/architecture/` 下的需求流水线文档。
+残留物：台账文件 `.dsh-data/dsh-reqboard.json` 与 `docs/requirements/<REQ>/` 下的历史
+需求档案都还在（只读留存，不再有工具读写）；`packages/tools/reqboard`（RTM 计算库）
+保留，但已无插件引用。历史设计与工作日志见 `docs/rfcs/014-requirement-board.md`、
+`docs/work-logs/2026-09/`（归档，未随插件删除）。
 
 
 ## Project Overview
@@ -202,7 +191,7 @@ agent-dh/
 │   │   ├── intelligence/       #   智能工具（3个工具）：盯盘规则、市场告警等
 │   │   ├── competition/ market/ risk/ strategy/ factor/ memory/ evolution/
 │   │   ├── scheduler/ notification/ data-manager/ learning/ genome/ lifecycle/ evolver/
-│   ├── web/                    # 页面插件（7 个）：bulletin/dsh-pmboard/execution/genome/holdings/page-kit/web-liveness
+│   ├── web/                    # 页面插件（6 个）：bulletin/execution/genome/holdings/page-kit/web-liveness
 │   ├── client/                 # API 客户端库（agent-dh-client）
 │   ├── runtime/                # 运行时/管理包（agent-os-manager、investment-agent-loop、quantsys-v2-manager、solve-kit）
 │   ├── core/                   # core-tool（三段式接口类型规范）
@@ -219,7 +208,7 @@ agent-dh/
 ├── packages/bundle/             # 业务域 bundle（dsh.bundle.patch 载体，无代码）：插件页卡片的数据源，
 │   ├── bundle-stock/           #   「股票投资」10 行：investment/market/factor/data-manager/trading/strategy/risk/competition/intelligence/quantsys-v2-manager
 │   ├── bundle-evolution/       #   「学习与进化」6 行：memory/learning/evolution/evolver/genome/lifecycle
-│   └── bundle-platform/        #   「平台通用」5 行：notification(飞书)/scheduler/dsh-pmboard/web-liveness/agent-os-manager
+│   └── bundle-platform/        #   「平台通用」5 行：notification(飞书)/scheduler/web-liveness/agent-os-manager/dashboard-bulletin(公告板)
 │                                 #   新增插件的行加进对应业务域 bundle（REQ-260922133113-ebc5）
 ├── config/cordis.yml            # Profile 配置模板（start.sh 据此补全 .dsh-data 内的活动配置）
 ├── .dsh-data/                   # DSH_HOME = 数据目录（项目内托管，不入库）：
@@ -522,7 +511,7 @@ python3 agent-dh/scripts/relink-profile.py
 
 2026-09-22（REQ-260922133113-ebc5）起，21 行投资插件按业务域分三个标准 bundle 加载：
 `bundle-stock`（股票投资 10 行，含盯盘/quantsys-v2 管理）、`bundle-evolution`（学习与进化 6 行）、
-`bundle-platform`（平台通用 5 行：飞书通知/调度/看板/页面自愈/agent-os-manager）。
+`bundle-platform`（平台通用 5 行：飞书通知/调度/页面自愈/agent-os-manager/公告板）。
 profile 清单注册**两处都要写**（2026-09-22 实测踩坑）：
 - `dsh.profile.bundles` —— 决定 bundle 层是否**加载**（boot 组装）
 - `dependencies`（`link:../../../packages/bundle/<包>`）—— 决定插件管理页是否**显示**：
@@ -719,6 +708,12 @@ pnpm build
 
 ## Version History
 
+- 2026-10-07: **需求看板插件下线** —— 删除 `packages/web/dsh-pmboard`（含 13 个 `reqboard_*` 工具与
+  GUI 看板视图）与承载它的 `packages/bundle/bundle-pmboard`；同步摘掉 agent-dh 根 `package.json`
+  依赖、`pnpm-lock.yaml`、`scripts/start.sh` 的 profile 脚手架、活动 profile 注册；随插件删除
+  3 个测试（`apps/web/tests/reqboard-task-execute.test.ts`、`apps/web/tests/task-retry.test.ts`、
+  `packages/tools/reqboard/tests/e2e/rtm-full-flow.test.ts`）与冒烟名单中的 dsh-pmboard 项。
+  `packages/tools/reqboard`（RTM 库）与历史档案保留。
 - 2026-09-22: 插件 bundle 化（REQ-260922133113-ebc5）——投资插件行从用户层裸 insert 迁入三个
   业务域 bundle（`packages/bundle/bundle-stock|bundle-evolution|bundle-platform`，dsh.bundle.patch
   规范），接入 DSH 插件管理页；profile 清单注册，start.sh 脚手架同步；config/cordis.yml 用户层只留覆盖项

@@ -315,9 +315,6 @@ importers:
       '@pi-investment/bundle-platform':
         specifier: workspace:*
         version: link:packages/bundle/bundle-platform
-      '@pi-investment/bundle-pmboard':
-        specifier: workspace:*
-        version: link:packages/bundle/bundle-pmboard
       '@pi-investment/bundle-stock':
         specifier: workspace:*
         version: link:packages/bundle/bundle-stock
@@ -399,9 +396,6 @@ importers:
       '@pi-investment/web-liveness':
         specifier: workspace:*
         version: link:packages/web/web-liveness
-      dsh-pmboard:
-        specifier: workspace:*
-        version: link:packages/web/dsh-pmboard
       yaml:
         specifier: ^2.3.4
         version: 2.9.1
@@ -683,8 +677,6 @@ importers:
   packages/bundle/bundle-evolution: {}
 
   packages/bundle/bundle-platform: {}
-
-  packages/bundle/bundle-pmboard: {}
 
   packages/bundle/bundle-stock: {}
 
@@ -1303,31 +1295,6 @@ importers:
       '@types/node':
         specifier: ^20.11.0
         version: 20.19.43
-      typescript:
-        specifier: ^5.3.3
-        version: 5.9.3
-      vitest:
-        specifier: ^2.0.0
-        version: 2.1.9(@types/node@20.19.43)
-
-  packages/web/dsh-pmboard:
-    dependencies:
-      '@deepseek-ai/dsh-tools':
-        specifier: 0.1.6-alpha.2
-        version: 0.1.6-alpha.2(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-agent@0.1.6-alpha.2)(@deepseek-ai/dsh-invariants@0.1.6-alpha.2)(@deepseek-ai/dsh-llm@0.1.6-alpha.2)(@deepseek-ai/dsh-ptc-runtime@0.1.6-alpha.2)(@deepseek-ai/dsh-sandbox-policy@0.1.6-alpha.2)(@deepseek-ai/dsh-sandbox@0.1.6-alpha.2)(@deepseek-ai/dsh-scope@0.1.6-alpha.2)(@deepseek-ai/dsh-session@0.1.6-alpha.2)(@deepseek-ai/dsh-system-prompt@0.1.6-alpha.2)(@deepseek-ai/dsh-user-approval@0.1.6-alpha.2)
-    devDependencies:
-      '@deepseek-ai/cordis':
-        specifier: 4.0.2
-        version: 4.0.2(@deepseek-ai/cordis-plugin-include@1.0.7)(@deepseek-ai/cordis-plugin-loader@1.0.3)
-      '@types/node':
-        specifier: ^20.11.0
-        version: 20.19.43
-      tsdown:
-        specifier: ^0.22.14
-        version: 0.22.14(tsx@4.23.12)(typescript@5.9.3)
-      tsx:
-        specifier: ^4.23.12
-        version: 4.23.12
       typescript:
         specifier: ^5.3.3
         version: 5.9.3

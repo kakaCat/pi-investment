@@ -47,7 +47,6 @@
     "@pi-investment/agent-os-manager": "workspace:*",
     "@pi-investment/bundle-evolution": "workspace:*",
     "@pi-investment/bundle-platform": "workspace:*",
-    "@pi-investment/bundle-pmboard": "workspace:*",
     "@pi-investment/bundle-stock": "workspace:*",
     "@pi-investment/competition": "workspace:*",
     "@pi-investment/core-tool": "workspace:*",
@@ -75,7 +74,6 @@
     "@pi-investment/strategy": "workspace:*",
     "@pi-investment/trading": "workspace:*",
     "@pi-investment/web-liveness": "workspace:*",
-    "dsh-pmboard": "workspace:*",
     "yaml": "^2.3.4"
   },
   "devDependencies": {

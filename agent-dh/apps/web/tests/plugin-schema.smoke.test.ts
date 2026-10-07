@@ -63,8 +63,7 @@ const PLUGINS: Array<[string, () => Promise<any>, () => any]> = [
   ['quantsys-v2-manager', () => import('../../../packages/runtime/quantsys-v2-manager/src/index.js'), () => ({})],
   ['agent-os-manager', () => import('../../../packages/runtime/agent-os-manager/src/index.js'), () => ({})],
   // REQ-4842fe t-a46239：dsh-pmboard 此前不在名单里 → 它新注册的工具 schema 无人编译。
-  // dshHome 指到临时目录，避免冒烟读写真实 .dsh-data。
-  ['dsh-pmboard', () => import('../../../packages/web/dsh-pmboard/src/index.js'), () => ({ dshHome: stateDir })],
+  // （2026-10-07：dsh-pmboard 插件已下线，该项随之移除。）
   // RFC 016：web-liveness host 半注册 quick_restart 工具；agentDhRoot 指到临时目录，避免触碰真实 .dsh-data。
   ['web-liveness', () => import('../../../packages/web/web-liveness/src/index.js'), () => ({ agentDhRoot: stateDir })],
 ];
