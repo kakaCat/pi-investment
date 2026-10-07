@@ -10,7 +10,7 @@ import type { ToolPrompt } from '@pi-investment/core-tool';
 export interface RiskMetricsParams {
   /** 账户名称 */
   account_name?: string;
-  /** 计算窗口（天） */
+  /** 计算窗口（交易日数上限，后端用于取净值快照条数） */
   days?: number;
 }
 
@@ -39,7 +39,7 @@ export interface RiskMetricsResult {
  * 风险指标工具提示词定义
  */
 export const riskMetricsPrompt: ToolPrompt<RiskMetricsParams, RiskMetricsResult> = {
-  description: '计算投资组合的风险收益指标：年化波动率、最大回撤、夏普/索提诺比率、Beta、Alpha、VaR(95%)。适用于：定期（如每周）评估组合风险收益特征、判断是否需要降仓。需要因子层面的风险来源分解时用 risk_barra_decomposition。',
+  description: '计算投资组合的风险收益指标：年化波动率、最大回撤、夏普/索提诺比率、Beta、Alpha、VaR(95%)。适用于：定期（如每周）评估组合风险收益特征、判断是否需要降仓。需要因子层面的风险来源分解时用 risk_barra_decomposition。窗口与净值缺口均按**交易日**计。',
 
   useCases: [
     '定期（如每周）评估组合风险收益特征',
@@ -60,8 +60,10 @@ export const riskMetricsPrompt: ToolPrompt<RiskMetricsParams, RiskMetricsResult>
   ],
 
   notes: [
-    '计算窗口越短对近期变化越敏感，越长越稳定',
-    '默认计算窗口为 60 天',
+    '计算窗口按**交易日**计：窗口越短对近期变化越敏感，越长越稳定',
+    '默认计算窗口为 60 个交易日',
+    '净值缺口同样只按**交易日**算（nav_coverage）：周末与法定节假日（如国庆整段）不计入缺口',
+    'nav_coverage.verified=false 表示 v2 未提供交易日校验（日历不可得）——缺口数未知，不代表序列连续，解读须保守',
     '需要因子层面的风险来源分解时使用 risk_barra_decomposition',
   ],
 
@@ -75,7 +77,7 @@ export const riskMetricsPrompt: ToolPrompt<RiskMetricsParams, RiskMetricsResult>
     },
     days: {
       type: 'integer',
-      description: '计算窗口（天），默认 60。窗口越短对近期变化越敏感，越长越稳定',
+      description: '计算窗口（交易日数上限），默认 60。窗口越短对近期变化越敏感，越长越稳定',
       default: 60,
     },
   },

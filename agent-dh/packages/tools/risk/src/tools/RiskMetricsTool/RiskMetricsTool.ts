@@ -9,6 +9,90 @@ import { riskMetricsPrompt, RiskMetricsParams, RiskMetricsResult } from './promp
 import { alignByTradingDate } from './attributionAlignment';
 
 /**
+ * 净值序列覆盖口径（消费 v2 的 data.nav_coverage）。
+ *
+ * v2（REQ-261006190953-fc43 卡 D）在 `GET /api/simulation/performance` 与
+ * `POST /api/risk/metrics` 的 data 段返回该块，缺口**只按交易日**算：
+ * 周末与法定节假日（如国庆 2026-10-01~10-07 整段）不计入缺口；
+ * 交易日历不可得时 `verified=false` 且 `missing_count=0`（**不是**"全缺失"）。
+ * 本工具只做透出，不再自己判星期/节假日。
+ */
+export interface NavCoverage {
+  /** 是否做过交易日校验（false = 本轮未做，缺口数未知，不代表序列连续） */
+  verified: boolean;
+  /** 窗口内交易日点数（v2 口径；缺 nav_coverage 时为 null） */
+  points: number | null;
+  from: string | null;
+  to: string | null;
+  /** 缺失的**交易日**（v2 最多给 20 条） */
+  missing_trading_days: string[];
+  missing_count: number;
+  /** v2 的口径说明（原样透出） */
+  basis: string;
+  /** trading-calendar / unavailable（原样透出） */
+  trading_day_source: string;
+  /** 供解读用的影响说明（本工具附加，非 v2 字段） */
+  impact: string;
+}
+
+/** v2 未返回 nav_coverage 时的口径说明（不得据此建议补跑：缺口数未知 ≠ 无缺口） */
+export const NAV_COVERAGE_UNAVAILABLE_BASIS = 'v2 未提供 nav_coverage：本轮未做交易日校验';
+
+/** 降级对象：verified=false 的「未做交易日校验」——**不回退 weekday 自算** */
+function unavailableNavCoverage(basis: string): NavCoverage {
+  return {
+    verified: false,
+    points: null,
+    from: null,
+    to: null,
+    missing_trading_days: [],
+    missing_count: 0,
+    basis,
+    trading_day_source: 'unavailable',
+    impact: '未做交易日校验 → 缺口数未知（0 不代表序列连续），日收益/波动率/alpha/IR 解读须保守',
+  };
+}
+
+/**
+ * 从 v2 响应体取 `data.nav_coverage`（兼容已解包的 data 段）并**原样透出**：
+ * `basis` / `trading_day_source` / `missing_trading_days` / `missing_count` / `verified` 一律取自 v2。
+ * 缺该字段时返回 `{verified:false, basis:'v2 未提供 nav_coverage：本轮未做交易日校验'}`。
+ * **绝不**用「相邻快照间隔 + 跳过周末」自算缺口（那会把国庆整段误报为缺口）。
+ */
+export function buildNavCoverage(payload: any): NavCoverage {
+  const nc = payload?.data?.nav_coverage ?? payload?.nav_coverage;
+  if (!nc || typeof nc !== 'object' || Array.isArray(nc)) {
+    return unavailableNavCoverage(NAV_COVERAGE_UNAVAILABLE_BASIS);
+  }
+  const rawDays = (nc as any).missing_trading_days;
+  const missingDays: string[] = Array.isArray(rawDays)
+    ? rawDays.map((d: any) => String(d)).slice(0, 20)
+    : [];
+  const count = Number((nc as any).missing_count);
+  const missingCount = Number.isFinite(count) ? count : missingDays.length;
+  const verified = (nc as any).verified === true;
+  const impact = !verified
+    ? 'v2 未做交易日校验（verified=false）→ 缺口数未知，日收益/波动率/alpha/IR 解读须保守'
+    : missingCount > 0
+      ? '存在缺口 → 日收益口径失真，波动率/alpha/IR 解读须保守'
+      : '序列连续，日收益口径可用';
+  const basis = (nc as any).basis;
+  const source = (nc as any).trading_day_source;
+  return {
+    ...(nc as any),
+    verified,
+    points: (nc as any).points ?? null,
+    from: (nc as any).from ?? null,
+    to: (nc as any).to ?? null,
+    missing_trading_days: missingDays,
+    missing_count: missingCount,
+    basis: typeof basis === 'string' && basis ? basis : 'v2 已给 nav_coverage 但未附 basis',
+    trading_day_source: typeof source === 'string' && source ? source : 'unavailable',
+    impact,
+  };
+}
+
+/**
  * 风险指标工具类
  */
 export class RiskMetricsTool extends BaseTool<RiskMetricsParams, RiskMetricsResult> {
@@ -48,7 +132,7 @@ export class RiskMetricsTool extends BaseTool<RiskMetricsParams, RiskMetricsResu
     //    但需要与账户收益序列**等长对齐**——实测传 6 点基准配 55 点净值会得到 beta=0 的假值。
     //    此处拉沪深300 日收益，按长度尾部对齐后回传，使 beta/alpha 从『恒 0』变为真实值。
     const attribution = await this.buildAttribution(base, days, account);
-    const navCoverage = await this.probeNavCoverage(account, Number(base?.navPoints ?? 0));
+    const navCoverage = await this.probeNavCoverage(account);
     const enriched: any = attribution?.benchmark_returns?.length
       ? await this.qv2.getRiskMetrics({
           account_name: account,
@@ -83,7 +167,10 @@ export class RiskMetricsTool extends BaseTool<RiskMetricsParams, RiskMetricsResu
       window_note: '账户口径为净值序列日收益（returnsSource=' + String(enriched?.returnsSource ?? '?') +
         '，navPoints=' + String(enriched?.navPoints ?? '?') + '）；后端 days 实际用于取净值快照条数上限' +
         (navCoverage && navCoverage.missing_count > 0
-          ? '；[缺口] 净值序列缺 ' + navCoverage.missing_count + ' 个工作日 → 日收益口径失真'
+          ? '；[缺口] 净值序列缺 ' + navCoverage.missing_count + ' 个交易日（不扣周末与法定节假日）→ 日收益口径失真'
+          : '') +
+        (navCoverage && navCoverage.verified === false
+          ? '；[交易日覆盖率] ' + navCoverage.basis
           : ''),
       attribution: attribution
         ? {
@@ -125,48 +212,28 @@ export class RiskMetricsTool extends BaseTool<RiskMetricsParams, RiskMetricsResu
     }
   }
   /**
-   * 净值序列缺口探测（2026-09-11，REQ-342799 P3）。
-   * 波动率/alpha/IR 由相邻快照差分的日收益算出；缺交易日会把跨日涨跌当成单日收益。
-   * 实测 agent_virtual：59 个交易日只有 55 条快照（缺 08-10/08-24/08-26/08-27/08-31）。
-   * 只做可见化，不改写数据（该表口径由 w-8f2c4cc5 维护）。
+   * 净值序列缺口探测（2026-09-11，REQ-342799 P3；2026-10-06 改为**消费 v2 口径**）。
+   *
+   * 波动率/alpha/IR 由相邻快照差分的日收益算出；缺交易日会把跨日涨跌当成单日收益，
+   * 因此需要可见化。判据**不在本工具**：v2 的 `data.nav_coverage` 已按交易日历逐日核对
+   * （REQ-261006190953-fc43 卡 D，唯一实现 `application/services/nav_series.nav_coverage`），
+   * 这里只取字段透出——旧实现在本地按「相邻快照间隔 + 跳过周末」自算，
+   * 会把国庆 2026-10-01~10-07 整段误报成缺口，且自认「未扣法定节假日」。
+   * 取不到 nav_coverage 时如实标 `verified:false`（未做交易日校验），**不回退自算、不建议补跑**。
    */
-  private async probeNavCoverage(account: string, navPoints: number): Promise<any | null> {
+  private async probeNavCoverage(account: string): Promise<NavCoverage> {
     try {
       const base = process.env.QUANTSYS_V2_API_URL || 'http://127.0.0.1:5001';
       const url = base + '/api/simulation/performance?account_name=' + encodeURIComponent(account);
       const res = await fetch(url);
-      if (!res.ok) return null;
-      const body: any = await res.json();
-      const curve: any[] = body?.data?.equity_curve ?? [];
-      const dates = curve.map((r) => String(r?.date ?? '')).filter(Boolean);
-      if (dates.length < 5) return null;
-      const tail = navPoints > 0 && navPoints < dates.length ? dates.slice(-navPoints) : dates;
-      const missing: string[] = [];
-      for (let i = 1; i < tail.length; i++) {
-        const prev = new Date(tail[i - 1] + 'T00:00:00Z');
-        const cur = new Date(tail[i] + 'T00:00:00Z');
-        const gapDays = Math.round((cur.getTime() - prev.getTime()) / 86400000);
-        if (gapDays <= 1) continue;
-        for (let d = 1; d < gapDays; d++) {
-          const day = new Date(prev.getTime() + d * 86400000);
-          const wd = day.getUTCDay();
-          if (wd !== 0 && wd !== 6) missing.push(day.toISOString().slice(0, 10));
-        }
+      if (!res.ok) {
+        return unavailableNavCoverage(
+          'v2 /api/simulation/performance 返回非 2xx（HTTP ' + res.status + '）：本轮未做交易日校验',
+        );
       }
-      const impact = missing.length
-        ? '存在缺口 → 日收益口径失真，波动率/alpha/IR 解读须保守'
-        : '序列连续，日收益口径可用';
-      return {
-        points: tail.length,
-        from: tail[0],
-        to: tail[tail.length - 1],
-        missing_weekdays: missing.slice(0, 20),
-        missing_count: missing.length,
-        basis: '按相邻快照间隔识别缺失工作日（未扣法定节假日，数字可能略高估）',
-        impact,
-      };
+      return buildNavCoverage(await res.json());
     } catch {
-      return null;
+      return unavailableNavCoverage('未能取到 v2 nav_coverage（请求失败）：本轮未做交易日校验');
     }
   }
   /**

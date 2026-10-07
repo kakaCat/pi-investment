@@ -300,9 +300,6 @@ v2_event_json: ${JSON.stringify(data)}
     }
 
     // ③ 执行留痕（含完整提示词，可溯）
-    const rootsEarly: any[] = this.ctx.agents.roots();
-    const onlineRoot = rootsEarly.find((a) => String(a.id).startsWith(this.cfg.agentId)) ?? rootsEarly[0];
-    const myWindow = onlineRoot ? this.windowCode(String(onlineRoot.id)) : this.windowCode(this.identity.id);
     await this.osWrite('memory_write', {
       title: `reminder ${taskName} delivered`,
       // 2026-09-12 修复（w-adb088f2）：不再写 prompt 全文——任务文本会污染记忆检索
@@ -316,7 +313,10 @@ v2_event_json: ${JSON.stringify(data)}
         executor,
       })),
       namespace: 'data',
-      tags: ['office:delivered', 'office:reminder:exec', `office:reminder:${myWindow}`],
+      // 2026-10-07 修复（空提醒自循环，与 setupOsReminderPoller 同一根因）：
+      // 回执不得带收件箱标签 office:reminder:<window> —— 轮询器会把自己的回执当新信件，
+      // 形成「投递→回执→再投递」的每分钟自循环。exec 供去重、delivered 供审计，二者保留。
+      tags: ['office:delivered', 'office:reminder:exec'],
     });
   }
 
@@ -352,7 +352,11 @@ v2_event_json: ${JSON.stringify(data)}
         for (const e of execItems) {
           try {
             const ep = typeof e.content === 'string' ? JSON.parse(e.content) : e.content;
-            if (ep?.task && ep?.fired_at) deliveredKeys.add(`${ep.task}|${ep.fired_at}`);
+            if (!ep) continue;
+            // 2026-10-07 修复（空提醒自循环）：回执同样带 office:reminder:<window> 收件箱标签，
+            // 轮询器会把自己的回执当新信件反复投递。此处把回执（含 delivered 字段）排除出收件箱。
+            if (ep.delivered) continue;
+            if (ep.task != null) deliveredKeys.add(`${ep.task}|${ep.fired_at ?? ''}`);
           } catch { /* skip */ }
         }
 
@@ -360,7 +364,11 @@ v2_event_json: ${JSON.stringify(data)}
           let p: any = null;
           try { p = typeof it.content === 'string' ? JSON.parse(it.content) : it.content; } catch { continue; }
           if (!p || p.delivered) continue;
-          if (deliveredKeys.has(`${p.task}|${p.fired_at}`)) continue;  // 已投递过，跳过
+          // 2026-10-07 修复（空提醒自循环）：task 与 prompt 同时为空的载荷不是任务，
+          // 是畸形/自身回执回声——投递出去就是一条内容为 undefined 的空提醒。
+          // 投递无意义且会（连同回执）每分钟自我重放，直接跳过。
+          if (!p.task && !p.prompt) continue;
+          if (deliveredKeys.has(`${p.task}|${p.fired_at ?? ''}`)) continue;  // 已投递过，跳过
 
           // ① 找在线目标窗口
           const roots: any[] = this.ctx.agents.roots();
@@ -397,7 +405,11 @@ v2_event_json: ${JSON.stringify(data)}
               executor,
             })),
             namespace: 'data',
-            tags: ['office:delivered', 'office:reminder:exec', `office:reminder:${myWindow}`],
+            // 2026-10-07 修复（空提醒自循环）：回执不得带收件箱标签
+            // office:reminder:<window> —— 否则下一轮 60s 轮询会把自己的回执当新信件，
+            // 形成「投递→回执→再投递」的无限循环（症状：每分钟一条空提醒）。
+            // 保留 office:reminder:exec 供去重查询，保留 office:delivered 供审计。
+            tags: ['office:delivered', 'office:reminder:exec'],
           });
         }
       } catch { /* OS 宕机等异常静默，下轮重试 */ }
