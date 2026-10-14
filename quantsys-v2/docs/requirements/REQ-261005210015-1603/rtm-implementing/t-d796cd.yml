@@ -1,0 +1,36 @@
+task:
+  id: t-d796cd
+  title: handler 组装：summary / no_output / 空转统计（含纯函数与查询失败降级）·联调
+  status: done
+  implements: |-
+    adapters/inbound/fastapi_app/daily_jobs/pipeline.py：_job_evolution_fitness() 调 t3 的两个只读方法算出 last_ok_window_end 与 idle_streak（新增模块级纯函数 _derive_idle_streak(counts_desc) -> (int, bool)，bool 表示是否被 limit 截断）；按设计文档的接口契约 A 拼 summary（有效 N（样本不足 x / 无成交 y / 数据缺口 z），computed_ok 为 0 且 streak 大于等于 2 时追加「已连续 N 次无有效产出（最近有效：YYYY-MM-DD）」，streak 等于 1 时写「本次无有效产出」，computed_ok 大于 0 时不追加）；no_output = (computed_ok == 0)；返回体保留 detail 与 note 并新增顶层 summary 与 no_output。两次只读查询任一抛错时：logger.error + summary 追加「空转统计不可用」+ 不外抛（任务仍记 success）。不得在 detail 里引入 success 或 status 键，也不得把 data_gap 写成 no_data（会撞 _GAP_KEYS 触发误判失败）。
+
+    [子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）
+  serves: []
+  depends_on:
+    - t-a494c4
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261005210015-1603
+    TASK_ID: t-d796cd
+    TASK_TITLE: handler 组装：summary / no_output / 空转统计（含纯函数与查询失败降级）·联调
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-05T13:20:23.713Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261005210015-1603
+  generated_at: 2026-10-05T13:20:23.712Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-05T13:20:30.487Z

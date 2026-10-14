@@ -1,0 +1,37 @@
+task:
+  id: t-2ae248
+  title: 补齐设计登记的未覆盖用例（run_forever 整环 / 跳过留痕去重 / 装配失败降级）·研发
+  status: done
+  implements: |-
+    扩展 tests/services/test_watch_engine_trading_day_gate.py：用 now_fn 序列 + _stopped 标志驱动 run_forever 跑两轮，断言休市日不调用 tick（可用打桩计数）；新增用例断言 _log_market_closed 的按日去重（同日多次调用只留一条留痕）；扩展 tests/notification/test_notification_audit_repository.py 或新增用例，断言 notification_factory 在审计仓储装配失败时降级为 repository=None 且通知仍发出。
+
+    [子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要
+  serves: []
+  depends_on:
+    - t-268fbd
+    - t-633d3f
+  phase: test
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261007101318-c392
+    TASK_ID: t-2ae248
+    TASK_TITLE: 补齐设计登记的未覆盖用例（run_forever 整环 / 跳过留痕去重 / 装配失败降级）·研发
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: test
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: test
+      status: done
+      completed_at: 2026-10-07T05:53:26.821Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261007101318-c392
+  generated_at: 2026-10-07T05:52:58.245Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-07T05:53:30.909Z

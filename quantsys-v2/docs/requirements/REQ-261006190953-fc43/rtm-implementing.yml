@@ -1,0 +1,192 @@
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006190953-fc43
+  generated_at: 2026-10-06T11:40:04.734Z
+  version: 108
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 35
+  last_updated: 2026-10-06T12:40:47.785Z
+inputs:
+  tasks:
+    - id: t-7c5daa
+      title: 落 nav_series 口径模块与契约（并留 shim 保导入兼容）
+      status: done
+    - id: t-8c7962
+      title: 给净值仓储加唯一写入闸门，并让日收益基准按交易日回退
+      status: done
+    - id: t-0ae23e
+      title: 接线两处写入入口：非交易日拒写并留痕 refused/skipped
+      status: done
+    - id: t-39a044
+      title: 读取端接线：days 改为交易日数并返回 window 与 nav_coverage
+      status: done
+    - id: t-5c9a67
+      title: 存量清理迁移与一致性校验（含备份与回滚）
+      status: done
+    - id: t-6f1c29
+      title: 落常驻巡检判据并纠正失真的 is_synthetic 注释
+      status: done
+    - id: t-1974b4
+      title: 跨仓消费侧：agent-dh 改读 v2 缺口口径，不再 weekday 自算
+      status: done
+    - id: t-9425ac
+      title: 落 nav_series 口径模块与契约（并留 shim 保导入兼容）·研发
+      status: done
+    - id: t-c029f4
+      title: 落 nav_series 口径模块与契约（并留 shim 保导入兼容）·联调
+      status: done
+    - id: t-8c1870
+      title: 落 nav_series 口径模块与契约（并留 shim 保导入兼容）·复核
+      status: done
+    - id: t-19fd53
+      title: 落 nav_series 口径模块与契约（并留 shim 保导入兼容）·测试
+      status: done
+    - id: t-4dec44
+      title: 给净值仓储加唯一写入闸门，并让日收益基准按交易日回退·研发
+      status: done
+    - id: t-3b9912
+      title: 给净值仓储加唯一写入闸门，并让日收益基准按交易日回退·联调
+      status: done
+    - id: t-d41793
+      title: 给净值仓储加唯一写入闸门，并让日收益基准按交易日回退·复核
+      status: done
+    - id: t-8d52f6
+      title: 给净值仓储加唯一写入闸门，并让日收益基准按交易日回退·测试
+      status: done
+    - id: t-993380
+      title: 接线两处写入入口：非交易日拒写并留痕 refused/skipped·研发
+      status: done
+    - id: t-4c6330
+      title: 接线两处写入入口：非交易日拒写并留痕 refused/skipped·联调
+      status: done
+    - id: t-649a6b
+      title: 接线两处写入入口：非交易日拒写并留痕 refused/skipped·复核
+      status: done
+    - id: t-70118d
+      title: 接线两处写入入口：非交易日拒写并留痕 refused/skipped·测试
+      status: done
+    - id: t-d20433
+      title: 读取端接线：days 改为交易日数并返回 window 与 nav_coverage·研发
+      status: done
+    - id: t-04394d
+      title: 读取端接线：days 改为交易日数并返回 window 与 nav_coverage·联调
+      status: done
+    - id: t-87ba63
+      title: 读取端接线：days 改为交易日数并返回 window 与 nav_coverage·复核
+      status: done
+    - id: t-a5759a
+      title: 读取端接线：days 改为交易日数并返回 window 与 nav_coverage·测试
+      status: done
+    - id: t-6fd33d
+      title: 存量清理迁移与一致性校验（含备份与回滚）·研发
+      status: done
+    - id: t-7f18d9
+      title: 存量清理迁移与一致性校验（含备份与回滚）·联调
+      status: done
+    - id: t-584b02
+      title: 存量清理迁移与一致性校验（含备份与回滚）·复核
+      status: done
+    - id: t-158541
+      title: 存量清理迁移与一致性校验（含备份与回滚）·测试
+      status: done
+    - id: t-3807ba
+      title: 落常驻巡检判据并纠正失真的 is_synthetic 注释·研发
+      status: done
+    - id: t-a7b2d3
+      title: 落常驻巡检判据并纠正失真的 is_synthetic 注释·联调
+      status: done
+    - id: t-1e0690
+      title: 落常驻巡检判据并纠正失真的 is_synthetic 注释·复核
+      status: done
+    - id: t-6a230e
+      title: 落常驻巡检判据并纠正失真的 is_synthetic 注释·测试
+      status: done
+    - id: t-d1ea93
+      title: 跨仓消费侧：agent-dh 改读 v2 缺口口径，不再 weekday 自算·研发
+      status: done
+    - id: t-bb7fce
+      title: 跨仓消费侧：agent-dh 改读 v2 缺口口径，不再 weekday 自算·联调
+      status: done
+    - id: t-e8d596
+      title: 跨仓消费侧：agent-dh 改读 v2 缺口口径，不再 weekday 自算·复核
+      status: done
+    - id: t-ee93ba
+      title: 跨仓消费侧：agent-dh 改读 v2 缺口口径，不再 weekday 自算·测试
+      status: done
+status:
+  tasks_total: 35
+  tasks_done: 35
+  tasks_in_progress: 0
+  tasks_todo: 0
+tasks:
+  - id: t-7c5daa
+    status: done
+  - id: t-8c7962
+    status: done
+  - id: t-0ae23e
+    status: done
+  - id: t-39a044
+    status: done
+  - id: t-5c9a67
+    status: done
+  - id: t-6f1c29
+    status: done
+  - id: t-1974b4
+    status: done
+  - id: t-9425ac
+    status: done
+  - id: t-c029f4
+    status: done
+  - id: t-8c1870
+    status: done
+  - id: t-19fd53
+    status: done
+  - id: t-4dec44
+    status: done
+  - id: t-3b9912
+    status: done
+  - id: t-d41793
+    status: done
+  - id: t-8d52f6
+    status: done
+  - id: t-993380
+    status: done
+  - id: t-4c6330
+    status: done
+  - id: t-649a6b
+    status: done
+  - id: t-70118d
+    status: done
+  - id: t-d20433
+    status: done
+  - id: t-04394d
+    status: done
+  - id: t-87ba63
+    status: done
+  - id: t-a5759a
+    status: done
+  - id: t-6fd33d
+    status: done
+  - id: t-7f18d9
+    status: done
+  - id: t-584b02
+    status: done
+  - id: t-158541
+    status: done
+  - id: t-3807ba
+    status: done
+  - id: t-a7b2d3
+    status: done
+  - id: t-1e0690
+    status: done
+  - id: t-6a230e
+    status: done
+  - id: t-d1ea93
+    status: done
+  - id: t-bb7fce
+    status: done
+  - id: t-e8d596
+    status: done
+  - id: t-ee93ba
+    status: done

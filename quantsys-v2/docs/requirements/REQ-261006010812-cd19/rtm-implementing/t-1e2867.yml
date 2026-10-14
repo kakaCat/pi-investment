@@ -1,0 +1,46 @@
+task:
+  id: t-1e2867
+  title: 设计未覆盖缺口审计·取数调研
+  status: done
+  implements: |-
+    复核 requirement.md 已实测的 E-2（实现从未提交）E-3（验收工具缺失）E-4（判据被 gitignore 排除）E-6（归档需求覆盖度自相矛盾），并主动找「该设计未覆盖但仍在风险中」的链路：a7cd 的 E15（risk_check / verification / weekly_report 三条链路坏且未排班）、E16（盘中无 V13 止损，intraday_monitor 账户写死 rotation_main 且 rule_guard 拒绝策略账户）、休市日非日检写入路径、无提交导致的回滚失效、pytest.ini 假绿灯门禁是否真落地。每条给证据（L1-L3）+ 影响面 + 风险等级（高/中/低）。产出 docs/requirements/REQ-261006010812-cd19/evidence/a4-gaps.md。
+
+    [子卡阶段·取数调研] 只做本阶段；验收：数据样本量与来源已标注：给出取数命令（如 `npx tsx scripts/<脚本>.mts`）或输出文件路径，对齐 R-013 来源与时点口径
+  serves: []
+  depends_on:
+    - t-3c2fb0
+    - t-881157
+  phase: analysis
+  side: doc
+  workflow_params:
+    REQ_ID: REQ-261006010812-cd19
+    TASK_ID: t-1e2867
+    TASK_TITLE: 设计未覆盖缺口审计·取数调研
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: doc
+    PHASE: analysis
+  workflow_total: 4
+  workflow_done: 4
+  workflow:
+    - phase: analysis
+      status: done
+      completed_at: 2026-10-06T01:32:05.550Z
+    - phase: implement
+      status: done
+      completed_at: 2026-10-06T01:32:03.124Z
+    - phase: test
+      status: done
+      completed_at: 2026-10-06T01:32:05.550Z
+    - phase: commit
+      status: done
+      completed_at: 2026-10-06T01:32:05.550Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006010812-cd19
+  generated_at: 2026-10-06T01:31:59.462Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 4
+  last_updated: 2026-10-06T01:32:05.550Z

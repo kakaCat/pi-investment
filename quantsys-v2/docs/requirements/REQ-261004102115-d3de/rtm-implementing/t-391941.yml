@@ -1,0 +1,35 @@
+task:
+  id: t-391941
+  title: 返工：E2E 覆盖：**无（缺口）**——本需求交付涉及多组件串联，但只交了单元/集成测试。请补一条端到端场景用例（断言可观察
+  status: done
+  implements: 按验收意见修复：需修改
+  serves: []
+  depends_on: []
+  phase: implement
+  side: fullstack
+  workflow_params:
+    REQ_ID: REQ-261004102115-d3de
+    TASK_ID: t-391941
+    TASK_TITLE: 返工：E2E 覆盖：**无（缺口）**——本需求交付涉及多组件串联，但只交了单元/集成测试。请补一条端到端场景用例（断言可观察
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: fullstack
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      started_at: 2026-10-04T02:39:23.702Z
+      completed_at: 2026-10-04T02:39:23.891Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261004102115-d3de
+  generated_at: 2026-10-04T02:37:10.983Z
+  version: 7
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-04T02:39:23.891Z

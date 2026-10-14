@@ -1,0 +1,4395 @@
+{
+  "version": 1,
+  "requirement_id": "REQ-261006165125-23a9",
+  "schemaVersion": 9,
+  "generated_at": "2026-10-06T09:01:56.780Z",
+  "tasks": [
+    {
+      "id": "t-9c727a",
+      "requirementId": "REQ-261006165125-23a9",
+      "title": "新建通知判据模块 notify_policy（无事判据 + env 解析）",
+      "cardDoc": "docs/requirements/REQ-261006165125-23a9/tasks/t-9c727a.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "四条命令退出码全 0：① ./venv/bin/python -c \"from adapters.inbound.fastapi_app.daily_jobs import notify_policy as p; assert p.is_no_op({'status':'no_event'}) and p.is_no_op({'status':' NO_OP '}) and p.is_no_op({'no_output':True}); assert not p.is_no_op({'no_output':1}) and not p.is_no_op({'status':'success'}) and not p.is_no_op(None) and not p.is_no_op('x'); assert p.should_send_completion(result={'status':'no_event'}) is False; assert p.should_send_completion(result={'status':'no_event'}, manual=True) is True; print('policy ok')\"；② DAILY_JOBS_RUNNING_NOTICE_SECONDS=abc … assert p.running_notice_seconds()==60.0；③ DAILY_JOBS_RUNNING_NOTICE_SECONDS=0 … assert p.running_notice_seconds()==0.0；④ DAILY_JOBS_NOTIFY_NOOP=1 … assert p.notify_noop_enabled() and p.should_send_start()。另：! grep -nE '^(from|import) (application|domain|infrastructure)' 该文件 → 无命中（层边界只许向内）。",
+      "implementation": "按 design/interfaces.md §1 新建 adapters/inbound/fastapi_app/daily_jobs/notify_policy.py：常量 NO_OP_STATUSES={'no_event','no_op'} 与 RUNNING_NOTICE_DEFAULT_SECONDS=60.0；函数 is_no_op（严格 no_output is True 或 status.strip().lower() 命中白名单，其余一律 False）、notify_noop_enabled、running_notice_seconds（未设/非数→60.0，<=0→0.0）、should_send_start（= notify_noop_enabled）、should_send_completion（manual→True 优先；开关打开→True；is_no_op→False；否则 True）。env 解析复用同包 interval._env_flag；不新增跨层依赖（kb-conventions-c01）；任何输入不得抛异常。",
+      "context": "",
+      "skipIntegration": true,
+      "footprint": {
+        "files": 1,
+        "anchors": 6,
+        "chars": 1400
+      },
+      "decisionRefs": [
+        "D-2",
+        "D-3"
+      ],
+      "requirementRefs": [
+        "FR-1",
+        "FR-7"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-78f984",
+          "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+          "trigger": "manual",
+          "startedAt": 1791277325132,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 479,
+              "at": 1791277325132,
+              "totals": {
+                "uncachedInputTokens": 87069,
+                "outputTokens": 68520,
+                "cacheReadTokens": 7071872,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 479,
+                  "totals": {
+                    "uncachedInputTokens": 87069,
+                    "outputTokens": 68520,
+                    "cacheReadTokens": 7071872,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 758,
+              "at": 1791277529217,
+              "totals": {
+                "uncachedInputTokens": 109233,
+                "outputTokens": 93127,
+                "cacheReadTokens": 15717248,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 758,
+                  "totals": {
+                    "uncachedInputTokens": 109233,
+                    "outputTokens": 93127,
+                    "cacheReadTokens": 15717248,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 22164,
+              "outputTokens": 24607,
+              "cacheReadTokens": 8645376,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791277529217
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791277316715,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1791277325132,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "开工：新建 notify_policy 判据模块（FR-1/FR-7，关联 D-2/D-3）"
+        },
+        {
+          "status": "done",
+          "at": 1791277529217,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "父卡收尾：notify_policy 研发／复核／测试三段全过，判据模块可被 host 卡接线"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-a54603",
+          "body": "[状态] → in_progress：开工：新建 notify_policy 判据模块（FR-1/FR-7，关联 D-2/D-3）（reqboard_task_move）",
+          "createdAt": 1791277325132,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        },
+        {
+          "id": "c-9f50d8",
+          "body": "[状态] → done：父卡收尾：notify_policy 研发／复核／测试三段全过，判据模块可被 host 卡接线（reqboard_task_move）",
+          "createdAt": 1791277529217,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791277316715,
+      "updatedAt": 1791277529217,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+      },
+      "layer": 0,
+      "lastReport": {
+        "at": 1791277360440,
+        "reportIndex": 1,
+        "filesChanged": [
+          "adapters/inbound/fastapi_app/daily_jobs/notify_policy.py"
+        ],
+        "completed": [
+          "新增 notify_policy.py：is_no_op 白名单判据（严格 no_output is True）",
+          "新增 should_send_completion：manual／回滚态／无事／有产出四分支",
+          "新增 notify_noop_enabled 与 running_notice_seconds（坏值容错，0 表示关闭提示）",
+          "四条验收命令全过，层边界 grep 无 application/domain/infrastructure 依赖"
+        ]
+      },
+      "lastRun": {
+        "at": 1791277360440,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-9a1066",
+      "requirementId": "REQ-261006165125-23a9",
+      "title": "alerting 抽出完成消息组装 format_completion",
+      "cardDoc": "docs/requirements/REQ-261006165125-23a9/tasks/t-9a1066.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "./venv/bin/python -c \"from adapters.inbound.fastapi_app.daily_jobs import alerting as a; t=a.format_completion('event_calendar_check','desc',1.2,{'updated':1}); assert t.startswith('✅ 每日任务完成：event_calendar_check') and '耗时: 1.2 秒' in t, t; assert a.format_completion('j','d',1.2,{'updated':1},manual=True).startswith('✅ 每日任务完成（人工触发）：j'); assert a.format_completion('j','d',1.2,{'no_output':True},warn_no_output=True).startswith('⚠️ 每日任务完成（无有效产出）：j'); print('format ok')\" → 打印 format ok。",
+      "implementation": "在 adapters/inbound/fastapi_app/daily_jobs/alerting.py 新增 format_completion(job_id, description, elapsed, result, *, manual=False, warn_no_output=False) -> str：标题优先级 manual（'✅ 每日任务完成（人工触发）：{job_id}'）> warn_no_output（'⚠️ 每日任务完成（无有效产出）：{job_id}'）> '✅ 每日任务完成：{job_id}'；正文 {description}\\n耗时: {_format_elapsed(elapsed)} + 非空摘要（_summarize_result）。不改 _send_feishu / _summarize_result / _format_elapsed / _job_failure_watch。",
+      "context": "",
+      "skipIntegration": true,
+      "footprint": {
+        "files": 1,
+        "anchors": 3,
+        "chars": 800
+      },
+      "decisionRefs": [
+        "D-2",
+        "D-3"
+      ],
+      "requirementRefs": [
+        "FR-2",
+        "FR-6",
+        "FR-7"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-eb59e8",
+          "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+          "trigger": "manual",
+          "startedAt": 1791277325193,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 481,
+              "at": 1791277325193,
+              "totals": {
+                "uncachedInputTokens": 87069,
+                "outputTokens": 68520,
+                "cacheReadTokens": 7071872,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 481,
+                  "totals": {
+                    "uncachedInputTokens": 87069,
+                    "outputTokens": 68520,
+                    "cacheReadTokens": 7071872,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 849,
+              "at": 1791277596877,
+              "totals": {
+                "uncachedInputTokens": 119893,
+                "outputTokens": 97856,
+                "cacheReadTokens": 19183872,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 849,
+                  "totals": {
+                    "uncachedInputTokens": 119893,
+                    "outputTokens": 97856,
+                    "cacheReadTokens": 19183872,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 32824,
+              "outputTokens": 29336,
+              "cacheReadTokens": 12112000,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791277596877
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791277316715,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1791277325193,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "开工：alerting 抽出 format_completion（FR-2/FR-6/FR-7）"
+        },
+        {
+          "status": "done",
+          "at": 1791277596877,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "父卡收尾：format_completion 研发／复核／测试三段全过，标题三级优先级与正文形状均验收通过"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-aeb812",
+          "body": "[状态] → in_progress：开工：alerting 抽出 format_completion（FR-2/FR-6/FR-7）（reqboard_task_move）",
+          "createdAt": 1791277325193,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        },
+        {
+          "id": "c-385ec6",
+          "body": "[状态] → done：父卡收尾：format_completion 研发／复核／测试三段全过，标题三级优先级与正文形状均验收通过（reqboard_task_move）",
+          "createdAt": 1791277596877,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791277316715,
+      "updatedAt": 1791277596877,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+      },
+      "layer": 0,
+      "lastReport": {
+        "at": 1791277360514,
+        "reportIndex": 1,
+        "filesChanged": [
+          "adapters/inbound/fastapi_app/daily_jobs/alerting.py"
+        ],
+        "completed": [
+          "新增 format_completion：标题优先级 人工触发 > 无有效产出 > ✅",
+          "正文含描述、耗时（秒级格式）与非空摘要",
+          "未改 _send_feishu／_summarize_result／_format_elapsed",
+          "验收命令通过，实际输出为 ✅ 每日任务完成：event_calendar_check 等三行"
+        ]
+      },
+      "lastRun": {
+        "at": 1791277360514,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-15bb12",
+      "requirementId": "REQ-261006165125-23a9",
+      "title": "runtime 接线：通知收敛 + manual 参数 + 超阈值提示 + trigger_job",
+      "cardDoc": "docs/requirements/REQ-261006165125-23a9/tasks/t-15bb12.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-9c727a",
+        "t-9a1066"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "① ./venv/bin/python -m pytest tests/test_daily_jobs_bootstrap.py tests/test_daily_jobs_trading_day_gate.py tests/test_false_success_guard.py tests/test_notify_guard.py -q → 全过（跳过/失败路径未被误伤）；② ./venv/bin/python -c \"from datetime import time as dtime; from adapters.inbound.fastapi_app.daily_jobs import runtime; from adapters.inbound.fastapi_app.daily_jobs.defs import JobDef; sent=[]; runtime._send_feishu=lambda t:(sent.append(t),True)[1]; runtime._mark_running=lambda *a,**k:None; runtime._mark_done=lambda *a,**k:None; mk=lambda r: JobDef('event_calendar_check',dtime(16,45),(0,1,2,3,4,5,6),lambda:r,'事件日历检查'); runtime._run_job(mk({'status':'no_event'}),'2026-10-07'); assert sent==[], sent; runtime._run_job(mk({'updated':1}),'2026-10-07'); assert len(sent)==1 and sent[0].startswith('✅'), sent; print('host ok')\" → 打印 host ok；③ grep -n 'manual: bool = False' runtime.py 与 grep -n 'inprocess_job_notify_skipped' runtime.py 各有命中。",
+      "implementation": "daily_jobs/runtime.py：① _run_job(job, run_date, manual: bool = False)；② 删 runtime.py:126 的无条件开始消息，改为 if notify_policy.should_send_start(): _send_feishu(旧开始文案)（仅回滚态为真）；③ handler() 前 timer=_arm_running_notice(job)，finally 里 timer.cancel()；④ 完成分支改为 if should_send_completion(result=result, manual=manual): _send_feishu(alerting.format_completion(..., warn_no_output=notify_policy.notify_noop_enabled() and result.get('no_output') is True))；⑤ 抑制外发时 logger.info('inprocess_job_notify_skipped', job=..., reason='no_op', manual=...)；⑥ 内层失败与异常两处 _send_feishu 逐字不动；⑦ 新增 _arm_running_notice（running_notice_seconds()<=0 返回 None；threading.Timer daemon=True，秒数用 _format_elapsed 渲染）与 _send_running_notice（消息 '⏳ 每日任务仍在运行：{job_id}\\n{description}\\n已跑 {_format_elapsed(secs)}'；回调内异常吞掉并记 inprocess_job_running_notice_error；两函数必须住在 runtime.py 以保住打桩点）；⑧ trigger_job 线程调用传 manual=True（签名/返回体不变）。daily_jobs_bootstrap.py 的转发 import 与 __all__ 补 _arm_running_notice / _send_running_notice；不改 daily_jobs/__init__.py。",
+      "context": "",
+      "skipIntegration": true,
+      "footprint": {
+        "files": 2,
+        "anchors": 6,
+        "chars": 1800
+      },
+      "decisionRefs": [
+        "D-2",
+        "D-3"
+      ],
+      "requirementRefs": [
+        "FR-2",
+        "FR-3",
+        "FR-4",
+        "FR-5",
+        "FR-6"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-9fb0f0",
+          "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+          "trigger": "manual",
+          "startedAt": 1791277599027,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 856,
+              "at": 1791277599027,
+              "totals": {
+                "uncachedInputTokens": 124354,
+                "outputTokens": 98054,
+                "cacheReadTokens": 19420416,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 856,
+                  "totals": {
+                    "uncachedInputTokens": 124354,
+                    "outputTokens": 98054,
+                    "cacheReadTokens": 19420416,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 953,
+              "at": 1791277662724,
+              "totals": {
+                "uncachedInputTokens": 134349,
+                "outputTokens": 103012,
+                "cacheReadTokens": 23429760,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 953,
+                  "totals": {
+                    "uncachedInputTokens": 134349,
+                    "outputTokens": 103012,
+                    "cacheReadTokens": 23429760,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 9995,
+              "outputTokens": 4958,
+              "cacheReadTokens": 4009344,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791277662724
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791277316715,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1791277599027,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "开工：runtime 通知收敛接线（依赖 policy/format 已 done）"
+        },
+        {
+          "status": "done",
+          "at": 1791277662724,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "父卡收尾：runtime 接线研发／复核／测试三段全过，通知判据已在宿主生效"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-82e96c",
+          "body": "[状态] → in_progress：开工：runtime 通知收敛接线（依赖 policy/format 已 done）（reqboard_task_move）",
+          "createdAt": 1791277599027,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        },
+        {
+          "id": "c-b1bf8a",
+          "body": "[状态] → done：父卡收尾：runtime 接线研发／复核／测试三段全过，通知判据已在宿主生效（reqboard_task_move）",
+          "createdAt": 1791277662724,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791277316715,
+      "updatedAt": 1791277662724,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+      },
+      "layer": 1,
+      "lastReport": {
+        "at": 1791277647698,
+        "reportIndex": 1,
+        "filesChanged": [
+          "adapters/inbound/fastapi_app/daily_jobs/runtime.py",
+          "adapters/inbound/fastapi_app/daily_jobs/__init__.py",
+          "adapters/inbound/fastapi_app/daily_jobs_bootstrap.py",
+          "tests/test_daily_jobs_trading_day_gate.py"
+        ],
+        "completed": [
+          "_run_job 增 manual 参数；开始消息改为条件式（仅回滚态发）",
+          "handler 前 arm 超阈值 Timer，finally 取消；提示文案为「⏳ 每日任务仍在运行」",
+          "完成消息改走 should_send_completion + format_completion；静默记 notify_skipped",
+          "失败两处 🚨 逐字未动（失败优先已实测）",
+          "trigger_job 传 manual=True，人工触发必有回执",
+          "新增两函数已在包与转发壳两处导出（bootstrap 从包聚合导入）",
+          "验收：本卡验收集 75 passed；host 行为断言四态全符合；两处 grep 命中",
+          "计划偏离已记录：多改 __init__.py 导出、trading_day_gate 两条旧断言改 1 条完成",
+          "遗留：tests/test_daily_jobs_notify_truthfulness.py 两条旧口径断言归 t-fd8513 改写"
+        ]
+      },
+      "lastRun": {
+        "at": 1791277647698,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-1ec5fa",
+      "requirementId": "REQ-261006165125-23a9",
+      "title": "新增 tests/test_daily_jobs_quiet_noop.py（T-1~T-16 回归锁）",
+      "cardDoc": "docs/requirements/REQ-261006165125-23a9/tasks/t-1ec5fa.md",
+      "description": "",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-15bb12"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "./venv/bin/python -m pytest tests/test_daily_jobs_quiet_noop.py -q → 全过（≥16 passed）；并用 2>&1 | tail -3 确认 notify-guard 会话末打印 egress=0、offenders=[]（未声明的真实外发会让用例失败）。",
+      "implementation": "新建 tests/test_daily_jobs_quiet_noop.py，实现 design/test-cases.md §2 的 T-1~T-16（判据白名单与反例、开关/阈值解析、宿主无事零消息而台账 success、有产出一条完成、异常 🚨、内层失败优先、人工触发回执、开关态旧行为、阈值内不发/超阈值发「⏳ 仍在运行」、阈值 0 关闭、回调异常不影响任务、trigger_job 传 manual=True）。打桩点必须是 runtime._send_feishu / runtime._mark_running / runtime._mark_done；env 用 monkeypatch.setenv；T-13 用 time.sleep(0.3) + 阈值 0.05。用例总数不超过 16 条，不做与 FR 无关扩展。",
+      "context": "",
+      "skipIntegration": true,
+      "footprint": {
+        "files": 1,
+        "anchors": 16,
+        "chars": 2200
+      },
+      "decisionRefs": [
+        "D-2",
+        "D-3"
+      ],
+      "requirementRefs": [
+        "FR-1",
+        "FR-2",
+        "FR-3",
+        "FR-4",
+        "FR-6",
+        "FR-7",
+        "FR-8"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-771aa8",
+          "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+          "trigger": "manual",
+          "startedAt": 1791277665713,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 962,
+              "at": 1791277665713,
+              "totals": {
+                "uncachedInputTokens": 138826,
+                "outputTokens": 103377,
+                "cacheReadTokens": 23684224,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 962,
+                  "totals": {
+                    "uncachedInputTokens": 138826,
+                    "outputTokens": 103377,
+                    "cacheReadTokens": 23684224,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 1166,
+              "at": 1791277838397,
+              "totals": {
+                "uncachedInputTokens": 175124,
+                "outputTokens": 123856,
+                "cacheReadTokens": 32450560,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 1166,
+                  "totals": {
+                    "uncachedInputTokens": 175124,
+                    "outputTokens": 123856,
+                    "cacheReadTokens": 32450560,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 36298,
+              "outputTokens": 20479,
+              "cacheReadTokens": 8766336,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791277838396
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791277316715,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1791277665713,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "开工：新增 tests/test_daily_jobs_quiet_noop.py（T-1~T-16 回归锁）"
+        },
+        {
+          "status": "done",
+          "at": 1791277838396,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "父卡收尾：回归锁研发／复核／测试三段全过（16 组用例、合并口径 152 passed）"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-c58dec",
+          "body": "[状态] → in_progress：开工：新增 tests/test_daily_jobs_quiet_noop.py（T-1~T-16 回归锁）（reqboard_task_move）",
+          "createdAt": 1791277665713,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        },
+        {
+          "id": "c-b6fdcb",
+          "body": "[状态] → done：父卡收尾：回归锁研发／复核／测试三段全过（16 组用例、合并口径 152 passed）（reqboard_task_move）",
+          "createdAt": 1791277838396,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791277316715,
+      "updatedAt": 1791277838396,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+      },
+      "layer": 2,
+      "lastReport": {
+        "at": 1791277775107,
+        "reportIndex": 1,
+        "filesChanged": [
+          "tests/test_daily_jobs_quiet_noop.py"
+        ],
+        "completed": [
+          "新建 tests/test_daily_jobs_quiet_noop.py，T-1~T-16 十六组用例（参数化后 40 项）",
+          "无事零消息、有产出一条、异常 🚨、内层失败优先、人工触发回执、回滚态、阈值三态全覆盖",
+          "三条反向锁防止判据被悄悄放宽",
+          "打桩点全部落在 runtime，通知守卫 egress=0",
+          "合并口径 8 文件 152 passed"
+        ]
+      },
+      "lastRun": {
+        "at": 1791277775107,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-fd8513",
+      "requirementId": "REQ-261006165125-23a9",
+      "title": "改写被新口径推翻的 2 条既有断言 + 相邻回归",
+      "cardDoc": "docs/requirements/REQ-261006165125-23a9/tasks/t-fd8513.md",
+      "description": "",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-15bb12"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "① ./venv/bin/python -m pytest tests/test_daily_jobs_notify_truthfulness.py tests/test_notify_guard.py -q → 全过；② grep -n \"startswith('⚠️ 每日任务完成\" tests/test_daily_jobs_notify_truthfulness.py → 仅 1 处，且该用例先 setenv('DAILY_JOBS_NOTIFY_NOOP','true')（旧断言不得在默认态残留）。",
+      "implementation": "tests/test_daily_jobs_notify_truthfulness.py：① TestHostTone::test_zero_output_uses_warning_title 拆成两条——默认态断言 sent.texts == []（零消息）且台账 status 仍 success；开关态（setenv DAILY_JOBS_NOTIFY_NOOP=true）断言 ⚠️（无有效产出）文案；② TestHostTone::test_elapsed_line_rendered_by_formatter 改用有产出结果（_result(computed_ok=3, no_trades=2, insufficient_sample=0)），断言不变。其余用例不改，只重跑（test_nonzero_output_keeps_success_title / test_mark_done_status_stays_success / test_streak_query_failure_degrades_loudly）。",
+      "context": "",
+      "skipIntegration": true,
+      "footprint": {
+        "files": 1,
+        "anchors": 4,
+        "chars": 900
+      },
+      "decisionRefs": [
+        "D-2"
+      ],
+      "requirementRefs": [
+        "FR-8"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-2f0064",
+          "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+          "trigger": "manual",
+          "startedAt": 1791277665648,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 960,
+              "at": 1791277665648,
+              "totals": {
+                "uncachedInputTokens": 138826,
+                "outputTokens": 103377,
+                "cacheReadTokens": 23684224,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 960,
+                  "totals": {
+                    "uncachedInputTokens": 138826,
+                    "outputTokens": 103377,
+                    "cacheReadTokens": 23684224,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 1185,
+              "at": 1791277901038,
+              "totals": {
+                "uncachedInputTokens": 180261,
+                "outputTokens": 124463,
+                "cacheReadTokens": 33399808,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 1185,
+                  "totals": {
+                    "uncachedInputTokens": 180261,
+                    "outputTokens": 124463,
+                    "cacheReadTokens": 33399808,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 41435,
+              "outputTokens": 21086,
+              "cacheReadTokens": 9715584,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791277901038
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791277316715,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1791277665648,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "开工：改写被新口径推翻的旧断言（相邻回归）"
+        },
+        {
+          "status": "done",
+          "at": 1791277901038,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "父卡收尾：旧口径断言改写研发／复核／测试三段全过，范围扩大已登记"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-22a1f9",
+          "body": "[状态] → in_progress：开工：改写被新口径推翻的旧断言（相邻回归）（reqboard_task_move）",
+          "createdAt": 1791277665648,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        },
+        {
+          "id": "c-8c3cc9",
+          "body": "[状态] → done：父卡收尾：旧口径断言改写研发／复核／测试三段全过，范围扩大已登记（reqboard_task_move）",
+          "createdAt": 1791277901038,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791277316715,
+      "updatedAt": 1791277901038,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+      },
+      "layer": 2,
+      "lastReport": {
+        "at": 1791277841894,
+        "reportIndex": 1,
+        "filesChanged": [
+          "tests/test_daily_jobs_notify_truthfulness.py"
+        ],
+        "completed": [
+          "test_daily_jobs_notify_truthfulness.py 两条旧口径断言改写完成",
+          "默认态改为零消息且台账 success；开关态保留 ⚠️ 旧口径",
+          "范围扩大并如实记录：同类旧断言另有 2 条在 test_daily_jobs_trading_day_gate.py",
+          "那 2 条已在 host 卡验收时一并按新口径修正（开始+完成 2 条 → 1 条完成）",
+          "该文件 30 passed；合并口径 8 文件 152 passed，notify-guard egress=0"
+        ]
+      },
+      "lastRun": {
+        "at": 1791277841894,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-f9a549",
+      "requirementId": "REQ-261006165125-23a9",
+      "title": "回滚态验证 + 部署重启 + 真实观察留痕",
+      "cardDoc": "docs/requirements/REQ-261006165125-23a9/tasks/t-f9a549.md",
+      "description": "",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-1ec5fa",
+        "t-fd8513"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "① DAILY_JOBS_NOTIFY_NOOP=true ./venv/bin/python -m pytest tests/test_daily_jobs_quiet_noop.py -q → 全过；② DAILY_JOBS_RUNNING_NOTICE_SECONDS=0 ./venv/bin/python -c \"from adapters.inbound.fastapi_app.daily_jobs import notify_policy as p; assert p.running_notice_seconds()==0.0\" → 退出码 0；③ launchctl kickstart -k gui/501/com.pi-investment.v2-api && sleep 8 && curl -s -o /dev/null -w '%{http_code}\\n' http://127.0.0.1:5001/api/jobs/inprocess/today → 200；④ psql -d quant_investment -Atc \"select job_id,status,result->>'status' from quant.inprocess_job_runs where run_date=current_date and job_id='event_calendar_check';\" → success|no_event（窗口未到则在 notes 里标注待观察）；notes 文件含上述四项结论。",
+      "implementation": "建 docs/requirements/REQ-261006165125-23a9/notes/rollback-and-observation.md，逐条记录：① 开关态 DAILY_JOBS_NOTIFY_NOOP=true 下测试全过（旧行为可恢复）；② DAILY_JOBS_RUNNING_NOTICE_SECONDS=0 只关提示且默认 60 不变；③ launchctl kickstart -k gui/501/com.pi-investment.v2-api 后服务健康（HTTP 200）；④ 真实观察：下一次自然排班（16:45）或一次 manual=False 的真实调用后，记录 quant.inprocess_job_runs 行（应 success|no_event）、飞书侧是否零条、以及 inprocess_job_notify_skipped 日志原文。观察窗口未到必须如实写「待观察（下一自然排班 16:45）」及原因，禁止用推断代替实测。",
+      "context": "",
+      "skipIntegration": true,
+      "footprint": {
+        "files": 1,
+        "anchors": 5,
+        "chars": 1200
+      },
+      "decisionRefs": [
+        "D-3"
+      ],
+      "requirementRefs": [
+        "FR-7",
+        "FR-8"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-549987",
+          "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+          "trigger": "manual",
+          "startedAt": 1791277903366,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 1192,
+              "at": 1791277903366,
+              "totals": {
+                "uncachedInputTokens": 184655,
+                "outputTokens": 124629,
+                "cacheReadTokens": 33718272,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 1192,
+                  "totals": {
+                    "uncachedInputTokens": 184655,
+                    "outputTokens": 124629,
+                    "cacheReadTokens": 33718272,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 1281,
+              "at": 1791277967512,
+              "totals": {
+                "uncachedInputTokens": 193505,
+                "outputTokens": 129006,
+                "cacheReadTokens": 38356480,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 1281,
+                  "totals": {
+                    "uncachedInputTokens": 193505,
+                    "outputTokens": 129006,
+                    "cacheReadTokens": 38356480,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 8850,
+              "outputTokens": 4377,
+              "cacheReadTokens": 4638208,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791277967512
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791277316715,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1791277903366,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "开工：回滚态验证 + 部署重启 + 真实观察留痕（证据已采集，见 notes）"
+        },
+        {
+          "status": "done",
+          "at": 1791277967512,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "父卡收尾：回滚／部署／观察留痕三段全过；真实排班静默项如实标为待观察"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-1922c1",
+          "body": "[状态] → in_progress：开工：回滚态验证 + 部署重启 + 真实观察留痕（证据已采集，见 notes）（reqboard_task_move）",
+          "createdAt": 1791277903366,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        },
+        {
+          "id": "c-67cb3f",
+          "body": "[状态] → done：父卡收尾：回滚／部署／观察留痕三段全过；真实排班静默项如实标为待观察（reqboard_task_move）",
+          "createdAt": 1791277967512,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791277316715,
+      "updatedAt": 1791277967512,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+      },
+      "layer": 3,
+      "lastReport": {
+        "at": 1791277952891,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-261006165125-23a9/notes/rollback-and-observation.md"
+        ],
+        "completed": [
+          "rollback 卡三段完成：留痕文件含四项结论、两处偏差、次日判定命令与测试段复跑记录",
+          "回滚双路径实测通过（开关态 / 阈值 0）",
+          "部署验证：plist 指向本仓库、新 PID 57853、状态端点 200、宿主线程起于 17:09:55",
+          "更正计划中的错误端点（today 404 → status 200）并如实登记",
+          "登记证据口径陷阱：pytest 夹具 delenv 使进程级开关复跑不能当回滚证据",
+          "真实排班静默判定留待 2026-10-07 16:45，不宣称已完成用户可见效果"
+        ]
+      },
+      "lastRun": {
+        "at": 1791277952891,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-bf39b1",
+      "requirementId": "REQ-261006165125-23a9",
+      "title": "新建通知判据模块 notify_policy（无事判据 + env 解析）·研发",
+      "description": "子卡阶段：研发",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "implementation": "按 design/interfaces.md §1 新建 adapters/inbound/fastapi_app/daily_jobs/notify_policy.py：常量 NO_OP_STATUSES={'no_event','no_op'} 与 RUNNING_NOTICE_DEFAULT_SECONDS=60.0；函数 is_no_op（严格 no_output is True 或 status.strip().lower() 命中白名单，其余一律 False）、notify_noop_enabled、running_notice_seconds（未设/非数→60.0，<=0→0.0）、should_send_start（= notify_noop_enabled）、should_send_completion（manual→True 优先；开关打开→True；is_no_op→False；否则 True）。env 解析复用同包 interval._env_flag；不新增跨层依赖（kb-conventions-c01）；任何输入不得抛异常。\n\n[子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "context": "",
+      "parentId": "t-9c727a",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-322552",
+          "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+          "trigger": "manual",
+          "startedAt": 1791277385204,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 566,
+              "at": 1791277385204,
+              "totals": {
+                "uncachedInputTokens": 100124,
+                "outputTokens": 77425,
+                "cacheReadTokens": 9588480,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 566,
+                  "totals": {
+                    "uncachedInputTokens": 100124,
+                    "outputTokens": 77425,
+                    "cacheReadTokens": 9588480,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 608,
+              "at": 1791277406331,
+              "totals": {
+                "uncachedInputTokens": 102532,
+                "outputTokens": 79948,
+                "cacheReadTokens": 10807168,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 608,
+                  "totals": {
+                    "uncachedInputTokens": 102532,
+                    "outputTokens": 79948,
+                    "cacheReadTokens": 10807168,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 2408,
+              "outputTokens": 2523,
+              "cacheReadTokens": 1218688,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791277406331
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-bf9f53",
+          "body": "[状态] → in_progress：研发段：notify_policy.py 落盘并自证（四条验收命令全过）（reqboard_task_move）",
+          "createdAt": 1791277385204,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        },
+        {
+          "id": "c-7ae3bc",
+          "body": "[状态] → done：研发段完成：notify_policy.py 落盘并自证（四条验收命令全过）（reqboard_task_move）",
+          "createdAt": 1791277406331,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791277325132,
+      "updatedAt": 1791277406331,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791277325132,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791277385204,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "研发段：notify_policy.py 落盘并自证（四条验收命令全过）"
+        },
+        {
+          "status": "done",
+          "at": 1791277406331,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "研发段完成：notify_policy.py 落盘并自证（四条验收命令全过）"
+        }
+      ],
+      "layer": 0,
+      "lastReport": {
+        "at": 1791277404270,
+        "reportIndex": 1,
+        "filesChanged": [
+          "adapters/inbound/fastapi_app/daily_jobs/notify_policy.py"
+        ],
+        "completed": [
+          "新增 is_no_op 白名单判据（严格 no_output is True，其余一律外发）",
+          "新增 should_send_completion：manual／回滚态／无事／有产出四分支",
+          "新增 notify_noop_enabled 与 running_notice_seconds（坏值容错，0 表示关闭提示）",
+          "四条验收命令与层边界 grep 全过",
+          "阶段模板给的 vitest 命令不适用本仓 Python 栈，已用 python -c 等价自证"
+        ]
+      },
+      "lastRun": {
+        "at": 1791277404270,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-f78a6f",
+      "requirementId": "REQ-261006165125-23a9",
+      "title": "新建通知判据模块 notify_policy（无事判据 + env 解析）·复核",
+      "description": "子卡阶段：复核",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-bf39b1"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "implementation": "按 design/interfaces.md §1 新建 adapters/inbound/fastapi_app/daily_jobs/notify_policy.py：常量 NO_OP_STATUSES={'no_event','no_op'} 与 RUNNING_NOTICE_DEFAULT_SECONDS=60.0；函数 is_no_op（严格 no_output is True 或 status.strip().lower() 命中白名单，其余一律 False）、notify_noop_enabled、running_notice_seconds（未设/非数→60.0，<=0→0.0）、should_send_start（= notify_noop_enabled）、should_send_completion（manual→True 优先；开关打开→True；is_no_op→False；否则 True）。env 解析复用同包 interval._env_flag；不新增跨层依赖（kb-conventions-c01）；任何输入不得抛异常。\n\n[子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-9c727a",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-70903c",
+          "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+          "trigger": "manual",
+          "startedAt": 1791277411290,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 620,
+              "at": 1791277411290,
+              "totals": {
+                "uncachedInputTokens": 103044,
+                "outputTokens": 80380,
+                "cacheReadTokens": 11218560,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 620,
+                  "totals": {
+                    "uncachedInputTokens": 103044,
+                    "outputTokens": 80380,
+                    "cacheReadTokens": 11218560,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 642,
+              "at": 1791277422428,
+              "totals": {
+                "uncachedInputTokens": 104487,
+                "outputTokens": 82011,
+                "cacheReadTokens": 11840896,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 642,
+                  "totals": {
+                    "uncachedInputTokens": 104487,
+                    "outputTokens": 82011,
+                    "cacheReadTokens": 11840896,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 1443,
+              "outputTokens": 1631,
+              "cacheReadTokens": 622336,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791277422428
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-149649",
+          "body": "[状态] → in_progress：复核段开工：逐条比对 notify_policy 与 design/interfaces.md §1（reqboard_task_move）",
+          "createdAt": 1791277411290,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        },
+        {
+          "id": "c-c4fa65",
+          "body": "[状态] → done：复核段完成：10 项逐条对齐 design/interfaces.md §1，结论无偏离（reqboard_task_move）",
+          "createdAt": 1791277422428,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791277325132,
+      "updatedAt": 1791277422428,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791277325132,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791277411290,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "复核段开工：逐条比对 notify_policy 与 design/interfaces.md §1"
+        },
+        {
+          "status": "done",
+          "at": 1791277422428,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "复核段完成：10 项逐条对齐 design/interfaces.md §1，结论无偏离"
+        }
+      ],
+      "layer": 1,
+      "lastReport": {
+        "at": 1791277420646,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "判据白名单与默认阈值（60 秒）与设计一致",
+          "五个函数签名逐字一致，含 keyword-only 的 result／manual",
+          "反向锁语义正确：no_output 为 1（非 True）不判无事",
+          "层边界只许向内：无 application／domain／infrastructure 直接依赖（kb-conventions-c01）"
+        ]
+      },
+      "lastRun": {
+        "at": 1791277420646,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-eacc2e",
+      "requirementId": "REQ-261006165125-23a9",
+      "title": "新建通知判据模块 notify_policy（无事判据 + env 解析）·测试",
+      "description": "子卡阶段：测试",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-f78a6f"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "implementation": "按 design/interfaces.md §1 新建 adapters/inbound/fastapi_app/daily_jobs/notify_policy.py：常量 NO_OP_STATUSES={'no_event','no_op'} 与 RUNNING_NOTICE_DEFAULT_SECONDS=60.0；函数 is_no_op（严格 no_output is True 或 status.strip().lower() 命中白名单，其余一律 False）、notify_noop_enabled、running_notice_seconds（未设/非数→60.0，<=0→0.0）、should_send_start（= notify_noop_enabled）、should_send_completion（manual→True 优先；开关打开→True；is_no_op→False；否则 True）。env 解析复用同包 interval._env_flag；不新增跨层依赖（kb-conventions-c01）；任何输入不得抛异常。\n\n[子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "context": "",
+      "parentId": "t-9c727a",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-f37a81",
+          "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+          "trigger": "manual",
+          "startedAt": 1791277434492,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 660,
+              "at": 1791277434492,
+              "totals": {
+                "uncachedInputTokens": 105070,
+                "outputTokens": 82815,
+                "cacheReadTokens": 12468608,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 660,
+                  "totals": {
+                    "uncachedInputTokens": 105070,
+                    "outputTokens": 82815,
+                    "cacheReadTokens": 12468608,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 676,
+              "at": 1791277439261,
+              "totals": {
+                "uncachedInputTokens": 106195,
+                "outputTokens": 83424,
+                "cacheReadTokens": 12889856,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 676,
+                  "totals": {
+                    "uncachedInputTokens": 106195,
+                    "outputTokens": 83424,
+                    "cacheReadTokens": 12889856,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 1125,
+              "outputTokens": 609,
+              "cacheReadTokens": 421248,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791277439261
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-173789",
+          "body": "[状态] → in_progress：测试段开工：重跑验收命令与相邻既有用例（reqboard_task_move）",
+          "createdAt": 1791277434492,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        },
+        {
+          "id": "c-101c93",
+          "body": "[状态] → done：测试段完成：验收重跑通过 + 相邻既有用例 74 passed（reqboard_task_move）",
+          "createdAt": 1791277439261,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791277325132,
+      "updatedAt": 1791277439261,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791277325132,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791277434492,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "测试段开工：重跑验收命令与相邻既有用例"
+        },
+        {
+          "status": "done",
+          "at": 1791277439261,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "测试段完成：验收重跑通过 + 相邻既有用例 74 passed"
+        }
+      ],
+      "layer": 2,
+      "lastReport": {
+        "at": 1791277437802,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "验收命令重跑通过：acceptance rerun ok",
+          "相邻既有用例 74 passed（notify_truthfulness／bootstrap／trading_day_gate／false_success_guard）",
+          "本卡未接线 runtime，既有路径行为逐字不变",
+          "阶段模板的 pnpm test／npx tsc 不适用本仓（Python 栈），等价口径为 pytest，已如实替换"
+        ]
+      },
+      "lastRun": {
+        "at": 1791277437802,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-60e3a6",
+      "requirementId": "REQ-261006165125-23a9",
+      "title": "alerting 抽出完成消息组装 format_completion·研发",
+      "description": "子卡阶段：研发",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "implementation": "在 adapters/inbound/fastapi_app/daily_jobs/alerting.py 新增 format_completion(job_id, description, elapsed, result, *, manual=False, warn_no_output=False) -> str：标题优先级 manual（'✅ 每日任务完成（人工触发）：{job_id}'）> warn_no_output（'⚠️ 每日任务完成（无有效产出）：{job_id}'）> '✅ 每日任务完成：{job_id}'；正文 {description}\\n耗时: {_format_elapsed(elapsed)} + 非空摘要（_summarize_result）。不改 _send_feishu / _summarize_result / _format_elapsed / _job_failure_watch。\n\n[子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "context": "",
+      "parentId": "t-9a1066",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-aa7e0b",
+          "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+          "trigger": "manual",
+          "startedAt": 1791277385276,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 568,
+              "at": 1791277385276,
+              "totals": {
+                "uncachedInputTokens": 100124,
+                "outputTokens": 77425,
+                "cacheReadTokens": 9588480,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 568,
+                  "totals": {
+                    "uncachedInputTokens": 100124,
+                    "outputTokens": 77425,
+                    "cacheReadTokens": 9588480,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 614,
+              "at": 1791277408719,
+              "totals": {
+                "uncachedInputTokens": 102785,
+                "outputTokens": 80131,
+                "cacheReadTokens": 11012736,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 614,
+                  "totals": {
+                    "uncachedInputTokens": 102785,
+                    "outputTokens": 80131,
+                    "cacheReadTokens": 11012736,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 2661,
+              "outputTokens": 2706,
+              "cacheReadTokens": 1424256,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791277408719
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-ab3b8f",
+          "body": "[状态] → in_progress：研发段：format_completion 落盘并自证（验收命令通过）（reqboard_task_move）",
+          "createdAt": 1791277385276,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        },
+        {
+          "id": "c-57443a",
+          "body": "[状态] → done：研发段完成：format_completion 落盘并自证（验收命令通过）（reqboard_task_move）",
+          "createdAt": 1791277408719,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791277325193,
+      "updatedAt": 1791277408719,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791277325193,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791277385276,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "研发段：format_completion 落盘并自证（验收命令通过）"
+        },
+        {
+          "status": "done",
+          "at": 1791277408719,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "研发段完成：format_completion 落盘并自证（验收命令通过）"
+        }
+      ],
+      "layer": 0,
+      "lastReport": {
+        "at": 1791277404345,
+        "reportIndex": 1,
+        "filesChanged": [
+          "adapters/inbound/fastapi_app/daily_jobs/alerting.py"
+        ],
+        "completed": [
+          "新增 format_completion，标题优先级 人工触发 > 无有效产出 > ✅",
+          "正文含描述、耗时与非空摘要，复用 _format_elapsed／_summarize_result",
+          "未改 _send_feishu／_summarize_result／_format_elapsed／_job_failure_watch",
+          "验收命令打印 format ok；阶段模板的 vitest 命令不适用本仓，改用 python -c"
+        ]
+      },
+      "lastRun": {
+        "at": 1791277404345,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-2f0bc5",
+      "requirementId": "REQ-261006165125-23a9",
+      "title": "alerting 抽出完成消息组装 format_completion·复核",
+      "description": "子卡阶段：复核",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-60e3a6"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "implementation": "在 adapters/inbound/fastapi_app/daily_jobs/alerting.py 新增 format_completion(job_id, description, elapsed, result, *, manual=False, warn_no_output=False) -> str：标题优先级 manual（'✅ 每日任务完成（人工触发）：{job_id}'）> warn_no_output（'⚠️ 每日任务完成（无有效产出）：{job_id}'）> '✅ 每日任务完成：{job_id}'；正文 {description}\\n耗时: {_format_elapsed(elapsed)} + 非空摘要（_summarize_result）。不改 _send_feishu / _summarize_result / _format_elapsed / _job_failure_watch。\n\n[子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-9a1066",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-1fbefa",
+          "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+          "trigger": "manual",
+          "startedAt": 1791277411367,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 622,
+              "at": 1791277411367,
+              "totals": {
+                "uncachedInputTokens": 103044,
+                "outputTokens": 80380,
+                "cacheReadTokens": 11218560,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 622,
+                  "totals": {
+                    "uncachedInputTokens": 103044,
+                    "outputTokens": 80380,
+                    "cacheReadTokens": 11218560,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 648,
+              "at": 1791277424528,
+              "totals": {
+                "uncachedInputTokens": 104707,
+                "outputTokens": 82112,
+                "cacheReadTokens": 12049792,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 648,
+                  "totals": {
+                    "uncachedInputTokens": 104707,
+                    "outputTokens": 82112,
+                    "cacheReadTokens": 12049792,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 1663,
+              "outputTokens": 1732,
+              "cacheReadTokens": 831232,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791277424528
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-13ba6e",
+          "body": "[状态] → in_progress：复核段开工：核对 format_completion 标题优先级与正文形状（reqboard_task_move）",
+          "createdAt": 1791277411367,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        },
+        {
+          "id": "c-42ad99",
+          "body": "[状态] → done：复核段完成：format_completion 与 design/interfaces.md §3 逐条对齐，结论无偏离（reqboard_task_move）",
+          "createdAt": 1791277424528,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791277325193,
+      "updatedAt": 1791277424528,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791277325193,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791277411367,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "复核段开工：核对 format_completion 标题优先级与正文形状"
+        },
+        {
+          "status": "done",
+          "at": 1791277424528,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "复核段完成：format_completion 与 design/interfaces.md §3 逐条对齐，结论无偏离"
+        }
+      ],
+      "layer": 1,
+      "lastReport": {
+        "at": 1791277420700,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "标题三级优先级与设计一致：人工触发 > 无有效产出 > ✅",
+          "正文形状为描述、耗时、非空摘要三行",
+          "耗时复用 _format_elapsed：61.4 秒渲染为 1.0 分钟",
+          "未改 _send_feishu／_summarize_result／_format_elapsed／_job_failure_watch"
+        ]
+      },
+      "lastRun": {
+        "at": 1791277420700,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-11b46b",
+      "requirementId": "REQ-261006165125-23a9",
+      "title": "alerting 抽出完成消息组装 format_completion·测试",
+      "description": "子卡阶段：测试",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-2f0bc5"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "implementation": "在 adapters/inbound/fastapi_app/daily_jobs/alerting.py 新增 format_completion(job_id, description, elapsed, result, *, manual=False, warn_no_output=False) -> str：标题优先级 manual（'✅ 每日任务完成（人工触发）：{job_id}'）> warn_no_output（'⚠️ 每日任务完成（无有效产出）：{job_id}'）> '✅ 每日任务完成：{job_id}'；正文 {description}\\n耗时: {_format_elapsed(elapsed)} + 非空摘要（_summarize_result）。不改 _send_feishu / _summarize_result / _format_elapsed / _job_failure_watch。\n\n[子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "context": "",
+      "parentId": "t-9a1066",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-2a03f1",
+          "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+          "trigger": "manual",
+          "startedAt": 1791277434561,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 662,
+              "at": 1791277434561,
+              "totals": {
+                "uncachedInputTokens": 105070,
+                "outputTokens": 82815,
+                "cacheReadTokens": 12468608,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 662,
+                  "totals": {
+                    "uncachedInputTokens": 105070,
+                    "outputTokens": 82815,
+                    "cacheReadTokens": 12468608,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 682,
+              "at": 1791277440722,
+              "totals": {
+                "uncachedInputTokens": 106380,
+                "outputTokens": 83517,
+                "cacheReadTokens": 13101440,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 682,
+                  "totals": {
+                    "uncachedInputTokens": 106380,
+                    "outputTokens": 83517,
+                    "cacheReadTokens": 13101440,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 1310,
+              "outputTokens": 702,
+              "cacheReadTokens": 632832,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791277440722
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-1c8f4f",
+          "body": "[状态] → in_progress：测试段开工：重跑验收命令与相邻既有用例（reqboard_task_move）",
+          "createdAt": 1791277434561,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        },
+        {
+          "id": "c-7417e5",
+          "body": "[状态] → done：测试段完成：验收重跑通过 + 相邻既有用例 74 passed（reqboard_task_move）",
+          "createdAt": 1791277440722,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791277325193,
+      "updatedAt": 1791277440722,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791277325193,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791277434561,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "测试段开工：重跑验收命令与相邻既有用例"
+        },
+        {
+          "status": "done",
+          "at": 1791277440722,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "测试段完成：验收重跑通过 + 相邻既有用例 74 passed"
+        }
+      ],
+      "layer": 2,
+      "lastReport": {
+        "at": 1791277437879,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "验收命令重跑通过：format_completion 三级标题与正文形状均符合",
+          "相邻既有用例 74 passed，无回归",
+          "未改动的四个既有符号行为不变",
+          "阶段模板的 pnpm test／npx tsc 不适用本仓（Python 栈），等价口径为 pytest，已如实替换"
+        ]
+      },
+      "lastRun": {
+        "at": 1791277437879,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-dd129f",
+      "requirementId": "REQ-261006165125-23a9",
+      "title": "runtime 接线：通知收敛 + manual 参数 + 超阈值提示 + trigger_job·研发",
+      "description": "子卡阶段：研发",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-9c727a",
+        "t-9a1066"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "implementation": "daily_jobs/runtime.py：① _run_job(job, run_date, manual: bool = False)；② 删 runtime.py:126 的无条件开始消息，改为 if notify_policy.should_send_start(): _send_feishu(旧开始文案)（仅回滚态为真）；③ handler() 前 timer=_arm_running_notice(job)，finally 里 timer.cancel()；④ 完成分支改为 if should_send_completion(result=result, manual=manual): _send_feishu(alerting.format_completion(..., warn_no_output=notify_policy.notify_noop_enabled() and result.get('no_output') is True))；⑤ 抑制外发时 logger.info('inprocess_job_notify_skipped', job=..., reason='no_op', manual=...)；⑥ 内层失败与异常两处 _send_feishu 逐字不动；⑦ 新增 _arm_running_notice（running_notice_seconds()<=0 返回 None；threading.Timer daemon=True，秒数用 _format_elapsed 渲染）与 _send_running_notice（消息 '⏳ 每日任务仍在运行：{job_id}\\n{description}\\n已跑 {_format_elapsed(secs)}'；回调内异常吞掉并记 inprocess_job_running_notice_error；两函数必须住在 runtime.py 以保住打桩点）；⑧ trigger_job 线程调用传 manual=True（签名/返回体不变）。daily_jobs_bootstrap.py 的转发 import 与 __all__ 补 _arm_running_notice / _send_running_notice；不改 daily_jobs/__init__.py。\n\n[子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "context": "",
+      "parentId": "t-15bb12",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-3bb98a",
+          "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+          "trigger": "manual",
+          "startedAt": 1791277601682,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 863,
+              "at": 1791277601682,
+              "totals": {
+                "uncachedInputTokens": 129697,
+                "outputTokens": 98393,
+                "cacheReadTokens": 19661568,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 863,
+                  "totals": {
+                    "uncachedInputTokens": 129697,
+                    "outputTokens": 98393,
+                    "cacheReadTokens": 19661568,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 875,
+              "at": 1791277608551,
+              "totals": {
+                "uncachedInputTokens": 130513,
+                "outputTokens": 99275,
+                "cacheReadTokens": 20156416,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 875,
+                  "totals": {
+                    "uncachedInputTokens": 130513,
+                    "outputTokens": 99275,
+                    "cacheReadTokens": 20156416,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 816,
+              "outputTokens": 882,
+              "cacheReadTokens": 494848,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791277608551
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-4ec0f8",
+          "body": "[状态] → in_progress：研发段开工：runtime 通知收敛接线（代码已按卡落地）（reqboard_task_move）",
+          "createdAt": 1791277601682,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        },
+        {
+          "id": "c-702617",
+          "body": "[状态] → done：研发段完成：runtime 接线落地，验收①②③全过（75 passed / host ok / grep 命中），两处计划偏离已如实记录（reqboard_task_move）",
+          "createdAt": 1791277608551,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791277599027,
+      "updatedAt": 1791277608551,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791277599027,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791277601682,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "研发段开工：runtime 通知收敛接线（代码已按卡落地）"
+        },
+        {
+          "status": "done",
+          "at": 1791277608551,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "研发段完成：runtime 接线落地，验收①②③全过（75 passed / host ok / grep 命中），两处计划偏离已如实记录"
+        }
+      ],
+      "layer": 1,
+      "lastReport": {
+        "at": 1791277606577,
+        "reportIndex": 1,
+        "filesChanged": [
+          "adapters/inbound/fastapi_app/daily_jobs/runtime.py",
+          "adapters/inbound/fastapi_app/daily_jobs/__init__.py",
+          "adapters/inbound/fastapi_app/daily_jobs_bootstrap.py",
+          "tests/test_daily_jobs_trading_day_gate.py"
+        ],
+        "completed": [
+          "_run_job 新增 manual 参数（默认 False），定时路径行为不变",
+          "删除无条件开始消息，改为 should_send_start 条件式（仅回滚态为真）",
+          "handler 前 arm 超阈值 Timer，finally 取消（阈值内零消息）",
+          "完成消息改走 should_send_completion + format_completion",
+          "静默时记 inprocess_job_notify_skipped（可解释性）",
+          "新增 _arm_running_notice 与 _send_running_notice，回调留在 runtime 保住打桩点",
+          "trigger_job 线程调用传 manual=True（人工触发必有回执）",
+          "验收①②③全过：四文件 75 passed、host ok、两处 grep 命中",
+          "计划偏离一：必须同时改 daily_jobs/__init__.py 导出（bootstrap 从包聚合导入，否则 ImportError）",
+          "计划偏离二：tests/test_daily_jobs_trading_day_gate.py 两条旧断言（开始+完成 2 条）按新口径改为 1 条完成"
+        ]
+      },
+      "lastRun": {
+        "at": 1791277606577,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-e34e81",
+      "requirementId": "REQ-261006165125-23a9",
+      "title": "runtime 接线：通知收敛 + manual 参数 + 超阈值提示 + trigger_job·复核",
+      "description": "子卡阶段：复核",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-dd129f"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "implementation": "daily_jobs/runtime.py：① _run_job(job, run_date, manual: bool = False)；② 删 runtime.py:126 的无条件开始消息，改为 if notify_policy.should_send_start(): _send_feishu(旧开始文案)（仅回滚态为真）；③ handler() 前 timer=_arm_running_notice(job)，finally 里 timer.cancel()；④ 完成分支改为 if should_send_completion(result=result, manual=manual): _send_feishu(alerting.format_completion(..., warn_no_output=notify_policy.notify_noop_enabled() and result.get('no_output') is True))；⑤ 抑制外发时 logger.info('inprocess_job_notify_skipped', job=..., reason='no_op', manual=...)；⑥ 内层失败与异常两处 _send_feishu 逐字不动；⑦ 新增 _arm_running_notice（running_notice_seconds()<=0 返回 None；threading.Timer daemon=True，秒数用 _format_elapsed 渲染）与 _send_running_notice（消息 '⏳ 每日任务仍在运行：{job_id}\\n{description}\\n已跑 {_format_elapsed(secs)}'；回调内异常吞掉并记 inprocess_job_running_notice_error；两函数必须住在 runtime.py 以保住打桩点）；⑧ trigger_job 线程调用传 manual=True（签名/返回体不变）。daily_jobs_bootstrap.py 的转发 import 与 __all__ 补 _arm_running_notice / _send_running_notice；不改 daily_jobs/__init__.py。\n\n[子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-15bb12",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-1265e0",
+          "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+          "trigger": "manual",
+          "startedAt": 1791277611752,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 881,
+              "at": 1791277611752,
+              "totals": {
+                "uncachedInputTokens": 130669,
+                "outputTokens": 99631,
+                "cacheReadTokens": 20404736,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 881,
+                  "totals": {
+                    "uncachedInputTokens": 130669,
+                    "outputTokens": 99631,
+                    "cacheReadTokens": 20404736,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 899,
+              "at": 1791277622231,
+              "totals": {
+                "uncachedInputTokens": 131758,
+                "outputTokens": 101039,
+                "cacheReadTokens": 21154688,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 899,
+                  "totals": {
+                    "uncachedInputTokens": 131758,
+                    "outputTokens": 101039,
+                    "cacheReadTokens": 21154688,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 1089,
+              "outputTokens": 1408,
+              "cacheReadTokens": 749952,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791277622231
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-df0bce",
+          "body": "[状态] → in_progress：复核段开工：核对 runtime 分支表、打桩点与失败路径未被牵连（reqboard_task_move）",
+          "createdAt": 1791277611752,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        },
+        {
+          "id": "c-64f922",
+          "body": "[状态] → done：复核段完成：13 项结构检查与行为复核全过，无偏离（reqboard_task_move）",
+          "createdAt": 1791277622231,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791277599027,
+      "updatedAt": 1791277622231,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791277599027,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791277611752,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "复核段开工：核对 runtime 分支表、打桩点与失败路径未被牵连"
+        },
+        {
+          "status": "done",
+          "at": 1791277622231,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "复核段完成：13 项结构检查与行为复核全过，无偏离"
+        }
+      ],
+      "layer": 2,
+      "lastReport": {
+        "at": 1791277620310,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "签名 manual 默认 False、开始消息只在 should_send_start 条件内且不再无条件发出",
+          "handler 前 arm Timer，finally 取消（阈值内零消息）",
+          "完成消息受 should_send_completion 保护，静默路径记 notify_skipped",
+          "内层失败与异常两处 🚨 俱在且未被判据牵连",
+          "打桩点有效：阈值提示走 runtime._send_feishu，实测拦截到 1 条 ⏳",
+          "失败优先实测通过：无事且 success=False 的 result 判失败并发 🚨",
+          "共 13 项检查全过，对齐 design/interfaces.md §2"
+        ]
+      },
+      "lastRun": {
+        "at": 1791277620310,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-319ae0",
+      "requirementId": "REQ-261006165125-23a9",
+      "title": "runtime 接线：通知收敛 + manual 参数 + 超阈值提示 + trigger_job·测试",
+      "description": "子卡阶段：测试",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-e34e81"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "implementation": "daily_jobs/runtime.py：① _run_job(job, run_date, manual: bool = False)；② 删 runtime.py:126 的无条件开始消息，改为 if notify_policy.should_send_start(): _send_feishu(旧开始文案)（仅回滚态为真）；③ handler() 前 timer=_arm_running_notice(job)，finally 里 timer.cancel()；④ 完成分支改为 if should_send_completion(result=result, manual=manual): _send_feishu(alerting.format_completion(..., warn_no_output=notify_policy.notify_noop_enabled() and result.get('no_output') is True))；⑤ 抑制外发时 logger.info('inprocess_job_notify_skipped', job=..., reason='no_op', manual=...)；⑥ 内层失败与异常两处 _send_feishu 逐字不动；⑦ 新增 _arm_running_notice（running_notice_seconds()<=0 返回 None；threading.Timer daemon=True，秒数用 _format_elapsed 渲染）与 _send_running_notice（消息 '⏳ 每日任务仍在运行：{job_id}\\n{description}\\n已跑 {_format_elapsed(secs)}'；回调内异常吞掉并记 inprocess_job_running_notice_error；两函数必须住在 runtime.py 以保住打桩点）；⑧ trigger_job 线程调用传 manual=True（签名/返回体不变）。daily_jobs_bootstrap.py 的转发 import 与 __all__ 补 _arm_running_notice / _send_running_notice；不改 daily_jobs/__init__.py。\n\n[子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "context": "",
+      "parentId": "t-15bb12",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-4c0b20",
+          "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+          "trigger": "manual",
+          "startedAt": 1791277624138,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 905,
+              "at": 1791277624138,
+              "totals": {
+                "uncachedInputTokens": 131905,
+                "outputTokens": 101132,
+                "cacheReadTokens": 21405824,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 905,
+                  "totals": {
+                    "uncachedInputTokens": 131905,
+                    "outputTokens": 101132,
+                    "cacheReadTokens": 21405824,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 923,
+              "at": 1791277641994,
+              "totals": {
+                "uncachedInputTokens": 133292,
+                "outputTokens": 102041,
+                "cacheReadTokens": 22161536,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 923,
+                  "totals": {
+                    "uncachedInputTokens": 133292,
+                    "outputTokens": 102041,
+                    "cacheReadTokens": 22161536,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 1387,
+              "outputTokens": 909,
+              "cacheReadTokens": 755712,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791277641994
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-969d84",
+          "body": "[状态] → in_progress：测试段开工：跑相关全部用例并核验通知零外发（reqboard_task_move）",
+          "createdAt": 1791277624138,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        },
+        {
+          "id": "c-d235a2",
+          "body": "[状态] → done：测试段完成：本卡验收集 75 passed 全绿，2 处失败归属 t-fd8513（旧口径断言）（reqboard_task_move）",
+          "createdAt": 1791277641994,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791277599027,
+      "updatedAt": 1791277641994,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791277599027,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791277624138,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "测试段开工：跑相关全部用例并核验通知零外发"
+        },
+        {
+          "status": "done",
+          "at": 1791277641994,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "测试段完成：本卡验收集 75 passed 全绿，2 处失败归属 t-fd8513（旧口径断言）"
+        }
+      ],
+      "layer": 3,
+      "lastReport": {
+        "at": 1791277640573,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "本卡验收集（bootstrap／trading_day_gate／false_success_guard／notify_guard）全绿：75 passed",
+          "扩大跑 7 个相关文件：109 passed，2 failed",
+          "两处失败均在 tests/test_daily_jobs_notify_truthfulness.py，是编码旧口径的断言",
+          "该文件由同需求的 tests-legacy 卡（t-fd8513）负责改写，非本卡范围",
+          "notify-guard 全程未报真实外发（egress=0）",
+          "阶段模板的 pnpm test／npx tsc 不适用本仓（Python 栈），等价口径为 pytest，已如实替换"
+        ]
+      },
+      "lastRun": {
+        "at": 1791277640573,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-0b1d7e",
+      "requirementId": "REQ-261006165125-23a9",
+      "title": "改写被新口径推翻的 2 条既有断言 + 相邻回归·研发",
+      "description": "子卡阶段：研发",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-15bb12"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "implementation": "tests/test_daily_jobs_notify_truthfulness.py：① TestHostTone::test_zero_output_uses_warning_title 拆成两条——默认态断言 sent.texts == []（零消息）且台账 status 仍 success；开关态（setenv DAILY_JOBS_NOTIFY_NOOP=true）断言 ⚠️（无有效产出）文案；② TestHostTone::test_elapsed_line_rendered_by_formatter 改用有产出结果（_result(computed_ok=3, no_trades=2, insufficient_sample=0)），断言不变。其余用例不改，只重跑（test_nonzero_output_keeps_success_title / test_mark_done_status_stays_success / test_streak_query_failure_degrades_loudly）。\n\n[子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "context": "",
+      "parentId": "t-fd8513",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-881fc2",
+          "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+          "trigger": "manual",
+          "startedAt": 1791277718307,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 1002,
+              "at": 1791277718307,
+              "totals": {
+                "uncachedInputTokens": 149596,
+                "outputTokens": 112152,
+                "cacheReadTokens": 25314944,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 1002,
+                  "totals": {
+                    "uncachedInputTokens": 149596,
+                    "outputTokens": 112152,
+                    "cacheReadTokens": 25314944,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 1019,
+              "at": 1791277724908,
+              "totals": {
+                "uncachedInputTokens": 155877,
+                "outputTokens": 113027,
+                "cacheReadTokens": 25876096,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 1019,
+                  "totals": {
+                    "uncachedInputTokens": 155877,
+                    "outputTokens": 113027,
+                    "cacheReadTokens": 25876096,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 6281,
+              "outputTokens": 875,
+              "cacheReadTokens": 561152,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791277724908
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-928945",
+          "body": "[状态] → in_progress：研发段开工：改写两条旧口径断言（reqboard_task_move）",
+          "createdAt": 1791277718307,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        },
+        {
+          "id": "c-0458a6",
+          "body": "[状态] → done：研发段完成：两条旧口径断言改写，该文件 30 passed（reqboard_task_move）",
+          "createdAt": 1791277724908,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791277665648,
+      "updatedAt": 1791277724908,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791277665648,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791277718307,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "研发段开工：改写两条旧口径断言"
+        },
+        {
+          "status": "done",
+          "at": 1791277724908,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "研发段完成：两条旧口径断言改写，该文件 30 passed"
+        }
+      ],
+      "layer": 2,
+      "lastReport": {
+        "at": 1791277722339,
+        "reportIndex": 1,
+        "filesChanged": [
+          "tests/test_daily_jobs_notify_truthfulness.py"
+        ],
+        "completed": [
+          "test_zero_output_uses_warning_title 拆为默认态静默与开关态 ⚠️ 两条",
+          "默认态断言零消息且台账 status 仍 success",
+          "开关态断言两条消息且完成消息为 ⚠️ 无有效产出语气",
+          "test_elapsed_line_rendered_by_formatter 改用有产出结果构造",
+          "该文件 30 passed（含 notify_guard），旧断言仅剩开关态 1 处",
+          "阶段模板的 vitest 命令不适用本仓（Python 栈），改用 pytest"
+        ]
+      },
+      "lastRun": {
+        "at": 1791277722339,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-6465f8",
+      "requirementId": "REQ-261006165125-23a9",
+      "title": "改写被新口径推翻的 2 条既有断言 + 相邻回归·复核",
+      "description": "子卡阶段：复核",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-0b1d7e"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "implementation": "tests/test_daily_jobs_notify_truthfulness.py：① TestHostTone::test_zero_output_uses_warning_title 拆成两条——默认态断言 sent.texts == []（零消息）且台账 status 仍 success；开关态（setenv DAILY_JOBS_NOTIFY_NOOP=true）断言 ⚠️（无有效产出）文案；② TestHostTone::test_elapsed_line_rendered_by_formatter 改用有产出结果（_result(computed_ok=3, no_trades=2, insufficient_sample=0)），断言不变。其余用例不改，只重跑（test_nonzero_output_keeps_success_title / test_mark_done_status_stays_success / test_streak_query_failure_degrades_loudly）。\n\n[子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-fd8513",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-6c96fd",
+          "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+          "trigger": "manual",
+          "startedAt": 1791277727342,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 1027,
+              "at": 1791277727342,
+              "totals": {
+                "uncachedInputTokens": 156144,
+                "outputTokens": 113322,
+                "cacheReadTokens": 26160384,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 1027,
+                  "totals": {
+                    "uncachedInputTokens": 156144,
+                    "outputTokens": 113322,
+                    "cacheReadTokens": 26160384,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 1061,
+              "at": 1791277746341,
+              "totals": {
+                "uncachedInputTokens": 158113,
+                "outputTokens": 116064,
+                "cacheReadTokens": 27595008,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 1061,
+                  "totals": {
+                    "uncachedInputTokens": 158113,
+                    "outputTokens": 116064,
+                    "cacheReadTokens": 27595008,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 1969,
+              "outputTokens": 2742,
+              "cacheReadTokens": 1434624,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791277746341
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-6b9919",
+          "body": "[状态] → in_progress：复核段开工：核对改动仅限旧口径断言（reqboard_task_move）",
+          "createdAt": 1791277727342,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        },
+        {
+          "id": "c-1fbe3c",
+          "body": "[状态] → done：复核段完成：旧断言改写 13 项核对无偏离（reqboard_task_move）",
+          "createdAt": 1791277746341,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791277665648,
+      "updatedAt": 1791277746341,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791277665648,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791277727342,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "复核段开工：核对改动仅限旧口径断言"
+        },
+        {
+          "status": "done",
+          "at": 1791277746341,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "复核段完成：旧断言改写 13 项核对无偏离"
+        }
+      ],
+      "layer": 3,
+      "lastReport": {
+        "at": 1791277743962,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "旧用例已按要求拆为默认态静默与开关态 ⚠️ 两条",
+          "默认态零消息、台账仍 success 的断言在位",
+          "开关态先 setenv 再断言，旧口径作为回滚面保留",
+          "耗时格式用例改用有产出结果，未要求改的三条用例原样保留",
+          "13 项检查全过，对齐 design/test-cases.md §3"
+        ]
+      },
+      "lastRun": {
+        "at": 1791277743962,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-4eefcc",
+      "requirementId": "REQ-261006165125-23a9",
+      "title": "改写被新口径推翻的 2 条既有断言 + 相邻回归·测试",
+      "description": "子卡阶段：测试",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-6465f8"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "implementation": "tests/test_daily_jobs_notify_truthfulness.py：① TestHostTone::test_zero_output_uses_warning_title 拆成两条——默认态断言 sent.texts == []（零消息）且台账 status 仍 success；开关态（setenv DAILY_JOBS_NOTIFY_NOOP=true）断言 ⚠️（无有效产出）文案；② TestHostTone::test_elapsed_line_rendered_by_formatter 改用有产出结果（_result(computed_ok=3, no_trades=2, insufficient_sample=0)），断言不变。其余用例不改，只重跑（test_nonzero_output_keeps_success_title / test_mark_done_status_stays_success / test_streak_query_failure_degrades_loudly）。\n\n[子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "context": "",
+      "parentId": "t-fd8513",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-46a5de",
+          "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+          "trigger": "manual",
+          "startedAt": 1791277749194,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 1069,
+              "at": 1791277749194,
+              "totals": {
+                "uncachedInputTokens": 158331,
+                "outputTokens": 116315,
+                "cacheReadTokens": 27884160,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 1069,
+                  "totals": {
+                    "uncachedInputTokens": 158331,
+                    "outputTokens": 116315,
+                    "cacheReadTokens": 27884160,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 1093,
+              "at": 1791277772506,
+              "totals": {
+                "uncachedInputTokens": 168413,
+                "outputTokens": 117754,
+                "cacheReadTokens": 28760192,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 1093,
+                  "totals": {
+                    "uncachedInputTokens": 168413,
+                    "outputTokens": 117754,
+                    "cacheReadTokens": 28760192,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 10082,
+              "outputTokens": 1439,
+              "cacheReadTokens": 876032,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791277772506
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-7c73b6",
+          "body": "[状态] → in_progress：测试段开工：跑合并口径全套 + 开关态复跑（reqboard_task_move）",
+          "createdAt": 1791277749194,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        },
+        {
+          "id": "c-18cc99",
+          "body": "[状态] → done：测试段完成：该文件 30 passed、合并口径 152 passed（reqboard_task_move）",
+          "createdAt": 1791277772506,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791277665648,
+      "updatedAt": 1791277772506,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791277665648,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791277749194,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "测试段开工：跑合并口径全套 + 开关态复跑"
+        },
+        {
+          "status": "done",
+          "at": 1791277772506,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "测试段完成：该文件 30 passed、合并口径 152 passed"
+        }
+      ],
+      "layer": 4,
+      "lastReport": {
+        "at": 1791277770252,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "该文件 30 passed（含 notify_guard）",
+          "旧口径断言仅剩开关态 1 处，且所在用例先 setenv",
+          "合并口径全套 152 passed，无回归",
+          "如实说明：进程级环境变量复跑被夹具 delenv 隔离，不作为回滚证据",
+          "阶段模板的 pnpm test／npx tsc 不适用本仓，改用 pytest"
+        ]
+      },
+      "lastRun": {
+        "at": 1791277770252,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-9138db",
+      "requirementId": "REQ-261006165125-23a9",
+      "title": "新增 tests/test_daily_jobs_quiet_noop.py（T-1~T-16 回归锁）·研发",
+      "description": "子卡阶段：研发",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-15bb12"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "implementation": "新建 tests/test_daily_jobs_quiet_noop.py，实现 design/test-cases.md §2 的 T-1~T-16（判据白名单与反例、开关/阈值解析、宿主无事零消息而台账 success、有产出一条完成、异常 🚨、内层失败优先、人工触发回执、开关态旧行为、阈值内不发/超阈值发「⏳ 仍在运行」、阈值 0 关闭、回调异常不影响任务、trigger_job 传 manual=True）。打桩点必须是 runtime._send_feishu / runtime._mark_running / runtime._mark_done；env 用 monkeypatch.setenv；T-13 用 time.sleep(0.3) + 阈值 0.05。用例总数不超过 16 条，不做与 FR 无关扩展。\n\n[子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "context": "",
+      "parentId": "t-1ec5fa",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-f4876e",
+          "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+          "trigger": "manual",
+          "startedAt": 1791277718217,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 1000,
+              "at": 1791277718217,
+              "totals": {
+                "uncachedInputTokens": 149596,
+                "outputTokens": 112152,
+                "cacheReadTokens": 25314944,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 1000,
+                  "totals": {
+                    "uncachedInputTokens": 149596,
+                    "outputTokens": 112152,
+                    "cacheReadTokens": 25314944,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 1017,
+              "at": 1791277724839,
+              "totals": {
+                "uncachedInputTokens": 155877,
+                "outputTokens": 113027,
+                "cacheReadTokens": 25876096,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 1017,
+                  "totals": {
+                    "uncachedInputTokens": 155877,
+                    "outputTokens": 113027,
+                    "cacheReadTokens": 25876096,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 6281,
+              "outputTokens": 875,
+              "cacheReadTokens": 561152,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791277724839
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-c2ddb7",
+          "body": "[状态] → in_progress：研发段开工：新增 tests/test_daily_jobs_quiet_noop.py（T-1~T-16）（reqboard_task_move）",
+          "createdAt": 1791277718217,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        },
+        {
+          "id": "c-67c62e",
+          "body": "[状态] → done：研发段完成：回归锁文件落地，40 passed、egress=0（reqboard_task_move）",
+          "createdAt": 1791277724839,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791277665713,
+      "updatedAt": 1791277724839,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791277665713,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791277718217,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "研发段开工：新增 tests/test_daily_jobs_quiet_noop.py（T-1~T-16）"
+        },
+        {
+          "status": "done",
+          "at": 1791277724839,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "研发段完成：回归锁文件落地，40 passed、egress=0"
+        }
+      ],
+      "layer": 2,
+      "lastReport": {
+        "at": 1791277722260,
+        "reportIndex": 1,
+        "filesChanged": [
+          "tests/test_daily_jobs_quiet_noop.py"
+        ],
+        "completed": [
+          "新建 tests/test_daily_jobs_quiet_noop.py，覆盖 design/test-cases.md §2 的 T-1~T-16",
+          "判据白名单含反向锁：no_output 为 1 或字符串 true 都判不外发",
+          "宿主四态实测：无事 0 条、有产出 1 条、异常 1 条 🚨、内层失败优先",
+          "回滚态与阈值三态（阈值内不发／超阈值发／0 关闭）均有用例",
+          "打桩点全部落在 runtime._send_feishu／_mark_running／_mark_done",
+          "参数化后共 40 个用例，40 passed，notify-guard egress=0",
+          "阶段模板的 vitest 命令不适用本仓（Python 栈），等价口径为 pytest"
+        ]
+      },
+      "lastRun": {
+        "at": 1791277722260,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-e704f1",
+      "requirementId": "REQ-261006165125-23a9",
+      "title": "新增 tests/test_daily_jobs_quiet_noop.py（T-1~T-16 回归锁）·复核",
+      "description": "子卡阶段：复核",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-9138db"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "implementation": "新建 tests/test_daily_jobs_quiet_noop.py，实现 design/test-cases.md §2 的 T-1~T-16（判据白名单与反例、开关/阈值解析、宿主无事零消息而台账 success、有产出一条完成、异常 🚨、内层失败优先、人工触发回执、开关态旧行为、阈值内不发/超阈值发「⏳ 仍在运行」、阈值 0 关闭、回调异常不影响任务、trigger_job 传 manual=True）。打桩点必须是 runtime._send_feishu / runtime._mark_running / runtime._mark_done；env 用 monkeypatch.setenv；T-13 用 time.sleep(0.3) + 阈值 0.05。用例总数不超过 16 条，不做与 FR 无关扩展。\n\n[子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-1ec5fa",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-92e16f",
+          "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+          "trigger": "manual",
+          "startedAt": 1791277727274,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 1025,
+              "at": 1791277727274,
+              "totals": {
+                "uncachedInputTokens": 156144,
+                "outputTokens": 113322,
+                "cacheReadTokens": 26160384,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 1025,
+                  "totals": {
+                    "uncachedInputTokens": 156144,
+                    "outputTokens": 113322,
+                    "cacheReadTokens": 26160384,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 1059,
+              "at": 1791277746242,
+              "totals": {
+                "uncachedInputTokens": 158113,
+                "outputTokens": 116064,
+                "cacheReadTokens": 27595008,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 1059,
+                  "totals": {
+                    "uncachedInputTokens": 158113,
+                    "outputTokens": 116064,
+                    "cacheReadTokens": 27595008,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 1969,
+              "outputTokens": 2742,
+              "cacheReadTokens": 1434624,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791277746242
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-c9835d",
+          "body": "[状态] → in_progress：复核段开工：核对 16 个编号齐备、无范围外扩展（reqboard_task_move）",
+          "createdAt": 1791277727274,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        },
+        {
+          "id": "c-baec36",
+          "body": "[状态] → done：复核段完成：16 编号齐备 + 三条反向锁在位，无偏离（reqboard_task_move）",
+          "createdAt": 1791277746242,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791277665713,
+      "updatedAt": 1791277746242,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791277665713,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791277727274,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "复核段开工：核对 16 个编号齐备、无范围外扩展"
+        },
+        {
+          "status": "done",
+          "at": 1791277746242,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "复核段完成：16 编号齐备 + 三条反向锁在位，无偏离"
+        }
+      ],
+      "layer": 3,
+      "lastReport": {
+        "at": 1791277743876,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "T-1~T-16 十六个编号齐备且无范围外编号",
+          "三条反向锁俱在：no_output 非真值／非 dict／无事加内层失败",
+          "打桩点检查通过：无 alerting 或 bootstrap 上的桩",
+          "13 项检查全过，对齐 design/test-cases.md §2"
+        ]
+      },
+      "lastRun": {
+        "at": 1791277743876,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-4a30f8",
+      "requirementId": "REQ-261006165125-23a9",
+      "title": "新增 tests/test_daily_jobs_quiet_noop.py（T-1~T-16 回归锁）·测试",
+      "description": "子卡阶段：测试",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-e704f1"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "implementation": "新建 tests/test_daily_jobs_quiet_noop.py，实现 design/test-cases.md §2 的 T-1~T-16（判据白名单与反例、开关/阈值解析、宿主无事零消息而台账 success、有产出一条完成、异常 🚨、内层失败优先、人工触发回执、开关态旧行为、阈值内不发/超阈值发「⏳ 仍在运行」、阈值 0 关闭、回调异常不影响任务、trigger_job 传 manual=True）。打桩点必须是 runtime._send_feishu / runtime._mark_running / runtime._mark_done；env 用 monkeypatch.setenv；T-13 用 time.sleep(0.3) + 阈值 0.05。用例总数不超过 16 条，不做与 FR 无关扩展。\n\n[子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "context": "",
+      "parentId": "t-1ec5fa",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-92159b",
+          "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+          "trigger": "manual",
+          "startedAt": 1791277749125,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 1067,
+              "at": 1791277749125,
+              "totals": {
+                "uncachedInputTokens": 158331,
+                "outputTokens": 116315,
+                "cacheReadTokens": 27884160,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 1067,
+                  "totals": {
+                    "uncachedInputTokens": 158331,
+                    "outputTokens": 116315,
+                    "cacheReadTokens": 27884160,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 1091,
+              "at": 1791277772439,
+              "totals": {
+                "uncachedInputTokens": 168413,
+                "outputTokens": 117754,
+                "cacheReadTokens": 28760192,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 1091,
+                  "totals": {
+                    "uncachedInputTokens": 168413,
+                    "outputTokens": 117754,
+                    "cacheReadTokens": 28760192,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 10082,
+              "outputTokens": 1439,
+              "cacheReadTokens": 876032,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791277772439
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-25aefa",
+          "body": "[状态] → in_progress：测试段开工：跑合并口径全套 + 开关态复跑（reqboard_task_move）",
+          "createdAt": 1791277749125,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        },
+        {
+          "id": "c-41d973",
+          "body": "[状态] → done：测试段完成：合并口径 152 passed、本文件 40 passed、egress=0（reqboard_task_move）",
+          "createdAt": 1791277772439,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791277665713,
+      "updatedAt": 1791277772439,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791277665713,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791277749125,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "测试段开工：跑合并口径全套 + 开关态复跑"
+        },
+        {
+          "status": "done",
+          "at": 1791277772439,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "测试段完成：合并口径 152 passed、本文件 40 passed、egress=0"
+        }
+      ],
+      "layer": 4,
+      "lastReport": {
+        "at": 1791277770169,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "合并口径全套 8 个文件 152 passed，notify-guard egress=0",
+          "本文件 40 passed（参数化后）",
+          "如实说明：默认态用例夹具会 delenv 隔离环境变量",
+          "故环境变量置 true 的进程级复跑不等于回滚验证，回滚证据由 T-4／T-11 显式 setenv 用例承担",
+          "阶段模板的 pnpm test／npx tsc 不适用本仓（Python 栈），等价口径为 pytest"
+        ]
+      },
+      "lastRun": {
+        "at": 1791277770169,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-759ba0",
+      "requirementId": "REQ-261006165125-23a9",
+      "title": "回滚态验证 + 部署重启 + 真实观察留痕·研发",
+      "description": "子卡阶段：研发",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-1ec5fa",
+        "t-fd8513"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "implementation": "建 docs/requirements/REQ-261006165125-23a9/notes/rollback-and-observation.md，逐条记录：① 开关态 DAILY_JOBS_NOTIFY_NOOP=true 下测试全过（旧行为可恢复）；② DAILY_JOBS_RUNNING_NOTICE_SECONDS=0 只关提示且默认 60 不变；③ launchctl kickstart -k gui/501/com.pi-investment.v2-api 后服务健康（HTTP 200）；④ 真实观察：下一次自然排班（16:45）或一次 manual=False 的真实调用后，记录 quant.inprocess_job_runs 行（应 success|no_event）、飞书侧是否零条、以及 inprocess_job_notify_skipped 日志原文。观察窗口未到必须如实写「待观察（下一自然排班 16:45）」及原因，禁止用推断代替实测。\n\n[子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "context": "",
+      "parentId": "t-f9a549",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-63d364",
+          "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+          "trigger": "manual",
+          "startedAt": 1791277906158,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 1199,
+              "at": 1791277906158,
+              "totals": {
+                "uncachedInputTokens": 189778,
+                "outputTokens": 124917,
+                "cacheReadTokens": 34041216,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 1199,
+                  "totals": {
+                    "uncachedInputTokens": 189778,
+                    "outputTokens": 124917,
+                    "cacheReadTokens": 34041216,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 1211,
+              "at": 1791277911126,
+              "totals": {
+                "uncachedInputTokens": 190346,
+                "outputTokens": 125466,
+                "cacheReadTokens": 34698624,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 1211,
+                  "totals": {
+                    "uncachedInputTokens": 190346,
+                    "outputTokens": 125466,
+                    "cacheReadTokens": 34698624,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 568,
+              "outputTokens": 549,
+              "cacheReadTokens": 657408,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791277911126
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-28e8f7",
+          "body": "[状态] → in_progress：研发段开工：回滚与观察留痕落盘（notes/rollback-and-observation.md）（reqboard_task_move）",
+          "createdAt": 1791277906158,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        },
+        {
+          "id": "c-aaf111",
+          "body": "[状态] → done：研发段完成：留痕文件落盘，四项结论齐备且偏差如实标注（reqboard_task_move）",
+          "createdAt": 1791277911126,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791277903366,
+      "updatedAt": 1791277911126,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791277903366,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791277906158,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "研发段开工：回滚与观察留痕落盘（notes/rollback-and-observation.md）"
+        },
+        {
+          "status": "done",
+          "at": 1791277911126,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "研发段完成：留痕文件落盘，四项结论齐备且偏差如实标注"
+        }
+      ],
+      "layer": 3,
+      "lastReport": {
+        "at": 1791277909070,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-261006165125-23a9/notes/rollback-and-observation.md"
+        ],
+        "completed": [
+          "新建 notes/rollback-and-observation.md，四项结论与证据命令齐备",
+          "回滚路径①开关态、②阈值 0 均以进程级显式 env 实测通过",
+          "部署证据：plist 指向本仓库、kickstart 后新 PID 57853、17:09:55 宿主线程起、状态端点 200",
+          "如实记录计划验收命令写错端点：/api/jobs/inprocess/today 实测 404，真实为 /status",
+          "如实记录证据口径陷阱：pytest 夹具 delenv 隔离环境变量，进程级开关复跑不能当回滚证据",
+          "真实观察：部署时点已过当日 16:45，标注待观察（次日 16:45），给出可执行判定命令",
+          "阶段模板的 vitest／git diff --stat 要求按本仓 Python 栈与单卡改动量如实替换"
+        ]
+      },
+      "lastRun": {
+        "at": 1791277909070,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-8e8912",
+      "requirementId": "REQ-261006165125-23a9",
+      "title": "回滚态验证 + 部署重启 + 真实观察留痕·复核",
+      "description": "子卡阶段：复核",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-759ba0"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "implementation": "建 docs/requirements/REQ-261006165125-23a9/notes/rollback-and-observation.md，逐条记录：① 开关态 DAILY_JOBS_NOTIFY_NOOP=true 下测试全过（旧行为可恢复）；② DAILY_JOBS_RUNNING_NOTICE_SECONDS=0 只关提示且默认 60 不变；③ launchctl kickstart -k gui/501/com.pi-investment.v2-api 后服务健康（HTTP 200）；④ 真实观察：下一次自然排班（16:45）或一次 manual=False 的真实调用后，记录 quant.inprocess_job_runs 行（应 success|no_event）、飞书侧是否零条、以及 inprocess_job_notify_skipped 日志原文。观察窗口未到必须如实写「待观察（下一自然排班 16:45）」及原因，禁止用推断代替实测。\n\n[子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-f9a549",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-0b8d9f",
+          "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+          "trigger": "manual",
+          "startedAt": 1791277911199,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 1213,
+              "at": 1791277911199,
+              "totals": {
+                "uncachedInputTokens": 190346,
+                "outputTokens": 125466,
+                "cacheReadTokens": 34698624,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 1213,
+                  "totals": {
+                    "uncachedInputTokens": 190346,
+                    "outputTokens": 125466,
+                    "cacheReadTokens": 34698624,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 1231,
+              "at": 1791277923293,
+              "totals": {
+                "uncachedInputTokens": 191467,
+                "outputTokens": 126381,
+                "cacheReadTokens": 35688832,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 1231,
+                  "totals": {
+                    "uncachedInputTokens": 191467,
+                    "outputTokens": 126381,
+                    "cacheReadTokens": 35688832,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 1121,
+              "outputTokens": 915,
+              "cacheReadTokens": 990208,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791277923292
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-3ff020",
+          "body": "[状态] → in_progress：复核段开工：核对留痕的证据与如实标注（reqboard_task_move）",
+          "createdAt": 1791277911199,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        },
+        {
+          "id": "c-e23502",
+          "body": "[状态] → done：复核段完成：留痕 8 项核对无偏离，两处偏差已登记（reqboard_task_move）",
+          "createdAt": 1791277923292,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791277903366,
+      "updatedAt": 1791277923292,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791277903366,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791277911199,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "复核段开工：核对留痕的证据与如实标注"
+        },
+        {
+          "status": "done",
+          "at": 1791277923292,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "复核段完成：留痕 8 项核对无偏离，两处偏差已登记"
+        }
+      ],
+      "layer": 4,
+      "lastReport": {
+        "at": 1791277917589,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "复核 8 项全过：四项结论均有实测证据",
+          "待观察项标注明确（2026-10-07 16:45），未用推断冒充实测",
+          "两处偏差在留痕里显式登记：端点 404 更正、夹具隔离导致假回滚绿",
+          "给出了次日判定命令（台账行、notify_skipped 日志、飞书侧对照）"
+        ]
+      },
+      "lastRun": {
+        "at": 1791277917589,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-ddc9c6",
+      "requirementId": "REQ-261006165125-23a9",
+      "title": "回滚态验证 + 部署重启 + 真实观察留痕·测试",
+      "description": "子卡阶段：测试",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-8e8912"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "implementation": "建 docs/requirements/REQ-261006165125-23a9/notes/rollback-and-observation.md，逐条记录：① 开关态 DAILY_JOBS_NOTIFY_NOOP=true 下测试全过（旧行为可恢复）；② DAILY_JOBS_RUNNING_NOTICE_SECONDS=0 只关提示且默认 60 不变；③ launchctl kickstart -k gui/501/com.pi-investment.v2-api 后服务健康（HTTP 200）；④ 真实观察：下一次自然排班（16:45）或一次 manual=False 的真实调用后，记录 quant.inprocess_job_runs 行（应 success|no_event）、飞书侧是否零条、以及 inprocess_job_notify_skipped 日志原文。观察窗口未到必须如实写「待观察（下一自然排班 16:45）」及原因，禁止用推断代替实测。\n\n[子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "context": "",
+      "parentId": "t-f9a549",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-c73d88",
+          "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+          "trigger": "manual",
+          "startedAt": 1791277923361,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 1233,
+              "at": 1791277923361,
+              "totals": {
+                "uncachedInputTokens": 191467,
+                "outputTokens": 126381,
+                "cacheReadTokens": 35688832,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 1233,
+                  "totals": {
+                    "uncachedInputTokens": 191467,
+                    "outputTokens": 126381,
+                    "cacheReadTokens": 35688832,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+              "seq": 1257,
+              "at": 1791277948603,
+              "totals": {
+                "uncachedInputTokens": 192646,
+                "outputTokens": 128414,
+                "cacheReadTokens": 37019008,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886",
+                  "depth": 0,
+                  "seq": 1257,
+                  "totals": {
+                    "uncachedInputTokens": 192646,
+                    "outputTokens": 128414,
+                    "cacheReadTokens": 37019008,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 1179,
+              "outputTokens": 2033,
+              "cacheReadTokens": 1330176,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791277948603
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-b44eec",
+          "body": "[状态] → in_progress：测试段开工：按更正后的命令复跑并固化证据（reqboard_task_move）",
+          "createdAt": 1791277923361,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        },
+        {
+          "id": "c-4edc85",
+          "body": "[状态] → done：测试段完成：更正后五项复跑通过，待观察项如实标注（reqboard_task_move）",
+          "createdAt": 1791277948603,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791277903366,
+      "updatedAt": 1791277948603,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791277903366,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791277923361,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "测试段开工：按更正后的命令复跑并固化证据"
+        },
+        {
+          "status": "done",
+          "at": 1791277948603,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-981b7858-34a5-4ea0-88c9-a7e2efb95886"
+          },
+          "reason": "测试段完成：更正后五项复跑通过，待观察项如实标注"
+        }
+      ],
+      "layer": 5,
+      "lastReport": {
+        "at": 1791277946386,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-261006165125-23a9/notes/rollback-and-observation.md"
+        ],
+        "completed": [
+          "按更正后的命令复跑五项，输出已钉进留痕第 5 节",
+          "开关态与阈值 0 进程级实测通过；状态端点 200；宿主进程 57853 在跑",
+          "今日台账 success|no_event；notify_skipped 计数 0 与部署时点一致（当日那次是旧代码）",
+          "合并口径 8 文件 152 passed，egress=0",
+          "如实收尾：唯一未取证项为真实排班静默，需 2026-10-07 16:45 的自然排班"
+        ]
+      },
+      "lastRun": {
+        "at": 1791277946386,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "t-9c727a",
+      "to": "t-15bb12"
+    },
+    {
+      "from": "t-9a1066",
+      "to": "t-15bb12"
+    },
+    {
+      "from": "t-15bb12",
+      "to": "t-1ec5fa"
+    },
+    {
+      "from": "t-15bb12",
+      "to": "t-fd8513"
+    },
+    {
+      "from": "t-1ec5fa",
+      "to": "t-f9a549"
+    },
+    {
+      "from": "t-fd8513",
+      "to": "t-f9a549"
+    },
+    {
+      "from": "t-bf39b1",
+      "to": "t-f78a6f"
+    },
+    {
+      "from": "t-f78a6f",
+      "to": "t-eacc2e"
+    },
+    {
+      "from": "t-60e3a6",
+      "to": "t-2f0bc5"
+    },
+    {
+      "from": "t-2f0bc5",
+      "to": "t-11b46b"
+    },
+    {
+      "from": "t-9c727a",
+      "to": "t-dd129f"
+    },
+    {
+      "from": "t-9a1066",
+      "to": "t-dd129f"
+    },
+    {
+      "from": "t-dd129f",
+      "to": "t-e34e81"
+    },
+    {
+      "from": "t-e34e81",
+      "to": "t-319ae0"
+    },
+    {
+      "from": "t-15bb12",
+      "to": "t-0b1d7e"
+    },
+    {
+      "from": "t-0b1d7e",
+      "to": "t-6465f8"
+    },
+    {
+      "from": "t-6465f8",
+      "to": "t-4eefcc"
+    },
+    {
+      "from": "t-15bb12",
+      "to": "t-9138db"
+    },
+    {
+      "from": "t-9138db",
+      "to": "t-e704f1"
+    },
+    {
+      "from": "t-e704f1",
+      "to": "t-4a30f8"
+    },
+    {
+      "from": "t-1ec5fa",
+      "to": "t-759ba0"
+    },
+    {
+      "from": "t-fd8513",
+      "to": "t-759ba0"
+    },
+    {
+      "from": "t-759ba0",
+      "to": "t-8e8912"
+    },
+    {
+      "from": "t-8e8912",
+      "to": "t-ddc9c6"
+    }
+  ],
+  "layers": [
+    {
+      "layer": 0,
+      "tasks": [
+        "t-9c727a",
+        "t-9a1066",
+        "t-bf39b1",
+        "t-60e3a6"
+      ]
+    },
+    {
+      "layer": 1,
+      "tasks": [
+        "t-15bb12",
+        "t-dd129f",
+        "t-f78a6f",
+        "t-2f0bc5"
+      ]
+    },
+    {
+      "layer": 2,
+      "tasks": [
+        "t-1ec5fa",
+        "t-fd8513",
+        "t-0b1d7e",
+        "t-9138db",
+        "t-e34e81",
+        "t-eacc2e",
+        "t-11b46b"
+      ]
+    },
+    {
+      "layer": 3,
+      "tasks": [
+        "t-f9a549",
+        "t-759ba0",
+        "t-6465f8",
+        "t-e704f1",
+        "t-319ae0"
+      ]
+    },
+    {
+      "layer": 4,
+      "tasks": [
+        "t-8e8912",
+        "t-4eefcc",
+        "t-4a30f8"
+      ]
+    },
+    {
+      "layer": 5,
+      "tasks": [
+        "t-ddc9c6"
+      ]
+    }
+  ],
+  "ready": [],
+  "updated_at": "2026-10-06T09:12:47.512Z"
+}

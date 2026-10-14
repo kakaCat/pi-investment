@@ -291,7 +291,12 @@ class TestExecutePendingOrders:
 
         result = svc.execute_pending_orders()
 
-        assert result == {'executed': 0, 'failed': 0, 'details': []}
+        # 2026-10-04（REQ-261004154902-a7cd t4）：返回体新增三个计数
+        # （errored / expired / skipped_off_hours），既有三个键语义不变。
+        assert result == {
+            'executed': 0, 'failed': 0, 'errored': 0, 'expired': 0,
+            'skipped_off_hours': 0, 'details': [],
+        }
         repo.update_pending_order_status.assert_not_called()
 
     def test_mixed_outcomes(self, repo, calendar):
@@ -353,3 +358,147 @@ class TestCancelPendingOrder:
             svc.cancel_pending_order('acc', 5)
         assert exc.value.status_code == 404
         repo.update_pending_order_status.assert_not_called()
+
+
+# ---------- t4（FR-7）：撮合健壮性 ----------
+
+class TestExecutePendingOrdersRobustness:
+    """单笔异常不中断整批 / 非交易时段不误杀 / 超期作废并告警。
+
+    2026-10-04（REQ-261004154902-a7cd t4）。三条都出自实证：
+    · 两笔挂单自 2026-08-24 起 41 天 `updated_at == created_at`（loop 被异常掀翻）
+    · 2026-08-21 16:41 两笔在盘后被拒成 failed 后永久丢弃（没有时段护栏）
+    · 挂单没有超期概念 → 链路一断就无限期躺在 pending 里，无人知
+    """
+
+    @pytest.fixture(autouse=True)
+    def _record_failures(self, monkeypatch):
+        """打桩失败出口：新语义会主动外发，测试期真实外发会被 notify-guard 判失败。"""
+        recorded = []
+        monkeypatch.setattr(
+            'application.services.account_trading_service.report_failure',
+            lambda source, reason, error=None, severity='normal', context=None: recorded.append(
+                {'source': source, 'reason': reason, 'error': error,
+                 'severity': severity, 'context': context}
+            ) or True,
+        )
+        return recorded
+
+    def test_internal_error_does_not_stop_the_batch(self, repo, calendar, _record_failures):
+        """一笔抛非护栏异常 → 该笔标 failed 并留痕，后面那笔**仍要被处理**。"""
+        svc = _make_service(repo, calendar, datetime(2026, 7, 28, 9, 31))
+        _setup_trade_path(repo)
+        repo.get_pending_orders.return_value = [
+            _pending_order(id=1, symbol='BOOM'),
+            _pending_order(id=2, symbol='600519'),
+        ]
+
+        real_execute = svc.execute_trade
+
+        def flaky_execute(**kwargs):
+            if kwargs.get('symbol') == 'BOOM':
+                raise RuntimeError('shape mismatch: expected 75 features, got 40')
+            return real_execute(**kwargs)
+
+        svc.execute_trade = flaky_execute
+        svc._get_price = lambda symbol: 10.0
+
+        result = svc.execute_pending_orders()
+
+        assert result['errored'] == 1, result
+        assert result['executed'] == 1, '第二笔必须仍被处理（批量不中断）'
+        assert result['details'][0]['status'] == 'failed'
+        assert 'internal_error' in result['details'][0]['fail_reason']
+        repo.update_pending_order_status.assert_any_call(
+            1, 'failed', fail_reason=result['details'][0]['fail_reason'])
+        assert any(f['source'] == 'pending_orders.match' for f in _record_failures), _record_failures
+
+    def test_off_hours_skips_without_failing_orders(self, repo, calendar):
+        """盘后调用 → 全部跳过、状态保持 pending（绝不误杀）。"""
+        svc = _make_service(repo, calendar, datetime(2026, 7, 28, 16, 41))
+        repo.get_pending_orders.return_value = [_pending_order(id=5), _pending_order(id=6)]
+
+        result = svc.execute_pending_orders()
+
+        assert result['skipped_off_hours'] == 2
+        assert result['failed'] == 0
+        assert result['executed'] == 0
+        assert result['expired'] == 0
+        repo.update_pending_order_status.assert_not_called()
+
+    def test_stale_pending_order_is_expired_and_alerted(self, repo, calendar, _record_failures):
+        """错过至少一次开盘机会 → expired + 告警（不再无声搁浅）。"""
+        svc = _make_service(repo, calendar, datetime(2026, 10, 6, 9, 31))
+        _setup_trade_path(repo)
+        repo.get_pending_orders.return_value = [
+            _pending_order(id=7, created_at=datetime(2026, 8, 24, 9, 15)),
+        ]
+        svc._get_price = lambda symbol: 10.0
+
+        result = svc.execute_pending_orders()
+
+        assert result['expired'] == 1
+        assert result['executed'] == 0
+        repo.update_pending_order_status.assert_called_once()
+        args, kwargs = repo.update_pending_order_status.call_args
+        assert args[0] == 7 and args[1] == 'expired'
+        assert 'expired' in kwargs['fail_reason']
+        assert any(f['source'] == 'pending_orders.expired' for f in _record_failures), _record_failures
+
+    def test_order_from_previous_session_is_not_expired(self, repo, calendar):
+        """昨晚下的单在今天的开盘被撮合 → 正常成交，不许误判超期。"""
+        svc = _make_service(repo, calendar, datetime(2026, 10, 6, 9, 31))
+        _setup_trade_path(repo)
+        repo.get_pending_orders.return_value = [
+            _pending_order(id=8, created_at=datetime(2026, 10, 5, 16, 43)),
+        ]
+        svc._get_price = lambda symbol: 10.0
+
+        result = svc.execute_pending_orders()
+
+        assert result['executed'] == 1, result
+        assert result['expired'] == 0
+
+    def test_expiry_unknown_when_calendar_unavailable(self, repo, calendar, _record_failures):
+        """交易日历取不到 → 判定不了就**不动它**，但必须留痕外发（不许假装没超期）。"""
+        svc = _make_service(repo, calendar, datetime(2026, 10, 6, 9, 31))
+        _setup_trade_path(repo)
+        # 第一次调用（时段护栏）照常放行，第二次（超期判定里的日期遍历）失败
+        calendar.is_trading_day.side_effect = [True, RuntimeError('calendar table missing')]
+        repo.get_pending_orders.return_value = [
+            _pending_order(id=9, created_at=datetime(2026, 8, 24, 9, 15)),
+        ]
+        svc._get_price = lambda symbol: 10.0
+
+        result = svc.execute_pending_orders()
+
+        assert result['expired'] == 0, '判定不了不许作废'
+        assert any(f['source'] == 'pending_orders.expiry_check' for f in _record_failures), _record_failures
+
+    def test_calendar_down_at_entry_skips_instead_of_crashing(self, repo, calendar, _record_failures):
+        """入口就取不到日历 → 保守跳过并留痕（不抛、也不在未知开市状态下下单）。"""
+        svc = _make_service(repo, calendar, datetime(2026, 10, 6, 9, 31))
+        _setup_trade_path(repo)
+        calendar.is_trading_day.side_effect = RuntimeError('calendar table missing')
+        repo.get_pending_orders.return_value = [_pending_order(id=11)]
+
+        result = svc.execute_pending_orders()
+
+        assert result['executed'] == 0 and result['failed'] == 0
+        assert result['details'][0]['status'] == 'skipped_calendar_unavailable'
+        repo.update_pending_order_status.assert_not_called()
+        assert any(f['source'] == 'pending_orders.window_check' for f in _record_failures), _record_failures
+
+    def test_expiry_can_be_disabled(self, repo, calendar):
+        """`expire_stale=False` 时只撮合、不做过期判定（留给运维/回放用）。"""
+        svc = _make_service(repo, calendar, datetime(2026, 10, 6, 9, 31))
+        _setup_trade_path(repo)
+        repo.get_pending_orders.return_value = [
+            _pending_order(id=10, created_at=datetime(2026, 8, 24, 9, 15)),
+        ]
+        svc._get_price = lambda symbol: 10.0
+
+        result = svc.execute_pending_orders(expire_stale=False)
+
+        assert result['expired'] == 0
+        assert result['executed'] == 1

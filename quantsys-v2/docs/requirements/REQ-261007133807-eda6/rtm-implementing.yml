@@ -1,0 +1,317 @@
+metadata:
+  stage: implementing
+  requirement_id: REQ-261007133807-eda6
+  generated_at: 2026-10-07T10:44:30.546Z
+  version: 128
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 60
+  last_updated: 2026-10-07T11:22:03.670Z
+inputs:
+  tasks:
+    - id: t-d24cfb
+      title: 落码表与裁决结果契约（EscalationCode + Verdict）
+      status: done
+    - id: t-2f1402
+      title: 收敛出唯一裁决出口 decide_escalation（15 条顺序表）
+      status: done
+    - id: t-152a0b
+      title: 规则侧显式化与人话说明（explain_escalation + 默认值显式化）
+      status: done
+    - id: t-fa9574
+      title: 兼容壳：EscalationChecker.should_escalate 委托出口
+      status: done
+    - id: t-2fbc40
+      title: 处置映射：disposition.decide 接受 Verdict
+      status: done
+    - id: t-08d545
+      title: tick() 单链路接线（裁决 → 处置 → 去重覆盖 → 通知）
+      status: done
+    - id: t-761703
+      title: 迁移：watch_triggers 加两列（两个库都跑）
+      status: done
+    - id: t-fc92ab
+      title: 落库两列 + 通知变量透传
+      status: done
+    - id: t-ba3f1f
+      title: 卡面「升级原因」行（旧渲染 + 分级渲染两条路径）
+      status: done
+    - id: t-9cd059
+      title: 规则写入口缺省显式化（含批量与输入校验）
+      status: done
+    - id: t-7c7d38
+      title: 规则读接口回显「何时会叫我」
+      status: done
+    - id: t-435423
+      title: 判据文档与码表同源（修陈旧文案 + 契约判据表）
+      status: done
+    - id: t-8097f7
+      title: 端到端验收：触发 → 库有码 → 卡有理由（含唤醒量回归锁）
+      status: done
+    - id: t-339754
+      title: 落码表与裁决结果契约（EscalationCode + Verdict）·研发
+      status: done
+    - id: t-17bdf7
+      title: 落码表与裁决结果契约（EscalationCode + Verdict）·联调
+      status: done
+    - id: t-53b2de
+      title: 落码表与裁决结果契约（EscalationCode + Verdict）·复核
+      status: done
+    - id: t-a60ba4
+      title: 落码表与裁决结果契约（EscalationCode + Verdict）·测试
+      status: done
+    - id: t-9b357b
+      title: 迁移：watch_triggers 加两列（两个库都跑）·研发
+      status: done
+    - id: t-6aad65
+      title: 迁移：watch_triggers 加两列（两个库都跑）·联调
+      status: done
+    - id: t-7317cc
+      title: 迁移：watch_triggers 加两列（两个库都跑）·复核
+      status: done
+    - id: t-1e0992
+      title: 迁移：watch_triggers 加两列（两个库都跑）·测试
+      status: done
+    - id: t-d9eb91
+      title: 收敛出唯一裁决出口 decide_escalation（15 条顺序表）·研发
+      status: done
+    - id: t-1d6cdd
+      title: 收敛出唯一裁决出口 decide_escalation（15 条顺序表）·联调
+      status: done
+    - id: t-e67b0f
+      title: 收敛出唯一裁决出口 decide_escalation（15 条顺序表）·复核
+      status: done
+    - id: t-fff73f
+      title: 收敛出唯一裁决出口 decide_escalation（15 条顺序表）·测试
+      status: done
+    - id: t-176084
+      title: 规则侧显式化与人话说明（explain_escalation + 默认值显式化）·研发
+      status: done
+    - id: t-3f6454
+      title: 规则侧显式化与人话说明（explain_escalation + 默认值显式化）·联调
+      status: done
+    - id: t-c1b8a8
+      title: 规则侧显式化与人话说明（explain_escalation + 默认值显式化）·复核
+      status: done
+    - id: t-6e3c11
+      title: 规则侧显式化与人话说明（explain_escalation + 默认值显式化）·测试
+      status: done
+    - id: t-7713e4
+      title: 兼容壳：EscalationChecker.should_escalate 委托出口·研发
+      status: done
+    - id: t-a08bf2
+      title: 兼容壳：EscalationChecker.should_escalate 委托出口·联调
+      status: done
+    - id: t-38caaa
+      title: 兼容壳：EscalationChecker.should_escalate 委托出口·复核
+      status: done
+    - id: t-70b182
+      title: 兼容壳：EscalationChecker.should_escalate 委托出口·测试
+      status: done
+    - id: t-8fd357
+      title: 处置映射：disposition.decide 接受 Verdict·研发
+      status: done
+    - id: t-5a3bc9
+      title: 处置映射：disposition.decide 接受 Verdict·联调
+      status: done
+    - id: t-7c7aef
+      title: 处置映射：disposition.decide 接受 Verdict·复核
+      status: done
+    - id: t-dd547b
+      title: 处置映射：disposition.decide 接受 Verdict·测试
+      status: done
+    - id: t-528cc7
+      title: tick() 单链路接线（裁决 → 处置 → 去重覆盖 → 通知）·研发
+      status: done
+    - id: t-b5a2f9
+      title: tick() 单链路接线（裁决 → 处置 → 去重覆盖 → 通知）·联调
+      status: done
+    - id: t-0b0f61
+      title: tick() 单链路接线（裁决 → 处置 → 去重覆盖 → 通知）·复核
+      status: done
+    - id: t-90f6dc
+      title: tick() 单链路接线（裁决 → 处置 → 去重覆盖 → 通知）·测试
+      status: done
+    - id: t-07f5f0
+      title: 规则写入口缺省显式化（含批量与输入校验）·研发
+      status: done
+    - id: t-a2c6e5
+      title: 规则写入口缺省显式化（含批量与输入校验）·联调
+      status: done
+    - id: t-2dc03f
+      title: 规则写入口缺省显式化（含批量与输入校验）·复核
+      status: done
+    - id: t-f7cd30
+      title: 规则写入口缺省显式化（含批量与输入校验）·测试
+      status: done
+    - id: t-c19f4f
+      title: 判据文档与码表同源（修陈旧文案 + 契约判据表）·研发
+      status: done
+    - id: t-a85be6
+      title: 判据文档与码表同源（修陈旧文案 + 契约判据表）·复核
+      status: done
+    - id: t-b3dcd8
+      title: 落库两列 + 通知变量透传·研发
+      status: done
+    - id: t-4e7a83
+      title: 落库两列 + 通知变量透传·联调
+      status: done
+    - id: t-c31200
+      title: 落库两列 + 通知变量透传·复核
+      status: done
+    - id: t-ee89ed
+      title: 落库两列 + 通知变量透传·测试
+      status: done
+    - id: t-0fb46d
+      title: 卡面「升级原因」行（旧渲染 + 分级渲染两条路径）·研发
+      status: done
+    - id: t-56465e
+      title: 卡面「升级原因」行（旧渲染 + 分级渲染两条路径）·联调
+      status: done
+    - id: t-6ed558
+      title: 卡面「升级原因」行（旧渲染 + 分级渲染两条路径）·复核
+      status: done
+    - id: t-0f1e0e
+      title: 卡面「升级原因」行（旧渲染 + 分级渲染两条路径）·测试
+      status: done
+    - id: t-e717ca
+      title: 规则读接口回显「何时会叫我」·研发
+      status: done
+    - id: t-7631f6
+      title: 规则读接口回显「何时会叫我」·联调
+      status: done
+    - id: t-3e6466
+      title: 规则读接口回显「何时会叫我」·复核
+      status: done
+    - id: t-8a6ce5
+      title: 规则读接口回显「何时会叫我」·测试
+      status: done
+    - id: t-1e2f5e
+      title: 端到端验收：触发 → 库有码 → 卡有理由（含唤醒量回归锁）·校验
+      status: done
+status:
+  tasks_total: 60
+  tasks_done: 60
+  tasks_in_progress: 0
+  tasks_todo: 0
+tasks:
+  - id: t-d24cfb
+    status: done
+  - id: t-2f1402
+    status: done
+  - id: t-152a0b
+    status: done
+  - id: t-fa9574
+    status: done
+  - id: t-2fbc40
+    status: done
+  - id: t-08d545
+    status: done
+  - id: t-761703
+    status: done
+  - id: t-fc92ab
+    status: done
+  - id: t-ba3f1f
+    status: done
+  - id: t-9cd059
+    status: done
+  - id: t-7c7d38
+    status: done
+  - id: t-435423
+    status: done
+  - id: t-8097f7
+    status: done
+  - id: t-339754
+    status: done
+  - id: t-17bdf7
+    status: done
+  - id: t-53b2de
+    status: done
+  - id: t-a60ba4
+    status: done
+  - id: t-9b357b
+    status: done
+  - id: t-6aad65
+    status: done
+  - id: t-7317cc
+    status: done
+  - id: t-1e0992
+    status: done
+  - id: t-d9eb91
+    status: done
+  - id: t-1d6cdd
+    status: done
+  - id: t-e67b0f
+    status: done
+  - id: t-fff73f
+    status: done
+  - id: t-176084
+    status: done
+  - id: t-3f6454
+    status: done
+  - id: t-c1b8a8
+    status: done
+  - id: t-6e3c11
+    status: done
+  - id: t-7713e4
+    status: done
+  - id: t-a08bf2
+    status: done
+  - id: t-38caaa
+    status: done
+  - id: t-70b182
+    status: done
+  - id: t-8fd357
+    status: done
+  - id: t-5a3bc9
+    status: done
+  - id: t-7c7aef
+    status: done
+  - id: t-dd547b
+    status: done
+  - id: t-528cc7
+    status: done
+  - id: t-b5a2f9
+    status: done
+  - id: t-0b0f61
+    status: done
+  - id: t-90f6dc
+    status: done
+  - id: t-07f5f0
+    status: done
+  - id: t-a2c6e5
+    status: done
+  - id: t-2dc03f
+    status: done
+  - id: t-f7cd30
+    status: done
+  - id: t-c19f4f
+    status: done
+  - id: t-a85be6
+    status: done
+  - id: t-b3dcd8
+    status: done
+  - id: t-4e7a83
+    status: done
+  - id: t-c31200
+    status: done
+  - id: t-ee89ed
+    status: done
+  - id: t-0fb46d
+    status: done
+  - id: t-56465e
+    status: done
+  - id: t-6ed558
+    status: done
+  - id: t-0f1e0e
+    status: done
+  - id: t-e717ca
+    status: done
+  - id: t-7631f6
+    status: done
+  - id: t-3e6466
+    status: done
+  - id: t-8a6ce5
+    status: done
+  - id: t-1e2f5e
+    status: done

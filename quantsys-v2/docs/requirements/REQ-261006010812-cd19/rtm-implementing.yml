@@ -1,0 +1,137 @@
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006010812-cd19
+  generated_at: 2026-10-06T01:23:36.741Z
+  version: 74
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 24
+  last_updated: 2026-10-06T01:39:36.846Z
+inputs:
+  tasks:
+    - id: t-9f0fbe
+      title: 设计文档自洽性 + 版本面取证
+      status: done
+    - id: t-3c2fb0
+      title: 实现一致性矩阵（面 B，逐条落点）
+      status: done
+    - id: t-881157
+      title: 只读库表事实 + 验收命令复跑
+      status: done
+    - id: t-9adb94
+      title: 设计未覆盖缺口审计
+      status: done
+    - id: t-e7f33f
+      title: 报告汇总 + 三道自检 + 抽查复现
+      status: done
+    - id: t-e2e068
+      title: 设计文档自洽性 + 版本面取证·取数调研
+      status: done
+    - id: t-83047e
+      title: 设计文档自洽性 + 版本面取证·分析
+      status: done
+    - id: t-69aedb
+      title: 设计文档自洽性 + 版本面取证·复核
+      status: done
+    - id: t-947815
+      title: 实现一致性矩阵（面 B，逐条落点）·取数调研
+      status: done
+    - id: t-2b228e
+      title: 实现一致性矩阵（面 B，逐条落点）·分析
+      status: done
+    - id: t-db3def
+      title: 实现一致性矩阵（面 B，逐条落点）·复核
+      status: done
+    - id: t-7b8637
+      title: 只读库表事实 + 验收命令复跑·取数调研
+      status: done
+    - id: t-ba6005
+      title: 只读库表事实 + 验收命令复跑·分析
+      status: done
+    - id: t-003c90
+      title: 只读库表事实 + 验收命令复跑·复核
+      status: done
+    - id: t-1e2867
+      title: 设计未覆盖缺口审计·取数调研
+      status: done
+    - id: t-539d6c
+      title: 设计未覆盖缺口审计·分析
+      status: done
+    - id: t-9faa06
+      title: 设计未覆盖缺口审计·复核
+      status: done
+    - id: t-3118e8
+      title: 报告汇总 + 三道自检 + 抽查复现·研发
+      status: done
+    - id: t-9c82c7
+      title: 报告汇总 + 三道自检 + 抽查复现·复核
+      status: done
+    - id: t-b3d14a
+      title: 返工：验收项不可照着验（历史数据）：以下验收项没写「怎么验」——验收项 设计文档自洽性 + 版本面取证·分析 缺「怎么验」（"
+      status: done
+    - id: t-587b54
+      title: 返工：验收项不可照着验（历史数据）：以下验收项没写「怎么验」——验收项 设计文档自洽性 + 版本面取证·分析 缺「怎么验」（"·研发
+      status: done
+    - id: t-dc82bd
+      title: 返工：验收项不可照着验（历史数据）：以下验收项没写「怎么验」——验收项 设计文档自洽性 + 版本面取证·分析 缺「怎么验」（"·联调
+      status: done
+    - id: t-adf822
+      title: 返工：验收项不可照着验（历史数据）：以下验收项没写「怎么验」——验收项 设计文档自洽性 + 版本面取证·分析 缺「怎么验」（"·复核
+      status: done
+    - id: t-bdfea6
+      title: 返工：验收项不可照着验（历史数据）：以下验收项没写「怎么验」——验收项 设计文档自洽性 + 版本面取证·分析 缺「怎么验」（"·测试
+      status: done
+status:
+  tasks_total: 24
+  tasks_done: 24
+  tasks_in_progress: 0
+  tasks_todo: 0
+tasks:
+  - id: t-9f0fbe
+    status: done
+  - id: t-3c2fb0
+    status: done
+  - id: t-881157
+    status: done
+  - id: t-9adb94
+    status: done
+  - id: t-e7f33f
+    status: done
+  - id: t-e2e068
+    status: done
+  - id: t-83047e
+    status: done
+  - id: t-69aedb
+    status: done
+  - id: t-947815
+    status: done
+  - id: t-2b228e
+    status: done
+  - id: t-db3def
+    status: done
+  - id: t-7b8637
+    status: done
+  - id: t-ba6005
+    status: done
+  - id: t-003c90
+    status: done
+  - id: t-1e2867
+    status: done
+  - id: t-539d6c
+    status: done
+  - id: t-9faa06
+    status: done
+  - id: t-3118e8
+    status: done
+  - id: t-9c82c7
+    status: done
+  - id: t-b3d14a
+    status: done
+  - id: t-587b54
+    status: done
+  - id: t-dc82bd
+    status: done
+  - id: t-adf822
+    status: done
+  - id: t-bdfea6
+    status: done

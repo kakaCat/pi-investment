@@ -117,6 +117,48 @@ def strategy_daily_check(strategy_name: str, **params):
 
 # ==================== 统一执行入口（StrategyExecutor） ====================
 
+#: 单策略结果条目的裁决取值（与 application/observability/run_outcome.py 的 status 对齐）
+ENTRY_SUCCESS = 'success'
+ENTRY_SKIPPED = 'skipped'
+ENTRY_FAILED = 'failed'
+
+#: 视为“权威裁决字段”的键：ok（bool）优先，其次 status（success/skipped/failed）
+_VERDICT_STATUSES = (ENTRY_SUCCESS, ENTRY_SKIPPED, ENTRY_FAILED)
+
+
+def classify_strategy_entry(entry):
+    """裁决单个策略的结果条目 —— 返回 ``(status, reason)``。
+
+    2026-10-04（REQ-261004154902-a7cd · FR-6）：改前这里用
+    ``entry.get('success', True)`` 判成功，而 use case 返回体**没有** ``success``
+    键 → 恒判成功（失败也打绿）。现在只认 ``ok`` / ``status``，
+    **缺键一律判失败**：读不出“成功”的证据时，不能默认成功。
+
+    Args:
+        entry: StrategyExecutor.execute_all 里某一版本的条目。
+
+    Returns:
+        ``(status, reason)``，status ∈ {success, skipped, failed}。
+    """
+    if not isinstance(entry, dict):
+        return ENTRY_FAILED, f'result entry is not a dict: {type(entry).__name__}'
+
+    if 'ok' in entry:
+        ok = bool(entry.get('ok'))
+        if ok:
+            return ENTRY_SUCCESS, 'ok=True'
+        return ENTRY_FAILED, f"ok=False reason={entry.get('reason')!r}"
+
+    status = entry.get('status')
+    if status in _VERDICT_STATUSES:
+        return status, f'status={status!r}'
+
+    return (
+        ENTRY_FAILED,
+        "missing 'ok'/'status' key; judged failed (must not default to success)",
+    )
+
+
 def strategy_execute_all(**params):
     """
     全策略每日执行（统一任务，替代 v13_daily_check / v14_daily_check）
@@ -132,8 +174,12 @@ def strategy_execute_all(**params):
     Returns:
         dict: StrategyExecutor.execute_all 的合并结果
             - date: 交易日期
-            - success: 全部策略成功才为 True
+            - success: StrategyExecutor 自身的汇总标志（**仅**表示没有策略抛异常）
             - V13 / V14: 各策略的执行结果（或失败信息）
+
+    Note:
+        逐条目的成败以 ``ok`` / ``status`` 为准（见 :func:`classify_strategy_entry`）；
+        缺少这两个键时**判失败**——不再像改前那样默认判成功。
     """
     from application.strategies import StrategyExecutor
     from live_trading.simulation_trader import SimulationTrader
@@ -160,12 +206,20 @@ def strategy_execute_all(**params):
         )
         result = executor.execute_all(date)
 
+        # 2026-10-04（FR-6）：逐个条目按 ok/status 裁决；缺键 = 失败（见 classify_strategy_entry）
+        failed_versions = []
         for version, entry in sorted(result.items()):
             if isinstance(entry, dict):
-                status = 'success' if entry.get('success', True) else 'failed'
-                logger.info(f"  {version}: {status}")
+                status, reason = classify_strategy_entry(entry)
+                if status == ENTRY_FAILED:
+                    failed_versions.append(version)
+                    logger.error(f"  {version}: failed ({reason})")
+                else:
+                    logger.info(f"  {version}: {status}")
         logger.info(f"{'='*70}")
-        logger.info(f"✅ 全策略每日执行完成（overall success={result['success']}）")
+        logger.info(f"✅ 全策略每日执行完成（overall success={result.get('success')}）")
+        if failed_versions:
+            logger.error(f"❌ 判定为失败的策略: {', '.join(failed_versions)}")
         logger.info(f"{'='*70}")
 
         return result

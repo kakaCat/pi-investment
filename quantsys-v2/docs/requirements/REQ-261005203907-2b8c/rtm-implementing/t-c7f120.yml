@@ -1,0 +1,38 @@
+task:
+  id: t-c7f120
+  title: 晚间管线：因子段局部跳过（K 线段原样）·复核
+  status: done
+  implements: |-
+    改 adapters/inbound/fastapi_app/daily_jobs/pipeline.py 的 _job_evening_pipeline：入口取一次 non_trading = is_non_trading_day()；K 线段（探活、覆盖度门槛、批大小、缺口修复、失败上抛）逐字不动；因子段改为 kline=results.get('kline_sync') or {}; kline_changed = kline.get('status') != 'skipped' and (kline.get('success') or 0) > 0; if non_trading and not kline_changed and kline.get('status') != 'error': results['factor_compute']={'status':'skipped','skipped':True,'reason':f'非交易日（{expected} 基准）且 K 线本次无更新'} else: results['factor_compute']=handle_factor_compute({'max_symbols':6000})。新增 tests/test_evening_pipeline_holiday_gate.py 覆盖 TC-4 六行真值表：休市日+K线skipped→因子不跑；休市日+K线success且success=137→因子跑；休市日+success=0→因子不跑；休市日+status='error'→因子跑且随后仍 raise；交易日+K线skipped→因子必须跑（防交易日漏算因子）；跳过形态经 find_result_failure 判为非失败。打桩点：daily_jobs.pipeline 的 is_non_trading_day/_kline_coverage/_probe_kline_sources，以及源头模块 application.services.scheduler_tasks.handle_factor_compute 与 infrastructure.jobs.kline_update_job.update_gem_klines（函数内局部 import）。
+
+    [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+  serves: []
+  depends_on:
+    - t-e11789
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261005203907-2b8c
+    TASK_ID: t-c7f120
+    TASK_TITLE: 晚间管线：因子段局部跳过（K 线段原样）·复核
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-05T13:21:49.125Z
+    - phase: review
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261005203907-2b8c
+  generated_at: 2026-10-05T13:21:14.375Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-05T13:21:49.126Z

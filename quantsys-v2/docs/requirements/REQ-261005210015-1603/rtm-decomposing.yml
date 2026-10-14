@@ -1,0 +1,962 @@
+metadata:
+  stage: decomposing
+  requirement_id: REQ-261005210015-1603
+  generated_at: 2026-10-05T13:09:49.591Z
+  version: 115
+  generated_by: dsh-pmboard
+  rtm_version: "2.0"
+  last_updated: 2026-10-05T13:26:41.260Z
+inputs:
+  requirements:
+    - id: FR-1
+      title: 完成/失败通知的耗时必须反映真实量级
+      source: requirement.md
+      line: 152
+    - id: FR-2
+      title: 摘要必须含"没做成的动作"，且不得是内部字段名的原样 dump
+      source: requirement.md
+      line: 156
+    - id: FR-3
+      title: 零有效产出不得报 ✅
+      source: requirement.md
+      line: 161
+    - id: FR-4
+      title: 计数语义必须诚实
+      source: requirement.md
+      line: 166
+    - id: FR-5
+      title: 空转必须跨天可见
+      source: requirement.md
+      line: 173
+    - id: FR-6
+      title: 台账与重试语义不动
+      source: requirement.md
+      line: 178
+    - id: FR-7
+      title: 回归锁与真实观察
+      source: requirement.md
+      line: 183
+  design_sections:
+    - ref: design/architecture.md#目标与判定
+      title: 目标与判定（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/architecture.md
+      section: 目标与判定
+    - ref: design/architecture.md#改动落点与数据流
+      title: 改动落点与数据流（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+      file: design/architecture.md
+      section: 改动落点与数据流
+    - ref: design/architecture.md#设计决策
+      title: 设计决策（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+      file: design/architecture.md
+      section: 设计决策
+    - ref: design/architecture.md#D-A-formatelapsed-放-alertingpy不是-runtime
+      title: D-A `_format_elapsed` 放 `alerting.py`（不是 runtime）（
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: D-A-formatelapsed-放-alertingpy不是-runtime
+    - ref: design/architecture.md#D-B-handler-结果新增两个顶层键summary-与-nooutput
+      title: D-B handler 结果新增两个**顶层**键：`summary` 与 `no_output`（
+      serves:
+        - FR-2
+        - FR-3
+        - FR-6
+      file: design/architecture.md
+      section: D-B-handler-结果新增两个顶层键summary-与-nooutput
+    - ref: design/architecture.md#D-C-空转统计放handler不放进-service
+      title: D-C 空转统计放**handler**，不放进 service（
+      serves:
+        - FR-5
+      file: design/architecture.md
+      section: D-C-空转统计放handler不放进-service
+    - ref: design/architecture.md#D-D-computed-保留语义收窄为遍历到的账户数
+      title: D-D `computed` 保留（语义收窄为"遍历到的账户数"）（
+      serves:
+        - FR-4
+      file: design/architecture.md
+      section: D-D-computed-保留语义收窄为遍历到的账户数
+    - ref: design/architecture.md#D-E-与-REQ-261005203907-2b8c-的次序与边界
+      title: D-E 与 REQ-261005203907-2b8c 的次序与边界（
+      serves:
+        - FR-6
+      file: design/architecture.md
+      section: D-E-与-REQ-261005203907-2b8c-的次序与边界
+    - ref: design/architecture.md#依赖方向与失败隔离
+      title: 依赖方向与失败隔离（
+      serves:
+        - FR-5
+      file: design/architecture.md
+      section: 依赖方向与失败隔离
+    - ref: design/architecture.md#陷阱与防护FR-2-FR-6-的实现约束
+      title: 陷阱与防护（FR-2 / FR-6 的实现约束）（
+      serves:
+        - FR-2
+        - FR-6
+      file: design/architecture.md
+      section: 陷阱与防护FR-2-FR-6-的实现约束
+    - ref: design/architecture.md#测试落点
+      title: 测试落点（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+      file: design/architecture.md
+      section: 测试落点
+    - ref: design/data-model.md#现有表不改
+      title: 现有表（不改）（
+      serves:
+        - FR-4
+      file: design/data-model.md
+      section: 现有表不改
+    - ref: design/data-model.md#新增两个只读仓储方法
+      title: 新增两个**只读**仓储方法（
+      serves:
+        - FR-5
+      file: design/data-model.md
+      section: 新增两个只读仓储方法
+    - ref: design/data-model.md#quantinprocessjobrunsresult-的新形状JSONB增量键
+      title: "`quant.inprocess_job_runs.result` 的新形状（JSONB，增量键）（"
+      serves:
+        - FR-3
+        - FR-4
+      file: design/data-model.md
+      section: quantinprocessjobrunsresult-的新形状JSONB增量键
+    - ref: design/data-model.md#边界与回滚
+      title: 边界与回滚（
+      serves:
+        - FR-4
+        - FR-5
+      file: design/data-model.md
+      section: 边界与回滚
+    - ref: design/interfaces.md#契约-A完成通知文本人读本次要改的对外语义
+      title: 契约 A：完成通知文本（人读，本次要改的对外语义）（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/interfaces.md
+      section: 契约-A完成通知文本人读本次要改的对外语义
+    - ref: design/interfaces.md#契约-Bhandler-返回值内部新增顶层键
+      title: 契约 B：handler 返回值（内部，新增顶层键）（
+      serves:
+        - FR-2
+        - FR-3
+        - FR-6
+      file: design/interfaces.md
+      section: 契约-Bhandler-返回值内部新增顶层键
+    - ref: design/interfaces.md#契约-CEvolutionFitnessServicecomputeallaccounts-返回值内部改语义
+      title: 契约 C：`EvolutionFitnessService.compute_all_accounts()` 返回值（内部，改语义）（
+      serves:
+        - FR-4
+      file: design/interfaces.md
+      section: 契约-CEvolutionFitnessServicecomputeallaccounts-返回值内部改语义
+    - ref: design/interfaces.md#契约-Dsummarizeresult-的行为矩阵其他任务零变化
+      title: 契约 D：`_summarize_result` 的行为矩阵（其他任务零变化）（
+      serves:
+        - FR-2
+      file: design/interfaces.md
+      section: 契约-Dsummarizeresult-的行为矩阵其他任务零变化
+    - ref: design/interfaces.md#兼容与回滚
+      title: 兼容与回滚（
+      serves:
+        - FR-4
+        - FR-6
+      file: design/interfaces.md
+      section: 兼容与回滚
+    - ref: design/use-cases.md#UC-1-有产出对照场景防止修完就只会报警
+      title: UC-1 有产出（对照场景，防止"修完就只会报警"）（
+      serves:
+        - FR-2
+        - FR-3
+      file: design/use-cases.md
+      section: UC-1-有产出对照场景防止修完就只会报警
+    - ref: design/use-cases.md#UC-2-首次零产出
+      title: UC-2 首次零产出（
+      serves:
+        - FR-3
+        - FR-5
+      file: design/use-cases.md
+      section: UC-2-首次零产出
+    - ref: design/use-cases.md#UC-3-连续空转2026-10-05-的真实场景
+      title: UC-3 连续空转（2026-10-05 的真实场景）（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-5
+      file: design/use-cases.md
+      section: UC-3-连续空转2026-10-05-的真实场景
+    - ref: design/use-cases.md#UC-4-空转统计不可用降级路径
+      title: UC-4 空转统计不可用（降级路径）（
+      serves:
+        - FR-5
+        - FR-6
+      file: design/use-cases.md
+      section: UC-4-空转统计不可用降级路径
+    - ref: design/use-cases.md#UC-5-其他任务不受影响回归场景
+      title: UC-5 其他任务不受影响（回归场景）（
+      serves:
+        - FR-2
+      file: design/use-cases.md
+      section: UC-5-其他任务不受影响回归场景
+    - ref: design/use-cases.md#场景-条款映射
+      title: 场景-条款映射（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-5
+      file: design/use-cases.md
+      section: 场景-条款映射
+outputs:
+  tasks:
+    - id: t-cda13d
+      title: 通知层契约落地：_format_elapsed + _summarize_result 支持顶层 summary
+      implements: adapters/inbound/fastapi_app/daily_jobs/alerting.py：新增 _format_elapsed(seconds) -> str —— 秒数小于 60 用 f-string 渲染为 X.X 秒，否则渲染为 X.X 分钟（均 1 位小数），负数按 0 处理；改造 _summarize_result —— 当 result.get('summary') 是非空字符串时，以其为 parts 首段且不再输出子字典段，否则逐字保持现有行为（其他任务零变化）；白名单键补 computed_ok / insufficient_sample / no_trades / data_gap / no_output（兜底可见）。不改 _send_feishu。
+      serves:
+        - FR-1
+        - FR-2
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-c0941a
+      title: fitness 服务诚实计数：四类状态 + accounts_total，删 skipped、收窄 computed 语义
+      implements: application/services/evolution/evolution_fitness_service.py：compute_all_accounts() 按 result 的 status 累加 computed_ok / insufficient_sample / no_trades / data_gap / other（data_gap 走服务侧无对齐日期分支），返回体新增 accounts_total（遍历到的 active 账户数）与 aligned_days（本次对齐窗口天数）；删除写死的 skipped 键；保留 computed 键且其值 == accounts_total，并在 docstring 写明 computed 是遍历到的账户数、不是有效条数，唯一可称算出来的数是 computed_ok。另改 application/services/daily_orchestrator.py 复核阶段日志行，补打 computed_ok。
+      serves:
+        - FR-4
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-17fce0
+      title: 空转读数：EvolutionFitnessORMRepository 两个只读聚合方法
+      implements: adapters/outbound/repositories/evolution_fitness_repository.py：新增 list_recent_window_ok_counts(limit=20, window_days=20) -> List[Tuple[date,int]] —— group_by(window_end) + count(case((status 等于 ok,1)))，按 window_end 倒序、按 limit 截断；新增 get_last_ok_window_end(window_days=20) -> Optional[date] —— max(window_end) where status 等于 ok。两者只读、不写库、不加列、不改 DDL。
+      serves:
+        - FR-5
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-2d12c5
+      title: handler 组装：summary / no_output / 空转统计（含纯函数与查询失败降级）
+      implements: adapters/inbound/fastapi_app/daily_jobs/pipeline.py：_job_evolution_fitness() 调 t3 的两个只读方法算出 last_ok_window_end 与 idle_streak（新增模块级纯函数 _derive_idle_streak(counts_desc) -> (int, bool)，bool 表示是否被 limit 截断）；按设计文档的接口契约 A 拼 summary（有效 N（样本不足 x / 无成交 y / 数据缺口 z），computed_ok 为 0 且 streak 大于等于 2 时追加「已连续 N 次无有效产出（最近有效：YYYY-MM-DD）」，streak 等于 1 时写「本次无有效产出」，computed_ok 大于 0 时不追加）；no_output = (computed_ok == 0)；返回体保留 detail 与 note 并新增顶层 summary 与 no_output。两次只读查询任一抛错时：logger.error + summary 追加「空转统计不可用」+ 不外抛（任务仍记 success）。不得在 detail 里引入 success 或 status 键，也不得把 data_gap 写成 no_data（会撞 _GAP_KEYS 触发误判失败）。
+      serves:
+        - FR-2
+        - FR-3
+        - FR-5
+      depends_on:
+        - t-cda13d
+        - t-c0941a
+        - t-17fce0
+      phase: implement
+      side: backend
+    - id: t-4b35ba
+      title: runtime 接线：耗时按量级显示 + 零产出改 ⚠️（不动 status、不碰跳过分支）
+      implements: adapters/inbound/fastapi_app/daily_jobs/runtime.py 的 _run_job 成功分支：elapsed 改经 alerting._format_elapsed 渲染（替换现有 f-string 的分钟格式化）；完成标题前缀改为条件表达式 —— result.get('no_output') is True 时用「⚠️ 每日任务完成（无有效产出）：」，否则维持「✅ 每日任务完成：」。硬约束：不改 _mark_done 的 status（仍 success）、不改 find_result_failure 的调用与口径、不碰任何跳过或门控分支（那是 REQ-261005203907-2b8c 的地盘）、不改 _send_feishu 与失败告警文案。
+      serves:
+        - FR-1
+        - FR-3
+        - FR-6
+      depends_on:
+        - t-cda13d
+      phase: implement
+      side: backend
+    - id: t-cef289
+      title: 新增通知层用例（12 条：格式/摘要/语气/空转/降级/失败判定不变式/其他任务逐字不变）
+      implements: 新增 tests/test_daily_jobs_notify_truthfulness.py，按设计文档的测试用例清单写 12 条：耗时格式 2 条、摘要状态分布 1 条、⚠️ 与 ✅ 语气各 1 条、streak 短语 1 条、有产出时不出现 streak 短语 1 条、截断渲染大于等于 K 1 条、查询失败降级 1 条、find_result_failure 对契约 B 的 result 返回 None 1 条、_mark_done 收到 success 1 条、其他任务（evening_pipeline 形态、无 summary）渲染与改造前逐字一致 1 条。打桩点铁律：monkeypatch.setattr 打在 adapters.inbound.fastapi_app.daily_jobs.runtime 模块的 _send_feishu / _mark_running / _mark_done，打在 alerting 或转发壳上会静默失效；用例数据用生产真实计数形态。
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-5
+        - FR-6
+      depends_on:
+        - t-2d12c5
+        - t-4b35ba
+      phase: test
+      side: backend
+    - id: t-89b1f4
+      title: 数据层用例：计数不变式、无 skipped、computed 兼容、只读聚合口径
+      implements: 增补 tests/services/evolution/test_evolution_fitness_service.py（5 条：四类计数和等于 accounts_total；NULL 行不计入 computed_ok；返回体不含 skipped 键；computed 等于 accounts_total 的兼容锁；aligned_days 正确）与 tests/repositories/test_evolution_fitness_repository.py（2 条：倒序与 ok 计数正确、get_last_ok_window_end 忽略非 ok 且全非 ok 返回 None）。复用既有 _make_service 的 Mock 注入范式，不新造夹具风格。
+      serves:
+        - FR-4
+        - FR-5
+      depends_on:
+        - t-c0941a
+        - t-17fce0
+      phase: test
+      side: backend
+    - id: t-ad4340
+      title: 回归四连 + 兼容核对 + 真实观察取证（含回滚演练）
+      implements: 跑四条回归命令（tests/test_daily_jobs_bootstrap.py、tests/test_false_success_guard.py、tests/e2e/test_evolution_pipeline.py、tests/services/evolution 与 tests/repositories 两个文件）；核对旧调用方兼容面（orchestrator 日志可读、e2e 的 result 里 computed 大于等于 1 仍成立、历史 result 无 summary 时 _summarize_result 回落）；在下一次 evolution_fitness 运行后从 quant.inprocess_job_runs 取 result 的 summary 与 no_output，并看 logs/api.log 的飞书发送行确认卡片是新文案；做一次回滚演练（git stash 后确认文本回落再恢复）。把结论写入 docs/requirements/REQ-261005210015-1603/notes/observation.md。若当天被 REQ-261005203907-2b8c 的交易日门判 skipped，则改核对其 skipped 行与当天无该任务通知，并写明观察窗口被门改变。
+      serves:
+        - FR-7
+      depends_on:
+        - t-cef289
+        - t-89b1f4
+      phase: test
+      side: backend
+    - id: t-39a1a8
+      title: 通知层契约落地：_format_elapsed + _summarize_result 支持顶层 summary·研发
+      implements: |-
+        adapters/inbound/fastapi_app/daily_jobs/alerting.py：新增 _format_elapsed(seconds) -> str —— 秒数小于 60 用 f-string 渲染为 X.X 秒，否则渲染为 X.X 分钟（均 1 位小数），负数按 0 处理；改造 _summarize_result —— 当 result.get('summary') 是非空字符串时，以其为 parts 首段且不再输出子字典段，否则逐字保持现有行为（其他任务零变化）；白名单键补 computed_ok / insufficient_sample / no_trades / data_gap / no_output（兜底可见）。不改 _send_feishu。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-bf7712
+      title: 通知层契约落地：_format_elapsed + _summarize_result 支持顶层 summary·联调
+      implements: |-
+        adapters/inbound/fastapi_app/daily_jobs/alerting.py：新增 _format_elapsed(seconds) -> str —— 秒数小于 60 用 f-string 渲染为 X.X 秒，否则渲染为 X.X 分钟（均 1 位小数），负数按 0 处理；改造 _summarize_result —— 当 result.get('summary') 是非空字符串时，以其为 parts 首段且不再输出子字典段，否则逐字保持现有行为（其他任务零变化）；白名单键补 computed_ok / insufficient_sample / no_trades / data_gap / no_output（兜底可见）。不改 _send_feishu。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-39a1a8
+      phase: implement
+      side: backend
+    - id: t-bf4521
+      title: 通知层契约落地：_format_elapsed + _summarize_result 支持顶层 summary·复核
+      implements: |-
+        adapters/inbound/fastapi_app/daily_jobs/alerting.py：新增 _format_elapsed(seconds) -> str —— 秒数小于 60 用 f-string 渲染为 X.X 秒，否则渲染为 X.X 分钟（均 1 位小数），负数按 0 处理；改造 _summarize_result —— 当 result.get('summary') 是非空字符串时，以其为 parts 首段且不再输出子字典段，否则逐字保持现有行为（其他任务零变化）；白名单键补 computed_ok / insufficient_sample / no_trades / data_gap / no_output（兜底可见）。不改 _send_feishu。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-bf7712
+      phase: implement
+      side: backend
+    - id: t-b8daeb
+      title: 通知层契约落地：_format_elapsed + _summarize_result 支持顶层 summary·测试
+      implements: |-
+        adapters/inbound/fastapi_app/daily_jobs/alerting.py：新增 _format_elapsed(seconds) -> str —— 秒数小于 60 用 f-string 渲染为 X.X 秒，否则渲染为 X.X 分钟（均 1 位小数），负数按 0 处理；改造 _summarize_result —— 当 result.get('summary') 是非空字符串时，以其为 parts 首段且不再输出子字典段，否则逐字保持现有行为（其他任务零变化）；白名单键补 computed_ok / insufficient_sample / no_trades / data_gap / no_output（兜底可见）。不改 _send_feishu。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-bf4521
+      phase: implement
+      side: backend
+    - id: t-c4b336
+      title: fitness 服务诚实计数：四类状态 + accounts_total，删 skipped、收窄 computed 语义·研发
+      implements: |-
+        application/services/evolution/evolution_fitness_service.py：compute_all_accounts() 按 result 的 status 累加 computed_ok / insufficient_sample / no_trades / data_gap / other（data_gap 走服务侧无对齐日期分支），返回体新增 accounts_total（遍历到的 active 账户数）与 aligned_days（本次对齐窗口天数）；删除写死的 skipped 键；保留 computed 键且其值 == accounts_total，并在 docstring 写明 computed 是遍历到的账户数、不是有效条数，唯一可称算出来的数是 computed_ok。另改 application/services/daily_orchestrator.py 复核阶段日志行，补打 computed_ok。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-90d649
+      title: fitness 服务诚实计数：四类状态 + accounts_total，删 skipped、收窄 computed 语义·联调
+      implements: |-
+        application/services/evolution/evolution_fitness_service.py：compute_all_accounts() 按 result 的 status 累加 computed_ok / insufficient_sample / no_trades / data_gap / other（data_gap 走服务侧无对齐日期分支），返回体新增 accounts_total（遍历到的 active 账户数）与 aligned_days（本次对齐窗口天数）；删除写死的 skipped 键；保留 computed 键且其值 == accounts_total，并在 docstring 写明 computed 是遍历到的账户数、不是有效条数，唯一可称算出来的数是 computed_ok。另改 application/services/daily_orchestrator.py 复核阶段日志行，补打 computed_ok。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-c4b336
+      phase: implement
+      side: backend
+    - id: t-d9106a
+      title: fitness 服务诚实计数：四类状态 + accounts_total，删 skipped、收窄 computed 语义·复核
+      implements: |-
+        application/services/evolution/evolution_fitness_service.py：compute_all_accounts() 按 result 的 status 累加 computed_ok / insufficient_sample / no_trades / data_gap / other（data_gap 走服务侧无对齐日期分支），返回体新增 accounts_total（遍历到的 active 账户数）与 aligned_days（本次对齐窗口天数）；删除写死的 skipped 键；保留 computed 键且其值 == accounts_total，并在 docstring 写明 computed 是遍历到的账户数、不是有效条数，唯一可称算出来的数是 computed_ok。另改 application/services/daily_orchestrator.py 复核阶段日志行，补打 computed_ok。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-90d649
+      phase: implement
+      side: backend
+    - id: t-ef688c
+      title: fitness 服务诚实计数：四类状态 + accounts_total，删 skipped、收窄 computed 语义·测试
+      implements: |-
+        application/services/evolution/evolution_fitness_service.py：compute_all_accounts() 按 result 的 status 累加 computed_ok / insufficient_sample / no_trades / data_gap / other（data_gap 走服务侧无对齐日期分支），返回体新增 accounts_total（遍历到的 active 账户数）与 aligned_days（本次对齐窗口天数）；删除写死的 skipped 键；保留 computed 键且其值 == accounts_total，并在 docstring 写明 computed 是遍历到的账户数、不是有效条数，唯一可称算出来的数是 computed_ok。另改 application/services/daily_orchestrator.py 复核阶段日志行，补打 computed_ok。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-d9106a
+      phase: implement
+      side: backend
+    - id: t-228f42
+      title: 空转读数：EvolutionFitnessORMRepository 两个只读聚合方法·研发
+      implements: |-
+        adapters/outbound/repositories/evolution_fitness_repository.py：新增 list_recent_window_ok_counts(limit=20, window_days=20) -> List[Tuple[date,int]] —— group_by(window_end) + count(case((status 等于 ok,1)))，按 window_end 倒序、按 limit 截断；新增 get_last_ok_window_end(window_days=20) -> Optional[date] —— max(window_end) where status 等于 ok。两者只读、不写库、不加列、不改 DDL。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-735131
+      title: 空转读数：EvolutionFitnessORMRepository 两个只读聚合方法·联调
+      implements: |-
+        adapters/outbound/repositories/evolution_fitness_repository.py：新增 list_recent_window_ok_counts(limit=20, window_days=20) -> List[Tuple[date,int]] —— group_by(window_end) + count(case((status 等于 ok,1)))，按 window_end 倒序、按 limit 截断；新增 get_last_ok_window_end(window_days=20) -> Optional[date] —— max(window_end) where status 等于 ok。两者只读、不写库、不加列、不改 DDL。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-228f42
+      phase: implement
+      side: backend
+    - id: t-1dada1
+      title: 空转读数：EvolutionFitnessORMRepository 两个只读聚合方法·复核
+      implements: |-
+        adapters/outbound/repositories/evolution_fitness_repository.py：新增 list_recent_window_ok_counts(limit=20, window_days=20) -> List[Tuple[date,int]] —— group_by(window_end) + count(case((status 等于 ok,1)))，按 window_end 倒序、按 limit 截断；新增 get_last_ok_window_end(window_days=20) -> Optional[date] —— max(window_end) where status 等于 ok。两者只读、不写库、不加列、不改 DDL。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-735131
+      phase: implement
+      side: backend
+    - id: t-a00ef1
+      title: 空转读数：EvolutionFitnessORMRepository 两个只读聚合方法·测试
+      implements: |-
+        adapters/outbound/repositories/evolution_fitness_repository.py：新增 list_recent_window_ok_counts(limit=20, window_days=20) -> List[Tuple[date,int]] —— group_by(window_end) + count(case((status 等于 ok,1)))，按 window_end 倒序、按 limit 截断；新增 get_last_ok_window_end(window_days=20) -> Optional[date] —— max(window_end) where status 等于 ok。两者只读、不写库、不加列、不改 DDL。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-1dada1
+      phase: implement
+      side: backend
+    - id: t-af5158
+      title: runtime 接线：耗时按量级显示 + 零产出改 ⚠️（不动 status、不碰跳过分支）·研发
+      implements: |-
+        adapters/inbound/fastapi_app/daily_jobs/runtime.py 的 _run_job 成功分支：elapsed 改经 alerting._format_elapsed 渲染（替换现有 f-string 的分钟格式化）；完成标题前缀改为条件表达式 —— result.get('no_output') is True 时用「⚠️ 每日任务完成（无有效产出）：」，否则维持「✅ 每日任务完成：」。硬约束：不改 _mark_done 的 status（仍 success）、不改 find_result_failure 的调用与口径、不碰任何跳过或门控分支（那是 REQ-261005203907-2b8c 的地盘）、不改 _send_feishu 与失败告警文案。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-cda13d
+      phase: implement
+      side: backend
+    - id: t-de98f5
+      title: runtime 接线：耗时按量级显示 + 零产出改 ⚠️（不动 status、不碰跳过分支）·联调
+      implements: |-
+        adapters/inbound/fastapi_app/daily_jobs/runtime.py 的 _run_job 成功分支：elapsed 改经 alerting._format_elapsed 渲染（替换现有 f-string 的分钟格式化）；完成标题前缀改为条件表达式 —— result.get('no_output') is True 时用「⚠️ 每日任务完成（无有效产出）：」，否则维持「✅ 每日任务完成：」。硬约束：不改 _mark_done 的 status（仍 success）、不改 find_result_failure 的调用与口径、不碰任何跳过或门控分支（那是 REQ-261005203907-2b8c 的地盘）、不改 _send_feishu 与失败告警文案。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-af5158
+      phase: implement
+      side: backend
+    - id: t-88c26a
+      title: runtime 接线：耗时按量级显示 + 零产出改 ⚠️（不动 status、不碰跳过分支）·复核
+      implements: |-
+        adapters/inbound/fastapi_app/daily_jobs/runtime.py 的 _run_job 成功分支：elapsed 改经 alerting._format_elapsed 渲染（替换现有 f-string 的分钟格式化）；完成标题前缀改为条件表达式 —— result.get('no_output') is True 时用「⚠️ 每日任务完成（无有效产出）：」，否则维持「✅ 每日任务完成：」。硬约束：不改 _mark_done 的 status（仍 success）、不改 find_result_failure 的调用与口径、不碰任何跳过或门控分支（那是 REQ-261005203907-2b8c 的地盘）、不改 _send_feishu 与失败告警文案。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-de98f5
+      phase: implement
+      side: backend
+    - id: t-507717
+      title: runtime 接线：耗时按量级显示 + 零产出改 ⚠️（不动 status、不碰跳过分支）·测试
+      implements: |-
+        adapters/inbound/fastapi_app/daily_jobs/runtime.py 的 _run_job 成功分支：elapsed 改经 alerting._format_elapsed 渲染（替换现有 f-string 的分钟格式化）；完成标题前缀改为条件表达式 —— result.get('no_output') is True 时用「⚠️ 每日任务完成（无有效产出）：」，否则维持「✅ 每日任务完成：」。硬约束：不改 _mark_done 的 status（仍 success）、不改 find_result_failure 的调用与口径、不碰任何跳过或门控分支（那是 REQ-261005203907-2b8c 的地盘）、不改 _send_feishu 与失败告警文案。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-88c26a
+      phase: implement
+      side: backend
+    - id: t-a494c4
+      title: handler 组装：summary / no_output / 空转统计（含纯函数与查询失败降级）·研发
+      implements: |-
+        adapters/inbound/fastapi_app/daily_jobs/pipeline.py：_job_evolution_fitness() 调 t3 的两个只读方法算出 last_ok_window_end 与 idle_streak（新增模块级纯函数 _derive_idle_streak(counts_desc) -> (int, bool)，bool 表示是否被 limit 截断）；按设计文档的接口契约 A 拼 summary（有效 N（样本不足 x / 无成交 y / 数据缺口 z），computed_ok 为 0 且 streak 大于等于 2 时追加「已连续 N 次无有效产出（最近有效：YYYY-MM-DD）」，streak 等于 1 时写「本次无有效产出」，computed_ok 大于 0 时不追加）；no_output = (computed_ok == 0)；返回体保留 detail 与 note 并新增顶层 summary 与 no_output。两次只读查询任一抛错时：logger.error + summary 追加「空转统计不可用」+ 不外抛（任务仍记 success）。不得在 detail 里引入 success 或 status 键，也不得把 data_gap 写成 no_data（会撞 _GAP_KEYS 触发误判失败）。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-cda13d
+        - t-c0941a
+        - t-17fce0
+      phase: implement
+      side: backend
+    - id: t-d796cd
+      title: handler 组装：summary / no_output / 空转统计（含纯函数与查询失败降级）·联调
+      implements: |-
+        adapters/inbound/fastapi_app/daily_jobs/pipeline.py：_job_evolution_fitness() 调 t3 的两个只读方法算出 last_ok_window_end 与 idle_streak（新增模块级纯函数 _derive_idle_streak(counts_desc) -> (int, bool)，bool 表示是否被 limit 截断）；按设计文档的接口契约 A 拼 summary（有效 N（样本不足 x / 无成交 y / 数据缺口 z），computed_ok 为 0 且 streak 大于等于 2 时追加「已连续 N 次无有效产出（最近有效：YYYY-MM-DD）」，streak 等于 1 时写「本次无有效产出」，computed_ok 大于 0 时不追加）；no_output = (computed_ok == 0)；返回体保留 detail 与 note 并新增顶层 summary 与 no_output。两次只读查询任一抛错时：logger.error + summary 追加「空转统计不可用」+ 不外抛（任务仍记 success）。不得在 detail 里引入 success 或 status 键，也不得把 data_gap 写成 no_data（会撞 _GAP_KEYS 触发误判失败）。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-a494c4
+      phase: implement
+      side: backend
+    - id: t-e4693b
+      title: handler 组装：summary / no_output / 空转统计（含纯函数与查询失败降级）·复核
+      implements: |-
+        adapters/inbound/fastapi_app/daily_jobs/pipeline.py：_job_evolution_fitness() 调 t3 的两个只读方法算出 last_ok_window_end 与 idle_streak（新增模块级纯函数 _derive_idle_streak(counts_desc) -> (int, bool)，bool 表示是否被 limit 截断）；按设计文档的接口契约 A 拼 summary（有效 N（样本不足 x / 无成交 y / 数据缺口 z），computed_ok 为 0 且 streak 大于等于 2 时追加「已连续 N 次无有效产出（最近有效：YYYY-MM-DD）」，streak 等于 1 时写「本次无有效产出」，computed_ok 大于 0 时不追加）；no_output = (computed_ok == 0)；返回体保留 detail 与 note 并新增顶层 summary 与 no_output。两次只读查询任一抛错时：logger.error + summary 追加「空转统计不可用」+ 不外抛（任务仍记 success）。不得在 detail 里引入 success 或 status 键，也不得把 data_gap 写成 no_data（会撞 _GAP_KEYS 触发误判失败）。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-d796cd
+      phase: implement
+      side: backend
+    - id: t-23611a
+      title: handler 组装：summary / no_output / 空转统计（含纯函数与查询失败降级）·测试
+      implements: |-
+        adapters/inbound/fastapi_app/daily_jobs/pipeline.py：_job_evolution_fitness() 调 t3 的两个只读方法算出 last_ok_window_end 与 idle_streak（新增模块级纯函数 _derive_idle_streak(counts_desc) -> (int, bool)，bool 表示是否被 limit 截断）；按设计文档的接口契约 A 拼 summary（有效 N（样本不足 x / 无成交 y / 数据缺口 z），computed_ok 为 0 且 streak 大于等于 2 时追加「已连续 N 次无有效产出（最近有效：YYYY-MM-DD）」，streak 等于 1 时写「本次无有效产出」，computed_ok 大于 0 时不追加）；no_output = (computed_ok == 0)；返回体保留 detail 与 note 并新增顶层 summary 与 no_output。两次只读查询任一抛错时：logger.error + summary 追加「空转统计不可用」+ 不外抛（任务仍记 success）。不得在 detail 里引入 success 或 status 键，也不得把 data_gap 写成 no_data（会撞 _GAP_KEYS 触发误判失败）。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-e4693b
+      phase: implement
+      side: backend
+    - id: t-985e3a
+      title: 数据层用例：计数不变式、无 skipped、computed 兼容、只读聚合口径·研发
+      implements: |-
+        增补 tests/services/evolution/test_evolution_fitness_service.py（5 条：四类计数和等于 accounts_total；NULL 行不计入 computed_ok；返回体不含 skipped 键；computed 等于 accounts_total 的兼容锁；aligned_days 正确）与 tests/repositories/test_evolution_fitness_repository.py（2 条：倒序与 ok 计数正确、get_last_ok_window_end 忽略非 ok 且全非 ok 返回 None）。复用既有 _make_service 的 Mock 注入范式，不新造夹具风格。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-c0941a
+        - t-17fce0
+      phase: test
+      side: backend
+    - id: t-66db6e
+      title: 数据层用例：计数不变式、无 skipped、computed 兼容、只读聚合口径·复核
+      implements: |-
+        增补 tests/services/evolution/test_evolution_fitness_service.py（5 条：四类计数和等于 accounts_total；NULL 行不计入 computed_ok；返回体不含 skipped 键；computed 等于 accounts_total 的兼容锁；aligned_days 正确）与 tests/repositories/test_evolution_fitness_repository.py（2 条：倒序与 ok 计数正确、get_last_ok_window_end 忽略非 ok 且全非 ok 返回 None）。复用既有 _make_service 的 Mock 注入范式，不新造夹具风格。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-985e3a
+      phase: test
+      side: backend
+    - id: t-16f3fb
+      title: 数据层用例：计数不变式、无 skipped、computed 兼容、只读聚合口径·测试
+      implements: |-
+        增补 tests/services/evolution/test_evolution_fitness_service.py（5 条：四类计数和等于 accounts_total；NULL 行不计入 computed_ok；返回体不含 skipped 键；computed 等于 accounts_total 的兼容锁；aligned_days 正确）与 tests/repositories/test_evolution_fitness_repository.py（2 条：倒序与 ok 计数正确、get_last_ok_window_end 忽略非 ok 且全非 ok 返回 None）。复用既有 _make_service 的 Mock 注入范式，不新造夹具风格。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-66db6e
+      phase: test
+      side: backend
+    - id: t-003afe
+      title: 新增通知层用例（12 条：格式/摘要/语气/空转/降级/失败判定不变式/其他任务逐字不变）·研发
+      implements: |-
+        新增 tests/test_daily_jobs_notify_truthfulness.py，按设计文档的测试用例清单写 12 条：耗时格式 2 条、摘要状态分布 1 条、⚠️ 与 ✅ 语气各 1 条、streak 短语 1 条、有产出时不出现 streak 短语 1 条、截断渲染大于等于 K 1 条、查询失败降级 1 条、find_result_failure 对契约 B 的 result 返回 None 1 条、_mark_done 收到 success 1 条、其他任务（evening_pipeline 形态、无 summary）渲染与改造前逐字一致 1 条。打桩点铁律：monkeypatch.setattr 打在 adapters.inbound.fastapi_app.daily_jobs.runtime 模块的 _send_feishu / _mark_running / _mark_done，打在 alerting 或转发壳上会静默失效；用例数据用生产真实计数形态。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-2d12c5
+        - t-4b35ba
+      phase: test
+      side: backend
+    - id: t-8bec5b
+      title: 新增通知层用例（12 条：格式/摘要/语气/空转/降级/失败判定不变式/其他任务逐字不变）·复核
+      implements: |-
+        新增 tests/test_daily_jobs_notify_truthfulness.py，按设计文档的测试用例清单写 12 条：耗时格式 2 条、摘要状态分布 1 条、⚠️ 与 ✅ 语气各 1 条、streak 短语 1 条、有产出时不出现 streak 短语 1 条、截断渲染大于等于 K 1 条、查询失败降级 1 条、find_result_failure 对契约 B 的 result 返回 None 1 条、_mark_done 收到 success 1 条、其他任务（evening_pipeline 形态、无 summary）渲染与改造前逐字一致 1 条。打桩点铁律：monkeypatch.setattr 打在 adapters.inbound.fastapi_app.daily_jobs.runtime 模块的 _send_feishu / _mark_running / _mark_done，打在 alerting 或转发壳上会静默失效；用例数据用生产真实计数形态。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-003afe
+      phase: test
+      side: backend
+    - id: t-cca3af
+      title: 新增通知层用例（12 条：格式/摘要/语气/空转/降级/失败判定不变式/其他任务逐字不变）·测试
+      implements: |-
+        新增 tests/test_daily_jobs_notify_truthfulness.py，按设计文档的测试用例清单写 12 条：耗时格式 2 条、摘要状态分布 1 条、⚠️ 与 ✅ 语气各 1 条、streak 短语 1 条、有产出时不出现 streak 短语 1 条、截断渲染大于等于 K 1 条、查询失败降级 1 条、find_result_failure 对契约 B 的 result 返回 None 1 条、_mark_done 收到 success 1 条、其他任务（evening_pipeline 形态、无 summary）渲染与改造前逐字一致 1 条。打桩点铁律：monkeypatch.setattr 打在 adapters.inbound.fastapi_app.daily_jobs.runtime 模块的 _send_feishu / _mark_running / _mark_done，打在 alerting 或转发壳上会静默失效；用例数据用生产真实计数形态。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-8bec5b
+      phase: test
+      side: backend
+    - id: t-243932
+      title: 回归四连 + 兼容核对 + 真实观察取证（含回滚演练）·研发
+      implements: |-
+        跑四条回归命令（tests/test_daily_jobs_bootstrap.py、tests/test_false_success_guard.py、tests/e2e/test_evolution_pipeline.py、tests/services/evolution 与 tests/repositories 两个文件）；核对旧调用方兼容面（orchestrator 日志可读、e2e 的 result 里 computed 大于等于 1 仍成立、历史 result 无 summary 时 _summarize_result 回落）；在下一次 evolution_fitness 运行后从 quant.inprocess_job_runs 取 result 的 summary 与 no_output，并看 logs/api.log 的飞书发送行确认卡片是新文案；做一次回滚演练（git stash 后确认文本回落再恢复）。把结论写入 docs/requirements/REQ-261005210015-1603/notes/observation.md。若当天被 REQ-261005203907-2b8c 的交易日门判 skipped，则改核对其 skipped 行与当天无该任务通知，并写明观察窗口被门改变。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-cef289
+        - t-89b1f4
+      phase: test
+      side: backend
+    - id: t-df7921
+      title: 回归四连 + 兼容核对 + 真实观察取证（含回滚演练）·复核
+      implements: |-
+        跑四条回归命令（tests/test_daily_jobs_bootstrap.py、tests/test_false_success_guard.py、tests/e2e/test_evolution_pipeline.py、tests/services/evolution 与 tests/repositories 两个文件）；核对旧调用方兼容面（orchestrator 日志可读、e2e 的 result 里 computed 大于等于 1 仍成立、历史 result 无 summary 时 _summarize_result 回落）；在下一次 evolution_fitness 运行后从 quant.inprocess_job_runs 取 result 的 summary 与 no_output，并看 logs/api.log 的飞书发送行确认卡片是新文案；做一次回滚演练（git stash 后确认文本回落再恢复）。把结论写入 docs/requirements/REQ-261005210015-1603/notes/observation.md。若当天被 REQ-261005203907-2b8c 的交易日门判 skipped，则改核对其 skipped 行与当天无该任务通知，并写明观察窗口被门改变。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-243932
+      phase: test
+      side: backend
+    - id: t-2acb88
+      title: 回归四连 + 兼容核对 + 真实观察取证（含回滚演练）·测试
+      implements: |-
+        跑四条回归命令（tests/test_daily_jobs_bootstrap.py、tests/test_false_success_guard.py、tests/e2e/test_evolution_pipeline.py、tests/services/evolution 与 tests/repositories 两个文件）；核对旧调用方兼容面（orchestrator 日志可读、e2e 的 result 里 computed 大于等于 1 仍成立、历史 result 无 summary 时 _summarize_result 回落）；在下一次 evolution_fitness 运行后从 quant.inprocess_job_runs 取 result 的 summary 与 no_output，并看 logs/api.log 的飞书发送行确认卡片是新文案；做一次回滚演练（git stash 后确认文本回落再恢复）。把结论写入 docs/requirements/REQ-261005210015-1603/notes/observation.md。若当天被 REQ-261005203907-2b8c 的交易日门判 skipped，则改核对其 skipped 行与当天无该任务通知，并写明观察窗口被门改变。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-df7921
+      phase: test
+      side: backend
+task_coverage:
+  - task_id: t-cda13d
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-c0941a
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-17fce0
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-2d12c5
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-4b35ba
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-cef289
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-89b1f4
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-ad4340
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-39a1a8
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-bf7712
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-bf4521
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-b8daeb
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-c4b336
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-90d649
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-d9106a
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-ef688c
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-228f42
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-735131
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-1dada1
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-a00ef1
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-af5158
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-de98f5
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-88c26a
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-507717
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-a494c4
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-d796cd
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-e4693b
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-23611a
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-985e3a
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-66db6e
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-16f3fb
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-003afe
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-8bec5b
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-cca3af
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-243932
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-df7921
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-2acb88
+    covers_prototypes: []
+    covers_decisions: []
+traceability:
+  design_to_tasks:
+    design/architecture.md#目标与判定:
+      - t-cda13d
+      - t-2d12c5
+      - t-4b35ba
+      - t-cef289
+    design/architecture.md#改动落点与数据流:
+      - t-cda13d
+      - t-c0941a
+      - t-17fce0
+      - t-2d12c5
+      - t-4b35ba
+      - t-cef289
+      - t-89b1f4
+    design/architecture.md#设计决策:
+      - t-cda13d
+      - t-c0941a
+      - t-17fce0
+      - t-2d12c5
+      - t-4b35ba
+      - t-cef289
+      - t-89b1f4
+    design/architecture.md#D-A-formatelapsed-放-alertingpy不是-runtime:
+      - t-cda13d
+      - t-4b35ba
+      - t-cef289
+    design/architecture.md#D-B-handler-结果新增两个顶层键summary-与-nooutput:
+      - t-cda13d
+      - t-2d12c5
+      - t-4b35ba
+      - t-cef289
+    design/architecture.md#D-C-空转统计放handler不放进-service:
+      - t-17fce0
+      - t-2d12c5
+      - t-cef289
+      - t-89b1f4
+    design/architecture.md#D-D-computed-保留语义收窄为遍历到的账户数:
+      - t-c0941a
+      - t-89b1f4
+    design/architecture.md#D-E-与-REQ-261005203907-2b8c-的次序与边界:
+      - t-4b35ba
+      - t-cef289
+    design/architecture.md#依赖方向与失败隔离:
+      - t-17fce0
+      - t-2d12c5
+      - t-cef289
+      - t-89b1f4
+    design/architecture.md#陷阱与防护FR-2-FR-6-的实现约束:
+      - t-cda13d
+      - t-2d12c5
+      - t-4b35ba
+      - t-cef289
+    design/architecture.md#测试落点:
+      - t-cda13d
+      - t-c0941a
+      - t-17fce0
+      - t-2d12c5
+      - t-4b35ba
+      - t-cef289
+      - t-89b1f4
+      - t-ad4340
+    design/data-model.md#现有表不改:
+      - t-c0941a
+      - t-89b1f4
+    design/data-model.md#新增两个只读仓储方法:
+      - t-17fce0
+      - t-2d12c5
+      - t-cef289
+      - t-89b1f4
+    design/data-model.md#quantinprocessjobrunsresult-的新形状JSONB增量键:
+      - t-c0941a
+      - t-2d12c5
+      - t-4b35ba
+      - t-cef289
+      - t-89b1f4
+    design/data-model.md#边界与回滚:
+      - t-c0941a
+      - t-17fce0
+      - t-2d12c5
+      - t-cef289
+      - t-89b1f4
+    design/interfaces.md#契约-A完成通知文本人读本次要改的对外语义:
+      - t-cda13d
+      - t-2d12c5
+      - t-4b35ba
+      - t-cef289
+    design/interfaces.md#契约-Bhandler-返回值内部新增顶层键:
+      - t-cda13d
+      - t-2d12c5
+      - t-4b35ba
+      - t-cef289
+    design/interfaces.md#契约-CEvolutionFitnessServicecomputeallaccounts-返回值内部改语义:
+      - t-c0941a
+      - t-89b1f4
+    design/interfaces.md#契约-Dsummarizeresult-的行为矩阵其他任务零变化:
+      - t-cda13d
+      - t-2d12c5
+      - t-cef289
+    design/interfaces.md#兼容与回滚:
+      - t-c0941a
+      - t-4b35ba
+      - t-cef289
+      - t-89b1f4
+    design/use-cases.md#UC-1-有产出对照场景防止修完就只会报警:
+      - t-cda13d
+      - t-2d12c5
+      - t-4b35ba
+      - t-cef289
+    design/use-cases.md#UC-2-首次零产出:
+      - t-17fce0
+      - t-2d12c5
+      - t-4b35ba
+      - t-cef289
+      - t-89b1f4
+    design/use-cases.md#UC-3-连续空转2026-10-05-的真实场景:
+      - t-cda13d
+      - t-17fce0
+      - t-2d12c5
+      - t-4b35ba
+      - t-cef289
+      - t-89b1f4
+    design/use-cases.md#UC-4-空转统计不可用降级路径:
+      - t-17fce0
+      - t-2d12c5
+      - t-4b35ba
+      - t-cef289
+      - t-89b1f4
+    design/use-cases.md#UC-5-其他任务不受影响回归场景:
+      - t-cda13d
+      - t-2d12c5
+      - t-cef289
+    design/use-cases.md#场景-条款映射:
+      - t-cda13d
+      - t-17fce0
+      - t-2d12c5
+      - t-4b35ba
+      - t-cef289
+      - t-89b1f4
+  fr_to_tasks:
+    FR-1:
+      - t-cda13d
+      - t-2d12c5
+      - t-4b35ba
+      - t-cef289
+      - t-c0941a
+      - t-17fce0
+      - t-89b1f4
+      - t-ad4340
+    FR-2:
+      - t-cda13d
+      - t-2d12c5
+      - t-4b35ba
+      - t-cef289
+      - t-c0941a
+      - t-17fce0
+      - t-89b1f4
+      - t-ad4340
+    FR-3:
+      - t-cda13d
+      - t-2d12c5
+      - t-4b35ba
+      - t-cef289
+      - t-c0941a
+      - t-17fce0
+      - t-89b1f4
+      - t-ad4340
+    FR-4:
+      - t-cda13d
+      - t-c0941a
+      - t-17fce0
+      - t-2d12c5
+      - t-4b35ba
+      - t-cef289
+      - t-89b1f4
+      - t-ad4340
+    FR-5:
+      - t-cda13d
+      - t-c0941a
+      - t-17fce0
+      - t-2d12c5
+      - t-4b35ba
+      - t-cef289
+      - t-89b1f4
+      - t-ad4340
+    FR-6:
+      - t-cda13d
+      - t-c0941a
+      - t-17fce0
+      - t-2d12c5
+      - t-4b35ba
+      - t-cef289
+      - t-89b1f4
+      - t-ad4340
+    FR-7:
+      - t-cda13d
+      - t-c0941a
+      - t-17fce0
+      - t-2d12c5
+      - t-4b35ba
+      - t-cef289
+      - t-89b1f4
+      - t-ad4340
+coverage:
+  implementation:
+    total: 26
+    covered: 26
+    uncovered: []
+    rate: 100
+    total_designs: 26
+    covered_designs: 26

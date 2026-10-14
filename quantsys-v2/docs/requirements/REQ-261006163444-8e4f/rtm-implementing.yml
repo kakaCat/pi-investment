@@ -1,0 +1,197 @@
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006163444-8e4f
+  generated_at: 2026-10-06T08:42:10.925Z
+  version: 110
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 36
+  last_updated: 2026-10-06T08:58:37.946Z
+inputs:
+  tasks:
+    - id: t-839a64
+      title: 新增分域纯函数模块 kline_domain.py（契约先行）
+      status: done
+    - id: t-f2d177
+      title: 仓储加分域只读方法并把评级计数改为 distinct
+      status: done
+    - id: t-baed9f
+      title: 服务层返回 per_symbol 全量事实并修 original_count 取键
+      status: done
+    - id: t-6e752d
+      title: 作业层接线：域内聚合、新告警判据与回填限域
+      status: done
+    - id: t-588941
+      title: 补分域纯函数用例（含 gap 边界与不变量）
+      status: done
+    - id: t-ddb59a
+      title: 补告警口径用例与四条反例锁
+      status: done
+    - id: t-a300ce
+      title: 变更 task 232 阈值配置并实跑复验出证据
+      status: done
+    - id: t-3faf17
+      title: 落盘迁移、兼容与回滚清单
+      status: done
+    - id: t-721a23
+      title: 新增分域纯函数模块 kline_domain.py（契约先行）·研发
+      status: done
+    - id: t-b0347e
+      title: 新增分域纯函数模块 kline_domain.py（契约先行）·联调
+      status: done
+    - id: t-225332
+      title: 新增分域纯函数模块 kline_domain.py（契约先行）·复核
+      status: done
+    - id: t-a0b465
+      title: 新增分域纯函数模块 kline_domain.py（契约先行）·测试
+      status: done
+    - id: t-0724f1
+      title: 仓储加分域只读方法并把评级计数改为 distinct·研发
+      status: done
+    - id: t-d8de1a
+      title: 仓储加分域只读方法并把评级计数改为 distinct·联调
+      status: done
+    - id: t-1aabe8
+      title: 仓储加分域只读方法并把评级计数改为 distinct·复核
+      status: done
+    - id: t-306059
+      title: 仓储加分域只读方法并把评级计数改为 distinct·测试
+      status: done
+    - id: t-2c8a18
+      title: 服务层返回 per_symbol 全量事实并修 original_count 取键·研发
+      status: done
+    - id: t-3b5da9
+      title: 服务层返回 per_symbol 全量事实并修 original_count 取键·联调
+      status: done
+    - id: t-acb9b3
+      title: 服务层返回 per_symbol 全量事实并修 original_count 取键·复核
+      status: done
+    - id: t-097096
+      title: 服务层返回 per_symbol 全量事实并修 original_count 取键·测试
+      status: done
+    - id: t-e5556c
+      title: 作业层接线：域内聚合、新告警判据与回填限域·研发
+      status: done
+    - id: t-3fe312
+      title: 作业层接线：域内聚合、新告警判据与回填限域·联调
+      status: done
+    - id: t-e8d8e3
+      title: 作业层接线：域内聚合、新告警判据与回填限域·复核
+      status: done
+    - id: t-cba0af
+      title: 作业层接线：域内聚合、新告警判据与回填限域·测试
+      status: done
+    - id: t-eb3ca1
+      title: 补分域纯函数用例（含 gap 边界与不变量）·研发
+      status: done
+    - id: t-21bcc0
+      title: 补分域纯函数用例（含 gap 边界与不变量）·复核
+      status: done
+    - id: t-0da0b9
+      title: 补分域纯函数用例（含 gap 边界与不变量）·测试
+      status: done
+    - id: t-8138f0
+      title: 补告警口径用例与四条反例锁·研发
+      status: done
+    - id: t-f7a18c
+      title: 补告警口径用例与四条反例锁·复核
+      status: done
+    - id: t-37d890
+      title: 补告警口径用例与四条反例锁·测试
+      status: done
+    - id: t-5cd45f
+      title: 落盘迁移、兼容与回滚清单·研发
+      status: done
+    - id: t-a331d8
+      title: 落盘迁移、兼容与回滚清单·复核
+      status: done
+    - id: t-067110
+      title: 变更 task 232 阈值配置并实跑复验出证据·研发
+      status: done
+    - id: t-6253e3
+      title: 变更 task 232 阈值配置并实跑复验出证据·联调
+      status: done
+    - id: t-0607de
+      title: 变更 task 232 阈值配置并实跑复验出证据·复核
+      status: done
+    - id: t-7a9c7e
+      title: 变更 task 232 阈值配置并实跑复验出证据·测试
+      status: done
+status:
+  tasks_total: 36
+  tasks_done: 36
+  tasks_in_progress: 0
+  tasks_todo: 0
+tasks:
+  - id: t-839a64
+    status: done
+  - id: t-f2d177
+    status: done
+  - id: t-baed9f
+    status: done
+  - id: t-6e752d
+    status: done
+  - id: t-588941
+    status: done
+  - id: t-ddb59a
+    status: done
+  - id: t-a300ce
+    status: done
+  - id: t-3faf17
+    status: done
+  - id: t-721a23
+    status: done
+  - id: t-b0347e
+    status: done
+  - id: t-225332
+    status: done
+  - id: t-a0b465
+    status: done
+  - id: t-0724f1
+    status: done
+  - id: t-d8de1a
+    status: done
+  - id: t-1aabe8
+    status: done
+  - id: t-306059
+    status: done
+  - id: t-2c8a18
+    status: done
+  - id: t-3b5da9
+    status: done
+  - id: t-acb9b3
+    status: done
+  - id: t-097096
+    status: done
+  - id: t-e5556c
+    status: done
+  - id: t-3fe312
+    status: done
+  - id: t-e8d8e3
+    status: done
+  - id: t-cba0af
+    status: done
+  - id: t-eb3ca1
+    status: done
+  - id: t-21bcc0
+    status: done
+  - id: t-0da0b9
+    status: done
+  - id: t-8138f0
+    status: done
+  - id: t-f7a18c
+    status: done
+  - id: t-37d890
+    status: done
+  - id: t-5cd45f
+    status: done
+  - id: t-a331d8
+    status: done
+  - id: t-067110
+    status: done
+  - id: t-6253e3
+    status: done
+  - id: t-0607de
+    status: done
+  - id: t-7a9c7e
+    status: done

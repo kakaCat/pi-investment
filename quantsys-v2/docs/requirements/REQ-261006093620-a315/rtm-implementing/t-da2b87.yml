@@ -1,0 +1,35 @@
+task:
+  id: t-da2b87
+  title: 判据真源：trading_day_gate 模块与策略入口·研发
+  status: done
+  implements: |-
+    新建 application/services/trading_day_gate.py：把 adapters/inbound/fastapi_app/daily_jobs/gate.py 的三个函数（verdict_info / skip_non_trading_day / is_non_trading_day）原样搬入，签名逐字不变；新增 POLICY_ALWAYS/POLICY_TRADING_DAYS/POLICY_HOLIDAYS、KNOWN_POLICIES 与 should_skip(policy, now=None)->(bool, dict)：always 不跳；trading-days 判 (not is_trading_day) and (not degraded)；holidays 判 source=='trading-calendar-holiday' and (not degraded)；未知/None 不跳且 info 带 policy_unknown=True 并记 warning。判据只用 TradingDayGuard.check(now)，函数永不抛（自身异常 → (False, {'source':'gate-error','degraded':True})）。新建 tests/test_scheduler_trading_day_gate.py：13 行真值表（含 holidays+weekend 必须不跳、holidays+降级必须不跳两行核心断言），桩打在 application.services.trading_day_gate.TradingDayGuard；另加 future 反例锁断言 TradingDayGuard.check('2026-10-08').source=='future'。
+
+    [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+  serves: []
+  depends_on: []
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261006093620-a315
+    TASK_ID: t-da2b87
+    TASK_TITLE: 判据真源：trading_day_gate 模块与策略入口·研发
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-06T01:50:44.271Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006093620-a315
+  generated_at: 2026-10-06T01:50:34.812Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-06T01:50:46.540Z

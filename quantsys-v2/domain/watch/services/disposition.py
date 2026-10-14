@@ -3,13 +3,20 @@
 「何时介入」的判据：价格触发五道门 + 元触发轻门 + 宪法豁免 + 每日预算。
 纯函数 + 配置注入；数据由调用方（引擎 tick / 复核作业）注入。
 
-判定优先级（自上而下，先命中先返回）：
+**2026-10-07（REQ-261007133807-eda6 t5）**：判定顺序的**唯一事实源**已迁到
+`domain/watch/services/escalation_verdict.py` 的 :func:`decide_escalation`
+（宪法级 → 预算 → 三条可信路径 → L2 → 元触发 → 五道门 → 兜底）。本模块的 :func:`decide`
+改为「Verdict → disposition 字符串」的**映射**，对外签名与文案逐字不变：
+
   0. 宪法豁免：止损等无条件介入，且可突破预算
   1. 预算门：当日介入预算耗尽 → 非宪法动作进日终汇总
   2. 引擎升级（escalation_policy 命中）→ 摘要队列
   3. 规则分级 L2 → 摘要队列（L2 = 买卖节点，必须 agent 终判）
   4. 元触发轻门：仅增量门+经济门（不适用金额门/节点门）
   5. 价格触发五道门：意图 → 金额 → 增量 → 经济 → 节点
+
+消费侧契约：**理由码**（`EscalationCode`）由裁决出口产出并落 `watch_triggers.escalation_code`；
+本模块只回答"落到哪个处置状态"（6 个取值的状态机），两把尺子刻意不合并。
 
 用户硬约束（2026-09-11）：不能所有触发都叫 agent——成本必须与利润一致。
 所以默认宁归档不介入：判据不过就落 auto_observed（零 LLM），进日终汇总。
@@ -134,76 +141,73 @@ def _intent_of(rule) -> str:
     return 'trend_observe'
 
 
+def _disposition_map():
+    """理由码 → 处置状态（**延迟构造**，见下方注释）。
+
+    为什么不在模块顶层 import `EscalationCode`：`escalation_verdict` 在模块层依赖本模块
+    （`GateContext` / `InterventionConfig` / `intent_of` / `CONSTITUTIONAL_INTENTS`），
+    顶层互相 import 会成环（半初始化模块 → ImportError）。故第一次用到时再取，
+    且**码名只从码表读**（不在本模块手写字符串，避免第二份词表）。
+    """
+    global _DISPOSITION_BY_CODE
+    if _DISPOSITION_BY_CODE is None:
+        from domain.watch.services.escalation_verdict import EscalationCode as C
+        _DISPOSITION_BY_CODE = {
+            C.CONSTITUTIONAL_INTENT: DISPOSITION_ESCALATED,
+            C.RULE_EXPLICIT_ESCALATE: DISPOSITION_ESCALATED,
+            C.ANOMALY_CHANGE_PCT: DISPOSITION_ESCALATED,
+            C.RULE_LEVEL_L2: DISPOSITION_ESCALATED,
+            C.GATES_PASSED_ACTION: DISPOSITION_ESCALATED,
+            C.META_REVIEW: DISPOSITION_META_REVIEW,
+            C.BUDGET_EXHAUSTED: DISPOSITION_AUTO_OBSERVED,
+            C.OBSERVE_INTENT: DISPOSITION_AUTO_OBSERVED,
+            C.AMOUNT_BELOW_THRESHOLD: DISPOSITION_AUTO_OBSERVED,
+            C.SAME_TOPIC_COOLDOWN: DISPOSITION_AUTO_OBSERVED,
+            C.ECONOMIC_BELOW_K: DISPOSITION_AUTO_OBSERVED,
+            C.SUPPRESSED: DISPOSITION_AUTO_OBSERVED,
+            C.PENDING_NO_ACTION: DISPOSITION_PENDING,
+            C.DEDUPED: DISPOSITION_DEDUPED,
+            C.UNKNOWN: DISPOSITION_PENDING,
+        }
+    return _DISPOSITION_BY_CODE
+
+
+#: 理由码 → 处置状态（首次使用时由 _disposition_map() 填充；见其 docstring 说明为何延迟）
+_DISPOSITION_BY_CODE = None
+
+
 def decide(rule, condition, escalated: bool = False,
            gate: Optional[GateContext] = None, cfg: Optional[InterventionConfig] = None,
-           escalation_reason: Optional[str] = None):
+           escalation_reason: Optional[str] = None, verdict=None):
     """介入判据（RFC 014 v3 §3.2）。返回 (disposition, reason)。
+
+    verdict（2026-10-07 · REQ-261007133807-eda6 t5 新增）：**裁决出口的结果**
+    （`escalation_verdict.Verdict`）。给了它就只做映射；没给则内部调裁决出口——
+    调用方（engine tick）给，旁路调用方（market_watch_service 等）不给也照常工作。
 
     escalation_reason（2026-09-14 新增）：引擎升级命中的原始原因。此前 decide()
     只收到 escalated 布尔，固定回一句「升级策略命中（L1→L2）」，使「究竟哪条
     升级路径命中」（频率/价格偏差/核心区域/量能/共振）在库里不可考。
+    **兼容保留**：`escalated=True` 且未给 verdict 的调用方仍走该分支（文案逐字不变）。
     """
     cfg = cfg or InterventionConfig()
     gate = gate or GateContext()
-    intent = _intent_of(rule)
-    ah = action_hint_of(rule)
-    act = str(ah.get('action_on_trigger') or '').lower()
-    level = str(ah.get('trigger_level') or '').upper()
 
-    # 0. 宪法豁免：无条件介入，可突破预算
-    if intent in CONSTITUTIONAL_INTENTS:
-        return DISPOSITION_ESCALATED, '宪法动作（' + intent + '）：无条件介入，不受经济性判断与预算豁免'
+    if verdict is None:
+        # 判定顺序的唯一事实源（延迟导入避免环，见 _disposition_map）
+        from domain.watch.services.escalation_verdict import (
+            EscalationCode as C, decide_escalation,
+        )
+        # 旁路调用方没有 quote/result：异常波动路径自然不命中（与收敛前一致——
+        # 收敛前的 decide() 也不评估异常波动，escalated 布尔由调用方给）。
+        verdict = decide_escalation(rule, condition, None, None, gate=gate, cfg=cfg)
+        # 兼容分支（收敛前顺序：宪法级 → 预算 → escalated → L2 → …）
+        if escalated and verdict.code not in (C.CONSTITUTIONAL_INTENT, C.BUDGET_EXHAUSTED):
+            detail = f'｜原始原因：{escalation_reason}' if escalation_reason else ''
+            return DISPOSITION_ESCALATED, '升级策略命中（L1→L2）→ 进 agent 摘要队列' + detail
 
-    # 1. 预算门：当日介入预算耗尽 → 非宪法动作进日终汇总
-    if gate.daily_wake_count >= cfg.daily_budget:
-        return DISPOSITION_AUTO_OBSERVED, '预算门：当日介入预算已耗尽（§3.3）→ 进日终汇总'
+    return _disposition_map().get(getattr(verdict, 'code', None), DISPOSITION_PENDING), verdict.reason
 
-    # 2. 引擎升级（escalation_policy 命中）→ 摘要队列
-    if escalated:
-        detail = f'｜原始原因：{escalation_reason}' if escalation_reason else ''
-        return DISPOSITION_ESCALATED, '升级策略命中（L1→L2）→ 进 agent 摘要队列' + detail
-
-    # 3. 规则分级 L2 → 摘要队列（买卖节点必须 agent 终判）
-    if level == 'L2':
-        return DISPOSITION_ESCALATED, '规则分级 L2 行动层（买卖节点）→ 进 agent 摘要队列'
-
-    # 4. 元触发轻门（不适用金额门/节点门）
-    if gate.trigger_kind == 'meta':
-        return _meta_gate(rule, gate, cfg)
-
-    # 5. 价格触发五道门
-    # ①意图门：趋势观察类不介入（只更新认识）
-    if intent == 'trend_observe' or act in ('observe', 'message'):
-        return DISPOSITION_AUTO_OBSERVED, '观察类（意图门）→ 归档记录，不唤醒 agent'
-
-    # ②金额门：动作影响 < 账户 1% 不值得介入
-    amount = gate.amount_yuan
-    threshold = cfg.account_total_yuan * cfg.amount_threshold_pct
-    if amount is not None and amount < threshold:
-        return DISPOSITION_AUTO_OBSERVED, '金额门：动作影响 %.0f 元 < 阈值 %.0f 元 → 做对了也不值一次介入' % (amount, threshold)
-
-    # ③增量门：同标的同议题冷却窗内不重复介入
-    if gate.last_intervention_at is not None:
-        if (datetime.now() - gate.last_intervention_at).total_seconds() < cfg.same_topic_cooldown_sec:
-            return DISPOSITION_AUTO_OBSERVED, '增量门：同标的同议题 4h 内已介入过 → 不重复唤醒'
-
-    # ⑤经济门：期望收益 < k × 介入成本 → 不介入
-    if gate.expected_value_yuan is not None:
-        if gate.expected_value_yuan < cfg.k_economic * cfg.wake_cost_yuan:
-            return DISPOSITION_AUTO_OBSERVED, '经济门：期望收益 < %.1f × 介入成本 → 不介入' % cfg.k_economic
-
-    # 全过 → 买卖动作进摘要队列，其余待处置
-    if act in ('buy', 'sell'):
-        return DISPOSITION_ESCALATED, '价格触发过五道门（' + act + '）→ 进 agent 摘要队列'
-    return DISPOSITION_PENDING, '过五道门但未声明动作 → 待处置（人工/agent 复核）'
-
-
-def _meta_gate(rule, gate: GateContext, cfg: InterventionConfig):
-    """元触发轻门（§3.1 C 类）：只过增量门与经济门，不适用金额门/节点门。"""
-    if gate.last_intervention_at is not None:
-        if (datetime.now() - gate.last_intervention_at).total_seconds() < cfg.same_topic_cooldown_sec:
-            return DISPOSITION_AUTO_OBSERVED, '元触发增量门：同标的 4h 内已复核过，跳过'
-    return DISPOSITION_META_REVIEW, '元触发（频次/静默/滞留/到期）过轻门 → 进复核队列'
 
 
 def evaluate_meta_trigger(kind: str, burst_count: int = 0, idle_days: float = 0,

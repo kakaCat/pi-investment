@@ -9,9 +9,12 @@
 （未填写——开工前补充这张卡要解决的业务问题）
 
 ## 得到什么结果
-改动已落盘，相关测试或命令跑通并附输出摘要
 
----
+1) 旧说法只出现在修正语境：`grep -n "api/server.py" CLAUDE.md` 的每一处都带「已删除」或「不存在」字样。
+2) `grep -n "requirements.txt" CLAUDE.md` 的每一处都说明根目录没有该文件、权威是 pyproject.toml。
+3) `grep -n "unified_scheduler" CLAUDE.md` 的每一处都标注已删除；`grep -n "DATA_ACCESS_GUIDE" CLAUDE.md` 处均说明该文档已不存在。
+4) 全文不再出现与实测矛盾的入口路径：`grep -c "python api/" CLAUDE.md` 输出 0。
+
 ## 汇报 1（2026-10-01T07:35:21.801Z，窗口 session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22）
 
 研发段：新人/新会话按文档操作不再踩空——入口路径、装依赖、Flask 回滚栈、Repository 位置、调度开关、重启方式这 8 处"说 A 实际是 B"全部改成实测事实，另有 5 处同批发现的错路径一并修正，12 份文档的安装命令统一到 pyproject。

@@ -1,0 +1,117 @@
+metadata:
+  stage: implementing
+  requirement_id: REQ-261005203907-2b8c
+  generated_at: 2026-10-05T13:12:20.021Z
+  version: 61
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 20
+  last_updated: 2026-10-05T13:25:31.241Z
+inputs:
+  tasks:
+    - id: t-dd0d4d
+      title: 门模块与 JobDef 字段（接口先行）
+      status: done
+    - id: t-075116
+      title: 宿主接线：_run_job 跳过早退 + 3 任务置位
+      status: done
+    - id: t-588729
+      title: 晚间管线：因子段局部跳过（K 线段原样）
+      status: done
+    - id: t-dbb9d0
+      title: 兼容与回滚核验（零 DDL / 既有消费者行为）
+      status: done
+    - id: t-6384c0
+      title: 回归 + 真实休市日/复市首日观察
+      status: done
+    - id: t-c8a4bc
+      title: 门模块与 JobDef 字段（接口先行）·研发
+      status: done
+    - id: t-5d3b29
+      title: 门模块与 JobDef 字段（接口先行）·复核
+      status: done
+    - id: t-36bf41
+      title: 门模块与 JobDef 字段（接口先行）·测试
+      status: done
+    - id: t-074a02
+      title: 宿主接线：_run_job 跳过早退 + 3 任务置位·研发
+      status: done
+    - id: t-935496
+      title: 宿主接线：_run_job 跳过早退 + 3 任务置位·复核
+      status: done
+    - id: t-bdfaae
+      title: 宿主接线：_run_job 跳过早退 + 3 任务置位·测试
+      status: done
+    - id: t-e11789
+      title: 晚间管线：因子段局部跳过（K 线段原样）·研发
+      status: done
+    - id: t-c7f120
+      title: 晚间管线：因子段局部跳过（K 线段原样）·复核
+      status: done
+    - id: t-4dec18
+      title: 晚间管线：因子段局部跳过（K 线段原样）·测试
+      status: done
+    - id: t-434c63
+      title: 兼容与回滚核验（零 DDL / 既有消费者行为）·研发
+      status: done
+    - id: t-e199f4
+      title: 兼容与回滚核验（零 DDL / 既有消费者行为）·复核
+      status: done
+    - id: t-0c1cf7
+      title: 兼容与回滚核验（零 DDL / 既有消费者行为）·测试
+      status: done
+    - id: t-d78651
+      title: 回归 + 真实休市日/复市首日观察·研发
+      status: done
+    - id: t-d9d825
+      title: 回归 + 真实休市日/复市首日观察·复核
+      status: done
+    - id: t-bc7a9b
+      title: 回归 + 真实休市日/复市首日观察·测试
+      status: done
+status:
+  tasks_total: 20
+  tasks_done: 20
+  tasks_in_progress: 0
+  tasks_todo: 0
+tasks:
+  - id: t-dd0d4d
+    status: done
+  - id: t-075116
+    status: done
+  - id: t-588729
+    status: done
+  - id: t-dbb9d0
+    status: done
+  - id: t-6384c0
+    status: done
+  - id: t-c8a4bc
+    status: done
+  - id: t-5d3b29
+    status: done
+  - id: t-36bf41
+    status: done
+  - id: t-074a02
+    status: done
+  - id: t-935496
+    status: done
+  - id: t-bdfaae
+    status: done
+  - id: t-e11789
+    status: done
+  - id: t-c7f120
+    status: done
+  - id: t-4dec18
+    status: done
+  - id: t-434c63
+    status: done
+  - id: t-e199f4
+    status: done
+  - id: t-0c1cf7
+    status: done
+  - id: t-d78651
+    status: done
+  - id: t-d9d825
+    status: done
+  - id: t-bc7a9b
+    status: done

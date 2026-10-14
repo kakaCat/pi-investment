@@ -60,6 +60,11 @@ class EvolutionFitnessService:
         """对全部 active 模拟账户计算 window_end 截止的滚动窗口适应度并 upsert。
 
         幂等：重复运行按 (account_name, window_end, window_days) 覆盖。
+
+        返回体口径（REQ-261005210015-1603 t-c0941a，FR-4）：
+        `computed` 是**遍历到的账户数**（兼容键，别读成"算出了几条"）；
+        `computed_ok` 才是 status == 'ok' 的有效条数；
+        四类状态计数 + `other` 之和恒等于 `accounts_total`。
         """
         from infrastructure.monitoring.business_metrics import (
             evolution_fitness_computed_total,
@@ -69,7 +74,13 @@ class EvolutionFitnessService:
         window_end = window_end or date.today()
         start = window_end - timedelta(days=LOOKBACK_BUFFER_DAYS)
         bench_all = dict(self._bench_provider(start, window_end))
-        computed = 0
+        # REQ-261005210015-1603 t-c0941a（FR-4）：计数必须诚实。
+        # 取证：`computed` 原是"遍历到的账户数"，NULL 行也 +1 —— 现场 5 行全 NULL
+        # （2 条 insufficient_sample + 3 条 no_trades）却报 computed=5，并据此发出 ✅。
+        # 现在按 status 分类计数，唯一可称"算出来了"的数是 computed_ok。
+        states: Dict[str, int] = {}
+        accounts_total = 0
+        aligned_days = 0
         for account in self.sim_repo.list_accounts(status='active'):
             account_name = account.account_name
             snaps = self.sim_repo.get_equity_snapshots(
@@ -80,6 +91,7 @@ class EvolutionFitnessService:
                 if s.snapshot_date is not None and start <= s.snapshot_date <= window_end
             }
             aligned_dates = sorted(d for d in bench_all if d in acct_returns)[-window_days:]
+            aligned_days = max(aligned_days, len(aligned_dates))
             if not aligned_dates:
                 result = {'up_capture': None, 'down_capture': None, 'fitness': None,
                           'up_days': 0, 'down_days': 0, 'status': 'data_gap'}
@@ -98,10 +110,30 @@ class EvolutionFitnessService:
                 evolution_fitness_score.labels(account=account_name, type='up_capture').set(result['up_capture'])
             if result.get('down_capture') is not None:
                 evolution_fitness_score.labels(account=account_name, type='down_capture').set(result['down_capture'])
-            
-            computed += 1
-        
-        evolution_fitness_computed_total.labels(account='all').inc(computed)
+
+            status = str(result.get('status') or 'other')
+            states[status] = states.get(status, 0) + 1
+            accounts_total += 1
+
+        known = ('ok', 'insufficient_sample', 'no_trades', 'data_gap')
+        computed_ok = states.get('ok', 0)
+        # 指标口径与 computed_ok 一致（不再把"遍历到几条"当产出数计进计数器）
+        evolution_fitness_computed_total.labels(account='all').inc(computed_ok)
         logger.info('evolution_fitness computed', window_end=str(window_end),
-                    computed=computed)
-        return {'computed': computed, 'skipped': 0, 'window_end': str(window_end)}
+                    accounts_total=accounts_total, computed_ok=computed_ok, states=states)
+        return {
+            'window_end': str(window_end),
+            'accounts_total': accounts_total,
+            # 兼容键：**遍历到的账户数**，不是有效条数。两处旧调用方依赖它：
+            #   tests/e2e/test_evolution_pipeline.py 的 result['computed'] >= 1
+            #   daily_orchestrator 复核阶段的日志行
+            'computed': accounts_total,
+            # 唯一可称"算出来了"的数（status == 'ok'）
+            'computed_ok': computed_ok,
+            'insufficient_sample': states.get('insufficient_sample', 0),
+            'no_trades': states.get('no_trades', 0),
+            'data_gap': states.get('data_gap', 0),
+            # 未预期 status 的兜底桶：保证"四类 + other == accounts_total"这条不变式不被悄悄破坏
+            'other': sum(v for k, v in states.items() if k not in known),
+            'aligned_days': aligned_days,
+        }

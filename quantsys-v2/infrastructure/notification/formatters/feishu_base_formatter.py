@@ -18,7 +18,15 @@ class FeishuFormatter(NotificationFormatter):
     """飞书格式化器基类
 
     提供飞书消息格式化的通用方法，子类继承后实现具体业务逻辑
+
+    ``catch_all``（2026-10-04 · REQ-261004154902-a7cd t8 / FR-9）：
+    置 True 的格式化器作为**兜底渲染器**——当没有任何专用格式化器支持该通知类型时，
+    ``FeishuChannel._select_formatter`` 会改用它。这保证「没写模板的类型」也能送到人手里，
+    而不是被静默判成「不支持的通知类型」。
     """
+
+    #: 是否为兜底渲染器（默认否；见类 docstring）
+    catch_all: bool = False
 
     def format_text(self, text: str, mention_all: bool = False) -> Dict[str, Any]:
         """格式化为文本消息

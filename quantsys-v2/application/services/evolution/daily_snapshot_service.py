@@ -6,6 +6,8 @@
 
 本服务提供：
 1. snapshot_all_accounts：收盘后逐账户按当日收盘价重估持仓写快照（每日调度）
+   —— 落库口自带**交易日闸门**（`application.services.trading_day_gate`）：非交易日不写，
+   被拒账户计入返回值 `refused`（不计入 `written`），判定注解随 `trading_day` 带出。
 2. backfill_account：按交易回放 + 历史收盘价重估，补历史快照（一次性运维）
 
 近似声明（回填）：忽略日内择时，交易按当日收盘生效；费用取 total_cost/total_revenue
@@ -13,7 +15,7 @@
 """
 from domain.ports import IKlineRepository, ISimulationRepository
 from datetime import date, timedelta
-from typing import Any, Callable, Dict, List, Mapping, Optional
+from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple
 
 import structlog
 
@@ -21,6 +23,24 @@ logger = structlog.get_logger(__name__)
 
 PriceMap = Mapping[str, Mapping[str, float]]  # {symbol: {date_str: close}}
 PriceProvider = Callable[[List[str], date, date], PriceMap]
+
+
+def _trading_day_verdict(target_date: date) -> Tuple[bool, Dict[str, Any]]:
+    """交易日判定（唯一入口 `application.services.trading_day_gate`）。**永不抛**。
+
+    返回 `(是否跳过, 五键注解)`；五键 = day / is_trading_day / source / degraded / reason。
+
+    2026-10-06（REQ-261006190953-fc43 卡 C）：本模块**只问门、不自判**——
+    任何 `weekday()` / "有没有 K 线" 式的第二套交易日判定都不许出现在这里。
+
+    为什么惰性 import：应用层模块级只依赖 domain 端口（与仓储层同一纪律），
+    并且这样桩才有确定落点——测试一律打
+    `application.services.trading_day_gate.skip_non_trading_day`
+    （见 tests/test_equity_snapshot_trading_day_gate.py 的 ⑥）。
+    """
+    from application.services.trading_day_gate import skip_non_trading_day
+
+    return skip_non_trading_day(target_date)
 
 
 class DailySnapshotService:
@@ -54,8 +74,24 @@ class DailySnapshotService:
     # ------------------------------------------------------------------
 
     def snapshot_all_accounts(self, target_date: Optional[date] = None) -> Dict[str, Any]:
+        """逐账户写当日净值快照。返回 `{written, refused, skipped, date, trading_day}`。
+
+        2026-10-06（REQ-261006190953-fc43 卡 C）——交易日闸门落在仓储层
+        （`upsert_equity_snapshot` 非交易日**返回 None**，不落库），本方法负责把这件事
+        变成一个**可读的汇总**：
+
+        - `refused`：被闸门**拒写**的账户数。`None` ≠ 写成功，故这些账户**不计入 `written`**
+          （旧实现无条件 `written += 1`，会把"零落库"报成"全部成功"）。
+        - `trading_day`：门给出的五键注解（day/is_trading_day/source/degraded/reason）——
+          降级事实必须随返回值带出去，不许静默。
+        - `skipped`：**异常**导致失败的账户数。与 `refused` 是两件事，别混。
+
+        此处不因 `skip=True` 提前返回：拒写计数应当是**真实写入尝试**的证据
+        （门也仍在仓储层把关，"绕不过去"）。
+        """
         target_date = target_date or date.today()
-        written = skipped = 0
+        _, trading_day = _trading_day_verdict(target_date)
+        written = refused = skipped = 0
         accounts = self.sim_repo.list_accounts(status='active')
         all_symbols = sorted({
             p.symbol for acct in accounts
@@ -66,16 +102,24 @@ class DailySnapshotService:
             all_symbols, target_date - timedelta(days=10), target_date)) if all_symbols else {}
         for acct in accounts:
             try:
-                self._snapshot_one(acct, target_date, prices)
-                written += 1
+                snap = self._snapshot_one(acct, target_date, prices)
             except Exception as e:
                 logger.error('daily snapshot failed', account=acct.account_name, error=str(e))
                 skipped += 1
+                continue
+            if snap is None:
+                refused += 1     # 闸门拒写（非交易日）：不是异常，也绝不是"已写入"
+            else:
+                written += 1
         logger.info('daily snapshots written', date=str(target_date),
-                    written=written, skipped=skipped)
-        return {'written': written, 'skipped': skipped, 'date': str(target_date)}
+                    written=written, refused=refused, skipped=skipped,
+                    trading_day_source=trading_day.get('source'),
+                    trading_day_degraded=trading_day.get('degraded'))
+        return {'written': written, 'refused': refused, 'skipped': skipped,
+                'date': str(target_date), 'trading_day': trading_day}
 
-    def _snapshot_one(self, acct, target_date: date, prices: PriceMap) -> None:
+    def _snapshot_one(self, acct, target_date: date, prices: PriceMap):
+        """写单账户快照。返回仓储的 upsert 结果；**返回 None = 被交易日闸门拒写**（非交易日）。"""
         positions = self.sim_repo.get_all_positions(acct.account_name)
         position_value = sum(
             p.shares_total * self._close_at(prices.get(p.symbol, {}), target_date)
@@ -87,7 +131,7 @@ class DailySnapshotService:
         cumulative = (total / initial - 1) if initial > 0 else 0.0
         peak = max(float(acct.peak_value or 0), total)
         drawdown = (total / peak - 1) if peak > 0 else 0.0
-        self.sim_repo.upsert_equity_snapshot(
+        return self.sim_repo.upsert_equity_snapshot(
             account_name=acct.account_name,
             cash=cash,
             position_value=position_value,
@@ -149,6 +193,7 @@ class DailySnapshotService:
         holdings: Dict[str, int] = {}
         prev_total: Optional[float] = None
         written = 0
+        refused = 0
         initial = float(account.initial_capital or 0)
         peak = initial
         for day_str in calendar:
@@ -170,7 +215,7 @@ class DailySnapshotService:
             total = cash + position_value
             peak = max(peak, total)
             if overwrite or day not in existing:
-                self.sim_repo.upsert_equity_snapshot(
+                snap = self.sim_repo.upsert_equity_snapshot(
                     account_name=account_name,
                     cash=cash,
                     position_value=position_value,
@@ -180,10 +225,16 @@ class DailySnapshotService:
                     drawdown=(total / peak - 1) if peak > 0 else 0.0,
                     snapshot_date=day,
                 )
-                written += 1
+                # 2026-10-06（REQ-261006190953-fc43 卡 C）：仓储在非交易日会**拒写并返回 None**
+                # （写入闸门）。旧写法无条件 written += 1，会把被拒的日子算成"已写"、
+                # 让运维回填回执虚高。只在实际落库时计数。
+                if snap is not None:
+                    written += 1
+                else:
+                    refused += 1
         logger.info('backfill done', account=account_name, written=written,
-                    start=str(start), end=str(end))
-        return {'written': written}
+                    refused=refused, start=str(start), end=str(end))
+        return {'written': written, 'refused': refused}
 
     @staticmethod
     def _last_known(symbol_prices: Mapping[str, float], day: date) -> float:
@@ -216,6 +267,13 @@ class EquitySnapshotJob:
     关键防护（原脚本的立项理由，必须保留）：目标日若尚无 K 线（未收盘或非交易日），
     snapshot_all_accounts 会用「最近可得收盘价」估值 → 写出「旧价标新日」的**假快照**，
     比缺快照更糟（会污染日收益序列）。故此处显式跳过：宁可当日不写，也不写错。
+
+    2026-10-06（REQ-261006190953-fc43 卡 C）职责切分——两段判据各管一段，**不许互相代理**：
+
+    | 判据 | 唯一真源 | 回答的问题 |
+    |---|---|---|
+    | 是不是交易日 | `trading_day_gate`（本模块不自己判） | 休市日一律不写 |
+    | 当日是否已收盘 | `_has_bar`（辅助，见下） | 交易日但数据未到 → 不写 |
     """
 
     def __init__(self, service=None):
@@ -228,13 +286,20 @@ class EquitySnapshotJob:
 
     @property
     def description(self) -> str:
-        return "每日净值快照稠密化：收盘后逐账户重估写快照（无 K 线则跳过，不写假快照）"
+        return "每日净值快照稠密化：收盘后逐账户重估写快照（非交易日 / 未收盘则跳过，不写假快照）"
 
     @property
     def timeout_seconds(self) -> int:
         return 600
 
     def _has_bar(self, target: date) -> bool:
+        """**辅助**判据：目标日是否已有 K 线 ⟺ 当日数据是否已落地（收盘后 17:40 才有日K）。
+
+        2026-10-06（卡 C）降级说明：本方法**不再是交易日判据**。旧实现拿"该日有没有 K 线"
+        当交易日代理，长假期间会同时判反两头——把休市日当交易日（复用了前一交易日的 K 线
+        或事后补数）、把交易日当休市日（当日 17:40 前必然无 K 线，2026-08-12 事故形态）。
+        交易日判定已归 `trading_day_gate`；这里只回答"今天的数据到了没有"。
+        """
         from domain.ports import IKlineRepository
         from infrastructure.services.service_factory import ServiceFactory
         try:
@@ -262,17 +327,36 @@ class EquitySnapshotJob:
             return True
 
     def run(self, target_date: Optional[date] = None) -> Dict[str, Any]:
-        """同步执行（供 job 与测试调用）。返回 {skipped_reason|result}。"""
+        """同步执行（供 job 与测试调用）。返回 {skipped_reason|result}。
+
+        判定顺序（卡 C）：① 交易日门（唯一判据）→ 非交易日直接跳过；
+        ② 收盘辅助判据 `_has_bar` → 交易日但当日 K 线未落库（尚未收盘）也跳过。
+        两段理由文案**必须可区分**：旧文案「非交易日或尚未收盘」把两种完全不同的
+        事实混成一句，等于没判（运维无法据此判断是休市还是数据滞后）。
+        """
         from infrastructure.services.service_registry import register_all_services
         register_all_services()
         target = target_date or date.today()
+        skip, trading_day = _trading_day_verdict(target)
+        annotation = {
+            "trading_day": trading_day,
+            "trading_day_source": trading_day.get("source"),
+        }
+        if skip:
+            return {"skipped": True, "target_date": target.isoformat(),
+                    "reason": "非交易日（source=%s，degraded=%s）：%s；跳过以免写入旧价标新日的假快照"
+                              % (trading_day.get("source"), trading_day.get("degraded"),
+                                 trading_day.get("reason")),
+                    **annotation}
         if not self._has_bar(target):
             return {"skipped": True, "target_date": target.isoformat(),
-                    "reason": "no kline for %s（非交易日或尚未收盘），跳过以免写入旧价标新日的假快照"
-                              % target.isoformat()}
+                    "reason": "尚未收盘（交易日 %s 的 %s 日K 尚未落库）；跳过以免写入旧价标新日的假快照"
+                              % (target.isoformat(), _SNAPSHOT_REF_SYMBOL),
+                    **annotation}
         svc = self._service or DailySnapshotService()
         return {"skipped": False, "target_date": target.isoformat(),
-                "result": svc.snapshot_all_accounts(target_date=target_date)}
+                "result": svc.snapshot_all_accounts(target_date=target),
+                **annotation}
 
     async def execute(self, params=None):
         import asyncio
@@ -284,10 +368,15 @@ class EquitySnapshotJob:
             return JobResult.fail(self._name, "%s: %s" % (type(exc).__name__, exc))
         if out.get("skipped"):
             return result_from_dict(self._name, "equity snapshot skipped: " + out["reason"],
-                                    {"skipped": True, "target_date": out["target_date"]})
+                                    {"skipped": True, "target_date": out["target_date"],
+                                     "reason": out.get("reason"),
+                                     "trading_day": out.get("trading_day"),
+                                     "trading_day_source": out.get("trading_day_source")})
         return result_from_dict(self._name, "equity snapshot done: %s" % out.get("result"),
                                 {"skipped": False, "target_date": out["target_date"],
-                                 "result": out.get("result")})
+                                 "result": out.get("result"),
+                                 "trading_day": out.get("trading_day"),
+                                 "trading_day_source": out.get("trading_day_source")})
 
 
 def build_equity_snapshot_jobs():

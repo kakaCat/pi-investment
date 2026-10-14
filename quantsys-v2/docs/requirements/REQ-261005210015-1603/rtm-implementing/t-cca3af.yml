@@ -1,0 +1,36 @@
+task:
+  id: t-cca3af
+  title: 新增通知层用例（12 条：格式/摘要/语气/空转/降级/失败判定不变式/其他任务逐字不变）·测试
+  status: done
+  implements: |-
+    新增 tests/test_daily_jobs_notify_truthfulness.py，按设计文档的测试用例清单写 12 条：耗时格式 2 条、摘要状态分布 1 条、⚠️ 与 ✅ 语气各 1 条、streak 短语 1 条、有产出时不出现 streak 短语 1 条、截断渲染大于等于 K 1 条、查询失败降级 1 条、find_result_failure 对契约 B 的 result 返回 None 1 条、_mark_done 收到 success 1 条、其他任务（evening_pipeline 形态、无 summary）渲染与改造前逐字一致 1 条。打桩点铁律：monkeypatch.setattr 打在 adapters.inbound.fastapi_app.daily_jobs.runtime 模块的 _send_feishu / _mark_running / _mark_done，打在 alerting 或转发壳上会静默失效；用例数据用生产真实计数形态。
+
+    [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+  serves: []
+  depends_on:
+    - t-8bec5b
+  phase: test
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261005210015-1603
+    TASK_ID: t-cca3af
+    TASK_TITLE: 新增通知层用例（12 条：格式/摘要/语气/空转/降级/失败判定不变式/其他任务逐字不变）·测试
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: test
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: test
+      status: done
+      completed_at: 2026-10-05T13:24:26.854Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261005210015-1603
+  generated_at: 2026-10-05T13:24:26.853Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-05T13:24:27.282Z

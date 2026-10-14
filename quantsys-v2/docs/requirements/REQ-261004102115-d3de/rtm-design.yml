@@ -1,0 +1,215 @@
+metadata:
+  stage: design
+  requirement_id: REQ-261004102115-d3de
+  generated_at: 2026-10-04T02:22:36.739Z
+  version: 4
+  generated_by: dsh-pmboard
+  last_updated: 2026-10-04T02:39:19.103Z
+inputs:
+  requirements:
+    - id: FR-1
+      title: 节假日感知的「应有交易日」单一实现
+      source: requirement.md
+      line: 94
+    - id: FR-2
+      title: 探针接入新口径并显式标注来源
+      source: requirement.md
+      line: 100
+    - id: FR-3
+      title: "`freshness_guard` 复用同一实现"
+      source: requirement.md
+      line: 105
+    - id: FR-4
+      title: 回归锁（日期用例）
+      source: requirement.md
+      line: 110
+outputs:
+  design_sections:
+    - ref: design/architecture.md#目标与判定
+      title: 目标与判定（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/architecture.md
+      section: 目标与判定
+    - ref: design/architecture.md#落点与依赖方向
+      title: 落点与依赖方向（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/architecture.md
+      section: 落点与依赖方向
+    - ref: design/architecture.md#解析链
+      title: 解析链（
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 解析链
+    - ref: design/architecture.md#为什么-②-不能被省掉
+      title: 为什么 ② 不能被省掉（
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 为什么-②-不能被省掉
+    - ref: design/architecture.md#已知并存的第三个口径
+      title: 已知并存的第三个口径（
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 已知并存的第三个口径
+    - ref: design/architecture.md#探针的硬约束如何保持
+      title: 探针的硬约束如何保持（
+      serves:
+        - FR-2
+      file: design/architecture.md
+      section: 探针的硬约束如何保持
+    - ref: design/architecture.md#回滚路径
+      title: 回滚路径（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/architecture.md
+      section: 回滚路径
+    - ref: design/data-model.md#既有表契约
+      title: 既有表契约（
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: 既有表契约
+    - ref: design/data-model.md#刷新脚本的数据源改造
+      title: 刷新脚本的数据源改造（
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: 刷新脚本的数据源改造
+    - ref: design/data-model.md#读取口径与兼容影响
+      title: 读取口径与兼容影响（
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: 读取口径与兼容影响
+    - ref: design/data-model.md#需要迁移回填的东西
+      title: 需要迁移/回填的东西（
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: 需要迁移回填的东西
+    - ref: design/data-model.md#探针守卫输出结构
+      title: 探针/守卫输出结构（
+      serves:
+        - FR-2
+      file: design/data-model.md
+      section: 探针守卫输出结构
+    - ref: design/interfaces.md#核心-API
+      title: 核心 API（
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: 核心-API
+    - ref: design/interfaces.md#探针输出契约
+      title: 探针输出契约（
+      serves:
+        - FR-2
+      file: design/interfaces.md
+      section: 探针输出契约
+    - ref: design/interfaces.md#freshnessguard-调用点契约
+      title: "`freshness_guard` 调用点契约（"
+      serves:
+        - FR-3
+      file: design/interfaces.md
+      section: freshnessguard-调用点契约
+    - ref: design/interfaces.md#日历真源接口
+      title: 日历真源接口（
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: 日历真源接口
+    - ref: design/use-cases.md#角色与关注点
+      title: 角色与关注点（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/use-cases.md
+      section: 角色与关注点
+    - ref: design/use-cases.md#场景-1国庆中秋休市巡检
+      title: 场景 1：国庆/中秋休市巡检（
+      serves:
+        - FR-2
+      file: design/use-cases.md
+      section: 场景-1国庆中秋休市巡检
+    - ref: design/use-cases.md#场景-2真断供
+      title: 场景 2：真断供（
+      serves:
+        - FR-2
+        - FR-3
+      file: design/use-cases.md
+      section: 场景-2真断供
+    - ref: design/use-cases.md#场景-3日历源不可用
+      title: 场景 3：日历源不可用（
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: 场景-3日历源不可用
+    - ref: design/use-cases.md#场景-4下一个节日春节-中秋再来一次
+      title: 场景 4：下一个节日（春节 / 中秋）再来一次（
+      serves:
+        - FR-4
+      file: design/use-cases.md
+      section: 场景-4下一个节日春节-中秋再来一次
+    - ref: design/use-cases.md#场景-5表被填上之后的管道行为
+      title: 场景 5：表被填上之后的管道行为（
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: 场景-5表被填上之后的管道行为
+traceability:
+  fr_to_design:
+    FR-1:
+      - design/architecture.md#目标与判定
+      - design/architecture.md#落点与依赖方向
+      - design/architecture.md#解析链
+      - design/architecture.md#为什么-②-不能被省掉
+      - design/architecture.md#已知并存的第三个口径
+      - design/architecture.md#回滚路径
+      - design/data-model.md#既有表契约
+      - design/data-model.md#刷新脚本的数据源改造
+      - design/data-model.md#读取口径与兼容影响
+      - design/data-model.md#需要迁移回填的东西
+      - design/interfaces.md#核心-API
+      - design/interfaces.md#日历真源接口
+      - design/use-cases.md#角色与关注点
+      - design/use-cases.md#场景-3日历源不可用
+      - design/use-cases.md#场景-5表被填上之后的管道行为
+    FR-2:
+      - design/architecture.md#目标与判定
+      - design/architecture.md#落点与依赖方向
+      - design/architecture.md#探针的硬约束如何保持
+      - design/architecture.md#回滚路径
+      - design/data-model.md#探针守卫输出结构
+      - design/interfaces.md#探针输出契约
+      - design/use-cases.md#角色与关注点
+      - design/use-cases.md#场景-1国庆中秋休市巡检
+      - design/use-cases.md#场景-2真断供
+    FR-3:
+      - design/architecture.md#目标与判定
+      - design/architecture.md#落点与依赖方向
+      - design/architecture.md#回滚路径
+      - design/interfaces.md#freshnessguard-调用点契约
+      - design/use-cases.md#角色与关注点
+      - design/use-cases.md#场景-2真断供
+    FR-4:
+      - design/use-cases.md#角色与关注点
+      - design/use-cases.md#场景-4下一个节日春节-中秋再来一次
+coverage:
+  design:
+    total: 4
+    covered: 4
+    uncovered: []
+    rate: 100
+    total_frs: 4
+    covered_frs: 4

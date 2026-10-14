@@ -1,0 +1,38 @@
+task:
+  id: t-fff73f
+  title: 收敛出唯一裁决出口 decide_escalation（15 条顺序表）·测试
+  status: done
+  implements: |-
+    在 domain/watch/services/escalation_verdict.py 补 decide_escalation（宪法级 → 预算 → 规则显式 → 异常波动 → L2 → 元触发 → 五道门 → 兜底）与 decide_escalation_paths（仅三条可信路径，含 L0/L1 与 auto_escalate 短路）；三条路径与文案自 domain/watch/services/escalation_checker.py 迁入且逐字保留；metric 不符沿用 require_metric 抛错。tests/services/test_watch_escalation_verdict.py 补 15 行真值表与跨入口一致性用例。
+
+    [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+  serves: []
+  depends_on:
+    - t-e67b0f
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261007133807-eda6
+    TASK_ID: t-fff73f
+    TASK_TITLE: 收敛出唯一裁决出口 decide_escalation（15 条顺序表）·测试
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-07T10:50:52.979Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261007133807-eda6
+  generated_at: 2026-10-07T10:50:41.254Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-07T10:50:52.980Z

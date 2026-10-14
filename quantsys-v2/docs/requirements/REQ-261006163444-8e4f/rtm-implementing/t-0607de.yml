@@ -1,0 +1,38 @@
+task:
+  id: t-0607de
+  title: 变更 task 232 阈值配置并实跑复验出证据·复核
+  status: done
+  implements: |-
+    ① 执行 UPDATE quant.scheduler_tasks SET params = params || '{"quality_threshold": 88.0}' WHERE id = 232;（幂等，旧值 95.0 已记录在迁移清单里）；② 手动触发一次每日数据质量检查任务，采集告警日志段与最新调度 run 记录的 result（domain / domain_dropped / alert_scope / alert_thresholds）；③ 核对回填目标是否 100% 在域内、All data providers failed 新增条数、original_count 是否 > 0。
+
+    [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+  serves: []
+  depends_on:
+    - t-6253e3
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261006163444-8e4f
+    TASK_ID: t-0607de
+    TASK_TITLE: 变更 task 232 阈值配置并实跑复验出证据·复核
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-06T08:56:24.899Z
+    - phase: review
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006163444-8e4f
+  generated_at: 2026-10-06T08:56:24.736Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-06T08:56:24.899Z

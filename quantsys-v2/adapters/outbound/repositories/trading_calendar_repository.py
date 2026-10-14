@@ -11,7 +11,8 @@ FROM quant.trading_calendar WHERE exchange = %s AND is_trading_day = TRUE）。
 迁移状态：✅ ORM
 """
 from datetime import date
-from typing import Set
+import time
+from typing import Dict, Optional, Set, Tuple
 
 import structlog
 
@@ -20,7 +21,7 @@ from infrastructure.persistence.orm.models import TradingCalendar
 
 logger = structlog.get_logger(__name__)
 
-__all__ = ['TradingCalendarORMRepository']
+__all__ = ['TradingCalendarORMRepository', 'trading_day_set', 'reset_trading_day_cache']
 
 
 class TradingCalendarORMRepository(BaseORMRepository[TradingCalendar]):
@@ -55,3 +56,59 @@ class TradingCalendarORMRepository(BaseORMRepository[TradingCalendar]):
             self._safe_rollback()
             raise
         return {r[0] for r in rows}
+
+
+# ---------------------------------------------------------------------------
+# 交易日集合的带缓存读取（2026-10-06 · REQ-261006190953-fc43）
+#
+# 为什么放在**本模块**（adapters 层）而不是 application：
+#   `application/services/nav_series.py` 是纯口径模块（只做过滤/派生/缺口计算），
+#   一旦它自己 import 本仓储，就是 application → adapters（方向倒置），
+#   会被 `tests/test_layer_purity.py` 的棘轮计为一处新违规。
+#   日历读取本来就是"读一张表"，留在仓储层，调用方（含同层的净值仓储、
+#   inbound 路由）按各自被允许的方向取用即可。
+# ---------------------------------------------------------------------------
+
+#: 进程内缓存 TTL（交易日历一天最多变一次；秒级 tick 不该反复查库）
+_TTL_SECONDS = 300
+_cache: Dict[str, Tuple[float, Optional[Set[date]]]] = {}
+
+
+def reset_trading_day_cache() -> None:
+    """清空缓存（测试与日历刷新后调用）。"""
+    _cache.clear()
+
+
+def trading_day_set(
+    exchange: str = 'ALL',
+    *,
+    force_refresh: bool = False,
+) -> Optional[Set[date]]:
+    """交易日集合；**不可得返回 None，绝不用空集合表达"不可得"**。
+
+    口径三锁（与 `application/services/nav_series.py` 一致）：
+    · 空表 → None（日历链断了，不是"一年没有交易日"）；
+    · 查询异常 → None + warning（净值读取不该被日历故障打挂）；
+    · 调用方拿到 None 必须按"未校验"处理（不过滤、并在返回体里如实声明）。
+    """
+    now = time.time()
+    if not force_refresh:
+        hit = _cache.get(exchange)
+        if hit is not None and now - hit[0] < _TTL_SECONDS:
+            return hit[1]
+
+    days: Optional[Set[date]] = None
+    try:
+        days = TradingCalendarORMRepository().list_trading_days(exchange)
+        if not days:
+            logger.warning(
+                'trading_day_set_empty exchange=%s —— 日历表为空，按"不可得"处理（不清空净值序列）',
+                exchange,
+            )
+            days = None
+    except Exception as exc:  # noqa: BLE001 —— 日历读失败不得让净值读取整体失败
+        logger.warning('trading_day_set_failed exchange=%s error=%s', exchange, exc)
+        days = None
+
+    _cache[exchange] = (now, days)
+    return days

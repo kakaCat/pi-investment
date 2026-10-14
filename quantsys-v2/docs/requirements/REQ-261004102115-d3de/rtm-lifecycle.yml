@@ -1,0 +1,66 @@
+requirement:
+  id: REQ-261004102115-d3de
+  title: 健康探针节假日盲区：新鲜度判定未接交易日历（国庆误报）
+  category: feature
+  created_at: 2026-10-04T02:21:15.867Z
+  source_session: session-e4214a80-d4ad-4666-9705-9ee6f7921f01
+  dir: /Users/mac/Documents/ai/pi-investment/quantsys-v2/docs/requirements/REQ-261004102115-d3de
+lifecycle:
+  current_stage: accepting
+  stage_count: 7
+  stage_list:
+    - draft
+    - brainstorming
+    - design
+    - decomposing
+    - implementing
+    - accepting
+    - done
+  stages:
+    - stage: draft
+      status: completed
+      enabled: true
+      entered_at: 2026-10-04T02:21:15.867Z
+      completed_at: 2026-10-04T02:39:42.656Z
+      timestamps_inferred: true
+    - stage: brainstorming
+      status: completed
+      enabled: true
+      entered_at: 2026-10-04T02:21:15.867Z
+      completed_at: 2026-10-04T02:39:42.656Z
+      timestamps_inferred: true
+    - stage: design
+      status: completed
+      enabled: true
+      entered_at: 2026-10-04T02:21:15.867Z
+      completed_at: 2026-10-04T02:39:42.656Z
+      timestamps_inferred: true
+    - stage: decomposing
+      status: completed
+      enabled: true
+      entered_at: 2026-10-04T02:21:15.867Z
+      completed_at: 2026-10-04T02:39:42.656Z
+      timestamps_inferred: true
+    - stage: implementing
+      status: completed
+      enabled: true
+      entered_at: 2026-10-04T02:21:15.867Z
+      completed_at: 2026-10-04T02:39:42.656Z
+      timestamps_inferred: true
+    - stage: accepting
+      status: in_progress
+      enabled: true
+      entered_at: 2026-10-04T02:21:15.867Z
+      timestamps_inferred: true
+    - stage: done
+      status: pending
+      enabled: true
+metadata:
+  stage: lifecycle
+  requirement_id: REQ-261004102115-d3de
+  generated_at: 2026-10-04T02:21:57.609Z
+  version: 11
+  generated_by: dsh-pmboard
+  rtm_version: "1.0"
+  file_path: /Users/mac/Documents/ai/pi-investment/quantsys-v2/docs/requirements/REQ-261004102115-d3de/rtm-lifecycle.yml
+  last_updated: 2026-10-04T02:39:42.699Z

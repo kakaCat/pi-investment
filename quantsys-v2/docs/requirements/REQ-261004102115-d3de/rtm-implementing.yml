@@ -1,0 +1,67 @@
+metadata:
+  stage: implementing
+  requirement_id: REQ-261004102115-d3de
+  generated_at: 2026-10-04T02:25:51.493Z
+  version: 48
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 10
+  last_updated: 2026-10-04T02:39:23.893Z
+inputs:
+  tasks:
+    - id: t-dc66e2
+      title: 实现交易日解析器（最近一个已收盘交易日）
+      status: done
+    - id: t-b952d0
+      title: 写日期表驱动回归用例（含降级与周末语义）
+      status: done
+    - id: t-f062d4
+      title: 探针接入新口径并标注判定来源
+      status: done
+    - id: t-1d780d
+      title: freshness_guard 复用同一实现
+      status: done
+    - id: t-ed8425
+      title: 刷新脚本改接 provider 源并一次性回填日历表
+      status: done
+    - id: t-4caf2a
+      title: 核验迁移与兼容（管道读表切换、引用方、无新依赖）
+      status: done
+    - id: t-8e4de7
+      title: 实现交易日解析器（最近一个已收盘交易日）·研发
+      status: done
+    - id: t-2aae82
+      title: 实现交易日解析器（最近一个已收盘交易日）·复核
+      status: done
+    - id: t-598ad3
+      title: 实现交易日解析器（最近一个已收盘交易日）·测试
+      status: done
+    - id: t-391941
+      title: 返工：E2E 覆盖：**无（缺口）**——本需求交付涉及多组件串联，但只交了单元/集成测试。请补一条端到端场景用例（断言可观察
+      status: done
+status:
+  tasks_total: 10
+  tasks_done: 10
+  tasks_in_progress: 0
+  tasks_todo: 0
+tasks:
+  - id: t-dc66e2
+    status: done
+  - id: t-b952d0
+    status: done
+  - id: t-f062d4
+    status: done
+  - id: t-1d780d
+    status: done
+  - id: t-ed8425
+    status: done
+  - id: t-4caf2a
+    status: done
+  - id: t-8e4de7
+    status: done
+  - id: t-2aae82
+    status: done
+  - id: t-598ad3
+    status: done
+  - id: t-391941
+    status: done

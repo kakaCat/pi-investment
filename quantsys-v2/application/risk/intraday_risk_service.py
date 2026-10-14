@@ -216,7 +216,12 @@ class IntradayRiskService:
         """Send a Feishu risk alert for an executed stop-loss action."""
         notifier = self.feishu_notifier
         if notifier is None:
-            logger.debug("IntradayRiskService: no Feishu notifier configured; skipping alert")
+            # 2026-10-04（REQ-261004154902-a7cd t8 / FR-9）：debug 级在生产不可见 →
+            # 盘中风控告警会静默消失；升为 warning 并带 reason。
+            logger.warning(
+                "IntradayRiskService: 未装配通知门面，风控告警不会发出"
+                "（reason=notifier_not_configured）"
+            )
             return
 
         symbol = action.get("symbol") or self._get(position, "symbol")

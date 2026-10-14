@@ -1,0 +1,46 @@
+task:
+  id: t-4caf2a
+  title: 核验迁移与兼容（管道读表切换、引用方、无新依赖）
+  status: done
+  implements: 核验 load_trading_calendar_from_db(exchange) 从「空表回退 K 线」切换为「读表」后行为正常，回退路径与异常处理未被破坏。核验全仓 _last_trading_day 引用方（tools/health_probe.py 之外）仍可导入且语义未回归。核验未改 deployment/launchd/com.pi-investment.health-probe.plist、未改 quant.data_contracts、未新增第三方依赖。
+  serves:
+    - FR-1
+    - FR-3
+  depends_on:
+    - t-f062d4
+    - t-1d780d
+    - t-ed8425
+  phase: analysis
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261004102115-d3de
+    TASK_ID: t-4caf2a
+    TASK_TITLE: 核验迁移与兼容（管道读表切换、引用方、无新依赖）
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: analysis
+  workflow_total: 4
+  workflow_done: 4
+  workflow:
+    - phase: analysis
+      status: done
+      completed_at: 2026-10-04T02:33:26.299Z
+    - phase: implement
+      status: done
+      completed_at: 2026-10-04T02:32:29.730Z
+    - phase: test
+      status: done
+      completed_at: 2026-10-04T02:33:26.299Z
+    - phase: commit
+      status: done
+      completed_at: 2026-10-04T02:33:26.299Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261004102115-d3de
+  generated_at: 2026-10-04T02:32:24.147Z
+  version: 7
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 4
+  last_updated: 2026-10-04T02:33:26.299Z

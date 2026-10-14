@@ -406,3 +406,60 @@ def _release_orm_session_after_test():
         pass
 
 
+# ── 测试期通知外发守卫（2026-10-03 · REQ-261003150739-b98d FR-3）───────────────
+# 背景：pytest 进程能经 NotificationFacade **真实外发**通知——实测跑
+# `tests/test_false_success_guard.py` 一个文件就向真实渠道发了 4 张 fake_job 卡片
+# （用户可感知的假任务卡片），e2e 手动触发用例再发 2 张。根因是**打桩点漂移**
+# （桩打在符号来源模块，而非 `_run_job` 真正读取的实现模块）。
+#
+# 这里在**传输层**兜底：命中通知接收端（Agent OS 网关 / 飞书 webhook / wake）
+# 就拦截+记账，其余 URL 原样放行——对数据源等测试完全透明。
+# 开关：`QUANTSYS_NOTIFY_GUARD` = off（不装）| report（只记账）| fail（另判失败）。
+@pytest.fixture(scope='session', autouse=True)
+def _notify_guard_session():
+    from tests.notify_guard import install_notify_guard
+
+    guard = install_notify_guard()
+    try:
+        yield guard
+    finally:
+        if guard is not None:
+            guard.uninstall()
+
+
+@pytest.fixture
+def notify_guard(_notify_guard_session):
+    """公开句柄（设计契约）：用例可读取记账、断言无真实外发。
+
+    见 docs/requirements/REQ-261003150739-b98d/design/interfaces.md 的「守卫模块 API」。
+    """
+    return _notify_guard_session
+
+
+@pytest.fixture(autouse=True)
+def _notify_guard_attribution(_notify_guard_session):
+    """给记账打上「哪个用例」的标签；fail 模式下未声明的外发在该用例收尾时判失败。"""
+    guard = _notify_guard_session
+    if guard is None:
+        yield
+        return
+    nodeid = (os.environ.get('PYTEST_CURRENT_TEST') or '').split(' (')[0] or None
+    guard.set_current_test(nodeid)
+    try:
+        yield
+    finally:
+        guard.set_current_test(None)
+        reason = guard.failure_for(nodeid)
+        if reason:
+            pytest.fail(reason, pytrace=False)
+
+
+def pytest_sessionfinish(session, exitstatus):
+    """一行汇总，便于在 CI 日志里直接确认「零真实外发」。"""
+    from tests.notify_guard import current_handle
+
+    guard = current_handle()
+    if guard is not None:
+        print(f"\n{guard.summary_line()}")
+
+

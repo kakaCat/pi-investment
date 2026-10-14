@@ -1,0 +1,39 @@
+task:
+  id: t-2acb88
+  title: 回归四连 + 兼容核对 + 真实观察取证（含回滚演练）·测试
+  status: done
+  implements: |-
+    跑四条回归命令（tests/test_daily_jobs_bootstrap.py、tests/test_false_success_guard.py、tests/e2e/test_evolution_pipeline.py、tests/services/evolution 与 tests/repositories 两个文件）；核对旧调用方兼容面（orchestrator 日志可读、e2e 的 result 里 computed 大于等于 1 仍成立、历史 result 无 summary 时 _summarize_result 回落）；在下一次 evolution_fitness 运行后从 quant.inprocess_job_runs 取 result 的 summary 与 no_output，并看 logs/api.log 的飞书发送行确认卡片是新文案；做一次回滚演练（git stash 后确认文本回落再恢复）。把结论写入 docs/requirements/REQ-261005210015-1603/notes/observation.md。若当天被 REQ-261005203907-2b8c 的交易日门判 skipped，则改核对其 skipped 行与当天无该任务通知，并写明观察窗口被门改变。
+
+    [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+  serves: []
+  depends_on:
+    - t-df7921
+  phase: test
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261005210015-1603
+    TASK_ID: t-2acb88
+    TASK_TITLE: 回归四连 + 兼容核对 + 真实观察取证（含回滚演练）·测试
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: test
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: test
+      status: done
+      started_at: 2026-10-05T13:25:43.313Z
+      completed_at: 2026-10-05T13:25:43.382Z
+    - phase: doc
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261005210015-1603
+  generated_at: 2026-10-05T13:25:35.116Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-05T13:25:43.382Z

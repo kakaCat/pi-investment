@@ -2578,7 +2578,7 @@
         "tables": [],
         "files": []
       },
-      "acceptance": "跑 `du -sh live_trading/logs` 显著下降；`du -sh .` 合计下降 ≥5G；触发一次日志轮转可见 .1 文件；服务重启后仍能正常写日志。",
+      "acceptance": "1) 体积下降可测：`du -sh .` 与 `du -sh live_trading/logs` 对比清理前（合计约 7.3G → 约 962M）下降 ≥ 5G。\n2) 被清目录已不在：`ls live_trading/logs 2>/dev/null | wc -l` 输出 0。\n3) 服务仍健康：`curl -s --noproxy '*' -o /dev/null -w '%{http_code}' http://127.0.0.1:5001/api/health` 输出 200。\n4) 日志轮转可用：`pytest tests/test_response_utils.py -q` 通过（回归基线不破）。",
       "implementation": "① 先清 live_trading/logs/（5.2G，纯运行日志且 git 跟踪 0）；② 统一到一个 venv（对齐 .python-version 3.13，清掉另一套 642M）；③ 日志轮转（logrotate 或 RotatingFileHandler），覆盖 live_trading/ 与主 logs/；④ 清历史大日志与 htmlcov/（157M）。",
       "context": "",
       "requirementRefs": [],
@@ -2677,7 +2677,7 @@
       ],
       "version": 4,
       "createdAt": 1790838470861,
-      "updatedAt": 1790840626998,
+      "updatedAt": 1791007099601,
       "createdBy": {
         "kind": "agent",
         "sessionId": "session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22"
@@ -3180,7 +3180,7 @@
         "tables": [],
         "files": []
       },
-      "acceptance": "改动已落盘，相关测试或命令跑通并附输出摘要",
+      "acceptance": "1) `cd quantsys-v2 && python -m py_compile adapters/inbound/fastapi_app/main.py` 退出码 0。\n2) `grep -c \"DISABLE_APSCHEDULER\" adapters/inbound/fastapi_app/main.py` ≥ 1（开关真的读到了）。\n3) 默认行为不变：不设该环境变量时启动，日志仍出现 APScheduler 启动记录（`grep -c \"APScheduler\" 启动日志` ≥ 1）。\n4) `pytest tests/test_async_pool_safety.py -q` 全绿（不因该改动回退）。",
       "implementation": "确认现网拉起方式（~/Library/LaunchAgents/com.pi-investment.v2-api.plist 已不存在，需按实际部署方式重建或改用其它守护）；启动 adapters/inbound/fastapi_app/main.py；首次启动经 checkfirst 建 quant.inprocess_job_runs 表。不改业务代码。\n\n[子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要",
       "context": "",
       "parentId": "t-c63378",
@@ -3253,7 +3253,7 @@
       ],
       "version": 4,
       "createdAt": 1790838760941,
-      "updatedAt": 1790838921207,
+      "updatedAt": 1791006974453,
       "createdBy": {
         "kind": "system"
       },
@@ -3324,7 +3324,7 @@
         "tables": [],
         "files": []
       },
-      "acceptance": "接口联调通过：给出请求样例与期望响应，实际返回与预期一致",
+      "acceptance": "1) `curl -s --noproxy '*' -o /dev/null -w '%{http_code}' http://127.0.0.1:5001/docs` 输出 200。\n2) `curl -s --noproxy '*' http://127.0.0.1:5001/api/health` 输出含 `\"status\":\"ok\"` 与 `\"db_connected\":true` 与 `\"framework\":\"fastapi\"`。\n3) 服务进程为 launchd 托管：`launchctl list | grep pi-investment.v2-api` 第 1 列为 PID（非 `-`）。",
       "implementation": "确认现网拉起方式（~/Library/LaunchAgents/com.pi-investment.v2-api.plist 已不存在，需按实际部署方式重建或改用其它守护）；启动 adapters/inbound/fastapi_app/main.py；首次启动经 checkfirst 建 quant.inprocess_job_runs 表。不改业务代码。\n\n[子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致",
       "context": "",
       "parentId": "t-c63378",
@@ -3397,7 +3397,7 @@
       ],
       "version": 4,
       "createdAt": 1790838760941,
-      "updatedAt": 1790838932152,
+      "updatedAt": 1791006981585,
       "createdBy": {
         "kind": "system"
       },
@@ -3613,7 +3613,7 @@
         "tables": [],
         "files": []
       },
-      "acceptance": "目标命令输出全绿（贴命令与结果摘要）",
+      "acceptance": "1) 正负例逐值验证（在 quantsys-v2 下执行）：\n`python -c \"import os;os.environ['DISABLE_APSCHEDULER']='';print(bool(os.getenv('DISABLE_APSCHEDULER')))\"` 类比对空串/false → False；\n`='true'` 与 `='TRUE'` → True；`='1'` → False（与仓内既有开关同口径：只认 true）。\n2) `python -m py_compile adapters/inbound/fastapi_app/main.py` 退出码 0。\n3) `pytest tests/ -q -k scheduler` 的失败数不高于改动前基线。",
       "implementation": "确认现网拉起方式（~/Library/LaunchAgents/com.pi-investment.v2-api.plist 已不存在，需按实际部署方式重建或改用其它守护）；启动 adapters/inbound/fastapi_app/main.py；首次启动经 checkfirst 建 quant.inprocess_job_runs 表。不改业务代码。\n\n[子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）",
       "context": "",
       "parentId": "t-c63378",
@@ -3686,7 +3686,7 @@
       ],
       "version": 4,
       "createdAt": 1790838760941,
-      "updatedAt": 1790838950038,
+      "updatedAt": 1791006986930,
       "createdBy": {
         "kind": "system"
       },
@@ -3755,7 +3755,7 @@
         "tables": [],
         "files": []
       },
-      "acceptance": "改动已落盘，相关测试或命令跑通并附输出摘要",
+      "acceptance": "1) `psql -d quant_investment -At -c \"select count(*) from information_schema.columns where table_schema='quant' and table_name='daily_klines' and column_name in ('market','source')\"` 输出 2（两列都已补上）。\n2) 同口径查测试库：把库名换成 quant_test 同样输出 2（迁移两个库都跑）。\n3) `pytest tests/test_orm_db_drift.py -q` 通过（模型与测试库不再漂移）。",
       "implementation": "服务恢复后按既有链路补跑 kline_update → 因子 → 筹码分布，全部走 DataProviderManager 现有入口，禁止新写脚本绕开数据访问层。\n\n[子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要",
       "context": "",
       "parentId": "t-a4d449",
@@ -3828,7 +3828,7 @@
       ],
       "version": 4,
       "createdAt": 1790839033245,
-      "updatedAt": 1790845077302,
+      "updatedAt": 1791006993589,
       "createdBy": {
         "kind": "system"
       },
@@ -3902,7 +3902,7 @@
         "tables": [],
         "files": []
       },
-      "acceptance": "接口联调通过：给出请求样例与期望响应，实际返回与预期一致",
+      "acceptance": "1) 抽查三只标的的最新日线日期：`psql -d quant_investment -At -c \"select symbol||' '||max(trade_date) from quant.daily_klines where symbol in ('600519','000001','300750') group by 1\"` —— 每只的日期都不早于最近交易日。\n2) `pytest tests/test_freshness_guard.py -q` 全绿（巡检验证不再报 stale）。\n3) 行情接口可用：`curl -s --noproxy '*' -o /dev/null -w '%{http_code}' http://127.0.0.1:5001/api/charts/kline/600519` 输出 200。",
       "implementation": "服务恢复后按既有链路补跑 kline_update → 因子 → 筹码分布，全部走 DataProviderManager 现有入口，禁止新写脚本绕开数据访问层。\n\n[子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致",
       "context": "",
       "parentId": "t-a4d449",
@@ -3975,7 +3975,7 @@
       ],
       "version": 4,
       "createdAt": 1790839033245,
-      "updatedAt": 1790845343060,
+      "updatedAt": 1791006997635,
       "createdBy": {
         "kind": "system"
       },
@@ -4191,7 +4191,7 @@
         "tables": [],
         "files": []
       },
-      "acceptance": "目标命令输出全绿（贴命令与结果摘要）",
+      "acceptance": "1) `psql -d quant_investment -At -c \"select max(trade_date) from quant.daily_klines\"` 输出的日期不早于最近交易日（实测 2026-09-30）。\n2) `psql -d quant_investment -At -c \"select max(factor_date) from quant.factor_values\"` 同期达标。\n3) `pytest tests/e2e/test_l1_data_pipeline.py -q` 全绿。",
       "implementation": "服务恢复后按既有链路补跑 kline_update → 因子 → 筹码分布，全部走 DataProviderManager 现有入口，禁止新写脚本绕开数据访问层。\n\n[子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）",
       "context": "",
       "parentId": "t-a4d449",
@@ -4264,7 +4264,7 @@
       ],
       "version": 4,
       "createdAt": 1790839033245,
-      "updatedAt": 1790845576395,
+      "updatedAt": 1791007003151,
       "createdBy": {
         "kind": "system"
       },
@@ -4334,7 +4334,7 @@
         "tables": [],
         "files": []
       },
-      "acceptance": "改动已落盘，相关测试或命令跑通并附输出摘要",
+      "acceptance": "1) 旧说法只出现在修正语境：`grep -n \"api/server.py\" CLAUDE.md` 的每一处都带「已删除」或「不存在」字样。\n2) `grep -n \"requirements.txt\" CLAUDE.md` 的每一处都说明根目录没有该文件、权威是 pyproject.toml。\n3) `grep -n \"unified_scheduler\" CLAUDE.md` 的每一处都标注已删除；`grep -n \"DATA_ACCESS_GUIDE\" CLAUDE.md` 处均说明该文档已不存在。\n4) 全文不再出现与实测矛盾的入口路径：`grep -c \"python api/\" CLAUDE.md` 输出 0。",
       "implementation": "逐条改写 quantsys-v2/CLAUDE.md：入口路径（api/server.py、cli/main.py）、requirements.txt、DATA_ACCESS_GUIDE.md、Flask 回滚栈、infrastructure/repositories/、unified_scheduler 已删、USE_AGENT_OS_SCHEDULER、launchd plist；同步修 9 份提到 `pip install -r requirements.txt` 的文档。\n\n[子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要",
       "context": "",
       "parentId": "t-f777da",
@@ -4407,7 +4407,7 @@
       ],
       "version": 4,
       "createdAt": 1790840051409,
-      "updatedAt": 1790840123579,
+      "updatedAt": 1791007006802,
       "createdBy": {
         "kind": "system"
       },
@@ -4632,7 +4632,7 @@
         "tables": [],
         "files": []
       },
-      "acceptance": "改动已落盘，相关测试或命令跑通并附输出摘要",
+      "acceptance": "1) 体积下降可测：`du -sh .` 相比清理前（约 7.3G）下降 ≥ 5G（实测约 962M）。\n2) 被清对象确为可再生成/无跟踪：`git ls-files live_trading/logs | wc -l` 输出 0；`git ls-files htmlcov | wc -l` 输出 0。\n3) 文件确已移除：`ls live_trading/logs 2>/dev/null | wc -l` 输出 0；`ls -d htmlcov 2>/dev/null | wc -l` 输出 0。\n4) 清理未伤功能：`pytest tests/ -q --timeout=15 -x` 通过（冒烟命令，实现见 tests/evidence.md）。",
       "implementation": "① 先清 live_trading/logs/（5.2G，纯运行日志且 git 跟踪 0）；② 统一到一个 venv（对齐 .python-version 3.13，清掉另一套 642M）；③ 日志轮转（logrotate 或 RotatingFileHandler），覆盖 live_trading/ 与主 logs/；④ 清历史大日志与 htmlcov/（157M）。\n\n[子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要",
       "context": "",
       "parentId": "t-6a02e6",
@@ -4705,7 +4705,7 @@
       ],
       "version": 4,
       "createdAt": 1790840258146,
-      "updatedAt": 1790840329201,
+      "updatedAt": 1791007103688,
       "createdBy": {
         "kind": "system"
       },
@@ -4781,7 +4781,7 @@
         "tables": [],
         "files": []
       },
-      "acceptance": "接口联调通过：给出请求样例与期望响应，实际返回与预期一致",
+      "acceptance": "1) 服务不受清理影响：`curl -s --noproxy '*' -o /dev/null -w '%{http_code}' http://127.0.0.1:5001/docs` 输出 200；`curl -s --noproxy '*' -o /dev/null -w '%{http_code}' http://127.0.0.1:5001/api/health` 输出 200。\n2) 活跃日志仍在正常写入：`ls -la logs/*.log` 存在，且 `find logs -name '*.log' -newermt '-10 minutes' | wc -l` ≥ 1。",
       "implementation": "① 先清 live_trading/logs/（5.2G，纯运行日志且 git 跟踪 0）；② 统一到一个 venv（对齐 .python-version 3.13，清掉另一套 642M）；③ 日志轮转（logrotate 或 RotatingFileHandler），覆盖 live_trading/ 与主 logs/；④ 清历史大日志与 htmlcov/（157M）。\n\n[子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致",
       "context": "",
       "parentId": "t-6a02e6",
@@ -4854,7 +4854,7 @@
       ],
       "version": 4,
       "createdAt": 1790840258146,
-      "updatedAt": 1790840389818,
+      "updatedAt": 1791007016170,
       "createdBy": {
         "kind": "system"
       },
@@ -5069,7 +5069,7 @@
         "tables": [],
         "files": []
       },
-      "acceptance": "目标命令输出全绿（贴命令与结果摘要）",
+      "acceptance": "1) 轮转生效（正例）：`LOG_FILE=/tmp/rot_v2.log LOG_MAX_BYTES=2048 LOG_BACKUPS=2 python -c \"import logging,os;from infrastructure.logging.config import setup_logging;setup_logging();[logging.getLogger('x').info('l%d'%i) for i in range(150)]\"` 之后 `ls /tmp/rot_v2.log*` 至少出现 `.1` 与 `.2` 两个文件。\n2) 不设 LOG_FILE 时行为不变（反例）：再次执行时不带 LOG_FILE，`ls /tmp/rot_v2.log*` 的文件数不增加。",
       "implementation": "① 先清 live_trading/logs/（5.2G，纯运行日志且 git 跟踪 0）；② 统一到一个 venv（对齐 .python-version 3.13，清掉另一套 642M）；③ 日志轮转（logrotate 或 RotatingFileHandler），覆盖 live_trading/ 与主 logs/；④ 清历史大日志与 htmlcov/（157M）。\n\n[子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）",
       "context": "",
       "parentId": "t-6a02e6",
@@ -5142,7 +5142,7 @@
       ],
       "version": 4,
       "createdAt": 1790840258146,
-      "updatedAt": 1790840561387,
+      "updatedAt": 1791007021173,
       "createdBy": {
         "kind": "system"
       },
@@ -5211,7 +5211,7 @@
         "tables": [],
         "files": []
       },
-      "acceptance": "改动已落盘，相关测试或命令跑通并附输出摘要",
+      "acceptance": "1) 运行时产物已出库：`git ls-files | grep -cE '\\.(pyc|pkl|log)$'` 输出 0；`git ls-files .pi-invest | wc -l` 输出 0；`git ls-files test_reports | wc -l` 输出 0。\n2) 磁盘文件零损失：`git ls-files --deleted | wc -l` 输出 0（出库用 --cached，不动工作区）。",
       "implementation": "① git rm --cached 清 98 个 .pyc/.pkl/.log；② 处理 ignore 规则失效的已入库产物：.pi-invest/ 19 个、test_reports/ 1、data/ 1；③ 决定 scripts/（170）与 tools/（55）是入库还是忽略——当前自相矛盾（.gitignore 写 scripts/ 却仍在跟踪），必须二选一；④ git mv ERROR_TRACKING.md docs/work-logs/2026-09/。\n\n[子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要",
       "context": "",
       "parentId": "t-d4199a",
@@ -5284,7 +5284,7 @@
       ],
       "version": 4,
       "createdAt": 1790840894242,
-      "updatedAt": 1790840942062,
+      "updatedAt": 1791007025385,
       "createdBy": {
         "kind": "system"
       },
@@ -5359,7 +5359,7 @@
         "tables": [],
         "files": []
       },
-      "acceptance": "接口联调通过：给出请求样例与期望响应，实际返回与预期一致",
+      "acceptance": "1) 服务不受影响：`curl -s --noproxy '*' -o /dev/null -w '%{http_code}' http://127.0.0.1:5001/docs` 输出 200。\n2) 被引用的脚本仍可运行：`python tools/analyze_layer_violations.py` 正常输出（退出码 0 或 2，非崩溃）。\n3) 出库对象仍在磁盘：`ls .pi-invest/ml/models/*.pkl 2>/dev/null | wc -l` > 0（或该目录为空但有明确说明）。",
       "implementation": "① git rm --cached 清 98 个 .pyc/.pkl/.log；② 处理 ignore 规则失效的已入库产物：.pi-invest/ 19 个、test_reports/ 1、data/ 1；③ 决定 scripts/（170）与 tools/（55）是入库还是忽略——当前自相矛盾（.gitignore 写 scripts/ 却仍在跟踪），必须二选一；④ git mv ERROR_TRACKING.md docs/work-logs/2026-09/。\n\n[子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致",
       "context": "",
       "parentId": "t-d4199a",
@@ -5432,7 +5432,7 @@
       ],
       "version": 4,
       "createdAt": 1790840894242,
-      "updatedAt": 1790841002072,
+      "updatedAt": 1791007029233,
       "createdBy": {
         "kind": "system"
       },
@@ -5645,7 +5645,7 @@
         "tables": [],
         "files": []
       },
-      "acceptance": "目标命令输出全绿（贴命令与结果摘要）",
+      "acceptance": "1) 索引已干净：`git ls-files | grep -cE '\\.(pyc|pkl|log)$'` 输出 0。\n2) 忽略规则真的生效：`git check-ignore -v scripts/__pycache__/x.pyc` 命中一条 ignore 规则（有输出即算过）。\n3) `.pi-invest` 不再入库：`git ls-files .pi-invest | wc -l` 输出 0。",
       "implementation": "① git rm --cached 清 98 个 .pyc/.pkl/.log；② 处理 ignore 规则失效的已入库产物：.pi-invest/ 19 个、test_reports/ 1、data/ 1；③ 决定 scripts/（170）与 tools/（55）是入库还是忽略——当前自相矛盾（.gitignore 写 scripts/ 却仍在跟踪），必须二选一；④ git mv ERROR_TRACKING.md docs/work-logs/2026-09/。\n\n[子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）",
       "context": "",
       "parentId": "t-d4199a",
@@ -5718,7 +5718,7 @@
       ],
       "version": 4,
       "createdAt": 1790840894242,
-      "updatedAt": 1790841191780,
+      "updatedAt": 1791007033271,
       "createdBy": {
         "kind": "system"
       },
@@ -5788,7 +5788,7 @@
         "tables": [],
         "files": []
       },
-      "acceptance": "改动已落盘，相关测试或命令跑通并附输出摘要",
+      "acceptance": "1) 声明是可解析的：`python -c \"import tomllib,pathlib;d=tomllib.loads(pathlib.Path('pyproject.toml').read_text());print(len(d['project']['dependencies']))\"` 输出 ≥ 49。\n2) 打包可被 pip 接受：`pip install --dry-run --no-deps -e .` 输出含 `Would install quantsys-v2`。\n3) 原 13 个声明一个都没丢：报告中逐条列出对照（如 psycopg2 由 binary 改为源码版需注明）。",
       "implementation": "把 docs/misc/requirements.txt 的 47 个包并入 pyproject.toml；修正 psycopg2-binary → psycopg2（2026-08-11 double-OpenSSL 事故）；在新 venv 验证后再切换生产环境。\n\n[子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要",
       "context": "",
       "parentId": "t-504421",
@@ -5861,7 +5861,7 @@
       ],
       "version": 4,
       "createdAt": 1790843168163,
-      "updatedAt": 1790843246056,
+      "updatedAt": 1791007036387,
       "createdBy": {
         "kind": "system"
       },
@@ -5934,7 +5934,7 @@
         "tables": [],
         "files": []
       },
-      "acceptance": "接口联调通过：给出请求样例与期望响应，实际返回与预期一致",
+      "acceptance": "1) 未声明包扫描的缺口收敛到 ≤ 4 个，且剩余项在报告中逐条给出处置（误报或遗留），不得留白。\n2) 依赖声明与运行时一致：`pip install --dry-run --no-deps -e .` 成功；`python -c \"import fastapi, sqlalchemy, structlog\"` 成功。\n3) 关键运行时依赖被声明：`grep -cE '\"(pybreaker|pydantic-settings|jieba)\"' pyproject.toml` ≥ 3。",
       "implementation": "把 docs/misc/requirements.txt 的 47 个包并入 pyproject.toml；修正 psycopg2-binary → psycopg2（2026-08-11 double-OpenSSL 事故）；在新 venv 验证后再切换生产环境。\n\n[子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致",
       "context": "",
       "parentId": "t-504421",
@@ -6007,7 +6007,7 @@
       ],
       "version": 4,
       "createdAt": 1790843168163,
-      "updatedAt": 1790843378217,
+      "updatedAt": 1791007040452,
       "createdBy": {
         "kind": "system"
       },
@@ -6223,7 +6223,7 @@
         "tables": [],
         "files": []
       },
-      "acceptance": "目标命令输出全绿（贴命令与结果摘要）",
+      "acceptance": "1) `pip install --dry-run --no-deps -e .` 输出含 `Would install quantsys-v2`（版本号以实测为准）。\n2) `python -m py_compile $(git diff --name-only HEAD~1 -- '*.py')` 退出码 0（当次改动文件全部语法通过）。\n3) `pytest tests/ -q --timeout=15` 的失败数不高于改动前基线（基线值须写进报告）。",
       "implementation": "把 docs/misc/requirements.txt 的 47 个包并入 pyproject.toml；修正 psycopg2-binary → psycopg2（2026-08-11 double-OpenSSL 事故）；在新 venv 验证后再切换生产环境。\n\n[子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）",
       "context": "",
       "parentId": "t-504421",
@@ -6296,7 +6296,7 @@
       ],
       "version": 4,
       "createdAt": 1790843168163,
-      "updatedAt": 1790844194906,
+      "updatedAt": 1791007045136,
       "createdBy": {
         "kind": "system"
       },
@@ -6369,7 +6369,7 @@
         "tables": [],
         "files": []
       },
-      "acceptance": "改动已落盘，相关测试或命令跑通并附输出摘要",
+      "acceptance": "1) hook 已装：`git config core.hooksPath` 输出非空路径。\n2) 护栏是可失败的断言：`pytest tests/test_layer_purity.py -q` 通过（含\"违规总数不得超过基线\"一条）。\n3) 基线取自实测而非拍脑袋：`python tools/analyze_layer_violations.py` 输出的违规总数与 tests/test_layer_purity.py 里的 TOTAL_BASELINE 数值一致（若不一致必须在报告中说明差异原因）。",
       "implementation": "① git config core.hooksPath .git-hooks；② .git-hooks/pre-commit 的 BASELINE 7 → 117 并按方向拆分（区分允许的 inbound 与真违规）；③ 新增分层纯净性断言测试（把当前违规数写成断言，只许降不许升）。\n\n[子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要",
       "context": "",
       "parentId": "t-c3a097",
@@ -6442,7 +6442,7 @@
       ],
       "version": 4,
       "createdAt": 1790844271202,
-      "updatedAt": 1790844433664,
+      "updatedAt": 1791007080953,
       "createdBy": {
         "kind": "system"
       },
@@ -6518,7 +6518,7 @@
         "tables": [],
         "files": []
       },
-      "acceptance": "接口联调通过：给出请求样例与期望响应，实际返回与预期一致",
+      "acceptance": "1) 护栏断言可用：`pytest tests/test_layer_purity.py -q` 全绿。\n2) hook 已生效：`git config core.hooksPath` 输出非空；`curl -s --noproxy '*' -o /dev/null -w '%{http_code}' http://127.0.0.1:5001/api/health` 输出 200（钩子/护栏不影响服务装配）。\n3) 违规数取自实测：`python tools/analyze_layer_violations.py` 的输出与 `tests/test_layer_purity.py` 里的 TOTAL_BASELINE 一致（不一致须在报告说明）。",
       "implementation": "① git config core.hooksPath .git-hooks；② .git-hooks/pre-commit 的 BASELINE 7 → 117 并按方向拆分（区分允许的 inbound 与真违规）；③ 新增分层纯净性断言测试（把当前违规数写成断言，只许降不许升）。\n\n[子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致",
       "context": "",
       "parentId": "t-c3a097",
@@ -6591,7 +6591,7 @@
       ],
       "version": 4,
       "createdAt": 1790844271202,
-      "updatedAt": 1790844650773,
+      "updatedAt": 1791007107667,
       "createdBy": {
         "kind": "system"
       },
@@ -6809,7 +6809,7 @@
         "tables": [],
         "files": []
       },
-      "acceptance": "目标命令输出全绿（贴命令与结果摘要）",
+      "acceptance": "1) 门禁全绿：`pytest tests/test_layer_purity.py -q` 通过（含\"违规总数不得超过基线\"）。\n2) 判据可复算：`python tools/analyze_layer_violations.py; echo $?` 退出码为 0 或 2（非崩溃），且其违规总数与 tests/test_layer_purity.py 的 TOTAL_BASELINE 一致。\n3) 回归基线不破：`pytest tests/ -q --timeout=15` 的失败数不高于本次需求开工前的基线（基线见 tests/evidence.md）。",
       "implementation": "① git config core.hooksPath .git-hooks；② .git-hooks/pre-commit 的 BASELINE 7 → 117 并按方向拆分（区分允许的 inbound 与真违规）；③ 新增分层纯净性断言测试（把当前违规数写成断言，只许降不许升）。\n\n[子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）",
       "context": "",
       "parentId": "t-c3a097",
@@ -6882,7 +6882,7 @@
       ],
       "version": 4,
       "createdAt": 1790844271202,
-      "updatedAt": 1790844890814,
+      "updatedAt": 1791007112021,
       "createdBy": {
         "kind": "system"
       },
@@ -6953,7 +6953,7 @@
         "tables": [],
         "files": []
       },
-      "acceptance": "改动已落盘，相关测试或命令跑通并附输出摘要",
+      "acceptance": "1) 探针脚本存在且可自述用法：`python tools/health_probe.py --help` 退出码 0，且列出端口探针与数据新鲜度两组参数。\n2) 退出码语义完整：健康态运行 `python tools/health_probe.py` 退出码 0；探针自身出错时退出码 3（报告中给出构造方式）。\n3) launchd 模板就位：`ls deployment/launchd/ | grep -i health | wc -l` ≥ 1。",
       "implementation": "在外部（不依赖被监控进程）新增 1~2 个探针：进程/端口心跳（5001 + 8080）与数据新鲜度（max(trade_date) 落后最近交易日 >1 天告警）；复用 NotificationFacade，不新写通知通道。\n\n[子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要",
       "context": "",
       "parentId": "t-cf3f82",
@@ -7026,7 +7026,7 @@
       ],
       "version": 4,
       "createdAt": 1790845685462,
-      "updatedAt": 1790845835783,
+      "updatedAt": 1791007049447,
       "createdBy": {
         "kind": "system"
       },
@@ -7103,7 +7103,7 @@
         "tables": [],
         "files": []
       },
-      "acceptance": "接口联调通过：给出请求样例与期望响应，实际返回与预期一致",
+      "acceptance": "1) 按 launchd 的实际调用方式跑通（绝对 venv 解释器 + 绝对脚本路径、不 source、不设 PYTHONPATH）：`/Users/mac/Documents/ai/pi-investment/quantsys-v2/venv/bin/python /Users/mac/Documents/ai/pi-investment/quantsys-v2/tools/health_probe.py; echo $?` 输出 0。\n2) 从任意工作目录启动同样跑通：`cd /tmp && <同上命令>; echo $?` 输出 0（脚本自带 sys.path 引导）。",
       "implementation": "在外部（不依赖被监控进程）新增 1~2 个探针：进程/端口心跳（5001 + 8080）与数据新鲜度（max(trade_date) 落后最近交易日 >1 天告警）；复用 NotificationFacade，不新写通知通道。\n\n[子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致",
       "context": "",
       "parentId": "t-cf3f82",
@@ -7176,7 +7176,7 @@
       ],
       "version": 4,
       "createdAt": 1790845685462,
-      "updatedAt": 1790846000034,
+      "updatedAt": 1791007053015,
       "createdBy": {
         "kind": "system"
       },
@@ -7392,7 +7392,7 @@
         "tables": [],
         "files": []
       },
-      "acceptance": "目标命令输出全绿（贴命令与结果摘要）",
+      "acceptance": "1) 健康态：`python tools/health_probe.py; echo $?` 输出 0。\n2) 服务不可达：`python tools/health_probe.py --api-port 5999; echo $?` 输出 2，且输出中含探针标识与异常项。\n3) 数据过期：`python tools/health_probe.py --max-lag-days 0; echo $?` 输出 2（按卡片点名口径构造过期条件）。",
       "implementation": "在外部（不依赖被监控进程）新增 1~2 个探针：进程/端口心跳（5001 + 8080）与数据新鲜度（max(trade_date) 落后最近交易日 >1 天告警）；复用 NotificationFacade，不新写通知通道。\n\n[子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）",
       "context": "",
       "parentId": "t-cf3f82",
@@ -7465,7 +7465,7 @@
       ],
       "version": 4,
       "createdAt": 1790845685462,
-      "updatedAt": 1790846245153,
+      "updatedAt": 1791007056900,
       "createdBy": {
         "kind": "system"
       },
@@ -7536,7 +7536,7 @@
         "tables": [],
         "files": []
       },
-      "acceptance": "改动已落盘，相关测试或命令跑通并附输出摘要",
+      "acceptance": "1) 无参调用不再返回空壳：`python -c \"from infrastructure.config.settings import get_config; c=get_config(); print(type(c).__name__)\"` 输出的类型不是 dict（应为可属性访问的兼容对象）。\n2) 带键调用取真实值：`python -c \"from infrastructure.config.settings import get_config; print(get_config('PGHOST','FALLBACK'))\"` 输出不是 FALLBACK。\n3) 报告中逐个列出 17 处真实调用方路径，并说明每处取的是哪个键。",
       "implementation": "infrastructure/config/__init__.py 的 get_config 目前只 return default，却有 29 处生产调用（含 persistence/database/engine.py 取 DSN、jwt_manager.py、llm_service.py、websocket_server.py、cli/main.py）。二选一：让 get_config 真读 pydantic settings，或逐处改调用方到 get_settings() 后删除该兼容层，一次性做完。\n\n[子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要",
       "context": "",
       "parentId": "t-649eb9",
@@ -7609,7 +7609,7 @@
       ],
       "version": 4,
       "createdAt": 1790846748298,
-      "updatedAt": 1790846956551,
+      "updatedAt": 1791007060863,
       "createdBy": {
         "kind": "system"
       },
@@ -7685,7 +7685,7 @@
         "tables": [],
         "files": []
       },
-      "acceptance": "接口联调通过：给出请求样例与期望响应，实际返回与预期一致",
+      "acceptance": "1) 真实调用方逐个可跑（报告中列出 7 条路径），至少覆盖：`python -c \"from infrastructure.persistence.database.engine import get_engine; get_engine(); print('engine-ok')\"` 输出 `engine-ok`。\n2) 各视图取得到值：`python -c \"from infrastructure.config.settings import get_config as g; c=g(); print(bool(c.database.url), bool(c.async_url), bool(c.redis.host))\"` 三个均为 True。\n3) `pytest tests/ -q -k config` 的失败数不高于改动前基线。",
       "implementation": "infrastructure/config/__init__.py 的 get_config 目前只 return default，却有 29 处生产调用（含 persistence/database/engine.py 取 DSN、jwt_manager.py、llm_service.py、websocket_server.py、cli/main.py）。二选一：让 get_config 真读 pydantic settings，或逐处改调用方到 get_settings() 后删除该兼容层，一次性做完。\n\n[子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致",
       "context": "",
       "parentId": "t-649eb9",
@@ -7758,7 +7758,7 @@
       ],
       "version": 4,
       "createdAt": 1790846748298,
-      "updatedAt": 1790847072475,
+      "updatedAt": 1791007066917,
       "createdBy": {
         "kind": "system"
       },
@@ -7975,7 +7975,7 @@
         "tables": [],
         "files": []
       },
-      "acceptance": "目标命令输出全绿（贴命令与结果摘要）",
+      "acceptance": "1) `python -c \"from infrastructure.config.settings import get_config; print(get_config('PGHOST','FALLBACK'))\"` 输出真实值（如 127.0.0.1），不是 FALLBACK。\n2) `python -c \"from infrastructure.config.settings import get_config; print(type(get_config()).__name__)\"` 的类型名不等于 `dict`（改前返回 `{}`，属性访问必抛 AttributeError）。\n3) `pytest tests/ -q -k config` 无新增失败。",
       "implementation": "infrastructure/config/__init__.py 的 get_config 目前只 return default，却有 29 处生产调用（含 persistence/database/engine.py 取 DSN、jwt_manager.py、llm_service.py、websocket_server.py、cli/main.py）。二选一：让 get_config 真读 pydantic settings，或逐处改调用方到 get_settings() 后删除该兼容层，一次性做完。\n\n[子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）",
       "context": "",
       "parentId": "t-649eb9",
@@ -8048,7 +8048,7 @@
       ],
       "version": 4,
       "createdAt": 1790846748298,
-      "updatedAt": 1790847381416,
+      "updatedAt": 1791007070836,
       "createdBy": {
         "kind": "system"
       },
@@ -15356,5 +15356,5 @@
     }
   ],
   "ready": [],
-  "updated_at": "2026-10-02T03:07:59.633Z"
+  "updated_at": "2026-10-03T05:58:32.029Z"
 }

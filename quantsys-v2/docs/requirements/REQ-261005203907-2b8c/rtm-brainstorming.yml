@@ -1,0 +1,56 @@
+metadata:
+  stage: brainstorming
+  requirement_id: REQ-261005203907-2b8c
+  generated_at: 2026-10-05T12:42:27.868Z
+  version: 5
+  generated_by: dsh-pmboard
+  rtm_version: "2.0"
+  last_updated: 2026-10-05T13:11:12.146Z
+outputs:
+  requirements:
+    - id: FR-1
+      title: DailyJobs 任务可声明"只在交易日执行"
+      source: requirement.md
+      line: 115
+    - id: FR-2
+      title: 交易日门必须 fail-open
+      source: requirement.md
+      line: 120
+    - id: FR-3
+      title: 跳过 = 留痕 + 不打扰
+      source: requirement.md
+      line: 126
+    - id: FR-4
+      title: 范围内 4 个任务的逐任务语义
+      source: requirement.md
+      line: 131
+    - id: FR-5
+      title: 跳过不得引发补跑，人工仍可强制
+      source: requirement.md
+      line: 138
+    - id: FR-6
+      title: 回归锁与真实观察
+      source: requirement.md
+      line: 143
+  prototypes: []
+  decisions:
+    - id: D-1
+      source: 立项弹框作答（本窗口，2026-10-05 20:39）：名称「DailyJobs 宿主接入交易日门：休市日不再开火（pool_daily_refresh 等）」/ 类型 feature / 难度 expert / 文档位置 `docs/requirements/<REQ>/`
+      verdict: 本工作立项为 **feature**，难度 expert，文档落 `docs/requirements/REQ-261005203907-2b8c/`
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+      criterion: "`reqboard_status` 显示本窗口绑定 REQ-261005203907-2b8c；六条 FR 的「条款接收状态」在拆分落库后由 FR-1~FR-6 逐条承接"
+    - id: D-2
+      source: 本窗口用户消息（2026-10-05 20:41）：「A（我推荐）」
+      verdict: 范围取 **A**：门做成 `JobDef` 通用标志，先挂到 4 个"吃当日行情数据"的工作日任务（`pool_daily_refresh` / `evening_pipeline` / `chip_distribution` / `evolution_fitness`）；`freshness_guard` / `watch_rule_health` 保持工作日
+      serves:
+        - FR-1
+        - FR-4
+      criterion: FR-4 的单测逐任务断言：4 个在册任务在休市日判 skip；另外 5 个任务行为不变
+status:
+  artifacts: []

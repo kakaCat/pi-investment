@@ -13,15 +13,61 @@ scheduler_daemon 不再承担该职责（见 tests/api/test_orchestrator_bootstr
 """
 import threading
 from datetime import datetime
-from typing import Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import structlog
 
+from application.services.trading_day_gate import should_skip
 from domain.trading.services.market_session_policy import MarketSessionPolicy
 
 logger = structlog.get_logger(__name__)
 
 _TICK_INTERVAL_SEC = 60
+
+#: 日级预过滤的路径标识（受控二值，进日志 path 字段）——REQ-261006130750-0654
+PATH_ORCHESTRATOR_TICK = 'orchestrator_tick'
+PATH_INTRADAY_MONITOR = 'intraday_monitor'
+
+#: 跳过日志去噪：path -> day（同一 path 同一天只留第一条）。
+#: 内存态：进程重启即清，最坏后果 = 当天多一条跳过日志，无副作用。
+_LAST_SKIP_LOG: Dict[str, str] = {}
+
+
+def _should_run_today(now: datetime, *, path: str) -> Tuple[bool, Dict[str, Any]]:
+    """A 层（循环）日级预过滤——REQ-261006130750-0654 FR-2 / FR-3。**永不抛、不发通知**。
+
+    fail-open 铁律：**只有「日历明确答该跳过」才返回 `(False, info)`**；任何降级来源
+    （`weekday_fallback` / `unavailable` / `compute-error` / `gate-error`）一律**照跑**——
+    本层唯一的收益是省一次无信息量的重算，绝不能换成一次静默停摆。
+
+    判据唯一来源 = `application.services.trading_day_gate.should_skip('trading-days', now)`；
+    本函数内**不得**出现 `weekday()` 或直接查交易日历（那会成为第二份判定，明令禁止）。
+
+    跳过时按 `(path, day)` 去噪记一条 info 日志：编排线程休市日会命中 600 次/天，
+    逐次刷屏会淹没真正有用的留痕（盘中监控 10 次/天同理）。
+    """
+    try:
+        skip, info = should_skip('trading-days', now)
+    except Exception as e:  # noqa: BLE001 - should_skip 的契约是「绝不抛」，这里只是双保险
+        logger.error('orchestrator_trading_day_gate_raised', path=path, error=str(e))
+        return True, {'degraded': True, 'reason': f'gate raised: {e}'}
+
+    if not skip:
+        return True, info
+
+    day = str(info.get('day') or '')
+    if _LAST_SKIP_LOG.get(path) != day:
+        _LAST_SKIP_LOG[path] = day
+        logger.info(
+            'orchestrator_trading_day_skip',
+            path=path,
+            day=day,
+            is_trading_day=info.get('is_trading_day'),
+            source=info.get('source'),
+            degraded=info.get('degraded'),
+            reason=info.get('reason'),
+        )
+    return False, info
 
 
 def _in_orchestrator_window(now: datetime) -> bool:
@@ -30,13 +76,11 @@ def _in_orchestrator_window(now: datetime) -> bool:
     注意：这不是「市况判定」而是「编排器允许跑 tick 的时段」（含盘前/盘后），
     故**不**收敛到 `MarketSessionPolicy`（策略表达的是相位，不是运行时段）。
 
-    ⚠️ 日级这里**刻意保持 weekday 近似**，不接 `TradingDayGuard`（2026-09-12 审查后回退）。
-    两个实测理由：① 该守卫是 **fail-closed** 的（数据源异常 → 保守判非交易日并缓存 60s），
-    而本函数是「钱路」任务的唯一门 —— 接上去会让 DB 一抖就静默停掉 T+1 结转与止损
-    （正是本文件头注释记的"编排器静默死亡"事故）；② 长假后**首个交易日**（与上一根 K 线
-    间隔 >7 天）会被其"近 7 日有 K 线"启发式误判为非交易日，整个交易日的 T+1/止损不跑。
-    要真正支持节假日，需要一个**故障时降级为 weekday 而非判 False** 的日级来源
-    ——属待定设计（RFC 016 §8.1 第 9 项）。
+    ⚠️ 日级判据**不在本函数**（REQ-261006130750-0654）：2026-10-06 起由调用点
+    `_should_run_today()` 承担（fail-open 交易日门）。本函数只回答"时段"。
+    原先「刻意保持 weekday 近似、不接 TradingDayGuard」的两个实测理由已被那道门覆盖：
+    ① 门在任何降级来源下**一律照跑**，不会因数据源一抖就静默停掉 T+1 结转与止损；
+    ② 长假后首个交易日按**当日日历口径**判（覆盖命中即照跑），不受"近 7 日有 K 线"启发式影响。
     """
     return now.weekday() < 5 and 8 <= now.hour <= 17
 
@@ -48,7 +92,9 @@ def _in_intraday_window(now: datetime) -> bool:
     11:30 / 15:00 端点闭合沿用既有语义）。`:00 / :30` 是**节拍**约束（原 daemon cron），
     与市况无关，保留在此。
 
-    日级同 `_in_orchestrator_window`：保持 weekday 近似，理由见该函数 docstring。
+    日级同 `_in_orchestrator_window`：**不在本函数**，由调用点 `_should_run_today()` 把关
+    （fail-open 交易日门，REQ-261006130750-0654）；此处 `is_trading_day` 一律为真，是
+    "时段"语义所需，不是日级判据。
     """
     if now.minute not in (0, 30):
         return False
@@ -66,9 +112,17 @@ def _monitor_loop(stop_event: threading.Event) -> None:
         now = datetime.now()
         try:
             if _in_orchestrator_window(now):
-                monitor_jobs.daily_orchestrator_tick()
+                # A 层日级预过滤（REQ-261006130750-0654 FR-2）：休市日连调用都不发生。
+                # 内层 daily_orchestrator 的 fail-closed 守卫**保持不变**（钱路语义），
+                # 本层只负责"省掉每分钟一次的空转调用"。
+                run, _info = _should_run_today(now, path=PATH_ORCHESTRATOR_TICK)
+                if run:
+                    monitor_jobs.daily_orchestrator_tick()
             if _in_intraday_window(now):
-                monitor_jobs.intraday_monitor_check()
+                # 同上（FR-1）：本层预过滤；check() 首部另有权威门兜住旁路调用。
+                run, _info = _should_run_today(now, path=PATH_INTRADAY_MONITOR)
+                if run:
+                    monitor_jobs.intraday_monitor_check()
         except Exception as e:
             # 单次 tick 失败不能杀死线程——否则编排器再次静默死亡
             logger.error(f"orchestrator/monitor tick error: {e}", exc_info=True)

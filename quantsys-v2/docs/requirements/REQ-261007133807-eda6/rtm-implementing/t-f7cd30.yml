@@ -1,0 +1,37 @@
+task:
+  id: t-f7cd30
+  title: 规则写入口缺省显式化（含批量与输入校验）·测试
+  status: in_progress
+  implements: |-
+    adapters/inbound/fastapi_app/routes/watch_async.py：新建规则走单一路由 POST /api/watch/rules，缺省或 null 的 escalation_policy 一律写入 EscalationPolicy.default().to_dict()（同文件的 PUT/PATCH 与批量分支复用同一 helper，不改各自的字段白名单）；新增校验 anomaly_change_pct 必须为正数、auto_escalate 可解析为布尔。测试 tests/adapters/test_watch_rules_api_policy.py。
+
+    [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+  serves: []
+  depends_on:
+    - t-2dc03f
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261007133807-eda6
+    TASK_ID: t-f7cd30
+    TASK_TITLE: 规则写入口缺省显式化（含批量与输入校验）·测试
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: pending
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261007133807-eda6
+  generated_at: 2026-10-07T11:05:26.816Z
+  version: 2
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-07T11:05:26.817Z

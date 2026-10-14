@@ -1,0 +1,38 @@
+task:
+  id: t-0b6aaf
+  title: 执行期接门与跳过落账（含 manual 旁路）·测试
+  status: done
+  implements: |-
+    修改 infrastructure/scheduler/job_executor.py：execute_scheduled_job(task_id, manual=False) 透传到 _execute_scheduled_job_impl(task_id, manual=manual)；在 is_enabled 检查之后、并发检查之前插入门：manual=True 直接放行；否则 policy = task.get('trading_day_policy') or 'always'、skip, info = should_skip(policy, now)，skip 为真时 create_run 后调 complete_run_skipped(run_id, result={'skipped':True,'reason':info['reason'],'trading_day_source':info['source'],'degraded':info['degraded'],'policy':policy})，打一行 info 日志并 return——不调 _execute_command、不调 _report_failure_to_sink、不发 Agent OS 事件、不写 last_error。照跑路径逐字不变（门放执行期正是 FR-7 免 reload 生效的机制）。新增 tests/infrastructure/test_scheduler_skip_ledger.py 覆盖四条负向断言。
+
+    [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+  serves: []
+  depends_on:
+    - t-cddd7a
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261006093620-a315
+    TASK_ID: t-0b6aaf
+    TASK_TITLE: 执行期接门与跳过落账（含 manual 旁路）·测试
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-06T02:00:23.640Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006093620-a315
+  generated_at: 2026-10-06T02:00:13.998Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-06T02:00:23.641Z

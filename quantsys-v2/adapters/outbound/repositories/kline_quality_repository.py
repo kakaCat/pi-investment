@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import logging
 from datetime import date as _date
-from typing import Optional
+from typing import Collection, Optional
 
 from sqlalchemy import func
 
@@ -30,21 +30,40 @@ class KlineQualityRepository(BaseORMRepository[KlineDataQuality]):
 
     model = KlineDataQuality
 
-    def count_by_grade_on(self, grade: str, day: Optional[_date] = None) -> int:
-        """某日某评级的记录数（默认今天）。
+    def count_by_grade_on(
+        self,
+        grade: str,
+        day: Optional[_date] = None,
+        symbols: Optional[Collection[str]] = None,
+    ) -> int:
+        """某日某评级的 **distinct 标的** 数（默认今天）。
 
-        口径与原 SQL 一致：按 created_at 的**日期**过滤（该表没有 check_date 列，
-        只有 created_at 时间戳），故用 func.date(created_at)，与 PostgreSQL 的
-        DATE(created_at) 等价。
+        2026-10-06（REQ-261006163444-8e4f）：**语义修正 —— 原实现数的是行数**
+        （``count(id)``）。同一标的同一天可能被写入多行（当天跑了两次就写两行），
+        于是"00:00 自动 + 13:48 手动"直接把 D 级报成 806（真值 404 只），
+        触发了一条纯属虚构的告警。现改为 ``count(distinct symbol)``：
+        回答"有多少只标的被评为该级"，而不是"写了几行"。
+
+        口径不变的部分：仍按 ``created_at`` 的**日期**过滤（该表没有 check_date 列，
+        只有 created_at 时间戳），故用 ``func.date(created_at)``，与 PostgreSQL 的
+        ``DATE(created_at)`` 等价；``symbols`` 非空时限定在该集合内
+        （供域内计数与"与内存统计交叉核对"使用）。
+
+        异常策略不变：失败先回滚再上抛（原因见下方注释）。
         """
         target = day or _date.today()
         try:
-            return int(
-                self.session.query(func.count(KlineDataQuality.id))
+            query = (
+                self.session.query(func.count(func.distinct(KlineDataQuality.symbol)))
                 .filter(func.date(KlineDataQuality.created_at) == target)
                 .filter(KlineDataQuality.grade == grade)
-                .scalar() or 0
             )
+            if symbols is not None:
+                wanted = [str(s) for s in symbols]
+                if not wanted:
+                    return 0
+                query = query.filter(KlineDataQuality.symbol.in_(wanted))
+            return int(query.scalar() or 0)
         except Exception:
             # 失败必须回滚：调用方（data_quality_check_job）在长流水线末尾做这个查询，
             # 此时同线程的 scoped_session 上可能挂着已 aborted 的事务 ——

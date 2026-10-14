@@ -1,0 +1,732 @@
+metadata:
+  stage: decomposing
+  requirement_id: REQ-261007101318-c392
+  generated_at: 2026-10-07T05:41:28.844Z
+  version: 71
+  generated_by: dsh-pmboard
+  rtm_version: "2.0"
+  last_updated: 2026-10-07T06:00:20.291Z
+inputs:
+  requirements: []
+  design_sections:
+    - ref: design/architecture.md#落点与依赖方向
+      title: 落点与依赖方向（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/architecture.md
+      section: 落点与依赖方向
+    - ref: design/architecture.md#为什么闸门必须落在-tick
+      title: 为什么闸门必须落在 `tick()`（
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 为什么闸门必须落在-tick
+    - ref: design/architecture.md#为什么级别与闭环必须解耦
+      title: 为什么级别与闭环必须解耦（
+      serves:
+        - FR-4
+      file: design/architecture.md
+      section: 为什么级别与闭环必须解耦
+    - ref: design/architecture.md#为什么审计挂在渠道服务层
+      title: 为什么审计挂在渠道服务层（
+      serves:
+        - FR-3
+      file: design/architecture.md
+      section: 为什么审计挂在渠道服务层
+    - ref: design/architecture.md#失败与降级纪律
+      title: 失败与降级纪律（
+      serves:
+        - FR-3
+        - FR-1
+        - FR-2
+      file: design/architecture.md
+      section: 失败与降级纪律
+    - ref: design/architecture.md#与既有机制的关系不改动避免重复
+      title: 与既有机制的关系（不改动，避免重复）（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/architecture.md
+      section: 与既有机制的关系不改动避免重复
+    - ref: design/architecture.md#文件结构新建-修改-删除
+      title: 文件结构（新建 / 修改 / 删除）（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/architecture.md
+      section: 文件结构新建-修改-删除
+    - ref: design/data-model.md#1
+      title: 新增表 `quant.notification_audit`（
+      serves:
+        - FR-3
+      file: design/data-model.md
+      section: "1"
+    - ref: design/data-model.md#字段与语义
+      title: 字段与语义（
+      serves:
+        - FR-3
+      file: design/data-model.md
+      section: 字段与语义
+    - ref: design/data-model.md#关键决定为什么是-upsert-而不是追加
+      title: 关键决定：为什么是 **upsert** 而不是追加（
+      serves:
+        - FR-3
+      file: design/data-model.md
+      section: 关键决定为什么是-upsert-而不是追加
+    - ref: design/data-model.md#关键决定为什么不建-ORM-模型
+      title: 关键决定：为什么**不**建 ORM 模型（
+      serves:
+        - FR-3
+      file: design/data-model.md
+      section: 关键决定为什么不建-ORM-模型
+    - ref: design/data-model.md#迁移与回滚
+      title: 迁移与回滚（
+      serves:
+        - FR-3
+      file: design/data-model.md
+      section: 迁移与回滚
+    - ref: design/data-model.md#2
+      title: 不动的既有表与理由（
+      serves:
+        - FR-3
+      file: design/data-model.md
+      section: "2"
+    - ref: design/data-model.md#3
+      title: 数据契约变更（
+      serves:
+        - FR-2
+        - FR-4
+      file: design/data-model.md
+      section: "3"
+    - ref: design/interfaces.md#1
+      title: "`WatchEngine`（"
+      serves:
+        - FR-1
+        - FR-4
+      file: design/interfaces.md
+      section: "1"
+    - ref: design/interfaces.md#1.1
+      title: 构造注入（新增两个可选参数）（
+      serves:
+        - FR-1
+        - FR-4
+      file: design/interfaces.md
+      section: "1.1"
+    - ref: design/interfaces.md#1.2
+      title: "`_resolve_trading_day(day) -> (bool, str)`（"
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: "1.2"
+    - ref: design/interfaces.md#1.3
+      title: "`tick() -> List[dict]`（行为契约收紧）（"
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: "1.3"
+    - ref: design/interfaces.md#1.4
+      title: "`WatchNotifier.notify(..., closed_loop: bool = True)`（"
+      serves:
+        - FR-4
+      file: design/interfaces.md
+      section: "1.4"
+    - ref: design/interfaces.md#2
+      title: "`WatchNotifier`（"
+      serves:
+        - FR-2
+        - FR-3
+      file: design/interfaces.md
+      section: "2"
+    - ref: design/interfaces.md#3
+      title: "`NotificationFacade.send_watch_triggered(...)`（"
+      serves:
+        - FR-3
+        - FR-4
+      file: design/interfaces.md
+      section: "3"
+    - ref: design/interfaces.md#3.1
+      title: "`application/notification/sender_identity.current_sender_id(kind='v2-watch') -> str`（"
+      serves:
+        - FR-3
+      file: design/interfaces.md
+      section: "3.1"
+    - ref: design/interfaces.md#4
+      title: 卡面内容契约（
+      serves:
+        - FR-2
+        - FR-4
+      file: design/interfaces.md
+      section: "4"
+    - ref: design/interfaces.md#5
+      title: 审计仓储（
+      serves:
+        - FR-3
+      file: design/interfaces.md
+      section: "5"
+    - ref: design/interfaces.md#6
+      title: 查询接口（人/agent 用，
+      serves:
+        - FR-3
+      file: design/interfaces.md
+      section: "6"
+    - ref: design/use-cases.md#UC-1-休市日被提醒
+      title: UC-1 · 休市日被"提醒"（
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: UC-1-休市日被提醒
+    - ref: design/use-cases.md#UC-2-交易日真的跌穿了
+      title: UC-2 · 交易日真的跌穿了（
+      serves:
+        - FR-2
+        - FR-4
+      file: design/use-cases.md
+      section: UC-2-交易日真的跌穿了
+    - ref: design/use-cases.md#UC-3-规则没标意图-名称查不到
+      title: UC-3 · 规则没标意图 / 名称查不到（
+      serves:
+        - FR-2
+        - FR-4
+      file: design/use-cases.md
+      section: UC-3-规则没标意图-名称查不到
+    - ref: design/use-cases.md#UC-4-又收到一张来路不明的卡
+      title: UC-4 · 又收到一张"来路不明"的卡（
+      serves:
+        - FR-3
+      file: design/use-cases.md
+      section: UC-4-又收到一张来路不明的卡
+    - ref: design/use-cases.md#UC-5-闭环未开启时的措辞
+      title: UC-5 · 闭环未开启时的措辞（
+      serves:
+        - FR-4
+      file: design/use-cases.md
+      section: UC-5-闭环未开启时的措辞
+    - ref: design/use-cases.md#UC-6-审计库不可用-通知渠道抖动
+      title: UC-6 · 审计库不可用 / 通知渠道抖动（
+      serves:
+        - FR-3
+      file: design/use-cases.md
+      section: UC-6-审计库不可用-通知渠道抖动
+    - ref: design/use-cases.md#UC-7-复市首日回执
+      title: UC-7 · 复市首日回执（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/use-cases.md
+      section: UC-7-复市首日回执
+outputs:
+  tasks:
+    - id: t-268fbd
+      title: FR-1 休市日闸门：tick() 日级收敛到 TradingDayGuard（回填）
+      implements: application/services/watch_engine/engine.py：新增 _resolve_trading_day(day) 作为 tick() 与 run_forever() 的唯一日级入口（默认 TradingDayGuard.check，支持 is_trading_day_fn/trading_day_verdict_fn 注入）；tick() 前置改为「日级 + 时段」双闸门，未开市时调用 _log_market_closed() 按日去重留痕后 return []（不取规则、不评估、不落库、不外发）；判定异常一律保守判非交易日。新增 tests/services/test_watch_engine_trading_day_gate.py 锁定四条行为。
+      serves:
+        - FR-1
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-d5d9b6
+      title: FR-2 名称兜底：禁止把代码当名称（回填）
+      implements: application/services/watch_engine/notifier.py：facade 调用改为 name=payload.name or None（删除 name or symbol 的混同）；_lookup_stock_name 的取数口径并入领域端口实现 PgStockNameResolver.resolve_batch（与 SLA 巡检/回执同一份，异常/未命中返回 None）。infrastructure/notification/formatters/feishu_formatters.py：旧渲染路径名称缺失时显式输出「{代码}（名称缺失）」，不再回落成裸代码。tests/notification/test_req_c392_notification_contract.py 增补名称相关断言。
+      serves:
+        - FR-2
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-633d3f
+      title: FR-3 外发审计 + 来源标识（回填，含建表迁移）
+      implements: 新建 adapters/outbound/repositories/notification_audit_repository.py（一通知一行 upsert，失败自吞不上抛）；新建 infrastructure/persistence/migrations/20261007_notification_audit_table.py（CREATE TABLE IF NOT EXISTS quant.notification_audit + 3 索引 + lock_timeout=30s，两库都跑）；新建 application/notification/sender_identity.py（v2-watch@<host>#<pid>）；application/notification/notification_factory.py 装配审计仓储（失败降级 None）；application/notification/notification_facade.py 把 sender_id 写入 variables 与 metadata；domain/notification/services/notification_service.py 在 send 与 send_with_fallback 的三处 save 点写入 delivery_channel/delivered/fallback_cause；新增 tests/notification/test_notification_audit_repository.py。
+      serves:
+        - FR-3
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-c76181
+      title: FR-4 文案契约：意图/处置级别 + 闭环承诺解耦（回填）
+      implements: application/services/watch_engine/engine.py：_notify_level 去掉 todo_service is None 的早退（级别恒解析），notify_kwargs 增加 closed_loop=(todo_service is not None)。dto.py：TriggerPayload 增加 closed_loop 并随 variables 下发。notification_facade.py、watch_level_templates.py、feishu_formatters.py：新增「处置级别」行（TRIGGER_LEVEL_META）与来源尾注；闭环承诺（处置入口/不可静默/回执位/待办#）改由 closed_loop 门控。翻新三处旧契约测试：tests/application/test_watch_disposition_engine.py（替身接受 level/closed_loop）、test_watch_t12_todo_creation.py、test_watch_t12_wiring.py。
+      serves:
+        - FR-4
+      depends_on:
+        - t-d5d9b6
+      phase: implement
+      side: backend
+    - id: t-c926cd
+      title: 补齐设计登记的未覆盖用例（run_forever 整环 / 跳过留痕去重 / 装配失败降级）
+      implements: 扩展 tests/services/test_watch_engine_trading_day_gate.py：用 now_fn 序列 + _stopped 标志驱动 run_forever 跑两轮，断言休市日不调用 tick（可用打桩计数）；新增用例断言 _log_market_closed 的按日去重（同日多次调用只留一条留痕）；扩展 tests/notification/test_notification_audit_repository.py 或新增用例，断言 notification_factory 在审计仓储装配失败时降级为 repository=None 且通知仍发出。
+      serves:
+        - FR-1
+        - FR-3
+      depends_on:
+        - t-268fbd
+        - t-633d3f
+      phase: test
+      side: backend
+    - id: t-2e590d
+      title: 真实交易日回执 + 验收材料（时间型）
+      implements: 2026-10-08（节后首个交易日）盘后执行：select occurred_at,title,delivery_channel,delivered,sender_id from quant.notification_audit where occurred_at::date='2026-10-08' order by occurred_at desc limit 20；以及 select triggered_at,symbol,left(detail::text,120) from quant.watch_triggers where triggered_at::date='2026-10-08' order by triggered_at desc limit 10；把两组输出摘要写入 docs/requirements/REQ-261007101318-c392/verification.md 作为 reqboard_submit(kind=verification) 的证据。
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      depends_on:
+        - t-c926cd
+      phase: test
+      side: backend
+    - id: t-dcdeb1
+      title: FR-1 休市日闸门：tick() 日级收敛到 TradingDayGuard（回填）·研发
+      implements: |-
+        application/services/watch_engine/engine.py：新增 _resolve_trading_day(day) 作为 tick() 与 run_forever() 的唯一日级入口（默认 TradingDayGuard.check，支持 is_trading_day_fn/trading_day_verdict_fn 注入）；tick() 前置改为「日级 + 时段」双闸门，未开市时调用 _log_market_closed() 按日去重留痕后 return []（不取规则、不评估、不落库、不外发）；判定异常一律保守判非交易日。新增 tests/services/test_watch_engine_trading_day_gate.py 锁定四条行为。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-b33b0b
+      title: FR-1 休市日闸门：tick() 日级收敛到 TradingDayGuard（回填）·复核
+      implements: |-
+        application/services/watch_engine/engine.py：新增 _resolve_trading_day(day) 作为 tick() 与 run_forever() 的唯一日级入口（默认 TradingDayGuard.check，支持 is_trading_day_fn/trading_day_verdict_fn 注入）；tick() 前置改为「日级 + 时段」双闸门，未开市时调用 _log_market_closed() 按日去重留痕后 return []（不取规则、不评估、不落库、不外发）；判定异常一律保守判非交易日。新增 tests/services/test_watch_engine_trading_day_gate.py 锁定四条行为。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/REQ-261007101318-c392/design/` 逐条核对；`npx vitest run tests/` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-dcdeb1
+      phase: implement
+      side: backend
+    - id: t-e58107
+      title: FR-1 休市日闸门：tick() 日级收敛到 TradingDayGuard（回填）·测试
+      implements: |-
+        application/services/watch_engine/engine.py：新增 _resolve_trading_day(day) 作为 tick() 与 run_forever() 的唯一日级入口（默认 TradingDayGuard.check，支持 is_trading_day_fn/trading_day_verdict_fn 注入）；tick() 前置改为「日级 + 时段」双闸门，未开市时调用 _log_market_closed() 按日去重留痕后 return []（不取规则、不评估、不落库、不外发）；判定异常一律保守判非交易日。新增 tests/services/test_watch_engine_trading_day_gate.py 锁定四条行为。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-b33b0b
+      phase: implement
+      side: backend
+    - id: t-e5a244
+      title: FR-2 名称兜底：禁止把代码当名称（回填）·研发
+      implements: |-
+        application/services/watch_engine/notifier.py：facade 调用改为 name=payload.name or None（删除 name or symbol 的混同）；_lookup_stock_name 的取数口径并入领域端口实现 PgStockNameResolver.resolve_batch（与 SLA 巡检/回执同一份，异常/未命中返回 None）。infrastructure/notification/formatters/feishu_formatters.py：旧渲染路径名称缺失时显式输出「{代码}（名称缺失）」，不再回落成裸代码。tests/notification/test_req_c392_notification_contract.py 增补名称相关断言。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-e75a19
+      title: FR-2 名称兜底：禁止把代码当名称（回填）·复核
+      implements: |-
+        application/services/watch_engine/notifier.py：facade 调用改为 name=payload.name or None（删除 name or symbol 的混同）；_lookup_stock_name 的取数口径并入领域端口实现 PgStockNameResolver.resolve_batch（与 SLA 巡检/回执同一份，异常/未命中返回 None）。infrastructure/notification/formatters/feishu_formatters.py：旧渲染路径名称缺失时显式输出「{代码}（名称缺失）」，不再回落成裸代码。tests/notification/test_req_c392_notification_contract.py 增补名称相关断言。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/REQ-261007101318-c392/design/` 逐条核对；`npx vitest run tests/` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-e5a244
+      phase: implement
+      side: backend
+    - id: t-62e64a
+      title: FR-2 名称兜底：禁止把代码当名称（回填）·测试
+      implements: |-
+        application/services/watch_engine/notifier.py：facade 调用改为 name=payload.name or None（删除 name or symbol 的混同）；_lookup_stock_name 的取数口径并入领域端口实现 PgStockNameResolver.resolve_batch（与 SLA 巡检/回执同一份，异常/未命中返回 None）。infrastructure/notification/formatters/feishu_formatters.py：旧渲染路径名称缺失时显式输出「{代码}（名称缺失）」，不再回落成裸代码。tests/notification/test_req_c392_notification_contract.py 增补名称相关断言。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-e75a19
+      phase: implement
+      side: backend
+    - id: t-b2f010
+      title: FR-3 外发审计 + 来源标识（回填，含建表迁移）·研发
+      implements: |-
+        新建 adapters/outbound/repositories/notification_audit_repository.py（一通知一行 upsert，失败自吞不上抛）；新建 infrastructure/persistence/migrations/20261007_notification_audit_table.py（CREATE TABLE IF NOT EXISTS quant.notification_audit + 3 索引 + lock_timeout=30s，两库都跑）；新建 application/notification/sender_identity.py（v2-watch@<host>#<pid>）；application/notification/notification_factory.py 装配审计仓储（失败降级 None）；application/notification/notification_facade.py 把 sender_id 写入 variables 与 metadata；domain/notification/services/notification_service.py 在 send 与 send_with_fallback 的三处 save 点写入 delivery_channel/delivered/fallback_cause；新增 tests/notification/test_notification_audit_repository.py。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-890eb7
+      title: FR-3 外发审计 + 来源标识（回填，含建表迁移）·复核
+      implements: |-
+        新建 adapters/outbound/repositories/notification_audit_repository.py（一通知一行 upsert，失败自吞不上抛）；新建 infrastructure/persistence/migrations/20261007_notification_audit_table.py（CREATE TABLE IF NOT EXISTS quant.notification_audit + 3 索引 + lock_timeout=30s，两库都跑）；新建 application/notification/sender_identity.py（v2-watch@<host>#<pid>）；application/notification/notification_factory.py 装配审计仓储（失败降级 None）；application/notification/notification_facade.py 把 sender_id 写入 variables 与 metadata；domain/notification/services/notification_service.py 在 send 与 send_with_fallback 的三处 save 点写入 delivery_channel/delivered/fallback_cause；新增 tests/notification/test_notification_audit_repository.py。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/REQ-261007101318-c392/design/` 逐条核对；`npx vitest run tests/` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-b2f010
+      phase: implement
+      side: backend
+    - id: t-e669c6
+      title: FR-3 外发审计 + 来源标识（回填，含建表迁移）·测试
+      implements: |-
+        新建 adapters/outbound/repositories/notification_audit_repository.py（一通知一行 upsert，失败自吞不上抛）；新建 infrastructure/persistence/migrations/20261007_notification_audit_table.py（CREATE TABLE IF NOT EXISTS quant.notification_audit + 3 索引 + lock_timeout=30s，两库都跑）；新建 application/notification/sender_identity.py（v2-watch@<host>#<pid>）；application/notification/notification_factory.py 装配审计仓储（失败降级 None）；application/notification/notification_facade.py 把 sender_id 写入 variables 与 metadata；domain/notification/services/notification_service.py 在 send 与 send_with_fallback 的三处 save 点写入 delivery_channel/delivered/fallback_cause；新增 tests/notification/test_notification_audit_repository.py。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-890eb7
+      phase: implement
+      side: backend
+    - id: t-00bd50
+      title: FR-4 文案契约：意图/处置级别 + 闭环承诺解耦（回填）·研发
+      implements: |-
+        application/services/watch_engine/engine.py：_notify_level 去掉 todo_service is None 的早退（级别恒解析），notify_kwargs 增加 closed_loop=(todo_service is not None)。dto.py：TriggerPayload 增加 closed_loop 并随 variables 下发。notification_facade.py、watch_level_templates.py、feishu_formatters.py：新增「处置级别」行（TRIGGER_LEVEL_META）与来源尾注；闭环承诺（处置入口/不可静默/回执位/待办#）改由 closed_loop 门控。翻新三处旧契约测试：tests/application/test_watch_disposition_engine.py（替身接受 level/closed_loop）、test_watch_t12_todo_creation.py、test_watch_t12_wiring.py。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-d5d9b6
+      phase: implement
+      side: backend
+    - id: t-2af346
+      title: FR-4 文案契约：意图/处置级别 + 闭环承诺解耦（回填）·复核
+      implements: |-
+        application/services/watch_engine/engine.py：_notify_level 去掉 todo_service is None 的早退（级别恒解析），notify_kwargs 增加 closed_loop=(todo_service is not None)。dto.py：TriggerPayload 增加 closed_loop 并随 variables 下发。notification_facade.py、watch_level_templates.py、feishu_formatters.py：新增「处置级别」行（TRIGGER_LEVEL_META）与来源尾注；闭环承诺（处置入口/不可静默/回执位/待办#）改由 closed_loop 门控。翻新三处旧契约测试：tests/application/test_watch_disposition_engine.py（替身接受 level/closed_loop）、test_watch_t12_todo_creation.py、test_watch_t12_wiring.py。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/REQ-261007101318-c392/design/` 逐条核对；`npx vitest run tests/` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-00bd50
+      phase: implement
+      side: backend
+    - id: t-7dcdbb
+      title: FR-4 文案契约：意图/处置级别 + 闭环承诺解耦（回填）·测试
+      implements: |-
+        application/services/watch_engine/engine.py：_notify_level 去掉 todo_service is None 的早退（级别恒解析），notify_kwargs 增加 closed_loop=(todo_service is not None)。dto.py：TriggerPayload 增加 closed_loop 并随 variables 下发。notification_facade.py、watch_level_templates.py、feishu_formatters.py：新增「处置级别」行（TRIGGER_LEVEL_META）与来源尾注；闭环承诺（处置入口/不可静默/回执位/待办#）改由 closed_loop 门控。翻新三处旧契约测试：tests/application/test_watch_disposition_engine.py（替身接受 level/closed_loop）、test_watch_t12_todo_creation.py、test_watch_t12_wiring.py。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-2af346
+      phase: implement
+      side: backend
+    - id: t-2ae248
+      title: 补齐设计登记的未覆盖用例（run_forever 整环 / 跳过留痕去重 / 装配失败降级）·研发
+      implements: |-
+        扩展 tests/services/test_watch_engine_trading_day_gate.py：用 now_fn 序列 + _stopped 标志驱动 run_forever 跑两轮，断言休市日不调用 tick（可用打桩计数）；新增用例断言 _log_market_closed 的按日去重（同日多次调用只留一条留痕）；扩展 tests/notification/test_notification_audit_repository.py 或新增用例，断言 notification_factory 在审计仓储装配失败时降级为 repository=None 且通知仍发出。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-268fbd
+        - t-633d3f
+      phase: test
+      side: backend
+    - id: t-8ccf53
+      title: 补齐设计登记的未覆盖用例（run_forever 整环 / 跳过留痕去重 / 装配失败降级）·复核
+      implements: |-
+        扩展 tests/services/test_watch_engine_trading_day_gate.py：用 now_fn 序列 + _stopped 标志驱动 run_forever 跑两轮，断言休市日不调用 tick（可用打桩计数）；新增用例断言 _log_market_closed 的按日去重（同日多次调用只留一条留痕）；扩展 tests/notification/test_notification_audit_repository.py 或新增用例，断言 notification_factory 在审计仓储装配失败时降级为 repository=None 且通知仍发出。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/REQ-261007101318-c392/design/` 逐条核对；`npx vitest run tests/` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-2ae248
+      phase: test
+      side: backend
+    - id: t-094f32
+      title: 补齐设计登记的未覆盖用例（run_forever 整环 / 跳过留痕去重 / 装配失败降级）·测试
+      implements: |-
+        扩展 tests/services/test_watch_engine_trading_day_gate.py：用 now_fn 序列 + _stopped 标志驱动 run_forever 跑两轮，断言休市日不调用 tick（可用打桩计数）；新增用例断言 _log_market_closed 的按日去重（同日多次调用只留一条留痕）；扩展 tests/notification/test_notification_audit_repository.py 或新增用例，断言 notification_factory 在审计仓储装配失败时降级为 repository=None 且通知仍发出。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-8ccf53
+      phase: test
+      side: backend
+    - id: t-8d7c74
+      title: 真实交易日回执 + 验收材料（时间型）·研发
+      implements: |-
+        2026-10-08（节后首个交易日）盘后执行：select occurred_at,title,delivery_channel,delivered,sender_id from quant.notification_audit where occurred_at::date='2026-10-08' order by occurred_at desc limit 20；以及 select triggered_at,symbol,left(detail::text,120) from quant.watch_triggers where triggered_at::date='2026-10-08' order by triggered_at desc limit 10；把两组输出摘要写入 docs/requirements/REQ-261007101318-c392/verification.md 作为 reqboard_submit(kind=verification) 的证据。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-c926cd
+      phase: test
+      side: backend
+    - id: t-f240da
+      title: 真实交易日回执 + 验收材料（时间型）·复核
+      implements: |-
+        2026-10-08（节后首个交易日）盘后执行：select occurred_at,title,delivery_channel,delivered,sender_id from quant.notification_audit where occurred_at::date='2026-10-08' order by occurred_at desc limit 20；以及 select triggered_at,symbol,left(detail::text,120) from quant.watch_triggers where triggered_at::date='2026-10-08' order by triggered_at desc limit 10；把两组输出摘要写入 docs/requirements/REQ-261007101318-c392/verification.md 作为 reqboard_submit(kind=verification) 的证据。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/REQ-261007101318-c392/design/` 逐条核对；`npx vitest run tests/` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-8d7c74
+      phase: test
+      side: backend
+    - id: t-a346aa
+      title: 真实交易日回执 + 验收材料（时间型）·测试
+      implements: |-
+        2026-10-08（节后首个交易日）盘后执行：select occurred_at,title,delivery_channel,delivered,sender_id from quant.notification_audit where occurred_at::date='2026-10-08' order by occurred_at desc limit 20；以及 select triggered_at,symbol,left(detail::text,120) from quant.watch_triggers where triggered_at::date='2026-10-08' order by triggered_at desc limit 10；把两组输出摘要写入 docs/requirements/REQ-261007101318-c392/verification.md 作为 reqboard_submit(kind=verification) 的证据。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-f240da
+      phase: test
+      side: backend
+task_coverage:
+  - task_id: t-268fbd
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-d5d9b6
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-633d3f
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-c76181
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-c926cd
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-2e590d
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-dcdeb1
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-b33b0b
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-e58107
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-e5a244
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-e75a19
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-62e64a
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-b2f010
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-890eb7
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-e669c6
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-00bd50
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-2af346
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-7dcdbb
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-2ae248
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-8ccf53
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-094f32
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-8d7c74
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-f240da
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-a346aa
+    covers_prototypes: []
+    covers_decisions: []
+traceability:
+  design_to_tasks:
+    design/architecture.md#落点与依赖方向:
+      - t-268fbd
+      - t-d5d9b6
+      - t-633d3f
+      - t-c76181
+      - t-c926cd
+      - t-2e590d
+    design/architecture.md#为什么闸门必须落在-tick:
+      - t-268fbd
+      - t-c926cd
+      - t-2e590d
+    design/architecture.md#为什么级别与闭环必须解耦:
+      - t-c76181
+      - t-2e590d
+    design/architecture.md#为什么审计挂在渠道服务层:
+      - t-633d3f
+      - t-c926cd
+      - t-2e590d
+    design/architecture.md#失败与降级纪律:
+      - t-268fbd
+      - t-d5d9b6
+      - t-633d3f
+      - t-c926cd
+      - t-2e590d
+    design/architecture.md#与既有机制的关系不改动避免重复:
+      - t-268fbd
+      - t-d5d9b6
+      - t-633d3f
+      - t-c926cd
+      - t-2e590d
+    design/architecture.md#文件结构新建-修改-删除:
+      - t-268fbd
+      - t-d5d9b6
+      - t-633d3f
+      - t-c76181
+      - t-c926cd
+      - t-2e590d
+    design/data-model.md#1:
+      - t-633d3f
+      - t-c926cd
+      - t-2e590d
+    design/data-model.md#字段与语义:
+      - t-633d3f
+      - t-c926cd
+      - t-2e590d
+    design/data-model.md#关键决定为什么是-upsert-而不是追加:
+      - t-633d3f
+      - t-c926cd
+      - t-2e590d
+    design/data-model.md#关键决定为什么不建-ORM-模型:
+      - t-633d3f
+      - t-c926cd
+      - t-2e590d
+    design/data-model.md#迁移与回滚:
+      - t-633d3f
+      - t-c926cd
+      - t-2e590d
+    design/data-model.md#2:
+      - t-633d3f
+      - t-c926cd
+      - t-2e590d
+    design/data-model.md#3:
+      - t-d5d9b6
+      - t-c76181
+      - t-2e590d
+    design/interfaces.md#1:
+      - t-268fbd
+      - t-c76181
+      - t-c926cd
+      - t-2e590d
+    design/interfaces.md#1.1:
+      - t-268fbd
+      - t-c76181
+      - t-c926cd
+      - t-2e590d
+    design/interfaces.md#1.2:
+      - t-268fbd
+      - t-c926cd
+      - t-2e590d
+    design/interfaces.md#1.3:
+      - t-268fbd
+      - t-c926cd
+      - t-2e590d
+    design/interfaces.md#1.4:
+      - t-c76181
+      - t-2e590d
+    design/interfaces.md#2:
+      - t-d5d9b6
+      - t-633d3f
+      - t-c926cd
+      - t-2e590d
+    design/interfaces.md#3:
+      - t-633d3f
+      - t-c76181
+      - t-c926cd
+      - t-2e590d
+    design/interfaces.md#3.1:
+      - t-633d3f
+      - t-c926cd
+      - t-2e590d
+    design/interfaces.md#4:
+      - t-d5d9b6
+      - t-c76181
+      - t-2e590d
+    design/interfaces.md#5:
+      - t-633d3f
+      - t-c926cd
+      - t-2e590d
+    design/interfaces.md#6:
+      - t-633d3f
+      - t-c926cd
+      - t-2e590d
+    design/use-cases.md#UC-1-休市日被提醒:
+      - t-268fbd
+      - t-c926cd
+      - t-2e590d
+    design/use-cases.md#UC-2-交易日真的跌穿了:
+      - t-d5d9b6
+      - t-c76181
+      - t-2e590d
+    design/use-cases.md#UC-3-规则没标意图-名称查不到:
+      - t-d5d9b6
+      - t-c76181
+      - t-2e590d
+    design/use-cases.md#UC-4-又收到一张来路不明的卡:
+      - t-633d3f
+      - t-c926cd
+      - t-2e590d
+    design/use-cases.md#UC-5-闭环未开启时的措辞:
+      - t-c76181
+      - t-2e590d
+    design/use-cases.md#UC-6-审计库不可用-通知渠道抖动:
+      - t-633d3f
+      - t-c926cd
+      - t-2e590d
+    design/use-cases.md#UC-7-复市首日回执:
+      - t-268fbd
+      - t-d5d9b6
+      - t-633d3f
+      - t-c76181
+      - t-c926cd
+      - t-2e590d
+  fr_to_tasks:
+    FR-1:
+      - t-268fbd
+      - t-d5d9b6
+      - t-633d3f
+      - t-c76181
+      - t-c926cd
+      - t-2e590d
+    FR-2:
+      - t-268fbd
+      - t-d5d9b6
+      - t-633d3f
+      - t-c76181
+      - t-c926cd
+      - t-2e590d
+    FR-3:
+      - t-268fbd
+      - t-d5d9b6
+      - t-633d3f
+      - t-c76181
+      - t-c926cd
+      - t-2e590d
+    FR-4:
+      - t-268fbd
+      - t-d5d9b6
+      - t-633d3f
+      - t-c76181
+      - t-c926cd
+      - t-2e590d
+coverage:
+  implementation:
+    total: 32
+    covered: 32
+    uncovered: []
+    rate: 100
+    total_designs: 32
+    covered_designs: 32

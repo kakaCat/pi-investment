@@ -1,0 +1,35 @@
+task:
+  id: t-b952d0
+  title: 写日期表驱动回归用例（含降级与周末语义）
+  status: done
+  implements: 新增 tests/test_trading_day_resolver.py；注入假日历与假 provider，零网络零 DB。覆盖 test-cases.md 用例 1-7（10-04→09-30、10-02 16:00→09-30、10-08 15:29→09-30、10-08 15:30→10-08、09-25→09-24、09-26→09-24、09-29→09-28）。覆盖降级用例 8-10：表空走 provider、provider 抛异常→weekday_fallback 且不抛、返回空→降级并记 warning（caplog 断言）。
+  serves:
+    - FR-1
+    - FR-4
+  depends_on:
+    - t-dc66e2
+  phase: test
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261004102115-d3de
+    TASK_ID: t-b952d0
+    TASK_TITLE: 写日期表驱动回归用例（含降级与周末语义）
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: test
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: test
+      status: done
+      completed_at: 2026-10-04T02:27:43.214Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261004102115-d3de
+  generated_at: 2026-10-04T02:27:37.186Z
+  version: 7
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-04T02:28:25.350Z

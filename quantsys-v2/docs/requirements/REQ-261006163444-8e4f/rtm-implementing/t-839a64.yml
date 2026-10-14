@@ -1,0 +1,35 @@
+task:
+  id: t-839a64
+  title: 新增分域纯函数模块 kline_domain.py（契约先行）
+  status: done
+  implements: 新建 application/services/kline_domain.py，按设计 interfaces 文档 §1 定死符号：DomainSnapshot（frozen dataclass，字段照抄）、classify_domain(trade_dates_desc, symbol_last_dates)、build_domain_snapshot(kline_repo)；常量 TRADABLE_MAX_GAP=0 / STOCK_MIN_GAP=5 / UNKNOWN_GAP=9999。gap = rank(D_last) - rank(mx)（交易日倒序名次，D_last 名次 1）；mx 不在交易日集合 ⇒ 9999。dropped_new = {s | gap == 1}；dropped_known = prev_trade_date is not None；查询/解析异常收敛为 degraded=True + degrade_reason（不抛）。本卡只写模块与 docstring，不接线到作业。
+  serves:
+    - FR-1
+    - FR-3
+  depends_on: []
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261006163444-8e4f
+    TASK_ID: t-839a64
+    TASK_TITLE: 新增分域纯函数模块 kline_domain.py（契约先行）
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      started_at: 2026-10-06T08:42:20.416Z
+      completed_at: 2026-10-06T08:43:00.442Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006163444-8e4f
+  generated_at: 2026-10-06T08:42:13.437Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-06T08:44:18.916Z

@@ -99,3 +99,53 @@ class TestComputeAllAccounts:
         upsert = fitness_repo.upsert_fitness.call_args.kwargs
         assert upsert['status'] in ('data_gap', 'no_trades')
         assert result['computed'] == 1
+
+
+class TestHonestStateCounts:
+    """计数语义必须诚实（REQ-261005210015-1603 t-89b1f4，FR-4）。
+
+    取证：现场 5 行全 NULL（2 条 insufficient_sample + 3 条 no_trades）却报 computed=5，
+    卡片据此发 ✅。改后：`computed` 只表示**遍历到的账户数**，唯一可称「算出来了」的是
+    `computed_ok`；四类计数 + other 恒等于 accounts_total。
+    """
+
+    def _four_states(self):
+        """四种状态各一个账户：ok / no_trades / insufficient_sample / data_gap。"""
+        end = date(2026, 8, 5)
+        bench = _make_window(end)
+        full = [MagicMock(snapshot_date=date.fromisoformat(d), daily_return=r, total_value=100000)
+                for d, r in bench.items()]
+        few = [MagicMock(snapshot_date=date.fromisoformat(d), daily_return=r, total_value=100000)
+               for d, r in list(bench.items())[:3]]
+        return end, bench, _make_service(
+            {'ok_a': full, 'notrade_a': full, 'insuff_a': few, 'gap_a': []},
+            bench, {'ok_a': 3, 'notrade_a': 0, 'insuff_a': 3, 'gap_a': 3})
+
+    def test_state_counts_sum_to_accounts_total(self):
+        end, _bench, (svc, _repo) = self._four_states()
+        r = svc.compute_all_accounts(window_end=end, window_days=20)
+        assert r['accounts_total'] == 4
+        assert (r['computed_ok'] + r['insufficient_sample'] + r['no_trades']
+                + r['data_gap'] + r['other']) == r['accounts_total']
+        assert (r['computed_ok'], r['no_trades'], r['data_gap'], r['insufficient_sample']) == (1, 1, 1, 1)
+
+    def test_null_rows_not_counted_as_ok(self):
+        end, _bench, (svc, _repo) = self._four_states()
+        r = svc.compute_all_accounts(window_end=end, window_days=20)
+        assert r['computed_ok'] == 1
+        assert r['computed_ok'] < r['accounts_total']
+
+    def test_skipped_key_removed(self):
+        end, _bench, (svc, _repo) = self._four_states()
+        r = svc.compute_all_accounts(window_end=end, window_days=20)
+        assert 'skipped' not in r
+
+    def test_computed_key_kept_for_compat(self):
+        end, _bench, (svc, _repo) = self._four_states()
+        r = svc.compute_all_accounts(window_end=end, window_days=20)
+        assert r['computed'] == r['accounts_total'] == 4
+
+    def test_aligned_days_reported(self):
+        end, bench, (svc, _repo) = self._four_states()
+        r = svc.compute_all_accounts(window_end=end, window_days=20)
+        assert r['aligned_days'] == len(bench) == 20

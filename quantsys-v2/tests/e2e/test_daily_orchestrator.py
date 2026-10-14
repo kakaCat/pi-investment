@@ -135,12 +135,29 @@ class TestManualTrigger:
         assert 'error' in result
         assert '未知任务' in result['error']
 
-    def test_trigger_known_job_returns_success(self):
+    def test_trigger_known_job_returns_success(self, monkeypatch):
+        from adapters.inbound.fastapi_app.daily_jobs import runtime as host_runtime
         from adapters.inbound.fastapi_app.daily_jobs_bootstrap import JOBS
+        # REQ-261003150739-b98d FR-2：本用例原先用真 `trigger_job` 直接拉起**真 handler**
+        # （JOBS[0] = watch_rule_health）——既在测试库里跑了生产逻辑，又经 NotificationFacade
+        # **真实外发** 2 张卡片（▶️ 开始 + ✅ 完成）。现在把 `_run_job` 打桩成记录器：
+        # 只验证 trigger_job 的返回契约与「确实把任务派发到后台线程」，不执行任何 handler。
+        # 打桩点仍须落在**实现所在模块**（runtime）——见设计 design/interfaces.md 的契约一节。
+        started = []
+        dispatched = threading.Event()
+
+        def _record(job, run_date):
+            started.append((job.job_id, run_date))
+            dispatched.set()
+
+        monkeypatch.setattr(host_runtime, '_run_job', _record)
+
         if len(JOBS) > 0:
             job_id = JOBS[0].job_id
             result = trigger_job(job_id, force=True)
             assert result['success'] is True
+            assert dispatched.wait(timeout=5), 'trigger_job 未在 5s 内派发后台任务'
+            assert started[0][0] == job_id, started
 
 
 class TestSchedulerLifecycle:

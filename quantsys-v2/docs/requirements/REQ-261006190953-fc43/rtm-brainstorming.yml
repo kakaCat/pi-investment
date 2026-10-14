@@ -1,0 +1,57 @@
+metadata:
+  stage: brainstorming
+  requirement_id: REQ-261006190953-fc43
+  generated_at: 2026-10-06T11:13:04.061Z
+  version: 6
+  generated_by: dsh-pmboard
+  rtm_version: "2.0"
+  last_updated: 2026-10-06T12:42:57.746Z
+outputs:
+  requirements: []
+  prototypes: []
+  decisions:
+    - id: D-1
+      source: 本窗口用户消息（2026-10-06 19:0x）：「【业绩归因】超额不可得（基准滞后）｜组合窗口 +3.99%，回撤 −0.36%｜缺口已补跑」＋「里面没有把节假日过滤了」
+      verdict: 本现象立项；定性为**"交易日口径缺门"在净值链上的残留**（与 `REQ-261006093620-a315` 是同一洞的两半）
+      serves:
+        - FR-1
+        - FR-8
+      criterion: "`reqboard_status` 显示本窗口绑定 `REQ-261006190953-fc43`；E1~E7 为现象取证"
+    - id: D-2
+      source: 立项弹框作答（本窗口，2026-10-06 19:09）：名称「业绩归因/风险指标窗口未按交易日取数：剔除周末与节假日的净值点」/ 类型 feature / 难度 expert / 文档位置 `docs/requirements/<REQ>/`
+      verdict: 本工作立项为 **feature**，难度 `expert`，文档落 `docs/requirements/REQ-261006190953-fc43/`
+      serves:
+        - FR-1
+        - FR-8
+      criterion: 本文件存在且经 `reqboard_submit(kind=requirement)` 登记
+    - id: D-3
+      source: 本窗口弹框作答（范围）：「全部都要修：写入端 + 读取端 + 缺口探测统一走交易日口径（推荐）」
+      verdict: 范围含**三层**：写入闸门、读取过滤、缺口探测；跨仓到 `agent-dh`
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      criterion: 「不做什么」第 5/6 条排除仓储双轨重构与前端；判定标准 1/2/4 逐层给可跑判据
+    - id: D-4
+      source: 本窗口弹框作答（存量脏行）：「删掉这 35 行，并重算受影响的日收益/回撤链（推荐）」
+      verdict: 存量 35 行**删除**（先备份），并重算 `daily_return`/`drawdown`/`peak_value`/`max_drawdown`
+      serves:
+        - FR-6
+        - FR-7
+      criterion: 判定标准 5/6：非交易日行数 = 0 且重算零差异
+    - id: D-5
+      source: 本窗口弹框作答（基准是否入范围）：「不入范围：只修节假日/交易日口径，基准滞后单独立项（推荐）」
+      verdict: 「基准滞后 / 超额不可得」**不进本需求**，单独立项
+      serves:
+        - FR-8
+      criterion: 「成功长什么样」与判定标准均不含"超额可用"这一表述；「不做什么」第 1 条为排除项
+    - id: D-6
+      source: 本窗口弹框作答（实施期 2026-10-06 20:0x，实施中实测触发）：「改谓词：日历覆盖范围内 + 不在日历清单里 → 删（白名单语义）」
+      verdict: 删除谓词改用**白名单语义**：非交易日 = 覆盖范围内 **且** 不在交易日清单里；"防误删"改由**覆盖范围**承担（`min~max(trade_date)` 之外一律不动）。推翻 `design/data-model.md` §3 原谓词
+      serves:
+        - FR-6
+        - FR-7
+      criterion: 实测生产日历 23373 行 `is_trading_day` 全为 true（无一条 false），旧谓词匹配 0 行；改后生产 dry-run 命中 **35 行**且库内零改动
+status:
+  artifacts: []

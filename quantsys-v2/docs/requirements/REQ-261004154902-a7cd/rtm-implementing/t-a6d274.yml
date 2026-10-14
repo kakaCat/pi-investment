@@ -1,0 +1,39 @@
+task:
+  id: t-a6d274
+  title: 新增结果契约与失败可见性出口·复核
+  status: done
+  implements: |-
+    新增 application/observability/run_outcome.py（RunOutcome 值对象：executed/action/reason/error/detail，ok 只由 executed and error is None 派生，reason 受控枚举，to_dict 为既有字段超集）与 application/observability/failure_sink.py（report_failure(source, reason, error, severity, context)：先结构化日志再经 NotificationFacade 外发，自身绝不抛异常）；新增 tests/test_run_outcome.py、tests/test_failure_sink.py。不改动任何既有算法。
+
+    [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+  serves: []
+  depends_on:
+    - t-934549
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261004154902-a7cd
+    TASK_ID: t-a6d274
+    TASK_TITLE: 新增结果契约与失败可见性出口·复核
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      started_at: 2026-10-04T08:06:09.684Z
+      completed_at: 2026-10-04T08:06:09.906Z
+    - phase: review
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261004154902-a7cd
+  generated_at: 2026-10-04T08:05:50.153Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-04T08:06:09.906Z

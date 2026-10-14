@@ -1,197 +1,124 @@
 #!/usr/bin/env python
-"""
-V13模拟交易定时任务完整测试
+"""V13 定时任务的**接线**测试（REQ-261004154902-a7cd · t2 / FR-1 / FR-2）。
 
-测试内容：
-1. Job模块导入和执行
-2. Scheduler Handler调用
-3. 完整任务执行流程
+## 2026-10-04 重写说明（这是一次「假绿灯」清理）
+
+原文件三条 `test_*` 的写法是 `return True / return False`——pytest **忽略返回值**，
+于是它们在控制台打印「❌ Job执行失败」「❌ 任务不存在」的同时报 **3 passed**。
+实测输出（改前）：
+
+    tests/test_v13_scheduler.py ... 3 passed, 4 warnings
+    （-s 可见：❌ Job执行失败 / ❌ 任务不存在）
+
+现在改为**真断言**，并且不再依赖库里那条 `v13-simulation-trading` 任务行是否存在
+（它会随运维动作启用/停用，例如 2026-10-04 的止血就把它停用了）——
+改为断言**接线关系**：job 薄壳转发、handler 转发、注册脚本的定义意图。
 """
-import os
-import sys
+from __future__ import annotations
+
+import re
 from pathlib import Path
-from dotenv import load_dotenv
 
-# 添加项目路径
-project_root = Path(__file__).parent.parent
+import pytest
 
-# 加载环境变量
-load_dotenv()
-
-def test_job():
-    """测试Job模块"""
-    print("="*70)
-    print("[1/3] 测试Job模块")
-    print("="*70)
-
-    try:
-        from infrastructure.jobs.strategy_trading_job import v13_daily_check as execute
-        print("✅ Job模块导入成功")
-
-        result = execute(
-            model_path='live_trading/models/v13_model.json',
-            factors_path='live_trading/models/valid_factors.json',
-            enable_stop_loss=True,
-            enable_rebalance=True
-        )
-
-        print(f"\n执行结果:")
-        print(f"  状态: {result.get('status')}")
-        print(f"  消息: {result.get('message')}")
-
-        if result.get('status') == 'success':
-            print(f"  最终资产: ¥{result.get('final_value', 0):,.2f}")
-            print(f"  持仓数量: {result.get('positions', 0)}只")
-            print("\n✅ Job执行成功")
-            return True
-        else:
-            print(f"  错误: {result.get('error')}")
-            print("\n❌ Job执行失败")
-            return False
-
-    except Exception as e:
-        print(f"\n❌ 测试失败: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
+PROJECT_ROOT = Path(__file__).parent.parent
 
 
-def test_handler():
-    """测试Scheduler Handler"""
-    print("\n" + "="*70)
-    print("[2/3] 测试Scheduler Handler")
-    print("="*70)
+# ── [1/3] job 薄壳必须转发到统一实现 ────────────────────────────────────────
 
-    try:
-        from infrastructure.scheduler.scheduler import SchedulerService
+def test_job_module_delegates_to_unified_service(monkeypatch):
+    """`v13_daily_check` 是兼容薄壳：必须把 'v13' 转发给统一入口。"""
+    from infrastructure.jobs import strategy_trading_job as job
 
-        scheduler = SchedulerService()
-        print("✅ Scheduler初始化成功")
+    forwarded = {}
 
-        result = scheduler._handle_v13_daily_check({
-            'model_path': 'live_trading/models/v13_model.json',
-            'factors_path': 'live_trading/models/valid_factors.json',
-            'enable_stop_loss': True,
-            'enable_rebalance': True
-        })
+    def fake_strategy_daily_check(strategy_name, **params):
+        forwarded['strategy_name'] = strategy_name
+        forwarded['params'] = params
+        return {'strategy': strategy_name, 'status': 'success'}
 
-        print(f"\nHandler执行结果:")
-        print(f"  状态: {result.get('status')}")
-        print(f"  消息: {result.get('message')}")
+    monkeypatch.setattr(job, 'strategy_daily_check', fake_strategy_daily_check)
 
-        if result.get('status') == 'success':
-            print(f"  最终资产: ¥{result.get('final_value', 0):,.2f}")
-            print(f"  持仓数量: {result.get('positions', 0)}只")
-            print("\n✅ Handler执行成功")
-            return True
-        else:
-            print(f"  错误: {result.get('error')}")
-            print("\n❌ Handler执行失败")
-            return False
+    result = job.v13_daily_check(enable_stop_loss=True, enable_rebalance=True)
 
-    except Exception as e:
-        print(f"\n❌ 测试失败: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
+    assert forwarded['strategy_name'] == 'v13'
+    assert forwarded['params'] == {'enable_stop_loss': True, 'enable_rebalance': True}
+    assert result['strategy'] == 'v13'
 
 
-def test_full_task():
-    """测试完整任务执行"""
-    print("\n" + "="*70)
-    print("[3/3] 测试完整任务执行")
-    print("="*70)
+def test_job_module_is_importable():
+    from infrastructure.jobs.strategy_trading_job import v13_daily_check
 
-    try:
-        from infrastructure.scheduler.scheduler import SchedulerService
-
-        scheduler = SchedulerService()
-
-        # 获取任务
-        task = scheduler.get_task_by_name('v13-simulation-trading')
-        if not task:
-            print("❌ 任务不存在，请先运行注册脚本")
-            return False
-
-        print(f"✅ 找到任务: {task['name']} (ID: {task['id']})")
-        print(f"   Cron: {task['cron_expression']}")
-        print(f"   命令: {task['command']}")
-        print(f"   下次执行: {task['next_run_at']}")
-
-        # 手动执行任务
-        print("\n手动触发任务执行...")
-        result = scheduler.run_task(task['id'])
-
-        print(f"\n任务执行结果:")
-        print(f"  任务ID: {result.get('task_id')}")
-        print(f"  任务名: {result.get('task_name')}")
-        print(f"  运行ID: {result.get('run_id')}")
-        print(f"  状态: {result.get('status')}")
-
-        if result.get('result'):
-            job_result = result['result']
-            print(f"  Job结果:")
-            print(f"    状态: {job_result.get('status')}")
-            print(f"    最终资产: ¥{job_result.get('final_value', 0):,.2f}")
-            print(f"    持仓数量: {job_result.get('positions', 0)}只")
-
-        if result.get('status') == 'success':
-            print("\n✅ 完整任务执行成功")
-            return True
-        else:
-            print(f"\n❌ 任务执行失败: {result.get('error')}")
-            return False
-
-    except Exception as e:
-        print(f"\n❌ 测试失败: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
+    assert callable(v13_daily_check)
 
 
-def main():
-    print("\n" + "="*70)
-    print("V13模拟交易定时任务 - 完整测试")
-    print("="*70)
+# ── [2/3] scheduler handler 必须转发到 job ─────────────────────────────────
 
-    results = []
+def test_scheduler_handler_delegates_to_job(monkeypatch):
+    """`SchedulerService._handle_v13_daily_check` 只做转发，参数原样透传。"""
+    from infrastructure.scheduler.scheduler import SchedulerService
 
-    # 测试1: Job模块
-    results.append(("Job模块", test_job()))
+    captured = {}
 
-    # 测试2: Handler
-    results.append(("Scheduler Handler", test_handler()))
+    def fake_execute(**params):
+        captured.update(params)
+        return {'status': 'success', 'task': 'v13_daily_check'}
 
-    # 测试3: 完整任务
-    results.append(("完整任务执行", test_full_task()))
+    # handler 内部是延迟导入（`from ... import v13_daily_check as execute`），
+    # 所以打在定义模块上才生效（打桩点规则见 CLAUDE.md）
+    monkeypatch.setattr(
+        'infrastructure.jobs.strategy_trading_job.v13_daily_check',
+        fake_execute,
+        raising=True,
+    )
 
-    # 总结
-    print("\n" + "="*70)
-    print("测试总结")
-    print("="*70)
+    scheduler = object.__new__(SchedulerService)  # 跳过 __init__ 的 DB 依赖
+    result = scheduler._handle_v13_daily_check({'enable_rebalance': False})
 
-    all_passed = True
-    for i, (name, passed) in enumerate(results, 1):
-        status = "✅ 通过" if passed else "❌ 失败"
-        print(f"[{i}/3] {name}: {status}")
-        if not passed:
-            all_passed = False
-
-    if all_passed:
-        print("\n🎉 所有测试通过！")
-        print("\n系统状态:")
-        print("  ✅ V13模型已训练（68因子，IC=0.5465）")
-        print("  ✅ 定时任务已注册（工作日14:30）")
-        print("  ✅ Job执行正常")
-        print("  ✅ 模拟盘运行中（7只持仓）")
-        print("\n定时任务将在每个交易日14:30自动执行")
-    else:
-        print("\n⚠️ 部分测试失败，请检查错误信息")
-
-    print("="*70)
-
-    return 0 if all_passed else 1
+    assert result['status'] == 'success'
+    assert captured == {'enable_rebalance': False}
 
 
-if __name__ == '__main__':
-    exit(main())
+def test_scheduler_has_v13_handler_registered():
+    """调度命令表里必须真的有 v13_daily_check → handler 的映射。"""
+    from infrastructure.scheduler.scheduler import SchedulerService
+
+    source = Path(SchedulerService.__module__.replace('.', '/') + '.py')
+    text = (PROJECT_ROOT / source).read_text(encoding='utf-8')
+    assert re.search(r"['\"]v13_daily_check['\"]\s*:", text), '命令表里找不到 v13_daily_check'
+
+
+# ── [3/3] 注册脚本的定义意图 ───────────────────────────────────────────────
+
+def test_registration_defines_v13_job_with_expected_wiring():
+    """注册脚本必须仍声明 v13 日检，且旧名已标注弃用、指向统一入口。
+
+    2026-10-04 实测：脚本里 `v13_daily_check` 条目 `enabled: False` +
+    `replaced_by: strategy_execute_all`；统一任务 `strategy_execute_all` 的 cron 是
+    `0 30 14 * * 1-5`（工作日 14:30）——这也正是 t5 把库内 cron 改回 14:30 的依据。
+    """
+    reg = PROJECT_ROOT / 'tools' / 'register_jobs_to_agent_os.py'
+    if not reg.exists():  # pragma: no cover - 文件被移动时给出明确失败原因
+        pytest.fail(f'注册脚本不存在: {reg}')
+
+    text = reg.read_text(encoding='utf-8')
+    assert '"name": "v13_daily_check"' in text, 'v13 日检的注册条目丢失'
+    assert '"replaced_by": "strategy_execute_all"' in text, '旧任务未标注被谁取代'
+    assert '"name": "strategy_execute_all"' in text, '统一入口任务定义丢失'
+
+
+def test_registration_declares_the_1430_slot():
+    """注册脚本声明的时段必须是 14:30（与 v13.yaml / 文档一致，供 t5 对齐库内 cron）。"""
+    reg = PROJECT_ROOT / 'tools' / 'register_jobs_to_agent_os.py'
+    text = reg.read_text(encoding='utf-8')
+    assert '30 14 * * 1-5' in text, '注册脚本不再声明 14:30 时段——时段口径被谁改了？'
+
+
+def test_legacy_v13_task_name_is_deprecated_not_primary():
+    """旧任务名 v13-daily-check（command=v13_trading，无 handler）不得再被启用。"""
+    reg = PROJECT_ROOT / 'tools' / 'register_jobs_to_agent_os.py'
+    text = reg.read_text(encoding='utf-8')
+    if '"name": "v13_daily_check"' in text or "'name': 'v13_daily_check'" in text:
+        # 若脚本里出现旧名，必须同时带 enabled: False
+        block = text.split('v13_daily_check', 1)[1][:400]
+        assert 'False' in block, '旧任务名出现却未见 enabled=false——它没有 handler，一触发必失败'

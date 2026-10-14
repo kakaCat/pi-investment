@@ -42,9 +42,28 @@ from domain.strategies.value_objects import (
     StrategyConfig,
 )
 
-__all__ = ["XGBoostStrategy"]
+__all__ = ["XGBoostStrategy", "FALLBACK_REFERENCE_CAPITAL", "DEFAULT_MIN_FACTOR_COVERAGE"]
 
 logger = logging.getLogger(__name__)
+
+#: 兜底参考本金（元）——**仅在**配置未注入 ``params['reference_capital']`` 时使用。
+#:
+#: 取值 = 10 万，理由：V13/V14 模拟账户本金就是 10 万
+#: （``live_trading/config_simulation.yaml:initial_capital`` 与
+#: ``live_trading/configs/strategies/v13.yaml:initial_capital`` 均为 100000）。
+#: **保守方向**是「宁可少买」：本金取小只会低估下单量，取大（改前的 1_000_000）
+#: 会直接把 0.17 权重 × 10 元算成 17,000 股 = 10 倍超买。
+#: 2026-10-04（REQ-261004154902-a7cd · FR-6）删除的正是那个 1_000_000 硬编码。
+FALLBACK_REFERENCE_CAPITAL = 100_000.0
+
+#: 允许喂给模型的最小因子覆盖率 = 可用因子列数 / 训练期因子列数。
+#:
+#: 依据：训练时 75/78 个因子齐备（见 ``live_trading/models/valid_factors.json``）；
+#: 缺列会被 ``fillna(0)`` 补成 0，而 0 对价位/量纲类因子是**分布外极端值**
+#: （价格列不会等于 0），喂进去得到的分数无法解释。因此「缺一半以上」时
+#: 不再静默预测，而是显式抛错（上层据此记 ``factor_empty`` 类失败）。
+#: 阈值可用 ``params['min_factor_coverage']`` 覆盖（取值须落在 (0, 1]）。
+DEFAULT_MIN_FACTOR_COVERAGE = 0.5
 
 FactorProvider = Callable[[str], pd.DataFrame]
 PositionProvider = Callable[[str], Dict[str, Dict[str, Any]]]
@@ -157,9 +176,13 @@ class XGBoostStrategy(BaseStrategy):
     def _predict_returns(self, factor_data: pd.DataFrame) -> pd.Series:
         """Predict expected returns for every row of ``factor_data``.
 
-        The frame is reindexed to the training-time factor order; missing
-        factor columns are filled with 0 so a partially unavailable factor
-        set degrades gracefully instead of crashing the model.
+        The frame is reindexed to the training-time factor order. Missing
+        columns within the *tolerated* range are still filled with 0, but a
+        factor snapshot that lost more than ``1 - min_factor_coverage`` of the
+        training columns is **refused** instead of being silently predicted:
+        ``0`` is an out-of-distribution value for price/scale-like factors, so
+        such a prediction would be unexplainable rather than merely imprecise
+        (2026-10-04 · REQ-261004154902-a7cd · FR-6).
 
         Args:
             factor_data: Factor snapshot; one row per stock.
@@ -169,7 +192,8 @@ class XGBoostStrategy(BaseStrategy):
 
         Raises:
             RuntimeError: If the model or factor list is not loaded.
-            ValueError: If none of the required factors are present.
+            ValueError: If none of the required factors are present, or the
+                available-factor coverage is below the configured minimum.
         """
         if self.model is None:
             raise RuntimeError("XGBoostStrategy: model not loaded")
@@ -184,12 +208,30 @@ class XGBoostStrategy(BaseStrategy):
                 "XGBoostStrategy: none of the %d required factors are present in factor_data"
                 % len(self.factors)
             )
+
+        coverage = len(available) / len(self.factors)
+        min_coverage = self._resolve_min_factor_coverage()
+        if coverage < min_coverage:
+            raise ValueError(
+                "XGBoostStrategy: factor coverage %.1f%% (%d/%d) is below the minimum "
+                "%.1f%%; refusing to predict on fillna(0)-imputed features"
+                % (
+                    coverage * 100.0,
+                    len(available),
+                    len(self.factors),
+                    min_coverage * 100.0,
+                )
+            )
+
         missing = len(self.factors) - len(available)
         if missing:
             logger.warning(
-                "XGBoostStrategy: %d/%d factors missing from input; filled with 0",
+                "XGBoostStrategy: %d/%d factors missing from input; filled with 0 "
+                "(coverage %.1f%% >= %.1f%%)",
                 missing,
                 len(self.factors),
+                coverage * 100.0,
+                min_coverage * 100.0,
             )
 
         features = (
@@ -345,7 +387,9 @@ class XGBoostStrategy(BaseStrategy):
         SELL signals exit the full held quantity (from the position provider
         or ``signal.metadata['quantity']``). BUY signals are sized as
         ``weight * reference_capital / price`` rounded down to whole lots
-        (``params['lot_size']``, default 100). Signals that cannot be sized
+        (``params['lot_size']``, default 100), where ``reference_capital``
+        comes from ``params['reference_capital']`` (see
+        :meth:`_resolve_reference_capital`). Signals that cannot be sized
         (unknown price, zero quantity, HOLD action) are skipped with a
         warning.
         """
@@ -354,7 +398,7 @@ class XGBoostStrategy(BaseStrategy):
             return orders
 
         lot_size = int(self.config.params.get("lot_size", 100))
-        reference_capital = float(self.config.params.get("reference_capital", 1_000_000.0))
+        reference_capital = self._resolve_reference_capital()
         date = self._last_signal_date or ""
 
         positions: Dict[str, Dict[str, Any]] = {}
@@ -415,6 +459,60 @@ class XGBoostStrategy(BaseStrategy):
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
+    def _resolve_reference_capital(self) -> float:
+        """Reference capital for position sizing — **injected**, never invented.
+
+        Reads ``config.params['reference_capital']`` (declared once per version
+        in ``application/strategies/v13_config.py`` / ``v14_config.py``). Only
+        when it is absent/invalid does it fall back to the explicit, documented
+        :data:`FALLBACK_REFERENCE_CAPITAL` (10 万, the real account principal),
+        and it says so loudly in the log.
+
+        Raises:
+            ValueError: If the configured value is not a positive number.
+        """
+        raw = self.config.params.get("reference_capital")
+        if raw is None:
+            logger.warning(
+                "XGBoostStrategy: params['reference_capital'] not configured; "
+                "falling back to conservative default %.0f CNY",
+                FALLBACK_REFERENCE_CAPITAL,
+            )
+            return FALLBACK_REFERENCE_CAPITAL
+
+        try:
+            value = float(raw)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                "XGBoostStrategy: params['reference_capital'] must be a number, got %r" % (raw,)
+            ) from exc
+        if not value > 0:
+            raise ValueError(
+                "XGBoostStrategy: params['reference_capital'] must be > 0, got %r" % (raw,)
+            )
+        return value
+
+    def _resolve_min_factor_coverage(self) -> float:
+        """Minimum tolerated factor coverage (see :data:`DEFAULT_MIN_FACTOR_COVERAGE`).
+
+        Raises:
+            ValueError: If ``params['min_factor_coverage']`` is outside (0, 1].
+        """
+        raw = self.config.params.get("min_factor_coverage", DEFAULT_MIN_FACTOR_COVERAGE)
+        try:
+            value = float(raw)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                "XGBoostStrategy: params['min_factor_coverage'] must be a number, got %r"
+                % (raw,)
+            ) from exc
+        if not 0.0 < value <= 1.0:
+            raise ValueError(
+                "XGBoostStrategy: params['min_factor_coverage'] must be in (0, 1], got %r"
+                % (raw,)
+            )
+        return value
+
     def _lookup_price(
         self, symbol: str, date: str, position: Optional[Dict[str, Any]] = None
     ) -> Optional[float]:

@@ -1,0 +1,36 @@
+task:
+  id: t-f7a18c
+  title: 补告警口径用例与四条反例锁·复核
+  status: done
+  implements: |-
+    ① 新建 tests/test_data_quality_alert_scope.py，实现设计 test-cases 文档 §1 的 T8-T17：域内均值与 D 计数（不含存量）、阈值双向边界（20/21、88.0/87.9）、掉出名单与 20 只截断不冒充 count、回填样本门槛（n=7 不判 / n=10 判）、回填目标限域、original_count 非 0、count_by_grade_on 去重、partial 截断标注、per_symbol 缺失降级；② 更新 tests/test_data_quality_job_guardrails.py:70 的替身 check_data_quality，补 per_symbol；③ 四条反例锁 L1-L4 在改动前的代码上各跑一次并保留输出。
+
+    [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+  serves: []
+  depends_on:
+    - t-8138f0
+  phase: test
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261006163444-8e4f
+    TASK_ID: t-f7a18c
+    TASK_TITLE: 补告警口径用例与四条反例锁·复核
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: test
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: test
+      status: done
+      completed_at: 2026-10-06T08:53:49.658Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006163444-8e4f
+  generated_at: 2026-10-06T08:53:49.572Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-06T08:53:49.728Z

@@ -1,0 +1,35 @@
+task:
+  id: t-e05ce2
+  title: 数据契约：三值列 + CHECK + 8 行回填 + ORM
+  status: done
+  implements: 新建 infrastructure/persistence/migrations/20261006_scheduler_tasks_trading_day_policy.py：ADD COLUMN IF NOT EXISTS trading_day_policy varchar(16) NOT NULL DEFAULT 'always' 并加 CHECK (trading_day_policy IN ('always','trading-days','holidays'))；按 id 精确回填 8 行（250/247/242/259/249/261/237 = 'trading-days'；232 = 'holidays'），每行 rowcount=0 只打印警告不失败；沿用 20261002 迁移约定：缺省 dry-run 只打印、--apply 才写、加 lock_timeout、verify 段防空表（避免 row[0] 在空表 TypeError）。修改 infrastructure/persistence/orm/models/scheduler.py 的 SchedulerTaskConfig 加同名列（String(16), nullable=False, server_default='always'）。生产库与测试库都必须 apply（显式 --dsn），否则 test_orm_db_drift.py 红。
+  serves:
+    - FR-1
+    - FR-4
+    - FR-5
+  depends_on: []
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261006093620-a315
+    TASK_ID: t-e05ce2
+    TASK_TITLE: 数据契约：三值列 + CHECK + 8 行回填 + ORM
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-06T01:54:43.749Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006093620-a315
+  generated_at: 2026-10-06T01:52:38.414Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-06T01:55:14.732Z

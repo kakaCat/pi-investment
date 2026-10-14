@@ -19,6 +19,38 @@ from typing import Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
 
+#: 失败兜底外发的来源标识（t-322d78 / FR-9）
+FAILURE_SOURCE = "scheduler.job_executor"
+FAILURE_REASON_INNER = "scheduler_job_inner_failed"
+FAILURE_REASON_EXCEPTION = "scheduler_job_exception"
+
+
+def _report_failure_to_sink(reason: str, error: Any = None,
+                            context: Optional[Dict[str, Any]] = None) -> bool:
+    """失败兜底外发（t-322d78 / FR-9）：在 agent_os_reporter 之外补上第二条线。
+
+    取证：APScheduler 路径的任务失败此前**只**调 ``agent_os_reporter.report_event``，
+    出口是已下线的 Agent OS ``localhost:8080`` —— 日志里 ``agent-os ingest POST failed
+    (dropped)`` 出现 1696 次，没有任何飞书兜底，失败等于没人被告知。
+
+    本函数经 ``application.observability.failure_sink.report_failure`` 外发（内部先落
+    结构化日志、再走 NotificationFacade 的 agent → 飞书降级链），severity=high。
+    **自身绝不抛异常**：可见性出问题不许反过来打挂调度。
+    """
+    try:
+        from application.observability import failure_sink
+
+        return bool(failure_sink.report_failure(
+            source=FAILURE_SOURCE,
+            reason=reason,
+            error=None if error is None else str(error)[:2000],
+            severity=failure_sink.SEVERITY_HIGH,
+            context=dict(context or {}),
+        ))
+    except Exception as e:  # noqa: BLE001 —— 兜底通道不可用不得影响任务流
+        logger.warning("failure_sink 兜底上报不可用（reason=%s）: %s", reason, e)
+        return False
+
 
 def classify_job_result(result: Any) -> Optional[str]:
     """判定 job handler 返回值是否为「内层失败」，是则返回错误摘要，否则 None。
@@ -63,6 +95,48 @@ def classify_job_result(result: Any) -> Optional[str]:
 
 _RESULT_MARKER_KEYS = ("success", "status")
 
+# ---------------- 「没做成的动作」判定（t-322d78，FR-2/FR-9，2026-10-05） ----------------
+# 取证：evening_pipeline 的 K 线同步返回
+#   {'status': 'success', 'success': 0, 'total': 5281, 'stale': 5271, ...}
+# ——「成功 0 只 / 未覆盖基准日 5271 只」被 classify_job_result 直接判成功（显式
+# status='success' 短路），run 记 success，日志里只有一行"✅ K线更新完成"。
+# 空转不是成功。下列两个键集把这种形态升级为失败（判定仍在 find_result_failure 内，
+# 保持「APScheduler 路径与进程内宿主共用一份口径」这一既有约定）。
+_NOOP_COUNT_KEYS = ("success", "updated", "symbols_updated", "computed",
+                    "inserted", "rows_written", "matched")
+#: 缺口键：值 > 0 表示"确实还有没覆盖/没做完的"
+_GAP_KEYS = ("stale", "uncovered", "missing", "not_covered", "no_data", "未覆盖")
+
+
+def _as_int(value: Any) -> Optional[int]:
+    """把计数值读成 int；bool 与任何非数值一律 None（True/False 不是计数）。"""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    return int(value)
+
+
+def _noop_gap_failure(result: Any) -> Optional[str]:
+    """「一件都没做成 + 仍有缺口」→ 失败原因；否则 None。
+
+    口径（宁少报不误报，必须**同时**满足，只满足其一不判失败）：
+      1. 至少有一个计数键，且所有出现的计数键都是 0 —— 没做成任何事；
+      2. 至少一个缺口键 > 0 —— 确实还有没覆盖的。
+    故 {'updated': 0}（本来就没活干）、{'status': 'stale', 'stale': [...]}（诊断字段、
+    不是缺口计数）都不会被误判。
+    """
+    if not isinstance(result, dict):
+        return None
+    counts = {k: _as_int(result.get(k)) for k in _NOOP_COUNT_KEYS if k in result}
+    counts = {k: v for k, v in counts.items() if v is not None}
+    if not counts or any(v != 0 for v in counts.values()):
+        return None
+    gaps = {k: _as_int(result.get(k)) for k in _GAP_KEYS if k in result}
+    gaps = {k: v for k, v in gaps.items() if v is not None and v > 0}
+    if not gaps:
+        return None
+    return ("未做成的动作：计数全 0（" + ", ".join(f"{k}=0" for k in counts)
+            + "）且仍有缺口（" + ", ".join(f"{k}={v}" for k, v in gaps.items()) + "）")
+
 
 def find_result_failure(result: Any, depth: int = 0) -> Optional[str]:
     """在 handler 返回值里**下钻**查找内层失败（classify_job_result 的嵌套版）。
@@ -76,9 +150,11 @@ def find_result_failure(result: Any, depth: int = 0) -> Optional[str]:
 
     口径（与 classify_job_result 同源，宁少报不误报）：
       1. 先按 classify_job_result 判当前层；
-      2. 只下钻"结果形状"的嵌套 dict（含 success/status 键），最多 2 层——
+      2. 计数全 0 + 仍有缺口 → 判失败（`:func:`_noop_gap_failure`，t-322d78 补：
+         "成功 0 只 / 未覆盖 5271 只"此前记 success）；
+      3. 只下钻"结果形状"的嵌套 dict（含 success/status 键），最多 2 层——
          诊断类字段（如失败的 job 清单）不参与判定，避免误报；
-      3. 显式 `skipped=True` 不算失败（非交易日/幂等跳过是正常语义）。
+      4. 显式 `skipped=True` 不算失败（非交易日/幂等跳过是正常语义）。
     """
     if depth > 2:
         return None
@@ -87,6 +163,9 @@ def find_result_failure(result: Any, depth: int = 0) -> Optional[str]:
     err = classify_job_result(result)
     if err:
         return err
+    noop = _noop_gap_failure(result)
+    if noop:
+        return noop
     if isinstance(result, dict):
         for key, value in result.items():
             if not isinstance(value, dict) or not any(k in value for k in _RESULT_MARKER_KEYS):
@@ -97,38 +176,48 @@ def find_result_failure(result: Any, depth: int = 0) -> Optional[str]:
     return None
 
 
-def execute_scheduled_job(task_id: int):
+def execute_scheduled_job(task_id: int, manual: bool = False):
     """APScheduler 调用入口（REQ-a42aa4 Batch C 包装：设/清任务上下文后执行）。
 
     线程级任务上下文让本线程上任意 ERROR 日志（含深层 logger.exception）
     自动携带 task_id/task_name 结构化上报 Agent OS；finally 确保清空，
     防止线程池复用线程时上下文串扰到下一个任务。
+
+    2026-10-06（REQ-261006093620-a315 t5 · FR-6）：新增 `manual` ——
+    `manual=True` 表示**人工触发**（`POST /api/scheduler/tasks/{id}/trigger` 投递的一次性 job），
+    交易日门对它**不生效**：门只拦「按时到点自动开火」，不拦「人明确要求跑一次」。
     """
     from infrastructure.error_reporting import agent_os_reporter
     agent_os_reporter.set_task_context(task_id=task_id)
     try:
-        return _execute_scheduled_job_impl(task_id)
+        return _execute_scheduled_job_impl(task_id, manual=manual)
     finally:
         agent_os_reporter.clear_task_context()
 
 
-def _execute_scheduled_job_impl(task_id: int):
+def _execute_scheduled_job_impl(task_id: int, manual: bool = False):
     """
     计划任务执行体（原 execute_scheduled_job 主体）
 
     执行流程：
     1. 读取任务定义（scheduler_tasks）
-    2. 检查是否已有运行中的实例（防止并发）
-    3. 创建执行记录（scheduler_runs，status='running'）
-    4. 路由到 JobRegistry 或 Legacy Handler 执行
-    5. 更新执行记录（success/failed，记录结果/错误）
-    6. 清理数据库连接（防止泄漏）
+    2. **交易日门**（REQ-261006093620-a315 t5）：休市日只写一行 skipped 后返回（人工触发不判门）
+    3. 检查是否已有运行中的实例（防止并发）
+    4. 创建执行记录（scheduler_runs，status='running'）
+    5. 路由到 JobRegistry 或 Legacy Handler 执行
+    6. 更新执行记录（success/failed，记录结果/错误）
+    7. 清理数据库连接（防止泄漏）
 
     Args:
         task_id: scheduler_tasks 表的任务 ID
+        manual: True = 人工触发（跳过交易日门，FR-6）；False = 自动到点（判门）
     """
     from adapters.outbound.repositories.scheduler_repository import SchedulerRepository
     from infrastructure.persistence.orm import get_session
+
+    # except 分支兜底：get_task 之前就可能抛（读库失败），届时 task/task_name 尚未赋值
+    task_name = f'task-{task_id}'
+    command: Optional[str] = None
 
     session = get_session()
     repo = SchedulerRepository(session)
@@ -141,13 +230,63 @@ def _execute_scheduled_job_impl(task_id: int):
             return
 
         task_name = task.get('name', f'task-{task_id}')
+        command = task.get('command')
         from infrastructure.error_reporting import agent_os_reporter
         agent_os_reporter.set_task_context(task_id=task_id, task_name=task_name)
         if not task.get('is_enabled'):
             logger.warning(f"Task {task_id} ({task_name}) is disabled, skipping")
             return
 
-        # 2. 检查是否已有运行中的实例（防止并发）
+        # 2. 交易日门（REQ-261006093620-a315 t5 · FR-2/FR-3/FR-4/FR-7）
+        #    「吃当日行情」的任务在休市日**不执行**，只留一行 status='skipped'。
+        #    · 放在并发检查**之前**：跳过不占执行槽，也不该被"已有 running"拒绝；
+        #    · manual=True（人工触发）不判门（FR-6）；
+        #    · 门放在**执行期**（不是排班期）正是 FR-7 的机制：策略改一行即生效，
+        #      无需 reload，绕开「DB 改了但 jobstore 持旧 job」那族坑。
+        #    判据真源 = application/services/trading_day_gate.py（唯一一份，fail-open）。
+        policy: Optional[str] = None
+        gate_info: Optional[dict] = None
+        if not manual:
+            from application.services.trading_day_gate import POLICY_ALWAYS, should_skip
+
+            policy = task.get('trading_day_policy') or POLICY_ALWAYS
+            skip, gate_info = should_skip(policy, datetime.now())
+            if gate_info.get('degraded'):
+                # FR-2「降级不许静默」：**带上 task_id**（2026-10-06 独立复核 F5：
+                # 原先前缀只有 TASK 名，日志里认不出是哪一张卡在降级）。
+                logger.warning(
+                    f"Task {task_id} ({task_name}) 交易日判定降级 → 按降级照跑 "
+                    f"(source={gate_info.get('source')}, policy={policy})"
+                )
+            if skip:
+                # FR-3：**记账失败不许影响调度线程**（2026-10-06 独立复核 F6：
+                # 外层 try 只有 finally、没有兜底 except，`create_run` 一旦抛就会外抛到
+                # 调度线程且不留任何 run 记录）。这里自兜底：记账失败**仍然不执行**命令
+                # （门已判定今天不该跑），只把失败记进日志。
+                try:
+                    run_id = repo.create_run(task_id)
+                    repo.complete_run_skipped(run_id, result={
+                        'skipped': True,
+                        'reason': gate_info.get('reason'),
+                        'trading_day_source': gate_info.get('source'),
+                        'degraded': gate_info.get('degraded'),
+                        'policy': policy,
+                    })
+                except Exception as e:  # noqa: BLE001 - 记账失败不得成为调度故障源
+                    logger.error(
+                        f"Task {task_id} ({task_name}) 跳过记账失败（本次仍不执行）: "
+                        f"{type(e).__name__}: {e}"
+                    )
+                    return
+                # 留痕 + 不打扰：不调 _execute_command、不发通知、不写 last_error
+                logger.info(
+                    f"Task {task_id} ({task_name}) skipped by trading-day gate "
+                    f"(policy={policy}, source={gate_info.get('source')}, "
+                    f"degraded={gate_info.get('degraded')}, day={gate_info.get('day')})"
+                )
+                return
+
+        # 3. 检查是否已有运行中的实例（防止并发）
         # repo 无 get_running_runs 方法（重构遗漏），用 list_runs(statuses=['running'])
         running_runs = repo.list_runs(task_id=task_id, statuses=['running'], limit=10)
         if running_runs:
@@ -169,7 +308,7 @@ def _execute_scheduled_job_impl(task_id: int):
                     )
                     return
 
-        # 3. 创建执行记录
+        # 4. 创建执行记录
         run_id = repo.create_run(task_id)
         logger.info(
             f"Starting task: {task_name} "
@@ -179,10 +318,21 @@ def _execute_scheduled_job_impl(task_id: int):
         start_time = datetime.now()
 
         try:
-            # 4. 执行任务（路由到 JobRegistry/Legacy Handler）
+            # 5. 执行任务（路由到 JobRegistry/Legacy Handler）
             result = _execute_command(task.get('command'), task.get('params') or {})
 
-            # 5. 记录成功/失败
+            # FR-2（2026-10-06 · **独立复核 F5 修正**）：**照跑路径也要留下降级痕迹**。
+            # 原先只有跳过分支带 source/degraded；降级照跑时 result 里零痕迹 —— 等于"静默降级"，
+            # 而 FR-2 明写「任何降级来源一律判该跑，并把 source / degraded 带进 result 与日志」。
+            # 只在门被问过（非 manual）且拿到注解时加键，不覆盖命令自身的返回。
+            if gate_info is not None and isinstance(result, dict):
+                result.setdefault('trading_day_gate', {
+                    'source': gate_info.get('source'),
+                    'degraded': gate_info.get('degraded'),
+                    'policy': policy,
+                })
+
+            # 6. 记录成功/失败
             # Fix②（审计发现）：内层失败曾被无条件 success=True 吞掉——Job 内部失败被
             # JobRegistry 转成 {status:'failed',...} dict 返回，从不抛异常，外层却记 success=True
             # → scheduler_tasks.last_status 假成功、真实失败只藏在 runs.result 内层。
@@ -190,8 +340,14 @@ def _execute_scheduled_job_impl(task_id: int):
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
             # P0-B（2026-09-10 w-23c70356）：原判定只认 status=='failed'，漏掉
             # "success: false" 风格的 handler（market_perception_daily 正是这种）→ 统一
-            # 走 classify_job_result（与 webhook 路径共用同一口径，见 scheduler_webhook.py）。
-            error = classify_job_result(result)
+            # 走内层失败判定。
+            # 2026-10-04（REQ-261004154902-a7cd t6 裁决）：这里从 classify_job_result 换成
+            # **find_result_failure**（它的严格超集：先按 classify 判当前层，再下钻嵌套层，
+            # 并把「计数全 0 + 仍有缺口」这种**空转记成功**判成失败）。
+            # 为什么必须统一：同一件事（evening_pipeline 的「成功 0 只 / 未覆盖 5271 只」）
+            # 在 DailyJobs 宿主（runtime.py）与 SchedulerService.run_task 已判失败，
+            # 只有 APScheduler 这一条还判成功 → 同一份数据两个结论，正是本需求要消灭的。
+            error = find_result_failure(result)
             inner_failed = error is not None
             # REQ-a42aa4 Batch C：Job 内层失败结构化上报 Agent OS（此前该路径无 ERROR
             # 日志，真实失败只躺在 scheduler_runs.result 里 → 主动带 task 上下文上报）。
@@ -203,6 +359,13 @@ def _execute_scheduled_job_impl(task_id: int):
                     logger_name=__name__,
                     metadata={"channel": "scheduler_job", "command": task.get('command'),
                               "run_id": str(run_id), "outer_success": False},
+                )
+                # t-322d78：agent_os_reporter 之外的第二条线（8080 不可达时上面那条只留
+                # 一行 dropped，失败无人知）——经 FailureSink 走通知降级链外发。
+                _report_failure_to_sink(
+                    FAILURE_REASON_INNER, error,
+                    context={"task_id": task_id, "task_name": task_name,
+                             "command": command, "run_id": str(run_id)},
                 )
             # Fix（2026-09-05 w-8366e526）：executor 会话与 Job 共享同一线程级 session；
             # Job 内部 DB 工作中途报错会留下 aborted 事务 → complete_run 的 SELECT/UPDATE
@@ -223,7 +386,7 @@ def _execute_scheduled_job_impl(task_id: int):
             )
 
         except Exception as e:
-            # 6. 记录失败
+            # 7. 记录失败
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
             session.rollback()  # 同上：Job 异常可能已污染共享会话，先回滚再写失败记录
             repo.complete_run(
@@ -235,6 +398,13 @@ def _execute_scheduled_job_impl(task_id: int):
             logger.exception(
                 f"Task failed: {task_name} "
                 f"(run_id={run_id}, duration={duration_ms}ms, error={e})"
+            )
+            # t-322d78：异常分支同样补第二条线（此前该分支只有 logger.exception +
+            # 根 logger Handler 上报，8080 死时同样只剩 dropped 日志）。
+            _report_failure_to_sink(
+                FAILURE_REASON_EXCEPTION, str(e),
+                context={"task_id": task_id, "task_name": task_name,
+                         "command": command, "run_id": str(run_id)},
             )
 
     finally:

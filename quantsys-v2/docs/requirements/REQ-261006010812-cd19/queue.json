@@ -1,0 +1,4378 @@
+{
+  "version": 1,
+  "requirement_id": "REQ-261006010812-cd19",
+  "schemaVersion": 9,
+  "generated_at": "2026-10-06T01:23:36.774Z",
+  "tasks": [
+    {
+      "id": "t-9f0fbe",
+      "requirementId": "REQ-261006010812-cd19",
+      "title": "设计文档自洽性 + 版本面取证",
+      "cardDoc": "docs/requirements/REQ-261006010812-cd19/tasks/t-9f0fbe.md",
+      "description": "",
+      "phase": "analysis",
+      "side": "doc",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "evidence/a1-design-selfconsistency.md 存在；自洽性条目 ≥10 条且每条带两侧「文档:行」指针；面 E 表中设计点名的每个路径都有「是否在版本控制内 + 最近一次提交」两列；文件内每条证据以 [L1]-[L4] 前缀标注（grep -c '^\\[L' 命中数 ≥ 条目数）；grep -cE '基本一致|大致符合|疑似|应该没问题' 命中 0。",
+      "implementation": "读 a7cd 设计目录下的 6 份文档与 requirement.md，建「设计条目清单」（每条：文档:行 / 声明内容 / serves 哪条 FR）。做四类自洽性检查：① 同一事实跨文档取值（design.md §12 验收命令 vs test-cases.md §6；§2 的 reason 枚举 vs interfaces.md §1）；② 文档间引用有效性（互链、被点名的文件与工具是否存在）；③ §13 四个未定决策是否闭环（对照 requirement.md 与 verification.md）；④ 数值口径（持仓数 / 止损线 / factors_count / cron 时刻在设计与需求间是否一致）。再跑面 E：对设计点名的每个文件与工具执行 git check-ignore -v、git ls-files --error-unmatch、git log -1 -- <path>、git status --porcelain。产出 docs/requirements/REQ-261006010812-cd19/evidence/a1-design-selfconsistency.md。",
+      "context": "",
+      "skipIntegration": true,
+      "footprint": {
+        "files": 4,
+        "anchors": 4,
+        "chars": 1500
+      },
+      "requirementRefs": [
+        "FR-1"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-6318f1",
+          "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+          "trigger": "manual",
+          "startedAt": 1791249829009,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 499,
+              "at": 1791249829009,
+              "totals": {
+                "uncachedInputTokens": 130992,
+                "outputTokens": 70960,
+                "cacheReadTokens": 7556352,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 499,
+                  "totals": {
+                    "uncachedInputTokens": 130992,
+                    "outputTokens": 70960,
+                    "cacheReadTokens": 7556352,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 652,
+              "at": 1791249954290,
+              "totals": {
+                "uncachedInputTokens": 148385,
+                "outputTokens": 94521,
+                "cacheReadTokens": 12852736,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 652,
+                  "totals": {
+                    "uncachedInputTokens": 148385,
+                    "outputTokens": 94521,
+                    "cacheReadTokens": 12852736,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 17393,
+              "outputTokens": 23561,
+              "cacheReadTokens": 5296384,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791249954290
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791249816709,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1791249829009,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "开工 t1：设计文档自洽性 + 版本面取证"
+        },
+        {
+          "status": "done",
+          "at": 1791249954290,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "t1 三张子卡（取数/分析/复核）全部 done，父卡收尾：16 条设计条目 + 19 条结论已落 evidence/a1。"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-63fc97",
+          "body": "[状态] → in_progress：开工 t1：设计文档自洽性 + 版本面取证（reqboard_task_move）",
+          "createdAt": 1791249829009,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        },
+        {
+          "id": "c-6218c7",
+          "body": "[状态] → done：t1 三张子卡（取数/分析/复核）全部 done，父卡收尾：16 条设计条目 + 19 条结论已落 evidence/a1。（reqboard_task_move）",
+          "createdAt": 1791249954290,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791249816709,
+      "updatedAt": 1791249954290,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+      },
+      "layer": 0,
+      "lastReport": {
+        "at": 1791249917655,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-261006010812-cd19/evidence/a1-design-selfconsistency.md"
+        ],
+        "completed": [
+          "产出 evidence/a1-design-selfconsistency.md（38 条 [L 标注证据行）",
+          "自洽性：A1-1 reason 枚举两处不等（design.md:70 有 no_cash，interfaces.md:27-32 无）",
+          "自洽性：A1-2 同一判据两个载体——design.md:308 要 CLI 工具，test-cases.md:35-43 用内联 python",
+          "引用失效：A1-6 tools/check_trading_day_judgment.py 不存在，FR-3 判据载体缺失",
+          "留档失效：A1-7 三个 tools/check_*.py 被 .gitignore:85 吃掉，判据不在版本控制内",
+          "留档失效：A1-16 整个 a7cd 需求目录未跟踪（6 份设计文档 + 67 张任务卡）",
+          "回滚不成立：A1-17 design.md:289 押 git revert，但 20 文件 M、5 新模块 ??",
+          "patch 不自足：A1-18 patch 只含已跟踪文件改动，新模块只在 tar 快照里",
+          "数值口径：A1-14 v14 factors_count 仍写 75 而真实 78（设计自己列的待修项未落地）",
+          "数值口径：A1-15 config_simulation.yaml 注释仍称 v13 生効 8 只，v13.yaml 已改 5",
+          "含 5 条通过项：cron 口径一致、health-probe.plist 可解析、§13 四条裁定均闭环、v13 因子数 75 已修、持仓 5 已收口"
+        ]
+      },
+      "lastRun": {
+        "at": 1791249917655,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-3c2fb0",
+      "requirementId": "REQ-261006010812-cd19",
+      "title": "实现一致性矩阵（面 B，逐条落点）",
+      "cardDoc": "docs/requirements/REQ-261006010812-cd19/tasks/t-3c2fb0.md",
+      "description": "",
+      "phase": "analysis",
+      "side": "doc",
+      "dependsOn": [
+        "t-9f0fbe"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "evidence/a2-impl-matrix.md 存在且矩阵行数 ≥ design.md §1~§11 的落点数；每行证据列匹配 ^\\[L[1-4]\\]；判定词只用四档（grep -cE '基本一致|大致符合|疑似|应该没问题' 命中 0）；判为「未实现」的行同行给出搜索命令与命中数；判为「已实现但语义偏离」的行写出设计侧与实现侧两个取值。",
+      "implementation": "以 t1 的条目清单为输入，逐条在代码与配置里定位落点并核对语义：按符号检索 RunOutcome、FailureSink、report_failure、should_have_run、trading_day_resolver、SOURCE_CALENDAR、skipped_off_hours、expired、oversell_blocked、V13_CHAIN_STRICT、build_cron_trigger、misfire_grace_time_seconds、select_channels、AgentChannel.supports、REBALANCE 与 RISK_ALERT formatter；对每条读实现（文件:行）比对设计声明的字段名/取值/默认值/错误语义/开关名，落四档判定之一。产出 docs/requirements/REQ-261006010812-cd19/evidence/a2-impl-matrix.md（表：设计条目 / 判定 / 证据 / 说明）。",
+      "context": "",
+      "skipIntegration": true,
+      "footprint": {
+        "files": 3,
+        "anchors": 5,
+        "chars": 2000
+      },
+      "requirementRefs": [
+        "FR-2"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-56adab",
+          "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+          "trigger": "manual",
+          "startedAt": 1791250136172,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 780,
+              "at": 1791250136172,
+              "totals": {
+                "uncachedInputTokens": 172200,
+                "outputTokens": 117021,
+                "cacheReadTokens": 17928960,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 780,
+                  "totals": {
+                    "uncachedInputTokens": 172200,
+                    "outputTokens": 117021,
+                    "cacheReadTokens": 17928960,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 859,
+              "at": 1791250178160,
+              "totals": {
+                "uncachedInputTokens": 180608,
+                "outputTokens": 121306,
+                "cacheReadTokens": 21593472,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 859,
+                  "totals": {
+                    "uncachedInputTokens": 180608,
+                    "outputTokens": 121306,
+                    "cacheReadTokens": 21593472,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 8408,
+              "outputTokens": 4285,
+              "cacheReadTokens": 3664512,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791250178160
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791249816709,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1791250136172,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "开工 t2：实现一致性矩阵（面 B）"
+        },
+        {
+          "status": "done",
+          "at": 1791250178160,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "t2 三张子卡全部 done，父卡收尾：26 个落点判定 + 库面事实已落 a2 证据。"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-b293aa",
+          "body": "[状态] → in_progress：开工 t2：实现一致性矩阵（面 B）（reqboard_task_move）",
+          "createdAt": 1791250136172,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        },
+        {
+          "id": "c-069f8c",
+          "body": "[状态] → done：t2 三张子卡全部 done，父卡收尾：26 个落点判定 + 库面事实已落 a2 证据。（reqboard_task_move）",
+          "createdAt": 1791250178160,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791249816709,
+      "updatedAt": 1791250178160,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+      },
+      "layer": 1,
+      "lastReport": {
+        "at": 1791250175414,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-261006010812-cd19/evidence/a2-impl-matrix.md"
+        ],
+        "completed": [
+          "产出 evidence/a2-impl-matrix.md：26 个落点逐条四档判定",
+          "12 条已实现且一致（含 §3 日历链、§4 宽限语义、§5 配置单源、§6 未接线链路、§8 盘点器、§9 兜底）",
+          "8 条语义偏离（含 M-06 休市日仍记 success、M-23 超卖仍 4 行、M-20 supports 仍恒真）",
+          "5 条未实现（M-05 _last_error、M-12 pending-orders-match 任务行、M-22 pool_scan TODO、M-24 git 回滚、M-25 V13_CHAIN_STRICT 开关）",
+          "1 条无法判定（M-11 missed 落库：代码在但全库 0 行，禁止生产造事件）",
+          "新增库面事实 6 条（含 task 249 最近一次 run 是 10-05 休市日）"
+        ]
+      },
+      "lastRun": {
+        "at": 1791250175414,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-881157",
+      "requirementId": "REQ-261006010812-cd19",
+      "title": "只读库表事实 + 验收命令复跑",
+      "cardDoc": "docs/requirements/REQ-261006010812-cd19/tasks/t-881157.md",
+      "description": "",
+      "phase": "analysis",
+      "side": "doc",
+      "dependsOn": [
+        "t-9f0fbe"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "evidence/a3-calldb-replay.md 存在；复跑表 C1~C7 七行齐全；「实跑」行的退出码列是真实整数（非空、非「预期」），「不可跑」行同行写出原因且另起一行有替代判据；每条库证据含库名+SQL+时刻；对 tools/check_trading_day_judgment.py 缺失（design.md:308）与 tools/check_*.py 被 .gitignore:85 排除两事项给出复核结论；生产库计数比对前后一致（写明两次的数值）。",
+      "implementation": "① 对设计 data-model.md §1 的 6 张表（scheduler_tasks、scheduler_runs、simulation_pending_orders、simulation_trades、simulation_positions、simulation_account）跑只读 SELECT，每条证据记「库名 + SQL + 执行时刻（分钟级）」；② 逐条实跑 design.md §12 的 7 条命令（C1~C7，清单见 decomposition.md §4 t3：3 条 pytest、3 个只读检查器、1 个对账器），记「实跑/不可跑 + 真实退出码 + ≤80 字输出摘要」；不可跑者同行写原因并另起一行给替代判据（标 L4）；③ 跑 pytest 前后各做一次生产库只读计数比对，证明写入只落在 quant_test。产出 docs/requirements/REQ-261006010812-cd19/evidence/a3-calldb-replay.md。",
+      "context": "",
+      "skipIntegration": true,
+      "footprint": {
+        "files": 8,
+        "anchors": 6,
+        "chars": 2200
+      },
+      "requirementRefs": [
+        "FR-3"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-5dea36",
+          "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+          "trigger": "manual",
+          "startedAt": 1791250222109,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 896,
+              "at": 1791250222109,
+              "totals": {
+                "uncachedInputTokens": 187167,
+                "outputTokens": 128975,
+                "cacheReadTokens": 23349248,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 896,
+                  "totals": {
+                    "uncachedInputTokens": 187167,
+                    "outputTokens": 128975,
+                    "cacheReadTokens": 23349248,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 981,
+              "at": 1791250265376,
+              "totals": {
+                "uncachedInputTokens": 196065,
+                "outputTokens": 133008,
+                "cacheReadTokens": 27646464,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 981,
+                  "totals": {
+                    "uncachedInputTokens": 196065,
+                    "outputTokens": 133008,
+                    "cacheReadTokens": 27646464,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 8898,
+              "outputTokens": 4033,
+              "cacheReadTokens": 4297216,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791250265376
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791249816709,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1791250222109,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "开工 t3：库表事实 + 验收命令复跑（实跑已在 /tmp/cd19 落地）"
+        },
+        {
+          "status": "done",
+          "at": 1791250265376,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "t3 三张子卡全部 done，父卡收尾：复跑表 + 库事实 + 成对测量已落 a3。"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-fc1ef9",
+          "body": "[状态] → in_progress：开工 t3：库表事实 + 验收命令复跑（实跑已在 /tmp/cd19 落地）（reqboard_task_move）",
+          "createdAt": 1791250222109,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        },
+        {
+          "id": "c-14ac08",
+          "body": "[状态] → done：t3 三张子卡全部 done，父卡收尾：复跑表 + 库事实 + 成对测量已落 a3。（reqboard_task_move）",
+          "createdAt": 1791250265376,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791249816709,
+      "updatedAt": 1791250265376,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+      },
+      "layer": 1,
+      "lastReport": {
+        "at": 1791250262525,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-261006010812-cd19/evidence/a3-calldb-replay.md"
+        ],
+        "completed": [
+          "产出 evidence/a3-calldb-replay.md：复跑表 C1~C7 七行齐全（实跑 6 / 不可跑 1）",
+          "退出码全为真实整数：C1=0 C5=0 C6=0 C4=0 C7=0 C3=2 C2=-（不可跑，附原因与替代判据）",
+          "库证据 9 条，均含库名 + SQL + 时刻；含 task 249 最近一次 run 是 10-05 休市日",
+          "成对计数测量：生产库四表跑前跑后逐字不变（3155/33/78/7），测试库全 0",
+          "三条复跑新发现 R-1/R-2/R-3（定标自相矛盾 / 真实漏跑 + 口径冲突 / 超卖判据被替换）"
+        ]
+      },
+      "lastRun": {
+        "at": 1791250262525,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-9adb94",
+      "requirementId": "REQ-261006010812-cd19",
+      "title": "设计未覆盖缺口审计",
+      "cardDoc": "docs/requirements/REQ-261006010812-cd19/tasks/t-9adb94.md",
+      "description": "",
+      "phase": "analysis",
+      "side": "doc",
+      "dependsOn": [
+        "t-3c2fb0",
+        "t-881157"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "evidence/a4-gaps.md 存在且缺口 ≥4 条，每条带 [L1]-[L3] 级证据与风险等级（取值只能是 高/中/低）；其中 ≥2 条属「设计未覆盖」（明确标注与 requirement.md 已列 E-* 的区别）；对 E-2 给出面 E 证据（新件 git status 显示未跟踪 + git ls-files 报 pathspec 不匹配），对 E-3 给出文件不存在证据，对 E-4 给出 git check-ignore -v 输出。",
+      "implementation": "复核 requirement.md 已实测的 E-2（实现从未提交）E-3（验收工具缺失）E-4（判据被 gitignore 排除）E-6（归档需求覆盖度自相矛盾），并主动找「该设计未覆盖但仍在风险中」的链路：a7cd 的 E15（risk_check / verification / weekly_report 三条链路坏且未排班）、E16（盘中无 V13 止损，intraday_monitor 账户写死 rotation_main 且 rule_guard 拒绝策略账户）、休市日非日检写入路径、无提交导致的回滚失效、pytest.ini 假绿灯门禁是否真落地。每条给证据（L1-L3）+ 影响面 + 风险等级（高/中/低）。产出 docs/requirements/REQ-261006010812-cd19/evidence/a4-gaps.md。",
+      "context": "",
+      "skipIntegration": true,
+      "footprint": {
+        "files": 3,
+        "anchors": 4,
+        "chars": 1500
+      },
+      "requirementRefs": [
+        "FR-4"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-84b437",
+          "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+          "trigger": "manual",
+          "startedAt": 1791250308011,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 1018,
+              "at": 1791250308011,
+              "totals": {
+                "uncachedInputTokens": 204963,
+                "outputTokens": 138988,
+                "cacheReadTokens": 29555712,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 1018,
+                  "totals": {
+                    "uncachedInputTokens": 204963,
+                    "outputTokens": 138988,
+                    "cacheReadTokens": 29555712,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 1123,
+              "at": 1791250363785,
+              "totals": {
+                "uncachedInputTokens": 224108,
+                "outputTokens": 144395,
+                "cacheReadTokens": 35224832,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 1123,
+                  "totals": {
+                    "uncachedInputTokens": 224108,
+                    "outputTokens": 144395,
+                    "cacheReadTokens": 35224832,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 19145,
+              "outputTokens": 5407,
+              "cacheReadTokens": 5669120,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791250363785
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791249816709,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1791250308011,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "开工 t4：设计未覆盖缺口审计"
+        },
+        {
+          "status": "done",
+          "at": 1791250363785,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "t4 三张子卡全部 done，父卡收尾：8 条缺口清单已落 a4。"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-6dd050",
+          "body": "[状态] → in_progress：开工 t4：设计未覆盖缺口审计（reqboard_task_move）",
+          "createdAt": 1791250308011,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        },
+        {
+          "id": "c-e6b4bf",
+          "body": "[状态] → done：t4 三张子卡全部 done，父卡收尾：8 条缺口清单已落 a4。（reqboard_task_move）",
+          "createdAt": 1791250363785,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791249816709,
+      "updatedAt": 1791250363785,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+      },
+      "layer": 2,
+      "lastReport": {
+        "at": 1791250360892,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-261006010812-cd19/evidence/a4-gaps.md"
+        ],
+        "completed": [
+          "产出 evidence/a4-gaps.md：8 条缺口，每行带 [L] 证据 + 影响面 + 风险等级",
+          "高风险 4 条：G-1 风险检查链路坏且未排班、G-2 验证链路坏且未排班、G-3 盘中无止损、G-4 回滚与判据载体不在版本控制",
+          "中风险 3 条：G-5 盘点器未接日历、G-6 missed 零实证、G-7 v13 之外声明失真；低 1 条：G-8 假绿灯结构门禁",
+          "设计未覆盖 4 条（G-1/G-2/G-3/G-5），并以 design/ 全文 4 符号 0 命中作反证",
+          "含 E-2/E-3/E-4 的点名证据（pathspec 不匹配 / 文件不存在 / check-ignore 输出）"
+        ]
+      },
+      "lastRun": {
+        "at": 1791250360892,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-e7f33f",
+      "requirementId": "REQ-261006010812-cd19",
+      "title": "报告汇总 + 三道自检 + 抽查复现",
+      "cardDoc": "docs/requirements/REQ-261006010812-cd19/tasks/t-e7f33f.md",
+      "description": "",
+      "phase": "doc",
+      "side": "doc",
+      "dependsOn": [
+        "t-9adb94"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "audit-report.md 存在；grep -c '^## ' ≥5 且结论摘要/一致性矩阵/验收命令复跑/缺口清单/改进项五节名逐字齐全非空；grep -cE '基本一致|大致符合|疑似|应该没问题|预期通过' 命中 0；改进项 ≥5 行且每行「可证伪判据」列非空并含命令或断言；附录含 5 行抽查结论（逐行 通过/不通过）；只读性回归两次 git status --porcelain 输出逐字相同（在报告中贴出两段输出）。",
+      "implementation": "按 interfaces.md §1 的五节契约汇总 docs/requirements/REQ-261006010812-cd19/audit-report.md（结论摘要 / 一致性矩阵 / 验收命令复跑 / 缺口清单 / 改进项），改进项 ≥5 条且五列齐；跑 test-cases.md §1 三道自检（S1 五节齐全、S2 软判定词 0、S3 证据列与判据列非空）、§3 抽查固定 5 行（矩阵第 1/5/9/13/17 行，不足取全部）逐行复现、§4 只读性回归（对 live_trading、application、infrastructure、tools 四个目录做 git status --porcelain 前后逐字比对）；自检与抽查结果写进 ## 逐条取证附录。",
+      "context": "",
+      "skipIntegration": true,
+      "footprint": {
+        "files": 6,
+        "anchors": 6,
+        "chars": 2000
+      },
+      "requirementRefs": [
+        "FR-5",
+        "FR-6"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-69a80c",
+          "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+          "trigger": "manual",
+          "startedAt": 1791250418975,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 1166,
+              "at": 1791250418975,
+              "totals": {
+                "uncachedInputTokens": 232395,
+                "outputTokens": 154416,
+                "cacheReadTokens": 37707392,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 1166,
+                  "totals": {
+                    "uncachedInputTokens": 232395,
+                    "outputTokens": 154416,
+                    "cacheReadTokens": 37707392,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 1221,
+              "at": 1791250448368,
+              "totals": {
+                "uncachedInputTokens": 239536,
+                "outputTokens": 156829,
+                "cacheReadTokens": 41014272,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 1221,
+                  "totals": {
+                    "uncachedInputTokens": 239536,
+                    "outputTokens": 156829,
+                    "cacheReadTokens": 41014272,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 7141,
+              "outputTokens": 2413,
+              "cacheReadTokens": 3306880,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791250448368
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791249816709,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1791250418975,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "开工 t5：报告汇总 + 三道自检 + 抽查复现"
+        },
+        {
+          "status": "done",
+          "at": 1791250448368,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "t5 全部子卡 done，父卡收尾：审计报告与四份证据文件已交付。"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-5e6189",
+          "body": "[状态] → in_progress：开工 t5：报告汇总 + 三道自检 + 抽查复现（reqboard_task_move）",
+          "createdAt": 1791250418975,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        },
+        {
+          "id": "c-9c42ef",
+          "body": "[状态] → done：t5 全部子卡 done，父卡收尾：审计报告与四份证据文件已交付。（reqboard_task_move）",
+          "createdAt": 1791250448368,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791249816709,
+      "updatedAt": 1791250448368,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+      },
+      "layer": 3,
+      "lastReport": {
+        "at": 1791250446123,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-261006010812-cd19/audit-report.md"
+        ],
+        "completed": [
+          "产出 audit-report.md：结论摘要 / 一致性矩阵 26 行 / 验收复跑 7 行 / 缺口 8 行 / 改进项 9 行 + 附录",
+          "整体判定：已实现但语义偏离（12 一致 / 8 偏离 / 5 未实现 / 1 无法判定）",
+          "最重结论 3 条：休市日记 success、回滚押 git 但未提交、验收工具缺失且判据被 gitignore",
+          "三道自检与抽查 5 行、只读性回归均通过并写进附录",
+          "改进项按 P0/P1/P2 分级，每条带可证伪判据"
+        ]
+      },
+      "lastRun": {
+        "at": 1791250446123,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-e2e068",
+      "requirementId": "REQ-261006010812-cd19",
+      "title": "设计文档自洽性 + 版本面取证·取数调研",
+      "description": "子卡阶段：取数调研",
+      "phase": "analysis",
+      "side": "doc",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "数据样本量与来源已标注：给出取数命令（如 `npx tsx scripts/<脚本>.mts`）或输出文件路径，对齐 R-013 来源与时点口径",
+      "implementation": "读 a7cd 设计目录下的 6 份文档与 requirement.md，建「设计条目清单」（每条：文档:行 / 声明内容 / serves 哪条 FR）。做四类自洽性检查：① 同一事实跨文档取值（design.md §12 验收命令 vs test-cases.md §6；§2 的 reason 枚举 vs interfaces.md §1）；② 文档间引用有效性（互链、被点名的文件与工具是否存在）；③ §13 四个未定决策是否闭环（对照 requirement.md 与 verification.md）；④ 数值口径（持仓数 / 止损线 / factors_count / cron 时刻在设计与需求间是否一致）。再跑面 E：对设计点名的每个文件与工具执行 git check-ignore -v、git ls-files --error-unmatch、git log -1 -- <path>、git status --porcelain。产出 docs/requirements/REQ-261006010812-cd19/evidence/a1-design-selfconsistency.md。\n\n[子卡阶段·取数调研] 只做本阶段；验收：数据样本量与来源已标注：给出取数命令（如 `npx tsx scripts/<脚本>.mts`）或输出文件路径，对齐 R-013 来源与时点口径",
+      "context": "",
+      "parentId": "t-9f0fbe",
+      "stageKind": "collect",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-e92d19",
+          "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+          "trigger": "manual",
+          "startedAt": 1791249925713,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 586,
+              "at": 1791249925713,
+              "totals": {
+                "uncachedInputTokens": 145158,
+                "outputTokens": 91156,
+                "cacheReadTokens": 10335104,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 586,
+                  "totals": {
+                    "uncachedInputTokens": 145158,
+                    "outputTokens": 91156,
+                    "cacheReadTokens": 10335104,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 598,
+              "at": 1791249930670,
+              "totals": {
+                "uncachedInputTokens": 145770,
+                "outputTokens": 91643,
+                "cacheReadTokens": 10788480,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 598,
+                  "totals": {
+                    "uncachedInputTokens": 145770,
+                    "outputTokens": 91643,
+                    "cacheReadTokens": 10788480,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 612,
+              "outputTokens": 487,
+              "cacheReadTokens": 453376,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791249930670
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-e9e752",
+          "body": "[状态] → in_progress：开工 collect 段：面 A 设计条目抽取 + 面 E 路径三查（reqboard_task_move）",
+          "createdAt": 1791249925713,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        },
+        {
+          "id": "c-41e838",
+          "body": "[状态] → done：collect 段完成：228 个数据点已落 a1 证据文件并汇报。（reqboard_task_move）",
+          "createdAt": 1791249930670,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791249829009,
+      "updatedAt": 1791249930670,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791249829009,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791249925713,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "开工 collect 段：面 A 设计条目抽取 + 面 E 路径三查"
+        },
+        {
+          "status": "done",
+          "at": 1791249930670,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "collect 段完成：228 个数据点已落 a1 证据文件并汇报。"
+        }
+      ],
+      "layer": 0,
+      "lastReport": {
+        "at": 1791249928757,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-261006010812-cd19/evidence/a1-design-selfconsistency.md"
+        ],
+        "completed": [
+          "命令：从 6 份设计文档 + requirement.md 抽路径类 token（63 条候选）",
+          "命令：对 57 个真实路径逐个跑 git ls-files --error-unmatch / git check-ignore -v / git log -1 / git status --porcelain",
+          "命令：git status --porcelain | wc -l = 128（全仓脏文件，证明只读未新增改动）",
+          "命令：python3 读 valid_factors.json=75 / v14_p0_valid_factors.json=78 / v14_p0_model.json feature_names=78",
+          "样本量：57 个路径 × 4 项检查 = 228 个数据点；库与代码时点 2026-10-06 09:2x CST",
+          "来源口径：全部为本机工作区与 git 索引，无外部数据源"
+        ]
+      },
+      "lastRun": {
+        "at": 1791249928757,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-83047e",
+      "requirementId": "REQ-261006010812-cd19",
+      "title": "设计文档自洽性 + 版本面取证·分析",
+      "description": "子卡阶段：分析",
+      "phase": "analysis",
+      "side": "doc",
+      "dependsOn": [
+        "t-e2e068"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "结论含置信度与适用边界，并列出被证伪的假设（附支撑数据的命令或 `docs/requirements/<REQ>/` 下证据路径）",
+      "implementation": "读 a7cd 设计目录下的 6 份文档与 requirement.md，建「设计条目清单」（每条：文档:行 / 声明内容 / serves 哪条 FR）。做四类自洽性检查：① 同一事实跨文档取值（design.md §12 验收命令 vs test-cases.md §6；§2 的 reason 枚举 vs interfaces.md §1）；② 文档间引用有效性（互链、被点名的文件与工具是否存在）；③ §13 四个未定决策是否闭环（对照 requirement.md 与 verification.md）；④ 数值口径（持仓数 / 止损线 / factors_count / cron 时刻在设计与需求间是否一致）。再跑面 E：对设计点名的每个文件与工具执行 git check-ignore -v、git ls-files --error-unmatch、git log -1 -- <path>、git status --porcelain。产出 docs/requirements/REQ-261006010812-cd19/evidence/a1-design-selfconsistency.md。\n\n[子卡阶段·分析] 只做本阶段；验收：结论含置信度与适用边界，并列出被证伪的假设（附支撑数据的命令或 `docs/requirements/<REQ>/` 下证据路径）",
+      "context": "",
+      "parentId": "t-9f0fbe",
+      "stageKind": "analyze",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-c7c1c5",
+          "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+          "trigger": "manual",
+          "startedAt": 1791249932384,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 604,
+              "at": 1791249932385,
+              "totals": {
+                "uncachedInputTokens": 146007,
+                "outputTokens": 91738,
+                "cacheReadTokens": 11015680,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 604,
+                  "totals": {
+                    "uncachedInputTokens": 146007,
+                    "outputTokens": 91738,
+                    "cacheReadTokens": 11015680,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 616,
+              "at": 1791249937889,
+              "totals": {
+                "uncachedInputTokens": 146719,
+                "outputTokens": 92483,
+                "cacheReadTokens": 11471616,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 616,
+                  "totals": {
+                    "uncachedInputTokens": 146719,
+                    "outputTokens": 92483,
+                    "cacheReadTokens": 11471616,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 712,
+              "outputTokens": 745,
+              "cacheReadTokens": 455936,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791249937888
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-0ceca8",
+          "body": "[状态] → in_progress：开工 analyze 段：把取证数据归并成自洽性条目与判定（reqboard_task_move）",
+          "createdAt": 1791249932384,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        },
+        {
+          "id": "c-d49da6",
+          "body": "[状态] → done：analyze 段完成：条目与置信度已落库并汇报。（reqboard_task_move）",
+          "createdAt": 1791249937888,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791249829009,
+      "updatedAt": 1791249937888,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791249829009,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791249932384,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "开工 analyze 段：把取证数据归并成自洽性条目与判定"
+        },
+        {
+          "status": "done",
+          "at": 1791249937888,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "analyze 段完成：条目与置信度已落库并汇报。"
+        }
+      ],
+      "layer": 1,
+      "lastReport": {
+        "at": 1791249936120,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-261006010812-cd19/evidence/a1-design-selfconsistency.md"
+        ],
+        "completed": [
+          "归并出自洽性条目 15 条（A1-1..A1-15）+ 面 E 硬结论 4 条（A1-16..A1-19）",
+          "不一致 6 条：A1-1 reason 枚举、A1-2 判据两载体、A1-4 时段护栏复用对象、A1-5 过期映射缺、A1-11 §13 未回写、A1-15 注释称生効 8",
+          "引用/留档失效 7 条：A1-6 工具不存在、A1-7 判据被 ignore、A1-8 resolver 未跟踪、A1-16 整目录未跟踪、A1-17 回滚押 git 但未提交、A1-18 patch 不自足、A1-19 全仓 128 脏文件",
+          "通过 5 条：A1-3 cron 口径一致、A1-9 plist 可解析、A1-10 四条裁定闭环、A1-12 v13 因子 75 已修、A1-13 持仓 5 已收口",
+          "置信度：A1-6/7/12/13/14/16/17 为 L1 可复跑命令支撑，置信度高；A1-1/2/4/5/11/15 为 L2 静态定位，置信度中",
+          "适用边界：结论只对 2026-10-06 09:2x 的工作区与 git 索引成立；库表事实不在本卡（属 t3）",
+          "被证伪的假设一：设计验收命令清单可直接当判据 —— 被 A1-6/A1-7 证伪",
+          "被证伪的假设二：归档需求至少进了版本控制 —— 被 A1-16 证伪（整目录 ??）",
+          "被证伪的假设三：notes patch 足以恢复实现 —— 被 A1-18 证伪（新模块只在 tar）"
+        ]
+      },
+      "lastRun": {
+        "at": 1791249936120,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-69aedb",
+      "requirementId": "REQ-261006010812-cd19",
+      "title": "设计文档自洽性 + 版本面取证·复核",
+      "description": "子卡阶段：复核",
+      "phase": "analysis",
+      "side": "doc",
+      "dependsOn": [
+        "t-83047e"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "implementation": "读 a7cd 设计目录下的 6 份文档与 requirement.md，建「设计条目清单」（每条：文档:行 / 声明内容 / serves 哪条 FR）。做四类自洽性检查：① 同一事实跨文档取值（design.md §12 验收命令 vs test-cases.md §6；§2 的 reason 枚举 vs interfaces.md §1）；② 文档间引用有效性（互链、被点名的文件与工具是否存在）；③ §13 四个未定决策是否闭环（对照 requirement.md 与 verification.md）；④ 数值口径（持仓数 / 止损线 / factors_count / cron 时刻在设计与需求间是否一致）。再跑面 E：对设计点名的每个文件与工具执行 git check-ignore -v、git ls-files --error-unmatch、git log -1 -- <path>、git status --porcelain。产出 docs/requirements/REQ-261006010812-cd19/evidence/a1-design-selfconsistency.md。\n\n[子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-9f0fbe",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-4d6704",
+          "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+          "trigger": "manual",
+          "startedAt": 1791249939879,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 622,
+              "at": 1791249939879,
+              "totals": {
+                "uncachedInputTokens": 146877,
+                "outputTokens": 92578,
+                "cacheReadTokens": 11700352,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 622,
+                  "totals": {
+                    "uncachedInputTokens": 146877,
+                    "outputTokens": 92578,
+                    "cacheReadTokens": 11700352,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 646,
+              "at": 1791249952267,
+              "totals": {
+                "uncachedInputTokens": 148231,
+                "outputTokens": 94404,
+                "cacheReadTokens": 12621184,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 646,
+                  "totals": {
+                    "uncachedInputTokens": 148231,
+                    "outputTokens": 94404,
+                    "cacheReadTokens": 12621184,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 1354,
+              "outputTokens": 1826,
+              "cacheReadTokens": 920832,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791249952267
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-77007a",
+          "body": "[状态] → in_progress：开工 review 段：复核 a1 证据文件的结构与判据合规（reqboard_task_move）",
+          "createdAt": 1791249939879,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        },
+        {
+          "id": "c-0ed0b2",
+          "body": "[状态] → done：review 段完成：重查 7 项全过、无偏离。（reqboard_task_move）",
+          "createdAt": 1791249952267,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791249829009,
+      "updatedAt": 1791249952267,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791249829009,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791249939879,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "开工 review 段：复核 a1 证据文件的结构与判据合规"
+        },
+        {
+          "status": "done",
+          "at": 1791249952267,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "review 段完成：重查 7 项全过、无偏离。"
+        }
+      ],
+      "layer": 2,
+      "lastReport": {
+        "at": 1791249950418,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-261006010812-cd19/evidence/a1-design-selfconsistency.md"
+        ],
+        "completed": [
+          "独立重查 7 项关键结论，全部与 a1 文档一致（未复用上一段输出）",
+          "重查1：tools/check_trading_day_judgment.py 确实不存在",
+          "重查2：.gitignore:85 规则确实为 check_*.py",
+          "重查3：a7cd 目录 git 状态确实为 ?? 整目录未跟踪",
+          "重查4：design.md:70 含 no_cash=1，interfaces.md 含 no_cash=0，枚举差异成立",
+          "重查5：config_simulation.yaml 三行注释归一化后 3/3 均称「生効 8」，与 v13.yaml top_n=5 矛盾成立",
+          "重查6：v14 factors_count 声明 75 vs 真实 78，A1-14 成立",
+          "重查7：test-cases.md:35-43 确为内联 heredoc，A1-2 成立",
+          "结构自检：行首 [L 证据行 22 + 表格条目行 16 = 38 ≥ 条目数 35",
+          "结构自检：软判定词 0 命中；面 E 表 56 行路径齐备",
+          "对照 design/ 五份设计文档逐条核对：本卡产出与 design/interfaces.md §4 证据格式、§3 强度分级一致"
+        ]
+      },
+      "lastRun": {
+        "at": 1791249950418,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-947815",
+      "requirementId": "REQ-261006010812-cd19",
+      "title": "实现一致性矩阵（面 B，逐条落点）·取数调研",
+      "description": "子卡阶段：取数调研",
+      "phase": "analysis",
+      "side": "doc",
+      "dependsOn": [
+        "t-9f0fbe"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "数据样本量与来源已标注：给出取数命令（如 `npx tsx scripts/<脚本>.mts`）或输出文件路径，对齐 R-013 来源与时点口径",
+      "implementation": "以 t1 的条目清单为输入，逐条在代码与配置里定位落点并核对语义：按符号检索 RunOutcome、FailureSink、report_failure、should_have_run、trading_day_resolver、SOURCE_CALENDAR、skipped_off_hours、expired、oversell_blocked、V13_CHAIN_STRICT、build_cron_trigger、misfire_grace_time_seconds、select_channels、AgentChannel.supports、REBALANCE 与 RISK_ALERT formatter；对每条读实现（文件:行）比对设计声明的字段名/取值/默认值/错误语义/开关名，落四档判定之一。产出 docs/requirements/REQ-261006010812-cd19/evidence/a2-impl-matrix.md（表：设计条目 / 判定 / 证据 / 说明）。\n\n[子卡阶段·取数调研] 只做本阶段；验收：数据样本量与来源已标注：给出取数命令（如 `npx tsx scripts/<脚本>.mts`）或输出文件路径，对齐 R-013 来源与时点口径",
+      "context": "",
+      "parentId": "t-3c2fb0",
+      "stageKind": "collect",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-9375fe",
+          "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+          "trigger": "manual",
+          "startedAt": 1791250138594,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 787,
+              "at": 1791250138594,
+              "totals": {
+                "uncachedInputTokens": 177214,
+                "outputTokens": 117299,
+                "cacheReadTokens": 18203392,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 787,
+                  "totals": {
+                    "uncachedInputTokens": 177214,
+                    "outputTokens": 117299,
+                    "cacheReadTokens": 18203392,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 799,
+              "at": 1791250144134,
+              "totals": {
+                "uncachedInputTokens": 178045,
+                "outputTokens": 117759,
+                "cacheReadTokens": 18763264,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 799,
+                  "totals": {
+                    "uncachedInputTokens": 178045,
+                    "outputTokens": 117759,
+                    "cacheReadTokens": 18763264,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 831,
+              "outputTokens": 460,
+              "cacheReadTokens": 559872,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791250144134
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-84604b",
+          "body": "[状态] → in_progress：collect 段：代码面符号定位 + 生产库只读取数已完成（26 落点）（reqboard_task_move）",
+          "createdAt": 1791250138594,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        },
+        {
+          "id": "c-7315f0",
+          "body": "[状态] → done：collect 段完成（26 落点取数）（reqboard_task_move）",
+          "createdAt": 1791250144134,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791250136172,
+      "updatedAt": 1791250144134,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791250136172,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791250138594,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "collect 段：代码面符号定位 + 生产库只读取数已完成（26 落点）"
+        },
+        {
+          "status": "done",
+          "at": 1791250144134,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "collect 段完成（26 落点取数）"
+        }
+      ],
+      "layer": 1,
+      "lastReport": {
+        "at": 1791250141907,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-261006010812-cd19/evidence/a2-impl-matrix.md"
+        ],
+        "completed": [
+          "符号检索：25 个设计落点符号全仓 grep，命中位置逐一登记",
+          "代码读取：run_outcome / failure_sink / job_protocol / trading_jobs / account_trading_service 关键实现已读",
+          "生产库只读查询 9 条：scheduler_tasks（宽限分布/249/257）、scheduler_runs（249 最近 6 次/status 分布）、pending_orders 全表、trades 超卖、account、positions",
+          "样本量：26 个落点 × （代码定位 + 语义核对）；库查询 9 条均记库名与语句",
+          "时点口径：代码与库均为 2026-10-06 09:3x CST"
+        ]
+      },
+      "lastRun": {
+        "at": 1791250141907,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-2b228e",
+      "requirementId": "REQ-261006010812-cd19",
+      "title": "实现一致性矩阵（面 B，逐条落点）·分析",
+      "description": "子卡阶段：分析",
+      "phase": "analysis",
+      "side": "doc",
+      "dependsOn": [
+        "t-947815"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "结论含置信度与适用边界，并列出被证伪的假设（附支撑数据的命令或 `docs/requirements/<REQ>/` 下证据路径）",
+      "implementation": "以 t1 的条目清单为输入，逐条在代码与配置里定位落点并核对语义：按符号检索 RunOutcome、FailureSink、report_failure、should_have_run、trading_day_resolver、SOURCE_CALENDAR、skipped_off_hours、expired、oversell_blocked、V13_CHAIN_STRICT、build_cron_trigger、misfire_grace_time_seconds、select_channels、AgentChannel.supports、REBALANCE 与 RISK_ALERT formatter；对每条读实现（文件:行）比对设计声明的字段名/取值/默认值/错误语义/开关名，落四档判定之一。产出 docs/requirements/REQ-261006010812-cd19/evidence/a2-impl-matrix.md（表：设计条目 / 判定 / 证据 / 说明）。\n\n[子卡阶段·分析] 只做本阶段；验收：结论含置信度与适用边界，并列出被证伪的假设（附支撑数据的命令或 `docs/requirements/<REQ>/` 下证据路径）",
+      "context": "",
+      "parentId": "t-3c2fb0",
+      "stageKind": "analyze",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-846ddb",
+          "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+          "trigger": "manual",
+          "startedAt": 1791250146032,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 805,
+              "at": 1791250146032,
+              "totals": {
+                "uncachedInputTokens": 178242,
+                "outputTokens": 117847,
+                "cacheReadTokens": 19043840,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 805,
+                  "totals": {
+                    "uncachedInputTokens": 178242,
+                    "outputTokens": 117847,
+                    "cacheReadTokens": 19043840,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 817,
+              "at": 1791250152242,
+              "totals": {
+                "uncachedInputTokens": 178900,
+                "outputTokens": 118415,
+                "cacheReadTokens": 19606272,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 817,
+                  "totals": {
+                    "uncachedInputTokens": 178900,
+                    "outputTokens": 118415,
+                    "cacheReadTokens": 19606272,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 658,
+              "outputTokens": 568,
+              "cacheReadTokens": 562432,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791250152242
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-9abeed",
+          "body": "[状态] → in_progress：analyze 段：落四档判定（reqboard_task_move）",
+          "createdAt": 1791250146032,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        },
+        {
+          "id": "c-721c5c",
+          "body": "[状态] → done：analyze 段完成（26 条判定）（reqboard_task_move）",
+          "createdAt": 1791250152242,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791250136172,
+      "updatedAt": 1791250152242,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791250136172,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791250146032,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "analyze 段：落四档判定"
+        },
+        {
+          "status": "done",
+          "at": 1791250152242,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "analyze 段完成（26 条判定）"
+        }
+      ],
+      "layer": 2,
+      "lastReport": {
+        "at": 1791250149378,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-261006010812-cd19/evidence/a2-impl-matrix.md"
+        ],
+        "completed": [
+          "落四档判定 26 条：一致 12 / 语义偏离 8 / 未实现 5 / 无法判定 1",
+          "置信度：M-06/10/12/14/23 有 L1 实跑或库行支撑，高；M-01/05/16/20/21/22/25/26 为 L2 静态定位，中；M-11 因禁止生产副作用只能判无法判定",
+          "适用边界：只对 2026-10-06 09:3x 的工作区 + 生产库快照成立；策略规则合理性不在本卡",
+          "被证伪的假设一：三态映射已覆盖生产路径 —— 被 M-06 证伪（10-05 休市 run 仍记 success）",
+          "被证伪的假设二：调度归属已扩到 pending-orders-match —— 被 M-12 证伪（库 0 行）",
+          "被证伪的假设三：灰度开关可用于止血 —— 被 M-25 证伪（V13_CHAIN_STRICT 全仓 0 命中）",
+          "被证伪的假设四：超卖清单已 0 行 —— 被 M-23 证伪（raw SQL 仍 4 行）"
+        ]
+      },
+      "lastRun": {
+        "at": 1791250149378,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-db3def",
+      "requirementId": "REQ-261006010812-cd19",
+      "title": "实现一致性矩阵（面 B，逐条落点）·复核",
+      "description": "子卡阶段：复核",
+      "phase": "analysis",
+      "side": "doc",
+      "dependsOn": [
+        "t-2b228e"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "implementation": "以 t1 的条目清单为输入，逐条在代码与配置里定位落点并核对语义：按符号检索 RunOutcome、FailureSink、report_failure、should_have_run、trading_day_resolver、SOURCE_CALENDAR、skipped_off_hours、expired、oversell_blocked、V13_CHAIN_STRICT、build_cron_trigger、misfire_grace_time_seconds、select_channels、AgentChannel.supports、REBALANCE 与 RISK_ALERT formatter；对每条读实现（文件:行）比对设计声明的字段名/取值/默认值/错误语义/开关名，落四档判定之一。产出 docs/requirements/REQ-261006010812-cd19/evidence/a2-impl-matrix.md（表：设计条目 / 判定 / 证据 / 说明）。\n\n[子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-3c2fb0",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-76a350",
+          "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+          "trigger": "manual",
+          "startedAt": 1791250154441,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 823,
+              "at": 1791250154441,
+              "totals": {
+                "uncachedInputTokens": 179073,
+                "outputTokens": 118502,
+                "cacheReadTokens": 19888128,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 823,
+                  "totals": {
+                    "uncachedInputTokens": 179073,
+                    "outputTokens": 118502,
+                    "cacheReadTokens": 19888128,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 847,
+              "at": 1791250171804,
+              "totals": {
+                "uncachedInputTokens": 180200,
+                "outputTokens": 120740,
+                "cacheReadTokens": 21022720,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 847,
+                  "totals": {
+                    "uncachedInputTokens": 180200,
+                    "outputTokens": 120740,
+                    "cacheReadTokens": 21022720,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 1127,
+              "outputTokens": 2238,
+              "cacheReadTokens": 1134592,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791250171804
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-2e25b9",
+          "body": "[状态] → in_progress：review 段：复核矩阵判定与证据（reqboard_task_move）",
+          "createdAt": 1791250154441,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        },
+        {
+          "id": "c-94ae8a",
+          "body": "[状态] → done：review 段完成：重查全过、无实质偏离（reqboard_task_move）",
+          "createdAt": 1791250171804,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791250136172,
+      "updatedAt": 1791250171804,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791250136172,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791250154441,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "review 段：复核矩阵判定与证据"
+        },
+        {
+          "status": "done",
+          "at": 1791250171804,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "review 段完成：重查全过、无实质偏离"
+        }
+      ],
+      "layer": 3,
+      "lastReport": {
+        "at": 1791250169988,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-261006010812-cd19/evidence/a2-impl-matrix.md"
+        ],
+        "completed": [
+          "独立重查四条重判定，全部成立：M-06 休市 run 记账 success（内层 skipped）、M-12 库 0 行、M-23 raw 超卖 4 行、M-25 代码 0 命中",
+          "补精确证据路径：M-06 的 result.details.details.check.status = skipped（已写入矩阵）",
+          "结构自检：26 行、证据列 26/26 以 [L 开头、软判定词 0",
+          "对照 design/interfaces.md §2 四档枚举逐行核对：判定词无越界（无 基本一致/疑似 类表述）",
+          "对照 design/interfaces.md §3 强度分级：L4 未被用于支撑「已实现」判定（M-11 用 L2+L3 落无法判定）",
+          "测试口径说明：本卡为纯文档卡，验收用 pytest 而模板提到 npx vitest（TS 项目残留）；对应实跑 C1 36 passed / C5 10 passed / C6 28 passed 均 exit 0",
+          "无偏离（除已修正的 M-06 证据路径精度一处）"
+        ]
+      },
+      "lastRun": {
+        "at": 1791250169988,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-7b8637",
+      "requirementId": "REQ-261006010812-cd19",
+      "title": "只读库表事实 + 验收命令复跑·取数调研",
+      "description": "子卡阶段：取数调研",
+      "phase": "analysis",
+      "side": "doc",
+      "dependsOn": [
+        "t-9f0fbe"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "数据样本量与来源已标注：给出取数命令（如 `npx tsx scripts/<脚本>.mts`）或输出文件路径，对齐 R-013 来源与时点口径",
+      "implementation": "① 对设计 data-model.md §1 的 6 张表（scheduler_tasks、scheduler_runs、simulation_pending_orders、simulation_trades、simulation_positions、simulation_account）跑只读 SELECT，每条证据记「库名 + SQL + 执行时刻（分钟级）」；② 逐条实跑 design.md §12 的 7 条命令（C1~C7，清单见 decomposition.md §4 t3：3 条 pytest、3 个只读检查器、1 个对账器），记「实跑/不可跑 + 真实退出码 + ≤80 字输出摘要」；不可跑者同行写原因并另起一行给替代判据（标 L4）；③ 跑 pytest 前后各做一次生产库只读计数比对，证明写入只落在 quant_test。产出 docs/requirements/REQ-261006010812-cd19/evidence/a3-calldb-replay.md。\n\n[子卡阶段·取数调研] 只做本阶段；验收：数据样本量与来源已标注：给出取数命令（如 `npx tsx scripts/<脚本>.mts`）或输出文件路径，对齐 R-013 来源与时点口径",
+      "context": "",
+      "parentId": "t-881157",
+      "stageKind": "collect",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-95af1a",
+          "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+          "trigger": "manual",
+          "startedAt": 1791250225732,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 903,
+              "at": 1791250225732,
+              "totals": {
+                "uncachedInputTokens": 192133,
+                "outputTokens": 129265,
+                "cacheReadTokens": 23648640,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 903,
+                  "totals": {
+                    "uncachedInputTokens": 192133,
+                    "outputTokens": 129265,
+                    "cacheReadTokens": 23648640,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 915,
+              "at": 1791250230552,
+              "totals": {
+                "uncachedInputTokens": 193065,
+                "outputTokens": 129698,
+                "cacheReadTokens": 24258304,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 915,
+                  "totals": {
+                    "uncachedInputTokens": 193065,
+                    "outputTokens": 129698,
+                    "cacheReadTokens": 24258304,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 932,
+              "outputTokens": 433,
+              "cacheReadTokens": 609664,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791250230552
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-da24bb",
+          "body": "[状态] → in_progress：collect 段：7 条验收命令实跑 + 6 张表只读取数已完成（reqboard_task_move）",
+          "createdAt": 1791250225732,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        },
+        {
+          "id": "c-1fb9b8",
+          "body": "[状态] → done：collect 段完成（reqboard_task_move）",
+          "createdAt": 1791250230552,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791250222109,
+      "updatedAt": 1791250230552,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791250222109,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791250225732,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "collect 段：7 条验收命令实跑 + 6 张表只读取数已完成"
+        },
+        {
+          "status": "done",
+          "at": 1791250230552,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "collect 段完成"
+        }
+      ],
+      "layer": 1,
+      "lastReport": {
+        "at": 1791250228854,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-261006010812-cd19/evidence/a3-calldb-replay.md"
+        ],
+        "completed": [
+          "实跑 7 条验收命令（C1~C7），日志落 /tmp/cd19/C{1..7}.log，退出码 0/0/0/2(不可跑)/2/0/0",
+          "只读库查询 9 条：6 张受检表 + scheduler_runs status 分布 + pending 全表 + trading_calendar",
+          "成对计数测量：跑 C5 前后对生产库四表计数（3155/33/78/7 逐字不变）、测试库四表均为 0",
+          "来源与时点：生产库 quant_investment 只读，时刻 2026-10-06 09:2x~09:4x CST（每条证据已带时刻）"
+        ]
+      },
+      "lastRun": {
+        "at": 1791250228854,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-ba6005",
+      "requirementId": "REQ-261006010812-cd19",
+      "title": "只读库表事实 + 验收命令复跑·分析",
+      "description": "子卡阶段：分析",
+      "phase": "analysis",
+      "side": "doc",
+      "dependsOn": [
+        "t-7b8637"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "结论含置信度与适用边界，并列出被证伪的假设（附支撑数据的命令或 `docs/requirements/<REQ>/` 下证据路径）",
+      "implementation": "① 对设计 data-model.md §1 的 6 张表（scheduler_tasks、scheduler_runs、simulation_pending_orders、simulation_trades、simulation_positions、simulation_account）跑只读 SELECT，每条证据记「库名 + SQL + 执行时刻（分钟级）」；② 逐条实跑 design.md §12 的 7 条命令（C1~C7，清单见 decomposition.md §4 t3：3 条 pytest、3 个只读检查器、1 个对账器），记「实跑/不可跑 + 真实退出码 + ≤80 字输出摘要」；不可跑者同行写原因并另起一行给替代判据（标 L4）；③ 跑 pytest 前后各做一次生产库只读计数比对，证明写入只落在 quant_test。产出 docs/requirements/REQ-261006010812-cd19/evidence/a3-calldb-replay.md。\n\n[子卡阶段·分析] 只做本阶段；验收：结论含置信度与适用边界，并列出被证伪的假设（附支撑数据的命令或 `docs/requirements/<REQ>/` 下证据路径）",
+      "context": "",
+      "parentId": "t-881157",
+      "stageKind": "analyze",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-3190b2",
+          "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+          "trigger": "manual",
+          "startedAt": 1791250232778,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 921,
+              "at": 1791250232778,
+              "totals": {
+                "uncachedInputTokens": 193240,
+                "outputTokens": 129790,
+                "cacheReadTokens": 24563840,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 921,
+                  "totals": {
+                    "uncachedInputTokens": 193240,
+                    "outputTokens": 129790,
+                    "cacheReadTokens": 24563840,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 933,
+              "at": 1791250238398,
+              "totals": {
+                "uncachedInputTokens": 193871,
+                "outputTokens": 130340,
+                "cacheReadTokens": 25176192,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 933,
+                  "totals": {
+                    "uncachedInputTokens": 193871,
+                    "outputTokens": 130340,
+                    "cacheReadTokens": 25176192,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 631,
+              "outputTokens": 550,
+              "cacheReadTokens": 612352,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791250238398
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-b1cc34",
+          "body": "[状态] → in_progress：analyze 段：复跑结果与设计期望逐条比对（reqboard_task_move）",
+          "createdAt": 1791250232778,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        },
+        {
+          "id": "c-e87e3e",
+          "body": "[状态] → done：analyze 段完成（5/7 相符 + 4 条被证伪假设）（reqboard_task_move）",
+          "createdAt": 1791250238398,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791250222109,
+      "updatedAt": 1791250238398,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791250222109,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791250232778,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "analyze 段：复跑结果与设计期望逐条比对"
+        },
+        {
+          "status": "done",
+          "at": 1791250238398,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "analyze 段完成（5/7 相符 + 4 条被证伪假设）"
+        }
+      ],
+      "layer": 2,
+      "lastReport": {
+        "at": 1791250235927,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-261006010812-cd19/evidence/a3-calldb-replay.md"
+        ],
+        "completed": [
+          "逐条比对结论：与设计期望直接相符 5/7；C2 不可跑、C3 退出码 2",
+          "置信度：C1~C7 的全部退出码与摘要均为 L1 实跑（高）；库事实为 L3 快照（已带库名与时刻）",
+          "适用边界：只对 2026-10-06 09:2x 时点成立；C3 的漏跑是随时间变化的量",
+          "被证伪的假设一：design.md §12 的 7 条命令都能跑 —— 被 C2 证伪（工具不存在）",
+          "被证伪的假设二：当前无「应跑未跑」—— 被 C3 证伪（daily-strategy-validation 漏跑 1 条）",
+          "被证伪的假设三：超卖清单已 0 行 —— 被 C7 双口径证伪（raw 仍 4 行）",
+          "被证伪的假设四：设计 §3 定标 check(10-08)==True 可满足 —— 被实跑证伪（source=future 短路）"
+        ]
+      },
+      "lastRun": {
+        "at": 1791250235927,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-003c90",
+      "requirementId": "REQ-261006010812-cd19",
+      "title": "只读库表事实 + 验收命令复跑·复核",
+      "description": "子卡阶段：复核",
+      "phase": "analysis",
+      "side": "doc",
+      "dependsOn": [
+        "t-ba6005"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "implementation": "① 对设计 data-model.md §1 的 6 张表（scheduler_tasks、scheduler_runs、simulation_pending_orders、simulation_trades、simulation_positions、simulation_account）跑只读 SELECT，每条证据记「库名 + SQL + 执行时刻（分钟级）」；② 逐条实跑 design.md §12 的 7 条命令（C1~C7，清单见 decomposition.md §4 t3：3 条 pytest、3 个只读检查器、1 个对账器），记「实跑/不可跑 + 真实退出码 + ≤80 字输出摘要」；不可跑者同行写原因并另起一行给替代判据（标 L4）；③ 跑 pytest 前后各做一次生产库只读计数比对，证明写入只落在 quant_test。产出 docs/requirements/REQ-261006010812-cd19/evidence/a3-calldb-replay.md。\n\n[子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-881157",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-a37141",
+          "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+          "trigger": "manual",
+          "startedAt": 1791250240519,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 939,
+              "at": 1791250240519,
+              "totals": {
+                "uncachedInputTokens": 194022,
+                "outputTokens": 130429,
+                "cacheReadTokens": 25483008,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 939,
+                  "totals": {
+                    "uncachedInputTokens": 194022,
+                    "outputTokens": 130429,
+                    "cacheReadTokens": 25483008,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 969,
+              "at": 1791250259738,
+              "totals": {
+                "uncachedInputTokens": 195643,
+                "outputTokens": 132510,
+                "cacheReadTokens": 27025792,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 969,
+                  "totals": {
+                    "uncachedInputTokens": 195643,
+                    "outputTokens": 132510,
+                    "cacheReadTokens": 27025792,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 1621,
+              "outputTokens": 2081,
+              "cacheReadTokens": 1542784,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791250259738
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-a9688c",
+          "body": "[状态] → in_progress：review 段：复核复跑表与库证据（reqboard_task_move）",
+          "createdAt": 1791250240519,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        },
+        {
+          "id": "c-7cde24",
+          "body": "[状态] → done：review 段完成：重跑稳定、无实质偏离（reqboard_task_move）",
+          "createdAt": 1791250259738,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791250222109,
+      "updatedAt": 1791250259738,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791250222109,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791250240519,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "review 段：复核复跑表与库证据"
+        },
+        {
+          "status": "done",
+          "at": 1791250259738,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "review 段完成：重跑稳定、无实质偏离"
+        }
+      ],
+      "layer": 3,
+      "lastReport": {
+        "at": 1791250258128,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-261006010812-cd19/evidence/a3-calldb-replay.md"
+        ],
+        "completed": [
+          "C3 重跑：exit 2 稳定（漏跑 1 条，盘点时刻 09:30:44）",
+          "C4 重跑：exit 0 稳定（声明==生效）",
+          "生产库计数复核：3155/33/78/7 与 §4 记录逐字一致（证明期间无写入）",
+          "C2 定标复核：10-08 -> False（source=future）成立；替代判据实跑通过（纯函数冻结 today 后 10-05/06/07=False、10-08=True）",
+          "修正一处精度：judge_trading_day 入参是 date 对象（传字符串抛 AttributeError），已写入证据文件",
+          "对照 design/ 五份文档逐条核对：复跑表字段与 interfaces.md §6 契约一致（实跑?/退出码/输出摘要三列齐）",
+          "无偏离（除已修正的替代判据实现细节一处）"
+        ]
+      },
+      "lastRun": {
+        "at": 1791250258128,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-1e2867",
+      "requirementId": "REQ-261006010812-cd19",
+      "title": "设计未覆盖缺口审计·取数调研",
+      "description": "子卡阶段：取数调研",
+      "phase": "analysis",
+      "side": "doc",
+      "dependsOn": [
+        "t-3c2fb0",
+        "t-881157"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "数据样本量与来源已标注：给出取数命令（如 `npx tsx scripts/<脚本>.mts`）或输出文件路径，对齐 R-013 来源与时点口径",
+      "implementation": "复核 requirement.md 已实测的 E-2（实现从未提交）E-3（验收工具缺失）E-4（判据被 gitignore 排除）E-6（归档需求覆盖度自相矛盾），并主动找「该设计未覆盖但仍在风险中」的链路：a7cd 的 E15（risk_check / verification / weekly_report 三条链路坏且未排班）、E16（盘中无 V13 止损，intraday_monitor 账户写死 rotation_main 且 rule_guard 拒绝策略账户）、休市日非日检写入路径、无提交导致的回滚失效、pytest.ini 假绿灯门禁是否真落地。每条给证据（L1-L3）+ 影响面 + 风险等级（高/中/低）。产出 docs/requirements/REQ-261006010812-cd19/evidence/a4-gaps.md。\n\n[子卡阶段·取数调研] 只做本阶段；验收：数据样本量与来源已标注：给出取数命令（如 `npx tsx scripts/<脚本>.mts`）或输出文件路径，对齐 R-013 来源与时点口径",
+      "context": "",
+      "parentId": "t-9adb94",
+      "stageKind": "collect",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-1f26f5",
+          "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+          "trigger": "manual",
+          "startedAt": 1791250319425,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 1037,
+              "at": 1791250319425,
+              "totals": {
+                "uncachedInputTokens": 210467,
+                "outputTokens": 140387,
+                "cacheReadTokens": 30535680,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 1037,
+                  "totals": {
+                    "uncachedInputTokens": 210467,
+                    "outputTokens": 140387,
+                    "cacheReadTokens": 30535680,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 1049,
+              "at": 1791250325513,
+              "totals": {
+                "uncachedInputTokens": 211712,
+                "outputTokens": 140846,
+                "cacheReadTokens": 31194240,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 1049,
+                  "totals": {
+                    "uncachedInputTokens": 211712,
+                    "outputTokens": 140846,
+                    "cacheReadTokens": 31194240,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 1245,
+              "outputTokens": 459,
+              "cacheReadTokens": 658560,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791250325513
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-d449af",
+          "body": "[状态] → in_progress：collect 段：缺口候选取证（E15/E16 + 载体面）（reqboard_task_move）",
+          "createdAt": 1791250319425,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        },
+        {
+          "id": "c-5fa8ce",
+          "body": "[状态] → done：collect 段完成（8 条候选证据）（reqboard_task_move）",
+          "createdAt": 1791250325513,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791250308011,
+      "updatedAt": 1791250325513,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791250308011,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791250319425,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "collect 段：缺口候选取证（E15/E16 + 载体面）"
+        },
+        {
+          "status": "done",
+          "at": 1791250325513,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "collect 段完成（8 条候选证据）"
+        }
+      ],
+      "layer": 2,
+      "lastReport": {
+        "at": 1791250323050,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-261006010812-cd19/evidence/a4-gaps.md"
+        ],
+        "completed": [
+          "缺口候选取数：grep 方法定义（get_trades_since/list_positions/count_rebalances 各 0 命中）",
+          "账户写死取证：risk_check_job 五处 default、verification_job 三处 default + 0.12 TODO",
+          "库侧排班取证：scheduler_tasks 全 command 清单（无 v13_risk_check / v13_verification 行）",
+          "盘中止损取证：intraday_monitor.py:77 写死 rotation_main、rule_guard.guard_account_applicable 拒绝策略账户",
+          "设计覆盖度反证：对 a7cd/design/ 检索 4 个符号 → 0 命中（并区分 intraday 一词的两处含义）",
+          "来源与时点：本机工作区 + 生产库只读，时刻 2026-10-06 09:4x CST"
+        ]
+      },
+      "lastRun": {
+        "at": 1791250323050,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-539d6c",
+      "requirementId": "REQ-261006010812-cd19",
+      "title": "设计未覆盖缺口审计·分析",
+      "description": "子卡阶段：分析",
+      "phase": "analysis",
+      "side": "doc",
+      "dependsOn": [
+        "t-1e2867"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "结论含置信度与适用边界，并列出被证伪的假设（附支撑数据的命令或 `docs/requirements/<REQ>/` 下证据路径）",
+      "implementation": "复核 requirement.md 已实测的 E-2（实现从未提交）E-3（验收工具缺失）E-4（判据被 gitignore 排除）E-6（归档需求覆盖度自相矛盾），并主动找「该设计未覆盖但仍在风险中」的链路：a7cd 的 E15（risk_check / verification / weekly_report 三条链路坏且未排班）、E16（盘中无 V13 止损，intraday_monitor 账户写死 rotation_main 且 rule_guard 拒绝策略账户）、休市日非日检写入路径、无提交导致的回滚失效、pytest.ini 假绿灯门禁是否真落地。每条给证据（L1-L3）+ 影响面 + 风险等级（高/中/低）。产出 docs/requirements/REQ-261006010812-cd19/evidence/a4-gaps.md。\n\n[子卡阶段·分析] 只做本阶段；验收：结论含置信度与适用边界，并列出被证伪的假设（附支撑数据的命令或 `docs/requirements/<REQ>/` 下证据路径）",
+      "context": "",
+      "parentId": "t-9adb94",
+      "stageKind": "analyze",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-a0dbd1",
+          "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+          "trigger": "manual",
+          "startedAt": 1791250327280,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 1055,
+              "at": 1791250327280,
+              "totals": {
+                "uncachedInputTokens": 211932,
+                "outputTokens": 140936,
+                "cacheReadTokens": 31524352,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 1055,
+                  "totals": {
+                    "uncachedInputTokens": 211932,
+                    "outputTokens": 140936,
+                    "cacheReadTokens": 31524352,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 1067,
+              "at": 1791250332514,
+              "totals": {
+                "uncachedInputTokens": 212538,
+                "outputTokens": 141523,
+                "cacheReadTokens": 32185984,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 1067,
+                  "totals": {
+                    "uncachedInputTokens": 212538,
+                    "outputTokens": 141523,
+                    "cacheReadTokens": 32185984,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 606,
+              "outputTokens": 587,
+              "cacheReadTokens": 661632,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791250332514
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-b09eaa",
+          "body": "[状态] → in_progress：analyze 段：风险分级与覆盖归属判定（reqboard_task_move）",
+          "createdAt": 1791250327280,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        },
+        {
+          "id": "c-b95be3",
+          "body": "[状态] → done：analyze 段完成（8 条定级）（reqboard_task_move）",
+          "createdAt": 1791250332514,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791250308011,
+      "updatedAt": 1791250332514,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791250308011,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791250327280,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "analyze 段：风险分级与覆盖归属判定"
+        },
+        {
+          "status": "done",
+          "at": 1791250332514,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "analyze 段完成（8 条定级）"
+        }
+      ],
+      "layer": 3,
+      "lastReport": {
+        "at": 1791250330426,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-261006010812-cd19/evidence/a4-gaps.md"
+        ],
+        "completed": [
+          "定级结果：高 4 条（G-1/G-2/G-3/G-4）、中 3 条（G-5/G-6/G-7）、低 1 条（G-8）",
+          "覆盖归属：设计未覆盖 4 条（G-1/G-2/G-3/G-5），设计已覆盖但未收口 4 条",
+          "置信度：G-1~G-4 为 L1/L2 双证据（高）；G-5~G-7 为 L1 实跑 + L3 库（高）；G-8 为 L2（中）",
+          "适用边界：只对 2026-10-06 09:4x 的工作区与生产库快照成立；不含策略规则与收益评价（D-2）",
+          "被证伪的假设一：a7cd 现状取证里的 E15/E16 已一并修掉 —— 被 G-1/G-2/G-3 证伪（设计零命中、代码仍坏、未排班）",
+          "被证伪的假设二：归档需求的回滚路径可用 —— 被 G-4 证伪（无提交 + 载体被 ignore）",
+          "被证伪的假设三：漏跑判据可靠 —— 被 G-5 证伪（休市日误报）"
+        ]
+      },
+      "lastRun": {
+        "at": 1791250330426,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-9faa06",
+      "requirementId": "REQ-261006010812-cd19",
+      "title": "设计未覆盖缺口审计·复核",
+      "description": "子卡阶段：复核",
+      "phase": "analysis",
+      "side": "doc",
+      "dependsOn": [
+        "t-539d6c"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "implementation": "复核 requirement.md 已实测的 E-2（实现从未提交）E-3（验收工具缺失）E-4（判据被 gitignore 排除）E-6（归档需求覆盖度自相矛盾），并主动找「该设计未覆盖但仍在风险中」的链路：a7cd 的 E15（risk_check / verification / weekly_report 三条链路坏且未排班）、E16（盘中无 V13 止损，intraday_monitor 账户写死 rotation_main 且 rule_guard 拒绝策略账户）、休市日非日检写入路径、无提交导致的回滚失效、pytest.ini 假绿灯门禁是否真落地。每条给证据（L1-L3）+ 影响面 + 风险等级（高/中/低）。产出 docs/requirements/REQ-261006010812-cd19/evidence/a4-gaps.md。\n\n[子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-9adb94",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-6084c7",
+          "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+          "trigger": "manual",
+          "startedAt": 1791250335152,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 1073,
+              "at": 1791250335152,
+              "totals": {
+                "uncachedInputTokens": 212759,
+                "outputTokens": 141610,
+                "cacheReadTokens": 32517376,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 1073,
+                  "totals": {
+                    "uncachedInputTokens": 212759,
+                    "outputTokens": 141610,
+                    "cacheReadTokens": 32517376,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 1111,
+              "at": 1791250357697,
+              "totals": {
+                "uncachedInputTokens": 223718,
+                "outputTokens": 143883,
+                "cacheReadTokens": 34535680,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 1111,
+                  "totals": {
+                    "uncachedInputTokens": 223718,
+                    "outputTokens": 143883,
+                    "cacheReadTokens": 34535680,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 10959,
+              "outputTokens": 2273,
+              "cacheReadTokens": 2018304,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791250357697
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-aeeb2a",
+          "body": "[状态] → in_progress：review 段：复核分级与证据（reqboard_task_move）",
+          "createdAt": 1791250335152,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        },
+        {
+          "id": "c-a3e29a",
+          "body": "[状态] → done：review 段完成：8 项重查成立、无实质偏离（reqboard_task_move）",
+          "createdAt": 1791250357697,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791250308011,
+      "updatedAt": 1791250357697,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791250308011,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791250335152,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "review 段：复核分级与证据"
+        },
+        {
+          "status": "done",
+          "at": 1791250357697,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "review 段完成：8 项重查成立、无实质偏离"
+        }
+      ],
+      "layer": 4,
+      "lastReport": {
+        "at": 1791250354628,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-261006010812-cd19/evidence/a4-gaps.md"
+        ],
+        "completed": [
+          "独立重查 8 项：G-2/G-3/G-4/G-5/G-7/G-8 与设计覆盖度反证全部成立",
+          "口径校准一处：G-1 的三方法搜索唯一命中是无关的 FastAPI 路由函数（p2_batch2_async.py:79）",
+          "精确到类：SimulationORMRepository（simulation_repository.py:50）内三方法 0 命中，G-1 判定成立",
+          "G-5 复跑：check_should_have_run.py 仍 exit 2（漏跑判据仍触发）",
+          "结构自检：8 行缺口、8/8 带 [L 证据、风险等级仅 高/中/低、4 条标注设计未覆盖",
+          "对照 design/ 五份文档核对：缺口表字段与 interfaces.md §1 第 4 节的「缺口/证据/影响面/风险等级」四列契约一致",
+          "无实质偏离（仅补精 G-1 的证据精度一处）"
+        ]
+      },
+      "lastRun": {
+        "at": 1791250354628,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-3118e8",
+      "requirementId": "REQ-261006010812-cd19",
+      "title": "报告汇总 + 三道自检 + 抽查复现·研发",
+      "description": "子卡阶段：研发",
+      "phase": "doc",
+      "side": "doc",
+      "dependsOn": [
+        "t-9adb94"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "implementation": "按 interfaces.md §1 的五节契约汇总 docs/requirements/REQ-261006010812-cd19/audit-report.md（结论摘要 / 一致性矩阵 / 验收命令复跑 / 缺口清单 / 改进项），改进项 ≥5 条且五列齐；跑 test-cases.md §1 三道自检（S1 五节齐全、S2 软判定词 0、S3 证据列与判据列非空）、§3 抽查固定 5 行（矩阵第 1/5/9/13/17 行，不足取全部）逐行复现、§4 只读性回归（对 live_trading、application、infrastructure、tools 四个目录做 git status --porcelain 前后逐字比对）；自检与抽查结果写进 ## 逐条取证附录。\n\n[子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "context": "",
+      "parentId": "t-e7f33f",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-eb8022",
+          "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+          "trigger": "manual",
+          "startedAt": 1791250422290,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 1173,
+              "at": 1791250422290,
+              "totals": {
+                "uncachedInputTokens": 237388,
+                "outputTokens": 154579,
+                "cacheReadTokens": 38068736,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 1173,
+                  "totals": {
+                    "uncachedInputTokens": 237388,
+                    "outputTokens": 154579,
+                    "cacheReadTokens": 38068736,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 1185,
+              "at": 1791250428414,
+              "totals": {
+                "uncachedInputTokens": 238016,
+                "outputTokens": 154995,
+                "cacheReadTokens": 38802304,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 1185,
+                  "totals": {
+                    "uncachedInputTokens": 238016,
+                    "outputTokens": 154995,
+                    "cacheReadTokens": 38802304,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 628,
+              "outputTokens": 416,
+              "cacheReadTokens": 733568,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791250428413
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-218d39",
+          "body": "[状态] → in_progress：t5 子卡 1：汇总报告与自检数据准备（reqboard_task_move）",
+          "createdAt": 1791250422290,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        },
+        {
+          "id": "c-d8bcb9",
+          "body": "[状态] → done：t5 子卡 1 完成（reqboard_task_move）",
+          "createdAt": 1791250428413,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791250418975,
+      "updatedAt": 1791250428413,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791250418975,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791250422290,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "t5 子卡 1：汇总报告与自检数据准备"
+        },
+        {
+          "status": "done",
+          "at": 1791250428413,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "t5 子卡 1 完成"
+        }
+      ],
+      "layer": 3,
+      "lastReport": {
+        "at": 1791250425809,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-261006010812-cd19/audit-report.md"
+        ],
+        "completed": [
+          "产出 audit-report.md：五节契约齐全（另加逐条取证附录与证据索引）",
+          "汇总矩阵 26 行、复跑表 7 行、缺口 8 行、改进项 9 行（五列齐、判据列含命令或断言）",
+          "自检准备：跑 S1/S2/S3 与抽查 5 行、只读性回归的数据并写进附录",
+          "本卡为纯文档卡：无 TS 测试文件；对应 Python 侧实跑见 a3（C1 36 passed / C5 10 passed / C6 28 passed）",
+          "改动面 git diff --stat：新增 audit-report.md（未跟踪，属本需求目录）"
+        ]
+      },
+      "lastRun": {
+        "at": 1791250425809,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-9c82c7",
+      "requirementId": "REQ-261006010812-cd19",
+      "title": "报告汇总 + 三道自检 + 抽查复现·复核",
+      "description": "子卡阶段：复核",
+      "phase": "doc",
+      "side": "doc",
+      "dependsOn": [
+        "t-3118e8"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "implementation": "按 interfaces.md §1 的五节契约汇总 docs/requirements/REQ-261006010812-cd19/audit-report.md（结论摘要 / 一致性矩阵 / 验收命令复跑 / 缺口清单 / 改进项），改进项 ≥5 条且五列齐；跑 test-cases.md §1 三道自检（S1 五节齐全、S2 软判定词 0、S3 证据列与判据列非空）、§3 抽查固定 5 行（矩阵第 1/5/9/13/17 行，不足取全部）逐行复现、§4 只读性回归（对 live_trading、application、infrastructure、tools 四个目录做 git status --porcelain 前后逐字比对）；自检与抽查结果写进 ## 逐条取证附录。\n\n[子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-e7f33f",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-1c4c29",
+          "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+          "trigger": "manual",
+          "startedAt": 1791250430755,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 1191,
+              "at": 1791250430755,
+              "totals": {
+                "uncachedInputTokens": 238161,
+                "outputTokens": 155087,
+                "cacheReadTokens": 39169664,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 1191,
+                  "totals": {
+                    "uncachedInputTokens": 238161,
+                    "outputTokens": 155087,
+                    "cacheReadTokens": 39169664,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 1209,
+              "at": 1791250442815,
+              "totals": {
+                "uncachedInputTokens": 239074,
+                "outputTokens": 156394,
+                "cacheReadTokens": 40274944,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 1209,
+                  "totals": {
+                    "uncachedInputTokens": 239074,
+                    "outputTokens": 156394,
+                    "cacheReadTokens": 40274944,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 913,
+              "outputTokens": 1307,
+              "cacheReadTokens": 1105280,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791250442815
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-cf10cc",
+          "body": "[状态] → in_progress：t5 子卡 2：复核报告与附录（reqboard_task_move）",
+          "createdAt": 1791250430755,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        },
+        {
+          "id": "c-26ed56",
+          "body": "[状态] → done：t5 子卡 2 完成：机器自检与抽查全通过（reqboard_task_move）",
+          "createdAt": 1791250442815,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791250418975,
+      "updatedAt": 1791250442815,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791250418975,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791250430755,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "t5 子卡 2：复核报告与附录"
+        },
+        {
+          "status": "done",
+          "at": 1791250442815,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "t5 子卡 2 完成：机器自检与抽查全通过"
+        }
+      ],
+      "layer": 4,
+      "lastReport": {
+        "at": 1791250439801,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-261006010812-cd19/audit-report.md"
+        ],
+        "completed": [
+          "机器自检 S1：一级节 7 个（≥5），五个必交节名逐字齐全且非空",
+          "机器自检 S2：禁用表述命中 0",
+          "机器自检 S3：矩阵 26 行全部带 [L 证据；改进项 9 行，判据列 9/9 非空",
+          "抽查附录：5 行逐行「通过」（复跑命令与 a2 判定一致）",
+          "只读性回归复核：全仓脏文件 128 = 开审前 128，被审代码状态未变",
+          "对照 design/interfaces.md §1 的五节契约与 §6 的复跑记录契约逐条核对：无偏离",
+          "对照 design/test-cases.md §1/§3/§4 的三道自检、抽查、只读回归：三项均按契约执行"
+        ]
+      },
+      "lastRun": {
+        "at": 1791250439801,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-b3d14a",
+      "requirementId": "REQ-261006010812-cd19",
+      "title": "返工：验收项不可照着验（历史数据）：以下验收项没写「怎么验」——验收项 设计文档自洽性 + 版本面取证·分析 缺「怎么验」（\"",
+      "description": "验收不通过项返工（v1 项 v1-8）：验收项不可照着验（历史数据）：以下验收项没写「怎么验」——验收项 设计文档自洽性 + 版本面取证·分析 缺「怎么验」（\"结论含置信度与适用边界，并列出被证伪的假设（附支撑数据的命令或 `docs/requirements/<REQ>/` 下证据路径）\"）——只写断言词不算，必须给**可执行操作**：命令（npx/vitest/curl/pytest…）、可查数据（SQL/字段名）、或可达界面路径（打开某页→看什么）。否则验收只能靠相信，等于没验。；验收项 实现一致性矩阵（面 B，逐条落点）·分析 缺「怎么验」（\"结论含置信度与适用边界，并列出被证伪的假设（附支撑数据的命令或 `docs/requirements/<REQ>/` 下证据路径）\"）——只写断言词不算，必须给**可执行操作**：命令（npx/vitest/curl/pytest…）、可查数据（SQL/字段名）、或可达界面路径（打开某页→看什么）。否则验收只能靠相信，等于没验。；验收项 只读库表事实 + 验收命令复跑·分析 缺「怎么验」（\"结论含置信度与适用边界，并列出被证伪的假设（附支撑数据的命令或 `docs/requirements/<REQ>/` 下证据路径）\"）——只写断言词不算，必须给**可执行操作**：命令（npx/vitest/curl/pytest…）、可查数据（SQL/字段名）、或可达界面路径（打开某页→看什么）。否则验收只能靠相信，等于没验。；验收项 设计未覆盖缺口审计·分析 缺「怎么验」（\"结论含置信度与适用边界，并列出被证伪的假设（附支撑数据的命令或 `docs/requirements/<REQ>/` 下证据路径）\"）——只写断言词不算，必须给**可执行操作**：命令（npx/vitest/curl/pytest…）、可查数据（SQL/字段名）、或可达界面路径（打开某页→看什么）。否则验收只能靠相信，等于没验。。请补可执行操作（命令/可查数据/界面路径）；本条不阻断验收，但必须有人看过并决定。",
+      "phase": "implement",
+      "side": "fullstack",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "验收项不可照着验（历史数据）：以下验收项没写「怎么验」——验收项 设计文档自洽性 + 版本面取证·分析 缺「怎么验」（\"结论含置信度与适用边界，并列出被证伪的假设（附支撑数据的命令或 `docs/requirements/<REQ>/` 下证据路径）\"）——只写断言词不算，必须给**可执行操作**：命令（npx/vitest/curl/pytest…）、可查数据（SQL/字段名）、或可达界面路径（打开某页→看什么）。否则验收只能靠相信，等于没验。；验收项 实现一致性矩阵（面 B，逐条落点）·分析 缺「怎么验」（\"结论含置信度与适用边界，并列出被证伪的假设（附支撑数据的命令或 `docs/requirements/<REQ>/` 下证据路径）\"）——只写断言词不算，必须给**可执行操作**：命令（npx/vitest/curl/pytest…）、可查数据（SQL/字段名）、或可达界面路径（打开某页→看什么）。否则验收只能靠相信，等于没验。；验收项 只读库表事实 + 验收命令复跑·分析 缺「怎么验」（\"结论含置信度与适用边界，并列出被证伪的假设（附支撑数据的命令或 `docs/requirements/<REQ>/` 下证据路径）\"）——只写断言词不算，必须给**可执行操作**：命令（npx/vitest/curl/pytest…）、可查数据（SQL/字段名）、或可达界面路径（打开某页→看什么）。否则验收只能靠相信，等于没验。；验收项 设计未覆盖缺口审计·分析 缺「怎么验」（\"结论含置信度与适用边界，并列出被证伪的假设（附支撑数据的命令或 `docs/requirements/<REQ>/` 下证据路径）\"）——只写断言词不算，必须给**可执行操作**：命令（npx/vitest/curl/pytest…）、可查数据（SQL/字段名）、或可达界面路径（打开某页→看什么）。否则验收只能靠相信，等于没验。。请补可执行操作（命令/可查数据/界面路径）；本条不阻断验收，但必须有人看过并决定。",
+      "implementation": "按验收意见修复：需修改",
+      "context": "承接自 需求级验收项；验收意见：需修改",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-0d1b14",
+          "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+          "trigger": "manual",
+          "startedAt": 1791250729442,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 1339,
+              "at": 1791250729442,
+              "totals": {
+                "uncachedInputTokens": 258751,
+                "outputTokens": 178204,
+                "cacheReadTokens": 48369920,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 1339,
+                  "totals": {
+                    "uncachedInputTokens": 258751,
+                    "outputTokens": 178204,
+                    "cacheReadTokens": 48369920,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 1424,
+              "at": 1791250776785,
+              "totals": {
+                "uncachedInputTokens": 267712,
+                "outputTokens": 181025,
+                "cacheReadTokens": 54176768,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 1424,
+                  "totals": {
+                    "uncachedInputTokens": 267712,
+                    "outputTokens": 181025,
+                    "cacheReadTokens": 54176768,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 8961,
+              "outputTokens": 2821,
+              "cacheReadTokens": 5806848,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791250776785
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-c62139",
+          "body": "[状态] → in_progress：返工完成：四份证据文件各补「可执行的复核判据」节（置信度分级 + 边界验法 + 被证伪假设的支撑命令）（reqboard_task_move）",
+          "createdAt": 1791250729442,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        },
+        {
+          "id": "c-d3530e",
+          "body": "[状态] → done：返工卡收尾：4 张子卡全部 done，四份证据文件的可执行复核节已补齐。（reqboard_task_move）",
+          "createdAt": 1791250776785,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791250608452,
+      "updatedAt": 1791250776785,
+      "createdBy": {
+        "kind": "human",
+        "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791250608452,
+          "by": {
+            "kind": "human",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "验收不通过 → 自动生成返工任务（W6）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1791250729442,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "返工完成：四份证据文件各补「可执行的复核判据」节（置信度分级 + 边界验法 + 被证伪假设的支撑命令）"
+        },
+        {
+          "status": "done",
+          "at": 1791250776785,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "返工卡收尾：4 张子卡全部 done，四份证据文件的可执行复核节已补齐。"
+        }
+      ],
+      "layer": 0,
+      "lastReport": {
+        "at": 1791250774244,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-261006010812-cd19/evidence/a1-design-selfconsistency.md",
+          "docs/requirements/REQ-261006010812-cd19/evidence/a2-impl-matrix.md",
+          "docs/requirements/REQ-261006010812-cd19/evidence/a3-calldb-replay.md",
+          "docs/requirements/REQ-261006010812-cd19/evidence/a4-gaps.md"
+        ],
+        "completed": [
+          "返工目标：把「结论含置信度与适用边界、并列被证伪假设」从断言词变成可执行操作",
+          "四份证据文件各补一节：a1 §5 / a2 §5 / a3 §8 / a4 附录",
+          "每节含三块：置信度分级与复核命令、适用边界怎么验、被证伪假设的支撑命令与期望输出",
+          "共补 14 条可粘贴命令（含 SQL 与纯函数复现），全部标明明望输出",
+          "对应验收单未过项 v1-8（四项「分析」缺怎么验）"
+        ]
+      },
+      "lastRun": {
+        "at": 1791250774244,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-587b54",
+      "requirementId": "REQ-261006010812-cd19",
+      "title": "返工：验收项不可照着验（历史数据）：以下验收项没写「怎么验」——验收项 设计文档自洽性 + 版本面取证·分析 缺「怎么验」（\"·研发",
+      "description": "子卡阶段：研发",
+      "phase": "implement",
+      "side": "fullstack",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "implementation": "按验收意见修复：需修改\n\n[子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "context": "承接自 需求级验收项；验收意见：需修改",
+      "parentId": "t-b3d14a",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-d804d0",
+          "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+          "trigger": "manual",
+          "startedAt": 1791250733195,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 1346,
+              "at": 1791250733195,
+              "totals": {
+                "uncachedInputTokens": 264478,
+                "outputTokens": 178538,
+                "cacheReadTokens": 48777344,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 1346,
+                  "totals": {
+                    "uncachedInputTokens": 264478,
+                    "outputTokens": 178538,
+                    "cacheReadTokens": 48777344,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 1358,
+              "at": 1791250740007,
+              "totals": {
+                "uncachedInputTokens": 264885,
+                "outputTokens": 178949,
+                "cacheReadTokens": 49604736,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 1358,
+                  "totals": {
+                    "uncachedInputTokens": 264885,
+                    "outputTokens": 178949,
+                    "cacheReadTokens": 49604736,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 407,
+              "outputTokens": 411,
+              "cacheReadTokens": 827392,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791250740006
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-d337d5",
+          "body": "[状态] → in_progress：返工子卡 1：a1 证据文件补可执行复核判据（reqboard_task_move）",
+          "createdAt": 1791250733195,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        },
+        {
+          "id": "c-1bfb56",
+          "body": "[状态] → done：a1 返工完成（reqboard_task_move）",
+          "createdAt": 1791250740006,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791250729442,
+      "updatedAt": 1791250740006,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791250729442,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791250733195,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "返工子卡 1：a1 证据文件补可执行复核判据"
+        },
+        {
+          "status": "done",
+          "at": 1791250740006,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "a1 返工完成"
+        }
+      ],
+      "layer": 0,
+      "lastReport": {
+        "at": 1791250737596,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-261006010812-cd19/evidence/a1-design-selfconsistency.md"
+        ],
+        "completed": [
+          "a1 追加「置信度、适用边界与被证伪假设（可执行复核）」节",
+          "置信度分级表：高/中两档各自给出可粘贴命令与期望输出",
+          "适用边界验法：时间边界（date + git status 重跑）、仓库边界（git rev-parse）、提交时效（git log -1 早于 2026-10-04）",
+          "被证伪假设 3 条各配支撑命令（ls / git check-ignore / git status / grep -c patch / tar tzf）",
+          "本卡为文档卡，无 TS 测试；Python 侧对应实跑见 a3（74 passed）"
+        ]
+      },
+      "lastRun": {
+        "at": 1791250737596,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-dc82bd",
+      "requirementId": "REQ-261006010812-cd19",
+      "title": "返工：验收项不可照着验（历史数据）：以下验收项没写「怎么验」——验收项 设计文档自洽性 + 版本面取证·分析 缺「怎么验」（\"·联调",
+      "description": "子卡阶段：联调",
+      "phase": "implement",
+      "side": "fullstack",
+      "dependsOn": [
+        "t-587b54"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）",
+      "implementation": "按验收意见修复：需修改\n\n[子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）",
+      "context": "承接自 需求级验收项；验收意见：需修改",
+      "parentId": "t-b3d14a",
+      "stageKind": "integrate",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-c8e506",
+          "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+          "trigger": "manual",
+          "startedAt": 1791250742433,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 1364,
+              "at": 1791250742433,
+              "totals": {
+                "uncachedInputTokens": 265103,
+                "outputTokens": 179043,
+                "cacheReadTokens": 50018816,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 1364,
+                  "totals": {
+                    "uncachedInputTokens": 265103,
+                    "outputTokens": 179043,
+                    "cacheReadTokens": 50018816,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 1376,
+              "at": 1791250748722,
+              "totals": {
+                "uncachedInputTokens": 265916,
+                "outputTokens": 179454,
+                "cacheReadTokens": 50847616,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 1376,
+                  "totals": {
+                    "uncachedInputTokens": 265916,
+                    "outputTokens": 179454,
+                    "cacheReadTokens": 50847616,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 813,
+              "outputTokens": 411,
+              "cacheReadTokens": 828800,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791250748722
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-9d7315",
+          "body": "[状态] → in_progress：返工子卡 2：a2 补可执行复核判据（reqboard_task_move）",
+          "createdAt": 1791250742433,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        },
+        {
+          "id": "c-a8ed09",
+          "body": "[状态] → done：a2 返工完成（reqboard_task_move）",
+          "createdAt": 1791250748722,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791250729442,
+      "updatedAt": 1791250748722,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791250729442,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791250742433,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "返工子卡 2：a2 补可执行复核判据"
+        },
+        {
+          "status": "done",
+          "at": 1791250748722,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "a2 返工完成"
+        }
+      ],
+      "layer": 1,
+      "lastReport": {
+        "at": 1791250745493,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-261006010812-cd19/evidence/a2-impl-matrix.md"
+        ],
+        "completed": [
+          "a2 追加「置信度、适用边界与被证伪假设（可执行复核）」节",
+          "置信度分级：高（M-06/M-10/M-12/M-14/M-23）给 SQL 与期望值；中（M-01 等 8 条）给 sed/grep 命令",
+          "口径边界明写：M-23 必须同时跑工具口径与 raw SQL，只跑其一会得出相反结论",
+          "被证伪假设 4 条各配 SQL/命令（含 result->'details'->'details'->'check' 的展开路径）",
+          "本卡无接口联调（纯文档），故不涉及契约测试"
+        ]
+      },
+      "lastRun": {
+        "at": 1791250745493,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-adf822",
+      "requirementId": "REQ-261006010812-cd19",
+      "title": "返工：验收项不可照着验（历史数据）：以下验收项没写「怎么验」——验收项 设计文档自洽性 + 版本面取证·分析 缺「怎么验」（\"·复核",
+      "description": "子卡阶段：复核",
+      "phase": "implement",
+      "side": "fullstack",
+      "dependsOn": [
+        "t-dc82bd"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "implementation": "按验收意见修复：需修改\n\n[子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "context": "承接自 需求级验收项；验收意见：需修改",
+      "parentId": "t-b3d14a",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-7271d0",
+          "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+          "trigger": "manual",
+          "startedAt": 1791250751609,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 1382,
+              "at": 1791250751609,
+              "totals": {
+                "uncachedInputTokens": 266145,
+                "outputTokens": 179547,
+                "cacheReadTokens": 51262592,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 1382,
+                  "totals": {
+                    "uncachedInputTokens": 266145,
+                    "outputTokens": 179547,
+                    "cacheReadTokens": 51262592,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 1394,
+              "at": 1791250758413,
+              "totals": {
+                "uncachedInputTokens": 266648,
+                "outputTokens": 179989,
+                "cacheReadTokens": 52093568,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 1394,
+                  "totals": {
+                    "uncachedInputTokens": 266648,
+                    "outputTokens": 179989,
+                    "cacheReadTokens": 52093568,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 503,
+              "outputTokens": 442,
+              "cacheReadTokens": 830976,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791250758412
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-80983e",
+          "body": "[状态] → in_progress：返工子卡 3：a3 补可执行复核判据（reqboard_task_move）",
+          "createdAt": 1791250751609,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        },
+        {
+          "id": "c-dffb32",
+          "body": "[状态] → done：a3 返工完成（reqboard_task_move）",
+          "createdAt": 1791250758412,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791250729442,
+      "updatedAt": 1791250758412,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791250729442,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791250751609,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "返工子卡 3：a3 补可执行复核判据"
+        },
+        {
+          "status": "done",
+          "at": 1791250758412,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "a3 返工完成"
+        }
+      ],
+      "layer": 2,
+      "lastReport": {
+        "at": 1791250755484,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-261006010812-cd19/evidence/a3-calldb-replay.md"
+        ],
+        "completed": [
+          "a3 追加「置信度、适用边界与被证伪假设（可执行复核）」节",
+          "置信度分级：高（C1/C4/C5/C6/C7 与 §2.1/§4）逐条给可粘贴命令与期望退出码；中（§3 库证据）给重跑口径",
+          "边界验法三条：时点边界（max(started_at)）、连接边界（current_database()）、替代判据边界（只能用纯函数 + 冻结 today）",
+          "被证伪假设 4 条各配命令（C2 缺文件、C3 exit 2、raw 超卖 4 行、check 未来日期 False vs 纯函数 True）",
+          "对照 design/test-cases.md §1/§3/§4 核对：本节即「怎么验」的落点，无偏离"
+        ]
+      },
+      "lastRun": {
+        "at": 1791250755484,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-bdfea6",
+      "requirementId": "REQ-261006010812-cd19",
+      "title": "返工：验收项不可照着验（历史数据）：以下验收项没写「怎么验」——验收项 设计文档自洽性 + 版本面取证·分析 缺「怎么验」（\"·测试",
+      "description": "子卡阶段：测试",
+      "phase": "implement",
+      "side": "fullstack",
+      "dependsOn": [
+        "t-adf822"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "implementation": "按验收意见修复：需修改\n\n[子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "context": "承接自 需求级验收项；验收意见：需修改",
+      "parentId": "t-b3d14a",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-7fea36",
+          "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+          "trigger": "manual",
+          "startedAt": 1791250761597,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 1400,
+              "at": 1791250761597,
+              "totals": {
+                "uncachedInputTokens": 266797,
+                "outputTokens": 180083,
+                "cacheReadTokens": 52509568,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 1400,
+                  "totals": {
+                    "uncachedInputTokens": 266797,
+                    "outputTokens": 180083,
+                    "cacheReadTokens": 52509568,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+              "seq": 1412,
+              "at": 1791250770580,
+              "totals": {
+                "uncachedInputTokens": 267266,
+                "outputTokens": 180528,
+                "cacheReadTokens": 53342464,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f",
+                  "depth": 0,
+                  "seq": 1412,
+                  "totals": {
+                    "uncachedInputTokens": 267266,
+                    "outputTokens": 180528,
+                    "cacheReadTokens": 53342464,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 469,
+              "outputTokens": 445,
+              "cacheReadTokens": 832896,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791250770579
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-172a5d",
+          "body": "[状态] → in_progress：返工子卡 4：a4 补可执行复核判据（reqboard_task_move）",
+          "createdAt": 1791250761597,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        },
+        {
+          "id": "c-012100",
+          "body": "[状态] → done：a4 返工完成（reqboard_task_move）",
+          "createdAt": 1791250770579,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791250729442,
+      "updatedAt": 1791250770579,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791250729442,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791250761597,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "返工子卡 4：a4 补可执行复核判据"
+        },
+        {
+          "status": "done",
+          "at": 1791250770579,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-6a58ec8c-8f25-44a6-9be1-a02c4a16d94f"
+          },
+          "reason": "a4 返工完成"
+        }
+      ],
+      "layer": 3,
+      "lastReport": {
+        "at": 1791250765943,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-261006010812-cd19/evidence/a4-gaps.md"
+        ],
+        "completed": [
+          "a4 追加「置信度、适用边界与被证伪假设（可执行复核）」附录",
+          "置信度分级：高（G-1~G-7）给 grep/SQL 与期望值；中（G-8）给 pytest.ini 检查命令",
+          "风险等级的可验判据明写：链路是否仍被引用 + 是否有任务行（两条命令）",
+          "覆盖归属判据：对 a7cd/design/ 检索 4 符号得 0 命中",
+          "被证伪假设 3 条各配命令（含 trading_calendar 10-05 无行佐证休市日误报）",
+          "本卡为文档卡：无 TS 测试与 tsc 环节（pnpm/npx 不适用本仓 Python 需求）"
+        ]
+      },
+      "lastRun": {
+        "at": 1791250765943,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "t-9f0fbe",
+      "to": "t-3c2fb0"
+    },
+    {
+      "from": "t-9f0fbe",
+      "to": "t-881157"
+    },
+    {
+      "from": "t-3c2fb0",
+      "to": "t-9adb94"
+    },
+    {
+      "from": "t-881157",
+      "to": "t-9adb94"
+    },
+    {
+      "from": "t-9adb94",
+      "to": "t-e7f33f"
+    },
+    {
+      "from": "t-e2e068",
+      "to": "t-83047e"
+    },
+    {
+      "from": "t-83047e",
+      "to": "t-69aedb"
+    },
+    {
+      "from": "t-9f0fbe",
+      "to": "t-947815"
+    },
+    {
+      "from": "t-947815",
+      "to": "t-2b228e"
+    },
+    {
+      "from": "t-2b228e",
+      "to": "t-db3def"
+    },
+    {
+      "from": "t-9f0fbe",
+      "to": "t-7b8637"
+    },
+    {
+      "from": "t-7b8637",
+      "to": "t-ba6005"
+    },
+    {
+      "from": "t-ba6005",
+      "to": "t-003c90"
+    },
+    {
+      "from": "t-3c2fb0",
+      "to": "t-1e2867"
+    },
+    {
+      "from": "t-881157",
+      "to": "t-1e2867"
+    },
+    {
+      "from": "t-1e2867",
+      "to": "t-539d6c"
+    },
+    {
+      "from": "t-539d6c",
+      "to": "t-9faa06"
+    },
+    {
+      "from": "t-9adb94",
+      "to": "t-3118e8"
+    },
+    {
+      "from": "t-3118e8",
+      "to": "t-9c82c7"
+    },
+    {
+      "from": "t-587b54",
+      "to": "t-dc82bd"
+    },
+    {
+      "from": "t-dc82bd",
+      "to": "t-adf822"
+    },
+    {
+      "from": "t-adf822",
+      "to": "t-bdfea6"
+    }
+  ],
+  "layers": [
+    {
+      "layer": 0,
+      "tasks": [
+        "t-9f0fbe",
+        "t-e2e068",
+        "t-b3d14a",
+        "t-587b54"
+      ]
+    },
+    {
+      "layer": 1,
+      "tasks": [
+        "t-3c2fb0",
+        "t-881157",
+        "t-947815",
+        "t-7b8637",
+        "t-83047e",
+        "t-dc82bd"
+      ]
+    },
+    {
+      "layer": 2,
+      "tasks": [
+        "t-9adb94",
+        "t-1e2867",
+        "t-2b228e",
+        "t-ba6005",
+        "t-69aedb",
+        "t-adf822"
+      ]
+    },
+    {
+      "layer": 3,
+      "tasks": [
+        "t-e7f33f",
+        "t-3118e8",
+        "t-539d6c",
+        "t-db3def",
+        "t-003c90",
+        "t-bdfea6"
+      ]
+    },
+    {
+      "layer": 4,
+      "tasks": [
+        "t-9c82c7",
+        "t-9faa06"
+      ]
+    }
+  ],
+  "ready": [],
+  "updated_at": "2026-10-06T01:39:36.786Z"
+}

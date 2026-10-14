@@ -100,6 +100,14 @@ class WatchTrigger(Base):
     # 触发 → 待办的溯源回填（REQ-c9f899 t12）：列由 t1 迁移 20260918 添加
     # （watch_triggers.todo_id INTEGER），t12 接线后由 WatchTriggerRepository.set_todo_id 写入。
     todo_id = Column(Integer)
+    # 升级理由码/理由（REQ-261007133807-eda6 t7；两列由迁移 20261007 添加）
+    # 为什么要落库：用户追问「这条触发为什么叫了 / 没叫 agent」，而此前只有 disposition_reason
+    # 一段自由文本、且只在 escalated 分支才带原因。受控码见
+    # domain/watch/services/escalation_verdict.py 的 EscalationCode（**"没叫"也有码**：
+    # 预算门/金额门/增量门/经济门/观察类/去重/抑噪）。
+    # NULL = 该列上线前的历史触发（如实表示"未记录"，不回填臆造）。
+    escalation_code = Column(Text, nullable=True)
+    escalation_reason = Column(Text, nullable=True)
 
 
 def rule_to_dict(rule: WatchRule) -> dict:
@@ -295,7 +303,8 @@ class WatchTriggerRepository(BaseORMRepository[WatchTrigger]):
     def record(self, rule_id, symbol, condition, trigger_price,
                detail=None, notified=False, disposition='pending',
                disposition_reason=None, disposition_by='system',
-               dup_of=None, suppressed=False) -> WatchTrigger:
+               dup_of=None, suppressed=False,
+               escalation_code=None, escalation_reason=None) -> WatchTrigger:
         """落一条触发 + 其处置初态（REQ-f08def）。
 
         disposition 由 domain/watch/services/disposition.decide() 决定：
@@ -304,6 +313,10 @@ class WatchTriggerRepository(BaseORMRepository[WatchTrigger]):
         suppressed（REQ-c9f899 R6 / t8）：规则处于抑噪期时置 true，表示该触发只进
         P3 聚合与复盘、不推送不进摘要队列。默认 False —— 既有调用方语义不变
         （新增 keyword 参数，位置参数顺序未动）。
+
+        escalation_code / escalation_reason（REQ-261007133807-eda6 t8）：升级理由码与人话理由。
+        **"没叫"也要有码**（预算门/四道门/去重/抑噪）；默认 None 只用于"根本没走到裁决"的
+        历史或异常路径（列由迁移 20261007 添加）。
         """
         trigger = WatchTrigger(
             rule_id=rule_id, symbol=symbol, condition=condition,
@@ -314,6 +327,8 @@ class WatchTriggerRepository(BaseORMRepository[WatchTrigger]):
             disposition_at=datetime.now() if disposition not in ('pending', 'escalated') else None,
             dup_of=dup_of,
             suppressed=bool(suppressed),
+            escalation_code=escalation_code,
+            escalation_reason=escalation_reason,
         )
         return self.create(trigger)
 

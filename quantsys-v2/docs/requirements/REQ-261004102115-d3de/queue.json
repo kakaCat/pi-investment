@@ -1,0 +1,1883 @@
+{
+  "version": 1,
+  "requirement_id": "REQ-261004102115-d3de",
+  "schemaVersion": 9,
+  "generated_at": "2026-10-04T02:25:51.521Z",
+  "tasks": [
+    {
+      "id": "t-dc66e2",
+      "requirementId": "REQ-261004102115-d3de",
+      "title": "实现交易日解析器（最近一个已收盘交易日）",
+      "cardDoc": "docs/requirements/REQ-261004102115-d3de/tasks/t-dc66e2.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "跑：./venv/bin/python -c \"from datetime import datetime;from application.services.trading_day_resolver import last_closed_trading_day as f;r=f(datetime(2026,10,4,10,18));print(r.date,r.source,r.degraded)\" 看到：日期为 2026-09-30，source 为 calendar_table 或 provider，degraded=False（等于 2026-10-02/2026-09-30 之外的答案即失败）。",
+      "implementation": "新增 application/services/trading_day_resolver.py。定义 TradingDayResult(date, source, degraded) 与 last_closed_trading_day(ref, *, cutoff=15:30, provider_lookback_days=30)。anchor = ref.date() 若 >=15:30 否则 ref.date()-1；结果 = 日历中 <=anchor 的最大交易日。三级解析：① quant.trading_calendar（需 max(trade_date)>=anchor 才算覆盖）；② ServiceFactory.get_data_provider_manager().get_trading_calendar(start, anchor)；③ 周一至周五回退。任一级失败不抛异常、记 warning、降级；source 取 calendar_table|provider|weekday_fallback。",
+      "context": "",
+      "skipIntegration": true,
+      "requirementRefs": [
+        "FR-1"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-e252c2",
+          "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01",
+          "trigger": "auto",
+          "startedAt": 1791080751590,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01",
+              "seq": 391,
+              "at": 1791080751591,
+              "totals": {
+                "uncachedInputTokens": 142680,
+                "outputTokens": 45277,
+                "cacheReadTokens": 3321728,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01",
+              "seq": 509,
+              "at": 1791080817130,
+              "totals": {
+                "uncachedInputTokens": 169633,
+                "outputTokens": 56498,
+                "cacheReadTokens": 5639424,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 26953,
+              "outputTokens": 11221,
+              "cacheReadTokens": 2317696,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791080817130
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791080751463,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1791080751590,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1791080817130,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "解析器交付：唯一口径落地，七组日期与三条降级路径实测通过"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-f950f0",
+          "body": "[状态] → done：解析器交付：唯一口径落地，七组日期与三条降级路径实测通过（reqboard_task_move）",
+          "createdAt": 1791080817130,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791080751463,
+      "updatedAt": 1791080817130,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+      },
+      "layer": 0,
+      "lastReport": {
+        "at": 1791080796068,
+        "reportIndex": 1,
+        "filesChanged": [
+          "application/services/trading_day_resolver.py"
+        ],
+        "completed": [
+          "新增 application/services/trading_day_resolver.py，提供 last_closed_trading_day() 与 TradingDayResult。",
+          "语义钉死为「最近一个已收盘的交易日」：15:30 前看前一自然日，交易日历里取不超过它的最大交易日。",
+          "三级解析链落地：日历表（需覆盖 anchor）→ AKShare 日历（经既有 DataProviderManager）→ 周一至周五回退。",
+          "降级不静默：source 与 degraded 随结果带出，回退时记 warning 并附刷新提示。",
+          "只接受 datetime：裸 date 抛 TypeError，避免「某天」与「某天 15:30」两种语义混淆。",
+          "实测七组日期全对：10-04/10-02/10-08 盘中 → 2026-09-30，10-08 收盘 → 2026-10-08，中秋 09-25 与周末 → 2026-09-24。"
+        ]
+      },
+      "lastRun": {
+        "at": 1791080796068,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-b952d0",
+      "requirementId": "REQ-261004102115-d3de",
+      "title": "写日期表驱动回归用例（含降级与周末语义）",
+      "cardDoc": "docs/requirements/REQ-261004102115-d3de/tasks/t-b952d0.md",
+      "description": "",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-dc66e2"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "./venv/bin/python -m pytest tests/test_trading_day_resolver.py -q 退出码 0，用例数 >=10；删掉任一日期断言后该文件必须变红。",
+      "implementation": "新增 tests/test_trading_day_resolver.py；注入假日历与假 provider，零网络零 DB。覆盖 test-cases.md 用例 1-7（10-04→09-30、10-02 16:00→09-30、10-08 15:29→09-30、10-08 15:30→10-08、09-25→09-24、09-26→09-24、09-29→09-28）。覆盖降级用例 8-10：表空走 provider、provider 抛异常→weekday_fallback 且不抛、返回空→降级并记 warning（caplog 断言）。",
+      "context": "",
+      "skipIntegration": true,
+      "requirementRefs": [
+        "FR-1",
+        "FR-4"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-6b99d6",
+          "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01",
+          "trigger": "manual",
+          "startedAt": 1791080857149,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01",
+              "seq": 564,
+              "at": 1791080857149,
+              "totals": {
+                "uncachedInputTokens": 193504,
+                "outputTokens": 62132,
+                "cacheReadTokens": 6842752,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01",
+              "seq": 577,
+              "at": 1791080863226,
+              "totals": {
+                "uncachedInputTokens": 216203,
+                "outputTokens": 62812,
+                "cacheReadTokens": 7091712,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 22699,
+              "outputTokens": 680,
+              "cacheReadTokens": 248960,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791080863226
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791080751463,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1791080857149,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "开工：写日期表驱动回归用例"
+        },
+        {
+          "status": "integrating",
+          "at": 1791080863226,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "无需联调：本卡只加测试，不改接口与运行时行为"
+        },
+        {
+          "status": "testing",
+          "at": 1791080863267,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "全量用例已跑：13 passed，notify-guard egress=0"
+        },
+        {
+          "status": "in_review",
+          "at": 1791080863306,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "自查完成：断言均为固定日期表驱动，无网络无 DB 依赖"
+        },
+        {
+          "status": "done",
+          "at": 1791080905324,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "回归锁交付：13 条用例全绿，负向验证（模拟旧口径）当场 10 条失败"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-e6134c",
+          "body": "[状态] → in_progress：开工：写日期表驱动回归用例（reqboard_task_move）",
+          "createdAt": 1791080857149,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          }
+        },
+        {
+          "id": "c-a9d5d5",
+          "body": "[状态] → integrating：无需联调：本卡只加测试，不改接口与运行时行为（reqboard_task_move）",
+          "createdAt": 1791080863226,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          }
+        },
+        {
+          "id": "c-2572bc",
+          "body": "[状态] → testing：全量用例已跑：13 passed，notify-guard egress=0（reqboard_task_move）",
+          "createdAt": 1791080863267,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          }
+        },
+        {
+          "id": "c-7d0ed2",
+          "body": "[状态] → in_review：自查完成：断言均为固定日期表驱动，无网络无 DB 依赖（reqboard_task_move）",
+          "createdAt": 1791080863306,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          }
+        },
+        {
+          "id": "c-1a5a03",
+          "body": "[状态] → done：回归锁交付：13 条用例全绿，负向验证（模拟旧口径）当场 10 条失败（reqboard_task_move）",
+          "createdAt": 1791080905324,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1791080751463,
+      "updatedAt": 1791080905324,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+      },
+      "layer": 1,
+      "lastReport": {
+        "at": 1791080863165,
+        "reportIndex": 1,
+        "filesChanged": [
+          "tests/test_trading_day_resolver.py"
+        ],
+        "completed": [
+          "新增 tests/test_trading_day_resolver.py，13 条用例全绿，零网络零数据库（注入假日历与假 provider）。",
+          "覆盖七组日期：10-04、10-02 16:00、10-08 15:29 → 2026-09-30；10-08 15:30 → 2026-10-08；09-25、09-26 → 2026-09-24；09-29 → 2026-09-28。",
+          "覆盖三条降级：表不可答走 provider、provider 抛异常与返回空均降级为工作日口径且不抛异常，并留 warning。",
+          "覆盖表不可读（DB 挂了）仍继续走 provider，以及收盘基准可配置。",
+          "负向验证：把解析器改成永远走回退（模拟旧口径）→ 10 条用例当场失败；恢复后哈希一致、13 条重新全绿。",
+          "测试期无外发：notify-guard 汇总 egress=0。"
+        ]
+      },
+      "lastRun": {
+        "at": 1791080863165,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-f062d4",
+      "requirementId": "REQ-261004102115-d3de",
+      "title": "探针接入新口径并标注判定来源",
+      "cardDoc": "docs/requirements/REQ-261004102115-d3de/tasks/t-f062d4.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-dc66e2"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "跑：./venv/bin/python tools/health_probe.py --dry-run → healthy=true、expected=2026-09-30、expected_source 有值，退出码 0。 跑：./venv/bin/python tools/health_probe.py --dry-run --max-lag-days -1 → 退出码 2（负向未失效）。 跑：./venv/bin/python -m pytest tests/test_health_probe.py -q → 全过，且 notify-guard 汇总 egress=0。",
+      "implementation": "tools/health_probe.py：expected_trading_day() 改为调 last_closed_trading_day（删掉 import _last_trading_day 的路径）。probe_freshness() 返回体新增 expected_source、expected_degraded，既有键语义不变。build_alert() 仅在 expected_degraded 为真时追加降级标注，正常路径正文与现状逐字一致。同步新增 tests/test_health_probe.py（用例 11-13）：打桩 resolver 与 kline_latest，断言 ok/lag_days/两个新键；只测 probe_freshness 与 build_alert，不调 main()/send_alert。",
+      "context": "",
+      "requirementRefs": [
+        "FR-2",
+        "FR-4"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-e4bdb2",
+          "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01",
+          "trigger": "manual",
+          "startedAt": 1791080908581,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01",
+              "seq": 660,
+              "at": 1791080908581,
+              "totals": {
+                "uncachedInputTokens": 241210,
+                "outputTokens": 69673,
+                "cacheReadTokens": 9166848,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01",
+              "seq": 673,
+              "at": 1791080914911,
+              "totals": {
+                "uncachedInputTokens": 264086,
+                "outputTokens": 70480,
+                "cacheReadTokens": 9470336,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 22876,
+              "outputTokens": 807,
+              "cacheReadTokens": 303488,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791080914911
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791080751463,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1791080908581,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "开工：探针接入新口径并标注判定来源"
+        },
+        {
+          "status": "integrating",
+          "at": 1791080914911,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "联调：探针实跑通，与 launchd 作业的参数（--max-lag-days 1）不变"
+        },
+        {
+          "status": "testing",
+          "at": 1791080914950,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "测试：新增 5 条用例全过 + 两条实跑命令（正例 exit 0 / 负例 exit 2）"
+        },
+        {
+          "status": "in_review",
+          "at": 1791080914988,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "复核：输出契约只做增量，降级标注按预期仅出现在降级态"
+        },
+        {
+          "status": "done",
+          "at": 1791081000764,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "探针交付：国庆误报消失（dry-run healthy=true，expected=2026-09-30），负向仍报警（exit 2），5 条用例全过"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-0671e5",
+          "body": "[状态] → in_progress：开工：探针接入新口径并标注判定来源（reqboard_task_move）",
+          "createdAt": 1791080908581,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          }
+        },
+        {
+          "id": "c-72d5c0",
+          "body": "[状态] → integrating：联调：探针实跑通，与 launchd 作业的参数（--max-lag-days 1）不变（reqboard_task_move）",
+          "createdAt": 1791080914911,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          }
+        },
+        {
+          "id": "c-e41911",
+          "body": "[状态] → testing：测试：新增 5 条用例全过 + 两条实跑命令（正例 exit 0 / 负例 exit 2）（reqboard_task_move）",
+          "createdAt": 1791080914950,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          }
+        },
+        {
+          "id": "c-ed7f5b",
+          "body": "[状态] → in_review：复核：输出契约只做增量，降级标注按预期仅出现在降级态（reqboard_task_move）",
+          "createdAt": 1791080914988,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          }
+        },
+        {
+          "id": "c-4b7ce0",
+          "body": "[状态] → done：探针交付：国庆误报消失（dry-run healthy=true，expected=2026-09-30），负向仍报警（exit 2），5 条用例全过（reqboard_task_move）",
+          "createdAt": 1791081000764,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1791080751463,
+      "updatedAt": 1791081000764,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+      },
+      "layer": 1,
+      "lastReport": {
+        "at": 1791080914855,
+        "reportIndex": 1,
+        "filesChanged": [
+          "tools/health_probe.py",
+          "tests/test_health_probe.py"
+        ],
+        "completed": [
+          "tools/health_probe.py 的 expected_trading_day 改调唯一口径 last_closed_trading_day，删掉复用 _last_trading_day 的旧路径。",
+          "probe_freshness 新增 expected_source（calendar | weekday_fallback）与 expected_degraded 两个键，既有键语义不变。",
+          "build_alert 仅在降级时追加「交易日历不可用，按工作日口径判定」，正常路径正文与现状逐字一致。",
+          "实跑 --dry-run：healthy=true、expected=2026-09-30、expected_source=calendar、退出码 0。",
+          "负向实跑 --max-lag-days -1：退出码 2，判据没被改空。",
+          "新增 tests/test_health_probe.py 5 条用例（正例 / 真滞后 / 复市日 / 降级标注 / 非降级无标注），全过且 notify-guard egress=0。"
+        ]
+      },
+      "lastRun": {
+        "at": 1791080914855,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-1d780d",
+      "requirementId": "REQ-261004102115-d3de",
+      "title": "freshness_guard 复用同一实现",
+      "cardDoc": "docs/requirements/REQ-261004102115-d3de/tasks/t-1d780d.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-dc66e2"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "跑：./venv/bin/python -c \"from datetime import datetime;from adapters.inbound.fastapi_app.daily_jobs_bootstrap import _last_trading_day as f;print(f(datetime(2026,10,4,10,18)))\" 看到：2026-09-30（不是 2026-10-02）。 跑：./venv/bin/python -m pytest tests/ -q -k freshness → 无新增失败（与改动前基线一致）。",
+      "implementation": "adapters/inbound/fastapi_app/daily_jobs/pipeline.py:_last_trading_day(ref)->str 签名与返回类型不变，内部改调 last_closed_trading_day(ref).date.isoformat()。行 76/177 两个调用点输入不变（177 仍传 now-1 天）。return 字典新增 expected_source 键（jsonb，无需迁移）；其余键与判定逻辑一行不改。daily_jobs_bootstrap 的转发导出保持不变（44 个模块的导入路径不动）。",
+      "context": "",
+      "skipIntegration": true,
+      "requirementRefs": [
+        "FR-3"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-a48e8b",
+          "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01",
+          "trigger": "manual",
+          "startedAt": 1791081000970,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01",
+              "seq": 796,
+              "at": 1791081000970,
+              "totals": {
+                "uncachedInputTokens": 292886,
+                "outputTokens": 79439,
+                "cacheReadTokens": 13366784,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01",
+              "seq": 807,
+              "at": 1791081005478,
+              "totals": {
+                "uncachedInputTokens": 315694,
+                "outputTokens": 79953,
+                "cacheReadTokens": 13730944,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 22808,
+              "outputTokens": 514,
+              "cacheReadTokens": 364160,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791081005478
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791080751463,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1791081000970,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "开工：freshness_guard 复用同一口径"
+        },
+        {
+          "status": "integrating",
+          "at": 1791081005478,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "联调：真实进程内巡检口径已由解析器给出，无需外部接口"
+        },
+        {
+          "status": "testing",
+          "at": 1791081005548,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "测试：pytest -k「freshness or trading_day or health_probe」92 passed"
+        },
+        {
+          "status": "in_review",
+          "at": 1791081005620,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "复核：_last_trading_day 签名不变、三个分支均带 expected_source"
+        },
+        {
+          "status": "done",
+          "at": 1791081074708,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "守卫复用交付：唯一口径落地，三处 result 带 expected_source，桩点随接缝搬家，92 条相关用例全过"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-83cbec",
+          "body": "[状态] → in_progress：开工：freshness_guard 复用同一口径（reqboard_task_move）",
+          "createdAt": 1791081000970,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          }
+        },
+        {
+          "id": "c-5ab84e",
+          "body": "[状态] → integrating：联调：真实进程内巡检口径已由解析器给出，无需外部接口（reqboard_task_move）",
+          "createdAt": 1791081005478,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          }
+        },
+        {
+          "id": "c-74a2e2",
+          "body": "[状态] → testing：测试：pytest -k「freshness or trading_day or health_probe」92 passed（reqboard_task_move）",
+          "createdAt": 1791081005548,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          }
+        },
+        {
+          "id": "c-ac4a30",
+          "body": "[状态] → in_review：复核：_last_trading_day 签名不变、三个分支均带 expected_source（reqboard_task_move）",
+          "createdAt": 1791081005620,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          }
+        },
+        {
+          "id": "c-d43c10",
+          "body": "[状态] → done：守卫复用交付：唯一口径落地，三处 result 带 expected_source，桩点随接缝搬家，92 条相关用例全过（reqboard_task_move）",
+          "createdAt": 1791081074708,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1791080751463,
+      "updatedAt": 1791081074708,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+      },
+      "layer": 1,
+      "lastReport": {
+        "at": 1791081000839,
+        "reportIndex": 1,
+        "filesChanged": [
+          "adapters/inbound/fastapi_app/daily_jobs/pipeline.py",
+          "tests/test_freshness_guard.py",
+          "tests/test_trading_day_resolver.py"
+        ],
+        "completed": [
+          "pipeline.py 的 _last_trading_day 改为复用唯一口径 last_closed_trading_day，签名与返回类型不变（40+ 处导入不受影响）。",
+          "freshness_guard 的基准日改由解析器给出并新增 expected_source 键，三个分支（stale / fresh_but_job_failed / fresh）都带出判定来源。",
+          "实测 _last_trading_day：10-04 10:18 与 10-02 17:20 都得 2026-09-30（修复前是 10-02 / 10-01），10-08 15:30 得 2026-10-08。",
+          "打桩点随接缝第四次搬家：tests/test_freshness_guard.py 的桩从 pipeline._last_trading_day 移到 resolver.last_closed_trading_day，原三条断言一条未改，另加一条来源标注断言。",
+          "顺带让解析器降级断言不依赖 stdout 抓取（改为替换 logger 记录事件），单跑与全量跑结果一致。",
+          "回归：pytest -k「freshness or trading_day or health_probe」92 passed。"
+        ]
+      },
+      "lastRun": {
+        "at": 1791081000839,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-ed8425",
+      "requirementId": "REQ-261004102115-d3de",
+      "title": "刷新脚本改接 provider 源并一次性回填日历表",
+      "cardDoc": "docs/requirements/REQ-261004102115-d3de/tasks/t-ed8425.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-dc66e2"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "跑：./venv/bin/python tools/refresh_trading_calendar.py --dry-run → 输出将写入行数 > 0。 回填后跑：psql -h 127.0.0.1 -U mac -d quant_investment -At -c \"SELECT count(*), max(trade_date) FROM quant.trading_calendar;\" 看到：count>0 且 max(trade_date) >= 2026-12-31（覆盖到年底，含 2026-10-08 复市日）。",
+      "implementation": "tools/refresh_trading_calendar.py：数据源改为 get_data_provider_manager().get_trading_calendar（含未来交易日），与既有 daily_klines DISTINCT trade_date 取并集。保留原有 ON CONFLICT DO NOTHING 与空表时的复合主键确保逻辑。先 --dry-run 看清将写入行数，再实跑一次回填 quant.trading_calendar（只写 TRUE/FALSE，不写 NULL）。",
+      "context": "",
+      "skipIntegration": true,
+      "requirementRefs": [
+        "FR-1"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-c8f2c3",
+          "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01",
+          "trigger": "manual",
+          "startedAt": 1791081051401,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01",
+              "seq": 870,
+              "at": 1791081051401,
+              "totals": {
+                "uncachedInputTokens": 340127,
+                "outputTokens": 85740,
+                "cacheReadTokens": 16190976,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01",
+              "seq": 874,
+              "at": 1791081051586,
+              "totals": {
+                "uncachedInputTokens": 340127,
+                "outputTokens": 85740,
+                "cacheReadTokens": 16190976,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791081051586
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791080751463,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1791081051401,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "开工：刷新脚本改接 provider 源并回填日历表"
+        },
+        {
+          "status": "integrating",
+          "at": 1791081051586,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "联调：provider 源与表写入已实跑通，并集逻辑与幂等（ON CONFLICT DO NOTHING）验证通过"
+        },
+        {
+          "status": "testing",
+          "at": 1791081051669,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "测试：回填后解析器四组日期全走 calendar_table；管道侧读表返回 7791 个交易日"
+        },
+        {
+          "status": "in_review",
+          "at": 1791081051741,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "复核：回填只写 TRUE、不写 NULL；表内不含任何休市日"
+        },
+        {
+          "status": "done",
+          "at": 1791081136799,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "日历回填交付：表 23373 行覆盖至 2026-12-31，探针快路径命中 calendar_table，管道读表返回 7791 个交易日"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-bed492",
+          "body": "[状态] → in_progress：开工：刷新脚本改接 provider 源并回填日历表（reqboard_task_move）",
+          "createdAt": 1791081051401,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          }
+        },
+        {
+          "id": "c-24f42a",
+          "body": "[状态] → integrating：联调：provider 源与表写入已实跑通，并集逻辑与幂等（ON CONFLICT DO NOTHING）验证通过（reqboard_task_move）",
+          "createdAt": 1791081051586,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          }
+        },
+        {
+          "id": "c-205962",
+          "body": "[状态] → testing：测试：回填后解析器四组日期全走 calendar_table；管道侧读表返回 7791 个交易日（reqboard_task_move）",
+          "createdAt": 1791081051669,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          }
+        },
+        {
+          "id": "c-685c2a",
+          "body": "[状态] → in_review：复核：回填只写 TRUE、不写 NULL；表内不含任何休市日（reqboard_task_move）",
+          "createdAt": 1791081051741,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          }
+        },
+        {
+          "id": "c-97e12d",
+          "body": "[状态] → done：日历回填交付：表 23373 行覆盖至 2026-12-31，探针快路径命中 calendar_table，管道读表返回 7791 个交易日（reqboard_task_move）",
+          "createdAt": 1791081136799,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1791080751463,
+      "updatedAt": 1791081136799,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+      },
+      "layer": 1,
+      "lastReport": {
+        "at": 1791081051473,
+        "reportIndex": 1,
+        "filesChanged": [
+          "tools/refresh_trading_calendar.py"
+        ],
+        "completed": [
+          "tools/refresh_trading_calendar.py 增接 AKShare 官方日历（经 DataProviderManager），与既有 K 线真源取并集。",
+          "并集的意义：K 线里天然没有未来交易日，只用它会让表刚填好就过期；官方日历补齐未来日期。",
+          "新增 --skip-provider 开关（离线时退回只用 K 线源），provider 失败只打印原因不中断刷新。",
+          "实跑回填：表内 23373 行，覆盖 1994-03-01 ~ 2026-12-31，主键由 (trade_date) 升为 (trade_date, exchange)。",
+          "复核节假日口径：表内 SSE 只有 09-28/29/30 与 10-08/09/12，国庆 10-01~10-07 与中秋 09-25 均不在。",
+          "快路径生效：解析器对四组日期全部返回 source=calendar_table（不再打 provider 降级 warning）。",
+          "连带影响已核：load_trading_calendar_from_db('SSE') 由「空表回退 K 线」变为直接读表，返回 7791 个交易日、末日 2026-12-31。"
+        ]
+      },
+      "lastRun": {
+        "at": 1791081051473,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-4caf2a",
+      "requirementId": "REQ-261004102115-d3de",
+      "title": "核验迁移与兼容（管道读表切换、引用方、无新依赖）",
+      "cardDoc": "docs/requirements/REQ-261004102115-d3de/tasks/t-4caf2a.md",
+      "description": "",
+      "phase": "analysis",
+      "side": "backend",
+      "dependsOn": [
+        "t-f062d4",
+        "t-1d780d",
+        "t-ed8425"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "跑：./venv/bin/python -c \"from application.services.data_pipeline_service import load_trading_calendar_from_db as f;d=f('SSE');print(len(d))\" → 输出 >0 且不含 trading_calendar_empty_fallback_to_klines 日志。 跑：./venv/bin/python -m pytest tests/ -q -k \"trading_day or freshness\" → 全过或与基线一致。 跑：git diff --stat → 不含 deployment/launchd/、不含 pyproject.toml、不含 quant.data_contracts 相关 SQL/迁移。",
+      "implementation": "核验 load_trading_calendar_from_db(exchange) 从「空表回退 K 线」切换为「读表」后行为正常，回退路径与异常处理未被破坏。核验全仓 _last_trading_day 引用方（tools/health_probe.py 之外）仍可导入且语义未回归。核验未改 deployment/launchd/com.pi-investment.health-probe.plist、未改 quant.data_contracts、未新增第三方依赖。",
+      "context": "",
+      "skipIntegration": true,
+      "requirementRefs": [
+        "FR-1",
+        "FR-3"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-da29aa",
+          "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01",
+          "trigger": "manual",
+          "startedAt": 1791081144123,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01",
+              "seq": 926,
+              "at": 1791081144123,
+              "totals": {
+                "uncachedInputTokens": 342195,
+                "outputTokens": 88549,
+                "cacheReadTokens": 18284544,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01",
+              "seq": 937,
+              "at": 1791081149745,
+              "totals": {
+                "uncachedInputTokens": 365075,
+                "outputTokens": 89289,
+                "cacheReadTokens": 18706176,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 22880,
+              "outputTokens": 740,
+              "cacheReadTokens": 421632,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791081149745
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791080751463,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1791081144123,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "开工：核验迁移与兼容"
+        },
+        {
+          "status": "integrating",
+          "at": 1791081149745,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "联调：管道读表与探针快路径均已实跑通"
+        },
+        {
+          "status": "testing",
+          "at": 1791081149785,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "测试：92 条相关用例全过，回退日志为 0 次"
+        },
+        {
+          "status": "in_review",
+          "at": 1791081149864,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "复核：diff 面未溢出（无 launchd/pyproject/契约改动），三个生产导入方均 OK"
+        },
+        {
+          "status": "done",
+          "at": 1791081206255,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "兼容核验交付：管道读表生效、引用方无回归、改动面未溢出（无 launchd/pyproject/契约改动）"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-dc2e10",
+          "body": "[状态] → in_progress：开工：核验迁移与兼容（reqboard_task_move）",
+          "createdAt": 1791081144123,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          }
+        },
+        {
+          "id": "c-e3bbd0",
+          "body": "[状态] → integrating：联调：管道读表与探针快路径均已实跑通（reqboard_task_move）",
+          "createdAt": 1791081149745,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          }
+        },
+        {
+          "id": "c-56b2d5",
+          "body": "[状态] → testing：测试：92 条相关用例全过，回退日志为 0 次（reqboard_task_move）",
+          "createdAt": 1791081149785,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          }
+        },
+        {
+          "id": "c-7cf04d",
+          "body": "[状态] → in_review：复核：diff 面未溢出（无 launchd/pyproject/契约改动），三个生产导入方均 OK（reqboard_task_move）",
+          "createdAt": 1791081149864,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          }
+        },
+        {
+          "id": "c-64b325",
+          "body": "[状态] → done：兼容核验交付：管道读表生效、引用方无回归、改动面未溢出（无 launchd/pyproject/契约改动）（reqboard_task_move）",
+          "createdAt": 1791081206255,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1791080751463,
+      "updatedAt": 1791081206255,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+      },
+      "layer": 2,
+      "lastReport": {
+        "at": 1791081149688,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "管道侧：load_trading_calendar_from_db('SSE') 返回 7791 个交易日、末日 2026-12-31，且日志中 trading_calendar_empty_fallback_to_klines 出现 0 次（不再走空表回退）。",
+          "引用方：application.services.scheduler_tasks_data、daily_jobs、daily_jobs_bootstrap 三个生产导入方全部 import 成功，_last_trading_day 签名未变。",
+          "改动面：git diff 不含 deployment/launchd/ 与 pyproject.toml；未新增第三方依赖；未改 quant.data_contracts 口径。",
+          "回归：pytest -k「trading_day or freshness or health_probe」92 passed（含既有守卫用例与新增回归锁）。",
+          "登记项：表内无任何休市日（10-01~10-07 与 09-25 均不在），主键已升为 (trade_date, exchange)。"
+        ]
+      },
+      "lastRun": {
+        "at": 1791081149688,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-8e4de7",
+      "requirementId": "REQ-261004102115-d3de",
+      "title": "实现交易日解析器（最近一个已收盘交易日）·研发",
+      "description": "子卡阶段：研发",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "implementation": "新增 application/services/trading_day_resolver.py。定义 TradingDayResult(date, source, degraded) 与 last_closed_trading_day(ref, *, cutoff=15:30, provider_lookback_days=30)。anchor = ref.date() 若 >=15:30 否则 ref.date()-1；结果 = 日历中 <=anchor 的最大交易日。三级解析：① quant.trading_calendar（需 max(trade_date)>=anchor 才算覆盖）；② ServiceFactory.get_data_provider_manager().get_trading_calendar(start, anchor)；③ 周一至周五回退。任一级失败不抛异常、记 warning、降级；source 取 calendar_table|provider|weekday_fallback。\n\n[子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "context": "",
+      "parentId": "t-dc66e2",
+      "stageKind": "dev",
+      "attempt": 1,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-ee960e",
+          "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01",
+          "trigger": "auto",
+          "startedAt": 1791080751627,
+          "outcome": "failed",
+          "endedAt": 1791080751627,
+          "error": "subtask_engine_unreachable：子卡执行引擎不可达（inject=function get=function byGet=false captured=false [tools=true agents=true webServer=true]）。子卡执行**不会静默成功**。两条出路：① 改由本窗口自证过凭证门——reqboard_task_report 写 filesChanged（写入族：至少一个文件真实存在且 mtime ≥ 链出身）或 completed（结论族），凭证门在没有成功 run 时即按此口径放行；② 让 workflowEngine 在本插件可见的作用域可达（当前 profile 下按设计不可达，**重试无解**）。（legacy code: engine_unavailable）"
+        },
+        {
+          "id": "e-da2099",
+          "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01",
+          "trigger": "manual",
+          "startedAt": 1791080807989,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01",
+              "seq": 475,
+              "at": 1791080807989,
+              "totals": {
+                "uncachedInputTokens": 168637,
+                "outputTokens": 54959,
+                "cacheReadTokens": 5203584,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01",
+              "seq": 495,
+              "at": 1791080816823,
+              "totals": {
+                "uncachedInputTokens": 169633,
+                "outputTokens": 56498,
+                "cacheReadTokens": 5639424,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 996,
+              "outputTokens": 1539,
+              "cacheReadTokens": 435840,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791080816822
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-cb0bc0",
+          "body": "[状态] → in_progress：开工（reqboard_task_move）",
+          "createdAt": 1791080807989,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          }
+        },
+        {
+          "id": "c-d4776f",
+          "body": "[状态] → done：研发段完成：模块落地并实测七组日期通过（reqboard_task_move）",
+          "createdAt": 1791080816822,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1791080751590,
+      "updatedAt": 1791080816822,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791080751590,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791080751628,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "todo",
+          "at": 1791080751654,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791080807989,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "开工"
+        },
+        {
+          "status": "done",
+          "at": 1791080816822,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "研发段完成：模块落地并实测七组日期通过"
+        }
+      ],
+      "layer": 0,
+      "lastRun": {
+        "at": 1791080751628,
+        "ok": false,
+        "stopReason": "subtask_engine_unreachable：子卡执行引擎不可达（inject=function get=function byGet=false captured=false [tools=true agents=true webServer=true]）。子卡执行**不会静默成功**。两条出路：① 改由本窗口自证过凭证门——reqboard_task_report 写 filesChanged（写入族：至少一个文件真实存在且 mtime ≥ 链出身）或 completed（结论族），凭证门在没有成功 run 时即按此口径放行；② 让 workflowEngine 在本插件可见的作用域可达（当前 profile 下按设计不可达，**重试无解**）。（legacy code: engine_unavailable）",
+        "valueNonEmpty": false,
+        "reason": "subtask_engine_unreachable：子卡执行引擎不可达（inject=function get=function byGet=false captured=false [tools=true agents=true webServer=true]）。子卡执行**不会静默成功**。两条出路：① 改由本窗口自证过凭证门——reqboard_task_report 写 filesChanged（写入族：至少一个文件真实存在且 mtime ≥ 链出身）或 completed（结论族），凭证门在没有成功 run 时即按此口径放行；② 让 workflowEngine 在本插件可见的作用域可达（当前 profile 下按设计不可达，**重试无解**）。（legacy code: engine_unavailable）"
+      },
+      "lastReport": {
+        "at": 1791080816764,
+        "reportIndex": 1,
+        "filesChanged": [
+          "application/services/trading_day_resolver.py"
+        ],
+        "completed": [
+          "新增 application/services/trading_day_resolver.py（TradingDayResult + last_closed_trading_day）。",
+          "三级解析链：日历表（需覆盖 anchor）→ AKShare（经 DataProviderManager）→ 周一至周五回退。",
+          "降级必标注：source/degraded 随结果带出，回退时记 warning。"
+        ]
+      }
+    },
+    {
+      "id": "t-2aae82",
+      "requirementId": "REQ-261004102115-d3de",
+      "title": "实现交易日解析器（最近一个已收盘交易日）·复核",
+      "description": "子卡阶段：复核",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-8e4de7"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "implementation": "新增 application/services/trading_day_resolver.py。定义 TradingDayResult(date, source, degraded) 与 last_closed_trading_day(ref, *, cutoff=15:30, provider_lookback_days=30)。anchor = ref.date() 若 >=15:30 否则 ref.date()-1；结果 = 日历中 <=anchor 的最大交易日。三级解析：① quant.trading_calendar（需 max(trade_date)>=anchor 才算覆盖）；② ServiceFactory.get_data_provider_manager().get_trading_calendar(start, anchor)；③ 周一至周五回退。任一级失败不抛异常、记 warning、降级；source 取 calendar_table|provider|weekday_fallback。\n\n[子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-dc66e2",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-c99c3a",
+          "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01",
+          "trigger": "manual",
+          "startedAt": 1791080816920,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01",
+              "seq": 499,
+              "at": 1791080816921,
+              "totals": {
+                "uncachedInputTokens": 169633,
+                "outputTokens": 56498,
+                "cacheReadTokens": 5639424,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01",
+              "seq": 501,
+              "at": 1791080816959,
+              "totals": {
+                "uncachedInputTokens": 169633,
+                "outputTokens": 56498,
+                "cacheReadTokens": 5639424,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791080816959
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-619b58",
+          "body": "[状态] → in_progress：复核开工（reqboard_task_move）",
+          "createdAt": 1791080816920,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          }
+        },
+        {
+          "id": "c-f856e6",
+          "body": "[状态] → done：复核段完成：口径、降级标注、异常与类型守卫逐条核对通过（reqboard_task_move）",
+          "createdAt": 1791080816959,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791080751590,
+      "updatedAt": 1791080816959,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791080751590,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791080816920,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "复核开工"
+        },
+        {
+          "status": "done",
+          "at": 1791080816959,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "复核段完成：口径、降级标注、异常与类型守卫逐条核对通过"
+        }
+      ],
+      "layer": 1,
+      "lastReport": {
+        "at": 1791080816862,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "口径唯一：只有 last_closed_trading_day 一处算「应有交易日」，未复制第二份 weekday 逻辑。",
+          "降级必标注：provider 抛异常/返回空时给出 weekday_fallback 且 degraded=True，不静默。",
+          "失败不崩：三级源各自 try/except 记 warning；唯一致抛路径是裸 date 入参的 TypeError。",
+          "数据读取口径与 tools/check_data_contracts.py 一致（is_trading_day IS NOT FALSE，不按 exchange 过滤）。"
+        ]
+      },
+      "lastRun": {
+        "at": 1791080816862,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-598ad3",
+      "requirementId": "REQ-261004102115-d3de",
+      "title": "实现交易日解析器（最近一个已收盘交易日）·测试",
+      "description": "子卡阶段：测试",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-2aae82"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "implementation": "新增 application/services/trading_day_resolver.py。定义 TradingDayResult(date, source, degraded) 与 last_closed_trading_day(ref, *, cutoff=15:30, provider_lookback_days=30)。anchor = ref.date() 若 >=15:30 否则 ref.date()-1；结果 = 日历中 <=anchor 的最大交易日。三级解析：① quant.trading_calendar（需 max(trade_date)>=anchor 才算覆盖）；② ServiceFactory.get_data_provider_manager().get_trading_calendar(start, anchor)；③ 周一至周五回退。任一级失败不抛异常、记 warning、降级；source 取 calendar_table|provider|weekday_fallback。\n\n[子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "context": "",
+      "parentId": "t-dc66e2",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-f7beaf",
+          "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01",
+          "trigger": "manual",
+          "startedAt": 1791080817051,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01",
+              "seq": 505,
+              "at": 1791080817051,
+              "totals": {
+                "uncachedInputTokens": 169633,
+                "outputTokens": 56498,
+                "cacheReadTokens": 5639424,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01",
+              "seq": 507,
+              "at": 1791080817090,
+              "totals": {
+                "uncachedInputTokens": 169633,
+                "outputTokens": 56498,
+                "cacheReadTokens": 5639424,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791080817090
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-f05006",
+          "body": "[状态] → in_progress：测试开工（reqboard_task_move）",
+          "createdAt": 1791080817051,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          }
+        },
+        {
+          "id": "c-fa085b",
+          "body": "[状态] → done：测试段完成：日期与降级路径实测通过（reqboard_task_move）",
+          "createdAt": 1791080817090,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791080751590,
+      "updatedAt": 1791080817090,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791080751590,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791080817051,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "测试开工"
+        },
+        {
+          "status": "done",
+          "at": 1791080817090,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "测试段完成：日期与降级路径实测通过"
+        }
+      ],
+      "layer": 2,
+      "lastReport": {
+        "at": 1791080816998,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "实测两组真实数据：10-04/10-02 16:00/10-08 15:29 → 2026-09-30；10-08 15:30 → 2026-10-08。",
+          "实测节日与周末：09-25 20:00 与 09-26 10:00 → 2026-09-24；09-29 10:00 → 2026-09-28。",
+          "实测降级：provider 抛异常与返回 None 均得 weekday_fallback + degraded=True，且不抛异常。",
+          "实测表命中：注入假表返回 calendar_table + degraded=False。",
+          "实测类型守卫：传裸 date 抛 TypeError，信息说明应自行补 15:30 语义。"
+        ]
+      },
+      "lastRun": {
+        "at": 1791080816998,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-391941",
+      "requirementId": "REQ-261004102115-d3de",
+      "title": "返工：E2E 覆盖：**无（缺口）**——本需求交付涉及多组件串联，但只交了单元/集成测试。请补一条端到端场景用例（断言可观察",
+      "description": "验收不通过项返工（v1 项 v1-8）：E2E 覆盖：**无（缺口）**——本需求交付涉及多组件串联，但只交了单元/集成测试。请补一条端到端场景用例（断言可观察终态）；若确认无需 E2E，通过时必须在意见中写明理由。",
+      "phase": "implement",
+      "side": "fullstack",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "跑 pytest tests/e2e/test_health_probe_e2e.py -q → 2 passed（notify-guard egress=0）；再跑 venv/bin/python tools/health_probe.py --dry-run --max-lag-days -1 → 退出码 2 且 stdout 含「[--dry-run] 以下告警**未发送**」。",
+      "implementation": "按验收意见修复：需修改",
+      "context": "承接自 需求级验收项；验收意见：需修改",
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-3977c3",
+          "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01",
+          "trigger": "manual",
+          "startedAt": 1791081563677,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01",
+              "seq": 1168,
+              "at": 1791081563677,
+              "totals": {
+                "uncachedInputTokens": 445109,
+                "outputTokens": 110874,
+                "cacheReadTokens": 30428928,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01",
+              "seq": 1170,
+              "at": 1791081563720,
+              "totals": {
+                "uncachedInputTokens": 445109,
+                "outputTokens": 110874,
+                "cacheReadTokens": 30428928,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791081563720
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-728b53",
+          "body": "[状态] → in_progress：返工开工：补端到端用例（reqboard_task_move）",
+          "createdAt": 1791081563677,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          }
+        },
+        {
+          "id": "c-7c4107",
+          "body": "[状态] → integrating：端到端用例以真实入口进程跑通，无需额外接线（reqboard_task_move）",
+          "createdAt": 1791081563720,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          }
+        },
+        {
+          "id": "c-4ef343",
+          "body": "[状态] → testing：实测 2 passed，notify-guard egress=0（reqboard_task_move）",
+          "createdAt": 1791081563760,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          }
+        },
+        {
+          "id": "c-8026b2",
+          "body": "[状态] → in_review：复核：断言只落在可观察终态（退出码 / JSON 契约 / 未发送标记）（reqboard_task_move）",
+          "createdAt": 1791081563801,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          }
+        },
+        {
+          "id": "c-594556",
+          "body": "[状态] → done：返工完成：端到端场景已补（验收项 v1-8）（reqboard_task_move）",
+          "createdAt": 1791081563843,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1791081350783,
+      "updatedAt": 1791081582614,
+      "createdBy": {
+        "kind": "human",
+        "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791081350783,
+          "by": {
+            "kind": "human",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "验收不通过 → 自动生成返工任务（W6）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1791081563677,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "返工开工：补端到端用例"
+        },
+        {
+          "status": "integrating",
+          "at": 1791081563720,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "端到端用例以真实入口进程跑通，无需额外接线"
+        },
+        {
+          "status": "testing",
+          "at": 1791081563760,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "实测 2 passed，notify-guard egress=0"
+        },
+        {
+          "status": "in_review",
+          "at": 1791081563801,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "复核：断言只落在可观察终态（退出码 / JSON 契约 / 未发送标记）"
+        },
+        {
+          "status": "done",
+          "at": 1791081563843,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-e4214a80-d4ad-4666-9705-9ee6f7921f01"
+          },
+          "reason": "返工完成：端到端场景已补（验收项 v1-8）"
+        }
+      ],
+      "layer": 0,
+      "lastReport": {
+        "at": 1791081430936,
+        "reportIndex": 1,
+        "filesChanged": [
+          "tests/e2e/test_health_probe_e2e.py"
+        ],
+        "completed": [
+          "新增 tests/e2e/test_health_probe_e2e.py，用与 plist 相同的跑法（venv python + tools/health_probe.py --dry-run，独立进程）驱动真实入口。",
+          "场景一：整条链跑通——退出码只允许 0/2（3 属探针自身故障，必须区分）；输出契约含 expected_source / expected_degraded；脚本给出的应有交易日与库内唯一口径逐日一致（跨进程核对，证明接的是同一实现）。",
+          "场景二：负向控制——按实测 lag 现算容差（lag-1，必然不及格），断言退出码 2、healthy=false、且 dry-run 路径只打印不投递（告警确实没发出）。",
+          "说明为何不 mock：mock 掉任一层就回答不了“装到 launchd 上还是不是那条误报”。",
+          "实测：pytest tests/e2e/test_health_probe_e2e.py -q → 2 passed，notify-guard intercepted=0 egress=0。"
+        ]
+      },
+      "lastRun": {
+        "at": 1791081430936,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "t-dc66e2",
+      "to": "t-b952d0"
+    },
+    {
+      "from": "t-dc66e2",
+      "to": "t-f062d4"
+    },
+    {
+      "from": "t-dc66e2",
+      "to": "t-1d780d"
+    },
+    {
+      "from": "t-dc66e2",
+      "to": "t-ed8425"
+    },
+    {
+      "from": "t-f062d4",
+      "to": "t-4caf2a"
+    },
+    {
+      "from": "t-1d780d",
+      "to": "t-4caf2a"
+    },
+    {
+      "from": "t-ed8425",
+      "to": "t-4caf2a"
+    },
+    {
+      "from": "t-8e4de7",
+      "to": "t-2aae82"
+    },
+    {
+      "from": "t-2aae82",
+      "to": "t-598ad3"
+    }
+  ],
+  "layers": [
+    {
+      "layer": 0,
+      "tasks": [
+        "t-dc66e2",
+        "t-8e4de7",
+        "t-391941"
+      ]
+    },
+    {
+      "layer": 1,
+      "tasks": [
+        "t-b952d0",
+        "t-f062d4",
+        "t-1d780d",
+        "t-ed8425",
+        "t-2aae82"
+      ]
+    },
+    {
+      "layer": 2,
+      "tasks": [
+        "t-4caf2a",
+        "t-598ad3"
+      ]
+    }
+  ],
+  "ready": [],
+  "updated_at": "2026-10-04T02:39:42.616Z"
+}

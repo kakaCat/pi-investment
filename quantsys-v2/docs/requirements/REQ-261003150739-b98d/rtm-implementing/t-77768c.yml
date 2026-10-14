@@ -1,0 +1,39 @@
+task:
+  id: t-77768c
+  title: 修正 test_false_success_guard 的打桩点·测试
+  status: done
+  implements: |-
+    把两处 monkeypatch.setattr(host_alerting, '_send_feishu', …) 改为打在 daily_jobs.runtime（文件内已导入 host_runtime）；保留 _mark_running/_mark_done 桩与全部断言；注释改成正确的打桩点规则。
+
+    [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+  serves: []
+  depends_on:
+    - t-0ff3c9
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261003150739-b98d
+    TASK_ID: t-77768c
+    TASK_TITLE: 修正 test_false_success_guard 的打桩点·测试
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      started_at: 2026-10-03T07:12:37.033Z
+      completed_at: 2026-10-03T07:12:37.142Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261003150739-b98d
+  generated_at: 2026-10-03T07:12:33.482Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-03T07:12:37.142Z

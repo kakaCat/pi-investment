@@ -7,6 +7,13 @@
 ### 设计提案（RFC）
 - **[RFC 016 · 统一市况（开市/非开市）与两态取价](rfcs/016-market-session-and-pricing-design.md)** - 市况判断收敛为唯一入口；非开市只读本地不联网；解请求路径阻塞；行情双轨归一到 `DataProviderManager`
 
+### 架构说明（architecture/）
+> 此前该目录下的 L2 页面在本索引里**没有入口**（等于没写）；本次先挂上入口，其余页面陆续补。
+
+- **[项目说明书（L1）](architecture/project-manual.md)** - 项目是什么 / 关键架构 / 关键认知 / 去哪找；改认知必须更新它
+- **[盯盘通知契约（开市闸门 / 名称 / 级别 / 外发审计）](architecture/watch-notification-contract.md)** - 盯盘通知何时发、长什么样、谁发的可归因（REQ-261007101318-c392）
+- **[Watch 规则完整指南](architecture/watch-rules.md)** - 盯盘条件类型、复合条件、阈值与归属规范
+
 ### 快速开始
 - **[快速入门指南](guides/QUICK_START.md)** - 5分钟快速体验核心功能
 - **[最佳实践指南](guides/BEST_PRACTICES.md)** - 因子开发和策略优化技巧

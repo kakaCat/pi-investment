@@ -8,28 +8,15 @@ import numpy as np
 from typing import Dict, Optional, Union
 import structlog
 
+# 净值序列口径已收口到 application/services/nav_series.py（REQ-261006190953-fc43）：
+# 「哪些日期算数」= 交易日历说了算。此处保留同名符号作为**兼容转发**，
+# 既有导入路径（tests / 路由 / 服务）不破；新代码请直接用 nav_series。
+from application.services.nav_series import (  # noqa: F401  (re-export)
+    nav_coverage,
+    nav_returns_from_snapshots,
+)
+
 logger = structlog.get_logger(__name__)
-
-
-def nav_returns_from_snapshots(snapshots) -> tuple:
-    """把账户净值快照序列（任意顺序）转成日收益率序列。
-
-    2026-09-11（w-8f2c4cc5）新增：风控计算以**账户净值**为唯一真源，与
-    simulation_equity_snapshot.daily_return 列解耦——该列历史上存在基准错位
-    （2026-07-27 记录 +24.08%，真实 +0.72%），直接消费会放大回撤与波动。
-    口径：按 snapshot_date 升序取 total_value，逐日 (v[i]/v[i-1] - 1)，
-    跳过 total_value <= 0 的快照。返回 (returns, 有效净值点数)。
-    """
-    rows = [s for s in (snapshots or []) if getattr(s, 'total_value', None) is not None]
-    rows = [s for s in rows if float(s.total_value) > 0]
-    rows.sort(key=lambda s: s.snapshot_date)
-    values = [float(s.total_value) for s in rows]
-    returns = [
-        (values[i] - values[i - 1]) / values[i - 1]
-        for i in range(1, len(values))
-        if values[i - 1] > 0
-    ]
-    return returns, len(values)
 
 
 class RiskMetricsService:

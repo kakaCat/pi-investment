@@ -1,0 +1,212 @@
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006093620-a315
+  generated_at: 2026-10-06T01:49:17.224Z
+  version: 122
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 39
+  last_updated: 2026-10-06T02:22:06.902Z
+inputs:
+  tasks:
+    - id: t-63bc0a
+      title: 判据真源：trading_day_gate 模块与策略入口
+      status: done
+    - id: t-e05ce2
+      title: 数据契约：三值列 + CHECK + 8 行回填 + ORM
+      status: done
+    - id: t-d91b87
+      title: ③ 退为薄转发 + 打桩点迁移（行为零变化）
+      status: done
+    - id: t-da502d
+      title: 仓储层：complete_run_skipped + 抽 _finish_run
+      status: done
+    - id: t-42eb9a
+      title: 执行期接门与跳过落账（含 manual 旁路）
+      status: done
+    - id: t-3a7ebb
+      title: 人工触发改投一次性 manual=True job
+      status: done
+    - id: t-54d79f
+      title: 巡检口径同步：should_have_run 与 watchdog
+      status: done
+    - id: t-ea51f0
+      title: 端到端验收、真实台账观察与回滚演练
+      status: done
+    - id: t-da2b87
+      title: 判据真源：trading_day_gate 模块与策略入口·研发
+      status: done
+    - id: t-ae7033
+      title: 判据真源：trading_day_gate 模块与策略入口·联调
+      status: done
+    - id: t-eb87e5
+      title: 判据真源：trading_day_gate 模块与策略入口·复核
+      status: done
+    - id: t-54a3c8
+      title: 判据真源：trading_day_gate 模块与策略入口·测试
+      status: done
+    - id: t-a7e4bb
+      title: 数据契约：三值列 + CHECK + 8 行回填 + ORM·研发
+      status: done
+    - id: t-faf05d
+      title: 数据契约：三值列 + CHECK + 8 行回填 + ORM·联调
+      status: done
+    - id: t-37ba53
+      title: 数据契约：三值列 + CHECK + 8 行回填 + ORM·复核
+      status: done
+    - id: t-3d3d60
+      title: 数据契约：三值列 + CHECK + 8 行回填 + ORM·测试
+      status: done
+    - id: t-989aba
+      title: ③ 退为薄转发 + 打桩点迁移（行为零变化）·研发
+      status: done
+    - id: t-b8b7c6
+      title: ③ 退为薄转发 + 打桩点迁移（行为零变化）·联调
+      status: done
+    - id: t-2d64a2
+      title: ③ 退为薄转发 + 打桩点迁移（行为零变化）·复核
+      status: done
+    - id: t-6373a5
+      title: ③ 退为薄转发 + 打桩点迁移（行为零变化）·测试
+      status: done
+    - id: t-13669a
+      title: 仓储层：complete_run_skipped + 抽 _finish_run·研发
+      status: done
+    - id: t-4b81fd
+      title: 仓储层：complete_run_skipped + 抽 _finish_run·联调
+      status: done
+    - id: t-b8df8c
+      title: 仓储层：complete_run_skipped + 抽 _finish_run·复核
+      status: done
+    - id: t-4006a7
+      title: 仓储层：complete_run_skipped + 抽 _finish_run·测试
+      status: done
+    - id: t-49f017
+      title: 执行期接门与跳过落账（含 manual 旁路）·研发
+      status: done
+    - id: t-b88384
+      title: 执行期接门与跳过落账（含 manual 旁路）·联调
+      status: done
+    - id: t-cddd7a
+      title: 执行期接门与跳过落账（含 manual 旁路）·复核
+      status: done
+    - id: t-0b6aaf
+      title: 执行期接门与跳过落账（含 manual 旁路）·测试
+      status: done
+    - id: t-2bf7e5
+      title: 人工触发改投一次性 manual=True job·研发
+      status: done
+    - id: t-02dd78
+      title: 人工触发改投一次性 manual=True job·联调
+      status: done
+    - id: t-badb26
+      title: 人工触发改投一次性 manual=True job·复核
+      status: done
+    - id: t-2a9fe9
+      title: 人工触发改投一次性 manual=True job·测试
+      status: done
+    - id: t-79a341
+      title: 巡检口径同步：should_have_run 与 watchdog·研发
+      status: done
+    - id: t-7d47dd
+      title: 巡检口径同步：should_have_run 与 watchdog·联调
+      status: done
+    - id: t-98ed3c
+      title: 巡检口径同步：should_have_run 与 watchdog·复核
+      status: done
+    - id: t-23d580
+      title: 巡检口径同步：should_have_run 与 watchdog·测试
+      status: done
+    - id: t-173a83
+      title: 端到端验收、真实台账观察与回滚演练·研发
+      status: done
+    - id: t-fde9be
+      title: 端到端验收、真实台账观察与回滚演练·复核
+      status: done
+    - id: t-cabaf9
+      title: 端到端验收、真实台账观察与回滚演练·测试
+      status: done
+status:
+  tasks_total: 39
+  tasks_done: 39
+  tasks_in_progress: 0
+  tasks_todo: 0
+tasks:
+  - id: t-63bc0a
+    status: done
+  - id: t-e05ce2
+    status: done
+  - id: t-d91b87
+    status: done
+  - id: t-da502d
+    status: done
+  - id: t-42eb9a
+    status: done
+  - id: t-3a7ebb
+    status: done
+  - id: t-54d79f
+    status: done
+  - id: t-ea51f0
+    status: done
+  - id: t-da2b87
+    status: done
+  - id: t-ae7033
+    status: done
+  - id: t-eb87e5
+    status: done
+  - id: t-54a3c8
+    status: done
+  - id: t-a7e4bb
+    status: done
+  - id: t-faf05d
+    status: done
+  - id: t-37ba53
+    status: done
+  - id: t-3d3d60
+    status: done
+  - id: t-989aba
+    status: done
+  - id: t-b8b7c6
+    status: done
+  - id: t-2d64a2
+    status: done
+  - id: t-6373a5
+    status: done
+  - id: t-13669a
+    status: done
+  - id: t-4b81fd
+    status: done
+  - id: t-b8df8c
+    status: done
+  - id: t-4006a7
+    status: done
+  - id: t-49f017
+    status: done
+  - id: t-b88384
+    status: done
+  - id: t-cddd7a
+    status: done
+  - id: t-0b6aaf
+    status: done
+  - id: t-2bf7e5
+    status: done
+  - id: t-02dd78
+    status: done
+  - id: t-badb26
+    status: done
+  - id: t-2a9fe9
+    status: done
+  - id: t-79a341
+    status: done
+  - id: t-7d47dd
+    status: done
+  - id: t-98ed3c
+    status: done
+  - id: t-23d580
+    status: done
+  - id: t-173a83
+    status: done
+  - id: t-fde9be
+    status: done
+  - id: t-cabaf9
+    status: done

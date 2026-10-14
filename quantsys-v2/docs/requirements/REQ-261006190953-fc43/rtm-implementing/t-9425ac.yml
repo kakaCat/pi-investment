@@ -1,0 +1,35 @@
+task:
+  id: t-9425ac
+  title: 落 nav_series 口径模块与契约（并留 shim 保导入兼容）·研发
+  status: done
+  implements: |-
+    新建 application/services/nav_series.py，导出四个函数（签名见 design/interfaces.md §2）：trading_day_set(exchange='ALL', force_refresh=False) 读 TradingCalendarORMRepository.list_trading_days 并做进程内 TTL 缓存，读失败/空表返回 None（绝不用空集表达失败）；filter_trading_days(rows, trading_days=None, date_of=...)，None 时原样返回；nav_returns_from_snapshots(snapshots, trading_days=None) 先丢 total_value<=0 行、再按交易日过滤、再相邻配对算收益，返回 (returns, points)；nav_coverage(snapshots, trading_days=None, max_listed=20) 返回 verified/points/from/to/missing_trading_days/missing_count/basis/trading_day_source。把 application/services/risk_metrics_service.py 里的 nav_returns_from_snapshots 改为转发 shim（保持既有导入路径可用，函数体与注释指向 nav_series）。新增 tests/test_nav_series.py。验证：./venv/bin/python -m pytest tests/test_nav_series.py -q 全过。
+
+    [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+  serves: []
+  depends_on: []
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261006190953-fc43
+    TASK_ID: t-9425ac
+    TASK_TITLE: 落 nav_series 口径模块与契约（并留 shim 保导入兼容）·研发
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-06T11:41:29.619Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006190953-fc43
+  generated_at: 2026-10-06T11:41:15.642Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-06T11:41:33.055Z

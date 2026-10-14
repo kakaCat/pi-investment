@@ -1,0 +1,352 @@
+metadata:
+  stage: implementing
+  requirement_id: REQ-261004154902-a7cd
+  generated_at: 2026-10-04T08:04:03.813Z
+  version: 203
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 67
+  last_updated: 2026-10-04T08:53:41.627Z
+inputs:
+  tasks:
+    - id: t-c52a0a
+      title: 新增结果契约与失败可见性出口
+      status: done
+    - id: t-b13aaf
+      title: 策略日检如实上报并修回通知方法
+      status: done
+    - id: t-da8070
+      title: 交易日判定收敛到日历链
+      status: done
+    - id: t-141b38
+      title: 挂单撮合批量不中断、时段护栏与过期收口
+      status: done
+    - id: t-0257b0
+      title: cron 时刻口径、misfire 语义与「被跳过」落库
+      status: done
+    - id: t-322d78
+      title: 调度失败的飞书兜底与告警覆盖面
+      status: done
+    - id: t-5103ce
+      title: 探活加调度活性并新增「该跑没跑」盘点器
+      status: done
+    - id: t-0226ab
+      title: 修通知渠道收窄并补齐缺失的飞书 formatter
+      status: done
+    - id: t-979319
+      title: 收敛策略配置为单一来源并让生效值可见
+      status: done
+    - id: t-373c05
+      title: 修实未接线链路并删掉锁死 bug 的假断言
+      status: done
+    - id: t-900179
+      title: 账本超卖拦截与现金重放对账器
+      status: done
+    - id: t-174c1d
+      title: 历史虚增现金标记为脏并从统计排除（按用户裁定）
+      status: done
+    - id: t-ba8cc4
+      title: 假绿灯结构门禁
+      status: done
+    - id: t-ad58a1
+      title: 端到端冒烟与验收证据汇总
+      status: done
+    - id: t-8133a0
+      title: 新增结果契约与失败可见性出口·研发
+      status: done
+    - id: t-934549
+      title: 新增结果契约与失败可见性出口·联调
+      status: done
+    - id: t-a6d274
+      title: 新增结果契约与失败可见性出口·复核
+      status: done
+    - id: t-d6131f
+      title: 新增结果契约与失败可见性出口·测试
+      status: done
+    - id: t-cb5d73
+      title: 策略日检如实上报并修回通知方法·研发
+      status: done
+    - id: t-a3ff51
+      title: 策略日检如实上报并修回通知方法·联调
+      status: done
+    - id: t-158ded
+      title: 策略日检如实上报并修回通知方法·复核
+      status: done
+    - id: t-8818ca
+      title: 策略日检如实上报并修回通知方法·测试
+      status: done
+    - id: t-9630b6
+      title: 交易日判定收敛到日历链·研发
+      status: done
+    - id: t-d64276
+      title: 交易日判定收敛到日历链·联调
+      status: done
+    - id: t-82451b
+      title: 交易日判定收敛到日历链·复核
+      status: done
+    - id: t-e8a6f4
+      title: 交易日判定收敛到日历链·测试
+      status: done
+    - id: t-53a7f9
+      title: 修通知渠道收窄并补齐缺失的飞书 formatter·研发
+      status: done
+    - id: t-1996fe
+      title: 修通知渠道收窄并补齐缺失的飞书 formatter·联调
+      status: done
+    - id: t-645f92
+      title: 修通知渠道收窄并补齐缺失的飞书 formatter·复核
+      status: done
+    - id: t-fa9784
+      title: 修通知渠道收窄并补齐缺失的飞书 formatter·测试
+      status: done
+    - id: t-20173e
+      title: cron 时刻口径、misfire 语义与「被跳过」落库·研发
+      status: done
+    - id: t-a9ba88
+      title: cron 时刻口径、misfire 语义与「被跳过」落库·联调
+      status: done
+    - id: t-318de0
+      title: cron 时刻口径、misfire 语义与「被跳过」落库·复核
+      status: done
+    - id: t-f6f85a
+      title: cron 时刻口径、misfire 语义与「被跳过」落库·测试
+      status: done
+    - id: t-f4a836
+      title: 修实未接线链路并删掉锁死 bug 的假断言·研发
+      status: done
+    - id: t-7766ec
+      title: 修实未接线链路并删掉锁死 bug 的假断言·联调
+      status: done
+    - id: t-ef72d4
+      title: 修实未接线链路并删掉锁死 bug 的假断言·复核
+      status: done
+    - id: t-e03b96
+      title: 修实未接线链路并删掉锁死 bug 的假断言·测试
+      status: done
+    - id: t-02fc85
+      title: 假绿灯结构门禁·研发
+      status: done
+    - id: t-5805e1
+      title: 假绿灯结构门禁·复核
+      status: done
+    - id: t-8259cd
+      title: 假绿灯结构门禁·测试
+      status: done
+    - id: t-5a96d9
+      title: 调度失败的飞书兜底与告警覆盖面·研发
+      status: done
+    - id: t-54368b
+      title: 调度失败的飞书兜底与告警覆盖面·联调
+      status: done
+    - id: t-c34956
+      title: 调度失败的飞书兜底与告警覆盖面·复核
+      status: done
+    - id: t-67b43e
+      title: 调度失败的飞书兜底与告警覆盖面·测试
+      status: done
+    - id: t-d935df
+      title: 探活加调度活性并新增「该跑没跑」盘点器·研发
+      status: done
+    - id: t-2e7e2e
+      title: 探活加调度活性并新增「该跑没跑」盘点器·联调
+      status: done
+    - id: t-7b82d0
+      title: 探活加调度活性并新增「该跑没跑」盘点器·复核
+      status: done
+    - id: t-681cce
+      title: 探活加调度活性并新增「该跑没跑」盘点器·测试
+      status: done
+    - id: t-2182ea
+      title: 收敛策略配置为单一来源并让生效值可见·研发
+      status: done
+    - id: t-d0e730
+      title: 收敛策略配置为单一来源并让生效值可见·联调
+      status: done
+    - id: t-0959dc
+      title: 收敛策略配置为单一来源并让生效值可见·复核
+      status: done
+    - id: t-6625c7
+      title: 收敛策略配置为单一来源并让生效值可见·测试
+      status: done
+    - id: t-672692
+      title: 挂单撮合批量不中断、时段护栏与过期收口·研发
+      status: done
+    - id: t-6d84c3
+      title: 挂单撮合批量不中断、时段护栏与过期收口·联调
+      status: done
+    - id: t-e99312
+      title: 挂单撮合批量不中断、时段护栏与过期收口·复核
+      status: done
+    - id: t-de30a7
+      title: 挂单撮合批量不中断、时段护栏与过期收口·测试
+      status: done
+    - id: t-61dd14
+      title: 账本超卖拦截与现金重放对账器·研发
+      status: done
+    - id: t-0bd4f5
+      title: 账本超卖拦截与现金重放对账器·联调
+      status: done
+    - id: t-96f359
+      title: 账本超卖拦截与现金重放对账器·复核
+      status: done
+    - id: t-f2ca16
+      title: 账本超卖拦截与现金重放对账器·测试
+      status: done
+    - id: t-32c86e
+      title: 历史虚增现金标记为脏并从统计排除（按用户裁定）·取数调研
+      status: done
+    - id: t-fe5f36
+      title: 历史虚增现金标记为脏并从统计排除（按用户裁定）·分析
+      status: done
+    - id: t-94fe6d
+      title: 历史虚增现金标记为脏并从统计排除（按用户裁定）·复核
+      status: done
+    - id: t-565bb2
+      title: 端到端冒烟与验收证据汇总·研发
+      status: done
+    - id: t-c4a54f
+      title: 端到端冒烟与验收证据汇总·复核
+      status: done
+    - id: t-ef5ca7
+      title: 端到端冒烟与验收证据汇总·测试
+      status: done
+status:
+  tasks_total: 67
+  tasks_done: 67
+  tasks_in_progress: 0
+  tasks_todo: 0
+tasks:
+  - id: t-c52a0a
+    status: done
+  - id: t-b13aaf
+    status: done
+  - id: t-da8070
+    status: done
+  - id: t-141b38
+    status: done
+  - id: t-0257b0
+    status: done
+  - id: t-322d78
+    status: done
+  - id: t-5103ce
+    status: done
+  - id: t-0226ab
+    status: done
+  - id: t-979319
+    status: done
+  - id: t-373c05
+    status: done
+  - id: t-900179
+    status: done
+  - id: t-174c1d
+    status: done
+  - id: t-ba8cc4
+    status: done
+  - id: t-ad58a1
+    status: done
+  - id: t-8133a0
+    status: done
+  - id: t-934549
+    status: done
+  - id: t-a6d274
+    status: done
+  - id: t-d6131f
+    status: done
+  - id: t-cb5d73
+    status: done
+  - id: t-a3ff51
+    status: done
+  - id: t-158ded
+    status: done
+  - id: t-8818ca
+    status: done
+  - id: t-9630b6
+    status: done
+  - id: t-d64276
+    status: done
+  - id: t-82451b
+    status: done
+  - id: t-e8a6f4
+    status: done
+  - id: t-53a7f9
+    status: done
+  - id: t-1996fe
+    status: done
+  - id: t-645f92
+    status: done
+  - id: t-fa9784
+    status: done
+  - id: t-20173e
+    status: done
+  - id: t-a9ba88
+    status: done
+  - id: t-318de0
+    status: done
+  - id: t-f6f85a
+    status: done
+  - id: t-f4a836
+    status: done
+  - id: t-7766ec
+    status: done
+  - id: t-ef72d4
+    status: done
+  - id: t-e03b96
+    status: done
+  - id: t-02fc85
+    status: done
+  - id: t-5805e1
+    status: done
+  - id: t-8259cd
+    status: done
+  - id: t-5a96d9
+    status: done
+  - id: t-54368b
+    status: done
+  - id: t-c34956
+    status: done
+  - id: t-67b43e
+    status: done
+  - id: t-d935df
+    status: done
+  - id: t-2e7e2e
+    status: done
+  - id: t-7b82d0
+    status: done
+  - id: t-681cce
+    status: done
+  - id: t-2182ea
+    status: done
+  - id: t-d0e730
+    status: done
+  - id: t-0959dc
+    status: done
+  - id: t-6625c7
+    status: done
+  - id: t-672692
+    status: done
+  - id: t-6d84c3
+    status: done
+  - id: t-e99312
+    status: done
+  - id: t-de30a7
+    status: done
+  - id: t-61dd14
+    status: done
+  - id: t-0bd4f5
+    status: done
+  - id: t-96f359
+    status: done
+  - id: t-f2ca16
+    status: done
+  - id: t-32c86e
+    status: done
+  - id: t-fe5f36
+    status: done
+  - id: t-94fe6d
+    status: done
+  - id: t-565bb2
+    status: done
+  - id: t-c4a54f
+    status: done
+  - id: t-ef5ca7
+    status: done

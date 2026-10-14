@@ -1,0 +1,31 @@
+metadata:
+  stage: brainstorming
+  requirement_id: REQ-261003150739-b98d
+  generated_at: 2026-10-03T07:08:05.488Z
+  version: 4
+  generated_by: dsh-pmboard
+  last_updated: 2026-10-03T07:35:04.112Z
+outputs:
+  requirements:
+    - id: FR-1
+      title: 打桩点对齐实现命名空间
+      source: requirement.md
+      line: 94
+    - id: FR-2
+      title: e2e 手动触发用例不再执行真实 handler
+      source: requirement.md
+      line: 99
+    - id: FR-3
+      title: 测试期外发守卫
+      source: requirement.md
+      line: 104
+    - id: FR-4
+      title: 回归锁
+      source: requirement.md
+      line: 109
+status:
+  artifacts:
+    - kind: requirement
+      path: docs/requirements/REQ-261003150739-b98d/requirement.md
+      confirmed: true
+      confirmed_at: 2026-10-03T07:08:28.780Z

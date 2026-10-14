@@ -1,0 +1,33 @@
+task:
+  id: t-373c05
+  title: 修实未接线链路并删掉锁死 bug 的假断言
+  status: done
+  implements: 改 application/strategies/v13_config.py 与 v14_config.py：model_path/factors_path 指向真实存在的文件（live_trading/models/v13_model.json / valid_factors.json 等）；改 domain/strategies/xgboost_strategy.py：reference_capital 改为注入（删除 1_000_000 硬编码，避免 10 倍超买）并把缺因子的 fillna(0) 在列数不足时显式失败而非静默；改 infrastructure/jobs/strategy_trading_job.py：strategy_execute_all 不再用 entry.get('success', True) 判成功，改读 ok；改 tests/regression/test_strategy_config_refactor.py：删除「不存在的路径」断言，改为 Path(...).exists()；新增 tests/test_v13_chain_wiring.py。
+  serves:
+    - FR-6
+  depends_on: []
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261004154902-a7cd
+    TASK_ID: t-373c05
+    TASK_TITLE: 修实未接线链路并删掉锁死 bug 的假断言
+    DESIGN_FILES: design/design.md
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-04T08:28:32.708Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261004154902-a7cd
+  generated_at: 2026-10-04T08:28:22.329Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-04T08:28:57.588Z

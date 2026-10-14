@@ -1,0 +1,332 @@
+metadata:
+  stage: accepting
+  requirement_id: REQ-261006190953-fc43
+  generated_at: 2026-10-06T12:42:26.624Z
+  version: 3
+  generated_by: dsh-pmboard
+  last_updated: 2026-10-06T12:42:47.331Z
+inputs:
+  tasks:
+    - id: t-7c5daa
+      title: 落 nav_series 口径模块与契约（并留 shim 保导入兼容）
+      status: done
+    - id: t-8c7962
+      title: 给净值仓储加唯一写入闸门，并让日收益基准按交易日回退
+      status: done
+    - id: t-0ae23e
+      title: 接线两处写入入口：非交易日拒写并留痕 refused/skipped
+      status: done
+    - id: t-39a044
+      title: 读取端接线：days 改为交易日数并返回 window 与 nav_coverage
+      status: done
+    - id: t-5c9a67
+      title: 存量清理迁移与一致性校验（含备份与回滚）
+      status: done
+    - id: t-6f1c29
+      title: 落常驻巡检判据并纠正失真的 is_synthetic 注释
+      status: done
+    - id: t-1974b4
+      title: 跨仓消费侧：agent-dh 改读 v2 缺口口径，不再 weekday 自算
+      status: done
+    - id: t-9425ac
+      title: 落 nav_series 口径模块与契约（并留 shim 保导入兼容）·研发
+      status: done
+    - id: t-c029f4
+      title: 落 nav_series 口径模块与契约（并留 shim 保导入兼容）·联调
+      status: done
+    - id: t-8c1870
+      title: 落 nav_series 口径模块与契约（并留 shim 保导入兼容）·复核
+      status: done
+    - id: t-19fd53
+      title: 落 nav_series 口径模块与契约（并留 shim 保导入兼容）·测试
+      status: done
+    - id: t-4dec44
+      title: 给净值仓储加唯一写入闸门，并让日收益基准按交易日回退·研发
+      status: done
+    - id: t-3b9912
+      title: 给净值仓储加唯一写入闸门，并让日收益基准按交易日回退·联调
+      status: done
+    - id: t-d41793
+      title: 给净值仓储加唯一写入闸门，并让日收益基准按交易日回退·复核
+      status: done
+    - id: t-8d52f6
+      title: 给净值仓储加唯一写入闸门，并让日收益基准按交易日回退·测试
+      status: done
+    - id: t-993380
+      title: 接线两处写入入口：非交易日拒写并留痕 refused/skipped·研发
+      status: done
+    - id: t-4c6330
+      title: 接线两处写入入口：非交易日拒写并留痕 refused/skipped·联调
+      status: done
+    - id: t-649a6b
+      title: 接线两处写入入口：非交易日拒写并留痕 refused/skipped·复核
+      status: done
+    - id: t-70118d
+      title: 接线两处写入入口：非交易日拒写并留痕 refused/skipped·测试
+      status: done
+    - id: t-d20433
+      title: 读取端接线：days 改为交易日数并返回 window 与 nav_coverage·研发
+      status: done
+    - id: t-04394d
+      title: 读取端接线：days 改为交易日数并返回 window 与 nav_coverage·联调
+      status: done
+    - id: t-87ba63
+      title: 读取端接线：days 改为交易日数并返回 window 与 nav_coverage·复核
+      status: done
+    - id: t-a5759a
+      title: 读取端接线：days 改为交易日数并返回 window 与 nav_coverage·测试
+      status: done
+    - id: t-6fd33d
+      title: 存量清理迁移与一致性校验（含备份与回滚）·研发
+      status: done
+    - id: t-7f18d9
+      title: 存量清理迁移与一致性校验（含备份与回滚）·联调
+      status: done
+    - id: t-584b02
+      title: 存量清理迁移与一致性校验（含备份与回滚）·复核
+      status: done
+    - id: t-158541
+      title: 存量清理迁移与一致性校验（含备份与回滚）·测试
+      status: done
+    - id: t-3807ba
+      title: 落常驻巡检判据并纠正失真的 is_synthetic 注释·研发
+      status: done
+    - id: t-a7b2d3
+      title: 落常驻巡检判据并纠正失真的 is_synthetic 注释·联调
+      status: done
+    - id: t-1e0690
+      title: 落常驻巡检判据并纠正失真的 is_synthetic 注释·复核
+      status: done
+    - id: t-6a230e
+      title: 落常驻巡检判据并纠正失真的 is_synthetic 注释·测试
+      status: done
+    - id: t-d1ea93
+      title: 跨仓消费侧：agent-dh 改读 v2 缺口口径，不再 weekday 自算·研发
+      status: done
+    - id: t-bb7fce
+      title: 跨仓消费侧：agent-dh 改读 v2 缺口口径，不再 weekday 自算·联调
+      status: done
+    - id: t-e8d596
+      title: 跨仓消费侧：agent-dh 改读 v2 缺口口径，不再 weekday 自算·复核
+      status: done
+    - id: t-ee93ba
+      title: 跨仓消费侧：agent-dh 改读 v2 缺口口径，不再 weekday 自算·测试
+      status: done
+outputs:
+  test_cases:
+    - id: TC-1
+      title: 卡 A · nav_series 口径模块（`tests/test_nav_series.py` 14 例）
+      covers:
+        - t-7c5daa
+        - t-9425ac
+        - t-c029f4
+        - t-8c1870
+        - t-19fd53
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-2
+      title: 卡 B · 净值仓储唯一写入闸门 + 交易日回退基准（`tests/test_equity_snapshot_trading_day_gate.py` 11 例 + `test_equity_snapshot_daily_return.py` 增量 2 例）
+      covers:
+        - t-8c7962
+        - t-4dec44
+        - t-3b9912
+        - t-d41793
+        - t-8d52f6
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-3
+      title: 卡 C · 写入入口接线（`tests/test_daily_jobs_trading_day_gate.py` 增量 6 例 + 服务/引擎路径 8 例）
+      covers:
+        - t-0ae23e
+        - t-993380
+        - t-4c6330
+        - t-649a6b
+        - t-70118d
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-4
+      title: 卡 D · 读取端 window / nav_coverage（`tests/test_risk_metrics_nav_window.py` 12 例）
+      covers:
+        - t-39a044
+        - t-d20433
+        - t-04394d
+        - t-87ba63
+        - t-a5759a
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-5
+      title: 卡 F · 存量清理迁移与一致性校验（`tests/test_migration_purge_nontrading_snapshots.py` 8 例）
+      covers:
+        - t-5c9a67
+        - t-6fd33d
+        - t-7f18d9
+        - t-584b02
+        - t-158541
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-6
+      title: 卡 G · 常驻巡检判据 + 失真注释订正（`tests/test_check_nontrading_equity_snapshots.py` 6 例）
+      covers:
+        - t-6f1c29
+        - t-3807ba
+        - t-a7b2d3
+        - t-1e0690
+        - t-6a230e
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-7
+      title: 卡 E · 跨仓消费侧（`agent-dh/apps/web/tests/attribution-alignment.test.ts` 15 例）
+      covers:
+        - t-1974b4
+        - t-d1ea93
+        - t-bb7fce
+        - t-e8d596
+        - t-ee93ba
+      validates: []
+      source: tests/test-evidence.md
+traceability:
+  task_to_tests:
+    t-7c5daa:
+      - TC-1
+    t-8c7962:
+      - TC-2
+    t-0ae23e:
+      - TC-3
+    t-39a044:
+      - TC-4
+    t-5c9a67:
+      - TC-5
+    t-6f1c29:
+      - TC-6
+    t-1974b4:
+      - TC-7
+    t-9425ac:
+      - TC-1
+    t-c029f4:
+      - TC-1
+    t-8c1870:
+      - TC-1
+    t-19fd53:
+      - TC-1
+    t-4dec44:
+      - TC-2
+    t-3b9912:
+      - TC-2
+    t-d41793:
+      - TC-2
+    t-8d52f6:
+      - TC-2
+    t-993380:
+      - TC-3
+    t-4c6330:
+      - TC-3
+    t-649a6b:
+      - TC-3
+    t-70118d:
+      - TC-3
+    t-d20433:
+      - TC-4
+    t-04394d:
+      - TC-4
+    t-87ba63:
+      - TC-4
+    t-a5759a:
+      - TC-4
+    t-6fd33d:
+      - TC-5
+    t-7f18d9:
+      - TC-5
+    t-584b02:
+      - TC-5
+    t-158541:
+      - TC-5
+    t-3807ba:
+      - TC-6
+    t-a7b2d3:
+      - TC-6
+    t-1e0690:
+      - TC-6
+    t-6a230e:
+      - TC-6
+    t-d1ea93:
+      - TC-7
+    t-bb7fce:
+      - TC-7
+    t-e8d596:
+      - TC-7
+    t-ee93ba:
+      - TC-7
+  fr_to_tests:
+    FR-1:
+      - TC-2
+      - TC-3
+      - TC-1
+      - TC-4
+      - TC-5
+      - TC-6
+      - TC-7
+    FR-2:
+      - TC-2
+      - TC-3
+      - TC-1
+      - TC-4
+      - TC-5
+      - TC-6
+      - TC-7
+    FR-3:
+      - TC-1
+      - TC-2
+      - TC-4
+      - TC-7
+      - TC-3
+      - TC-5
+      - TC-6
+    FR-4:
+      - TC-1
+      - TC-2
+      - TC-4
+      - TC-7
+      - TC-3
+      - TC-5
+      - TC-6
+    FR-5:
+      - TC-1
+      - TC-2
+      - TC-3
+      - TC-4
+      - TC-5
+      - TC-6
+      - TC-7
+    FR-6:
+      - TC-1
+      - TC-2
+      - TC-3
+      - TC-4
+      - TC-5
+      - TC-6
+      - TC-7
+    FR-7:
+      - TC-1
+      - TC-2
+      - TC-3
+      - TC-4
+      - TC-5
+      - TC-6
+      - TC-7
+    FR-8:
+      - TC-1
+      - TC-2
+      - TC-3
+      - TC-4
+      - TC-5
+      - TC-6
+      - TC-7
+coverage:
+  testing:
+    total: 35
+    covered: 35
+    uncovered: []
+    rate: 100
+    total_tasks: 35
+    tested_tasks: 35
+    untested: []

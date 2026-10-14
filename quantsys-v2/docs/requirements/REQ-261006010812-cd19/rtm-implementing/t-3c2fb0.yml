@@ -1,0 +1,46 @@
+task:
+  id: t-3c2fb0
+  title: 实现一致性矩阵（面 B，逐条落点）
+  status: done
+  implements: 以 t1 的条目清单为输入，逐条在代码与配置里定位落点并核对语义：按符号检索 RunOutcome、FailureSink、report_failure、should_have_run、trading_day_resolver、SOURCE_CALENDAR、skipped_off_hours、expired、oversell_blocked、V13_CHAIN_STRICT、build_cron_trigger、misfire_grace_time_seconds、select_channels、AgentChannel.supports、REBALANCE 与 RISK_ALERT formatter；对每条读实现（文件:行）比对设计声明的字段名/取值/默认值/错误语义/开关名，落四档判定之一。产出 docs/requirements/REQ-261006010812-cd19/evidence/a2-impl-matrix.md（表：设计条目 / 判定 / 证据 / 说明）。
+  serves:
+    - FR-2
+  depends_on:
+    - t-9f0fbe
+  phase: analysis
+  side: doc
+  workflow_params:
+    REQ_ID: REQ-261006010812-cd19
+    TASK_ID: t-3c2fb0
+    TASK_TITLE: 实现一致性矩阵（面 B，逐条落点）
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: doc
+    PHASE: analysis
+  workflow_total: 5
+  workflow_done: 5
+  workflow:
+    - phase: analysis
+      status: done
+      started_at: 2026-10-06T01:28:56.201Z
+      completed_at: 2026-10-06T01:29:38.191Z
+    - phase: implement
+      status: done
+      completed_at: 2026-10-06T01:29:38.191Z
+    - phase: test
+      status: done
+      completed_at: 2026-10-06T01:29:38.191Z
+    - phase: commit
+      status: done
+      completed_at: 2026-10-06T01:29:38.191Z
+    - phase: review
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006010812-cd19
+  generated_at: 2026-10-06T01:23:38.562Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 5
+  last_updated: 2026-10-06T01:29:38.191Z

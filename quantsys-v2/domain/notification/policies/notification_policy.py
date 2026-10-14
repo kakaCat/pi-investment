@@ -121,7 +121,20 @@ class NotificationPolicy:
             if available_channels[ch].supports(notification.notification_type)
         ]
 
-        return supported if supported else available
+        # 2026-10-04（REQ-261004154902-a7cd t8 / FR-9）：supports() 只用来**排序**，不许用来**排除**。
+        #
+        # 原实现 `return supported if supported else available` 有一个致命副作用：
+        # AgentChannel.supports() 恒为真（它声称「由 OS 自行决定如何处理」），于是 supported
+        # 永远非空 → **飞书永远进不了候选**。而 Agent OS(8080) 当时已下线 ⇒
+        # rebalance / risk_alert / trade_signal / verification / premarket_report /
+        # agent_reminder / agent_report 共 7 类通知 100% 被丢弃
+        # （实证：48 次通知尝试全是 system_alert，rebalance / risk_alert 各 0 次）。
+        #
+        # 正确语义：支持者优先，其余「可用渠道」作为**兜底**跟在后面；
+        # NotificationService 逐渠道尝试、失败换下一个，于是「agent 优先、飞书降级」才真正成立。
+        if not supported:
+            return available
+        return supported + [ch for ch in available if ch not in supported]
 
     def should_use_fallback(
         self,

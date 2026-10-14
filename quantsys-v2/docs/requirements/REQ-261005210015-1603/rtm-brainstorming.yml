@@ -1,0 +1,97 @@
+metadata:
+  stage: brainstorming
+  requirement_id: REQ-261005210015-1603
+  generated_at: 2026-10-05T13:02:10.349Z
+  version: 3
+  generated_by: dsh-pmboard
+  rtm_version: "2.0"
+  last_updated: 2026-10-05T13:07:54.019Z
+outputs:
+  requirements:
+    - id: FR-1
+      title: 完成/失败通知的耗时必须反映真实量级
+      source: requirement.md
+      line: 152
+    - id: FR-2
+      title: 摘要必须含"没做成的动作"，且不得是内部字段名的原样 dump
+      source: requirement.md
+      line: 156
+    - id: FR-3
+      title: 零有效产出不得报 ✅
+      source: requirement.md
+      line: 161
+    - id: FR-4
+      title: 计数语义必须诚实
+      source: requirement.md
+      line: 166
+    - id: FR-5
+      title: 空转必须跨天可见
+      source: requirement.md
+      line: 173
+    - id: FR-6
+      title: 台账与重试语义不动
+      source: requirement.md
+      line: 178
+    - id: FR-7
+      title: 回归锁与真实观察
+      source: requirement.md
+      line: 183
+  prototypes: []
+  decisions:
+    - id: D-1
+      source: 立项弹框作答（本窗口，2026-10-05 21:00）：名称「修复每日任务完成通知误导（耗时 0.0 分钟 / computed 语义 / 全 NULL 仍报 ✅）」/ 类型 feature / 难度 expert / 文档位置 `docs/requirements/<REQ>/`
+      verdict: 本工作立项为 **feature**，难度 expert，文档落 `docs/requirements/REQ-261005210015-1603/`
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+      criterion: "`reqboard_status` 显示本窗口绑定 REQ-261005210015-1603 且状态为 brainstorming"
+    - id: D-2
+      source: "本窗口用户消息 seq=5（2026-10-05 20:36）：「你看看这个发送什么问题」（附卡片原文：`✅ 每日任务完成：evolution_fitness` / `耗时: 0.0 分钟` / `detail[computed=7]`）"
+      verdict: 先取证再定缺陷：核查结论为"消息把零有效产出报成成功"，**不**按"任务失败"处理；卡片上的 `7` 与台账不符，登记为待查项（B3）
+      serves:
+        - FR-2
+        - FR-3
+        - FR-6
+      criterion: E1~E9；`computed` 三处一致为 5，`7` 无来源
+    - id: D-3
+      source: 本窗口选择框作答（2026-10-05 21:01）：「B：通知如实 + 计数语义 + 空转可观测（推荐）」
+      verdict: 范围取 **B**：改消息如实性 + 计数语义 + 空转可观测；「7 的来源」与「净值快照链核对」**不做**，登记为待查项
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+      criterion: 边界 B2/B3；升级信号③ 据此写明
+    - id: D-4
+      source: 本窗口用户消息 seq=330（2026-10-05 21:03）：「继续」
+      verdict: requirement 产物已确认（ticket pc-679a3f）→ 推进 design 节点；不重复弹确认框、不回退重议边界。**注意**：`brainstorming>design` 属五道人工门（`RequirementStatus.ts:83`），agent 调 `reqboard_move` 被 `REQBOARD_HUMAN_GATE` 拒绝 → 该转移须由人在看板点
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+      criterion: 产物回执 `confirmed=true`（`pc-679a3f`）；阶段转移待人在看板执行（agent 侧拒绝码已实测）
+    - id: D-5
+      source: 本窗口用户消息 seq=412（2026-10-05 21:07）第二次：「继续」
+      verdict: 在**阶段标签仍为 `brainstorming`（人门未被人在看板点）** 的情况下，按人连续两次明确指令先产出并登记设计文档；**阶段标签的机械推进仍须人在看板执行**（拆分之前必须，agent 已被 `REQBOARD_HUMAN_GATE` 拒绝、不得代跨）
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+      criterion: "`reqboard_submit(kind=design)` 登记 5 份设计文档；`reqboard_status` 如实显示仍为 brainstorming"
+status:
+  artifacts: []

@@ -1,0 +1,56 @@
+requirement:
+  id: REQ-261001210304-0dfb
+  title: 修复会话节点面板 DAG 刷新即重置视图状态（滚动/方向/开关/页签）
+  category: feature
+  created_at: 2026-10-01T13:03:04.038Z
+  source_session: session-047f62a2-5b70-46df-b693-3b2e954f9aad
+  dir: /Users/mac/Documents/ai/pi-investment/quantsys-v2/docs/requirements/REQ-261001210304-0dfb
+lifecycle:
+  current_stage: brainstorming
+  stage_count: 7
+  stage_list:
+    - draft
+    - brainstorming
+    - design
+    - decomposing
+    - implementing
+    - accepting
+    - done
+  stages:
+    - stage: draft
+      status: completed
+      enabled: true
+      entered_at: 2026-10-01T13:03:04.038Z
+      completed_at: 2026-10-01T13:03:04.082Z
+    - stage: brainstorming
+      status: in_progress
+      enabled: true
+      entered_at: 2026-10-01T13:03:04.082Z
+      artifacts:
+        - kind: requirement
+          path: docs/requirements/REQ-261001210304-0dfb/requirement.md
+          confirmed_at: 2026-10-01T13:08:57.295Z
+    - stage: design
+      status: pending
+      enabled: true
+    - stage: decomposing
+      status: pending
+      enabled: true
+    - stage: implementing
+      status: pending
+      enabled: true
+    - stage: accepting
+      status: pending
+      enabled: true
+    - stage: done
+      status: pending
+      enabled: true
+metadata:
+  stage: lifecycle
+  requirement_id: REQ-261001210304-0dfb
+  generated_at: 2026-10-01T13:08:57.356Z
+  version: 1
+  generated_by: dsh-pmboard
+  rtm_version: "1.0"
+  file_path: /Users/mac/Documents/ai/pi-investment/quantsys-v2/docs/requirements/REQ-261001210304-0dfb/rtm-lifecycle.yml
+  last_updated: 2026-10-01T13:08:57.356Z

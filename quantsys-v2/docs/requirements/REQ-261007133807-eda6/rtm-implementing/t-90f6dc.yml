@@ -1,0 +1,38 @@
+task:
+  id: t-90f6dc
+  title: tick() 单链路接线（裁决 → 处置 → 去重覆盖 → 通知）·测试
+  status: done
+  implements: |-
+    application/services/watch_engine/engine.py：把 escalation.check 换成 decide_escalation（gate 用既有字段组装），disposition.decide 传 verdict；去重与抑噪命中时用 Verdict.overridden 覆盖为 DEDUPED / SUPPRESSED 并把原判写进 reason；events 增 escalation_code 键（不改既有键）。application/services/watch_engine/escalation_coordinator.py 退回数据收集（组装 QuoteData 与 trigger_level），check() 保留兼容。
+
+    [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+  serves: []
+  depends_on:
+    - t-0b0f61
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261007133807-eda6
+    TASK_ID: t-90f6dc
+    TASK_TITLE: tick() 单链路接线（裁决 → 处置 → 去重覆盖 → 通知）·测试
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-07T11:05:29.444Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261007133807-eda6
+  generated_at: 2026-10-07T11:05:26.470Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-07T11:05:29.445Z

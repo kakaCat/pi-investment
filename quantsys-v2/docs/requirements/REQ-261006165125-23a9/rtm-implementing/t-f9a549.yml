@@ -1,0 +1,38 @@
+task:
+  id: t-f9a549
+  title: 回滚态验证 + 部署重启 + 真实观察留痕
+  status: done
+  implements: 建 docs/requirements/REQ-261006165125-23a9/notes/rollback-and-observation.md，逐条记录：① 开关态 DAILY_JOBS_NOTIFY_NOOP=true 下测试全过（旧行为可恢复）；② DAILY_JOBS_RUNNING_NOTICE_SECONDS=0 只关提示且默认 60 不变；③ launchctl kickstart -k gui/501/com.pi-investment.v2-api 后服务健康（HTTP 200）；④ 真实观察：下一次自然排班（16:45）或一次 manual=False 的真实调用后，记录 quant.inprocess_job_runs 行（应 success|no_event）、飞书侧是否零条、以及 inprocess_job_notify_skipped 日志原文。观察窗口未到必须如实写「待观察（下一自然排班 16:45）」及原因，禁止用推断代替实测。
+  serves:
+    - FR-7
+    - FR-8
+  depends_on:
+    - t-1ec5fa
+    - t-fd8513
+  phase: test
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261006165125-23a9
+    TASK_ID: t-f9a549
+    TASK_TITLE: 回滚态验证 + 部署重启 + 真实观察留痕
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: test
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: test
+      status: done
+      completed_at: 2026-10-06T09:12:47.578Z
+    - phase: review
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006165125-23a9
+  generated_at: 2026-10-06T09:11:43.410Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-06T09:12:47.578Z

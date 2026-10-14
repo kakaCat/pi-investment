@@ -1,0 +1,38 @@
+task:
+  id: t-a00ef1
+  title: 空转读数：EvolutionFitnessORMRepository 两个只读聚合方法·测试
+  status: done
+  implements: |-
+    adapters/outbound/repositories/evolution_fitness_repository.py：新增 list_recent_window_ok_counts(limit=20, window_days=20) -> List[Tuple[date,int]] —— group_by(window_end) + count(case((status 等于 ok,1)))，按 window_end 倒序、按 limit 截断；新增 get_last_ok_window_end(window_days=20) -> Optional[date] —— max(window_end) where status 等于 ok。两者只读、不写库、不加列、不改 DDL。
+
+    [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+  serves: []
+  depends_on:
+    - t-1dada1
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261005210015-1603
+    TASK_ID: t-a00ef1
+    TASK_TITLE: 空转读数：EvolutionFitnessORMRepository 两个只读聚合方法·测试
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-05T13:16:09.812Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261005210015-1603
+  generated_at: 2026-10-05T13:16:02.246Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-05T13:16:09.812Z

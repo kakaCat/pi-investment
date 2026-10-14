@@ -32,12 +32,27 @@ import adapters.inbound.fastapi_app.daily_jobs.alerting as alerting
 # 而误判 stale）。接缝变了，打桩点必须跟着换：现在直接给仓储方法打桩。
 # **测试保护的断言一条没改** —— 仍是三条分支各自的 status / 告警与不告警。
 def _patch(monkeypatch, *, factor_latest, coverage, failed_jobs=None):
-    """打桩仓储数据源与飞书，返回 (sent_alerts, ) 便于断言是否发告警。"""
+    """打桩仓储数据源与飞书，返回 (sent_alerts, ) 便于断言是否发告警。
+
+    2026-10-04（REQ-261004102115-d3de）：**打桩点第四次随接缝搬家**。
+    巡检的"应有交易日"从本地 `_last_trading_day`（只排周末、把 2026-10-02 国庆当交易日）
+    改成唯一口径 `application.services.trading_day_resolver.last_closed_trading_day`。
+    按本仓铁律「桩打在被调函数所在的模块」，本次打在 resolver 上——
+    `pipeline._last_trading_day` 仍在（转发壳，40+ 处导入它），打它**名字存在但不生效**，
+    正是这份文件反复记载的那个坑。**测试保护的断言一条没改**（另加一条来源标注断言）。
+    """
+    from datetime import date as _date
+
     from adapters.outbound.repositories.factor_repository import FactorORMRepository
+    import application.services.trading_day_resolver as resolver
 
     monkeypatch.setattr(FactorORMRepository, 'get_max_factor_date',
                         lambda self: factor_latest, raising=True)
-    monkeypatch.setattr(m, '_last_trading_day', lambda _d: '2026-09-10', raising=True)
+    monkeypatch.setattr(
+        resolver, 'last_closed_trading_day',
+        lambda ref=None: resolver.TradingDayResult(
+            date=_date(2026, 9, 10), source=resolver.SOURCE_CALENDAR_TABLE, degraded=False),
+        raising=True)
     monkeypatch.setattr(m, '_kline_coverage', lambda _engine, _expected: coverage, raising=True)
     monkeypatch.setattr(m, '_job_failure_watch', lambda _engine: (failed_jobs or []), raising=True)
     sent = []
@@ -61,6 +76,8 @@ def test_fresh_path_returns_coverage_and_no_alert(monkeypatch):
     assert result['kline_oldest_stale'] == '2026-03-13'
     assert result['factor_latest'] == '2026-09-11'
     assert sent == [], '新鲜路径不应发告警'
+    assert result['expected_source'] == 'calendar', \
+        '基准日必须带出判定来源：降级（weekday_fallback）时读告警的人要看得出'
     assert 'kline_latest' not in result, 'kline_latest 已废弃，不得再出现（正是本次 NameError 的来源）'
 
 

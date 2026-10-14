@@ -1,0 +1,36 @@
+task:
+  id: t-0da0b9
+  title: 补分域纯函数用例（含 gap 边界与不变量）·测试
+  status: done
+  implements: |-
+    新建 tests/test_kline_domain.py，实现设计 test-cases 文档 §1 的 T1-T7：三分法（gap 0/2/大）、gap 恰好 4 与 5 的边界闭合、gap==1 同时落 observing∩dropped_new、只有一个交易日时 dropped_known False、空输入 degraded 且不抛、mx 不在交易日集合落 stock 且 gap==9999、三集合两两不相交且并集等于 gap_days 键集。
+
+    [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+  serves: []
+  depends_on:
+    - t-21bcc0
+  phase: test
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261006163444-8e4f
+    TASK_ID: t-0da0b9
+    TASK_TITLE: 补分域纯函数用例（含 gap 边界与不变量）·测试
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: test
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: test
+      status: done
+      completed_at: 2026-10-06T08:52:27.344Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006163444-8e4f
+  generated_at: 2026-10-06T08:52:27.151Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-06T08:52:27.407Z

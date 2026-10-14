@@ -1,0 +1,225 @@
+metadata:
+  stage: accepting
+  requirement_id: REQ-261007101318-c392
+  generated_at: 2026-10-07T06:01:13.157Z
+  version: 4
+  generated_by: dsh-pmboard
+  last_updated: 2026-10-07T06:01:39.179Z
+inputs:
+  tasks:
+    - id: t-268fbd
+      title: FR-1 休市日闸门：tick() 日级收敛到 TradingDayGuard（回填）
+      status: done
+    - id: t-d5d9b6
+      title: FR-2 名称兜底：禁止把代码当名称（回填）
+      status: done
+    - id: t-633d3f
+      title: FR-3 外发审计 + 来源标识（回填，含建表迁移）
+      status: done
+    - id: t-c76181
+      title: FR-4 文案契约：意图/处置级别 + 闭环承诺解耦（回填）
+      status: done
+    - id: t-c926cd
+      title: 补齐设计登记的未覆盖用例（run_forever 整环 / 跳过留痕去重 / 装配失败降级）
+      status: done
+    - id: t-2e590d
+      title: 真实交易日回执 + 验收材料（时间型）
+      status: done
+    - id: t-dcdeb1
+      title: FR-1 休市日闸门：tick() 日级收敛到 TradingDayGuard（回填）·研发
+      status: done
+    - id: t-b33b0b
+      title: FR-1 休市日闸门：tick() 日级收敛到 TradingDayGuard（回填）·复核
+      status: done
+    - id: t-e58107
+      title: FR-1 休市日闸门：tick() 日级收敛到 TradingDayGuard（回填）·测试
+      status: done
+    - id: t-e5a244
+      title: FR-2 名称兜底：禁止把代码当名称（回填）·研发
+      status: done
+    - id: t-e75a19
+      title: FR-2 名称兜底：禁止把代码当名称（回填）·复核
+      status: done
+    - id: t-62e64a
+      title: FR-2 名称兜底：禁止把代码当名称（回填）·测试
+      status: done
+    - id: t-b2f010
+      title: FR-3 外发审计 + 来源标识（回填，含建表迁移）·研发
+      status: done
+    - id: t-890eb7
+      title: FR-3 外发审计 + 来源标识（回填，含建表迁移）·复核
+      status: done
+    - id: t-e669c6
+      title: FR-3 外发审计 + 来源标识（回填，含建表迁移）·测试
+      status: done
+    - id: t-00bd50
+      title: FR-4 文案契约：意图/处置级别 + 闭环承诺解耦（回填）·研发
+      status: done
+    - id: t-2af346
+      title: FR-4 文案契约：意图/处置级别 + 闭环承诺解耦（回填）·复核
+      status: done
+    - id: t-7dcdbb
+      title: FR-4 文案契约：意图/处置级别 + 闭环承诺解耦（回填）·测试
+      status: done
+    - id: t-2ae248
+      title: 补齐设计登记的未覆盖用例（run_forever 整环 / 跳过留痕去重 / 装配失败降级）·研发
+      status: done
+    - id: t-8ccf53
+      title: 补齐设计登记的未覆盖用例（run_forever 整环 / 跳过留痕去重 / 装配失败降级）·复核
+      status: done
+    - id: t-094f32
+      title: 补齐设计登记的未覆盖用例（run_forever 整环 / 跳过留痕去重 / 装配失败降级）·测试
+      status: done
+    - id: t-8d7c74
+      title: 真实交易日回执 + 验收材料（时间型）·研发
+      status: done
+    - id: t-f240da
+      title: 真实交易日回执 + 验收材料（时间型）·复核
+      status: done
+    - id: t-a346aa
+      title: 真实交易日回执 + 验收材料（时间型）·测试
+      status: done
+outputs:
+  test_cases:
+    - id: TC-1
+      title: FR-1 休市日闸门（t1）
+      covers:
+        - t-268fbd
+        - t-dcdeb1
+        - t-b33b0b
+        - t-e58107
+      validates: []
+      source: tests/evidence.md
+    - id: TC-2
+      title: FR-2 名称兜底（t2）
+      covers:
+        - t-d5d9b6
+        - t-e5a244
+        - t-e75a19
+        - t-62e64a
+      validates: []
+      source: tests/evidence.md
+    - id: TC-3
+      title: FR-3 外发审计 + 来源标识（t3）
+      covers:
+        - t-633d3f
+        - t-b2f010
+        - t-890eb7
+        - t-e669c6
+      validates: []
+      source: tests/evidence.md
+    - id: TC-4
+      title: FR-4 文案契约与闭环解耦（t4）
+      covers:
+        - t-c76181
+        - t-00bd50
+        - t-2af346
+        - t-7dcdbb
+      validates: []
+      source: tests/evidence.md
+    - id: TC-5
+      title: t5 补未覆盖用例
+      covers:
+        - t-c926cd
+        - t-2ae248
+        - t-8ccf53
+        - t-094f32
+      validates: []
+      source: tests/evidence.md
+    - id: TC-6
+      title: t6 时间型回执（D-12 演练替代）
+      covers:
+        - t-2e590d
+        - t-8d7c74
+        - t-f240da
+        - t-a346aa
+      validates: []
+      source: tests/evidence.md
+traceability:
+  task_to_tests:
+    t-268fbd:
+      - TC-1
+    t-d5d9b6:
+      - TC-2
+    t-633d3f:
+      - TC-3
+    t-c76181:
+      - TC-4
+    t-c926cd:
+      - TC-5
+    t-2e590d:
+      - TC-6
+    t-dcdeb1:
+      - TC-1
+    t-b33b0b:
+      - TC-1
+    t-e58107:
+      - TC-1
+    t-e5a244:
+      - TC-2
+    t-e75a19:
+      - TC-2
+    t-62e64a:
+      - TC-2
+    t-b2f010:
+      - TC-3
+    t-890eb7:
+      - TC-3
+    t-e669c6:
+      - TC-3
+    t-00bd50:
+      - TC-4
+    t-2af346:
+      - TC-4
+    t-7dcdbb:
+      - TC-4
+    t-2ae248:
+      - TC-5
+    t-8ccf53:
+      - TC-5
+    t-094f32:
+      - TC-5
+    t-8d7c74:
+      - TC-6
+    t-f240da:
+      - TC-6
+    t-a346aa:
+      - TC-6
+  fr_to_tests:
+    FR-1:
+      - TC-1
+      - TC-2
+      - TC-3
+      - TC-4
+      - TC-5
+      - TC-6
+    FR-2:
+      - TC-1
+      - TC-2
+      - TC-3
+      - TC-4
+      - TC-5
+      - TC-6
+    FR-3:
+      - TC-1
+      - TC-2
+      - TC-3
+      - TC-4
+      - TC-5
+      - TC-6
+    FR-4:
+      - TC-1
+      - TC-2
+      - TC-3
+      - TC-4
+      - TC-5
+      - TC-6
+coverage:
+  testing:
+    total: 24
+    covered: 24
+    uncovered: []
+    rate: 100
+    total_tasks: 24
+    tested_tasks: 24
+    untested: []

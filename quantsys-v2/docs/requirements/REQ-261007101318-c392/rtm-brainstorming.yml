@@ -1,0 +1,96 @@
+metadata:
+  stage: brainstorming
+  requirement_id: REQ-261007101318-c392
+  generated_at: 2026-10-07T02:25:30.634Z
+  version: 5
+  generated_by: dsh-pmboard
+  rtm_version: "2.0"
+  last_updated: 2026-10-07T06:01:45.005Z
+outputs:
+  requirements: []
+  prototypes: []
+  decisions:
+    - id: D-1
+      source: 本窗口用户消息（2026-10-07 10:0x）：『盯盘触发 - 688525／现价 192.35 ≤ 阈值 218.24（下破）』＋『1、688525 不是股票名称，2、…什么意思 让卖让买，还是你要给agent处理或者其他处理场景 3、今天没有开市』
+      verdict: 本现象立项；定性为**盯盘通知的三处契约缺失**（名称 / 语义 / 休市闸门）
+      serves:
+        - FR-1
+        - FR-2
+        - FR-4
+      criterion: E1~E5；`reqboard_status` 显示本窗口绑定 `REQ-261007101318-c392`
+    - id: D-2
+      source: 立项弹框作答（本窗口，2026-10-07 10:13）：名称「盯盘触发：休市日闸门缺失 + 通知缺股票名称」/ 类型 feature / 难度 expert / 文档位置 `docs/requirements/<REQ>/`
+      verdict: 本工作立项为 **feature**、难度 `expert`，文档落 `docs/requirements/REQ-261007101318-c392/`
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      criterion: 本文件存在且经 `reqboard_submit(kind=requirement)` 登记
+    - id: D-3
+      source: 本窗口弹框作答（出处）：「飞书卡片/群消息」
+      verdict: 发送通道 = 飞书（webhook 机器人），排查沿该通道进行
+      serves:
+        - FR-3
+      criterion: E7：两份 `.env` 的 webhook sha1 相同 → 同机器人；v2 侧外发类型计数见 E6
+    - id: D-4
+      source: 本窗口弹框作答（发送者，自定义原文）：「v2项目盯盘驱动发送」
+      verdict: 用户认定发送者为 v2 盯盘机器人；**取证结论：该认定无法证明是 v2 引擎所发**（同机器人亦供 agent 侧使用）
+      serves:
+        - FR-3
+      criterion: E6 + E7；R3
+    - id: D-5
+      source: 本窗口弹框作答（需求边界）：「先钉死发送方（推荐）」
+      verdict: 先做发送方定位，再定修复面
+      serves:
+        - FR-3
+      criterion: E6/E7/E8 三条独立取证；R4 限定结论强度
+    - id: D-6
+      source: 本窗口弹框作答（署名判据，自定义原文）：「盯盘发送的一致没有署名」
+      verdict: 排除 agent 侧两个必带署名的工具；"盯盘卡无署名"成为**不可归因**的直接原因
+      serves:
+        - FR-3
+      criterion: "[feishu-notification.service.ts:158](/Users/mac/Documents/ai/pi-investment/agent-ts/src/services/feishu-notification.service.ts#L158)；`FeishuNotifyTool.ts:99` / `NotificationSendTool.ts:122`"
+    - id: D-7
+      source: 本窗口用户消息（2026-10-07 10:2x）：「执行可能是另外一个机器执行的，你来修复现在发现的问题，先看看代码」
+      verdict: '**确认范围：FR-3 外发可溯源纳入本需求**；并补充关键背景"执行可能在另一台机器"——正因如此，卡面来源标识 + 外发审计是区分**本机 / 异地 / 手工**的唯一手段（E6/E7/E8/R4 已证：本机范围内不可归因）'
+      serves:
+        - FR-3
+      criterion: 用户原话即凭据；本产物经 `reqboard_ask_confirm(target=artifact, kind=requirement)` 落章
+    - id: D-8
+      source: 本 agent 读码所得（E9 / E10），供设计阶段遵守
+      verdict: ① **FR-4 不得靠"开启闭环"来实现**——必须做"渲染级别与闭环开关解耦"，否则等于用运维开关换取卡面可读性；② **FR-3 的落点选渠道/服务层**（覆盖全部调用方），不选 notifier 层（只覆盖引擎——而本次缺的正是"非引擎调用"那一类）
+      serves:
+        - FR-3
+        - FR-4
+      criterion: E9：`_notify_level` 在 `todo_service is None` 时返回 None（engine.py:550）；E10：`NotificationService(repository=None)`、无适配器无表（notification_service.py:43）
+    - id: D-9
+      source: 本窗口用户消息（2026-10-07 13:0x）：「① 这个卡片同意」
+      verdict: '**卡面契约验收通过**（FR-2 名称在前与缺失标注 / FR-4 意图+处置级别+闭环承诺门控 / FR-3 来源尾注）：用户对 2026-10-07 实发的那张验证卡判为"同意"，文案不再调整'
+      serves:
+        - FR-2
+        - FR-3
+        - FR-4
+      criterion: 用户原话即凭据；实发卡 `notification_id=notif_ef495a078581464a` 与 `design/interfaces.md` §4「卡面内容契约」一致
+    - id: D-10
+      source: 本窗口用户消息（2026-10-07 13:0x）：「③ L1 是agent设置的，也应该设置何时调用agent的规则」
+      verdict: "**本项不入本需求范围**：「何时叫 agent」的判据（现有 `EscalationChecker` 三条路径 + `level_resolver` 的 `trigger_level='L2'`）属**新能力**——判据收敛、显式化、可见化，已另立 **`REQ-261007133807-eda6`** 并派给新窗口 `session-f9c75862-cab1-4a4d-b7b3-9d69c6c42d49` 当 owner"
+      serves:
+        - FR-4
+      criterion: 排除判据：本需求「不做什么」未含该能力，属范围外新增；承接方 = `REQ-261007133807-eda6`（`reqboard_capture(on_window_bound=handoff)` 回执 `bound_policy=handoff`）
+    - id: D-11
+      source: 本窗口用户消息（2026-10-07 13:3x）：「② 不需要」
+      verdict: "**`risk_stop` 渠道未注册 不入本需求范围**，也**不另立需求**：该现象本身成立（L1 卡每次先试 agent 通道 → Agent OS 回 `channel 'risk_stop' not found or disabled` → 才降级飞书，白跑一次往返），但用户裁定不修"
+      serves:
+        - FR-1
+        - FR-4
+      criterion: 排除判据：用户原话「② 不需要」；本需求只做通知链的四处契约（闸门/名称/审计/文案），渠道注册属另一层
+    - id: D-12
+      source: 本窗口用户消息（2026-10-07 14:0x）：「B（你要求以演练替代）」
+      verdict: "**以演练替代 2026-10-08 真实回执**（人工裁定，豁免 t6 的时间型条件）：t6 以 `notes/t6-receipt-rehearsal.md` 的演练证据关账。**如实声明：证据强度弱于真实交易日回执**——演练只证明「链路可跑 + 回执 SQL 形状正确 + 零污染可回滚」，**不能**证明 2026-10-08 当日的真实触发与送达。归档复核时必须看见此限定"
+      serves:
+        - FR-1
+        - FR-4
+      criterion: 用户原话「B（你要求以演练替代）」；演练记录含：mock 交易日 tick 产出 1 事件、卡面四段契约齐、两条回执 SQL 命中、`ROLLBACK` 后残留 0/0
+status:
+  artifacts: []

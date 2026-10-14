@@ -517,7 +517,10 @@ def list_scheduler_failed_runs(date: Optional[str] = Query(None),
     page = max(1, page)
     page_size = max(1, min(pageSize, 100))
     offset = (page - 1) * page_size
-    statuses = ['failed', 'missed', 'skipped']
+    # REQ-261006093620-a315（2026-10-06 独立复核 F2 修正）：**把 `skipped` 从"失败"列表摘掉**。
+    # `skipped` = 交易日门按日历主动跳过，是**正常**语义（休市日每天最多 8 条），
+    # 混进「失败」列表会让人以为系统在报错。保留真失败（failed）与真漏跑（missed）。
+    statuses = ['failed', 'missed']
     failed = _scheduler.list_runs(limit=page_size, offset=offset, statuses=statuses, date_filter=date)
     total = _scheduler.count_runs(statuses=statuses, date_filter=date)
     normalized = _runs_with_task_names(failed)

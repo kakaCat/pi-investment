@@ -1,0 +1,38 @@
+task:
+  id: t-6a230e
+  title: 落常驻巡检判据并纠正失真的 is_synthetic 注释·测试
+  status: done
+  implements: |-
+    新建 tools/check_nontrading_equity_snapshots.py：查 quant.simulation_equity_snapshot 左连 quant.trading_calendar(exchange='ALL')，is_trading_day is false 的行即违规，打印账户+日期清单并非零退出（干净=0、有违规=2、检查器自身出错=3），风格对齐既有 tools/check_scheduler_dedup.py。新建 tests/test_check_nontrading_equity_snapshots.py：在测试库插入一行周末净值行证明检查器报 2（活性），清掉后回 0。改 application/services/trading_day_guard.py 的模块 docstring：删除“现已标记 is_synthetic=true 并从统计口径排除”（该列与代码均不存在，属未实现却被写成既成事实），改为指向本需求 design/data-model.md §1。验证：./venv/bin/python -m pytest tests/test_check_nontrading_equity_snapshots.py -q 全过。
+
+    [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+  serves: []
+  depends_on:
+    - t-1e0690
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261006190953-fc43
+    TASK_ID: t-6a230e
+    TASK_TITLE: 落常驻巡检判据并纠正失真的 is_synthetic 注释·测试
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-06T12:31:44.029Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006190953-fc43
+  generated_at: 2026-10-06T12:31:22.208Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-06T12:31:44.029Z

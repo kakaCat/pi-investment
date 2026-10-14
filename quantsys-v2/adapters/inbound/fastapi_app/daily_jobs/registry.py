@@ -34,15 +34,29 @@ JOBS: List[JobDef] = [
     JobDef('evening_pipeline', dtime(20, 30), (0, 1, 2, 3, 4),
            _job_evening_pipeline, 'K线分批同步 → 因子全市场计算（支持幂等重复执行）'),
     JobDef('chip_distribution', dtime(21, 10), (0, 1, 2, 3, 4),
-           _job_chip_distribution, '筹码分布更新（排在 pipeline 后，用当日新K线）'),
+           _job_chip_distribution, '筹码分布更新（排在 pipeline 后，用当日新K线）',
+           trading_days_only=True,
+           webhook_url='https://open.feishu.cn/open-apis/bot/v2/hook/7aa7ebdd-be9e-47f9-be45-ba9c772499c9'),
     JobDef('evolution_fitness', dtime(20, 35), (0, 1, 2, 3, 4),
-           _job_evolution_fitness, 'B链账户行为双侧捕获 fitness 续采（RFC 012 P3，8/14 断点恢复；账户行为域，非策略参数进化）'),
+           _job_evolution_fitness, 'B链账户行为双侧捕获 fitness 续采（RFC 012 P3，8/14 断点恢复；账户行为域，非策略参数进化）',
+           trading_days_only=True),
     JobDef('financial_statements', dtime(20, 0), (5,),
            _job_financial_statements, '季度财报更新'),
     # pool_* 2026-09-09 下沉自 Agent OS command 脚本（Agent OS 侧删除前须见 v2 宿主
     # 跑出 success；原 cron：daily 19:05 一~五 / weekly 周日 18:00）
+    #
+    # ── 交易日门（REQ-261005203907-2b8c · FR-4）：本表共 3 个任务声明 trading_days_only=True ──
+    # （chip_distribution / evolution_fitness 见上方错峰段，pool_daily_refresh 见下一行）
+    # 它们吃的都是"当日行情数据"，休市日重算的是同一份冻结快照（2026-10-05 实测：
+    # pool_daily_refresh 空跑 22.1 秒、pool_change_log 全天 0 行）。
+    # · chip_distribution / evolution_fitness / pool_daily_refresh → 休市日整段跳过；
+    # · evening_pipeline **不加**：它的 K 线段是休市日唯一的缺口修复路径，只在其 handler 内
+    #   跳过因子段（见 pipeline._job_evening_pipeline）；
+    # · watch_rule_health / event_calendar_check / freshness_guard / financial_statements /
+    #   pool_weekly_review 一律不加（与当日行情无关或本就排在非交易日）。
     JobDef('pool_daily_refresh', dtime(19, 5), (0, 1, 2, 3, 4),
-           _job_pool_daily_refresh, '股票池每日刷新：全部 dynamic 池 refresh 换血 + sync 股票名称（R-012）'),
+           _job_pool_daily_refresh, '股票池每日刷新：全部 dynamic 池 refresh 换血 + sync 股票名称（R-012）',
+           trading_days_only=True),
     JobDef('pool_weekly_review', dtime(18, 0), (6,),
            _job_pool_weekly_review, '股票池周日盘点：dynamic 刷新 + 空池/测试临命名线索清单（R-012）'),
 ]

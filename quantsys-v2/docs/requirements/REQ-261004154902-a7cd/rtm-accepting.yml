@@ -1,0 +1,645 @@
+metadata:
+  stage: accepting
+  requirement_id: REQ-261004154902-a7cd
+  generated_at: 2026-10-04T08:54:04.391Z
+  version: 3
+  generated_by: dsh-pmboard
+  last_updated: 2026-10-04T08:54:22.922Z
+inputs:
+  tasks:
+    - id: t-c52a0a
+      title: 新增结果契约与失败可见性出口
+      status: done
+    - id: t-b13aaf
+      title: 策略日检如实上报并修回通知方法
+      status: done
+    - id: t-da8070
+      title: 交易日判定收敛到日历链
+      status: done
+    - id: t-141b38
+      title: 挂单撮合批量不中断、时段护栏与过期收口
+      status: done
+    - id: t-0257b0
+      title: cron 时刻口径、misfire 语义与「被跳过」落库
+      status: done
+    - id: t-322d78
+      title: 调度失败的飞书兜底与告警覆盖面
+      status: done
+    - id: t-5103ce
+      title: 探活加调度活性并新增「该跑没跑」盘点器
+      status: done
+    - id: t-0226ab
+      title: 修通知渠道收窄并补齐缺失的飞书 formatter
+      status: done
+    - id: t-979319
+      title: 收敛策略配置为单一来源并让生效值可见
+      status: done
+    - id: t-373c05
+      title: 修实未接线链路并删掉锁死 bug 的假断言
+      status: done
+    - id: t-900179
+      title: 账本超卖拦截与现金重放对账器
+      status: done
+    - id: t-174c1d
+      title: 历史虚增现金标记为脏并从统计排除（按用户裁定）
+      status: done
+    - id: t-ba8cc4
+      title: 假绿灯结构门禁
+      status: done
+    - id: t-ad58a1
+      title: 端到端冒烟与验收证据汇总
+      status: done
+    - id: t-8133a0
+      title: 新增结果契约与失败可见性出口·研发
+      status: done
+    - id: t-934549
+      title: 新增结果契约与失败可见性出口·联调
+      status: done
+    - id: t-a6d274
+      title: 新增结果契约与失败可见性出口·复核
+      status: done
+    - id: t-d6131f
+      title: 新增结果契约与失败可见性出口·测试
+      status: done
+    - id: t-cb5d73
+      title: 策略日检如实上报并修回通知方法·研发
+      status: done
+    - id: t-a3ff51
+      title: 策略日检如实上报并修回通知方法·联调
+      status: done
+    - id: t-158ded
+      title: 策略日检如实上报并修回通知方法·复核
+      status: done
+    - id: t-8818ca
+      title: 策略日检如实上报并修回通知方法·测试
+      status: done
+    - id: t-9630b6
+      title: 交易日判定收敛到日历链·研发
+      status: done
+    - id: t-d64276
+      title: 交易日判定收敛到日历链·联调
+      status: done
+    - id: t-82451b
+      title: 交易日判定收敛到日历链·复核
+      status: done
+    - id: t-e8a6f4
+      title: 交易日判定收敛到日历链·测试
+      status: done
+    - id: t-53a7f9
+      title: 修通知渠道收窄并补齐缺失的飞书 formatter·研发
+      status: done
+    - id: t-1996fe
+      title: 修通知渠道收窄并补齐缺失的飞书 formatter·联调
+      status: done
+    - id: t-645f92
+      title: 修通知渠道收窄并补齐缺失的飞书 formatter·复核
+      status: done
+    - id: t-fa9784
+      title: 修通知渠道收窄并补齐缺失的飞书 formatter·测试
+      status: done
+    - id: t-20173e
+      title: cron 时刻口径、misfire 语义与「被跳过」落库·研发
+      status: done
+    - id: t-a9ba88
+      title: cron 时刻口径、misfire 语义与「被跳过」落库·联调
+      status: done
+    - id: t-318de0
+      title: cron 时刻口径、misfire 语义与「被跳过」落库·复核
+      status: done
+    - id: t-f6f85a
+      title: cron 时刻口径、misfire 语义与「被跳过」落库·测试
+      status: done
+    - id: t-f4a836
+      title: 修实未接线链路并删掉锁死 bug 的假断言·研发
+      status: done
+    - id: t-7766ec
+      title: 修实未接线链路并删掉锁死 bug 的假断言·联调
+      status: done
+    - id: t-ef72d4
+      title: 修实未接线链路并删掉锁死 bug 的假断言·复核
+      status: done
+    - id: t-e03b96
+      title: 修实未接线链路并删掉锁死 bug 的假断言·测试
+      status: done
+    - id: t-02fc85
+      title: 假绿灯结构门禁·研发
+      status: done
+    - id: t-5805e1
+      title: 假绿灯结构门禁·复核
+      status: done
+    - id: t-8259cd
+      title: 假绿灯结构门禁·测试
+      status: done
+    - id: t-5a96d9
+      title: 调度失败的飞书兜底与告警覆盖面·研发
+      status: done
+    - id: t-54368b
+      title: 调度失败的飞书兜底与告警覆盖面·联调
+      status: done
+    - id: t-c34956
+      title: 调度失败的飞书兜底与告警覆盖面·复核
+      status: done
+    - id: t-67b43e
+      title: 调度失败的飞书兜底与告警覆盖面·测试
+      status: done
+    - id: t-d935df
+      title: 探活加调度活性并新增「该跑没跑」盘点器·研发
+      status: done
+    - id: t-2e7e2e
+      title: 探活加调度活性并新增「该跑没跑」盘点器·联调
+      status: done
+    - id: t-7b82d0
+      title: 探活加调度活性并新增「该跑没跑」盘点器·复核
+      status: done
+    - id: t-681cce
+      title: 探活加调度活性并新增「该跑没跑」盘点器·测试
+      status: done
+    - id: t-2182ea
+      title: 收敛策略配置为单一来源并让生效值可见·研发
+      status: done
+    - id: t-d0e730
+      title: 收敛策略配置为单一来源并让生效值可见·联调
+      status: done
+    - id: t-0959dc
+      title: 收敛策略配置为单一来源并让生效值可见·复核
+      status: done
+    - id: t-6625c7
+      title: 收敛策略配置为单一来源并让生效值可见·测试
+      status: done
+    - id: t-672692
+      title: 挂单撮合批量不中断、时段护栏与过期收口·研发
+      status: done
+    - id: t-6d84c3
+      title: 挂单撮合批量不中断、时段护栏与过期收口·联调
+      status: done
+    - id: t-e99312
+      title: 挂单撮合批量不中断、时段护栏与过期收口·复核
+      status: done
+    - id: t-de30a7
+      title: 挂单撮合批量不中断、时段护栏与过期收口·测试
+      status: done
+    - id: t-61dd14
+      title: 账本超卖拦截与现金重放对账器·研发
+      status: done
+    - id: t-0bd4f5
+      title: 账本超卖拦截与现金重放对账器·联调
+      status: done
+    - id: t-96f359
+      title: 账本超卖拦截与现金重放对账器·复核
+      status: done
+    - id: t-f2ca16
+      title: 账本超卖拦截与现金重放对账器·测试
+      status: done
+    - id: t-32c86e
+      title: 历史虚增现金标记为脏并从统计排除（按用户裁定）·取数调研
+      status: done
+    - id: t-fe5f36
+      title: 历史虚增现金标记为脏并从统计排除（按用户裁定）·分析
+      status: done
+    - id: t-94fe6d
+      title: 历史虚增现金标记为脏并从统计排除（按用户裁定）·复核
+      status: done
+    - id: t-565bb2
+      title: 端到端冒烟与验收证据汇总·研发
+      status: done
+    - id: t-c4a54f
+      title: 端到端冒烟与验收证据汇总·复核
+      status: done
+    - id: t-ef5ca7
+      title: 端到端冒烟与验收证据汇总·测试
+      status: done
+outputs:
+  test_cases:
+    - id: TC-1
+      title: t-c52a0a — pytest tests/test_run_outcome.py tests/test_failure_sink.py -q → 22 passed（结果契约 + 失败出口）
+      covers:
+        - t-c52a0a
+        - t-8133a0
+        - t-934549
+        - t-a6d274
+        - t-d6131f
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-2
+      title: t-b13aaf — pytest tests/live_trading/test_daily_check_contract.py tests/test_v13_scheduler.py -q → 16 passed（日检三态 + 调度接线）
+      covers:
+        - t-b13aaf
+        - t-cb5d73
+        - t-a3ff51
+        - t-158ded
+        - t-8818ca
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-3
+      title: t-da8070 — pytest tests/test_trading_day_guard.py tests/test_trading_day_resolver.py tests/live_trading/test_trading_day_judge.py -q → 72 passed（含四日期证伪点）
+      covers:
+        - t-da8070
+        - t-9630b6
+        - t-d64276
+        - t-82451b
+        - t-e8a6f4
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-4
+      title: t-141b38 — pytest tests/services/test_pending_orders.py -q → 28 passed（单笔隔离 / 盘后跳过 / 超期作废）
+      covers:
+        - t-141b38
+        - t-672692
+        - t-6d84c3
+        - t-e99312
+        - t-de30a7
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-5
+      title: t-0257b0 — pytest tests/test_scheduler_misfire_semantics.py -q → 22 passed（宽限语义 + 被跳过落库）
+      covers:
+        - t-0257b0
+        - t-20173e
+        - t-a9ba88
+        - t-318de0
+        - t-f6f85a
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-6
+      title: t-322d78 — pytest tests/test_job_failure_alerting.py -q → 18 passed；另 pytest tests/ -k「alerting or job_executor or scheduler or daily_jobs」→ 258 passed
+      covers:
+        - t-322d78
+        - t-5a96d9
+        - t-54368b
+        - t-c34956
+        - t-67b43e
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-7
+      title: t-5103ce — pytest tests/test_should_have_run.py -q → 26 passed；venv/bin/python tools/check_should_have_run.py → 退出码 0
+      covers:
+        - t-5103ce
+        - t-d935df
+        - t-2e7e2e
+        - t-7b82d0
+        - t-681cce
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-8
+      title: t-0226ab — pytest tests/test_notification_channel_fallback.py -q → 13 passed（调仓/风控候选渠道含飞书）
+      covers:
+        - t-0226ab
+        - t-53a7f9
+        - t-1996fe
+        - t-645f92
+        - t-fa9784
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-9
+      title: t-979319 — pytest tests/test_strategy_config_single_source.py -q → 15 passed；venv/bin/python tools/check_strategy_config_effective.py → 退出码 0
+      covers:
+        - t-979319
+        - t-2182ea
+        - t-d0e730
+        - t-0959dc
+        - t-6625c7
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-10
+      title: t-373c05 — pytest tests/regression/test_strategy_config_refactor.py tests/test_v13_chain_wiring.py -q → 25 passed
+      covers:
+        - t-373c05
+        - t-f4a836
+        - t-7766ec
+        - t-ef72d4
+        - t-e03b96
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-11
+      title: t-900179 — pytest tests/test_oversell_guard.py -q → 25 passed；venv/bin/python tools/reconcile_sim_account.py --account v13_simulation → 退出码 0
+      covers:
+        - t-900179
+        - t-61dd14
+        - t-0bd4f5
+        - t-96f359
+        - t-f2ca16
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-12
+      title: t-174c1d — tests/test_oversell_guard.py::test_without_dirty_manifest_oversold_is_inconsistent（反证：清单不在即判不自洽）+ docs/requirements/REQ-261004154902-a7cd/notes/legacy-cash-disposition.md
+      covers:
+        - t-174c1d
+        - t-32c86e
+        - t-fe5f36
+        - t-94fe6d
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-13
+      title: t-ba8cc4 — pytest tests/test_fake_green_gate.py tests/test_scheduled_jobs_account_value.py -q → 9 passed；venv/bin/python tools/check_fake_green_tests.py --new-only → 退出码 0
+      covers:
+        - t-ba8cc4
+        - t-02fc85
+        - t-5805e1
+        - t-8259cd
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-14
+      title: t-ad58a1 — venv/bin/python tools/check_v13_chain_health.py → 退出码 0（三张表均有真实行）+ docs/requirements/REQ-261004154902-a7cd/tests/test-evidence.md
+      covers:
+        - t-ad58a1
+        - t-565bb2
+        - t-c4a54f
+        - t-ef5ca7
+      validates: []
+      source: tests/test-evidence.md
+traceability:
+  task_to_tests:
+    t-c52a0a:
+      - TC-1
+    t-b13aaf:
+      - TC-2
+    t-da8070:
+      - TC-3
+    t-141b38:
+      - TC-4
+    t-0257b0:
+      - TC-5
+    t-322d78:
+      - TC-6
+    t-5103ce:
+      - TC-7
+    t-0226ab:
+      - TC-8
+    t-979319:
+      - TC-9
+    t-373c05:
+      - TC-10
+    t-900179:
+      - TC-11
+    t-174c1d:
+      - TC-12
+    t-ba8cc4:
+      - TC-13
+    t-ad58a1:
+      - TC-14
+    t-8133a0:
+      - TC-1
+    t-934549:
+      - TC-1
+    t-a6d274:
+      - TC-1
+    t-d6131f:
+      - TC-1
+    t-cb5d73:
+      - TC-2
+    t-a3ff51:
+      - TC-2
+    t-158ded:
+      - TC-2
+    t-8818ca:
+      - TC-2
+    t-9630b6:
+      - TC-3
+    t-d64276:
+      - TC-3
+    t-82451b:
+      - TC-3
+    t-e8a6f4:
+      - TC-3
+    t-53a7f9:
+      - TC-8
+    t-1996fe:
+      - TC-8
+    t-645f92:
+      - TC-8
+    t-fa9784:
+      - TC-8
+    t-20173e:
+      - TC-5
+    t-a9ba88:
+      - TC-5
+    t-318de0:
+      - TC-5
+    t-f6f85a:
+      - TC-5
+    t-f4a836:
+      - TC-10
+    t-7766ec:
+      - TC-10
+    t-ef72d4:
+      - TC-10
+    t-e03b96:
+      - TC-10
+    t-02fc85:
+      - TC-13
+    t-5805e1:
+      - TC-13
+    t-8259cd:
+      - TC-13
+    t-5a96d9:
+      - TC-6
+    t-54368b:
+      - TC-6
+    t-c34956:
+      - TC-6
+    t-67b43e:
+      - TC-6
+    t-d935df:
+      - TC-7
+    t-2e7e2e:
+      - TC-7
+    t-7b82d0:
+      - TC-7
+    t-681cce:
+      - TC-7
+    t-2182ea:
+      - TC-9
+    t-d0e730:
+      - TC-9
+    t-0959dc:
+      - TC-9
+    t-6625c7:
+      - TC-9
+    t-672692:
+      - TC-4
+    t-6d84c3:
+      - TC-4
+    t-e99312:
+      - TC-4
+    t-de30a7:
+      - TC-4
+    t-61dd14:
+      - TC-11
+    t-0bd4f5:
+      - TC-11
+    t-96f359:
+      - TC-11
+    t-f2ca16:
+      - TC-11
+    t-32c86e:
+      - TC-12
+    t-fe5f36:
+      - TC-12
+    t-94fe6d:
+      - TC-12
+    t-565bb2:
+      - TC-14
+    t-c4a54f:
+      - TC-14
+    t-ef5ca7:
+      - TC-14
+  fr_to_tests:
+    FR-1:
+      - TC-1
+      - TC-2
+      - TC-6
+      - TC-13
+      - TC-14
+      - TC-4
+      - TC-8
+      - TC-5
+      - TC-3
+      - TC-7
+      - TC-9
+      - TC-10
+      - TC-11
+      - TC-12
+    FR-2:
+      - TC-1
+      - TC-2
+      - TC-6
+      - TC-13
+      - TC-14
+      - TC-4
+      - TC-5
+      - TC-8
+      - TC-3
+      - TC-7
+      - TC-9
+      - TC-10
+      - TC-11
+      - TC-12
+    FR-7:
+      - TC-1
+      - TC-2
+      - TC-4
+      - TC-6
+      - TC-13
+      - TC-14
+      - TC-5
+      - TC-3
+      - TC-7
+      - TC-8
+      - TC-9
+      - TC-10
+      - TC-11
+      - TC-12
+    FR-9:
+      - TC-1
+      - TC-2
+      - TC-6
+      - TC-8
+      - TC-13
+      - TC-14
+      - TC-3
+      - TC-4
+      - TC-5
+      - TC-7
+      - TC-9
+      - TC-10
+      - TC-11
+      - TC-12
+    FR-4:
+      - TC-1
+      - TC-2
+      - TC-5
+      - TC-6
+      - TC-13
+      - TC-14
+      - TC-4
+      - TC-3
+      - TC-7
+      - TC-8
+      - TC-9
+      - TC-10
+      - TC-11
+      - TC-12
+    FR-3:
+      - TC-3
+      - TC-14
+      - TC-1
+      - TC-2
+      - TC-4
+      - TC-5
+      - TC-6
+      - TC-7
+      - TC-8
+      - TC-9
+      - TC-10
+      - TC-11
+      - TC-12
+      - TC-13
+    FR-10:
+      - TC-11
+      - TC-12
+      - TC-13
+      - TC-14
+      - TC-1
+      - TC-2
+      - TC-3
+      - TC-4
+      - TC-5
+      - TC-6
+      - TC-7
+      - TC-8
+      - TC-9
+      - TC-10
+    FR-5:
+      - TC-9
+      - TC-13
+      - TC-14
+      - TC-1
+      - TC-2
+      - TC-3
+      - TC-4
+      - TC-5
+      - TC-6
+      - TC-7
+      - TC-8
+      - TC-10
+      - TC-11
+      - TC-12
+    FR-6:
+      - TC-10
+      - TC-13
+      - TC-14
+      - TC-1
+      - TC-2
+      - TC-3
+      - TC-4
+      - TC-5
+      - TC-6
+      - TC-7
+      - TC-8
+      - TC-9
+      - TC-11
+      - TC-12
+    FR-8:
+      - TC-5
+      - TC-6
+      - TC-7
+      - TC-14
+      - TC-1
+      - TC-2
+      - TC-3
+      - TC-4
+      - TC-8
+      - TC-9
+      - TC-10
+      - TC-11
+      - TC-12
+      - TC-13
+coverage:
+  testing:
+    total: 67
+    covered: 67
+    uncovered: []
+    rate: 100
+    total_tasks: 67
+    tested_tasks: 67
+    untested: []

@@ -162,7 +162,7 @@ export function createAgentDecisionTasks(): AgentTaskDefinition[] {
       name: 'realtime_quick_check',
       enabled: true,
       scheduleKind: 'cron',
-      scheduleExpr: '*/30 9-14 * * 1-5',  // 工作日 9:00-14:55，每30分钟
+      scheduleExpr: '*/15 9-11,13-14 * * 1-5',  // 工作日盘中每15分钟；跳过12-13点午休空跑（2026-08-06 用户批准：15分钟版）
       payload: {
         kind: 'agent_turn',
         message: `

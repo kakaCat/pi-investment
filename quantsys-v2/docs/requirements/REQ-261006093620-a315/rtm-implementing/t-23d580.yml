@@ -1,0 +1,39 @@
+task:
+  id: t-23d580
+  title: 巡检口径同步：should_have_run 与 watchdog·测试
+  status: done
+  implements: |-
+    修改 application/services/should_have_run.py：把「最近一次真执行（status != 'missed'）」拆成两套写出来的常量集合——NOT_MISSED_STATUSES=('success','failed','skipped') 用于判该槽位是否已处理，REAL_RUN_STATUSES=('success','failed') 用于 last_run_at 呈现，替换原先依赖 != 的副作用判据；不改 missed 的告警语义。修改 scripts/scheduler_watchdog.py 两处（约 289/390 行）的 status='success' 为 status IN ('success','skipped')。在 tests/test_should_have_run.py 增量补用例（不要另起平行文件）。
+
+    [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+  serves: []
+  depends_on:
+    - t-98ed3c
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261006093620-a315
+    TASK_ID: t-23d580
+    TASK_TITLE: 巡检口径同步：should_have_run 与 watchdog·测试
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      started_at: 2026-10-06T02:05:01.405Z
+      completed_at: 2026-10-06T02:05:01.477Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006093620-a315
+  generated_at: 2026-10-06T02:04:24.195Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-06T02:05:01.477Z

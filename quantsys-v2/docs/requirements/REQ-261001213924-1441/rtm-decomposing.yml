@@ -1,0 +1,23 @@
+metadata:
+  stage: decomposing
+  requirement_id: REQ-261001213924-1441
+  generated_at: 2026-10-02T00:50:01.583Z
+  version: 1
+  generated_by: dsh-pmboard
+  last_updated: 2026-10-02T00:50:01.584Z
+inputs:
+  requirements: []
+  design_sections: []
+outputs:
+  tasks: []
+traceability:
+  design_to_tasks: {}
+  fr_to_tasks: {}
+coverage:
+  implementation:
+    total: 0
+    covered: 0
+    uncovered: []
+    rate: 100
+    total_designs: 0
+    covered_designs: 0

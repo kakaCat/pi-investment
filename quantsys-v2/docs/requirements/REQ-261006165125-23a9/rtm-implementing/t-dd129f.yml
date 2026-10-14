@@ -1,0 +1,37 @@
+task:
+  id: t-dd129f
+  title: runtime 接线：通知收敛 + manual 参数 + 超阈值提示 + trigger_job·研发
+  status: done
+  implements: |-
+    daily_jobs/runtime.py：① _run_job(job, run_date, manual: bool = False)；② 删 runtime.py:126 的无条件开始消息，改为 if notify_policy.should_send_start(): _send_feishu(旧开始文案)（仅回滚态为真）；③ handler() 前 timer=_arm_running_notice(job)，finally 里 timer.cancel()；④ 完成分支改为 if should_send_completion(result=result, manual=manual): _send_feishu(alerting.format_completion(..., warn_no_output=notify_policy.notify_noop_enabled() and result.get('no_output') is True))；⑤ 抑制外发时 logger.info('inprocess_job_notify_skipped', job=..., reason='no_op', manual=...)；⑥ 内层失败与异常两处 _send_feishu 逐字不动；⑦ 新增 _arm_running_notice（running_notice_seconds()<=0 返回 None；threading.Timer daemon=True，秒数用 _format_elapsed 渲染）与 _send_running_notice（消息 '⏳ 每日任务仍在运行：{job_id}\n{description}\n已跑 {_format_elapsed(secs)}'；回调内异常吞掉并记 inprocess_job_running_notice_error；两函数必须住在 runtime.py 以保住打桩点）；⑧ trigger_job 线程调用传 manual=True（签名/返回体不变）。daily_jobs_bootstrap.py 的转发 import 与 __all__ 补 _arm_running_notice / _send_running_notice；不改 daily_jobs/__init__.py。
+
+    [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+  serves: []
+  depends_on:
+    - t-9c727a
+    - t-9a1066
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261006165125-23a9
+    TASK_ID: t-dd129f
+    TASK_TITLE: runtime 接线：通知收敛 + manual 参数 + 超阈值提示 + trigger_job·研发
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-06T09:06:46.662Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006165125-23a9
+  generated_at: 2026-10-06T09:06:41.720Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-06T09:06:48.594Z

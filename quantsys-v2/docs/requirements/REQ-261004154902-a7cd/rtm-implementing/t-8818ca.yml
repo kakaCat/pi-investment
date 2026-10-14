@@ -1,0 +1,39 @@
+task:
+  id: t-8818ca
+  title: 策略日检如实上报并修回通知方法·测试
+  status: done
+  implements: |-
+    改 live_trading/simulation_trader.py：run_daily_check 消费 self.rebalance(today) 的返回值，成功与否如实映射为 RunOutcome；rebalance 的 except 分支改为 logger.error(exc_info=True) + FailureSink.report_failure；把误缩进在 if __name__ == '__main__': 块内的 _send_rebalance_notification 与 _format_rebalance_content 移回类体，并保证通知失败不改变调仓成功判定（进 detail['notify_error']）。改 application/services/strategy_service.py 的 daily_check 为三态映射（success/skipped/failed）。改 tests/test_v13_scheduler.py：把三处 return True/False 的假绿灯改成真断言。新增 tests/live_trading/test_daily_check_contract.py。
+
+    [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+  serves: []
+  depends_on:
+    - t-158ded
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261004154902-a7cd
+    TASK_ID: t-8818ca
+    TASK_TITLE: 策略日检如实上报并修回通知方法·测试
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      started_at: 2026-10-04T08:11:57.910Z
+      completed_at: 2026-10-04T08:11:57.963Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261004154902-a7cd
+  generated_at: 2026-10-04T08:11:53.672Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-04T08:11:57.963Z

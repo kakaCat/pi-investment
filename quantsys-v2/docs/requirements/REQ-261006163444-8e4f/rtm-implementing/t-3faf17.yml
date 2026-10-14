@@ -1,0 +1,45 @@
+task:
+  id: t-3faf17
+  title: 落盘迁移、兼容与回滚清单
+  status: done
+  implements: 新建 docs/requirements/REQ-261006163444-8e4f/notes/migration-rollback.md，写清五节：① 零 schema 变更的声明与依据；② 旧调用方核对清单（adapters/inbound/fastapi_app/routes/data_quality_async.py:162、tests/test_data_validator_anomaly_detection.py:212、tests/test_data_quality_job_guardrails.py:70 的替身）逐条结论；③ 配置旧值 quality_threshold=95.0 与回滚步骤（还原提交 + 改回 95.0）；④ 历史 original_count=0 行的阅读口径（2026-10-06 前不可用、不追改）；⑤ 部分回滚的两条路径与后果。
+  serves:
+    - FR-5
+    - FR-6
+  depends_on:
+    - t-6e752d
+  phase: doc
+  side: doc
+  workflow_params:
+    REQ_ID: REQ-261006163444-8e4f
+    TASK_ID: t-3faf17
+    TASK_TITLE: 落盘迁移、兼容与回滚清单
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: doc
+    PHASE: doc
+  workflow_total: 4
+  workflow_done: 4
+  workflow:
+    - phase: doc
+      status: done
+      started_at: 2026-10-06T08:53:54.877Z
+      completed_at: 2026-10-06T08:58:37.942Z
+    - phase: implement
+      status: done
+      completed_at: 2026-10-06T08:56:30.827Z
+    - phase: test
+      status: done
+      completed_at: 2026-10-06T08:58:37.942Z
+    - phase: commit
+      status: done
+      completed_at: 2026-10-06T08:58:37.942Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006163444-8e4f
+  generated_at: 2026-10-06T08:42:13.457Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 4
+  last_updated: 2026-10-06T08:58:37.943Z

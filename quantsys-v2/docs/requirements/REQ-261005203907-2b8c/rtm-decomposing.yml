@@ -1,0 +1,647 @@
+metadata:
+  stage: decomposing
+  requirement_id: REQ-261005203907-2b8c
+  generated_at: 2026-10-05T13:12:20.020Z
+  version: 61
+  generated_by: dsh-pmboard
+  rtm_version: "2.0"
+  last_updated: 2026-10-05T13:25:31.251Z
+inputs:
+  requirements:
+    - id: FR-1
+      title: DailyJobs 任务可声明"只在交易日执行"
+      source: requirement.md
+      line: 115
+    - id: FR-2
+      title: 交易日门必须 fail-open
+      source: requirement.md
+      line: 120
+    - id: FR-3
+      title: 跳过 = 留痕 + 不打扰
+      source: requirement.md
+      line: 126
+    - id: FR-4
+      title: 范围内 4 个任务的逐任务语义
+      source: requirement.md
+      line: 131
+    - id: FR-5
+      title: 跳过不得引发补跑，人工仍可强制
+      source: requirement.md
+      line: 138
+    - id: FR-6
+      title: 回归锁与真实观察
+      source: requirement.md
+      line: 143
+  design_sections:
+    - ref: design/architecture.md#落点与依赖方向
+      title: 落点与依赖方向（
+      serves:
+        - FR-1
+        - FR-2
+      file: design/architecture.md
+      section: 落点与依赖方向
+    - ref: design/architecture.md#文件结构新建-修改各自职责一句话
+      title: 文件结构（新建 / 修改，各自职责一句话）（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/architecture.md
+      section: 文件结构新建-修改各自职责一句话
+    - ref: design/architecture.md#为什么门不放-isdue
+      title: 为什么门不放 `is_due`（
+      serves:
+        - FR-3
+        - FR-5
+      file: design/architecture.md
+      section: 为什么门不放-isdue
+    - ref: design/architecture.md#为什么-fail-open-而不-fail-closed
+      title: 为什么 fail-open 而不 fail-closed（
+      serves:
+        - FR-2
+      file: design/architecture.md
+      section: 为什么-fail-open-而不-fail-closed
+    - ref: design/architecture.md#逐任务落点
+      title: 逐任务落点（
+      serves:
+        - FR-4
+      file: design/architecture.md
+      section: 逐任务落点
+    - ref: design/architecture.md#与相邻口径的关系
+      title: 与相邻口径的关系（
+      serves:
+        - FR-1
+        - FR-4
+      file: design/architecture.md
+      section: 与相邻口径的关系
+    - ref: design/architecture.md#回滚路径
+      title: 回滚路径（
+      serves:
+        - FR-1
+        - FR-4
+        - FR-5
+      file: design/architecture.md
+      section: 回滚路径
+    - ref: design/architecture.md#不做什么
+      title: 不做什么（
+      serves:
+        - FR-4
+      file: design/architecture.md
+      section: 不做什么
+    - ref: design/data-model.md#1
+      title: 结论：本次**零 DDL、零迁移、零回填**（
+      serves:
+        - FR-1
+        - FR-3
+      file: design/data-model.md
+      section: "1"
+    - ref: design/data-model.md#2
+      title: "`quant.inprocess_job_runs.status` 取值集合（"
+      serves:
+        - FR-3
+      file: design/data-model.md
+      section: "2"
+    - ref: design/data-model.md#3
+      title: "`result` JSONB 契约（"
+      serves:
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/data-model.md
+      section: "3"
+    - ref: design/data-model.md#3.1
+      title: 整段跳过（`pool_daily_refresh` / `chip_distribution` / `evolution_fitness`）（
+      serves:
+        - FR-3
+        - FR-4
+      file: design/data-model.md
+      section: "3.1"
+    - ref: design/data-model.md#3.2
+      title: 照跑但日历降级（fail-open 的留痕）（
+      serves:
+        - FR-2
+      file: design/data-model.md
+      section: "3.2"
+    - ref: design/data-model.md#3.3
+      title: "`evening_pipeline` 的因子段局部跳过（"
+      serves:
+        - FR-4
+      file: design/data-model.md
+      section: "3.3"
+    - ref: design/data-model.md#3.4
+      title: 与 `find_result_failure` 的交互（不变量）（
+      serves:
+        - FR-3
+        - FR-4
+      file: design/data-model.md
+      section: "3.4"
+    - ref: design/data-model.md#4
+      title: 迁移、兼容与回滚（
+      serves:
+        - FR-1
+        - FR-3
+        - FR-5
+      file: design/data-model.md
+      section: "4"
+    - ref: design/interfaces.md#1
+      title: "`daily_jobs/gate.py`（新增模块，唯一判定消费点）（"
+      serves:
+        - FR-1
+        - FR-2
+      file: design/interfaces.md
+      section: "1"
+    - ref: design/interfaces.md#2
+      title: "`JobDef` 字段追加（"
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: "2"
+    - ref: design/interfaces.md#3
+      title: "`_run_job` 门分支（"
+      serves:
+        - FR-2
+        - FR-3
+      file: design/interfaces.md
+      section: "3"
+    - ref: design/interfaces.md#4
+      title: "`_job_evening_pipeline` 因子段判定（"
+      serves:
+        - FR-4
+      file: design/interfaces.md
+      section: "4"
+    - ref: design/interfaces.md#5
+      title: 与既有消费者的兼容矩阵（
+      serves:
+        - FR-3
+        - FR-5
+      file: design/interfaces.md
+      section: "5"
+    - ref: design/use-cases.md#UC-1-休市日整段跳过
+      title: UC-1 休市日：整段跳过（
+      serves:
+        - FR-1
+        - FR-3
+        - FR-4
+      file: design/use-cases.md
+      section: UC-1-休市日整段跳过
+    - ref: design/use-cases.md#UC-2-交易日行为逐字不变
+      title: UC-2 交易日：行为逐字不变（
+      serves:
+        - FR-1
+        - FR-4
+        - FR-6
+      file: design/use-cases.md
+      section: UC-2-交易日行为逐字不变
+    - ref: design/use-cases.md#UC-3-日历不可用fail-open-不静默
+      title: UC-3 日历不可用：fail-open 不静默（
+      serves:
+        - FR-2
+      file: design/use-cases.md
+      section: UC-3-日历不可用fail-open-不静默
+    - ref: design/use-cases.md#UC-4-复市首日不得被跳过
+      title: UC-4 复市首日不得被跳过（
+      serves:
+        - FR-5
+      file: design/use-cases.md
+      section: UC-4-复市首日不得被跳过
+    - ref: design/use-cases.md#UC-5-休市日的人工触发
+      title: UC-5 休市日的人工触发（
+      serves:
+        - FR-5
+      file: design/use-cases.md
+      section: UC-5-休市日的人工触发
+    - ref: design/use-cases.md#UC-6-休市日-K-线被修复-因子照跑
+      title: UC-6 休市日 K 线被修复 → 因子照跑（
+      serves:
+        - FR-4
+      file: design/use-cases.md
+      section: UC-6-休市日-K-线被修复-因子照跑
+    - ref: design/use-cases.md#UC-7-休市日-K-线段照跑因子段跳过
+      title: UC-7 休市日 K 线段照跑、因子段跳过（
+      serves:
+        - FR-4
+      file: design/use-cases.md
+      section: UC-7-休市日-K-线段照跑因子段跳过
+    - ref: design/use-cases.md#UC-8-回滚
+      title: UC-8 回滚（
+      serves:
+        - FR-1
+        - FR-4
+      file: design/use-cases.md
+      section: UC-8-回滚
+outputs:
+  tasks:
+    - id: t-dd0d4d
+      title: 门模块与 JobDef 字段（接口先行）
+      implements: "新建 adapters/inbound/fastapi_app/daily_jobs/gate.py：skip_non_trading_day(now=None)->tuple[bool,dict] / is_non_trading_day(now=None)->bool / verdict_info(now=None)->dict；判据 skip = (not TradingDayGuard.check(now).is_trading_day) and (not verdict.degraded)；永不抛，自身异常返回 (False, {'source':'gate-error',...}) 并记 warning 日志；注解五键 day/is_trading_day/source/degraded/reason。改 adapters/inbound/fastapi_app/daily_jobs/defs.py：JobDef 末尾追加 trading_days_only: bool = False（必须末位带默认值，仓内多处按位置参数构造）。新增 tests/test_daily_jobs_trading_day_gate.py 覆盖 TC-1 真值表：休市日 2026-10-05/06/07 → skip=True；交易日 2026-09-30/2026-10-08 → skip=False；周末 2026-10-03 → skip=True；degraded=True → skip=False（fail-open）；check 抛异常 → skip=False 且 source='gate-error'；注解形状五键齐。打桩点 daily_jobs.gate.TradingDayGuard，零网络零 DB。不改 daily_jobs/__init__.py 与 daily_jobs_bootstrap.py 的导出清单。"
+      serves:
+        - FR-1
+        - FR-2
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-075116
+      title: 宿主接线：_run_job 跳过早退 + 3 任务置位
+      implements: "改 adapters/inbound/fastapi_app/daily_jobs/runtime.py：_run_job 在 _mark_running 之后、_send_feishu('▶️ 每日任务开始…') 之前插入早退分支——if job.trading_days_only and skip_non_trading_day()[0]: 写 _mark_done(status='skipped', result={'skipped':True,'reason':f'非交易日（{day}）：{reason}','trading_day':info}) + scheduler_job_runs_total.labels(status='skipped').inc() + logger.info('inprocess_job_skipped') + return（不发任何飞书、不观测 duration）；照跑路径在 result 为 dict 时补 result['trading_day']=info，degraded=True 时记 logger.warning('inprocess_job_trading_day_degraded')。改 adapters/inbound/fastapi_app/daily_jobs/registry.py：pool_daily_refresh / chip_distribution / evolution_fitness 三行加 trading_days_only=True；evening_pipeline 与其余 5 个任务不加。在 tests/test_daily_jobs_trading_day_gate.py 追加：跳过留痕（_mark_done 收到 status='skipped' 且 result['skipped'] is True 且 trading_day 五键齐）、_send_feishu 调用次数为 0、handler 未被调用（side_effect=AssertionError）、注册表里 trading_days_only=True 的集合恰好是那 3 个。打桩点必须是 daily_jobs.runtime 模块内的 _mark_running/_mark_done/_send_feishu（打在 alerting 或 daily_jobs_bootstrap 上会静默失效并真发飞书）。"
+      serves:
+        - FR-1
+        - FR-3
+        - FR-5
+      depends_on:
+        - t-dd0d4d
+      phase: implement
+      side: backend
+    - id: t-588729
+      title: 晚间管线：因子段局部跳过（K 线段原样）
+      implements: "改 adapters/inbound/fastapi_app/daily_jobs/pipeline.py 的 _job_evening_pipeline：入口取一次 non_trading = is_non_trading_day()；K 线段（探活、覆盖度门槛、批大小、缺口修复、失败上抛）逐字不动；因子段改为 kline=results.get('kline_sync') or {}; kline_changed = kline.get('status') != 'skipped' and (kline.get('success') or 0) > 0; if non_trading and not kline_changed and kline.get('status') != 'error': results['factor_compute']={'status':'skipped','skipped':True,'reason':f'非交易日（{expected} 基准）且 K 线本次无更新'} else: results['factor_compute']=handle_factor_compute({'max_symbols':6000})。新增 tests/test_evening_pipeline_holiday_gate.py 覆盖 TC-4 六行真值表：休市日+K线skipped→因子不跑；休市日+K线success且success=137→因子跑；休市日+success=0→因子不跑；休市日+status='error'→因子跑且随后仍 raise；交易日+K线skipped→因子必须跑（防交易日漏算因子）；跳过形态经 find_result_failure 判为非失败。打桩点：daily_jobs.pipeline 的 is_non_trading_day/_kline_coverage/_probe_kline_sources，以及源头模块 application.services.scheduler_tasks.handle_factor_compute 与 infrastructure.jobs.kline_update_job.update_gem_klines（函数内局部 import）。"
+      serves:
+        - FR-4
+      depends_on:
+        - t-dd0d4d
+      phase: implement
+      side: backend
+    - id: t-dbb9d0
+      title: 兼容与回滚核验（零 DDL / 既有消费者行为）
+      implements: 在 tests/test_daily_jobs_trading_day_gate.py 追加兼容判据用例：is_due(job, now, {'status':'skipped','started_at':now}) is False；catchup_due(job, now, has_recent_failure=True) 在排班日 is False；trigger_job 对 skipped 行不返回『今日已有记录』拒绝；find_result_failure({'skipped':True,...}) is None；find_result_failure({'kline_sync':{'status':'success','skipped':12}}) 不因 int 误判（is True 严格布尔）。写 docs/requirements/REQ-261005203907-2b8c/notes/compat-rollback.md：记录 git diff --name-only 中不含 infrastructure/persistence/migrations/** 的核验输出、status 列 text 无 CHECK 约束的核验、以及回滚步骤（撤 3 处 trading_days_only=True 与 pipeline 因子段判定，已产生的 skipped 行无需清理）。
+      serves:
+        - FR-3
+        - FR-5
+      depends_on:
+        - t-075116
+      phase: test
+      side: backend
+    - id: t-6384c0
+      title: 回归 + 真实休市日/复市首日观察
+      implements: 跑齐四条命令并把输出摘要写入 docs/requirements/REQ-261005203907-2b8c/notes/holiday-observation.md：① pytest tests/test_daily_jobs_trading_day_gate.py -q；② pytest tests/test_evening_pipeline_holiday_gate.py -q；③ pytest tests/test_daily_jobs_bootstrap.py tests/test_false_success_guard.py tests/test_pool_refresh_daily.py -q；④ psql -d quant_investment 查 quant.inprocess_job_runs（休市日 2026-10-06 或 10-07：pool_daily_refresh/chip_distribution/evolution_fitness 应为 skipped、watch_rule_health/event_calendar_check/freshness_guard 仍 success、evening_pipeline 的 result->'factor_compute'->>'status' 应为 skipped；复市首日 2026-10-08：pool_daily_refresh 与 evening_pipeline 应恢复 success）。同时记录当天飞书侧无这 3 个任务的开始/完成消息（对照 2026-10-05 曾各发 2 条）。观察窗口未到（如 10-06/10-08 尚未发生）时如实标注为待观察，不得用推断代替实测。
+      serves:
+        - FR-6
+      depends_on:
+        - t-588729
+        - t-dbb9d0
+      phase: test
+      side: backend
+    - id: t-c8a4bc
+      title: 门模块与 JobDef 字段（接口先行）·研发
+      implements: |-
+        新建 adapters/inbound/fastapi_app/daily_jobs/gate.py：skip_non_trading_day(now=None)->tuple[bool,dict] / is_non_trading_day(now=None)->bool / verdict_info(now=None)->dict；判据 skip = (not TradingDayGuard.check(now).is_trading_day) and (not verdict.degraded)；永不抛，自身异常返回 (False, {'source':'gate-error',...}) 并记 warning 日志；注解五键 day/is_trading_day/source/degraded/reason。改 adapters/inbound/fastapi_app/daily_jobs/defs.py：JobDef 末尾追加 trading_days_only: bool = False（必须末位带默认值，仓内多处按位置参数构造）。新增 tests/test_daily_jobs_trading_day_gate.py 覆盖 TC-1 真值表：休市日 2026-10-05/06/07 → skip=True；交易日 2026-09-30/2026-10-08 → skip=False；周末 2026-10-03 → skip=True；degraded=True → skip=False（fail-open）；check 抛异常 → skip=False 且 source='gate-error'；注解形状五键齐。打桩点 daily_jobs.gate.TradingDayGuard，零网络零 DB。不改 daily_jobs/__init__.py 与 daily_jobs_bootstrap.py 的导出清单。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-5d3b29
+      title: 门模块与 JobDef 字段（接口先行）·复核
+      implements: |-
+        新建 adapters/inbound/fastapi_app/daily_jobs/gate.py：skip_non_trading_day(now=None)->tuple[bool,dict] / is_non_trading_day(now=None)->bool / verdict_info(now=None)->dict；判据 skip = (not TradingDayGuard.check(now).is_trading_day) and (not verdict.degraded)；永不抛，自身异常返回 (False, {'source':'gate-error',...}) 并记 warning 日志；注解五键 day/is_trading_day/source/degraded/reason。改 adapters/inbound/fastapi_app/daily_jobs/defs.py：JobDef 末尾追加 trading_days_only: bool = False（必须末位带默认值，仓内多处按位置参数构造）。新增 tests/test_daily_jobs_trading_day_gate.py 覆盖 TC-1 真值表：休市日 2026-10-05/06/07 → skip=True；交易日 2026-09-30/2026-10-08 → skip=False；周末 2026-10-03 → skip=True；degraded=True → skip=False（fail-open）；check 抛异常 → skip=False 且 source='gate-error'；注解形状五键齐。打桩点 daily_jobs.gate.TradingDayGuard，零网络零 DB。不改 daily_jobs/__init__.py 与 daily_jobs_bootstrap.py 的导出清单。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-c8a4bc
+      phase: implement
+      side: backend
+    - id: t-36bf41
+      title: 门模块与 JobDef 字段（接口先行）·测试
+      implements: |-
+        新建 adapters/inbound/fastapi_app/daily_jobs/gate.py：skip_non_trading_day(now=None)->tuple[bool,dict] / is_non_trading_day(now=None)->bool / verdict_info(now=None)->dict；判据 skip = (not TradingDayGuard.check(now).is_trading_day) and (not verdict.degraded)；永不抛，自身异常返回 (False, {'source':'gate-error',...}) 并记 warning 日志；注解五键 day/is_trading_day/source/degraded/reason。改 adapters/inbound/fastapi_app/daily_jobs/defs.py：JobDef 末尾追加 trading_days_only: bool = False（必须末位带默认值，仓内多处按位置参数构造）。新增 tests/test_daily_jobs_trading_day_gate.py 覆盖 TC-1 真值表：休市日 2026-10-05/06/07 → skip=True；交易日 2026-09-30/2026-10-08 → skip=False；周末 2026-10-03 → skip=True；degraded=True → skip=False（fail-open）；check 抛异常 → skip=False 且 source='gate-error'；注解形状五键齐。打桩点 daily_jobs.gate.TradingDayGuard，零网络零 DB。不改 daily_jobs/__init__.py 与 daily_jobs_bootstrap.py 的导出清单。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-5d3b29
+      phase: implement
+      side: backend
+    - id: t-074a02
+      title: 宿主接线：_run_job 跳过早退 + 3 任务置位·研发
+      implements: |-
+        改 adapters/inbound/fastapi_app/daily_jobs/runtime.py：_run_job 在 _mark_running 之后、_send_feishu('▶️ 每日任务开始…') 之前插入早退分支——if job.trading_days_only and skip_non_trading_day()[0]: 写 _mark_done(status='skipped', result={'skipped':True,'reason':f'非交易日（{day}）：{reason}','trading_day':info}) + scheduler_job_runs_total.labels(status='skipped').inc() + logger.info('inprocess_job_skipped') + return（不发任何飞书、不观测 duration）；照跑路径在 result 为 dict 时补 result['trading_day']=info，degraded=True 时记 logger.warning('inprocess_job_trading_day_degraded')。改 adapters/inbound/fastapi_app/daily_jobs/registry.py：pool_daily_refresh / chip_distribution / evolution_fitness 三行加 trading_days_only=True；evening_pipeline 与其余 5 个任务不加。在 tests/test_daily_jobs_trading_day_gate.py 追加：跳过留痕（_mark_done 收到 status='skipped' 且 result['skipped'] is True 且 trading_day 五键齐）、_send_feishu 调用次数为 0、handler 未被调用（side_effect=AssertionError）、注册表里 trading_days_only=True 的集合恰好是那 3 个。打桩点必须是 daily_jobs.runtime 模块内的 _mark_running/_mark_done/_send_feishu（打在 alerting 或 daily_jobs_bootstrap 上会静默失效并真发飞书）。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-dd0d4d
+      phase: implement
+      side: backend
+    - id: t-935496
+      title: 宿主接线：_run_job 跳过早退 + 3 任务置位·复核
+      implements: |-
+        改 adapters/inbound/fastapi_app/daily_jobs/runtime.py：_run_job 在 _mark_running 之后、_send_feishu('▶️ 每日任务开始…') 之前插入早退分支——if job.trading_days_only and skip_non_trading_day()[0]: 写 _mark_done(status='skipped', result={'skipped':True,'reason':f'非交易日（{day}）：{reason}','trading_day':info}) + scheduler_job_runs_total.labels(status='skipped').inc() + logger.info('inprocess_job_skipped') + return（不发任何飞书、不观测 duration）；照跑路径在 result 为 dict 时补 result['trading_day']=info，degraded=True 时记 logger.warning('inprocess_job_trading_day_degraded')。改 adapters/inbound/fastapi_app/daily_jobs/registry.py：pool_daily_refresh / chip_distribution / evolution_fitness 三行加 trading_days_only=True；evening_pipeline 与其余 5 个任务不加。在 tests/test_daily_jobs_trading_day_gate.py 追加：跳过留痕（_mark_done 收到 status='skipped' 且 result['skipped'] is True 且 trading_day 五键齐）、_send_feishu 调用次数为 0、handler 未被调用（side_effect=AssertionError）、注册表里 trading_days_only=True 的集合恰好是那 3 个。打桩点必须是 daily_jobs.runtime 模块内的 _mark_running/_mark_done/_send_feishu（打在 alerting 或 daily_jobs_bootstrap 上会静默失效并真发飞书）。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-074a02
+      phase: implement
+      side: backend
+    - id: t-bdfaae
+      title: 宿主接线：_run_job 跳过早退 + 3 任务置位·测试
+      implements: |-
+        改 adapters/inbound/fastapi_app/daily_jobs/runtime.py：_run_job 在 _mark_running 之后、_send_feishu('▶️ 每日任务开始…') 之前插入早退分支——if job.trading_days_only and skip_non_trading_day()[0]: 写 _mark_done(status='skipped', result={'skipped':True,'reason':f'非交易日（{day}）：{reason}','trading_day':info}) + scheduler_job_runs_total.labels(status='skipped').inc() + logger.info('inprocess_job_skipped') + return（不发任何飞书、不观测 duration）；照跑路径在 result 为 dict 时补 result['trading_day']=info，degraded=True 时记 logger.warning('inprocess_job_trading_day_degraded')。改 adapters/inbound/fastapi_app/daily_jobs/registry.py：pool_daily_refresh / chip_distribution / evolution_fitness 三行加 trading_days_only=True；evening_pipeline 与其余 5 个任务不加。在 tests/test_daily_jobs_trading_day_gate.py 追加：跳过留痕（_mark_done 收到 status='skipped' 且 result['skipped'] is True 且 trading_day 五键齐）、_send_feishu 调用次数为 0、handler 未被调用（side_effect=AssertionError）、注册表里 trading_days_only=True 的集合恰好是那 3 个。打桩点必须是 daily_jobs.runtime 模块内的 _mark_running/_mark_done/_send_feishu（打在 alerting 或 daily_jobs_bootstrap 上会静默失效并真发飞书）。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-935496
+      phase: implement
+      side: backend
+    - id: t-e11789
+      title: 晚间管线：因子段局部跳过（K 线段原样）·研发
+      implements: |-
+        改 adapters/inbound/fastapi_app/daily_jobs/pipeline.py 的 _job_evening_pipeline：入口取一次 non_trading = is_non_trading_day()；K 线段（探活、覆盖度门槛、批大小、缺口修复、失败上抛）逐字不动；因子段改为 kline=results.get('kline_sync') or {}; kline_changed = kline.get('status') != 'skipped' and (kline.get('success') or 0) > 0; if non_trading and not kline_changed and kline.get('status') != 'error': results['factor_compute']={'status':'skipped','skipped':True,'reason':f'非交易日（{expected} 基准）且 K 线本次无更新'} else: results['factor_compute']=handle_factor_compute({'max_symbols':6000})。新增 tests/test_evening_pipeline_holiday_gate.py 覆盖 TC-4 六行真值表：休市日+K线skipped→因子不跑；休市日+K线success且success=137→因子跑；休市日+success=0→因子不跑；休市日+status='error'→因子跑且随后仍 raise；交易日+K线skipped→因子必须跑（防交易日漏算因子）；跳过形态经 find_result_failure 判为非失败。打桩点：daily_jobs.pipeline 的 is_non_trading_day/_kline_coverage/_probe_kline_sources，以及源头模块 application.services.scheduler_tasks.handle_factor_compute 与 infrastructure.jobs.kline_update_job.update_gem_klines（函数内局部 import）。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-dd0d4d
+      phase: implement
+      side: backend
+    - id: t-c7f120
+      title: 晚间管线：因子段局部跳过（K 线段原样）·复核
+      implements: |-
+        改 adapters/inbound/fastapi_app/daily_jobs/pipeline.py 的 _job_evening_pipeline：入口取一次 non_trading = is_non_trading_day()；K 线段（探活、覆盖度门槛、批大小、缺口修复、失败上抛）逐字不动；因子段改为 kline=results.get('kline_sync') or {}; kline_changed = kline.get('status') != 'skipped' and (kline.get('success') or 0) > 0; if non_trading and not kline_changed and kline.get('status') != 'error': results['factor_compute']={'status':'skipped','skipped':True,'reason':f'非交易日（{expected} 基准）且 K 线本次无更新'} else: results['factor_compute']=handle_factor_compute({'max_symbols':6000})。新增 tests/test_evening_pipeline_holiday_gate.py 覆盖 TC-4 六行真值表：休市日+K线skipped→因子不跑；休市日+K线success且success=137→因子跑；休市日+success=0→因子不跑；休市日+status='error'→因子跑且随后仍 raise；交易日+K线skipped→因子必须跑（防交易日漏算因子）；跳过形态经 find_result_failure 判为非失败。打桩点：daily_jobs.pipeline 的 is_non_trading_day/_kline_coverage/_probe_kline_sources，以及源头模块 application.services.scheduler_tasks.handle_factor_compute 与 infrastructure.jobs.kline_update_job.update_gem_klines（函数内局部 import）。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-e11789
+      phase: implement
+      side: backend
+    - id: t-4dec18
+      title: 晚间管线：因子段局部跳过（K 线段原样）·测试
+      implements: |-
+        改 adapters/inbound/fastapi_app/daily_jobs/pipeline.py 的 _job_evening_pipeline：入口取一次 non_trading = is_non_trading_day()；K 线段（探活、覆盖度门槛、批大小、缺口修复、失败上抛）逐字不动；因子段改为 kline=results.get('kline_sync') or {}; kline_changed = kline.get('status') != 'skipped' and (kline.get('success') or 0) > 0; if non_trading and not kline_changed and kline.get('status') != 'error': results['factor_compute']={'status':'skipped','skipped':True,'reason':f'非交易日（{expected} 基准）且 K 线本次无更新'} else: results['factor_compute']=handle_factor_compute({'max_symbols':6000})。新增 tests/test_evening_pipeline_holiday_gate.py 覆盖 TC-4 六行真值表：休市日+K线skipped→因子不跑；休市日+K线success且success=137→因子跑；休市日+success=0→因子不跑；休市日+status='error'→因子跑且随后仍 raise；交易日+K线skipped→因子必须跑（防交易日漏算因子）；跳过形态经 find_result_failure 判为非失败。打桩点：daily_jobs.pipeline 的 is_non_trading_day/_kline_coverage/_probe_kline_sources，以及源头模块 application.services.scheduler_tasks.handle_factor_compute 与 infrastructure.jobs.kline_update_job.update_gem_klines（函数内局部 import）。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-c7f120
+      phase: implement
+      side: backend
+    - id: t-434c63
+      title: 兼容与回滚核验（零 DDL / 既有消费者行为）·研发
+      implements: |-
+        在 tests/test_daily_jobs_trading_day_gate.py 追加兼容判据用例：is_due(job, now, {'status':'skipped','started_at':now}) is False；catchup_due(job, now, has_recent_failure=True) 在排班日 is False；trigger_job 对 skipped 行不返回『今日已有记录』拒绝；find_result_failure({'skipped':True,...}) is None；find_result_failure({'kline_sync':{'status':'success','skipped':12}}) 不因 int 误判（is True 严格布尔）。写 docs/requirements/REQ-261005203907-2b8c/notes/compat-rollback.md：记录 git diff --name-only 中不含 infrastructure/persistence/migrations/** 的核验输出、status 列 text 无 CHECK 约束的核验、以及回滚步骤（撤 3 处 trading_days_only=True 与 pipeline 因子段判定，已产生的 skipped 行无需清理）。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-075116
+      phase: test
+      side: backend
+    - id: t-e199f4
+      title: 兼容与回滚核验（零 DDL / 既有消费者行为）·复核
+      implements: |-
+        在 tests/test_daily_jobs_trading_day_gate.py 追加兼容判据用例：is_due(job, now, {'status':'skipped','started_at':now}) is False；catchup_due(job, now, has_recent_failure=True) 在排班日 is False；trigger_job 对 skipped 行不返回『今日已有记录』拒绝；find_result_failure({'skipped':True,...}) is None；find_result_failure({'kline_sync':{'status':'success','skipped':12}}) 不因 int 误判（is True 严格布尔）。写 docs/requirements/REQ-261005203907-2b8c/notes/compat-rollback.md：记录 git diff --name-only 中不含 infrastructure/persistence/migrations/** 的核验输出、status 列 text 无 CHECK 约束的核验、以及回滚步骤（撤 3 处 trading_days_only=True 与 pipeline 因子段判定，已产生的 skipped 行无需清理）。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-434c63
+      phase: test
+      side: backend
+    - id: t-0c1cf7
+      title: 兼容与回滚核验（零 DDL / 既有消费者行为）·测试
+      implements: |-
+        在 tests/test_daily_jobs_trading_day_gate.py 追加兼容判据用例：is_due(job, now, {'status':'skipped','started_at':now}) is False；catchup_due(job, now, has_recent_failure=True) 在排班日 is False；trigger_job 对 skipped 行不返回『今日已有记录』拒绝；find_result_failure({'skipped':True,...}) is None；find_result_failure({'kline_sync':{'status':'success','skipped':12}}) 不因 int 误判（is True 严格布尔）。写 docs/requirements/REQ-261005203907-2b8c/notes/compat-rollback.md：记录 git diff --name-only 中不含 infrastructure/persistence/migrations/** 的核验输出、status 列 text 无 CHECK 约束的核验、以及回滚步骤（撤 3 处 trading_days_only=True 与 pipeline 因子段判定，已产生的 skipped 行无需清理）。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-e199f4
+      phase: test
+      side: backend
+    - id: t-d78651
+      title: 回归 + 真实休市日/复市首日观察·研发
+      implements: |-
+        跑齐四条命令并把输出摘要写入 docs/requirements/REQ-261005203907-2b8c/notes/holiday-observation.md：① pytest tests/test_daily_jobs_trading_day_gate.py -q；② pytest tests/test_evening_pipeline_holiday_gate.py -q；③ pytest tests/test_daily_jobs_bootstrap.py tests/test_false_success_guard.py tests/test_pool_refresh_daily.py -q；④ psql -d quant_investment 查 quant.inprocess_job_runs（休市日 2026-10-06 或 10-07：pool_daily_refresh/chip_distribution/evolution_fitness 应为 skipped、watch_rule_health/event_calendar_check/freshness_guard 仍 success、evening_pipeline 的 result->'factor_compute'->>'status' 应为 skipped；复市首日 2026-10-08：pool_daily_refresh 与 evening_pipeline 应恢复 success）。同时记录当天飞书侧无这 3 个任务的开始/完成消息（对照 2026-10-05 曾各发 2 条）。观察窗口未到（如 10-06/10-08 尚未发生）时如实标注为待观察，不得用推断代替实测。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-588729
+        - t-dbb9d0
+      phase: test
+      side: backend
+    - id: t-d9d825
+      title: 回归 + 真实休市日/复市首日观察·复核
+      implements: |-
+        跑齐四条命令并把输出摘要写入 docs/requirements/REQ-261005203907-2b8c/notes/holiday-observation.md：① pytest tests/test_daily_jobs_trading_day_gate.py -q；② pytest tests/test_evening_pipeline_holiday_gate.py -q；③ pytest tests/test_daily_jobs_bootstrap.py tests/test_false_success_guard.py tests/test_pool_refresh_daily.py -q；④ psql -d quant_investment 查 quant.inprocess_job_runs（休市日 2026-10-06 或 10-07：pool_daily_refresh/chip_distribution/evolution_fitness 应为 skipped、watch_rule_health/event_calendar_check/freshness_guard 仍 success、evening_pipeline 的 result->'factor_compute'->>'status' 应为 skipped；复市首日 2026-10-08：pool_daily_refresh 与 evening_pipeline 应恢复 success）。同时记录当天飞书侧无这 3 个任务的开始/完成消息（对照 2026-10-05 曾各发 2 条）。观察窗口未到（如 10-06/10-08 尚未发生）时如实标注为待观察，不得用推断代替实测。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-d78651
+      phase: test
+      side: backend
+    - id: t-bc7a9b
+      title: 回归 + 真实休市日/复市首日观察·测试
+      implements: |-
+        跑齐四条命令并把输出摘要写入 docs/requirements/REQ-261005203907-2b8c/notes/holiday-observation.md：① pytest tests/test_daily_jobs_trading_day_gate.py -q；② pytest tests/test_evening_pipeline_holiday_gate.py -q；③ pytest tests/test_daily_jobs_bootstrap.py tests/test_false_success_guard.py tests/test_pool_refresh_daily.py -q；④ psql -d quant_investment 查 quant.inprocess_job_runs（休市日 2026-10-06 或 10-07：pool_daily_refresh/chip_distribution/evolution_fitness 应为 skipped、watch_rule_health/event_calendar_check/freshness_guard 仍 success、evening_pipeline 的 result->'factor_compute'->>'status' 应为 skipped；复市首日 2026-10-08：pool_daily_refresh 与 evening_pipeline 应恢复 success）。同时记录当天飞书侧无这 3 个任务的开始/完成消息（对照 2026-10-05 曾各发 2 条）。观察窗口未到（如 10-06/10-08 尚未发生）时如实标注为待观察，不得用推断代替实测。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-d9d825
+      phase: test
+      side: backend
+task_coverage:
+  - task_id: t-dd0d4d
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-075116
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-588729
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-dbb9d0
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-6384c0
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-c8a4bc
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-5d3b29
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-36bf41
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-074a02
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-935496
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-bdfaae
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-e11789
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-c7f120
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-4dec18
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-434c63
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-e199f4
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-0c1cf7
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-d78651
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-d9d825
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-bc7a9b
+    covers_prototypes: []
+    covers_decisions: []
+traceability:
+  design_to_tasks:
+    design/architecture.md#落点与依赖方向:
+      - t-dd0d4d
+      - t-075116
+    design/architecture.md#文件结构新建-修改各自职责一句话:
+      - t-dd0d4d
+      - t-075116
+      - t-588729
+      - t-dbb9d0
+    design/architecture.md#为什么门不放-isdue:
+      - t-075116
+      - t-dbb9d0
+    design/architecture.md#为什么-fail-open-而不-fail-closed:
+      - t-dd0d4d
+    design/architecture.md#逐任务落点:
+      - t-588729
+    design/architecture.md#与相邻口径的关系:
+      - t-dd0d4d
+      - t-075116
+      - t-588729
+    design/architecture.md#回滚路径:
+      - t-dd0d4d
+      - t-075116
+      - t-588729
+      - t-dbb9d0
+    design/architecture.md#不做什么:
+      - t-588729
+    design/data-model.md#1:
+      - t-dd0d4d
+      - t-075116
+      - t-dbb9d0
+    design/data-model.md#2:
+      - t-075116
+      - t-dbb9d0
+    design/data-model.md#3:
+      - t-dd0d4d
+      - t-075116
+      - t-588729
+      - t-dbb9d0
+    design/data-model.md#3.1:
+      - t-075116
+      - t-588729
+      - t-dbb9d0
+    design/data-model.md#3.2:
+      - t-dd0d4d
+    design/data-model.md#3.3:
+      - t-588729
+    design/data-model.md#3.4:
+      - t-075116
+      - t-588729
+      - t-dbb9d0
+    design/data-model.md#4:
+      - t-dd0d4d
+      - t-075116
+      - t-dbb9d0
+    design/interfaces.md#1:
+      - t-dd0d4d
+      - t-075116
+    design/interfaces.md#2:
+      - t-dd0d4d
+      - t-075116
+    design/interfaces.md#3:
+      - t-dd0d4d
+      - t-075116
+      - t-dbb9d0
+    design/interfaces.md#4:
+      - t-588729
+    design/interfaces.md#5:
+      - t-075116
+      - t-dbb9d0
+    design/use-cases.md#UC-1-休市日整段跳过:
+      - t-dd0d4d
+      - t-075116
+      - t-588729
+      - t-dbb9d0
+    design/use-cases.md#UC-2-交易日行为逐字不变:
+      - t-dd0d4d
+      - t-075116
+      - t-588729
+      - t-6384c0
+    design/use-cases.md#UC-3-日历不可用fail-open-不静默:
+      - t-dd0d4d
+    design/use-cases.md#UC-4-复市首日不得被跳过:
+      - t-075116
+      - t-dbb9d0
+    design/use-cases.md#UC-5-休市日的人工触发:
+      - t-075116
+      - t-dbb9d0
+    design/use-cases.md#UC-6-休市日-K-线被修复-因子照跑:
+      - t-588729
+    design/use-cases.md#UC-7-休市日-K-线段照跑因子段跳过:
+      - t-588729
+    design/use-cases.md#UC-8-回滚:
+      - t-dd0d4d
+      - t-075116
+      - t-588729
+  fr_to_tasks:
+    FR-1:
+      - t-dd0d4d
+      - t-075116
+      - t-588729
+      - t-dbb9d0
+      - t-6384c0
+    FR-2:
+      - t-dd0d4d
+      - t-075116
+      - t-588729
+      - t-dbb9d0
+    FR-3:
+      - t-dd0d4d
+      - t-075116
+      - t-588729
+      - t-dbb9d0
+    FR-4:
+      - t-dd0d4d
+      - t-075116
+      - t-588729
+      - t-dbb9d0
+      - t-6384c0
+    FR-5:
+      - t-075116
+      - t-dbb9d0
+      - t-dd0d4d
+      - t-588729
+    FR-6:
+      - t-dd0d4d
+      - t-075116
+      - t-588729
+      - t-6384c0
+coverage:
+  implementation:
+    total: 29
+    covered: 29
+    uncovered: []
+    rate: 100
+    total_designs: 29
+    covered_designs: 29

@@ -1,0 +1,36 @@
+task:
+  id: t-6d84c3
+  title: 挂单撮合批量不中断、时段护栏与过期收口·联调
+  status: done
+  implements: |-
+    改 application/services/account_trading_service.py 的 execute_pending_orders：单笔由只 catch TradingError 改为 catch Exception → 该单标 failed + fail_reason='internal_error: <原文>' 并继续下一笔；入口先判交易时段（复用 _check_trading_window/_is_in_trading_window，唯一时段口径为 MarketSessionPolicy）——非交易时段只累加 skipped_off_hours 并留痕，绝不把挂单批量标 failed；pending 超过 1 个交易日未成交 → status='expired' + fail_reason + FailureSink 告警；返回体新增 errored/skipped_off_hours/expired；增补 tests/services/test_pending_orders.py。
+
+    [子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）
+  serves: []
+  depends_on:
+    - t-672692
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261004154902-a7cd
+    TASK_ID: t-6d84c3
+    TASK_TITLE: 挂单撮合批量不中断、时段护栏与过期收口·联调
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-04T08:38:09.140Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261004154902-a7cd
+  generated_at: 2026-10-04T08:38:09.139Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-04T08:38:32.192Z

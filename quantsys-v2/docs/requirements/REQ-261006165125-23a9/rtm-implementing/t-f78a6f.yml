@@ -1,0 +1,38 @@
+task:
+  id: t-f78a6f
+  title: 新建通知判据模块 notify_policy（无事判据 + env 解析）·复核
+  status: done
+  implements: |-
+    按 design/interfaces.md §1 新建 adapters/inbound/fastapi_app/daily_jobs/notify_policy.py：常量 NO_OP_STATUSES={'no_event','no_op'} 与 RUNNING_NOTICE_DEFAULT_SECONDS=60.0；函数 is_no_op（严格 no_output is True 或 status.strip().lower() 命中白名单，其余一律 False）、notify_noop_enabled、running_notice_seconds（未设/非数→60.0，<=0→0.0）、should_send_start（= notify_noop_enabled）、should_send_completion（manual→True 优先；开关打开→True；is_no_op→False；否则 True）。env 解析复用同包 interval._env_flag；不新增跨层依赖（kb-conventions-c01）；任何输入不得抛异常。
+
+    [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+  serves: []
+  depends_on:
+    - t-bf39b1
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261006165125-23a9
+    TASK_ID: t-f78a6f
+    TASK_TITLE: 新建通知判据模块 notify_policy（无事判据 + env 解析）·复核
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-06T09:03:42.466Z
+    - phase: review
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006165125-23a9
+  generated_at: 2026-10-06T09:03:31.335Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-06T09:03:42.466Z

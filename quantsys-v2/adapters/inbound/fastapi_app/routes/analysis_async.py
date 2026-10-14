@@ -15,7 +15,7 @@ from adapters.shared import _V2_ROOT
 from adapters.inbound.fastapi_app.shared import (
     simulation_repo, api_response, error_response, handle_api_error, sanitize_for_json,
     convert_keys_to_snake, convert_keys_to_camel, strategy_service, scoring_service,
-    kline_repo, factor_repo, stock_repo, signal_repo,
+    kline_repo, factor_repo, stock_repo, signal_repo, nav_window_and_coverage,
 )
 
 logger = structlog.get_logger(__name__)
@@ -839,6 +839,11 @@ def calculate_risk_metrics(payload: Optional[Dict[str, Any]] = Body(None)):
        account_nav（主口径，账户净值序列日收益，与 M4 熔断同源）
        holdings_proxy（回退口径，当前持仓等权、忽略现金权重，会高估风险）
        explicit_returns（调用方直传）
+
+    2026-10-06（REQ-261006190953-fc43 卡 D）：`days` 的语义是**交易日数**（非交易日行在读取端
+    剔除，`navPoints` = 窗口内交易日点数）；account_nav 口径下另返回 `window`
+    （from/to/trading_days/filtered_non_trading/trading_day_source）与 `nav_coverage`
+    （序列自身缺口；日历不可得时 verified=False、缺口按 0 上报）。
     """
     from application.services.risk_metrics_service import RiskMetricsService
     import pandas as pd
@@ -850,6 +855,9 @@ def calculate_risk_metrics(payload: Optional[Dict[str, Any]] = Body(None)):
     account_name = data.get('account_name') or data.get('accountName')
     returns_source = 'explicit_returns'
     nav_points = 0
+    # 只在 account_name 口径（读到净值序列）时才有这两块；显式 returns 口径下保持 None
+    nav_window: Optional[Dict[str, Any]] = None
+    nav_cov: Optional[Dict[str, Any]] = None
 
     # 模式 2：通过 account_name 自动获取收益率
     if not returns and account_name:
@@ -858,13 +866,31 @@ def calculate_risk_metrics(payload: Optional[Dict[str, Any]] = Body(None)):
             # 旧实现只用「当前持仓等权 + 忽略现金」的个股 K 线拼收益，现金占比高的账户风险被严重
             # 高估——实测 agent_virtual（现金 87%）60 日回撤 -6.7%，而账户净值直算仅 -1.83%，
             # 4.9pct 的差距会直接改写熔断与仓位判定。
-            from application.services.risk_metrics_service import nav_returns_from_snapshots
+            #
+            # 2026-10-06（REQ-261006190953-fc43 卡 D）：窗口口径改为**交易日**——
+            # `days` 是**交易日数**（不是快照行数），非交易日行在读取端（仓储闸门）就被剔除；
+            # 同时回报 `window`（五字段）与 `nav_coverage`（缺口口径唯一实现，见 nav_series）。
+            from application.services.nav_series import nav_returns_from_snapshots
+            from adapters.outbound.repositories.trading_calendar_repository import (
+                trading_day_set,
+            )
+
             nav_returns: List[float] = []
             nav_points = 0
             try:
+                days = int(data.get('days') or 120)
+                # 日历不可得 → None（**不静默清空序列**：仓储与口径模块都按"未校验"处理）
+                trading_days = trading_day_set()
                 snaps = simulation_repo.get_equity_snapshots(
-                    account_name, limit=int(data.get('days') or 120))
-                nav_returns, nav_points = nav_returns_from_snapshots(snaps)
+                    account_name, limit=days,
+                    trading_days_only=True, trading_days=trading_days)
+                nav_returns, nav_points = nav_returns_from_snapshots(snaps, trading_days)
+                # window 的 `filtered_non_trading` 需要"未过滤口径"的同一窗口行数：
+                # limit 相同 → 数出其中落在非交易日、因而被剔除的行数（日历不可得时恒 0）
+                unfiltered = (None if trading_days is None
+                              else simulation_repo.get_equity_snapshots(account_name, limit=days))
+                nav_window, nav_cov = nav_window_and_coverage(
+                    snaps, trading_days, points=nav_points, unfiltered_rows=unfiltered)
             except Exception as nav_err:  # noqa: BLE001
                 logger.warning(f'读取账户净值序列失败，回退持仓代理口径: {nav_err}')
             nav_ok = len(nav_returns) >= 5
@@ -947,7 +973,17 @@ def calculate_risk_metrics(payload: Optional[Dict[str, Any]] = Body(None)):
             if returns_source == 'account_nav':
                 metrics['nav_points'] = nav_points
 
-        return api_response(metrics)
+        response = api_response(metrics)
+
+        # 2026-10-06（卡 D）：新增 window / nav_coverage 两块。**在 api_response 之后注入**——
+        # api_response 会把键递归驼峰化（nav_points → navPoints，既有键一个不改），而本卡契约
+        # 给这两块的字面键名是 snake_case（window.trading_days / nav_coverage.verified），
+        # 与之并列的 /api/simulation/performance 也是原样 dict（不驼峰化）：两边同名同形。
+        if nav_window is not None and isinstance(response.get('data'), dict):
+            response['data']['window'] = nav_window
+            response['data']['nav_coverage'] = nav_cov
+
+        return response
 
     except Exception as e:
         logger.error(f"计算风险指标失败: {e}", exc_info=True)

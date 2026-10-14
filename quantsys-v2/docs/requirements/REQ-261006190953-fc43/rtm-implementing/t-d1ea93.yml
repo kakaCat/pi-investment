@@ -1,0 +1,36 @@
+task:
+  id: t-d1ea93
+  title: 跨仓消费侧：agent-dh 改读 v2 缺口口径，不再 weekday 自算·研发
+  status: done
+  implements: |-
+    改 agent-dh/packages/tools/risk/src/tools/RiskMetricsTool/RiskMetricsTool.ts：probeNavCoverage 改为从 GET /api/simulation/performance 的 data.nav_coverage 取字段（missing_trading_days/missing_count/basis/trading_day_source/verified），删除 getUTCDay 形式的工作日自算；v2 未返回该字段时输出 {verified:false, basis:'v2 未提供 nav_coverage：本轮未做交易日校验'}，不得回退 weekday 自算，也不得据此建议补跑。改同目录 prompt.ts：窗口与缺口文案由“工作日”改为“交易日”。改 agent-dh/apps/web/tests/attribution-alignment.test.ts 增两条用例。验证：cd ../agent-dh && npx vitest run apps/web/tests/attribution-alignment.test.ts 全过。
+
+    [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+  serves: []
+  depends_on:
+    - t-39a044
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261006190953-fc43
+    TASK_ID: t-d1ea93
+    TASK_TITLE: 跨仓消费侧：agent-dh 改读 v2 缺口口径，不再 weekday 自算·研发
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-06T12:38:50.505Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006190953-fc43
+  generated_at: 2026-10-06T12:38:41.464Z
+  version: 5
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-06T12:39:08.837Z

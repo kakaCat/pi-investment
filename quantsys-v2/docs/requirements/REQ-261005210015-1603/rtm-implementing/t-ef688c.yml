@@ -1,0 +1,38 @@
+task:
+  id: t-ef688c
+  title: fitness 服务诚实计数：四类状态 + accounts_total，删 skipped、收窄 computed 语义·测试
+  status: done
+  implements: |-
+    application/services/evolution/evolution_fitness_service.py：compute_all_accounts() 按 result 的 status 累加 computed_ok / insufficient_sample / no_trades / data_gap / other（data_gap 走服务侧无对齐日期分支），返回体新增 accounts_total（遍历到的 active 账户数）与 aligned_days（本次对齐窗口天数）；删除写死的 skipped 键；保留 computed 键且其值 == accounts_total，并在 docstring 写明 computed 是遍历到的账户数、不是有效条数，唯一可称算出来的数是 computed_ok。另改 application/services/daily_orchestrator.py 复核阶段日志行，补打 computed_ok。
+
+    [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+  serves: []
+  depends_on:
+    - t-d9106a
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261005210015-1603
+    TASK_ID: t-ef688c
+    TASK_TITLE: fitness 服务诚实计数：四类状态 + accounts_total，删 skipped、收窄 computed 语义·测试
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-05T13:16:09.756Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261005210015-1603
+  generated_at: 2026-10-05T13:16:02.188Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-05T13:16:09.756Z

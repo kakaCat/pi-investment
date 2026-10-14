@@ -1,0 +1,66 @@
+requirement:
+  id: REQ-261006093620-a315
+  title: 库表调度（APScheduler）补交易日门：休市日不再开盘前扫描与推送
+  category: feature
+  created_at: 2026-10-06T01:36:20.606Z
+  source_session: session-35ba53fd-df95-40fa-92df-639ba03cba4d
+  dir: /Users/mac/Documents/ai/pi-investment/quantsys-v2/docs/requirements/REQ-261006093620-a315
+lifecycle:
+  current_stage: accepting
+  stage_count: 7
+  stage_list:
+    - draft
+    - brainstorming
+    - design
+    - decomposing
+    - implementing
+    - accepting
+    - done
+  stages:
+    - stage: draft
+      status: completed
+      enabled: true
+      entered_at: 2026-10-06T01:36:20.606Z
+      completed_at: 2026-10-06T02:21:10.946Z
+      timestamps_inferred: true
+    - stage: brainstorming
+      status: completed
+      enabled: true
+      entered_at: 2026-10-06T01:36:20.606Z
+      completed_at: 2026-10-06T02:21:10.946Z
+      timestamps_inferred: true
+    - stage: design
+      status: completed
+      enabled: true
+      entered_at: 2026-10-06T01:36:20.606Z
+      completed_at: 2026-10-06T02:21:10.946Z
+      timestamps_inferred: true
+    - stage: decomposing
+      status: completed
+      enabled: true
+      entered_at: 2026-10-06T01:36:20.606Z
+      completed_at: 2026-10-06T02:21:10.946Z
+      timestamps_inferred: true
+    - stage: implementing
+      status: completed
+      enabled: true
+      entered_at: 2026-10-06T01:36:20.606Z
+      completed_at: 2026-10-06T02:21:10.946Z
+      timestamps_inferred: true
+    - stage: accepting
+      status: in_progress
+      enabled: true
+      entered_at: 2026-10-06T01:36:20.606Z
+      timestamps_inferred: true
+    - stage: done
+      status: pending
+      enabled: true
+metadata:
+  stage: lifecycle
+  requirement_id: REQ-261006093620-a315
+  generated_at: 2026-10-06T01:36:20.809Z
+  version: 10
+  generated_by: dsh-pmboard
+  rtm_version: "1.0"
+  file_path: /Users/mac/Documents/ai/pi-investment/quantsys-v2/docs/requirements/REQ-261006093620-a315/rtm-lifecycle.yml
+  last_updated: 2026-10-06T02:21:11.005Z

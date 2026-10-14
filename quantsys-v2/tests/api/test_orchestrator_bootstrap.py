@@ -49,6 +49,10 @@ def test_start_orchestrator_calls_ticks(monkeypatch):
         lambda: ticks.__setitem__('intraday', ticks['intraday'] + 1))
     monkeypatch.setattr(ob, '_in_orchestrator_window', lambda now: True)
     monkeypatch.setattr(ob, '_in_intraday_window', lambda now: True)
+    # 2026-10-06（REQ-261006130750-0654）：循环新增日级门后，本用例须显式声明「今天是交易日」——
+    # 它测的是循环接线与线程存活性，不是日期策略（日期策略的用例在
+    # tests/api/test_orchestrator_trading_day_gate.py）。不补此桩 = 让真实日历决定本用例成败。
+    monkeypatch.setattr(ob, '_should_run_today', lambda now, *, path: (True, {}))
     monkeypatch.setattr(ob, '_TICK_INTERVAL_SEC', 0.05)
 
     resumed = []
@@ -106,6 +110,8 @@ def test_tick_exception_does_not_kill_thread(monkeypatch):
         'infrastructure.jobs.monitor_jobs.daily_orchestrator_tick', _flaky)
     monkeypatch.setattr(ob, '_in_orchestrator_window', lambda now: True)
     monkeypatch.setattr(ob, '_in_intraday_window', lambda now: False)
+    # 同上：声明「今天是交易日」，本用例只测「单次 tick 抛异常不得杀死线程」。
+    monkeypatch.setattr(ob, '_should_run_today', lambda now, *, path: (True, {}))
     monkeypatch.setattr(ob, '_TICK_INTERVAL_SEC', 0.05)
 
     class _FakeOrch:

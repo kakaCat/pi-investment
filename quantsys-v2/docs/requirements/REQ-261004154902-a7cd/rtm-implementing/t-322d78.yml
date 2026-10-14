@@ -1,0 +1,36 @@
+task:
+  id: t-322d78
+  title: 调度失败的飞书兜底与告警覆盖面
+  status: done
+  implements: 改 infrastructure/scheduler/job_executor.py：inner_failed 与 except 两条分支除 agent_os_reporter 外，再经 FailureSink/NotificationFacade 投递一次（含 task 名与 error 摘要）；改 infrastructure/error_reporting/agent_os_reporter.py：8080 不可达时降级到 NotificationFacade 并留痕（当前只 log.warning dropped）；改 adapters/inbound/fastapi_app/daily_jobs/alerting.py：_job_failure_watch 的扫描集合从 9 个 DailyJobs 扩到含 scheduler_tasks 的 11 张卡，_summarize_result 补 auto_disabled/missed/stale/未覆盖 等键；新增 tests/test_job_failure_alerting.py。
+  serves:
+    - FR-2
+    - FR-8
+    - FR-9
+  depends_on:
+    - t-c52a0a
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261004154902-a7cd
+    TASK_ID: t-322d78
+    TASK_TITLE: 调度失败的飞书兜底与告警覆盖面
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-04T08:36:46.556Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261004154902-a7cd
+  generated_at: 2026-10-04T08:36:36.382Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-04T08:36:51.104Z

@@ -1,0 +1,387 @@
+metadata:
+  stage: design
+  requirement_id: REQ-261006130750-0654
+  generated_at: 2026-10-06T05:10:27.499Z
+  version: 4
+  generated_by: dsh-pmboard
+  rtm_version: "2.0"
+  last_updated: 2026-10-06T06:43:47.979Z
+inputs:
+  requirements:
+    - id: FR-1
+      title: 盘中监控接日级门（休市日不调 `IntradayMonitor.check()`）
+      source: requirement.md
+      line: 143
+    - id: FR-2
+      title: 编排 tick 接日级门（休市日不再每分钟空转调用）
+      source: requirement.md
+      line: 150
+    - id: FR-3
+      title: 门必须 fail-open，且复用唯一真源
+      source: requirement.md
+      line: 155
+    - id: FR-4
+      title: 窗口语义与既有契约不回归
+      source: requirement.md
+      line: 163
+    - id: FR-5
+      title: 判据口径锁（当日口径 · 复市首日不跳）
+      source: requirement.md
+      line: 171
+    - id: FR-6
+      title: 留痕与可观测（跳过 ≠ 静默，也 ≠ 打扰）
+      source: requirement.md
+      line: 177
+outputs:
+  design_sections:
+    - ref: design/architecture.md#1
+      title: 现状：两条常驻线程的日级判据是"周几"（
+      serves:
+        - FR-1
+        - FR-2
+      file: design/architecture.md
+      section: "1"
+    - ref: design/architecture.md#2
+      title: 两层门的分工（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-6
+      file: design/architecture.md
+      section: "2"
+    - ref: design/architecture.md#3
+      title: 与内层 fail-closed 的共存（本设计最要紧的一处）（
+      serves:
+        - FR-3
+        - FR-4
+      file: design/architecture.md
+      section: "3"
+    - ref: design/architecture.md#4
+      title: 依赖方向与唯一真源（
+      serves:
+        - FR-3
+      file: design/architecture.md
+      section: "4"
+    - ref: design/architecture.md#5
+      title: 留痕与去噪（
+      serves:
+        - FR-6
+      file: design/architecture.md
+      section: "5"
+    - ref: design/architecture.md#6
+      title: 文件结构（新建 / 修改 / 删除，各自职责一句话）（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-6
+      file: design/architecture.md
+      section: "6"
+    - ref: design/architecture.md#7
+      title: 范围与裁定引用（
+      serves:
+        - FR-1
+        - FR-2
+      file: design/architecture.md
+      section: "7"
+    - ref: design/architecture.md#8
+      title: 回滚路径（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/architecture.md
+      section: "8"
+    - ref: design/architecture.md#9
+      title: 不做什么（
+      serves:
+        - FR-4
+      file: design/architecture.md
+      section: "9"
+    - ref: design/data-model.md#1
+      title: 是否改表 / 改 schema（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-6
+      file: design/data-model.md
+      section: "1"
+    - ref: design/data-model.md#2
+      title: 读契约：`quant.trading_calendar`（只读，沿用既有口径）（
+      serves:
+        - FR-3
+        - FR-5
+      file: design/data-model.md
+      section: "2"
+    - ref: design/data-model.md#3
+      title: 写契约：本需求**减少**哪些写入（
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: "3"
+    - ref: design/data-model.md#4
+      title: 跳过态的三态语义（定死，避免"跳过"与"没跑"混淆）（
+      serves:
+        - FR-6
+      file: design/data-model.md
+      section: "4"
+    - ref: design/data-model.md#5
+      title: 日志字段契约（可被 grep / 巡检消费）（
+      serves:
+        - FR-6
+      file: design/data-model.md
+      section: "5"
+    - ref: design/data-model.md#6
+      title: 迁移、兼容与回滚（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/data-model.md
+      section: "6"
+    - ref: design/data-model.md#7
+      title: 数据侧的不变量（实施与验收都不许破坏）（
+      serves:
+        - FR-3
+        - FR-5
+      file: design/data-model.md
+      section: "7"
+    - ref: design/interfaces.md#1
+      title: 复用件：`application/services/trading_day_gate.py`（零改动）（
+      serves:
+        - FR-3
+      file: design/interfaces.md
+      section: "1"
+    - ref: design/interfaces.md#2
+      title: 改动件：`adapters/inbound/fastapi_app/orchestrator_bootstrap.py`（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-6
+      file: design/interfaces.md
+      section: "2"
+    - ref: design/interfaces.md#2.1
+      title: 新增：循环层预过滤 helper（
+      serves:
+        - FR-3
+        - FR-6
+      file: design/interfaces.md
+      section: "2.1"
+    - ref: design/interfaces.md#2.2
+      title: 不变：窗口函数（契约面）（
+      serves:
+        - FR-4
+      file: design/interfaces.md
+      section: "2.2"
+    - ref: design/interfaces.md#2.3
+      title: 改行为，不改签名：主循环（
+      serves:
+        - FR-1
+        - FR-2
+      file: design/interfaces.md
+      section: "2.3"
+    - ref: design/interfaces.md#2.4
+      title: 新增：日志事件与去噪（
+      serves:
+        - FR-6
+      file: design/interfaces.md
+      section: "2.4"
+    - ref: design/interfaces.md#3
+      title: 改动件：`application/services/intraday_monitor.py`（
+      serves:
+        - FR-1
+        - FR-3
+        - FR-5
+        - FR-6
+      file: design/interfaces.md
+      section: "3"
+    - ref: design/interfaces.md#3.1
+      title: 新增常量（
+      serves:
+        - FR-6
+      file: design/interfaces.md
+      section: "3.1"
+    - ref: design/interfaces.md#3.2
+      title: 改签名（**向后兼容**）：`check()`（
+      serves:
+        - FR-1
+        - FR-3
+      file: design/interfaces.md
+      section: "3.2"
+    - ref: design/interfaces.md#3.3
+      title: 判定顺序（**严格增量**，定死）（
+      serves:
+        - FR-1
+        - FR-3
+        - FR-5
+      file: design/interfaces.md
+      section: "3.3"
+    - ref: design/interfaces.md#3.4
+      title: 返回值形状（定死）（
+      serves:
+        - FR-6
+      file: design/interfaces.md
+      section: "3.4"
+    - ref: design/interfaces.md#3.5
+      title: "不变：`_is_trading_time(current_time: time) -> bool`（"
+      serves:
+        - FR-4
+      file: design/interfaces.md
+      section: "3.5"
+    - ref: design/interfaces.md#4
+      title: 调用方契约（谁调谁、给什么、回什么）（
+      serves:
+        - FR-1
+        - FR-2
+      file: design/interfaces.md
+      section: "4"
+    - ref: design/interfaces.md#5
+      title: 口径与不变量（写死，验收照此判）（
+      serves:
+        - FR-5
+      file: design/interfaces.md
+      section: "5"
+    - ref: design/use-cases.md#1
+      title: 场景 A：休市日盘中（本次要治的病）（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-6
+      file: design/use-cases.md
+      section: "1"
+    - ref: design/use-cases.md#2
+      title: 场景 B：复市首日（最怕被误跳的一天）（
+      serves:
+        - FR-1
+        - FR-3
+        - FR-5
+      file: design/use-cases.md
+      section: "2"
+    - ref: design/use-cases.md#3
+      title: 场景 C：日历降级（数据源挂 / 覆盖断档）（
+      serves:
+        - FR-3
+      file: design/use-cases.md
+      section: "3"
+    - ref: design/use-cases.md#4
+      title: 场景 D：旁路调用（脚本 / 其它窗口 / 将来的新调度）（
+      serves:
+        - FR-1
+        - FR-3
+      file: design/use-cases.md
+      section: "4"
+    - ref: design/use-cases.md#5
+      title: 场景 E：周末（既有行为，不因本需求改变）（
+      serves:
+        - FR-4
+      file: design/use-cases.md
+      section: "5"
+    - ref: design/use-cases.md#6
+      title: 场景 F：进程重启 / 跨日（
+      serves:
+        - FR-1
+        - FR-6
+      file: design/use-cases.md
+      section: "6"
+    - ref: design/use-cases.md#7
+      title: 非目标：休市日的"人工强制"（明确不做，写清理由）（
+      serves:
+        - FR-4
+      file: design/use-cases.md
+      section: "7"
+traceability:
+  fr_to_design:
+    FR-1:
+      - design/architecture.md#1
+      - design/architecture.md#2
+      - design/architecture.md#6
+      - design/architecture.md#7
+      - design/architecture.md#8
+      - design/data-model.md#1
+      - design/data-model.md#3
+      - design/data-model.md#6
+      - design/interfaces.md#2
+      - design/interfaces.md#2.3
+      - design/interfaces.md#3
+      - design/interfaces.md#3.2
+      - design/interfaces.md#3.3
+      - design/interfaces.md#4
+      - design/use-cases.md#1
+      - design/use-cases.md#2
+      - design/use-cases.md#4
+      - design/use-cases.md#6
+    FR-2:
+      - design/architecture.md#1
+      - design/architecture.md#2
+      - design/architecture.md#6
+      - design/architecture.md#7
+      - design/architecture.md#8
+      - design/data-model.md#1
+      - design/data-model.md#6
+      - design/interfaces.md#2
+      - design/interfaces.md#2.3
+      - design/interfaces.md#4
+      - design/use-cases.md#1
+    FR-3:
+      - design/architecture.md#2
+      - design/architecture.md#3
+      - design/architecture.md#4
+      - design/architecture.md#6
+      - design/architecture.md#8
+      - design/data-model.md#2
+      - design/data-model.md#6
+      - design/data-model.md#7
+      - design/interfaces.md#1
+      - design/interfaces.md#2
+      - design/interfaces.md#2.1
+      - design/interfaces.md#3
+      - design/interfaces.md#3.2
+      - design/interfaces.md#3.3
+      - design/use-cases.md#2
+      - design/use-cases.md#3
+      - design/use-cases.md#4
+    FR-4:
+      - design/architecture.md#3
+      - design/architecture.md#6
+      - design/architecture.md#9
+      - design/data-model.md#6
+      - design/interfaces.md#2
+      - design/interfaces.md#2.2
+      - design/interfaces.md#3.5
+      - design/use-cases.md#5
+      - design/use-cases.md#7
+    FR-5:
+      - design/data-model.md#2
+      - design/data-model.md#7
+      - design/interfaces.md#3
+      - design/interfaces.md#3.3
+      - design/interfaces.md#5
+      - design/use-cases.md#2
+    FR-6:
+      - design/architecture.md#2
+      - design/architecture.md#5
+      - design/architecture.md#6
+      - design/data-model.md#1
+      - design/data-model.md#4
+      - design/data-model.md#5
+      - design/interfaces.md#2
+      - design/interfaces.md#2.1
+      - design/interfaces.md#2.4
+      - design/interfaces.md#3
+      - design/interfaces.md#3.1
+      - design/interfaces.md#3.4
+      - design/use-cases.md#1
+      - design/use-cases.md#6
+coverage:
+  design:
+    total: 6
+    covered: 6
+    uncovered: []
+    rate: 100
+    total_frs: 6
+    covered_frs: 6

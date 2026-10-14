@@ -1,0 +1,4370 @@
+{
+  "version": 1,
+  "requirement_id": "REQ-261007101318-c392",
+  "schemaVersion": 9,
+  "generated_at": "2026-10-07T05:41:28.868Z",
+  "tasks": [
+    {
+      "id": "t-268fbd",
+      "requirementId": "REQ-261007101318-c392",
+      "title": "FR-1 休市日闸门：tick() 日级收敛到 TradingDayGuard（回填）",
+      "cardDoc": "docs/requirements/REQ-261007101318-c392/tasks/t-268fbd.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "跑 pytest tests/services/test_watch_engine_trading_day_gate.py -q 得 4 passed；其中必须断言：休市日（冻结 2026-10-07 10:00 且注入 is_trading_day_fn=False）时 tick()==[] 且 repo.calls==0（不判定而非判定后丢弃）、交易日盘中照常产出 1 条事件且 level 非空、交易日 16:00 仍返回 []、未注入时 _resolve_trading_day(2026-10-07) 为 (False, 含 holiday)。",
+      "implementation": "application/services/watch_engine/engine.py：新增 _resolve_trading_day(day) 作为 tick() 与 run_forever() 的唯一日级入口（默认 TradingDayGuard.check，支持 is_trading_day_fn/trading_day_verdict_fn 注入）；tick() 前置改为「日级 + 时段」双闸门，未开市时调用 _log_market_closed() 按日去重留痕后 return []（不取规则、不评估、不落库、不外发）；判定异常一律保守判非交易日。新增 tests/services/test_watch_engine_trading_day_gate.py 锁定四条行为。",
+      "context": "",
+      "skipIntegration": true,
+      "footprint": {
+        "files": 2,
+        "anchors": 4,
+        "chars": 2600
+      },
+      "requirementRefs": [
+        "FR-1"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-626916",
+          "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+          "trigger": "manual",
+          "startedAt": 1791351718230,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 1816,
+              "at": 1791351718230,
+              "totals": {
+                "uncachedInputTokens": 753215,
+                "outputTokens": 230155,
+                "cacheReadTokens": 84205056,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 1816,
+                  "totals": {
+                    "uncachedInputTokens": 753215,
+                    "outputTokens": 230155,
+                    "cacheReadTokens": 84205056,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 1910,
+              "at": 1791351795185,
+              "totals": {
+                "uncachedInputTokens": 761102,
+                "outputTokens": 237888,
+                "cacheReadTokens": 91668864,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 1910,
+                  "totals": {
+                    "uncachedInputTokens": 761102,
+                    "outputTokens": 237888,
+                    "cacheReadTokens": 91668864,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 7887,
+              "outputTokens": 7733,
+              "cacheReadTokens": 7463808,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791351795185
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791351688793,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1791351718230,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "开工：回填卡。按卡复核 FR-1 休市日闸门（tick 日级收敛 + 跳过留痕）并绑定可跑证据。"
+        },
+        {
+          "status": "done",
+          "at": 1791351795185,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "三张子卡（研发/复核/测试）全 done 且各有汇报；FR-1 休市闸门生产已生效（12:50 重启），父卡关账"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-db43aa",
+          "body": "[状态] → in_progress：开工：回填卡。按卡复核 FR-1 休市日闸门（tick 日级收敛 + 跳过留痕）并绑定可跑证据。（reqboard_task_move）",
+          "createdAt": 1791351718230,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        },
+        {
+          "id": "c-fd3524",
+          "body": "[状态] → done：三张子卡（研发/复核/测试）全 done 且各有汇报；FR-1 休市闸门生产已生效（12:50 重启），父卡关账（reqboard_task_move）",
+          "createdAt": 1791351795185,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791351688793,
+      "updatedAt": 1791351795185,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+      },
+      "layer": 0,
+      "lastReport": {
+        "at": 1791351791774,
+        "reportIndex": 1,
+        "filesChanged": [
+          "application/services/watch_engine/engine.py",
+          "tests/services/test_watch_engine_trading_day_gate.py"
+        ],
+        "completed": [
+          "子卡三段全 done：研发 t-dcdeb1 / 复核 t-b33b0b / 测试 t-e58107",
+          "研发段：engine.py 落地 _resolve_trading_day 单一入口（+85/-9）",
+          "复核段：入口复用恰好 2 处、判定异常保守返回、留痕去重，结论无偏离",
+          "测试段：4 条回归锁逐条 PASSED（休市日零事件/交易日照常/盘后仍拦/默认闸门认识节假日）",
+          "生产已生效：2026-10-07 12:50 服务重启加载新闸门，休市日不再产出事件"
+        ]
+      },
+      "lastRun": {
+        "at": 1791351791774,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-d5d9b6",
+      "requirementId": "REQ-261007101318-c392",
+      "title": "FR-2 名称兜底：禁止把代码当名称（回填）",
+      "cardDoc": "docs/requirements/REQ-261007101318-c392/tasks/t-d5d9b6.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "跑 pytest tests/notification/test_req_c392_notification_contract.py -q 全 passed；其中 test_notifier_never_passes_symbol_as_name 必须断言：打桩 _lookup_stock_name 返回 None 时，传给 facade 的 kwargs['name'] is None（而非 '688525.SH'）；test_missing_name_degrades_explicitly_not_to_bare_symbol 断言正文含「名称缺失」。",
+      "implementation": "application/services/watch_engine/notifier.py：facade 调用改为 name=payload.name or None（删除 name or symbol 的混同）；_lookup_stock_name 的取数口径并入领域端口实现 PgStockNameResolver.resolve_batch（与 SLA 巡检/回执同一份，异常/未命中返回 None）。infrastructure/notification/formatters/feishu_formatters.py：旧渲染路径名称缺失时显式输出「{代码}（名称缺失）」，不再回落成裸代码。tests/notification/test_req_c392_notification_contract.py 增补名称相关断言。",
+      "context": "",
+      "skipIntegration": true,
+      "footprint": {
+        "files": 3,
+        "anchors": 3,
+        "chars": 1800
+      },
+      "requirementRefs": [
+        "FR-2"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-af8fb6",
+          "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+          "trigger": "manual",
+          "startedAt": 1791351718231,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 1816,
+              "at": 1791351718231,
+              "totals": {
+                "uncachedInputTokens": 753215,
+                "outputTokens": 230155,
+                "cacheReadTokens": 84205056,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 1816,
+                  "totals": {
+                    "uncachedInputTokens": 753215,
+                    "outputTokens": 230155,
+                    "cacheReadTokens": 84205056,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 2075,
+              "at": 1791351986300,
+              "totals": {
+                "uncachedInputTokens": 769444,
+                "outputTokens": 248810,
+                "cacheReadTokens": 105326336,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 2075,
+                  "totals": {
+                    "uncachedInputTokens": 769444,
+                    "outputTokens": 248810,
+                    "cacheReadTokens": 105326336,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 16229,
+              "outputTokens": 18655,
+              "cacheReadTokens": 21121280,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791351986300
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791351688793,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1791351718231,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "开工：回填卡。按卡复核 FR-2 名称兜底（不把代码当名称 + 取数并端口）并绑定可跑证据。"
+        },
+        {
+          "status": "done",
+          "at": 1791351986300,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "三张子卡全 done 且各有汇报；父卡点名两条断言 PASSED，名称兜底全链验证通过，父卡关账"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-b06a5d",
+          "body": "[状态] → in_progress：开工：回填卡。按卡复核 FR-2 名称兜底（不把代码当名称 + 取数并端口）并绑定可跑证据。（reqboard_task_move）",
+          "createdAt": 1791351718231,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        },
+        {
+          "id": "c-bf17a4",
+          "body": "[状态] → done：三张子卡全 done 且各有汇报；父卡点名两条断言 PASSED，名称兜底全链验证通过，父卡关账（reqboard_task_move）",
+          "createdAt": 1791351986300,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791351688793,
+      "updatedAt": 1791351986300,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+      },
+      "layer": 0,
+      "lastReport": {
+        "at": 1791351845185,
+        "reportIndex": 1,
+        "filesChanged": [
+          "application/services/watch_engine/notifier.py",
+          "infrastructure/notification/formatters/feishu_formatters.py",
+          "tests/notification/test_req_c392_notification_contract.py"
+        ],
+        "completed": [
+          "子卡三段全 done：研发 t-e5a244 / 复核 t-e75a19 / 测试 t-62e64a",
+          "验收标准逐条命中：全文件 10 passed；两条点名断言（name 传 None、正文含名称缺失）均 PASSED",
+          "口径单一性已核：引擎侧无第二条名称取数（PgStockNameResolver 为唯一来源）",
+          "用户 2026-10-07 已认可卡面（D-9），本卡为该契约的名称部分"
+        ]
+      },
+      "lastRun": {
+        "at": 1791351845185,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-633d3f",
+      "requirementId": "REQ-261007101318-c392",
+      "title": "FR-3 外发审计 + 来源标识（回填，含建表迁移）",
+      "cardDoc": "docs/requirements/REQ-261007101318-c392/tasks/t-633d3f.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "① 两库执行迁移脚本 --apply 后均打印 [verify] 建表完成；② pytest tests/notification/test_notification_audit_repository.py -q 得 4 passed（含 upsert 幂等：同一 notification_id save 两次仍只有 1 行；失败不打挂：save 返回 False 且不上抛）；③ 执行 select occurred_at,title,delivery_channel,delivered,sender_id from quant.notification_audit order by occurred_at desc limit 5 能查回带 sender_id 的行。",
+      "implementation": "新建 adapters/outbound/repositories/notification_audit_repository.py（一通知一行 upsert，失败自吞不上抛）；新建 infrastructure/persistence/migrations/20261007_notification_audit_table.py（CREATE TABLE IF NOT EXISTS quant.notification_audit + 3 索引 + lock_timeout=30s，两库都跑）；新建 application/notification/sender_identity.py（v2-watch@<host>#<pid>）；application/notification/notification_factory.py 装配审计仓储（失败降级 None）；application/notification/notification_facade.py 把 sender_id 写入 variables 与 metadata；domain/notification/services/notification_service.py 在 send 与 send_with_fallback 的三处 save 点写入 delivery_channel/delivered/fallback_cause；新增 tests/notification/test_notification_audit_repository.py。",
+      "context": "",
+      "skipIntegration": true,
+      "footprint": {
+        "files": 6,
+        "anchors": 4,
+        "chars": 3600
+      },
+      "requirementRefs": [
+        "FR-3"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-d03e2c",
+          "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+          "trigger": "manual",
+          "startedAt": 1791351718231,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 1816,
+              "at": 1791351718231,
+              "totals": {
+                "uncachedInputTokens": 753215,
+                "outputTokens": 230155,
+                "cacheReadTokens": 84205056,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 1816,
+                  "totals": {
+                    "uncachedInputTokens": 753215,
+                    "outputTokens": 230155,
+                    "cacheReadTokens": 84205056,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 2178,
+              "at": 1791352246978,
+              "totals": {
+                "uncachedInputTokens": 774520,
+                "outputTokens": 255463,
+                "cacheReadTokens": 113735168,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 2178,
+                  "totals": {
+                    "uncachedInputTokens": 774520,
+                    "outputTokens": 255463,
+                    "cacheReadTokens": 113735168,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 21305,
+              "outputTokens": 25308,
+              "cacheReadTokens": 29530112,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791352246978
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791351688793,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1791351718231,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "开工：回填卡。按卡复核 FR-3 外发审计与来源标识（表/仓储/装配/迁移）并绑定可跑证据。"
+        },
+        {
+          "status": "done",
+          "at": 1791352246978,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "三张子卡全 done 且各有汇报；FR-3 验收三条全部命中（两库建表 / 4 passed / SQL 查回 sender_id）；key 扫描回归 621 passed 无回退，父卡关账"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-360d7c",
+          "body": "[状态] → in_progress：开工：回填卡。按卡复核 FR-3 外发审计与来源标识（表/仓储/装配/迁移）并绑定可跑证据。（reqboard_task_move）",
+          "createdAt": 1791351718231,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        },
+        {
+          "id": "c-171ab7",
+          "body": "[状态] → done：三张子卡全 done 且各有汇报；FR-3 验收三条全部命中（两库建表 / 4 passed / SQL 查回 sender_id）；key 扫描回归 621 passed 无回退，父卡关账（reqboard_task_move）",
+          "createdAt": 1791352246978,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791351688793,
+      "updatedAt": 1791352246978,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+      },
+      "layer": 0,
+      "lastReport": {
+        "at": 1791351894463,
+        "reportIndex": 1,
+        "filesChanged": [
+          "adapters/outbound/repositories/notification_audit_repository.py",
+          "infrastructure/persistence/migrations/20261007_notification_audit_table.py",
+          "application/notification/sender_identity.py",
+          "application/notification/notification_factory.py",
+          "application/notification/notification_facade.py",
+          "domain/notification/services/notification_service.py",
+          "tests/notification/test_notification_audit_repository.py"
+        ],
+        "completed": [
+          "子卡三段全 done：研发 t-b2f010 / 复核 t-890eb7 / 测试 t-e669c6",
+          "验收标准逐条命中：两库建表可用（生产 1 行 / 测试库 17 行）、审计用例 4 passed、SQL 可查回 sender_id",
+          "来源标识已落卡面与台账（v2-watch@host#pid），用户 2026-10-07 已认可卡面（D-9）",
+          "能力上限如实：绕过 NotificationService 的手工 webhook 抓不到，已在 design/architecture.md 声明"
+        ]
+      },
+      "lastRun": {
+        "at": 1791351894463,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-c76181",
+      "requirementId": "REQ-261007101318-c392",
+      "title": "FR-4 文案契约：意图/处置级别 + 闭环承诺解耦（回填）",
+      "cardDoc": "docs/requirements/REQ-261007101318-c392/tasks/t-c76181.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-d5d9b6"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "跑 pytest tests/notification/test_req_c392_notification_contract.py tests/application/test_watch_t12_wiring.py tests/application/test_watch_t12_todo_creation.py tests/application/test_watch_disposition_engine.py -q 全 passed；且必须断言：closed_loop=False 时正文不含「处置入口」与「处置后必有回执」，但含「止损盯盘」与「L1 提醒」；entry 与 exit_stop 的正文不相同；trigger_level 为空时不出现「**处置**：」。",
+      "implementation": "application/services/watch_engine/engine.py：_notify_level 去掉 todo_service is None 的早退（级别恒解析），notify_kwargs 增加 closed_loop=(todo_service is not None)。dto.py：TriggerPayload 增加 closed_loop 并随 variables 下发。notification_facade.py、watch_level_templates.py、feishu_formatters.py：新增「处置级别」行（TRIGGER_LEVEL_META）与来源尾注；闭环承诺（处置入口/不可静默/回执位/待办#）改由 closed_loop 门控。翻新三处旧契约测试：tests/application/test_watch_disposition_engine.py（替身接受 level/closed_loop）、test_watch_t12_todo_creation.py、test_watch_t12_wiring.py。",
+      "context": "",
+      "skipIntegration": true,
+      "footprint": {
+        "files": 6,
+        "anchors": 5,
+        "chars": 3000
+      },
+      "requirementRefs": [
+        "FR-4"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-6efbe5",
+          "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+          "trigger": "manual",
+          "startedAt": 1791351990626,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 2081,
+              "at": 1791351990626,
+              "totals": {
+                "uncachedInputTokens": 769603,
+                "outputTokens": 249394,
+                "cacheReadTokens": 105881600,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 2081,
+                  "totals": {
+                    "uncachedInputTokens": 769603,
+                    "outputTokens": 249394,
+                    "cacheReadTokens": 105881600,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 2205,
+              "at": 1791352332185,
+              "totals": {
+                "uncachedInputTokens": 775912,
+                "outputTokens": 257121,
+                "cacheReadTokens": 116002816,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 2205,
+                  "totals": {
+                    "uncachedInputTokens": 775912,
+                    "outputTokens": 257121,
+                    "cacheReadTokens": 116002816,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 6309,
+              "outputTokens": 7727,
+              "cacheReadTokens": 10121216,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791352332185
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791351688793,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1791351990626,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "上游 t2 已关账；开工 t4：复核 FR-4 文案契约（意图/处置级别）与闭环承诺解耦"
+        },
+        {
+          "status": "done",
+          "at": 1791352332185,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "三张子卡全 done；父卡验收命令四文件 35 passed 且三条点名断言全部命中，父卡关账"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-b0f0cd",
+          "body": "[状态] → in_progress：上游 t2 已关账；开工 t4：复核 FR-4 文案契约（意图/处置级别）与闭环承诺解耦（reqboard_task_move）",
+          "createdAt": 1791351990626,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        },
+        {
+          "id": "c-ff3b93",
+          "body": "[状态] → done：三张子卡全 done；父卡验收命令四文件 35 passed 且三条点名断言全部命中，父卡关账（reqboard_task_move）",
+          "createdAt": 1791352332185,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791351688793,
+      "updatedAt": 1791352332185,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+      },
+      "layer": 1,
+      "lastReport": {
+        "at": 1791352328583,
+        "reportIndex": 1,
+        "filesChanged": [
+          "application/services/watch_engine/engine.py",
+          "application/services/watch_engine/dto.py",
+          "application/notification/notification_facade.py",
+          "infrastructure/notification/formatters/watch_level_templates.py",
+          "infrastructure/notification/formatters/feishu_formatters.py",
+          "tests/application/test_watch_t12_wiring.py",
+          "tests/application/test_watch_t12_todo_creation.py",
+          "tests/application/test_watch_disposition_engine.py",
+          "tests/notification/test_req_c392_notification_contract.py"
+        ],
+        "completed": [
+          "父卡验收命令实测：四文件 35 passed（契约 10 + wiring + todo_creation + disposition_engine）",
+          "闭环门控断言命中：closed_loop=False 无「处置入口」与「处置后必有回执」，但仍含「止损盯盘」与「L1 提醒」",
+          "entry 与 exit_stop 正文不相同（test_entry_intent_reads_differently_from_stop_loss）",
+          "trigger_level 为空时不出现「**处置**：」（test_unknown_trigger_level_hides_the_line_instead_of_guessing）",
+          "子卡三段全 done：研发 t-00bd50 / 复核 t-2af346 / 测试 t-7dcdbb"
+        ]
+      },
+      "lastRun": {
+        "at": 1791352328583,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-c926cd",
+      "requirementId": "REQ-261007101318-c392",
+      "title": "补齐设计登记的未覆盖用例（run_forever 整环 / 跳过留痕去重 / 装配失败降级）",
+      "cardDoc": "docs/requirements/REQ-261007101318-c392/tasks/t-c926cd.md",
+      "description": "",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-268fbd",
+        "t-633d3f"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "跑 pytest tests/services/test_watch_engine_trading_day_gate.py tests/notification -q 全 passed，且用例总数 ≥ 改动前基线 228（新增用例数 >= 3）；每条新用例失败时能指出具体行为（不得只断言 not raises）。",
+      "implementation": "扩展 tests/services/test_watch_engine_trading_day_gate.py：用 now_fn 序列 + _stopped 标志驱动 run_forever 跑两轮，断言休市日不调用 tick（可用打桩计数）；新增用例断言 _log_market_closed 的按日去重（同日多次调用只留一条留痕）；扩展 tests/notification/test_notification_audit_repository.py 或新增用例，断言 notification_factory 在审计仓储装配失败时降级为 repository=None 且通知仍发出。",
+      "context": "",
+      "skipIntegration": true,
+      "footprint": {
+        "files": 3,
+        "anchors": 4,
+        "chars": 2200
+      },
+      "requirementRefs": [
+        "FR-1",
+        "FR-3"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-ad8a6e",
+          "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+          "trigger": "manual",
+          "startedAt": 1791352340820,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 2211,
+              "at": 1791352340820,
+              "totals": {
+                "uncachedInputTokens": 776142,
+                "outputTokens": 258517,
+                "cacheReadTokens": 116571008,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 2211,
+                  "totals": {
+                    "uncachedInputTokens": 776142,
+                    "outputTokens": 258517,
+                    "cacheReadTokens": 116571008,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 2335,
+              "at": 1791352520792,
+              "totals": {
+                "uncachedInputTokens": 780700,
+                "outputTokens": 267848,
+                "cacheReadTokens": 125808000,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 2335,
+                  "totals": {
+                    "uncachedInputTokens": 780700,
+                    "outputTokens": 267848,
+                    "cacheReadTokens": 125808000,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 4558,
+              "outputTokens": 9331,
+              "cacheReadTokens": 9236992,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791352520792
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791351688793,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1791352340820,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "上游 t1/t3 已关账；开工 t5：补设计登记的未覆盖用例（run_forever 整环 / 跳过留痕去重 / 装配失败降级）"
+        },
+        {
+          "status": "done",
+          "at": 1791352520792,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "三张子卡全 done；t5 验收逐条命中（94 passed / 总数 232≥228 / 变异测试证明可证伪），父卡关账"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-a4b3d8",
+          "body": "[状态] → in_progress：上游 t1/t3 已关账；开工 t5：补设计登记的未覆盖用例（run_forever 整环 / 跳过留痕去重 / 装配失败降级）（reqboard_task_move）",
+          "createdAt": 1791352340820,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        },
+        {
+          "id": "c-3e6e7a",
+          "body": "[状态] → done：三张子卡全 done；t5 验收逐条命中（94 passed / 总数 232≥228 / 变异测试证明可证伪），父卡关账（reqboard_task_move）",
+          "createdAt": 1791352520792,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791351688793,
+      "updatedAt": 1791352520792,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+      },
+      "layer": 1,
+      "lastReport": {
+        "at": 1791352517895,
+        "reportIndex": 1,
+        "filesChanged": [
+          "tests/services/test_watch_engine_trading_day_gate.py",
+          "tests/notification/test_notification_audit_repository.py"
+        ],
+        "completed": [
+          "子卡三段全 done：研发 t-2ae248 / 复核 t-8ccf53 / 测试 t-094f32",
+          "验收标准逐条命中：卡内命令 94 passed、总数 232 ≥ 基线 228、新增 4 条 ≥ 3 条",
+          "新用例可证伪性经变异测试验证（拆掉 run_forever 日级门即 1 failed），engine.py 已字节级还原",
+          "设计 §6 三项未覆盖（run_forever 整环 / 留痕去重 / 装配降级）全部补齐",
+          "剩余未覆盖两项（异地来源负例、sender_id host 段一致性）已在设计文档声明为能力上限/已知瑕疵，不在本卡范围"
+        ]
+      },
+      "lastRun": {
+        "at": 1791352517895,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-2e590d",
+      "requirementId": "REQ-261007101318-c392",
+      "title": "真实交易日回执 + 验收材料（时间型）",
+      "cardDoc": "docs/requirements/REQ-261007101318-c392/tasks/t-2e590d.md",
+      "description": "",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-c926cd"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "当日执行上述两条 SQL：审计查询返回至少 1 行 watch_triggered 且 sender_id 非空（证明卡片自证来源已落库）；watch_triggers 当日有记录（证明引擎在交易日正常判定，未因新闸门而误停）；两组输出已写入 verification.md 并随验收材料提交。若当日无任何触发（规则未命中），须如实记录「当日零触发」并改以手工发一条验证卡的审计行作为替代证据（不得因此判过）。",
+      "implementation": "2026-10-08（节后首个交易日）盘后执行：select occurred_at,title,delivery_channel,delivered,sender_id from quant.notification_audit where occurred_at::date='2026-10-08' order by occurred_at desc limit 20；以及 select triggered_at,symbol,left(detail::text,120) from quant.watch_triggers where triggered_at::date='2026-10-08' order by triggered_at desc limit 10；把两组输出摘要写入 docs/requirements/REQ-261007101318-c392/verification.md 作为 reqboard_submit(kind=verification) 的证据。",
+      "context": "",
+      "skipIntegration": true,
+      "footprint": {
+        "files": 1,
+        "anchors": 2,
+        "chars": 900
+      },
+      "requirementRefs": [
+        "FR-1",
+        "FR-2",
+        "FR-3",
+        "FR-4"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-8a6cee",
+          "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+          "trigger": "manual",
+          "startedAt": 1791352699484,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 2411,
+              "at": 1791352699484,
+              "totals": {
+                "uncachedInputTokens": 788325,
+                "outputTokens": 280507,
+                "cacheReadTokens": 132335104,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 2411,
+                  "totals": {
+                    "uncachedInputTokens": 788325,
+                    "outputTokens": 280507,
+                    "cacheReadTokens": 132335104,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 2496,
+              "at": 1791352820172,
+              "totals": {
+                "uncachedInputTokens": 792288,
+                "outputTokens": 286393,
+                "cacheReadTokens": 140216192,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 2496,
+                  "totals": {
+                    "uncachedInputTokens": 792288,
+                    "outputTokens": 286393,
+                    "cacheReadTokens": 140216192,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 3963,
+              "outputTokens": 5886,
+              "cacheReadTokens": 7881088,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791352820172
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791351688793,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1791352699484,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "人工裁定 D-12：以演练替代 2026-10-08 真实回执；开工 t6 并落演练证据（含强度限定）"
+        },
+        {
+          "status": "done",
+          "at": 1791352820172,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "t6 三子卡全 done；按人工裁定 D-12 以演练替代真实回执（零残留、强度限定可见），父卡关账"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-e96a2e",
+          "body": "[状态] → in_progress：人工裁定 D-12：以演练替代 2026-10-08 真实回执；开工 t6 并落演练证据（含强度限定）（reqboard_task_move）",
+          "createdAt": 1791352699484,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        },
+        {
+          "id": "c-274556",
+          "body": "[状态] → done：t6 三子卡全 done；按人工裁定 D-12 以演练替代真实回执（零残留、强度限定可见），父卡关账（reqboard_task_move）",
+          "createdAt": 1791352820172,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791351688793,
+      "updatedAt": 1791352820172,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+      },
+      "layer": 2,
+      "lastReport": {
+        "at": 1791352752074,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-261007101318-c392/notes/t6-receipt-rehearsal.md",
+          "docs/requirements/REQ-261007101318-c392/verification.md",
+          "docs/requirements/REQ-261007101318-c392/requirement.md"
+        ],
+        "completed": [
+          "子卡三段全 done：研发 t-8d7c74 / 复核 t-f240da / 测试 t-a346aa",
+          "按人工裁定 D-12 以演练替代 2026-10-08 真实回执：mock 交易日 tick 产出 1 事件、卡面四段契约齐、两条回执 SQL 命中且 ROLLBACK 零残留",
+          "强度限定如实写入：verification.md（3 处）+ requirement.md D-12 + notes/t6-receipt-rehearsal.md 开篇性质声明",
+          "当日复跑确认无演练残留（2026-10-08 审计 0 行 / 触发 0 行）；生产审计表含真实 sender_id",
+          "验收材料 verification.md 已就绪，可直接支撑 reqboard_submit(kind=verification)"
+        ]
+      },
+      "lastRun": {
+        "at": 1791352752074,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-dcdeb1",
+      "requirementId": "REQ-261007101318-c392",
+      "title": "FR-1 休市日闸门：tick() 日级收敛到 TradingDayGuard（回填）·研发",
+      "description": "子卡阶段：研发",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要",
+      "implementation": "application/services/watch_engine/engine.py：新增 _resolve_trading_day(day) 作为 tick() 与 run_forever() 的唯一日级入口（默认 TradingDayGuard.check，支持 is_trading_day_fn/trading_day_verdict_fn 注入）；tick() 前置改为「日级 + 时段」双闸门，未开市时调用 _log_market_closed() 按日去重留痕后 return []（不取规则、不评估、不落库、不外发）；判定异常一律保守判非交易日。新增 tests/services/test_watch_engine_trading_day_gate.py 锁定四条行为。\n\n[子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要",
+      "context": "",
+      "parentId": "t-268fbd",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-ebdd8d",
+          "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+          "trigger": "manual",
+          "startedAt": 1791351729843,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 1823,
+              "at": 1791351729843,
+              "totals": {
+                "uncachedInputTokens": 755191,
+                "outputTokens": 232043,
+                "cacheReadTokens": 84728576,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 1823,
+                  "totals": {
+                    "uncachedInputTokens": 755191,
+                    "outputTokens": 232043,
+                    "cacheReadTokens": 84728576,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 1844,
+              "at": 1791351748692,
+              "totals": {
+                "uncachedInputTokens": 756852,
+                "outputTokens": 233892,
+                "cacheReadTokens": 86315904,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 1844,
+                  "totals": {
+                    "uncachedInputTokens": 756852,
+                    "outputTokens": 233892,
+                    "cacheReadTokens": 86315904,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 1661,
+              "outputTokens": 1849,
+              "cacheReadTokens": 1587328,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791351748692
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-b73a07",
+          "body": "[状态] → in_progress：开工：复核 FR-1 实现（回填卡，本卡执行=复核+存证）（reqboard_task_move）",
+          "createdAt": 1791351729843,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        },
+        {
+          "id": "c-5de1b4",
+          "body": "[状态] → done：研发段完成：FR-1 实现复核到位，4 条回归锁全过（已附带证据与文件清单）（reqboard_task_move）",
+          "createdAt": 1791351748692,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791351718230,
+      "updatedAt": 1791351748692,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791351718230,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791351729843,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "开工：复核 FR-1 实现（回填卡，本卡执行=复核+存证）"
+        },
+        {
+          "status": "done",
+          "at": 1791351748692,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "研发段完成：FR-1 实现复核到位，4 条回归锁全过（已附带证据与文件清单）"
+        }
+      ],
+      "layer": 0,
+      "lastReport": {
+        "at": 1791351745844,
+        "reportIndex": 1,
+        "filesChanged": [
+          "application/services/watch_engine/engine.py",
+          "tests/services/test_watch_engine_trading_day_gate.py"
+        ],
+        "completed": [
+          "engine.py 已含 _resolve_trading_day 作为 tick 与 run_forever 的唯一日级入口",
+          "tick() 前置为「日级 + 时段」双闸门；未开市走 _log_market_closed 按日去重留痕后 return []",
+          "tick() 未开市时不取规则、不评估、不落库、不外发（repo.calls==0 有断言）",
+          "tests/services/test_watch_engine_trading_day_gate.py 4 passed",
+          "卡内 npx vitest 属跨仓模板，本仓等价验收为 pytest，已执行并留输出"
+        ]
+      },
+      "lastRun": {
+        "at": 1791351745844,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-b33b0b",
+      "requirementId": "REQ-261007101318-c392",
+      "title": "FR-1 休市日闸门：tick() 日级收敛到 TradingDayGuard（回填）·复核",
+      "description": "子卡阶段：复核",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-dcdeb1"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对照 `docs/requirements/REQ-261007101318-c392/design/` 逐条核对；`npx vitest run tests/` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "implementation": "application/services/watch_engine/engine.py：新增 _resolve_trading_day(day) 作为 tick() 与 run_forever() 的唯一日级入口（默认 TradingDayGuard.check，支持 is_trading_day_fn/trading_day_verdict_fn 注入）；tick() 前置改为「日级 + 时段」双闸门，未开市时调用 _log_market_closed() 按日去重留痕后 return []（不取规则、不评估、不落库、不外发）；判定异常一律保守判非交易日。新增 tests/services/test_watch_engine_trading_day_gate.py 锁定四条行为。\n\n[子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/REQ-261007101318-c392/design/` 逐条核对；`npx vitest run tests/` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-268fbd",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-76b94c",
+          "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+          "trigger": "manual",
+          "startedAt": 1791351755446,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 1852,
+              "at": 1791351755446,
+              "totals": {
+                "uncachedInputTokens": 758104,
+                "outputTokens": 234782,
+                "cacheReadTokens": 86846592,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 1852,
+                  "totals": {
+                    "uncachedInputTokens": 758104,
+                    "outputTokens": 234782,
+                    "cacheReadTokens": 86846592,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 1872,
+              "at": 1791351768540,
+              "totals": {
+                "uncachedInputTokens": 759512,
+                "outputTokens": 236231,
+                "cacheReadTokens": 88448896,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 1872,
+                  "totals": {
+                    "uncachedInputTokens": 759512,
+                    "outputTokens": 236231,
+                    "cacheReadTokens": 88448896,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 1408,
+              "outputTokens": 1449,
+              "cacheReadTokens": 1602304,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791351768540
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-0befc9",
+          "body": "[状态] → in_progress：上游研发子卡 t-dcdeb1 已 done；认领复核段：核对实现与卡文一致性及边界语义（reqboard_task_move）",
+          "createdAt": 1791351755446,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        },
+        {
+          "id": "c-fcaa00",
+          "body": "[状态] → done：复核段完成：与设计逐条一致（无偏离），已留汇报（reqboard_task_move）",
+          "createdAt": 1791351768540,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791351718230,
+      "updatedAt": 1791351768540,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791351718230,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791351755446,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "上游研发子卡 t-dcdeb1 已 done；认领复核段：核对实现与卡文一致性及边界语义"
+        },
+        {
+          "status": "done",
+          "at": 1791351768540,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "复核段完成：与设计逐条一致（无偏离），已留汇报"
+        }
+      ],
+      "layer": 1,
+      "lastReport": {
+        "at": 1791351764841,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "复核依据：design/architecture.md「为什么闸门必须落在 tick()」+ interfaces.md §1.2/1.3",
+          "实测 _resolve_trading_day 复用恰好 2 处（engine.py:324 run_forever / :388 tick），无第二份日历口径",
+          "tick 为日级+时段双闸门；未开市先 _log_market_closed 再 return []（不取规则）",
+          "判定异常两条路径均保守返回 False（injected-error / compute-error），不合规放行",
+          "留痕按「日+原因」去重且保留上限 8 条，防 tick 每分钟刷屏",
+          "结论：无偏离。唯一不一致在卡模板本身（子卡验收文本写 npx vitest，属跨仓模板；本仓为 pytest）"
+        ]
+      },
+      "lastRun": {
+        "at": 1791351764841,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-e58107",
+      "requirementId": "REQ-261007101318-c392",
+      "title": "FR-1 休市日闸门：tick() 日级收敛到 TradingDayGuard（回填）·测试",
+      "description": "子卡阶段：测试",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-b33b0b"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "implementation": "application/services/watch_engine/engine.py：新增 _resolve_trading_day(day) 作为 tick() 与 run_forever() 的唯一日级入口（默认 TradingDayGuard.check，支持 is_trading_day_fn/trading_day_verdict_fn 注入）；tick() 前置改为「日级 + 时段」双闸门，未开市时调用 _log_market_closed() 按日去重留痕后 return []（不取规则、不评估、不落库、不外发）；判定异常一律保守判非交易日。新增 tests/services/test_watch_engine_trading_day_gate.py 锁定四条行为。\n\n[子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "context": "",
+      "parentId": "t-268fbd",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-ced2fe",
+          "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+          "trigger": "manual",
+          "startedAt": 1791351772450,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 1878,
+              "at": 1791351772450,
+              "totals": {
+                "uncachedInputTokens": 759725,
+                "outputTokens": 236453,
+                "cacheReadTokens": 88984320,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 1878,
+                  "totals": {
+                    "uncachedInputTokens": 759725,
+                    "outputTokens": 236453,
+                    "cacheReadTokens": 88984320,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 1892,
+              "at": 1791351784090,
+              "totals": {
+                "uncachedInputTokens": 760439,
+                "outputTokens": 237082,
+                "cacheReadTokens": 90056960,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 1892,
+                  "totals": {
+                    "uncachedInputTokens": 760439,
+                    "outputTokens": 237082,
+                    "cacheReadTokens": 90056960,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 714,
+              "outputTokens": 629,
+              "cacheReadTokens": 1072640,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791351784090
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-b1b406",
+          "body": "[状态] → in_progress：上游复核子卡 t-b33b0b 已 done；认领测试段：跑 4 条回归锁并逐条核对断言（reqboard_task_move）",
+          "createdAt": 1791351772450,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        },
+        {
+          "id": "c-25daa4",
+          "body": "[状态] → done：测试段完成：4 条回归锁逐条 PASSED，已留汇报与输出（reqboard_task_move）",
+          "createdAt": 1791351784090,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791351718230,
+      "updatedAt": 1791351784090,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791351718230,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791351772450,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "上游复核子卡 t-b33b0b 已 done；认领测试段：跑 4 条回归锁并逐条核对断言"
+        },
+        {
+          "status": "done",
+          "at": 1791351784090,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "测试段完成：4 条回归锁逐条 PASSED，已留汇报与输出"
+        }
+      ],
+      "layer": 2,
+      "lastReport": {
+        "at": 1791351780187,
+        "reportIndex": 1,
+        "filesChanged": [
+          "tests/services/test_watch_engine_trading_day_gate.py"
+        ],
+        "completed": [
+          "venv/bin/python -m pytest tests/services/test_watch_engine_trading_day_gate.py -v → 4 passed",
+          "test_holiday_tick_produces_nothing_and_never_reads_rules PASSED（休市日零事件 + repo.calls==0）",
+          "test_trading_day_in_session_still_evaluates_and_carries_level PASSED（交易日照常 + level 非空 + closed_loop False）",
+          "test_trading_day_off_session_is_still_blocked PASSED（16:00 仍拦住）",
+          "test_default_gate_knows_calendar_holiday PASSED（2026-10-07 判 holiday；2026-09-30 判交易日）",
+          "卡内 pnpm test / npx tsc 属跨仓模板；本仓等价验收为 pytest，已贴逐条输出"
+        ]
+      },
+      "lastRun": {
+        "at": 1791351780187,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-e5a244",
+      "requirementId": "REQ-261007101318-c392",
+      "title": "FR-2 名称兜底：禁止把代码当名称（回填）·研发",
+      "description": "子卡阶段：研发",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要",
+      "implementation": "application/services/watch_engine/notifier.py：facade 调用改为 name=payload.name or None（删除 name or symbol 的混同）；_lookup_stock_name 的取数口径并入领域端口实现 PgStockNameResolver.resolve_batch（与 SLA 巡检/回执同一份，异常/未命中返回 None）。infrastructure/notification/formatters/feishu_formatters.py：旧渲染路径名称缺失时显式输出「{代码}（名称缺失）」，不再回落成裸代码。tests/notification/test_req_c392_notification_contract.py 增补名称相关断言。\n\n[子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要",
+      "context": "",
+      "parentId": "t-d5d9b6",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-551959",
+          "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+          "trigger": "manual",
+          "startedAt": 1791351802380,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 1916,
+              "at": 1791351802380,
+              "totals": {
+                "uncachedInputTokens": 761270,
+                "outputTokens": 239088,
+                "cacheReadTokens": 92206976,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 1916,
+                  "totals": {
+                    "uncachedInputTokens": 761270,
+                    "outputTokens": 239088,
+                    "cacheReadTokens": 92206976,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 1930,
+              "at": 1791351813226,
+              "totals": {
+                "uncachedInputTokens": 762138,
+                "outputTokens": 239700,
+                "cacheReadTokens": 93286912,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 1930,
+                  "totals": {
+                    "uncachedInputTokens": 762138,
+                    "outputTokens": 239700,
+                    "cacheReadTokens": 93286912,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 868,
+              "outputTokens": 612,
+              "cacheReadTokens": 1079936,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791351813226
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-099102",
+          "body": "[状态] → in_progress：开工 t2 研发段：复核 FR-2 名称兜底（不把代码当名称 + 名称取数并端口）（reqboard_task_move）",
+          "createdAt": 1791351802380,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        },
+        {
+          "id": "c-e649df",
+          "body": "[状态] → done：研发段完成：名称兜底落地并附证据；交复核段（reqboard_task_move）",
+          "createdAt": 1791351813226,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791351718231,
+      "updatedAt": 1791351813226,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791351718231,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791351802380,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "开工 t2 研发段：复核 FR-2 名称兜底（不把代码当名称 + 名称取数并端口）"
+        },
+        {
+          "status": "done",
+          "at": 1791351813226,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "研发段完成：名称兜底落地并附证据；交复核段"
+        }
+      ],
+      "layer": 0,
+      "lastReport": {
+        "at": 1791351810747,
+        "reportIndex": 1,
+        "filesChanged": [
+          "application/services/watch_engine/notifier.py",
+          "infrastructure/notification/formatters/feishu_formatters.py",
+          "tests/notification/test_req_c392_notification_contract.py"
+        ],
+        "completed": [
+          "notifier.py 删除 name or symbol 混同，改为 name=payload.name or None（未命中即传 None）",
+          "名称取数并入领域端口 PgStockNameResolver.resolve_batch（与回执同一份口径，未命中/异常返回 None）",
+          "feishu_formatters.py 旧渲染路径名称缺失显式输出「{代码}（名称缺失）」，不再回落裸代码",
+          "tests/notification/test_req_c392_notification_contract.py 名称相关 4 passed（6 deselected）"
+        ]
+      },
+      "lastRun": {
+        "at": 1791351810747,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-e75a19",
+      "requirementId": "REQ-261007101318-c392",
+      "title": "FR-2 名称兜底：禁止把代码当名称（回填）·复核",
+      "description": "子卡阶段：复核",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-e5a244"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对照 `docs/requirements/REQ-261007101318-c392/design/` 逐条核对；`npx vitest run tests/` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "implementation": "application/services/watch_engine/notifier.py：facade 调用改为 name=payload.name or None（删除 name or symbol 的混同）；_lookup_stock_name 的取数口径并入领域端口实现 PgStockNameResolver.resolve_batch（与 SLA 巡检/回执同一份，异常/未命中返回 None）。infrastructure/notification/formatters/feishu_formatters.py：旧渲染路径名称缺失时显式输出「{代码}（名称缺失）」，不再回落成裸代码。tests/notification/test_req_c392_notification_contract.py 增补名称相关断言。\n\n[子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/REQ-261007101318-c392/design/` 逐条核对；`npx vitest run tests/` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-d5d9b6",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-a23f83",
+          "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+          "trigger": "manual",
+          "startedAt": 1791351820666,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 1936,
+              "at": 1791351820666,
+              "totals": {
+                "uncachedInputTokens": 762370,
+                "outputTokens": 239977,
+                "cacheReadTokens": 93827584,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 1936,
+                  "totals": {
+                    "uncachedInputTokens": 762370,
+                    "outputTokens": 239977,
+                    "cacheReadTokens": 93827584,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 1951,
+              "at": 1791351828415,
+              "totals": {
+                "uncachedInputTokens": 763150,
+                "outputTokens": 240621,
+                "cacheReadTokens": 94910720,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 1951,
+                  "totals": {
+                    "uncachedInputTokens": 763150,
+                    "outputTokens": 240621,
+                    "cacheReadTokens": 94910720,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 780,
+              "outputTokens": 644,
+              "cacheReadTokens": 1083136,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791351828415
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-94c0e3",
+          "body": "[状态] → in_progress：上游研发 done；认领复核段：核对名称口径单一性与「名称缺失」语义（reqboard_task_move）",
+          "createdAt": 1791351820666,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        },
+        {
+          "id": "c-ac3481",
+          "body": "[状态] → done：复核段完成：无偏离（口径单一 + 缺失语义显式），已留汇报（reqboard_task_move）",
+          "createdAt": 1791351828415,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791351718231,
+      "updatedAt": 1791351828415,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791351718231,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791351820666,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "上游研发 done；认领复核段：核对名称口径单一性与「名称缺失」语义"
+        },
+        {
+          "status": "done",
+          "at": 1791351828415,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "复核段完成：无偏离（口径单一 + 缺失语义显式），已留汇报"
+        }
+      ],
+      "layer": 1,
+      "lastReport": {
+        "at": 1791351825022,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "对照 design/interfaces.md §2：name 为「行情 name → quant.stocks 兜底 → None」，实测 notifier.py:190 即 name=payload.name or None",
+          "口径单一性核查：引擎侧已无 StockORMRepository.get_name 调用（全仓仅剩无关的 opportunity_scoring_service._get_name）",
+          "缺失语义核查：渲染层未命中输出「{代码}（名称缺失）」，不再出现裸代码冒充名称",
+          "结论：无偏离（依据 interfaces.md §2 与 §4 卡面内容契约）"
+        ]
+      },
+      "lastRun": {
+        "at": 1791351825022,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-62e64a",
+      "requirementId": "REQ-261007101318-c392",
+      "title": "FR-2 名称兜底：禁止把代码当名称（回填）·测试",
+      "description": "子卡阶段：测试",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-e75a19"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "implementation": "application/services/watch_engine/notifier.py：facade 调用改为 name=payload.name or None（删除 name or symbol 的混同）；_lookup_stock_name 的取数口径并入领域端口实现 PgStockNameResolver.resolve_batch（与 SLA 巡检/回执同一份，异常/未命中返回 None）。infrastructure/notification/formatters/feishu_formatters.py：旧渲染路径名称缺失时显式输出「{代码}（名称缺失）」，不再回落成裸代码。tests/notification/test_req_c392_notification_contract.py 增补名称相关断言。\n\n[子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "context": "",
+      "parentId": "t-d5d9b6",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-a43f3f",
+          "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+          "trigger": "manual",
+          "startedAt": 1791351832092,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 1959,
+              "at": 1791351832092,
+              "totals": {
+                "uncachedInputTokens": 763532,
+                "outputTokens": 241060,
+                "cacheReadTokens": 95453056,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 1959,
+                  "totals": {
+                    "uncachedInputTokens": 763532,
+                    "outputTokens": 241060,
+                    "cacheReadTokens": 95453056,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 1973,
+              "at": 1791351841235,
+              "totals": {
+                "uncachedInputTokens": 764490,
+                "outputTokens": 241547,
+                "cacheReadTokens": 96540288,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 1973,
+                  "totals": {
+                    "uncachedInputTokens": 764490,
+                    "outputTokens": 241547,
+                    "cacheReadTokens": 96540288,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 958,
+              "outputTokens": 487,
+              "cacheReadTokens": 1087232,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791351841235
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-f6a780",
+          "body": "[状态] → in_progress：上游复核 done；认领测试段：跑 FR-2 全文件并核对两条点名断言（reqboard_task_move）",
+          "createdAt": 1791351832092,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        },
+        {
+          "id": "c-625d19",
+          "body": "[状态] → done：测试段完成：10 passed（含父卡点名两条断言），已留汇报（reqboard_task_move）",
+          "createdAt": 1791351841235,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791351718231,
+      "updatedAt": 1791351841235,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791351718231,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791351832092,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "上游复核 done；认领测试段：跑 FR-2 全文件并核对两条点名断言"
+        },
+        {
+          "status": "done",
+          "at": 1791351841235,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "测试段完成：10 passed（含父卡点名两条断言），已留汇报"
+        }
+      ],
+      "layer": 2,
+      "lastReport": {
+        "at": 1791351838750,
+        "reportIndex": 1,
+        "filesChanged": [
+          "tests/notification/test_req_c392_notification_contract.py"
+        ],
+        "completed": [
+          "venv/bin/python -m pytest tests/notification/test_req_c392_notification_contract.py -v → 10 passed",
+          "父卡点名断言 test_notifier_never_passes_symbol_as_name PASSED（打桩名称解析为 None 时，传给 facade 的 name 为 None 而非 688525.SH）",
+          "父卡点名断言 test_missing_name_degrades_explicitly_not_to_bare_symbol PASSED（正文含「名称缺失」）",
+          "其余 8 条同文件断言一并 PASSED（意图/级别/闭环门控/来源尾注）"
+        ]
+      },
+      "lastRun": {
+        "at": 1791351838750,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-b2f010",
+      "requirementId": "REQ-261007101318-c392",
+      "title": "FR-3 外发审计 + 来源标识（回填，含建表迁移）·研发",
+      "description": "子卡阶段：研发",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要",
+      "implementation": "新建 adapters/outbound/repositories/notification_audit_repository.py（一通知一行 upsert，失败自吞不上抛）；新建 infrastructure/persistence/migrations/20261007_notification_audit_table.py（CREATE TABLE IF NOT EXISTS quant.notification_audit + 3 索引 + lock_timeout=30s，两库都跑）；新建 application/notification/sender_identity.py（v2-watch@<host>#<pid>）；application/notification/notification_factory.py 装配审计仓储（失败降级 None）；application/notification/notification_facade.py 把 sender_id 写入 variables 与 metadata；domain/notification/services/notification_service.py 在 send 与 send_with_fallback 的三处 save 点写入 delivery_channel/delivered/fallback_cause；新增 tests/notification/test_notification_audit_repository.py。\n\n[子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要",
+      "context": "",
+      "parentId": "t-633d3f",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-d280fe",
+          "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+          "trigger": "manual",
+          "startedAt": 1791351854593,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 1991,
+              "at": 1791351854593,
+              "totals": {
+                "uncachedInputTokens": 765387,
+                "outputTokens": 242738,
+                "cacheReadTokens": 98174464,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 1991,
+                  "totals": {
+                    "uncachedInputTokens": 765387,
+                    "outputTokens": 242738,
+                    "cacheReadTokens": 98174464,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 2005,
+              "at": 1791351866063,
+              "totals": {
+                "uncachedInputTokens": 766211,
+                "outputTokens": 243659,
+                "cacheReadTokens": 99268224,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 2005,
+                  "totals": {
+                    "uncachedInputTokens": 766211,
+                    "outputTokens": 243659,
+                    "cacheReadTokens": 99268224,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 824,
+              "outputTokens": 921,
+              "cacheReadTokens": 1093760,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791351866063
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-c12f6d",
+          "body": "[状态] → in_progress：开工 t3 研发段：复核 FR-3 外发审计（表/仓储/装配/迁移/来源标识）（reqboard_task_move）",
+          "createdAt": 1791351854593,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        },
+        {
+          "id": "c-35d131",
+          "body": "[状态] → done：研发段完成：审计链路落地并附两库与用例证据；交复核段（reqboard_task_move）",
+          "createdAt": 1791351866063,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791351718231,
+      "updatedAt": 1791351866063,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791351718231,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791351854593,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "开工 t3 研发段：复核 FR-3 外发审计（表/仓储/装配/迁移/来源标识）"
+        },
+        {
+          "status": "done",
+          "at": 1791351866063,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "研发段完成：审计链路落地并附两库与用例证据；交复核段"
+        }
+      ],
+      "layer": 0,
+      "lastReport": {
+        "at": 1791351863720,
+        "reportIndex": 1,
+        "filesChanged": [
+          "adapters/outbound/repositories/notification_audit_repository.py",
+          "infrastructure/persistence/migrations/20261007_notification_audit_table.py",
+          "application/notification/sender_identity.py",
+          "application/notification/notification_factory.py",
+          "application/notification/notification_facade.py",
+          "domain/notification/services/notification_service.py",
+          "tests/notification/test_notification_audit_repository.py"
+        ],
+        "completed": [
+          "新增 notification_audit_repository.py（一通知一行 upsert，失败自吞不上抛）",
+          "新增 migration 20261007_notification_audit_table.py（IF NOT EXISTS + 3 索引 + lock_timeout=30s）",
+          "新增 sender_identity.py（v2-watch@<host>#<pid>）并接入 facade 的 variables 与 metadata",
+          "notification_factory.py:100-102 装配审计仓储（失败降级 None）",
+          "notification_service.py 三处 save 点写入 delivery_channel/delivered/fallback_cause",
+          "两库表实测存在：生产 1 行 / 测试库 17 行；用例 4 passed"
+        ]
+      },
+      "lastRun": {
+        "at": 1791351863720,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-890eb7",
+      "requirementId": "REQ-261007101318-c392",
+      "title": "FR-3 外发审计 + 来源标识（回填，含建表迁移）·复核",
+      "description": "子卡阶段：复核",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-b2f010"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对照 `docs/requirements/REQ-261007101318-c392/design/` 逐条核对；`npx vitest run tests/` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "implementation": "新建 adapters/outbound/repositories/notification_audit_repository.py（一通知一行 upsert，失败自吞不上抛）；新建 infrastructure/persistence/migrations/20261007_notification_audit_table.py（CREATE TABLE IF NOT EXISTS quant.notification_audit + 3 索引 + lock_timeout=30s，两库都跑）；新建 application/notification/sender_identity.py（v2-watch@<host>#<pid>）；application/notification/notification_factory.py 装配审计仓储（失败降级 None）；application/notification/notification_facade.py 把 sender_id 写入 variables 与 metadata；domain/notification/services/notification_service.py 在 send 与 send_with_fallback 的三处 save 点写入 delivery_channel/delivered/fallback_cause；新增 tests/notification/test_notification_audit_repository.py。\n\n[子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/REQ-261007101318-c392/design/` 逐条核对；`npx vitest run tests/` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-633d3f",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-f21dd4",
+          "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+          "trigger": "manual",
+          "startedAt": 1791351869412,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 2011,
+              "at": 1791351869412,
+              "totals": {
+                "uncachedInputTokens": 766449,
+                "outputTokens": 244001,
+                "cacheReadTokens": 99815936,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 2011,
+                  "totals": {
+                    "uncachedInputTokens": 766449,
+                    "outputTokens": 244001,
+                    "cacheReadTokens": 99815936,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 2025,
+              "at": 1791351876369,
+              "totals": {
+                "uncachedInputTokens": 767262,
+                "outputTokens": 244622,
+                "cacheReadTokens": 100913536,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 2025,
+                  "totals": {
+                    "uncachedInputTokens": 767262,
+                    "outputTokens": 244622,
+                    "cacheReadTokens": 100913536,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 813,
+              "outputTokens": 621,
+              "cacheReadTokens": 1097600,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791351876369
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-11f87e",
+          "body": "[状态] → in_progress：上游研发 done；认领复核段：核对审计字段口径、来源标识与失败降级语义（reqboard_task_move）",
+          "createdAt": 1791351869412,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        },
+        {
+          "id": "c-27b216",
+          "body": "[状态] → done：复核段完成：无偏离（字段/降级/幂等/落点逐条核对）（reqboard_task_move）",
+          "createdAt": 1791351876369,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791351718231,
+      "updatedAt": 1791351876369,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791351718231,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791351869412,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "上游研发 done；认领复核段：核对审计字段口径、来源标识与失败降级语义"
+        },
+        {
+          "status": "done",
+          "at": 1791351876369,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "复核段完成：无偏离（字段/降级/幂等/落点逐条核对）"
+        }
+      ],
+      "layer": 1,
+      "lastReport": {
+        "at": 1791351874152,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "对照 design/data-model.md：字段齐备且实测可查（title/delivery_channel/delivered/sender_id 逐列有值）",
+          "对照 design/interfaces.md §5：save() 失败自吞并留痕，不上抛（第 70-73 行）",
+          "账目唯一性：ON CONFLICT (notification_id) DO UPDATE，一通知一行（第 42 行）",
+          "落点在渠道/服务层：factory 装配 + service 三处 save 点，覆盖所有经 NotificationService 的外发",
+          "结论：无偏离；能力上限如实（绕过通知栈的手工 webhook 抓不到，已在 architecture.md 声明）"
+        ]
+      },
+      "lastRun": {
+        "at": 1791351874152,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-e669c6",
+      "requirementId": "REQ-261007101318-c392",
+      "title": "FR-3 外发审计 + 来源标识（回填，含建表迁移）·测试",
+      "description": "子卡阶段：测试",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-890eb7"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "implementation": "新建 adapters/outbound/repositories/notification_audit_repository.py（一通知一行 upsert，失败自吞不上抛）；新建 infrastructure/persistence/migrations/20261007_notification_audit_table.py（CREATE TABLE IF NOT EXISTS quant.notification_audit + 3 索引 + lock_timeout=30s，两库都跑）；新建 application/notification/sender_identity.py（v2-watch@<host>#<pid>）；application/notification/notification_factory.py 装配审计仓储（失败降级 None）；application/notification/notification_facade.py 把 sender_id 写入 variables 与 metadata；domain/notification/services/notification_service.py 在 send 与 send_with_fallback 的三处 save 点写入 delivery_channel/delivered/fallback_cause；新增 tests/notification/test_notification_audit_repository.py。\n\n[子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "context": "",
+      "parentId": "t-633d3f",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-76b0f4",
+          "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+          "trigger": "manual",
+          "startedAt": 1791351879372,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 2031,
+              "at": 1791351879372,
+              "totals": {
+                "uncachedInputTokens": 767474,
+                "outputTokens": 244832,
+                "cacheReadTokens": 101463040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 2031,
+                  "totals": {
+                    "uncachedInputTokens": 767474,
+                    "outputTokens": 244832,
+                    "cacheReadTokens": 101463040,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 2045,
+              "at": 1791351889517,
+              "totals": {
+                "uncachedInputTokens": 768228,
+                "outputTokens": 245449,
+                "cacheReadTokens": 102563840,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 2045,
+                  "totals": {
+                    "uncachedInputTokens": 768228,
+                    "outputTokens": 245449,
+                    "cacheReadTokens": 102563840,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 754,
+              "outputTokens": 617,
+              "cacheReadTokens": 1100800,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791351889517
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-acf648",
+          "body": "[状态] → in_progress：上游复核 done；认领测试段：跑审计用例并核对写入/幂等/失败不阻断（reqboard_task_move）",
+          "createdAt": 1791351879372,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        },
+        {
+          "id": "c-40d845",
+          "body": "[状态] → done：测试段完成：4 条用例逐条 PASSED，已留汇报与输出（reqboard_task_move）",
+          "createdAt": 1791351889517,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791351718231,
+      "updatedAt": 1791351889517,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791351718231,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791351879372,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "上游复核 done；认领测试段：跑审计用例并核对写入/幂等/失败不阻断"
+        },
+        {
+          "status": "done",
+          "at": 1791351889517,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "测试段完成：4 条用例逐条 PASSED，已留汇报与输出"
+        }
+      ],
+      "layer": 2,
+      "lastReport": {
+        "at": 1791351886592,
+        "reportIndex": 1,
+        "filesChanged": [
+          "tests/notification/test_notification_audit_repository.py"
+        ],
+        "completed": [
+          "venv/bin/python -m pytest tests/notification/test_notification_audit_repository.py -v → 4 passed",
+          "test_audit_row_records_who_sent_what PASSED（标题/摘要/渠道/送达/发送方齐备）",
+          "test_audit_is_upsert_not_append PASSED（生命周期 save 两次仍只有一行）",
+          "test_audit_failure_never_breaks_notification PASSED（失败返回 False 且不上抛）",
+          "test_service_path_stamps_channel_and_delivered_into_audit PASSED（降级路径记 feishu/delivered）"
+        ]
+      },
+      "lastRun": {
+        "at": 1791351886592,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-00bd50",
+      "requirementId": "REQ-261007101318-c392",
+      "title": "FR-4 文案契约：意图/处置级别 + 闭环承诺解耦（回填）·研发",
+      "description": "子卡阶段：研发",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-d5d9b6"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要",
+      "implementation": "application/services/watch_engine/engine.py：_notify_level 去掉 todo_service is None 的早退（级别恒解析），notify_kwargs 增加 closed_loop=(todo_service is not None)。dto.py：TriggerPayload 增加 closed_loop 并随 variables 下发。notification_facade.py、watch_level_templates.py、feishu_formatters.py：新增「处置级别」行（TRIGGER_LEVEL_META）与来源尾注；闭环承诺（处置入口/不可静默/回执位/待办#）改由 closed_loop 门控。翻新三处旧契约测试：tests/application/test_watch_disposition_engine.py（替身接受 level/closed_loop）、test_watch_t12_todo_creation.py、test_watch_t12_wiring.py。\n\n[子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要",
+      "context": "",
+      "parentId": "t-c76181",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-1ffb69",
+          "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+          "trigger": "manual",
+          "startedAt": 1791351999824,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 2089,
+              "at": 1791351999824,
+              "totals": {
+                "uncachedInputTokens": 770322,
+                "outputTokens": 250115,
+                "cacheReadTokens": 106437504,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 2089,
+                  "totals": {
+                    "uncachedInputTokens": 770322,
+                    "outputTokens": 250115,
+                    "cacheReadTokens": 106437504,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 2101,
+              "at": 1791352006199,
+              "totals": {
+                "uncachedInputTokens": 770855,
+                "outputTokens": 250621,
+                "cacheReadTokens": 107552896,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 2101,
+                  "totals": {
+                    "uncachedInputTokens": 770855,
+                    "outputTokens": 250621,
+                    "cacheReadTokens": 107552896,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 533,
+              "outputTokens": 506,
+              "cacheReadTokens": 1115392,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791352006199
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-25d9a0",
+          "body": "[状态] → in_progress：开工 t4 研发段：复核级别恒解析与闭环承诺门控（reqboard_task_move）",
+          "createdAt": 1791351999824,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        },
+        {
+          "id": "c-47b7ae",
+          "body": "[状态] → done：研发段完成：解耦落地并附 25 passed 与门控点证据；交复核段（reqboard_task_move）",
+          "createdAt": 1791352006199,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791351990626,
+      "updatedAt": 1791352006199,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791351990626,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791351999824,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "开工 t4 研发段：复核级别恒解析与闭环承诺门控"
+        },
+        {
+          "status": "done",
+          "at": 1791352006199,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "研发段完成：解耦落地并附 25 passed 与门控点证据；交复核段"
+        }
+      ],
+      "layer": 1,
+      "lastReport": {
+        "at": 1791352003381,
+        "reportIndex": 1,
+        "filesChanged": [
+          "application/services/watch_engine/engine.py",
+          "application/services/watch_engine/dto.py",
+          "application/notification/notification_facade.py",
+          "infrastructure/notification/formatters/watch_level_templates.py",
+          "infrastructure/notification/formatters/feishu_formatters.py",
+          "tests/application/test_watch_t12_wiring.py",
+          "tests/application/test_watch_t12_todo_creation.py",
+          "tests/application/test_watch_disposition_engine.py"
+        ],
+        "completed": [
+          "_notify_level 早退已删除：全文件仅剩 _create_watch_todo:662 的建待办门（级别与闭环解耦）",
+          "engine.py notify_kwargs 增加 closed_loop=(todo_service is not None)",
+          "dto.py 增加 TriggerPayload.closed_loop 并随 variables 下发",
+          "watch_level_templates.py 闭环承诺门控点齐（_skeleton_lines:248 / _summary_line:282 / render_p1:295）",
+          "三段用例 25 passed（wiring / todo_creation / disposition_engine）",
+          "三处旧契约测试按新契约翻新（旧断言锁的正是闭环关则不给级别的坏行为）"
+        ]
+      },
+      "lastRun": {
+        "at": 1791352003381,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-2af346",
+      "requirementId": "REQ-261007101318-c392",
+      "title": "FR-4 文案契约：意图/处置级别 + 闭环承诺解耦（回填）·复核",
+      "description": "子卡阶段：复核",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-00bd50"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对照 `docs/requirements/REQ-261007101318-c392/design/` 逐条核对；`npx vitest run tests/` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "implementation": "application/services/watch_engine/engine.py：_notify_level 去掉 todo_service is None 的早退（级别恒解析），notify_kwargs 增加 closed_loop=(todo_service is not None)。dto.py：TriggerPayload 增加 closed_loop 并随 variables 下发。notification_facade.py、watch_level_templates.py、feishu_formatters.py：新增「处置级别」行（TRIGGER_LEVEL_META）与来源尾注；闭环承诺（处置入口/不可静默/回执位/待办#）改由 closed_loop 门控。翻新三处旧契约测试：tests/application/test_watch_disposition_engine.py（替身接受 level/closed_loop）、test_watch_t12_todo_creation.py、test_watch_t12_wiring.py。\n\n[子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/REQ-261007101318-c392/design/` 逐条核对；`npx vitest run tests/` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-c76181",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-b3893a",
+          "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+          "trigger": "manual",
+          "startedAt": 1791352015265,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 2113,
+              "at": 1791352015265,
+              "totals": {
+                "uncachedInputTokens": 771530,
+                "outputTokens": 251568,
+                "cacheReadTokens": 108669696,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 2113,
+                  "totals": {
+                    "uncachedInputTokens": 771530,
+                    "outputTokens": 251568,
+                    "cacheReadTokens": 108669696,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 2130,
+              "at": 1791352024937,
+              "totals": {
+                "uncachedInputTokens": 772584,
+                "outputTokens": 252161,
+                "cacheReadTokens": 109790336,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 2130,
+                  "totals": {
+                    "uncachedInputTokens": 772584,
+                    "outputTokens": 252161,
+                    "cacheReadTokens": 109790336,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 1054,
+              "outputTokens": 593,
+              "cacheReadTokens": 1120640,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791352024937
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-ce73fe",
+          "body": "[状态] → in_progress：上游研发 done；认领复核段：核对解耦边界（级别恒有 / 闭环承诺按开关）（reqboard_task_move）",
+          "createdAt": 1791352015265,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        },
+        {
+          "id": "c-6ead28",
+          "body": "[状态] → done：复核段完成：无偏离（解耦边界三条断言 PASSED），已留汇报（reqboard_task_move）",
+          "createdAt": 1791352024937,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791351990626,
+      "updatedAt": 1791352024937,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791351990626,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791352015265,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "上游研发 done；认领复核段：核对解耦边界（级别恒有 / 闭环承诺按开关）"
+        },
+        {
+          "status": "done",
+          "at": 1791352024937,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "复核段完成：无偏离（解耦边界三条断言 PASSED），已留汇报"
+        }
+      ],
+      "layer": 2,
+      "lastReport": {
+        "at": 1791352022108,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "对照 design/interfaces.md §1.4/§4：级别恒解析、闭环承诺按 closed_loop 门控，逐条一致",
+          "test_closed_loop_off_promises_nothing PASSED（两态对比：关闭时无处置入口/回执，但仍有意图与级别）",
+          "test_unknown_trigger_level_hides_the_line_instead_of_guessing PASSED（级别未知隐藏该行不臆造）",
+          "test_entry_intent_reads_differently_from_stop_loss PASSED（entry 与 exit_stop 正文可区分）",
+          "结论：无偏离（依据 interfaces.md §1.4 与 §4 卡面内容契约）"
+        ]
+      },
+      "lastRun": {
+        "at": 1791352022108,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-7dcdbb",
+      "requirementId": "REQ-261007101318-c392",
+      "title": "FR-4 文案契约：意图/处置级别 + 闭环承诺解耦（回填）·测试",
+      "description": "子卡阶段：测试",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-2af346"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "implementation": "application/services/watch_engine/engine.py：_notify_level 去掉 todo_service is None 的早退（级别恒解析），notify_kwargs 增加 closed_loop=(todo_service is not None)。dto.py：TriggerPayload 增加 closed_loop 并随 variables 下发。notification_facade.py、watch_level_templates.py、feishu_formatters.py：新增「处置级别」行（TRIGGER_LEVEL_META）与来源尾注；闭环承诺（处置入口/不可静默/回执位/待办#）改由 closed_loop 门控。翻新三处旧契约测试：tests/application/test_watch_disposition_engine.py（替身接受 level/closed_loop）、test_watch_t12_todo_creation.py、test_watch_t12_wiring.py。\n\n[子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "context": "",
+      "parentId": "t-c76181",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-e54327",
+          "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+          "trigger": "manual",
+          "startedAt": 1791352131807,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 2152,
+              "at": 1791352131807,
+              "totals": {
+                "uncachedInputTokens": 773422,
+                "outputTokens": 254462,
+                "cacheReadTokens": 111476224,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 2152,
+                  "totals": {
+                    "uncachedInputTokens": 773422,
+                    "outputTokens": 254462,
+                    "cacheReadTokens": 111476224,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 2166,
+              "at": 1791352141578,
+              "totals": {
+                "uncachedInputTokens": 774069,
+                "outputTokens": 254867,
+                "cacheReadTokens": 112604928,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 2166,
+                  "totals": {
+                    "uncachedInputTokens": 774069,
+                    "outputTokens": 254867,
+                    "cacheReadTokens": 112604928,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 647,
+              "outputTokens": 405,
+              "cacheReadTokens": 1128704,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791352141578
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-4552e3",
+          "body": "[状态] → in_progress：上游复核 done；认领测试段：跑卡面契约全文件并核对闭环门控断言（reqboard_task_move）",
+          "createdAt": 1791352131807,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        },
+        {
+          "id": "c-1cab47",
+          "body": "[状态] → done：测试段完成：28 passed，已留汇报与输出（reqboard_task_move）",
+          "createdAt": 1791352141578,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791351990626,
+      "updatedAt": 1791352141578,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791351990626,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791352131807,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "上游复核 done；认领测试段：跑卡面契约全文件并核对闭环门控断言"
+        },
+        {
+          "status": "done",
+          "at": 1791352141578,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "测试段完成：28 passed，已留汇报与输出"
+        }
+      ],
+      "layer": 3,
+      "lastReport": {
+        "at": 1791352139043,
+        "reportIndex": 1,
+        "filesChanged": [
+          "tests/notification/test_req_c392_notification_contract.py",
+          "tests/application/test_watch_t12_wiring.py",
+          "tests/application/test_watch_t12_todo_creation.py"
+        ],
+        "completed": [
+          "venv/bin/python -m pytest 三文件 -q → 28 passed（契约 10 + wiring + todo_creation）",
+          "闭环门控断言均在列：closed_loop 关闭时不承诺处置入口/回执，但仍含意图与级别",
+          "级别未知隐藏「处置」行（不臆造）；entry 与 exit_stop 正文可区分",
+          "卡内 pnpm test / npx tsc 属跨仓模板；本仓等价验收为 pytest，已贴汇总输出"
+        ]
+      },
+      "lastRun": {
+        "at": 1791352139043,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-2ae248",
+      "requirementId": "REQ-261007101318-c392",
+      "title": "补齐设计登记的未覆盖用例（run_forever 整环 / 跳过留痕去重 / 装配失败降级）·研发",
+      "description": "子卡阶段：研发",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-268fbd",
+        "t-633d3f"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要",
+      "implementation": "扩展 tests/services/test_watch_engine_trading_day_gate.py：用 now_fn 序列 + _stopped 标志驱动 run_forever 跑两轮，断言休市日不调用 tick（可用打桩计数）；新增用例断言 _log_market_closed 的按日去重（同日多次调用只留一条留痕）；扩展 tests/notification/test_notification_audit_repository.py 或新增用例，断言 notification_factory 在审计仓储装配失败时降级为 repository=None 且通知仍发出。\n\n[子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要",
+      "context": "",
+      "parentId": "t-c926cd",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-3d7803",
+          "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+          "trigger": "manual",
+          "startedAt": 1791352378160,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 2240,
+              "at": 1791352378160,
+              "totals": {
+                "uncachedInputTokens": 777724,
+                "outputTokens": 263501,
+                "cacheReadTokens": 118860416,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 2240,
+                  "totals": {
+                    "uncachedInputTokens": 777724,
+                    "outputTokens": 263501,
+                    "cacheReadTokens": 118860416,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 2271,
+              "at": 1791352410832,
+              "totals": {
+                "uncachedInputTokens": 778173,
+                "outputTokens": 264291,
+                "cacheReadTokens": 120013312,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 2271,
+                  "totals": {
+                    "uncachedInputTokens": 778173,
+                    "outputTokens": 264291,
+                    "cacheReadTokens": 120013312,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 449,
+              "outputTokens": 790,
+              "cacheReadTokens": 1152896,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791352410832
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-48095d",
+          "body": "[状态] → in_progress：开工 t5 研发段：新增 run_forever 整环、跳过留痕去重、装配失败降级三条用例（reqboard_task_move）",
+          "createdAt": 1791352378160,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        },
+        {
+          "id": "c-8eb228",
+          "body": "[状态] → done：研发段完成：4 条新用例落地并附总数对比；交复核段（reqboard_task_move）",
+          "createdAt": 1791352410832,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791352340820,
+      "updatedAt": 1791352410832,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791352340820,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791352378160,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "开工 t5 研发段：新增 run_forever 整环、跳过留痕去重、装配失败降级三条用例"
+        },
+        {
+          "status": "done",
+          "at": 1791352410832,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "研发段完成：4 条新用例落地并附总数对比；交复核段"
+        }
+      ],
+      "layer": 1,
+      "lastReport": {
+        "at": 1791352406684,
+        "reportIndex": 1,
+        "filesChanged": [
+          "tests/services/test_watch_engine_trading_day_gate.py",
+          "tests/notification/test_notification_audit_repository.py"
+        ],
+        "completed": [
+          "新增 test_run_forever_does_not_tick_on_holiday：整环口径，休市日一轮都不进 tick（repo.calls==0）",
+          "新增 test_run_forever_ticks_on_trading_day：对照组，交易日必须真进 tick（防「引擎整体不转」冒充通过）",
+          "新增 test_closed_skip_log_is_deduped_by_day_and_reason：同日同因只留一条，原因不同各自留痕",
+          "新增 test_factory_degrades_to_none_when_audit_repo_unavailable：装配失败降级 repository=None 且发送不上抛",
+          "总数 228 → 232 passed（新增 4 条，≥ 验收要求的 3 条）；notify-guard 零外发"
+        ]
+      },
+      "lastRun": {
+        "at": 1791352406684,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-8ccf53",
+      "requirementId": "REQ-261007101318-c392",
+      "title": "补齐设计登记的未覆盖用例（run_forever 整环 / 跳过留痕去重 / 装配失败降级）·复核",
+      "description": "子卡阶段：复核",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-2ae248"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对照 `docs/requirements/REQ-261007101318-c392/design/` 逐条核对；`npx vitest run tests/` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "implementation": "扩展 tests/services/test_watch_engine_trading_day_gate.py：用 now_fn 序列 + _stopped 标志驱动 run_forever 跑两轮，断言休市日不调用 tick（可用打桩计数）；新增用例断言 _log_market_closed 的按日去重（同日多次调用只留一条留痕）；扩展 tests/notification/test_notification_audit_repository.py 或新增用例，断言 notification_factory 在审计仓储装配失败时降级为 repository=None 且通知仍发出。\n\n[子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/REQ-261007101318-c392/design/` 逐条核对；`npx vitest run tests/` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-c926cd",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-f441fa",
+          "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+          "trigger": "manual",
+          "startedAt": 1791352415273,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 2277,
+              "at": 1791352415273,
+              "totals": {
+                "uncachedInputTokens": 778414,
+                "outputTokens": 264840,
+                "cacheReadTokens": 120590336,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 2277,
+                  "totals": {
+                    "uncachedInputTokens": 778414,
+                    "outputTokens": 264840,
+                    "cacheReadTokens": 120590336,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 2297,
+              "at": 1791352431007,
+              "totals": {
+                "uncachedInputTokens": 779253,
+                "outputTokens": 265649,
+                "cacheReadTokens": 122325504,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 2297,
+                  "totals": {
+                    "uncachedInputTokens": 779253,
+                    "outputTokens": 265649,
+                    "cacheReadTokens": 122325504,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 839,
+              "outputTokens": 809,
+              "cacheReadTokens": 1735168,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791352431007
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-c05a54",
+          "body": "[状态] → in_progress：上游研发 done；认领复核段：核对新用例可证伪性（不得只断言 not raises）（reqboard_task_move）",
+          "createdAt": 1791352415273,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        },
+        {
+          "id": "c-16bcac",
+          "body": "[状态] → done：复核段完成：变异测试证明可证伪、engine.py 已还原、无偏离（reqboard_task_move）",
+          "createdAt": 1791352431007,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791352340820,
+      "updatedAt": 1791352431007,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791352340820,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791352415273,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "上游研发 done；认领复核段：核对新用例可证伪性（不得只断言 not raises）"
+        },
+        {
+          "status": "done",
+          "at": 1791352431007,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "复核段完成：变异测试证明可证伪、engine.py 已还原、无偏离"
+        }
+      ],
+      "layer": 2,
+      "lastReport": {
+        "at": 1791352427407,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "可证伪性反向验证（变异测试）：把 run_forever 的日级门临时替换为恒真后，test_run_forever_does_not_tick_on_holiday 立刻 1 failed",
+          "还原后自检 7 passed；engine.py 字节级还原（git diff --stat 仍为 +85/-9，未改坏）",
+          "逐条核对可行否性：三条新用例均断言具体行为（调用序列 / 去重条数 / repository 为 None），无一条只断言 not raises",
+          "对照 design/test-cases.md §6：三项未覆盖（run_forever 整环、留痕去重、装配降级）均已补",
+          "结论：无偏离"
+        ]
+      },
+      "lastRun": {
+        "at": 1791352427407,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-094f32",
+      "requirementId": "REQ-261007101318-c392",
+      "title": "补齐设计登记的未覆盖用例（run_forever 整环 / 跳过留痕去重 / 装配失败降级）·测试",
+      "description": "子卡阶段：测试",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-8ccf53"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "implementation": "扩展 tests/services/test_watch_engine_trading_day_gate.py：用 now_fn 序列 + _stopped 标志驱动 run_forever 跑两轮，断言休市日不调用 tick（可用打桩计数）；新增用例断言 _log_market_closed 的按日去重（同日多次调用只留一条留痕）；扩展 tests/notification/test_notification_audit_repository.py 或新增用例，断言 notification_factory 在审计仓储装配失败时降级为 repository=None 且通知仍发出。\n\n[子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "context": "",
+      "parentId": "t-c926cd",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-380140",
+          "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+          "trigger": "manual",
+          "startedAt": 1791352435068,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 2303,
+              "at": 1791352435068,
+              "totals": {
+                "uncachedInputTokens": 779499,
+                "outputTokens": 265884,
+                "cacheReadTokens": 122904576,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 2303,
+                  "totals": {
+                    "uncachedInputTokens": 779499,
+                    "outputTokens": 265884,
+                    "cacheReadTokens": 122904576,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 2317,
+              "at": 1791352445189,
+              "totals": {
+                "uncachedInputTokens": 780193,
+                "outputTokens": 266534,
+                "cacheReadTokens": 124064384,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 2317,
+                  "totals": {
+                    "uncachedInputTokens": 780193,
+                    "outputTokens": 266534,
+                    "cacheReadTokens": 124064384,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 694,
+              "outputTokens": 650,
+              "cacheReadTokens": 1159808,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791352445189
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-890c28",
+          "body": "[状态] → in_progress：上游复核 done；认领测试段：跑 t5 验收命令并核对总数 ≥ 基线 228（reqboard_task_move）",
+          "createdAt": 1791352435068,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        },
+        {
+          "id": "c-ae2bc0",
+          "body": "[状态] → done：测试段完成：卡内验收 94 passed、总数 232 ≥ 228，已留汇报（reqboard_task_move）",
+          "createdAt": 1791352445189,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791352340820,
+      "updatedAt": 1791352445189,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791352340820,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791352435068,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "上游复核 done；认领测试段：跑 t5 验收命令并核对总数 ≥ 基线 228"
+        },
+        {
+          "status": "done",
+          "at": 1791352445189,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "测试段完成：卡内验收 94 passed、总数 232 ≥ 228，已留汇报"
+        }
+      ],
+      "layer": 3,
+      "lastReport": {
+        "at": 1791352442691,
+        "reportIndex": 1,
+        "filesChanged": [
+          "tests/services/test_watch_engine_trading_day_gate.py",
+          "tests/notification/test_notification_audit_repository.py"
+        ],
+        "completed": [
+          "卡内验收命令：pytest tests/services/test_watch_engine_trading_day_gate.py tests/notification -q → 94 passed",
+          "总数口径：228（改动前基线）→ 232 passed，新增 4 条 ≥ 要求 3 条",
+          "每条新用例均指名具体行为（调用序列 / 去重条数 / repository 为 None），无空断言",
+          "notify-guard 全程 intercepted=0 egress=0（无真实外发）"
+        ]
+      },
+      "lastRun": {
+        "at": 1791352442691,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-8d7c74",
+      "requirementId": "REQ-261007101318-c392",
+      "title": "真实交易日回执 + 验收材料（时间型）·研发",
+      "description": "子卡阶段：研发",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-c926cd"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要",
+      "implementation": "2026-10-08（节后首个交易日）盘后执行：select occurred_at,title,delivery_channel,delivered,sender_id from quant.notification_audit where occurred_at::date='2026-10-08' order by occurred_at desc limit 20；以及 select triggered_at,symbol,left(detail::text,120) from quant.watch_triggers where triggered_at::date='2026-10-08' order by triggered_at desc limit 10；把两组输出摘要写入 docs/requirements/REQ-261007101318-c392/verification.md 作为 reqboard_submit(kind=verification) 的证据。\n\n[子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要",
+      "context": "",
+      "parentId": "t-2e590d",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-6d1f3a",
+          "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+          "trigger": "manual",
+          "startedAt": 1791352713055,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 2423,
+              "at": 1791352713055,
+              "totals": {
+                "uncachedInputTokens": 788904,
+                "outputTokens": 282816,
+                "cacheReadTokens": 133539968,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 2423,
+                  "totals": {
+                    "uncachedInputTokens": 788904,
+                    "outputTokens": 282816,
+                    "cacheReadTokens": 133539968,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 2435,
+              "at": 1791352720569,
+              "totals": {
+                "uncachedInputTokens": 789499,
+                "outputTokens": 283341,
+                "cacheReadTokens": 134748672,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 2435,
+                  "totals": {
+                    "uncachedInputTokens": 789499,
+                    "outputTokens": 283341,
+                    "cacheReadTokens": 134748672,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 595,
+              "outputTokens": 525,
+              "cacheReadTokens": 1208704,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791352720569
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-24b191",
+          "body": "[状态] → in_progress：开工 t6 研发段：完成 D-12 演练并落回执材料（含强度限定）（reqboard_task_move）",
+          "createdAt": 1791352713055,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        },
+        {
+          "id": "c-dcbee4",
+          "body": "[状态] → done：研发段完成（D-12 演练替代 + 材料落盘）；交复核段（reqboard_task_move）",
+          "createdAt": 1791352720569,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791352699484,
+      "updatedAt": 1791352720569,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791352699484,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791352713055,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "开工 t6 研发段：完成 D-12 演练并落回执材料（含强度限定）"
+        },
+        {
+          "status": "done",
+          "at": 1791352720569,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "研发段完成（D-12 演练替代 + 材料落盘）；交复核段"
+        }
+      ],
+      "layer": 2,
+      "lastReport": {
+        "at": 1791352717355,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-261007101318-c392/notes/t6-receipt-rehearsal.md",
+          "docs/requirements/REQ-261007101318-c392/verification.md",
+          "docs/requirements/REQ-261007101318-c392/requirement.md"
+        ],
+        "completed": [
+          "按人工裁定 D-12 完成演练替代：mock 2026-10-08 跑真 tick() → 事件数 1（现价 192.35 ≤ 阈值 218.24 下破）",
+          "生产模板渲染那天卡片：标题 🟠 P1 待决策（1 项）· 佰维存储（688525），四段契约齐 + 来源尾注",
+          "两条回执 SQL 以可回滚事务演练：审计命中 1 行（feishu/t/v2-watch@MOCK-HOST#1008）、触发命中 1 行、ROLLBACK 后残留 0/0",
+          "演练记录落盘 notes/t6-receipt-rehearsal.md（含「不是真实回执」性质声明）",
+          "验收材料落盘 verification.md：逐条 FR 证据 + D-12 强度限定 + 四条如实局限"
+        ]
+      },
+      "lastRun": {
+        "at": 1791352717355,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-f240da",
+      "requirementId": "REQ-261007101318-c392",
+      "title": "真实交易日回执 + 验收材料（时间型）·复核",
+      "description": "子卡阶段：复核",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-8d7c74"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对照 `docs/requirements/REQ-261007101318-c392/design/` 逐条核对；`npx vitest run tests/` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "implementation": "2026-10-08（节后首个交易日）盘后执行：select occurred_at,title,delivery_channel,delivered,sender_id from quant.notification_audit where occurred_at::date='2026-10-08' order by occurred_at desc limit 20；以及 select triggered_at,symbol,left(detail::text,120) from quant.watch_triggers where triggered_at::date='2026-10-08' order by triggered_at desc limit 10；把两组输出摘要写入 docs/requirements/REQ-261007101318-c392/verification.md 作为 reqboard_submit(kind=verification) 的证据。\n\n[子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/REQ-261007101318-c392/design/` 逐条核对；`npx vitest run tests/` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-2e590d",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-1ae7a6",
+          "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+          "trigger": "manual",
+          "startedAt": 1791352724209,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 2441,
+              "at": 1791352724209,
+              "totals": {
+                "uncachedInputTokens": 789690,
+                "outputTokens": 283710,
+                "cacheReadTokens": 135353600,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 2441,
+                  "totals": {
+                    "uncachedInputTokens": 789690,
+                    "outputTokens": 283710,
+                    "cacheReadTokens": 135353600,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 2458,
+              "at": 1791352733913,
+              "totals": {
+                "uncachedInputTokens": 790636,
+                "outputTokens": 284618,
+                "cacheReadTokens": 136565504,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 2458,
+                  "totals": {
+                    "uncachedInputTokens": 790636,
+                    "outputTokens": 284618,
+                    "cacheReadTokens": 136565504,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 946,
+              "outputTokens": 908,
+              "cacheReadTokens": 1211904,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791352733913
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-3fd0ac",
+          "body": "[状态] → in_progress：上游研发 done；认领复核段：核对 D-12 限定是否写清、演练是否零污染（reqboard_task_move）",
+          "createdAt": 1791352724209,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        },
+        {
+          "id": "c-a4dda6",
+          "body": "[状态] → done：复核段完成：零污染 + D-12 限定可见，无偏离（reqboard_task_move）",
+          "createdAt": 1791352733913,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791352699484,
+      "updatedAt": 1791352733913,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791352699484,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791352724209,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "上游研发 done；认领复核段：核对 D-12 限定是否写清、演练是否零污染"
+        },
+        {
+          "status": "done",
+          "at": 1791352733913,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "复核段完成：零污染 + D-12 限定可见，无偏离"
+        }
+      ],
+      "layer": 3,
+      "lastReport": {
+        "at": 1791352729698,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "零污染复核：演练后生产库 2026-10-08 审计 0 行 / 触发 0 行（0|0）",
+          "D-12 限定已落 requirement.md（裁定行含「证据强度弱于真实交易日回执」）",
+          "verification.md 含强度限定 3 处；notes 文件开头以等效措辞声明「本文是演练，不是 2026-10-08 的真实回执」",
+          "对照 design/test-cases.md §5：t6 判据的替代路径已按卡内验收执行（显式标注、不静默判过）",
+          "结论：无偏离（限定可被归档复核者看见）"
+        ]
+      },
+      "lastRun": {
+        "at": 1791352729698,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-a346aa",
+      "requirementId": "REQ-261007101318-c392",
+      "title": "真实交易日回执 + 验收材料（时间型）·测试",
+      "description": "子卡阶段：测试",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-f240da"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "implementation": "2026-10-08（节后首个交易日）盘后执行：select occurred_at,title,delivery_channel,delivered,sender_id from quant.notification_audit where occurred_at::date='2026-10-08' order by occurred_at desc limit 20；以及 select triggered_at,symbol,left(detail::text,120) from quant.watch_triggers where triggered_at::date='2026-10-08' order by triggered_at desc limit 10；把两组输出摘要写入 docs/requirements/REQ-261007101318-c392/verification.md 作为 reqboard_submit(kind=verification) 的证据。\n\n[子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "context": "",
+      "parentId": "t-2e590d",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-965963",
+          "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+          "trigger": "manual",
+          "startedAt": 1791352737979,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 2464,
+              "at": 1791352737979,
+              "totals": {
+                "uncachedInputTokens": 790819,
+                "outputTokens": 285011,
+                "cacheReadTokens": 137172608,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 2464,
+                  "totals": {
+                    "uncachedInputTokens": 790819,
+                    "outputTokens": 285011,
+                    "cacheReadTokens": 137172608,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+              "seq": 2478,
+              "at": 1791352746275,
+              "totals": {
+                "uncachedInputTokens": 791765,
+                "outputTokens": 285620,
+                "cacheReadTokens": 138388480,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544",
+                  "depth": 0,
+                  "seq": 2478,
+                  "totals": {
+                    "uncachedInputTokens": 791765,
+                    "outputTokens": 285620,
+                    "cacheReadTokens": 138388480,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 946,
+              "outputTokens": 609,
+              "cacheReadTokens": 1215872,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791352746275
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-864cb4",
+          "body": "[状态] → in_progress：上游复核 done；认领测试段：当日重跑两条回执 SQL，确认无演练残留（reqboard_task_move）",
+          "createdAt": 1791352737979,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        },
+        {
+          "id": "c-07cda4",
+          "body": "[状态] → done：测试段完成：回执 SQL 零残留、来源标识可查，已留汇报（reqboard_task_move）",
+          "createdAt": 1791352746275,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791352699484,
+      "updatedAt": 1791352746275,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791352699484,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791352737979,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "上游复核 done；认领测试段：当日重跑两条回执 SQL，确认无演练残留"
+        },
+        {
+          "status": "done",
+          "at": 1791352746275,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-c7b5b1ee-dc6a-497a-86d0-a3f34e787544"
+          },
+          "reason": "测试段完成：回执 SQL 零残留、来源标识可查，已留汇报"
+        }
+      ],
+      "layer": 4,
+      "lastReport": {
+        "at": 1791352743003,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-261007101318-c392/verification.md"
+        ],
+        "completed": [
+          "当日重跑 t6 两条 SQL：2026-10-08 审计 0 行 / 触发 0 行（演练无残留）",
+          "生产审计表现有 1 行真实数据，sender_id = v2-watch@192.168.1.109#80632（非空，证明来源标识可落库可查）",
+          "两组回执 SQL 的可执行性与形状已在演练中逐步验证（见 notes/t6-receipt-rehearsal.md）",
+          "按 D-12：本次以演练替代真实回执，强度限定已写入 verification.md 与需求台账",
+          "卡内 pnpm test / npx tsc 属跨仓模板；本仓等价验收为 pytest（已在 t1~t5 各卡执行）"
+        ]
+      },
+      "lastRun": {
+        "at": 1791352743003,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "t-d5d9b6",
+      "to": "t-c76181"
+    },
+    {
+      "from": "t-268fbd",
+      "to": "t-c926cd"
+    },
+    {
+      "from": "t-633d3f",
+      "to": "t-c926cd"
+    },
+    {
+      "from": "t-c926cd",
+      "to": "t-2e590d"
+    },
+    {
+      "from": "t-dcdeb1",
+      "to": "t-b33b0b"
+    },
+    {
+      "from": "t-b33b0b",
+      "to": "t-e58107"
+    },
+    {
+      "from": "t-e5a244",
+      "to": "t-e75a19"
+    },
+    {
+      "from": "t-e75a19",
+      "to": "t-62e64a"
+    },
+    {
+      "from": "t-b2f010",
+      "to": "t-890eb7"
+    },
+    {
+      "from": "t-890eb7",
+      "to": "t-e669c6"
+    },
+    {
+      "from": "t-d5d9b6",
+      "to": "t-00bd50"
+    },
+    {
+      "from": "t-00bd50",
+      "to": "t-2af346"
+    },
+    {
+      "from": "t-2af346",
+      "to": "t-7dcdbb"
+    },
+    {
+      "from": "t-268fbd",
+      "to": "t-2ae248"
+    },
+    {
+      "from": "t-633d3f",
+      "to": "t-2ae248"
+    },
+    {
+      "from": "t-2ae248",
+      "to": "t-8ccf53"
+    },
+    {
+      "from": "t-8ccf53",
+      "to": "t-094f32"
+    },
+    {
+      "from": "t-c926cd",
+      "to": "t-8d7c74"
+    },
+    {
+      "from": "t-8d7c74",
+      "to": "t-f240da"
+    },
+    {
+      "from": "t-f240da",
+      "to": "t-a346aa"
+    }
+  ],
+  "layers": [
+    {
+      "layer": 0,
+      "tasks": [
+        "t-268fbd",
+        "t-d5d9b6",
+        "t-633d3f",
+        "t-dcdeb1",
+        "t-e5a244",
+        "t-b2f010"
+      ]
+    },
+    {
+      "layer": 1,
+      "tasks": [
+        "t-c76181",
+        "t-00bd50",
+        "t-c926cd",
+        "t-2ae248",
+        "t-b33b0b",
+        "t-e75a19",
+        "t-890eb7"
+      ]
+    },
+    {
+      "layer": 2,
+      "tasks": [
+        "t-2af346",
+        "t-2e590d",
+        "t-8d7c74",
+        "t-8ccf53",
+        "t-e58107",
+        "t-62e64a",
+        "t-e669c6"
+      ]
+    },
+    {
+      "layer": 3,
+      "tasks": [
+        "t-7dcdbb",
+        "t-f240da",
+        "t-094f32"
+      ]
+    },
+    {
+      "layer": 4,
+      "tasks": [
+        "t-a346aa"
+      ]
+    }
+  ],
+  "ready": [],
+  "updated_at": "2026-10-07T06:00:20.172Z"
+}

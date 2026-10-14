@@ -41,6 +41,12 @@ class ActionHint:
         return self.trigger_level == TriggerLevel.L2_ACTION and self.requires_agent
 
 
+#: 异常波动升级阈值缺省值（%）。**唯一事实源**：`EscalationPolicy.default()` 与
+#: `domain/watch/services/escalation_verdict.py` 都引用本常量，不再各写一份 5.0
+#: （REQ-261007133807-eda6 t3：历史上有 checker 与 policy 两处手写值，改一处必然漂移）。
+DEFAULT_ANOMALY_CHANGE_PCT = 5.0
+
+
 @dataclass(frozen=True)
 class EscalationPolicy:
     """升级策略：L0/L1 触发满足条件时自动升级为 L2
@@ -49,12 +55,14 @@ class EscalationPolicy:
     """
     auto_escalate: bool = True
 
-    #: 异常波动升级阈值（%）：|涨跌幅| 达到即升级（REQ-c9f899 t7 新增；None=用 checker 默认值）
+    #: 异常波动升级阈值（%）：|涨跌幅| 达到即升级（REQ-c9f899 t7 新增；None=用缺省常量）
     anomaly_change_pct: Optional[float] = None
 
     # ── 以下为历史字段，仅保留以兼容既有 JSONB 解析；REQ-c9f899 t7 起不再被任何判定消费 ──
     
-    # 触发频率升级：{count} 次 / {window_minutes} 分钟
+    # 触发频率：{count} 次 / {window_minutes} 分钟
+    # （REQ-261007133807-eda6 t12：该键早已不被任何判据消费，这里只是遗留 JSONB 键的
+    #  形态说明；原注释措辞读起来像一条现行升级判据，故改写——文档不得宣称不存在的路径。）
     max_triggers_per_window: Optional[Dict[str, int]] = None
     
     # 价格偏差升级：偏差 > {price_deviation_pct}% 时升级
@@ -71,10 +79,24 @@ class EscalationPolicy:
     
     @classmethod
     def default(cls) -> 'EscalationPolicy':
-        """默认升级策略"""
-        # REQ-c9f899 t7：收敛后默认策略不再预置历史判据字段（频率/价格偏差/核心区域/量能/共振），
-        # 只留总开关；异常波动阈值取 EscalationChecker.DEFAULT_ANOMALY_CHANGE_PCT。
-        return cls(auto_escalate=True)
+        """默认升级策略（**显式**：不再留 None 让下游猜）
+
+        REQ-261007133807-eda6 t3 / FR-4：agent 建规则不填 `escalation_policy` 时，
+        库里的策略此前是 `NULL`/`{}`——"什么情况下会叫我"在规则上**看不见**（实测存量 7 条全空）。
+        现在缺省即写显式值：总开关 + 异常波动阈值（取本模块的缺省常量，不手写 5.0）。
+        """
+        return cls(auto_escalate=True, anomaly_change_pct=DEFAULT_ANOMALY_CHANGE_PCT)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """序列化为 JSONB 写入形态。
+
+        **只输出被判定消费的两个字段**：历史字段（频率/价格偏差/核心区域/量能/共振）
+        已不被任何判定消费，写回只会让"看着像有策略、其实不生效"的旧坑复发。
+        """
+        return {'auto_escalate': bool(self.auto_escalate),
+                'anomaly_change_pct': (DEFAULT_ANOMALY_CHANGE_PCT
+                                       if self.anomaly_change_pct is None
+                                       else float(self.anomaly_change_pct))}
 
 
 @dataclass

@@ -73,6 +73,24 @@ def _bare_trader(**attrs):
 
 
 class TestRunDailyCheckSkipContract:
+    """run_daily_check 的结果契约。
+
+    2026-10-04（REQ-261004154902-a7cd t2）契约升级：新增 ok / status，
+    且**失败一律 executed=False**（需求判定标准禁止再出现
+    「executed=True + action='rebalance'」这一旧形状）。
+
+    本组用例必须打桩失败出口：新契约会在失败时主动外发，
+    而测试期真实外发会被 tests/notify_guard.py 判失败（这是有意设计）。
+    """
+
+    @pytest.fixture(autouse=True)
+    def _stub_failure_sink(self, monkeypatch):
+        import live_trading.simulation_trader as st
+
+        monkeypatch.setattr(
+            st, "report_failure", lambda *a, **k: True
+        )
+
     def test_skip_when_not_trading_day(self):
         t = _bare_trader(
             model=object(), portfolio={},
@@ -86,12 +104,18 @@ class TestRunDailyCheckSkipContract:
 
         assert result['executed'] is False
         assert result['reason'] == 'not_trading_day'
+        # 跳过不是成功（旧实现会把它记成 success，导致空转数周无人察觉）
+        assert result['status'] == 'skipped'
+        assert result['ok'] is False
 
     def test_skip_when_model_not_loaded(self):
         t = _bare_trader(model=None, portfolio={})
         result = t.run_daily_check()
         assert result['executed'] is False
         assert result['reason'] == 'model_not_loaded'
+        # 模型没加载是**环境坏**，不是"合理跳过"
+        assert result['status'] == 'failed'
+        assert result['ok'] is False
 
     def test_executed_when_rebalance_runs(self):
         calls = []
@@ -102,13 +126,38 @@ class TestRunDailyCheckSkipContract:
         )
         t._is_rebalance_due = lambda d: True
         t._is_trading_day = lambda d: True
-        t.rebalance = lambda d: calls.append(d)
+
+        def _fake_rebalance(date):
+            calls.append(date)
+            return {'success': True, 'position_count': 0, 'total_value': 0.0}
+
+        t.rebalance = _fake_rebalance
 
         result = t.run_daily_check()
 
         assert result['executed'] is True
         assert result['action'] == 'rebalance'
+        assert result['status'] == 'success'
+        assert result['ok'] is True
         assert len(calls) == 1
+
+    def test_rebalance_failure_is_not_reported_as_success(self):
+        """回归锁：调仓失败必须失败，且不得是 executed=True + action='rebalance'。"""
+        t = _bare_trader(
+            model=object(), portfolio={},
+            last_rebalance_date='2026-07-17',
+            config={'strategy': {'rebalance_days': 7}},
+        )
+        t._is_rebalance_due = lambda d: True
+        t._is_trading_day = lambda d: True
+        t.rebalance = lambda d: {'success': False, 'error': 'boom'}
+
+        result = t.run_daily_check()
+
+        assert result['status'] == 'failed'
+        assert result['ok'] is False
+        assert result['reason'] == 'rebalance_failed'
+        assert not (result['executed'] is True and result['action'] == 'rebalance')
 
 
 # ── 策略禁用守卫（v14 休眠开关）─────────────────────────

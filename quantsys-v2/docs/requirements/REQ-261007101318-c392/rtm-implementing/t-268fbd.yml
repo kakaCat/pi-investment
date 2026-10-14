@@ -1,0 +1,35 @@
+task:
+  id: t-268fbd
+  title: FR-1 休市日闸门：tick() 日级收敛到 TradingDayGuard（回填）
+  status: done
+  implements: application/services/watch_engine/engine.py：新增 _resolve_trading_day(day) 作为 tick() 与 run_forever() 的唯一日级入口（默认 TradingDayGuard.check，支持 is_trading_day_fn/trading_day_verdict_fn 注入）；tick() 前置改为「日级 + 时段」双闸门，未开市时调用 _log_market_closed() 按日去重留痕后 return []（不取规则、不评估、不落库、不外发）；判定异常一律保守判非交易日。新增 tests/services/test_watch_engine_trading_day_gate.py 锁定四条行为。
+  serves:
+    - FR-1
+  depends_on: []
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261007101318-c392
+    TASK_ID: t-268fbd
+    TASK_TITLE: FR-1 休市日闸门：tick() 日级收敛到 TradingDayGuard（回填）
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-07T05:43:15.263Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261007101318-c392
+  generated_at: 2026-10-07T05:41:58.313Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-07T05:43:15.263Z

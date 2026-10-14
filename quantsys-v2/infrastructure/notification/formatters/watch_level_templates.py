@@ -26,6 +26,7 @@ from datetime import datetime, timedelta
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from domain.notification.models.notification import NotificationType
+from domain.watch.services.escalation_verdict import EscalationCode, should_render_reason
 from infrastructure.notification.formatters.feishu_base_formatter import FeishuFormatter
 # INTENT_META/STAGE_LABELS 复用旧意图驱动格式化的同一份表（单一真相，不复制）；
 # feishu_formatters 对本模块是 format() 内的延迟 import，此处模块级 import 无循环。
@@ -82,6 +83,15 @@ class WatchCardItem:
     take_profit: Optional[float] = None  # 止盈价
     validity_days: Optional[int] = None  # 有效期（天）
     source: str = ''                     # 来源（如 opportunity_scan 自动创建）
+    # ── REQ-261007101318-c392：语义与来源（FR-3 / FR-4）──────────────────────
+    trigger_level: str = ''              # 处置级别 L0/L1/L2（决定"要不要 agent 介入"）
+    closed_loop: bool = True             # 闭环是否开启（决定是否渲染处置入口/回执位）
+    sender_id: str = ''                  # 发送方标识（v2-watch@<host>#<pid>）
+    # ── REQ-261007133807-eda6 t9（FR-3）：升级理由（"这次为什么叫了我"）───────
+    #: 理由码（受控枚举，见 escalation_verdict.EscalationCode）——卡面显示它的路径标签
+    escalation_code: str = ''
+    #: 人话理由；被去重/抑噪覆盖时含「原判：…」段
+    escalation_reason: str = ''
 
     @property
     def display(self) -> str:
@@ -162,6 +172,49 @@ def _rule_ref(item: WatchCardItem) -> str:
     return f'规则#{item.rule_id}' if item.rule_id not in (None, '') else '手工'
 
 
+#: 处置级别 → 「该谁处置」措辞（FR-4：用户必须一眼看出要不要 agent 介入）
+TRIGGER_LEVEL_META = {
+    'L0': 'L0 纯信息（只看，不需要动作）',
+    'L1': 'L1 提醒（人工判断，不唤醒 agent）',
+    'L2': 'L2 行动（需 agent 介入处置）',
+}
+
+
+def _level_line(item: WatchCardItem) -> Optional[str]:
+    """处置级别行（FR-4）：级别未知则**隐藏该行**（不臆造级别），已知则如实说明该谁处置。"""
+    level = str(item.trigger_level or '').strip().upper()
+    if not level:
+        return None
+    return f'**处置**：{TRIGGER_LEVEL_META.get(level, level)}'
+
+
+def _sender_footer(item: WatchCardItem) -> Optional[str]:
+    """来源尾注（FR-3）：把"谁发的"写进卡片本身——跨机/跨进程可分辨。
+
+    用户 2026-10-07 指出"执行可能是另外一个机器执行的"；而 v2 与 agent-ts 共用同一
+    飞书机器人 ⇒ 不写来源，事后永远分不清是本机引擎、异地实例还是手工 webhook。
+    """
+    sender = str(item.sender_id or '').strip()
+    return f'—— {sender}' if sender else None
+
+
+def _escalation_line(item: WatchCardItem) -> Optional[str]:
+    """「升级原因」行（REQ-261007133807-eda6 t9 / FR-3）：写清这次为什么叫了我。
+
+    - 有码有理由 → `路径标签｜人话理由`；
+    - 只有码（如规则本来就是 L2）→ 显示路径标签；
+    - 都没有 → **返回 None（不渲染该行）**，绝不臆造理由；
+    - 码未收录 → label_of 回退成码本身（显示事实，不编句子）。
+    """
+    code = str(getattr(item, 'escalation_code', '') or '').strip()
+    reason = str(getattr(item, 'escalation_reason', '') or '').strip()
+    if not should_render_reason(code, reason):
+        return None
+    if code and reason:
+        return f'**升级原因**：{EscalationCode.label_of(code)}｜{reason}'
+    return f'**升级原因**：{EscalationCode.label_of(code) if code else reason}'
+
+
 def _meta_line(item: WatchCardItem) -> str:
     """阶段 · 归属 · 规则引用。归属缺失 = 「通用观察」（无账户预案，不臆造账户）。"""
     bits: List[str] = []
@@ -204,12 +257,18 @@ def _risk_line(item: WatchCardItem) -> Optional[str]:
     return f"**风控**：{' ｜ '.join(bits)}" if bits else None
 
 
-def _skeleton_lines(item: WatchCardItem, *, receipt_note: bool = True) -> List[str]:
+def _skeleton_lines(item: WatchCardItem, *, receipt_note: bool = True,
+                    closed_loop: Optional[bool] = None) -> List[str]:
     """完整卡的意图驱动骨架（P0/P1 首项用）。
 
-    顺序固定（t2 验收锚点）：意图标签 → 触发 → 现价 → 目的 → 预案 → 风控 → 下一步。
+    顺序固定（t2 验收锚点）：意图标签 → 触发 → 现价 → 目的 → 预案 → 风控 → 处置级别 → 下一步。
     「该干什么」只在「下一步」出现一次（FR-9 判重：N=1 时 action 文本出现 1 次）。
+
+    **FR-4（REQ-261007101318-c392）**：处置级别行恒渲染（有级别时）；
+    而「待办#」「处置后必有回执」属**闭环承诺**，只在 `closed_loop` 为真时渲染——
+    闭环未开启却承诺"回执/待办"会指向不存在的东西。
     """
+    loop = item.closed_loop if closed_loop is None else bool(closed_loop)
     label, purpose = _intent_meta(item)
     lines = [
         '`🔔 需决策`',
@@ -225,44 +284,61 @@ def _skeleton_lines(item: WatchCardItem, *, receipt_note: bool = True) -> List[s
     risk = _risk_line(item)
     if risk:
         lines.append(risk)
+    level_line = _level_line(item)
+    if level_line:
+        lines.append(level_line)
+    # FR-3（REQ-261007133807-eda6 t9）：升级原因行紧跟在「处置」之后、「下一步」之前
+    escalation_line = _escalation_line(item)
+    if escalation_line:
+        lines.append(escalation_line)
     next_line = f'**下一步**：{item.action}'
-    if item.todo_id not in (None, ''):
+    if loop and item.todo_id not in (None, ''):
         next_line += f'（待办#{item.todo_id}）'
-    if receipt_note:
+    if receipt_note and loop:
         next_line += ' → 处置后必有回执'
     lines.append(next_line)
     return lines
 
 
-def _summary_line(item: WatchCardItem) -> str:
-    """P1 其余项的一行摘要：意图 emoji + 标的 + 动作 + 待办# + 归属（FR-6）。"""
+def _summary_line(item: WatchCardItem, *, closed_loop: bool = True) -> str:
+    """P1 其余项的一行摘要：意图 emoji + 标的 + 动作 + 待办# + 归属（FR-6）。
+
+    FR-4：`待办#` 属闭环承诺，闭环未开启时不渲染（默认 True = 兼容既有行为）。
+    """
     bits = [item.action]
-    if item.todo_id not in (None, ''):
+    if closed_loop and item.todo_id not in (None, ''):
         bits.append(f'待办#{item.todo_id}')
     bits.append(f'归属 {item.account or "通用观察"}')
     return f'- {_intent_emoji(item)} {item.display} {" · ".join(bits)}'
 
 # ── 四类模板 ──────────────────────────────────────────────────────────────────
 def render_p0(items, *, fallback: bool = False,
-              requested_level: Optional[str] = None) -> Dict[str, Any]:
+              requested_level: Optional[str] = None,
+              closed_loop: Optional[bool] = None) -> Dict[str, Any]:
     """P0 红卡：@所有人 首行 + 意图骨架 + 处置入口；不聚合（每条单独推送）。
 
     REQ-ad0a t2：骨架 = 意图标签→触发→现价→目的→预案→风控→下一步；
     风控行含止损/止盈（FR-5）；P0_RECEIPT/不可静默两条硬提示保留。
+    FR-4：处置入口/不可静默/回执位三条**闭环承诺**只在 `closed_loop` 为真时渲染。
     """
     rows = _rows(items)
     lead = rows[0]
+    loop = lead.closed_loop if closed_loop is None else bool(closed_loop)
     lines = [MENTION_USER]                      # @所有人 首行（FR-5）
-    lines += _skeleton_lines(lead, receipt_note=True)
-    lines.append(f'**{ACTION_ENTRY_TEXT}**')    # 处置入口（FR-5）
-    lines.append(f'**{P0_NOT_SILENCEABLE_TEXT}**')
-    lines.append(f'**{P0_RECEIPT_TEXT}**')
+    lines += _skeleton_lines(lead, receipt_note=True, closed_loop=loop)
+    if loop:
+        lines.append(f'**{ACTION_ENTRY_TEXT}**')    # 处置入口（FR-5）
+        lines.append(f'**{P0_NOT_SILENCEABLE_TEXT}**')
+        lines.append(f'**{P0_RECEIPT_TEXT}**')
     note = _fallback_line(fallback, requested_level)
     if note:
         lines.append(note)
     if len(rows) > 1:
         others = '、'.join(row.display for row in rows[1:4])
         lines.append(f'同批另有 {len(rows) - 1} 条 P0：{others}')
+    footer = _sender_footer(lead)
+    if footer:
+        lines.append(footer)
     return _CARD_BUILDER.format_card(
         title=f'🛑 P0 立即处置 · {lead.display}',
         content='\n'.join(lines),
@@ -271,25 +347,32 @@ def render_p0(items, *, fallback: bool = False,
 
 
 def render_p1(items, *, fallback: bool = False,
-              requested_level: Optional[str] = None) -> Dict[str, Any]:
+              requested_level: Optional[str] = None,
+              closed_loop: Optional[bool] = None) -> Dict[str, Any]:
     """P1 橙卡：首项完整骨架 + 其余项一行摘要（意图 emoji/待办#/归属）。
 
     REQ-ad0a t2：N=1 判重——action 只在「下一步」出现一次（FR-9）；
     N>1 = 1 完整段 + (N-1) 摘要行（FR-6）；多账户分行不合并（FR-4）。
+    FR-4：处置入口（指向待办看板）只在 `closed_loop` 为真时渲染。
     """
     rows = _rows(items)
     lead = rows[0]
+    loop = lead.closed_loop if closed_loop is None else bool(closed_loop)
     total = len(rows)
     lines: List[str] = []
     if total > 1:
         lines.append(f'有 {total} 项等你拍板')
-    lines += _skeleton_lines(lead, receipt_note=True)
+    lines += _skeleton_lines(lead, receipt_note=True, closed_loop=loop)
     for row in rows[1:]:
-        lines.append(_summary_line(row))
-    lines.append(f'**{ACTION_ENTRY_TEXT}**')
+        lines.append(_summary_line(row, closed_loop=loop))
+    if loop:
+        lines.append(f'**{ACTION_ENTRY_TEXT}**')
     note = _fallback_line(fallback, requested_level)
     if note:
         lines.append(note)
+    footer = _sender_footer(lead)
+    if footer:
+        lines.append(footer)
     return _CARD_BUILDER.format_card(
         title=f'🟠 P1 待决策（{total} 项）· {lead.display}',
         content='\n'.join(lines),
@@ -298,24 +381,37 @@ def render_p1(items, *, fallback: bool = False,
 
 
 def render_p2(items, *, fallback: bool = False,
-              requested_level: Optional[str] = None) -> Dict[str, Any]:
-    """P2 蓝卡：一行一条（支持聚合多条）；行首意图 emoji，行尾归属（FR-7）。"""
+              requested_level: Optional[str] = None,
+              closed_loop: Optional[bool] = None) -> Dict[str, Any]:
+    """P2 蓝卡：一行一条（支持聚合多条）；行首意图 emoji，行尾归属（FR-7）。
+
+    FR-4：级别已知时行尾补 `· L0/L1/L2`（该不该 agent 介入一眼可见）；未知则不加（不臆造）。
+    FR-3：卡尾附来源尾注。
+    """
     rows = _rows(items)
-    lines = [
-        (f'{_intent_emoji(row)} [知悉] {row.display} {row.price_text} {row.action}'
-         f' · 归属 {row.account or "通用观察"}')
-        for row in rows
-    ]
+    lead = rows[0]
+    lines: List[str] = []
+    for row in rows:
+        line = (f'{_intent_emoji(row)} [知悉] {row.display} {row.price_text} {row.action}'
+                f' · 归属 {row.account or "通用观察"}')
+        level = str(row.trigger_level or '').strip().upper()
+        if level:
+            line += f' · {level}'
+        lines.append(line)
     note = _fallback_line(fallback, requested_level)
     if note:
         lines.append(note)
+    footer = _sender_footer(lead)
+    if footer:
+        lines.append(footer)
     title = (f'🔵 P2 知悉 · {rows[0].display}' if len(rows) == 1
              else f'🔵 P2 知悉（{len(rows)} 条）')
     return _CARD_BUILDER.format_card(title=title, content='\n'.join(lines), color='blue')
 
 
 def render_p3_digest(items, *, fallback: bool = False, requested_level: Optional[str] = None,
-                     day: Optional[str] = None, max_lines: int = 20) -> Dict[str, Any]:
+                     day: Optional[str] = None, max_lines: int = 20,
+                     closed_loop: Optional[bool] = None) -> Dict[str, Any]:
     """P3 日终汇总：P3 **不单独推送**，多条合成一条清单（首个渲染函数即聚合出口）。"""
     rows = _rows(items)
     lead = rows[0]
@@ -334,6 +430,9 @@ def render_p3_digest(items, *, fallback: bool = False, requested_level: Optional
     note = _fallback_line(fallback, requested_level)
     if note:
         lines.append(note)
+    footer = _sender_footer(lead)
+    if footer:
+        lines.append(footer)
     return _CARD_BUILDER.format_card(
         title=f'🗂 P3 日终归档（{len(rows)} 条）',
         content='\n'.join(lines),
@@ -454,6 +553,14 @@ def card_item_from_variables(variables: Dict[str, Any]) -> WatchCardItem:
         take_profit=data.get('take_profit'),
         validity_days=data.get('validity_days'),
         source=str(data.get('source') or ''),
+        # REQ-261007101318-c392：处置级别 / 闭环开关 / 来源标识（FR-3、FR-4）
+        # closed_loop 缺省 True = 兼容旧调用方（旧行为里"有级别"即意味着闭环开启）
+        trigger_level=str(data.get('trigger_level') or ''),
+        closed_loop=bool(data.get('closed_loop', True)),
+        sender_id=str(data.get('sender_id') or ''),
+        # REQ-261007133807-eda6 t9：升级理由（码 + 人话）；缺失如实留空 = 不渲染该行
+        escalation_code=str(data.get('escalation_code') or ''),
+        escalation_reason=str(data.get('escalation_reason') or ''),
     )
 
 

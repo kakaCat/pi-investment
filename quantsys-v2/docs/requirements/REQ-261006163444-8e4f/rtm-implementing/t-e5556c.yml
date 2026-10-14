@@ -1,0 +1,38 @@
+task:
+  id: t-e5556c
+  title: 作业层接线：域内聚合、新告警判据与回填限域·研发
+  status: done
+  implements: |-
+    改 infrastructure/jobs/data_quality_check_job.py：① _normalize_params 新增 d_grade_threshold=20、quality_threshold 缺省改 88.0、coverage_info_threshold=97.0、backfill_fail_rate_threshold=50.0、backfill_min_sample=10，全部进 effective_params 与 param_notes；② 检查前 build_domain_snapshot(service.kline_repo)；③ 回填候选集改为 per_symbol 里 missing_days_count>0 且 symbol in domain.tradable，仍按缺失天数降序（不再用 stocks_with_issues 的前 50 条）；④ _check_quality_alerts(result, domain, per_symbol, thresholds) 算 DomainStats，判据为域内 D级>20 / 评分<88.0 / 覆盖率仅信息项 / 回填失败率>50% 且 n>=10 / dropped_new 非空→warning，result 新增 alert_scope、domain、domain_dropped、alert_thresholds；⑤ _send_quality_alerts(alerts, stats, thresholds) 按设计 interfaces 文档 §5 渲染正文；⑥ 降级分支：domain.degraded 或 per_symbol 缺失 ⇒ error 项 qa_scope_unavailable，alert_scope='degraded'，不回退 count_by_grade_on。负向：per_symbol 不得进入 result 或日志全文。
+
+    [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+  serves: []
+  depends_on:
+    - t-839a64
+    - t-f2d177
+    - t-baed9f
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261006163444-8e4f
+    TASK_ID: t-e5556c
+    TASK_TITLE: 作业层接线：域内聚合、新告警判据与回填限域·研发
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-06T08:51:56.805Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006163444-8e4f
+  generated_at: 2026-10-06T08:51:56.718Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-06T08:51:56.867Z

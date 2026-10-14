@@ -1,0 +1,160 @@
+metadata:
+  stage: design
+  requirement_id: REQ-261003150739-b98d
+  generated_at: 2026-10-03T07:08:28.893Z
+  version: 4
+  generated_by: dsh-pmboard
+  last_updated: 2026-10-03T07:35:04.116Z
+inputs:
+  requirements:
+    - id: FR-1
+      title: 打桩点对齐实现命名空间
+      source: requirement.md
+      line: 94
+    - id: FR-2
+      title: e2e 手动触发用例不再执行真实 handler
+      source: requirement.md
+      line: 99
+    - id: FR-3
+      title: 测试期外发守卫
+      source: requirement.md
+      line: 104
+    - id: FR-4
+      title: 回归锁
+      source: requirement.md
+      line: 109
+outputs:
+  design_sections:
+    - ref: design/architecture.md#目标与判定
+      title: 目标与判定（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/architecture.md
+      section: 目标与判定
+    - ref: design/architecture.md#根因结构
+      title: 根因结构（
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 根因结构
+    - ref: design/architecture.md#守卫落点传输层-URL-分类
+      title: 守卫落点：传输层 URL 分类（
+      serves:
+        - FR-3
+      file: design/architecture.md
+      section: 守卫落点传输层-URL-分类
+    - ref: design/architecture.md#启用顺序与回滚
+      title: 启用顺序与回滚（
+      serves:
+        - FR-3
+      file: design/architecture.md
+      section: 启用顺序与回滚
+    - ref: design/architecture.md#不改什么
+      title: 不改什么（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/architecture.md
+      section: 不改什么
+    - ref: design/data-model.md#记账结构
+      title: 记账结构（
+      serves:
+        - FR-3
+      file: design/data-model.md
+      section: 记账结构
+    - ref: design/data-model.md#不改表不落库
+      title: 不改表、不落库（
+      serves:
+        - FR-3
+        - FR-4
+      file: design/data-model.md
+      section: 不改表不落库
+    - ref: design/data-model.md#判定数据
+      title: 判定数据（
+      serves:
+        - FR-4
+      file: design/data-model.md
+      section: 判定数据
+    - ref: design/interfaces.md#守卫模块-API
+      title: 守卫模块 API（
+      serves:
+        - FR-3
+      file: design/interfaces.md
+      section: 守卫模块-API
+    - ref: design/interfaces.md#打桩点契约
+      title: 打桩点契约（
+      serves:
+        - FR-1
+        - FR-2
+      file: design/interfaces.md
+      section: 打桩点契约
+    - ref: design/interfaces.md#错误语义
+      title: 错误语义（
+      serves:
+        - FR-3
+        - FR-4
+      file: design/interfaces.md
+      section: 错误语义
+    - ref: design/use-cases.md#角色与关注点
+      title: 角色与关注点（
+      serves:
+        - FR-3
+      file: design/use-cases.md
+      section: 角色与关注点
+    - ref: design/use-cases.md#场景-1开发者跑测试
+      title: 场景 1：开发者跑测试（
+      serves:
+        - FR-3
+      file: design/use-cases.md
+      section: 场景-1开发者跑测试
+    - ref: design/use-cases.md#场景-2有人再次打错桩
+      title: 场景 2：有人再次打错桩（
+      serves:
+        - FR-4
+      file: design/use-cases.md
+      section: 场景-2有人再次打错桩
+    - ref: design/use-cases.md#场景-3需要断言通知确实被调用的用例
+      title: 场景 3：需要断言"通知确实被调用"的用例（
+      serves:
+        - FR-3
+      file: design/use-cases.md
+      section: 场景-3需要断言通知确实被调用的用例
+traceability:
+  fr_to_design:
+    FR-1:
+      - design/architecture.md#目标与判定
+      - design/architecture.md#根因结构
+      - design/architecture.md#不改什么
+      - design/interfaces.md#打桩点契约
+    FR-2:
+      - design/architecture.md#目标与判定
+      - design/architecture.md#不改什么
+      - design/interfaces.md#打桩点契约
+    FR-3:
+      - design/architecture.md#目标与判定
+      - design/architecture.md#守卫落点传输层-URL-分类
+      - design/architecture.md#启用顺序与回滚
+      - design/architecture.md#不改什么
+      - design/data-model.md#记账结构
+      - design/data-model.md#不改表不落库
+      - design/interfaces.md#守卫模块-API
+      - design/interfaces.md#错误语义
+      - design/use-cases.md#角色与关注点
+      - design/use-cases.md#场景-1开发者跑测试
+      - design/use-cases.md#场景-3需要断言通知确实被调用的用例
+    FR-4:
+      - design/data-model.md#不改表不落库
+      - design/data-model.md#判定数据
+      - design/interfaces.md#错误语义
+      - design/use-cases.md#场景-2有人再次打错桩
+coverage:
+  design:
+    total: 4
+    covered: 4
+    uncovered: []
+    rate: 100
+    total_frs: 4
+    covered_frs: 4

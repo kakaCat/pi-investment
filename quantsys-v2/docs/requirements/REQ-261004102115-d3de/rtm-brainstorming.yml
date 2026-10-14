@@ -1,0 +1,27 @@
+metadata:
+  stage: brainstorming
+  requirement_id: REQ-261004102115-d3de
+  generated_at: 2026-10-04T02:21:57.608Z
+  version: 4
+  generated_by: dsh-pmboard
+  last_updated: 2026-10-04T02:39:19.098Z
+outputs:
+  requirements:
+    - id: FR-1
+      title: 节假日感知的「应有交易日」单一实现
+      source: requirement.md
+      line: 94
+    - id: FR-2
+      title: 探针接入新口径并显式标注来源
+      source: requirement.md
+      line: 100
+    - id: FR-3
+      title: "`freshness_guard` 复用同一实现"
+      source: requirement.md
+      line: 105
+    - id: FR-4
+      title: 回归锁（日期用例）
+      source: requirement.md
+      line: 110
+status:
+  artifacts: []

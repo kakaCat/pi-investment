@@ -9,9 +9,11 @@
 （未填写——开工前补充这张卡要解决的业务问题）
 
 ## 得到什么结果
-接口联调通过：给出请求样例与期望响应，实际返回与预期一致
 
----
+1) 护栏断言可用：`pytest tests/test_layer_purity.py -q` 全绿。
+2) hook 已生效：`git config core.hooksPath` 输出非空；`curl -s --noproxy '*' -o /dev/null -w '%{http_code}' http://127.0.0.1:5001/api/health` 输出 200（钩子/护栏不影响服务装配）。
+3) 违规数取自实测：`python tools/analyze_layer_violations.py` 的输出与 `tests/test_layer_purity.py` 里的 TOTAL_BASELINE 一致（不一致须在报告说明）。
+
 ## 汇报 1（2026-10-01T08:48:25.019Z，窗口 session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22）
 
 联调段：用"真的提交一次再复位"证明了护栏已经接进 git 的提交流程——提交时它会自己跑起来并打印违规数 117；同时也确认这次暂存的 112 个文件全是本需求的改动，没有把别人会话的 agent-ts 改动卷进来。

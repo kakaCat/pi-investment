@@ -1,0 +1,36 @@
+task:
+  id: t-1d7233
+  title: 回归锁与假绿防线（新建用例文件）·复核
+  status: done
+  implements: |-
+    新建 tests/api/test_orchestrator_trading_day_gate.py，实现 design/test-cases.md 的 T1–T13：桩打在 application.services.trading_day_gate.TradingDayGuard（本仓打桩点规则）。覆盖：休市日跳过且 PaperTradingEngine 未被构造、交易日对照、降级 fail-open、门自身异常照跑、未来日反例锁（check('2026-10-07').source == 'future'）、编排 tick 休市日零调用与交易日照调、静态对账、打桩点证伪（打在 orchestrator_bootstrap 同名符号上不生效）、日志去噪、窗口语义回归、时段优先、通知零外发。并按 test-cases.md §4 至少做两处反向注入（降级也跳过 / 拿未来日当休市日判据），确认变红后复原，注入过程写进卡片汇报不留在仓库。
+
+    [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+  serves: []
+  depends_on:
+    - t-ea86ce
+  phase: test
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261006130750-0654
+    TASK_ID: t-1d7233
+    TASK_TITLE: 回归锁与假绿防线（新建用例文件）·复核
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: test
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: test
+      status: done
+      completed_at: 2026-10-06T05:26:06.241Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006130750-0654
+  generated_at: 2026-10-06T05:26:02.553Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-06T05:26:08.468Z

@@ -9,9 +9,11 @@
 （未填写——开工前补充这张卡要解决的业务问题）
 
 ## 得到什么结果
-接口联调通过：给出请求样例与期望响应，实际返回与预期一致
 
----
+1) 抽查三只标的的最新日线日期：`psql -d quant_investment -At -c "select symbol||' '||max(trade_date) from quant.daily_klines where symbol in ('600519','000001','300750') group by 1"` —— 每只的日期都不早于最近交易日。
+2) `pytest tests/test_freshness_guard.py -q` 全绿（巡检验证不再报 stale）。
+3) 行情接口可用：`curl -s --noproxy '*' -o /dev/null -w '%{http_code}' http://127.0.0.1:5001/api/charts/kline/600519` 输出 200。
+
 ## 汇报 1（2026-10-01T09:01:19.547Z，窗口 session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22）
 
 联调段：不只是"数据补上了"，还顺带查出**一整类接口在生产里静默返回空数据**——所有异步读接口因为缺一个运行前提包（greenlet），异常又被吞掉，于是永远 200 但 data 为空；补上依赖并重启后，同一接口立刻返回了刚补的 09-30 行情。

@@ -1,0 +1,38 @@
+task:
+  id: t-36bf41
+  title: 门模块与 JobDef 字段（接口先行）·测试
+  status: done
+  implements: |-
+    新建 adapters/inbound/fastapi_app/daily_jobs/gate.py：skip_non_trading_day(now=None)->tuple[bool,dict] / is_non_trading_day(now=None)->bool / verdict_info(now=None)->dict；判据 skip = (not TradingDayGuard.check(now).is_trading_day) and (not verdict.degraded)；永不抛，自身异常返回 (False, {'source':'gate-error',...}) 并记 warning 日志；注解五键 day/is_trading_day/source/degraded/reason。改 adapters/inbound/fastapi_app/daily_jobs/defs.py：JobDef 末尾追加 trading_days_only: bool = False（必须末位带默认值，仓内多处按位置参数构造）。新增 tests/test_daily_jobs_trading_day_gate.py 覆盖 TC-1 真值表：休市日 2026-10-05/06/07 → skip=True；交易日 2026-09-30/2026-10-08 → skip=False；周末 2026-10-03 → skip=True；degraded=True → skip=False（fail-open）；check 抛异常 → skip=False 且 source='gate-error'；注解形状五键齐。打桩点 daily_jobs.gate.TradingDayGuard，零网络零 DB。不改 daily_jobs/__init__.py 与 daily_jobs_bootstrap.py 的导出清单。
+
+    [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+  serves: []
+  depends_on:
+    - t-5d3b29
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261005203907-2b8c
+    TASK_ID: t-36bf41
+    TASK_TITLE: 门模块与 JobDef 字段（接口先行）·测试
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-05T13:15:19.004Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261005203907-2b8c
+  generated_at: 2026-10-05T13:14:56.046Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-05T13:15:19.004Z

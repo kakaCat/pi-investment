@@ -1,0 +1,38 @@
+task:
+  id: t-075116
+  title: 宿主接线：_run_job 跳过早退 + 3 任务置位
+  status: done
+  implements: "改 adapters/inbound/fastapi_app/daily_jobs/runtime.py：_run_job 在 _mark_running 之后、_send_feishu('▶️ 每日任务开始…') 之前插入早退分支——if job.trading_days_only and skip_non_trading_day()[0]: 写 _mark_done(status='skipped', result={'skipped':True,'reason':f'非交易日（{day}）：{reason}','trading_day':info}) + scheduler_job_runs_total.labels(status='skipped').inc() + logger.info('inprocess_job_skipped') + return（不发任何飞书、不观测 duration）；照跑路径在 result 为 dict 时补 result['trading_day']=info，degraded=True 时记 logger.warning('inprocess_job_trading_day_degraded')。改 adapters/inbound/fastapi_app/daily_jobs/registry.py：pool_daily_refresh / chip_distribution / evolution_fitness 三行加 trading_days_only=True；evening_pipeline 与其余 5 个任务不加。在 tests/test_daily_jobs_trading_day_gate.py 追加：跳过留痕（_mark_done 收到 status='skipped' 且 result['skipped'] is True 且 trading_day 五键齐）、_send_feishu 调用次数为 0、handler 未被调用（side_effect=AssertionError）、注册表里 trading_days_only=True 的集合恰好是那 3 个。打桩点必须是 daily_jobs.runtime 模块内的 _mark_running/_mark_done/_send_feishu（打在 alerting 或 daily_jobs_bootstrap 上会静默失效并真发飞书）。"
+  serves:
+    - FR-1
+    - FR-3
+    - FR-5
+  depends_on:
+    - t-dd0d4d
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261005203907-2b8c
+    TASK_ID: t-075116
+    TASK_TITLE: 宿主接线：_run_job 跳过早退 + 3 任务置位
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-05T13:18:27.654Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261005203907-2b8c
+  generated_at: 2026-10-05T13:15:28.201Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-05T13:18:27.654Z

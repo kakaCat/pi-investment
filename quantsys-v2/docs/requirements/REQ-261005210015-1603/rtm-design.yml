@@ -1,0 +1,313 @@
+metadata:
+  stage: design
+  requirement_id: REQ-261005210015-1603
+  generated_at: 2026-10-05T13:02:27.384Z
+  version: 3
+  generated_by: dsh-pmboard
+  rtm_version: "2.0"
+  last_updated: 2026-10-05T13:07:54.025Z
+inputs:
+  requirements:
+    - id: FR-1
+      title: 完成/失败通知的耗时必须反映真实量级
+      source: requirement.md
+      line: 152
+    - id: FR-2
+      title: 摘要必须含"没做成的动作"，且不得是内部字段名的原样 dump
+      source: requirement.md
+      line: 156
+    - id: FR-3
+      title: 零有效产出不得报 ✅
+      source: requirement.md
+      line: 161
+    - id: FR-4
+      title: 计数语义必须诚实
+      source: requirement.md
+      line: 166
+    - id: FR-5
+      title: 空转必须跨天可见
+      source: requirement.md
+      line: 173
+    - id: FR-6
+      title: 台账与重试语义不动
+      source: requirement.md
+      line: 178
+    - id: FR-7
+      title: 回归锁与真实观察
+      source: requirement.md
+      line: 183
+outputs:
+  design_sections:
+    - ref: design/architecture.md#目标与判定
+      title: 目标与判定（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/architecture.md
+      section: 目标与判定
+    - ref: design/architecture.md#改动落点与数据流
+      title: 改动落点与数据流（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+      file: design/architecture.md
+      section: 改动落点与数据流
+    - ref: design/architecture.md#设计决策
+      title: 设计决策（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+      file: design/architecture.md
+      section: 设计决策
+    - ref: design/architecture.md#D-A-formatelapsed-放-alertingpy不是-runtime
+      title: D-A `_format_elapsed` 放 `alerting.py`（不是 runtime）（
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: D-A-formatelapsed-放-alertingpy不是-runtime
+    - ref: design/architecture.md#D-B-handler-结果新增两个顶层键summary-与-nooutput
+      title: D-B handler 结果新增两个**顶层**键：`summary` 与 `no_output`（
+      serves:
+        - FR-2
+        - FR-3
+        - FR-6
+      file: design/architecture.md
+      section: D-B-handler-结果新增两个顶层键summary-与-nooutput
+    - ref: design/architecture.md#D-C-空转统计放handler不放进-service
+      title: D-C 空转统计放**handler**，不放进 service（
+      serves:
+        - FR-5
+      file: design/architecture.md
+      section: D-C-空转统计放handler不放进-service
+    - ref: design/architecture.md#D-D-computed-保留语义收窄为遍历到的账户数
+      title: D-D `computed` 保留（语义收窄为"遍历到的账户数"）（
+      serves:
+        - FR-4
+      file: design/architecture.md
+      section: D-D-computed-保留语义收窄为遍历到的账户数
+    - ref: design/architecture.md#D-E-与-REQ-261005203907-2b8c-的次序与边界
+      title: D-E 与 REQ-261005203907-2b8c 的次序与边界（
+      serves:
+        - FR-6
+      file: design/architecture.md
+      section: D-E-与-REQ-261005203907-2b8c-的次序与边界
+    - ref: design/architecture.md#依赖方向与失败隔离
+      title: 依赖方向与失败隔离（
+      serves:
+        - FR-5
+      file: design/architecture.md
+      section: 依赖方向与失败隔离
+    - ref: design/architecture.md#陷阱与防护FR-2-FR-6-的实现约束
+      title: 陷阱与防护（FR-2 / FR-6 的实现约束）（
+      serves:
+        - FR-2
+        - FR-6
+      file: design/architecture.md
+      section: 陷阱与防护FR-2-FR-6-的实现约束
+    - ref: design/architecture.md#测试落点
+      title: 测试落点（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+      file: design/architecture.md
+      section: 测试落点
+    - ref: design/data-model.md#现有表不改
+      title: 现有表（不改）（
+      serves:
+        - FR-4
+      file: design/data-model.md
+      section: 现有表不改
+    - ref: design/data-model.md#新增两个只读仓储方法
+      title: 新增两个**只读**仓储方法（
+      serves:
+        - FR-5
+      file: design/data-model.md
+      section: 新增两个只读仓储方法
+    - ref: design/data-model.md#quantinprocessjobrunsresult-的新形状JSONB增量键
+      title: "`quant.inprocess_job_runs.result` 的新形状（JSONB，增量键）（"
+      serves:
+        - FR-3
+        - FR-4
+      file: design/data-model.md
+      section: quantinprocessjobrunsresult-的新形状JSONB增量键
+    - ref: design/data-model.md#边界与回滚
+      title: 边界与回滚（
+      serves:
+        - FR-4
+        - FR-5
+      file: design/data-model.md
+      section: 边界与回滚
+    - ref: design/interfaces.md#契约-A完成通知文本人读本次要改的对外语义
+      title: 契约 A：完成通知文本（人读，本次要改的对外语义）（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/interfaces.md
+      section: 契约-A完成通知文本人读本次要改的对外语义
+    - ref: design/interfaces.md#契约-Bhandler-返回值内部新增顶层键
+      title: 契约 B：handler 返回值（内部，新增顶层键）（
+      serves:
+        - FR-2
+        - FR-3
+        - FR-6
+      file: design/interfaces.md
+      section: 契约-Bhandler-返回值内部新增顶层键
+    - ref: design/interfaces.md#契约-CEvolutionFitnessServicecomputeallaccounts-返回值内部改语义
+      title: 契约 C：`EvolutionFitnessService.compute_all_accounts()` 返回值（内部，改语义）（
+      serves:
+        - FR-4
+      file: design/interfaces.md
+      section: 契约-CEvolutionFitnessServicecomputeallaccounts-返回值内部改语义
+    - ref: design/interfaces.md#契约-Dsummarizeresult-的行为矩阵其他任务零变化
+      title: 契约 D：`_summarize_result` 的行为矩阵（其他任务零变化）（
+      serves:
+        - FR-2
+      file: design/interfaces.md
+      section: 契约-Dsummarizeresult-的行为矩阵其他任务零变化
+    - ref: design/interfaces.md#兼容与回滚
+      title: 兼容与回滚（
+      serves:
+        - FR-4
+        - FR-6
+      file: design/interfaces.md
+      section: 兼容与回滚
+    - ref: design/use-cases.md#UC-1-有产出对照场景防止修完就只会报警
+      title: UC-1 有产出（对照场景，防止"修完就只会报警"）（
+      serves:
+        - FR-2
+        - FR-3
+      file: design/use-cases.md
+      section: UC-1-有产出对照场景防止修完就只会报警
+    - ref: design/use-cases.md#UC-2-首次零产出
+      title: UC-2 首次零产出（
+      serves:
+        - FR-3
+        - FR-5
+      file: design/use-cases.md
+      section: UC-2-首次零产出
+    - ref: design/use-cases.md#UC-3-连续空转2026-10-05-的真实场景
+      title: UC-3 连续空转（2026-10-05 的真实场景）（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-5
+      file: design/use-cases.md
+      section: UC-3-连续空转2026-10-05-的真实场景
+    - ref: design/use-cases.md#UC-4-空转统计不可用降级路径
+      title: UC-4 空转统计不可用（降级路径）（
+      serves:
+        - FR-5
+        - FR-6
+      file: design/use-cases.md
+      section: UC-4-空转统计不可用降级路径
+    - ref: design/use-cases.md#UC-5-其他任务不受影响回归场景
+      title: UC-5 其他任务不受影响（回归场景）（
+      serves:
+        - FR-2
+      file: design/use-cases.md
+      section: UC-5-其他任务不受影响回归场景
+    - ref: design/use-cases.md#场景-条款映射
+      title: 场景-条款映射（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-5
+      file: design/use-cases.md
+      section: 场景-条款映射
+traceability:
+  fr_to_design:
+    FR-1:
+      - design/architecture.md#目标与判定
+      - design/architecture.md#改动落点与数据流
+      - design/architecture.md#设计决策
+      - design/architecture.md#D-A-formatelapsed-放-alertingpy不是-runtime
+      - design/architecture.md#测试落点
+      - design/interfaces.md#契约-A完成通知文本人读本次要改的对外语义
+      - design/use-cases.md#UC-3-连续空转2026-10-05-的真实场景
+      - design/use-cases.md#场景-条款映射
+    FR-2:
+      - design/architecture.md#目标与判定
+      - design/architecture.md#改动落点与数据流
+      - design/architecture.md#设计决策
+      - design/architecture.md#D-B-handler-结果新增两个顶层键summary-与-nooutput
+      - design/architecture.md#陷阱与防护FR-2-FR-6-的实现约束
+      - design/architecture.md#测试落点
+      - design/interfaces.md#契约-A完成通知文本人读本次要改的对外语义
+      - design/interfaces.md#契约-Bhandler-返回值内部新增顶层键
+      - design/interfaces.md#契约-Dsummarizeresult-的行为矩阵其他任务零变化
+      - design/use-cases.md#UC-1-有产出对照场景防止修完就只会报警
+      - design/use-cases.md#UC-3-连续空转2026-10-05-的真实场景
+      - design/use-cases.md#UC-5-其他任务不受影响回归场景
+      - design/use-cases.md#场景-条款映射
+    FR-3:
+      - design/architecture.md#目标与判定
+      - design/architecture.md#改动落点与数据流
+      - design/architecture.md#设计决策
+      - design/architecture.md#D-B-handler-结果新增两个顶层键summary-与-nooutput
+      - design/architecture.md#测试落点
+      - design/data-model.md#quantinprocessjobrunsresult-的新形状JSONB增量键
+      - design/interfaces.md#契约-A完成通知文本人读本次要改的对外语义
+      - design/interfaces.md#契约-Bhandler-返回值内部新增顶层键
+      - design/use-cases.md#UC-1-有产出对照场景防止修完就只会报警
+      - design/use-cases.md#UC-2-首次零产出
+      - design/use-cases.md#UC-3-连续空转2026-10-05-的真实场景
+      - design/use-cases.md#场景-条款映射
+    FR-4:
+      - design/architecture.md#改动落点与数据流
+      - design/architecture.md#设计决策
+      - design/architecture.md#D-D-computed-保留语义收窄为遍历到的账户数
+      - design/architecture.md#测试落点
+      - design/data-model.md#现有表不改
+      - design/data-model.md#quantinprocessjobrunsresult-的新形状JSONB增量键
+      - design/data-model.md#边界与回滚
+      - design/interfaces.md#契约-CEvolutionFitnessServicecomputeallaccounts-返回值内部改语义
+      - design/interfaces.md#兼容与回滚
+    FR-5:
+      - design/architecture.md#改动落点与数据流
+      - design/architecture.md#设计决策
+      - design/architecture.md#D-C-空转统计放handler不放进-service
+      - design/architecture.md#依赖方向与失败隔离
+      - design/architecture.md#测试落点
+      - design/data-model.md#新增两个只读仓储方法
+      - design/data-model.md#边界与回滚
+      - design/use-cases.md#UC-2-首次零产出
+      - design/use-cases.md#UC-3-连续空转2026-10-05-的真实场景
+      - design/use-cases.md#UC-4-空转统计不可用降级路径
+      - design/use-cases.md#场景-条款映射
+    FR-6:
+      - design/architecture.md#改动落点与数据流
+      - design/architecture.md#设计决策
+      - design/architecture.md#D-B-handler-结果新增两个顶层键summary-与-nooutput
+      - design/architecture.md#D-E-与-REQ-261005203907-2b8c-的次序与边界
+      - design/architecture.md#陷阱与防护FR-2-FR-6-的实现约束
+      - design/architecture.md#测试落点
+      - design/interfaces.md#契约-Bhandler-返回值内部新增顶层键
+      - design/interfaces.md#兼容与回滚
+      - design/use-cases.md#UC-4-空转统计不可用降级路径
+    FR-7:
+      - design/architecture.md#测试落点
+coverage:
+  design:
+    total: 7
+    covered: 7
+    uncovered: []
+    rate: 100
+    total_frs: 7
+    covered_frs: 7

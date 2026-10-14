@@ -1,0 +1,38 @@
+task:
+  id: t-a60ba4
+  title: 落码表与裁决结果契约（EscalationCode + Verdict）·测试
+  status: done
+  implements: |-
+    新建 domain/watch/services/escalation_verdict.py：先落 EscalationCode（15 个受控码 + ALL + PATH_LABEL 映射）与 frozen dataclass Verdict(should_wake, code, reason, path, note) 及 overridden()；不写裁决逻辑。测试 tests/services/test_watch_escalation_verdict.py 先写码表断言（15 值、PATH_LABEL 覆盖全部码、Verdict 不可变）。
+
+    [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+  serves: []
+  depends_on:
+    - t-53b2de
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261007133807-eda6
+    TASK_ID: t-a60ba4
+    TASK_TITLE: 落码表与裁决结果契约（EscalationCode + Verdict）·测试
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-07T10:47:42.117Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261007133807-eda6
+  generated_at: 2026-10-07T10:47:31.234Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-07T10:47:42.118Z

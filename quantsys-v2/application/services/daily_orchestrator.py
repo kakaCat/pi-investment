@@ -666,7 +666,8 @@ class DailyOrchestrator:
                                               fitness_repo=EvolutionFitnessORMRepository())
             evolution_results['evolution_fitness'] = fitness.compute_all_accounts()
             logger.info("review_phase: evolution_fitness_service completed",
-                       computed=evolution_results['evolution_fitness'].get('computed', 0))
+                       computed=evolution_results['evolution_fitness'].get('computed', 0),
+                       computed_ok=evolution_results['evolution_fitness'].get('computed_ok', 0))
         except Exception as e:
             logger.error("review_phase: evolution_fitness_service failed", exc_info=True)
             evolution_results['evolution_fitness'] = {'status': 'failed', 'error': str(e)[:200]}

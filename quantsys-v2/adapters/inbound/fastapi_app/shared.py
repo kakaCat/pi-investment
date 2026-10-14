@@ -62,6 +62,7 @@ __all__ = [
     "_load_pipeline_runs", "_save_pipeline_runs", "_get_pipeline_run", "_update_pipeline_run",
     "acquire_task", "release_task", "get_running_tasks_snapshot",
     "api_response", "error_response", "handle_api_error", "provider_payload",
+    "nav_window_and_coverage",
     "signal_repo", "stock_repo", "kline_repo", "portfolio_repo", "factor_repo", "risk_repo", "execution_repo", "backtest_repo", "simulation_repo",
 ]
 
@@ -75,6 +76,46 @@ def api_response(data: Any, success: bool = True, message: Optional[str] = None)
     if message:
         response["message"] = message
     return response
+
+
+def nav_window_and_coverage(rows, trading_days, *, points, unfiltered_rows=None):
+    """净值窗口的交易日口径摘要 → `(window, nav_coverage)`（2026-10-06 · REQ-261006190953-fc43 卡 D）。
+
+    为什么放在 inbound 共享层：`window` / `nav_coverage` 是**响应形状**（不是口径本身），
+    两个消费端点（`/api/risk/metrics`、`/api/simulation/performance`）必须返回同一形状——
+    组装代码放一处，才不会被后续改动改歪一半。**判据不在本函数**：过滤与缺口一律取自
+    `application/services/nav_series.py`（交易日口径唯一实现），本函数不自己判星期/节假日。
+
+    参数：
+      · rows             —— 已经过交易日过滤的净值快照（ORM 对象或 dict 皆可，口径模块认两者）
+      · trading_days     —— 交易日集合；**None = 日历不可得**（此时不过滤、coverage.verified=False）
+      · points           —— 窗口内的交易日点数（调用方给：风险端点用 nav_points，
+                            绩效端点用 equity_curve 行数，两者的口径都由本条链决定）
+      · unfiltered_rows  —— 同一 limit 的**未过滤**快照行（仅用于数"被剔除的非交易日行"）；
+                            缺省/日历不可得 → `filtered_non_trading = 0`
+                            （无日历即无过滤，0 表示"没过滤过"，不是"没有脏行"）
+
+    `window` 五个字段的取值口径：
+      · from / to          —— 取 `nav_coverage` 的区间端点（同一条序列，不另算一套端点）
+      · trading_days       —— `points`（验收① 的等式 `navPoints == window.trading_days` 由此保证）
+      · filtered_non_trading —— 未过滤行中被交易日口径剔除的行数
+      · trading_day_source —— `trading-calendar`（已校验）/ `unavailable`（日历不可得）
+    """
+    from application.services.nav_series import filter_trading_days, nav_coverage
+
+    coverage = nav_coverage(rows, trading_days)
+    filtered_non_trading = 0
+    if trading_days is not None and unfiltered_rows is not None:
+        filtered_non_trading = len(unfiltered_rows) - len(
+            filter_trading_days(unfiltered_rows, trading_days))
+    window = {
+        'from': coverage['from'],
+        'to': coverage['to'],
+        'trading_days': points,
+        'filtered_non_trading': filtered_non_trading,
+        'trading_day_source': coverage['trading_day_source'],
+    }
+    return window, coverage
 
 
 def provider_payload(result: Dict) -> Dict:

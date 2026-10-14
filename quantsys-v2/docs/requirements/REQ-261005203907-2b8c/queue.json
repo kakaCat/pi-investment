@@ -1,0 +1,3652 @@
+{
+  "version": 1,
+  "requirement_id": "REQ-261005203907-2b8c",
+  "schemaVersion": 9,
+  "generated_at": "2026-10-05T13:12:20.054Z",
+  "tasks": [
+    {
+      "id": "t-dd0d4d",
+      "requirementId": "REQ-261005203907-2b8c",
+      "title": "门模块与 JobDef 字段（接口先行）",
+      "cardDoc": "docs/requirements/REQ-261005203907-2b8c/tasks/t-dd0d4d.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "./venv/bin/python -m pytest tests/test_daily_jobs_trading_day_gate.py -q -k \"truth or holiday or degraded\" 全过；另断言 JobDef('x', dtime(0,0), (0,), lambda: {}, 'd').trading_days_only is False（位置参数兼容）；断言 skip_non_trading_day 在 check 抛异常时不抛、返回 skip=False。",
+      "implementation": "新建 adapters/inbound/fastapi_app/daily_jobs/gate.py：skip_non_trading_day(now=None)->tuple[bool,dict] / is_non_trading_day(now=None)->bool / verdict_info(now=None)->dict；判据 skip = (not TradingDayGuard.check(now).is_trading_day) and (not verdict.degraded)；永不抛，自身异常返回 (False, {'source':'gate-error',...}) 并记 warning 日志；注解五键 day/is_trading_day/source/degraded/reason。改 adapters/inbound/fastapi_app/daily_jobs/defs.py：JobDef 末尾追加 trading_days_only: bool = False（必须末位带默认值，仓内多处按位置参数构造）。新增 tests/test_daily_jobs_trading_day_gate.py 覆盖 TC-1 真值表：休市日 2026-10-05/06/07 → skip=True；交易日 2026-09-30/2026-10-08 → skip=False；周末 2026-10-03 → skip=True；degraded=True → skip=False（fail-open）；check 抛异常 → skip=False 且 source='gate-error'；注解形状五键齐。打桩点 daily_jobs.gate.TradingDayGuard，零网络零 DB。不改 daily_jobs/__init__.py 与 daily_jobs_bootstrap.py 的导出清单。",
+      "context": "",
+      "skipIntegration": true,
+      "footprint": {
+        "files": 5,
+        "anchors": 6,
+        "chars": 2200
+      },
+      "requirementRefs": [
+        "FR-1",
+        "FR-2"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-0b0c4f",
+          "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+          "trigger": "manual",
+          "startedAt": 1791205951768,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+              "seq": 910,
+              "at": 1791205951768,
+              "totals": {
+                "uncachedInputTokens": 186626,
+                "outputTokens": 126323,
+                "cacheReadTokens": 21285120,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+                  "depth": 0,
+                  "seq": 910,
+                  "totals": {
+                    "uncachedInputTokens": 186626,
+                    "outputTokens": 126323,
+                    "cacheReadTokens": 21285120,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+              "seq": 1080,
+              "at": 1791206121727,
+              "totals": {
+                "uncachedInputTokens": 210254,
+                "outputTokens": 140907,
+                "cacheReadTokens": 29563136,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+                  "depth": 0,
+                  "seq": 1080,
+                  "totals": {
+                    "uncachedInputTokens": 210254,
+                    "outputTokens": 140907,
+                    "cacheReadTokens": 29563136,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 23628,
+              "outputTokens": 14584,
+              "cacheReadTokens": 8278016,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791206121726
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791205939991,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1791205951768,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "开工：先落接口（gate.py + JobDef 字段）与门真值表单测，契约定死再接线。"
+        },
+        {
+          "status": "done",
+          "at": 1791206121726,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "父卡收尾：接口先行交付完成，子卡链研发/复核/测试三张全 done（13 / 8 / 47 passed）。"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-9e25c9",
+          "body": "[状态] → in_progress：开工：先落接口（gate.py + JobDef 字段）与门真值表单测，契约定死再接线。（reqboard_task_move）",
+          "createdAt": 1791205951768,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          }
+        },
+        {
+          "id": "c-36aed8",
+          "body": "[状态] → done：父卡收尾：接口先行交付完成，子卡链研发/复核/测试三张全 done（13 / 8 / 47 passed）。（reqboard_task_move）",
+          "createdAt": 1791206121726,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791205939991,
+      "updatedAt": 1791206121726,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+      },
+      "layer": 0,
+      "lastReport": {
+        "at": 1791206013092,
+        "reportIndex": 1,
+        "filesChanged": [
+          "adapters/inbound/fastapi_app/daily_jobs/gate.py",
+          "adapters/inbound/fastapi_app/daily_jobs/defs.py",
+          "tests/test_daily_jobs_trading_day_gate.py"
+        ],
+        "completed": [
+          "新建 daily_jobs/gate.py：skip_non_trading_day / is_non_trading_day / verdict_info 三入口，判据唯一 skip = (not is_trading_day) and (not degraded)",
+          "门永不抛：判定器异常时返回 (False, source=gate-error, degraded=True) 并记 warning 日志",
+          "defs.py 的 JobDef 末尾追加 trading_days_only: bool = False（保持位置参数构造兼容）",
+          "新增 tests/test_daily_jobs_trading_day_gate.py：TC-1 真值表 13 条（休市日 10-05/06/07、交易日 09-30/10-08、周末、降级 fail-open、判定器异常、注解五键、字段默认值与位置参数兼容）",
+          "pytest tests/test_daily_jobs_trading_day_gate.py → 13 passed；notify-guard intercepted=0 egress=0",
+          "回归：pytest tests/test_daily_jobs_bootstrap.py tests/test_false_success_guard.py tests/test_financial_auto_rerun.py → 47 passed（位置参数构造 JobDef 未被破坏）"
+        ]
+      },
+      "lastRun": {
+        "at": 1791206013092,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-075116",
+      "requirementId": "REQ-261005203907-2b8c",
+      "title": "宿主接线：_run_job 跳过早退 + 3 任务置位",
+      "cardDoc": "docs/requirements/REQ-261005203907-2b8c/tasks/t-075116.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-dd0d4d"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "./venv/bin/python -m pytest tests/test_daily_jobs_trading_day_gate.py -q 全过；用例断言 send_mock.call_count == 0 且 marks[0][0] == 'skipped'；断言 {j.job_id for j in JOBS if j.trading_days_only} == {'pool_daily_refresh','chip_distribution','evolution_fitness'}。",
+      "implementation": "改 adapters/inbound/fastapi_app/daily_jobs/runtime.py：_run_job 在 _mark_running 之后、_send_feishu('▶️ 每日任务开始…') 之前插入早退分支——if job.trading_days_only and skip_non_trading_day()[0]: 写 _mark_done(status='skipped', result={'skipped':True,'reason':f'非交易日（{day}）：{reason}','trading_day':info}) + scheduler_job_runs_total.labels(status='skipped').inc() + logger.info('inprocess_job_skipped') + return（不发任何飞书、不观测 duration）；照跑路径在 result 为 dict 时补 result['trading_day']=info，degraded=True 时记 logger.warning('inprocess_job_trading_day_degraded')。改 adapters/inbound/fastapi_app/daily_jobs/registry.py：pool_daily_refresh / chip_distribution / evolution_fitness 三行加 trading_days_only=True；evening_pipeline 与其余 5 个任务不加。在 tests/test_daily_jobs_trading_day_gate.py 追加：跳过留痕（_mark_done 收到 status='skipped' 且 result['skipped'] is True 且 trading_day 五键齐）、_send_feishu 调用次数为 0、handler 未被调用（side_effect=AssertionError）、注册表里 trading_days_only=True 的集合恰好是那 3 个。打桩点必须是 daily_jobs.runtime 模块内的 _mark_running/_mark_done/_send_feishu（打在 alerting 或 daily_jobs_bootstrap 上会静默失效并真发飞书）。",
+      "context": "",
+      "skipIntegration": true,
+      "footprint": {
+        "files": 4,
+        "anchors": 5,
+        "chars": 2400
+      },
+      "requirementRefs": [
+        "FR-1",
+        "FR-3",
+        "FR-5"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-8b16d1",
+          "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+          "trigger": "manual",
+          "startedAt": 1791206128136,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+              "seq": 1087,
+              "at": 1791206128136,
+              "totals": {
+                "uncachedInputTokens": 214755,
+                "outputTokens": 142238,
+                "cacheReadTokens": 29885568,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+                  "depth": 0,
+                  "seq": 1087,
+                  "totals": {
+                    "uncachedInputTokens": 214755,
+                    "outputTokens": 142238,
+                    "cacheReadTokens": 29885568,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+              "seq": 1281,
+              "at": 1791206307621,
+              "totals": {
+                "uncachedInputTokens": 231397,
+                "outputTokens": 154497,
+                "cacheReadTokens": 40210304,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+                  "depth": 0,
+                  "seq": 1281,
+                  "totals": {
+                    "uncachedInputTokens": 231397,
+                    "outputTokens": 154497,
+                    "cacheReadTokens": 40210304,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 16642,
+              "outputTokens": 12259,
+              "cacheReadTokens": 10324736,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791206307621
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791205939991,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1791206128136,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "开工：宿主接线——_run_job 在开始通知之前插入跳过早退，registry 给 3 个任务置位。"
+        },
+        {
+          "status": "done",
+          "at": 1791206307621,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "父卡收尾：宿主接线交付完成，子卡链三张全 done，门用例 21 条全绿。"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-a55e49",
+          "body": "[状态] → in_progress：开工：宿主接线——_run_job 在开始通知之前插入跳过早退，registry 给 3 个任务置位。（reqboard_task_move）",
+          "createdAt": 1791206128136,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          }
+        },
+        {
+          "id": "c-4c2792",
+          "body": "[状态] → done：父卡收尾：宿主接线交付完成，子卡链三张全 done，门用例 21 条全绿。（reqboard_task_move）",
+          "createdAt": 1791206307621,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791205939991,
+      "updatedAt": 1791206307621,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+      },
+      "layer": 1,
+      "lastReport": {
+        "at": 1791206304927,
+        "reportIndex": 1,
+        "filesChanged": [
+          "adapters/inbound/fastapi_app/daily_jobs/runtime.py",
+          "adapters/inbound/fastapi_app/daily_jobs/registry.py",
+          "tests/test_daily_jobs_trading_day_gate.py"
+        ],
+        "completed": [
+          "runtime.py：_run_job 插入跳过早退（104-124 行），位于开始通知与 handler 之前；写 skipped 行 + runs_total{status=skipped} + info 日志后 return",
+          "runtime.py：跳过不观测 duration；照跑路径补 result.trading_day 注解，degraded 时记 warning",
+          "registry.py：3 个任务置 trading_days_only=True 并写明另 5 个任务为何不加（含 evening_pipeline 的例外理由）",
+          "测试：tests/test_daily_jobs_trading_day_gate.py 从 13 条扩到 21 条（新增 8 条宿主接线用例）",
+          "验证：21 passed；选择器 13 passed；四文件回归 41 passed；tests/ -k daily_jobs 选择集 62 passed",
+          "子卡链：研发 t-074a02 / 复核 t-935496 / 测试 t-bdfaae 三张全 done（含把 JS 栈模板验收命令修订为 pytest）"
+        ]
+      },
+      "lastRun": {
+        "at": 1791206304927,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-588729",
+      "requirementId": "REQ-261005203907-2b8c",
+      "title": "晚间管线：因子段局部跳过（K 线段原样）",
+      "cardDoc": "docs/requirements/REQ-261005203907-2b8c/tasks/t-588729.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-dd0d4d"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "./venv/bin/python -m pytest tests/test_evening_pipeline_holiday_gate.py -q 全过；其中 test_holiday_fresh_kline_skips_factor 断言 handle_factor_compute 未被调用，test_trading_day_never_skips_factor 断言交易日下 handle_factor_compute 被调用一次，test_holiday_kline_error_still_computes_then_raises 断言抛 RuntimeError。",
+      "implementation": "改 adapters/inbound/fastapi_app/daily_jobs/pipeline.py 的 _job_evening_pipeline：入口取一次 non_trading = is_non_trading_day()；K 线段（探活、覆盖度门槛、批大小、缺口修复、失败上抛）逐字不动；因子段改为 kline=results.get('kline_sync') or {}; kline_changed = kline.get('status') != 'skipped' and (kline.get('success') or 0) > 0; if non_trading and not kline_changed and kline.get('status') != 'error': results['factor_compute']={'status':'skipped','skipped':True,'reason':f'非交易日（{expected} 基准）且 K 线本次无更新'} else: results['factor_compute']=handle_factor_compute({'max_symbols':6000})。新增 tests/test_evening_pipeline_holiday_gate.py 覆盖 TC-4 六行真值表：休市日+K线skipped→因子不跑；休市日+K线success且success=137→因子跑；休市日+success=0→因子不跑；休市日+status='error'→因子跑且随后仍 raise；交易日+K线skipped→因子必须跑（防交易日漏算因子）；跳过形态经 find_result_failure 判为非失败。打桩点：daily_jobs.pipeline 的 is_non_trading_day/_kline_coverage/_probe_kline_sources，以及源头模块 application.services.scheduler_tasks.handle_factor_compute 与 infrastructure.jobs.kline_update_job.update_gem_klines（函数内局部 import）。",
+      "context": "",
+      "skipIntegration": true,
+      "footprint": {
+        "files": 4,
+        "anchors": 6,
+        "chars": 2200
+      },
+      "requirementRefs": [
+        "FR-4"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-30a5c5",
+          "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+          "trigger": "manual",
+          "startedAt": 1791206313046,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+              "seq": 1288,
+              "at": 1791206313046,
+              "totals": {
+                "uncachedInputTokens": 235830,
+                "outputTokens": 155327,
+                "cacheReadTokens": 40564480,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+                  "depth": 0,
+                  "seq": 1288,
+                  "totals": {
+                    "uncachedInputTokens": 235830,
+                    "outputTokens": 155327,
+                    "cacheReadTokens": 40564480,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+              "seq": 1465,
+              "at": 1791206546392,
+              "totals": {
+                "uncachedInputTokens": 252388,
+                "outputTokens": 170667,
+                "cacheReadTokens": 51503744,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+                  "depth": 0,
+                  "seq": 1465,
+                  "totals": {
+                    "uncachedInputTokens": 252388,
+                    "outputTokens": 170667,
+                    "cacheReadTokens": 51503744,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 16558,
+              "outputTokens": 15340,
+              "cacheReadTokens": 10939264,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791206546392
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791205939991,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1791206313046,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "开工：晚间管线因子段局部跳过——K 线段原样保留，因子段按「非交易日 且 K 线本次无更新」跳过。"
+        },
+        {
+          "status": "done",
+          "at": 1791206546392,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "父卡收尾：因子段门交付完成，子卡链三张全 done（6 passed / 36 passed）。"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-ec1d0f",
+          "body": "[状态] → in_progress：开工：晚间管线因子段局部跳过——K 线段原样保留，因子段按「非交易日 且 K 线本次无更新」跳过。（reqboard_task_move）",
+          "createdAt": 1791206313046,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          }
+        },
+        {
+          "id": "c-cded79",
+          "body": "[状态] → done：父卡收尾：因子段门交付完成，子卡链三张全 done（6 passed / 36 passed）。（reqboard_task_move）",
+          "createdAt": 1791206546392,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791205939991,
+      "updatedAt": 1791206546392,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+      },
+      "layer": 1,
+      "lastReport": {
+        "at": 1791206543445,
+        "reportIndex": 1,
+        "filesChanged": [
+          "adapters/inbound/fastapi_app/daily_jobs/pipeline.py",
+          "tests/test_evening_pipeline_holiday_gate.py"
+        ],
+        "completed": [
+          "pipeline.py：因子段改为条件执行，K 线段与 error 上抛语义逐字保留",
+          "新增 tests/test_evening_pipeline_holiday_gate.py：六行真值表覆盖（含交易日绝不跳因子的回归锁）",
+          "验证：本卡 6 passed；回归三文件 36 passed；选择集 78 passed / 1 既有 order-dependent failed（单跑通过）",
+          "子卡链：研发 t-e11789 / 复核 t-c7f120 / 测试 t-4dec18 三张全 done"
+        ]
+      },
+      "lastRun": {
+        "at": 1791206543445,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-dbb9d0",
+      "requirementId": "REQ-261005203907-2b8c",
+      "title": "兼容与回滚核验（零 DDL / 既有消费者行为）",
+      "cardDoc": "docs/requirements/REQ-261005203907-2b8c/tasks/t-dbb9d0.md",
+      "description": "",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-075116"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "./venv/bin/python -m pytest tests/test_daily_jobs_bootstrap.py tests/test_pool_refresh_daily.py -q 全过（既有 TestIsDue 三分支不回归）；git diff --name-only 不含 infrastructure/persistence/migrations/**；notes/compat-rollback.md 落盘且含实际命令输出。",
+      "implementation": "在 tests/test_daily_jobs_trading_day_gate.py 追加兼容判据用例：is_due(job, now, {'status':'skipped','started_at':now}) is False；catchup_due(job, now, has_recent_failure=True) 在排班日 is False；trigger_job 对 skipped 行不返回『今日已有记录』拒绝；find_result_failure({'skipped':True,...}) is None；find_result_failure({'kline_sync':{'status':'success','skipped':12}}) 不因 int 误判（is True 严格布尔）。写 docs/requirements/REQ-261005203907-2b8c/notes/compat-rollback.md：记录 git diff --name-only 中不含 infrastructure/persistence/migrations/** 的核验输出、status 列 text 无 CHECK 约束的核验、以及回滚步骤（撤 3 处 trading_days_only=True 与 pipeline 因子段判定，已产生的 skipped 行无需清理）。",
+      "context": "",
+      "skipIntegration": true,
+      "footprint": {
+        "files": 3,
+        "anchors": 5,
+        "chars": 1500
+      },
+      "requirementRefs": [
+        "FR-3",
+        "FR-5"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-434042",
+          "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+          "trigger": "manual",
+          "startedAt": 1791206554134,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+              "seq": 1472,
+              "at": 1791206554134,
+              "totals": {
+                "uncachedInputTokens": 256848,
+                "outputTokens": 172059,
+                "cacheReadTokens": 51892480,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+                  "depth": 0,
+                  "seq": 1472,
+                  "totals": {
+                    "uncachedInputTokens": 256848,
+                    "outputTokens": 172059,
+                    "cacheReadTokens": 51892480,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+              "seq": 1581,
+              "at": 1791206639489,
+              "totals": {
+                "uncachedInputTokens": 267180,
+                "outputTokens": 179423,
+                "cacheReadTokens": 59186944,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+                  "depth": 0,
+                  "seq": 1581,
+                  "totals": {
+                    "uncachedInputTokens": 267180,
+                    "outputTokens": 179423,
+                    "cacheReadTokens": 59186944,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 10332,
+              "outputTokens": 7364,
+              "cacheReadTokens": 7294464,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791206639489
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791205939991,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1791206554134,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "开工：兼容与回滚核验——把 skipped 对既有消费者的行为写成可跑断言，并核验零 DDL。"
+        },
+        {
+          "status": "done",
+          "at": 1791206639489,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "父卡收尾：兼容与回滚核验完成，子卡链三张全 done，零 DDL 已实测。"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-55f9e6",
+          "body": "[状态] → in_progress：开工：兼容与回滚核验——把 skipped 对既有消费者的行为写成可跑断言，并核验零 DDL。（reqboard_task_move）",
+          "createdAt": 1791206554134,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          }
+        },
+        {
+          "id": "c-19f087",
+          "body": "[状态] → done：父卡收尾：兼容与回滚核验完成，子卡链三张全 done，零 DDL 已实测。（reqboard_task_move）",
+          "createdAt": 1791206639489,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791205939991,
+      "updatedAt": 1791206639489,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+      },
+      "layer": 2,
+      "lastReport": {
+        "at": 1791206637070,
+        "reportIndex": 1,
+        "filesChanged": [
+          "tests/test_daily_jobs_trading_day_gate.py",
+          "docs/requirements/REQ-261005203907-2b8c/notes/compat-rollback.md"
+        ],
+        "completed": [
+          "新增 TestSkippedRowCompatibility 6 条兼容判据（is_due / catchup_due / trigger_job / find_result_failure / int 防呆）",
+          "落盘 notes/compat-rollback.md：零 DDL 实测（无迁移改动、status 为 text 无 CHECK、测试库同形）+ 兼容矩阵 + 三步回滚 + 残留风险",
+          "验证：门用例 27 passed；回归 daily_jobs_bootstrap + pool_refresh_daily → 20 passed",
+          "子卡链：研发 t-434c63 / 复核 t-e199f4 / 测试 t-0c1cf7 三张全 done"
+        ]
+      },
+      "lastRun": {
+        "at": 1791206637070,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-6384c0",
+      "requirementId": "REQ-261005203907-2b8c",
+      "title": "回归 + 真实休市日/复市首日观察",
+      "cardDoc": "docs/requirements/REQ-261005203907-2b8c/tasks/t-6384c0.md",
+      "description": "",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-588729",
+        "t-dbb9d0"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "四条命令退出码 0；notes/holiday-observation.md 含实际查询输出与命令原文（不是『应该没问题』）；若观察窗口未到，文件里显式列出待观察项与复跑命令；会话末打印的 notify-guard 行 egress=0、offenders=[]。",
+      "implementation": "跑齐四条命令并把输出摘要写入 docs/requirements/REQ-261005203907-2b8c/notes/holiday-observation.md：① pytest tests/test_daily_jobs_trading_day_gate.py -q；② pytest tests/test_evening_pipeline_holiday_gate.py -q；③ pytest tests/test_daily_jobs_bootstrap.py tests/test_false_success_guard.py tests/test_pool_refresh_daily.py -q；④ psql -d quant_investment 查 quant.inprocess_job_runs（休市日 2026-10-06 或 10-07：pool_daily_refresh/chip_distribution/evolution_fitness 应为 skipped、watch_rule_health/event_calendar_check/freshness_guard 仍 success、evening_pipeline 的 result->'factor_compute'->>'status' 应为 skipped；复市首日 2026-10-08：pool_daily_refresh 与 evening_pipeline 应恢复 success）。同时记录当天飞书侧无这 3 个任务的开始/完成消息（对照 2026-10-05 曾各发 2 条）。观察窗口未到（如 10-06/10-08 尚未发生）时如实标注为待观察，不得用推断代替实测。",
+      "context": "",
+      "footprint": {
+        "files": 6,
+        "anchors": 5,
+        "chars": 1600
+      },
+      "requirementRefs": [
+        "FR-6"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-94038c",
+          "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+          "trigger": "manual",
+          "startedAt": 1791206646453,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+              "seq": 1588,
+              "at": 1791206646453,
+              "totals": {
+                "uncachedInputTokens": 271619,
+                "outputTokens": 180573,
+                "cacheReadTokens": 59597696,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+                  "depth": 0,
+                  "seq": 1588,
+                  "totals": {
+                    "uncachedInputTokens": 271619,
+                    "outputTokens": 180573,
+                    "cacheReadTokens": 59597696,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+              "seq": 1687,
+              "at": 1791206731190,
+              "totals": {
+                "uncachedInputTokens": 281803,
+                "outputTokens": 186175,
+                "cacheReadTokens": 66420352,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+                  "depth": 0,
+                  "seq": 1687,
+                  "totals": {
+                    "uncachedInputTokens": 281803,
+                    "outputTokens": 186175,
+                    "cacheReadTokens": 66420352,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 10184,
+              "outputTokens": 5602,
+              "cacheReadTokens": 6822656,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791206731190
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791205939991,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1791206646453,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "开工：跑四条验收命令 + 记录真实观察（含\"门需重启后才生效\"这一前提）。"
+        },
+        {
+          "status": "done",
+          "at": 1791206731190,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "父卡收尾：回归与观察交付完成，子卡链三张全 done。"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-619810",
+          "body": "[状态] → in_progress：开工：跑四条验收命令 + 记录真实观察（含\"门需重启后才生效\"这一前提）。（reqboard_task_move）",
+          "createdAt": 1791206646453,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          }
+        },
+        {
+          "id": "c-d6cd3a",
+          "body": "[状态] → done：父卡收尾：回归与观察交付完成，子卡链三张全 done。（reqboard_task_move）",
+          "createdAt": 1791206731190,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791205939991,
+      "updatedAt": 1791206731190,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+      },
+      "layer": 3,
+      "lastReport": {
+        "at": 1791206727747,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-261005203907-2b8c/notes/holiday-observation.md"
+        ],
+        "completed": [
+          "跑齐验收：门用例 27 passed、晚间管线用例 6 passed、回归三文件 37 passed",
+          "落盘 notes/holiday-observation.md：改造前基线实测（含服务启动时间证明旧代码在跑）+ 待观察项 + 复跑命令 + 未覆盖项",
+          "如实标注阻塞项：门只在服务重启后生效；本次未重启生产服务（需人拍板）",
+          "子卡链：研发 t-d78651 / 复核 t-d9d825 / 测试 t-bc7a9b 三张全 done"
+        ]
+      },
+      "lastRun": {
+        "at": 1791206727747,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-c8a4bc",
+      "requirementId": "REQ-261005203907-2b8c",
+      "title": "门模块与 JobDef 字段（接口先行）·研发",
+      "description": "子卡阶段：研发",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "./venv/bin/python -m pytest tests/test_daily_jobs_trading_day_gate.py -q → 全绿（13 passed）；并附 git diff --stat 摘要。注：卡上原写的 npx vitest 属 JS 栈模板，本仓为 Python，已按等价命令修订（开卡时发现验收标准不可执行，走修订而非照抄）。",
+      "implementation": "新建 adapters/inbound/fastapi_app/daily_jobs/gate.py：skip_non_trading_day(now=None)->tuple[bool,dict] / is_non_trading_day(now=None)->bool / verdict_info(now=None)->dict；判据 skip = (not TradingDayGuard.check(now).is_trading_day) and (not verdict.degraded)；永不抛，自身异常返回 (False, {'source':'gate-error',...}) 并记 warning 日志；注解五键 day/is_trading_day/source/degraded/reason。改 adapters/inbound/fastapi_app/daily_jobs/defs.py：JobDef 末尾追加 trading_days_only: bool = False（必须末位带默认值，仓内多处按位置参数构造）。新增 tests/test_daily_jobs_trading_day_gate.py 覆盖 TC-1 真值表：休市日 2026-10-05/06/07 → skip=True；交易日 2026-09-30/2026-10-08 → skip=False；周末 2026-10-03 → skip=True；degraded=True → skip=False（fail-open）；check 抛异常 → skip=False 且 source='gate-error'；注解形状五键齐。打桩点 daily_jobs.gate.TradingDayGuard，零网络零 DB。不改 daily_jobs/__init__.py 与 daily_jobs_bootstrap.py 的导出清单。\n\n[子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "context": "",
+      "parentId": "t-dd0d4d",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-c30367",
+          "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+          "trigger": "manual",
+          "startedAt": 1791206029163,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+              "seq": 980,
+              "at": 1791206029163,
+              "totals": {
+                "uncachedInputTokens": 194908,
+                "outputTokens": 135928,
+                "cacheReadTokens": 24556672,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+                  "depth": 0,
+                  "seq": 980,
+                  "totals": {
+                    "uncachedInputTokens": 194908,
+                    "outputTokens": 135928,
+                    "cacheReadTokens": 24556672,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+              "seq": 1010,
+              "at": 1791206051240,
+              "totals": {
+                "uncachedInputTokens": 198110,
+                "outputTokens": 137389,
+                "cacheReadTokens": 26084480,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+                  "depth": 0,
+                  "seq": 1010,
+                  "totals": {
+                    "uncachedInputTokens": 198110,
+                    "outputTokens": 137389,
+                    "cacheReadTokens": 26084480,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 3202,
+              "outputTokens": 1461,
+              "cacheReadTokens": 1527808,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791206051239
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-867e90",
+          "body": "[状态] → in_progress：开工：本卡实现已随父卡完成（gate.py 三入口 + JobDef 字段 + 13 条真值表单测）。（reqboard_task_move）",
+          "createdAt": 1791206029163,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          }
+        },
+        {
+          "id": "c-6a1456",
+          "body": "[状态] → done：研发阶段完成：gate.py + defs.py 落地，13 条真值表单测全过，既有位置参数构造回归 47 passed。（reqboard_task_move）",
+          "createdAt": 1791206051239,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791205951768,
+      "updatedAt": 1791206051239,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791205951768,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791206029163,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "开工：本卡实现已随父卡完成（gate.py 三入口 + JobDef 字段 + 13 条真值表单测）。"
+        },
+        {
+          "status": "done",
+          "at": 1791206051239,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "研发阶段完成：gate.py + defs.py 落地，13 条真值表单测全过，既有位置参数构造回归 47 passed。"
+        }
+      ],
+      "layer": 0,
+      "lastReport": {
+        "at": 1791206048838,
+        "reportIndex": 1,
+        "filesChanged": [
+          "adapters/inbound/fastapi_app/daily_jobs/gate.py",
+          "adapters/inbound/fastapi_app/daily_jobs/defs.py",
+          "tests/test_daily_jobs_trading_day_gate.py"
+        ],
+        "completed": [
+          "研发阶段完成：gate.py 104 行（三入口 + fail-open 判据 + 五键注解 + 永不抛兜底）",
+          "defs.py 追加 6 行：JobDef 末尾字段 trading_days_only 带默认值",
+          "tests/test_daily_jobs_trading_day_gate.py 168 行：13 条真值表用例",
+          "验证：./venv/bin/python -m pytest tests/test_daily_jobs_trading_day_gate.py -q → 13 passed",
+          "既有位置参数构造回归：tests/test_daily_jobs_bootstrap.py + test_false_success_guard.py + test_financial_auto_rerun.py → 47 passed",
+          "git diff --stat 本卡范围：defs.py 6 insertions；新增 gate.py 与测试文件各 1 份（未跟踪）"
+        ]
+      },
+      "lastRun": {
+        "at": 1791206048838,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-5d3b29",
+      "requirementId": "REQ-261005203907-2b8c",
+      "title": "门模块与 JobDef 字段（接口先行）·复核",
+      "description": "子卡阶段：复核",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-c8a4bc"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "implementation": "新建 adapters/inbound/fastapi_app/daily_jobs/gate.py：skip_non_trading_day(now=None)->tuple[bool,dict] / is_non_trading_day(now=None)->bool / verdict_info(now=None)->dict；判据 skip = (not TradingDayGuard.check(now).is_trading_day) and (not verdict.degraded)；永不抛，自身异常返回 (False, {'source':'gate-error',...}) 并记 warning 日志；注解五键 day/is_trading_day/source/degraded/reason。改 adapters/inbound/fastapi_app/daily_jobs/defs.py：JobDef 末尾追加 trading_days_only: bool = False（必须末位带默认值，仓内多处按位置参数构造）。新增 tests/test_daily_jobs_trading_day_gate.py 覆盖 TC-1 真值表：休市日 2026-10-05/06/07 → skip=True；交易日 2026-09-30/2026-10-08 → skip=False；周末 2026-10-03 → skip=True；degraded=True → skip=False（fail-open）；check 抛异常 → skip=False 且 source='gate-error'；注解形状五键齐。打桩点 daily_jobs.gate.TradingDayGuard，零网络零 DB。不改 daily_jobs/__init__.py 与 daily_jobs_bootstrap.py 的导出清单。\n\n[子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-dd0d4d",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-bd580c",
+          "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+          "trigger": "manual",
+          "startedAt": 1791206057075,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+              "seq": 1016,
+              "at": 1791206057075,
+              "totals": {
+                "uncachedInputTokens": 198297,
+                "outputTokens": 138164,
+                "cacheReadTokens": 26392320,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+                  "depth": 0,
+                  "seq": 1016,
+                  "totals": {
+                    "uncachedInputTokens": 198297,
+                    "outputTokens": 138164,
+                    "cacheReadTokens": 26392320,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+              "seq": 1044,
+              "at": 1791206093217,
+              "totals": {
+                "uncachedInputTokens": 208485,
+                "outputTokens": 139602,
+                "cacheReadTokens": 27635968,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+                  "depth": 0,
+                  "seq": 1044,
+                  "totals": {
+                    "uncachedInputTokens": 208485,
+                    "outputTokens": 139602,
+                    "cacheReadTokens": 27635968,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 10188,
+              "outputTokens": 1438,
+              "cacheReadTokens": 1243648,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791206093217
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-ac3484",
+          "body": "[状态] → in_progress：开工复核：对 gate.py / defs.py 逐条核对设计契约（判据、注解、字段位置、依赖方向、静态检查）。（reqboard_task_move）",
+          "createdAt": 1791206057075,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          }
+        },
+        {
+          "id": "c-215536",
+          "body": "[状态] → done：复核完成：对照设计逐条核对无偏离，静态检查 0 命中/0 违规，已在汇报里留证。（reqboard_task_move）",
+          "createdAt": 1791206093217,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791205951768,
+      "updatedAt": 1791206093217,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791205951768,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791206057075,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "开工复核：对 gate.py / defs.py 逐条核对设计契约（判据、注解、字段位置、依赖方向、静态检查）。"
+        },
+        {
+          "status": "done",
+          "at": 1791206093217,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "复核完成：对照设计逐条核对无偏离，静态检查 0 命中/0 违规，已在汇报里留证。"
+        }
+      ],
+      "layer": 1,
+      "lastReport": {
+        "at": 1791206090306,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "逐条核对 design/interfaces.md §1：判据确为 and —— 代码 skip = (not is_trading_day) and (not degraded)；用例 test_degraded_runs_fail_open 锁住 degraded=True 时照跑",
+          "注解五键 day/is_trading_day/source/degraded/reason 与契约一致，类型断言在 test_returns_annotation_shape",
+          "design/architecture.md 文件结构表一致：gate.py 新建、defs.py 追加字段；未改 __init__.py 与 daily_jobs_bootstrap.py 的导出清单",
+          "JobDef 字段为末位带默认值；既有位置参数构造回归 47 passed（test_daily_jobs_bootstrap / test_false_success_guard / test_financial_auto_rerun）",
+          "静态检查：py_compile OK；tools/check_undefined_names.py 本卡文件 0 命中；tools/analyze_layer_violations.py 对 gate.py 0 违规（inbound → application，方向只许向内）",
+          "无偏离：对照设计未发现实现偏离；ruff 未安装于 venv，如实标注 linter 未跑",
+          "一条交接提醒（非偏离）：degraded 的 warning 日志按设计落在调用方 _run_job，由下一卡 t-075116 兑现；本卡只负责把 degraded 带出来"
+        ]
+      },
+      "lastRun": {
+        "at": 1791206090306,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-36bf41",
+      "requirementId": "REQ-261005203907-2b8c",
+      "title": "门模块与 JobDef 字段（接口先行）·测试",
+      "description": "子卡阶段：测试",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-5d3b29"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "./venv/bin/python -m pytest tests/test_daily_jobs_trading_day_gate.py -q → 13 passed（失败数 0）；再加 -k 「truth or holiday or degraded」选择器版本 → 8 passed；既有回归 tests/test_daily_jobs_bootstrap.py + tests/test_false_success_guard.py + tests/test_financial_auto_rerun.py → 47 passed（失败数 ≤ 开工前基线）。注：原写的 pnpm test / npx tsc 属 JS 栈模板，本仓为 Python，已按等价命令修订。",
+      "implementation": "新建 adapters/inbound/fastapi_app/daily_jobs/gate.py：skip_non_trading_day(now=None)->tuple[bool,dict] / is_non_trading_day(now=None)->bool / verdict_info(now=None)->dict；判据 skip = (not TradingDayGuard.check(now).is_trading_day) and (not verdict.degraded)；永不抛，自身异常返回 (False, {'source':'gate-error',...}) 并记 warning 日志；注解五键 day/is_trading_day/source/degraded/reason。改 adapters/inbound/fastapi_app/daily_jobs/defs.py：JobDef 末尾追加 trading_days_only: bool = False（必须末位带默认值，仓内多处按位置参数构造）。新增 tests/test_daily_jobs_trading_day_gate.py 覆盖 TC-1 真值表：休市日 2026-10-05/06/07 → skip=True；交易日 2026-09-30/2026-10-08 → skip=False；周末 2026-10-03 → skip=True；degraded=True → skip=False（fail-open）；check 抛异常 → skip=False 且 source='gate-error'；注解形状五键齐。打桩点 daily_jobs.gate.TradingDayGuard，零网络零 DB。不改 daily_jobs/__init__.py 与 daily_jobs_bootstrap.py 的导出清单。\n\n[子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "context": "",
+      "parentId": "t-dd0d4d",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-7269a9",
+          "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+          "trigger": "manual",
+          "startedAt": 1791206095988,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+              "seq": 1050,
+              "at": 1791206095988,
+              "totals": {
+                "uncachedInputTokens": 208705,
+                "outputTokens": 139709,
+                "cacheReadTokens": 27955968,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+                  "depth": 0,
+                  "seq": 1050,
+                  "totals": {
+                    "uncachedInputTokens": 208705,
+                    "outputTokens": 139709,
+                    "cacheReadTokens": 27955968,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+              "seq": 1074,
+              "at": 1791206118973,
+              "totals": {
+                "uncachedInputTokens": 209993,
+                "outputTokens": 140798,
+                "cacheReadTokens": 29240960,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+                  "depth": 0,
+                  "seq": 1074,
+                  "totals": {
+                    "uncachedInputTokens": 209993,
+                    "outputTokens": 140798,
+                    "cacheReadTokens": 29240960,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 1288,
+              "outputTokens": 1089,
+              "cacheReadTokens": 1284992,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791206118973
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-cfde78",
+          "body": "[状态] → in_progress：开工测试阶段：跑本卡验收命令（门真值表全量 + 定位到 -k 选择器）并留证据。（reqboard_task_move）",
+          "createdAt": 1791206095988,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          }
+        },
+        {
+          "id": "c-017829",
+          "body": "[状态] → done：测试阶段完成：13 / 8 / 47 passed，失败数 0，通知守卫零外发。（reqboard_task_move）",
+          "createdAt": 1791206118973,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791205951768,
+      "updatedAt": 1791206118973,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791205951768,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791206095988,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "开工测试阶段：跑本卡验收命令（门真值表全量 + 定位到 -k 选择器）并留证据。"
+        },
+        {
+          "status": "done",
+          "at": 1791206118973,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "测试阶段完成：13 / 8 / 47 passed，失败数 0，通知守卫零外发。"
+        }
+      ],
+      "layer": 2,
+      "lastReport": {
+        "at": 1791206116020,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "① pytest tests/test_daily_jobs_trading_day_gate.py -q → 13 passed（失败数 0，基线 0）",
+          "② pytest 同文件 -k 「truth or holiday or degraded」→ 8 passed / 5 deselected",
+          "③ 回归 pytest tests/test_daily_jobs_bootstrap.py tests/test_false_success_guard.py tests/test_financial_auto_rerun.py → 47 passed（失败数 ≤ 开工前基线）",
+          "通知守卫：三次运行均打印 notify-guard intercepted=0 egress=0 offenders=[]（测试期零真实外发）",
+          "TDD 温度说明：用例与实现同批交付（先写门实现再落真值表），未走严格红-绿；范围与锚点由设计文档钉死"
+        ]
+      },
+      "lastRun": {
+        "at": 1791206116020,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-074a02",
+      "requirementId": "REQ-261005203907-2b8c",
+      "title": "宿主接线：_run_job 跳过早退 + 3 任务置位·研发",
+      "description": "子卡阶段：研发",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-dd0d4d"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "./venv/bin/python -m pytest tests/test_daily_jobs_trading_day_gate.py -q → 21 passed；并附 git diff --stat（runtime.py / registry.py）。注：卡上原写的 npx vitest 属 JS 栈模板，本仓为 Python，已按等价命令修订。",
+      "implementation": "改 adapters/inbound/fastapi_app/daily_jobs/runtime.py：_run_job 在 _mark_running 之后、_send_feishu('▶️ 每日任务开始…') 之前插入早退分支——if job.trading_days_only and skip_non_trading_day()[0]: 写 _mark_done(status='skipped', result={'skipped':True,'reason':f'非交易日（{day}）：{reason}','trading_day':info}) + scheduler_job_runs_total.labels(status='skipped').inc() + logger.info('inprocess_job_skipped') + return（不发任何飞书、不观测 duration）；照跑路径在 result 为 dict 时补 result['trading_day']=info，degraded=True 时记 logger.warning('inprocess_job_trading_day_degraded')。改 adapters/inbound/fastapi_app/daily_jobs/registry.py：pool_daily_refresh / chip_distribution / evolution_fitness 三行加 trading_days_only=True；evening_pipeline 与其余 5 个任务不加。在 tests/test_daily_jobs_trading_day_gate.py 追加：跳过留痕（_mark_done 收到 status='skipped' 且 result['skipped'] is True 且 trading_day 五键齐）、_send_feishu 调用次数为 0、handler 未被调用（side_effect=AssertionError）、注册表里 trading_days_only=True 的集合恰好是那 3 个。打桩点必须是 daily_jobs.runtime 模块内的 _mark_running/_mark_done/_send_feishu（打在 alerting 或 daily_jobs_bootstrap 上会静默失效并真发飞书）。\n\n[子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "context": "",
+      "parentId": "t-075116",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-e1dd0c",
+          "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+          "trigger": "manual",
+          "startedAt": 1791206215352,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+              "seq": 1181,
+              "at": 1791206215352,
+              "totals": {
+                "uncachedInputTokens": 225609,
+                "outputTokens": 150674,
+                "cacheReadTokens": 34956416,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+                  "depth": 0,
+                  "seq": 1181,
+                  "totals": {
+                    "uncachedInputTokens": 225609,
+                    "outputTokens": 150674,
+                    "cacheReadTokens": 34956416,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+              "seq": 1199,
+              "at": 1791206224496,
+              "totals": {
+                "uncachedInputTokens": 227194,
+                "outputTokens": 151384,
+                "cacheReadTokens": 35996672,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+                  "depth": 0,
+                  "seq": 1199,
+                  "totals": {
+                    "uncachedInputTokens": 227194,
+                    "outputTokens": 151384,
+                    "cacheReadTokens": 35996672,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 1585,
+              "outputTokens": 710,
+              "cacheReadTokens": 1040256,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791206224496
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-861ead",
+          "body": "[状态] → in_progress：开工研发阶段：本卡实现已完成（runtime 早退分支 + registry 3 处置位 + 8 条新用例）；顺手把 JS 栈模板的验收命令修订为等价的 pytest。（reqboard_task_move）",
+          "createdAt": 1791206215352,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          }
+        },
+        {
+          "id": "c-5cb101",
+          "body": "[状态] → done：研发阶段完成：_run_job 早退分支 + registry 3 处置位，21 条门用例全绿、daily-jobs 选择集 62 passed。（reqboard_task_move）",
+          "createdAt": 1791206224496,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791206128136,
+      "updatedAt": 1791206224496,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791206128136,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791206215352,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "开工研发阶段：本卡实现已完成（runtime 早退分支 + registry 3 处置位 + 8 条新用例）；顺手把 JS 栈模板的验收命令修订为等价的 pytest。"
+        },
+        {
+          "status": "done",
+          "at": 1791206224496,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "研发阶段完成：_run_job 早退分支 + registry 3 处置位，21 条门用例全绿、daily-jobs 选择集 62 passed。"
+        }
+      ],
+      "layer": 1,
+      "lastReport": {
+        "at": 1791206221939,
+        "reportIndex": 1,
+        "filesChanged": [
+          "adapters/inbound/fastapi_app/daily_jobs/runtime.py",
+          "adapters/inbound/fastapi_app/daily_jobs/registry.py",
+          "tests/test_daily_jobs_trading_day_gate.py"
+        ],
+        "completed": [
+          "runtime.py：_run_job 在 _mark_running 之后、开始通知之前插入跳过早退（写 skipped 行 + status=skipped 指标 + info 日志 + return）",
+          "runtime.py：刻意不观测 duration（跳过不是执行耗时，避免污染耗时直方图低分位）",
+          "runtime.py：照跑路径在 result 上补 trading_day 注解，degraded=True 时记 inprocess_job_trading_day_degraded 警告",
+          "registry.py：pool_daily_refresh / chip_distribution / evolution_fitness 三处置 trading_days_only=True，并写明另 5 个任务为何不加",
+          "测试追加 8 条：跳过留痕与静默、handler 未执行、duration 未观测、无标志任务不受门影响、降级注解与警告、注解不触发内层失败判定、注册表范围恰好 3 个",
+          "验证：pytest tests/test_daily_jobs_trading_day_gate.py -q → 21 passed；daily-jobs 相关选择集 → 62 passed / 6447 deselected；四文件回归 → 41 passed",
+          "git diff --stat 本卡范围：runtime.py +50/-…、registry.py +19/-…（共 62 insertions）"
+        ]
+      },
+      "lastRun": {
+        "at": 1791206221939,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-935496",
+      "requirementId": "REQ-261005203907-2b8c",
+      "title": "宿主接线：_run_job 跳过早退 + 3 任务置位·复核",
+      "description": "子卡阶段：复核",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-074a02"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对照 design/interfaces.md §3 与 §5 逐条核对（早退点位置 / 通知与耗时指标 / 兼容矩阵），无偏离时显式写明；./venv/bin/python -m pytest tests/test_daily_jobs_trading_day_gate.py -q → 21 passed；静态检查 tools/check_undefined_names.py 与 tools/analyze_layer_violations.py 对本卡文件 0 命中。注：卡上原写的 npx vitest 属 JS 栈模板，本仓为 Python，已按等价命令修订。",
+      "implementation": "改 adapters/inbound/fastapi_app/daily_jobs/runtime.py：_run_job 在 _mark_running 之后、_send_feishu('▶️ 每日任务开始…') 之前插入早退分支——if job.trading_days_only and skip_non_trading_day()[0]: 写 _mark_done(status='skipped', result={'skipped':True,'reason':f'非交易日（{day}）：{reason}','trading_day':info}) + scheduler_job_runs_total.labels(status='skipped').inc() + logger.info('inprocess_job_skipped') + return（不发任何飞书、不观测 duration）；照跑路径在 result 为 dict 时补 result['trading_day']=info，degraded=True 时记 logger.warning('inprocess_job_trading_day_degraded')。改 adapters/inbound/fastapi_app/daily_jobs/registry.py：pool_daily_refresh / chip_distribution / evolution_fitness 三行加 trading_days_only=True；evening_pipeline 与其余 5 个任务不加。在 tests/test_daily_jobs_trading_day_gate.py 追加：跳过留痕（_mark_done 收到 status='skipped' 且 result['skipped'] is True 且 trading_day 五键齐）、_send_feishu 调用次数为 0、handler 未被调用（side_effect=AssertionError）、注册表里 trading_days_only=True 的集合恰好是那 3 个。打桩点必须是 daily_jobs.runtime 模块内的 _mark_running/_mark_done/_send_feishu（打在 alerting 或 daily_jobs_bootstrap 上会静默失效并真发飞书）。\n\n[子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-075116",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-72e3d1",
+          "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+          "trigger": "manual",
+          "startedAt": 1791206227849,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+              "seq": 1205,
+              "at": 1791206227849,
+              "totals": {
+                "uncachedInputTokens": 227379,
+                "outputTokens": 151613,
+                "cacheReadTokens": 36344448,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+                  "depth": 0,
+                  "seq": 1205,
+                  "totals": {
+                    "uncachedInputTokens": 227379,
+                    "outputTokens": 151613,
+                    "cacheReadTokens": 36344448,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+              "seq": 1229,
+              "at": 1791206251726,
+              "totals": {
+                "uncachedInputTokens": 229289,
+                "outputTokens": 152821,
+                "cacheReadTokens": 37742336,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+                  "depth": 0,
+                  "seq": 1229,
+                  "totals": {
+                    "uncachedInputTokens": 229289,
+                    "outputTokens": 152821,
+                    "cacheReadTokens": 37742336,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 1910,
+              "outputTokens": 1208,
+              "cacheReadTokens": 1397888,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791206251726
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-349f1d",
+          "body": "[状态] → in_progress：开工复核阶段：核对设计契约并修订 JS 栈模板验收命令。（reqboard_task_move）",
+          "createdAt": 1791206227849,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          }
+        },
+        {
+          "id": "c-6c3a13",
+          "body": "[状态] → done：复核完成：逐条核对无偏离，静态检查 0 命中，证据已入汇报。（reqboard_task_move）",
+          "createdAt": 1791206251726,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791206128136,
+      "updatedAt": 1791206251726,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791206128136,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791206227849,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "开工复核阶段：核对设计契约并修订 JS 栈模板验收命令。"
+        },
+        {
+          "status": "done",
+          "at": 1791206251726,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "复核完成：逐条核对无偏离，静态检查 0 命中，证据已入汇报。"
+        }
+      ],
+      "layer": 2,
+      "lastReport": {
+        "at": 1791206249220,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "核对 interfaces.md §3：早退点在 runtime.py:104-124，位于开始通知 :126 与 handler :127 之前，顺序与设计逐字一致",
+          "核对指标契约：跳过只打 runs_total{status=skipped}（:119），duration 未观测（:120-121 留下刻意不观测的注释）",
+          "核对接口 §5 兼容矩阵：is_due 对未知 status 落 return False、catchup_due 仍只看 failed、_reap_orphan_runs 只看 running、_job_failure_watch 只看 failed —— 逐条读码确认与设计一致",
+          "核对「降级不许静默」：照跑路径补 result.trading_day（:130-132）并在 degraded 时记 warning（:133-135）",
+          "注册表范围：flagged 恰好 3 个、evening_pipeline 未置位（测试 TestRegistryScope 三条锁住）",
+          "静态检查：tools/check_undefined_names.py 与 tools/analyze_layer_violations.py 对 runtime.py / registry.py 均 0 命中",
+          "无偏离：未发现与设计不一致处"
+        ]
+      },
+      "lastRun": {
+        "at": 1791206249220,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-bdfaae",
+      "requirementId": "REQ-261005203907-2b8c",
+      "title": "宿主接线：_run_job 跳过早退 + 3 任务置位·测试",
+      "description": "子卡阶段：测试",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-935496"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "./venv/bin/python -m pytest tests/test_daily_jobs_trading_day_gate.py -q → 21 passed；再加 -k 「skip or registry or degraded」选择器版本；既有回归 tests/test_daily_jobs_bootstrap.py + tests/test_false_success_guard.py + tests/test_pool_refresh_daily.py + tests/test_freshness_guard.py → 41 passed；tests/ -k 「daily_jobs or pool_refresh or job_failure」→ 62 passed（失败数 ≤ 开工前基线）。注：卡上原写的 pnpm test / npx tsc 属 JS 栈模板，本仓为 Python，已按等价命令修订。",
+      "implementation": "改 adapters/inbound/fastapi_app/daily_jobs/runtime.py：_run_job 在 _mark_running 之后、_send_feishu('▶️ 每日任务开始…') 之前插入早退分支——if job.trading_days_only and skip_non_trading_day()[0]: 写 _mark_done(status='skipped', result={'skipped':True,'reason':f'非交易日（{day}）：{reason}','trading_day':info}) + scheduler_job_runs_total.labels(status='skipped').inc() + logger.info('inprocess_job_skipped') + return（不发任何飞书、不观测 duration）；照跑路径在 result 为 dict 时补 result['trading_day']=info，degraded=True 时记 logger.warning('inprocess_job_trading_day_degraded')。改 adapters/inbound/fastapi_app/daily_jobs/registry.py：pool_daily_refresh / chip_distribution / evolution_fitness 三行加 trading_days_only=True；evening_pipeline 与其余 5 个任务不加。在 tests/test_daily_jobs_trading_day_gate.py 追加：跳过留痕（_mark_done 收到 status='skipped' 且 result['skipped'] is True 且 trading_day 五键齐）、_send_feishu 调用次数为 0、handler 未被调用（side_effect=AssertionError）、注册表里 trading_days_only=True 的集合恰好是那 3 个。打桩点必须是 daily_jobs.runtime 模块内的 _mark_running/_mark_done/_send_feishu（打在 alerting 或 daily_jobs_bootstrap 上会静默失效并真发飞书）。\n\n[子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "context": "",
+      "parentId": "t-075116",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-945753",
+          "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+          "trigger": "manual",
+          "startedAt": 1791206255523,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+              "seq": 1235,
+              "at": 1791206255523,
+              "totals": {
+                "uncachedInputTokens": 229519,
+                "outputTokens": 153083,
+                "cacheReadTokens": 38093312,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+                  "depth": 0,
+                  "seq": 1235,
+                  "totals": {
+                    "uncachedInputTokens": 229519,
+                    "outputTokens": 153083,
+                    "cacheReadTokens": 38093312,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+              "seq": 1263,
+              "at": 1791206298127,
+              "totals": {
+                "uncachedInputTokens": 230823,
+                "outputTokens": 153805,
+                "cacheReadTokens": 39149952,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+                  "depth": 0,
+                  "seq": 1263,
+                  "totals": {
+                    "uncachedInputTokens": 230823,
+                    "outputTokens": 153805,
+                    "cacheReadTokens": 39149952,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 1304,
+              "outputTokens": 722,
+              "cacheReadTokens": 1056640,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791206298127
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-53f493",
+          "body": "[状态] → in_progress：开工测试阶段：修订 JS 栈模板验收命令为等价 pytest，然后跑三条命令留证据。（reqboard_task_move）",
+          "createdAt": 1791206255523,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          }
+        },
+        {
+          "id": "c-cf3673",
+          "body": "[状态] → done：测试阶段完成：21 / 13 / 41 / 62 passed，失败数 0，通知守卫零外发。（reqboard_task_move）",
+          "createdAt": 1791206298127,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791206128136,
+      "updatedAt": 1791206298127,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791206128136,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791206255523,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "开工测试阶段：修订 JS 栈模板验收命令为等价 pytest，然后跑三条命令留证据。"
+        },
+        {
+          "status": "done",
+          "at": 1791206298127,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "测试阶段完成：21 / 13 / 41 / 62 passed，失败数 0，通知守卫零外发。"
+        }
+      ],
+      "layer": 3,
+      "lastReport": {
+        "at": 1791206295700,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "① pytest tests/test_daily_jobs_trading_day_gate.py -q → 21 passed（失败数 0）",
+          "② 同文件 -k 「skip or registry or degraded」→ 13 passed / 8 deselected",
+          "③ 四文件回归（daily_jobs_bootstrap / false_success_guard / pool_refresh_daily / freshness_guard）→ 41 passed",
+          "④ tests/ -k 「daily_jobs or pool_refresh or job_failure」→ 62 passed / 6454 deselected（失败数 ≤ 开工前基线）",
+          "四次运行通知守卫均 intercepted=0 egress=0 offenders=[]"
+        ]
+      },
+      "lastRun": {
+        "at": 1791206295700,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-e11789",
+      "requirementId": "REQ-261005203907-2b8c",
+      "title": "晚间管线：因子段局部跳过（K 线段原样）·研发",
+      "description": "子卡阶段：研发",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-dd0d4d"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "./venv/bin/python -m pytest tests/test_evening_pipeline_holiday_gate.py -q → 6 passed；既有回归 tests/test_freshness_guard.py + tests/test_daily_jobs_bootstrap.py + tests/test_false_success_guard.py → 36 passed；并附 git diff --stat（pipeline.py）。注：卡上原写的 npx vitest 属 JS 栈模板，本仓为 Python，已按等价命令修订。",
+      "implementation": "改 adapters/inbound/fastapi_app/daily_jobs/pipeline.py 的 _job_evening_pipeline：入口取一次 non_trading = is_non_trading_day()；K 线段（探活、覆盖度门槛、批大小、缺口修复、失败上抛）逐字不动；因子段改为 kline=results.get('kline_sync') or {}; kline_changed = kline.get('status') != 'skipped' and (kline.get('success') or 0) > 0; if non_trading and not kline_changed and kline.get('status') != 'error': results['factor_compute']={'status':'skipped','skipped':True,'reason':f'非交易日（{expected} 基准）且 K 线本次无更新'} else: results['factor_compute']=handle_factor_compute({'max_symbols':6000})。新增 tests/test_evening_pipeline_holiday_gate.py 覆盖 TC-4 六行真值表：休市日+K线skipped→因子不跑；休市日+K线success且success=137→因子跑；休市日+success=0→因子不跑；休市日+status='error'→因子跑且随后仍 raise；交易日+K线skipped→因子必须跑（防交易日漏算因子）；跳过形态经 find_result_failure 判为非失败。打桩点：daily_jobs.pipeline 的 is_non_trading_day/_kline_coverage/_probe_kline_sources，以及源头模块 application.services.scheduler_tasks.handle_factor_compute 与 infrastructure.jobs.kline_update_job.update_gem_klines（函数内局部 import）。\n\n[子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "context": "",
+      "parentId": "t-588729",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-6aaac2",
+          "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+          "trigger": "manual",
+          "startedAt": 1791206460722,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+              "seq": 1381,
+              "at": 1791206460722,
+              "totals": {
+                "uncachedInputTokens": 246998,
+                "outputTokens": 164802,
+                "cacheReadTokens": 46129152,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+                  "depth": 0,
+                  "seq": 1381,
+                  "totals": {
+                    "uncachedInputTokens": 246998,
+                    "outputTokens": 164802,
+                    "cacheReadTokens": 46129152,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+              "seq": 1399,
+              "at": 1791206470830,
+              "totals": {
+                "uncachedInputTokens": 248490,
+                "outputTokens": 165515,
+                "cacheReadTokens": 47267712,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+                  "depth": 0,
+                  "seq": 1399,
+                  "totals": {
+                    "uncachedInputTokens": 248490,
+                    "outputTokens": 165515,
+                    "cacheReadTokens": 47267712,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 1492,
+              "outputTokens": 713,
+              "cacheReadTokens": 1138560,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791206470830
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-37f062",
+          "body": "[状态] → in_progress：开工研发阶段：因子段门已实现（K 线段原样），6 条真值表用例通过；顺手把 JS 栈模板验收命令修订为等价 pytest。（reqboard_task_move）",
+          "createdAt": 1791206460722,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          }
+        },
+        {
+          "id": "c-4047e8",
+          "body": "[状态] → done：研发阶段完成：因子段门 + 6 条真值表用例，回归 36 passed。（reqboard_task_move）",
+          "createdAt": 1791206470830,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791206313046,
+      "updatedAt": 1791206470830,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791206313046,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791206460722,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "开工研发阶段：因子段门已实现（K 线段原样），6 条真值表用例通过；顺手把 JS 栈模板验收命令修订为等价 pytest。"
+        },
+        {
+          "status": "done",
+          "at": 1791206470830,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "研发阶段完成：因子段门 + 6 条真值表用例，回归 36 passed。"
+        }
+      ],
+      "layer": 1,
+      "lastReport": {
+        "at": 1791206468178,
+        "reportIndex": 1,
+        "filesChanged": [
+          "adapters/inbound/fastapi_app/daily_jobs/pipeline.py",
+          "tests/test_evening_pipeline_holiday_gate.py"
+        ],
+        "completed": [
+          "pipeline.py：入口导入 is_non_trading_day，因子段改为条件执行（判据=非交易日 且 K 线本次无更新 且 非 error）",
+          "K 线段逐字未动：探活、覆盖度门槛、批大小、缺口修复、失败上抛全部保持",
+          "error 语义保留：status=error 时因子段照跑，随后仍 raise（用例锁住）",
+          "新增 tests/test_evening_pipeline_holiday_gate.py：六行真值表 6 条用例",
+          "实现期发现并补了一个设计未列的必需打桩点：pipeline._last_trading_day（真实日历链会连库/联网，必须替换才能零网络零 DB）",
+          "验证：pytest tests/test_evening_pipeline_holiday_gate.py -q → 6 passed；回归三文件 → 36 passed",
+          "如实登记一条既有问题（非本卡引入）：选择集 tests/ -k 「evening_pipeline or daily_jobs or freshness」下有 1 条 order-dependent 失败（test_streak_query_failure_degrades_loudly 的 capsys 断言），单跑与小组组合均通过，且失败发生在触达本卡代码之前"
+        ]
+      },
+      "lastRun": {
+        "at": 1791206468178,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-c7f120",
+      "requirementId": "REQ-261005203907-2b8c",
+      "title": "晚间管线：因子段局部跳过（K 线段原样）·复核",
+      "description": "子卡阶段：复核",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-e11789"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对照 design/interfaces.md §4 真值表逐行核对（五行 + 交易日不跳）并写明「无偏离」；./venv/bin/python -m pytest tests/test_evening_pipeline_holiday_gate.py -q → 6 passed；静态检查 tools/check_undefined_names.py 与 tools/analyze_layer_violations.py 对 pipeline.py 0 命中。注：卡上原写的 npx vitest 属 JS 栈模板，本仓为 Python，已按等价命令修订。",
+      "implementation": "改 adapters/inbound/fastapi_app/daily_jobs/pipeline.py 的 _job_evening_pipeline：入口取一次 non_trading = is_non_trading_day()；K 线段（探活、覆盖度门槛、批大小、缺口修复、失败上抛）逐字不动；因子段改为 kline=results.get('kline_sync') or {}; kline_changed = kline.get('status') != 'skipped' and (kline.get('success') or 0) > 0; if non_trading and not kline_changed and kline.get('status') != 'error': results['factor_compute']={'status':'skipped','skipped':True,'reason':f'非交易日（{expected} 基准）且 K 线本次无更新'} else: results['factor_compute']=handle_factor_compute({'max_symbols':6000})。新增 tests/test_evening_pipeline_holiday_gate.py 覆盖 TC-4 六行真值表：休市日+K线skipped→因子不跑；休市日+K线success且success=137→因子跑；休市日+success=0→因子不跑；休市日+status='error'→因子跑且随后仍 raise；交易日+K线skipped→因子必须跑（防交易日漏算因子）；跳过形态经 find_result_failure 判为非失败。打桩点：daily_jobs.pipeline 的 is_non_trading_day/_kline_coverage/_probe_kline_sources，以及源头模块 application.services.scheduler_tasks.handle_factor_compute 与 infrastructure.jobs.kline_update_job.update_gem_klines（函数内局部 import）。\n\n[子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-588729",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-bf9075",
+          "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+          "trigger": "manual",
+          "startedAt": 1791206474341,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+              "seq": 1405,
+              "at": 1791206474341,
+              "totals": {
+                "uncachedInputTokens": 248691,
+                "outputTokens": 165743,
+                "cacheReadTokens": 47648384,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+                  "depth": 0,
+                  "seq": 1405,
+                  "totals": {
+                    "uncachedInputTokens": 248691,
+                    "outputTokens": 165743,
+                    "cacheReadTokens": 47648384,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+              "seq": 1429,
+              "at": 1791206509093,
+              "totals": {
+                "uncachedInputTokens": 250401,
+                "outputTokens": 169211,
+                "cacheReadTokens": 49180160,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+                  "depth": 0,
+                  "seq": 1429,
+                  "totals": {
+                    "uncachedInputTokens": 250401,
+                    "outputTokens": 169211,
+                    "cacheReadTokens": 49180160,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 1710,
+              "outputTokens": 3468,
+              "cacheReadTokens": 1531776,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791206509093
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-4b31c2",
+          "body": "[状态] → in_progress：开工复核阶段：逐行核对真值表与设计，并修订 JS 栈模板验收命令。（reqboard_task_move）",
+          "createdAt": 1791206474341,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          }
+        },
+        {
+          "id": "c-f3ac6b",
+          "body": "[状态] → done：复核完成：真值表逐行一致、K 线段零改动、error 语义未变，无偏离。（reqboard_task_move）",
+          "createdAt": 1791206509093,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791206313046,
+      "updatedAt": 1791206509093,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791206313046,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791206474341,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "开工复核阶段：逐行核对真值表与设计，并修订 JS 栈模板验收命令。"
+        },
+        {
+          "status": "done",
+          "at": 1791206509093,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "复核完成：真值表逐行一致、K 线段零改动、error 语义未变，无偏离。"
+        }
+      ],
+      "layer": 2,
+      "lastReport": {
+        "at": 1791206506374,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "逐行核对 interfaces.md §4 真值表：五行判据与用例名一一对应（fresh/137只/0只/error/交易日不跳），无偏离",
+          "K 线段零改动已验证：git diff 中探活、覆盖度门槛、batch_size、gap_days、update_gem_klines 等符号 0 条增删行",
+          "error 语义保留：用例 test_holiday_kline_error_still_computes_then_raises 断言先算因子再抛 RuntimeError",
+          "因子段代码仅 1 处（grep 计数 1），未出现重复块或半改状态；文件 330 行自洽",
+          "静态检查：tools/check_undefined_names.py 与 tools/analyze_layer_violations.py 对 pipeline.py 均 0 命中",
+          "口径说明（非偏离）：pipeline.py 的 git diff 还含 REQ-261004154902-a7cd 的既有未提交改动（evolution_fitness / freshness_guard / _last_trading_day 等 hunk），本卡只占其中两个 hunk：gate 导入与因子段"
+        ]
+      },
+      "lastRun": {
+        "at": 1791206506374,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-4dec18",
+      "requirementId": "REQ-261005203907-2b8c",
+      "title": "晚间管线：因子段局部跳过（K 线段原样）·测试",
+      "description": "子卡阶段：测试",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-c7f120"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "./venv/bin/python -m pytest tests/test_evening_pipeline_holiday_gate.py -q → 6 passed；既有回归 tests/test_freshness_guard.py + tests/test_daily_jobs_bootstrap.py + tests/test_false_success_guard.py → 36 passed；tests/ -k 「evening_pipeline or daily_jobs or freshness」的失败数 ≤ 开工前基线（该选择集有 1 条既有 order-dependent 失败，已单跑证明与本卡无关）。注：卡上原写的 pnpm test / npx tsc 属 JS 栈模板，本仓为 Python，已按等价命令修订。",
+      "implementation": "改 adapters/inbound/fastapi_app/daily_jobs/pipeline.py 的 _job_evening_pipeline：入口取一次 non_trading = is_non_trading_day()；K 线段（探活、覆盖度门槛、批大小、缺口修复、失败上抛）逐字不动；因子段改为 kline=results.get('kline_sync') or {}; kline_changed = kline.get('status') != 'skipped' and (kline.get('success') or 0) > 0; if non_trading and not kline_changed and kline.get('status') != 'error': results['factor_compute']={'status':'skipped','skipped':True,'reason':f'非交易日（{expected} 基准）且 K 线本次无更新'} else: results['factor_compute']=handle_factor_compute({'max_symbols':6000})。新增 tests/test_evening_pipeline_holiday_gate.py 覆盖 TC-4 六行真值表：休市日+K线skipped→因子不跑；休市日+K线success且success=137→因子跑；休市日+success=0→因子不跑；休市日+status='error'→因子跑且随后仍 raise；交易日+K线skipped→因子必须跑（防交易日漏算因子）；跳过形态经 find_result_failure 判为非失败。打桩点：daily_jobs.pipeline 的 is_non_trading_day/_kline_coverage/_probe_kline_sources，以及源头模块 application.services.scheduler_tasks.handle_factor_compute 与 infrastructure.jobs.kline_update_job.update_gem_klines（函数内局部 import）。\n\n[子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "context": "",
+      "parentId": "t-588729",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-fcfa36",
+          "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+          "trigger": "manual",
+          "startedAt": 1791206512326,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+              "seq": 1435,
+              "at": 1791206512326,
+              "totals": {
+                "uncachedInputTokens": 250660,
+                "outputTokens": 169467,
+                "cacheReadTokens": 49565952,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+                  "depth": 0,
+                  "seq": 1435,
+                  "totals": {
+                    "uncachedInputTokens": 250660,
+                    "outputTokens": 169467,
+                    "cacheReadTokens": 49565952,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+              "seq": 1453,
+              "at": 1791206539986,
+              "totals": {
+                "uncachedInputTokens": 251895,
+                "outputTokens": 170239,
+                "cacheReadTokens": 50727296,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+                  "depth": 0,
+                  "seq": 1453,
+                  "totals": {
+                    "uncachedInputTokens": 251895,
+                    "outputTokens": 170239,
+                    "cacheReadTokens": 50727296,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 1235,
+              "outputTokens": 772,
+              "cacheReadTokens": 1161344,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791206539986
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-945edb",
+          "body": "[状态] → in_progress：开工测试阶段：修订 JS 栈模板验收命令为等价 pytest，跑三条命令并留证。（reqboard_task_move）",
+          "createdAt": 1791206512326,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          }
+        },
+        {
+          "id": "c-2ec4ea",
+          "body": "[状态] → done：测试阶段完成：6 passed + 36 passed；选择集唯一失败为既有 order-dependent 项，已留证与定位。（reqboard_task_move）",
+          "createdAt": 1791206539986,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791206313046,
+      "updatedAt": 1791206539986,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791206313046,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791206512326,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "开工测试阶段：修订 JS 栈模板验收命令为等价 pytest，跑三条命令并留证。"
+        },
+        {
+          "status": "done",
+          "at": 1791206539986,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "测试阶段完成：6 passed + 36 passed；选择集唯一失败为既有 order-dependent 项，已留证与定位。"
+        }
+      ],
+      "layer": 3,
+      "lastReport": {
+        "at": 1791206537919,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "① pytest tests/test_evening_pipeline_holiday_gate.py -q → 6 passed（失败数 0）",
+          "② 回归三文件（freshness_guard / daily_jobs_bootstrap / false_success_guard）→ 36 passed",
+          "③ tests/ -k 「evening_pipeline or daily_jobs or freshness」→ 1 failed / 78 passed：唯一失败为既有 order-dependent 项",
+          "④ 该失败单跑 → 1 passed（证明与顺序/状态相关，非本卡引入）",
+          "失败机理已定位：断言 evolution_fitness_idle_stats_failed 出现在 capsys 输出，但该行被 pytest 日志捕获走 logging 通道（日志侧确有该行），说明是同选择集内某用例装了日志 handler 所致；且该断言位于触达本卡代码之前",
+          "通知守卫：四次运行均 intercepted=0 egress=0 offenders=[]"
+        ]
+      },
+      "lastRun": {
+        "at": 1791206537919,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-434c63",
+      "requirementId": "REQ-261005203907-2b8c",
+      "title": "兼容与回滚核验（零 DDL / 既有消费者行为）·研发",
+      "description": "子卡阶段：研发",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-075116"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "./venv/bin/python -m pytest tests/test_daily_jobs_trading_day_gate.py -q → 27 passed（含新增 6 条兼容判据）；notes/compat-rollback.md 落盘且含真实命令输出。注：卡上原写的 npx vitest 属 JS 栈模板，本仓为 Python，已按等价命令修订。",
+      "implementation": "在 tests/test_daily_jobs_trading_day_gate.py 追加兼容判据用例：is_due(job, now, {'status':'skipped','started_at':now}) is False；catchup_due(job, now, has_recent_failure=True) 在排班日 is False；trigger_job 对 skipped 行不返回『今日已有记录』拒绝；find_result_failure({'skipped':True,...}) is None；find_result_failure({'kline_sync':{'status':'success','skipped':12}}) 不因 int 误判（is True 严格布尔）。写 docs/requirements/REQ-261005203907-2b8c/notes/compat-rollback.md：记录 git diff --name-only 中不含 infrastructure/persistence/migrations/** 的核验输出、status 列 text 无 CHECK 约束的核验、以及回滚步骤（撤 3 处 trading_days_only=True 与 pipeline 因子段判定，已产生的 skipped 行无需清理）。\n\n[子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "context": "",
+      "parentId": "t-dbb9d0",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-bc2f35",
+          "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+          "trigger": "manual",
+          "startedAt": 1791206594512,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+              "seq": 1515,
+              "at": 1791206594512,
+              "totals": {
+                "uncachedInputTokens": 263585,
+                "outputTokens": 176263,
+                "cacheReadTokens": 54700160,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+                  "depth": 0,
+                  "seq": 1515,
+                  "totals": {
+                    "uncachedInputTokens": 263585,
+                    "outputTokens": 176263,
+                    "cacheReadTokens": 54700160,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+              "seq": 1527,
+              "at": 1791206601619,
+              "totals": {
+                "uncachedInputTokens": 264413,
+                "outputTokens": 176773,
+                "cacheReadTokens": 55510784,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+                  "depth": 0,
+                  "seq": 1527,
+                  "totals": {
+                    "uncachedInputTokens": 264413,
+                    "outputTokens": 176773,
+                    "cacheReadTokens": 55510784,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 828,
+              "outputTokens": 510,
+              "cacheReadTokens": 810624,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791206601619
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-8b7993",
+          "body": "[状态] → in_progress：开工研发阶段：兼容判据 6 条用例 + 核验记录已落盘；顺手把 JS 栈模板验收命令修订为等价 pytest。（reqboard_task_move）",
+          "createdAt": 1791206594512,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          }
+        },
+        {
+          "id": "c-84bd32",
+          "body": "[状态] → done：研发阶段完成：6 条兼容判据 + 核验记录落盘，27 passed。（reqboard_task_move）",
+          "createdAt": 1791206601619,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791206554134,
+      "updatedAt": 1791206601619,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791206554134,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791206594512,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "开工研发阶段：兼容判据 6 条用例 + 核验记录已落盘；顺手把 JS 栈模板验收命令修订为等价 pytest。"
+        },
+        {
+          "status": "done",
+          "at": 1791206601619,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "研发阶段完成：6 条兼容判据 + 核验记录落盘，27 passed。"
+        }
+      ],
+      "layer": 2,
+      "lastReport": {
+        "at": 1791206598165,
+        "reportIndex": 1,
+        "filesChanged": [
+          "tests/test_daily_jobs_trading_day_gate.py",
+          "docs/requirements/REQ-261005203907-2b8c/notes/compat-rollback.md"
+        ],
+        "completed": [
+          "测试文件追加 TestSkippedRowCompatibility 6 条：is_due 对 skipped 判 False、三分支语义未挤掉、catchup_due 只认 failed、trigger_job 对 skipped 放行而对 success 仍拒绝、顶层 skipped=True 不算失败、int 跳过只数不被误读为布尔",
+          "落盘 docs/requirements/REQ-261005203907-2b8c/notes/compat-rollback.md：零 DDL 核验（4 条命令真实输出）+ 兼容矩阵 + 三步回滚步骤 + 残留风险",
+          "零 DDL 证据：git diff --name-only 无 infrastructure/persistence/migrations/** 改动；status 列 text NOT NULL 且 CHECK 约束 0 行；ORM 侧 Column(Text) 无枚举",
+          "验证：pytest tests/test_daily_jobs_trading_day_gate.py -q → 27 passed；回归 daily_jobs_bootstrap + pool_refresh_daily → 20 passed"
+        ]
+      },
+      "lastRun": {
+        "at": 1791206598165,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-e199f4",
+      "requirementId": "REQ-261005203907-2b8c",
+      "title": "兼容与回滚核验（零 DDL / 既有消费者行为）·复核",
+      "description": "子卡阶段：复核",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-434c63"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "逐条对照 design/interfaces.md §5 的兼容矩阵（7 行）核对本卡 6 条断言覆盖了哪几行、缺哪几行并说明缺的理由；./venv/bin/python -m pytest tests/test_daily_jobs_trading_day_gate.py -q → 27 passed。注：卡上原写的 npx vitest 属 JS 栈模板，本仓为 Python，已按等价命令修订。",
+      "implementation": "在 tests/test_daily_jobs_trading_day_gate.py 追加兼容判据用例：is_due(job, now, {'status':'skipped','started_at':now}) is False；catchup_due(job, now, has_recent_failure=True) 在排班日 is False；trigger_job 对 skipped 行不返回『今日已有记录』拒绝；find_result_failure({'skipped':True,...}) is None；find_result_failure({'kline_sync':{'status':'success','skipped':12}}) 不因 int 误判（is True 严格布尔）。写 docs/requirements/REQ-261005203907-2b8c/notes/compat-rollback.md：记录 git diff --name-only 中不含 infrastructure/persistence/migrations/** 的核验输出、status 列 text 无 CHECK 约束的核验、以及回滚步骤（撤 3 处 trading_days_only=True 与 pipeline 因子段判定，已产生的 skipped 行无需清理）。\n\n[子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-dbb9d0",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-db408c",
+          "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+          "trigger": "manual",
+          "startedAt": 1791206604633,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+              "seq": 1533,
+              "at": 1791206604633,
+              "totals": {
+                "uncachedInputTokens": 264581,
+                "outputTokens": 176982,
+                "cacheReadTokens": 55916800,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+                  "depth": 0,
+                  "seq": 1533,
+                  "totals": {
+                    "uncachedInputTokens": 264581,
+                    "outputTokens": 176982,
+                    "cacheReadTokens": 55916800,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+              "seq": 1545,
+              "at": 1791206615085,
+              "totals": {
+                "uncachedInputTokens": 265388,
+                "outputTokens": 178122,
+                "cacheReadTokens": 56731008,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+                  "depth": 0,
+                  "seq": 1545,
+                  "totals": {
+                    "uncachedInputTokens": 265388,
+                    "outputTokens": 178122,
+                    "cacheReadTokens": 56731008,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 807,
+              "outputTokens": 1140,
+              "cacheReadTokens": 814208,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791206615085
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-790a23",
+          "body": "[状态] → in_progress：开工复核阶段：核对兼容矩阵的断言覆盖度，并修订 JS 栈模板验收命令。（reqboard_task_move）",
+          "createdAt": 1791206604633,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          }
+        },
+        {
+          "id": "c-f478ac",
+          "body": "[状态] → done：复核阶段完成：兼容矩阵 7 行逐行核对，4 行直接断言 + 3 行说明理由，无偏离。（reqboard_task_move）",
+          "createdAt": 1791206615085,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791206554134,
+      "updatedAt": 1791206615085,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791206554134,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791206604633,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "开工复核阶段：核对兼容矩阵的断言覆盖度，并修订 JS 栈模板验收命令。"
+        },
+        {
+          "status": "done",
+          "at": 1791206615085,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "复核阶段完成：兼容矩阵 7 行逐行核对，4 行直接断言 + 3 行说明理由，无偏离。"
+        }
+      ],
+      "layer": 3,
+      "lastReport": {
+        "at": 1791206611972,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "逐条对照 interfaces.md §5 兼容矩阵（7 行）核对断言覆盖度",
+          "直接断言覆盖 4 行：is_due（含 success/running/failed 三分支对照）、catchup_due、trigger_job、find_result_failure",
+          "未直接断言 3 行及理由：_reap_orphan_runs 与 _job_failure_watch 的过滤条件在仓储查询里（只看 running / failed），本次新增取值不改变其输入集合，其行为已由 tests/test_false_success_guard.py 既有用例覆盖；list_today_runs 为纯透传且需要 DB，故以读码确认",
+          "额外加固 1 条设计未列的防呆：kline_sync.skipped 是 int 跳过只数，需断言不被读成布尔跳过（防将来互换语义）",
+          "验证：pytest tests/test_daily_jobs_trading_day_gate.py -q → 27 passed",
+          "无偏离：核验结论与设计 §5 一致；缺失的三行已在 notes/compat-rollback.md 第 5 节如实登记"
+        ]
+      },
+      "lastRun": {
+        "at": 1791206611972,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-0c1cf7",
+      "requirementId": "REQ-261005203907-2b8c",
+      "title": "兼容与回滚核验（零 DDL / 既有消费者行为）·测试",
+      "description": "子卡阶段：测试",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-e199f4"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "./venv/bin/python -m pytest tests/test_daily_jobs_bootstrap.py tests/test_pool_refresh_daily.py -q → 20 passed；git diff --name-only 不含 infrastructure/persistence/migrations/**；notes/compat-rollback.md 落盘且含实际命令输出。注：卡上原写的 pnpm test / npx tsc 属 JS 栈模板，本仓为 Python，已按等价命令修订。",
+      "implementation": "在 tests/test_daily_jobs_trading_day_gate.py 追加兼容判据用例：is_due(job, now, {'status':'skipped','started_at':now}) is False；catchup_due(job, now, has_recent_failure=True) 在排班日 is False；trigger_job 对 skipped 行不返回『今日已有记录』拒绝；find_result_failure({'skipped':True,...}) is None；find_result_failure({'kline_sync':{'status':'success','skipped':12}}) 不因 int 误判（is True 严格布尔）。写 docs/requirements/REQ-261005203907-2b8c/notes/compat-rollback.md：记录 git diff --name-only 中不含 infrastructure/persistence/migrations/** 的核验输出、status 列 text 无 CHECK 约束的核验、以及回滚步骤（撤 3 处 trading_days_only=True 与 pipeline 因子段判定，已产生的 skipped 行无需清理）。\n\n[子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "context": "",
+      "parentId": "t-dbb9d0",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-1929c5",
+          "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+          "trigger": "manual",
+          "startedAt": 1791206618004,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+              "seq": 1551,
+              "at": 1791206618004,
+              "totals": {
+                "uncachedInputTokens": 265609,
+                "outputTokens": 178333,
+                "cacheReadTokens": 57139072,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+                  "depth": 0,
+                  "seq": 1551,
+                  "totals": {
+                    "uncachedInputTokens": 265609,
+                    "outputTokens": 178333,
+                    "cacheReadTokens": 57139072,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+              "seq": 1569,
+              "at": 1791206633676,
+              "totals": {
+                "uncachedInputTokens": 266781,
+                "outputTokens": 178962,
+                "cacheReadTokens": 58366464,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+                  "depth": 0,
+                  "seq": 1569,
+                  "totals": {
+                    "uncachedInputTokens": 266781,
+                    "outputTokens": 178962,
+                    "cacheReadTokens": 58366464,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 1172,
+              "outputTokens": 629,
+              "cacheReadTokens": 1227392,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791206633676
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-7f11fd",
+          "body": "[状态] → in_progress：开工测试阶段：修订 JS 栈模板验收命令为等价 pytest，跑三条验收并留证。（reqboard_task_move）",
+          "createdAt": 1791206618004,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          }
+        },
+        {
+          "id": "c-b9238f",
+          "body": "[状态] → done：测试阶段完成：20 passed、零 DDL 核验通过、核验记录落盘。（reqboard_task_move）",
+          "createdAt": 1791206633676,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791206554134,
+      "updatedAt": 1791206633676,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791206554134,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791206618004,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "开工测试阶段：修订 JS 栈模板验收命令为等价 pytest，跑三条验收并留证。"
+        },
+        {
+          "status": "done",
+          "at": 1791206633676,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "测试阶段完成：20 passed、零 DDL 核验通过、核验记录落盘。"
+        }
+      ],
+      "layer": 4,
+      "lastReport": {
+        "at": 1791206630446,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "① pytest tests/test_daily_jobs_bootstrap.py tests/test_pool_refresh_daily.py -q → 20 passed",
+          "② git diff --name-only 无 infrastructure/persistence/migrations/** 改动（零 DDL 合格）",
+          "③ notes/compat-rollback.md 已落盘，含 status 列 text + CHECK 0 行 + 测试库同形 + 回滚三步的真实输出",
+          "④ 门用例总数 27 passed（含本卡新增 6 条兼容判据）",
+          "通知守卫：全部运行 intercepted=0 egress=0"
+        ]
+      },
+      "lastRun": {
+        "at": 1791206630446,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-d78651",
+      "requirementId": "REQ-261005203907-2b8c",
+      "title": "回归 + 真实休市日/复市首日观察·研发",
+      "description": "子卡阶段：研发",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-588729",
+        "t-dbb9d0"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "四条验收命令退出码 0（① 27 passed ② 6 passed ③ 37 passed ④ 台账查询已执行）；notes/holiday-observation.md 落盘且含实际输出、改造前基线与待观察项。注：卡上原写的 npx vitest 属 JS 栈模板，本仓为 Python，已按等价命令修订。",
+      "implementation": "跑齐四条命令并把输出摘要写入 docs/requirements/REQ-261005203907-2b8c/notes/holiday-observation.md：① pytest tests/test_daily_jobs_trading_day_gate.py -q；② pytest tests/test_evening_pipeline_holiday_gate.py -q；③ pytest tests/test_daily_jobs_bootstrap.py tests/test_false_success_guard.py tests/test_pool_refresh_daily.py -q；④ psql -d quant_investment 查 quant.inprocess_job_runs（休市日 2026-10-06 或 10-07：pool_daily_refresh/chip_distribution/evolution_fitness 应为 skipped、watch_rule_health/event_calendar_check/freshness_guard 仍 success、evening_pipeline 的 result->'factor_compute'->>'status' 应为 skipped；复市首日 2026-10-08：pool_daily_refresh 与 evening_pipeline 应恢复 success）。同时记录当天飞书侧无这 3 个任务的开始/完成消息（对照 2026-10-05 曾各发 2 条）。观察窗口未到（如 10-06/10-08 尚未发生）时如实标注为待观察，不得用推断代替实测。\n\n[子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "context": "",
+      "parentId": "t-6384c0",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-e244ed",
+          "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+          "trigger": "manual",
+          "startedAt": 1791206676813,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+              "seq": 1615,
+              "at": 1791206676813,
+              "totals": {
+                "uncachedInputTokens": 277709,
+                "outputTokens": 183551,
+                "cacheReadTokens": 61282816,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+                  "depth": 0,
+                  "seq": 1615,
+                  "totals": {
+                    "uncachedInputTokens": 277709,
+                    "outputTokens": 183551,
+                    "cacheReadTokens": 61282816,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+              "seq": 1627,
+              "at": 1791206683842,
+              "totals": {
+                "uncachedInputTokens": 278477,
+                "outputTokens": 184023,
+                "cacheReadTokens": 62133888,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+                  "depth": 0,
+                  "seq": 1627,
+                  "totals": {
+                    "uncachedInputTokens": 278477,
+                    "outputTokens": 184023,
+                    "cacheReadTokens": 62133888,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 768,
+              "outputTokens": 472,
+              "cacheReadTokens": 851072,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791206683841
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-05a366",
+          "body": "[状态] → in_progress：开工测试交付阶段：四条验收已跑，观察记录落盘；顺手把 JS 栈模板验收命令修订为等价 pytest。（reqboard_task_move）",
+          "createdAt": 1791206676813,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          }
+        },
+        {
+          "id": "c-6f4b54",
+          "body": "[状态] → done：研发阶段完成：三条验收全绿，观察记录（含基线与待观察项）落盘。（reqboard_task_move）",
+          "createdAt": 1791206683841,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791206646453,
+      "updatedAt": 1791206683841,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791206646453,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791206676813,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "开工测试交付阶段：四条验收已跑，观察记录落盘；顺手把 JS 栈模板验收命令修订为等价 pytest。"
+        },
+        {
+          "status": "done",
+          "at": 1791206683841,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "研发阶段完成：三条验收全绿，观察记录（含基线与待观察项）落盘。"
+        }
+      ],
+      "layer": 3,
+      "lastReport": {
+        "at": 1791206681423,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-261005203907-2b8c/notes/holiday-observation.md"
+        ],
+        "completed": [
+          "跑齐三条 pytest 验收：27 passed / 6 passed / 37 passed，四次运行 notify-guard egress=0",
+          "执行台账观察查询（10-05）：pool_daily_refresh success 22.1 秒、evening_pipeline running 53.4 分钟、chip_distribution running 13.5 分钟",
+          "取得关键前提证据：服务进程 09:09:10 启动，早于本次改动落盘 → 宿主跑的是旧代码，故 10-05 不体现门（属预期）",
+          "落盘 notes/holiday-observation.md：基线实测 + 待观察项（10-06/10-07/10-08）+ 复跑命令 + 重启前提 + 未覆盖项",
+          "如实标注：本次未重启生产服务（会连带加载工作区其它未提交改动，需人拍板），故观察窗口为阻塞项"
+        ]
+      },
+      "lastRun": {
+        "at": 1791206681423,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-d9d825",
+      "requirementId": "REQ-261005203907-2b8c",
+      "title": "回归 + 真实休市日/复市首日观察·复核",
+      "description": "子卡阶段：复核",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-d78651"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "核对 notes/holiday-observation.md 是否把「已实测」与「待观察/未覆盖」分开标注（逐节核对并把结论写入复核汇报）；确认不含把推断写成实测的句子。注：卡上原写的 npx vitest 属 JS 栈模板，本仓为 Python，已按等价命令修订。",
+      "implementation": "跑齐四条命令并把输出摘要写入 docs/requirements/REQ-261005203907-2b8c/notes/holiday-observation.md：① pytest tests/test_daily_jobs_trading_day_gate.py -q；② pytest tests/test_evening_pipeline_holiday_gate.py -q；③ pytest tests/test_daily_jobs_bootstrap.py tests/test_false_success_guard.py tests/test_pool_refresh_daily.py -q；④ psql -d quant_investment 查 quant.inprocess_job_runs（休市日 2026-10-06 或 10-07：pool_daily_refresh/chip_distribution/evolution_fitness 应为 skipped、watch_rule_health/event_calendar_check/freshness_guard 仍 success、evening_pipeline 的 result->'factor_compute'->>'status' 应为 skipped；复市首日 2026-10-08：pool_daily_refresh 与 evening_pipeline 应恢复 success）。同时记录当天飞书侧无这 3 个任务的开始/完成消息（对照 2026-10-05 曾各发 2 条）。观察窗口未到（如 10-06/10-08 尚未发生）时如实标注为待观察，不得用推断代替实测。\n\n[子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-6384c0",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-6db399",
+          "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+          "trigger": "manual",
+          "startedAt": 1791206687251,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+              "seq": 1633,
+              "at": 1791206687251,
+              "totals": {
+                "uncachedInputTokens": 278720,
+                "outputTokens": 184213,
+                "cacheReadTokens": 62560000,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+                  "depth": 0,
+                  "seq": 1633,
+                  "totals": {
+                    "uncachedInputTokens": 278720,
+                    "outputTokens": 184213,
+                    "cacheReadTokens": 62560000,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+              "seq": 1651,
+              "at": 1791206697720,
+              "totals": {
+                "uncachedInputTokens": 280143,
+                "outputTokens": 184876,
+                "cacheReadTokens": 63842048,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+                  "depth": 0,
+                  "seq": 1651,
+                  "totals": {
+                    "uncachedInputTokens": 280143,
+                    "outputTokens": 184876,
+                    "cacheReadTokens": 63842048,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 1423,
+              "outputTokens": 663,
+              "cacheReadTokens": 1282048,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791206697720
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-7378f6",
+          "body": "[状态] → in_progress：开工复核阶段：核验观察记录的证据分级（实测 vs 待观察），并修订 JS 栈模板验收命令。（reqboard_task_move）",
+          "createdAt": 1791206687251,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          }
+        },
+        {
+          "id": "c-3783e4",
+          "body": "[状态] → done：复核完成：证据分级清楚、无推断冒充实测、与设计 TC-6 一致。（reqboard_task_move）",
+          "createdAt": 1791206697720,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791206646453,
+      "updatedAt": 1791206697720,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791206646453,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791206687251,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "开工复核阶段：核验观察记录的证据分级（实测 vs 待观察），并修订 JS 栈模板验收命令。"
+        },
+        {
+          "status": "done",
+          "at": 1791206697720,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "复核完成：证据分级清楚、无推断冒充实测、与设计 TC-6 一致。"
+        }
+      ],
+      "layer": 4,
+      "lastReport": {
+        "at": 1791206694786,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "逐节核对证据分级：§1 标注为窗口无关的已全过（含命令与耗时），§2 标注为改造前基线（含进程启动时间证明旧代码在跑），§3 整节标注为待观察并给出复跑命令，§4 单列未覆盖项",
+          "确认无「把推断写成实测」的句子：所有期望值都在 §3 的「期望」列，实测输出都在 §1/§2 的 console 块里",
+          "核对一处易混点并确认无歧义：§2 的 evening_pipeline / chip_distribution 显示 running（非 skipped），并紧跟一句解释——因为服务 09:09 启动、宿主跑旧代码，属预期",
+          "核对设计锚点：§1 命令与 design/test-cases.md §7 逐条一致；§3 的 SQL 与 TC-6 一致",
+          "无偏离：观察记录与设计 §TC-6 的证据要求（实际查询输出 + 待观察项 + 复跑命令）一致"
+        ]
+      },
+      "lastRun": {
+        "at": 1791206694786,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-bc7a9b",
+      "requirementId": "REQ-261005203907-2b8c",
+      "title": "回归 + 真实休市日/复市首日观察·测试",
+      "description": "子卡阶段：测试",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-d9d825"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "四条命令退出码 0 且输出与 notes/holiday-observation.md §1/§2 记录一致（27 / 6 / 37 passed + 台账查询）；notes 含实际输出与待观察项；会话末 notify-guard 行 egress=0、offenders=[]。注：卡上原写的 pnpm test / npx tsc 属 JS 栈模板，本仓为 Python，已按等价命令修订。",
+      "implementation": "跑齐四条命令并把输出摘要写入 docs/requirements/REQ-261005203907-2b8c/notes/holiday-observation.md：① pytest tests/test_daily_jobs_trading_day_gate.py -q；② pytest tests/test_evening_pipeline_holiday_gate.py -q；③ pytest tests/test_daily_jobs_bootstrap.py tests/test_false_success_guard.py tests/test_pool_refresh_daily.py -q；④ psql -d quant_investment 查 quant.inprocess_job_runs（休市日 2026-10-06 或 10-07：pool_daily_refresh/chip_distribution/evolution_fitness 应为 skipped、watch_rule_health/event_calendar_check/freshness_guard 仍 success、evening_pipeline 的 result->'factor_compute'->>'status' 应为 skipped；复市首日 2026-10-08：pool_daily_refresh 与 evening_pipeline 应恢复 success）。同时记录当天飞书侧无这 3 个任务的开始/完成消息（对照 2026-10-05 曾各发 2 条）。观察窗口未到（如 10-06/10-08 尚未发生）时如实标注为待观察，不得用推断代替实测。\n\n[子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "context": "",
+      "parentId": "t-6384c0",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-d766f9",
+          "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+          "trigger": "manual",
+          "startedAt": 1791206701165,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+              "seq": 1657,
+              "at": 1791206701166,
+              "totals": {
+                "uncachedInputTokens": 280353,
+                "outputTokens": 185090,
+                "cacheReadTokens": 64270464,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+                  "depth": 0,
+                  "seq": 1657,
+                  "totals": {
+                    "uncachedInputTokens": 280353,
+                    "outputTokens": 185090,
+                    "cacheReadTokens": 64270464,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+              "seq": 1675,
+              "at": 1791206723285,
+              "totals": {
+                "uncachedInputTokens": 281394,
+                "outputTokens": 185779,
+                "cacheReadTokens": 65559168,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369",
+                  "depth": 0,
+                  "seq": 1675,
+                  "totals": {
+                    "uncachedInputTokens": 281394,
+                    "outputTokens": 185779,
+                    "cacheReadTokens": 65559168,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 1041,
+              "outputTokens": 689,
+              "cacheReadTokens": 1288704,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791206723285
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-5b6d90",
+          "body": "[状态] → in_progress：开工测试阶段：复跑四条命令核对与记录一致，并修订 JS 栈模板验收命令。（reqboard_task_move）",
+          "createdAt": 1791206701165,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          }
+        },
+        {
+          "id": "c-a9c639",
+          "body": "[状态] → done：测试阶段完成：四条验收复跑与记录一致，通知守卫零外发。（reqboard_task_move）",
+          "createdAt": 1791206723285,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791206646453,
+      "updatedAt": 1791206723285,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791206646453,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791206701165,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "开工测试阶段：复跑四条命令核对与记录一致，并修订 JS 栈模板验收命令。"
+        },
+        {
+          "status": "done",
+          "at": 1791206723285,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-b97ce139-00d0-456f-b147-6b897bcb5369"
+          },
+          "reason": "测试阶段完成：四条验收复跑与记录一致，通知守卫零外发。"
+        }
+      ],
+      "layer": 5,
+      "lastReport": {
+        "at": 1791206720240,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "复跑 ① → 27 passed（与记录 §1 一致）",
+          "复跑 ② → 6 passed（与记录 §1 一致）",
+          "复跑 ③ → 37 passed（与记录 §1 一致）",
+          "复跑 ④ 台账 → 与记录 §2 一致；evening_pipeline 仍 running（54.3 分钟，比记录时点 +0.9 分钟）、chip_distribution 仍 running（14.4 分钟）",
+          "四次运行 notify-guard 均为 intercepted=0 egress=0 offenders=[]"
+        ]
+      },
+      "lastRun": {
+        "at": 1791206720240,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "t-dd0d4d",
+      "to": "t-075116"
+    },
+    {
+      "from": "t-dd0d4d",
+      "to": "t-588729"
+    },
+    {
+      "from": "t-075116",
+      "to": "t-dbb9d0"
+    },
+    {
+      "from": "t-588729",
+      "to": "t-6384c0"
+    },
+    {
+      "from": "t-dbb9d0",
+      "to": "t-6384c0"
+    },
+    {
+      "from": "t-c8a4bc",
+      "to": "t-5d3b29"
+    },
+    {
+      "from": "t-5d3b29",
+      "to": "t-36bf41"
+    },
+    {
+      "from": "t-dd0d4d",
+      "to": "t-074a02"
+    },
+    {
+      "from": "t-074a02",
+      "to": "t-935496"
+    },
+    {
+      "from": "t-935496",
+      "to": "t-bdfaae"
+    },
+    {
+      "from": "t-dd0d4d",
+      "to": "t-e11789"
+    },
+    {
+      "from": "t-e11789",
+      "to": "t-c7f120"
+    },
+    {
+      "from": "t-c7f120",
+      "to": "t-4dec18"
+    },
+    {
+      "from": "t-075116",
+      "to": "t-434c63"
+    },
+    {
+      "from": "t-434c63",
+      "to": "t-e199f4"
+    },
+    {
+      "from": "t-e199f4",
+      "to": "t-0c1cf7"
+    },
+    {
+      "from": "t-588729",
+      "to": "t-d78651"
+    },
+    {
+      "from": "t-dbb9d0",
+      "to": "t-d78651"
+    },
+    {
+      "from": "t-d78651",
+      "to": "t-d9d825"
+    },
+    {
+      "from": "t-d9d825",
+      "to": "t-bc7a9b"
+    }
+  ],
+  "layers": [
+    {
+      "layer": 0,
+      "tasks": [
+        "t-dd0d4d",
+        "t-c8a4bc"
+      ]
+    },
+    {
+      "layer": 1,
+      "tasks": [
+        "t-075116",
+        "t-588729",
+        "t-074a02",
+        "t-e11789",
+        "t-5d3b29"
+      ]
+    },
+    {
+      "layer": 2,
+      "tasks": [
+        "t-dbb9d0",
+        "t-434c63",
+        "t-935496",
+        "t-c7f120",
+        "t-36bf41"
+      ]
+    },
+    {
+      "layer": 3,
+      "tasks": [
+        "t-6384c0",
+        "t-d78651",
+        "t-e199f4",
+        "t-bdfaae",
+        "t-4dec18"
+      ]
+    },
+    {
+      "layer": 4,
+      "tasks": [
+        "t-d9d825",
+        "t-0c1cf7"
+      ]
+    },
+    {
+      "layer": 5,
+      "tasks": [
+        "t-bc7a9b"
+      ]
+    }
+  ],
+  "ready": [],
+  "updated_at": "2026-10-05T13:25:31.190Z"
+}

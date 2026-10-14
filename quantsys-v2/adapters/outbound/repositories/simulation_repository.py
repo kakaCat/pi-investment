@@ -519,25 +519,41 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
     # ==================== 净值快照 ====================
 
     def previous_valid_snapshot(
-        self, account_name: str, before: date
+        self, account_name: str, before: date,
+        trading_days: Optional[set] = None,
     ) -> Optional[SimulationEquitySnapshot]:
-        """取 before 之前最近一条估值完整的快照，作为日收益率的基准。
+        """取 before 之前最近一条估值完整的**交易日**快照，作为日收益率的基准。
 
         2026-09-11（w-8f2c4cc5）：此前调用方用 get_equity_snapshots(limit=1) 取「最近一条」当基准，
         该条常常是当日自己 09:31 的早盘快照（同一交易日的旧值），且早盘 total_value 可能只完成
         部分估值——2026-07-27 因此写出 daily_return=+24.08%（真实 +0.72%）。
         残缺判定：total_value <= 0 或 total_value < cash（总资产不可能小于现金）。
+
+        2026-10-06（REQ-261006190953-fc43）：口径由「上一**行**」改为「上一**交易日**」——
+        本方法 docstring 一直写「上一交易日」，实现却只是"日期更小的最近一行"，于是落在周末/
+        节假日的脏行会被当成基准，把跨节假日的涨跌算成"假日日收益"。
+        `trading_days` 非 None 时跳过非交易日行；**None（日历不可得）时退回原行为并告警**，
+        不做静默过滤——静默过滤会在日历故障时把基准悄悄换掉。
         """
-        rows = (
+        query = (
             self.session.query(SimulationEquitySnapshot)
             .filter(
                 SimulationEquitySnapshot.account_name == account_name,
                 SimulationEquitySnapshot.snapshot_date < before,
             )
             .order_by(SimulationEquitySnapshot.snapshot_date.desc())
-            .limit(SNAPSHOT_BASELINE_SCAN)
-            .all()
         )
+        if trading_days is None:
+            logger.warning(
+                'previous_valid_snapshot_unverified account=%s before=%s —— 交易日历不可得，'
+                '按「上一有效快照」而非「上一交易日」取基准', account_name, before,
+            )
+            rows = query.limit(SNAPSHOT_BASELINE_SCAN).all()
+        else:
+            # 候选先放大到 SNAPSHOT_DRAWDOWN_SCAN 再过滤：SQL 侧 limit=BASELINE_SCAN 会把
+            # 「最近 5 行」当候选，若这 5 行全是非交易日就取不到基准（正是本次要修的口径错位）
+            candidates = query.limit(SNAPSHOT_DRAWDOWN_SCAN).all()
+            rows = [r for r in candidates if r.snapshot_date in trading_days][:SNAPSHOT_BASELINE_SCAN]
         for row in rows:
             total_value = float(row.total_value or 0)
             cash = float(row.cash or 0)
@@ -619,8 +635,17 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
 
         口径：trade-only 收益率 = (当日总资产 - 当日外部入金) / 上一有效快照总资产 - 1，
         使注资不被当成收益。当日存在 adjustment 流水时口径存疑，记录告警。
+
+        2026-10-06（REQ-261006190953-fc43）：基准改按**交易日历**回退（此前是"上一行"）。
+        交易日集合在方法内解析——签名保持不变，调用方零改动；日历不可得时退回原行为。
         """
-        prev = self.previous_valid_snapshot(account_name, day)
+        # 懒加载：仓储模块级不引 application 层（对齐 strategy_repository 的既有做法），
+        # 避免 adapters → application 的模块级依赖反向。
+        # 交易日集合取**同层**的日历仓储（2026-10-06：原本借道 nav_series，
+        # 会把 application 也拖进这条依赖，被分层棘轮计为方向倒置）。
+        from adapters.outbound.repositories.trading_calendar_repository import trading_day_set
+
+        prev = self.previous_valid_snapshot(account_name, day, trading_days=trading_day_set())
         if prev is None:
             return None
         prev_total = float(prev.total_value or 0)
@@ -688,16 +713,38 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
         cumulative_return: float = 0.0,
         drawdown: float = 0.0,
         snapshot_date: Optional[date] = None,
-        commit: bool = True
-    ) -> SimulationEquitySnapshot:
-        """写入/更新当日净值快照。
+        commit: bool = True,
+        force: bool = False,
+    ) -> Optional[SimulationEquitySnapshot]:
+        """写入/更新当日净值快照。**所有净值行的唯一落库口**。
 
         日收益率口径唯一化（2026-09-11, w-8f2c4cc5）：daily_return 缺省（None）时由本方法按
         上一交易日有效快照自动计算；无法计算则写 NULL 表示「未知」，不再与「平盘 0.0」混淆。
         调用方无需也无法自算——旧实现各自取值（缺省 0.0 / 拿当日快照当基准）正是 +24.08%
         假日收益的来源。
+
+        **交易日闸门（2026-10-06, REQ-261006190953-fc43）**：非交易日不落库，返回 None。
+        为什么闸门在这里而不在各入口：守卫 `TradingDayGuard.should_write_daily()` 早已存在，
+        但实测全仓只有 `live_trading/simulation_trader.py` 一处调用——产脏的四条路径
+        （编排器 / DailyJobs 快照任务 / tools 脚本 / 成交事务）一条都没调它。
+        门设在"写入函数"这一层，才把"记得加门"变成"绕不过去"。
+
+        `force=True` 是**显式旁路**，只允许运维迁移 / 从备份表回滚 / 测试构造历史序列使用；
+        生产路径不得出现（见 design/data-model.md §5）。
         """
         day = snapshot_date or datetime.now().date()
+        if not force:
+            # 懒加载：仓储模块级不引 application 层（对齐 strategy_repository 的既有做法）
+            from application.services.trading_day_gate import skip_non_trading_day
+
+            skip, info = skip_non_trading_day(day)
+            if skip:
+                logger.info(
+                    'skip_daily_write_non_trading_day account=%s day=%s source=%s degraded=%s reason=%s',
+                    account_name, info.get('day'), info.get('source'),
+                    info.get('degraded'), info.get('reason'),
+                )
+                return None
         if daily_return is None:
             daily_return = self.calculate_daily_return(account_name, day, float(total_value))
             self._warn_if_adjustment_flow(account_name, day)
@@ -734,11 +781,43 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
             self.recompute_account_max_drawdown(account_name)
         return snap
 
-    def get_equity_snapshots(self, account_name: str, limit: int = 90) -> List[SimulationEquitySnapshot]:
-        """获取净值快照（按日期倒序）"""
-        return self.session.query(SimulationEquitySnapshot).filter_by(
-            account_name=account_name
-        ).order_by(SimulationEquitySnapshot.snapshot_date.desc()).limit(limit).all()
+    def get_equity_snapshots(
+        self, account_name: str, limit: int = 90,
+        *,
+        trading_days_only: bool = False,
+        trading_days: Optional[set] = None,
+    ) -> List[SimulationEquitySnapshot]:
+        """获取净值快照（按日期倒序）。
+
+        `trading_days_only=True`（2026-10-06, REQ-261006190953-fc43）：
+        **先取该账户候选快照 → 再按交易日过滤 → 最后取尾部 `limit` 条**，
+        因此 `limit` 的含义由「快照行数」变为「**交易日数**」——
+        这正是"窗口 N 点 = N 个交易日"的前提。
+
+        `trading_days is None`（日历不可得）→ **不过滤并告警**，行为退回改造前：
+        静默按空集过滤会把整个净值序列清空、让风险指标无声退化。
+        """
+        if not trading_days_only:
+            return self.session.query(SimulationEquitySnapshot).filter_by(
+                account_name=account_name
+            ).order_by(SimulationEquitySnapshot.snapshot_date.desc()).limit(limit).all()
+        if trading_days is None:
+            logger.warning(
+                'get_equity_snapshots_unverified account=%s —— 交易日历不可得，'
+                '本次不做交易日过滤（退回快照行数口径）', account_name,
+            )
+            return self.session.query(SimulationEquitySnapshot).filter_by(
+                account_name=account_name
+            ).order_by(SimulationEquitySnapshot.snapshot_date.desc()).limit(limit).all()
+        candidates = (
+            self.session.query(SimulationEquitySnapshot)
+            .filter_by(account_name=account_name)
+            .order_by(SimulationEquitySnapshot.snapshot_date.desc())
+            .limit(SNAPSHOT_DRAWDOWN_SCAN)
+            .all()
+        )
+        # 候选是倒序的，过滤后仍取"最近的 N 个交易日"
+        return [r for r in candidates if r.snapshot_date in trading_days][:limit]
 
     # ==================== 持仓管理 ====================
 

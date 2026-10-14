@@ -32,6 +32,38 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def resolve_misfire_grace(seconds) -> "int | None":
+    """把库里的 ``misfire_grace_time_seconds`` 翻成 APScheduler 的语义。
+
+    REQ-261004154902-a7cd t5（FR-4 / FR-8）。
+
+    - ``NULL``（None）→ 返回 ``None`` = **不判 misfire**（唤醒必补跑）。
+      这是本仓 CLAUDE.md 早已写明的口径（「NULL=唤醒必补跑，显式值=超宽限跳过记 skipped」），
+      但旧代码写成 ``task.get(...) or 300`` 把它抹成了 5 分钟 →
+      2026-10-02 实证：进程 09:00 才起，当天 06:30 的 v13 排班**直接丢失且无人知**。
+    - 显式正数 → 原样透传（超过该秒数即跳过，并被 ``_on_job_missed`` 记成 missed）。
+    - 0 / 负数 / 脏数据 → 视同 NULL（宁可补跑，也不要「永远静默跳过」）。
+
+    纯函数，便于单测锁住语义。
+    """
+    if seconds is None:
+        return None
+    try:
+        value = int(seconds)
+    except (TypeError, ValueError):
+        logger.warning("misfire_grace_time_seconds 取值非法（%r）→ 按 NULL 处理", seconds)
+        return None
+    return value if value > 0 else None
+
+
+def parse_task_id_from_job_id(job_id) -> "int | None":
+    """``task_249`` → ``249``；不认识则返回 None（纯函数，便于单测）。"""
+    if not isinstance(job_id, str) or not job_id.startswith("task_"):
+        return None
+    suffix = job_id[len("task_"):]
+    return int(suffix) if suffix.isdigit() else None
+
+
 class APSchedulerService:
     """APScheduler 封装服务"""
 
@@ -73,7 +105,49 @@ class APSchedulerService:
             timezone='Asia/Shanghai'
         )
 
+        # 「被跳过」必须留痕（REQ-261004154902-a7cd t5 / FR-8）：
+        # APScheduler 对超宽限的 trigger 只打一行纯文本 warning 就跳过，库里查不到、
+        # last_status 还停在前几天的 success（实证 2026-10-03/10-04 数据质量检查）。
+        # 监听 MISSED 事件把它写成一条 scheduler_runs（status='missed'）。
+        try:
+            from apscheduler.events import EVENT_JOB_MISSED
+
+            self.scheduler.add_listener(self._on_job_missed, EVENT_JOB_MISSED)
+        except Exception as exc:  # noqa: BLE001 - 监听注册失败不许拦住调度器启动
+            logger.error("注册 MISSED 事件监听失败（该跳过将只能靠日志发现）: %s", exc)
+
         logger.info("APSchedulerService initialized")
+
+    def _on_job_missed(self, event) -> None:
+        """APScheduler 跳过某次排班时调用：响亮日志 + 落一条 status='missed' 的 run。
+
+        REQ-261004154902-a7cd t5（FR-8）。记账失败只记日志，绝不影响调度线程。
+        """
+        job_id = getattr(event, "job_id", None)
+        scheduled = getattr(event, "scheduled_run_time", None)
+        logger.error(
+            "scheduler job missed: job_id=%s scheduled_run_time=%s —— 该次排班已被跳过（不补跑）",
+            job_id, scheduled,
+        )
+        task_id = parse_task_id_from_job_id(job_id)
+        if task_id is None:
+            logger.error("missed 事件的 job_id 无法解析出 task_id: %r", job_id)
+            return
+        recorder = getattr(self.repo, "record_missed_run", None)
+        if not callable(recorder):
+            logger.error(
+                "仓储未实现 record_missed_run（task_id=%s）→ 该跳过在库里不可见", task_id
+            )
+            return
+        try:
+            run_id = recorder(
+                task_id,
+                scheduled_run_time=scheduled,
+                note=f"missed by {scheduled}（超出 misfire 宽限，APScheduler 已跳过）",
+            )
+            logger.error("已把该跳过记为 run_id=%s（status=missed, task_id=%s）", run_id, task_id)
+        except Exception as exc:  # noqa: BLE001 - 记账失败不得击穿调度
+            logger.error("记录 missed run 失败 task_id=%s: %s", task_id, exc)
 
     def load_tasks_from_db(self):
         """
@@ -131,7 +205,11 @@ class APSchedulerService:
                     id=f"task_{task.get("id")}",
                     name=task.get("name"),
                     replace_existing=True,
-                    misfire_grace_time=task.get("misfire_grace_time_seconds") or 300
+                    # REQ-261004154902-a7cd t5：NULL = 唤醒必补跑（不再被 `or 300` 抹成 5 分钟）；
+                    # 显式值 = 超宽限跳过，并由 _on_job_missed 记为 missed。
+                    misfire_grace_time=resolve_misfire_grace(
+                        task.get("misfire_grace_time_seconds")
+                    ),
                 )
 
                 desired_ids.add(f"task_{task.get('id')}")
@@ -378,19 +456,40 @@ class APSchedulerService:
         """
         手动触发任务立即执行
 
+        REQ-261006093620-a315 t6（FR-6）改造：**不再 `modify_job(next_run_time=now)`**。
+
+        为什么必须改：`modify_job` 让**同一个 job** 立即触发，执行路径与"自动到点"逐字相同——
+        执行期拿不到任何"这是人按的"信息，交易日门一旦落在执行期就会把人工触发一起挡掉（违反 FR-6）。
+        另外它还会提前 `next_run_time`，可能把当天的正常排班吞掉。
+
+        现在改为投递**一次性 job** 并显式带 `manual=True`：
+        - 执行体不判门（人明确要求跑）；
+        - cron job 的排期**不被扰动**；
+        - 一次性 job 执行完由 APScheduler 自动摘除（DateTrigger 耗尽），jobstore 不留垃圾。
+
         Args:
             task_id: scheduler_tasks 表的任务 ID
+
+        Raises:
+            ValueError: 该任务在 APScheduler 里没有注册 job（既有语义，路由层靠它降级到 legacy 路径）
         """
-        from datetime import datetime
+        import time as _time
+
+        from infrastructure.scheduler.job_executor import execute_scheduled_job
 
         job = self.scheduler.get_job(f"task_{task_id}")
         if job is None:
             raise ValueError(f"Task {task_id} not found in APScheduler")
 
-        # 修改下次执行时间为当前时间（立即执行）
-        self.scheduler.modify_job(
-            f"task_{task_id}",
-            next_run_time=datetime.now()
+        self.scheduler.add_job(
+            func=execute_scheduled_job,
+            trigger=DateTrigger(run_date=datetime.now()),
+            args=[task_id],
+            kwargs={'manual': True},
+            id=f'manual_{task_id}_{int(_time.time())}',
+            name=f'[manual] {job.name}',
+            replace_existing=False,
+            misfire_grace_time=None,
         )
 
-        logger.info(f"Task {task_id} triggered manually")
+        logger.info(f"Task {task_id} triggered manually (one-off manual job, gate bypassed)")

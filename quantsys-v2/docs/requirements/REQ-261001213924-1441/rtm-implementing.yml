@@ -1,0 +1,17 @@
+metadata:
+  stage: implementing
+  requirement_id: REQ-261001213924-1441
+  generated_at: 2026-10-02T00:50:01.585Z
+  version: 1
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 0
+  last_updated: 2026-10-02T00:50:01.585Z
+inputs:
+  tasks: []
+status:
+  tasks_total: 0
+  tasks_done: 0
+  tasks_in_progress: 0
+  tasks_todo: 0
+tasks: []

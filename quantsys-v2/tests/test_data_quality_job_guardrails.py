@@ -47,8 +47,22 @@ def test_invalid_values_fall_back_with_notes():
 
 # ── 预算 / 额度 / 诚实标注（fake service，无网络无 DB）─────────────────────
 
+class _FakeKlineRepo:
+    """分域快照用假仓储：所有相关标的都算「最后交易日有 K 线」⇒ 全部落可交易域。"""
+
+    def __init__(self, symbols):
+        self.symbols = list(symbols)
+
+    def list_recent_trade_dates(self, limit=2):
+        return ["2026-09-30", "2026-09-29"][:limit]
+
+    def list_symbol_last_trade_date(self):
+        return [(s, "2026-09-30") for s in self.symbols]
+
+
 class FakeService:
     """记录调用参数的假服务：模拟 10 只问题股票，回填结果可控"""
+
 
     def __init__(self, issues=None, backfill_summary=None, retry_skipped=None,
                  check_truncated=False):
@@ -63,6 +77,10 @@ class FakeService:
         }
         self.retry_skipped = retry_skipped
         self.backfill_symbols = None
+        # REQ-261006163444-8e4f：作业会先建分域快照（domain），假服务要提供仓储
+        self.kline_repo = _FakeKlineRepo(
+            ["600000", "000001", "600519"] + [i["symbol"] for i in self.issues]
+        )
 
     def _get_hot_stocks(self, limit=None):
         return ["600000", "000001", "600519"]
@@ -84,6 +102,20 @@ class FakeService:
             "success": True,
             "summary": summary,
             "stocks_with_issues": self.issues,
+            # REQ-261006163444-8e4f FR-2：新增全量逐标的事实（回填目标与域内统计都读它）
+            "per_symbol": {
+                item["symbol"]: {
+                    "coverage_rate": 100.0 - item.get("missing_days_count", 0),
+                    "missing_days_count": item.get("missing_days_count", 0),
+                    "quality_score": 82.41,
+                    "overall_score": 94.14,
+                    "grade": "A",
+                    "has_duplicates": False,
+                    "has_anomalies": False,
+                    "anomaly_unknown": False,
+                }
+                for item in self.issues
+            },
         }
 
     def backfill_missing_data(self, symbols=None, start_date=None, end_date=None, mode="auto", max_workers=8):
@@ -300,16 +332,32 @@ def _summary():
             "data_quality_score": 95.42, "avg_coverage_rate": 92.37}
 
 
+_ALERT_THRESHOLDS = {"d_grade": 20, "score": 88.0, "coverage_info": 97.0,
+                     "backfill_fail_rate": 50.0, "backfill_min_sample": 10}
+
+
+def _stats(**over):
+    """域内事实（默认取 2026-10-06 实测口径；用例按需覆盖）。"""
+    base = dict(last_trade_date="2026-09-30", tradable=5280, observing=3, stock=403,
+                stats_symbols=5280, partial=False, d_grade=3, mean_score=90.84,
+                mean_coverage=98.54, dropped_count=2,
+                dropped_symbols=("002813", "603183"), dropped_truncated=False,
+                dropped_known=True, degraded=False, degrade_reason=None,
+                backfill_total=0, backfill_failed=0)
+    base.update(over)
+    return job.DomainStats(**base)
+
+
 def test_alert_dispatched_to_feishu_with_high_urgency(monkeypatch):
     """error 级告警（回填全灭）必须以 high 外发，且返回投递结果供 run 记录核验"""
     fake = FakeFacade()
     monkeypatch.setattr(job, "_get_notification_facade", lambda: fake)
     alerts = [{"level": "error", "type": "backfill_degraded", "message": "回填全灭"}]
-    out = job._send_quality_alerts(alerts, _summary(), 368, 100.0)
+    out = job._send_quality_alerts(alerts, _stats(), _ALERT_THRESHOLDS)
     assert len(fake.calls) == 1, "必须走门面发一次"
     assert fake.calls[0]["urgency"] == "high"
     assert "数据质量告警" in fake.calls[0]["title"]
-    assert "368" in fake.calls[0]["content"] and "95.42" in fake.calls[0]["content"]
+    assert "90.84" in fake.calls[0]["content"] and "5280" in fake.calls[0]["content"]
     assert out["delivered"] is True and out["alert_count"] == 1 and out["urgency"] == "high"
 
 
@@ -317,7 +365,7 @@ def test_alert_urgency_normal_for_warning_only(monkeypatch):
     fake = FakeFacade()
     monkeypatch.setattr(job, "_get_notification_facade", lambda: fake)
     alerts = [{"level": "warning", "type": "quality_score", "message": "评分偏低"}]
-    out = job._send_quality_alerts(alerts, _summary(), 10, 0.0)
+    out = job._send_quality_alerts(alerts, _stats(), _ALERT_THRESHOLDS)
     assert fake.calls[0]["urgency"] == "normal"
     assert out["delivered"] is True
 
@@ -328,13 +376,13 @@ def test_alert_dispatch_failure_contained(monkeypatch):
         raise RuntimeError("facade down")
     monkeypatch.setattr(job, "_get_notification_facade", boom)
     assert job._dispatch_alert_to_feishu("t", "c", "normal") is False
-    out = job._send_quality_alerts([{"level": "error", "type": "x", "message": "m"}], _summary(), 0, 0.0)
+    out = job._send_quality_alerts([{"level": "error", "type": "x", "message": "m"}], _stats(), _ALERT_THRESHOLDS)
     assert out["delivered"] is False
 
 
 def test_facade_returns_false_is_reported(monkeypatch):
     fake = FakeFacade(ok=False)
     monkeypatch.setattr(job, "_get_notification_facade", lambda: fake)
-    out = job._send_quality_alerts([{"level": "error", "type": "x", "message": "m"}], _summary(), 0, 0.0)
+    out = job._send_quality_alerts([{"level": "error", "type": "x", "message": "m"}], _stats(), _ALERT_THRESHOLDS)
     assert out["delivered"] is False
 

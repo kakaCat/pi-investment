@@ -1,0 +1,36 @@
+task:
+  id: t-4a30f8
+  title: 新增 tests/test_daily_jobs_quiet_noop.py（T-1~T-16 回归锁）·测试
+  status: done
+  implements: |-
+    新建 tests/test_daily_jobs_quiet_noop.py，实现 design/test-cases.md §2 的 T-1~T-16（判据白名单与反例、开关/阈值解析、宿主无事零消息而台账 success、有产出一条完成、异常 🚨、内层失败优先、人工触发回执、开关态旧行为、阈值内不发/超阈值发「⏳ 仍在运行」、阈值 0 关闭、回调异常不影响任务、trigger_job 传 manual=True）。打桩点必须是 runtime._send_feishu / runtime._mark_running / runtime._mark_done；env 用 monkeypatch.setenv；T-13 用 time.sleep(0.3) + 阈值 0.05。用例总数不超过 16 条，不做与 FR 无关扩展。
+
+    [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+  serves: []
+  depends_on:
+    - t-e704f1
+  phase: test
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261006165125-23a9
+    TASK_ID: t-4a30f8
+    TASK_TITLE: 新增 tests/test_daily_jobs_quiet_noop.py（T-1~T-16 回归锁）·测试
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: test
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: test
+      status: done
+      completed_at: 2026-10-06T09:09:30.232Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006165125-23a9
+  generated_at: 2026-10-06T09:09:09.168Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-06T09:09:32.479Z

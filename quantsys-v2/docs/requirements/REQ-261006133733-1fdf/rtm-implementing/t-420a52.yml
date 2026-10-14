@@ -1,0 +1,38 @@
+task:
+  id: t-420a52
+  title: 抽样实跑复验与读数对照留档
+  status: done
+  implements: 新建 docs/requirements/REQ-261006133733-1fdf/notes/anomaly-recheck.md，记录：① 抽样 ≥20 只（K 线 ≥60 行）跑 detect_anomalies → ok=False 数与 total_anomalies 分布（须出现 >0）；② 复验窗口内 grep -c 检测异常值失败 logs/api.log = 0（对照今日基线 7995 条/4 分钟）；③ 读数变化对照：质量分（异常率分量不再白送）与 stocks_with_issues 方向，按 design/architecture.md §6 口径写明「这是读数变真、不是回归」；④ 若窗口内未重跑质量检查（task 232 每日 00:00），如实写明「未取到当日复跑」，不得用单测顶替。
+  serves:
+    - FR-1
+    - FR-5
+  depends_on:
+    - t-b1dd5c
+  phase: test
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261006133733-1fdf
+    TASK_ID: t-420a52
+    TASK_TITLE: 抽样实跑复验与读数对照留档
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: test
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: test
+      status: done
+      started_at: 2026-10-06T05:47:11.217Z
+      completed_at: 2026-10-06T05:55:42.191Z
+    - phase: implement
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006133733-1fdf
+  generated_at: 2026-10-06T05:41:39.123Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-06T05:55:42.192Z

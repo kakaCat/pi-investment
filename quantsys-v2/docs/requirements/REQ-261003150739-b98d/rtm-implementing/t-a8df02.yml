@@ -1,0 +1,39 @@
+task:
+  id: t-a8df02
+  title: 回归锁 + 切换 fail 模式并验证回滚·复核
+  status: done
+  implements: |-
+    新增 tests/test_notify_guard.py 回归段（egress == 0、两个已知文件的 intercepted 计数）；默认模式切到 fail（未声明的外发 → teardown 判失败）；做一次反向验证并留证。
+
+    [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+  serves: []
+  depends_on:
+    - t-290c47
+  phase: test
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261003150739-b98d
+    TASK_ID: t-a8df02
+    TASK_TITLE: 回归锁 + 切换 fail 模式并验证回滚·复核
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: test
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: test
+      status: done
+      started_at: 2026-10-03T07:16:10.505Z
+      completed_at: 2026-10-03T07:16:10.738Z
+    - phase: review
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261003150739-b98d
+  generated_at: 2026-10-03T07:16:10.412Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-03T07:16:10.738Z

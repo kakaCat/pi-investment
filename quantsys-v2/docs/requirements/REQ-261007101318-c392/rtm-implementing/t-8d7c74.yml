@@ -1,0 +1,38 @@
+task:
+  id: t-8d7c74
+  title: 真实交易日回执 + 验收材料（时间型）·研发
+  status: done
+  implements: |-
+    2026-10-08（节后首个交易日）盘后执行：select occurred_at,title,delivery_channel,delivered,sender_id from quant.notification_audit where occurred_at::date='2026-10-08' order by occurred_at desc limit 20；以及 select triggered_at,symbol,left(detail::text,120) from quant.watch_triggers where triggered_at::date='2026-10-08' order by triggered_at desc limit 10；把两组输出摘要写入 docs/requirements/REQ-261007101318-c392/verification.md 作为 reqboard_submit(kind=verification) 的证据。
+
+    [子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要
+  serves: []
+  depends_on:
+    - t-c926cd
+  phase: test
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261007101318-c392
+    TASK_ID: t-8d7c74
+    TASK_TITLE: 真实交易日回执 + 验收材料（时间型）·研发
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: test
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: test
+      status: done
+      completed_at: 2026-10-07T05:58:40.649Z
+    - phase: implement
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261007101318-c392
+  generated_at: 2026-10-07T05:58:33.137Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-07T05:58:40.650Z

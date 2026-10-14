@@ -150,16 +150,39 @@ def test_get_job_status(apscheduler_service):
 
 
 def test_trigger_task_now(apscheduler_service):
-    """测试手动触发任务"""
+    """手动触发：投递一次性 `manual=True` job，且**不再扰动 cron 的排期**。
+
+    REQ-261006093620-a315 t6。旧实现是 `modify_job(next_run_time=now)`——与自动到点同路径、
+    执行期无法区分（交易日门会连人工触发一起挡掉），还会提前 next_run_time 吞掉当天排班。
+
+    注：一次性 job 的 run_date 是"现在"，调度器已启动会真去执行它；本 fixture 的任务 id（1）
+    在测试库 `quant.scheduler_tasks` 里**不存在**，执行体读到 None 即返回（无副作用、只是一行 error 日志）。
+    本用例只验**投递契约**，不验执行结果。
+    """
     apscheduler_service.start()
 
-    # 触发任务
+    before = apscheduler_service.scheduler.get_job("task_1")
+    assert before is not None
+    next_before = before.next_run_time
+
     apscheduler_service.trigger_task_now(1)
 
-    # 验证任务的 next_run_time 被修改
-    job = apscheduler_service.scheduler.get_job("task_1")
-    assert job is not None
-    assert job.next_run_time is not None
+    # ① cron job 的排期未被扰动
+    after = apscheduler_service.scheduler.get_job("task_1")
+    assert after is not None
+    assert after.next_run_time == next_before
+
+    # ② 投递了唯一一个一次性 manual job，参数带 manual=True
+    manual = [j for j in apscheduler_service.scheduler.get_jobs()
+              if str(j.id).startswith('manual_1_')]
+    assert len(manual) == 1
+    assert manual[0].kwargs.get('manual') is True
+    assert manual[0].misfire_grace_time is None          # 人工触发不该被宽限丢掉
+    assert 'date' in str(manual[0].trigger).lower()      # 一次性（DateTrigger）
+
+    # ③ 未注册的 task_id → 既有语义：ValueError（路由层靠它降级到 legacy 路径）
+    with pytest.raises(ValueError):
+        apscheduler_service.trigger_task_now(999)
 
     # 清理
     apscheduler_service.shutdown(wait=False)

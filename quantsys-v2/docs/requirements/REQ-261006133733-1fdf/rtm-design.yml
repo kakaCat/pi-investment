@@ -1,0 +1,289 @@
+metadata:
+  stage: design
+  requirement_id: REQ-261006133733-1fdf
+  generated_at: 2026-10-06T05:38:48.473Z
+  version: 4
+  generated_by: dsh-pmboard
+  rtm_version: "2.0"
+  last_updated: 2026-10-06T05:40:41.615Z
+inputs:
+  requirements:
+    - id: FR-1
+      title: 成交量异常检测必须真正运行
+      source: requirement.md
+      line: 131
+    - id: FR-2
+      title: 失败不得冒充「无异常」（本需求的语义核心）
+      source: requirement.md
+      line: 137
+    - id: FR-3
+      title: 下游消费点按三态处置并把未知留痕
+      source: requirement.md
+      line: 143
+    - id: FR-4
+      title: 质量分的异常率项不得白送满分
+      source: requirement.md
+      line: 149
+    - id: FR-5
+      title: 回归锁与实跑复验
+      source: requirement.md
+      line: 154
+outputs:
+  design_sections:
+    - ref: design/architecture.md#1
+      title: 缺陷定位（一行错 + 一层吞）（
+      serves:
+        - FR-1
+        - FR-2
+      file: design/architecture.md
+      section: "1"
+    - ref: design/architecture.md#2
+      title: 三态模型（本设计的中心）（
+      serves:
+        - FR-1
+        - FR-2
+      file: design/architecture.md
+      section: "2"
+    - ref: design/architecture.md#3
+      title: 下游处置：三处消费点，一份规则（
+      serves:
+        - FR-3
+        - FR-4
+      file: design/architecture.md
+      section: "3"
+    - ref: design/architecture.md#4
+      title: 文件结构（新建 / 修改 / 删除，各自职责一句话）（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+      file: design/architecture.md
+      section: "4"
+    - ref: design/architecture.md#5
+      title: 回滚与灰度（
+      serves:
+        - FR-3
+      file: design/architecture.md
+      section: "5"
+    - ref: design/architecture.md#6
+      title: 读数会变差（必须写进验收口径，否则会被误判为回归）（
+      serves:
+        - FR-4
+      file: design/architecture.md
+      section: "6"
+    - ref: design/architecture.md#7
+      title: 不做什么（防范围蔓延）（
+      serves:
+        - FR-5
+      file: design/architecture.md
+      section: "7"
+    - ref: design/data-model.md#1
+      title: 是否改表 / 改 schema（
+      serves:
+        - FR-3
+      file: design/data-model.md
+      section: "1"
+    - ref: design/data-model.md#2
+      title: 写入面 1：审计表 `public.kline_data_quality`（
+      serves:
+        - FR-3
+      file: design/data-model.md
+      section: "2"
+    - ref: design/data-model.md#3
+      title: 写入面 2：任务结果 `quant.scheduler_runs.result`（jsonb）（
+      serves:
+        - FR-3
+      file: design/data-model.md
+      section: "3"
+    - ref: design/data-model.md#4
+      title: 质量分口径变化（读数契约）（
+      serves:
+        - FR-4
+      file: design/data-model.md
+      section: "4"
+    - ref: design/data-model.md#5
+      title: 读契约：`detect_anomalies` 的输入数据（
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: "5"
+    - ref: design/data-model.md#6
+      title: 不写什么（负向契约）（
+      serves:
+        - FR-2
+        - FR-3
+      file: design/data-model.md
+      section: "6"
+    - ref: design/interfaces.md#1
+      title: "`DataValidator.detect_anomalies` 三态契约（核心）（"
+      serves:
+        - FR-1
+        - FR-2
+      file: design/interfaces.md
+      section: "1"
+    - ref: design/interfaces.md#2
+      title: "`DataValidator.get_data_quality_score` 分量口径（"
+      serves:
+        - FR-4
+      file: design/interfaces.md
+      section: "2"
+    - ref: design/interfaces.md#3
+      title: 三处消费点的处置契约（
+      serves:
+        - FR-3
+      file: design/interfaces.md
+      section: "3"
+    - ref: design/interfaces.md#3.1
+      title: "`data_quality_service.check_quality_for_symbol`（单股，`:152-190`）（"
+      serves:
+        - FR-3
+      file: design/interfaces.md
+      section: "3.1"
+    - ref: design/interfaces.md#3.2
+      title: "`data_quality_service.check_data_quality`（汇总，`:205/:223/:238`）（"
+      serves:
+        - FR-3
+      file: design/interfaces.md
+      section: "3.2"
+    - ref: design/interfaces.md#3.3
+      title: "`data_quality_service.check_data_quality_single` 附近（`:469-481`）（"
+      serves:
+        - FR-3
+      file: design/interfaces.md
+      section: "3.3"
+    - ref: design/interfaces.md#3.4
+      title: 审计落库 `_record_quality_check`（`:546`）（
+      serves:
+        - FR-3
+      file: design/interfaces.md
+      section: "3.4"
+    - ref: design/interfaces.md#4
+      title: 数据契约（是否改表）（
+      serves:
+        - FR-3
+      file: design/interfaces.md
+      section: "4"
+    - ref: design/interfaces.md#5
+      title: 错误语义与日志（
+      serves:
+        - FR-2
+        - FR-3
+      file: design/interfaces.md
+      section: "5"
+    - ref: design/interfaces.md#6
+      title: 静态与兼容红线（
+      serves:
+        - FR-2
+        - FR-5
+      file: design/interfaces.md
+      section: "6"
+    - ref: design/use-cases.md#1
+      title: 场景 A：普通股票，K 线充足且无异常（
+      serves:
+        - FR-1
+        - FR-2
+      file: design/use-cases.md
+      section: "1"
+    - ref: design/use-cases.md#2
+      title: 场景 B：真有异常（价格或成交量）（
+      serves:
+        - FR-1
+        - FR-4
+      file: design/use-cases.md
+      section: "2"
+    - ref: design/use-cases.md#3
+      title: 场景 C：次新股 / 长停股（K 线 <30 行）（
+      serves:
+        - FR-2
+        - FR-4
+      file: design/use-cases.md
+      section: "3"
+    - ref: design/use-cases.md#4
+      title: 场景 D：检测失败（取数异常 / 代码异常）（
+      serves:
+        - FR-2
+        - FR-3
+      file: design/use-cases.md
+      section: "4"
+    - ref: design/use-cases.md#5
+      title: 场景 E：人看质量报告 / 日报（
+      serves:
+        - FR-3
+        - FR-4
+      file: design/use-cases.md
+      section: "5"
+    - ref: design/use-cases.md#6
+      title: 场景 F：回滚（
+      serves:
+        - FR-3
+      file: design/use-cases.md
+      section: "6"
+    - ref: design/use-cases.md#7
+      title: 非目标：同型写法的一并处置（明确不做）（
+      serves:
+        - FR-5
+      file: design/use-cases.md
+      section: "7"
+traceability:
+  fr_to_design:
+    FR-1:
+      - design/architecture.md#1
+      - design/architecture.md#2
+      - design/architecture.md#4
+      - design/data-model.md#5
+      - design/interfaces.md#1
+      - design/use-cases.md#1
+      - design/use-cases.md#2
+    FR-2:
+      - design/architecture.md#1
+      - design/architecture.md#2
+      - design/architecture.md#4
+      - design/data-model.md#6
+      - design/interfaces.md#1
+      - design/interfaces.md#5
+      - design/interfaces.md#6
+      - design/use-cases.md#1
+      - design/use-cases.md#3
+      - design/use-cases.md#4
+    FR-3:
+      - design/architecture.md#3
+      - design/architecture.md#4
+      - design/architecture.md#5
+      - design/data-model.md#1
+      - design/data-model.md#2
+      - design/data-model.md#3
+      - design/data-model.md#6
+      - design/interfaces.md#3
+      - design/interfaces.md#3.1
+      - design/interfaces.md#3.2
+      - design/interfaces.md#3.3
+      - design/interfaces.md#3.4
+      - design/interfaces.md#4
+      - design/interfaces.md#5
+      - design/use-cases.md#4
+      - design/use-cases.md#5
+      - design/use-cases.md#6
+    FR-4:
+      - design/architecture.md#3
+      - design/architecture.md#4
+      - design/architecture.md#6
+      - design/data-model.md#4
+      - design/interfaces.md#2
+      - design/use-cases.md#2
+      - design/use-cases.md#3
+      - design/use-cases.md#5
+    FR-5:
+      - design/architecture.md#4
+      - design/architecture.md#7
+      - design/interfaces.md#6
+      - design/use-cases.md#7
+coverage:
+  design:
+    total: 5
+    covered: 5
+    uncovered: []
+    rate: 100
+    total_frs: 5
+    covered_frs: 5

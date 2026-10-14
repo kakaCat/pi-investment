@@ -1,0 +1,51 @@
+metadata:
+  stage: brainstorming
+  requirement_id: REQ-261006133733-1fdf
+  generated_at: 2026-10-06T05:38:42.033Z
+  version: 4
+  generated_by: dsh-pmboard
+  rtm_version: "2.0"
+  last_updated: 2026-10-06T05:40:41.609Z
+outputs:
+  requirements:
+    - id: FR-1
+      title: 成交量异常检测必须真正运行
+      source: requirement.md
+      line: 131
+    - id: FR-2
+      title: 失败不得冒充「无异常」（本需求的语义核心）
+      source: requirement.md
+      line: 137
+    - id: FR-3
+      title: 下游消费点按三态处置并把未知留痕
+      source: requirement.md
+      line: 143
+    - id: FR-4
+      title: 质量分的异常率项不得白送满分
+      source: requirement.md
+      line: 149
+    - id: FR-5
+      title: 回归锁与实跑复验
+      source: requirement.md
+      line: 154
+  prototypes: []
+  decisions:
+    - id: D-1
+      source: 本窗口会话消息（2026-10-06，用户直接消息）原话：「继续」
+      verdict: 由「报错了」继续下钻：查明今日 7995 条报错的根因并按需立项
+      serves:
+        - FR-1
+        - FR-2
+      criterion: 根因 traceback 已存档（E3）；本需求已立项并绑定本窗口（REQ-261006133733-1fdf）
+    - id: D-2
+      source: 本窗口会话消息（2026-10-06，用户回答修复边界弹框）原话：「B：一行修 + 错误不再被吞成「无异常」 + 回归锁（推荐）」
+      verdict: 范围锁定 B：一行修 + 吞错语义改造 + 回归锁 + 实跑复验；**同型扫描不入范围**（进后续线 1）
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+      criterion: '`ask_user_question` 返回 `selected=["B：…"]`（单选）；排除项落账见边界「不做什么」1 与后续线 1'
+status:
+  artifacts: []

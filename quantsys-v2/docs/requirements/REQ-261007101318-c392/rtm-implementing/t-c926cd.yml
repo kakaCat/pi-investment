@@ -1,0 +1,36 @@
+task:
+  id: t-c926cd
+  title: 补齐设计登记的未覆盖用例（run_forever 整环 / 跳过留痕去重 / 装配失败降级）
+  status: done
+  implements: 扩展 tests/services/test_watch_engine_trading_day_gate.py：用 now_fn 序列 + _stopped 标志驱动 run_forever 跑两轮，断言休市日不调用 tick（可用打桩计数）；新增用例断言 _log_market_closed 的按日去重（同日多次调用只留一条留痕）；扩展 tests/notification/test_notification_audit_repository.py 或新增用例，断言 notification_factory 在审计仓储装配失败时降级为 repository=None 且通知仍发出。
+  serves:
+    - FR-1
+    - FR-3
+  depends_on:
+    - t-268fbd
+    - t-633d3f
+  phase: test
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261007101318-c392
+    TASK_ID: t-c926cd
+    TASK_TITLE: 补齐设计登记的未覆盖用例（run_forever 整环 / 跳过留痕去重 / 装配失败降级）
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: test
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: test
+      status: done
+      completed_at: 2026-10-07T05:55:18.019Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261007101318-c392
+  generated_at: 2026-10-07T05:52:20.899Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-07T05:55:20.890Z

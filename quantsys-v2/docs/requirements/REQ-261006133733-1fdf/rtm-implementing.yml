@@ -1,0 +1,97 @@
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006133733-1fdf
+  generated_at: 2026-10-06T05:41:36.942Z
+  version: 50
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 16
+  last_updated: 2026-10-06T05:55:42.194Z
+inputs:
+  tasks:
+    - id: t-0a6461
+      title: 让异常检测真的运行，并输出可区分的三态
+      status: done
+    - id: t-163105
+      title: 下游按三态处置：失败不当干净、数据不足不扣分
+      status: done
+    - id: t-b1dd5c
+      title: 真 polars 回归锁与反例锁（先红后绿）
+      status: done
+    - id: t-420a52
+      title: 抽样实跑复验与读数对照留档
+      status: done
+    - id: t-a75776
+      title: 让异常检测真的运行，并输出可区分的三态·研发
+      status: done
+    - id: t-af8fa3
+      title: 让异常检测真的运行，并输出可区分的三态·复核
+      status: done
+    - id: t-e8a5e3
+      title: 让异常检测真的运行，并输出可区分的三态·测试
+      status: done
+    - id: t-9dc9eb
+      title: 下游按三态处置：失败不当干净、数据不足不扣分·研发
+      status: done
+    - id: t-02907b
+      title: 下游按三态处置：失败不当干净、数据不足不扣分·复核
+      status: done
+    - id: t-0a6147
+      title: 下游按三态处置：失败不当干净、数据不足不扣分·测试
+      status: done
+    - id: t-da0215
+      title: 真 polars 回归锁与反例锁（先红后绿）·研发
+      status: done
+    - id: t-97f26c
+      title: 真 polars 回归锁与反例锁（先红后绿）·复核
+      status: done
+    - id: t-7463bd
+      title: 真 polars 回归锁与反例锁（先红后绿）·测试
+      status: done
+    - id: t-45f50a
+      title: 抽样实跑复验与读数对照留档·研发
+      status: done
+    - id: t-0dd2ae
+      title: 抽样实跑复验与读数对照留档·复核
+      status: done
+    - id: t-9050ff
+      title: 抽样实跑复验与读数对照留档·测试
+      status: done
+status:
+  tasks_total: 16
+  tasks_done: 16
+  tasks_in_progress: 0
+  tasks_todo: 0
+tasks:
+  - id: t-0a6461
+    status: done
+  - id: t-163105
+    status: done
+  - id: t-b1dd5c
+    status: done
+  - id: t-420a52
+    status: done
+  - id: t-a75776
+    status: done
+  - id: t-af8fa3
+    status: done
+  - id: t-e8a5e3
+    status: done
+  - id: t-9dc9eb
+    status: done
+  - id: t-02907b
+    status: done
+  - id: t-0a6147
+    status: done
+  - id: t-da0215
+    status: done
+  - id: t-97f26c
+    status: done
+  - id: t-7463bd
+    status: done
+  - id: t-45f50a
+    status: done
+  - id: t-0dd2ae
+    status: done
+  - id: t-9050ff
+    status: done

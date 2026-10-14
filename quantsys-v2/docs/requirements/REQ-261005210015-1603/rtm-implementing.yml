@@ -1,0 +1,202 @@
+metadata:
+  stage: implementing
+  requirement_id: REQ-261005210015-1603
+  generated_at: 2026-10-05T13:09:49.593Z
+  version: 115
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 37
+  last_updated: 2026-10-05T13:26:41.247Z
+inputs:
+  tasks:
+    - id: t-cda13d
+      title: 通知层契约落地：_format_elapsed + _summarize_result 支持顶层 summary
+      status: done
+    - id: t-c0941a
+      title: fitness 服务诚实计数：四类状态 + accounts_total，删 skipped、收窄 computed 语义
+      status: done
+    - id: t-17fce0
+      title: 空转读数：EvolutionFitnessORMRepository 两个只读聚合方法
+      status: done
+    - id: t-2d12c5
+      title: handler 组装：summary / no_output / 空转统计（含纯函数与查询失败降级）
+      status: done
+    - id: t-4b35ba
+      title: runtime 接线：耗时按量级显示 + 零产出改 ⚠️（不动 status、不碰跳过分支）
+      status: done
+    - id: t-cef289
+      title: 新增通知层用例（12 条：格式/摘要/语气/空转/降级/失败判定不变式/其他任务逐字不变）
+      status: done
+    - id: t-89b1f4
+      title: 数据层用例：计数不变式、无 skipped、computed 兼容、只读聚合口径
+      status: done
+    - id: t-ad4340
+      title: 回归四连 + 兼容核对 + 真实观察取证（含回滚演练）
+      status: done
+    - id: t-39a1a8
+      title: 通知层契约落地：_format_elapsed + _summarize_result 支持顶层 summary·研发
+      status: done
+    - id: t-bf7712
+      title: 通知层契约落地：_format_elapsed + _summarize_result 支持顶层 summary·联调
+      status: done
+    - id: t-bf4521
+      title: 通知层契约落地：_format_elapsed + _summarize_result 支持顶层 summary·复核
+      status: done
+    - id: t-b8daeb
+      title: 通知层契约落地：_format_elapsed + _summarize_result 支持顶层 summary·测试
+      status: done
+    - id: t-c4b336
+      title: fitness 服务诚实计数：四类状态 + accounts_total，删 skipped、收窄 computed 语义·研发
+      status: done
+    - id: t-90d649
+      title: fitness 服务诚实计数：四类状态 + accounts_total，删 skipped、收窄 computed 语义·联调
+      status: done
+    - id: t-d9106a
+      title: fitness 服务诚实计数：四类状态 + accounts_total，删 skipped、收窄 computed 语义·复核
+      status: done
+    - id: t-ef688c
+      title: fitness 服务诚实计数：四类状态 + accounts_total，删 skipped、收窄 computed 语义·测试
+      status: done
+    - id: t-228f42
+      title: 空转读数：EvolutionFitnessORMRepository 两个只读聚合方法·研发
+      status: done
+    - id: t-735131
+      title: 空转读数：EvolutionFitnessORMRepository 两个只读聚合方法·联调
+      status: done
+    - id: t-1dada1
+      title: 空转读数：EvolutionFitnessORMRepository 两个只读聚合方法·复核
+      status: done
+    - id: t-a00ef1
+      title: 空转读数：EvolutionFitnessORMRepository 两个只读聚合方法·测试
+      status: done
+    - id: t-af5158
+      title: runtime 接线：耗时按量级显示 + 零产出改 ⚠️（不动 status、不碰跳过分支）·研发
+      status: done
+    - id: t-de98f5
+      title: runtime 接线：耗时按量级显示 + 零产出改 ⚠️（不动 status、不碰跳过分支）·联调
+      status: done
+    - id: t-88c26a
+      title: runtime 接线：耗时按量级显示 + 零产出改 ⚠️（不动 status、不碰跳过分支）·复核
+      status: done
+    - id: t-507717
+      title: runtime 接线：耗时按量级显示 + 零产出改 ⚠️（不动 status、不碰跳过分支）·测试
+      status: done
+    - id: t-a494c4
+      title: handler 组装：summary / no_output / 空转统计（含纯函数与查询失败降级）·研发
+      status: done
+    - id: t-d796cd
+      title: handler 组装：summary / no_output / 空转统计（含纯函数与查询失败降级）·联调
+      status: done
+    - id: t-e4693b
+      title: handler 组装：summary / no_output / 空转统计（含纯函数与查询失败降级）·复核
+      status: done
+    - id: t-23611a
+      title: handler 组装：summary / no_output / 空转统计（含纯函数与查询失败降级）·测试
+      status: done
+    - id: t-985e3a
+      title: 数据层用例：计数不变式、无 skipped、computed 兼容、只读聚合口径·研发
+      status: done
+    - id: t-66db6e
+      title: 数据层用例：计数不变式、无 skipped、computed 兼容、只读聚合口径·复核
+      status: done
+    - id: t-16f3fb
+      title: 数据层用例：计数不变式、无 skipped、computed 兼容、只读聚合口径·测试
+      status: done
+    - id: t-003afe
+      title: 新增通知层用例（12 条：格式/摘要/语气/空转/降级/失败判定不变式/其他任务逐字不变）·研发
+      status: done
+    - id: t-8bec5b
+      title: 新增通知层用例（12 条：格式/摘要/语气/空转/降级/失败判定不变式/其他任务逐字不变）·复核
+      status: done
+    - id: t-cca3af
+      title: 新增通知层用例（12 条：格式/摘要/语气/空转/降级/失败判定不变式/其他任务逐字不变）·测试
+      status: done
+    - id: t-243932
+      title: 回归四连 + 兼容核对 + 真实观察取证（含回滚演练）·研发
+      status: done
+    - id: t-df7921
+      title: 回归四连 + 兼容核对 + 真实观察取证（含回滚演练）·复核
+      status: done
+    - id: t-2acb88
+      title: 回归四连 + 兼容核对 + 真实观察取证（含回滚演练）·测试
+      status: done
+status:
+  tasks_total: 37
+  tasks_done: 37
+  tasks_in_progress: 0
+  tasks_todo: 0
+tasks:
+  - id: t-cda13d
+    status: done
+  - id: t-c0941a
+    status: done
+  - id: t-17fce0
+    status: done
+  - id: t-2d12c5
+    status: done
+  - id: t-4b35ba
+    status: done
+  - id: t-cef289
+    status: done
+  - id: t-89b1f4
+    status: done
+  - id: t-ad4340
+    status: done
+  - id: t-39a1a8
+    status: done
+  - id: t-bf7712
+    status: done
+  - id: t-bf4521
+    status: done
+  - id: t-b8daeb
+    status: done
+  - id: t-c4b336
+    status: done
+  - id: t-90d649
+    status: done
+  - id: t-d9106a
+    status: done
+  - id: t-ef688c
+    status: done
+  - id: t-228f42
+    status: done
+  - id: t-735131
+    status: done
+  - id: t-1dada1
+    status: done
+  - id: t-a00ef1
+    status: done
+  - id: t-af5158
+    status: done
+  - id: t-de98f5
+    status: done
+  - id: t-88c26a
+    status: done
+  - id: t-507717
+    status: done
+  - id: t-a494c4
+    status: done
+  - id: t-d796cd
+    status: done
+  - id: t-e4693b
+    status: done
+  - id: t-23611a
+    status: done
+  - id: t-985e3a
+    status: done
+  - id: t-66db6e
+    status: done
+  - id: t-16f3fb
+    status: done
+  - id: t-003afe
+    status: done
+  - id: t-8bec5b
+    status: done
+  - id: t-cca3af
+    status: done
+  - id: t-243932
+    status: done
+  - id: t-df7921
+    status: done
+  - id: t-2acb88
+    status: done

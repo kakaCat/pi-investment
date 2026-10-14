@@ -6,7 +6,7 @@
 import structlog
 import time
 from datetime import datetime, timedelta
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 
 logger = structlog.get_logger(__name__)
 
@@ -14,6 +14,22 @@ logger = structlog.get_logger(__name__)
 # 跳过 retry_failed(max_retries=5) 重试轮，避免夜间空转数小时。
 # 依据：run 3480 回填 50 只失败 49（98%）、run 3504 失败 50（100%）。
 RETRY_SKIP_FAIL_RATE = 0.8
+
+
+def _anomaly_state(anomaly_info: Dict) -> Tuple[bool, bool, Optional[str]]:
+    """异常检测三态判定（**唯一一份规则**，两处消费点共用）——REQ-261006133733-1fdf FR-3。
+
+    返回 `(failed, unknown, unknown_reason)`：
+
+    - `failed = info.get('ok') is False` —— 检测**没跑成** ⇒ 计入 `has_issues`（宁可当"待查"，不得当"干净"）；
+    - `unknown = info.get('has_anomalies') is None` —— 未知（失败或数据不足皆可能）；
+    - `unknown_reason` ∈ {`None`, `'insufficient_data'`, 错误摘要}。
+
+    ⚠️ **禁止**用真值判断（`if info['has_anomalies']`）：`None` 也是假值，那正是本需求要消灭的陷阱。
+    """
+    failed = anomaly_info.get('ok') is False
+    unknown = anomaly_info.get('has_anomalies') is None
+    return failed, unknown, anomaly_info.get('unknown_reason')
 
 
 class DataQualityService:
@@ -131,10 +147,16 @@ class DataQualityService:
             # 3. 检测其他问题（重复、异常）并写入审计日志
             stocks_with_issues = []
             total_issues = 0
+            # 三态计数（REQ-261006133733-1fdf FR-3）：把"没跑成"与"没得判"分开计数，谁都别想静默
+            anomaly_unknown_count = 0
+            insufficient_history_count = 0
             check_start_time = datetime.now()
 
             checked_stocks = 0
             check_truncated = False
+            # REQ-261006163444-8e4f FR-2：本 run 的**全量**逐标的事实（内存聚合用）。
+            # ⚠️ 只在本方法内消费：禁止写进 run 结果/日志全文（5686 条会撑爆 jsonb）。
+            per_symbol: Dict[str, Dict] = {}
 
             for symbol, gap_info in gaps.items():
                 # 墙钟护栏：超预算即停止逐只扫描（缺量统计已由批量缺口检测完成）
@@ -150,6 +172,7 @@ class DataQualityService:
 
                 # 检测异常值
                 anomaly_info = self.validator.detect_anomalies(symbol, start_date, end_date)
+                anomaly_failed, anomaly_unknown, anomaly_reason = _anomaly_state(anomaly_info)
 
                 # 计算质量评分
                 quality_score = self.validator.get_data_quality_score(
@@ -159,12 +182,18 @@ class DataQualityService:
                     coverage_rate=gap_info['coverage_rate']
                 )
 
-                # 判断是否有问题
+                # 判断是否有问题（REQ-261006133733-1fdf FR-3）：异常**检测失败**也算问题（待查），
+                # 但"数据不足"不算（次新股不是质量问题，单独计数）。
                 has_issues = (
                     gap_info['missing_days_count'] > 0 or
                     dup_info['has_duplicates'] or
-                    anomaly_info['has_anomalies']
+                    anomaly_info['has_anomalies'] is True or
+                    anomaly_failed
                 )
+                if anomaly_failed:
+                    anomaly_unknown_count += 1
+                elif anomaly_unknown and anomaly_reason == 'insufficient_data':
+                    insufficient_history_count += 1
 
                 if has_issues:
                     total_issues += 1
@@ -176,8 +205,28 @@ class DataQualityService:
                         'has_duplicates': dup_info['has_duplicates'],
                         'duplicate_count': dup_info['duplicate_count'],
                         'has_anomalies': anomaly_info['has_anomalies'],
-                        'anomaly_count': anomaly_info['total_anomalies']
+                        'anomaly_count': anomaly_info['total_anomalies'],
+                        # 三态留痕（FR-3）：未知必须看得见，不得与"确无异常"混同
+                        'anomaly_unknown': anomaly_unknown,
+                        'anomaly_unknown_reason': anomaly_reason,
                     })
+
+                # 逐标的事实（REQ-261006163444-8e4f FR-2）：overall/grade 在这里**只算一次**，
+                # 审计写入（_persist_quality_audit）与域内告警统计消费同一个值。
+                _completeness = gap_info.get('coverage_rate', 100.0)
+                _consistency = 100.0 if not dup_info.get('has_duplicates') else 95.0
+                _overall = (_completeness + _consistency + quality_score) / 3.0
+                _grade = self._calculate_grade(_overall)
+                per_symbol[symbol] = {
+                    'coverage_rate': gap_info['coverage_rate'],
+                    'missing_days_count': gap_info['missing_days_count'],
+                    'quality_score': quality_score,
+                    'overall_score': _overall,
+                    'grade': _grade,
+                    'has_duplicates': bool(dup_info.get('has_duplicates')),
+                    'has_anomalies': anomaly_info.get('has_anomalies'),
+                    'anomaly_unknown': bool(anomaly_unknown),
+                }
 
                 # 写入审计日志（每个股票一条记录）
                 symbol_duration_ms = int((datetime.now() - symbol_start).total_seconds() * 1000)
@@ -189,7 +238,9 @@ class DataQualityService:
                     dup_info=dup_info,
                     anomaly_info=anomaly_info,
                     quality_score=quality_score,
-                    duration_ms=symbol_duration_ms
+                    duration_ms=symbol_duration_ms,
+                    overall_score=_overall,
+                    grade=_grade,
                 )
 
             # 4. 计算汇总统计
@@ -206,6 +257,9 @@ class DataQualityService:
                 'total_missing_days': gap_summary['total_missing_days'],
                 'avg_coverage_rate': gap_summary['avg_coverage_rate'],
                 'data_quality_score': round(avg_quality_score, 2),
+                # 三态计数（REQ-261006133733-1fdf FR-3）：失败与数据不足分开，谁都别想静默
+                'anomaly_unknown_count': anomaly_unknown_count,
+                'insufficient_history_count': insufficient_history_count,
                 # 诚实标注：扫描到第几只、是否因预算提前收尾
                 'checked_stocks': checked_stocks,
                 'skipped_stocks': len(symbols) - checked_stocks,
@@ -237,7 +291,10 @@ class DataQualityService:
                 'summary': summary,
                 'stocks_with_issues': stocks_with_issues[:50],  # 最多返回50个
                 'issues_detail_truncated': total_issues > 50,
-                'timestamp': datetime.now().isoformat()
+                'timestamp': datetime.now().isoformat(),
+                # REQ-261006163444-8e4f FR-2：全量逐标的事实（不受上面 [:50] 截断影响）。
+                # 用途：调用方按检查域聚合统计；**不得**写入 run 结果或日志全文。
+                'per_symbol': per_symbol,
             }
 
             if report_url:
@@ -451,6 +508,8 @@ class DataQualityService:
             logger.info(f"验证数据质量: {len(symbols)} 只股票")
 
             validation_results = []
+            anomaly_unknown_count = 0
+            insufficient_history_count = 0
 
             for symbol in symbols:
                 # 获取K线数据
@@ -467,8 +526,15 @@ class DataQualityService:
                 # 检测重复和异常
                 duplicates = self.validator.detect_duplicates(symbol, start_date, end_date)
                 anomalies = self.validator.detect_anomalies(symbol, start_date, end_date)
+                anomaly_failed, anomaly_unknown, anomaly_reason = _anomaly_state(anomalies)
+                if anomaly_failed:
+                    anomaly_unknown_count += 1
+                elif anomaly_unknown and anomaly_reason == 'insufficient_data':
+                    insufficient_history_count += 1
 
-                if not validation['valid'] or duplicates['has_duplicates'] or anomalies['has_anomalies']:
+                # 同一份规则（REQ-261006133733-1fdf FR-3）：失败计入问题；数据不足不计
+                if (not validation['valid'] or duplicates['has_duplicates']
+                        or anomalies['has_anomalies'] is True or anomaly_failed):
                     validation_results.append({
                         'symbol': symbol,
                         'valid': validation['valid'],
@@ -478,14 +544,18 @@ class DataQualityService:
                         'has_duplicates': duplicates['has_duplicates'],
                         'duplicate_count': duplicates['duplicate_count'],
                         'has_anomalies': anomalies['has_anomalies'],
-                        'anomaly_count': anomalies['total_anomalies']
+                        'anomaly_count': anomalies['total_anomalies'],
+                        'anomaly_unknown': anomaly_unknown,
+                        'anomaly_unknown_reason': anomaly_reason,
                     })
 
             return {
                 'success': True,
                 'summary': {
                     'total_stocks': len(symbols),
-                    'stocks_with_issues': len(validation_results)
+                    'stocks_with_issues': len(validation_results),
+                    'anomaly_unknown_count': anomaly_unknown_count,
+                    'insufficient_history_count': insufficient_history_count,
                 },
                 'validation_results': validation_results,
                 'timestamp': datetime.now().isoformat()
@@ -507,7 +577,9 @@ class DataQualityService:
         dup_info: Dict,
         anomaly_info: Dict,
         quality_score: float,
-        duration_ms: int
+        duration_ms: int,
+        overall_score: Optional[float] = None,
+        grade: Optional[str] = None,
     ) -> None:
         """将质量检查结果持久化到 kline_data_quality 审计表
 
@@ -543,24 +615,39 @@ class DataQualityService:
                     'message': f'发现 {dup_info.get("duplicate_count", 0)} 条重复数据'
                 })
 
-            if anomaly_info.get('has_anomalies'):
-                for anomaly in anomaly_info.get('anomalies', [])[:10]:  # 最多记录10条
+            # 异常留痕（REQ-261006133733-1fdf FR-3）：
+            # ① 修既有空转——原读 `anomaly_info.get('anomalies')`，而该键**从不存在**
+            #    （真键是 price_anomalies / volume_anomalies）⇒ 异常从未进过审计 warnings；
+            # ② 未知（数据不足 / 检测失败）也要留痕，且与"确无异常"可区分。
+            for _kind, _key in (('price', 'price_anomalies'), ('volume', 'volume_anomalies')):
+                for anomaly in (anomaly_info.get(_key) or [])[:10]:
                     warnings.append({
                         'type': 'anomaly',
-                        'field': anomaly.get('field', 'unknown'),
-                        'message': anomaly.get('message', 'Data anomaly detected')
+                        'field': _kind,
+                        'message': f"{_kind} anomaly on {anomaly.get('date')} "
+                                   f"(z={anomaly.get('z_score')})",
                     })
+            if anomaly_info.get('has_anomalies') is None:
+                warnings.append({
+                    'type': 'anomaly_detection_unknown',
+                    'reason': anomaly_info.get('unknown_reason'),
+                    'message': f"异常检测未完成（{anomaly_info.get('unknown_reason')}）",
+                })
 
             # 计算评级
-            overall_score = (completeness_score + consistency_score + accuracy_score) / 3.0
-            grade = self._calculate_grade(overall_score)
+            # REQ-261006163444-8e4f FR-2：循环内已算好的值**优先用**——同一只标的的
+            # overall/grade 只能有一个真相源（审计写入与域内告警统计共用同一个值），
+            # 未传入时（旧调用方 / 直测本方法）才就地计算，保持向后兼容。
+            if overall_score is None or grade is None:
+                overall_score = (completeness_score + consistency_score + accuracy_score) / 3.0
+                grade = self._calculate_grade(overall_score)
 
             KlineQualityRepository().record_check_result(
                 symbol=symbol,
                 period='daily',
                 start_date=start_date,
                 end_date=end_date,
-                original_count=gap_info.get('expected_days', 0),
+                original_count=gap_info.get('total_trading_days', 0),
                 cleaned_count=gap_info.get('actual_days', 0),
                 removed_count=dup_info.get('duplicate_count', 0),
                 fixed_count=0,

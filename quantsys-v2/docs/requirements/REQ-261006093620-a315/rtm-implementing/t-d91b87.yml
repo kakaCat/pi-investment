@@ -1,0 +1,37 @@
+task:
+  id: t-d91b87
+  title: ③ 退为薄转发 + 打桩点迁移（行为零变化）
+  status: done
+  implements: 修改 adapters/inbound/fastapi_app/daily_jobs/gate.py：改为薄转发，只做 from application.services.trading_day_gate import (SOURCE_GATE_ERROR, verdict_info, skip_non_trading_day, is_non_trading_day)，不留任何判定实现；runtime.py 与 pipeline.py 的导入路径与调用方式一行不改。修改 tests/test_daily_jobs_trading_day_gate.py：把三处 monkeypatch.setattr(gate_mod, 'TradingDayGuard', ...)（约 80/131/139 行）的目标改为 application.services.trading_day_gate（被调函数所在模块），并新增一条证伪断言：patch 新模块后应用側 gate 的结论确实随之改变（若转发链路上名字解析没走新模块，此断言即红，专治桩静默失效）。
+  serves:
+    - FR-3
+    - FR-8
+  depends_on:
+    - t-63bc0a
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261006093620-a315
+    TASK_ID: t-d91b87
+    TASK_TITLE: ③ 退为薄转发 + 打桩点迁移（行为零变化）
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-06T02:06:21.676Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006093620-a315
+  generated_at: 2026-10-06T01:54:29.755Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-06T02:06:21.677Z

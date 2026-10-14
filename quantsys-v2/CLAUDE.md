@@ -141,6 +141,33 @@ pytest tests/test_pipeline.py -v
 pytest --cov=. --cov-report=html
 ```
 
+> ⚠️ **测试期不得真实外发通知**（2026-10-03 · REQ-261003150739-b98d）
+>
+> pytest 进程能经 `NotificationFacade` 真发飞书 / Agent OS 消息。实证：跑
+> `tests/test_false_success_guard.py` **一个文件**就向真实渠道发出 4 张 `fake_job` 假卡片
+> （用户可感知），跑 e2e 手动触发用例再发 2 张。根因是**打桩点漂移**：
+> 桩打在了"符号来源模块"，而不是"被调函数所在模块"。
+>
+> **打桩点规则（唯一判据）**：桩必须打在**被调函数所在的模块**。
+> 例：`runtime._run_job` 运行时查的是 `daily_jobs.runtime` **自己的全局名**
+> （它用 `from ...alerting import _send_feishu` 取值导入），因此打在
+> `alerting._send_feishu` 或转发壳 `daily_jobs_bootstrap._send_feishu` 上的桩
+> **名字存在但不生效**（静默失效，真函数照发）。
+>
+> **守卫**（`tests/notify_guard.py` + 根 `conftest.py`）：给全局 `requests.post/get`
+> 套一层按 URL 分类的包装器——命中通知接收端（路径特征 `/api/v1/notifications/send`、
+> `/open-apis/bot/`、整段 `/wake`，或配置里的 **authority（主机+端口）**）即
+> **拦截 + 记账**；其余流量原样放行，对数据源等测试完全透明。
+>
+> - **默认 `fail`**：未声明的真实外发会让**该用例失败**——漏桩从静默变成一条红用例。
+> - 回滚：`QUANTSYS_NOTIFY_GUARD=off`（完全不安装）；`=report`（只拦截记账、不判失败）。
+> - 会话末打印 `notify-guard intercepted=N egress=0 offenders=[...]`，CI 里可直接确认零外发。
+> - 已知限制：只覆盖模块级 `requests.post/get`（`requests.Session` 不经包装器）。
+> - ⚠️ **改判据必须先 report 清点**：首轮清点实测"只比主机名"会误伤 58 个用例
+>   （`127.0.0.1` 任意端口都被当成通知外发），改为 authority 后归零——
+>   **先 `report` 清点、再切 `fail`**，别直接收紧。
+> 详见 [docs/architecture/notification-test-guard.md](docs/architecture/notification-test-guard.md)。
+
 ## Dev Commands
 
 ### ⚠️ 重要: Flask → FastAPI 迁移（2026-08-02 更新：已切换）

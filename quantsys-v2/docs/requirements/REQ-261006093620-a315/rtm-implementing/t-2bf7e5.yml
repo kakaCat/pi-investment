@@ -1,0 +1,36 @@
+task:
+  id: t-2bf7e5
+  title: 人工触发改投一次性 manual=True job·研发
+  status: done
+  implements: |-
+    修改 infrastructure/scheduler/apscheduler_service.py 的 trigger_task_now：保留 job 不存在时抛 ValueError 的既有语义；把 modify_job(next_run_time=now) 换成 add_job(func=execute_scheduled_job, trigger=DateTrigger(run_date=datetime.now()), args=[task_id], kwargs={'manual': True}, id=f'manual_{task_id}_{int(time.time())}', name=f'[manual] {job.name}', replace_existing=False, misfire_grace_time=None)。同步修改 tests/infrastructure/test_apscheduler_service.py 的 test_trigger_task_now 断言。路由层不做改动。
+
+    [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+  serves: []
+  depends_on:
+    - t-42eb9a
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261006093620-a315
+    TASK_ID: t-2bf7e5
+    TASK_TITLE: 人工触发改投一次性 manual=True job·研发
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-06T02:01:09.500Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006093620-a315
+  generated_at: 2026-10-06T02:01:09.411Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-06T02:01:09.563Z

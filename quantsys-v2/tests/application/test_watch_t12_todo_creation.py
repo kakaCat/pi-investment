@@ -34,11 +34,15 @@ class _Notifier:
 
     def __init__(self, start_id=7):
         self.notifications = []
+        self.closed_loop_flags = []
         self.trigger_repo = _TriggerRepo()
         self._next = start_id
 
     def notify(self, rule, condition, quote, result, **kwargs):
         self.notifications.append((rule.id, kwargs.get("level")))
+        # closed_loop：FR-4（REQ-261007101318-c392）起引擎**恒下发级别**，
+        # "闭环是否开启"改由 closed_loop 独立表达（旧实现用 level=None 表达，已废止）。
+        self.closed_loop_flags.append(kwargs.get("closed_loop"))
         self._next += 1
         return SimpleNamespace(id=self._next - 1, todo_id=None)
 
@@ -162,13 +166,24 @@ def test_existing_todo_id_skips_create():
     assert repo.created == []                 # 同一 trigger_id 最多一条待办
 
 
-def test_no_todo_service_keeps_old_behavior():
+def test_no_todo_service_still_renders_level_but_promises_no_closed_loop():
+    """闭环未开启（未注入 todo_service）时的**新契约**（REQ-261007101318-c392 FR-4 / E9）。
+
+    旧契约：不带级别（level=None）→ 通知退回"一句事实"的旧渲染。
+    这曾是线上"盯盘卡只有一句 现价 X ≤ 阈值 Y（下破）"的根因——级别与闭环被绑死。
+
+    新契约（本用例锁定）：
+      · 级别**照常下发**（P1）→ 卡面有意图/级别/下一步，用户能判断该不该动作；
+      · `closed_loop=False` → 渲染层**不**承诺处置入口/回执位（不指向不存在的待办看板）；
+      · 仍**不**建待办（闭环真的没开）。
+    """
     rule = _rule("P1")
     notifier = _Notifier()
-    engine = _engine([rule], PRICE_UP, notifier, None)   # 总闸关：未注入
+    engine = _engine([rule], PRICE_UP, notifier, None)   # 总闸关：未注入 todo_service
     events = engine.tick()
     assert len(events) == 1
-    assert notifier.notifications == [(rule.id, None)]   # 不带级别 → 旧渲染
+    assert notifier.notifications == [(rule.id, "P1")]        # 恒下发级别（旧契约是 None）
+    assert notifier.closed_loop_flags == [False]              # 且如实标注"闭环未开"
 
 
 def test_create_failure_does_not_crash_tick_and_still_notifies():

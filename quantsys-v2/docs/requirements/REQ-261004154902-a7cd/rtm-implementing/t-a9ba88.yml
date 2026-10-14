@@ -1,0 +1,36 @@
+task:
+  id: t-a9ba88
+  title: cron 时刻口径、misfire 语义与「被跳过」落库·联调
+  status: done
+  implements: |-
+    改 infrastructure/scheduler/apscheduler_service.py：加载器区分 misfire_grace_time_seconds IS NULL（按本仓口径=唤醒必补跑）与显式值，去掉 or 300 的隐式兜底；注册 EVENT_JOB_MISSED 监听，把被跳过的 slot 写成 scheduler_runs 一行（status='missed'，error 记录 missed by Xm）并同步 scheduler_tasks.last_status/last_error；改 adapters/outbound/repositories/scheduler_repository.py 支持写 missed 状态、并修正 next_run_at 口径（与 public.apscheduler_jobs 的真实 next_run_time 一致，或明确标注该字段失效）；库内把 v13 任务 cron 由 30 6 * * 1-5 改为 30 14 * * 1-5（恢复 is_enabled=true 一并在此卡完成，止血记录里的原值可回滚）；新增 tests/test_scheduler_misfire_semantics.py。
+
+    [子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）
+  serves: []
+  depends_on:
+    - t-20173e
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261004154902-a7cd
+    TASK_ID: t-a9ba88
+    TASK_TITLE: cron 时刻口径、misfire 语义与「被跳过」落库·联调
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-04T08:25:39.392Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261004154902-a7cd
+  generated_at: 2026-10-04T08:25:39.392Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-04T08:25:50.364Z

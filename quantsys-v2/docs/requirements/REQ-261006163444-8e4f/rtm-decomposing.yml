@@ -1,0 +1,1134 @@
+metadata:
+  stage: decomposing
+  requirement_id: REQ-261006163444-8e4f
+  generated_at: 2026-10-06T08:42:10.923Z
+  version: 110
+  generated_by: dsh-pmboard
+  rtm_version: "2.0"
+  last_updated: 2026-10-06T08:58:37.962Z
+inputs:
+  requirements:
+    - id: FR-1
+      title: 检查域分域（可交易域 / 观察中 / 存量）
+      source: requirement.md
+      line: 122
+    - id: FR-2
+      title: 三项指标改按可交易域统计，且计数按 distinct 标的
+      source: requirement.md
+      line: 128
+    - id: FR-3
+      title: 掉出域变化必须亮相（防"采集漏批被静默豁免"）
+      source: requirement.md
+      line: 134
+    - id: FR-4
+      title: 阈值随口径重定 + 回填样本有效化
+      source: requirement.md
+      line: 139
+    - id: FR-5
+      title: 修 `original_count` 取键（现恒 0）
+      source: requirement.md
+      line: 147
+    - id: FR-6
+      title: 回归锁与实跑复验
+      source: requirement.md
+      line: 152
+  design_sections:
+    - ref: design/architecture.md#1
+      title: 缺陷定位（三处口径缺陷，一处审计列取错键）（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-4
+      file: design/architecture.md
+      section: "1"
+    - ref: design/architecture.md#2
+      title: 分域模型（本设计的中心）（
+      serves:
+        - FR-1
+        - FR-3
+      file: design/architecture.md
+      section: "2"
+    - ref: design/architecture.md#2.1
+      title: 存量与观察中的转档（
+      serves:
+        - FR-3
+      file: design/architecture.md
+      section: "2.1"
+    - ref: design/architecture.md#3
+      title: 告警口径：三个指标的分母（
+      serves:
+        - FR-2
+        - FR-4
+      file: design/architecture.md
+      section: "3"
+    - ref: design/architecture.md#4
+      title: 文件结构（新建 / 修改 / 不改，各自职责一句话）（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+      file: design/architecture.md
+      section: "4"
+    - ref: design/architecture.md#5
+      title: 回滚与灰度（
+      serves:
+        - FR-2
+        - FR-4
+      file: design/architecture.md
+      section: "5"
+    - ref: design/architecture.md#6
+      title: 读数会变（必须写进验收口径，否则会被误判成"漏报"）（
+      serves:
+        - FR-2
+      file: design/architecture.md
+      section: "6"
+    - ref: design/architecture.md#7
+      title: 不做什么（防范围蔓延）（
+      serves:
+        - FR-3
+        - FR-5
+      file: design/architecture.md
+      section: "7"
+    - ref: design/architecture.md#8
+      title: 已知盲区（本设计覆盖不到，必须显式登记）（
+      serves:
+        - FR-3
+      file: design/architecture.md
+      section: "8"
+    - ref: design/data-model.md#1
+      title: 是否改表 / 改 schema（
+      serves:
+        - FR-1
+        - FR-2
+      file: design/data-model.md
+      section: "1"
+    - ref: design/data-model.md#2
+      title: 读契约：`quant.daily_klines` 的两个新查询（
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: "2"
+    - ref: design/data-model.md#3
+      title: 写契约 1：审计表 `public.kline_data_quality`（
+      serves:
+        - FR-5
+      file: design/data-model.md
+      section: "3"
+    - ref: design/data-model.md#4
+      title: 写契约 2：任务结果 `quant.scheduler_runs.result`（jsonb）（
+      serves:
+        - FR-2
+        - FR-3
+      file: design/data-model.md
+      section: "4"
+    - ref: design/data-model.md#5
+      title: 配置行变更：`quant.scheduler_tasks` id=232（
+      serves:
+        - FR-4
+      file: design/data-model.md
+      section: "5"
+    - ref: design/data-model.md#6
+      title: 内存事实的形状：`per_symbol`（
+      serves:
+        - FR-2
+      file: design/data-model.md
+      section: "6"
+    - ref: design/data-model.md#7
+      title: 不写什么（负向契约）（
+      serves:
+        - FR-3
+        - FR-5
+      file: design/data-model.md
+      section: "7"
+    - ref: design/interfaces.md#1
+      title: 新模块 `application/services/kline_domain.py`（
+      serves:
+        - FR-1
+        - FR-3
+      file: design/interfaces.md
+      section: "1"
+    - ref: design/interfaces.md#2
+      title: 仓储契约（
+      serves:
+        - FR-1
+        - FR-2
+      file: design/interfaces.md
+      section: "2"
+    - ref: design/interfaces.md#2.1
+      title: "`KlineORMRepository`（`adapters/outbound/repositories/kline_repository.py`，新增两个只读方法）（"
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: "2.1"
+    - ref: design/interfaces.md#2.2
+      title: "`KlineQualityRepository.count_by_grade_on`（语义修正，签名向后兼容）（"
+      serves:
+        - FR-2
+      file: design/interfaces.md
+      section: "2.2"
+    - ref: design/interfaces.md#3
+      title: "`DataQualityService.check_data_quality` 返回契约（"
+      serves:
+        - FR-2
+      file: design/interfaces.md
+      section: "3"
+    - ref: design/interfaces.md#4
+      title: 作业层契约（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/interfaces.md
+      section: "4"
+    - ref: design/interfaces.md#4.1
+      title: "`daily_data_quality_check(**params)` 流程（`infrastructure/jobs/data_quality_check_job.py`）（"
+      serves:
+        - FR-1
+        - FR-3
+        - FR-4
+      file: design/interfaces.md
+      section: "4.1"
+    - ref: design/interfaces.md#4.2
+      title: 告警检查函数（签名变更）（
+      serves:
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/interfaces.md
+      section: "4.2"
+    - ref: design/interfaces.md#4.3
+      title: 统计聚合契约（
+      serves:
+        - FR-2
+        - FR-4
+      file: design/interfaces.md
+      section: "4.3"
+    - ref: design/interfaces.md#5
+      title: 告警正文契约（
+      serves:
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/interfaces.md
+      section: "5"
+    - ref: design/interfaces.md#6
+      title: 参数契约（`_normalize_params`）（
+      serves:
+        - FR-4
+      file: design/interfaces.md
+      section: "6"
+    - ref: design/interfaces.md#7
+      title: 错误语义与日志（
+      serves:
+        - FR-1
+        - FR-3
+      file: design/interfaces.md
+      section: "7"
+    - ref: design/interfaces.md#8
+      title: 静态与兼容红线（
+      serves:
+        - FR-2
+        - FR-6
+      file: design/interfaces.md
+      section: "8"
+    - ref: design/use-cases.md#1
+      title: 场景 A：域内健康（常态）（
+      serves:
+        - FR-2
+        - FR-4
+      file: design/use-cases.md
+      section: "1"
+    - ref: design/use-cases.md#2
+      title: 场景 B：域内真的退化（
+      serves:
+        - FR-2
+        - FR-4
+      file: design/use-cases.md
+      section: "2"
+    - ref: design/use-cases.md#3
+      title: 场景 C：采集漏批 / 管道断流（新口径的核心保护）（
+      serves:
+        - FR-3
+      file: design/use-cases.md
+      section: "3"
+    - ref: design/use-cases.md#4
+      title: 场景 D：标的退市 / 长停（存量）（
+      serves:
+        - FR-1
+        - FR-3
+      file: design/use-cases.md
+      section: "4"
+    - ref: design/use-cases.md#5
+      title: 场景 E：自动回填（
+      serves:
+        - FR-4
+      file: design/use-cases.md
+      section: "5"
+    - ref: design/use-cases.md#6
+      title: 场景 F：同一天跑多次（
+      serves:
+        - FR-2
+      file: design/use-cases.md
+      section: "6"
+    - ref: design/use-cases.md#7
+      title: 场景 G：分域不可用（响亮失败，不静默跳步）（
+      serves:
+        - FR-1
+        - FR-3
+      file: design/use-cases.md
+      section: "7"
+    - ref: design/use-cases.md#8
+      title: 场景 H：回滚（
+      serves:
+        - FR-2
+        - FR-4
+      file: design/use-cases.md
+      section: "8"
+    - ref: design/use-cases.md#9
+      title: 场景 I：阈值重标定（上线后必做）（
+      serves:
+        - FR-4
+      file: design/use-cases.md
+      section: "9"
+    - ref: design/use-cases.md#10
+      title: 裁定对照（每个场景服务哪条裁定）（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/use-cases.md
+      section: "10"
+    - ref: design/use-cases.md#11
+      title: 非目标：本需求明确不覆盖的场景（
+      serves:
+        - FR-5
+        - FR-6
+      file: design/use-cases.md
+      section: "11"
+outputs:
+  tasks:
+    - id: t-839a64
+      title: 新增分域纯函数模块 kline_domain.py（契约先行）
+      implements: 新建 application/services/kline_domain.py，按设计 interfaces 文档 §1 定死符号：DomainSnapshot（frozen dataclass，字段照抄）、classify_domain(trade_dates_desc, symbol_last_dates)、build_domain_snapshot(kline_repo)；常量 TRADABLE_MAX_GAP=0 / STOCK_MIN_GAP=5 / UNKNOWN_GAP=9999。gap = rank(D_last) - rank(mx)（交易日倒序名次，D_last 名次 1）；mx 不在交易日集合 ⇒ 9999。dropped_new = {s | gap == 1}；dropped_known = prev_trade_date is not None；查询/解析异常收敛为 degraded=True + degrade_reason（不抛）。本卡只写模块与 docstring，不接线到作业。
+      serves:
+        - FR-1
+        - FR-3
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-f2d177
+      title: 仓储加分域只读方法并把评级计数改为 distinct
+      implements: ① 在 kline_repository.py 里给 KlineORMRepository 加 list_recent_trade_dates(limit=2)（SELECT DISTINCT trade_date ORDER BY DESC LIMIT n）与 list_symbol_last_trade_date()（GROUP BY symbol 的 MAX(trade_date)），不加时间过滤（死标的必须可见）；② 在 kline_quality_repository.py 把 count_by_grade_on(grade, day=None, symbols=None) 改为 count(distinct symbol)，symbols 非空时加 in_ 过滤，保留 _safe_rollback 语义与 func.date(created_at) 的当日口径。
+      serves:
+        - FR-1
+        - FR-2
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-baed9f
+      title: 服务层返回 per_symbol 全量事实并修 original_count 取键
+      implements: 改 application/services/data_quality_service.py：① check_data_quality 循环内把每只标的的 coverage_rate / missing_days_count / quality_score / overall_score / grade / has_duplicates / has_anomalies / anomaly_unknown 收进 per_symbol（唯一一次 _calculate_grade 调用），返回体新增 per_symbol 键（形状照设计 data-model 文档 §6）；② _persist_quality_audit 的 original_count 改取 gap_info.get('total_trading_days', 0)，grade/overall_score 改为接收循环内算好的值不再重算；③ summary 既有键一个不改。
+      serves:
+        - FR-2
+        - FR-5
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-6e752d
+      title: 作业层接线：域内聚合、新告警判据与回填限域
+      implements: 改 infrastructure/jobs/data_quality_check_job.py：① _normalize_params 新增 d_grade_threshold=20、quality_threshold 缺省改 88.0、coverage_info_threshold=97.0、backfill_fail_rate_threshold=50.0、backfill_min_sample=10，全部进 effective_params 与 param_notes；② 检查前 build_domain_snapshot(service.kline_repo)；③ 回填候选集改为 per_symbol 里 missing_days_count>0 且 symbol in domain.tradable，仍按缺失天数降序（不再用 stocks_with_issues 的前 50 条）；④ _check_quality_alerts(result, domain, per_symbol, thresholds) 算 DomainStats，判据为域内 D级>20 / 评分<88.0 / 覆盖率仅信息项 / 回填失败率>50% 且 n>=10 / dropped_new 非空→warning，result 新增 alert_scope、domain、domain_dropped、alert_thresholds；⑤ _send_quality_alerts(alerts, stats, thresholds) 按设计 interfaces 文档 §5 渲染正文；⑥ 降级分支：domain.degraded 或 per_symbol 缺失 ⇒ error 项 qa_scope_unavailable，alert_scope='degraded'，不回退 count_by_grade_on。负向：per_symbol 不得进入 result 或日志全文。
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      depends_on:
+        - t-839a64
+        - t-f2d177
+        - t-baed9f
+      phase: implement
+      side: backend
+    - id: t-588941
+      title: 补分域纯函数用例（含 gap 边界与不变量）
+      implements: 新建 tests/test_kline_domain.py，实现设计 test-cases 文档 §1 的 T1-T7：三分法（gap 0/2/大）、gap 恰好 4 与 5 的边界闭合、gap==1 同时落 observing∩dropped_new、只有一个交易日时 dropped_known False、空输入 degraded 且不抛、mx 不在交易日集合落 stock 且 gap==9999、三集合两两不相交且并集等于 gap_days 键集。
+      serves:
+        - FR-1
+        - FR-3
+        - FR-6
+      depends_on:
+        - t-839a64
+      phase: test
+      side: backend
+    - id: t-ddb59a
+      title: 补告警口径用例与四条反例锁
+      implements: ① 新建 tests/test_data_quality_alert_scope.py，实现设计 test-cases 文档 §1 的 T8-T17：域内均值与 D 计数（不含存量）、阈值双向边界（20/21、88.0/87.9）、掉出名单与 20 只截断不冒充 count、回填样本门槛（n=7 不判 / n=10 判）、回填目标限域、original_count 非 0、count_by_grade_on 去重、partial 截断标注、per_symbol 缺失降级；② 更新 tests/test_data_quality_job_guardrails.py:70 的替身 check_data_quality，补 per_symbol；③ 四条反例锁 L1-L4 在改动前的代码上各跑一次并保留输出。
+      serves:
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+      depends_on:
+        - t-6e752d
+      phase: test
+      side: backend
+    - id: t-a300ce
+      title: 变更 task 232 阈值配置并实跑复验出证据
+      implements: "① 执行 UPDATE quant.scheduler_tasks SET params = params || '{\"quality_threshold\": 88.0}' WHERE id = 232;（幂等，旧值 95.0 已记录在迁移清单里）；② 手动触发一次每日数据质量检查任务，采集告警日志段与最新调度 run 记录的 result（domain / domain_dropped / alert_scope / alert_thresholds）；③ 核对回填目标是否 100% 在域内、All data providers failed 新增条数、original_count 是否 > 0。"
+      serves:
+        - FR-2
+        - FR-4
+        - FR-5
+        - FR-6
+      depends_on:
+        - t-ddb59a
+      phase: implement
+      side: backend
+    - id: t-3faf17
+      title: 落盘迁移、兼容与回滚清单
+      implements: 新建 docs/requirements/REQ-261006163444-8e4f/notes/migration-rollback.md，写清五节：① 零 schema 变更的声明与依据；② 旧调用方核对清单（adapters/inbound/fastapi_app/routes/data_quality_async.py:162、tests/test_data_validator_anomaly_detection.py:212、tests/test_data_quality_job_guardrails.py:70 的替身）逐条结论；③ 配置旧值 quality_threshold=95.0 与回滚步骤（还原提交 + 改回 95.0）；④ 历史 original_count=0 行的阅读口径（2026-10-06 前不可用、不追改）；⑤ 部分回滚的两条路径与后果。
+      serves:
+        - FR-5
+        - FR-6
+      depends_on:
+        - t-6e752d
+      phase: doc
+      side: doc
+    - id: t-721a23
+      title: 新增分域纯函数模块 kline_domain.py（契约先行）·研发
+      implements: |-
+        新建 application/services/kline_domain.py，按设计 interfaces 文档 §1 定死符号：DomainSnapshot（frozen dataclass，字段照抄）、classify_domain(trade_dates_desc, symbol_last_dates)、build_domain_snapshot(kline_repo)；常量 TRADABLE_MAX_GAP=0 / STOCK_MIN_GAP=5 / UNKNOWN_GAP=9999。gap = rank(D_last) - rank(mx)（交易日倒序名次，D_last 名次 1）；mx 不在交易日集合 ⇒ 9999。dropped_new = {s | gap == 1}；dropped_known = prev_trade_date is not None；查询/解析异常收敛为 degraded=True + degrade_reason（不抛）。本卡只写模块与 docstring，不接线到作业。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-b0347e
+      title: 新增分域纯函数模块 kline_domain.py（契约先行）·联调
+      implements: |-
+        新建 application/services/kline_domain.py，按设计 interfaces 文档 §1 定死符号：DomainSnapshot（frozen dataclass，字段照抄）、classify_domain(trade_dates_desc, symbol_last_dates)、build_domain_snapshot(kline_repo)；常量 TRADABLE_MAX_GAP=0 / STOCK_MIN_GAP=5 / UNKNOWN_GAP=9999。gap = rank(D_last) - rank(mx)（交易日倒序名次，D_last 名次 1）；mx 不在交易日集合 ⇒ 9999。dropped_new = {s | gap == 1}；dropped_known = prev_trade_date is not None；查询/解析异常收敛为 degraded=True + degrade_reason（不抛）。本卡只写模块与 docstring，不接线到作业。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-721a23
+      phase: implement
+      side: backend
+    - id: t-225332
+      title: 新增分域纯函数模块 kline_domain.py（契约先行）·复核
+      implements: |-
+        新建 application/services/kline_domain.py，按设计 interfaces 文档 §1 定死符号：DomainSnapshot（frozen dataclass，字段照抄）、classify_domain(trade_dates_desc, symbol_last_dates)、build_domain_snapshot(kline_repo)；常量 TRADABLE_MAX_GAP=0 / STOCK_MIN_GAP=5 / UNKNOWN_GAP=9999。gap = rank(D_last) - rank(mx)（交易日倒序名次，D_last 名次 1）；mx 不在交易日集合 ⇒ 9999。dropped_new = {s | gap == 1}；dropped_known = prev_trade_date is not None；查询/解析异常收敛为 degraded=True + degrade_reason（不抛）。本卡只写模块与 docstring，不接线到作业。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-b0347e
+      phase: implement
+      side: backend
+    - id: t-a0b465
+      title: 新增分域纯函数模块 kline_domain.py（契约先行）·测试
+      implements: |-
+        新建 application/services/kline_domain.py，按设计 interfaces 文档 §1 定死符号：DomainSnapshot（frozen dataclass，字段照抄）、classify_domain(trade_dates_desc, symbol_last_dates)、build_domain_snapshot(kline_repo)；常量 TRADABLE_MAX_GAP=0 / STOCK_MIN_GAP=5 / UNKNOWN_GAP=9999。gap = rank(D_last) - rank(mx)（交易日倒序名次，D_last 名次 1）；mx 不在交易日集合 ⇒ 9999。dropped_new = {s | gap == 1}；dropped_known = prev_trade_date is not None；查询/解析异常收敛为 degraded=True + degrade_reason（不抛）。本卡只写模块与 docstring，不接线到作业。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-225332
+      phase: implement
+      side: backend
+    - id: t-0724f1
+      title: 仓储加分域只读方法并把评级计数改为 distinct·研发
+      implements: |-
+        ① 在 kline_repository.py 里给 KlineORMRepository 加 list_recent_trade_dates(limit=2)（SELECT DISTINCT trade_date ORDER BY DESC LIMIT n）与 list_symbol_last_trade_date()（GROUP BY symbol 的 MAX(trade_date)），不加时间过滤（死标的必须可见）；② 在 kline_quality_repository.py 把 count_by_grade_on(grade, day=None, symbols=None) 改为 count(distinct symbol)，symbols 非空时加 in_ 过滤，保留 _safe_rollback 语义与 func.date(created_at) 的当日口径。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-d8de1a
+      title: 仓储加分域只读方法并把评级计数改为 distinct·联调
+      implements: |-
+        ① 在 kline_repository.py 里给 KlineORMRepository 加 list_recent_trade_dates(limit=2)（SELECT DISTINCT trade_date ORDER BY DESC LIMIT n）与 list_symbol_last_trade_date()（GROUP BY symbol 的 MAX(trade_date)），不加时间过滤（死标的必须可见）；② 在 kline_quality_repository.py 把 count_by_grade_on(grade, day=None, symbols=None) 改为 count(distinct symbol)，symbols 非空时加 in_ 过滤，保留 _safe_rollback 语义与 func.date(created_at) 的当日口径。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-0724f1
+      phase: implement
+      side: backend
+    - id: t-1aabe8
+      title: 仓储加分域只读方法并把评级计数改为 distinct·复核
+      implements: |-
+        ① 在 kline_repository.py 里给 KlineORMRepository 加 list_recent_trade_dates(limit=2)（SELECT DISTINCT trade_date ORDER BY DESC LIMIT n）与 list_symbol_last_trade_date()（GROUP BY symbol 的 MAX(trade_date)），不加时间过滤（死标的必须可见）；② 在 kline_quality_repository.py 把 count_by_grade_on(grade, day=None, symbols=None) 改为 count(distinct symbol)，symbols 非空时加 in_ 过滤，保留 _safe_rollback 语义与 func.date(created_at) 的当日口径。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-d8de1a
+      phase: implement
+      side: backend
+    - id: t-306059
+      title: 仓储加分域只读方法并把评级计数改为 distinct·测试
+      implements: |-
+        ① 在 kline_repository.py 里给 KlineORMRepository 加 list_recent_trade_dates(limit=2)（SELECT DISTINCT trade_date ORDER BY DESC LIMIT n）与 list_symbol_last_trade_date()（GROUP BY symbol 的 MAX(trade_date)），不加时间过滤（死标的必须可见）；② 在 kline_quality_repository.py 把 count_by_grade_on(grade, day=None, symbols=None) 改为 count(distinct symbol)，symbols 非空时加 in_ 过滤，保留 _safe_rollback 语义与 func.date(created_at) 的当日口径。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-1aabe8
+      phase: implement
+      side: backend
+    - id: t-2c8a18
+      title: 服务层返回 per_symbol 全量事实并修 original_count 取键·研发
+      implements: |-
+        改 application/services/data_quality_service.py：① check_data_quality 循环内把每只标的的 coverage_rate / missing_days_count / quality_score / overall_score / grade / has_duplicates / has_anomalies / anomaly_unknown 收进 per_symbol（唯一一次 _calculate_grade 调用），返回体新增 per_symbol 键（形状照设计 data-model 文档 §6）；② _persist_quality_audit 的 original_count 改取 gap_info.get('total_trading_days', 0)，grade/overall_score 改为接收循环内算好的值不再重算；③ summary 既有键一个不改。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-3b5da9
+      title: 服务层返回 per_symbol 全量事实并修 original_count 取键·联调
+      implements: |-
+        改 application/services/data_quality_service.py：① check_data_quality 循环内把每只标的的 coverage_rate / missing_days_count / quality_score / overall_score / grade / has_duplicates / has_anomalies / anomaly_unknown 收进 per_symbol（唯一一次 _calculate_grade 调用），返回体新增 per_symbol 键（形状照设计 data-model 文档 §6）；② _persist_quality_audit 的 original_count 改取 gap_info.get('total_trading_days', 0)，grade/overall_score 改为接收循环内算好的值不再重算；③ summary 既有键一个不改。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-2c8a18
+      phase: implement
+      side: backend
+    - id: t-acb9b3
+      title: 服务层返回 per_symbol 全量事实并修 original_count 取键·复核
+      implements: |-
+        改 application/services/data_quality_service.py：① check_data_quality 循环内把每只标的的 coverage_rate / missing_days_count / quality_score / overall_score / grade / has_duplicates / has_anomalies / anomaly_unknown 收进 per_symbol（唯一一次 _calculate_grade 调用），返回体新增 per_symbol 键（形状照设计 data-model 文档 §6）；② _persist_quality_audit 的 original_count 改取 gap_info.get('total_trading_days', 0)，grade/overall_score 改为接收循环内算好的值不再重算；③ summary 既有键一个不改。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-3b5da9
+      phase: implement
+      side: backend
+    - id: t-097096
+      title: 服务层返回 per_symbol 全量事实并修 original_count 取键·测试
+      implements: |-
+        改 application/services/data_quality_service.py：① check_data_quality 循环内把每只标的的 coverage_rate / missing_days_count / quality_score / overall_score / grade / has_duplicates / has_anomalies / anomaly_unknown 收进 per_symbol（唯一一次 _calculate_grade 调用），返回体新增 per_symbol 键（形状照设计 data-model 文档 §6）；② _persist_quality_audit 的 original_count 改取 gap_info.get('total_trading_days', 0)，grade/overall_score 改为接收循环内算好的值不再重算；③ summary 既有键一个不改。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-acb9b3
+      phase: implement
+      side: backend
+    - id: t-e5556c
+      title: 作业层接线：域内聚合、新告警判据与回填限域·研发
+      implements: |-
+        改 infrastructure/jobs/data_quality_check_job.py：① _normalize_params 新增 d_grade_threshold=20、quality_threshold 缺省改 88.0、coverage_info_threshold=97.0、backfill_fail_rate_threshold=50.0、backfill_min_sample=10，全部进 effective_params 与 param_notes；② 检查前 build_domain_snapshot(service.kline_repo)；③ 回填候选集改为 per_symbol 里 missing_days_count>0 且 symbol in domain.tradable，仍按缺失天数降序（不再用 stocks_with_issues 的前 50 条）；④ _check_quality_alerts(result, domain, per_symbol, thresholds) 算 DomainStats，判据为域内 D级>20 / 评分<88.0 / 覆盖率仅信息项 / 回填失败率>50% 且 n>=10 / dropped_new 非空→warning，result 新增 alert_scope、domain、domain_dropped、alert_thresholds；⑤ _send_quality_alerts(alerts, stats, thresholds) 按设计 interfaces 文档 §5 渲染正文；⑥ 降级分支：domain.degraded 或 per_symbol 缺失 ⇒ error 项 qa_scope_unavailable，alert_scope='degraded'，不回退 count_by_grade_on。负向：per_symbol 不得进入 result 或日志全文。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-839a64
+        - t-f2d177
+        - t-baed9f
+      phase: implement
+      side: backend
+    - id: t-3fe312
+      title: 作业层接线：域内聚合、新告警判据与回填限域·联调
+      implements: |-
+        改 infrastructure/jobs/data_quality_check_job.py：① _normalize_params 新增 d_grade_threshold=20、quality_threshold 缺省改 88.0、coverage_info_threshold=97.0、backfill_fail_rate_threshold=50.0、backfill_min_sample=10，全部进 effective_params 与 param_notes；② 检查前 build_domain_snapshot(service.kline_repo)；③ 回填候选集改为 per_symbol 里 missing_days_count>0 且 symbol in domain.tradable，仍按缺失天数降序（不再用 stocks_with_issues 的前 50 条）；④ _check_quality_alerts(result, domain, per_symbol, thresholds) 算 DomainStats，判据为域内 D级>20 / 评分<88.0 / 覆盖率仅信息项 / 回填失败率>50% 且 n>=10 / dropped_new 非空→warning，result 新增 alert_scope、domain、domain_dropped、alert_thresholds；⑤ _send_quality_alerts(alerts, stats, thresholds) 按设计 interfaces 文档 §5 渲染正文；⑥ 降级分支：domain.degraded 或 per_symbol 缺失 ⇒ error 项 qa_scope_unavailable，alert_scope='degraded'，不回退 count_by_grade_on。负向：per_symbol 不得进入 result 或日志全文。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-e5556c
+      phase: implement
+      side: backend
+    - id: t-e8d8e3
+      title: 作业层接线：域内聚合、新告警判据与回填限域·复核
+      implements: |-
+        改 infrastructure/jobs/data_quality_check_job.py：① _normalize_params 新增 d_grade_threshold=20、quality_threshold 缺省改 88.0、coverage_info_threshold=97.0、backfill_fail_rate_threshold=50.0、backfill_min_sample=10，全部进 effective_params 与 param_notes；② 检查前 build_domain_snapshot(service.kline_repo)；③ 回填候选集改为 per_symbol 里 missing_days_count>0 且 symbol in domain.tradable，仍按缺失天数降序（不再用 stocks_with_issues 的前 50 条）；④ _check_quality_alerts(result, domain, per_symbol, thresholds) 算 DomainStats，判据为域内 D级>20 / 评分<88.0 / 覆盖率仅信息项 / 回填失败率>50% 且 n>=10 / dropped_new 非空→warning，result 新增 alert_scope、domain、domain_dropped、alert_thresholds；⑤ _send_quality_alerts(alerts, stats, thresholds) 按设计 interfaces 文档 §5 渲染正文；⑥ 降级分支：domain.degraded 或 per_symbol 缺失 ⇒ error 项 qa_scope_unavailable，alert_scope='degraded'，不回退 count_by_grade_on。负向：per_symbol 不得进入 result 或日志全文。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-3fe312
+      phase: implement
+      side: backend
+    - id: t-cba0af
+      title: 作业层接线：域内聚合、新告警判据与回填限域·测试
+      implements: |-
+        改 infrastructure/jobs/data_quality_check_job.py：① _normalize_params 新增 d_grade_threshold=20、quality_threshold 缺省改 88.0、coverage_info_threshold=97.0、backfill_fail_rate_threshold=50.0、backfill_min_sample=10，全部进 effective_params 与 param_notes；② 检查前 build_domain_snapshot(service.kline_repo)；③ 回填候选集改为 per_symbol 里 missing_days_count>0 且 symbol in domain.tradable，仍按缺失天数降序（不再用 stocks_with_issues 的前 50 条）；④ _check_quality_alerts(result, domain, per_symbol, thresholds) 算 DomainStats，判据为域内 D级>20 / 评分<88.0 / 覆盖率仅信息项 / 回填失败率>50% 且 n>=10 / dropped_new 非空→warning，result 新增 alert_scope、domain、domain_dropped、alert_thresholds；⑤ _send_quality_alerts(alerts, stats, thresholds) 按设计 interfaces 文档 §5 渲染正文；⑥ 降级分支：domain.degraded 或 per_symbol 缺失 ⇒ error 项 qa_scope_unavailable，alert_scope='degraded'，不回退 count_by_grade_on。负向：per_symbol 不得进入 result 或日志全文。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-e8d8e3
+      phase: implement
+      side: backend
+    - id: t-eb3ca1
+      title: 补分域纯函数用例（含 gap 边界与不变量）·研发
+      implements: |-
+        新建 tests/test_kline_domain.py，实现设计 test-cases 文档 §1 的 T1-T7：三分法（gap 0/2/大）、gap 恰好 4 与 5 的边界闭合、gap==1 同时落 observing∩dropped_new、只有一个交易日时 dropped_known False、空输入 degraded 且不抛、mx 不在交易日集合落 stock 且 gap==9999、三集合两两不相交且并集等于 gap_days 键集。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-839a64
+      phase: test
+      side: backend
+    - id: t-21bcc0
+      title: 补分域纯函数用例（含 gap 边界与不变量）·复核
+      implements: |-
+        新建 tests/test_kline_domain.py，实现设计 test-cases 文档 §1 的 T1-T7：三分法（gap 0/2/大）、gap 恰好 4 与 5 的边界闭合、gap==1 同时落 observing∩dropped_new、只有一个交易日时 dropped_known False、空输入 degraded 且不抛、mx 不在交易日集合落 stock 且 gap==9999、三集合两两不相交且并集等于 gap_days 键集。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-eb3ca1
+      phase: test
+      side: backend
+    - id: t-0da0b9
+      title: 补分域纯函数用例（含 gap 边界与不变量）·测试
+      implements: |-
+        新建 tests/test_kline_domain.py，实现设计 test-cases 文档 §1 的 T1-T7：三分法（gap 0/2/大）、gap 恰好 4 与 5 的边界闭合、gap==1 同时落 observing∩dropped_new、只有一个交易日时 dropped_known False、空输入 degraded 且不抛、mx 不在交易日集合落 stock 且 gap==9999、三集合两两不相交且并集等于 gap_days 键集。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-21bcc0
+      phase: test
+      side: backend
+    - id: t-8138f0
+      title: 补告警口径用例与四条反例锁·研发
+      implements: |-
+        ① 新建 tests/test_data_quality_alert_scope.py，实现设计 test-cases 文档 §1 的 T8-T17：域内均值与 D 计数（不含存量）、阈值双向边界（20/21、88.0/87.9）、掉出名单与 20 只截断不冒充 count、回填样本门槛（n=7 不判 / n=10 判）、回填目标限域、original_count 非 0、count_by_grade_on 去重、partial 截断标注、per_symbol 缺失降级；② 更新 tests/test_data_quality_job_guardrails.py:70 的替身 check_data_quality，补 per_symbol；③ 四条反例锁 L1-L4 在改动前的代码上各跑一次并保留输出。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-6e752d
+      phase: test
+      side: backend
+    - id: t-f7a18c
+      title: 补告警口径用例与四条反例锁·复核
+      implements: |-
+        ① 新建 tests/test_data_quality_alert_scope.py，实现设计 test-cases 文档 §1 的 T8-T17：域内均值与 D 计数（不含存量）、阈值双向边界（20/21、88.0/87.9）、掉出名单与 20 只截断不冒充 count、回填样本门槛（n=7 不判 / n=10 判）、回填目标限域、original_count 非 0、count_by_grade_on 去重、partial 截断标注、per_symbol 缺失降级；② 更新 tests/test_data_quality_job_guardrails.py:70 的替身 check_data_quality，补 per_symbol；③ 四条反例锁 L1-L4 在改动前的代码上各跑一次并保留输出。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-8138f0
+      phase: test
+      side: backend
+    - id: t-37d890
+      title: 补告警口径用例与四条反例锁·测试
+      implements: |-
+        ① 新建 tests/test_data_quality_alert_scope.py，实现设计 test-cases 文档 §1 的 T8-T17：域内均值与 D 计数（不含存量）、阈值双向边界（20/21、88.0/87.9）、掉出名单与 20 只截断不冒充 count、回填样本门槛（n=7 不判 / n=10 判）、回填目标限域、original_count 非 0、count_by_grade_on 去重、partial 截断标注、per_symbol 缺失降级；② 更新 tests/test_data_quality_job_guardrails.py:70 的替身 check_data_quality，补 per_symbol；③ 四条反例锁 L1-L4 在改动前的代码上各跑一次并保留输出。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-f7a18c
+      phase: test
+      side: backend
+    - id: t-5cd45f
+      title: 落盘迁移、兼容与回滚清单·研发
+      implements: |-
+        新建 docs/requirements/REQ-261006163444-8e4f/notes/migration-rollback.md，写清五节：① 零 schema 变更的声明与依据；② 旧调用方核对清单（adapters/inbound/fastapi_app/routes/data_quality_async.py:162、tests/test_data_validator_anomaly_detection.py:212、tests/test_data_quality_job_guardrails.py:70 的替身）逐条结论；③ 配置旧值 quality_threshold=95.0 与回滚步骤（还原提交 + 改回 95.0）；④ 历史 original_count=0 行的阅读口径（2026-10-06 前不可用、不追改）；⑤ 部分回滚的两条路径与后果。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-6e752d
+      phase: doc
+      side: doc
+    - id: t-a331d8
+      title: 落盘迁移、兼容与回滚清单·复核
+      implements: |-
+        新建 docs/requirements/REQ-261006163444-8e4f/notes/migration-rollback.md，写清五节：① 零 schema 变更的声明与依据；② 旧调用方核对清单（adapters/inbound/fastapi_app/routes/data_quality_async.py:162、tests/test_data_validator_anomaly_detection.py:212、tests/test_data_quality_job_guardrails.py:70 的替身）逐条结论；③ 配置旧值 quality_threshold=95.0 与回滚步骤（还原提交 + 改回 95.0）；④ 历史 original_count=0 行的阅读口径（2026-10-06 前不可用、不追改）；⑤ 部分回滚的两条路径与后果。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-5cd45f
+      phase: doc
+      side: doc
+    - id: t-067110
+      title: 变更 task 232 阈值配置并实跑复验出证据·研发
+      implements: |-
+        ① 执行 UPDATE quant.scheduler_tasks SET params = params || '{"quality_threshold": 88.0}' WHERE id = 232;（幂等，旧值 95.0 已记录在迁移清单里）；② 手动触发一次每日数据质量检查任务，采集告警日志段与最新调度 run 记录的 result（domain / domain_dropped / alert_scope / alert_thresholds）；③ 核对回填目标是否 100% 在域内、All data providers failed 新增条数、original_count 是否 > 0。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-ddb59a
+      phase: implement
+      side: backend
+    - id: t-6253e3
+      title: 变更 task 232 阈值配置并实跑复验出证据·联调
+      implements: |-
+        ① 执行 UPDATE quant.scheduler_tasks SET params = params || '{"quality_threshold": 88.0}' WHERE id = 232;（幂等，旧值 95.0 已记录在迁移清单里）；② 手动触发一次每日数据质量检查任务，采集告警日志段与最新调度 run 记录的 result（domain / domain_dropped / alert_scope / alert_thresholds）；③ 核对回填目标是否 100% 在域内、All data providers failed 新增条数、original_count 是否 > 0。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-067110
+      phase: implement
+      side: backend
+    - id: t-0607de
+      title: 变更 task 232 阈值配置并实跑复验出证据·复核
+      implements: |-
+        ① 执行 UPDATE quant.scheduler_tasks SET params = params || '{"quality_threshold": 88.0}' WHERE id = 232;（幂等，旧值 95.0 已记录在迁移清单里）；② 手动触发一次每日数据质量检查任务，采集告警日志段与最新调度 run 记录的 result（domain / domain_dropped / alert_scope / alert_thresholds）；③ 核对回填目标是否 100% 在域内、All data providers failed 新增条数、original_count 是否 > 0。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-6253e3
+      phase: implement
+      side: backend
+    - id: t-7a9c7e
+      title: 变更 task 232 阈值配置并实跑复验出证据·测试
+      implements: |-
+        ① 执行 UPDATE quant.scheduler_tasks SET params = params || '{"quality_threshold": 88.0}' WHERE id = 232;（幂等，旧值 95.0 已记录在迁移清单里）；② 手动触发一次每日数据质量检查任务，采集告警日志段与最新调度 run 记录的 result（domain / domain_dropped / alert_scope / alert_thresholds）；③ 核对回填目标是否 100% 在域内、All data providers failed 新增条数、original_count 是否 > 0。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-0607de
+      phase: implement
+      side: backend
+task_coverage:
+  - task_id: t-839a64
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-f2d177
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-baed9f
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-6e752d
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-588941
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-ddb59a
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-a300ce
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-3faf17
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-721a23
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-b0347e
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-225332
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-a0b465
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-0724f1
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-d8de1a
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-1aabe8
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-306059
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-2c8a18
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-3b5da9
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-acb9b3
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-097096
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-e5556c
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-3fe312
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-e8d8e3
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-cba0af
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-eb3ca1
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-21bcc0
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-0da0b9
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-8138f0
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-f7a18c
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-37d890
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-5cd45f
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-a331d8
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-067110
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-6253e3
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-0607de
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-7a9c7e
+    covers_prototypes: []
+    covers_decisions: []
+traceability:
+  design_to_tasks:
+    design/architecture.md#1:
+      - t-839a64
+      - t-f2d177
+      - t-baed9f
+      - t-6e752d
+      - t-588941
+      - t-ddb59a
+      - t-a300ce
+    design/architecture.md#2:
+      - t-839a64
+      - t-f2d177
+      - t-6e752d
+      - t-588941
+      - t-ddb59a
+    design/architecture.md#2.1:
+      - t-839a64
+      - t-6e752d
+      - t-588941
+      - t-ddb59a
+    design/architecture.md#3:
+      - t-f2d177
+      - t-baed9f
+      - t-6e752d
+      - t-ddb59a
+      - t-a300ce
+    design/architecture.md#4:
+      - t-839a64
+      - t-f2d177
+      - t-baed9f
+      - t-6e752d
+      - t-588941
+      - t-ddb59a
+      - t-a300ce
+      - t-3faf17
+    design/architecture.md#5:
+      - t-f2d177
+      - t-baed9f
+      - t-6e752d
+      - t-ddb59a
+      - t-a300ce
+    design/architecture.md#6:
+      - t-f2d177
+      - t-baed9f
+      - t-6e752d
+      - t-ddb59a
+      - t-a300ce
+    design/architecture.md#7:
+      - t-839a64
+      - t-baed9f
+      - t-6e752d
+      - t-588941
+      - t-ddb59a
+      - t-a300ce
+      - t-3faf17
+    design/architecture.md#8:
+      - t-839a64
+      - t-6e752d
+      - t-588941
+      - t-ddb59a
+    design/data-model.md#1:
+      - t-839a64
+      - t-f2d177
+      - t-baed9f
+      - t-6e752d
+      - t-588941
+      - t-ddb59a
+      - t-a300ce
+    design/data-model.md#2:
+      - t-839a64
+      - t-f2d177
+      - t-6e752d
+      - t-588941
+    design/data-model.md#3:
+      - t-baed9f
+      - t-ddb59a
+      - t-a300ce
+      - t-3faf17
+    design/data-model.md#4:
+      - t-839a64
+      - t-f2d177
+      - t-baed9f
+      - t-6e752d
+      - t-588941
+      - t-ddb59a
+      - t-a300ce
+    design/data-model.md#5:
+      - t-6e752d
+      - t-ddb59a
+      - t-a300ce
+    design/data-model.md#6:
+      - t-f2d177
+      - t-baed9f
+      - t-6e752d
+      - t-ddb59a
+      - t-a300ce
+    design/data-model.md#7:
+      - t-839a64
+      - t-baed9f
+      - t-6e752d
+      - t-588941
+      - t-ddb59a
+      - t-a300ce
+      - t-3faf17
+    design/interfaces.md#1:
+      - t-839a64
+      - t-f2d177
+      - t-6e752d
+      - t-588941
+      - t-ddb59a
+    design/interfaces.md#2:
+      - t-839a64
+      - t-f2d177
+      - t-baed9f
+      - t-6e752d
+      - t-588941
+      - t-ddb59a
+      - t-a300ce
+    design/interfaces.md#2.1:
+      - t-839a64
+      - t-f2d177
+      - t-6e752d
+      - t-588941
+    design/interfaces.md#2.2:
+      - t-f2d177
+      - t-baed9f
+      - t-6e752d
+      - t-ddb59a
+      - t-a300ce
+    design/interfaces.md#3:
+      - t-f2d177
+      - t-baed9f
+      - t-6e752d
+      - t-ddb59a
+      - t-a300ce
+    design/interfaces.md#4:
+      - t-839a64
+      - t-f2d177
+      - t-baed9f
+      - t-6e752d
+      - t-588941
+      - t-ddb59a
+      - t-a300ce
+    design/interfaces.md#4.1:
+      - t-839a64
+      - t-f2d177
+      - t-6e752d
+      - t-588941
+      - t-ddb59a
+      - t-a300ce
+    design/interfaces.md#4.2:
+      - t-839a64
+      - t-f2d177
+      - t-baed9f
+      - t-6e752d
+      - t-588941
+      - t-ddb59a
+      - t-a300ce
+    design/interfaces.md#4.3:
+      - t-f2d177
+      - t-baed9f
+      - t-6e752d
+      - t-ddb59a
+      - t-a300ce
+    design/interfaces.md#5:
+      - t-839a64
+      - t-f2d177
+      - t-baed9f
+      - t-6e752d
+      - t-588941
+      - t-ddb59a
+      - t-a300ce
+    design/interfaces.md#6:
+      - t-6e752d
+      - t-ddb59a
+      - t-a300ce
+    design/interfaces.md#7:
+      - t-839a64
+      - t-f2d177
+      - t-6e752d
+      - t-588941
+      - t-ddb59a
+    design/interfaces.md#8:
+      - t-f2d177
+      - t-baed9f
+      - t-6e752d
+      - t-588941
+      - t-ddb59a
+      - t-a300ce
+      - t-3faf17
+    design/use-cases.md#1:
+      - t-f2d177
+      - t-baed9f
+      - t-6e752d
+      - t-ddb59a
+      - t-a300ce
+    design/use-cases.md#2:
+      - t-f2d177
+      - t-baed9f
+      - t-6e752d
+      - t-ddb59a
+      - t-a300ce
+    design/use-cases.md#3:
+      - t-839a64
+      - t-6e752d
+      - t-588941
+      - t-ddb59a
+    design/use-cases.md#4:
+      - t-839a64
+      - t-f2d177
+      - t-6e752d
+      - t-588941
+      - t-ddb59a
+    design/use-cases.md#5:
+      - t-6e752d
+      - t-ddb59a
+      - t-a300ce
+    design/use-cases.md#6:
+      - t-f2d177
+      - t-baed9f
+      - t-6e752d
+      - t-ddb59a
+      - t-a300ce
+    design/use-cases.md#7:
+      - t-839a64
+      - t-f2d177
+      - t-6e752d
+      - t-588941
+      - t-ddb59a
+    design/use-cases.md#8:
+      - t-f2d177
+      - t-baed9f
+      - t-6e752d
+      - t-ddb59a
+      - t-a300ce
+    design/use-cases.md#9:
+      - t-6e752d
+      - t-ddb59a
+      - t-a300ce
+    design/use-cases.md#10:
+      - t-839a64
+      - t-f2d177
+      - t-baed9f
+      - t-6e752d
+      - t-588941
+      - t-ddb59a
+      - t-a300ce
+    design/use-cases.md#11:
+      - t-baed9f
+      - t-588941
+      - t-ddb59a
+      - t-a300ce
+      - t-3faf17
+  fr_to_tasks:
+    FR-1:
+      - t-839a64
+      - t-f2d177
+      - t-baed9f
+      - t-6e752d
+      - t-588941
+      - t-ddb59a
+      - t-a300ce
+      - t-3faf17
+    FR-2:
+      - t-839a64
+      - t-f2d177
+      - t-baed9f
+      - t-6e752d
+      - t-588941
+      - t-ddb59a
+      - t-a300ce
+      - t-3faf17
+    FR-3:
+      - t-839a64
+      - t-f2d177
+      - t-6e752d
+      - t-588941
+      - t-ddb59a
+      - t-baed9f
+      - t-a300ce
+      - t-3faf17
+    FR-4:
+      - t-839a64
+      - t-f2d177
+      - t-baed9f
+      - t-6e752d
+      - t-588941
+      - t-ddb59a
+      - t-a300ce
+      - t-3faf17
+    FR-5:
+      - t-839a64
+      - t-f2d177
+      - t-baed9f
+      - t-6e752d
+      - t-588941
+      - t-ddb59a
+      - t-a300ce
+      - t-3faf17
+    FR-6:
+      - t-839a64
+      - t-f2d177
+      - t-baed9f
+      - t-6e752d
+      - t-588941
+      - t-ddb59a
+      - t-a300ce
+      - t-3faf17
+coverage:
+  implementation:
+    total: 40
+    covered: 40
+    uncovered: []
+    rate: 100
+    total_designs: 40
+    covered_designs: 40

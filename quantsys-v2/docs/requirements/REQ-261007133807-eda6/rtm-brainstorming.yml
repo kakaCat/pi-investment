@@ -1,0 +1,55 @@
+metadata:
+  stage: brainstorming
+  requirement_id: REQ-261007133807-eda6
+  generated_at: 2026-10-07T09:14:09.764Z
+  version: 4
+  generated_by: dsh-pmboard
+  rtm_version: "2.0"
+  last_updated: 2026-10-07T11:24:35.290Z
+outputs:
+  requirements: []
+  prototypes: []
+  decisions:
+    - id: D-1
+      source: 交接方窗口用户消息（2026-10-07 13:0x，经 `REQ-261007101318-c392` 的 D-10 转记）：「③ L1 是agent设置的，也应该设置何时调用agent的规则」
+      verdict: 本项**立为独立需求**（判据收敛 + 显式化 + 可见化），不在 c392 内实现
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+      criterion: 承接凭证：`reqboard_capture(on_window_bound=handoff)` 回执 `bound_policy=handoff`；本窗口 = owner `session-f9c75862-cab1-4a4d-b7b3-9d69c6c42d49`
+    - id: D-2
+      source: 立项五问弹框作答（本需求，2026-10-07 13:38，留痕 `comments.jsonl` c-da9a98）
+      verdict: 名称「「何时叫 agent」判据收敛与可见化（升级路径单一入口）」/ 类型 **feature** / 难度 **expert** / 文档落 `docs/requirements/<REQ>/`
+      serves:
+        - FR-2
+        - FR-5
+      criterion: "类型与难度决定文档集与档位：本文件存在且经 `reqboard_submit(kind=requirement)` 登记（回执 `registered: true`）"
+    - id: D-3
+      source: 本窗口弹框作答（2026-10-07 17:1x）：「A 判定收敛 + 可见化（推荐）」
+      verdict: '**范围 = A**：既做单一裁决出口（枚举理由码），也做理由码落库 + 卡面可见 + 规则侧显式；不选"只可见化"或"只收敛"'
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      criterion: 用户选项原文；本产物经 `reqboard_ask_confirm(target=artifact, kind=requirement)` 落章
+    - id: D-4
+      source: 本窗口弹框作答（2026-10-07 17:1x）：「创建/修改时显式化 + 只读回显（推荐）」
+      verdict: 规则侧强度：创建/修改时写**显式生效值**并可覆写 + 查询只读回显；**未显式声明的存量规则不拒**、语义不变（明确否掉"强制声明即拒"）
+      serves:
+        - FR-4
+      criterion: 同上；E4 实测存量 7 条策略全 NULL ⇒ 必须兼容存量
+    - id: D-5
+      source: 本 agent 读码所得（E1~E9、R1~R4），供 design 阶段遵守
+      verdict: ① 判定收敛到**一个**出口，禁止第三处 `trigger_level=='L2'` 独立叫醒；② 理由码**枚举 + 全量覆盖**（含"没叫"的码），不许只覆盖 `escalated`；③ 卡面是**追加行**，不得重写 c392 已定四段契约；④ **唤醒量不增**（回归锁）；⑤ 不复活已删除的五条历史升级路径
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-5
+      criterion: E1/E2/E3/E7/E9 的 file:line 取证；R2（`decide()` 已有出口形态）与 R4（三条路径本身可信）
+status:
+  artifacts: []

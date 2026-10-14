@@ -1,0 +1,37 @@
+task:
+  id: t-985e3a
+  title: 数据层用例：计数不变式、无 skipped、computed 兼容、只读聚合口径·研发
+  status: done
+  implements: |-
+    增补 tests/services/evolution/test_evolution_fitness_service.py（5 条：四类计数和等于 accounts_total；NULL 行不计入 computed_ok；返回体不含 skipped 键；computed 等于 accounts_total 的兼容锁；aligned_days 正确）与 tests/repositories/test_evolution_fitness_repository.py（2 条：倒序与 ok 计数正确、get_last_ok_window_end 忽略非 ok 且全非 ok 返回 None）。复用既有 _make_service 的 Mock 注入范式，不新造夹具风格。
+
+    [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+  serves: []
+  depends_on:
+    - t-c0941a
+    - t-17fce0
+  phase: test
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261005210015-1603
+    TASK_ID: t-985e3a
+    TASK_TITLE: 数据层用例：计数不变式、无 skipped、computed 兼容、只读聚合口径·研发
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: test
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: test
+      status: done
+      completed_at: 2026-10-05T13:20:23.942Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261005210015-1603
+  generated_at: 2026-10-05T13:20:23.553Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-05T13:20:37.339Z

@@ -74,6 +74,12 @@ def _patch_execute(monkeypatch, return_value):
 
     repo = _FakeRepo()
     monkeypatch.setattr(je, "_execute_command", lambda command, params: return_value)
+    # t-322d78（2026-10-05，**经父 agent 授权**的测试侧 1 行）：失败分支新增了第二条
+    # 可见性出口 `job_executor → application.observability.failure_sink → NotificationFacade`。
+    # 本文件是故障注入（必然走失败分支），不桩掉它就会被 notify-guard 判成"测试漏桩"
+    # （实测 2 条 ERROR）。打桩点取被调函数所在模块，不用转发壳。
+    from application.observability import failure_sink
+    monkeypatch.setattr(failure_sink, "report_failure", lambda **kwargs: False)
     # 屏蔽真实 DB 工厂（测试不落库）
     # execute_scheduled_job 在函数内 import SchedulerRepository / get_session，
     # 这里 patch 它们的定义源模块（函数内 import 解析的是模块全局名）

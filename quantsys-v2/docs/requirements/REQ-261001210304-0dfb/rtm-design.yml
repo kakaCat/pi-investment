@@ -1,0 +1,21 @@
+metadata:
+  stage: design
+  requirement_id: REQ-261001210304-0dfb
+  generated_at: 2026-10-01T13:08:57.356Z
+  version: 1
+  generated_by: dsh-pmboard
+  last_updated: 2026-10-01T13:08:57.356Z
+inputs:
+  requirements: []
+outputs:
+  design_sections: []
+traceability:
+  fr_to_design: {}
+coverage:
+  design:
+    total: 0
+    covered: 0
+    uncovered: []
+    rate: 100
+    total_frs: 0
+    covered_frs: 0

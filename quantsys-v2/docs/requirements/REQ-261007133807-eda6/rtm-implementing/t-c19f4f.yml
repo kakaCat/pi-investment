@@ -1,0 +1,42 @@
+task:
+  id: t-c19f4f
+  title: 判据文档与码表同源（修陈旧文案 + 契约判据表）·研发
+  status: in_progress
+  implements: |-
+    docs/architecture/watch-notification-contract.md 的已知瑕疵节换成「何时叫 agent 判据表」，逐行对应 EscalationCode 的码与是否叫；application/services/opportunity_to_watch_rule_service.py 的模块 docstring 删掉已删除的「触发频率异常时升级」表述；新增测试 tests/services/test_watch_contract_parity.py 断言文档判据表的码集合与代码码表一致。本卡无运行时接口面。
+
+    [子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要
+  serves: []
+  depends_on:
+    - t-2f1402
+  phase: doc
+  side: doc
+  workflow_params:
+    REQ_ID: REQ-261007133807-eda6
+    TASK_ID: t-c19f4f
+    TASK_TITLE: 判据文档与码表同源（修陈旧文案 + 契约判据表）·研发
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: doc
+    PHASE: doc
+  workflow_total: 4
+  workflow_done: 1
+  workflow:
+    - phase: doc
+      status: pending
+    - phase: implement
+      status: done
+      completed_at: 2026-10-07T11:04:04.298Z
+    - phase: test
+      status: pending
+    - phase: commit
+      status: pending
+metadata:
+  stage: implementing
+  requirement_id: REQ-261007133807-eda6
+  generated_at: 2026-10-07T11:04:04.298Z
+  version: 2
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 4
+  last_updated: 2026-10-07T11:04:04.299Z

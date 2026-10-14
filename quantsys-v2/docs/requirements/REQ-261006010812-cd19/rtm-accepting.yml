@@ -1,0 +1,192 @@
+metadata:
+  stage: accepting
+  requirement_id: REQ-261006010812-cd19
+  generated_at: 2026-10-06T01:34:45.916Z
+  version: 6
+  generated_by: dsh-pmboard
+  last_updated: 2026-10-06T01:40:29.540Z
+inputs:
+  tasks:
+    - id: t-9f0fbe
+      title: 设计文档自洽性 + 版本面取证
+      status: done
+    - id: t-3c2fb0
+      title: 实现一致性矩阵（面 B，逐条落点）
+      status: done
+    - id: t-881157
+      title: 只读库表事实 + 验收命令复跑
+      status: done
+    - id: t-9adb94
+      title: 设计未覆盖缺口审计
+      status: done
+    - id: t-e7f33f
+      title: 报告汇总 + 三道自检 + 抽查复现
+      status: done
+    - id: t-e2e068
+      title: 设计文档自洽性 + 版本面取证·取数调研
+      status: done
+    - id: t-83047e
+      title: 设计文档自洽性 + 版本面取证·分析
+      status: done
+    - id: t-69aedb
+      title: 设计文档自洽性 + 版本面取证·复核
+      status: done
+    - id: t-947815
+      title: 实现一致性矩阵（面 B，逐条落点）·取数调研
+      status: done
+    - id: t-2b228e
+      title: 实现一致性矩阵（面 B，逐条落点）·分析
+      status: done
+    - id: t-db3def
+      title: 实现一致性矩阵（面 B，逐条落点）·复核
+      status: done
+    - id: t-7b8637
+      title: 只读库表事实 + 验收命令复跑·取数调研
+      status: done
+    - id: t-ba6005
+      title: 只读库表事实 + 验收命令复跑·分析
+      status: done
+    - id: t-003c90
+      title: 只读库表事实 + 验收命令复跑·复核
+      status: done
+    - id: t-1e2867
+      title: 设计未覆盖缺口审计·取数调研
+      status: done
+    - id: t-539d6c
+      title: 设计未覆盖缺口审计·分析
+      status: done
+    - id: t-9faa06
+      title: 设计未覆盖缺口审计·复核
+      status: done
+    - id: t-3118e8
+      title: 报告汇总 + 三道自检 + 抽查复现·研发
+      status: done
+    - id: t-9c82c7
+      title: 报告汇总 + 三道自检 + 抽查复现·复核
+      status: done
+    - id: t-b3d14a
+      title: 返工：验收项不可照着验（历史数据）：以下验收项没写「怎么验」——验收项 设计文档自洽性 + 版本面取证·分析 缺「怎么验」（"
+      status: done
+    - id: t-587b54
+      title: 返工：验收项不可照着验（历史数据）：以下验收项没写「怎么验」——验收项 设计文档自洽性 + 版本面取证·分析 缺「怎么验」（"·研发
+      status: done
+    - id: t-dc82bd
+      title: 返工：验收项不可照着验（历史数据）：以下验收项没写「怎么验」——验收项 设计文档自洽性 + 版本面取证·分析 缺「怎么验」（"·联调
+      status: done
+    - id: t-adf822
+      title: 返工：验收项不可照着验（历史数据）：以下验收项没写「怎么验」——验收项 设计文档自洽性 + 版本面取证·分析 缺「怎么验」（"·复核
+      status: done
+    - id: t-bdfea6
+      title: 返工：验收项不可照着验（历史数据）：以下验收项没写「怎么验」——验收项 设计文档自洽性 + 版本面取证·分析 缺「怎么验」（"·测试
+      status: done
+outputs:
+  test_cases:
+    - id: TC-1
+      title: 6. 任务覆盖声明（covers）
+      covers:
+        - t-9f0fbe
+        - t-e2e068
+        - t-83047e
+        - t-69aedb
+        - t-3c2fb0
+        - t-947815
+        - t-2b228e
+        - t-db3def
+        - t-881157
+        - t-7b8637
+        - t-ba6005
+        - t-003c90
+        - t-9adb94
+        - t-1e2867
+        - t-539d6c
+        - t-9faa06
+        - t-e7f33f
+        - t-report
+        - t-3118e8
+        - t-9c82c7
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-2
+      title: 7. 返工覆盖声明（v2，covers）
+      covers:
+        - t-b3d14a
+        - t-587b54
+        - t-dc82bd
+        - t-adf822
+        - t-bdfea6
+      validates: []
+      source: tests/test-evidence.md
+traceability:
+  task_to_tests:
+    t-9f0fbe:
+      - TC-1
+    t-3c2fb0:
+      - TC-1
+    t-881157:
+      - TC-1
+    t-9adb94:
+      - TC-1
+    t-e7f33f:
+      - TC-1
+    t-e2e068:
+      - TC-1
+    t-83047e:
+      - TC-1
+    t-69aedb:
+      - TC-1
+    t-947815:
+      - TC-1
+    t-2b228e:
+      - TC-1
+    t-db3def:
+      - TC-1
+    t-7b8637:
+      - TC-1
+    t-ba6005:
+      - TC-1
+    t-003c90:
+      - TC-1
+    t-1e2867:
+      - TC-1
+    t-539d6c:
+      - TC-1
+    t-9faa06:
+      - TC-1
+    t-3118e8:
+      - TC-1
+    t-9c82c7:
+      - TC-1
+    t-b3d14a:
+      - TC-2
+    t-587b54:
+      - TC-2
+    t-dc82bd:
+      - TC-2
+    t-adf822:
+      - TC-2
+    t-bdfea6:
+      - TC-2
+    t-report:
+      - TC-1
+  fr_to_tests:
+    FR-1:
+      - TC-1
+    FR-2:
+      - TC-1
+    FR-5:
+      - TC-1
+    FR-3:
+      - TC-1
+    FR-4:
+      - TC-1
+    FR-6:
+      - TC-1
+coverage:
+  testing:
+    total: 24
+    covered: 24
+    uncovered: []
+    rate: 100
+    total_tasks: 24
+    tested_tasks: 24
+    untested: []

@@ -1,0 +1,36 @@
+task:
+  id: t-fa9574
+  title: 兼容壳：EscalationChecker.should_escalate 委托出口
+  status: done
+  implements: domain/watch/services/escalation_checker.py 改为薄壳：should_escalate 内部委托 decide_escalation_paths，返回 reason 字符串或 None，签名与文案逐字不变；构造参数 anomaly_change_pct 保留。既有用例 tests/services/test_escalation_checker.py 与 tests/services/test_metric_contract.py 一行不改。
+  serves:
+    - FR-1
+  depends_on:
+    - t-2f1402
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261007133807-eda6
+    TASK_ID: t-fa9574
+    TASK_TITLE: 兼容壳：EscalationChecker.should_escalate 委托出口
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-07T10:58:37.921Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261007133807-eda6
+  generated_at: 2026-10-07T10:56:28.559Z
+  version: 3
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-07T10:58:37.922Z

@@ -1,0 +1,36 @@
+task:
+  id: t-6465f8
+  title: 改写被新口径推翻的 2 条既有断言 + 相邻回归·复核
+  status: done
+  implements: |-
+    tests/test_daily_jobs_notify_truthfulness.py：① TestHostTone::test_zero_output_uses_warning_title 拆成两条——默认态断言 sent.texts == []（零消息）且台账 status 仍 success；开关态（setenv DAILY_JOBS_NOTIFY_NOOP=true）断言 ⚠️（无有效产出）文案；② TestHostTone::test_elapsed_line_rendered_by_formatter 改用有产出结果（_result(computed_ok=3, no_trades=2, insufficient_sample=0)），断言不变。其余用例不改，只重跑（test_nonzero_output_keeps_success_title / test_mark_done_status_stays_success / test_streak_query_failure_degrades_loudly）。
+
+    [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+  serves: []
+  depends_on:
+    - t-0b1d7e
+  phase: test
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261006165125-23a9
+    TASK_ID: t-6465f8
+    TASK_TITLE: 改写被新口径推翻的 2 条既有断言 + 相邻回归·复核
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: test
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: test
+      status: done
+      completed_at: 2026-10-06T09:09:04.047Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006165125-23a9
+  generated_at: 2026-10-06T09:08:47.379Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-06T09:09:06.380Z

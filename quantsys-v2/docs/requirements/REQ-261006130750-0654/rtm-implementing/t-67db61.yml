@@ -1,0 +1,38 @@
+task:
+  id: t-67db61
+  title: 编排循环加 A 层日历预过滤与跳过去噪·测试
+  status: done
+  implements: |-
+    改 adapters/inbound/fastapi_app/orchestrator_bootstrap.py：① 新增模块级 _LAST_SKIP_LOG: Dict[str, str] 与 _should_run_today(now, *, path) -> Tuple[bool, Dict]（内部只调 from application.services.trading_day_gate import should_skip，策略固定 'trading-days'；返回 (not skip, info)；skip 为真时按 (path, day) 去噪记一条 logger.info('orchestrator_trading_day_skip', path=…, day=…, is_trading_day=…, source=…, degraded=…, reason=…)；函数内不得出现 weekday()、不得直查 trading_calendar、不得抛异常）；② _monitor_loop 两个分支内各插一次判定，path 取 'orchestrator_tick' / 'intraday_monitor'，仅当 run 为真才调 monitor_jobs.daily_orchestrator_tick() / monitor_jobs.intraday_monitor_check()；既有 try/except 与 finally close_session()、窗口函数 _in_orchestrator_window / _in_intraday_window 原样不动。依据 design/interfaces.md §2。
+
+    [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+  serves: []
+  depends_on:
+    - t-011042
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261006130750-0654
+    TASK_ID: t-67db61
+    TASK_TITLE: 编排循环加 A 层日历预过滤与跳过去噪·测试
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-06T05:23:03.442Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006130750-0654
+  generated_at: 2026-10-06T05:22:45.262Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-06T05:23:03.442Z

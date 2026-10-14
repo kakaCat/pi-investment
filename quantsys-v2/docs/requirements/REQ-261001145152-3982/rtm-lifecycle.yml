@@ -6,7 +6,7 @@ requirement:
   source_session: session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22
   dir: /Users/mac/Documents/ai/pi-investment/quantsys-v2/docs/requirements/REQ-261001145152-3982
 lifecycle:
-  current_stage: design
+  current_stage: accepting
   stage_count: 7
   stage_list:
     - draft
@@ -21,51 +21,37 @@ lifecycle:
       status: completed
       enabled: true
       entered_at: 2026-10-01T06:51:52.506Z
-      completed_at: 2026-10-01T06:51:52.548Z
+      completed_at: 2026-10-04T02:58:24.328Z
+      timestamps_inferred: true
     - stage: brainstorming
       status: completed
       enabled: true
-      entered_at: 2026-10-01T06:51:52.548Z
-      completed_at: 2026-10-01T06:57:54.582Z
-      artifacts:
-        - kind: requirement
-          path: docs/requirements/REQ-261001145152-3982/requirement.md
-          confirmed_at: 2026-10-01T06:57:54.582Z
+      entered_at: 2026-10-01T06:51:52.506Z
+      completed_at: 2026-10-04T02:58:24.328Z
+      timestamps_inferred: true
     - stage: design
+      status: completed
+      enabled: true
+      entered_at: 2026-10-01T06:51:52.506Z
+      completed_at: 2026-10-04T02:58:24.328Z
+      timestamps_inferred: true
+    - stage: decomposing
+      status: completed
+      enabled: true
+      entered_at: 2026-10-01T06:51:52.506Z
+      completed_at: 2026-10-04T02:58:24.328Z
+      timestamps_inferred: true
+    - stage: implementing
+      status: completed
+      enabled: true
+      entered_at: 2026-10-01T06:51:52.506Z
+      completed_at: 2026-10-04T02:58:24.328Z
+      timestamps_inferred: true
+    - stage: accepting
       status: in_progress
       enabled: true
-      entered_at: 2026-10-01T06:57:54.582Z
-      artifacts:
-        - kind: design
-          path: docs/requirements/REQ-261001145152-3982/design/audit-report.md
-          confirmed_at: 2026-10-01T07:06:47.742Z
-        - kind: design
-          path: docs/requirements/REQ-261001145152-3982/design/optimization-backlog.md
-          confirmed_at: 2026-10-01T07:06:47.742Z
-        - kind: design
-          path: docs/requirements/REQ-261001145152-3982/design/architecture.md
-          confirmed_at: 2026-10-01T07:06:47.742Z
-        - kind: design
-          path: docs/requirements/REQ-261001145152-3982/design/data-model.md
-          confirmed_at: 2026-10-01T07:06:47.742Z
-        - kind: design
-          path: docs/requirements/REQ-261001145152-3982/design/interfaces.md
-          confirmed_at: 2026-10-01T07:06:47.742Z
-        - kind: design
-          path: docs/requirements/REQ-261001145152-3982/design/test-cases.md
-          confirmed_at: 2026-10-01T07:06:47.742Z
-        - kind: design
-          path: docs/requirements/REQ-261001145152-3982/design/use-cases.md
-          confirmed_at: 2026-10-01T07:06:47.742Z
-    - stage: decomposing
-      status: pending
-      enabled: true
-    - stage: implementing
-      status: pending
-      enabled: true
-    - stage: accepting
-      status: pending
-      enabled: true
+      entered_at: 2026-10-01T06:51:52.506Z
+      timestamps_inferred: true
     - stage: done
       status: pending
       enabled: true
@@ -73,8 +59,8 @@ metadata:
   stage: lifecycle
   requirement_id: REQ-261001145152-3982
   generated_at: 2026-10-01T06:57:29.684Z
-  version: 6
+  version: 10
   generated_by: dsh-pmboard
   rtm_version: "1.0"
   file_path: /Users/mac/Documents/ai/pi-investment/quantsys-v2/docs/requirements/REQ-261001145152-3982/rtm-lifecycle.yml
-  last_updated: 2026-10-01T07:06:47.806Z
+  last_updated: 2026-10-04T02:58:24.421Z

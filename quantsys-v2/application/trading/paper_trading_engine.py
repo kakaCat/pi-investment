@@ -431,6 +431,15 @@ class PaperTradingEngine:
         }
 
     def take_daily_snapshot(self) -> Dict[str, Any]:
+        """拍当日净值快照；非交易日**不写**，返回 skipped 结构（不抛异常）。
+
+        2026-10-06（REQ-261006190953-fc43 卡 C）：`upsert_equity_snapshot` 已是唯一落库口，
+        非交易日由交易日闸门**返回 None**（不落库）。旧实现紧接着对返回值取 `.daily_return`
+        → `AttributeError: 'NoneType' object has no attribute 'daily_return'`，把"按设计不写"
+        变成盘后阶段的一条红错误。现在 None 被显式读成"闸门拒写"，并带上门的五键注解。
+
+        判据不在这里自写：注解来自 `application.services.trading_day_gate`（唯一真源）。
+        """
         account = self.repo.get_account(self.account_name)
         if account is None:
             return {'error': 'Account not found'}
@@ -460,9 +469,37 @@ class PaperTradingEngine:
             cumulative_return=cumulative_return,
             drawdown=day_drawdown,
         )
+
+        if snap is None:
+            # 门拒写（非交易日）。账户表**一并**不动：不写快照却刷新账户 total_value/peak，
+            # 会让账户表领先净值序列一天，两处口径再分叉（正是 2026-09-11 修掉的那类不一致）。
+            from application.services.trading_day_gate import skip_non_trading_day
+
+            skip, trading_day = skip_non_trading_day(date.today())
+            reason = (
+                "非交易日（source=%s，degraded=%s）：%s；未写净值快照"
+                % (trading_day.get('source'), trading_day.get('degraded'),
+                   trading_day.get('reason'))
+                if skip else
+                "交易日闸门拒写净值快照（source=%s，degraded=%s）：%s"
+                % (trading_day.get('source'), trading_day.get('degraded'),
+                   trading_day.get('reason'))
+            )
+            logger.info("daily_snapshot_skipped", account=self.account_name,
+                        source=trading_day.get('source'),
+                        degraded=trading_day.get('degraded'),
+                        reason=trading_day.get('reason'))
+            return {
+                'date': date.today().isoformat(),
+                'skipped': True,
+                'reason': reason,
+                'trading_day_source': trading_day.get('source'),
+                'trading_day': trading_day,
+            }
+
         daily_return = (
             float(snap.daily_return)
-            if snap is not None and getattr(snap, 'daily_return', None) is not None
+            if getattr(snap, 'daily_return', None) is not None
             else None
         )
 

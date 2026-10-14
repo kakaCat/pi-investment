@@ -22,6 +22,7 @@ from application.services.watch_engine.deduplication_manager import Deduplicatio
 from application.services.watch_engine.disposition_engine import DispositionEngine
 from application.services.watch_engine.escalation_coordinator import EscalationCoordinator
 from domain.watch.services.escalation_checker import EscalationChecker
+from domain.watch.services.escalation_verdict import EscalationCode, trigger_level_of
 from domain.watch.models import QuoteData
 from domain.trading.services.market_session_policy import (
     TOTAL_TRADING_MINUTES,   # 单一出处（RFC 016 §8.1）；本模块继续再导出以兼容既有 importer
@@ -97,7 +98,9 @@ class WatchEngine:
                  position_lifecycle_service=None, market_watch_service=None,
                  runtime_state_store=None,
                  todo_service=None, receipt_service=None, sla_job=None,
-                 self_heal_service=None):
+                 self_heal_service=None,
+                 is_trading_day_fn: Optional[Callable] = None,
+                 trading_day_verdict_fn: Optional[Callable] = None):
         self.rule_repo = rule_repo
         self.quote_service = quote_service
         self.notifier = notifier
@@ -177,8 +180,66 @@ class WatchEngine:
         self.self_heal_service = self_heal_service
         # （原此处重复声明 _avg_volume_cache，已随 P1 清理；
         #   触发事件日志与跨天日期已移入 StateManager）
+        # 日级开市判定（REQ-261007101318-c392 FR-1）：默认 TradingDayGuard（含法定节假日），
+        # tick 与 run_forever **共用同一口径**；单测可注入以冻结日期（生产不注入）。
+        self._is_trading_day_fn = is_trading_day_fn
+        self._trading_day_verdict_fn = trading_day_verdict_fn
+        #: 未开市跳过留痕的按日去重表（避免 tick 每分钟刷屏）
+        self._closed_skip_logged: Dict[str, str] = {}
         self.fast_mode = False
         self._stopped = False
+
+    # ── 开市判定（唯一口径入口）─────────────────────────────────
+
+    def _resolve_trading_day(self, day) -> tuple:
+        """日级开市判定 → `(is_trading_day, source)`。**tick 与 run_forever 共用本入口**。
+
+        默认走 `TradingDayGuard.check`（含法定节假日：`2026-10-07` 这类休市日返回 False，
+        `source='trading-calendar-holiday'`）——此前 `tick()` 自检只判 `weekday()`，
+        把"节假日"漏给了旁路调用方（REQ-261007101318-c392 E4）。
+
+        单测可注入：`is_trading_day_fn(day)->bool`（只要布尔）或
+        `trading_day_verdict_fn(day)->verdict`（要 source/降级信息）。
+        **判定失败一律保守判非交易日**并交给调用方留痕，绝不因判定异常而放行判定。
+        """
+        if self._is_trading_day_fn is not None:
+            try:
+                return bool(self._is_trading_day_fn(day)), 'injected'
+            except Exception as e:  # noqa: BLE001 - 注入方异常也不许放行
+                logger.error('注入的交易日判定失败，保守判非交易日',
+                             day=str(day), error=str(e))
+                return False, 'injected-error'
+        if self._trading_day_verdict_fn is None:
+            from application.services.trading_day_guard import TradingDayGuard
+            self._trading_day_verdict_fn = TradingDayGuard.check
+        try:
+            verdict = self._trading_day_verdict_fn(day)
+        except Exception as e:  # noqa: BLE001 - 判定异常 ≠ 开市
+            logger.error('交易日判定异常，保守判非交易日', day=str(day), error=str(e))
+            return False, 'compute-error'
+        source = str(getattr(verdict, 'source', '') or '')
+        if getattr(verdict, 'degraded', False):
+            source = f'{source}/degraded' if source else 'degraded'
+        return bool(getattr(verdict, 'is_trading_day', False)), source
+
+    def _log_market_closed(self, now, *, is_trading_day: bool, in_session: bool,
+                           day_source: str) -> None:
+        """未开市跳过**必须可见**（按「日 + 原因」去重，避免每分钟刷屏）。
+
+        FR-1 的判据之一：此前跳过是静默 `return []`，事后无法区分"今天没开市"与
+        "引擎线程没跑"——休市日误推之所以要靠用户发现，正是因为它不留痕。
+        """
+        key = f'{now.date().isoformat()}|{is_trading_day}|{in_session}'
+        if self._closed_skip_logged.get(key):
+            return
+        self._closed_skip_logged[key] = now.isoformat()
+        if len(self._closed_skip_logged) > 8:  # 只留最近几天，防长期驻留
+            for stale in sorted(self._closed_skip_logged)[:-8]:
+                self._closed_skip_logged.pop(stale, None)
+        logger.info('盯盘 tick 跳过（未开市）', day=now.date().isoformat(),
+                    is_trading_day=is_trading_day, in_session=in_session,
+                    trading_day_source=day_source,
+                    note='非交易日或非交易时段：不判定、不落库、不外发')
 
     @staticmethod
     def is_trading_time(t: time) -> bool:
@@ -255,12 +316,14 @@ class WatchEngine:
         except Exception as e:  # 双保险：restore 已自吞异常，启动不许被它打断
             logger.error('运行态恢复异常', error=str(e))
         # 2026-09-11（w-f4aa1f6a 步2）：交易日判断收敛到唯一入口（原为只判周末）
-        from application.services.trading_day_guard import TradingDayGuard
+        # 2026-10-07（REQ-261007101318-c392 FR-1）：**与 tick() 共用 `_resolve_trading_day`**——
+        # 两条路径各自 import TradingDayGuard 曾是"日级门只在这条路径上"的成因。
         while not self._stopped:
             now = self.now_fn()
             # 心跳（t10）：线程若死，外部巡检据此发现"引擎不再产生心跳"
             self._write_heartbeat(now)
-            if TradingDayGuard.is_trading_day(now.date()) and self.is_trading_time(now.time()):
+            _is_trading_day, _ = self._resolve_trading_day(now.date())
+            if _is_trading_day and self.is_trading_time(now.time()):
                 try:
                     self.tick()
                 except Exception as e:
@@ -316,10 +379,17 @@ class WatchEngine:
 
     def tick(self) -> List[dict]:
         now = self.now_fn()
-        # 时段自检（2026-09-11，w-aebfddcd 场景矩阵发现）：此前交易时段守卫只在 run_forever 的
-        # 循环里，tick() 本身不看表 —— 任何旁路调用（补跑脚本/新服务/其他窗口）都会在盘后
-        # 照样判定并推送通知。铁律：交易时段外一律不产出事件。
-        if now.weekday() >= 5 or not self.is_trading_time(now.time()):
+        # 开市自检（2026-09-11 加"周末+时段"；2026-10-07 补**日级**——REQ-261007101318-c392 FR-1）：
+        # ① 日级：非交易日（含法定节假日）不判定。旧实现只判 weekday，把节假日漏给了
+        #    任何旁路调用（补跑脚本/新服务/其他窗口）——国庆休市期间照样会被判定并推送。
+        #    日级口径收敛到 TradingDayGuard（与 run_forever 同一入口，含 quant.trading_calendar）。
+        # ② 时段：非交易时段不判定。
+        # 铁律：非交易日或交易时段外一律不产出事件（不判定、不落库、不外发）。
+        in_session = self.is_trading_time(now.time())
+        is_trading_day, day_source = self._resolve_trading_day(now.date())
+        if not (is_trading_day and in_session):
+            self._log_market_closed(now, is_trading_day=is_trading_day,
+                                    in_session=in_session, day_source=day_source)
             return []
         self._reset_daily_state_if_needed(now)
         # 预算计数每 tick 从库刷新一次（不每规则查，避免 N+1）；库不可用时沿用内存值
@@ -370,6 +440,10 @@ class WatchEngine:
                                    'message': result.message,
                                    'disposition': DISPOSITION_AUTO_OBSERVED,
                                    'disposition_reason': SUPPRESSED_TRIGGER_REASON,
+                                   # 抑噪短路发生在裁决**之前**，没有原判可留（如实：
+                                   # 不为了凑一个「原判」去多算一次裁决与其取数）。
+                                   'escalation_code': EscalationCode.SUPPRESSED,
+                                   'escalation_reason': SUPPRESSED_TRIGGER_REASON,
                                    'dup_of': None,
                                    'trigger_id': getattr(suppressed_trigger, 'id', None),
                                    'trigger_level': self._get_trigger_level(rule),
@@ -380,25 +454,32 @@ class WatchEngine:
                                 trigger_id=getattr(suppressed_trigger, 'id', None))
                     continue
                 
-                # 升级检查：L0/L1 触发满足条件时自动升级为 L2（委托 EscalationCoordinator）
-                escalation_reason = self.escalation.check(rule, cond, quote, result, now)
+                # ── 唯一裁决（REQ-261007133807-eda6 t6）─────────────────────────
+                # 「什么时候叫 agent」的唯一出口：返回 (是否叫, 理由码, 人话理由, 命中路径)。
+                # escalation_reason 仍只承载**三条可信升级路径**的理由（既有语义：卡面据此
+                # 选标签、决定是否简化预案），故按 EscalationCode.PATHS 过滤——否则预算门/
+                # 观察类等"没叫"的理由会污染卡面标签。
+                verdict, gate = self.disposition.judge(rule, cond, quote, result)
+                escalation_reason = (verdict.reason
+                                     if verdict.code in EscalationCode.PATHS else None)
                 trigger_level = self._get_trigger_level(rule)
-                
+
                 # ── 处置决策（REQ-f08def）─────────────────────────────
                 # 机械优先：去重合并 / observe 类归档当场收敛（零 LLM），
                 # 只有 L2 或升级触发才进 agent 摘要队列（用户硬约束：token 成本）。
-                # escalation_reason 带进处置结论（2026-09-14）：此前 decide() 只收到
-                # escalated 布尔，固定回一句「升级策略命中（L1→L2）」，使「哪条升级
-                # 路径命中」在库里不可考（核查时曾被此误导）。
+                # 处置由裁决**派生**（映射层不重算，两处不会各说各话）。
                 disposition, disposition_reason = self.disposition.decide(
-                    rule, cond, quote, escalated=bool(escalation_reason),
-                    escalation_reason=escalation_reason)
+                    rule, cond, quote, verdict=verdict, gate=gate)
                 # 去重：同标的同向窗内合并；跨规则重叠另转治理（每对每天一次）
                 outcome = self.dedup.check(rule, cond, now)
                 dup_of = None
                 if outcome.is_duplicate:
                     disposition = 'deduped'
                     disposition_reason = self.dedup.reason_text(outcome)
+                    # 覆盖裁决但**保留原判**（REQ-261007133807-eda6 t6）：被去重压掉的触发
+                    # 往往本来会被判成"叫 agent"（例如异常波动），只留一个 DEDUPED 会让
+                    # "成本控制压掉了什么"再次不可见。escalation_reason 不动（与改造前一致）。
+                    verdict = verdict.overridden(EscalationCode.DEDUPED, disposition_reason)
                     dup_of = outcome.dup_of
                     if outcome.overlap_pair:
                         reason = self.dedup.overlap_reason(outcome.overlap_pair, outcome.key)
@@ -422,10 +503,15 @@ class WatchEngine:
                                                       has_position=bool(action_amount))
                     notify_kwargs = dict(
                         escalation_reason=escalation_reason,
+                        # 理由码随通知下发（REQ-261007133807-eda6 t8）：卡面/落库读它；
+                        # "没叫"的触发也有码（预算门/四道门/去重/抑噪）
+                        escalation_code=verdict.code,
                         disposition=disposition,
                         disposition_reason=disposition_reason,
                         dup_of=dup_of,
                         action_amount_yuan=action_amount,
+                        # FR-4：闭环开关只决定"要不要承诺处置闭环"，不决定"要不要给级别"
+                        closed_loop=(self.todo_service is not None),
                     )
                     if notify_level:
                         notify_kwargs['level'] = notify_level
@@ -469,6 +555,8 @@ class WatchEngine:
                                'message': result.message,
                                'disposition': disposition,
                                'disposition_reason': disposition_reason,
+                               'escalation_code': verdict.code,
+                               'escalation_reason': verdict.reason,
                                'dup_of': dup_of,
                                'trigger_id': getattr(trigger, 'id', None),
                                'trigger_level': trigger_level,
@@ -544,11 +632,16 @@ class WatchEngine:
         通知必须保持既有形态（旧 WatchTriggeredFormatter），不能悄悄换渲染——默认全关
         行为与改造前一致是 t12 的硬约束。
 
+        **2026-10-07 改（REQ-261007101318-c392 FR-4 / 取证 E9）**：上面这条约束把两件事绑死了——
+        **级别（这条触发够不够格打扰人 + 卡片长什么样）**与**闭环（要不要建待办）**。
+        实测后果：`WATCH_TODO_ENABLED` 未开时引擎恒返回 None，于是**所有**盯盘卡退回旧渲染，
+        只剩一句「现价 X ≤ 阈值 Y（下破）」——用户无法判断该买该卖、该不该交 agent。
+        现改为：级别**恒解析**（供渲染）；闭环专属文案（处置入口/处置回执位/不可静默）
+        由 `closed_loop`（= todo_service 是否注入）在渲染层决定，**不在这里丢弃级别**。
+
         判定完全复用 domain 纯函数 resolve_level（单一事实源），本方法只做输入组装。
         任何异常都降级为 None（旧渲染），绝不让级别判定打挂通知主路径。
         """
-        if self.todo_service is None:
-            return None
         try:
             from domain.watch.services.disposition import CONSTITUTIONAL_INTENTS, intent_of
             from domain.watch.services.level_resolver import resolve_level
@@ -727,8 +820,12 @@ class WatchEngine:
         return self.judge.in_cooldown(rule_id, cond_idx, cond, now)
 
     def _get_trigger_level(self, rule) -> str:
-        """委托 EscalationCoordinator（保留入口名）"""
-        return self.escalation._get_trigger_level(rule)
+        """规则分级（L0/L1/L2）—— 走裁决模块的单一事实源
+
+        REQ-261007133807-eda6 t6：原先委托 EscalationCoordinator；收敛后分级解析只有一处
+        （`escalation_verdict.trigger_level_of`），协调器保留为兼容壳但不再被 tick 依赖。
+        """
+        return trigger_level_of(rule)
 
     def _record_suppressed_trigger(self, rule, cond, quote, result):
         """抑噪期触发只落库归档（suppressed=true），完全不外发（R6 / t8）。

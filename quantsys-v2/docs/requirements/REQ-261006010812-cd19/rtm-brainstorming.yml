@@ -1,0 +1,37 @@
+metadata:
+  stage: brainstorming
+  requirement_id: REQ-261006010812-cd19
+  generated_at: 2026-10-06T01:11:30.291Z
+  version: 7
+  generated_by: dsh-pmboard
+  rtm_version: "2.0"
+  last_updated: 2026-10-06T01:38:44.116Z
+outputs:
+  requirements: []
+  prototypes: []
+  decisions:
+    - id: D-1
+      source: 2026-10-06 本窗口首条用户消息：「v13设计的如何，你审计一下」
+      verdict: 立项做「V13 设计审计」，只审设计不修代码
+      serves:
+        - FR-1
+        - FR-2
+        - FR-5
+      criterion: 判定标准 4：报告五节齐全；判定标准 6：被审代码零改动
+    - id: D-2
+      source: 2026-10-06 弹框作答（audit_target）：「链路设计 + 实现一致性（Recommended）」
+      verdict: 被审对象 = a7cd 的 6 份设计文档 + 其声称落点的生产实现；**不含**策略规则/参数合理性
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      criterion: 判定标准 1：一致性矩阵只收 a7cd 设计条目，每行带 `design.md:行`
+    - id: D-3
+      source: 2026-10-06 弹框作答（audit_depth）：「只读生产 + 允许跑测试（Recommended）」
+      verdict: 生产库/进程只读；可跑 pytest（写 `quant_test`）与只读检查器；不杀进程、不触真实飞书
+      serves:
+        - FR-3
+        - FR-4
+      criterion: 判定标准 2：验收命令逐条给真实退出码；判定标准 6：`git status` 改动集合不变
+status:
+  artifacts: []

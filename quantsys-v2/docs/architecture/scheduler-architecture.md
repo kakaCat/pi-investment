@@ -17,6 +17,17 @@
 > | ① | `APSchedulerService`（`infrastructure/scheduler/apscheduler_service.py`） | `quant.scheduler_tasks` 表的 cron | 非核心数据类任务（实时信号监控 / 盘前扫描 / 缠论 / 策略验证 / 周报 …） |
 > | ② | DailyJobs 宿主线程（`adapters/inbound/fastapi_app/daily_jobs_bootstrap.py`） | 代码内注册表 | 9 个核心数据任务（带幂等 / 补跑 / 失败告警 + `quant.inprocess_job_runs` 留痕） |
 >
+> ### ② DailyJobs 有任务级**交易日门**（2026-10-05 · REQ-261005203907-2b8c）
+>
+> 宿主排班只认工作日，不认识法定节假日——2026-10-05（国庆休市）实测 `pool_daily_refresh`
+> 空跑 22.1 秒还发了 2 条飞书、`evening_pipeline` 的因子段对着冻结快照全市场重算了 50+ 分钟。
+> 现新增 `JobDef.trading_days_only` 标志 + `daily_jobs/gate.py`（判据唯一：
+> `skip = (not is_trading_day) and (not degraded)`，**fail-open**）；休市日整段跳过的有
+> `pool_daily_refresh` / `chip_distribution` / `evolution_fitness`，`evening_pipeline` 只跳因子段
+> （K 线段是休市日唯一的缺口修复路径）。跳过写 `status='skipped'`（列是 text ⇒ 零 DDL）、
+> **不发通知**；生效需重启宿主。口径与回滚详见
+> [trading-day-freshness.md §调度侧](trading-day-freshness.md#调度侧休市日不再开火2026-10-05--req-261005203907-2b8c)。
+>
 > ### 2026-10-02 的收敛与实测数字（都可复跑）
 >
 > - 删掉了第四条路径 `unified_scheduler.py`（YAML 驱动、**空转**）及其配置、路由与专属 e2e；

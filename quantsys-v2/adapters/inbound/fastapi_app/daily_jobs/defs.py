@@ -35,6 +35,14 @@ class JobDef:
     weekdays: tuple          # 0=周一 ... 6=周日
     handler: Callable[[], Dict[str, Any]]
     description: str
+    # REQ-261005203907-2b8c（FR-1）：只在交易日执行（休市日整段跳过，见 daily_jobs/gate.py）。
+    # 缺省 False = 排班与行为与改造前**逐字一致**。
+    # ⚠️ 必须保持"最后一个字段 + 带默认值"：仓内多处按**位置参数**构造 JobDef
+    # （tests/test_daily_jobs_bootstrap.py:15、tests/test_false_success_guard.py:162、
+    # tests/test_financial_auto_rerun.py:122），插在中间会让这些调用直接炸。
+    trading_days_only: bool = False
+    # 2026-10-07：任务级自定义通知 webhook（用于结果分类投递）
+    webhook_url: Optional[str] = None
 
 
 @dataclass

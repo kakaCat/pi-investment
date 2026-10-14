@@ -1,0 +1,38 @@
+task:
+  id: t-02907b
+  title: 下游按三态处置：失败不当干净、数据不足不扣分·复核
+  status: done
+  implements: |-
+    改 application/services/data_quality_service.py：① 抽出同一份判定 helper（anomaly_failed = info.get('ok') is False；anomaly_unknown = info.get('has_anomalies') is None）；② :152-190 与 :469-481 两处都用它：has_issues = gap>0 or dup or has_anomalies is True or anomaly_failed；条目新增 anomaly_unknown / anomaly_unknown_reason（既有键保留）；③ 汇总 :205/:223/:238 新增 anomaly_unknown_count（失败）与 insufficient_history_count（数据不足）；④ _record_quality_check（:546）改为遍历 price_anomalies + volume_anomalies 写 type='anomaly' warning，并在未知时写 type='anomaly_detection_unknown'（带 reason）。依据 design/interfaces.md §3。
+
+    [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+  serves: []
+  depends_on:
+    - t-9dc9eb
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261006133733-1fdf
+    TASK_ID: t-02907b
+    TASK_TITLE: 下游按三态处置：失败不当干净、数据不足不扣分·复核
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-06T05:44:57.570Z
+    - phase: review
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006133733-1fdf
+  generated_at: 2026-10-06T05:44:49.622Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-06T05:44:57.571Z

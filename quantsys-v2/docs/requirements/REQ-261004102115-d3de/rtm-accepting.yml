@@ -1,0 +1,101 @@
+metadata:
+  stage: accepting
+  requirement_id: REQ-261004102115-d3de
+  generated_at: 2026-10-04T02:34:23.266Z
+  version: 5
+  generated_by: dsh-pmboard
+  last_updated: 2026-10-04T02:39:42.697Z
+inputs:
+  tasks:
+    - id: t-dc66e2
+      title: 实现交易日解析器（最近一个已收盘交易日）
+      status: done
+    - id: t-b952d0
+      title: 写日期表驱动回归用例（含降级与周末语义）
+      status: done
+    - id: t-f062d4
+      title: 探针接入新口径并标注判定来源
+      status: done
+    - id: t-1d780d
+      title: freshness_guard 复用同一实现
+      status: done
+    - id: t-ed8425
+      title: 刷新脚本改接 provider 源并一次性回填日历表
+      status: done
+    - id: t-4caf2a
+      title: 核验迁移与兼容（管道读表切换、引用方、无新依赖）
+      status: done
+    - id: t-8e4de7
+      title: 实现交易日解析器（最近一个已收盘交易日）·研发
+      status: done
+    - id: t-2aae82
+      title: 实现交易日解析器（最近一个已收盘交易日）·复核
+      status: done
+    - id: t-598ad3
+      title: 实现交易日解析器（最近一个已收盘交易日）·测试
+      status: done
+    - id: t-391941
+      title: 返工：E2E 覆盖：**无（缺口）**——本需求交付涉及多组件串联，但只交了单元/集成测试。请补一条端到端场景用例（断言可观察
+      status: done
+outputs:
+  test_cases:
+    - id: TC-1
+      title: 6. 覆盖标注（covers）
+      covers:
+        - t-dc66e2
+        - t-8e4de7
+        - t-2aae82
+        - t-598ad3
+        - t-b952d0
+        - t-f062d4
+        - t-1d780d
+        - t-ed8425
+        - t-4caf2a
+      validates: []
+      source: tests/evidence.md
+    - id: TC-2
+      title: 7. 端到端证据（验收返工 v1-8）
+      covers:
+        - t-391941
+      validates: []
+      source: tests/evidence.md
+traceability:
+  task_to_tests:
+    t-dc66e2:
+      - TC-1
+    t-b952d0:
+      - TC-1
+    t-f062d4:
+      - TC-1
+    t-1d780d:
+      - TC-1
+    t-ed8425:
+      - TC-1
+    t-4caf2a:
+      - TC-1
+    t-8e4de7:
+      - TC-1
+    t-2aae82:
+      - TC-1
+    t-598ad3:
+      - TC-1
+    t-391941:
+      - TC-2
+  fr_to_tests:
+    FR-1:
+      - TC-1
+    FR-2:
+      - TC-1
+    FR-3:
+      - TC-1
+    FR-4:
+      - TC-1
+coverage:
+  testing:
+    total: 10
+    covered: 10
+    uncovered: []
+    rate: 100
+    total_tasks: 10
+    tested_tasks: 10
+    untested: []

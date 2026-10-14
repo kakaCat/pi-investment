@@ -12,6 +12,7 @@ from fastapi import APIRouter, Body, Query
 from fastapi.responses import JSONResponse
 
 from adapters.shared.services import simulation_service
+from adapters.inbound.fastapi_app.shared import nav_window_and_coverage
 from application.services.account_trading_service import (
     AccountTradingService, TradingError,
 )
@@ -235,7 +236,12 @@ async def get_account_trades(account_name: str, limit: int = Query(100)):
 
 @router.get("/performance")
 async def get_performance(account_name: Optional[str] = Query(None)):
-    """账户绩效（account_name 必填，优先读快照表）"""
+    """账户绩效（account_name 必填，优先读快照表）
+
+    2026-10-06（REQ-261006190953-fc43 卡 D）：净值窗口按**交易日**取——
+    `equity_curve` 只含交易日（字段不变），另返回 `window`（五字段）与 `nav_coverage`
+    （缺口口径唯一实现见 application/services/nav_series.py）。
+    """
     repo = SimulationORMRepository()
     if not account_name:
         return JSONResponse(status_code=400, content={
@@ -247,8 +253,13 @@ async def get_performance(account_name: Optional[str] = Query(None)):
             'success': False, 'error': f'账户不存在: {account_name}',
             'available_accounts': _available_accounts(repo)})
 
+    # 交易日集合（日历不可得 → None：仓储按"未校验"处理，不过滤也不清空序列）
+    from adapters.outbound.repositories.trading_calendar_repository import trading_day_set
+
     initial_capital = float(account.initial_capital or 0) or 100000.0
-    snaps = repo.get_equity_snapshots(account_name, limit=365)
+    trading_days = trading_day_set()
+    snaps = repo.get_equity_snapshots(account_name, limit=365,
+                                      trading_days_only=True, trading_days=trading_days)
     equity_curve = [{
         'date': s.snapshot_date.isoformat(),
         'total_value': float(s.total_value or 0),
@@ -256,6 +267,11 @@ async def get_performance(account_name: Optional[str] = Query(None)):
         'market_value': float(s.position_value or 0),
         'return': round(float(s.cumulative_return or 0) * 100, 2),
     } for s in reversed(snaps)]
+    # 同一 limit 的未过滤行：只为数出"落在非交易日、因而被剔除"的行数（日历不可得时恒 0）
+    unfiltered = (None if trading_days is None
+                  else repo.get_equity_snapshots(account_name, limit=365))
+    window, nav_cov = nav_window_and_coverage(
+        snaps, trading_days, points=len(equity_curve), unfiltered_rows=unfiltered)
     total_value = float(account.total_value or 0)
     return {'success': True, 'data': {
         'equity_curve': equity_curve,
@@ -263,6 +279,8 @@ async def get_performance(account_name: Optional[str] = Query(None)):
         'current_value': total_value,
         'cumulative_return': round((total_value - initial_capital) / initial_capital * 100, 2),
         'max_drawdown': round(float(account.max_drawdown or 0) * 100, 2),
+        'window': window,
+        'nav_coverage': nav_cov,
     }}
 
 

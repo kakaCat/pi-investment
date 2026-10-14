@@ -1,0 +1,264 @@
+metadata:
+  stage: accepting
+  requirement_id: REQ-261005210015-1603
+  generated_at: 2026-10-05T13:27:31.956Z
+  version: 3
+  generated_by: dsh-pmboard
+  last_updated: 2026-10-05T13:27:49.470Z
+inputs:
+  tasks:
+    - id: t-cda13d
+      title: 通知层契约落地：_format_elapsed + _summarize_result 支持顶层 summary
+      status: done
+    - id: t-c0941a
+      title: fitness 服务诚实计数：四类状态 + accounts_total，删 skipped、收窄 computed 语义
+      status: done
+    - id: t-17fce0
+      title: 空转读数：EvolutionFitnessORMRepository 两个只读聚合方法
+      status: done
+    - id: t-2d12c5
+      title: handler 组装：summary / no_output / 空转统计（含纯函数与查询失败降级）
+      status: done
+    - id: t-4b35ba
+      title: runtime 接线：耗时按量级显示 + 零产出改 ⚠️（不动 status、不碰跳过分支）
+      status: done
+    - id: t-cef289
+      title: 新增通知层用例（12 条：格式/摘要/语气/空转/降级/失败判定不变式/其他任务逐字不变）
+      status: done
+    - id: t-89b1f4
+      title: 数据层用例：计数不变式、无 skipped、computed 兼容、只读聚合口径
+      status: done
+    - id: t-ad4340
+      title: 回归四连 + 兼容核对 + 真实观察取证（含回滚演练）
+      status: done
+    - id: t-39a1a8
+      title: 通知层契约落地：_format_elapsed + _summarize_result 支持顶层 summary·研发
+      status: done
+    - id: t-bf7712
+      title: 通知层契约落地：_format_elapsed + _summarize_result 支持顶层 summary·联调
+      status: done
+    - id: t-bf4521
+      title: 通知层契约落地：_format_elapsed + _summarize_result 支持顶层 summary·复核
+      status: done
+    - id: t-b8daeb
+      title: 通知层契约落地：_format_elapsed + _summarize_result 支持顶层 summary·测试
+      status: done
+    - id: t-c4b336
+      title: fitness 服务诚实计数：四类状态 + accounts_total，删 skipped、收窄 computed 语义·研发
+      status: done
+    - id: t-90d649
+      title: fitness 服务诚实计数：四类状态 + accounts_total，删 skipped、收窄 computed 语义·联调
+      status: done
+    - id: t-d9106a
+      title: fitness 服务诚实计数：四类状态 + accounts_total，删 skipped、收窄 computed 语义·复核
+      status: done
+    - id: t-ef688c
+      title: fitness 服务诚实计数：四类状态 + accounts_total，删 skipped、收窄 computed 语义·测试
+      status: done
+    - id: t-228f42
+      title: 空转读数：EvolutionFitnessORMRepository 两个只读聚合方法·研发
+      status: done
+    - id: t-735131
+      title: 空转读数：EvolutionFitnessORMRepository 两个只读聚合方法·联调
+      status: done
+    - id: t-1dada1
+      title: 空转读数：EvolutionFitnessORMRepository 两个只读聚合方法·复核
+      status: done
+    - id: t-a00ef1
+      title: 空转读数：EvolutionFitnessORMRepository 两个只读聚合方法·测试
+      status: done
+    - id: t-af5158
+      title: runtime 接线：耗时按量级显示 + 零产出改 ⚠️（不动 status、不碰跳过分支）·研发
+      status: done
+    - id: t-de98f5
+      title: runtime 接线：耗时按量级显示 + 零产出改 ⚠️（不动 status、不碰跳过分支）·联调
+      status: done
+    - id: t-88c26a
+      title: runtime 接线：耗时按量级显示 + 零产出改 ⚠️（不动 status、不碰跳过分支）·复核
+      status: done
+    - id: t-507717
+      title: runtime 接线：耗时按量级显示 + 零产出改 ⚠️（不动 status、不碰跳过分支）·测试
+      status: done
+    - id: t-a494c4
+      title: handler 组装：summary / no_output / 空转统计（含纯函数与查询失败降级）·研发
+      status: done
+    - id: t-d796cd
+      title: handler 组装：summary / no_output / 空转统计（含纯函数与查询失败降级）·联调
+      status: done
+    - id: t-e4693b
+      title: handler 组装：summary / no_output / 空转统计（含纯函数与查询失败降级）·复核
+      status: done
+    - id: t-23611a
+      title: handler 组装：summary / no_output / 空转统计（含纯函数与查询失败降级）·测试
+      status: done
+    - id: t-985e3a
+      title: 数据层用例：计数不变式、无 skipped、computed 兼容、只读聚合口径·研发
+      status: done
+    - id: t-66db6e
+      title: 数据层用例：计数不变式、无 skipped、computed 兼容、只读聚合口径·复核
+      status: done
+    - id: t-16f3fb
+      title: 数据层用例：计数不变式、无 skipped、computed 兼容、只读聚合口径·测试
+      status: done
+    - id: t-003afe
+      title: 新增通知层用例（12 条：格式/摘要/语气/空转/降级/失败判定不变式/其他任务逐字不变）·研发
+      status: done
+    - id: t-8bec5b
+      title: 新增通知层用例（12 条：格式/摘要/语气/空转/降级/失败判定不变式/其他任务逐字不变）·复核
+      status: done
+    - id: t-cca3af
+      title: 新增通知层用例（12 条：格式/摘要/语气/空转/降级/失败判定不变式/其他任务逐字不变）·测试
+      status: done
+    - id: t-243932
+      title: 回归四连 + 兼容核对 + 真实观察取证（含回滚演练）·研发
+      status: done
+    - id: t-df7921
+      title: 回归四连 + 兼容核对 + 真实观察取证（含回滚演练）·复核
+      status: done
+    - id: t-2acb88
+      title: 回归四连 + 兼容核对 + 真实观察取证（含回滚演练）·测试
+      status: done
+outputs:
+  test_cases:
+    - id: TC-1
+      title: 7. 用例与任务卡对应（covers）
+      covers:
+        - t-cda13d
+        - t-39a1a8
+        - t-bf7712
+        - t-bf4521
+        - t-b8daeb
+        - t-c0941a
+        - t-c4b336
+        - t-90d649
+        - t-d9106a
+        - t-ef688c
+        - t-17fce0
+        - t-228f42
+        - t-735131
+        - t-1dada1
+        - t-a00ef1
+        - t-2d12c5
+        - t-a494c4
+        - t-d796cd
+        - t-e4693b
+        - t-23611a
+        - t-4b35ba
+        - t-af5158
+        - t-de98f5
+        - t-88c26a
+        - t-507717
+        - t-cef289
+        - t-003afe
+        - t-8bec5b
+        - t-cca3af
+        - t-89b1f4
+        - t-985e3a
+        - t-66db6e
+        - t-16f3fb
+        - t-ad4340
+        - t-243932
+        - t-df7921
+        - t-2acb88
+      validates: []
+      source: tests/test-evidence.md
+traceability:
+  task_to_tests:
+    t-cda13d:
+      - TC-1
+    t-c0941a:
+      - TC-1
+    t-17fce0:
+      - TC-1
+    t-2d12c5:
+      - TC-1
+    t-4b35ba:
+      - TC-1
+    t-cef289:
+      - TC-1
+    t-89b1f4:
+      - TC-1
+    t-ad4340:
+      - TC-1
+    t-39a1a8:
+      - TC-1
+    t-bf7712:
+      - TC-1
+    t-bf4521:
+      - TC-1
+    t-b8daeb:
+      - TC-1
+    t-c4b336:
+      - TC-1
+    t-90d649:
+      - TC-1
+    t-d9106a:
+      - TC-1
+    t-ef688c:
+      - TC-1
+    t-228f42:
+      - TC-1
+    t-735131:
+      - TC-1
+    t-1dada1:
+      - TC-1
+    t-a00ef1:
+      - TC-1
+    t-af5158:
+      - TC-1
+    t-de98f5:
+      - TC-1
+    t-88c26a:
+      - TC-1
+    t-507717:
+      - TC-1
+    t-a494c4:
+      - TC-1
+    t-d796cd:
+      - TC-1
+    t-e4693b:
+      - TC-1
+    t-23611a:
+      - TC-1
+    t-985e3a:
+      - TC-1
+    t-66db6e:
+      - TC-1
+    t-16f3fb:
+      - TC-1
+    t-003afe:
+      - TC-1
+    t-8bec5b:
+      - TC-1
+    t-cca3af:
+      - TC-1
+    t-243932:
+      - TC-1
+    t-df7921:
+      - TC-1
+    t-2acb88:
+      - TC-1
+  fr_to_tests:
+    FR-1:
+      - TC-1
+    FR-2:
+      - TC-1
+    FR-3:
+      - TC-1
+    FR-4:
+      - TC-1
+    FR-5:
+      - TC-1
+    FR-6:
+      - TC-1
+    FR-7:
+      - TC-1
+coverage:
+  testing:
+    total: 37
+    covered: 37
+    uncovered: []
+    rate: 100
+    total_tasks: 37
+    tested_tasks: 37
+    untested: []

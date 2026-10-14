@@ -1,0 +1,37 @@
+task:
+  id: t-e5a244
+  title: FR-2 名称兜底：禁止把代码当名称（回填）·研发
+  status: done
+  implements: |-
+    application/services/watch_engine/notifier.py：facade 调用改为 name=payload.name or None（删除 name or symbol 的混同）；_lookup_stock_name 的取数口径并入领域端口实现 PgStockNameResolver.resolve_batch（与 SLA 巡检/回执同一份，异常/未命中返回 None）。infrastructure/notification/formatters/feishu_formatters.py：旧渲染路径名称缺失时显式输出「{代码}（名称缺失）」，不再回落成裸代码。tests/notification/test_req_c392_notification_contract.py 增补名称相关断言。
+
+    [子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要
+  serves: []
+  depends_on: []
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261007101318-c392
+    TASK_ID: t-e5a244
+    TASK_TITLE: FR-2 名称兜底：禁止把代码当名称（回填）·研发
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-07T05:43:33.304Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261007101318-c392
+  generated_at: 2026-10-07T05:43:22.459Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-07T05:43:33.304Z

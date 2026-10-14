@@ -1,0 +1,733 @@
+metadata:
+  stage: decomposing
+  requirement_id: REQ-261006130750-0654
+  generated_at: 2026-10-06T05:16:43.522Z
+  version: 52
+  generated_by: dsh-pmboard
+  rtm_version: "2.0"
+  last_updated: 2026-10-06T06:43:05.386Z
+inputs:
+  requirements:
+    - id: FR-1
+      title: 盘中监控接日级门（休市日不调 `IntradayMonitor.check()`）
+      source: requirement.md
+      line: 143
+    - id: FR-2
+      title: 编排 tick 接日级门（休市日不再每分钟空转调用）
+      source: requirement.md
+      line: 150
+    - id: FR-3
+      title: 门必须 fail-open，且复用唯一真源
+      source: requirement.md
+      line: 155
+    - id: FR-4
+      title: 窗口语义与既有契约不回归
+      source: requirement.md
+      line: 163
+    - id: FR-5
+      title: 判据口径锁（当日口径 · 复市首日不跳）
+      source: requirement.md
+      line: 171
+    - id: FR-6
+      title: 留痕与可观测（跳过 ≠ 静默，也 ≠ 打扰）
+      source: requirement.md
+      line: 177
+  design_sections:
+    - ref: design/architecture.md#1
+      title: 现状：两条常驻线程的日级判据是"周几"（
+      serves:
+        - FR-1
+        - FR-2
+      file: design/architecture.md
+      section: "1"
+    - ref: design/architecture.md#2
+      title: 两层门的分工（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-6
+      file: design/architecture.md
+      section: "2"
+    - ref: design/architecture.md#3
+      title: 与内层 fail-closed 的共存（本设计最要紧的一处）（
+      serves:
+        - FR-3
+        - FR-4
+      file: design/architecture.md
+      section: "3"
+    - ref: design/architecture.md#4
+      title: 依赖方向与唯一真源（
+      serves:
+        - FR-3
+      file: design/architecture.md
+      section: "4"
+    - ref: design/architecture.md#5
+      title: 留痕与去噪（
+      serves:
+        - FR-6
+      file: design/architecture.md
+      section: "5"
+    - ref: design/architecture.md#6
+      title: 文件结构（新建 / 修改 / 删除，各自职责一句话）（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-6
+      file: design/architecture.md
+      section: "6"
+    - ref: design/architecture.md#7
+      title: 范围与裁定引用（
+      serves:
+        - FR-1
+        - FR-2
+      file: design/architecture.md
+      section: "7"
+    - ref: design/architecture.md#8
+      title: 回滚路径（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/architecture.md
+      section: "8"
+    - ref: design/architecture.md#9
+      title: 不做什么（
+      serves:
+        - FR-4
+      file: design/architecture.md
+      section: "9"
+    - ref: design/data-model.md#1
+      title: 是否改表 / 改 schema（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-6
+      file: design/data-model.md
+      section: "1"
+    - ref: design/data-model.md#2
+      title: 读契约：`quant.trading_calendar`（只读，沿用既有口径）（
+      serves:
+        - FR-3
+        - FR-5
+      file: design/data-model.md
+      section: "2"
+    - ref: design/data-model.md#3
+      title: 写契约：本需求**减少**哪些写入（
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: "3"
+    - ref: design/data-model.md#4
+      title: 跳过态的三态语义（定死，避免"跳过"与"没跑"混淆）（
+      serves:
+        - FR-6
+      file: design/data-model.md
+      section: "4"
+    - ref: design/data-model.md#5
+      title: 日志字段契约（可被 grep / 巡检消费）（
+      serves:
+        - FR-6
+      file: design/data-model.md
+      section: "5"
+    - ref: design/data-model.md#6
+      title: 迁移、兼容与回滚（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/data-model.md
+      section: "6"
+    - ref: design/data-model.md#7
+      title: 数据侧的不变量（实施与验收都不许破坏）（
+      serves:
+        - FR-3
+        - FR-5
+      file: design/data-model.md
+      section: "7"
+    - ref: design/interfaces.md#1
+      title: 复用件：`application/services/trading_day_gate.py`（零改动）（
+      serves:
+        - FR-3
+      file: design/interfaces.md
+      section: "1"
+    - ref: design/interfaces.md#2
+      title: 改动件：`adapters/inbound/fastapi_app/orchestrator_bootstrap.py`（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-6
+      file: design/interfaces.md
+      section: "2"
+    - ref: design/interfaces.md#2.1
+      title: 新增：循环层预过滤 helper（
+      serves:
+        - FR-3
+        - FR-6
+      file: design/interfaces.md
+      section: "2.1"
+    - ref: design/interfaces.md#2.2
+      title: 不变：窗口函数（契约面）（
+      serves:
+        - FR-4
+      file: design/interfaces.md
+      section: "2.2"
+    - ref: design/interfaces.md#2.3
+      title: 改行为，不改签名：主循环（
+      serves:
+        - FR-1
+        - FR-2
+      file: design/interfaces.md
+      section: "2.3"
+    - ref: design/interfaces.md#2.4
+      title: 新增：日志事件与去噪（
+      serves:
+        - FR-6
+      file: design/interfaces.md
+      section: "2.4"
+    - ref: design/interfaces.md#3
+      title: 改动件：`application/services/intraday_monitor.py`（
+      serves:
+        - FR-1
+        - FR-3
+        - FR-5
+        - FR-6
+      file: design/interfaces.md
+      section: "3"
+    - ref: design/interfaces.md#3.1
+      title: 新增常量（
+      serves:
+        - FR-6
+      file: design/interfaces.md
+      section: "3.1"
+    - ref: design/interfaces.md#3.2
+      title: 改签名（**向后兼容**）：`check()`（
+      serves:
+        - FR-1
+        - FR-3
+      file: design/interfaces.md
+      section: "3.2"
+    - ref: design/interfaces.md#3.3
+      title: 判定顺序（**严格增量**，定死）（
+      serves:
+        - FR-1
+        - FR-3
+        - FR-5
+      file: design/interfaces.md
+      section: "3.3"
+    - ref: design/interfaces.md#3.4
+      title: 返回值形状（定死）（
+      serves:
+        - FR-6
+      file: design/interfaces.md
+      section: "3.4"
+    - ref: design/interfaces.md#3.5
+      title: "不变：`_is_trading_time(current_time: time) -> bool`（"
+      serves:
+        - FR-4
+      file: design/interfaces.md
+      section: "3.5"
+    - ref: design/interfaces.md#4
+      title: 调用方契约（谁调谁、给什么、回什么）（
+      serves:
+        - FR-1
+        - FR-2
+      file: design/interfaces.md
+      section: "4"
+    - ref: design/interfaces.md#5
+      title: 口径与不变量（写死，验收照此判）（
+      serves:
+        - FR-5
+      file: design/interfaces.md
+      section: "5"
+    - ref: design/use-cases.md#1
+      title: 场景 A：休市日盘中（本次要治的病）（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-6
+      file: design/use-cases.md
+      section: "1"
+    - ref: design/use-cases.md#2
+      title: 场景 B：复市首日（最怕被误跳的一天）（
+      serves:
+        - FR-1
+        - FR-3
+        - FR-5
+      file: design/use-cases.md
+      section: "2"
+    - ref: design/use-cases.md#3
+      title: 场景 C：日历降级（数据源挂 / 覆盖断档）（
+      serves:
+        - FR-3
+      file: design/use-cases.md
+      section: "3"
+    - ref: design/use-cases.md#4
+      title: 场景 D：旁路调用（脚本 / 其它窗口 / 将来的新调度）（
+      serves:
+        - FR-1
+        - FR-3
+      file: design/use-cases.md
+      section: "4"
+    - ref: design/use-cases.md#5
+      title: 场景 E：周末（既有行为，不因本需求改变）（
+      serves:
+        - FR-4
+      file: design/use-cases.md
+      section: "5"
+    - ref: design/use-cases.md#6
+      title: 场景 F：进程重启 / 跨日（
+      serves:
+        - FR-1
+        - FR-6
+      file: design/use-cases.md
+      section: "6"
+    - ref: design/use-cases.md#7
+      title: 非目标：休市日的"人工强制"（明确不做，写清理由）（
+      serves:
+        - FR-4
+      file: design/use-cases.md
+      section: "7"
+outputs:
+  tasks:
+    - id: t-37a691
+      title: 给 IntradayMonitor.check() 加权威日级门
+      implements: "改 application/services/intraday_monitor.py：① 模块级新增常量 SKIP_REASON_NON_TRADING_DAY = 'non-trading-day'；② check() 签名改为 check(self, now: Optional[datetime] = None)（缺省 datetime.now()，向后兼容）；③ 在既有时段判定之后插日级门：skip, info = should_skip('trading-days', now)（from application.services.trading_day_gate import should_skip），skip 为真时立即返回 {'status':'skipped','reason':SKIP_REASON_NON_TRADING_DAY,'timestamp':now.isoformat(),'trading_day':info}，不得构造 PaperTradingEngine、不得读持仓/价格、不得写市值；④ _is_trading_time 的 docstring 改为指向本门（逻辑一行不改）。顺序不可调（日级门必须在时段判定之后）。依据 design/interfaces.md §3。"
+      serves:
+        - FR-1
+        - FR-3
+        - FR-5
+        - FR-6
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-bcbe54
+      title: 编排循环加 A 层日历预过滤与跳过去噪
+      implements: "改 adapters/inbound/fastapi_app/orchestrator_bootstrap.py：① 新增模块级 _LAST_SKIP_LOG: Dict[str, str] 与 _should_run_today(now, *, path) -> Tuple[bool, Dict]（内部只调 from application.services.trading_day_gate import should_skip，策略固定 'trading-days'；返回 (not skip, info)；skip 为真时按 (path, day) 去噪记一条 logger.info('orchestrator_trading_day_skip', path=…, day=…, is_trading_day=…, source=…, degraded=…, reason=…)；函数内不得出现 weekday()、不得直查 trading_calendar、不得抛异常）；② _monitor_loop 两个分支内各插一次判定，path 取 'orchestrator_tick' / 'intraday_monitor'，仅当 run 为真才调 monitor_jobs.daily_orchestrator_tick() / monitor_jobs.intraday_monitor_check()；既有 try/except 与 finally close_session()、窗口函数 _in_orchestrator_window / _in_intraday_window 原样不动。依据 design/interfaces.md §2。"
+      serves:
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-6
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-45c620
+      title: 回归锁与假绿防线（新建用例文件）
+      implements: 新建 tests/api/test_orchestrator_trading_day_gate.py，实现 design/test-cases.md 的 T1–T13：桩打在 application.services.trading_day_gate.TradingDayGuard（本仓打桩点规则）。覆盖：休市日跳过且 PaperTradingEngine 未被构造、交易日对照、降级 fail-open、门自身异常照跑、未来日反例锁（check('2026-10-07').source == 'future'）、编排 tick 休市日零调用与交易日照调、静态对账、打桩点证伪（打在 orchestrator_bootstrap 同名符号上不生效）、日志去噪、窗口语义回归、时段优先、通知零外发。并按 test-cases.md §4 至少做两处反向注入（降级也跳过 / 拿未来日当休市日判据），确认变红后复原，注入过程写进卡片汇报不留在仓库。
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+      depends_on:
+        - t-37a691
+        - t-bcbe54
+      phase: test
+      side: backend
+    - id: t-22d1ba
+      title: 休市日 / 复市首日真实观察留档
+      implements: 新建 docs/requirements/REQ-261006130750-0654/notes/holiday-observation.md，记录：① 2026-10-07（休市·周三）当天的 grep -c orchestrator_trading_day_skip logs/api.log、事件里的 source/degraded、quant.simulation_positions 与 quant.simulation_account 的 updated_at 是否被监控刷新、盘中返回 non-trading-day（对照 2026-10-06 的 no_positions 基线）；② 2026-10-08（复市首日·周四）两条路径恢复（该事件计数=0、status != 'skipped'）；③ 若实施晚于 10-08，如实写明「窗口未取到」与原因，不得用单测结果冒充真实观察（design/test-cases.md §3）。
+      serves:
+        - FR-1
+        - FR-3
+        - FR-5
+      depends_on:
+        - t-45c620
+      phase: test
+      side: backend
+    - id: t-32ec6a
+      title: 给 IntradayMonitor.check() 加权威日级门·研发
+      implements: |-
+        改 application/services/intraday_monitor.py：① 模块级新增常量 SKIP_REASON_NON_TRADING_DAY = 'non-trading-day'；② check() 签名改为 check(self, now: Optional[datetime] = None)（缺省 datetime.now()，向后兼容）；③ 在既有时段判定之后插日级门：skip, info = should_skip('trading-days', now)（from application.services.trading_day_gate import should_skip），skip 为真时立即返回 {'status':'skipped','reason':SKIP_REASON_NON_TRADING_DAY,'timestamp':now.isoformat(),'trading_day':info}，不得构造 PaperTradingEngine、不得读持仓/价格、不得写市值；④ _is_trading_time 的 docstring 改为指向本门（逻辑一行不改）。顺序不可调（日级门必须在时段判定之后）。依据 design/interfaces.md §3。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-6d2074
+      title: 给 IntradayMonitor.check() 加权威日级门·复核
+      implements: |-
+        改 application/services/intraday_monitor.py：① 模块级新增常量 SKIP_REASON_NON_TRADING_DAY = 'non-trading-day'；② check() 签名改为 check(self, now: Optional[datetime] = None)（缺省 datetime.now()，向后兼容）；③ 在既有时段判定之后插日级门：skip, info = should_skip('trading-days', now)（from application.services.trading_day_gate import should_skip），skip 为真时立即返回 {'status':'skipped','reason':SKIP_REASON_NON_TRADING_DAY,'timestamp':now.isoformat(),'trading_day':info}，不得构造 PaperTradingEngine、不得读持仓/价格、不得写市值；④ _is_trading_time 的 docstring 改为指向本门（逻辑一行不改）。顺序不可调（日级门必须在时段判定之后）。依据 design/interfaces.md §3。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-32ec6a
+      phase: implement
+      side: backend
+    - id: t-164414
+      title: 给 IntradayMonitor.check() 加权威日级门·测试
+      implements: |-
+        改 application/services/intraday_monitor.py：① 模块级新增常量 SKIP_REASON_NON_TRADING_DAY = 'non-trading-day'；② check() 签名改为 check(self, now: Optional[datetime] = None)（缺省 datetime.now()，向后兼容）；③ 在既有时段判定之后插日级门：skip, info = should_skip('trading-days', now)（from application.services.trading_day_gate import should_skip），skip 为真时立即返回 {'status':'skipped','reason':SKIP_REASON_NON_TRADING_DAY,'timestamp':now.isoformat(),'trading_day':info}，不得构造 PaperTradingEngine、不得读持仓/价格、不得写市值；④ _is_trading_time 的 docstring 改为指向本门（逻辑一行不改）。顺序不可调（日级门必须在时段判定之后）。依据 design/interfaces.md §3。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-6d2074
+      phase: implement
+      side: backend
+    - id: t-2ab0a5
+      title: 编排循环加 A 层日历预过滤与跳过去噪·研发
+      implements: |-
+        改 adapters/inbound/fastapi_app/orchestrator_bootstrap.py：① 新增模块级 _LAST_SKIP_LOG: Dict[str, str] 与 _should_run_today(now, *, path) -> Tuple[bool, Dict]（内部只调 from application.services.trading_day_gate import should_skip，策略固定 'trading-days'；返回 (not skip, info)；skip 为真时按 (path, day) 去噪记一条 logger.info('orchestrator_trading_day_skip', path=…, day=…, is_trading_day=…, source=…, degraded=…, reason=…)；函数内不得出现 weekday()、不得直查 trading_calendar、不得抛异常）；② _monitor_loop 两个分支内各插一次判定，path 取 'orchestrator_tick' / 'intraday_monitor'，仅当 run 为真才调 monitor_jobs.daily_orchestrator_tick() / monitor_jobs.intraday_monitor_check()；既有 try/except 与 finally close_session()、窗口函数 _in_orchestrator_window / _in_intraday_window 原样不动。依据 design/interfaces.md §2。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-011042
+      title: 编排循环加 A 层日历预过滤与跳过去噪·复核
+      implements: |-
+        改 adapters/inbound/fastapi_app/orchestrator_bootstrap.py：① 新增模块级 _LAST_SKIP_LOG: Dict[str, str] 与 _should_run_today(now, *, path) -> Tuple[bool, Dict]（内部只调 from application.services.trading_day_gate import should_skip，策略固定 'trading-days'；返回 (not skip, info)；skip 为真时按 (path, day) 去噪记一条 logger.info('orchestrator_trading_day_skip', path=…, day=…, is_trading_day=…, source=…, degraded=…, reason=…)；函数内不得出现 weekday()、不得直查 trading_calendar、不得抛异常）；② _monitor_loop 两个分支内各插一次判定，path 取 'orchestrator_tick' / 'intraday_monitor'，仅当 run 为真才调 monitor_jobs.daily_orchestrator_tick() / monitor_jobs.intraday_monitor_check()；既有 try/except 与 finally close_session()、窗口函数 _in_orchestrator_window / _in_intraday_window 原样不动。依据 design/interfaces.md §2。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-2ab0a5
+      phase: implement
+      side: backend
+    - id: t-67db61
+      title: 编排循环加 A 层日历预过滤与跳过去噪·测试
+      implements: |-
+        改 adapters/inbound/fastapi_app/orchestrator_bootstrap.py：① 新增模块级 _LAST_SKIP_LOG: Dict[str, str] 与 _should_run_today(now, *, path) -> Tuple[bool, Dict]（内部只调 from application.services.trading_day_gate import should_skip，策略固定 'trading-days'；返回 (not skip, info)；skip 为真时按 (path, day) 去噪记一条 logger.info('orchestrator_trading_day_skip', path=…, day=…, is_trading_day=…, source=…, degraded=…, reason=…)；函数内不得出现 weekday()、不得直查 trading_calendar、不得抛异常）；② _monitor_loop 两个分支内各插一次判定，path 取 'orchestrator_tick' / 'intraday_monitor'，仅当 run 为真才调 monitor_jobs.daily_orchestrator_tick() / monitor_jobs.intraday_monitor_check()；既有 try/except 与 finally close_session()、窗口函数 _in_orchestrator_window / _in_intraday_window 原样不动。依据 design/interfaces.md §2。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-011042
+      phase: implement
+      side: backend
+    - id: t-ea86ce
+      title: 回归锁与假绿防线（新建用例文件）·研发
+      implements: |-
+        新建 tests/api/test_orchestrator_trading_day_gate.py，实现 design/test-cases.md 的 T1–T13：桩打在 application.services.trading_day_gate.TradingDayGuard（本仓打桩点规则）。覆盖：休市日跳过且 PaperTradingEngine 未被构造、交易日对照、降级 fail-open、门自身异常照跑、未来日反例锁（check('2026-10-07').source == 'future'）、编排 tick 休市日零调用与交易日照调、静态对账、打桩点证伪（打在 orchestrator_bootstrap 同名符号上不生效）、日志去噪、窗口语义回归、时段优先、通知零外发。并按 test-cases.md §4 至少做两处反向注入（降级也跳过 / 拿未来日当休市日判据），确认变红后复原，注入过程写进卡片汇报不留在仓库。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-37a691
+        - t-bcbe54
+      phase: test
+      side: backend
+    - id: t-1d7233
+      title: 回归锁与假绿防线（新建用例文件）·复核
+      implements: |-
+        新建 tests/api/test_orchestrator_trading_day_gate.py，实现 design/test-cases.md 的 T1–T13：桩打在 application.services.trading_day_gate.TradingDayGuard（本仓打桩点规则）。覆盖：休市日跳过且 PaperTradingEngine 未被构造、交易日对照、降级 fail-open、门自身异常照跑、未来日反例锁（check('2026-10-07').source == 'future'）、编排 tick 休市日零调用与交易日照调、静态对账、打桩点证伪（打在 orchestrator_bootstrap 同名符号上不生效）、日志去噪、窗口语义回归、时段优先、通知零外发。并按 test-cases.md §4 至少做两处反向注入（降级也跳过 / 拿未来日当休市日判据），确认变红后复原，注入过程写进卡片汇报不留在仓库。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-ea86ce
+      phase: test
+      side: backend
+    - id: t-bcf326
+      title: 回归锁与假绿防线（新建用例文件）·测试
+      implements: |-
+        新建 tests/api/test_orchestrator_trading_day_gate.py，实现 design/test-cases.md 的 T1–T13：桩打在 application.services.trading_day_gate.TradingDayGuard（本仓打桩点规则）。覆盖：休市日跳过且 PaperTradingEngine 未被构造、交易日对照、降级 fail-open、门自身异常照跑、未来日反例锁（check('2026-10-07').source == 'future'）、编排 tick 休市日零调用与交易日照调、静态对账、打桩点证伪（打在 orchestrator_bootstrap 同名符号上不生效）、日志去噪、窗口语义回归、时段优先、通知零外发。并按 test-cases.md §4 至少做两处反向注入（降级也跳过 / 拿未来日当休市日判据），确认变红后复原，注入过程写进卡片汇报不留在仓库。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-1d7233
+      phase: test
+      side: backend
+    - id: t-b554a3
+      title: 休市日 / 复市首日真实观察留档·研发
+      implements: |-
+        新建 docs/requirements/REQ-261006130750-0654/notes/holiday-observation.md，记录：① 2026-10-07（休市·周三）当天的 grep -c orchestrator_trading_day_skip logs/api.log、事件里的 source/degraded、quant.simulation_positions 与 quant.simulation_account 的 updated_at 是否被监控刷新、盘中返回 non-trading-day（对照 2026-10-06 的 no_positions 基线）；② 2026-10-08（复市首日·周四）两条路径恢复（该事件计数=0、status != 'skipped'）；③ 若实施晚于 10-08，如实写明「窗口未取到」与原因，不得用单测结果冒充真实观察（design/test-cases.md §3）。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-45c620
+      phase: test
+      side: backend
+    - id: t-b87557
+      title: 休市日 / 复市首日真实观察留档·复核
+      implements: |-
+        新建 docs/requirements/REQ-261006130750-0654/notes/holiday-observation.md，记录：① 2026-10-07（休市·周三）当天的 grep -c orchestrator_trading_day_skip logs/api.log、事件里的 source/degraded、quant.simulation_positions 与 quant.simulation_account 的 updated_at 是否被监控刷新、盘中返回 non-trading-day（对照 2026-10-06 的 no_positions 基线）；② 2026-10-08（复市首日·周四）两条路径恢复（该事件计数=0、status != 'skipped'）；③ 若实施晚于 10-08，如实写明「窗口未取到」与原因，不得用单测结果冒充真实观察（design/test-cases.md §3）。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-b554a3
+      phase: test
+      side: backend
+    - id: t-047d90
+      title: 休市日 / 复市首日真实观察留档·测试
+      implements: |-
+        新建 docs/requirements/REQ-261006130750-0654/notes/holiday-observation.md，记录：① 2026-10-07（休市·周三）当天的 grep -c orchestrator_trading_day_skip logs/api.log、事件里的 source/degraded、quant.simulation_positions 与 quant.simulation_account 的 updated_at 是否被监控刷新、盘中返回 non-trading-day（对照 2026-10-06 的 no_positions 基线）；② 2026-10-08（复市首日·周四）两条路径恢复（该事件计数=0、status != 'skipped'）；③ 若实施晚于 10-08，如实写明「窗口未取到」与原因，不得用单测结果冒充真实观察（design/test-cases.md §3）。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-b87557
+      phase: test
+      side: backend
+task_coverage:
+  - task_id: t-37a691
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-bcbe54
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-45c620
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-22d1ba
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-32ec6a
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-6d2074
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-164414
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-2ab0a5
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-011042
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-67db61
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-ea86ce
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-1d7233
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-bcf326
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-b554a3
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-b87557
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-047d90
+    covers_prototypes: []
+    covers_decisions: []
+traceability:
+  design_to_tasks:
+    design/architecture.md#1:
+      - t-37a691
+      - t-bcbe54
+      - t-45c620
+      - t-22d1ba
+    design/architecture.md#2:
+      - t-37a691
+      - t-bcbe54
+      - t-45c620
+      - t-22d1ba
+    design/architecture.md#3:
+      - t-37a691
+      - t-bcbe54
+      - t-45c620
+      - t-22d1ba
+    design/architecture.md#4:
+      - t-37a691
+      - t-bcbe54
+      - t-45c620
+      - t-22d1ba
+    design/architecture.md#5:
+      - t-37a691
+      - t-bcbe54
+      - t-45c620
+    design/architecture.md#6:
+      - t-37a691
+      - t-bcbe54
+      - t-45c620
+      - t-22d1ba
+    design/architecture.md#7:
+      - t-37a691
+      - t-bcbe54
+      - t-45c620
+      - t-22d1ba
+    design/architecture.md#8:
+      - t-37a691
+      - t-bcbe54
+      - t-45c620
+      - t-22d1ba
+    design/architecture.md#9:
+      - t-bcbe54
+      - t-45c620
+    design/data-model.md#1:
+      - t-37a691
+      - t-bcbe54
+      - t-45c620
+      - t-22d1ba
+    design/data-model.md#2:
+      - t-37a691
+      - t-bcbe54
+      - t-45c620
+      - t-22d1ba
+    design/data-model.md#3:
+      - t-37a691
+      - t-45c620
+      - t-22d1ba
+    design/data-model.md#4:
+      - t-37a691
+      - t-bcbe54
+      - t-45c620
+    design/data-model.md#5:
+      - t-37a691
+      - t-bcbe54
+      - t-45c620
+    design/data-model.md#6:
+      - t-37a691
+      - t-bcbe54
+      - t-45c620
+      - t-22d1ba
+    design/data-model.md#7:
+      - t-37a691
+      - t-bcbe54
+      - t-45c620
+      - t-22d1ba
+    design/interfaces.md#1:
+      - t-37a691
+      - t-bcbe54
+      - t-45c620
+      - t-22d1ba
+    design/interfaces.md#2:
+      - t-37a691
+      - t-bcbe54
+      - t-45c620
+      - t-22d1ba
+    design/interfaces.md#2.1:
+      - t-37a691
+      - t-bcbe54
+      - t-45c620
+      - t-22d1ba
+    design/interfaces.md#2.2:
+      - t-bcbe54
+      - t-45c620
+    design/interfaces.md#2.3:
+      - t-37a691
+      - t-bcbe54
+      - t-45c620
+      - t-22d1ba
+    design/interfaces.md#2.4:
+      - t-37a691
+      - t-bcbe54
+      - t-45c620
+    design/interfaces.md#3:
+      - t-37a691
+      - t-bcbe54
+      - t-45c620
+      - t-22d1ba
+    design/interfaces.md#3.1:
+      - t-37a691
+      - t-bcbe54
+      - t-45c620
+    design/interfaces.md#3.2:
+      - t-37a691
+      - t-bcbe54
+      - t-45c620
+      - t-22d1ba
+    design/interfaces.md#3.3:
+      - t-37a691
+      - t-bcbe54
+      - t-45c620
+      - t-22d1ba
+    design/interfaces.md#3.4:
+      - t-37a691
+      - t-bcbe54
+      - t-45c620
+    design/interfaces.md#3.5:
+      - t-bcbe54
+      - t-45c620
+    design/interfaces.md#4:
+      - t-37a691
+      - t-bcbe54
+      - t-45c620
+      - t-22d1ba
+    design/interfaces.md#5:
+      - t-37a691
+      - t-45c620
+      - t-22d1ba
+    design/use-cases.md#1:
+      - t-37a691
+      - t-bcbe54
+      - t-45c620
+      - t-22d1ba
+    design/use-cases.md#2:
+      - t-37a691
+      - t-bcbe54
+      - t-45c620
+      - t-22d1ba
+    design/use-cases.md#3:
+      - t-37a691
+      - t-bcbe54
+      - t-45c620
+      - t-22d1ba
+    design/use-cases.md#4:
+      - t-37a691
+      - t-bcbe54
+      - t-45c620
+      - t-22d1ba
+    design/use-cases.md#5:
+      - t-bcbe54
+      - t-45c620
+    design/use-cases.md#6:
+      - t-37a691
+      - t-bcbe54
+      - t-45c620
+      - t-22d1ba
+    design/use-cases.md#7:
+      - t-bcbe54
+      - t-45c620
+  fr_to_tasks:
+    FR-1:
+      - t-37a691
+      - t-bcbe54
+      - t-45c620
+      - t-22d1ba
+    FR-2:
+      - t-37a691
+      - t-bcbe54
+      - t-45c620
+      - t-22d1ba
+    FR-3:
+      - t-37a691
+      - t-bcbe54
+      - t-45c620
+      - t-22d1ba
+    FR-4:
+      - t-37a691
+      - t-bcbe54
+      - t-45c620
+      - t-22d1ba
+    FR-5:
+      - t-37a691
+      - t-bcbe54
+      - t-45c620
+      - t-22d1ba
+    FR-6:
+      - t-37a691
+      - t-bcbe54
+      - t-45c620
+      - t-22d1ba
+coverage:
+  implementation:
+    total: 37
+    covered: 37
+    uncovered: []
+    rate: 100
+    total_designs: 37
+    covered_designs: 37

@@ -1,0 +1,38 @@
+task:
+  id: t-48d78d
+  title: 新增测试期通知外发守卫（report 模式接线）·研发
+  status: done
+  implements: |-
+    新增 tests/notify_guard.py（classify / install_notify_guard / attempts / real_egress_count / assert_no_real_egress）；conftest.py 会话级安装 + notify_guard fixture + pytest_sessionfinish 汇总 + QUANTSYS_NOTIFY_GUARD 开关；默认 report（只拦截记账）。
+
+    [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+  serves: []
+  depends_on: []
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261003150739-b98d
+    TASK_ID: t-48d78d
+    TASK_TITLE: 新增测试期通知外发守卫（report 模式接线）·研发
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      started_at: 2026-10-03T07:14:59.166Z
+      completed_at: 2026-10-03T07:14:59.284Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261003150739-b98d
+  generated_at: 2026-10-03T07:14:59.075Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-03T07:14:59.285Z

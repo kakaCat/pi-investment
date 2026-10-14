@@ -1,0 +1,134 @@
+metadata:
+  stage: accepting
+  requirement_id: REQ-261006133733-1fdf
+  generated_at: 2026-10-06T05:56:36.535Z
+  version: 4
+  generated_by: dsh-pmboard
+  last_updated: 2026-10-06T05:56:54.406Z
+inputs:
+  tasks:
+    - id: t-0a6461
+      title: 让异常检测真的运行，并输出可区分的三态
+      status: done
+    - id: t-163105
+      title: 下游按三态处置：失败不当干净、数据不足不扣分
+      status: done
+    - id: t-b1dd5c
+      title: 真 polars 回归锁与反例锁（先红后绿）
+      status: done
+    - id: t-420a52
+      title: 抽样实跑复验与读数对照留档
+      status: done
+    - id: t-a75776
+      title: 让异常检测真的运行，并输出可区分的三态·研发
+      status: done
+    - id: t-af8fa3
+      title: 让异常检测真的运行，并输出可区分的三态·复核
+      status: done
+    - id: t-e8a5e3
+      title: 让异常检测真的运行，并输出可区分的三态·测试
+      status: done
+    - id: t-9dc9eb
+      title: 下游按三态处置：失败不当干净、数据不足不扣分·研发
+      status: done
+    - id: t-02907b
+      title: 下游按三态处置：失败不当干净、数据不足不扣分·复核
+      status: done
+    - id: t-0a6147
+      title: 下游按三态处置：失败不当干净、数据不足不扣分·测试
+      status: done
+    - id: t-da0215
+      title: 真 polars 回归锁与反例锁（先红后绿）·研发
+      status: done
+    - id: t-97f26c
+      title: 真 polars 回归锁与反例锁（先红后绿）·复核
+      status: done
+    - id: t-7463bd
+      title: 真 polars 回归锁与反例锁（先红后绿）·测试
+      status: done
+    - id: t-45f50a
+      title: 抽样实跑复验与读数对照留档·研发
+      status: done
+    - id: t-0dd2ae
+      title: 抽样实跑复验与读数对照留档·复核
+      status: done
+    - id: t-9050ff
+      title: 抽样实跑复验与读数对照留档·测试
+      status: done
+outputs:
+  test_cases:
+    - id: TC-1
+      title: 6. 卡覆盖标注（covers，供覆盖度门禁对账）
+      covers:
+        - t-0a6461
+        - t-a75776
+        - t-af8fa3
+        - t-e8a5e3
+        - t-163105
+        - t-9dc9eb
+        - t-02907b
+        - t-0a6147
+        - t-b1dd5c
+        - t-da0215
+        - t-97f26c
+        - t-7463bd
+        - t-420a52
+        - t-45f50a
+        - t-0dd2ae
+        - t-9050ff
+      validates: []
+      source: tests/test-evidence.md
+traceability:
+  task_to_tests:
+    t-0a6461:
+      - TC-1
+    t-163105:
+      - TC-1
+    t-b1dd5c:
+      - TC-1
+    t-420a52:
+      - TC-1
+    t-a75776:
+      - TC-1
+    t-af8fa3:
+      - TC-1
+    t-e8a5e3:
+      - TC-1
+    t-9dc9eb:
+      - TC-1
+    t-02907b:
+      - TC-1
+    t-0a6147:
+      - TC-1
+    t-da0215:
+      - TC-1
+    t-97f26c:
+      - TC-1
+    t-7463bd:
+      - TC-1
+    t-45f50a:
+      - TC-1
+    t-0dd2ae:
+      - TC-1
+    t-9050ff:
+      - TC-1
+  fr_to_tests:
+    FR-1:
+      - TC-1
+    FR-2:
+      - TC-1
+    FR-3:
+      - TC-1
+    FR-4:
+      - TC-1
+    FR-5:
+      - TC-1
+coverage:
+  testing:
+    total: 16
+    covered: 16
+    uncovered: []
+    rate: 100
+    total_tasks: 16
+    tested_tasks: 16
+    untested: []

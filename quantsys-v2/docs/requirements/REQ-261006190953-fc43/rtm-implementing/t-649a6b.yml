@@ -1,0 +1,38 @@
+task:
+  id: t-649a6b
+  title: 接线两处写入入口：非交易日拒写并留痕 refused/skipped·复核
+  status: done
+  implements: |-
+    改 application/services/evolution/daily_snapshot_service.py：snapshot_all_accounts 汇总 refused（被闸门拒写的账户数）与 trading_day 五键，written 不计被拒账户；EquitySnapshotJob._has_bar 由“交易日代理判据”降级为“是否已收盘”辅助判据，交易日判定交给闸门，reason 文案区分“非交易日”与“未收盘”。改 application/trading/paper_trading_engine.py：take_daily_snapshot 处理闸门返回 None（不得 AttributeError），返回 {'skipped': True, 'reason': ..., 'trading_day_source': ..., 'trading_day': 五键}。改 tests/test_daily_jobs_trading_day_gate.py 补 EquitySnapshotJob 休市日用例；扩展 tests/test_equity_snapshot_trading_day_gate.py 的服务路径部分。验证：./venv/bin/python -m pytest tests/test_daily_jobs_trading_day_gate.py tests/test_equity_snapshot_trading_day_gate.py -q 全过。
+
+    [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+  serves: []
+  depends_on:
+    - t-4c6330
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261006190953-fc43
+    TASK_ID: t-649a6b
+    TASK_TITLE: 接线两处写入入口：非交易日拒写并留痕 refused/skipped·复核
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-06T11:59:00.391Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006190953-fc43
+  generated_at: 2026-10-06T11:58:53.768Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-06T11:59:00.391Z

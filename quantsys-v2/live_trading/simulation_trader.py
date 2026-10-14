@@ -53,6 +53,24 @@ except ImportError:
     logger.warning("Notification system not available")
     _notification_available = False
 
+# 2026-10-04（REQ-261004154902-a7cd t2 / FR-1 / FR-2）：
+# 结果契约与失败出口。动因见 application/observability/run_outcome.py 的模块 docstring——
+# 本文件此前**丢弃** rebalance() 的返回值、并把异常吞成 success。
+from application.observability import RunOutcome
+from application.observability.failure_sink import SEVERITY_HIGH, report_failure
+from application.observability.run_outcome import (
+    ACTION_HOLD,
+    ACTION_REBALANCE,
+    ACTION_STOP_LOSS,
+    FAILED_REASONS,
+    REASON_FACTOR_EMPTY,
+    REASON_MODEL_NOT_LOADED,
+    REASON_NOT_DUE,
+    REASON_NOT_TRADING_DAY,
+    REASON_REBALANCE_FAILED,
+    REASON_STOP_LOSS_FAILED,
+)
+
 import xgboost as xgb
 import psycopg2
 
@@ -131,6 +149,8 @@ class SimulationTrader:
 
         self.model = None
         self.valid_factors = None
+        # t2：最近一次调仓通知的失败原因（None = 未发或已送达）
+        self._last_notify_error = None
 
         # 模型文件路径（load_model 读取，可在构造后由调用方覆盖）
         base_dir = Path(__file__).parent
@@ -819,13 +839,20 @@ class SimulationTrader:
         return self._is_rebalance_due(current_date)
 
     def run_daily_check(self):
-        """每日检查（手动调用）
+        """每日检查（供调度层调用）
 
         Returns:
-            dict: 执行结果（2026-08-12 起返回结构化结果，让调度层能区分
-                  "执行了"和"跳过了"——此前跳过被记为 success 导致空转数周无人察觉）
-                  - executed: False + reason（model_not_loaded / not_trading_day）
-                  - executed: True + action（stop_loss / rebalance / hold）
+            dict: **结果契约**（见 ``application/observability/run_outcome.py``）。
+                  既有字段名 ``executed`` / ``reason`` / ``action`` 保持不变（向后兼容），
+                  新增 ``ok`` / ``status`` / ``error``：
+                  - 跳过（非交易日 / 未到调仓周期）→ ``status='skipped'``，**不是** success；
+                  - 失败（模型未加载 / 因子为空 / 调仓抛错 / 止损失败）→ ``status='failed'``
+                    且 ``error`` 非空，同时经 FailureSink 主动外发；
+                  - 真干成（调仓完成 / 触发止损）→ ``status='success'``。
+
+        2026-10-04（REQ-261004154902-a7cd t2）：此前本方法**丢弃** ``rebalance()`` 的返回值、
+        无条件返回 ``executed=True, action='rebalance'``，于是调仓抛错也对外表现为成功
+        （实证：9/1–9/11 账户零成交、5 次日检全记 success）。
         """
         today = datetime.now().strftime('%Y-%m-%d')
         logger.info(f"\n{'='*60}")
@@ -835,14 +862,25 @@ class SimulationTrader:
         # 检查模型
         if self.model is None:
             logger.error("模型未加载，请先训练或加载模型")
-            return {'executed': False, 'reason': 'model_not_loaded'}
+            self._report_failure(
+                REASON_MODEL_NOT_LOADED,
+                f"模型未加载（model_path={getattr(self, 'model_path', None)}）",
+                context={'date': today},
+            )
+            return RunOutcome.failed(
+                REASON_MODEL_NOT_LOADED,
+                f"模型未加载（model_path={getattr(self, 'model_path', None)}）",
+                action=ACTION_HOLD,
+                executed=False,
+            ).to_dict()
 
         # 交易日校验前置（此前埋在 should_rebalance 里，无法与"未到调仓周期"区分）
         if not self._is_trading_day(today):
             logger.info(f"{today} 不是交易日，跳过检查")
-            return {'executed': False, 'reason': 'not_trading_day'}
+            return RunOutcome.skipped(REASON_NOT_TRADING_DAY).to_dict()
 
-        action = 'hold'
+        action = ACTION_HOLD
+        detail = {}
 
         # 1. 检查单股止损
         if self.portfolio:
@@ -853,9 +891,24 @@ class SimulationTrader:
 
             if stop_loss_symbols:
                 logger.warning(f"触发单股止损: {stop_loss_symbols}")
-                self._execute_stop_loss(stop_loss_symbols, prices, today)
-                self._save_account_to_db()
-                action = 'stop_loss'
+                try:
+                    self._execute_stop_loss(stop_loss_symbols, prices, today)
+                    self._save_account_to_db()
+                    action = ACTION_STOP_LOSS
+                    detail['stop_loss_symbols'] = list(stop_loss_symbols)
+                except Exception as exc:  # noqa: BLE001 - 止损失败必须如实上报
+                    logger.error(f"止损执行失败: {exc}", exc_info=True)
+                    self._report_failure(
+                        REASON_STOP_LOSS_FAILED,
+                        exc,
+                        context={'date': today, 'symbols': list(stop_loss_symbols)},
+                    )
+                    return RunOutcome.failed(
+                        REASON_STOP_LOSS_FAILED,
+                        exc,
+                        action=ACTION_STOP_LOSS,
+                        detail={'stop_loss_symbols': list(stop_loss_symbols)},
+                    ).to_dict()
 
         # 2. 检查是否需要调仓
         if not self._is_rebalance_due(today):
@@ -863,11 +916,172 @@ class SimulationTrader:
             days_passed = (datetime.now() - last_date).days
             days_to_next = self.config['strategy']['rebalance_days'] - days_passed
             logger.info(f"距离下次调仓还有 {days_to_next} 天")
-            return {'executed': True, 'action': action, 'days_to_next': days_to_next}
+            detail['days_to_next'] = days_to_next
+            if action == ACTION_STOP_LOSS:
+                # 止损是真干成了的事；未到调仓周期不影响这一点
+                return RunOutcome.done(ACTION_STOP_LOSS, detail=detail).to_dict()
+            return RunOutcome(
+                executed=True,
+                reason=REASON_NOT_DUE,
+                action=ACTION_HOLD,
+                detail=detail,
+            ).to_dict()
 
         logger.info("触发调仓条件，开始执行...")
-        self.rebalance(today)
-        return {'executed': True, 'action': 'rebalance'}
+        rebalance_result = self.rebalance(today)
+
+        # ✅ 关键修复（t2）：调仓结果必须被消费，不许再丢弃
+        if not isinstance(rebalance_result, dict) or not rebalance_result.get('success'):
+            error = (
+                rebalance_result.get('error')
+                if isinstance(rebalance_result, dict)
+                else f"rebalance() 返回了 {type(rebalance_result).__name__}"
+            ) or '调仓失败但未给出原因'
+            # 保留 rebalance 给出的**具体**失败原因（如 factor_empty），
+            # 拿不到可识别原因时才退回笼统的 rebalance_failed
+            reported = (rebalance_result or {}).get('reason') if isinstance(rebalance_result, dict) else None
+            reason = reported if reported in FAILED_REASONS else REASON_REBALANCE_FAILED
+            logger.error(f"调仓未成功，如实上报（reason={reason}）: {error}")
+            self._report_failure(reason, error, context={'date': today})
+            detail['rebalance'] = rebalance_result if isinstance(rebalance_result, dict) else None
+            return RunOutcome.failed(
+                reason,
+                error,
+                action=ACTION_REBALANCE,
+                detail=detail,
+            ).to_dict()
+
+        detail['rebalance'] = {
+            'position_count': rebalance_result.get('position_count'),
+            'total_value': rebalance_result.get('total_value'),
+        }
+        detail['notify_ok'] = rebalance_result.get('notify_ok')
+        detail['notify_error'] = rebalance_result.get('notify_error')
+        return RunOutcome.done(ACTION_REBALANCE, detail=detail).to_dict()
+
+    def _report_failure(self, reason, error, context=None):
+        """把失败交给统一的可见性出口（不抛异常，绝不影响业务链路）。"""
+        try:
+            report_failure(
+                'strategy.daily_check',
+                reason,
+                error,
+                severity=SEVERITY_HIGH,
+                context={'account': getattr(self, 'account_name', None), **(context or {})},
+            )
+        except Exception as exc:  # noqa: BLE001 - 可见性失败不许打挂业务
+            logger.error(f"失败外发通道异常（已吞）: {exc}")
+
+    def _send_rebalance_notification(self, current_date, top_stocks, weights, latest_factors, total_value):
+        """发送调仓通知"""
+        try:
+            # 准备Top 8股票信息
+            top_stocks_info = []
+            for symbol in top_stocks[:8]:
+                pred_return = latest_factors[latest_factors['symbol'] == symbol]['predicted_return'].iloc[0]
+                weight = weights.get(symbol, 0)
+
+                # 获取当前价格
+                try:
+                    df = self.kline_repo.get_stock_kline(
+                        symbol=symbol,
+                        start_date=current_date,
+                        end_date=current_date
+                    )
+                    price = float(df.iloc[-1]['close']) if not df.empty else 0
+                except Exception:
+                    price = 0
+
+                # 判断是否买入/保留
+                if symbol in self.portfolio:
+                    note = f"(¥{price:.2f}，保留持仓)"
+                else:
+                    # 计算目标资金
+                    target_value = total_value * weight * 0.7  # 假设仓位70%
+                    can_buy = target_value >= price * 100 if price > 0 else False
+                    if can_buy:
+                        note = f"(¥{price:.2f}，买入)"
+                    else:
+                        note = f"(¥{price:.2f}，价格太高买不起)"
+
+                top_stocks_info.append((symbol, pred_return, weight, note))
+
+            # 收集买入/卖出交易（从最近的交易记录中获取）
+            buy_trades = []
+            sell_trades = []
+
+            # 这里简化处理，实际应该从本次调仓的交易记录中提取
+            for symbol, pos in self.portfolio.items():
+                if symbol in top_stocks[:8]:
+                    # 新买入或保留的
+                    buy_trades.append((symbol, pos['shares'], pos['avg_price']))
+
+            notification_data = {
+                'date': current_date,
+                'total_value': total_value,
+                'cash': self.cash,
+                'cumulative_return': (total_value / self.config['initial_capital'] - 1),
+                'positions': len(self.portfolio),
+                'top_stocks': top_stocks_info,
+                'buy_trades': buy_trades,
+                'sell_trades': sell_trades
+            }
+
+            if not self.notification_facade:
+                # t2：facade 未装配必须可见（此前是静默跳过，只留 debug 级）
+                logger.warning("调仓通知未发出：notification_facade 未装配")
+                self._last_notify_error = 'notification_facade 未装配'
+                return False
+
+            # 使用新的 DDD 通知系统
+            # 注意：旧版有 send_rebalance_notification，新版需要使用通用方法
+            result = self.notification_facade.send_card(
+                title=f"V13策略调仓通知 - {current_date}",
+                content=self._format_rebalance_content(notification_data),
+                urgency='normal'
+            )
+            if result:
+                logger.info("调仓通知已发送")
+                return True
+            logger.error("调仓通知发送失败")
+            self._last_notify_error = 'send_card 返回 False'
+            return False
+
+        except Exception as e:
+            logger.error(f"发送调仓通知失败: {e}")
+            self._last_notify_error = str(e)
+            return False
+
+    def _format_rebalance_content(self, data: dict) -> str:
+        """格式化调仓通知内容"""
+        content = f"""**🗓 调仓日期**: {data['date']}
+
+**💰 账户状态**:
+• 总资产: ¥{data['total_value']:,.2f}
+• 现金余额: ¥{data['cash']:,.2f}
+• 累计收益: {data['cumulative_return']*100:+.2f}% (¥{(data['total_value'] - self.config['initial_capital']):,.2f})
+• 持仓数量: {data['positions']}只
+
+**🎯 本次预测Top 8**:"""
+
+        for i, (symbol, pred_return, weight, note) in enumerate(data['top_stocks'][:8], 1):
+            status = "✅" if "买入" in note or "保留" in note else "❌"
+            content += f"\n{i}. {symbol} - 预测{pred_return*100:+.2f}% {status} {note}"
+
+        if data['buy_trades'] or data['sell_trades']:
+            content += "\n\n**📈 实际操作**:"
+
+        if data['buy_trades']:
+            content += "\n**买入**:"
+            for symbol, shares, price in data['buy_trades']:
+                content += f"\n• {symbol}: {shares}股 @ ¥{price:.2f}"
+
+        if data['sell_trades']:
+            content += "\n**卖出**:"
+            for symbol, shares, price in data['sell_trades']:
+                content += f"\n• {symbol}: {shares}股 @ ¥{price:.2f}"
+
+        return content
 
     def rebalance(self, current_date):
         """执行调仓"""
@@ -889,9 +1103,16 @@ class SimulationTrader:
 
             if latest_factors.empty:
                 logger.error("因子计算失败，取消调仓")
+                # t2：取消调仓是**失败**，必须外发（此前只有一行日志）
+                self._report_failure(
+                    REASON_FACTOR_EMPTY,
+                    '因子计算失败（get_latest_factors 返回空表）',
+                    context={'date': current_date, 'stock_pool': len(stocks)},
+                )
                 return {
                     'success': False,
                     'error': '因子计算失败',
+                    'reason': REASON_FACTOR_EMPTY,
                     'account_name': self.account_name
                 }
 
@@ -954,7 +1175,9 @@ class SimulationTrader:
             # （本类实际用的是 self.notification_facade，见 __init__ 与 _send_rebalance_notification），
             # 该分支一旦进入即 AttributeError —— 残留死代码，直接删除；
             # _send_rebalance_notification 内部已用 notification_facade 自守卫。
-            self._send_rebalance_notification(
+            # t2：通知是**副作用**——它失败不得把一次成功的调仓判成失败（只留痕）。
+            self._last_notify_error = None
+            notify_ok = self._send_rebalance_notification(
                 current_date,
                 top_stocks,
                 weights,
@@ -974,11 +1197,19 @@ class SimulationTrader:
                     'symbol': symbol,
                     'weight': self._sanitize_float(float(weights[symbol]))
                 } for symbol in top_stocks],
-                'position_count': len(top_stocks)
+                'position_count': len(top_stocks),
+                'notify_ok': notify_ok,
+                'notify_error': getattr(self, '_last_notify_error', None),
             }
 
         except Exception as e:
             logger.error(f"调仓失败: {e}", exc_info=True)
+            # t2：抛错必须外发（此前只有日志 → 上层还记 success）
+            self._report_failure(
+                REASON_REBALANCE_FAILED,
+                e,
+                context={'date': current_date, 'phase': 'rebalance'},
+            )
             return {
                 'success': False,
                 'error': str(e),
@@ -1044,6 +1275,11 @@ class SimulationTrader:
                     continue
 
                 price = prices.get(symbol, self.portfolio[symbol]['avg_price'])
+
+                # FR-10（t-900179）：清仓卖出前过硬校验——被拦截则保留该持仓、
+                # 继续处理别的标的（不因一只账本矛盾的标的掀翻整次调仓）。
+                if not self._assert_sellable(symbol, shares, path='rebalance_exit', date=date):
+                    continue
 
                 # 模拟交易
                 trade = self.broker.sell(symbol, shares, price)
@@ -1151,6 +1387,10 @@ class SimulationTrader:
             elif delta_shares < 0:
                 # 卖出部分
                 sell_shares = -delta_shares
+                # FR-10（t-900179）：减仓卖出前过硬校验（拦截则本标的这次不动）
+                if not self._assert_sellable(
+                        symbol, sell_shares, path='rebalance_trim', date=date):
+                    continue
                 trade = self.broker.sell(symbol, sell_shares, price)
                 self.cash += trade['total_revenue']
 
@@ -1226,6 +1466,35 @@ class SimulationTrader:
 
         return prices
 
+    def _assert_sellable(self, symbol, shares, *, path, date=None) -> bool:
+        """V13 卖出前的超卖硬校验（REQ-261004154902-a7cd · t-900179 / FR-10）。
+
+        判定的**唯一实现**在应用层
+        ``application.services.account_trading_service.check_sellable``——
+        本文件**不再写第二个净额口径**（两套口径正是历史虚增 ≈¥49,425 的成因）。
+        外发也在那里完成（`report_failure`，source=``account_trading.oversell_check``，
+        reason=``oversell_blocked``），此处只补一条带**路径**的日志并决定本笔怎么办，
+        避免同一笔拦截发两条通知（防刷屏）。
+
+        Returns:
+            True = 放行；False = 已拦截（外发 + 日志已发生），调用方**跳过这笔卖出**。
+        """
+        try:
+            from application.services.account_trading_service import (
+                TradingError, check_sellable,
+            )
+            check_sellable(
+                self.repo, self.account_name, symbol, shares,
+                context={'path': path, 'date': str(date) if date else None,
+                         'phase': 'simulation_trader'},
+            )
+            return True
+        except TradingError as exc:
+            logger.error(
+                f"⛔ 超卖拦截（{path}）：跳过卖出 {symbol} {shares}股 —— {exc}"
+            )
+            return False
+
     def _execute_stop_loss(self, symbols, prices, date):
         """执行止损"""
         for symbol in symbols:
@@ -1234,6 +1503,11 @@ class SimulationTrader:
 
             shares = self.portfolio[symbol]['shares']
             price = prices[symbol]
+
+            # FR-10（t-900179）：止损卖出前也要过硬校验——被拦截就跳过该标的，
+            # 绝不用"凭空多出来的持仓"再换一次现金（虚增现金正是这么来的）。
+            if not self._assert_sellable(symbol, shares, path='stop_loss', date=date):
+                continue
 
             # 模拟交易
             trade = self.broker.sell(symbol, shares, price)
@@ -1560,104 +1834,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-    def _send_rebalance_notification(self, current_date, top_stocks, weights, latest_factors, total_value):
-        """发送调仓通知"""
-        try:
-            # 准备Top 8股票信息
-            top_stocks_info = []
-            for symbol in top_stocks[:8]:
-                pred_return = latest_factors[latest_factors['symbol'] == symbol]['predicted_return'].iloc[0]
-                weight = weights.get(symbol, 0)
-
-                # 获取当前价格
-                try:
-                    df = self.kline_repo.get_stock_kline(
-                        symbol=symbol,
-                        start_date=current_date,
-                        end_date=current_date
-                    )
-                    price = float(df.iloc[-1]['close']) if not df.empty else 0
-                except:
-                    price = 0
-
-                # 判断是否买入/保留
-                if symbol in self.portfolio:
-                    note = f"(¥{price:.2f}，保留持仓)"
-                else:
-                    # 计算目标资金
-                    target_value = total_value * weight * 0.7  # 假设仓位70%
-                    can_buy = target_value >= price * 100 if price > 0 else False
-                    if can_buy:
-                        note = f"(¥{price:.2f}，买入)"
-                    else:
-                        note = f"(¥{price:.2f}，价格太高买不起)"
-
-                top_stocks_info.append((symbol, pred_return, weight, note))
-
-            # 收集买入/卖出交易（从最近的交易记录中获取）
-            buy_trades = []
-            sell_trades = []
-
-            # 这里简化处理，实际应该从本次调仓的交易记录中提取
-            for symbol, pos in self.portfolio.items():
-                if symbol in top_stocks[:8]:
-                    # 新买入或保留的
-                    buy_trades.append((symbol, pos['shares'], pos['avg_price']))
-
-            notification_data = {
-                'date': current_date,
-                'total_value': total_value,
-                'cash': self.cash,
-                'cumulative_return': (total_value / self.config['initial_capital'] - 1),
-                'positions': len(self.portfolio),
-                'top_stocks': top_stocks_info,
-                'buy_trades': buy_trades,
-                'sell_trades': sell_trades
-            }
-
-            if self.notification_facade:
-                # 使用新的 DDD 通知系统
-                # 注意：旧版有 send_rebalance_notification，新版需要使用通用方法
-                result = self.notification_facade.send_card(
-                    title=f"V13策略调仓通知 - {current_date}",
-                    content=self._format_rebalance_content(notification_data),
-                    urgency='normal'
-                )
-                if result:
-                    logger.info("调仓通知已发送")
-                else:
-                    logger.error("调仓通知发送失败")
-
-        except Exception as e:
-            logger.error(f"发送调仓通知失败: {e}")
-
-    def _format_rebalance_content(self, data: dict) -> str:
-        """格式化调仓通知内容"""
-        content = f"""**🗓 调仓日期**: {data['date']}
-
-**💰 账户状态**:
-• 总资产: ¥{data['total_value']:,.2f}
-• 现金余额: ¥{data['cash']:,.2f}
-• 累计收益: {data['cumulative_return']*100:+.2f}% (¥{(data['total_value'] - self.config['initial_capital']):,.2f})
-• 持仓数量: {data['positions']}只
-
-**🎯 本次预测Top 8**:"""
-
-        for i, (symbol, pred_return, weight, note) in enumerate(data['top_stocks'][:8], 1):
-            status = "✅" if "买入" in note or "保留" in note else "❌"
-            content += f"\n{i}. {symbol} - 预测{pred_return*100:+.2f}% {status} {note}"
-
-        if data['buy_trades'] or data['sell_trades']:
-            content += "\n\n**📈 实际操作**:"
-
-        if data['buy_trades']:
-            content += "\n**买入**:"
-            for symbol, shares, price in data['buy_trades']:
-                content += f"\n• {symbol}: {shares}股 @ ¥{price:.2f}"
-
-        if data['sell_trades']:
-            content += "\n**卖出**:"
-            for symbol, shares, price in data['sell_trades']:
-                content += f"\n• {symbol}: {shares}股 @ ¥{price:.2f}"
-
-        return content

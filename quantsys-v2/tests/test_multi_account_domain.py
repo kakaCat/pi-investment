@@ -8,7 +8,16 @@ from types import SimpleNamespace
 def _fixed_trading_clock(monkeypatch):
     """固定交易时段时钟：49d0b2b 引入交易时段护栏后，非交易时段跑本文件
     一律 422。交易判定是生产行为、非本文件测试目标，统一注入
-    固定交易时间 + 常真日历，使测试与时间无关。"""
+    固定交易时间 + 常真日历，使测试与时间无关。
+
+    2026-10-06（REQ-261006190953-fc43 卡 B）：净值快照写入改由**另一条**判据把关
+    （`application.services.trading_day_gate`，不是上面注入的那个 calendar）。
+    它一上线，本文件的 `test_equity_snapshot_upsert` 就在休市日（如 2026-10-06）被拒写而变红——
+    因为该用例拿"今天"当快照日期，隐含假设"今天一定是交易日"，等于让用例结果随日历漂移。
+    这里按本夹具**既定的同一条意图**补一格：交易日判定不是本文件测试目标，
+    对按日落库的写入也注入"常真门"。门本身的行为由
+    `tests/test_equity_snapshot_trading_day_gate.py` 专门覆盖。
+    """
     from application.services import account_trading_service as ats
     real_init = ats.AccountTradingService.__init__
 
@@ -20,6 +29,14 @@ def _fixed_trading_clock(monkeypatch):
             self.calendar = SimpleNamespace(is_trading_day=lambda d: True)
 
     monkeypatch.setattr(ats.AccountTradingService, '__init__', patched_init)
+
+    # 按日落库的交易日门同样注入"常真"（快照仓储在写入时懒加载该函数，故打在模块属性上即生效）
+    monkeypatch.setattr(
+        'application.services.trading_day_gate.skip_non_trading_day',
+        lambda day=None: (False, {'day': str(day), 'is_trading_day': True,
+                                  'source': 'test-double', 'degraded': False,
+                                  'reason': '本文件统一注入常真门'}),
+    )
 
 
 class TestORMModels:

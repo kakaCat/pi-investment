@@ -1,0 +1,35 @@
+task:
+  id: t-9b357b
+  title: 迁移：watch_triggers 加两列（两个库都跑）·研发
+  status: done
+  implements: |-
+    新建 infrastructure/persistence/migrations/20261007_watch_trigger_escalation.py：SET lock_timeout='30s' 后 ADD COLUMN IF NOT EXISTS escalation_code TEXT / escalation_reason TEXT，幂等，--apply 后打印 information_schema 读数；adapters/outbound/repositories/watch_rule_repository.py 的 WatchTrigger 模型同步加两列。两个库（quant_test 与 quant_investment）都要执行。
+
+    [子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要
+  serves: []
+  depends_on: []
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261007133807-eda6
+    TASK_ID: t-9b357b
+    TASK_TITLE: 迁移：watch_triggers 加两列（两个库都跑）·研发
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-07T10:47:48.128Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261007133807-eda6
+  generated_at: 2026-10-07T10:47:48.127Z
+  version: 3
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-07T10:47:50.721Z

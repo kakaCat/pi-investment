@@ -1,0 +1,812 @@
+metadata:
+  stage: decomposing
+  requirement_id: REQ-261006165125-23a9
+  generated_at: 2026-10-06T09:01:56.745Z
+  version: 73
+  generated_by: dsh-pmboard
+  rtm_version: "2.0"
+  last_updated: 2026-10-06T09:12:47.594Z
+inputs:
+  requirements:
+    - id: FR-1
+      title: 立唯一的"无事"判据（白名单 + 默认外发）
+      source: requirement.md
+      line: 118
+    - id: FR-2
+      title: 无事 → 开始与完成两条都不发
+      source: requirement.md
+      line: 124
+    - id: FR-3
+      title: 开始消息改为"超阈值仍在跑"提示
+      source: requirement.md
+      line: 128
+    - id: FR-4
+      title: 失败一律照发（静默规则不覆盖失败）
+      source: requirement.md
+      line: 134
+    - id: FR-5
+      title: 只静默外发，不静默留痕
+      source: requirement.md
+      line: 140
+    - id: FR-6
+      title: 人工触发必须有回执
+      source: requirement.md
+      line: 144
+    - id: FR-7
+      title: 开关与回滚
+      source: requirement.md
+      line: 149
+    - id: FR-8
+      title: 回归锁与真实观察
+      source: requirement.md
+      line: 154
+  design_sections:
+    - ref: design/architecture.md#1
+      title: 落点：把"该不该发"从三处散点收敛到一个判据入口（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-4
+      file: design/architecture.md
+      section: "1"
+    - ref: design/architecture.md#2
+      title: 为什么"开始消息"必须换形态（
+      serves:
+        - FR-2
+        - FR-3
+      file: design/architecture.md
+      section: "2"
+    - ref: design/architecture.md#3
+      title: 阈值计时不得阻塞任务线程（
+      serves:
+        - FR-3
+      file: design/architecture.md
+      section: "3"
+    - ref: design/architecture.md#4
+      title: 与相邻口径的关系（
+      serves:
+        - FR-2
+        - FR-5
+      file: design/architecture.md
+      section: "4"
+    - ref: design/architecture.md#5
+      title: 文件结构（新建 / 修改，各自职责一句话）（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-6
+        - FR-7
+      file: design/architecture.md
+      section: "5"
+    - ref: design/architecture.md#6
+      title: 裁定引用（
+      serves:
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-6
+      file: design/architecture.md
+      section: "6"
+    - ref: design/architecture.md#7
+      title: 回滚路径（
+      serves:
+        - FR-7
+      file: design/architecture.md
+      section: "7"
+    - ref: design/data-model.md#1
+      title: 结论：零 DDL、零迁移、零回填（
+      serves:
+        - FR-5
+      file: design/data-model.md
+      section: "1"
+    - ref: design/data-model.md#2
+      title: 被消费的 `result` 契约（只读，不新增键）（
+      serves:
+        - FR-1
+        - FR-2
+      file: design/data-model.md
+      section: "2"
+    - ref: design/data-model.md#3
+      title: "`status` 取值集合不变（"
+      serves:
+        - FR-5
+      file: design/data-model.md
+      section: "3"
+    - ref: design/data-model.md#4
+      title: 配置契约（新增 2 个环境变量）（
+      serves:
+        - FR-7
+      file: design/data-model.md
+      section: "4"
+    - ref: design/data-model.md#5
+      title: 静默之后，"跑过没跑过"仍然可查（
+      serves:
+        - FR-2
+        - FR-5
+        - FR-8
+      file: design/data-model.md
+      section: "5"
+    - ref: design/data-model.md#6
+      title: 迁移与回滚（
+      serves:
+        - FR-7
+      file: design/data-model.md
+      section: "6"
+    - ref: design/interfaces.md#1
+      title: 新模块 `daily_jobs/notify_policy.py`（纯函数，唯一判据入口）（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-4
+        - FR-6
+        - FR-7
+      file: design/interfaces.md
+      section: "1"
+    - ref: design/interfaces.md#1.1
+      title: "`is_no_op(result) -> bool`（"
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: "1.1"
+    - ref: design/interfaces.md#1.2
+      title: "`notify_noop_enabled() -> bool`（"
+      serves:
+        - FR-7
+      file: design/interfaces.md
+      section: "1.2"
+    - ref: design/interfaces.md#1.3
+      title: "`running_notice_seconds() -> float`（"
+      serves:
+        - FR-3
+        - FR-7
+      file: design/interfaces.md
+      section: "1.3"
+    - ref: design/interfaces.md#1.4
+      title: "`should_send_start() -> bool`（"
+      serves:
+        - FR-7
+      file: design/interfaces.md
+      section: "1.4"
+    - ref: design/interfaces.md#1.5
+      title: "`should_send_completion(*, result, manual=False) -> bool`（"
+      serves:
+        - FR-1
+        - FR-2
+        - FR-4
+        - FR-6
+      file: design/interfaces.md
+      section: "1.5"
+    - ref: design/interfaces.md#2
+      title: 修改 `daily_jobs/runtime.py`（
+      serves:
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-6
+        - FR-7
+      file: design/interfaces.md
+      section: "2"
+    - ref: design/interfaces.md#2.1
+      title: "`_run_job` 行为契约（逐分支）（"
+      serves:
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-6
+        - FR-7
+      file: design/interfaces.md
+      section: "2.1"
+    - ref: design/interfaces.md#2.2
+      title: "`_arm_running_notice(job) -> Optional[threading.Timer]`（"
+      serves:
+        - FR-3
+      file: design/interfaces.md
+      section: "2.2"
+    - ref: design/interfaces.md#2.3
+      title: "`trigger_job(job_id, force=False) -> Dict[str, Any]`（"
+      serves:
+        - FR-6
+      file: design/interfaces.md
+      section: "2.3"
+    - ref: design/interfaces.md#3
+      title: 修改 `daily_jobs/alerting.py`（
+      serves:
+        - FR-2
+        - FR-6
+        - FR-7
+      file: design/interfaces.md
+      section: "3"
+    - ref: design/interfaces.md#4
+      title: 环境变量契约（新增 2 个，均可回滚）（
+      serves:
+        - FR-7
+      file: design/interfaces.md
+      section: "4"
+    - ref: design/interfaces.md#5
+      title: 对外契约：零变更（
+      serves:
+        - FR-5
+      file: design/interfaces.md
+      section: "5"
+    - ref: design/interfaces.md#6
+      title: 错误语义（
+      serves:
+        - FR-1
+        - FR-3
+        - FR-4
+      file: design/interfaces.md
+      section: "6"
+    - ref: design/use-cases.md#1
+      title: 角色与关注点（
+      serves:
+        - FR-2
+        - FR-5
+      file: design/use-cases.md
+      section: "1"
+    - ref: design/use-cases.md#2
+      title: 场景矩阵（每条都给出"飞书条数"作为可验收的观测量）（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-6
+        - FR-7
+      file: design/use-cases.md
+      section: "2"
+    - ref: design/use-cases.md#3
+      title: 三个易混场景的显式区分（
+      serves:
+        - FR-1
+        - FR-4
+      file: design/use-cases.md
+      section: "3"
+    - ref: design/use-cases.md#4
+      title: 用户可感知的净变化（
+      serves:
+        - FR-2
+        - FR-3
+      file: design/use-cases.md
+      section: "4"
+outputs:
+  tasks:
+    - id: t-9c727a
+      title: 新建通知判据模块 notify_policy（无事判据 + env 解析）
+      implements: 按 design/interfaces.md §1 新建 adapters/inbound/fastapi_app/daily_jobs/notify_policy.py：常量 NO_OP_STATUSES={'no_event','no_op'} 与 RUNNING_NOTICE_DEFAULT_SECONDS=60.0；函数 is_no_op（严格 no_output is True 或 status.strip().lower() 命中白名单，其余一律 False）、notify_noop_enabled、running_notice_seconds（未设/非数→60.0，<=0→0.0）、should_send_start（= notify_noop_enabled）、should_send_completion（manual→True 优先；开关打开→True；is_no_op→False；否则 True）。env 解析复用同包 interval._env_flag；不新增跨层依赖（kb-conventions-c01）；任何输入不得抛异常。
+      serves:
+        - FR-1
+        - FR-7
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-9a1066
+      title: alerting 抽出完成消息组装 format_completion
+      implements: "在 adapters/inbound/fastapi_app/daily_jobs/alerting.py 新增 format_completion(job_id, description, elapsed, result, *, manual=False, warn_no_output=False) -> str：标题优先级 manual（'✅ 每日任务完成（人工触发）：{job_id}'）> warn_no_output（'⚠️ 每日任务完成（无有效产出）：{job_id}'）> '✅ 每日任务完成：{job_id}'；正文 {description}\\n耗时: {_format_elapsed(elapsed)} + 非空摘要（_summarize_result）。不改 _send_feishu / _summarize_result / _format_elapsed / _job_failure_watch。"
+      serves:
+        - FR-2
+        - FR-6
+        - FR-7
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-15bb12
+      title: runtime 接线：通知收敛 + manual 参数 + 超阈值提示 + trigger_job
+      implements: "daily_jobs/runtime.py：① _run_job(job, run_date, manual: bool = False)；② 删 runtime.py:126 的无条件开始消息，改为 if notify_policy.should_send_start(): _send_feishu(旧开始文案)（仅回滚态为真）；③ handler() 前 timer=_arm_running_notice(job)，finally 里 timer.cancel()；④ 完成分支改为 if should_send_completion(result=result, manual=manual): _send_feishu(alerting.format_completion(..., warn_no_output=notify_policy.notify_noop_enabled() and result.get('no_output') is True))；⑤ 抑制外发时 logger.info('inprocess_job_notify_skipped', job=..., reason='no_op', manual=...)；⑥ 内层失败与异常两处 _send_feishu 逐字不动；⑦ 新增 _arm_running_notice（running_notice_seconds()<=0 返回 None；threading.Timer daemon=True，秒数用 _format_elapsed 渲染）与 _send_running_notice（消息 '⏳ 每日任务仍在运行：{job_id}\\n{description}\\n已跑 {_format_elapsed(secs)}'；回调内异常吞掉并记 inprocess_job_running_notice_error；两函数必须住在 runtime.py 以保住打桩点）；⑧ trigger_job 线程调用传 manual=True（签名/返回体不变）。daily_jobs_bootstrap.py 的转发 import 与 __all__ 补 _arm_running_notice / _send_running_notice；不改 daily_jobs/__init__.py。"
+      serves:
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+      depends_on:
+        - t-9c727a
+        - t-9a1066
+      phase: implement
+      side: backend
+    - id: t-1ec5fa
+      title: 新增 tests/test_daily_jobs_quiet_noop.py（T-1~T-16 回归锁）
+      implements: 新建 tests/test_daily_jobs_quiet_noop.py，实现 design/test-cases.md §2 的 T-1~T-16（判据白名单与反例、开关/阈值解析、宿主无事零消息而台账 success、有产出一条完成、异常 🚨、内层失败优先、人工触发回执、开关态旧行为、阈值内不发/超阈值发「⏳ 仍在运行」、阈值 0 关闭、回调异常不影响任务、trigger_job 传 manual=True）。打桩点必须是 runtime._send_feishu / runtime._mark_running / runtime._mark_done；env 用 monkeypatch.setenv；T-13 用 time.sleep(0.3) + 阈值 0.05。用例总数不超过 16 条，不做与 FR 无关扩展。
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-6
+        - FR-7
+        - FR-8
+      depends_on:
+        - t-15bb12
+      phase: test
+      side: backend
+    - id: t-fd8513
+      title: 改写被新口径推翻的 2 条既有断言 + 相邻回归
+      implements: tests/test_daily_jobs_notify_truthfulness.py：① TestHostTone::test_zero_output_uses_warning_title 拆成两条——默认态断言 sent.texts == []（零消息）且台账 status 仍 success；开关态（setenv DAILY_JOBS_NOTIFY_NOOP=true）断言 ⚠️（无有效产出）文案；② TestHostTone::test_elapsed_line_rendered_by_formatter 改用有产出结果（_result(computed_ok=3, no_trades=2, insufficient_sample=0)），断言不变。其余用例不改，只重跑（test_nonzero_output_keeps_success_title / test_mark_done_status_stays_success / test_streak_query_failure_degrades_loudly）。
+      serves:
+        - FR-8
+      depends_on:
+        - t-15bb12
+      phase: test
+      side: backend
+    - id: t-f9a549
+      title: 回滚态验证 + 部署重启 + 真实观察留痕
+      implements: 建 docs/requirements/REQ-261006165125-23a9/notes/rollback-and-observation.md，逐条记录：① 开关态 DAILY_JOBS_NOTIFY_NOOP=true 下测试全过（旧行为可恢复）；② DAILY_JOBS_RUNNING_NOTICE_SECONDS=0 只关提示且默认 60 不变；③ launchctl kickstart -k gui/501/com.pi-investment.v2-api 后服务健康（HTTP 200）；④ 真实观察：下一次自然排班（16:45）或一次 manual=False 的真实调用后，记录 quant.inprocess_job_runs 行（应 success|no_event）、飞书侧是否零条、以及 inprocess_job_notify_skipped 日志原文。观察窗口未到必须如实写「待观察（下一自然排班 16:45）」及原因，禁止用推断代替实测。
+      serves:
+        - FR-7
+        - FR-8
+      depends_on:
+        - t-1ec5fa
+        - t-fd8513
+      phase: test
+      side: backend
+    - id: t-bf39b1
+      title: 新建通知判据模块 notify_policy（无事判据 + env 解析）·研发
+      implements: |-
+        按 design/interfaces.md §1 新建 adapters/inbound/fastapi_app/daily_jobs/notify_policy.py：常量 NO_OP_STATUSES={'no_event','no_op'} 与 RUNNING_NOTICE_DEFAULT_SECONDS=60.0；函数 is_no_op（严格 no_output is True 或 status.strip().lower() 命中白名单，其余一律 False）、notify_noop_enabled、running_notice_seconds（未设/非数→60.0，<=0→0.0）、should_send_start（= notify_noop_enabled）、should_send_completion（manual→True 优先；开关打开→True；is_no_op→False；否则 True）。env 解析复用同包 interval._env_flag；不新增跨层依赖（kb-conventions-c01）；任何输入不得抛异常。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-f78a6f
+      title: 新建通知判据模块 notify_policy（无事判据 + env 解析）·复核
+      implements: |-
+        按 design/interfaces.md §1 新建 adapters/inbound/fastapi_app/daily_jobs/notify_policy.py：常量 NO_OP_STATUSES={'no_event','no_op'} 与 RUNNING_NOTICE_DEFAULT_SECONDS=60.0；函数 is_no_op（严格 no_output is True 或 status.strip().lower() 命中白名单，其余一律 False）、notify_noop_enabled、running_notice_seconds（未设/非数→60.0，<=0→0.0）、should_send_start（= notify_noop_enabled）、should_send_completion（manual→True 优先；开关打开→True；is_no_op→False；否则 True）。env 解析复用同包 interval._env_flag；不新增跨层依赖（kb-conventions-c01）；任何输入不得抛异常。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-bf39b1
+      phase: implement
+      side: backend
+    - id: t-eacc2e
+      title: 新建通知判据模块 notify_policy（无事判据 + env 解析）·测试
+      implements: |-
+        按 design/interfaces.md §1 新建 adapters/inbound/fastapi_app/daily_jobs/notify_policy.py：常量 NO_OP_STATUSES={'no_event','no_op'} 与 RUNNING_NOTICE_DEFAULT_SECONDS=60.0；函数 is_no_op（严格 no_output is True 或 status.strip().lower() 命中白名单，其余一律 False）、notify_noop_enabled、running_notice_seconds（未设/非数→60.0，<=0→0.0）、should_send_start（= notify_noop_enabled）、should_send_completion（manual→True 优先；开关打开→True；is_no_op→False；否则 True）。env 解析复用同包 interval._env_flag；不新增跨层依赖（kb-conventions-c01）；任何输入不得抛异常。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-f78a6f
+      phase: implement
+      side: backend
+    - id: t-60e3a6
+      title: alerting 抽出完成消息组装 format_completion·研发
+      implements: |-
+        在 adapters/inbound/fastapi_app/daily_jobs/alerting.py 新增 format_completion(job_id, description, elapsed, result, *, manual=False, warn_no_output=False) -> str：标题优先级 manual（'✅ 每日任务完成（人工触发）：{job_id}'）> warn_no_output（'⚠️ 每日任务完成（无有效产出）：{job_id}'）> '✅ 每日任务完成：{job_id}'；正文 {description}\n耗时: {_format_elapsed(elapsed)} + 非空摘要（_summarize_result）。不改 _send_feishu / _summarize_result / _format_elapsed / _job_failure_watch。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-2f0bc5
+      title: alerting 抽出完成消息组装 format_completion·复核
+      implements: |-
+        在 adapters/inbound/fastapi_app/daily_jobs/alerting.py 新增 format_completion(job_id, description, elapsed, result, *, manual=False, warn_no_output=False) -> str：标题优先级 manual（'✅ 每日任务完成（人工触发）：{job_id}'）> warn_no_output（'⚠️ 每日任务完成（无有效产出）：{job_id}'）> '✅ 每日任务完成：{job_id}'；正文 {description}\n耗时: {_format_elapsed(elapsed)} + 非空摘要（_summarize_result）。不改 _send_feishu / _summarize_result / _format_elapsed / _job_failure_watch。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-60e3a6
+      phase: implement
+      side: backend
+    - id: t-11b46b
+      title: alerting 抽出完成消息组装 format_completion·测试
+      implements: |-
+        在 adapters/inbound/fastapi_app/daily_jobs/alerting.py 新增 format_completion(job_id, description, elapsed, result, *, manual=False, warn_no_output=False) -> str：标题优先级 manual（'✅ 每日任务完成（人工触发）：{job_id}'）> warn_no_output（'⚠️ 每日任务完成（无有效产出）：{job_id}'）> '✅ 每日任务完成：{job_id}'；正文 {description}\n耗时: {_format_elapsed(elapsed)} + 非空摘要（_summarize_result）。不改 _send_feishu / _summarize_result / _format_elapsed / _job_failure_watch。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-2f0bc5
+      phase: implement
+      side: backend
+    - id: t-dd129f
+      title: runtime 接线：通知收敛 + manual 参数 + 超阈值提示 + trigger_job·研发
+      implements: |-
+        daily_jobs/runtime.py：① _run_job(job, run_date, manual: bool = False)；② 删 runtime.py:126 的无条件开始消息，改为 if notify_policy.should_send_start(): _send_feishu(旧开始文案)（仅回滚态为真）；③ handler() 前 timer=_arm_running_notice(job)，finally 里 timer.cancel()；④ 完成分支改为 if should_send_completion(result=result, manual=manual): _send_feishu(alerting.format_completion(..., warn_no_output=notify_policy.notify_noop_enabled() and result.get('no_output') is True))；⑤ 抑制外发时 logger.info('inprocess_job_notify_skipped', job=..., reason='no_op', manual=...)；⑥ 内层失败与异常两处 _send_feishu 逐字不动；⑦ 新增 _arm_running_notice（running_notice_seconds()<=0 返回 None；threading.Timer daemon=True，秒数用 _format_elapsed 渲染）与 _send_running_notice（消息 '⏳ 每日任务仍在运行：{job_id}\n{description}\n已跑 {_format_elapsed(secs)}'；回调内异常吞掉并记 inprocess_job_running_notice_error；两函数必须住在 runtime.py 以保住打桩点）；⑧ trigger_job 线程调用传 manual=True（签名/返回体不变）。daily_jobs_bootstrap.py 的转发 import 与 __all__ 补 _arm_running_notice / _send_running_notice；不改 daily_jobs/__init__.py。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-9c727a
+        - t-9a1066
+      phase: implement
+      side: backend
+    - id: t-e34e81
+      title: runtime 接线：通知收敛 + manual 参数 + 超阈值提示 + trigger_job·复核
+      implements: |-
+        daily_jobs/runtime.py：① _run_job(job, run_date, manual: bool = False)；② 删 runtime.py:126 的无条件开始消息，改为 if notify_policy.should_send_start(): _send_feishu(旧开始文案)（仅回滚态为真）；③ handler() 前 timer=_arm_running_notice(job)，finally 里 timer.cancel()；④ 完成分支改为 if should_send_completion(result=result, manual=manual): _send_feishu(alerting.format_completion(..., warn_no_output=notify_policy.notify_noop_enabled() and result.get('no_output') is True))；⑤ 抑制外发时 logger.info('inprocess_job_notify_skipped', job=..., reason='no_op', manual=...)；⑥ 内层失败与异常两处 _send_feishu 逐字不动；⑦ 新增 _arm_running_notice（running_notice_seconds()<=0 返回 None；threading.Timer daemon=True，秒数用 _format_elapsed 渲染）与 _send_running_notice（消息 '⏳ 每日任务仍在运行：{job_id}\n{description}\n已跑 {_format_elapsed(secs)}'；回调内异常吞掉并记 inprocess_job_running_notice_error；两函数必须住在 runtime.py 以保住打桩点）；⑧ trigger_job 线程调用传 manual=True（签名/返回体不变）。daily_jobs_bootstrap.py 的转发 import 与 __all__ 补 _arm_running_notice / _send_running_notice；不改 daily_jobs/__init__.py。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-dd129f
+      phase: implement
+      side: backend
+    - id: t-319ae0
+      title: runtime 接线：通知收敛 + manual 参数 + 超阈值提示 + trigger_job·测试
+      implements: |-
+        daily_jobs/runtime.py：① _run_job(job, run_date, manual: bool = False)；② 删 runtime.py:126 的无条件开始消息，改为 if notify_policy.should_send_start(): _send_feishu(旧开始文案)（仅回滚态为真）；③ handler() 前 timer=_arm_running_notice(job)，finally 里 timer.cancel()；④ 完成分支改为 if should_send_completion(result=result, manual=manual): _send_feishu(alerting.format_completion(..., warn_no_output=notify_policy.notify_noop_enabled() and result.get('no_output') is True))；⑤ 抑制外发时 logger.info('inprocess_job_notify_skipped', job=..., reason='no_op', manual=...)；⑥ 内层失败与异常两处 _send_feishu 逐字不动；⑦ 新增 _arm_running_notice（running_notice_seconds()<=0 返回 None；threading.Timer daemon=True，秒数用 _format_elapsed 渲染）与 _send_running_notice（消息 '⏳ 每日任务仍在运行：{job_id}\n{description}\n已跑 {_format_elapsed(secs)}'；回调内异常吞掉并记 inprocess_job_running_notice_error；两函数必须住在 runtime.py 以保住打桩点）；⑧ trigger_job 线程调用传 manual=True（签名/返回体不变）。daily_jobs_bootstrap.py 的转发 import 与 __all__ 补 _arm_running_notice / _send_running_notice；不改 daily_jobs/__init__.py。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-e34e81
+      phase: implement
+      side: backend
+    - id: t-0b1d7e
+      title: 改写被新口径推翻的 2 条既有断言 + 相邻回归·研发
+      implements: |-
+        tests/test_daily_jobs_notify_truthfulness.py：① TestHostTone::test_zero_output_uses_warning_title 拆成两条——默认态断言 sent.texts == []（零消息）且台账 status 仍 success；开关态（setenv DAILY_JOBS_NOTIFY_NOOP=true）断言 ⚠️（无有效产出）文案；② TestHostTone::test_elapsed_line_rendered_by_formatter 改用有产出结果（_result(computed_ok=3, no_trades=2, insufficient_sample=0)），断言不变。其余用例不改，只重跑（test_nonzero_output_keeps_success_title / test_mark_done_status_stays_success / test_streak_query_failure_degrades_loudly）。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-15bb12
+      phase: test
+      side: backend
+    - id: t-6465f8
+      title: 改写被新口径推翻的 2 条既有断言 + 相邻回归·复核
+      implements: |-
+        tests/test_daily_jobs_notify_truthfulness.py：① TestHostTone::test_zero_output_uses_warning_title 拆成两条——默认态断言 sent.texts == []（零消息）且台账 status 仍 success；开关态（setenv DAILY_JOBS_NOTIFY_NOOP=true）断言 ⚠️（无有效产出）文案；② TestHostTone::test_elapsed_line_rendered_by_formatter 改用有产出结果（_result(computed_ok=3, no_trades=2, insufficient_sample=0)），断言不变。其余用例不改，只重跑（test_nonzero_output_keeps_success_title / test_mark_done_status_stays_success / test_streak_query_failure_degrades_loudly）。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-0b1d7e
+      phase: test
+      side: backend
+    - id: t-4eefcc
+      title: 改写被新口径推翻的 2 条既有断言 + 相邻回归·测试
+      implements: |-
+        tests/test_daily_jobs_notify_truthfulness.py：① TestHostTone::test_zero_output_uses_warning_title 拆成两条——默认态断言 sent.texts == []（零消息）且台账 status 仍 success；开关态（setenv DAILY_JOBS_NOTIFY_NOOP=true）断言 ⚠️（无有效产出）文案；② TestHostTone::test_elapsed_line_rendered_by_formatter 改用有产出结果（_result(computed_ok=3, no_trades=2, insufficient_sample=0)），断言不变。其余用例不改，只重跑（test_nonzero_output_keeps_success_title / test_mark_done_status_stays_success / test_streak_query_failure_degrades_loudly）。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-6465f8
+      phase: test
+      side: backend
+    - id: t-9138db
+      title: 新增 tests/test_daily_jobs_quiet_noop.py（T-1~T-16 回归锁）·研发
+      implements: |-
+        新建 tests/test_daily_jobs_quiet_noop.py，实现 design/test-cases.md §2 的 T-1~T-16（判据白名单与反例、开关/阈值解析、宿主无事零消息而台账 success、有产出一条完成、异常 🚨、内层失败优先、人工触发回执、开关态旧行为、阈值内不发/超阈值发「⏳ 仍在运行」、阈值 0 关闭、回调异常不影响任务、trigger_job 传 manual=True）。打桩点必须是 runtime._send_feishu / runtime._mark_running / runtime._mark_done；env 用 monkeypatch.setenv；T-13 用 time.sleep(0.3) + 阈值 0.05。用例总数不超过 16 条，不做与 FR 无关扩展。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-15bb12
+      phase: test
+      side: backend
+    - id: t-e704f1
+      title: 新增 tests/test_daily_jobs_quiet_noop.py（T-1~T-16 回归锁）·复核
+      implements: |-
+        新建 tests/test_daily_jobs_quiet_noop.py，实现 design/test-cases.md §2 的 T-1~T-16（判据白名单与反例、开关/阈值解析、宿主无事零消息而台账 success、有产出一条完成、异常 🚨、内层失败优先、人工触发回执、开关态旧行为、阈值内不发/超阈值发「⏳ 仍在运行」、阈值 0 关闭、回调异常不影响任务、trigger_job 传 manual=True）。打桩点必须是 runtime._send_feishu / runtime._mark_running / runtime._mark_done；env 用 monkeypatch.setenv；T-13 用 time.sleep(0.3) + 阈值 0.05。用例总数不超过 16 条，不做与 FR 无关扩展。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-9138db
+      phase: test
+      side: backend
+    - id: t-4a30f8
+      title: 新增 tests/test_daily_jobs_quiet_noop.py（T-1~T-16 回归锁）·测试
+      implements: |-
+        新建 tests/test_daily_jobs_quiet_noop.py，实现 design/test-cases.md §2 的 T-1~T-16（判据白名单与反例、开关/阈值解析、宿主无事零消息而台账 success、有产出一条完成、异常 🚨、内层失败优先、人工触发回执、开关态旧行为、阈值内不发/超阈值发「⏳ 仍在运行」、阈值 0 关闭、回调异常不影响任务、trigger_job 传 manual=True）。打桩点必须是 runtime._send_feishu / runtime._mark_running / runtime._mark_done；env 用 monkeypatch.setenv；T-13 用 time.sleep(0.3) + 阈值 0.05。用例总数不超过 16 条，不做与 FR 无关扩展。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-e704f1
+      phase: test
+      side: backend
+    - id: t-759ba0
+      title: 回滚态验证 + 部署重启 + 真实观察留痕·研发
+      implements: |-
+        建 docs/requirements/REQ-261006165125-23a9/notes/rollback-and-observation.md，逐条记录：① 开关态 DAILY_JOBS_NOTIFY_NOOP=true 下测试全过（旧行为可恢复）；② DAILY_JOBS_RUNNING_NOTICE_SECONDS=0 只关提示且默认 60 不变；③ launchctl kickstart -k gui/501/com.pi-investment.v2-api 后服务健康（HTTP 200）；④ 真实观察：下一次自然排班（16:45）或一次 manual=False 的真实调用后，记录 quant.inprocess_job_runs 行（应 success|no_event）、飞书侧是否零条、以及 inprocess_job_notify_skipped 日志原文。观察窗口未到必须如实写「待观察（下一自然排班 16:45）」及原因，禁止用推断代替实测。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-1ec5fa
+        - t-fd8513
+      phase: test
+      side: backend
+    - id: t-8e8912
+      title: 回滚态验证 + 部署重启 + 真实观察留痕·复核
+      implements: |-
+        建 docs/requirements/REQ-261006165125-23a9/notes/rollback-and-observation.md，逐条记录：① 开关态 DAILY_JOBS_NOTIFY_NOOP=true 下测试全过（旧行为可恢复）；② DAILY_JOBS_RUNNING_NOTICE_SECONDS=0 只关提示且默认 60 不变；③ launchctl kickstart -k gui/501/com.pi-investment.v2-api 后服务健康（HTTP 200）；④ 真实观察：下一次自然排班（16:45）或一次 manual=False 的真实调用后，记录 quant.inprocess_job_runs 行（应 success|no_event）、飞书侧是否零条、以及 inprocess_job_notify_skipped 日志原文。观察窗口未到必须如实写「待观察（下一自然排班 16:45）」及原因，禁止用推断代替实测。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-759ba0
+      phase: test
+      side: backend
+    - id: t-ddc9c6
+      title: 回滚态验证 + 部署重启 + 真实观察留痕·测试
+      implements: |-
+        建 docs/requirements/REQ-261006165125-23a9/notes/rollback-and-observation.md，逐条记录：① 开关态 DAILY_JOBS_NOTIFY_NOOP=true 下测试全过（旧行为可恢复）；② DAILY_JOBS_RUNNING_NOTICE_SECONDS=0 只关提示且默认 60 不变；③ launchctl kickstart -k gui/501/com.pi-investment.v2-api 后服务健康（HTTP 200）；④ 真实观察：下一次自然排班（16:45）或一次 manual=False 的真实调用后，记录 quant.inprocess_job_runs 行（应 success|no_event）、飞书侧是否零条、以及 inprocess_job_notify_skipped 日志原文。观察窗口未到必须如实写「待观察（下一自然排班 16:45）」及原因，禁止用推断代替实测。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-8e8912
+      phase: test
+      side: backend
+task_coverage:
+  - task_id: t-9c727a
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-9a1066
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-15bb12
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-1ec5fa
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-fd8513
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-f9a549
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-bf39b1
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-f78a6f
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-eacc2e
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-60e3a6
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-2f0bc5
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-11b46b
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-dd129f
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-e34e81
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-319ae0
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-0b1d7e
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-6465f8
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-4eefcc
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-9138db
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-e704f1
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-4a30f8
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-759ba0
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-8e8912
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-ddc9c6
+    covers_prototypes: []
+    covers_decisions: []
+traceability:
+  design_to_tasks:
+    design/architecture.md#1:
+      - t-9c727a
+      - t-9a1066
+      - t-15bb12
+      - t-1ec5fa
+    design/architecture.md#2:
+      - t-9a1066
+      - t-15bb12
+      - t-1ec5fa
+    design/architecture.md#3:
+      - t-15bb12
+      - t-1ec5fa
+    design/architecture.md#4:
+      - t-9a1066
+      - t-15bb12
+      - t-1ec5fa
+    design/architecture.md#5:
+      - t-9c727a
+      - t-9a1066
+      - t-15bb12
+      - t-1ec5fa
+      - t-f9a549
+    design/architecture.md#6:
+      - t-9a1066
+      - t-15bb12
+      - t-1ec5fa
+    design/architecture.md#7:
+      - t-9c727a
+      - t-9a1066
+      - t-1ec5fa
+      - t-f9a549
+    design/data-model.md#1:
+      - t-15bb12
+    design/data-model.md#2:
+      - t-9c727a
+      - t-9a1066
+      - t-15bb12
+      - t-1ec5fa
+    design/data-model.md#3:
+      - t-15bb12
+    design/data-model.md#4:
+      - t-9c727a
+      - t-9a1066
+      - t-1ec5fa
+      - t-f9a549
+    design/data-model.md#5:
+      - t-9a1066
+      - t-15bb12
+      - t-1ec5fa
+      - t-fd8513
+      - t-f9a549
+    design/data-model.md#6:
+      - t-9c727a
+      - t-9a1066
+      - t-1ec5fa
+      - t-f9a549
+    design/interfaces.md#1:
+      - t-9c727a
+      - t-9a1066
+      - t-15bb12
+      - t-1ec5fa
+      - t-f9a549
+    design/interfaces.md#1.1:
+      - t-9c727a
+      - t-1ec5fa
+    design/interfaces.md#1.2:
+      - t-9c727a
+      - t-9a1066
+      - t-1ec5fa
+      - t-f9a549
+    design/interfaces.md#1.3:
+      - t-9c727a
+      - t-9a1066
+      - t-15bb12
+      - t-1ec5fa
+      - t-f9a549
+    design/interfaces.md#1.4:
+      - t-9c727a
+      - t-9a1066
+      - t-1ec5fa
+      - t-f9a549
+    design/interfaces.md#1.5:
+      - t-9c727a
+      - t-9a1066
+      - t-15bb12
+      - t-1ec5fa
+    design/interfaces.md#2:
+      - t-9c727a
+      - t-9a1066
+      - t-15bb12
+      - t-1ec5fa
+      - t-f9a549
+    design/interfaces.md#2.1:
+      - t-9c727a
+      - t-9a1066
+      - t-15bb12
+      - t-1ec5fa
+      - t-f9a549
+    design/interfaces.md#2.2:
+      - t-15bb12
+      - t-1ec5fa
+    design/interfaces.md#2.3:
+      - t-9a1066
+      - t-15bb12
+      - t-1ec5fa
+    design/interfaces.md#3:
+      - t-9c727a
+      - t-9a1066
+      - t-15bb12
+      - t-1ec5fa
+      - t-f9a549
+    design/interfaces.md#4:
+      - t-9c727a
+      - t-9a1066
+      - t-1ec5fa
+      - t-f9a549
+    design/interfaces.md#5:
+      - t-15bb12
+    design/interfaces.md#6:
+      - t-9c727a
+      - t-15bb12
+      - t-1ec5fa
+    design/use-cases.md#1:
+      - t-9a1066
+      - t-15bb12
+      - t-1ec5fa
+    design/use-cases.md#2:
+      - t-9c727a
+      - t-9a1066
+      - t-15bb12
+      - t-1ec5fa
+      - t-f9a549
+    design/use-cases.md#3:
+      - t-9c727a
+      - t-15bb12
+      - t-1ec5fa
+    design/use-cases.md#4:
+      - t-9a1066
+      - t-15bb12
+      - t-1ec5fa
+  fr_to_tasks:
+    FR-1:
+      - t-9c727a
+      - t-9a1066
+      - t-15bb12
+      - t-1ec5fa
+      - t-f9a549
+    FR-2:
+      - t-9c727a
+      - t-9a1066
+      - t-15bb12
+      - t-1ec5fa
+      - t-f9a549
+      - t-fd8513
+    FR-3:
+      - t-9a1066
+      - t-15bb12
+      - t-1ec5fa
+      - t-9c727a
+      - t-f9a549
+    FR-4:
+      - t-9c727a
+      - t-9a1066
+      - t-15bb12
+      - t-1ec5fa
+      - t-f9a549
+    FR-5:
+      - t-9a1066
+      - t-15bb12
+      - t-1ec5fa
+      - t-fd8513
+      - t-f9a549
+    FR-6:
+      - t-9c727a
+      - t-9a1066
+      - t-15bb12
+      - t-1ec5fa
+      - t-f9a549
+    FR-7:
+      - t-9c727a
+      - t-9a1066
+      - t-15bb12
+      - t-1ec5fa
+      - t-f9a549
+    FR-8:
+      - t-9a1066
+      - t-15bb12
+      - t-1ec5fa
+      - t-fd8513
+      - t-f9a549
+coverage:
+  implementation:
+    total: 31
+    covered: 31
+    uncovered: []
+    rate: 100
+    total_designs: 31
+    covered_designs: 31

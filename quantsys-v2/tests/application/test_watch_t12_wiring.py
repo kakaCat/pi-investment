@@ -127,9 +127,18 @@ def _engine(todo_service=None):
                        notifier=SimpleNamespace(), todo_service=todo_service)
 
 
-def test_notify_level_none_when_closed_loop_off():
+def test_notify_level_still_computed_when_closed_loop_off():
+    """FR-4（REQ-261007101318-c392 / 取证 E9）：闭环关闭时**级别照算**。
+
+    旧契约（本条原样）：`todo_service is None` → `_notify_level` 返回 None → 通知退回旧渲染。
+    实测后果：`WATCH_TODO_ENABLED` 未开时**所有**盯盘卡只剩一句「现价 X ≤ 阈值 Y（下破）」，
+    用户无法判断该买该卖（2026-10-07 用户原话："让卖让买，还是你要给agent处理"）。
+
+    新契约：级别（卡片形态）与闭环（是否建待办）**解耦**——
+    级别恒有，闭环承诺由 `closed_loop` 在渲染层决定。
+    """
     rule = SimpleNamespace(id=1, intent="exit_stop", action_hint=None, scope=None)
-    assert _engine(None)._notify_level(rule, "pending") is None
+    assert _engine(None)._notify_level(rule, "pending") == "P0"
 
 
 def test_notify_level_computed_when_closed_loop_on():

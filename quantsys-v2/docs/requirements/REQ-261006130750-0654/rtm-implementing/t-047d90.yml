@@ -1,0 +1,36 @@
+task:
+  id: t-047d90
+  title: 休市日 / 复市首日真实观察留档·测试
+  status: done
+  implements: |-
+    新建 docs/requirements/REQ-261006130750-0654/notes/holiday-observation.md，记录：① 2026-10-07（休市·周三）当天的 grep -c orchestrator_trading_day_skip logs/api.log、事件里的 source/degraded、quant.simulation_positions 与 quant.simulation_account 的 updated_at 是否被监控刷新、盘中返回 non-trading-day（对照 2026-10-06 的 no_positions 基线）；② 2026-10-08（复市首日·周四）两条路径恢复（该事件计数=0、status != 'skipped'）；③ 若实施晚于 10-08，如实写明「窗口未取到」与原因，不得用单测结果冒充真实观察（design/test-cases.md §3）。
+
+    [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+  serves: []
+  depends_on:
+    - t-b87557
+  phase: test
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261006130750-0654
+    TASK_ID: t-047d90
+    TASK_TITLE: 休市日 / 复市首日真实观察留档·测试
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: test
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: test
+      status: done
+      completed_at: 2026-10-06T06:42:55.955Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006130750-0654
+  generated_at: 2026-10-06T06:42:42.276Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-06T06:42:58.671Z

@@ -143,17 +143,21 @@ def test_run_task_marks_failed_on_nested_failure():
 
 def test_inprocess_host_marks_failed_on_inner_failure(monkeypatch):
     from adapters.inbound.fastapi_app import daily_jobs_bootstrap as host
-    # 2026-10-01（t-686185）：宿主模块已按职责拆入 daily_jobs/ 包——
-    # `_mark_running/_mark_done` 现在住在 runtime、`_send_feishu` 住在 alerting，
-    # 故 patch 目标须跟着实现走（打在转发壳上不再生效）。断言与行为完全不变。
-    from adapters.inbound.fastapi_app.daily_jobs import alerting as host_alerting
+    # 打桩点规则（REQ-261003150739-b98d FR-1）：桩打在**被调函数所在模块**，
+    # 不是符号来源模块、也不是转发壳。
+    #   · `runtime._run_job` 运行时查的是 **runtime 自己的全局名**——
+    #     它用 `from ...alerting import _send_feishu` 取值导入（runtime.py:19），
+    #     所以 `alerting._send_feishu` / `daily_jobs_bootstrap._send_feishu` 上的桩
+    #     **名字存在但不生效**（静默失效），真函数照跑并真实外发。
+    #   · 2026-10-02（t-686185）包拆分后 4 张真卡片就是这么发出去的（实测整文件 4 次真实投递）。
+    # 断言与行为完全不变。
     from adapters.inbound.fastapi_app.daily_jobs import runtime as host_runtime
 
     marks = []
     monkeypatch.setattr(host_runtime, '_mark_running', lambda *a, **k: None)
     monkeypatch.setattr(host_runtime, '_mark_done',
                         lambda job_id, run_date, status, **kw: marks.append((status, kw)))
-    monkeypatch.setattr(host_alerting, '_send_feishu', lambda *a, **k: True)
+    monkeypatch.setattr(host_runtime, '_send_feishu', lambda *a, **k: True)
 
     job = host.JobDef('fake_job', dtime(0, 0), (0, 1, 2, 3, 4, 5, 6),
                       lambda: {'kline_sync': {'status': 'error', 'error': 'nested boom'}},
@@ -166,14 +170,13 @@ def test_inprocess_host_marks_failed_on_inner_failure(monkeypatch):
 
 def test_inprocess_host_marks_success_for_clean_result(monkeypatch):
     from adapters.inbound.fastapi_app import daily_jobs_bootstrap as host
-    from adapters.inbound.fastapi_app.daily_jobs import alerting as host_alerting
     from adapters.inbound.fastapi_app.daily_jobs import runtime as host_runtime
 
     marks = []
     monkeypatch.setattr(host_runtime, '_mark_running', lambda *a, **k: None)
     monkeypatch.setattr(host_runtime, '_mark_done',
                         lambda job_id, run_date, status, **kw: marks.append((status, kw)))
-    monkeypatch.setattr(host_alerting, '_send_feishu', lambda *a, **k: True)
+    monkeypatch.setattr(host_runtime, '_send_feishu', lambda *a, **k: True)
 
     job = host.JobDef('fake_job', dtime(0, 0), (0, 1, 2, 3, 4, 5, 6),
                       lambda: {'symbols_updated': 10}, '测试任务')

@@ -62,6 +62,9 @@ from adapters.inbound.fastapi_app.daily_jobs.runtime import (  # noqa: F401
     _mark_done,
     is_due,
     _run_job,
+    # 超阈值提示（REQ-261006165125-23a9 FR-3）：bootstrap 转发壳从本包聚合导入，故必须在此登记
+    _arm_running_notice,
+    _send_running_notice,
     catchup_due,
     _recent_failed_run,
     _reap_orphan_runs,

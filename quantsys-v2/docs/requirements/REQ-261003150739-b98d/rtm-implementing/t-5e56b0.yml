@@ -1,0 +1,39 @@
+task:
+  id: t-5e56b0
+  title: e2e 手动触发用例不再执行真实 handler·复核
+  status: done
+  implements: |-
+    tests/e2e/test_daily_orchestrator.py::test_trigger_known_job_returns_success：先打桩 daily_jobs.runtime._run_job（记录调用），再调 trigger_job(JOBS[0].job_id, force=True)；断言返回 success 且记录器收到该 job_id。
+
+    [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+  serves: []
+  depends_on:
+    - t-568226
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261003150739-b98d
+    TASK_ID: t-5e56b0
+    TASK_TITLE: e2e 手动触发用例不再执行真实 handler·复核
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      started_at: 2026-10-03T07:13:04.809Z
+      completed_at: 2026-10-03T07:13:04.917Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261003150739-b98d
+  generated_at: 2026-10-03T07:13:04.721Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-03T07:13:04.917Z

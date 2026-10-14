@@ -16,6 +16,20 @@ from unittest.mock import Mock, MagicMock, patch
 from application.services.account_trading_service import AccountTradingService, TradingError
 
 
+@pytest.fixture(autouse=True)
+def _stub_failure_sink(monkeypatch):
+    """把失败出口打桩（2026-10-04 · REQ-261004154902-a7cd 新增）。
+
+    为什么必须打桩：卖前超卖校验在「流水读不到」时会**放行但外发一条**（有意设计，
+    不许静默）。本文件的 repo 全是 Mock，流水果真读不到 → 会真的走到外发；
+    而测试期真实外发会被 tests/notify_guard.py 判失败（这是守卫的既定设计）。
+    打桩后断言不受影响：本文件的用例断言的是成交/护栏/事务行为，不涉及告警通道。
+    """
+    import application.services.account_trading_service as svc
+
+    monkeypatch.setattr(svc, "report_failure", lambda *a, **k: True)
+
+
 class MockAccount:
     """Mock 账户"""
     def __init__(self, name, cash_available=100000, cash_frozen=0, status='active',
@@ -464,6 +478,8 @@ class TestExecuteTradeV2PendingOrder:
         po.price_limit = None
         po.reason = '测试撮合理由至少十个字'
         po.decision_price = 10.0
+        # 2026-10-04（t4）：超期判定会读 created_at；用真实形状（当日盘前）而不是 Mock 的自动属性
+        po.created_at = datetime(2026, 9, 1, 8, 0, 0)
 
         mock_repo = Mock()
         mock_repo.get_pending_orders.return_value = [po]

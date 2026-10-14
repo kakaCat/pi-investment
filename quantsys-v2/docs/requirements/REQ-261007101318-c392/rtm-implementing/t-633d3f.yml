@@ -1,0 +1,35 @@
+task:
+  id: t-633d3f
+  title: FR-3 外发审计 + 来源标识（回填，含建表迁移）
+  status: done
+  implements: 新建 adapters/outbound/repositories/notification_audit_repository.py（一通知一行 upsert，失败自吞不上抛）；新建 infrastructure/persistence/migrations/20261007_notification_audit_table.py（CREATE TABLE IF NOT EXISTS quant.notification_audit + 3 索引 + lock_timeout=30s，两库都跑）；新建 application/notification/sender_identity.py（v2-watch@<host>#<pid>）；application/notification/notification_factory.py 装配审计仓储（失败降级 None）；application/notification/notification_facade.py 把 sender_id 写入 variables 与 metadata；domain/notification/services/notification_service.py 在 send 与 send_with_fallback 的三处 save 点写入 delivery_channel/delivered/fallback_cause；新增 tests/notification/test_notification_audit_repository.py。
+  serves:
+    - FR-3
+  depends_on: []
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261007101318-c392
+    TASK_ID: t-633d3f
+    TASK_TITLE: FR-3 外发审计 + 来源标识（回填，含建表迁移）
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-07T05:50:47.055Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261007101318-c392
+  generated_at: 2026-10-07T05:44:54.597Z
+  version: 3
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-07T05:50:47.055Z

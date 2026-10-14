@@ -1,0 +1,35 @@
+task:
+  id: t-f062d4
+  title: 探针接入新口径并标注判定来源
+  status: done
+  implements: tools/health_probe.py：expected_trading_day() 改为调 last_closed_trading_day（删掉 import _last_trading_day 的路径）。probe_freshness() 返回体新增 expected_source、expected_degraded，既有键语义不变。build_alert() 仅在 expected_degraded 为真时追加降级标注，正常路径正文与现状逐字一致。同步新增 tests/test_health_probe.py（用例 11-13）：打桩 resolver 与 kline_latest，断言 ok/lag_days/两个新键；只测 probe_freshness 与 build_alert，不调 main()/send_alert。
+  serves:
+    - FR-2
+    - FR-4
+  depends_on:
+    - t-dc66e2
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261004102115-d3de
+    TASK_ID: t-f062d4
+    TASK_TITLE: 探针接入新口径并标注判定来源
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-04T02:28:34.898Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261004102115-d3de
+  generated_at: 2026-10-04T02:28:28.606Z
+  version: 7
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-04T02:30:00.818Z

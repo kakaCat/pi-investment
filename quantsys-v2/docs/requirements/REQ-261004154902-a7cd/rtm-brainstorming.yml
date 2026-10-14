@@ -1,0 +1,11 @@
+metadata:
+  stage: brainstorming
+  requirement_id: REQ-261004154902-a7cd
+  generated_at: 2026-10-04T07:53:33.899Z
+  version: 7
+  generated_by: dsh-pmboard
+  last_updated: 2026-10-04T08:54:29.569Z
+outputs:
+  requirements: []
+status:
+  artifacts: []

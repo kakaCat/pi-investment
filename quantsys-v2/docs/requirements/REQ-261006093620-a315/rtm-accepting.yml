@@ -1,0 +1,360 @@
+metadata:
+  stage: accepting
+  requirement_id: REQ-261006093620-a315
+  generated_at: 2026-10-06T02:20:44.697Z
+  version: 3
+  generated_by: dsh-pmboard
+  last_updated: 2026-10-06T02:21:11.003Z
+inputs:
+  tasks:
+    - id: t-63bc0a
+      title: 判据真源：trading_day_gate 模块与策略入口
+      status: done
+    - id: t-e05ce2
+      title: 数据契约：三值列 + CHECK + 8 行回填 + ORM
+      status: done
+    - id: t-d91b87
+      title: ③ 退为薄转发 + 打桩点迁移（行为零变化）
+      status: done
+    - id: t-da502d
+      title: 仓储层：complete_run_skipped + 抽 _finish_run
+      status: done
+    - id: t-42eb9a
+      title: 执行期接门与跳过落账（含 manual 旁路）
+      status: done
+    - id: t-3a7ebb
+      title: 人工触发改投一次性 manual=True job
+      status: done
+    - id: t-54d79f
+      title: 巡检口径同步：should_have_run 与 watchdog
+      status: done
+    - id: t-ea51f0
+      title: 端到端验收、真实台账观察与回滚演练
+      status: done
+    - id: t-da2b87
+      title: 判据真源：trading_day_gate 模块与策略入口·研发
+      status: done
+    - id: t-ae7033
+      title: 判据真源：trading_day_gate 模块与策略入口·联调
+      status: done
+    - id: t-eb87e5
+      title: 判据真源：trading_day_gate 模块与策略入口·复核
+      status: done
+    - id: t-54a3c8
+      title: 判据真源：trading_day_gate 模块与策略入口·测试
+      status: done
+    - id: t-a7e4bb
+      title: 数据契约：三值列 + CHECK + 8 行回填 + ORM·研发
+      status: done
+    - id: t-faf05d
+      title: 数据契约：三值列 + CHECK + 8 行回填 + ORM·联调
+      status: done
+    - id: t-37ba53
+      title: 数据契约：三值列 + CHECK + 8 行回填 + ORM·复核
+      status: done
+    - id: t-3d3d60
+      title: 数据契约：三值列 + CHECK + 8 行回填 + ORM·测试
+      status: done
+    - id: t-989aba
+      title: ③ 退为薄转发 + 打桩点迁移（行为零变化）·研发
+      status: done
+    - id: t-b8b7c6
+      title: ③ 退为薄转发 + 打桩点迁移（行为零变化）·联调
+      status: done
+    - id: t-2d64a2
+      title: ③ 退为薄转发 + 打桩点迁移（行为零变化）·复核
+      status: done
+    - id: t-6373a5
+      title: ③ 退为薄转发 + 打桩点迁移（行为零变化）·测试
+      status: done
+    - id: t-13669a
+      title: 仓储层：complete_run_skipped + 抽 _finish_run·研发
+      status: done
+    - id: t-4b81fd
+      title: 仓储层：complete_run_skipped + 抽 _finish_run·联调
+      status: done
+    - id: t-b8df8c
+      title: 仓储层：complete_run_skipped + 抽 _finish_run·复核
+      status: done
+    - id: t-4006a7
+      title: 仓储层：complete_run_skipped + 抽 _finish_run·测试
+      status: done
+    - id: t-49f017
+      title: 执行期接门与跳过落账（含 manual 旁路）·研发
+      status: done
+    - id: t-b88384
+      title: 执行期接门与跳过落账（含 manual 旁路）·联调
+      status: done
+    - id: t-cddd7a
+      title: 执行期接门与跳过落账（含 manual 旁路）·复核
+      status: done
+    - id: t-0b6aaf
+      title: 执行期接门与跳过落账（含 manual 旁路）·测试
+      status: done
+    - id: t-2bf7e5
+      title: 人工触发改投一次性 manual=True job·研发
+      status: done
+    - id: t-02dd78
+      title: 人工触发改投一次性 manual=True job·联调
+      status: done
+    - id: t-badb26
+      title: 人工触发改投一次性 manual=True job·复核
+      status: done
+    - id: t-2a9fe9
+      title: 人工触发改投一次性 manual=True job·测试
+      status: done
+    - id: t-79a341
+      title: 巡检口径同步：should_have_run 与 watchdog·研发
+      status: done
+    - id: t-7d47dd
+      title: 巡检口径同步：should_have_run 与 watchdog·联调
+      status: done
+    - id: t-98ed3c
+      title: 巡检口径同步：should_have_run 与 watchdog·复核
+      status: done
+    - id: t-23d580
+      title: 巡检口径同步：should_have_run 与 watchdog·测试
+      status: done
+    - id: t-173a83
+      title: 端到端验收、真实台账观察与回滚演练·研发
+      status: done
+    - id: t-fde9be
+      title: 端到端验收、真实台账观察与回滚演练·复核
+      status: done
+    - id: t-cabaf9
+      title: 端到端验收、真实台账观察与回滚演练·测试
+      status: done
+outputs:
+  test_cases:
+    - id: TC-1
+      title: t1 · 判据真源：trading_day_gate 模块与策略入口
+      covers:
+        - t-63bc0a
+        - t-da2b87
+        - t-ae7033
+        - t-eb87e5
+        - t-54a3c8
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-2
+      title: t2 · 数据契约：三值列 + CHECK + 8 行回填 + ORM
+      covers:
+        - t-e05ce2
+        - t-a7e4bb
+        - t-faf05d
+        - t-37ba53
+        - t-3d3d60
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-3
+      title: t3 · ③ 退为薄转发 + 打桩点迁移
+      covers:
+        - t-d91b87
+        - t-989aba
+        - t-b8b7c6
+        - t-2d64a2
+        - t-6373a5
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-4
+      title: t4 · 仓储层：`complete_run_skipped` + 抽 `_finish_run`
+      covers:
+        - t-da502d
+        - t-13669a
+        - t-4b81fd
+        - t-b8df8c
+        - t-4006a7
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-5
+      title: t5 · 执行期接门与跳过落账（含 `manual` 旁路）
+      covers:
+        - t-42eb9a
+        - t-49f017
+        - t-b88384
+        - t-cddd7a
+        - t-0b6aaf
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-6
+      title: t6 · 人工触发改投一次性 `manual=True` job
+      covers:
+        - t-3a7ebb
+        - t-2bf7e5
+        - t-02dd78
+        - t-badb26
+        - t-2a9fe9
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-7
+      title: t7 · 巡检口径同步：`should_have_run` 与 watchdog
+      covers:
+        - t-54d79f
+        - t-79a341
+        - t-7d47dd
+        - t-98ed3c
+        - t-23d580
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-8
+      title: t8 · 端到端验收、真实台账观察与回滚演练
+      covers:
+        - t-ea51f0
+        - t-173a83
+        - t-fde9be
+        - t-cabaf9
+      validates: []
+      source: tests/test-evidence.md
+traceability:
+  task_to_tests:
+    t-63bc0a:
+      - TC-1
+    t-e05ce2:
+      - TC-2
+    t-d91b87:
+      - TC-3
+    t-da502d:
+      - TC-4
+    t-42eb9a:
+      - TC-5
+    t-3a7ebb:
+      - TC-6
+    t-54d79f:
+      - TC-7
+    t-ea51f0:
+      - TC-8
+    t-da2b87:
+      - TC-1
+    t-ae7033:
+      - TC-1
+    t-eb87e5:
+      - TC-1
+    t-54a3c8:
+      - TC-1
+    t-a7e4bb:
+      - TC-2
+    t-faf05d:
+      - TC-2
+    t-37ba53:
+      - TC-2
+    t-3d3d60:
+      - TC-2
+    t-989aba:
+      - TC-3
+    t-b8b7c6:
+      - TC-3
+    t-2d64a2:
+      - TC-3
+    t-6373a5:
+      - TC-3
+    t-13669a:
+      - TC-4
+    t-4b81fd:
+      - TC-4
+    t-b8df8c:
+      - TC-4
+    t-4006a7:
+      - TC-4
+    t-49f017:
+      - TC-5
+    t-b88384:
+      - TC-5
+    t-cddd7a:
+      - TC-5
+    t-0b6aaf:
+      - TC-5
+    t-2bf7e5:
+      - TC-6
+    t-02dd78:
+      - TC-6
+    t-badb26:
+      - TC-6
+    t-2a9fe9:
+      - TC-6
+    t-79a341:
+      - TC-7
+    t-7d47dd:
+      - TC-7
+    t-98ed3c:
+      - TC-7
+    t-23d580:
+      - TC-7
+    t-173a83:
+      - TC-8
+    t-fde9be:
+      - TC-8
+    t-cabaf9:
+      - TC-8
+  fr_to_tests:
+    FR-1:
+      - TC-1
+      - TC-2
+      - TC-3
+      - TC-4
+      - TC-5
+      - TC-7
+      - TC-6
+      - TC-8
+    FR-2:
+      - TC-1
+      - TC-2
+      - TC-3
+      - TC-4
+      - TC-5
+      - TC-7
+      - TC-6
+      - TC-8
+    FR-3:
+      - TC-1
+      - TC-2
+      - TC-3
+      - TC-4
+      - TC-5
+      - TC-7
+      - TC-6
+      - TC-8
+    FR-4:
+      - TC-1
+      - TC-2
+      - TC-5
+      - TC-3
+      - TC-4
+      - TC-6
+      - TC-7
+      - TC-8
+    FR-5:
+      - TC-1
+      - TC-2
+      - TC-5
+    FR-6:
+      - TC-5
+      - TC-6
+      - TC-1
+      - TC-2
+      - TC-3
+      - TC-4
+      - TC-7
+    FR-7:
+      - TC-5
+      - TC-1
+      - TC-2
+      - TC-3
+      - TC-4
+      - TC-7
+    FR-8:
+      - TC-3
+      - TC-4
+      - TC-5
+      - TC-7
+      - TC-8
+      - TC-1
+      - TC-2
+coverage:
+  testing:
+    total: 39
+    covered: 39
+    uncovered: []
+    rate: 100
+    total_tasks: 39
+    tested_tasks: 39
+    untested: []

@@ -381,6 +381,54 @@ class SchedulerRepository(ISchedulerRepository):
             self.session.rollback()
             raise
 
+    def _finish_run(
+        self,
+        run_id: int,
+        status: str,
+        result: Optional[Dict[str, Any]] = None,
+        error: Optional[str] = None,
+        completed_at: Optional[datetime] = None,
+    ) -> bool:
+        """三种终态（success / failed / **skipped**）共用的收尾。**异常照旧上抛**。
+
+        2026-10-06（REQ-261006093620-a315 t4）：从 `complete_run` 原样抽出——
+        收尾逻辑（completed_at / duration_ms / result 过 `_json_safe` / config.last_status /
+        next_run_at 重算）只允许有一份，否则三种终态必然漂移。
+
+        为什么异常策略是"上抛"而不是"吞掉"：调用方语义不同——
+        - `complete_run`（真跑完）失败必须响亮（原语义，保持）；
+        - `complete_run_skipped`（门判定跳过）的记账失败**不许影响调度**，由它自己吞（见下）。
+        把取舍放在调用方，而不是在这里偷偷决定。
+        """
+        now = completed_at or datetime.now(timezone.utc)
+        run = self.session.get(SchedulerRun, run_id)
+        if run is None:
+            return False
+        run.status = status
+        run.completed_at = now
+        # result 列是 JSONB，而 handler 返回值常含 date/datetime/Decimal/dataclass——
+        # 直接赋值会让 SQLAlchemy 的 json 序列化抛 TypeError（实测 2026-09-13：
+        # ingest_events_daily 的 712 条事件结果里带 datetime.date → UPDATE 失败
+        # → **任务本身成功却被记成 failed**，并刷出 6 张"date is not JSON serializable"
+        # 错误事件卡；同类 autoflush/StatementError 也由此而来）。
+        # 统一先过 sanitize_for_json（adapters.shared.json_helpers）。
+        run.result = _json_safe(result)
+        run.error = error
+        if run.started_at:
+            run.duration_ms = int((now - run.started_at).total_seconds() * 1000)
+
+        config = self.session.get(SchedulerTaskConfig, run.task_id)
+        if config:
+            config.last_status = status
+            config.last_error = error
+            # Agent OS 托管伪任务（cron 保留字）无真实调度，跳过 next_run 计算
+            # （2026-09-01 修复：complete_run 曾因 parse_cron 抛异常致 run 卡 running）
+            if not str(config.cron_expression).startswith("managed_by_agent_"):
+                config.next_run_at = _calc_next_run_time(config.cron_expression)
+
+        self.session.commit()
+        return True
+
     def complete_run(
         self,
         run_id: int,
@@ -389,41 +437,99 @@ class SchedulerRepository(ISchedulerRepository):
         error: Optional[str] = None,
         completed_at: Optional[datetime] = None,
     ) -> bool:
+        """真跑完的收尾（**签名与返回值逐字不变**，内部改调 `_finish_run`）。"""
         status = "success" if success else "failed"
         # P0-C：同上，允许传入真实完成时刻（webhook 路径在 handler 结束后写库，
         # 不传时用 now()，与 APScheduler 路径原语义一致）。
-        now = completed_at or datetime.now(timezone.utc)
         try:
-            run = self.session.get(SchedulerRun, run_id)
-            if run is None:
-                return False
-            run.status = status
-            run.completed_at = now
-            # result 列是 JSONB，而 handler 返回值常含 date/datetime/Decimal/dataclass——
-            # 直接赋值会让 SQLAlchemy 的 json 序列化抛 TypeError（实测 2026-09-13：
-            # ingest_events_daily 的 712 条事件结果里带 datetime.date → UPDATE 失败
-            # → **任务本身成功却被记成 failed**，并刷出 6 张"date is not JSON serializable"
-            # 错误事件卡；同类 autoflush/StatementError 也由此而来）。
-            # 统一先过 sanitize_for_json（adapters.shared.json_helpers）。
-            run.result = _json_safe(result)
-            run.error = error
-            if run.started_at:
-                run.duration_ms = int((now - run.started_at).total_seconds() * 1000)
-
-            config = self.session.get(SchedulerTaskConfig, run.task_id)
-            if config:
-                config.last_status = status
-                config.last_error = error
-                # Agent OS 托管伪任务（cron 保留字）无真实调度，跳过 next_run 计算
-                # （2026-09-01 修复：complete_run 曾因 parse_cron 抛异常致 run 卡 running）
-                if not str(config.cron_expression).startswith("managed_by_agent_"):
-                    config.next_run_at = _calc_next_run_time(config.cron_expression)
-
-            self.session.commit()
-            return True
+            return self._finish_run(
+                run_id, status, result=result, error=error, completed_at=completed_at
+            )
         except Exception:
             self.session.rollback()
             raise
+
+    def complete_run_skipped(
+        self,
+        run_id: int,
+        result: Optional[Dict[str, Any]] = None,
+        completed_at: Optional[datetime] = None,
+    ) -> bool:
+        """把 run 闭环为 `status='skipped'`（交易日门判定「今天不该自动跑」）。
+
+        REQ-261006093620-a315 t4 / FR-3。三态语义见
+        `docs/requirements/REQ-261006093620-a315/design/data-model.md` §5：
+
+        - `missed` = 该跑没跑（异常）→ **应告警**；
+        - `skipped` = 门主动判定不该跑（正常）→ **不应告警**、也不算"真执行"。
+
+        与 `complete_run` 的两个刻意差异：
+        1. `last_error` 恒为 `None`——跳过不是失败；
+        2. **记账失败返回 False，绝不抛**：跳过路径的目的是"安静地不干活"，
+           若因记账失败把异常抛进调度线程，等于把"省一次重算"换成了"调度器报错"。
+        """
+        try:
+            return self._finish_run(
+                run_id, "skipped", result=result, error=None, completed_at=completed_at
+            )
+        except Exception as e:
+            self._safe_rollback()
+            logger.warning(f"complete_run_skipped failed (run_id={run_id}): {e}")
+            return False
+
+    def record_missed_run(
+        self,
+        task_id: int,
+        scheduled_run_time: Optional[datetime] = None,
+        note: Optional[str] = None,
+    ) -> Optional[int]:
+        """把「被 APScheduler 跳过（missed）」写成一条 run 记录。
+
+        REQ-261004154902-a7cd t5（FR-4 / FR-8）。
+
+        为什么需要：APScheduler 对超出 misfire 宽限的 trigger **只打一行纯文本 warning
+        就跳过**——不写 `scheduler_runs`、不更新 `last_status`、不告警。实证（2026-10-03 /
+        10-04）：每日数据质量检查分别晚 5:23 / 24:42 被静默跳过，库里查不到任何痕迹，
+        `last_status` 还停在前几天的 success。
+
+        本方法让「该跑没跑」在库里可见：写一条 `status='missed'` 的 run（列是 String(50)，
+        无需 DDL），并把任务的 `last_status` 标成 missed、`last_error` 写明跳过原因。
+        **不动 `next_run_at`**（那是 APScheduler 排期的事实，不该由记账逻辑改）。
+
+        Args:
+            task_id: `quant.scheduler_tasks.id`
+            scheduled_run_time: 被跳过的那个排班时刻（APScheduler 事件带出）
+            note: 跳过原因（如 `missed by 0:08:37`）
+
+        Returns:
+            int: 新建的 run id；失败返回 None（记账失败不许影响调度）
+        """
+        now = datetime.now(timezone.utc)
+        started = scheduled_run_time or now
+        message = note or "missed: APScheduler 判定超出 misfire 宽限，已跳过"
+        try:
+            run = SchedulerRun(
+                task_id=task_id,
+                status="missed",
+                started_at=started,
+                completed_at=now,
+                result={"missed": True, "scheduled_run_time": str(started), "note": message},
+                error=message,
+            )
+            self.session.add(run)
+
+            config = self.session.get(SchedulerTaskConfig, task_id)
+            if config:
+                config.last_status = "missed"
+                config.last_error = message
+
+            self.session.commit()
+            self.session.refresh(run)
+            return run.id
+        except Exception as exc:  # noqa: BLE001 - 记账失败不得击穿调度线程
+            self.session.rollback()
+            logger.error("record_missed_run 失败 task_id=%s: %s", task_id, exc)
+            return None
 
     def get_run(self, run_id: int) -> Optional[Dict[str, Any]]:
         try:

@@ -1,0 +1,39 @@
+task:
+  id: t-de30a7
+  title: 挂单撮合批量不中断、时段护栏与过期收口·测试
+  status: done
+  implements: |-
+    改 application/services/account_trading_service.py 的 execute_pending_orders：单笔由只 catch TradingError 改为 catch Exception → 该单标 failed + fail_reason='internal_error: <原文>' 并继续下一笔；入口先判交易时段（复用 _check_trading_window/_is_in_trading_window，唯一时段口径为 MarketSessionPolicy）——非交易时段只累加 skipped_off_hours 并留痕，绝不把挂单批量标 failed；pending 超过 1 个交易日未成交 → status='expired' + fail_reason + FailureSink 告警；返回体新增 errored/skipped_off_hours/expired；增补 tests/services/test_pending_orders.py。
+
+    [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+  serves: []
+  depends_on:
+    - t-e99312
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261004154902-a7cd
+    TASK_ID: t-de30a7
+    TASK_TITLE: 挂单撮合批量不中断、时段护栏与过期收口·测试
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      started_at: 2026-10-04T08:38:32.406Z
+      completed_at: 2026-10-04T08:38:32.479Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261004154902-a7cd
+  generated_at: 2026-10-04T08:38:09.312Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-04T08:38:32.480Z

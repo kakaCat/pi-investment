@@ -1,6 +1,10 @@
 """回归测试：确保策略配置重构后值不变
 
 这些测试验证重构后的 v13_config.py 和 v14_config.py 与原始硬编码值完全一致。
+
+2026-10-04（REQ-261004154902-a7cd · FR-6）：`model_path` / `factors_path` 的断言
+**有意改变**——原文把两个磁盘上不存在的路径断言成期望值，等于把
+「模型/因子加载恒为空」的 bug 锁死。现在改为断言文件真的存在。
 """
 
 import pytest
@@ -11,6 +15,8 @@ class TestV13ConfigRegression:
 
     def test_v13_config_values_unchanged(self):
         """确保 V13_CONFIG 的所有参数与原始值一致"""
+        from pathlib import Path
+
         from application.strategies.v13_config import V13_CONFIG
 
         # 验证每个参数与原始硬编码值完全一致
@@ -22,8 +28,16 @@ class TestV13ConfigRegression:
         assert V13_CONFIG.stop_loss_pct == -0.12
         assert V13_CONFIG.trailing_stop_pct == -0.08
         assert V13_CONFIG.portfolio_stop_loss_pct == -0.20
-        assert V13_CONFIG.model_path == "live_trading/models/xgboost_multi_factor_model.json"
-        assert V13_CONFIG.factors_path == "config/v13_factors.json"
+        # 2026-10-04（REQ-261004154902-a7cd · FR-6）：改前这里断言的是两个**磁盘上不存在**
+        # 的路径（live_trading/models/xgboost_multi_factor_model.json、config/v13_factors.json）
+        # ——正是这条「回归测试」把「模型/因子加载恒为空」的 bug 锁死了。
+        # 现在断言的是「文件真的存在」，路径换了但不存在的路径必须报错。
+        assert Path(V13_CONFIG.model_path).exists(), (
+            f"V13 model_path 不存在: {V13_CONFIG.model_path}"
+        )
+        assert Path(V13_CONFIG.factors_path).exists(), (
+            f"V13 factors_path 不存在: {V13_CONFIG.factors_path}"
+        )
 
     def test_v13_config_type_unchanged(self):
         """确保 V13_CONFIG 的类型不变"""
@@ -47,6 +61,8 @@ class TestV14ConfigRegression:
 
     def test_v14_config_values_unchanged(self):
         """确保 V14_CONFIG 的所有参数与原始值一致"""
+        from pathlib import Path
+
         from application.strategies.v14_config import V14_CONFIG
 
         # 验证每个参数与原始硬编码值完全一致
@@ -58,8 +74,13 @@ class TestV14ConfigRegression:
         assert V14_CONFIG.stop_loss_pct == -0.15
         assert V14_CONFIG.trailing_stop_pct == -0.10
         assert V14_CONFIG.portfolio_stop_loss_pct == -0.25
-        assert V14_CONFIG.model_path == "live_trading/models/v14_p0_model.json"
-        assert V14_CONFIG.factors_path == "config/v14_factors.json"
+        # 同 V13：改为「文件真的存在」（改前断言 config/v14_factors.json —— 磁盘上不存在）
+        assert Path(V14_CONFIG.model_path).exists(), (
+            f"V14 model_path 不存在: {V14_CONFIG.model_path}"
+        )
+        assert Path(V14_CONFIG.factors_path).exists(), (
+            f"V14 factors_path 不存在: {V14_CONFIG.factors_path}"
+        )
 
     def test_v14_config_type_unchanged(self):
         """确保 V14_CONFIG 的类型不变"""

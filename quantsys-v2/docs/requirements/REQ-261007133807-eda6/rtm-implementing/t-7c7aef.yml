@@ -1,0 +1,37 @@
+task:
+  id: t-7c7aef
+  title: 处置映射：disposition.decide 接受 Verdict·复核
+  status: todo
+  implements: |-
+    domain/watch/services/disposition.py：decide() 增可选参数 verdict；给定时按 Verdict 映射为既有 disposition 取值与既有中文文案，未给定时内部调 decide_escalation（行为同改造前，兼容 escalated / escalation_reason 两个旧参数）。application/services/watch_engine/disposition_engine.py 透传 verdict。
+
+    [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/REQ-261007133807-eda6/design/` 逐条核对；`npx vitest run tests/` → 全绿；无偏离时显式写明「无偏离」及依据
+  serves: []
+  depends_on:
+    - t-5a3bc9
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261007133807-eda6
+    TASK_ID: t-7c7aef
+    TASK_TITLE: 处置映射：disposition.decide 接受 Verdict·复核
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: pending
+    - phase: review
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261007133807-eda6
+  generated_at: 2026-10-07T10:55:46.299Z
+  version: 2
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-07T10:55:46.300Z

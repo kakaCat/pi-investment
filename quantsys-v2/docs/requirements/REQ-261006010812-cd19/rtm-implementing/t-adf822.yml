@@ -1,0 +1,38 @@
+task:
+  id: t-adf822
+  title: 返工：验收项不可照着验（历史数据）：以下验收项没写「怎么验」——验收项 设计文档自洽性 + 版本面取证·分析 缺「怎么验」（"·复核
+  status: done
+  implements: |-
+    按验收意见修复：需修改
+
+    [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+  serves: []
+  depends_on:
+    - t-dc82bd
+  phase: implement
+  side: fullstack
+  workflow_params:
+    REQ_ID: REQ-261006010812-cd19
+    TASK_ID: t-adf822
+    TASK_TITLE: 返工：验收项不可照着验（历史数据）：以下验收项没写「怎么验」——验收项 设计文档自洽性 + 版本面取证·分析 缺「怎么验」（"·复核
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: fullstack
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-06T01:39:18.649Z
+    - phase: review
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006010812-cd19
+  generated_at: 2026-10-06T01:39:11.697Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-06T01:39:18.650Z

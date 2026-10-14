@@ -35,13 +35,17 @@ def _norm_symbol(symbol: str) -> str:
 def _lookup_stock_name(symbol: str) -> Optional[str]:
     """兜底查股票名称（quant.stocks）。失败返回 None，不影响主流程。
 
-    2026-09-14（w-32314d00，REQ-24e15d）：裸 SQL 收口到
-    StockORMRepository.get_name（仓储返回 None / 上抛异常两种情形都由下面的
-    except 兜住，**兜底语义与留痕不变**）。
+    2026-09-14（w-32314d00，REQ-24e15d）：裸 SQL 收口到 StockORMRepository.get_name。
+    2026-10-07（REQ-261007101318-c392 FR-2）：取数口径再收敛到**领域端口**的实现
+    `PgStockNameResolver`——与 SLA 巡检/回执渲染用的是**同一份**（批量查 quant.stocks、
+    查询异常返回全 None、未命中 None，未命中即渲染为「名称缺失」）。
+    此前引擎走 `StockORMRepository.get_name`、回执走 `PgStockNameResolver`，
+    同一个问题两条口径，正是"名称时有时无"的温床；本次并入端口实现。
     """
     try:
-        from adapters.outbound.repositories.stock_repository import StockORMRepository
-        return StockORMRepository().get_name(_norm_symbol(symbol))
+        from adapters.outbound.repositories.stock_name_resolver import PgStockNameResolver
+        bare = _norm_symbol(symbol)
+        return PgStockNameResolver().resolve_batch([bare]).get(bare)
     except Exception as e:
         logger.debug('股票名称兜底查询失败', symbol=symbol, error=str(e))
         return None
@@ -124,8 +128,10 @@ class WatchNotifier:
         return self._notification_facade
 
     def notify(self, rule, condition: dict, quote, result, escalation_reason: str = None,
+               escalation_code: str = None,
                disposition: str = None, disposition_reason: str = None,
-               dup_of: int = None, action_amount_yuan: float = None, level: str = None):
+               dup_of: int = None, action_amount_yuan: float = None, level: str = None,
+               closed_loop: bool = True):
         """触发通知
         
         Args:
@@ -146,7 +152,8 @@ class WatchNotifier:
                         symbol=getattr(rule, 'symbol', None), dup_of=dup_of)
             return self._record(rule, condition, quote, result, notified=False,
                                 disposition=disposition, disposition_reason=disposition_reason,
-                                dup_of=dup_of)
+                                dup_of=dup_of, escalation_code=escalation_code,
+                                escalation_reason=escalation_reason)
 
         # 2026-09-11 用户否决：观察类也必须推送。
         # 我曾按 RFC 015 草案把 auto_observed 从即时通道摘掉（理由"只是一眼看不值得打扰"），
@@ -156,7 +163,8 @@ class WatchNotifier:
 
         # 1. 构建 TriggerPayload
         payload = self._build_payload(rule, condition, quote, result, escalation_reason,
-                                      action_amount_yuan=action_amount_yuan, level=level)
+                                      action_amount_yuan=action_amount_yuan, level=level,
+                                      closed_loop=closed_loop, escalation_code=escalation_code)
         
         # 2. 确定通知模式
         trigger_level = payload.trigger_level
@@ -176,7 +184,12 @@ class WatchNotifier:
             # 构建 NotificationFacade 参数
             facade_result = self.notification_facade.send_watch_triggered(
                 symbol=payload.symbol,
-                name=payload.name or payload.symbol,
+                # FR-2（REQ-261007101318-c392）：**不许再把代码当名称**。
+                # 旧写法 `payload.name or payload.symbol` 把"查不到名称"与"名称就是这串代码"
+                # 混为一谈，渲染层再也分不清该显示什么（2026-10-07 用户："688525 不是股票名称"）。
+                # 现保留"缺失"语义：名称来自行情或 quant.stocks，都没有则传 None，
+                # 由渲染层显式写「名称缺失」，绝不冒充名称。
+                name=payload.name or None,
                 price=payload.price,
                 condition=payload.condition,
                 message=payload.message,
@@ -187,6 +200,7 @@ class WatchNotifier:
                 trigger_level=trigger_level,
                 action_hint=payload.to_notification_variables().get('action_hint'),
                 escalation_reason=escalation_reason,
+                escalation_code=escalation_code,
                 decision_audit_id=payload.decision_audit_id,
                 intent=payload.intent,
                 lifecycle_stage=payload.lifecycle_stage,
@@ -200,6 +214,8 @@ class WatchNotifier:
                 level=payload.level,
                 # REQ-ad0a FR-10：规则号随通知下发（模板显示真实号；缺失=None=手工）
                 rule_id=getattr(rule, 'id', None),
+                # FR-4：闭环开关只决定是否渲染「处置入口/回执位」，不决定卡片是否有意图/级别
+                closed_loop=payload.closed_loop,
             )
             notified = facade_result.success if hasattr(facade_result, 'success') else bool(facade_result)
         except Exception as e:
@@ -211,12 +227,15 @@ class WatchNotifier:
         
         # 5. 触发记录落库（含处置初态）
         trigger = self._record(rule, condition, quote, result, notified,
-                               disposition=disposition, disposition_reason=disposition_reason)
+                               disposition=disposition, disposition_reason=disposition_reason,
+                               escalation_code=escalation_code,
+                               escalation_reason=escalation_reason)
 
         return trigger
 
-    def _build_payload(self, rule, condition, quote, result, escalation_reason: str = None,
-                       action_amount_yuan: float = None, level: str = None) -> TriggerPayload:
+    def _build_payload(self, rule, condition: dict, quote, result, escalation_reason: str = None,
+                       action_amount_yuan: float = None, level: str = None,
+                       closed_loop: bool = True, escalation_code: str = None) -> TriggerPayload:
         """构建 TriggerPayload"""
         price = float(quote.price)
         
@@ -278,6 +297,7 @@ class WatchNotifier:
             trigger_level=trigger_level,
             action_hint=action_hint,
             escalation_reason=escalation_reason,
+            escalation_code=escalation_code,
             change_pct=change_pct,
             pnl_pct=pnl_pct,
             # 2026-09-18（REQ-c9f899 t2）：只有真正产出 volume_ratio 的判据才能填量比字段；
@@ -290,6 +310,7 @@ class WatchNotifier:
             scope=getattr(rule, 'scope', None),
             action_amount_yuan=action_amount_yuan,
             level=level,
+            closed_loop=closed_loop,
         )
 
     def record_governance(self, rule, reason: str, detail: dict = None):
@@ -332,7 +353,8 @@ class WatchNotifier:
             logger.debug('WS 广播失败（忽略）', error=str(e))
 
     def _record(self, rule, condition, quote, result, notified,
-                disposition: str = None, disposition_reason: str = None, dup_of: int = None):
+                disposition: str = None, disposition_reason: str = None, dup_of: int = None,
+                escalation_code: str = None, escalation_reason: str = None):
         """触发记录落库（含处置初态，返回落库后的触发对象供去重溯源）"""
         if self.trigger_repo is None:
             return None
@@ -347,6 +369,8 @@ class WatchNotifier:
                 disposition=disposition or 'pending',
                 disposition_reason=disposition_reason,
                 dup_of=dup_of,
+                escalation_code=escalation_code,
+                escalation_reason=escalation_reason,
             )
         except Exception as e:
             logger.error('触发记录落库失败', error=str(e))

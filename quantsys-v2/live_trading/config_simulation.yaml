@@ -1,4 +1,15 @@
 # V13策略模拟交易配置
+#
+# ⚠️ 本文件是**执行环境配置**，不是策略参数的声明源（REQ-261004154902-a7cd · FR-5 · t-979319）。
+#
+#   • 策略参数（持仓数 / 止损线 / 仓位 / 权重 / 调仓周期）的**唯一声明源**是
+#     `live_trading/configs/strategies/<name>.yaml`（v13 / v14 各一份）。
+#   • 本文件里的 `strategy.*` 与 `risk_control.*` 同名项只是**直接构造 SimulationTrader 时的兜底值**
+#     （例如 `adapters/inbound/fastapi_app/routes/v14_trading.py` 与几个 jobs 不经 StrategyService）。
+#     **v13 / v14 的正常链路**都会经 `StrategyService._create_trader` 用声明值**全量覆盖**这些键，
+#     并在日志里打印「声明值 vs 生效值」对照表。
+#   • 据此**不要**用本文件的数字判断 V13 实际持仓数/止损线——历史事故正是这么来的
+#     （此处 top_n=5 被误当作生效值，而 v13.yaml、文档、代码常量一律声明 8 只）。
 
 # 交易模式
 mode: simulation  # simulation/live
@@ -7,11 +18,14 @@ mode: simulation  # simulation/live
 initial_capital: 100000  # 10万模拟资金
 
 # V13策略参数 (优化后 2026-07-01)
+# ⚠️ 以下三项是**兜底值**，v13 链路生效值以 configs/strategies/v13.yaml 为准（现存值与该声明冲突，保留仅为不改变直构场景行为）：
+#    top_n        5 → v13 链路生效 8（v13.yaml trading.top_n）
+#    rebalance_days 7 → v13 链路生效 5（v13.yaml trading.rebalance_days）
 strategy:
   name: "V13_85_Factors_Optimized"
   stock_pool: "gem"  # 创业板
-  top_n: 5  # 持仓5只 (优化: 从8只集中到5只，提升Alpha)
-  rebalance_days: 7  # 7天调仓 (优化: 从5天延长到7天，降低交易成本)
+  top_n: 5  # ⚠️ 兜底值：v13 链路生效 8（见文件头说明）；此值为 v14 口径的遗留
+  rebalance_days: 7  # ⚠️ 兜底值：v13 链路生效 5；trader.should_rebalance 直读本键，直构场景才用到它
 
   # 持仓权重 (优化: Kelly准则)
   position_weight: 0.18  # 单只18%
@@ -39,11 +53,19 @@ trading:
   slippage_rate: 0.001  # 千1滑点
   min_order_amount: 1000  # 最小下单金额
 
-# 风控参数 (优化后)
+# 风控参数
+# ⚠️ 本节的策略类参数是**执行环境兜底值**：v13 / v14 链路经 StrategyService._create_trader
+#    由各自声明源全量覆盖（现存值多为 v14 口径，与 v13 声明冲突，保留仅为不改变直构场景行为）：
+#      single_stock_stop_loss -0.12 → v13 链路生效 -0.15 / v14 生效 -0.12
+#      max_position            0.90 → v13 链路生效 0.85 / v14 生效 0.90
+#      max_single_weight       0.18 → v13 链路生效 0.15 / v14 生效 0.18
+#      top_n                      5 → v13 链路生效   8 / v14 生效   5
+#      min_position            0.70 → v13 声明 0.70（同值）
+#    仅 `trailing_stop` 与「历史参数（兼容）」段属于纯执行环境参数。
 risk_control:
   # 止损控制 (优化: 动态止损)
-  single_stock_stop_loss: -0.12  # 单股止损-12% (优化: 从-15%放宽到-12%)
-  portfolio_stop_loss: -0.20  # 组合止损-20%
+  single_stock_stop_loss: -0.12  # ⚠️ 兜底值（v14 口径）；v13 链路生效 -0.15
+  portfolio_stop_loss: -0.20  # 组合止损-20%（v13/v14 声明同值 -0.20）
 
   # 移动止损策略 (新增)
   trailing_stop:
@@ -57,10 +79,10 @@ risk_control:
         stop: 0.20     # 止损线上移到+20%
 
   # 仓位控制 (优化: 提高资金利用率)
-  max_position: 0.90  # 最大仓位90% (优化: 从85%提升到90%)
-  min_position: 0.70  # 最小仓位70%
-  max_single_weight: 0.18  # 单股最大权重18% (优化: 从15%提升到18%)
-  top_n: 5  # 持仓数量5只 (优化: 从8只集中到5只)
+  max_position: 0.90  # ⚠️ 兜底值（v14 口径）；v13 链路生效 0.85
+  min_position: 0.70  # 最小仓位70%（v13 声明同值 0.70）
+  max_single_weight: 0.18  # ⚠️ 兜底值（v14 口径）；v13 链路生效 0.15
+  top_n: 5  # ⚠️ 兜底值（v14 口径）；v13 链路生效 8
 
   # 历史参数（兼容）
   daily_loss_limit: -0.05  # 单日止损5%

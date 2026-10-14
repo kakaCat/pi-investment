@@ -1,0 +1,70 @@
+metadata:
+  stage: brainstorming
+  requirement_id: REQ-261006165125-23a9
+  generated_at: 2026-10-06T08:54:27.812Z
+  version: 4
+  generated_by: dsh-pmboard
+  rtm_version: "2.0"
+  last_updated: 2026-10-06T09:14:09.456Z
+outputs:
+  requirements:
+    - id: FR-1
+      title: 立唯一的"无事"判据（白名单 + 默认外发）
+      source: requirement.md
+      line: 118
+    - id: FR-2
+      title: 无事 → 开始与完成两条都不发
+      source: requirement.md
+      line: 124
+    - id: FR-3
+      title: 开始消息改为"超阈值仍在跑"提示
+      source: requirement.md
+      line: 128
+    - id: FR-4
+      title: 失败一律照发（静默规则不覆盖失败）
+      source: requirement.md
+      line: 134
+    - id: FR-5
+      title: 只静默外发，不静默留痕
+      source: requirement.md
+      line: 140
+    - id: FR-6
+      title: 人工触发必须有回执
+      source: requirement.md
+      line: 144
+    - id: FR-7
+      title: 开关与回滚
+      source: requirement.md
+      line: 149
+    - id: FR-8
+      title: 回归锁与真实观察
+      source: requirement.md
+      line: 154
+  prototypes: []
+  decisions:
+    - id: D-1
+      source: 立项弹框作答（本窗口，2026-10-06 16:51）：名称「每日任务空结果不发飞书（no_event/skipped 静默）」/ 类型 feature / 难度 expert / 文档位置 `docs/requirements/<REQ>/`
+      verdict: 本工作立项为 **feature**，难度 expert，文档落 `docs/requirements/REQ-261006165125-23a9/`
+      serves:
+        - FR-1
+        - FR-8
+      criterion: "`reqboard_status` 显示本窗口绑定 REQ-261006165125-23a9"
+    - id: D-2
+      source: 本窗口用户消息（2026-10-06）：「没有事情不应该发送飞书信息」（前置消息：「没说是什么事件」）
+      verdict: '**无事实发生 → 不得外发通知**：空跑的"开始/完成"两条都属于应当消失的噪音；本裁定优先于 REQ-261005210015-1603 FR-3 的"no_output 改 ⚠️ 语气"'
+      serves:
+        - FR-1
+        - FR-2
+        - FR-5
+      criterion: 单测断言 `no_event` / `no_output` 时 `_send_feishu` 调用次数 = 0；台账 status 仍 `success`
+    - id: D-3
+      source: 本窗口 `ask_user_question` 作答（2026-10-06）：「A. 通用规则 + 两条都不发（含开始）」
+      verdict: 做**通用规则**（不是只修 `event_calendar_check`），且**开始消息一并静默**；失败/异常照常告警；台账照留痕
+      serves:
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-6
+      criterion: FR-3 的"超阈值仍在跑"提示 + FR-4 的失败必发，共同保证"静默的是无事、不是消息能力"
+status:
+  artifacts: []

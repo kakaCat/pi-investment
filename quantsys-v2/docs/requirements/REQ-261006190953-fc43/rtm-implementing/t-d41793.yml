@@ -1,0 +1,38 @@
+task:
+  id: t-d41793
+  title: 给净值仓储加唯一写入闸门，并让日收益基准按交易日回退·复核
+  status: done
+  implements: |-
+    改 adapters/outbound/repositories/simulation_repository.py：upsert_equity_snapshot 增加 force: bool = False，缺省时调 application/services/trading_day_gate.skip_non_trading_day(day)，判真则不落库、返回 None、logger.info('skip_daily_write_non_trading_day', 五键注解)；force=True 显式旁路（仅供迁移/回滚/测试）。get_equity_snapshots 增加 trading_days_only: bool = False 与 trading_days: Optional[Set[date]] (注入，仓储不自己查日历)，True 时先取该账户全部快照（上限沿用 SNAPSHOT_DRAWDOWN_SCAN）→ 过滤非交易日 → 取尾部 limit，使 limit 语义 = 交易日数；trading_days is None 时不过滤并 warning。previous_valid_snapshot 增加 trading_days 参数，跳过非交易日行（残缺判据 total_value<=0 或 total_value<cash 不变）；calculate_daily_return 走新基准。新建 tests/test_equity_snapshot_trading_day_gate.py（仓储路径部分）；改 tests/test_equity_snapshot_daily_return.py 补交易日回退用例。验证：./venv/bin/python -m pytest tests/test_equity_snapshot_trading_day_gate.py tests/test_equity_snapshot_daily_return.py -q 全过。
+
+    [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+  serves: []
+  depends_on:
+    - t-3b9912
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261006190953-fc43
+    TASK_ID: t-d41793
+    TASK_TITLE: 给净值仓储加唯一写入闸门，并让日收益基准按交易日回退·复核
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-06T11:47:15.960Z
+    - phase: review
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006190953-fc43
+  generated_at: 2026-10-06T11:46:52.820Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-06T11:47:15.960Z

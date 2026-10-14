@@ -1,0 +1,38 @@
+task:
+  id: t-cabaf9
+  title: 端到端验收、真实台账观察与回滚演练·测试
+  status: done
+  implements: |-
+    跑齐 decomposition.md §6 的六条命令并把实际输出写进 notes/acceptance-run.md；准备 docs/requirements/REQ-261006093620-a315/verification.md（交付结论 + 可复核证据清单）。真实读数：休市日 2026-10-07 挂门任务应为 skipped 且无通知，复市首日 2026-10-08 应恢复 success。回滚演练：UPDATE quant.scheduler_tasks SET trading_day_policy='always' WHERE id IN (250,247,242,259,249,261,237,232) 后确认无需 reload/重启即恢复照跑，再改回策略值并记录前后读数。
+
+    [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+  serves: []
+  depends_on:
+    - t-fde9be
+  phase: test
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261006093620-a315
+    TASK_ID: t-cabaf9
+    TASK_TITLE: 端到端验收、真实台账观察与回滚演练·测试
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: test
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: test
+      status: done
+      completed_at: 2026-10-06T02:12:08.702Z
+    - phase: implement
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006093620-a315
+  generated_at: 2026-10-06T02:12:08.521Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-06T02:12:08.702Z

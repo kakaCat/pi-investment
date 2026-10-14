@@ -1,0 +1,137 @@
+metadata:
+  stage: implementing
+  requirement_id: REQ-261007101318-c392
+  generated_at: 2026-10-07T05:41:28.846Z
+  version: 71
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 24
+  last_updated: 2026-10-07T06:00:20.279Z
+inputs:
+  tasks:
+    - id: t-268fbd
+      title: FR-1 休市日闸门：tick() 日级收敛到 TradingDayGuard（回填）
+      status: done
+    - id: t-d5d9b6
+      title: FR-2 名称兜底：禁止把代码当名称（回填）
+      status: done
+    - id: t-633d3f
+      title: FR-3 外发审计 + 来源标识（回填，含建表迁移）
+      status: done
+    - id: t-c76181
+      title: FR-4 文案契约：意图/处置级别 + 闭环承诺解耦（回填）
+      status: done
+    - id: t-c926cd
+      title: 补齐设计登记的未覆盖用例（run_forever 整环 / 跳过留痕去重 / 装配失败降级）
+      status: done
+    - id: t-2e590d
+      title: 真实交易日回执 + 验收材料（时间型）
+      status: done
+    - id: t-dcdeb1
+      title: FR-1 休市日闸门：tick() 日级收敛到 TradingDayGuard（回填）·研发
+      status: done
+    - id: t-b33b0b
+      title: FR-1 休市日闸门：tick() 日级收敛到 TradingDayGuard（回填）·复核
+      status: done
+    - id: t-e58107
+      title: FR-1 休市日闸门：tick() 日级收敛到 TradingDayGuard（回填）·测试
+      status: done
+    - id: t-e5a244
+      title: FR-2 名称兜底：禁止把代码当名称（回填）·研发
+      status: done
+    - id: t-e75a19
+      title: FR-2 名称兜底：禁止把代码当名称（回填）·复核
+      status: done
+    - id: t-62e64a
+      title: FR-2 名称兜底：禁止把代码当名称（回填）·测试
+      status: done
+    - id: t-b2f010
+      title: FR-3 外发审计 + 来源标识（回填，含建表迁移）·研发
+      status: done
+    - id: t-890eb7
+      title: FR-3 外发审计 + 来源标识（回填，含建表迁移）·复核
+      status: done
+    - id: t-e669c6
+      title: FR-3 外发审计 + 来源标识（回填，含建表迁移）·测试
+      status: done
+    - id: t-00bd50
+      title: FR-4 文案契约：意图/处置级别 + 闭环承诺解耦（回填）·研发
+      status: done
+    - id: t-2af346
+      title: FR-4 文案契约：意图/处置级别 + 闭环承诺解耦（回填）·复核
+      status: done
+    - id: t-7dcdbb
+      title: FR-4 文案契约：意图/处置级别 + 闭环承诺解耦（回填）·测试
+      status: done
+    - id: t-2ae248
+      title: 补齐设计登记的未覆盖用例（run_forever 整环 / 跳过留痕去重 / 装配失败降级）·研发
+      status: done
+    - id: t-8ccf53
+      title: 补齐设计登记的未覆盖用例（run_forever 整环 / 跳过留痕去重 / 装配失败降级）·复核
+      status: done
+    - id: t-094f32
+      title: 补齐设计登记的未覆盖用例（run_forever 整环 / 跳过留痕去重 / 装配失败降级）·测试
+      status: done
+    - id: t-8d7c74
+      title: 真实交易日回执 + 验收材料（时间型）·研发
+      status: done
+    - id: t-f240da
+      title: 真实交易日回执 + 验收材料（时间型）·复核
+      status: done
+    - id: t-a346aa
+      title: 真实交易日回执 + 验收材料（时间型）·测试
+      status: done
+status:
+  tasks_total: 24
+  tasks_done: 24
+  tasks_in_progress: 0
+  tasks_todo: 0
+tasks:
+  - id: t-268fbd
+    status: done
+  - id: t-d5d9b6
+    status: done
+  - id: t-633d3f
+    status: done
+  - id: t-c76181
+    status: done
+  - id: t-c926cd
+    status: done
+  - id: t-2e590d
+    status: done
+  - id: t-dcdeb1
+    status: done
+  - id: t-b33b0b
+    status: done
+  - id: t-e58107
+    status: done
+  - id: t-e5a244
+    status: done
+  - id: t-e75a19
+    status: done
+  - id: t-62e64a
+    status: done
+  - id: t-b2f010
+    status: done
+  - id: t-890eb7
+    status: done
+  - id: t-e669c6
+    status: done
+  - id: t-00bd50
+    status: done
+  - id: t-2af346
+    status: done
+  - id: t-7dcdbb
+    status: done
+  - id: t-2ae248
+    status: done
+  - id: t-8ccf53
+    status: done
+  - id: t-094f32
+    status: done
+  - id: t-8d7c74
+    status: done
+  - id: t-f240da
+    status: done
+  - id: t-a346aa
+    status: done

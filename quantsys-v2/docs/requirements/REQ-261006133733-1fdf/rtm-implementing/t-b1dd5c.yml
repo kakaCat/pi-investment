@@ -1,0 +1,40 @@
+task:
+  id: t-b1dd5c
+  title: 真 polars 回归锁与反例锁（先红后绿）
+  status: done
+  implements: 新建 tests/test_data_validator_anomaly_detection.py，实现 design/test-cases.md 的 T1–T15：真 pl.DataFrame（≥40 行）正/负例、成交量异常直击（T3）、数据不足 B 态、失败 C 态、键集兼容、质量分四分态、两处消费点计数、审计 warnings、静态红线；并先在本卡开工前（改前）状态上跑一遍记录 L1–L4 的红（detect_anomalies 抛错被吞）。打桩点：用实例属性替换 validator.kline_repo / service.validator，KlineQualityRepository 用注入或实例替换。
+  serves:
+    - FR-1
+    - FR-2
+    - FR-3
+    - FR-4
+    - FR-5
+  depends_on:
+    - t-0a6461
+    - t-163105
+  phase: test
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261006133733-1fdf
+    TASK_ID: t-b1dd5c
+    TASK_TITLE: 真 polars 回归锁与反例锁（先红后绿）
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: test
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: test
+      status: done
+      started_at: 2026-10-06T05:46:07.768Z
+      completed_at: 2026-10-06T05:47:01.448Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006133733-1fdf
+  generated_at: 2026-10-06T05:41:39.121Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-06T05:47:03.915Z

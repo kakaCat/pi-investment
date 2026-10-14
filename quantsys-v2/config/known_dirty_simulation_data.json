@@ -1,0 +1,24 @@
+{
+  "_README": [
+    "已知脏数据清单（REQ-261004154902-a7cd · t-174c1d · 用户 2026-10-04 裁定）。",
+    "口径：这些记录**不删不改**，只在对账/统计判定里排除；被排除项仍要打印出来，不许隐藏。",
+    "回滚：删掉本文件，或把 enabled 置 false，即恢复「按原始流水判定」的旧口径。",
+    "依据与成因见 docs/requirements/REQ-261004154902-a7cd/notes/legacy-cash-disposition.md。"
+  ],
+  "enabled": true,
+  "reason": "历史虚增：累计卖出多于累计买入，凭空多出卖出收入（双数据源重复卖出）",
+  "recorded_at": "2026-10-04",
+  "recorded_by": "REQ-261004154902-a7cd",
+  "accounts": {
+    "v13_simulation": {
+      "phantom_cash": 49424.96,
+      "oversold_symbols": {
+        "300045": {"bought": 1000, "sold": 2000, "net": -1000},
+        "300561": {"bought": 700, "sold": 1400, "net": -700},
+        "300765": {"bought": 300, "sold": 600, "net": -300},
+        "300469": {"bought": 200, "sold": 400, "net": -200}
+      },
+      "return_note": "累计收益率含历史虚增 ¥49,424.96（已排除），不可与其它账户或基准直接比较"
+    }
+  }
+}

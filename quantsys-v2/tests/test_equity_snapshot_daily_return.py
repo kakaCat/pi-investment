@@ -237,6 +237,54 @@ def test_previous_valid_snapshot_excludes_same_day_live():
     assert prev.snapshot_date < date.fromisoformat('2026-09-10'), '当日快照不得作为自身基准'
     assert float(prev.total_value) >= float(prev.cash or 0), '基准须为估值完整的行'
 
+
+# ── 基准口径：上一**交易日**（REQ-261006190953-fc43 卡 B） ────────────────────
+#
+# 本方法 docstring 一直写「上一交易日」，实现却只是"日期更小的最近一行"——落在周末/节假日的
+# 脏行会被当成基准，把跨节假日的涨跌算成"假日日收益"。以下两条锁住接线：
+# calculate_daily_return 必须把**交易日历集合**透传给它（签名保持不变）。
+
+def test_calculate_daily_return_passes_trading_days_to_baseline(monkeypatch):
+    seen = {}
+
+    def _fake_prev(account_name, before, trading_days=None):
+        seen['account'] = account_name
+        seen['before'] = before
+        seen['trading_days'] = trading_days
+        return SimpleNamespace(snapshot_date=date.fromisoformat('2026-09-30'), total_value=100000.0,
+                               cash=0.0)
+
+    monkeypatch.setattr(
+        'adapters.outbound.repositories.trading_calendar_repository.trading_day_set',
+        lambda *a, **k: {date.fromisoformat('2026-09-30'), date.fromisoformat('2026-10-08')},
+    )
+    repo = SimulationORMRepository()
+    monkeypatch.setattr(repo, 'previous_valid_snapshot', _fake_prev)
+    monkeypatch.setattr(repo, 'external_flow_on', lambda account_name, day: 0.0)
+
+    got = repo.calculate_daily_return('agent_virtual', date.fromisoformat('2026-10-08'), 101000.0)
+    assert got == pytest.approx(0.01)
+    assert seen['trading_days'] == {date.fromisoformat('2026-09-30'), date.fromisoformat('2026-10-08')}
+
+
+def test_calculate_daily_return_falls_back_when_calendar_unavailable(monkeypatch):
+    """日历不可得 → 透传 None（退回"上一有效快照"），不做静默过滤。"""
+    seen = {}
+
+    def _fake_prev(account_name, before, trading_days=None):
+        seen['trading_days'] = trading_days
+        return SimpleNamespace(snapshot_date=date.fromisoformat('2026-10-02'), total_value=100000.0,
+                               cash=0.0)
+
+    monkeypatch.setattr('adapters.outbound.repositories.trading_calendar_repository.trading_day_set', lambda *a, **k: None)
+    repo = SimulationORMRepository()
+    monkeypatch.setattr(repo, 'previous_valid_snapshot', _fake_prev)
+    monkeypatch.setattr(repo, 'external_flow_on', lambda account_name, day: 0.0)
+
+    got = repo.calculate_daily_return('agent_virtual', date.fromisoformat('2026-10-08'), 100500.0)
+    assert got == pytest.approx(0.005)
+    assert seen['trading_days'] is None
+
 # ── 外部入金口径：成立资金不算当日流入 ──────────────────────────────────────
 
 def _flow(day: str, amount: float, ftype: str = 'deposit'):

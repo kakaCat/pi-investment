@@ -1,0 +1,38 @@
+task:
+  id: t-af8fa3
+  title: 让异常检测真的运行，并输出可区分的三态·复核
+  status: done
+  implements: |-
+    改 application/services/data_validator.py：① detect_anomalies 成交量段 for kline in klines: 改为 for kline in klines_list:（:369，与价格段同源）；② 数据不足早退（:331-338）改为 B 态：ok=True、has_anomalies=None、unknown_reason='insufficient_data'，message 文案逐字不变；③ 成功路径返回 ok=True / has_anomalies=<bool> / unknown_reason=None / error=None（既有四键语义不变）；④ except 路径返回 ok=False、has_anomalies=None、unknown_reason=<摘要≤200>、error=同摘要（兼容别名），并把 symbol / unknown_reason 加进 error 日志结构化字段（保留既有中文文案）；⑤ get_data_quality_score 异常率分量按 interfaces.md §2 四态分流：有异常=既有公式、确无异常=20、数据不足=剔除并重新归一 (coverage+dup)/80*100、失败=0 且记 error。依据 design/interfaces.md §1–§2。
+
+    [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+  serves: []
+  depends_on:
+    - t-a75776
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261006133733-1fdf
+    TASK_ID: t-af8fa3
+    TASK_TITLE: 让异常检测真的运行，并输出可区分的三态·复核
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-06T05:44:06.016Z
+    - phase: review
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006133733-1fdf
+  generated_at: 2026-10-06T05:43:51.003Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-06T05:44:06.017Z

@@ -1,0 +1,53 @@
+metadata:
+  stage: brainstorming
+  requirement_id: REQ-261006130750-0654
+  generated_at: 2026-10-06T05:10:18.877Z
+  version: 4
+  generated_by: dsh-pmboard
+  rtm_version: "2.0"
+  last_updated: 2026-10-06T06:43:47.971Z
+outputs:
+  requirements:
+    - id: FR-1
+      title: 盘中监控接日级门（休市日不调 `IntradayMonitor.check()`）
+      source: requirement.md
+      line: 143
+    - id: FR-2
+      title: 编排 tick 接日级门（休市日不再每分钟空转调用）
+      source: requirement.md
+      line: 150
+    - id: FR-3
+      title: 门必须 fail-open，且复用唯一真源
+      source: requirement.md
+      line: 155
+    - id: FR-4
+      title: 窗口语义与既有契约不回归
+      source: requirement.md
+      line: 163
+    - id: FR-5
+      title: 判据口径锁（当日口径 · 复市首日不跳）
+      source: requirement.md
+      line: 171
+    - id: FR-6
+      title: 留痕与可观测（跳过 ≠ 静默，也 ≠ 打扰）
+      source: requirement.md
+      line: 177
+  prototypes: []
+  decisions:
+    - id: D-1
+      source: 本窗口会话消息（2026-10-06，用户直接消息）原话：「【治理建议】休市日盘中任务空转：cron 的 1-5 不认节假日（今日已空跑 27 次调度）报错了，需要你优化一下」
+      verdict: 立项治理（feature / expert）；「27 次空跑」在 v2 台账**复现不出**，登记为待对齐项，**不据此扩大范围**
+      serves:
+        - FR-1
+        - FR-2
+      criterion: 立项弹框问答所得 category=feature / prompt_difficulty=expert（REQ-261006130750-0654 已创建并绑定本窗口）；台账计数见 E8（`scheduler_runs` 4 行 / `inprocess_job_runs` 0 行 / `automation_runs` 0 行）
+    - id: D-2
+      source: 本窗口会话消息（2026-10-06，用户回答范围弹框）原话：「A. v2 剩余盘中路径接门：orchestrator_bootstrap 的 _in_orchestrator_window / _in_intraday_window（含 IntradayMonitor 日级判定）（推荐）」
+      verdict: 范围收口到 ④ 路径（编排 tick + 盘中监控）；agent-ts 侧盘中决策任务与今日 `00:01–00:04` 的报错**不入本次范围**，仅登记
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      criterion: '`ask_user_question` 返回 `selected=["A. …"]`（单选）；排除项落账见「后续线」第 1 条与第 3 条、边界「不做什么」第 4/5 条'
+status:
+  artifacts: []

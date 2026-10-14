@@ -47,11 +47,19 @@ class FakeNotifier:
         self._next_id = 100
 
     def notify(self, rule, condition, quote, result, escalation_reason=None,
+               escalation_code=None,
                disposition=None, disposition_reason=None, dup_of=None,
-               action_amount_yuan=None):
+               action_amount_yuan=None, level=None, closed_loop=True):
+        # level / closed_loop：REQ-261007101318-c392 FR-4 起引擎**恒下发级别**
+        # （不再用 level=None 表达"闭环未开启"），闭环开关改由 closed_loop 独立表达。
+        # escalation_code：REQ-261007133807-eda6 t8 起引擎**恒下发理由码**
+        # （受控枚举；"没叫"也有码）。替身必须跟上真实接口，否则调用抛 TypeError
+        # 会被引擎当"通知失败"吞掉 —— 表现为调用列表为空（实测踩过）。
         self._next_id += 1
         self.calls.append({'rule_id': rule.id, 'disposition': disposition,
-                           'dup_of': dup_of, 'reason': disposition_reason})
+                           'dup_of': dup_of, 'reason': disposition_reason,
+                           'level': level, 'closed_loop': closed_loop,
+                           'escalation_code': escalation_code})
         return SimpleNamespace(id=self._next_id, notified=(disposition != 'deduped'))
 
 

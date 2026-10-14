@@ -2,9 +2,9 @@ metadata:
   stage: design
   requirement_id: REQ-261001145152-3982
   generated_at: 2026-10-01T06:57:54.622Z
-  version: 5
+  version: 6
   generated_by: dsh-pmboard
-  last_updated: 2026-10-01T07:06:47.802Z
+  last_updated: 2026-10-04T02:58:24.407Z
 inputs:
   requirements:
     - id: FR-1
@@ -327,6 +327,96 @@ outputs:
         - FR-5
       file: design/audit-report.md
       section: "5.9"
+    - ref: design/audit-report.md#X-数据契约action-大小写2026-10-02-追查与闭环
+      title: §X 数据契约：`action` 大小写（2026-10-02 追查与闭环）
+      serves: []
+      file: design/audit-report.md
+      section: X-数据契约action-大小写2026-10-02-追查与闭环
+    - ref: design/audit-report.md#症状本会话中反复出现的同型故障
+      title: 症状（本会话中反复出现的同型故障）
+      serves: []
+      file: design/audit-report.md
+      section: 症状本会话中反复出现的同型故障
+    - ref: design/audit-report.md#根因本仓自己的迁移没在生产跑成
+      title: 根因：**本仓自己的迁移没在生产跑成
+      serves: []
+      file: design/audit-report.md
+      section: 根因本仓自己的迁移没在生产跑成
+    - ref: design/audit-report.md#闭环2026-10-02
+      title: 闭环（2026-10-02）
+      serves: []
+      file: design/audit-report.md
+      section: 闭环2026-10-02
+    - ref: design/audit-report.md#固化判据
+      title: 固化判据
+      serves: []
+      file: design/audit-report.md
+      section: 固化判据
+    - ref: design/audit-report.md#附一处我先前登记错了的项2026-10-02-自查修正
+      title: 附：一处**我先前登记错了**的项（2026-10-02 自查修正）
+      serves: []
+      file: design/audit-report.md
+      section: 附一处我先前登记错了的项2026-10-02-自查修正
+    - ref: design/audit-report.md#Y-剩余尾部失败的已证伪假设2026-10-02供后人省时
+      title: §Y 剩余尾部失败的**已证伪假设**（2026-10-02，供后人省时）
+      serves: []
+      file: design/audit-report.md
+      section: Y-剩余尾部失败的已证伪假设2026-10-02供后人省时
+    - ref: design/audit-report.md#由此可以说的结论
+      title: 由此可以说的结论
+      serves: []
+      file: design/audit-report.md
+      section: 由此可以说的结论
+    - ref: design/audit-report.md#方法论备注我在这条路上犯过的错一并记下
+      title: 方法论备注（我在这条路上犯过的错，一并记下）
+      serves: []
+      file: design/audit-report.md
+      section: 方法论备注我在这条路上犯过的错一并记下
+    - ref: design/audit-report.md#Z-最终基线与结果2026-10-02-同一台机器-同一条命令
+      title: §Z 最终基线与结果（2026-10-02 · 同一台机器 · 同一条命令）
+      serves: []
+      file: design/audit-report.md
+      section: Z-最终基线与结果2026-10-02-同一台机器-同一条命令
+    - ref: design/audit-report.md#两点必须写清的限定
+      title: 两点必须写清的限定
+      serves: []
+      file: design/audit-report.md
+      section: 两点必须写清的限定
+    - ref: design/audit-report.md#跑测方式的教训供后人省时
+      title: 跑测方式的教训（供后人省时）
+      serves: []
+      file: design/audit-report.md
+      section: 跑测方式的教训供后人省时
+    - ref: design/audit-report.md#W-一处假失败的追查2026-10-02-由调度验收检查器逼出来
+      title: §W 一处"假失败"的追查（2026-10-02 · 由调度验收检查器逼出来）
+      serves: []
+      file: design/audit-report.md
+      section: W-一处假失败的追查2026-10-02-由调度验收检查器逼出来
+    - ref: design/audit-report.md#怎么发现的
+      title: 怎么发现的
+      serves: []
+      file: design/audit-report.md
+      section: 怎么发现的
+    - ref: design/audit-report.md#真因日志实证非推测
+      title: 真因（日志实证，非推测）
+      serves: []
+      file: design/audit-report.md
+      section: 真因日志实证非推测
+    - ref: design/audit-report.md#影响面已量化不夸大
+      title: 影响面（已量化，不夸大）
+      serves: []
+      file: design/audit-report.md
+      section: 影响面已量化不夸大
+    - ref: design/audit-report.md#处置
+      title: 处置
+      serves: []
+      file: design/audit-report.md
+      section: 处置
+    - ref: design/audit-report.md#遗留明确登记不含糊
+      title: 遗留（明确登记，不含糊）
+      serves: []
+      file: design/audit-report.md
+      section: 遗留明确登记不含糊
     - ref: design/data-model.md#新增修改的数据结构
       title: 新增/修改的数据结构（
       serves:
@@ -598,6 +688,57 @@ outputs:
         - FR-6
       file: design/optimization-backlog.md
       section: "7"
+    - ref: design/optimization-backlog.md#8
+      title: 批 5 · 本轮审查（2026-10-02）新发现（
+      serves:
+        - FR-6
+      file: design/optimization-backlog.md
+      section: "8"
+    - ref: design/optimization-backlog.md#P1-7-生产库缺表-已完成7-张全部补齐漂移归零2026-10-02
+      title: P1-7 · 生产库缺表 —— **已完成**（7 张全部补齐，漂移归零；2026-10-02）
+      serves: []
+      file: design/optimization-backlog.md
+      section: P1-7-生产库缺表-已完成7-张全部补齐漂移归零2026-10-02
+    - ref: design/optimization-backlog.md#P1-8-策略验证依赖已删除的端点-已完成2026-10-02裁定选-B
+      title: P1-8 · 策略验证依赖已删除的端点 —— **已完成**（2026-10-02，裁定选 B）
+      serves: []
+      file: design/optimization-backlog.md
+      section: P1-8-策略验证依赖已删除的端点-已完成2026-10-02裁定选-B
+    - ref: design/optimization-backlog.md#P2-7-async-轨逐文件复核-结论已出删留待单独开卡2026-10-02-复核
+      title: P2-7 · async 轨逐文件复核 —— **结论已出，删留待单独开卡**（2026-10-02 复核）
+      serves: []
+      file: design/optimization-backlog.md
+      section: P2-7-async-轨逐文件复核-结论已出删留待单独开卡2026-10-02-复核
+    - ref: design/optimization-backlog.md#P2-8-5-个未接线模块-已完成2026-10-02重叠调研-按重叠删独有留处置
+      title: P2-8 · 5 个未接线模块 —— **已完成**（2026-10-02：重叠调研 + 按"重叠删/独有留"处置）
+      serves: []
+      file: design/optimization-backlog.md
+      section: P2-8-5-个未接线模块-已完成2026-10-02重叠调研-按重叠删独有留处置
+    - ref: design/optimization-backlog.md#P3-7-剩余-9-条尾部测试失败已排除三种状态假设
+      title: P3-7 · 剩余 9 条尾部测试失败（**已排除三种状态假设**）
+      serves: []
+      file: design/optimization-backlog.md
+      section: P3-7-剩余-9-条尾部测试失败已排除三种状态假设
+    - ref: design/optimization-backlog.md#P3-8-读取侧大小写比较的余量工具已固化
+      title: P3-8 · 读取侧大小写比较的余量（**工具已固化**）
+      serves: []
+      file: design/optimization-backlog.md
+      section: P3-8-读取侧大小写比较的余量工具已固化
+    - ref: design/optimization-backlog.md#P3-9-仓储吞异常不回滚-已完成同步轨候选清零2026-10-02
+      title: P3-9 · 仓储"吞异常不回滚" —— **已完成**（同步轨候选清零；2026-10-02）
+      serves: []
+      file: design/optimization-backlog.md
+      section: P3-9-仓储吞异常不回滚-已完成同步轨候选清零2026-10-02
+    - ref: design/optimization-backlog.md#P1-9-watchtriggers-的-58-行无主触发-撤回原判不是缺陷2026-10-02-当日自查更正
+      title: P1-9 · `watch_triggers` 的 58 行无主触发 —— **撤回原判，不是缺陷**（2026-10-02 当日自查更正）
+      serves: []
+      file: design/optimization-backlog.md
+      section: P1-9-watchtriggers-的-58-行无主触发-撤回原判不是缺陷2026-10-02-当日自查更正
+    - ref: design/optimization-backlog.md#9
+      title: 判据工具台账（本需求产出的"可复跑筛子"）
+      serves: []
+      file: design/optimization-backlog.md
+      section: "9"
     - ref: design/use-cases.md#场景总览
       title: 场景总览 <!--
       serves:
@@ -733,6 +874,7 @@ traceability:
       - design/optimization-backlog.md#P3-5-卫生债批量清理
       - design/optimization-backlog.md#P3-6-scripts-tools-归位删一次性脚本-回收误置测试
       - design/optimization-backlog.md#7
+      - design/optimization-backlog.md#8
       - design/use-cases.md#场景总览
       - design/use-cases.md#UC-1-人类排期
       - design/use-cases.md#UC-2-Agent-领任务实施

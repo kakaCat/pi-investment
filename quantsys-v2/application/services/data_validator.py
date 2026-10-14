@@ -314,14 +314,22 @@ class DataValidator:
         Returns:
             异常值信息:
             {
-                'has_anomalies': True/False,
+                'ok': True,
+                'has_anomalies': True/False,      # None = 未知（见下）
+                'unknown_reason': None,           # 'insufficient_data' 或错误摘要
                 'price_anomalies': [
                     {'date': '2026-01-15', 'close': 100.5, 'z_score': 3.5},
                     ...
                 ],
                 'volume_anomalies': [...],
-                'total_anomalies': 5
+                'total_anomalies': 5,
+                'message': '',
+                'error': None,
             }
+
+        三态（REQ-261006133733-1fdf）：正常 / 数据不足（`has_anomalies=None` +
+        `unknown_reason='insufficient_data'`）/ 检测失败（`ok=False` + `has_anomalies=None`）。
+        `has_anomalies is False` **只**表示"真的检测过且没有异常"；调用方禁止用真值判断。
         """
         try:
             # 获取K线数据
@@ -329,12 +337,18 @@ class DataValidator:
 
             # klines is a Polars DataFrame, check if empty using .is_empty()
             if klines.is_empty() or len(klines) < 30:
+                # B 态（REQ-261006133733-1fdf FR-2）：数据不足 ⇒ **判定不适用**，
+                # 不得写成「无异常」——那是把"没得判"伪装成"检测过且干净"。
+                # 下游按 `has_anomalies is None` 处置：不计入 has_issues、质量分该分量剔除并重新归一。
                 return {
-                    'has_anomalies': False,
+                    'ok': True,
+                    'has_anomalies': None,
+                    'unknown_reason': 'insufficient_data',
                     'price_anomalies': [],
                     'volume_anomalies': [],
                     'total_anomalies': 0,
-                    'message': 'Insufficient data for anomaly detection'
+                    'message': 'Insufficient data for anomaly detection',
+                    'error': None,
                 }
 
             # Convert to list of dicts for processing
@@ -366,7 +380,11 @@ class DataValidator:
 
             # 检测成交量异常
             volume_anomalies = []
-            for kline in klines:
+            # ⚠️ 必须迭代 klines_list（list[dict]）而不是 klines（polars DataFrame）：
+            # 迭代 polars DataFrame 产出的是 Series，`series['volume']` 会抛
+            # TypeError: cannot select elements using Sequence with elements of type 'str'
+            # ——原缺陷（REQ-261006133733-1fdf FR-1）即此处，且被下方 except 吞成「无异常」。
+            for kline in klines_list:
                 volume = float(kline['volume'])
                 if volume > 0 and volume_std > 0:
                     z_score = abs((volume - volume_mean) / volume_std)
@@ -379,21 +397,32 @@ class DataValidator:
 
             total_anomalies = len(price_anomalies) + len(volume_anomalies)
 
+            # A 态（正常）：真的检测过 —— `has_anomalies is False` **只**在这里出现。
             return {
+                'ok': True,
                 'has_anomalies': total_anomalies > 0,
+                'unknown_reason': None,
                 'price_anomalies': price_anomalies[:10],  # 最多返回10个
                 'volume_anomalies': volume_anomalies[:10],
-                'total_anomalies': total_anomalies
+                'total_anomalies': total_anomalies,
+                'message': '',
+                'error': None,
             }
 
         except Exception as e:
-            logger.error(f"检测异常值失败: {e}")
+            # C 态（失败）：**不得**再用 `has_anomalies=False` 表达"没跑成"
+            # （REQ-261006133733-1fdf FR-2：失败必须是可区分的第三态）。
+            reason = f'{type(e).__name__}: {e}'[:200]
+            logger.error(f"检测异常值失败: {e}", symbol=symbol, unknown_reason=reason)
             return {
-                'has_anomalies': False,
+                'ok': False,
+                'has_anomalies': None,
+                'unknown_reason': reason,
                 'price_anomalies': [],
                 'volume_anomalies': [],
                 'total_anomalies': 0,
-                'error': str(e)
+                'message': '',
+                'error': reason,  # 兼容别名：既有消费者若读 error 仍拿得到原因
             }
 
     def get_data_quality_score(
@@ -430,11 +459,24 @@ class DataValidator:
             )) * 100
             duplicate_score = max(0, 20 - duplicate_rate * 2)  # 每1%重复扣2分
 
-            # 3. 异常率得分 (20%)
+            # 3. 异常率得分 (20%)（REQ-261006133733-1fdf FR-4：按检测三态分流）
             anomaly_info = self.detect_anomalies(symbol, start_date, end_date)
             total_records = len(self.kline_repo.get_daily_klines(symbol, start_date, end_date))
-            anomaly_rate = anomaly_info['total_anomalies'] / max(1, total_records) * 100
-            anomaly_score = max(0, 20 - anomaly_rate * 4)  # 每1%异常扣4分
+            if anomaly_info.get('ok') is False:
+                # 检测失败：没跑成就不给分（无魔法常数），失败事实由 error 日志与汇总计数可见
+                logger.error(
+                    '数据质量评分：异常检测未完成，异常率分量按 0 分计',
+                    symbol=symbol, unknown_reason=anomaly_info.get('unknown_reason'),
+                )
+                anomaly_score = 0.0
+            elif anomaly_info.get('has_anomalies') is None:
+                # 数据不足（次新股/长停股）：判定不适用 ⇒ **剔除该分量并重新归一**，
+                # 不奖（不白送 20 分）也不罚（不把次新股一律打成低分）
+                total_score = (coverage_score + duplicate_score) / 80.0 * 100.0
+                return round(min(100, max(0, total_score)), 2)
+            else:
+                anomaly_rate = anomaly_info['total_anomalies'] / max(1, total_records) * 100
+                anomaly_score = max(0, 20 - anomaly_rate * 4)  # 每1%异常扣4分
 
             total_score = coverage_score + duplicate_score + anomaly_score
 

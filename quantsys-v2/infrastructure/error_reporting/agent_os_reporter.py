@@ -26,6 +26,10 @@ Agent OS worker 被动 tail v2 launchd 日志收集错误（collect_channel=log_
 环境变量：
   AGENT_OS_ERROR_INGEST_URL   默认 http://127.0.0.1:8080/api/v1/scheduler/error-events
   AGENT_OS_ERROR_REPORTING    设 "off" 关闭（默认 on）
+  AGENT_OS_ENABLED            调度权归属开关（ADR-004：false = 业务调度归 v2）。
+                              t-322d78：8080 不可达时的处理**按它分流** ——
+                              false（既定状态）只 warning + 累计计数，**不外发**；
+                              true（真故障）error + 保留一次降级外发。
 """
 from __future__ import annotations
 
@@ -87,7 +91,8 @@ _tasks: "queue.Queue[dict]" = queue.Queue(maxsize=512)
 _worker_started = False
 _worker_lock = threading.Lock()
 _send_lock = threading.Lock()
-_last_send_failure: dict = {}
+# `_last_send_failure`（全局 60s 节流）已由 `_drop_log_recent`（按 (event, task) 键限频）
+# 取代 —— t-322d78：原实现每 60s 一条全局 dropped 日志，实测刷出 1696 行。
 
 
 def _ensure_worker() -> None:
@@ -125,21 +130,183 @@ def _worker_loop() -> None:
             continue
         except Exception:
             return
-        ok = False
-        for attempt in (0, 1):
-            try:
-                ok = _post(item)
-                if ok:
-                    break
-            except Exception as e:  # noqa: BLE001 —— 上报失败绝不抛回
-                if attempt == 0:
-                    time.sleep(0.4)
-                last = e
-        if not ok:
-            now = time.time()
-            if now - _last_send_failure.get("ts", 0) > 60:  # 每分钟最多记一次
-                _last_send_failure["ts"] = now
-                log.warning("agent-os ingest POST failed (dropped): %s", getattr(last, "reason", last))
+        try:
+            _handle_item(item)
+        except Exception:  # noqa: BLE001 —— worker 线程绝不因单条 payload 退出
+            continue
+
+
+def _handle_item(item: dict) -> bool:
+    """投递一条 payload（原 _worker_loop 内联逻辑，抽出来以便测试直接驱动）。
+
+    失败（重试 1 次仍不通）→ ①限频留痕（含累计 dropped 计数）②按开关决定是否降级外发
+    （见 `_fallback_to_notification`）。返回是否送达。
+    """
+    ok = False
+    last: Optional[BaseException] = None
+    for attempt in (0, 1):
+        try:
+            ok = _post(item)
+            if ok:
+                break
+        except Exception as e:  # noqa: BLE001 —— 上报失败绝不抛回
+            last = e
+            if attempt == 0:
+                time.sleep(0.4)
+    if not ok:
+        _note_send_failure(last, item)
+        _fallback_to_notification(item, last)
+    return ok
+
+
+# ---------------- drop 留痕：计数 + 限频（t-322d78 / FR-9，2026-10-05） ----------------
+# 取证：Agent OS 已下线（ADR-004：业务调度归 v2），而本模块的 drop 日志刷了 **1696** 行
+# ——既没人看，也把真正的告警淹了。现在改为：
+#   · 累计丢弃计数（可查，便于排查"上报全丢"这种状态）；
+#   · 同一 (event, task) 键 5 分钟内只记一条（计数照加），不再刷屏。
+_DROP_LOG_COOLDOWN_SEC = 300.0
+_drop_log_lock = threading.Lock()
+_drop_log_recent: dict = {}
+_drop_stats = {"dropped_total": 0}
+
+
+def drop_stats() -> dict:
+    """丢弃留痕（只读）：累计 dropped 条数 + 近期记过日志的键数。"""
+    with _drop_log_lock:
+        return {"dropped_total": _drop_stats["dropped_total"],
+                "logged_keys": len(_drop_log_recent)}
+
+
+def _note_send_failure(exc: Optional[BaseException], item: Optional[dict] = None) -> None:
+    """记一次 drop（限频）；级别随 `AGENT_OS_ENABLED` 开关分流。
+
+    · 开关为 false（**既定架构**：ADR-004 业务调度归 v2）→ warning：Agent OS 本就不该
+      在线，这不是故障；
+    · 开关为 true 却连不上（真的坏了）→ error：这时它确实是异常。
+    """
+    now = time.time()
+    key = "-"
+    if isinstance(item, dict):
+        key = (f"{normalize_msg(str(item.get('msg') or ''))[:80]}"
+               f"|{item.get('task_name') or item.get('task_id') or '-'}")
+    with _drop_log_lock:
+        _drop_stats["dropped_total"] += 1
+        total = _drop_stats["dropped_total"]
+        if now - _drop_log_recent.get(key, 0.0) < _DROP_LOG_COOLDOWN_SEC:
+            return
+        _drop_log_recent[key] = now
+        if len(_drop_log_recent) > 512:
+            _drop_log_recent.clear()
+            _drop_log_recent[key] = now
+    emit = log.warning if _agent_os_expected_off() else log.error
+    emit("agent-os ingest POST failed (dropped): %s（累计 dropped=%d；同键 %.0fs 内只记一条）",
+         getattr(exc, "reason", exc), total, _DROP_LOG_COOLDOWN_SEC)
+
+
+# ---------------- 8080 不可达 → 降级兜底（t-322d78 / FR-9，2026-10-05） ----------------
+# 取证：Agent OS 已下线，日志里 `agent-os ingest POST failed (dropped)` 出现 **1696** 次，
+# 而本模块此前只在日志里 dropped —— 失败事实上等于没有任何出口。
+#
+# 降级**按 `AGENT_OS_ENABLED` 开关分流**（父 agent 裁决，2026-10-05）：
+#   · 开关 false（既定架构，ADR-004）→ **不外发**，只留 warning + 累计计数。
+#     理由：①会同一次失败发两张卡片（job_executor 现在**直接**走 failure_sink 外发，
+#     那是需求 t1 定的唯一人工可见出口），本仓刚因 504 条误报被投诉过；
+#     ②把"没告诉一个本来就不在线的服务"当告警是假警报。
+#   · 开关 true 却连不上（真的坏了）→ error + **保留**一次降级外发
+#     （经 application.observability.failure_sink.report_failure，内部走 agent → 飞书降级链）。
+_AGENT_OS_ENABLED_ENV = "AGENT_OS_ENABLED"
+_FALLBACK_SOURCE = "agent_os_reporter.ingest"
+_FALLBACK_REASON = "agent_os_unreachable"
+_FALLBACK_COOLDOWN_SEC = 600.0
+#: 递归护栏：payload 自身来自 failure_sink 的日志时**不再降级**。
+# 否则（开关为 true 且 8080 长期不可达时）会形成 日志 → 上报 → 失败 → 降级 →
+# failure_sink 打 ERROR 日志 → 根 Handler 再上报 → … 的自我放大环。
+_FALLBACK_LOOP_GUARD_PREFIX = "application.observability.failure_sink"
+_fallback_lock = threading.Lock()
+_fallback_recent: dict = {}
+_fallback_stats = {"degraded_total": 0}
+
+
+def _agent_os_expected_off() -> bool:
+    """Agent OS 是否**按架构就该是关的**（ADR-004：业务调度归 v2，.env 已置 false）。
+
+    显式环境变量优先（测试可注入）；未设时退回 `settings.agent_os_enabled`；
+    两处都取不到 → 按"关"处理（宁少报不误报：宁可少发一张卡，也不刷假警报）。
+    """
+    raw: Any = os.getenv(_AGENT_OS_ENABLED_ENV)
+    if raw is None:
+        try:
+            from infrastructure.config.settings import get_settings
+            raw = getattr(get_settings(), "agent_os_enabled", None)
+        except Exception:  # noqa: BLE001 —— 配置不可读不该影响上报链路
+            raw = None
+    if raw is None:
+        return True
+    if isinstance(raw, bool):
+        return not raw
+    return str(raw).strip().lower() not in _TRUTHY
+
+
+def fallback_stats() -> dict:
+    """降级留痕（只读）：累计降级次数 + 近期去重指纹数。"""
+    with _fallback_lock:
+        return {"degraded_total": _fallback_stats["degraded_total"],
+                "recent_fingerprints": len(_fallback_recent)}
+
+
+def _fallback_to_notification(item: dict, exc: Optional[BaseException] = None) -> bool:
+    """8080 不可达且**开关为 true**（真故障）时的兜底外发。返回是否送达；绝不抛异常。
+
+    节流：同一指纹 10 分钟最多降级一次（1696 次 dropped 不许变成 1696 条飞书）。
+    """
+    if _agent_os_expected_off():
+        return False
+
+    md = item.get("metadata") if isinstance(item.get("metadata"), dict) else {}
+    logger_name = str(md.get("logger") or "")
+    if logger_name.startswith(_FALLBACK_LOOP_GUARD_PREFIX) or \
+            str(item.get("msg") or "").startswith("failure_sink:"):
+        return False
+
+    fp = str(item.get("fingerprint") or item.get("msg") or "?")
+    now = time.time()
+    with _fallback_lock:
+        if now - _fallback_recent.get(fp, 0.0) < _FALLBACK_COOLDOWN_SEC:
+            return False
+        _fallback_recent[fp] = now
+        if len(_fallback_recent) > 256:      # 有界：只保留最近 256 个指纹
+            _fallback_recent.clear()
+            _fallback_recent[fp] = now
+        _fallback_stats["degraded_total"] += 1
+
+    context = {
+        "task_id": item.get("task_id"),
+        "task_name": item.get("task_name"),
+        "logger": logger_name,
+        "fingerprint": fp,
+        "dropped": str(getattr(exc, "reason", exc) or "")[:200],
+    }
+    context = {k: v for k, v in context.items() if v not in (None, "")}
+    delivered = False
+    try:
+        from application.observability import failure_sink
+
+        delivered = bool(failure_sink.report_failure(
+            source=_FALLBACK_SOURCE,
+            reason=_FALLBACK_REASON,
+            error=str(item.get("msg") or "")[:2000],
+            severity=failure_sink.SEVERITY_HIGH,
+            context=context,
+        ))
+    except Exception as e:  # noqa: BLE001 —— 降级通道不可用只留痕，绝不抛
+        log.error("agent-os ingest 不可达且降级通道不可用: %s", e)
+    # 留痕（本模块 logger 前缀在根 Handler 的跳过名单内，不会自激）
+    log.warning(
+        "agent-os ingest 不可达（开关为 true）→ 降级 NotificationFacade"
+        "（task=%s delivered=%s）",
+        item.get("task_name") or item.get("task_id") or "?", delivered,
+    )
+    return delivered
 
 
 # ---------------- 指纹归一化（P0，2026-09-10 w-f4aa1f6a） ----------------

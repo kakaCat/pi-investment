@@ -1,0 +1,36 @@
+task:
+  id: t-2e7e2e
+  title: 探活加调度活性并新增「该跑没跑」盘点器·联调
+  status: done
+  implements: |-
+    新增 application/services/should_have_run.py（按当前 cron 语义推演每个 is_enabled 任务的「最近应跑时刻」，与 scheduler_runs.started_at 比对，输出 ok|missed|unknown，并把 (任务名, 应跑时刻) 去重以防刷屏）；新增 tools/check_should_have_run.py（退出码 0/2/3，打印对照表）；改 tools/health_probe.py 新增两条判据：scheduler_liveness（近 N 分钟无任何 run / 关键任务 missed）与 DISABLE_* 开关检查，并接入同一份 should_have_run 实现；新增 tests/test_should_have_run.py。探针仍不 import FastAPI 应用、不依赖 5001 存活。
+
+    [子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）
+  serves: []
+  depends_on:
+    - t-d935df
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261004154902-a7cd
+    TASK_ID: t-2e7e2e
+    TASK_TITLE: 探活加调度活性并新增「该跑没跑」盘点器·联调
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-04T08:37:01.454Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261004154902-a7cd
+  generated_at: 2026-10-04T08:37:01.453Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-04T08:37:19.516Z

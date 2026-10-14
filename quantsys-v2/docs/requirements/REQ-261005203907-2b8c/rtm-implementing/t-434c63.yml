@@ -1,0 +1,36 @@
+task:
+  id: t-434c63
+  title: 兼容与回滚核验（零 DDL / 既有消费者行为）·研发
+  status: done
+  implements: |-
+    在 tests/test_daily_jobs_trading_day_gate.py 追加兼容判据用例：is_due(job, now, {'status':'skipped','started_at':now}) is False；catchup_due(job, now, has_recent_failure=True) 在排班日 is False；trigger_job 对 skipped 行不返回『今日已有记录』拒绝；find_result_failure({'skipped':True,...}) is None；find_result_failure({'kline_sync':{'status':'success','skipped':12}}) 不因 int 误判（is True 严格布尔）。写 docs/requirements/REQ-261005203907-2b8c/notes/compat-rollback.md：记录 git diff --name-only 中不含 infrastructure/persistence/migrations/** 的核验输出、status 列 text 无 CHECK 约束的核验、以及回滚步骤（撤 3 处 trading_days_only=True 与 pipeline 因子段判定，已产生的 skipped 行无需清理）。
+
+    [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+  serves: []
+  depends_on:
+    - t-075116
+  phase: test
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261005203907-2b8c
+    TASK_ID: t-434c63
+    TASK_TITLE: 兼容与回滚核验（零 DDL / 既有消费者行为）·研发
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: test
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: test
+      status: done
+      completed_at: 2026-10-05T13:23:18.239Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261005203907-2b8c
+  generated_at: 2026-10-05T13:23:14.545Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-05T13:23:21.655Z

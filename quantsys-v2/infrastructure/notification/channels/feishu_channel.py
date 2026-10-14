@@ -203,6 +203,15 @@ class FeishuChannel(NotificationChannel):
     ) -> Optional[NotificationFormatter]:
         """选择合适的格式化器
 
+        两轮选择（2026-10-04 · REQ-261004154902-a7cd t8 / FR-9）：
+        1. 先找**专门支持**该类型的格式化器；
+        2. 找不到时退回**兜底**格式化器（``catch_all = True``，当前是 SystemAlertFormatter）。
+
+        为什么需要第 2 轮：飞书渠道只注册了 7 个 formatter，而通知类型有十几类——
+        REBALANCE / RISK_ALERT 此前直接落进「不支持的通知类型」并返回 error，
+        于是「调仓通知」与「风控告警」这两类**永远到不了用户**。
+        兜底渲染的代价是排版朴素（标题 + 正文），但「能送到」优先于「排版漂亮」。
+
         Args:
             notification: 通知对象
 
@@ -211,6 +220,17 @@ class FeishuChannel(NotificationChannel):
         """
         for formatter in self.formatters.values():
             if formatter.supports_type(notification.notification_type):
+                return formatter
+
+        # 第二轮：兜底渲染器（按注册顺序取第一个）
+        for formatter in self.formatters.values():
+            if getattr(formatter, "catch_all", False):
+                logger.info(
+                    "通知类型无专用模板，改用兜底格式化器",
+                    notification_id=notification.notification_id,
+                    type=notification.notification_type.value,
+                    formatter=formatter.__class__.__name__,
+                )
                 return formatter
 
         return None

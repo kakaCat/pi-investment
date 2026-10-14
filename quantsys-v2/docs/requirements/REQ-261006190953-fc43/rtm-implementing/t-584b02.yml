@@ -1,0 +1,38 @@
+task:
+  id: t-584b02
+  title: 存量清理迁移与一致性校验（含备份与回滚）·复核
+  status: done
+  implements: |-
+    新建 infrastructure/persistence/migrations/20261006_purge_nontrading_equity_snapshots.py：建备份表 quant.bak_equity_snapshot_nontrading_w_0a409569（带 backed_up_at/deleted_reason，主键 (account_name,snapshot_date)），备份行数 < 待删行数则中止；删除谓词只认 is_trading_day is false（null 不动）；待删行数 != 35 时打印差异并非零退出；随后逐账户按 snapshot_date 升序全序列重放重算 daily_return（复用 calculate_daily_return，含 external_flow_on 扣注资）、drawdown、cumulative_return，并调 recompute_account_max_drawdown；支持 --dry-run（缺省）/--apply/--rollback；DDL 带 lock_timeout=30s。新建 tools/verify_equity_snapshot_consistency.py（逐账户独立复算并比对 diff）。新建 tests/test_migration_purge_nontrading_snapshots.py（跑测试库）。验证：./venv/bin/python -m pytest tests/test_migration_purge_nontrading_snapshots.py -q 全过。
+
+    [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+  serves: []
+  depends_on:
+    - t-7f18d9
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261006190953-fc43
+    TASK_ID: t-584b02
+    TASK_TITLE: 存量清理迁移与一致性校验（含备份与回滚）·复核
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-06T12:28:38.504Z
+    - phase: doc
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006190953-fc43
+  generated_at: 2026-10-06T12:28:25.428Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-06T12:28:38.504Z

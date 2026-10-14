@@ -219,7 +219,12 @@ class XGBoostStrategyUseCase:
         """Send Feishu notifications: rebalance details and stop-loss alerts."""
         notifier = self.feishu_notifier
         if notifier is None:
-            logger.debug("%s: no Feishu notifier configured; skipping", type(self).__name__)
+            # 2026-10-04（REQ-261004154902-a7cd t8 / FR-9）：debug 级在生产 INFO 下不可见，
+            # 等于「整条通知静默消失」；升为 warning 并带 reason。
+            logger.warning(
+                "%s: 未装配通知门面，调仓/风控通知不会发出（reason=notifier_not_configured）",
+                type(self).__name__,
+            )
             return
 
         orders: List[Order] = list(result.get("orders") or [])

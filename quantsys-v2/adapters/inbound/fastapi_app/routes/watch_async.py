@@ -2,6 +2,7 @@
 from datetime import datetime
 from typing import Any, Dict, Optional
 
+import structlog
 from fastapi import APIRouter, Body, Query
 from fastapi.responses import JSONResponse
 
@@ -11,6 +12,8 @@ from adapters.outbound.repositories.watch_rule_repository import (
 from application.services.watch_engine.conditions import validate_condition
 
 router = APIRouter(tags=['Watch - 实时盯盘'])
+
+logger = structlog.get_logger(__name__)
 
 EXPIRES_AT_ERROR = 'expires_at 格式无效（需 ISO 格式，如 2026-07-25T15:00:00）'
 
@@ -48,7 +51,56 @@ def list_rules(symbol: Optional[str] = Query(None), enabled: Optional[str] = Que
         counts = None
     for it in items:
         it['triggered_count'] = counts.get(it.get('id'), 0) if counts is not None else None
+    # 2026-10-07（REQ-261007133807-eda6 t11 / FR-4）：追加「何时会叫我」的人话说明。
+    # 为什么在这里算而不落库：说明是**策略的纯函数**，落库就成了第三份事实源（策略一改就过期）；
+    # 为什么只追加字段：既有 escalation_policy 原样保留，旧消费方不受影响（读不篡改数据）。
+    try:
+        from domain.watch.services.escalation_verdict import explain_escalation
+        rules_by_id = {getattr(r, 'id', None): r for r in rules}
+        for it in items:
+            rule = rules_by_id.get(it.get('id'))
+            it['escalation_explain'] = explain_escalation(rule) if rule is not None else ''
+    except Exception as e:  # noqa: BLE001 - 说明算不出不得打挂规则列表
+        logger.warning('规则升级说明生成失败（列表照常返回）', error=str(e))
+        for it in items:
+            it['escalation_explain'] = ''
     return {'success': True, 'data': {'rules': items}}
+
+
+#: 升级策略里被判定消费的键（与 EscalationPolicy.to_dict() 同源；历史字段不在此列）
+def _policy_or_default(raw):
+    """升级策略归一（REQ-261007133807-eda6 t10 / FR-4）。返回 `(policy, error)`。
+
+    缺省（未传 / None）→ **显式默认值**（不再落 NULL/{}，让"什么条件会叫我"在规则上看得见）；
+    给值 → 与默认值**合并**后原样保留调用方的键（可覆写）；非法值 → 返回错误文案（调用方回 400）。
+
+    为什么在这里归一而不是在仓储层：写入口有三个（单条创建 / 修改 / 批量），
+    归一只有一处才不会出现"批量入口漏了"这种静默缺口（本仓既有教训）。
+    """
+    from domain.watch.models import EscalationPolicy
+    defaults = EscalationPolicy.default().to_dict()
+    if raw is None:
+        return dict(defaults), None
+    if not isinstance(raw, dict):
+        return None, 'escalation_policy 必须为对象'
+    policy = {**defaults, **raw}
+    ae = policy.get('auto_escalate')
+    if isinstance(ae, str):
+        text = ae.strip().lower()
+        if text in ('true', '1', 'yes'):
+            policy['auto_escalate'] = True
+        elif text in ('false', '0', 'no'):
+            policy['auto_escalate'] = False
+        else:
+            return None, 'escalation_policy.auto_escalate 必须是布尔值'
+    elif not isinstance(ae, bool):
+        return None, 'escalation_policy.auto_escalate 必须是布尔值'
+    pct = policy.get('anomaly_change_pct')
+    if pct is not None:
+        if isinstance(pct, bool) or not isinstance(pct, (int, float)) or float(pct) <= 0:
+            return None, 'escalation_policy.anomaly_change_pct 必须是正数（≤0 会让每次触发都升级）'
+        policy['anomaly_change_pct'] = float(pct)
+    return policy, None
 
 
 @router.post('/api/watch/rules')
@@ -71,6 +123,9 @@ def create_rule(payload: Dict[str, Any] = Body(default_factory=dict)):
         expires_at = _parse_expires_at(data.get('expires_at'))
     except ValueError:
         return _err(EXPIRES_AT_ERROR, 400)
+    policy, policy_err = _policy_or_default(data.get('escalation_policy'))
+    if policy_err:
+        return _err(policy_err, 400)
     try:
         rule_repo = WatchRuleRepository()
         rule = rule_repo.create_rule(
@@ -95,6 +150,11 @@ def create_rule(payload: Dict[str, Any] = Body(default_factory=dict)):
         return _err(str(e), 400)
     except Exception as e:
         return _err(f'创建失败: {e}', 500)
+    # 缺省即写显式策略（FR-4）：create_rule 不收该字段，故创建后补写一次
+    try:
+        rule = rule_repo.update_fields(rule.id, escalation_policy=policy) or rule
+    except Exception as e:
+        return _err(f'升级策略写入失败: {e}', 500)
     return {'success': True, 'data': {'rule': rule_to_dict(rule)}}
 
 
@@ -116,8 +176,11 @@ def _update_rule(rule_id: int, payload: Dict[str, Any]):
             return _err(EXPIRES_AT_ERROR, 400)
     if 'action_hint' in data and not isinstance(data['action_hint'], dict):
         return _err('action_hint 必须为对象', 400)
-    if 'escalation_policy' in data and not isinstance(data['escalation_policy'], dict):
-        return _err('escalation_policy 必须为对象', 400)
+    if 'escalation_policy' in data:
+        policy, policy_err = _policy_or_default(data['escalation_policy'])
+        if policy_err:
+            return _err(policy_err, 400)
+        data['escalation_policy'] = policy
 
     # 变更留痕（RFC 014 §4.2 非对称护栏的落地基础）：返回改动前后值，供调用方写 decision_audit。
     before_rule = rule_repo.get_by_id(rule_id)
@@ -365,6 +428,18 @@ def batch_reconfigure_rules(payload: Dict[str, Any] = Body(default_factory=dict)
                 meta = {k: act[k] for k in ('intent', 'lifecycle_stage', 'scope', 'target',
                         'linked_account', 'next_action_hint', 'review_interval_days',
                         'action_hint', 'escalation_policy') if k in act}
+                if 'escalation_policy' not in meta:
+                    policy, policy_err = _policy_or_default(None)
+                    if policy_err:
+                        results.append({'index': i, 'success': False, 'error': policy_err})
+                        continue
+                    meta['escalation_policy'] = policy
+                else:
+                    policy, policy_err = _policy_or_default(meta['escalation_policy'])
+                    if policy_err:
+                        results.append({'index': i, 'success': False, 'error': policy_err})
+                        continue
+                    meta['escalation_policy'] = policy
                 meta['created_from'] = (act.get('created_from') or ('trigger:' + str(source_trigger_id)))[:80]
                 if meta:
                     rule_repo.update_fields(rule.id, **meta)
@@ -387,6 +462,12 @@ def batch_reconfigure_rules(payload: Dict[str, Any] = Body(default_factory=dict)
                         validate_condition(c)
                 if 'expires_at' in fields:
                     fields['expires_at'] = _parse_expires_at(fields['expires_at'])
+                if 'escalation_policy' in fields:
+                    policy, policy_err = _policy_or_default(fields['escalation_policy'])
+                    if policy_err:
+                        results.append({'index': i, 'success': False, 'error': policy_err})
+                        continue
+                    fields['escalation_policy'] = policy
                 rule_repo.update_fields(rid, **fields)
                 results.append({'index': i, 'success': True, 'op': 'update', 'rule_id': rid})
             elif op == 'retire':

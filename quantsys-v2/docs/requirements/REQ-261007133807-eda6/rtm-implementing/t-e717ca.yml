@@ -1,0 +1,36 @@
+task:
+  id: t-e717ca
+  title: 规则读接口回显「何时会叫我」·研发
+  status: in_progress
+  implements: |-
+    adapters/inbound/fastapi_app/routes/watch_async.py 的列表路由 GET /api/watch/rules 在响应条目追加 escalation_explain 字段（由 explain_escalation 计算，纯读不写库），既有 escalation_policy 等字段原样保留；旧规则策略为 NULL 时说明写「策略未声明（按默认口径）」且不回写库。
+
+    [子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要
+  serves: []
+  depends_on:
+    - t-9cd059
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261007133807-eda6
+    TASK_ID: t-e717ca
+    TASK_TITLE: 规则读接口回显「何时会叫我」·研发
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-07T11:12:51.523Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261007133807-eda6
+  generated_at: 2026-10-07T11:12:51.522Z
+  version: 2
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-07T11:12:51.523Z

@@ -1,0 +1,38 @@
+task:
+  id: t-39a044
+  title: 读取端接线：days 改为交易日数并返回 window 与 nav_coverage
+  status: done
+  implements: 改 adapters/inbound/fastapi_app/routes/analysis_async.py 的 POST /api/risk/metrics：把 days 当交易日数传给 get_equity_snapshots(trading_days_only=True)，navPoints = 交易日数，响应 data 新增 window{from,to,trading_days,filtered_non_trading,trading_day_source} 与 nav_coverage（调 nav_series.nav_coverage）；既有键一个不改。改 adapters/inbound/fastapi_app/routes/simulation_async.py 的 GET /api/simulation/performance：equity_curve 只含交易日（字段不变），响应新增同两块。新建 tests/test_risk_metrics_nav_window.py。验证：./venv/bin/python -m pytest tests/test_risk_metrics_nav_window.py -q 全过。
+  serves:
+    - FR-4
+    - FR-7
+    - FR-8
+  depends_on:
+    - t-7c5daa
+    - t-8c7962
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261006190953-fc43
+    TASK_ID: t-39a044
+    TASK_TITLE: 读取端接线：days 改为交易日数并返回 window 与 nav_coverage
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      started_at: 2026-10-06T11:59:35.283Z
+      completed_at: 2026-10-06T12:07:07.839Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006190953-fc43
+  generated_at: 2026-10-06T11:40:06.241Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-06T12:07:10.711Z

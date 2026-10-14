@@ -167,3 +167,55 @@ class TestHandleFactorCompute:
         assert result['status'] == 'success', result
         assert result['factors_computed'] == 1, result
         assert saved == [('300001', '2026-07-28', {'rsi': 55.0, 'ma20': 10.2})]
+
+
+# ── 假仓库的「幽灵方法」门禁（REQ-261004154902-a7cd t13 / FR-1、FR-2）──────────
+#
+# 背景：本文件的 FakeSimulationRepo 提供了 `get_trades_by_date` 与 `count_rebalances`，
+# 而**真实** `SimulationORMRepository` 并没有这两个方法（2026-10-04 实测）。
+# 于是用例里 job 调它们「成功」，生产里同一行代码却是 AttributeError。
+# 这正是「测试绿灯、链路必炸」的第三种假绿灯形态：Fake 比真实实现更宽松。
+#
+# 本断言的作用：①把已知缺口写死在明处；②从此禁止再往 Fake 里加第三个别处不存在的方法。
+# 缺口本身（risk_check_job / verification_job 调不存在的仓储方法 + 硬编码 default 账户
+# + 用不存在的 trade.direction 列）是**已登记的缺陷**（需求证据 E15），修它需要改那两个
+# job，属独立工作量，不在本卡范围。
+
+#: Fake 提供、真实仓储**没有**的方法（存量缺口，只许减不许增）
+KNOWN_PHANTOM_REPO_METHODS = {"get_trades_by_date", "count_rebalances"}
+
+
+def test_fake_repo_does_not_invent_repository_methods():
+    from adapters.outbound.repositories.simulation_repository import (
+        SimulationORMRepository,
+    )
+
+    real_methods = {name for name in dir(SimulationORMRepository) if not name.startswith("_")}
+    fake_methods = {
+        name for name in vars(FakeSimulationRepo) if not name.startswith("_")
+    }
+
+    phantom = fake_methods - real_methods
+
+    assert phantom == KNOWN_PHANTOM_REPO_METHODS, (
+        "假仓库凭空造出了真实仓储没有的方法（会让用例绿灯、生产 AttributeError）。\n"
+        f"  新增的幽灵方法: {sorted(phantom - KNOWN_PHANTOM_REPO_METHODS)}\n"
+        f"  已登记缺口（E15，只许减不许增）: {sorted(KNOWN_PHANTOM_REPO_METHODS)}\n"
+        "  修法：要么把 Fake 换成真实存在的方法，要么把缺口登记进 KNOWN_PHANTOM_REPO_METHODS "
+        "并在需求证据里写清为什么。"
+    )
+
+
+def test_phantom_repo_methods_are_still_absent_from_real_repository():
+    """反向锁：一旦真实仓储补上了这些方法，就把它们从缺口清单里删掉。"""
+    from adapters.outbound.repositories.simulation_repository import (
+        SimulationORMRepository,
+    )
+
+    real_methods = {name for name in dir(SimulationORMRepository) if not name.startswith("_")}
+    already_implemented = sorted(KNOWN_PHANTOM_REPO_METHODS & real_methods)
+
+    assert not already_implemented, (
+        f"真实仓储已经有这些方法了：{already_implemented} —— "
+        "请从 KNOWN_PHANTOM_REPO_METHODS 中删除（缺口已闭合），并把 E15 的对应条目划掉。"
+    )

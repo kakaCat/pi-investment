@@ -12,9 +12,26 @@ Author: System
 Date: 2026-09-02
 """
 
-from typing import Dict, Any
+from typing import Any, Dict, Optional
 from domain.notification.models.notification import Notification, NotificationType
+from domain.watch.services.escalation_verdict import EscalationCode, should_render_reason
 from .feishu_base_formatter import FeishuFormatter
+
+
+def escalation_reason_line(vars: Dict[str, Any]) -> Optional[str]:
+    """「升级原因」行（REQ-261007133807-eda6 t9 / FR-3）——两条渲染路径共用同一判据。
+
+    与分级渲染路径（watch_level_templates._escalation_line）**同形同义**：
+    有码有理由 → 路径标签｜理由；只有码 → 路径标签；都没有 → None（不渲染、不臆造）。
+    抽成模块级函数是为了让"两条路都得写"可被同一组用例对拍（t9 的验收方式）。
+    """
+    code = str((vars or {}).get('escalation_code') or '').strip()
+    reason = str((vars or {}).get('escalation_reason') or '').strip()
+    if not should_render_reason(code, reason):
+        return None
+    if code and reason:
+        return '**升级原因**：%s｜%s' % (EscalationCode.label_of(code), reason)
+    return '**升级原因**：%s' % (EscalationCode.label_of(code) if code else reason)
 
 
 class WatchTriggeredFormatter(FeishuFormatter):
@@ -86,7 +103,10 @@ class WatchTriggeredFormatter(FeishuFormatter):
         else:
             mode_tag = '📡 直发提醒'
 
-        display = name + '（' + symbol + '）' if name else symbol
+        # FR-2（REQ-261007101318-c392）：**名称缺失就写"名称缺失"**，不许回落成裸代码。
+        # 旧写法 `... if name else symbol` 让"查不到名称"看起来像"这只标的就叫 688525"，
+        # 用户 2026-10-07 因此直接质疑"688525 不是股票名称"。
+        display = name + '（' + symbol + '）' if name else symbol + '（名称缺失）'
         lines = [
             chr(96) + mode_tag + chr(96),
             '**' + intent_label + '｜' + display + '**',
@@ -115,7 +135,28 @@ class WatchTriggeredFormatter(FeishuFormatter):
             else:
                 lines.append('**预案**：' + context)
 
+        # FR-4（REQ-261007101318-c392）：处置级别行——用户必须一眼看出"要不要 agent 介入"。
+        # 级别未知则隐藏该行（不臆造）。
+        _level = str(vars.get('trigger_level') or '').strip().upper()
+        if _level:
+            lines.append('**处置**：' + {
+                'L0': 'L0 纯信息（只看，不需要动作）',
+                'L1': 'L1 提醒（人工判断，不唤醒 agent）',
+                'L2': 'L2 行动（需 agent 介入处置）',
+            }.get(_level, _level))
+
+        # FR-3（REQ-261007133807-eda6 t9）：升级原因行（紧跟「处置」之后）
+        _esc = escalation_reason_line(vars)
+        if _esc:
+            lines.append(_esc)
+
         lines.append('**下一步**：' + (next_hint or '由 agent 汇总时判断（动作 / 继续观察 / 取消盯盘）'))
+
+        # FR-3（REQ-261007101318-c392）：来源尾注——"谁发的"写进卡片本身。
+        # v2 与 agent-ts 共用同一飞书机器人，不写来源则跨机/跨进程事后不可分辨。
+        _sender = str(vars.get('sender_id') or '').strip()
+        if _sender:
+            lines.append('—— ' + _sender)
 
         return self.format_card(
             title=intent_label + ' · ' + display,
@@ -447,7 +488,15 @@ class MLTrainFormatter(FeishuFormatter):
 
 
 class SystemAlertFormatter(FeishuFormatter):
-    """系统告警通知格式化器"""
+    """系统告警通知格式化器
+
+    2026-10-04（REQ-261004154902-a7cd t8 / FR-9）：同时作为**兜底渲染器**（``catch_all = True``）。
+    背景：飞书只注册了 7 个专用 formatter，而通知类型有十几类，REBALANCE / RISK_ALERT
+    此前直接落入「不支持的通知类型」并返回 error → 调仓通知与风控告警永远到不了用户。
+    兜底渲染牺牲排版精细度（标题 + 正文 + 紧急度配色），换「一定能送到」。
+    """
+
+    catch_all = True
 
     def supports_type(self, notification_type: NotificationType) -> bool:
         return notification_type == NotificationType.SYSTEM_ALERT

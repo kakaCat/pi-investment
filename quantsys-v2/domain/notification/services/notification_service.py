@@ -134,6 +134,13 @@ class NotificationService:
 
             if result.success:
                 notification.mark_sent()
+                # REQ-261007101318-c392 FR-3：把"走哪个渠道、是否真送达"写进 metadata，
+                # 供外发审计留痕（审计读 metadata，不动通知聚合根的既有字段）。
+                notification.metadata = {
+                    **(notification.metadata or {}),
+                    'delivery_channel': channel_name,
+                    'delivered': bool(getattr(result, 'delivered', True)),
+                }
                 if self.repository:
                     self.repository.save(notification)
 
@@ -155,6 +162,9 @@ class NotificationService:
             notification.mark_failed(result.message)
 
         # 4. 所有渠道都失败
+        # FR-3：失败也要留痕（"发过但全败"与"压根没发"是两件不同的事）
+        notification.metadata = {**(notification.metadata or {}),
+                                 'delivery_channel': None, 'delivered': False}
         if self.repository:
             self.repository.save(notification)
 
@@ -215,6 +225,12 @@ class NotificationService:
             result = self._send_via_channel(notification, primary)
             if result.success:
                 notification.mark_sent()
+                # FR-3：主渠道成功也记渠道与送达（审计要能回答"最后走的是哪条"）
+                notification.metadata = {
+                    **(notification.metadata or {}),
+                    'delivery_channel': primary_channel,
+                    'delivered': bool(getattr(result, 'delivered', True)),
+                }
                 if self.repository:
                     self.repository.save(notification)
 
@@ -240,6 +256,14 @@ class NotificationService:
             notification.mark_fallback()
             result = self._send_via_channel(notification, fallback)
 
+            # FR-3：降级路径（**盯盘卡实际走的就是这条**：agent 失败 → 飞书）必须留痕，
+            # 否则审计里只剩下"发过一条通知"，回答不了"最后从哪个渠道出去、送达没有"。
+            notification.metadata = {
+                **(notification.metadata or {}),
+                'delivery_channel': fallback_channel,
+                'delivered': bool(getattr(result, 'delivered', False)),
+                'fallback_cause': fallback_cause,
+            }
             if self.repository:
                 self.repository.save(notification)
 

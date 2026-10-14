@@ -76,9 +76,28 @@ class DispositionEngine:
         )
 
     # ── 判定 ────────────────────────────────────────────────
-    def decide(self, rule, cond, quote, escalated: bool,
-               escalation_reason: Optional[str] = None):
-        """返回 (disposition, reason)；判定规则全部来自 domain 层"""
+    def judge(self, rule, cond, quote, result):
+        """**唯一裁决**（REQ-261007133807-eda6 t6）：返回 `(Verdict, GateContext)`。
+
+        为什么把 gate 一起返回：裁决与处置必须吃**同一份**上下文（预算计数、金额、冷却窗）——
+        各组装一次就可能给出不一致的结论（例如裁决时预算未满、处置时已满）。
+        """
+        from domain.watch.services.escalation_verdict import decide_escalation
         gate = self.build_gate(rule, cond, quote)
+        verdict = decide_escalation(rule, cond, quote, result, gate=gate, cfg=self.cfg)
+        return verdict, gate
+
+    def decide(self, rule, cond, quote, escalated: bool = False,
+               escalation_reason: Optional[str] = None,
+               verdict=None, gate: Optional[GateContext] = None):
+        """返回 (disposition, reason)；判定规则全部来自 domain 层。
+
+        `verdict`（2026-10-07 · REQ-261007133807-eda6 t6 新增）：由 :meth:`judge` 产出的裁决；
+        给了就只做映射（`gate` 可一并传入以免重复组装），没给则照旧走兼容分支
+        （`escalated` + `escalation_reason`，旁路调用方不受影响）。
+        """
+        if gate is None:
+            gate = self.build_gate(rule, cond, quote)
         return decide_disposition(rule, cond, escalated=escalated, gate=gate,
-                                  cfg=self.cfg, escalation_reason=escalation_reason)
+                                  cfg=self.cfg, escalation_reason=escalation_reason,
+                                  verdict=verdict)

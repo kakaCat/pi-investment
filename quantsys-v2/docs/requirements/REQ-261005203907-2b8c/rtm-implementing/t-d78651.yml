@@ -1,0 +1,37 @@
+task:
+  id: t-d78651
+  title: 回归 + 真实休市日/复市首日观察·研发
+  status: done
+  implements: |-
+    跑齐四条命令并把输出摘要写入 docs/requirements/REQ-261005203907-2b8c/notes/holiday-observation.md：① pytest tests/test_daily_jobs_trading_day_gate.py -q；② pytest tests/test_evening_pipeline_holiday_gate.py -q；③ pytest tests/test_daily_jobs_bootstrap.py tests/test_false_success_guard.py tests/test_pool_refresh_daily.py -q；④ psql -d quant_investment 查 quant.inprocess_job_runs（休市日 2026-10-06 或 10-07：pool_daily_refresh/chip_distribution/evolution_fitness 应为 skipped、watch_rule_health/event_calendar_check/freshness_guard 仍 success、evening_pipeline 的 result->'factor_compute'->>'status' 应为 skipped；复市首日 2026-10-08：pool_daily_refresh 与 evening_pipeline 应恢复 success）。同时记录当天飞书侧无这 3 个任务的开始/完成消息（对照 2026-10-05 曾各发 2 条）。观察窗口未到（如 10-06/10-08 尚未发生）时如实标注为待观察，不得用推断代替实测。
+
+    [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+  serves: []
+  depends_on:
+    - t-588729
+    - t-dbb9d0
+  phase: test
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261005203907-2b8c
+    TASK_ID: t-d78651
+    TASK_TITLE: 回归 + 真实休市日/复市首日观察·研发
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: test
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: test
+      status: done
+      completed_at: 2026-10-05T13:24:41.499Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261005203907-2b8c
+  generated_at: 2026-10-05T13:24:36.846Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-05T13:24:43.878Z

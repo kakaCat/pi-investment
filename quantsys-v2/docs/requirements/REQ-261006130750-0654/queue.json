@@ -1,0 +1,2968 @@
+{
+  "version": 1,
+  "requirement_id": "REQ-261006130750-0654",
+  "schemaVersion": 9,
+  "generated_at": "2026-10-06T05:16:43.561Z",
+  "tasks": [
+    {
+      "id": "t-37a691",
+      "requirementId": "REQ-261006130750-0654",
+      "title": "给 IntradayMonitor.check() 加权威日级门",
+      "cardDoc": "docs/requirements/REQ-261006130750-0654/tasks/t-37a691.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "① ./venv/bin/python -m pytest tests/api/test_orchestrator_trading_day_gate.py -q -k 'intraday_holiday or intraday_trading_day' → 全过；② ./venv/bin/python -c 「from application.services.intraday_monitor import IntradayMonitor; from datetime import datetime; print(IntradayMonitor().check(now=datetime(2026,10,6,10,30)))」→ 输出 status='skipped'、reason='non-trading-day'、trading_day.source='trading-calendar-holiday'；③ 同一探针传 20:00 → reason='not trading time'（不是 non-trading-day）；④ ./venv/bin/python -m pytest tests/test_market_session_policy.py -q → 全过；⑤ grep -c force application/services/intraday_monitor.py → 0",
+      "implementation": "改 application/services/intraday_monitor.py：① 模块级新增常量 SKIP_REASON_NON_TRADING_DAY = 'non-trading-day'；② check() 签名改为 check(self, now: Optional[datetime] = None)（缺省 datetime.now()，向后兼容）；③ 在既有时段判定之后插日级门：skip, info = should_skip('trading-days', now)（from application.services.trading_day_gate import should_skip），skip 为真时立即返回 {'status':'skipped','reason':SKIP_REASON_NON_TRADING_DAY,'timestamp':now.isoformat(),'trading_day':info}，不得构造 PaperTradingEngine、不得读持仓/价格、不得写市值；④ _is_trading_time 的 docstring 改为指向本门（逻辑一行不改）。顺序不可调（日级门必须在时段判定之后）。依据 design/interfaces.md §3。",
+      "context": "",
+      "skipIntegration": true,
+      "footprint": {
+        "files": 1,
+        "anchors": 5,
+        "chars": 1200
+      },
+      "decisionRefs": [
+        "D-2"
+      ],
+      "requirementRefs": [
+        "FR-1",
+        "FR-3",
+        "FR-5",
+        "FR-6"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-d627d1",
+          "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+          "trigger": "manual",
+          "startedAt": 1791263811117,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+              "seq": 643,
+              "at": 1791263811117,
+              "totals": {
+                "uncachedInputTokens": 151679,
+                "outputTokens": 97592,
+                "cacheReadTokens": 12492160,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+                  "depth": 0,
+                  "seq": 643,
+                  "totals": {
+                    "uncachedInputTokens": 151679,
+                    "outputTokens": 97592,
+                    "cacheReadTokens": 12492160,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+              "seq": 1023,
+              "at": 1791264260668,
+              "totals": {
+                "uncachedInputTokens": 187307,
+                "outputTokens": 142834,
+                "cacheReadTokens": 29400064,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+                  "depth": 0,
+                  "seq": 1023,
+                  "totals": {
+                    "uncachedInputTokens": 187307,
+                    "outputTokens": 142834,
+                    "cacheReadTokens": 29400064,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 35628,
+              "outputTokens": 45242,
+              "cacheReadTokens": 16907904,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791264260667
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791263803424,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1791263811117,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          },
+          "reason": "开工 t1：给 IntradayMonitor.check() 加权威日级门（application 层，单文件改动）"
+        },
+        {
+          "status": "done",
+          "at": 1791264260667,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          },
+          "reason": "t1 完成：3 张子卡（研发/复核/测试）全部 done；check() 权威日级门交付，探针与回归全绿"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-be649c",
+          "body": "[状态] → in_progress：开工 t1：给 IntradayMonitor.check() 加权威日级门（application 层，单文件改动）（reqboard_task_move）",
+          "createdAt": 1791263811117,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          }
+        },
+        {
+          "id": "c-6224a3",
+          "body": "[状态] → done：t1 完成：3 张子卡（研发/复核/测试）全部 done；check() 权威日级门交付，探针与回归全绿（reqboard_task_move）",
+          "createdAt": 1791264260667,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          }
+        }
+      ],
+      "version": 5,
+      "createdAt": 1791263803424,
+      "updatedAt": 1791264260667,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+      },
+      "layer": 0,
+      "lastReport": {
+        "at": 1791264082129,
+        "reportIndex": 2,
+        "filesChanged": [],
+        "completed": [
+          "更正 t1 第 1 段汇报的一处口径：28 passed 是两个文件合计（test_market_session_policy.py 22 + test_orchestrator_bootstrap.py 6）",
+          "单跑 tests/test_market_session_policy.py = 22 passed；结论不变（全绿），仅数字口径更正"
+        ]
+      },
+      "lastRun": {
+        "at": 1791264005439,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-bcbe54",
+      "requirementId": "REQ-261006130750-0654",
+      "title": "编排循环加 A 层日历预过滤与跳过去噪",
+      "cardDoc": "docs/requirements/REQ-261006130750-0654/tasks/t-bcbe54.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "① ./venv/bin/python -m pytest tests/api/test_orchestrator_bootstrap.py -q → 全过（窗口契约不变）；② ./venv/bin/python -m pytest tests/api/test_orchestrator_trading_day_gate.py -q -k orchestrator → 全过（休市日零调用/交易日照调）；③ grep -c should_skip adapters/inbound/fastapi_app/orchestrator_bootstrap.py → ≥2；④ 同一 path+day 连调两次 _should_run_today → 跳过日志仅 1 条（用例断言）；⑤ 运行期 notify-guard intercepted=N egress=0",
+      "implementation": "改 adapters/inbound/fastapi_app/orchestrator_bootstrap.py：① 新增模块级 _LAST_SKIP_LOG: Dict[str, str] 与 _should_run_today(now, *, path) -> Tuple[bool, Dict]（内部只调 from application.services.trading_day_gate import should_skip，策略固定 'trading-days'；返回 (not skip, info)；skip 为真时按 (path, day) 去噪记一条 logger.info('orchestrator_trading_day_skip', path=…, day=…, is_trading_day=…, source=…, degraded=…, reason=…)；函数内不得出现 weekday()、不得直查 trading_calendar、不得抛异常）；② _monitor_loop 两个分支内各插一次判定，path 取 'orchestrator_tick' / 'intraday_monitor'，仅当 run 为真才调 monitor_jobs.daily_orchestrator_tick() / monitor_jobs.intraday_monitor_check()；既有 try/except 与 finally close_session()、窗口函数 _in_orchestrator_window / _in_intraday_window 原样不动。依据 design/interfaces.md §2。",
+      "context": "",
+      "skipIntegration": true,
+      "footprint": {
+        "files": 1,
+        "anchors": 5,
+        "chars": 1100
+      },
+      "decisionRefs": [
+        "D-2"
+      ],
+      "requirementRefs": [
+        "FR-2",
+        "FR-3",
+        "FR-4",
+        "FR-6"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-9d2a8f",
+          "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+          "trigger": "manual",
+          "startedAt": 1791263849100,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+              "seq": 695,
+              "at": 1791263849100,
+              "totals": {
+                "uncachedInputTokens": 163675,
+                "outputTokens": 103145,
+                "cacheReadTokens": 14378496,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+                  "depth": 0,
+                  "seq": 695,
+                  "totals": {
+                    "uncachedInputTokens": 163675,
+                    "outputTokens": 103145,
+                    "cacheReadTokens": 14378496,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+              "seq": 1060,
+              "at": 1791264328192,
+              "totals": {
+                "uncachedInputTokens": 193195,
+                "outputTokens": 144721,
+                "cacheReadTokens": 31233664,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+                  "depth": 0,
+                  "seq": 1060,
+                  "totals": {
+                    "uncachedInputTokens": 193195,
+                    "outputTokens": 144721,
+                    "cacheReadTokens": 31233664,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 29520,
+              "outputTokens": 41576,
+              "cacheReadTokens": 16855168,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791264328192
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791263803424,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1791263849100,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          },
+          "reason": "t1 主体已落地（check() 日级门 + 常量 + 探针 ②③④⑤ 全绿），跨卡用例 ① 待 t3 落地后回归；先并行开工 t2 的 A 层预过滤"
+        },
+        {
+          "status": "done",
+          "at": 1791264328192,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          },
+          "reason": "t2 完成：五项验收全绿、子卡链全 done、部署后真实留痕已取"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-0032d4",
+          "body": "[状态] → in_progress：t1 主体已落地（check() 日级门 + 常量 + 探针 ②③④⑤ 全绿），跨卡用例 ① 待 t3 落地后回归；先并行开工 t2 的 A 层预过滤（reqboard_task_move）",
+          "createdAt": 1791263849100,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          }
+        },
+        {
+          "id": "c-0b298a",
+          "body": "[状态] → done：t2 完成：五项验收全绿、子卡链全 done、部署后真实留痕已取（reqboard_task_move）",
+          "createdAt": 1791264328192,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791263803424,
+      "updatedAt": 1791264328192,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+      },
+      "layer": 0,
+      "lastReport": {
+        "at": 1791264272081,
+        "reportIndex": 1,
+        "filesChanged": [
+          "adapters/inbound/fastapi_app/orchestrator_bootstrap.py",
+          "tests/api/test_orchestrator_bootstrap.py"
+        ],
+        "completed": [
+          "交付物：adapters/inbound/fastapi_app/orchestrator_bootstrap.py 的 A 层日级预过滤（_should_run_today + _LAST_SKIP_LOG + 两个受控 path）",
+          "配套最小改动：tests/api/test_orchestrator_bootstrap.py 两条既有用例补「今天是交易日」桩（requirement FR-4 预先授权）",
+          "子卡链收口：研发 t-2ab0a5 → 复核 t-011042 → 测试 t-67db61 三张全 done",
+          "父卡验收①：tests/api/test_orchestrator_bootstrap.py → 6 passed（窗口契约不变）",
+          "父卡验收②：tests/api/test_orchestrator_trading_day_gate.py -k orchestrator → 12 passed（休市日零调用/交易日照调）",
+          "父卡验收③：grep -c should_skip orchestrator_bootstrap.py → 4（≥2）",
+          "父卡验收④：同 path+day 连调两次只留 1 条日志（用例 T10 断言）",
+          "父卡验收⑤：notify-guard intercepted=0 egress=0",
+          "部署后真实留痕：2026-10-06T13:21:44 logs/api.log 出现 orchestrator_trading_day_skip（path=orchestrator_tick、source=trading-calendar-holiday、degraded=false）",
+          "复核独立结论：周六不受影响（窗口先 False，门不被调用）、交易日照跑、无第二份判定来源"
+        ]
+      },
+      "lastRun": {
+        "at": 1791264272081,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-45c620",
+      "requirementId": "REQ-261006130750-0654",
+      "title": "回归锁与假绿防线（新建用例文件）",
+      "cardDoc": "docs/requirements/REQ-261006130750-0654/tasks/t-45c620.md",
+      "description": "",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-37a691",
+        "t-bcbe54"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "① ./venv/bin/python -m pytest tests/api/test_orchestrator_trading_day_gate.py -q → 全过（≥12 条）；② ./venv/bin/python -m pytest tests/api/test_orchestrator_bootstrap.py tests/test_market_session_policy.py tests/test_trading_window_guard.py tests/test_scheduler_trading_day_gate.py tests/test_daily_jobs_trading_day_gate.py -q → 全过（同族三条路径不被带坏）；③ 反向注入「degraded 也跳过」→ 至少 1 条用例变红，复原后全绿；④ 反向注入「用 check('2026-10-07') 当休市日判据」→ 变红，复原后全绿；⑤ 会话末 notify-guard 输出 egress=0",
+      "implementation": "新建 tests/api/test_orchestrator_trading_day_gate.py，实现 design/test-cases.md 的 T1–T13：桩打在 application.services.trading_day_gate.TradingDayGuard（本仓打桩点规则）。覆盖：休市日跳过且 PaperTradingEngine 未被构造、交易日对照、降级 fail-open、门自身异常照跑、未来日反例锁（check('2026-10-07').source == 'future'）、编排 tick 休市日零调用与交易日照调、静态对账、打桩点证伪（打在 orchestrator_bootstrap 同名符号上不生效）、日志去噪、窗口语义回归、时段优先、通知零外发。并按 test-cases.md §4 至少做两处反向注入（降级也跳过 / 拿未来日当休市日判据），确认变红后复原，注入过程写进卡片汇报不留在仓库。",
+      "context": "",
+      "skipIntegration": true,
+      "footprint": {
+        "files": 1,
+        "anchors": 13,
+        "chars": 2500
+      },
+      "decisionRefs": [
+        "D-2"
+      ],
+      "requirementRefs": [
+        "FR-1",
+        "FR-2",
+        "FR-3",
+        "FR-4",
+        "FR-5",
+        "FR-6"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-7019f7",
+          "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+          "trigger": "manual",
+          "startedAt": 1791264330840,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+              "seq": 1067,
+              "at": 1791264330840,
+              "totals": {
+                "uncachedInputTokens": 197586,
+                "outputTokens": 144931,
+                "cacheReadTokens": 31541248,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+                  "depth": 0,
+                  "seq": 1067,
+                  "totals": {
+                    "uncachedInputTokens": 197586,
+                    "outputTokens": 144931,
+                    "cacheReadTokens": 31541248,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+              "seq": 1170,
+              "at": 1791264410359,
+              "totals": {
+                "uncachedInputTokens": 206774,
+                "outputTokens": 152006,
+                "cacheReadTokens": 37011584,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+                  "depth": 0,
+                  "seq": 1170,
+                  "totals": {
+                    "uncachedInputTokens": 206774,
+                    "outputTokens": 152006,
+                    "cacheReadTokens": 37011584,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 9188,
+              "outputTokens": 7075,
+              "cacheReadTokens": 5470336,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791264410359
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791263803424,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1791264330840,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          },
+          "reason": "t3 开工：用例文件与两次反向注入演练已落地，展开子卡链按阶段收口"
+        },
+        {
+          "status": "done",
+          "at": 1791264410359,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          },
+          "reason": "t3 完成：五项验收全绿、子卡链全 done、三次注入证红且无残留"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-85151c",
+          "body": "[状态] → in_progress：t3 开工：用例文件与两次反向注入演练已落地，展开子卡链按阶段收口（reqboard_task_move）",
+          "createdAt": 1791264330840,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          }
+        },
+        {
+          "id": "c-6d812a",
+          "body": "[状态] → done：t3 完成：五项验收全绿、子卡链全 done、三次注入证红且无残留（reqboard_task_move）",
+          "createdAt": 1791264410359,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791263803424,
+      "updatedAt": 1791264410359,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+      },
+      "layer": 1,
+      "lastReport": {
+        "at": 1791264407866,
+        "reportIndex": 1,
+        "filesChanged": [
+          "tests/api/test_orchestrator_trading_day_gate.py"
+        ],
+        "completed": [
+          "交付物：tests/api/test_orchestrator_trading_day_gate.py（12 条用例）+ 两次故障注入演练记录",
+          "子卡链收口：研发 t-ea86ce → 复核 t-1d7233 → 测试 t-bcf326 三张全 done",
+          "父卡验收①：该文件 12 passed（≥12 条）",
+          "父卡验收②：新增 + 同族五套 → 98 passed（同族三条路径未被带坏）",
+          "父卡验收③：注入 degraded 也跳过 → 2 红；复原后全绿",
+          "父卡验收④：拿未来日 check(2026-10-07) 当休市日判据 → 1 红（assert future == trading-calendar-holiday）；复原后全绿",
+          "父卡验收⑤：notify-guard intercepted=0 egress=0 offenders=[]",
+          "复原证据：注入前后 shasum 逐一相同，两文件 grep INJECTED 均为 0（无残留）",
+          "假绿防线合计三次注入（另有把 B 层门改成 if False → T1/T9 红），覆盖两条路径的门"
+        ]
+      },
+      "lastRun": {
+        "at": 1791264407866,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-22d1ba",
+      "requirementId": "REQ-261006130750-0654",
+      "title": "休市日 / 复市首日真实观察留档",
+      "cardDoc": "docs/requirements/REQ-261006130750-0654/tasks/t-22d1ba.md",
+      "description": "",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-45c620"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "验收分两档（按当天日期自动择一，命令可直接跑）：【窗口未到档（当天 < 2026-10-07，本次即此档）】① ls -l docs/requirements/REQ-261006130750-0654/notes/holiday-observation.md → 文件存在且 >0 字节；② grep -c \"窗口未取到\" docs/requirements/REQ-261006130750-0654/notes/holiday-observation.md → ≥1；③ grep -c \"先完成这个项目\" 同文件 → ≥1（用户 W-3 原话留痕）；④ grep -c \"TradingDayGuard.check()\" 同文件 → ≥1（复跑命令仍可用）；⑤ grep -c \"当作替代证据\" 同文件 → ≥1（明文禁止把单测当观察）。【窗口已到档】⑥ 当天 ≥2026-10-07 时：grep -o '\"path\": \"[a-z_]*\", \"day\": \"2026-10-07\"' logs/api.log | sort | uniq -c → orchestrator_tick 与 intraday_monitor 各 ≥1，且 ./venv/bin/python -c \"from application.services.trading_day_guard import TradingDayGuard as G; v=G.check('2026-10-07'); print(v.is_trading_day, v.source, v.degraded)\" → source=trading-calendar-holiday；⑦ 当天 ≥2026-10-08 时：grep -c '\"day\": \"2026-10-08\".*orchestrator_trading_day_skip' logs/api.log → 0；⑧ 写库面：psql -h 127.0.0.1 -U mac -d quant_investment -At -c \"select max(updated_at) from quant.simulation_positions\" → 休市日不得被监控刷新。",
+      "implementation": "新建 docs/requirements/REQ-261006130750-0654/notes/holiday-observation.md，记录：① 2026-10-07（休市·周三）当天的 grep -c orchestrator_trading_day_skip logs/api.log、事件里的 source/degraded、quant.simulation_positions 与 quant.simulation_account 的 updated_at 是否被监控刷新、盘中返回 non-trading-day（对照 2026-10-06 的 no_positions 基线）；② 2026-10-08（复市首日·周四）两条路径恢复（该事件计数=0、status != 'skipped'）；③ 若实施晚于 10-08，如实写明「窗口未取到」与原因，不得用单测结果冒充真实观察（design/test-cases.md §3）。",
+      "context": "",
+      "skipIntegration": true,
+      "footprint": {
+        "files": 1,
+        "anchors": 4,
+        "chars": 900
+      },
+      "decisionRefs": [
+        "D-1",
+        "D-2"
+      ],
+      "requirementRefs": [
+        "FR-1",
+        "FR-3",
+        "FR-5"
+      ],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-30452c",
+          "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+          "trigger": "manual",
+          "startedAt": 1791264478816,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+              "seq": 1189,
+              "at": 1791264478816,
+              "totals": {
+                "uncachedInputTokens": 211609,
+                "outputTokens": 153021,
+                "cacheReadTokens": 38001280,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+                  "depth": 0,
+                  "seq": 1189,
+                  "totals": {
+                    "uncachedInputTokens": 211609,
+                    "outputTokens": 153021,
+                    "cacheReadTokens": 38001280,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+              "seq": 2400,
+              "at": 1791268985316,
+              "totals": {
+                "uncachedInputTokens": 400441,
+                "outputTokens": 310883,
+                "cacheReadTokens": 132062592,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+                  "depth": 0,
+                  "seq": 2400,
+                  "totals": {
+                    "uncachedInputTokens": 400441,
+                    "outputTokens": 310883,
+                    "cacheReadTokens": 132062592,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 188832,
+              "outputTokens": 157862,
+              "cacheReadTokens": 94061312,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791268985315
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791263803424,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1791264478816,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          },
+          "reason": "t4 开工：休市日真实观察留档（10-06 休市当天基线已取，13:30 槽位探针在跑）"
+        },
+        {
+          "status": "done",
+          "at": 1791268985315,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          },
+          "reason": "t4 完成（按 W-3 用户裁定就地收口）：观察档交付，10-07/10-08 两项如实判为窗口未取到"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-c0a922",
+          "body": "[状态] → in_progress：t4 开工：休市日真实观察留档（10-06 休市当天基线已取，13:30 槽位探针在跑）（reqboard_task_move）",
+          "createdAt": 1791264478816,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          }
+        },
+        {
+          "id": "c-d96bae",
+          "body": "[状态] → done：t4 完成（按 W-3 用户裁定就地收口）：观察档交付，10-07/10-08 两项如实判为窗口未取到（reqboard_task_move）",
+          "createdAt": 1791268985315,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          }
+        }
+      ],
+      "version": 5,
+      "createdAt": 1791263803424,
+      "updatedAt": 1791269009716,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+      },
+      "layer": 2,
+      "lastReport": {
+        "at": 1791268983112,
+        "reportIndex": 2,
+        "filesChanged": [
+          "docs/requirements/REQ-261006130750-0654/notes/holiday-observation.md"
+        ],
+        "completed": [
+          "交付物：docs/requirements/REQ-261006130750-0654/notes/holiday-observation.md（§1 改前基线 / §2 改后实测 / §3 复跑清单 / §4 W-1·W-2 / §5 W-3 收口）",
+          "子卡链收口：研发 t-b554a3 → 复核 t-b87557 → 测试 t-047d90 全 done",
+          "父卡验收①：观察文件存在且各节齐备（6 节 / 9396 bytes，各带命令 + 原始输出摘要）",
+          "父卡验收②：**判为「窗口未取到」**——10-07 尚未到来（当天 10-06）；不以 10-06 顶替、也不假装取到，按用户 W-3 裁定收口",
+          "父卡验收③：**同上，窗口未取到**——10-08 复市首日未到；该项（复市首日不跳）是最关键的缺口，已在 §5 显式写明",
+          "父卡验收④：文件含明确「窗口未取到」与原因，且全文未出现把单测当观察结论的句子（复核已核）",
+          "现场证据（10-06 同性质休市日）：4 条 orchestrator_trading_day_skip（13:21:44 / 13:30:46 / 13:48:32 / 14:00:33，均 trading-calendar-holiday）",
+          "写库面：simulation_positions 最新 2026-10-04、rotation_main 2026-07-25、orchestrator_state(10-06) 0 行——休市日未被监控刷新",
+          "单测：交易日门 + 接线 18 passed；三次注入证红（详见 tests/test-evidence.md）"
+        ]
+      },
+      "lastRun": {
+        "at": 1791264901587,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-32ec6a",
+      "requirementId": "REQ-261006130750-0654",
+      "title": "给 IntradayMonitor.check() 加权威日级门·研发",
+      "description": "子卡阶段：研发",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "implementation": "改 application/services/intraday_monitor.py：① 模块级新增常量 SKIP_REASON_NON_TRADING_DAY = 'non-trading-day'；② check() 签名改为 check(self, now: Optional[datetime] = None)（缺省 datetime.now()，向后兼容）；③ 在既有时段判定之后插日级门：skip, info = should_skip('trading-days', now)（from application.services.trading_day_gate import should_skip），skip 为真时立即返回 {'status':'skipped','reason':SKIP_REASON_NON_TRADING_DAY,'timestamp':now.isoformat(),'trading_day':info}，不得构造 PaperTradingEngine、不得读持仓/价格、不得写市值；④ _is_trading_time 的 docstring 改为指向本门（逻辑一行不改）。顺序不可调（日级门必须在时段判定之后）。依据 design/interfaces.md §3。\n\n[子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "context": "",
+      "parentId": "t-37a691",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-ec6030",
+          "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+          "trigger": "manual",
+          "startedAt": 1791264014362,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+              "seq": 822,
+              "at": 1791264014362,
+              "totals": {
+                "uncachedInputTokens": 176205,
+                "outputTokens": 126987,
+                "cacheReadTokens": 19843712,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+                  "depth": 0,
+                  "seq": 822,
+                  "totals": {
+                    "uncachedInputTokens": 176205,
+                    "outputTokens": 126987,
+                    "cacheReadTokens": 19843712,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+              "seq": 846,
+              "at": 1791264031692,
+              "totals": {
+                "uncachedInputTokens": 178185,
+                "outputTokens": 128527,
+                "cacheReadTokens": 20954880,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+                  "depth": 0,
+                  "seq": 846,
+                  "totals": {
+                    "uncachedInputTokens": 178185,
+                    "outputTokens": 128527,
+                    "cacheReadTokens": 20954880,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 1980,
+              "outputTokens": 1540,
+              "cacheReadTokens": 1111168,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791264031690
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-fc4355",
+          "body": "[状态] → in_progress：t1 子卡·研发：实现已完成，落汇报并收尾（reqboard_task_move）",
+          "createdAt": 1791264014362,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          }
+        },
+        {
+          "id": "c-a95669",
+          "body": "[状态] → done：t1 研发子卡完成：实现落地 + 等价测试全绿（vitest 模板不适用已如实报出）（reqboard_task_move）",
+          "createdAt": 1791264031690,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791263811117,
+      "updatedAt": 1791264031690,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791263811117,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791264014362,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          },
+          "reason": "t1 子卡·研发：实现已完成，落汇报并收尾"
+        },
+        {
+          "status": "done",
+          "at": 1791264031690,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          },
+          "reason": "t1 研发子卡完成：实现落地 + 等价测试全绿（vitest 模板不适用已如实报出）"
+        }
+      ],
+      "layer": 0,
+      "lastReport": {
+        "at": 1791264030015,
+        "reportIndex": 1,
+        "filesChanged": [
+          "application/services/intraday_monitor.py"
+        ],
+        "completed": [
+          "交付物：application/services/intraday_monitor.py（check() 权威日级门、常量、docstring 指向）",
+          "对应测试：tests/api/test_orchestrator_trading_day_gate.py 12 passed + tests/test_market_session_policy.py 28 passed = 34 passed",
+          "git diff --stat 摘要：intraday_monitor.py 40 行变更（+新门与常量/docstring）",
+          "如实报出模板不符：本卡 acceptance 写的是 npx vitest run（JS 模板），本仓是 Python（无 package.json）",
+          "替代口径：以 pytest 等价执行同一意图（跑改动涉及的用例并全绿）",
+          "实现要点复述：门在时段判定之后，skip 时直接返回，不构造引擎、不读写持仓"
+        ]
+      },
+      "lastRun": {
+        "at": 1791264030015,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-6d2074",
+      "requirementId": "REQ-261006130750-0654",
+      "title": "给 IntradayMonitor.check() 加权威日级门·复核",
+      "description": "子卡阶段：复核",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-32ec6a"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "implementation": "改 application/services/intraday_monitor.py：① 模块级新增常量 SKIP_REASON_NON_TRADING_DAY = 'non-trading-day'；② check() 签名改为 check(self, now: Optional[datetime] = None)（缺省 datetime.now()，向后兼容）；③ 在既有时段判定之后插日级门：skip, info = should_skip('trading-days', now)（from application.services.trading_day_gate import should_skip），skip 为真时立即返回 {'status':'skipped','reason':SKIP_REASON_NON_TRADING_DAY,'timestamp':now.isoformat(),'trading_day':info}，不得构造 PaperTradingEngine、不得读持仓/价格、不得写市值；④ _is_trading_time 的 docstring 改为指向本门（逻辑一行不改）。顺序不可调（日级门必须在时段判定之后）。依据 design/interfaces.md §3。\n\n[子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-37a691",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-079c12",
+          "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+          "trigger": "manual",
+          "startedAt": 1791264053925,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+              "seq": 870,
+              "at": 1791264053925,
+              "totals": {
+                "uncachedInputTokens": 179962,
+                "outputTokens": 131852,
+                "cacheReadTokens": 22081664,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+                  "depth": 0,
+                  "seq": 870,
+                  "totals": {
+                    "uncachedInputTokens": 179962,
+                    "outputTokens": 131852,
+                    "cacheReadTokens": 22081664,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+              "seq": 882,
+              "at": 1791264061295,
+              "totals": {
+                "uncachedInputTokens": 180645,
+                "outputTokens": 132631,
+                "cacheReadTokens": 22651776,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+                  "depth": 0,
+                  "seq": 882,
+                  "totals": {
+                    "uncachedInputTokens": 180645,
+                    "outputTokens": 132631,
+                    "cacheReadTokens": 22651776,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 683,
+              "outputTokens": 779,
+              "cacheReadTokens": 570112,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791264061295
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-169bce",
+          "body": "[状态] → in_progress：t1 复核子卡开工：独立对账调用方、导入期副作用、静态与边界（reqboard_task_move）",
+          "createdAt": 1791264053925,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          }
+        },
+        {
+          "id": "c-b7cfc4",
+          "body": "[状态] → done：t1 复核子卡完成：设计逐条兑现，1 处设计记载不全 + 1 处取舍残留已登记不改（reqboard_task_move）",
+          "createdAt": 1791264061295,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791263811117,
+      "updatedAt": 1791264061295,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791263811117,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791264053925,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          },
+          "reason": "t1 复核子卡开工：独立对账调用方、导入期副作用、静态与边界"
+        },
+        {
+          "status": "done",
+          "at": 1791264061295,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          },
+          "reason": "t1 复核子卡完成：设计逐条兑现，1 处设计记载不全 + 1 处取舍残留已登记不改"
+        }
+      ],
+      "layer": 1,
+      "lastReport": {
+        "at": 1791264059395,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "逐条对照 design/interfaces.md §3.1-3.5 与 FR-1/FR-3/FR-5/FR-6：常量、可选 now、判定顺序、返回形状、docstring 指向均逐字兑现",
+          "层边界（kb-conventions-c01 只许向内）：application 调 application，adapters 调 application，零反向依赖",
+          "导入期副作用：import orchestrator_bootstrap 仅 135ms，无 DB/网络访问（-X importtime 实测）",
+          "编译与语法：compileall 三文件 COMPILE_OK；venv 内无 ruff（未装，如实报出，改用 compileall + pytest 口径）",
+          "F1（偏离，需登记）：design R3 说唯一生产调用方是 monitor_jobs —— 实测不成立，另有 scheduler_tasks_runtime.py:30 handle_intraday_monitor 调 check()",
+          "F1 影响：该 handler 把 skipped 包成外层 status=success，属 a315 治过的同型假成功；当前无启用任务接线（DB 查无 intraday_monitor 任务行），本轮不影响交付",
+          "F1 处置：不改（超出 t1/t2 边界），登记为后续项，建议接线前把 result.status 上提",
+          "F2（残留，属设计取舍）：resume_from_breakpoint 与内层 tick 仍 fail-closed；日历覆盖断档（E9）时休市日仍会跑，唯一残余路径",
+          "F2 处置：不动 —— 修它要动日历自动补刷（requirement 后续线 2），且改内层等于用 fail-open 覆盖钱路 fail-closed",
+          "F3（观察·低）：B 层跳过日志未去噪（旁路 10 次/天 = 10 条）；A 层已按 path+day 去噪，可接受",
+          "F4（观察·低）：日志 path 取值 intraday_monitor 与调度命令名同名，grep 时需带上下文区分",
+          "F5（观察·低）：研发子卡 acceptance 的 npx vitest 模板与本仓 Python 栈不符，已在研发子卡如实报出"
+        ]
+      },
+      "lastRun": {
+        "at": 1791264059395,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-164414",
+      "requirementId": "REQ-261006130750-0654",
+      "title": "给 IntradayMonitor.check() 加权威日级门·测试",
+      "description": "子卡阶段：测试",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-6d2074"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "implementation": "改 application/services/intraday_monitor.py：① 模块级新增常量 SKIP_REASON_NON_TRADING_DAY = 'non-trading-day'；② check() 签名改为 check(self, now: Optional[datetime] = None)（缺省 datetime.now()，向后兼容）；③ 在既有时段判定之后插日级门：skip, info = should_skip('trading-days', now)（from application.services.trading_day_gate import should_skip），skip 为真时立即返回 {'status':'skipped','reason':SKIP_REASON_NON_TRADING_DAY,'timestamp':now.isoformat(),'trading_day':info}，不得构造 PaperTradingEngine、不得读持仓/价格、不得写市值；④ _is_trading_time 的 docstring 改为指向本门（逻辑一行不改）。顺序不可调（日级门必须在时段判定之后）。依据 design/interfaces.md §3。\n\n[子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "context": "",
+      "parentId": "t-37a691",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-c28052",
+          "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+          "trigger": "manual",
+          "startedAt": 1791264084480,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+              "seq": 900,
+              "at": 1791264084480,
+              "totals": {
+                "uncachedInputTokens": 181223,
+                "outputTokens": 134093,
+                "cacheReadTokens": 23511808,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+                  "depth": 0,
+                  "seq": 900,
+                  "totals": {
+                    "uncachedInputTokens": 181223,
+                    "outputTokens": 134093,
+                    "cacheReadTokens": 23511808,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+              "seq": 924,
+              "at": 1791264137403,
+              "totals": {
+                "uncachedInputTokens": 182314,
+                "outputTokens": 136635,
+                "cacheReadTokens": 24667776,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+                  "depth": 0,
+                  "seq": 924,
+                  "totals": {
+                    "uncachedInputTokens": 182314,
+                    "outputTokens": 136635,
+                    "cacheReadTokens": 24667776,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 1091,
+              "outputTokens": 2542,
+              "cacheReadTokens": 1155968,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791264137403
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-f1ea67",
+          "body": "[状态] → in_progress：t1 测试子卡开工：独立复跑父卡验收五项 + 同族回归（reqboard_task_move）",
+          "createdAt": 1791264084480,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          }
+        },
+        {
+          "id": "c-86e91c",
+          "body": "[状态] → done：t1 测试子卡完成：父卡验收五项逐条绿、同族 76 passed、通知零外发；JS 模板不适用已如实报出（reqboard_task_move）",
+          "createdAt": 1791264137403,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791263811117,
+      "updatedAt": 1791264137403,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791263811117,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791264084480,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          },
+          "reason": "t1 测试子卡开工：独立复跑父卡验收五项 + 同族回归"
+        },
+        {
+          "status": "done",
+          "at": 1791264137403,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          },
+          "reason": "t1 测试子卡完成：父卡验收五项逐条绿、同族 76 passed、通知零外发；JS 模板不适用已如实报出"
+        }
+      ],
+      "layer": 2,
+      "lastReport": {
+        "at": 1791264088198,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "① 父卡验收①：pytest -k intraday_holiday or intraday_trading_day → 2 passed, 10 deselected",
+          "② 父卡验收②（真日历探针，不桩）：status=skipped、reason=non-trading-day、source=trading-calendar-holiday、degraded=False",
+          "③ 父卡验收③：同探针传 20:00 → {'status': 'skipped', 'reason': 'not trading time'}",
+          "④ 父卡验收④：tests/test_market_session_policy.py → 22 passed",
+          "⑤ 父卡验收⑤：grep -c force application/services/intraday_monitor.py → 0",
+          "⑥ 新增用例全量：tests/api/test_orchestrator_trading_day_gate.py → 12 passed",
+          "⑦ 同族回归：新增文件 + orchestrator_bootstrap + trading_window_guard + scheduler_trading_day_gate + daily_jobs_trading_day_gate → 76 passed",
+          "⑧ 通知零外发：notify-guard intercepted=0 egress=0 offenders=[]",
+          "⑨ 模板不符报出：本卡 acceptance 是 pnpm test / npx tsc 模板（JS 栈），本仓 Python 无 package.json",
+          "⑩ 替代口径：以 pytest 全量跑改动涉及与同族用例，全绿；基线=开工前同命令结果，失败数 0 → 0"
+        ]
+      },
+      "lastRun": {
+        "at": 1791264088198,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-2ab0a5",
+      "requirementId": "REQ-261006130750-0654",
+      "title": "编排循环加 A 层日历预过滤与跳过去噪·研发",
+      "description": "子卡阶段：研发",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "implementation": "改 adapters/inbound/fastapi_app/orchestrator_bootstrap.py：① 新增模块级 _LAST_SKIP_LOG: Dict[str, str] 与 _should_run_today(now, *, path) -> Tuple[bool, Dict]（内部只调 from application.services.trading_day_gate import should_skip，策略固定 'trading-days'；返回 (not skip, info)；skip 为真时按 (path, day) 去噪记一条 logger.info('orchestrator_trading_day_skip', path=…, day=…, is_trading_day=…, source=…, degraded=…, reason=…)；函数内不得出现 weekday()、不得直查 trading_calendar、不得抛异常）；② _monitor_loop 两个分支内各插一次判定，path 取 'orchestrator_tick' / 'intraday_monitor'，仅当 run 为真才调 monitor_jobs.daily_orchestrator_tick() / monitor_jobs.intraday_monitor_check()；既有 try/except 与 finally close_session()、窗口函数 _in_orchestrator_window / _in_intraday_window 原样不动。依据 design/interfaces.md §2。\n\n[子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "context": "",
+      "parentId": "t-bcbe54",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-b7d414",
+          "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+          "trigger": "manual",
+          "startedAt": 1791264140721,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+              "seq": 930,
+              "at": 1791264140721,
+              "totals": {
+                "uncachedInputTokens": 182448,
+                "outputTokens": 137133,
+                "cacheReadTokens": 24958976,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+                  "depth": 0,
+                  "seq": 930,
+                  "totals": {
+                    "uncachedInputTokens": 182448,
+                    "outputTokens": 137133,
+                    "cacheReadTokens": 24958976,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+              "seq": 942,
+              "at": 1791264146691,
+              "totals": {
+                "uncachedInputTokens": 183262,
+                "outputTokens": 137786,
+                "cacheReadTokens": 25543424,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+                  "depth": 0,
+                  "seq": 942,
+                  "totals": {
+                    "uncachedInputTokens": 183262,
+                    "outputTokens": 137786,
+                    "cacheReadTokens": 25543424,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 814,
+              "outputTokens": 653,
+              "cacheReadTokens": 584448,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791264146691
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-eb5ca0",
+          "body": "[状态] → in_progress：t2 子卡·研发开工：A 层预过滤实现已落地，落汇报（reqboard_task_move）",
+          "createdAt": 1791264140721,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          }
+        },
+        {
+          "id": "c-e475c2",
+          "body": "[状态] → done：t2 研发子卡完成：A 层预过滤落地，探针与既有接线用例全绿（reqboard_task_move）",
+          "createdAt": 1791264146691,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791263849100,
+      "updatedAt": 1791264146691,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791263849100,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791264140721,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          },
+          "reason": "t2 子卡·研发开工：A 层预过滤实现已落地，落汇报"
+        },
+        {
+          "status": "done",
+          "at": 1791264146691,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          },
+          "reason": "t2 研发子卡完成：A 层预过滤落地，探针与既有接线用例全绿"
+        }
+      ],
+      "layer": 0,
+      "lastReport": {
+        "at": 1791264144591,
+        "reportIndex": 1,
+        "filesChanged": [
+          "adapters/inbound/fastapi_app/orchestrator_bootstrap.py",
+          "tests/api/test_orchestrator_bootstrap.py"
+        ],
+        "completed": [
+          "交付物：adapters/inbound/fastapi_app/orchestrator_bootstrap.py 新增 _should_run_today 与 _LAST_SKIP_LOG、两个受控 path 常量，_monitor_loop 两分支各插一次判定",
+          "顺带最小改动：tests/api/test_orchestrator_bootstrap.py 给两条既有用例补「今天是交易日」桩（requirement FR-4 已预先授权）",
+          "补桩理由：不补则用例成败由真实日历决定（今天正是休市日）；用例原意（循环接线、线程存活）不变",
+          "探针（真日历，不桩）：_should_run_today(2026-10-06 12:30) → False / trading-calendar-holiday / degraded=False",
+          "探针：同函数传 2026-09-30 → True / trading-calendar；去噪表 _LAST_SKIP_LOG = {orchestrator_tick: 2026-10-06}",
+          "静态：grep -c should_skip orchestrator_bootstrap.py → 4（≥2）；新增逻辑零 weekday() 命中（仅窗口函数里既有那处保留）",
+          "测试：tests/api/test_orchestrator_bootstrap.py → 6 passed",
+          "git diff --stat：orchestrator_bootstrap.py 76 行；tests/api/test_orchestrator_bootstrap.py 6 行",
+          "如实报出模板不符：本卡 acceptance 是 npx vitest 模板，本仓 Python 无 package.json，改用 pytest 等价口径"
+        ]
+      },
+      "lastRun": {
+        "at": 1791264144591,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-011042",
+      "requirementId": "REQ-261006130750-0654",
+      "title": "编排循环加 A 层日历预过滤与跳过去噪·复核",
+      "description": "子卡阶段：复核",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-2ab0a5"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "implementation": "改 adapters/inbound/fastapi_app/orchestrator_bootstrap.py：① 新增模块级 _LAST_SKIP_LOG: Dict[str, str] 与 _should_run_today(now, *, path) -> Tuple[bool, Dict]（内部只调 from application.services.trading_day_gate import should_skip，策略固定 'trading-days'；返回 (not skip, info)；skip 为真时按 (path, day) 去噪记一条 logger.info('orchestrator_trading_day_skip', path=…, day=…, is_trading_day=…, source=…, degraded=…, reason=…)；函数内不得出现 weekday()、不得直查 trading_calendar、不得抛异常）；② _monitor_loop 两个分支内各插一次判定，path 取 'orchestrator_tick' / 'intraday_monitor'，仅当 run 为真才调 monitor_jobs.daily_orchestrator_tick() / monitor_jobs.intraday_monitor_check()；既有 try/except 与 finally close_session()、窗口函数 _in_orchestrator_window / _in_intraday_window 原样不动。依据 design/interfaces.md §2。\n\n[子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-bcbe54",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-adf043",
+          "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+          "trigger": "manual",
+          "startedAt": 1791264150623,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+              "seq": 948,
+              "at": 1791264150623,
+              "totals": {
+                "uncachedInputTokens": 183438,
+                "outputTokens": 138293,
+                "cacheReadTokens": 25836416,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+                  "depth": 0,
+                  "seq": 948,
+                  "totals": {
+                    "uncachedInputTokens": 183438,
+                    "outputTokens": 138293,
+                    "cacheReadTokens": 25836416,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+              "seq": 966,
+              "at": 1791264161371,
+              "totals": {
+                "uncachedInputTokens": 184344,
+                "outputTokens": 139577,
+                "cacheReadTokens": 26720000,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+                  "depth": 0,
+                  "seq": 966,
+                  "totals": {
+                    "uncachedInputTokens": 184344,
+                    "outputTokens": 139577,
+                    "cacheReadTokens": 26720000,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 906,
+              "outputTokens": 1284,
+              "cacheReadTokens": 883584,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791264161371
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-f2fc1e",
+          "body": "[状态] → in_progress：t2 复核子卡开工：独立核 日级门是否只拦自动排班、钱路次数是否不变、去噪键是否正确（reqboard_task_move）",
+          "createdAt": 1791264150623,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          }
+        },
+        {
+          "id": "c-71b33d",
+          "body": "[状态] → done：t2 复核子卡完成：无偏离，两条低影响观察已登记（reqboard_task_move）",
+          "createdAt": 1791264161371,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791263849100,
+      "updatedAt": 1791264161371,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791263849100,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791264150623,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          },
+          "reason": "t2 复核子卡开工：独立核 日级门是否只拦自动排班、钱路次数是否不变、去噪键是否正确"
+        },
+        {
+          "status": "done",
+          "at": 1791264161371,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          },
+          "reason": "t2 复核子卡完成：无偏离，两条低影响观察已登记"
+        }
+      ],
+      "layer": 1,
+      "lastReport": {
+        "at": 1791264159811,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "逐条对照 design/interfaces.md §2.1-2.4：helper 签名、两个受控 path、判定顺序、日志事件名与字段、去噪键均逐字兑现",
+          "周六探针：_in_orchestrator_window(2026-10-10 12:30)=False → 门根本不被调用，_LAST_SKIP_LOG 保持空（装门前后行为一致）",
+          "交易日探针：_should_run_today(2026-09-30 12:30)=True → 钱路调用次数不变（内层 fail-closed 一行未改）",
+          "去噪键对账：同 path 同日只一条；换 path 同日各一条（实测两键并存）",
+          "唯一真源对账：新增逻辑零 weekday()/零交易日历直查；仅窗口函数保留既有两处 weekday（:85/:102，属时段语义）",
+          "无偏离：本卡改动与设计一致，未触碰钱路判据、未新增开关或表",
+          "观察·低：交易日每分钟会先过 A 层门、再由内层 tick 自查一次 → 两次判定查询/分钟，被守卫 60s 日期缓存吸收，可接受",
+          "观察·低（计划文件清单不全）：实际还改了 tests/api/test_orchestrator_bootstrap.py 补桩（requirement FR-4 已预先授权的最小改动）",
+          "模板不符：本卡复核 acceptance 的 npx vitest 同样不适用本仓 Python 栈，已如实报出"
+        ]
+      },
+      "lastRun": {
+        "at": 1791264159811,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-67db61",
+      "requirementId": "REQ-261006130750-0654",
+      "title": "编排循环加 A 层日历预过滤与跳过去噪·测试",
+      "description": "子卡阶段：测试",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-011042"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "implementation": "改 adapters/inbound/fastapi_app/orchestrator_bootstrap.py：① 新增模块级 _LAST_SKIP_LOG: Dict[str, str] 与 _should_run_today(now, *, path) -> Tuple[bool, Dict]（内部只调 from application.services.trading_day_gate import should_skip，策略固定 'trading-days'；返回 (not skip, info)；skip 为真时按 (path, day) 去噪记一条 logger.info('orchestrator_trading_day_skip', path=…, day=…, is_trading_day=…, source=…, degraded=…, reason=…)；函数内不得出现 weekday()、不得直查 trading_calendar、不得抛异常）；② _monitor_loop 两个分支内各插一次判定，path 取 'orchestrator_tick' / 'intraday_monitor'，仅当 run 为真才调 monitor_jobs.daily_orchestrator_tick() / monitor_jobs.intraday_monitor_check()；既有 try/except 与 finally close_session()、窗口函数 _in_orchestrator_window / _in_intraday_window 原样不动。依据 design/interfaces.md §2。\n\n[子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "context": "",
+      "parentId": "t-bcbe54",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-399fd1",
+          "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+          "trigger": "manual",
+          "startedAt": 1791264165175,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+              "seq": 972,
+              "at": 1791264165175,
+              "totals": {
+                "uncachedInputTokens": 184592,
+                "outputTokens": 139791,
+                "cacheReadTokens": 27015552,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+                  "depth": 0,
+                  "seq": 972,
+                  "totals": {
+                    "uncachedInputTokens": 184592,
+                    "outputTokens": 139791,
+                    "cacheReadTokens": 27015552,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+              "seq": 990,
+              "at": 1791264183409,
+              "totals": {
+                "uncachedInputTokens": 186192,
+                "outputTokens": 140900,
+                "cacheReadTokens": 27905280,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+                  "depth": 0,
+                  "seq": 990,
+                  "totals": {
+                    "uncachedInputTokens": 186192,
+                    "outputTokens": 140900,
+                    "cacheReadTokens": 27905280,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 1600,
+              "outputTokens": 1109,
+              "cacheReadTokens": 889728,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791264183409
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-7803db",
+          "body": "[状态] → in_progress：t2 测试子卡开工：独立复跑 A 层相关用例与同族回归（reqboard_task_move）",
+          "createdAt": 1791264165175,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          }
+        },
+        {
+          "id": "c-40b8ec",
+          "body": "[状态] → done：t2 测试子卡完成：A 层用例 12 passed、同族 18 passed、通知零外发，真实留痕已取（reqboard_task_move）",
+          "createdAt": 1791264183409,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791263849100,
+      "updatedAt": 1791264183409,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791263849100,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791264165175,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          },
+          "reason": "t2 测试子卡开工：独立复跑 A 层相关用例与同族回归"
+        },
+        {
+          "status": "done",
+          "at": 1791264183409,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          },
+          "reason": "t2 测试子卡完成：A 层用例 12 passed、同族 18 passed、通知零外发，真实留痕已取"
+        }
+      ],
+      "layer": 2,
+      "lastReport": {
+        "at": 1791264180065,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "A 层用例子集（orchestrator/deduped/stub_point/static）：12 passed",
+          "两文件合计：tests/api/test_orchestrator_bootstrap.py + tests/api/test_orchestrator_trading_day_gate.py → 18 passed",
+          "覆盖点确认：休市日零调用（T6）、交易日照调（T7）、去噪按 path+day（T10）、打桩点证伪（T9）、静态唯一真源（T8）",
+          "通知零外发：上述两文件运行时 notify-guard intercepted=0 egress=0",
+          "真实留痕（部署后实测）：13:21:44 起 logs/api.log 出现 orchestrator_trading_day_skip，path=orchestrator_tick、source=trading-calendar-holiday、degraded=false",
+          "模板不符：本卡 acceptance 是 pnpm test / npx tsc 模板（JS 栈），本仓 Python 无 package.json",
+          "替代口径：pytest 跑 A 层相关用例与同族回归；失败数 0，不高于开工前基线（基线同为 0）"
+        ]
+      },
+      "lastRun": {
+        "at": 1791264180065,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-ea86ce",
+      "requirementId": "REQ-261006130750-0654",
+      "title": "回归锁与假绿防线（新建用例文件）·研发",
+      "description": "子卡阶段：研发",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-37a691",
+        "t-bcbe54"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "implementation": "新建 tests/api/test_orchestrator_trading_day_gate.py，实现 design/test-cases.md 的 T1–T13：桩打在 application.services.trading_day_gate.TradingDayGuard（本仓打桩点规则）。覆盖：休市日跳过且 PaperTradingEngine 未被构造、交易日对照、降级 fail-open、门自身异常照跑、未来日反例锁（check('2026-10-07').source == 'future'）、编排 tick 休市日零调用与交易日照调、静态对账、打桩点证伪（打在 orchestrator_bootstrap 同名符号上不生效）、日志去噪、窗口语义回归、时段优先、通知零外发。并按 test-cases.md §4 至少做两处反向注入（降级也跳过 / 拿未来日当休市日判据），确认变红后复原，注入过程写进卡片汇报不留在仓库。\n\n[子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "context": "",
+      "parentId": "t-45c620",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-8feca2",
+          "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+          "trigger": "manual",
+          "startedAt": 1791264335729,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+              "seq": 1074,
+              "at": 1791264335729,
+              "totals": {
+                "uncachedInputTokens": 202687,
+                "outputTokens": 145453,
+                "cacheReadTokens": 31853312,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+                  "depth": 0,
+                  "seq": 1074,
+                  "totals": {
+                    "uncachedInputTokens": 202687,
+                    "outputTokens": 145453,
+                    "cacheReadTokens": 31853312,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+              "seq": 1092,
+              "at": 1791264348346,
+              "totals": {
+                "uncachedInputTokens": 203619,
+                "outputTokens": 146142,
+                "cacheReadTokens": 32807552,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+                  "depth": 0,
+                  "seq": 1092,
+                  "totals": {
+                    "uncachedInputTokens": 203619,
+                    "outputTokens": 146142,
+                    "cacheReadTokens": 32807552,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 932,
+              "outputTokens": 689,
+              "cacheReadTokens": 954240,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791264348346
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-29c4b0",
+          "body": "[状态] → in_progress：t3 子卡·研发开工：用例文件已落盘，复跑取证并收尾（reqboard_task_move）",
+          "createdAt": 1791264335729,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          }
+        },
+        {
+          "id": "c-2946ae",
+          "body": "[状态] → done：t3 研发子卡完成：12 条用例落盘全绿，日期用例全部桩定（reqboard_task_move）",
+          "createdAt": 1791264348346,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791264330840,
+      "updatedAt": 1791264348346,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791264330840,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791264335729,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          },
+          "reason": "t3 子卡·研发开工：用例文件已落盘，复跑取证并收尾"
+        },
+        {
+          "status": "done",
+          "at": 1791264348346,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          },
+          "reason": "t3 研发子卡完成：12 条用例落盘全绿，日期用例全部桩定"
+        }
+      ],
+      "layer": 1,
+      "lastReport": {
+        "at": 1791264346376,
+        "reportIndex": 1,
+        "filesChanged": [
+          "tests/api/test_orchestrator_trading_day_gate.py"
+        ],
+        "completed": [
+          "交付物：tests/api/test_orchestrator_trading_day_gate.py（新建，12 条用例）",
+          "对应测试：./venv/bin/python -m pytest tests/api/test_orchestrator_trading_day_gate.py → 12 passed",
+          "覆盖对照 design/test-cases.md T1-T13：逐条落地（T13 通知零外发并入 T1/T3 断言 agent_service 未被调用）",
+          "打桩点：统一桩在 application.services.trading_day_gate.TradingDayGuard（tdg.TradingDayGuard）",
+          "确定性设计：日期用例一律桩定结论，不依赖机器当天是否交易日、也不依赖测试库日历被填过",
+          "T5 未来日反例锁改为动态取「今天 +400 天后的首个工作日」，避免写死日期随时间失效",
+          "git diff --stat：新文件未跟踪（?? quants-v2/tests/api/...），12 条用例、无对既有文件的改动",
+          "如实报出模板不符：本卡 acceptance 的 npx vitest 不适用本仓 Python 栈，改用 pytest 等价口径"
+        ]
+      },
+      "lastRun": {
+        "at": 1791264346376,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-1d7233",
+      "requirementId": "REQ-261006130750-0654",
+      "title": "回归锁与假绿防线（新建用例文件）·复核",
+      "description": "子卡阶段：复核",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-ea86ce"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "implementation": "新建 tests/api/test_orchestrator_trading_day_gate.py，实现 design/test-cases.md 的 T1–T13：桩打在 application.services.trading_day_gate.TradingDayGuard（本仓打桩点规则）。覆盖：休市日跳过且 PaperTradingEngine 未被构造、交易日对照、降级 fail-open、门自身异常照跑、未来日反例锁（check('2026-10-07').source == 'future'）、编排 tick 休市日零调用与交易日照调、静态对账、打桩点证伪（打在 orchestrator_bootstrap 同名符号上不生效）、日志去噪、窗口语义回归、时段优先、通知零外发。并按 test-cases.md §4 至少做两处反向注入（降级也跳过 / 拿未来日当休市日判据），确认变红后复原，注入过程写进卡片汇报不留在仓库。\n\n[子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-45c620",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-532912",
+          "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+          "trigger": "manual",
+          "startedAt": 1791264362502,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+              "seq": 1104,
+              "at": 1791264362502,
+              "totals": {
+                "uncachedInputTokens": 203991,
+                "outputTokens": 147703,
+                "cacheReadTokens": 33446400,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+                  "depth": 0,
+                  "seq": 1104,
+                  "totals": {
+                    "uncachedInputTokens": 203991,
+                    "outputTokens": 147703,
+                    "cacheReadTokens": 33446400,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+              "seq": 1116,
+              "at": 1791264368432,
+              "totals": {
+                "uncachedInputTokens": 204698,
+                "outputTokens": 148279,
+                "cacheReadTokens": 34088576,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+                  "depth": 0,
+                  "seq": 1116,
+                  "totals": {
+                    "uncachedInputTokens": 204698,
+                    "outputTokens": 148279,
+                    "cacheReadTokens": 34088576,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 707,
+              "outputTokens": 576,
+              "cacheReadTokens": 642176,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791264368432
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-47c8c2",
+          "body": "[状态] → in_progress：t3 复核子卡开工：独立审用例是否真能红、有无假绿（reqboard_task_move）",
+          "createdAt": 1791264362502,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          }
+        },
+        {
+          "id": "c-810f32",
+          "body": "[状态] → done：t3 复核子卡完成：无偏离，三次注入证红并复原，两条观察已登记（reqboard_task_move）",
+          "createdAt": 1791264368432,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791264330840,
+      "updatedAt": 1791264368432,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791264330840,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791264362502,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          },
+          "reason": "t3 复核子卡开工：独立审用例是否真能红、有无假绿"
+        },
+        {
+          "status": "done",
+          "at": 1791264368432,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          },
+          "reason": "t3 复核子卡完成：无偏离，三次注入证红并复原，两条观察已登记"
+        }
+      ],
+      "layer": 2,
+      "lastReport": {
+        "at": 1791264366157,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "对照 design/test-cases.md 逐条核对：T1-T12 各有独立用例，T13（通知零外发）并入 T1/T3 的 agent_service 未调用断言",
+          "假绿防线实测（三次注入，全部变红后按校验和复原）：injection③ degraded 也跳过 → T3/T4 红",
+          "injection⑤ 判了错的一天（now 换成次日）→ T6/T10 红（去噪键里的 day 是审计面）",
+          "injection⑥（本轮新增）把 B 层门改成 if False → T1/T9 红，证明休市日跳过用例不是橡皮图章",
+          "复原验证：三次注入后 shasum 与注入前逐一相同，全仓 grep INJECTED = 0（无残留）",
+          "无偏离：用例与设计一致；日期用例全部桩定，不依赖机器当天是否交易日、也不依赖测试库日历",
+          "观察·低：T6 以「等 _LAST_SKIP_LOG 两键齐备（3s 超时）」判循环确已跑过——超时只会假红、不会假绿，可接受",
+          "观察·低：T13 无独立用例编号，与设计 13 条编号非一一对应（12 条落地）；语义已覆盖，登记以免后人误判漏项",
+          "模板不符：复核 acceptance 的 npx vitest 同样不适用本仓 Python 栈，如实报出"
+        ]
+      },
+      "lastRun": {
+        "at": 1791264366157,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-bcf326",
+      "requirementId": "REQ-261006130750-0654",
+      "title": "回归锁与假绿防线（新建用例文件）·测试",
+      "description": "子卡阶段：测试",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-1d7233"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "implementation": "新建 tests/api/test_orchestrator_trading_day_gate.py，实现 design/test-cases.md 的 T1–T13：桩打在 application.services.trading_day_gate.TradingDayGuard（本仓打桩点规则）。覆盖：休市日跳过且 PaperTradingEngine 未被构造、交易日对照、降级 fail-open、门自身异常照跑、未来日反例锁（check('2026-10-07').source == 'future'）、编排 tick 休市日零调用与交易日照调、静态对账、打桩点证伪（打在 orchestrator_bootstrap 同名符号上不生效）、日志去噪、窗口语义回归、时段优先、通知零外发。并按 test-cases.md §4 至少做两处反向注入（降级也跳过 / 拿未来日当休市日判据），确认变红后复原，注入过程写进卡片汇报不留在仓库。\n\n[子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "context": "",
+      "parentId": "t-45c620",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-d639d8",
+          "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+          "trigger": "manual",
+          "startedAt": 1791264399529,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+              "seq": 1146,
+              "at": 1791264399529,
+              "totals": {
+                "uncachedInputTokens": 205703,
+                "outputTokens": 151199,
+                "cacheReadTokens": 35708160,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+                  "depth": 0,
+                  "seq": 1146,
+                  "totals": {
+                    "uncachedInputTokens": 205703,
+                    "outputTokens": 151199,
+                    "cacheReadTokens": 35708160,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+              "seq": 1158,
+              "at": 1791264403739,
+              "totals": {
+                "uncachedInputTokens": 206319,
+                "outputTokens": 151458,
+                "cacheReadTokens": 36359168,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+                  "depth": 0,
+                  "seq": 1158,
+                  "totals": {
+                    "uncachedInputTokens": 206319,
+                    "outputTokens": 151458,
+                    "cacheReadTokens": 36359168,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 616,
+              "outputTokens": 259,
+              "cacheReadTokens": 651008,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791264403738
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-79ba45",
+          "body": "[状态] → in_progress：t3 测试子卡补开工登记（汇报已落，阶段工作已完成）（reqboard_task_move）",
+          "createdAt": 1791264399529,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          }
+        },
+        {
+          "id": "c-510ff8",
+          "body": "[状态] → done：t3 测试子卡完成：98 passed、两次注入证红并复原、通知零外发（reqboard_task_move）",
+          "createdAt": 1791264403738,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791264330840,
+      "updatedAt": 1791264403738,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791264330840,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791264399529,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          },
+          "reason": "t3 测试子卡补开工登记（汇报已落，阶段工作已完成）"
+        },
+        {
+          "status": "done",
+          "at": 1791264403738,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          },
+          "reason": "t3 测试子卡完成：98 passed、两次注入证红并复原、通知零外发"
+        }
+      ],
+      "layer": 3,
+      "lastReport": {
+        "at": 1791264394650,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "父卡验收①：tests/api/test_orchestrator_trading_day_gate.py → 12 passed（≥12 条）",
+          "父卡验收②：新增 + 同族五套 → 98 passed（orchestrator_bootstrap / market_session_policy / trading_window_guard / scheduler_trading_day_gate / daily_jobs_trading_day_gate）",
+          "父卡验收③（阶段内重跑）：注入 degraded 也跳过 → 2 红（intraday_degraded_is_fail_open、gate_own_exception_is_fail_open），复原后全绿",
+          "父卡验收④（阶段内重跑·按卡原文）：拿 check(2026-10-07) 未来日当休市日判据 → 1 红，报错原文 assert future == trading-calendar-holiday（正是 T5 要锁的语义），复原后全绿",
+          "复原校验：两次注入后 shasum 与注入前逐一相同；两文件 grep INJECTED 计数均为 0",
+          "父卡验收⑤：notify-guard intercepted=0 egress=0 offenders=[]",
+          "基线对照：改前同命令失败数 0 → 改后 0（不高于基线）",
+          "如实报出：本卡 acceptance 的 pnpm test / npx tsc 是 JS 栈模板，本仓无 package.json，改用 pytest 等价口径"
+        ]
+      },
+      "lastRun": {
+        "at": 1791264394650,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-b554a3",
+      "requirementId": "REQ-261006130750-0654",
+      "title": "休市日 / 复市首日真实观察留档·研发",
+      "description": "子卡阶段：研发",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-45c620"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "implementation": "新建 docs/requirements/REQ-261006130750-0654/notes/holiday-observation.md，记录：① 2026-10-07（休市·周三）当天的 grep -c orchestrator_trading_day_skip logs/api.log、事件里的 source/degraded、quant.simulation_positions 与 quant.simulation_account 的 updated_at 是否被监控刷新、盘中返回 non-trading-day（对照 2026-10-06 的 no_positions 基线）；② 2026-10-08（复市首日·周四）两条路径恢复（该事件计数=0、status != 'skipped'）；③ 若实施晚于 10-08，如实写明「窗口未取到」与原因，不得用单测结果冒充真实观察（design/test-cases.md §3）。\n\n[子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要",
+      "context": "",
+      "parentId": "t-22d1ba",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-8d1a1a",
+          "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+          "trigger": "manual",
+          "startedAt": 1791268940005,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+              "seq": 2333,
+              "at": 1791268940005,
+              "totals": {
+                "uncachedInputTokens": 393051,
+                "outputTokens": 306995,
+                "cacheReadTokens": 125494656,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+                  "depth": 0,
+                  "seq": 2333,
+                  "totals": {
+                    "uncachedInputTokens": 393051,
+                    "outputTokens": 306995,
+                    "cacheReadTokens": 125494656,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+              "seq": 2342,
+              "at": 1791268944054,
+              "totals": {
+                "uncachedInputTokens": 398180,
+                "outputTokens": 307250,
+                "cacheReadTokens": 126144128,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+                  "depth": 0,
+                  "seq": 2342,
+                  "totals": {
+                    "uncachedInputTokens": 398180,
+                    "outputTokens": 307250,
+                    "cacheReadTokens": 126144128,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 5129,
+              "outputTokens": 255,
+              "cacheReadTokens": 649472,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791268944054
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-07933d",
+          "body": "[状态] → in_progress：t4 研发子卡开工：观察档已按 W-3 收口裁定更新（10-06 证据 + 窗口未取到如实标注）（reqboard_task_move）",
+          "createdAt": 1791268940005,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          }
+        },
+        {
+          "id": "c-9b92ed",
+          "body": "[状态] → done：t4 研发子卡完成：观察档按 W-3 收口更新，缺口如实写明（reqboard_task_move）",
+          "createdAt": 1791268944054,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791264478816,
+      "updatedAt": 1791268944054,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791264478816,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791268940005,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          },
+          "reason": "t4 研发子卡开工：观察档已按 W-3 收口裁定更新（10-06 证据 + 窗口未取到如实标注）"
+        },
+        {
+          "status": "done",
+          "at": 1791268944054,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          },
+          "reason": "t4 研发子卡完成：观察档按 W-3 收口更新，缺口如实写明"
+        }
+      ],
+      "layer": 2,
+      "lastReport": {
+        "at": 1791268940075,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-261006130750-0654/notes/holiday-observation.md"
+        ],
+        "completed": [
+          "交付物：docs/requirements/REQ-261006130750-0654/notes/holiday-observation.md（新增 §5 收口裁定）",
+          "裁定落账：W-3（用户原话「先完成这个项目」）取代 W-1；以 10-06 同性质休市日观察收口，10-07/10-08 标注窗口未取到",
+          "口径不变的自律保留：仍不用单测顶替真实观察；§3 复跑清单原样留档，日后可补",
+          "收口时点事实已如实写明：已有 10-06 两条真实留痕 + 零写库 + 12 用例；缺 10-07 第二次观察与 10-08 复市首日不跳的实证",
+          "明确指出缺口未消失：10-08『复市首日不跳』是门最需要实证的一项，收口不等于已验证",
+          "模板不符：本卡 acceptance 的 npx vitest 不适用本仓 Python 栈，改用文档自查（链接/内容）+ pytest 等价口径"
+        ]
+      },
+      "lastRun": {
+        "at": 1791268940075,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-b87557",
+      "requirementId": "REQ-261006130750-0654",
+      "title": "休市日 / 复市首日真实观察留档·复核",
+      "description": "子卡阶段：复核",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-b554a3"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "implementation": "新建 docs/requirements/REQ-261006130750-0654/notes/holiday-observation.md，记录：① 2026-10-07（休市·周三）当天的 grep -c orchestrator_trading_day_skip logs/api.log、事件里的 source/degraded、quant.simulation_positions 与 quant.simulation_account 的 updated_at 是否被监控刷新、盘中返回 non-trading-day（对照 2026-10-06 的 no_positions 基线）；② 2026-10-08（复市首日·周四）两条路径恢复（该事件计数=0、status != 'skipped'）；③ 若实施晚于 10-08，如实写明「窗口未取到」与原因，不得用单测结果冒充真实观察（design/test-cases.md §3）。\n\n[子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-22d1ba",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-26eabc",
+          "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+          "trigger": "manual",
+          "startedAt": 1791268944118,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+              "seq": 2344,
+              "at": 1791268944118,
+              "totals": {
+                "uncachedInputTokens": 398180,
+                "outputTokens": 307250,
+                "cacheReadTokens": 126144128,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+                  "depth": 0,
+                  "seq": 2344,
+                  "totals": {
+                    "uncachedInputTokens": 398180,
+                    "outputTokens": 307250,
+                    "cacheReadTokens": 126144128,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+              "seq": 2368,
+              "at": 1791268962172,
+              "totals": {
+                "uncachedInputTokens": 399239,
+                "outputTokens": 309245,
+                "cacheReadTokens": 128768384,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+                  "depth": 0,
+                  "seq": 2368,
+                  "totals": {
+                    "uncachedInputTokens": 399239,
+                    "outputTokens": 309245,
+                    "cacheReadTokens": 128768384,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 1059,
+              "outputTokens": 1995,
+              "cacheReadTokens": 2624256,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791268962171
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-57339e",
+          "body": "[状态] → in_progress：t4 复核子卡开工：独立核 §5 收口口径与 §3 复跑清单可用性（reqboard_task_move）",
+          "createdAt": 1791268944118,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          }
+        },
+        {
+          "id": "c-b7c8da",
+          "body": "[状态] → done：t4 复核子卡完成：读数与现场一致、缺口如实，并新增一条现场实证（reqboard_task_move）",
+          "createdAt": 1791268962171,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791264478816,
+      "updatedAt": 1791268962171,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791264478816,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791268944118,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          },
+          "reason": "t4 复核子卡开工：独立核 §5 收口口径与 §3 复跑清单可用性"
+        },
+        {
+          "status": "done",
+          "at": 1791268962171,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          },
+          "reason": "t4 复核子卡完成：读数与现场一致、缺口如实，并新增一条现场实证"
+        }
+      ],
+      "layer": 3,
+      "lastReport": {
+        "at": 1791268959199,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "复核①：留档引用的两条留痕仍在日志中（orchestrator_tick / intraday_monitor 各命中 2 行）",
+          "复核②：写库面读数与留档逐字一致（sim_positions=2026-10-04 16:49:36、rotation_main=2026-07-25 14:16:38、orch_state(10-06)=0 行）",
+          "复核③：§5 明确写了收口口径、缺口未消失、不得用单测顶替（关键词命中 3 处）",
+          "复核④（新发现·已解释）：跳过日志共 4 条而非 2 条 —— 13:48:28 为部署 1fdf 重启过一次，进程内存去噪键被清，于是两条路径各再留一条（13:48:32 orchestrator_tick、14:00:33 intraday_monitor）",
+          "复核④ 判读：与设计一致（『进程重启即清，最坏多一条日志』），非缺陷；且 14:00:33 那条是**额外的真实现场证据**——盘中门在第二次重启后仍在工作",
+          "无偏离：§5 收口与用户原话一致（未夸大、未隐去缺口）；§3 复跑清单命令仍可用",
+          "模板不符：本卡复核 acceptance 的 npx vitest 不适用本仓 Python 栈，改用 grep/psql/JSON 等价口径"
+        ]
+      },
+      "lastRun": {
+        "at": 1791268959199,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-047d90",
+      "requirementId": "REQ-261006130750-0654",
+      "title": "休市日 / 复市首日真实观察留档·测试",
+      "description": "子卡阶段：测试",
+      "phase": "test",
+      "side": "backend",
+      "dependsOn": [
+        "t-b87557"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "implementation": "新建 docs/requirements/REQ-261006130750-0654/notes/holiday-observation.md，记录：① 2026-10-07（休市·周三）当天的 grep -c orchestrator_trading_day_skip logs/api.log、事件里的 source/degraded、quant.simulation_positions 与 quant.simulation_account 的 updated_at 是否被监控刷新、盘中返回 non-trading-day（对照 2026-10-06 的 no_positions 基线）；② 2026-10-08（复市首日·周四）两条路径恢复（该事件计数=0、status != 'skipped'）；③ 若实施晚于 10-08，如实写明「窗口未取到」与原因，不得用单测结果冒充真实观察（design/test-cases.md §3）。\n\n[子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）",
+      "context": "",
+      "parentId": "t-22d1ba",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-6de501",
+          "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+          "trigger": "manual",
+          "startedAt": 1791268962239,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+              "seq": 2370,
+              "at": 1791268962239,
+              "totals": {
+                "uncachedInputTokens": 399239,
+                "outputTokens": 309245,
+                "cacheReadTokens": 128768384,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+                  "depth": 0,
+                  "seq": 2370,
+                  "totals": {
+                    "uncachedInputTokens": 399239,
+                    "outputTokens": 309245,
+                    "cacheReadTokens": 128768384,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "end": {
+              "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+              "seq": 2388,
+              "at": 1791268978633,
+              "totals": {
+                "uncachedInputTokens": 400089,
+                "outputTokens": 310156,
+                "cacheReadTokens": 130743424,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection",
+              "scope": "self+descendants",
+              "members": [
+                {
+                  "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6",
+                  "depth": 0,
+                  "seq": 2388,
+                  "totals": {
+                    "uncachedInputTokens": 400089,
+                    "outputTokens": 310156,
+                    "cacheReadTokens": 130743424,
+                    "cacheWriteTokens": 0
+                  }
+                }
+              ]
+            },
+            "delta": {
+              "uncachedInputTokens": 850,
+              "outputTokens": 911,
+              "cacheReadTokens": 1975040,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1791268978632
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-6f50ba",
+          "body": "[状态] → in_progress：t4 测试子卡开工：复跑可跑项与单测（reqboard_task_move）",
+          "createdAt": 1791268962239,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          }
+        },
+        {
+          "id": "c-879e26",
+          "body": "[状态] → done：t4 测试子卡完成：18 passed、留痕 4 条、写库面无刷新；窗口项如实标注未取到（reqboard_task_move）",
+          "createdAt": 1791268978632,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1791264478816,
+      "updatedAt": 1791268978632,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1791264478816,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1791268962239,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          },
+          "reason": "t4 测试子卡开工：复跑可跑项与单测"
+        },
+        {
+          "status": "done",
+          "at": 1791268978632,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-7bcde579-79d4-4b3f-97b2-ba2fc43b39a6"
+          },
+          "reason": "t4 测试子卡完成：18 passed、留痕 4 条、写库面无刷新；窗口项如实标注未取到"
+        }
+      ],
+      "layer": 4,
+      "lastReport": {
+        "at": 1791268975872,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "① 单测全绿：tests/api/test_orchestrator_trading_day_gate.py + test_orchestrator_bootstrap.py → 18 passed",
+          "② 观察档存在且 6 个小节齐备（9396 bytes），§5 收口口径已落",
+          "③ 现场留痕：orchestrator_trading_day_skip 共 4 条（13:21:44 / 13:30:46 / 13:48:32 / 14:00:33，均 source=trading-calendar-holiday）",
+          "④ 写库面：simulation_positions 最新仍为 2026-10-04（无监控刷新）",
+          "⑤ 通知零外发：上述运行 notify-guard intercepted=0 egress=0",
+          "⑥ 可跑项与不可跑项分开交代：§3 的 10-07/10-08 两条属**窗口未取到**（当天为 10-06），未跑、也未用单测顶替",
+          "⑦ 基线对照：失败数改前 0 → 改后 0（不高于基线）",
+          "⑧ 模板不符：本卡 acceptance 的 pnpm test / npx tsc 属 JS 栈模板，改用 pytest + psql + grep 等价口径"
+        ]
+      },
+      "lastRun": {
+        "at": 1791268975872,
+        "ok": true,
+        "stopReason": "reported",
+        "valueNonEmpty": true
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "t-37a691",
+      "to": "t-45c620"
+    },
+    {
+      "from": "t-bcbe54",
+      "to": "t-45c620"
+    },
+    {
+      "from": "t-45c620",
+      "to": "t-22d1ba"
+    },
+    {
+      "from": "t-32ec6a",
+      "to": "t-6d2074"
+    },
+    {
+      "from": "t-6d2074",
+      "to": "t-164414"
+    },
+    {
+      "from": "t-2ab0a5",
+      "to": "t-011042"
+    },
+    {
+      "from": "t-011042",
+      "to": "t-67db61"
+    },
+    {
+      "from": "t-37a691",
+      "to": "t-ea86ce"
+    },
+    {
+      "from": "t-bcbe54",
+      "to": "t-ea86ce"
+    },
+    {
+      "from": "t-ea86ce",
+      "to": "t-1d7233"
+    },
+    {
+      "from": "t-1d7233",
+      "to": "t-bcf326"
+    },
+    {
+      "from": "t-45c620",
+      "to": "t-b554a3"
+    },
+    {
+      "from": "t-b554a3",
+      "to": "t-b87557"
+    },
+    {
+      "from": "t-b87557",
+      "to": "t-047d90"
+    }
+  ],
+  "layers": [
+    {
+      "layer": 0,
+      "tasks": [
+        "t-37a691",
+        "t-bcbe54",
+        "t-32ec6a",
+        "t-2ab0a5"
+      ]
+    },
+    {
+      "layer": 1,
+      "tasks": [
+        "t-45c620",
+        "t-ea86ce",
+        "t-6d2074",
+        "t-011042"
+      ]
+    },
+    {
+      "layer": 2,
+      "tasks": [
+        "t-22d1ba",
+        "t-b554a3",
+        "t-1d7233",
+        "t-164414",
+        "t-67db61"
+      ]
+    },
+    {
+      "layer": 3,
+      "tasks": [
+        "t-b87557",
+        "t-bcf326"
+      ]
+    },
+    {
+      "layer": 4,
+      "tasks": [
+        "t-047d90"
+      ]
+    }
+  ],
+  "ready": [],
+  "updated_at": "2026-10-06T06:43:29.719Z"
+}

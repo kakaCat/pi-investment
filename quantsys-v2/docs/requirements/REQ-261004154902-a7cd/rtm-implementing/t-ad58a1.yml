@@ -1,0 +1,54 @@
+task:
+  id: t-ad58a1
+  title: 端到端冒烟与验收证据汇总
+  status: done
+  implements: 新增 tools/check_v13_chain_health.py（只读，一条命令输出三张表：①应跑未跑/被跳过 ②当日成交与拒绝原因分布 ③通知送达与失败分类）；把一个交易日内的真实冒烟结果、日志证据与命令输出汇总成验收材料（reqboard_submit(kind=verification) 的 evidence）。
+  serves:
+    - FR-1
+    - FR-2
+    - FR-3
+    - FR-4
+    - FR-5
+    - FR-6
+    - FR-7
+    - FR-8
+    - FR-9
+    - FR-10
+  depends_on:
+    - t-b13aaf
+    - t-da8070
+    - t-141b38
+    - t-322d78
+    - t-5103ce
+    - t-0226ab
+    - t-979319
+    - t-373c05
+    - t-174c1d
+    - t-ba8cc4
+  phase: test
+  side: fullstack
+  workflow_params:
+    REQ_ID: REQ-261004154902-a7cd
+    TASK_ID: t-ad58a1
+    TASK_TITLE: 端到端冒烟与验收证据汇总
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: fullstack
+    PHASE: test
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: test
+      status: done
+      completed_at: 2026-10-04T08:53:41.622Z
+    - phase: review
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261004154902-a7cd
+  generated_at: 2026-10-04T08:52:13.055Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-04T08:53:41.622Z

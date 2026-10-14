@@ -17,6 +17,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, date, time
 
 from application.services.agent_notification_service import agent_service
+from application.services.trading_day_gate import should_skip
 from domain.trading.services.market_session_policy import MarketSessionPolicy
 
 logger = structlog.get_logger(__name__)
@@ -25,6 +26,10 @@ logger = structlog.get_logger(__name__)
 # ============================================================
 # 配置
 # ============================================================
+
+#: 休市日跳过原因（REQ-261006130750-0654 FR-6）——与既有时段外原因 `'not trading time'` 明确区分：
+#: 「跳过」必须与「根本没跑」在可观测面上分得开。
+SKIP_REASON_NON_TRADING_DAY = 'non-trading-day'
 
 MONITOR_CONFIG = {
     'stop_loss_pct': -0.08,        # 止损线 -8%
@@ -49,16 +54,41 @@ class IntradayMonitor:
         self.config = {**MONITOR_CONFIG, **(config or {})}
         self._alert_sent_today = False  # 每日只发一次大盘异动告警
 
-    def check(self) -> Dict[str, Any]:
+    def check(self, now: Optional[datetime] = None) -> Dict[str, Any]:
         """执行一次盘中检查
 
+        Args:
+            now: 判定时刻；缺省 `datetime.now()`（显式传入仅供确定性单测与旁路调用使用）
+
         Returns:
-            检查结果摘要
+            检查结果摘要。非交易日返回
+            `{'status': 'skipped', 'reason': SKIP_REASON_NON_TRADING_DAY, ...}`；
+            非交易时段仍返回既有的 `{'status': 'skipped', 'reason': 'not trading time'}`。
         """
         # 只在交易时段运行
-        now = datetime.now()
+        now = now or datetime.now()
         if not self._is_trading_time(now.time()):
             return {'status': 'skipped', 'reason': 'not trading time'}
+
+        # 日级权威门（REQ-261006130750-0654 FR-1/FR-3）：休市日**不**取持仓、**不**读价格、
+        # **不**判止损止盈、**不**写持仓市值。判据复用唯一真源 `trading_day_gate`（fail-open：
+        # 任何降级来源一律照跑），本文件**不另写一份**日历/星期判定。
+        # ⚠️ 位置必须在时段判定**之后**（严格增量）：新分支只覆盖"原本会真干活"的时刻，
+        # 时段外的既有返回形状一字不改。
+        skip, info = should_skip('trading-days', now)
+        if skip:
+            logger.info('intraday_monitor_non_trading_day', **{
+                'day': info.get('day'),
+                'source': info.get('source'),
+                'degraded': info.get('degraded'),
+                'reason': info.get('reason'),
+            })
+            return {
+                'status': 'skipped',
+                'reason': SKIP_REASON_NON_TRADING_DAY,
+                'timestamp': now.isoformat(),
+                'trading_day': info,
+            }
 
         # 重置每日告警标记
         if not hasattr(self, '_last_check_date') or self._last_check_date != now.date():
@@ -143,7 +173,9 @@ class IntradayMonitor:
         使 11:30 与 15:00 两次巡检被静默跳过（外层节拍闸门判 True、内层却 False，
         收盘那次止损/止盈不执行）。策略内部先**截到整分钟**，端点按整分钟语义闭合。
 
-        日级仍由调用方（外层节拍闸门）把关，待 RFC 016 D9 统一。
+        日级**不由本方法**把关：权威日级门在 `check()` 首部（`should_skip('trading-days', ...)`，
+        REQ-261006130750-0654）；本方法只回答"现在是不是交易时段"，故 `is_trading_day=True`
+        是**有意**的（它不是日级判据）。
         """
         return MarketSessionPolicy.is_market_open(
             MarketSessionPolicy.phase_for(current_time, is_trading_day=True)

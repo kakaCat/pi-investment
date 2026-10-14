@@ -1,0 +1,256 @@
+metadata:
+  stage: accepting
+  requirement_id: REQ-261006163444-8e4f
+  generated_at: 2026-10-06T08:59:16.875Z
+  version: 3
+  generated_by: dsh-pmboard
+  last_updated: 2026-10-06T08:59:30.388Z
+inputs:
+  tasks:
+    - id: t-839a64
+      title: 新增分域纯函数模块 kline_domain.py（契约先行）
+      status: done
+    - id: t-f2d177
+      title: 仓储加分域只读方法并把评级计数改为 distinct
+      status: done
+    - id: t-baed9f
+      title: 服务层返回 per_symbol 全量事实并修 original_count 取键
+      status: done
+    - id: t-6e752d
+      title: 作业层接线：域内聚合、新告警判据与回填限域
+      status: done
+    - id: t-588941
+      title: 补分域纯函数用例（含 gap 边界与不变量）
+      status: done
+    - id: t-ddb59a
+      title: 补告警口径用例与四条反例锁
+      status: done
+    - id: t-a300ce
+      title: 变更 task 232 阈值配置并实跑复验出证据
+      status: done
+    - id: t-3faf17
+      title: 落盘迁移、兼容与回滚清单
+      status: done
+    - id: t-721a23
+      title: 新增分域纯函数模块 kline_domain.py（契约先行）·研发
+      status: done
+    - id: t-b0347e
+      title: 新增分域纯函数模块 kline_domain.py（契约先行）·联调
+      status: done
+    - id: t-225332
+      title: 新增分域纯函数模块 kline_domain.py（契约先行）·复核
+      status: done
+    - id: t-a0b465
+      title: 新增分域纯函数模块 kline_domain.py（契约先行）·测试
+      status: done
+    - id: t-0724f1
+      title: 仓储加分域只读方法并把评级计数改为 distinct·研发
+      status: done
+    - id: t-d8de1a
+      title: 仓储加分域只读方法并把评级计数改为 distinct·联调
+      status: done
+    - id: t-1aabe8
+      title: 仓储加分域只读方法并把评级计数改为 distinct·复核
+      status: done
+    - id: t-306059
+      title: 仓储加分域只读方法并把评级计数改为 distinct·测试
+      status: done
+    - id: t-2c8a18
+      title: 服务层返回 per_symbol 全量事实并修 original_count 取键·研发
+      status: done
+    - id: t-3b5da9
+      title: 服务层返回 per_symbol 全量事实并修 original_count 取键·联调
+      status: done
+    - id: t-acb9b3
+      title: 服务层返回 per_symbol 全量事实并修 original_count 取键·复核
+      status: done
+    - id: t-097096
+      title: 服务层返回 per_symbol 全量事实并修 original_count 取键·测试
+      status: done
+    - id: t-e5556c
+      title: 作业层接线：域内聚合、新告警判据与回填限域·研发
+      status: done
+    - id: t-3fe312
+      title: 作业层接线：域内聚合、新告警判据与回填限域·联调
+      status: done
+    - id: t-e8d8e3
+      title: 作业层接线：域内聚合、新告警判据与回填限域·复核
+      status: done
+    - id: t-cba0af
+      title: 作业层接线：域内聚合、新告警判据与回填限域·测试
+      status: done
+    - id: t-eb3ca1
+      title: 补分域纯函数用例（含 gap 边界与不变量）·研发
+      status: done
+    - id: t-21bcc0
+      title: 补分域纯函数用例（含 gap 边界与不变量）·复核
+      status: done
+    - id: t-0da0b9
+      title: 补分域纯函数用例（含 gap 边界与不变量）·测试
+      status: done
+    - id: t-8138f0
+      title: 补告警口径用例与四条反例锁·研发
+      status: done
+    - id: t-f7a18c
+      title: 补告警口径用例与四条反例锁·复核
+      status: done
+    - id: t-37d890
+      title: 补告警口径用例与四条反例锁·测试
+      status: done
+    - id: t-5cd45f
+      title: 落盘迁移、兼容与回滚清单·研发
+      status: done
+    - id: t-a331d8
+      title: 落盘迁移、兼容与回滚清单·复核
+      status: done
+    - id: t-067110
+      title: 变更 task 232 阈值配置并实跑复验出证据·研发
+      status: done
+    - id: t-6253e3
+      title: 变更 task 232 阈值配置并实跑复验出证据·联调
+      status: done
+    - id: t-0607de
+      title: 变更 task 232 阈值配置并实跑复验出证据·复核
+      status: done
+    - id: t-7a9c7e
+      title: 变更 task 232 阈值配置并实跑复验出证据·测试
+      status: done
+outputs:
+  test_cases:
+    - id: TC-1
+      title: 6. 任务覆盖标注（机器可解析）
+      covers:
+        - t-839a64
+        - t-721a23
+        - t-b0347e
+        - t-225332
+        - t-a0b465
+        - t-f2d177
+        - t-0724f1
+        - t-d8de1a
+        - t-1aabe8
+        - t-306059
+        - t-baed9f
+        - t-2c8a18
+        - t-3b5da9
+        - t-acb9b3
+        - t-097096
+        - t-6e752d
+        - t-e5556c
+        - t-3fe312
+        - t-e8d8e3
+        - t-cba0af
+        - t-588941
+        - t-eb3ca1
+        - t-21bcc0
+        - t-0da0b9
+        - t-ddb59a
+        - t-8138f0
+        - t-f7a18c
+        - t-37d890
+        - t-a300ce
+        - t-067110
+        - t-6253e3
+        - t-0607de
+        - t-7a9c7e
+        - t-3faf17
+        - t-5cd45f
+        - t-a331d8
+      validates: []
+      source: tests/test-evidence.md
+traceability:
+  task_to_tests:
+    t-839a64:
+      - TC-1
+    t-f2d177:
+      - TC-1
+    t-baed9f:
+      - TC-1
+    t-6e752d:
+      - TC-1
+    t-588941:
+      - TC-1
+    t-ddb59a:
+      - TC-1
+    t-a300ce:
+      - TC-1
+    t-3faf17:
+      - TC-1
+    t-721a23:
+      - TC-1
+    t-b0347e:
+      - TC-1
+    t-225332:
+      - TC-1
+    t-a0b465:
+      - TC-1
+    t-0724f1:
+      - TC-1
+    t-d8de1a:
+      - TC-1
+    t-1aabe8:
+      - TC-1
+    t-306059:
+      - TC-1
+    t-2c8a18:
+      - TC-1
+    t-3b5da9:
+      - TC-1
+    t-acb9b3:
+      - TC-1
+    t-097096:
+      - TC-1
+    t-e5556c:
+      - TC-1
+    t-3fe312:
+      - TC-1
+    t-e8d8e3:
+      - TC-1
+    t-cba0af:
+      - TC-1
+    t-eb3ca1:
+      - TC-1
+    t-21bcc0:
+      - TC-1
+    t-0da0b9:
+      - TC-1
+    t-8138f0:
+      - TC-1
+    t-f7a18c:
+      - TC-1
+    t-37d890:
+      - TC-1
+    t-5cd45f:
+      - TC-1
+    t-a331d8:
+      - TC-1
+    t-067110:
+      - TC-1
+    t-6253e3:
+      - TC-1
+    t-0607de:
+      - TC-1
+    t-7a9c7e:
+      - TC-1
+  fr_to_tests:
+    FR-1:
+      - TC-1
+    FR-2:
+      - TC-1
+    FR-3:
+      - TC-1
+    FR-4:
+      - TC-1
+    FR-5:
+      - TC-1
+    FR-6:
+      - TC-1
+coverage:
+  testing:
+    total: 36
+    covered: 36
+    uncovered: []
+    rate: 100
+    total_tasks: 36
+    tested_tasks: 36
+    untested: []

@@ -1,0 +1,35 @@
+task:
+  id: t-59908f
+  title: e2e 手动触发用例不再执行真实 handler
+  status: done
+  implements: tests/e2e/test_daily_orchestrator.py::test_trigger_known_job_returns_success：先打桩 daily_jobs.runtime._run_job（记录调用），再调 trigger_job(JOBS[0].job_id, force=True)；断言返回 success 且记录器收到该 job_id。
+  serves:
+    - FR-2
+  depends_on: []
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261003150739-b98d
+    TASK_ID: t-59908f
+    TASK_TITLE: e2e 手动触发用例不再执行真实 handler
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-03T07:13:45.288Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261003150739-b98d
+  generated_at: 2026-10-03T07:12:42.545Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-03T07:13:45.288Z

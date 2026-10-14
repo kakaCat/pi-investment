@@ -1,0 +1,70 @@
+metadata:
+  stage: brainstorming
+  requirement_id: REQ-261006163444-8e4f
+  generated_at: 2026-10-06T08:37:42.479Z
+  version: 4
+  generated_by: dsh-pmboard
+  rtm_version: "2.0"
+  last_updated: 2026-10-06T08:59:49.974Z
+outputs:
+  requirements:
+    - id: FR-1
+      title: 检查域分域（可交易域 / 观察中 / 存量）
+      source: requirement.md
+      line: 122
+    - id: FR-2
+      title: 三项指标改按可交易域统计，且计数按 distinct 标的
+      source: requirement.md
+      line: 128
+    - id: FR-3
+      title: 掉出域变化必须亮相（防"采集漏批被静默豁免"）
+      source: requirement.md
+      line: 134
+    - id: FR-4
+      title: 阈值随口径重定 + 回填样本有效化
+      source: requirement.md
+      line: 139
+    - id: FR-5
+      title: 修 `original_count` 取键（现恒 0）
+      source: requirement.md
+      line: 147
+    - id: FR-6
+      title: 回归锁与实跑复验
+      source: requirement.md
+      line: 152
+  prototypes: []
+  decisions:
+    - id: D-1
+      source: 本窗口会话消息（2026-10-06，用户直接消息，附告警原文）原话：「啥原因」
+      verdict: 下钻定位三项告警成因并立项；结论为"三项均为口径失真、数据本身健康"
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+      criterion: 根因证据 E1–E14 已存档；本需求已立项并绑定本窗口（REQ-261006163444-8e4f）
+    - id: D-2
+      source: 本窗口会话消息（2026-10-06，用户回答检查域口径弹框）原话：「分域：可交易域单列指标并据此告警，死标的另列信息项（推荐）」
+      verdict: 检查域**分域**：三项指标只在可交易域内算并据此告警；退市/长停标的另列信息项，不触发告警；阈值随新口径重定
+      serves:
+        - FR-1
+        - FR-2
+        - FR-4
+      criterion: '`ask_user_question` 返回 `selected=["分域：可交易域单列指标并据此告警，死标的另列信息项（推荐）"]`（单选）；排除项落账见边界「不做什么」1'
+    - id: D-3
+      source: 本窗口会话消息（2026-10-06，用户回答可交易域判据弹框）原话：「A（推荐）以数据事实为准：最后交易日有 K 线即在域」
+      verdict: 判据取**数据事实**（最后交易日有无 K 线），不依赖 `is_delisted`/`is_suspended` 标记（实测仅覆盖 46%）
+      serves:
+        - FR-1
+      criterion: '`ask_user_question` 返回 `selected=["A（推荐）以数据事实为准：最后交易日有 K 线即在域"]`（单选）；依据 E5/E6'
+    - id: D-4
+      source: 本窗口会话消息（2026-10-06，用户回答防漏弹框）原话：「A（推荐）加「掉出域变化」告警：新掉出必亮相，存量不吵」
+      verdict: 加**掉出域变化**告警：新掉出名单进告警正文（warning 级，非 error）；连续 ≥5 个交易日无数据转存量后不再逐日重复；**不做**补标记（B 选项）
+      serves:
+        - FR-1
+        - FR-3
+      criterion: '`ask_user_question` 返回 `selected=["A（推荐）加「掉出域变化」告警：新掉出必亮相，存量不吵"]`（单选）；B 选项排除落账见边界「不做什么」1 与后续线 1'
+status:
+  artifacts: []

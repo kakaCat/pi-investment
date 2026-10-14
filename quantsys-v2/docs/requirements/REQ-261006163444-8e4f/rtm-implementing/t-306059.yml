@@ -1,0 +1,38 @@
+task:
+  id: t-306059
+  title: 仓储加分域只读方法并把评级计数改为 distinct·测试
+  status: done
+  implements: |-
+    ① 在 kline_repository.py 里给 KlineORMRepository 加 list_recent_trade_dates(limit=2)（SELECT DISTINCT trade_date ORDER BY DESC LIMIT n）与 list_symbol_last_trade_date()（GROUP BY symbol 的 MAX(trade_date)），不加时间过滤（死标的必须可见）；② 在 kline_quality_repository.py 把 count_by_grade_on(grade, day=None, symbols=None) 改为 count(distinct symbol)，symbols 非空时加 in_ 过滤，保留 _safe_rollback 语义与 func.date(created_at) 的当日口径。
+
+    [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+  serves: []
+  depends_on:
+    - t-1aabe8
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261006163444-8e4f
+    TASK_ID: t-306059
+    TASK_TITLE: 仓储加分域只读方法并把评级计数改为 distinct·测试
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-06T08:49:43.105Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006163444-8e4f
+  generated_at: 2026-10-06T08:49:37.616Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-06T08:49:43.106Z

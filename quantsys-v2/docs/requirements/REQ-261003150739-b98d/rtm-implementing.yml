@@ -1,0 +1,112 @@
+metadata:
+  stage: implementing
+  requirement_id: REQ-261003150739-b98d
+  generated_at: 2026-10-03T07:11:36.750Z
+  version: 59
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 19
+  last_updated: 2026-10-03T07:34:03.400Z
+inputs:
+  tasks:
+    - id: t-0cb72d
+      title: 修正 test_false_success_guard 的打桩点
+      status: done
+    - id: t-59908f
+      title: e2e 手动触发用例不再执行真实 handler
+      status: done
+    - id: t-47c844
+      title: 新增测试期通知外发守卫（report 模式接线）
+      status: done
+    - id: t-bfaab6
+      title: 回归锁 + 切换 fail 模式并验证回滚
+      status: done
+    - id: t-821cbb
+      title: 修正 test_false_success_guard 的打桩点·研发
+      status: done
+    - id: t-91bf18
+      title: 修正 test_false_success_guard 的打桩点·联调
+      status: done
+    - id: t-0ff3c9
+      title: 修正 test_false_success_guard 的打桩点·复核
+      status: done
+    - id: t-77768c
+      title: 修正 test_false_success_guard 的打桩点·测试
+      status: done
+    - id: t-e8c8e2
+      title: e2e 手动触发用例不再执行真实 handler·研发
+      status: done
+    - id: t-568226
+      title: e2e 手动触发用例不再执行真实 handler·联调
+      status: done
+    - id: t-5e56b0
+      title: e2e 手动触发用例不再执行真实 handler·复核
+      status: done
+    - id: t-927202
+      title: e2e 手动触发用例不再执行真实 handler·测试
+      status: done
+    - id: t-48d78d
+      title: 新增测试期通知外发守卫（report 模式接线）·研发
+      status: done
+    - id: t-7dffbf
+      title: 新增测试期通知外发守卫（report 模式接线）·联调
+      status: done
+    - id: t-7321dc
+      title: 新增测试期通知外发守卫（report 模式接线）·复核
+      status: done
+    - id: t-60761f
+      title: 新增测试期通知外发守卫（report 模式接线）·测试
+      status: done
+    - id: t-290c47
+      title: 回归锁 + 切换 fail 模式并验证回滚·研发
+      status: done
+    - id: t-a8df02
+      title: 回归锁 + 切换 fail 模式并验证回滚·复核
+      status: done
+    - id: t-6dc8f2
+      title: 回归锁 + 切换 fail 模式并验证回滚·测试
+      status: done
+status:
+  tasks_total: 19
+  tasks_done: 19
+  tasks_in_progress: 0
+  tasks_todo: 0
+tasks:
+  - id: t-0cb72d
+    status: done
+  - id: t-59908f
+    status: done
+  - id: t-47c844
+    status: done
+  - id: t-bfaab6
+    status: done
+  - id: t-821cbb
+    status: done
+  - id: t-91bf18
+    status: done
+  - id: t-0ff3c9
+    status: done
+  - id: t-77768c
+    status: done
+  - id: t-e8c8e2
+    status: done
+  - id: t-568226
+    status: done
+  - id: t-5e56b0
+    status: done
+  - id: t-927202
+    status: done
+  - id: t-48d78d
+    status: done
+  - id: t-7dffbf
+    status: done
+  - id: t-7321dc
+    status: done
+  - id: t-60761f
+    status: done
+  - id: t-290c47
+    status: done
+  - id: t-a8df02
+    status: done
+  - id: t-6dc8f2
+    status: done

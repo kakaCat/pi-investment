@@ -1,0 +1,45 @@
+task:
+  id: t-ba6005
+  title: 只读库表事实 + 验收命令复跑·分析
+  status: done
+  implements: |-
+    ① 对设计 data-model.md §1 的 6 张表（scheduler_tasks、scheduler_runs、simulation_pending_orders、simulation_trades、simulation_positions、simulation_account）跑只读 SELECT，每条证据记「库名 + SQL + 执行时刻（分钟级）」；② 逐条实跑 design.md §12 的 7 条命令（C1~C7，清单见 decomposition.md §4 t3：3 条 pytest、3 个只读检查器、1 个对账器），记「实跑/不可跑 + 真实退出码 + ≤80 字输出摘要」；不可跑者同行写原因并另起一行给替代判据（标 L4）；③ 跑 pytest 前后各做一次生产库只读计数比对，证明写入只落在 quant_test。产出 docs/requirements/REQ-261006010812-cd19/evidence/a3-calldb-replay.md。
+
+    [子卡阶段·分析] 只做本阶段；验收：结论含置信度与适用边界，并列出被证伪的假设（附支撑数据的命令或 `docs/requirements/<REQ>/` 下证据路径）
+  serves: []
+  depends_on:
+    - t-7b8637
+  phase: analysis
+  side: doc
+  workflow_params:
+    REQ_ID: REQ-261006010812-cd19
+    TASK_ID: t-ba6005
+    TASK_TITLE: 只读库表事实 + 验收命令复跑·分析
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: doc
+    PHASE: analysis
+  workflow_total: 4
+  workflow_done: 4
+  workflow:
+    - phase: analysis
+      status: done
+      completed_at: 2026-10-06T01:30:38.429Z
+    - phase: implement
+      status: done
+      completed_at: 2026-10-06T01:30:36.001Z
+    - phase: test
+      status: done
+      completed_at: 2026-10-06T01:30:38.429Z
+    - phase: commit
+      status: done
+      completed_at: 2026-10-06T01:30:38.429Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006010812-cd19
+  generated_at: 2026-10-06T01:30:32.810Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 4
+  last_updated: 2026-10-06T01:30:38.429Z

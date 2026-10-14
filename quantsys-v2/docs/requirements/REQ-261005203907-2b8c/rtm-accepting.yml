@@ -1,0 +1,163 @@
+metadata:
+  stage: accepting
+  requirement_id: REQ-261005203907-2b8c
+  generated_at: 2026-10-05T13:26:15.925Z
+  version: 3
+  generated_by: dsh-pmboard
+  last_updated: 2026-10-05T13:26:29.624Z
+inputs:
+  tasks:
+    - id: t-dd0d4d
+      title: 门模块与 JobDef 字段（接口先行）
+      status: done
+    - id: t-075116
+      title: 宿主接线：_run_job 跳过早退 + 3 任务置位
+      status: done
+    - id: t-588729
+      title: 晚间管线：因子段局部跳过（K 线段原样）
+      status: done
+    - id: t-dbb9d0
+      title: 兼容与回滚核验（零 DDL / 既有消费者行为）
+      status: done
+    - id: t-6384c0
+      title: 回归 + 真实休市日/复市首日观察
+      status: done
+    - id: t-c8a4bc
+      title: 门模块与 JobDef 字段（接口先行）·研发
+      status: done
+    - id: t-5d3b29
+      title: 门模块与 JobDef 字段（接口先行）·复核
+      status: done
+    - id: t-36bf41
+      title: 门模块与 JobDef 字段（接口先行）·测试
+      status: done
+    - id: t-074a02
+      title: 宿主接线：_run_job 跳过早退 + 3 任务置位·研发
+      status: done
+    - id: t-935496
+      title: 宿主接线：_run_job 跳过早退 + 3 任务置位·复核
+      status: done
+    - id: t-bdfaae
+      title: 宿主接线：_run_job 跳过早退 + 3 任务置位·测试
+      status: done
+    - id: t-e11789
+      title: 晚间管线：因子段局部跳过（K 线段原样）·研发
+      status: done
+    - id: t-c7f120
+      title: 晚间管线：因子段局部跳过（K 线段原样）·复核
+      status: done
+    - id: t-4dec18
+      title: 晚间管线：因子段局部跳过（K 线段原样）·测试
+      status: done
+    - id: t-434c63
+      title: 兼容与回滚核验（零 DDL / 既有消费者行为）·研发
+      status: done
+    - id: t-e199f4
+      title: 兼容与回滚核验（零 DDL / 既有消费者行为）·复核
+      status: done
+    - id: t-0c1cf7
+      title: 兼容与回滚核验（零 DDL / 既有消费者行为）·测试
+      status: done
+    - id: t-d78651
+      title: 回归 + 真实休市日/复市首日观察·研发
+      status: done
+    - id: t-d9d825
+      title: 回归 + 真实休市日/复市首日观察·复核
+      status: done
+    - id: t-bc7a9b
+      title: 回归 + 真实休市日/复市首日观察·测试
+      status: done
+outputs:
+  test_cases:
+    - id: TC-1
+      title: 7. 任务覆盖（covers）
+      covers:
+        - t-dd0d4d
+        - t-c8a4bc
+        - t-5d3b29
+        - t-36bf41
+        - t-075116
+        - t-074a02
+        - t-935496
+        - t-bdfaae
+        - t-588729
+        - t-e11789
+        - t-c7f120
+        - t-4dec18
+        - t-dbb9d0
+        - t-rollback
+        - t-434c63
+        - t-e199f4
+        - t-0c1cf7
+        - t-6384c0
+        - t-d78651
+        - t-d9d825
+        - t-bc7a9b
+      validates: []
+      source: tests/test-evidence.md
+traceability:
+  task_to_tests:
+    t-dd0d4d:
+      - TC-1
+    t-075116:
+      - TC-1
+    t-588729:
+      - TC-1
+    t-dbb9d0:
+      - TC-1
+    t-6384c0:
+      - TC-1
+    t-c8a4bc:
+      - TC-1
+    t-5d3b29:
+      - TC-1
+    t-36bf41:
+      - TC-1
+    t-074a02:
+      - TC-1
+    t-935496:
+      - TC-1
+    t-bdfaae:
+      - TC-1
+    t-e11789:
+      - TC-1
+    t-c7f120:
+      - TC-1
+    t-4dec18:
+      - TC-1
+    t-434c63:
+      - TC-1
+    t-e199f4:
+      - TC-1
+    t-0c1cf7:
+      - TC-1
+    t-d78651:
+      - TC-1
+    t-d9d825:
+      - TC-1
+    t-bc7a9b:
+      - TC-1
+    t-rollback:
+      - TC-1
+  fr_to_tests:
+    FR-1:
+      - TC-1
+    FR-2:
+      - TC-1
+    FR-3:
+      - TC-1
+    FR-4:
+      - TC-1
+    FR-5:
+      - TC-1
+    FR-6:
+      - TC-1
+coverage:
+  testing:
+    total: 20
+    covered: 20
+    uncovered: []
+    rate: 100
+    total_tasks: 20
+    tested_tasks: 20
+    untested: []

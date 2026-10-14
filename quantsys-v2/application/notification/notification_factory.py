@@ -89,8 +89,21 @@ class NotificationFactory:
         policy = cls._create_policy()
         logger.info("创建策略完成")
 
-        # 4. 创建仓储（可选）
-        repository = None  # 暂不实现持久化
+        # 4. 创建仓储：**外发审计**（REQ-261007101318-c392 FR-3）
+        #    此前这里是 `repository = None  # 暂不实现持久化` —— 后果实测：v2 与 agent 侧
+        #    共用同一飞书机器人、盯盘卡又不带署名，于是"谁在几点发了什么"**无处可查**
+        #    （用户 2026-10-07 收到的 688525 卡至今无法归因）。
+        #    装配失败降级为 None（通知照发，只丢审计）——审计是增益，不许成为可用性前提。
+        repository = None
+        try:
+            # 具体 adapter 的装配收在 infrastructure 组合根（分层门禁：application 不直连 adapters）
+            from infrastructure.notification.audit_repository_provider import (
+                create_notification_audit_repository,
+            )
+            repository = create_notification_audit_repository()
+            logger.info("外发审计仓储已装配（quant.notification_audit）")
+        except Exception as e:  # noqa: BLE001 - 审计装配失败不得打断通知栈
+            logger.error("外发审计仓储装配失败（通知照发，审计缺失）", error=str(e))
 
         # 5. 创建领域服务
         service = NotificationService(

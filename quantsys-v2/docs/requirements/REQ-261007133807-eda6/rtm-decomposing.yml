@@ -1,0 +1,1683 @@
+metadata:
+  stage: decomposing
+  requirement_id: REQ-261007133807-eda6
+  generated_at: 2026-10-07T10:44:30.544Z
+  version: 128
+  generated_by: dsh-pmboard
+  rtm_version: "2.0"
+  last_updated: 2026-10-07T11:22:03.694Z
+inputs:
+  requirements: []
+  design_sections:
+    - ref: design/architecture.md#目标与总体方案
+      title: 目标与总体方案 `
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 目标与总体方案
+    - ref: design/architecture.md#模块改动地图
+      title: 模块改动地图 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+      file: design/architecture.md
+      section: 模块改动地图
+    - ref: design/architecture.md#裁决顺序唯一事实源
+      title: 裁决顺序（唯一事实源） `
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 裁决顺序唯一事实源
+    - ref: design/architecture.md#数据流
+      title: 数据流 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/architecture.md
+      section: 数据流
+    - ref: design/architecture.md#单点入口与兼容壳
+      title: 单点入口与兼容壳 `
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 单点入口与兼容壳
+    - ref: design/architecture.md#错误处理与降级
+      title: 错误处理与降级 `
+      serves:
+        - FR-1
+        - FR-2
+      file: design/architecture.md
+      section: 错误处理与降级
+    - ref: design/architecture.md#关键决策与取舍
+      title: 关键决策与取舍 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-4
+      file: design/architecture.md
+      section: 关键决策与取舍
+    - ref: design/architecture.md#测试策略
+      title: 测试策略 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+      file: design/architecture.md
+      section: 测试策略
+    - ref: design/architecture.md#目录结构
+      title: 目录结构 `
+      serves:
+        - FR-1
+        - FR-5
+      file: design/architecture.md
+      section: 目录结构
+    - ref: design/backend.md#服务与接口实现
+      title: 服务与接口实现 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/backend.md
+      section: 服务与接口实现
+    - ref: design/backend.md#数据流
+      title: 数据流 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/backend.md
+      section: 数据流
+    - ref: design/backend.md#关键逻辑
+      title: 关键逻辑 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/backend.md
+      section: 关键逻辑
+    - ref: design/backend.md#S-1-decideescalation-顺序实现
+      title: S-1 `decide_escalation` 顺序实现 `
+      serves:
+        - FR-1
+      file: design/backend.md
+      section: S-1-decideescalation-顺序实现
+    - ref: design/backend.md#S-3-explainescalation-分支
+      title: S-3 `explain_escalation` 分支 `
+      serves:
+        - FR-4
+      file: design/backend.md
+      section: S-3-explainescalation-分支
+    - ref: design/backend.md#S-5-tick-接线改动点
+      title: S-5 tick 接线（改动点） `
+      serves:
+        - FR-1
+        - FR-2
+      file: design/backend.md
+      section: S-5-tick-接线改动点
+    - ref: design/backend.md#S-7-渲染实现要点
+      title: S-7 渲染实现要点 `
+      serves:
+        - FR-3
+      file: design/backend.md
+      section: S-7-渲染实现要点
+    - ref: design/backend.md#错误处理
+      title: 错误处理 `
+      serves:
+        - FR-1
+        - FR-2
+      file: design/backend.md
+      section: 错误处理
+    - ref: design/backend.md#数据库设计
+      title: 数据库设计 `
+      serves:
+        - FR-2
+      file: design/backend.md
+      section: 数据库设计
+    - ref: design/backend.md#新增修改表
+      title: 新增/修改表 `
+      serves:
+        - FR-2
+      file: design/backend.md
+      section: 新增修改表
+    - ref: design/backend.md#字段说明
+      title: 字段说明 `
+      serves:
+        - FR-2
+      file: design/backend.md
+      section: 字段说明
+    - ref: design/backend.md#索引设计
+      title: 索引设计 `
+      serves:
+        - FR-2
+      file: design/backend.md
+      section: 索引设计
+    - ref: design/backend.md#约束说明
+      title: 约束说明 `
+      serves:
+        - FR-2
+      file: design/backend.md
+      section: 约束说明
+    - ref: design/backend.md#性能考量
+      title: 性能考量 `
+      serves:
+        - FR-1
+        - FR-2
+      file: design/backend.md
+      section: 性能考量
+    - ref: design/backend.md#安全设计
+      title: 安全设计 `
+      serves:
+        - FR-4
+      file: design/backend.md
+      section: 安全设计
+    - ref: design/backend.md#鉴权
+      title: 鉴权 `
+      serves:
+        - FR-4
+      file: design/backend.md
+      section: 鉴权
+    - ref: design/backend.md#输入校验
+      title: 输入校验 `
+      serves:
+        - FR-4
+      file: design/backend.md
+      section: 输入校验
+    - ref: design/backend.md#敏感信息
+      title: 敏感信息 `
+      serves:
+        - FR-4
+      file: design/backend.md
+      section: 敏感信息
+    - ref: design/data-model.md#新增修改的数据结构
+      title: 新增/修改的数据结构 `
+      serves:
+        - FR-1
+        - FR-2
+      file: design/data-model.md
+      section: 新增修改的数据结构
+    - ref: design/data-model.md#Verdict领域值对象新增
+      title: Verdict（领域值对象，新增） `
+      serves:
+        - FR-1
+        - FR-2
+      file: design/data-model.md
+      section: Verdict领域值对象新增
+    - ref: design/data-model.md#EscalationCode受控枚举新增
+      title: EscalationCode（受控枚举，新增） `
+      serves:
+        - FR-1
+        - FR-2
+      file: design/data-model.md
+      section: EscalationCode受控枚举新增
+    - ref: design/data-model.md#quantwatchtriggers表变更
+      title: "`quant.watch_triggers`（表变更） `"
+      serves:
+        - FR-2
+      file: design/data-model.md
+      section: quantwatchtriggers表变更
+    - ref: design/data-model.md#EscalationPolicy领域模型显式化
+      title: "`EscalationPolicy`（领域模型，显式化） `"
+      serves:
+        - FR-4
+      file: design/data-model.md
+      section: EscalationPolicy领域模型显式化
+    - ref: design/data-model.md#兼容性分析
+      title: 兼容性分析 `
+      serves:
+        - FR-2
+        - FR-4
+      file: design/data-model.md
+      section: 兼容性分析
+    - ref: design/data-model.md#迁移与回滚
+      title: 迁移与回滚 `
+      serves:
+        - FR-2
+      file: design/data-model.md
+      section: 迁移与回滚
+    - ref: design/data-model.md#关键决策与取舍
+      title: 关键决策与取舍 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-4
+      file: design/data-model.md
+      section: 关键决策与取舍
+    - ref: design/interfaces.md#接口清单
+      title: 接口清单 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/interfaces.md
+      section: 接口清单
+    - ref: design/interfaces.md#裁决出口IF-1
+      title: 裁决出口（IF-1）`
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: 裁决出口IF-1
+    - ref: design/interfaces.md#规则侧说明IF-2
+      title: 规则侧说明（IF-2）`
+      serves:
+        - FR-4
+      file: design/interfaces.md
+      section: 规则侧说明IF-2
+    - ref: design/interfaces.md#落库接口IF-5
+      title: 落库接口（IF-5）`
+      serves:
+        - FR-2
+      file: design/interfaces.md
+      section: 落库接口IF-5
+    - ref: design/interfaces.md#HTTP-API-变更
+      title: HTTP API 变更 `
+      serves:
+        - FR-4
+      file: design/interfaces.md
+      section: HTTP-API-变更
+    - ref: design/interfaces.md#GET-apiwatchrules追加字段
+      title: GET /api/watch/rules（追加字段） `
+      serves:
+        - FR-4
+      file: design/interfaces.md
+      section: GET-apiwatchrules追加字段
+    - ref: design/interfaces.md#POSTPUTPATCH-apiwatchrules缺省显式化
+      title: POST/PUT/PATCH /api/watch/rules（缺省显式化） `
+      serves:
+        - FR-4
+      file: design/interfaces.md
+      section: POSTPUTPATCH-apiwatchrules缺省显式化
+    - ref: design/interfaces.md#卡面渲染契约IF-8
+      title: 卡面渲染契约（IF-8）`
+      serves:
+        - FR-3
+      file: design/interfaces.md
+      section: 卡面渲染契约IF-8
+    - ref: design/interfaces.md#删除的接口
+      title: 删除的接口 `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: 删除的接口
+    - ref: design/interfaces.md#关键决策与取舍
+      title: 关键决策与取舍 `
+      serves:
+        - FR-1
+        - FR-3
+      file: design/interfaces.md
+      section: 关键决策与取舍
+    - ref: design/use-cases.md#场景总览
+      title: 场景总览 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+      file: design/use-cases.md
+      section: 场景总览
+    - ref: design/use-cases.md#UC-1-收到卡片这次为什么叫我
+      title: UC-1 收到卡片：这次为什么叫我 `
+      serves:
+        - FR-3
+      file: design/use-cases.md
+      section: UC-1-收到卡片这次为什么叫我
+    - ref: design/use-cases.md#UC-2-建规则写下什么条件会叫我
+      title: UC-2 建规则：写下"什么条件会叫我" `
+      serves:
+        - FR-4
+      file: design/use-cases.md
+      section: UC-2-建规则写下什么条件会叫我
+    - ref: design/use-cases.md#UC-3-排障一条-SQL-回答因果
+      title: UC-3 排障：一条 SQL 回答因果 `
+      serves:
+        - FR-2
+      file: design/use-cases.md
+      section: UC-3-排障一条-SQL-回答因果
+    - ref: design/use-cases.md#UC-4-改口径只改一处
+      title: UC-4 改口径：只改一处 `
+      serves:
+        - FR-1
+        - FR-5
+      file: design/use-cases.md
+      section: UC-4-改口径只改一处
+    - ref: design/use-cases.md#UC-5-被压掉的触发原判可查
+      title: UC-5 被压掉的触发：原判可查 `
+      serves:
+        - FR-2
+      file: design/use-cases.md
+      section: UC-5-被压掉的触发原判可查
+    - ref: design/use-cases.md#关键决策与取舍
+      title: 关键决策与取舍 `
+      serves:
+        - FR-3
+        - FR-4
+      file: design/use-cases.md
+      section: 关键决策与取舍
+    - ref: design/use-cases.md#技术方案与亮点
+      title: 技术方案与亮点 `
+      serves:
+        - FR-1
+        - FR-2
+      file: design/use-cases.md
+      section: 技术方案与亮点
+outputs:
+  tasks:
+    - id: t-d24cfb
+      title: 落码表与裁决结果契约（EscalationCode + Verdict）
+      implements: 新建 domain/watch/services/escalation_verdict.py：先落 EscalationCode（15 个受控码 + ALL + PATH_LABEL 映射）与 frozen dataclass Verdict(should_wake, code, reason, path, note) 及 overridden()；不写裁决逻辑。测试 tests/services/test_watch_escalation_verdict.py 先写码表断言（15 值、PATH_LABEL 覆盖全部码、Verdict 不可变）。
+      serves:
+        - FR-1
+        - FR-2
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-2f1402
+      title: 收敛出唯一裁决出口 decide_escalation（15 条顺序表）
+      implements: 在 domain/watch/services/escalation_verdict.py 补 decide_escalation（宪法级 → 预算 → 规则显式 → 异常波动 → L2 → 元触发 → 五道门 → 兜底）与 decide_escalation_paths（仅三条可信路径，含 L0/L1 与 auto_escalate 短路）；三条路径与文案自 domain/watch/services/escalation_checker.py 迁入且逐字保留；metric 不符沿用 require_metric 抛错。tests/services/test_watch_escalation_verdict.py 补 15 行真值表与跨入口一致性用例。
+      serves:
+        - FR-1
+      depends_on:
+        - t-d24cfb
+      phase: implement
+      side: backend
+    - id: t-152a0b
+      title: 规则侧显式化与人话说明（explain_escalation + 默认值显式化）
+      implements: domain/watch/models.py：EscalationPolicy.default() 改为显式含 anomaly_change_pct（取 EscalationChecker.DEFAULT_ANOMALY_CHANGE_PCT 常量，不手写 5.0），新增 to_dict() 只输出 auto_escalate 与 anomaly_change_pct（不回写历史字段）。在 escalation_verdict.py 新增 explain_escalation(rule) -> str，按 L2 / auto_escalate 关闭 / 显式 escalate / 阈值覆写 / 策略未声明 分支给一句人话；策略缺失时返回「策略未声明（按默认口径）」而非空串。测试 tests/domain/test_escalation_policy_defaults.py。
+      serves:
+        - FR-4
+      depends_on:
+        - t-d24cfb
+      phase: implement
+      side: backend
+    - id: t-fa9574
+      title: 兼容壳：EscalationChecker.should_escalate 委托出口
+      implements: domain/watch/services/escalation_checker.py 改为薄壳：should_escalate 内部委托 decide_escalation_paths，返回 reason 字符串或 None，签名与文案逐字不变；构造参数 anomaly_change_pct 保留。既有用例 tests/services/test_escalation_checker.py 与 tests/services/test_metric_contract.py 一行不改。
+      serves:
+        - FR-1
+      depends_on:
+        - t-2f1402
+      phase: implement
+      side: backend
+    - id: t-2fbc40
+      title: 处置映射：disposition.decide 接受 Verdict
+      implements: domain/watch/services/disposition.py：decide() 增可选参数 verdict；给定时按 Verdict 映射为既有 disposition 取值与既有中文文案，未给定时内部调 decide_escalation（行为同改造前，兼容 escalated / escalation_reason 两个旧参数）。application/services/watch_engine/disposition_engine.py 透传 verdict。
+      serves:
+        - FR-1
+      depends_on:
+        - t-2f1402
+      phase: implement
+      side: backend
+    - id: t-08d545
+      title: tick() 单链路接线（裁决 → 处置 → 去重覆盖 → 通知）
+      implements: application/services/watch_engine/engine.py：把 escalation.check 换成 decide_escalation（gate 用既有字段组装），disposition.decide 传 verdict；去重与抑噪命中时用 Verdict.overridden 覆盖为 DEDUPED / SUPPRESSED 并把原判写进 reason；events 增 escalation_code 键（不改既有键）。application/services/watch_engine/escalation_coordinator.py 退回数据收集（组装 QuoteData 与 trigger_level），check() 保留兼容。
+      serves:
+        - FR-1
+        - FR-2
+      depends_on:
+        - t-fa9574
+        - t-2fbc40
+      phase: implement
+      side: backend
+    - id: t-761703
+      title: 迁移：watch_triggers 加两列（两个库都跑）
+      implements: 新建 infrastructure/persistence/migrations/20261007_watch_trigger_escalation.py：SET lock_timeout='30s' 后 ADD COLUMN IF NOT EXISTS escalation_code TEXT / escalation_reason TEXT，幂等，--apply 后打印 information_schema 读数；adapters/outbound/repositories/watch_rule_repository.py 的 WatchTrigger 模型同步加两列。两个库（quant_test 与 quant_investment）都要执行。
+      serves:
+        - FR-2
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-fc92ab
+      title: 落库两列 + 通知变量透传
+      implements: adapters/outbound/repositories/watch_rule_repository.py 的 WatchTriggerRepository.record 增 escalation_code / escalation_reason 两参数；application/services/watch_engine/notifier.py 的 _record 写入两列、TriggerPayload 增 escalation_code；application/services/watch_engine/dto.py 与 application/notification/notification_facade.py 把 escalation_code 透传进通知变量。写库失败只留痕不阻断。
+      serves:
+        - FR-2
+      depends_on:
+        - t-08d545
+        - t-761703
+      phase: implement
+      side: backend
+    - id: t-ba3f1f
+      title: 卡面「升级原因」行（旧渲染 + 分级渲染两条路径）
+      implements: infrastructure/notification/formatters/watch_level_templates.py：WatchCardItem 增 escalation_code / escalation_reason 两字段，card_item_from_variables 取值，_skeleton_lines 在「处置」行后插入 _escalation_line；infrastructure/notification/formatters/feishu_formatters.py 旧渲染路径同样追加该行（同一条件表：无理由隐藏、只有码显示码）。行序保持 c392 四段契约不变。
+      serves:
+        - FR-3
+      depends_on:
+        - t-08d545
+      phase: implement
+      side: backend
+    - id: t-9cd059
+      title: 规则写入口缺省显式化（含批量与输入校验）
+      implements: adapters/inbound/fastapi_app/routes/watch_async.py：新建规则走单一路由 POST /api/watch/rules，缺省或 null 的 escalation_policy 一律写入 EscalationPolicy.default().to_dict()（同文件的 PUT/PATCH 与批量分支复用同一 helper，不改各自的字段白名单）；新增校验 anomaly_change_pct 必须为正数、auto_escalate 可解析为布尔。测试 tests/adapters/test_watch_rules_api_policy.py。
+      serves:
+        - FR-4
+      depends_on:
+        - t-152a0b
+      phase: implement
+      side: backend
+    - id: t-7c7d38
+      title: 规则读接口回显「何时会叫我」
+      implements: adapters/inbound/fastapi_app/routes/watch_async.py 的列表路由 GET /api/watch/rules 在响应条目追加 escalation_explain 字段（由 explain_escalation 计算，纯读不写库），既有 escalation_policy 等字段原样保留；旧规则策略为 NULL 时说明写「策略未声明（按默认口径）」且不回写库。
+      serves:
+        - FR-4
+      depends_on:
+        - t-9cd059
+      phase: implement
+      side: backend
+    - id: t-435423
+      title: 判据文档与码表同源（修陈旧文案 + 契约判据表）
+      implements: docs/architecture/watch-notification-contract.md 的已知瑕疵节换成「何时叫 agent 判据表」，逐行对应 EscalationCode 的码与是否叫；application/services/opportunity_to_watch_rule_service.py 的模块 docstring 删掉已删除的「触发频率异常时升级」表述；新增测试 tests/services/test_watch_contract_parity.py 断言文档判据表的码集合与代码码表一致。本卡无运行时接口面。
+      serves:
+        - FR-5
+      depends_on:
+        - t-2f1402
+      phase: doc
+      side: doc
+    - id: t-8097f7
+      title: 端到端验收：触发 → 库有码 → 卡有理由（含唤醒量回归锁）
+      implements: 新增 tests/application/test_watch_escalation_e2e.py：用冻结时钟与桩外发跑一次完整触发（不真实交易日、不真实外发），断言触发记录带 code 与 reason、卡面正文含「升级原因」、通知守卫记账为声明值；作为结单卡汇总跑不破现状全套与两条结构判据（无第二处 L2 叫醒、陈旧文案归零）。
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+      depends_on:
+        - t-fc92ab
+        - t-ba3f1f
+        - t-7c7d38
+        - t-435423
+      phase: test
+      side: backend
+    - id: t-339754
+      title: 落码表与裁决结果契约（EscalationCode + Verdict）·研发
+      implements: |-
+        新建 domain/watch/services/escalation_verdict.py：先落 EscalationCode（15 个受控码 + ALL + PATH_LABEL 映射）与 frozen dataclass Verdict(should_wake, code, reason, path, note) 及 overridden()；不写裁决逻辑。测试 tests/services/test_watch_escalation_verdict.py 先写码表断言（15 值、PATH_LABEL 覆盖全部码、Verdict 不可变）。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-17bdf7
+      title: 落码表与裁决结果契约（EscalationCode + Verdict）·联调
+      implements: |-
+        新建 domain/watch/services/escalation_verdict.py：先落 EscalationCode（15 个受控码 + ALL + PATH_LABEL 映射）与 frozen dataclass Verdict(should_wake, code, reason, path, note) 及 overridden()；不写裁决逻辑。测试 tests/services/test_watch_escalation_verdict.py 先写码表断言（15 值、PATH_LABEL 覆盖全部码、Verdict 不可变）。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run tests/` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-339754
+      phase: implement
+      side: backend
+    - id: t-53b2de
+      title: 落码表与裁决结果契约（EscalationCode + Verdict）·复核
+      implements: |-
+        新建 domain/watch/services/escalation_verdict.py：先落 EscalationCode（15 个受控码 + ALL + PATH_LABEL 映射）与 frozen dataclass Verdict(should_wake, code, reason, path, note) 及 overridden()；不写裁决逻辑。测试 tests/services/test_watch_escalation_verdict.py 先写码表断言（15 值、PATH_LABEL 覆盖全部码、Verdict 不可变）。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/REQ-261007133807-eda6/design/` 逐条核对；`npx vitest run tests/` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-17bdf7
+      phase: implement
+      side: backend
+    - id: t-a60ba4
+      title: 落码表与裁决结果契约（EscalationCode + Verdict）·测试
+      implements: |-
+        新建 domain/watch/services/escalation_verdict.py：先落 EscalationCode（15 个受控码 + ALL + PATH_LABEL 映射）与 frozen dataclass Verdict(should_wake, code, reason, path, note) 及 overridden()；不写裁决逻辑。测试 tests/services/test_watch_escalation_verdict.py 先写码表断言（15 值、PATH_LABEL 覆盖全部码、Verdict 不可变）。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-53b2de
+      phase: implement
+      side: backend
+    - id: t-9b357b
+      title: 迁移：watch_triggers 加两列（两个库都跑）·研发
+      implements: |-
+        新建 infrastructure/persistence/migrations/20261007_watch_trigger_escalation.py：SET lock_timeout='30s' 后 ADD COLUMN IF NOT EXISTS escalation_code TEXT / escalation_reason TEXT，幂等，--apply 后打印 information_schema 读数；adapters/outbound/repositories/watch_rule_repository.py 的 WatchTrigger 模型同步加两列。两个库（quant_test 与 quant_investment）都要执行。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-6aad65
+      title: 迁移：watch_triggers 加两列（两个库都跑）·联调
+      implements: |-
+        新建 infrastructure/persistence/migrations/20261007_watch_trigger_escalation.py：SET lock_timeout='30s' 后 ADD COLUMN IF NOT EXISTS escalation_code TEXT / escalation_reason TEXT，幂等，--apply 后打印 information_schema 读数；adapters/outbound/repositories/watch_rule_repository.py 的 WatchTrigger 模型同步加两列。两个库（quant_test 与 quant_investment）都要执行。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run tests/` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-9b357b
+      phase: implement
+      side: backend
+    - id: t-7317cc
+      title: 迁移：watch_triggers 加两列（两个库都跑）·复核
+      implements: |-
+        新建 infrastructure/persistence/migrations/20261007_watch_trigger_escalation.py：SET lock_timeout='30s' 后 ADD COLUMN IF NOT EXISTS escalation_code TEXT / escalation_reason TEXT，幂等，--apply 后打印 information_schema 读数；adapters/outbound/repositories/watch_rule_repository.py 的 WatchTrigger 模型同步加两列。两个库（quant_test 与 quant_investment）都要执行。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/REQ-261007133807-eda6/design/` 逐条核对；`npx vitest run tests/` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-6aad65
+      phase: implement
+      side: backend
+    - id: t-1e0992
+      title: 迁移：watch_triggers 加两列（两个库都跑）·测试
+      implements: |-
+        新建 infrastructure/persistence/migrations/20261007_watch_trigger_escalation.py：SET lock_timeout='30s' 后 ADD COLUMN IF NOT EXISTS escalation_code TEXT / escalation_reason TEXT，幂等，--apply 后打印 information_schema 读数；adapters/outbound/repositories/watch_rule_repository.py 的 WatchTrigger 模型同步加两列。两个库（quant_test 与 quant_investment）都要执行。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-7317cc
+      phase: implement
+      side: backend
+    - id: t-d9eb91
+      title: 收敛出唯一裁决出口 decide_escalation（15 条顺序表）·研发
+      implements: |-
+        在 domain/watch/services/escalation_verdict.py 补 decide_escalation（宪法级 → 预算 → 规则显式 → 异常波动 → L2 → 元触发 → 五道门 → 兜底）与 decide_escalation_paths（仅三条可信路径，含 L0/L1 与 auto_escalate 短路）；三条路径与文案自 domain/watch/services/escalation_checker.py 迁入且逐字保留；metric 不符沿用 require_metric 抛错。tests/services/test_watch_escalation_verdict.py 补 15 行真值表与跨入口一致性用例。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-d24cfb
+      phase: implement
+      side: backend
+    - id: t-1d6cdd
+      title: 收敛出唯一裁决出口 decide_escalation（15 条顺序表）·联调
+      implements: |-
+        在 domain/watch/services/escalation_verdict.py 补 decide_escalation（宪法级 → 预算 → 规则显式 → 异常波动 → L2 → 元触发 → 五道门 → 兜底）与 decide_escalation_paths（仅三条可信路径，含 L0/L1 与 auto_escalate 短路）；三条路径与文案自 domain/watch/services/escalation_checker.py 迁入且逐字保留；metric 不符沿用 require_metric 抛错。tests/services/test_watch_escalation_verdict.py 补 15 行真值表与跨入口一致性用例。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run tests/` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-d9eb91
+      phase: implement
+      side: backend
+    - id: t-e67b0f
+      title: 收敛出唯一裁决出口 decide_escalation（15 条顺序表）·复核
+      implements: |-
+        在 domain/watch/services/escalation_verdict.py 补 decide_escalation（宪法级 → 预算 → 规则显式 → 异常波动 → L2 → 元触发 → 五道门 → 兜底）与 decide_escalation_paths（仅三条可信路径，含 L0/L1 与 auto_escalate 短路）；三条路径与文案自 domain/watch/services/escalation_checker.py 迁入且逐字保留；metric 不符沿用 require_metric 抛错。tests/services/test_watch_escalation_verdict.py 补 15 行真值表与跨入口一致性用例。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/REQ-261007133807-eda6/design/` 逐条核对；`npx vitest run tests/` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-1d6cdd
+      phase: implement
+      side: backend
+    - id: t-fff73f
+      title: 收敛出唯一裁决出口 decide_escalation（15 条顺序表）·测试
+      implements: |-
+        在 domain/watch/services/escalation_verdict.py 补 decide_escalation（宪法级 → 预算 → 规则显式 → 异常波动 → L2 → 元触发 → 五道门 → 兜底）与 decide_escalation_paths（仅三条可信路径，含 L0/L1 与 auto_escalate 短路）；三条路径与文案自 domain/watch/services/escalation_checker.py 迁入且逐字保留；metric 不符沿用 require_metric 抛错。tests/services/test_watch_escalation_verdict.py 补 15 行真值表与跨入口一致性用例。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-e67b0f
+      phase: implement
+      side: backend
+    - id: t-176084
+      title: 规则侧显式化与人话说明（explain_escalation + 默认值显式化）·研发
+      implements: |-
+        domain/watch/models.py：EscalationPolicy.default() 改为显式含 anomaly_change_pct（取 EscalationChecker.DEFAULT_ANOMALY_CHANGE_PCT 常量，不手写 5.0），新增 to_dict() 只输出 auto_escalate 与 anomaly_change_pct（不回写历史字段）。在 escalation_verdict.py 新增 explain_escalation(rule) -> str，按 L2 / auto_escalate 关闭 / 显式 escalate / 阈值覆写 / 策略未声明 分支给一句人话；策略缺失时返回「策略未声明（按默认口径）」而非空串。测试 tests/domain/test_escalation_policy_defaults.py。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-d24cfb
+      phase: implement
+      side: backend
+    - id: t-3f6454
+      title: 规则侧显式化与人话说明（explain_escalation + 默认值显式化）·联调
+      implements: |-
+        domain/watch/models.py：EscalationPolicy.default() 改为显式含 anomaly_change_pct（取 EscalationChecker.DEFAULT_ANOMALY_CHANGE_PCT 常量，不手写 5.0），新增 to_dict() 只输出 auto_escalate 与 anomaly_change_pct（不回写历史字段）。在 escalation_verdict.py 新增 explain_escalation(rule) -> str，按 L2 / auto_escalate 关闭 / 显式 escalate / 阈值覆写 / 策略未声明 分支给一句人话；策略缺失时返回「策略未声明（按默认口径）」而非空串。测试 tests/domain/test_escalation_policy_defaults.py。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run tests/` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-176084
+      phase: implement
+      side: backend
+    - id: t-c1b8a8
+      title: 规则侧显式化与人话说明（explain_escalation + 默认值显式化）·复核
+      implements: |-
+        domain/watch/models.py：EscalationPolicy.default() 改为显式含 anomaly_change_pct（取 EscalationChecker.DEFAULT_ANOMALY_CHANGE_PCT 常量，不手写 5.0），新增 to_dict() 只输出 auto_escalate 与 anomaly_change_pct（不回写历史字段）。在 escalation_verdict.py 新增 explain_escalation(rule) -> str，按 L2 / auto_escalate 关闭 / 显式 escalate / 阈值覆写 / 策略未声明 分支给一句人话；策略缺失时返回「策略未声明（按默认口径）」而非空串。测试 tests/domain/test_escalation_policy_defaults.py。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/REQ-261007133807-eda6/design/` 逐条核对；`npx vitest run tests/` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-3f6454
+      phase: implement
+      side: backend
+    - id: t-6e3c11
+      title: 规则侧显式化与人话说明（explain_escalation + 默认值显式化）·测试
+      implements: |-
+        domain/watch/models.py：EscalationPolicy.default() 改为显式含 anomaly_change_pct（取 EscalationChecker.DEFAULT_ANOMALY_CHANGE_PCT 常量，不手写 5.0），新增 to_dict() 只输出 auto_escalate 与 anomaly_change_pct（不回写历史字段）。在 escalation_verdict.py 新增 explain_escalation(rule) -> str，按 L2 / auto_escalate 关闭 / 显式 escalate / 阈值覆写 / 策略未声明 分支给一句人话；策略缺失时返回「策略未声明（按默认口径）」而非空串。测试 tests/domain/test_escalation_policy_defaults.py。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-c1b8a8
+      phase: implement
+      side: backend
+    - id: t-7713e4
+      title: 兼容壳：EscalationChecker.should_escalate 委托出口·研发
+      implements: |-
+        domain/watch/services/escalation_checker.py 改为薄壳：should_escalate 内部委托 decide_escalation_paths，返回 reason 字符串或 None，签名与文案逐字不变；构造参数 anomaly_change_pct 保留。既有用例 tests/services/test_escalation_checker.py 与 tests/services/test_metric_contract.py 一行不改。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-2f1402
+      phase: implement
+      side: backend
+    - id: t-a08bf2
+      title: 兼容壳：EscalationChecker.should_escalate 委托出口·联调
+      implements: |-
+        domain/watch/services/escalation_checker.py 改为薄壳：should_escalate 内部委托 decide_escalation_paths，返回 reason 字符串或 None，签名与文案逐字不变；构造参数 anomaly_change_pct 保留。既有用例 tests/services/test_escalation_checker.py 与 tests/services/test_metric_contract.py 一行不改。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run tests/` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-7713e4
+      phase: implement
+      side: backend
+    - id: t-38caaa
+      title: 兼容壳：EscalationChecker.should_escalate 委托出口·复核
+      implements: |-
+        domain/watch/services/escalation_checker.py 改为薄壳：should_escalate 内部委托 decide_escalation_paths，返回 reason 字符串或 None，签名与文案逐字不变；构造参数 anomaly_change_pct 保留。既有用例 tests/services/test_escalation_checker.py 与 tests/services/test_metric_contract.py 一行不改。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/REQ-261007133807-eda6/design/` 逐条核对；`npx vitest run tests/` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-a08bf2
+      phase: implement
+      side: backend
+    - id: t-70b182
+      title: 兼容壳：EscalationChecker.should_escalate 委托出口·测试
+      implements: |-
+        domain/watch/services/escalation_checker.py 改为薄壳：should_escalate 内部委托 decide_escalation_paths，返回 reason 字符串或 None，签名与文案逐字不变；构造参数 anomaly_change_pct 保留。既有用例 tests/services/test_escalation_checker.py 与 tests/services/test_metric_contract.py 一行不改。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-38caaa
+      phase: implement
+      side: backend
+    - id: t-8fd357
+      title: 处置映射：disposition.decide 接受 Verdict·研发
+      implements: |-
+        domain/watch/services/disposition.py：decide() 增可选参数 verdict；给定时按 Verdict 映射为既有 disposition 取值与既有中文文案，未给定时内部调 decide_escalation（行为同改造前，兼容 escalated / escalation_reason 两个旧参数）。application/services/watch_engine/disposition_engine.py 透传 verdict。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-2f1402
+      phase: implement
+      side: backend
+    - id: t-5a3bc9
+      title: 处置映射：disposition.decide 接受 Verdict·联调
+      implements: |-
+        domain/watch/services/disposition.py：decide() 增可选参数 verdict；给定时按 Verdict 映射为既有 disposition 取值与既有中文文案，未给定时内部调 decide_escalation（行为同改造前，兼容 escalated / escalation_reason 两个旧参数）。application/services/watch_engine/disposition_engine.py 透传 verdict。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run tests/` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-8fd357
+      phase: implement
+      side: backend
+    - id: t-7c7aef
+      title: 处置映射：disposition.decide 接受 Verdict·复核
+      implements: |-
+        domain/watch/services/disposition.py：decide() 增可选参数 verdict；给定时按 Verdict 映射为既有 disposition 取值与既有中文文案，未给定时内部调 decide_escalation（行为同改造前，兼容 escalated / escalation_reason 两个旧参数）。application/services/watch_engine/disposition_engine.py 透传 verdict。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/REQ-261007133807-eda6/design/` 逐条核对；`npx vitest run tests/` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-5a3bc9
+      phase: implement
+      side: backend
+    - id: t-dd547b
+      title: 处置映射：disposition.decide 接受 Verdict·测试
+      implements: |-
+        domain/watch/services/disposition.py：decide() 增可选参数 verdict；给定时按 Verdict 映射为既有 disposition 取值与既有中文文案，未给定时内部调 decide_escalation（行为同改造前，兼容 escalated / escalation_reason 两个旧参数）。application/services/watch_engine/disposition_engine.py 透传 verdict。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-7c7aef
+      phase: implement
+      side: backend
+    - id: t-528cc7
+      title: tick() 单链路接线（裁决 → 处置 → 去重覆盖 → 通知）·研发
+      implements: |-
+        application/services/watch_engine/engine.py：把 escalation.check 换成 decide_escalation（gate 用既有字段组装），disposition.decide 传 verdict；去重与抑噪命中时用 Verdict.overridden 覆盖为 DEDUPED / SUPPRESSED 并把原判写进 reason；events 增 escalation_code 键（不改既有键）。application/services/watch_engine/escalation_coordinator.py 退回数据收集（组装 QuoteData 与 trigger_level），check() 保留兼容。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-fa9574
+        - t-2fbc40
+      phase: implement
+      side: backend
+    - id: t-b5a2f9
+      title: tick() 单链路接线（裁决 → 处置 → 去重覆盖 → 通知）·联调
+      implements: |-
+        application/services/watch_engine/engine.py：把 escalation.check 换成 decide_escalation（gate 用既有字段组装），disposition.decide 传 verdict；去重与抑噪命中时用 Verdict.overridden 覆盖为 DEDUPED / SUPPRESSED 并把原判写进 reason；events 增 escalation_code 键（不改既有键）。application/services/watch_engine/escalation_coordinator.py 退回数据收集（组装 QuoteData 与 trigger_level），check() 保留兼容。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run tests/` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-528cc7
+      phase: implement
+      side: backend
+    - id: t-0b0f61
+      title: tick() 单链路接线（裁决 → 处置 → 去重覆盖 → 通知）·复核
+      implements: |-
+        application/services/watch_engine/engine.py：把 escalation.check 换成 decide_escalation（gate 用既有字段组装），disposition.decide 传 verdict；去重与抑噪命中时用 Verdict.overridden 覆盖为 DEDUPED / SUPPRESSED 并把原判写进 reason；events 增 escalation_code 键（不改既有键）。application/services/watch_engine/escalation_coordinator.py 退回数据收集（组装 QuoteData 与 trigger_level），check() 保留兼容。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/REQ-261007133807-eda6/design/` 逐条核对；`npx vitest run tests/` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-b5a2f9
+      phase: implement
+      side: backend
+    - id: t-90f6dc
+      title: tick() 单链路接线（裁决 → 处置 → 去重覆盖 → 通知）·测试
+      implements: |-
+        application/services/watch_engine/engine.py：把 escalation.check 换成 decide_escalation（gate 用既有字段组装），disposition.decide 传 verdict；去重与抑噪命中时用 Verdict.overridden 覆盖为 DEDUPED / SUPPRESSED 并把原判写进 reason；events 增 escalation_code 键（不改既有键）。application/services/watch_engine/escalation_coordinator.py 退回数据收集（组装 QuoteData 与 trigger_level），check() 保留兼容。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-0b0f61
+      phase: implement
+      side: backend
+    - id: t-07f5f0
+      title: 规则写入口缺省显式化（含批量与输入校验）·研发
+      implements: |-
+        adapters/inbound/fastapi_app/routes/watch_async.py：新建规则走单一路由 POST /api/watch/rules，缺省或 null 的 escalation_policy 一律写入 EscalationPolicy.default().to_dict()（同文件的 PUT/PATCH 与批量分支复用同一 helper，不改各自的字段白名单）；新增校验 anomaly_change_pct 必须为正数、auto_escalate 可解析为布尔。测试 tests/adapters/test_watch_rules_api_policy.py。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-152a0b
+      phase: implement
+      side: backend
+    - id: t-a2c6e5
+      title: 规则写入口缺省显式化（含批量与输入校验）·联调
+      implements: |-
+        adapters/inbound/fastapi_app/routes/watch_async.py：新建规则走单一路由 POST /api/watch/rules，缺省或 null 的 escalation_policy 一律写入 EscalationPolicy.default().to_dict()（同文件的 PUT/PATCH 与批量分支复用同一 helper，不改各自的字段白名单）；新增校验 anomaly_change_pct 必须为正数、auto_escalate 可解析为布尔。测试 tests/adapters/test_watch_rules_api_policy.py。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run tests/` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-07f5f0
+      phase: implement
+      side: backend
+    - id: t-2dc03f
+      title: 规则写入口缺省显式化（含批量与输入校验）·复核
+      implements: |-
+        adapters/inbound/fastapi_app/routes/watch_async.py：新建规则走单一路由 POST /api/watch/rules，缺省或 null 的 escalation_policy 一律写入 EscalationPolicy.default().to_dict()（同文件的 PUT/PATCH 与批量分支复用同一 helper，不改各自的字段白名单）；新增校验 anomaly_change_pct 必须为正数、auto_escalate 可解析为布尔。测试 tests/adapters/test_watch_rules_api_policy.py。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/REQ-261007133807-eda6/design/` 逐条核对；`npx vitest run tests/` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-a2c6e5
+      phase: implement
+      side: backend
+    - id: t-f7cd30
+      title: 规则写入口缺省显式化（含批量与输入校验）·测试
+      implements: |-
+        adapters/inbound/fastapi_app/routes/watch_async.py：新建规则走单一路由 POST /api/watch/rules，缺省或 null 的 escalation_policy 一律写入 EscalationPolicy.default().to_dict()（同文件的 PUT/PATCH 与批量分支复用同一 helper，不改各自的字段白名单）；新增校验 anomaly_change_pct 必须为正数、auto_escalate 可解析为布尔。测试 tests/adapters/test_watch_rules_api_policy.py。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-2dc03f
+      phase: implement
+      side: backend
+    - id: t-c19f4f
+      title: 判据文档与码表同源（修陈旧文案 + 契约判据表）·研发
+      implements: |-
+        docs/architecture/watch-notification-contract.md 的已知瑕疵节换成「何时叫 agent 判据表」，逐行对应 EscalationCode 的码与是否叫；application/services/opportunity_to_watch_rule_service.py 的模块 docstring 删掉已删除的「触发频率异常时升级」表述；新增测试 tests/services/test_watch_contract_parity.py 断言文档判据表的码集合与代码码表一致。本卡无运行时接口面。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-2f1402
+      phase: doc
+      side: doc
+    - id: t-a85be6
+      title: 判据文档与码表同源（修陈旧文案 + 契约判据表）·复核
+      implements: |-
+        docs/architecture/watch-notification-contract.md 的已知瑕疵节换成「何时叫 agent 判据表」，逐行对应 EscalationCode 的码与是否叫；application/services/opportunity_to_watch_rule_service.py 的模块 docstring 删掉已删除的「触发频率异常时升级」表述；新增测试 tests/services/test_watch_contract_parity.py 断言文档判据表的码集合与代码码表一致。本卡无运行时接口面。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/REQ-261007133807-eda6/design/` 逐条核对；`npx vitest run tests/` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-c19f4f
+      phase: doc
+      side: doc
+    - id: t-b3dcd8
+      title: 落库两列 + 通知变量透传·研发
+      implements: |-
+        adapters/outbound/repositories/watch_rule_repository.py 的 WatchTriggerRepository.record 增 escalation_code / escalation_reason 两参数；application/services/watch_engine/notifier.py 的 _record 写入两列、TriggerPayload 增 escalation_code；application/services/watch_engine/dto.py 与 application/notification/notification_facade.py 把 escalation_code 透传进通知变量。写库失败只留痕不阻断。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-08d545
+        - t-761703
+      phase: implement
+      side: backend
+    - id: t-4e7a83
+      title: 落库两列 + 通知变量透传·联调
+      implements: |-
+        adapters/outbound/repositories/watch_rule_repository.py 的 WatchTriggerRepository.record 增 escalation_code / escalation_reason 两参数；application/services/watch_engine/notifier.py 的 _record 写入两列、TriggerPayload 增 escalation_code；application/services/watch_engine/dto.py 与 application/notification/notification_facade.py 把 escalation_code 透传进通知变量。写库失败只留痕不阻断。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run tests/` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-b3dcd8
+      phase: implement
+      side: backend
+    - id: t-c31200
+      title: 落库两列 + 通知变量透传·复核
+      implements: |-
+        adapters/outbound/repositories/watch_rule_repository.py 的 WatchTriggerRepository.record 增 escalation_code / escalation_reason 两参数；application/services/watch_engine/notifier.py 的 _record 写入两列、TriggerPayload 增 escalation_code；application/services/watch_engine/dto.py 与 application/notification/notification_facade.py 把 escalation_code 透传进通知变量。写库失败只留痕不阻断。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/REQ-261007133807-eda6/design/` 逐条核对；`npx vitest run tests/` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-4e7a83
+      phase: implement
+      side: backend
+    - id: t-ee89ed
+      title: 落库两列 + 通知变量透传·测试
+      implements: |-
+        adapters/outbound/repositories/watch_rule_repository.py 的 WatchTriggerRepository.record 增 escalation_code / escalation_reason 两参数；application/services/watch_engine/notifier.py 的 _record 写入两列、TriggerPayload 增 escalation_code；application/services/watch_engine/dto.py 与 application/notification/notification_facade.py 把 escalation_code 透传进通知变量。写库失败只留痕不阻断。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-c31200
+      phase: implement
+      side: backend
+    - id: t-0fb46d
+      title: 卡面「升级原因」行（旧渲染 + 分级渲染两条路径）·研发
+      implements: |-
+        infrastructure/notification/formatters/watch_level_templates.py：WatchCardItem 增 escalation_code / escalation_reason 两字段，card_item_from_variables 取值，_skeleton_lines 在「处置」行后插入 _escalation_line；infrastructure/notification/formatters/feishu_formatters.py 旧渲染路径同样追加该行（同一条件表：无理由隐藏、只有码显示码）。行序保持 c392 四段契约不变。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-08d545
+      phase: implement
+      side: backend
+    - id: t-56465e
+      title: 卡面「升级原因」行（旧渲染 + 分级渲染两条路径）·联调
+      implements: |-
+        infrastructure/notification/formatters/watch_level_templates.py：WatchCardItem 增 escalation_code / escalation_reason 两字段，card_item_from_variables 取值，_skeleton_lines 在「处置」行后插入 _escalation_line；infrastructure/notification/formatters/feishu_formatters.py 旧渲染路径同样追加该行（同一条件表：无理由隐藏、只有码显示码）。行序保持 c392 四段契约不变。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run tests/` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-0fb46d
+      phase: implement
+      side: backend
+    - id: t-6ed558
+      title: 卡面「升级原因」行（旧渲染 + 分级渲染两条路径）·复核
+      implements: |-
+        infrastructure/notification/formatters/watch_level_templates.py：WatchCardItem 增 escalation_code / escalation_reason 两字段，card_item_from_variables 取值，_skeleton_lines 在「处置」行后插入 _escalation_line；infrastructure/notification/formatters/feishu_formatters.py 旧渲染路径同样追加该行（同一条件表：无理由隐藏、只有码显示码）。行序保持 c392 四段契约不变。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/REQ-261007133807-eda6/design/` 逐条核对；`npx vitest run tests/` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-56465e
+      phase: implement
+      side: backend
+    - id: t-0f1e0e
+      title: 卡面「升级原因」行（旧渲染 + 分级渲染两条路径）·测试
+      implements: |-
+        infrastructure/notification/formatters/watch_level_templates.py：WatchCardItem 增 escalation_code / escalation_reason 两字段，card_item_from_variables 取值，_skeleton_lines 在「处置」行后插入 _escalation_line；infrastructure/notification/formatters/feishu_formatters.py 旧渲染路径同样追加该行（同一条件表：无理由隐藏、只有码显示码）。行序保持 c392 四段契约不变。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-6ed558
+      phase: implement
+      side: backend
+    - id: t-e717ca
+      title: 规则读接口回显「何时会叫我」·研发
+      implements: |-
+        adapters/inbound/fastapi_app/routes/watch_async.py 的列表路由 GET /api/watch/rules 在响应条目追加 escalation_explain 字段（由 explain_escalation 计算，纯读不写库），既有 escalation_policy 等字段原样保留；旧规则策略为 NULL 时说明写「策略未声明（按默认口径）」且不回写库。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-9cd059
+      phase: implement
+      side: backend
+    - id: t-7631f6
+      title: 规则读接口回显「何时会叫我」·联调
+      implements: |-
+        adapters/inbound/fastapi_app/routes/watch_async.py 的列表路由 GET /api/watch/rules 在响应条目追加 escalation_explain 字段（由 explain_escalation 计算，纯读不写库），既有 escalation_policy 等字段原样保留；旧规则策略为 NULL 时说明写「策略未声明（按默认口径）」且不回写库。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run tests/` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-e717ca
+      phase: implement
+      side: backend
+    - id: t-3e6466
+      title: 规则读接口回显「何时会叫我」·复核
+      implements: |-
+        adapters/inbound/fastapi_app/routes/watch_async.py 的列表路由 GET /api/watch/rules 在响应条目追加 escalation_explain 字段（由 explain_escalation 计算，纯读不写库），既有 escalation_policy 等字段原样保留；旧规则策略为 NULL 时说明写「策略未声明（按默认口径）」且不回写库。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/REQ-261007133807-eda6/design/` 逐条核对；`npx vitest run tests/` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-7631f6
+      phase: implement
+      side: backend
+    - id: t-8a6ce5
+      title: 规则读接口回显「何时会叫我」·测试
+      implements: |-
+        adapters/inbound/fastapi_app/routes/watch_async.py 的列表路由 GET /api/watch/rules 在响应条目追加 escalation_explain 字段（由 explain_escalation 计算，纯读不写库），既有 escalation_policy 等字段原样保留；旧规则策略为 NULL 时说明写「策略未声明（按默认口径）」且不回写库。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-3e6466
+      phase: implement
+      side: backend
+    - id: t-1e2f5e
+      title: 端到端验收：触发 → 库有码 → 卡有理由（含唤醒量回归锁）·校验
+      implements: |-
+        新增 tests/application/test_watch_escalation_e2e.py：用冻结时钟与桩外发跑一次完整触发（不真实交易日、不真实外发），断言触发记录带 code 与 reason、卡面正文含「升级原因」、通知守卫记账为声明值；作为结单卡汇总跑不破现状全套与两条结构判据（无第二处 L2 叫醒、陈旧文案归零）。
+
+        [子卡阶段·校验] 只做本阶段；验收：校验项逐条给出结果：`npx vitest run tests/` → 全绿；异常项已列出并标注影响面
+      serves: []
+      depends_on:
+        - t-fc92ab
+        - t-ba3f1f
+        - t-7c7d38
+        - t-435423
+      phase: test
+      side: backend
+task_coverage:
+  - task_id: t-d24cfb
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-2f1402
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-152a0b
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-fa9574
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-2fbc40
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-08d545
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-761703
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-fc92ab
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-ba3f1f
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-9cd059
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-7c7d38
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-435423
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-8097f7
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-339754
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-17bdf7
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-53b2de
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-a60ba4
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-9b357b
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-6aad65
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-7317cc
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-1e0992
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-d9eb91
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-1d6cdd
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-e67b0f
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-fff73f
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-176084
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-3f6454
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-c1b8a8
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-6e3c11
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-7713e4
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-a08bf2
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-38caaa
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-70b182
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-8fd357
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-5a3bc9
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-7c7aef
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-dd547b
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-528cc7
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-b5a2f9
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-0b0f61
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-90f6dc
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-07f5f0
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-a2c6e5
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-2dc03f
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-f7cd30
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-c19f4f
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-a85be6
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-b3dcd8
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-4e7a83
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-c31200
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-ee89ed
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-0fb46d
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-56465e
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-6ed558
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-0f1e0e
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-e717ca
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-7631f6
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-3e6466
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-8a6ce5
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-1e2f5e
+    covers_prototypes: []
+    covers_decisions: []
+traceability:
+  design_to_tasks:
+    design/architecture.md#目标与总体方案:
+      - t-d24cfb
+      - t-2f1402
+      - t-fa9574
+      - t-2fbc40
+      - t-08d545
+      - t-8097f7
+    design/architecture.md#模块改动地图:
+      - t-d24cfb
+      - t-2f1402
+      - t-152a0b
+      - t-fa9574
+      - t-2fbc40
+      - t-08d545
+      - t-761703
+      - t-fc92ab
+      - t-ba3f1f
+      - t-9cd059
+      - t-7c7d38
+      - t-435423
+      - t-8097f7
+    design/architecture.md#裁决顺序唯一事实源:
+      - t-d24cfb
+      - t-2f1402
+      - t-fa9574
+      - t-2fbc40
+      - t-08d545
+      - t-8097f7
+    design/architecture.md#数据流:
+      - t-d24cfb
+      - t-2f1402
+      - t-fa9574
+      - t-2fbc40
+      - t-08d545
+      - t-761703
+      - t-fc92ab
+      - t-ba3f1f
+      - t-8097f7
+    design/architecture.md#单点入口与兼容壳:
+      - t-d24cfb
+      - t-2f1402
+      - t-fa9574
+      - t-2fbc40
+      - t-08d545
+      - t-8097f7
+    design/architecture.md#错误处理与降级:
+      - t-d24cfb
+      - t-2f1402
+      - t-fa9574
+      - t-2fbc40
+      - t-08d545
+      - t-761703
+      - t-fc92ab
+      - t-8097f7
+    design/architecture.md#关键决策与取舍:
+      - t-d24cfb
+      - t-2f1402
+      - t-152a0b
+      - t-fa9574
+      - t-2fbc40
+      - t-08d545
+      - t-761703
+      - t-fc92ab
+      - t-9cd059
+      - t-7c7d38
+      - t-8097f7
+    design/architecture.md#测试策略:
+      - t-d24cfb
+      - t-2f1402
+      - t-152a0b
+      - t-fa9574
+      - t-2fbc40
+      - t-08d545
+      - t-761703
+      - t-fc92ab
+      - t-ba3f1f
+      - t-9cd059
+      - t-7c7d38
+      - t-435423
+      - t-8097f7
+    design/architecture.md#目录结构:
+      - t-d24cfb
+      - t-2f1402
+      - t-fa9574
+      - t-2fbc40
+      - t-08d545
+      - t-435423
+      - t-8097f7
+    design/backend.md#服务与接口实现:
+      - t-d24cfb
+      - t-2f1402
+      - t-152a0b
+      - t-fa9574
+      - t-2fbc40
+      - t-08d545
+      - t-761703
+      - t-fc92ab
+      - t-ba3f1f
+      - t-9cd059
+      - t-7c7d38
+      - t-8097f7
+    design/backend.md#数据流:
+      - t-d24cfb
+      - t-2f1402
+      - t-fa9574
+      - t-2fbc40
+      - t-08d545
+      - t-761703
+      - t-fc92ab
+      - t-ba3f1f
+      - t-8097f7
+    design/backend.md#关键逻辑:
+      - t-d24cfb
+      - t-2f1402
+      - t-152a0b
+      - t-fa9574
+      - t-2fbc40
+      - t-08d545
+      - t-761703
+      - t-fc92ab
+      - t-ba3f1f
+      - t-9cd059
+      - t-7c7d38
+      - t-8097f7
+    design/backend.md#S-1-decideescalation-顺序实现:
+      - t-d24cfb
+      - t-2f1402
+      - t-fa9574
+      - t-2fbc40
+      - t-08d545
+      - t-8097f7
+    design/backend.md#S-3-explainescalation-分支:
+      - t-152a0b
+      - t-9cd059
+      - t-7c7d38
+      - t-8097f7
+    design/backend.md#S-5-tick-接线改动点:
+      - t-d24cfb
+      - t-2f1402
+      - t-fa9574
+      - t-2fbc40
+      - t-08d545
+      - t-761703
+      - t-fc92ab
+      - t-8097f7
+    design/backend.md#S-7-渲染实现要点:
+      - t-ba3f1f
+      - t-8097f7
+    design/backend.md#错误处理:
+      - t-d24cfb
+      - t-2f1402
+      - t-fa9574
+      - t-2fbc40
+      - t-08d545
+      - t-761703
+      - t-fc92ab
+      - t-8097f7
+    design/backend.md#数据库设计:
+      - t-d24cfb
+      - t-08d545
+      - t-761703
+      - t-fc92ab
+      - t-8097f7
+    design/backend.md#新增修改表:
+      - t-d24cfb
+      - t-08d545
+      - t-761703
+      - t-fc92ab
+      - t-8097f7
+    design/backend.md#字段说明:
+      - t-d24cfb
+      - t-08d545
+      - t-761703
+      - t-fc92ab
+      - t-8097f7
+    design/backend.md#索引设计:
+      - t-d24cfb
+      - t-08d545
+      - t-761703
+      - t-fc92ab
+      - t-8097f7
+    design/backend.md#约束说明:
+      - t-d24cfb
+      - t-08d545
+      - t-761703
+      - t-fc92ab
+      - t-8097f7
+    design/backend.md#性能考量:
+      - t-d24cfb
+      - t-2f1402
+      - t-fa9574
+      - t-2fbc40
+      - t-08d545
+      - t-761703
+      - t-fc92ab
+      - t-8097f7
+    design/backend.md#安全设计:
+      - t-152a0b
+      - t-9cd059
+      - t-7c7d38
+      - t-8097f7
+    design/backend.md#鉴权:
+      - t-152a0b
+      - t-9cd059
+      - t-7c7d38
+      - t-8097f7
+    design/backend.md#输入校验:
+      - t-152a0b
+      - t-9cd059
+      - t-7c7d38
+      - t-8097f7
+    design/backend.md#敏感信息:
+      - t-152a0b
+      - t-9cd059
+      - t-7c7d38
+      - t-8097f7
+    design/data-model.md#新增修改的数据结构:
+      - t-d24cfb
+      - t-2f1402
+      - t-fa9574
+      - t-2fbc40
+      - t-08d545
+      - t-761703
+      - t-fc92ab
+      - t-8097f7
+    design/data-model.md#Verdict领域值对象新增:
+      - t-d24cfb
+      - t-2f1402
+      - t-fa9574
+      - t-2fbc40
+      - t-08d545
+      - t-761703
+      - t-fc92ab
+      - t-8097f7
+    design/data-model.md#EscalationCode受控枚举新增:
+      - t-d24cfb
+      - t-2f1402
+      - t-fa9574
+      - t-2fbc40
+      - t-08d545
+      - t-761703
+      - t-fc92ab
+      - t-8097f7
+    design/data-model.md#quantwatchtriggers表变更:
+      - t-d24cfb
+      - t-08d545
+      - t-761703
+      - t-fc92ab
+      - t-8097f7
+    design/data-model.md#EscalationPolicy领域模型显式化:
+      - t-152a0b
+      - t-9cd059
+      - t-7c7d38
+      - t-8097f7
+    design/data-model.md#兼容性分析:
+      - t-d24cfb
+      - t-152a0b
+      - t-08d545
+      - t-761703
+      - t-fc92ab
+      - t-9cd059
+      - t-7c7d38
+      - t-8097f7
+    design/data-model.md#迁移与回滚:
+      - t-d24cfb
+      - t-08d545
+      - t-761703
+      - t-fc92ab
+      - t-8097f7
+    design/data-model.md#关键决策与取舍:
+      - t-d24cfb
+      - t-2f1402
+      - t-152a0b
+      - t-fa9574
+      - t-2fbc40
+      - t-08d545
+      - t-761703
+      - t-fc92ab
+      - t-9cd059
+      - t-7c7d38
+      - t-8097f7
+    design/interfaces.md#接口清单:
+      - t-d24cfb
+      - t-2f1402
+      - t-152a0b
+      - t-fa9574
+      - t-2fbc40
+      - t-08d545
+      - t-761703
+      - t-fc92ab
+      - t-ba3f1f
+      - t-9cd059
+      - t-7c7d38
+      - t-8097f7
+    design/interfaces.md#裁决出口IF-1:
+      - t-d24cfb
+      - t-2f1402
+      - t-fa9574
+      - t-2fbc40
+      - t-08d545
+      - t-8097f7
+    design/interfaces.md#规则侧说明IF-2:
+      - t-152a0b
+      - t-9cd059
+      - t-7c7d38
+      - t-8097f7
+    design/interfaces.md#落库接口IF-5:
+      - t-d24cfb
+      - t-08d545
+      - t-761703
+      - t-fc92ab
+      - t-8097f7
+    design/interfaces.md#HTTP-API-变更:
+      - t-152a0b
+      - t-9cd059
+      - t-7c7d38
+      - t-8097f7
+    design/interfaces.md#GET-apiwatchrules追加字段:
+      - t-152a0b
+      - t-9cd059
+      - t-7c7d38
+      - t-8097f7
+    design/interfaces.md#POSTPUTPATCH-apiwatchrules缺省显式化:
+      - t-152a0b
+      - t-9cd059
+      - t-7c7d38
+      - t-8097f7
+    design/interfaces.md#卡面渲染契约IF-8:
+      - t-ba3f1f
+      - t-8097f7
+    design/interfaces.md#删除的接口:
+      - t-d24cfb
+      - t-2f1402
+      - t-fa9574
+      - t-2fbc40
+      - t-08d545
+      - t-8097f7
+    design/interfaces.md#关键决策与取舍:
+      - t-d24cfb
+      - t-2f1402
+      - t-fa9574
+      - t-2fbc40
+      - t-08d545
+      - t-ba3f1f
+      - t-8097f7
+    design/use-cases.md#场景总览:
+      - t-d24cfb
+      - t-2f1402
+      - t-152a0b
+      - t-fa9574
+      - t-2fbc40
+      - t-08d545
+      - t-761703
+      - t-fc92ab
+      - t-ba3f1f
+      - t-9cd059
+      - t-7c7d38
+      - t-435423
+      - t-8097f7
+    design/use-cases.md#UC-1-收到卡片这次为什么叫我:
+      - t-ba3f1f
+      - t-8097f7
+    design/use-cases.md#UC-2-建规则写下什么条件会叫我:
+      - t-152a0b
+      - t-9cd059
+      - t-7c7d38
+      - t-8097f7
+    design/use-cases.md#UC-3-排障一条-SQL-回答因果:
+      - t-d24cfb
+      - t-08d545
+      - t-761703
+      - t-fc92ab
+      - t-8097f7
+    design/use-cases.md#UC-4-改口径只改一处:
+      - t-d24cfb
+      - t-2f1402
+      - t-fa9574
+      - t-2fbc40
+      - t-08d545
+      - t-435423
+      - t-8097f7
+    design/use-cases.md#UC-5-被压掉的触发原判可查:
+      - t-d24cfb
+      - t-08d545
+      - t-761703
+      - t-fc92ab
+      - t-8097f7
+    design/use-cases.md#关键决策与取舍:
+      - t-152a0b
+      - t-ba3f1f
+      - t-9cd059
+      - t-7c7d38
+      - t-8097f7
+    design/use-cases.md#技术方案与亮点:
+      - t-d24cfb
+      - t-2f1402
+      - t-fa9574
+      - t-2fbc40
+      - t-08d545
+      - t-761703
+      - t-fc92ab
+      - t-8097f7
+  fr_to_tasks:
+    FR-1:
+      - t-d24cfb
+      - t-2f1402
+      - t-fa9574
+      - t-2fbc40
+      - t-08d545
+      - t-8097f7
+      - t-152a0b
+      - t-761703
+      - t-fc92ab
+      - t-ba3f1f
+      - t-9cd059
+      - t-7c7d38
+      - t-435423
+    FR-2:
+      - t-d24cfb
+      - t-2f1402
+      - t-152a0b
+      - t-fa9574
+      - t-2fbc40
+      - t-08d545
+      - t-761703
+      - t-fc92ab
+      - t-ba3f1f
+      - t-9cd059
+      - t-7c7d38
+      - t-435423
+      - t-8097f7
+    FR-3:
+      - t-d24cfb
+      - t-2f1402
+      - t-152a0b
+      - t-fa9574
+      - t-2fbc40
+      - t-08d545
+      - t-761703
+      - t-fc92ab
+      - t-ba3f1f
+      - t-9cd059
+      - t-7c7d38
+      - t-435423
+      - t-8097f7
+    FR-4:
+      - t-d24cfb
+      - t-2f1402
+      - t-152a0b
+      - t-fa9574
+      - t-2fbc40
+      - t-08d545
+      - t-761703
+      - t-fc92ab
+      - t-ba3f1f
+      - t-9cd059
+      - t-7c7d38
+      - t-435423
+      - t-8097f7
+    FR-5:
+      - t-d24cfb
+      - t-2f1402
+      - t-152a0b
+      - t-fa9574
+      - t-2fbc40
+      - t-08d545
+      - t-761703
+      - t-fc92ab
+      - t-ba3f1f
+      - t-9cd059
+      - t-7c7d38
+      - t-435423
+      - t-8097f7
+coverage:
+  implementation:
+    total: 53
+    covered: 53
+    uncovered: []
+    rate: 100
+    total_designs: 53
+    covered_designs: 53

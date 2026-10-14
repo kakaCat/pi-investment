@@ -3,8 +3,9 @@
 事务流: 校验 → 委托单 → 成交+费用 → 资金流水(add_trade自动) → 持仓 → 账户 → 快照
 """
 import structlog
-from datetime import date, datetime
-from typing import Dict, Optional
+from collections.abc import Iterable
+from datetime import date, datetime, timedelta
+from typing import Any, Dict, Optional
 
 from domain.ports import ISimulationRepository
 from domain.trading.services.market_session_policy import (
@@ -18,10 +19,166 @@ from domain.trading.services.market_session_policy import (
 
 logger = structlog.get_logger(__name__)
 
+# 2026-10-04（REQ-261004154902-a7cd t4 / FR-7）：挂单撮合的失败与超期必须有出口。
+# 该出口自身绝不抛异常（见 application/observability/failure_sink.py）。
+from application.observability import SEVERITY_HIGH, report_failure  # noqa: E402
+
 
 # TradingError 已上移至 domain/trading/exceptions.py（2026-09-10，分层倒置修正）；
 # 此处保留别名，存量 import（tests/adapters/simulation_async 等）零改动兼容。
 from domain.trading.exceptions import TradingError  # noqa: F401
+
+
+# ===========================================================================
+# FR-10 账本自洽：卖前超卖硬校验（REQ-261004154902-a7cd · t-900179）
+# ===========================================================================
+# 背景（已取证，2026-10-04）：`v13_simulation` 有 4 只标的**累计卖出 > 累计买入**
+# （300045 买1000/卖2000、300561 买700/卖1400、300765 买300/卖600、300469 买200/卖400），
+# 合计凭空多出 ≈¥49,425 卖出收入 → 账户显示的 +32.99% 含虚增。
+# 成因是**双数据源**：`quant.simulation_positions`（持仓表）与
+# `quant.simulation_trades`（流水净额）并存且互相矛盾。
+#
+# 本卡只做「**不再产生新的虚增**」：真源 = 流水净额（`ΣBUY(shares) - ΣSELL(shares)`，
+# 与 `SimulationTrader._rebuild_portfolio_from_trades` 同一口径），卖出前硬校验它。
+# 历史虚增的处置（标记为脏并排除统计）是单独一张卡，本模块不碰历史数据、只读不写。
+OVERSELL_CHECK_SOURCE = 'account_trading.oversell_check'
+#: 受控 reason（design.md §2.1 的 reason 枚举；上层把它映射成 failed）
+REASON_OVERSELL_BLOCKED = 'oversell_blocked'
+
+
+def net_traded_shares(trades, symbol: str) -> int:
+    """流水净额口径：``ΣBUY(shares) - ΣSELL(shares)``（唯一真源 = simulation_trades）。
+
+    与 `_rebuild_portfolio_from_trades` 的 SQL 逐条对齐：
+    - 只统计该 ``symbol`` 的行；action 大小写不敏感（存量脏数据两套写法并存）；
+    - action 既非 BUY 也非 SELL 的行按 0 计（等同 SQL 的 ``ELSE 0``）。
+
+    **类型不对必须抛**（shares/symbol/action 不是可解析的值）：绝不能把"读不懂的行"
+    当成 0 —— 那会把一笔正常卖出误判成超卖（误杀）。抛出的异常由
+    :func:`read_net_traded_shares` 收敛成"取数失败"，再到 :func:`check_sellable` 里响亮放行。
+    """
+    net = 0
+    for row in trades:
+        sym = getattr(row, 'symbol', None)
+        if not isinstance(sym, str):
+            raise TypeError(f'simulation_trades.symbol 类型不对: {sym!r}')
+        if sym != symbol:
+            continue
+        action = getattr(row, 'action', None)
+        if not isinstance(action, str):
+            raise TypeError(f'simulation_trades.action 类型不对: {action!r}')
+        action = action.strip().upper()
+        if action not in ('BUY', 'SELL'):
+            continue
+        raw = getattr(row, 'shares', None)
+        if isinstance(raw, bool) or raw is None:
+            raise TypeError(f'simulation_trades.shares 类型不对: {raw!r}')
+        try:
+            shares = int(raw)
+        except (TypeError, ValueError):
+            raise TypeError(f'simulation_trades.shares 无法解析为整数: {raw!r}')
+        net += shares if action == 'BUY' else -shares
+    return net
+
+
+def read_net_traded_shares(repo, account_name: str, symbol: str) -> Optional[int]:
+    """从流水读净持仓。
+
+    Returns:
+        ``int`` = 可信的净持仓（流水口径，可为负 = 已超卖）；
+        ``None`` = **取数失败 / 不可判定**（抛异常、返回 None、不是流水序列、行类型不对）。
+        调用方对 ``None`` 的唯一合法处置见 :func:`check_sellable`（响亮放行）。
+    """
+    try:
+        trades = repo.get_trades_by_account(account_name)
+    except Exception as exc:  # noqa: BLE001 - 取数失败不许击穿卖出链路，但必须响亮
+        logger.error(
+            'oversell_check_trades_unavailable',
+            account=account_name, symbol=symbol, error=str(exc)[:200],
+        )
+        return None
+
+    if trades is None or isinstance(trades, (str, bytes, dict, bool, int, float)) \
+            or not isinstance(trades, Iterable):
+        logger.error(
+            'oversell_check_trades_wrong_type',
+            account=account_name, symbol=symbol, got=type(trades).__name__,
+        )
+        return None
+
+    try:
+        return net_traded_shares(trades, symbol)
+    except (TypeError, ValueError) as exc:
+        logger.error(
+            'oversell_check_trades_unparsable',
+            account=account_name, symbol=symbol, error=str(exc)[:200],
+        )
+        return None
+
+
+def check_sellable(
+    repo, account_name: str, symbol: str, shares: int, *, context: Optional[Dict[str, Any]] = None
+) -> None:
+    """卖前硬校验：``ΣBUY(shares) - ΣSELL(shares) >= 本次卖出量``，否则拒绝。
+
+    **唯一实现**——`AccountTradingService.assert_sellable` 与
+    `SimulationTrader._assert_sellable` 都走这里（两套口径正是本次虚增现金的成因）。
+    只读：只发 SELECT（经 ``repo.get_trades_by_account``），不改任何写路径语义。
+
+    三种结果，**没有第四种**（本卡不加新的静默分支）：
+
+    1. 净持仓足够 → 正常返回（放行）；
+    2. 净持仓不足 → ``logger.error`` + :func:`report_failure` + 抛
+       ``TradingError(422)``（拒绝下单，details 带 ``reason='oversell_blocked'``）；
+    3. **取数失败**（异常 / 返回 None / 不是流水序列 / 行类型不对）→ ``logger.error``
+       + :func:`report_failure` 外发一次，然后**放行**。
+
+    第 3 条为什么放行：判定不了 ≠ 超卖。静默拒绝会把正常卖出**全部误杀**（比虚增更危险——
+    账户从此卖不出去），静默放行则等于这条护栏根本不存在。所以只做"**响亮地放行**"：
+    日志 + 外发到位，让"这笔没被护栏覆盖"本身成为一条可见事实。
+    """
+    ctx: Dict[str, Any] = {
+        'account': account_name,
+        'symbol': symbol,
+        'requested_shares': int(shares),
+        **(context or {}),
+    }
+    net = read_net_traded_shares(repo, account_name, symbol)
+
+    if net is None:
+        # 取数失败：放行但留痕（source/reason 与本卡的拦截口径相同，靠 context 区分）
+        report_failure(
+            OVERSELL_CHECK_SOURCE,
+            REASON_OVERSELL_BLOCKED,
+            f'卖前超卖校验取数失败：{account_name} {symbol} 本次卖出 {shares} 股，'
+            f'无法判定净持仓 → 放行（不误杀正常卖出），但本笔未被护栏覆盖',
+            severity=SEVERITY_HIGH,
+            context={**ctx, 'decision': 'passed_through_unchecked'},
+        )
+        return
+
+    if net < int(shares):
+        message = (
+            f'超卖拦截：账户净持仓 {net} 股，本次卖出 {shares} 股'
+            f'（流水口径 ΣBUY-ΣSELL，真源 = simulation_trades）'
+        )
+        logger.error('oversell_blocked', net_shares=net, **ctx)
+        report_failure(
+            OVERSELL_CHECK_SOURCE,
+            REASON_OVERSELL_BLOCKED,
+            message,
+            severity=SEVERITY_HIGH,
+            context={**ctx, 'net_shares': net, 'decision': 'rejected'},
+        )
+        raise TradingError(
+            message, 422,
+            details={
+                'reason': REASON_OVERSELL_BLOCKED,
+                'symbol': symbol,
+                'net_shares': net,
+                'requested_shares': int(shares),
+            },
+        )
 
 
 class AccountTradingService:
@@ -174,6 +331,19 @@ class AccountTradingService:
                 f'单日买入金额超限: 今日已买 ¥{bought_amount:,.0f}，'
                 f'本次 ¥{trade_amount:,.0f}，'
                 f'超过总资产 {self.MAX_DAILY_BUY_AMOUNT_RATIO:.0%}', 422)
+
+    def assert_sellable(
+        self, account_name: str, symbol: str, shares: int,
+        *, context: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """卖前超卖硬校验（FR-10）。
+
+        判定**唯一实现**在模块级 :func:`check_sellable`（本方法只是把它接到服务上，
+        供调用方按服务取用）；净持仓不足时抛 ``TradingError(422)``，
+        details 带 ``reason='oversell_blocked'``。
+        只读校验：不写库、不改任何既有写路径语义。
+        """
+        check_sellable(self.repo, account_name, symbol, shares, context=context)
 
     def execute_trade(
         self,
@@ -412,6 +582,16 @@ class AccountTradingService:
                         f'T+1 可卖数量不足: 可卖 {pos.shares_available} 股，委托 {shares} 股', 422,
                         details={'sellable_shares': pos.shares_available, 'symbol': symbol})
 
+            # FR-10（t-900179）：卖前超卖硬校验——账本真源是**流水净额**，
+            # 持仓表只是它的派生物（双源并存正是历史虚增 ≈¥49,425 的成因）。
+            # 刻意放在 T+1 复核**之后**：先答"这单能不能卖"（持仓/可卖数），
+            # 再答"卖了会不会凭空多出现金"（累计买卖净额）；顺序反了会把既有拒绝原因
+            # 换成超卖原因，增大既有调用方的判读成本。
+            if action == 'SELL':
+                self.assert_sellable(
+                    account_name, symbol, shares,
+                    context={'phase': 'execute_trade', 'at': now.isoformat()})
+
             # ---- 6. 创建订单并标记已成交 ----
             order = self.repo.create_order(
                 account_name=account_name, action=action, symbol=symbol,
@@ -532,20 +712,173 @@ class AccountTradingService:
             'realized_pnl_rate': realized_pnl_rate,
         }
 
-    def execute_pending_orders(self, now: Optional[datetime] = None) -> Dict:
+    #: 挂单「超期」判定（REQ-261004154902-a7cd t4 / FR-7）：
+    #: 一个 ``execute_at='market_open'`` 的挂单本意是**下一个开盘**成交，
+    #: 因此「已经错过至少 1 个开盘机会仍未成交」即判超期（作废 + 告警）。
+    #: 刻意不用「创建满 N 个自然日」——后者会把昨晚下的单在今晚就误杀。
+    PENDING_ORDER_MAX_MISSED_OPENS = 1
+
+    def _trading_days_between(self, start: date, end: date, cap: int = 10):
+        """``(start, end]`` 之间的交易日数；超过 ``cap`` 提前返回。
+
+        取数失败返回 ``None``（**判定不了 ≠ 已超期**）：宁可留痕后不动这单，
+        也不要用猜测去作废一笔本来正确的委托。
+        """
+        if end <= start:
+            return 0
+        count = 0
+        cursor = start
+        while cursor < end and count < cap:
+            cursor = cursor + timedelta(days=1)
+            try:
+                if self.calendar.is_trading_day(cursor.isoformat()):
+                    count += 1
+            except Exception as exc:  # noqa: BLE001 - 判定不了必须响亮且保守
+                logger.warning(
+                    "pending_order_expiry_calendar_unavailable",
+                    day=cursor.isoformat(), error=str(exc),
+                )
+                return None
+        return count
+
+    def _pending_order_is_stale(self, pending_order, now: datetime):
+        """True=已超期；False=还没到；None=判定不了（已留痕）。"""
+        created = getattr(pending_order, "created_at", None)
+        if created is None:
+            return False
+        if isinstance(created, datetime):
+            created_date = created.date()
+        elif isinstance(created, date):
+            created_date = created
+        else:
+            # 创建时刻不可信（不是日期类型）→ **只跳过超期判定，不影响本次撮合**。
+            # 为什么不留痕外发：这是对象形状问题（生产库里该列是 timestamp，必然是 datetime），
+            # 报成业务告警只会制造噪音；但必须留 ERROR 日志，免得悄悄少了一道护栏。
+            logger.error(
+                "pending_order_created_at_unusable",
+                pending_order_id=getattr(pending_order, "id", None),
+                value=repr(created)[:80],
+                note="跳过超期判定（不影响本次撮合）",
+            )
+            return False
+        days = self._trading_days_between(created_date, now.date())
+        if days is None:
+            return None
+        # days 含"今天"这一天：昨晚下的单在今天的开盘被撮合时 days=1 → 不算超期
+        return (days - 1) >= self.PENDING_ORDER_MAX_MISSED_OPENS
+
+    def execute_pending_orders(
+        self, now: Optional[datetime] = None, *, expire_stale: bool = True
+    ) -> Dict:
         """撮合所有 pending 挂单（由 orchestrator 在开盘后 9:31 起调用）。
 
         每个挂单走完整 execute_trade 护栏（不带 execute_at）：
         - 成功 → status='executed' + executed_trade_id
         - 护栏拒绝（TradingError）→ status='failed' + fail_reason
+        - **内部异常**（非护栏拒绝）→ 该单标 failed 并**继续处理下一单**
+        - **非交易时段调用** → 全部跳过、状态保持 pending（不误杀）
+        - **超期未成交** → status='expired' + fail_reason + 主动外发
+
         幂等：已处理的订单不再是 pending，重复调用无副作用。
+
+        2026-10-04（REQ-261004154902-a7cd t4 / FR-7）三处修正，均出自实证：
+        1. 原实现只 catch ``TradingError``，其它异常会掀翻整个循环——剩下的挂单
+           永远不被尝试、也没有任何留痕。实证：`agent_virtual` 两笔挂单自
+           2026-08-24 起 `updated_at == created_at`，**41 天无人碰**。
+        2. 原实现没有时段护栏：盘后被调用时每笔都被 execute_trade 拒成 failed
+           （实证 2026-08-21 16:41 两笔「非交易时段…委托拒绝」），从此永久丢弃。
+        3. 原实现没有超期概念：链路一断，挂单就无限期躺在 pending 里，无人知。
         """
         now = now or self.now_fn()
+
+        # ① 时段护栏：非开市只跳过、不改状态（严禁把挂单批量打成 failed）
+        # 2026-10-04（t4）：日历取数失败时**保守跳过**——判定不了"现在能不能成交"，
+        # 就不要在不知道开没开市的情况下下单；但必须留痕外发，否则又变成
+        # "没人知道这些挂单为什么没成交"。
+        try:
+            in_window = self._is_in_trading_window(now)
+        except Exception as exc:  # noqa: BLE001 - 判定不了必须响亮且保守
+            reason = (
+                f'交易日历不可用（{type(exc).__name__}: {exc}）→ '
+                '无法判定开市状态，本次不撮合任何挂单'
+            )
+            logger.error("pending_orders_window_check_failed", at=now.isoformat(), error=reason)
+            report_failure(
+                'pending_orders.window_check',
+                'match_failed',
+                reason,
+                severity=SEVERITY_HIGH,
+                context={'at': now.isoformat()},
+            )
+            return {
+                'executed': 0, 'failed': 0, 'errored': 0, 'expired': 0,
+                'skipped_off_hours': 0,
+                'details': [{'status': 'skipped_calendar_unavailable', 'reason': reason}],
+            }
+
+        if not in_window:
+            still_pending = list(self.repo.get_pending_orders(status='pending') or [])
+            reason = (
+                f'非交易时段或非交易日（{now.strftime("%Y-%m-%d %H:%M")}），'
+                '挂单保持 pending，等下一个开盘再接'
+            )
+            logger.info(
+                "pending_orders_match_skipped_off_hours",
+                at=now.isoformat(), pending=len(still_pending), reason=reason,
+            )
+            return {
+                'executed': 0, 'failed': 0, 'errored': 0, 'expired': 0,
+                'skipped_off_hours': len(still_pending),
+                'details': [{'status': 'skipped_off_hours', 'reason': reason}],
+            }
+
         pending = self.repo.get_pending_orders(status='pending')
         executed = 0
         failed = 0
+        errored = 0
+        expired = 0
         details = []
-        for po in pending:
+
+        for po in list(pending or []):
+            # ② 超期作废：错过的开盘机会数够了就收口，并主动外发（不再无声搁浅）
+            if expire_stale:
+                stale = self._pending_order_is_stale(po, now)
+                if stale is None:
+                    report_failure(
+                        'pending_orders.expiry_check',
+                        'match_failed',
+                        f'无法判定挂单 {po.id} 是否超期（交易日历取数失败）→ 本次不动它',
+                        severity=SEVERITY_HIGH,
+                        context={'pending_order_id': po.id, 'account': po.account_name},
+                    )
+                elif stale:
+                    reason = (
+                        'expired: 已错过至少 '
+                        f'{self.PENDING_ORDER_MAX_MISSED_OPENS} 个开盘机会仍未成交'
+                    )
+                    self.repo.update_pending_order_status(
+                        po.id, 'expired', fail_reason=reason
+                    )
+                    expired += 1
+                    details.append({
+                        'pending_order_id': po.id,
+                        'status': 'expired',
+                        'fail_reason': reason,
+                    })
+                    report_failure(
+                        'pending_orders.expired',
+                        'pending_expired',
+                        f'挂单 {po.id}（{po.account_name} {po.symbol} {po.action}）超期作废：{reason}',
+                        severity=SEVERITY_HIGH,
+                        context={
+                            'pending_order_id': po.id,
+                            'account': po.account_name,
+                            'symbol': po.symbol,
+                            'created_at': str(getattr(po, 'created_at', None)),
+                        },
+                    )
+                    continue
+
             try:
                 result = self.execute_trade(
                     account_name=po.account_name,
@@ -577,6 +910,7 @@ class AccountTradingService:
                     'slippage_bps': slip,
                 })
             except TradingError as e:
+                # 护栏拒绝：是"这单不该成交"，如实记 failed（既有语义不变）
                 self.repo.update_pending_order_status(
                     po.id, 'failed', fail_reason=str(e))
                 failed += 1
@@ -585,10 +919,46 @@ class AccountTradingService:
                     'status': 'failed',
                     'fail_reason': str(e),
                 })
-        if executed or failed:
-            logger.info("pending_orders_matched",
-                        executed=executed, failed=failed, at=now.isoformat())
-        return {'executed': executed, 'failed': failed, 'details': details}
+            except Exception as e:  # noqa: BLE001 - 单笔内部异常不得中断整批
+                reason = f'internal_error: {type(e).__name__}: {e}'
+                logger.error("pending_order_internal_error", pending_order_id=po.id, error=reason)
+                try:
+                    self.repo.update_pending_order_status(
+                        po.id, 'failed', fail_reason=reason)
+                except Exception as inner:  # noqa: BLE001 - 连留痕都失败，也要继续
+                    logger.error(
+                        "pending_order_mark_failed_also_failed",
+                        pending_order_id=po.id, error=str(inner),
+                    )
+                errored += 1
+                details.append({
+                    'pending_order_id': po.id,
+                    'status': 'failed',
+                    'fail_reason': reason,
+                    'error': str(e),
+                })
+                report_failure(
+                    'pending_orders.match',
+                    'match_failed',
+                    f'挂单 {po.id}（{po.account_name} {po.symbol} {po.action}）撮合抛内部异常：{reason}',
+                    severity=SEVERITY_HIGH,
+                    context={'pending_order_id': po.id, 'account': po.account_name},
+                )
+
+        if executed or failed or errored or expired:
+            logger.info(
+                "pending_orders_matched",
+                executed=executed, failed=failed, errored=errored,
+                expired=expired, at=now.isoformat(),
+            )
+        return {
+            'executed': executed,
+            'failed': failed,
+            'errored': errored,
+            'expired': expired,
+            'skipped_off_hours': 0,
+            'details': details,
+        }
 
     def _auto_record_decision(
         self, account_name: str, action: str, symbol: str,

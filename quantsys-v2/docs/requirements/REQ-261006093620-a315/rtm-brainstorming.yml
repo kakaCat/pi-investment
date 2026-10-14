@@ -1,0 +1,88 @@
+metadata:
+  stage: brainstorming
+  requirement_id: REQ-261006093620-a315
+  generated_at: 2026-10-06T01:41:36.299Z
+  version: 3
+  generated_by: dsh-pmboard
+  rtm_version: "2.0"
+  last_updated: 2026-10-06T01:47:28.585Z
+outputs:
+  requirements:
+    - id: FR-1
+      title: 库表任务可声明"只在交易日自动执行"
+      source: requirement.md
+      line: 139
+    - id: FR-2
+      title: 交易日门必须 fail-open，且复用唯一判定源
+      source: requirement.md
+      line: 145
+    - id: FR-3
+      title: 跳过 = 留痕 + 不打扰 + 不误报
+      source: requirement.md
+      line: 151
+    - id: FR-4
+      title: 范围内逐任务语义（8 条挂门，3 条不挂）
+      source: requirement.md
+      line: 157
+    - id: FR-5
+      title: 门的周末分档语义
+      source: requirement.md
+      line: 174
+    - id: FR-6
+      title: 门只拦自动排班，人工仍可强制
+      source: requirement.md
+      line: 180
+    - id: FR-7
+      title: 门必须真的生效（含重启与存量 jobstore）
+      source: requirement.md
+      line: 185
+    - id: FR-8
+      title: 回归锁与真实观察
+      source: requirement.md
+      line: 190
+  prototypes: []
+  decisions:
+    - id: D-1
+      source: 本窗口用户消息（2026-10-06 09:3x）：「【本实例投资账户 早盘要点】2026-10-06 休市（下一窗口 10-08 09:30）｜持仓 2 只全浮盈·无处置｜情绪 40 偏弱｜零委托｜归因 null（基准滞后）**不是交易日，依然触发了**」
+      verdict: 本现象立项；定性为**"休市日开火"同族缺陷在第二条调度路径（② 库表调度）上的残留**
+      serves:
+        - FR-1
+        - FR-8
+      criterion: "`reqboard_status` 显示本窗口绑定 `REQ-261006093620-a315`；E1~E3 为现象取证"
+    - id: D-2
+      source: 立项弹框作答（本窗口，2026-10-06 09:36）：名称「库表调度（APScheduler）补交易日门：休市日不再开盘前扫描与推送」/ 类型 feature / 难度 expert / 文档位置 `docs/requirements/<REQ>/`
+      verdict: 本工作立项为 **feature**，难度 `expert`，文档落 `docs/requirements/REQ-261006093620-a315/`
+      serves:
+        - FR-1
+        - FR-8
+      criterion: 本文件存在且经 `reqboard_submit(kind=requirement)` 登记
+    - id: D-3
+      source: 本窗口弹框作答（范围）：「先堵已确证的：v2 库表调度（APScheduler）休市日不开火（推荐）」
+      verdict: 范围**只含 ② 库表调度**；不追「早盘要点」卡片产出方（来源未钉死，E7），不扩到 ③ DailyJobs
+      serves:
+        - FR-1
+        - FR-4
+      criterion: FR-4 表仅覆盖 `scheduler_tasks` 任务；「不做什么」显式排除卡片溯源
+    - id: D-4
+      source: 本窗口弹框作答（适用面）：「逐条判定，只跳"吃当日行情"的那几条（推荐）」
+      verdict: 不按"非交易日一刀切"；按**数据依赖**逐条判定：8 条挂门、3 条不挂
+      serves:
+        - FR-1
+        - FR-4
+      criterion: FR-4 表 11 行逐条给「依据」文件行；E6 证明一刀切会让 `#253/#262` 永不执行
+    - id: D-5
+      source: 本窗口弹框作答（手动口子）：「只拦自动排班；手动触发仍可跑（推荐）」
+      verdict: 门**只拦自动排班**；`trigger` / `reload` 在休市日仍可用且语义不变
+      serves:
+        - FR-1
+        - FR-6
+      criterion: 判定标准第 6 条：休市日 `trigger` 仍返回可执行
+    - id: D-6
+      source: 本窗口弹框作答（周末语义）：「分档：#232 只跳法定节假日，周末照跑（推荐）」
+      verdict: 门**分档**：排班含周末的任务仅在 `source='trading-calendar-holiday'` 时跳；`weekend` 照跑
+      serves:
+        - FR-3
+        - FR-5
+      criterion: 判定标准第 3 条：`2026-10-03`（周六）→ `#232` 判 `run`；法定节假日 → 判 `skip`
+status:
+  artifacts: []

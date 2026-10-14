@@ -1,0 +1,597 @@
+metadata:
+  stage: decomposing
+  requirement_id: REQ-261006133733-1fdf
+  generated_at: 2026-10-06T05:41:36.941Z
+  version: 50
+  generated_by: dsh-pmboard
+  rtm_version: "2.0"
+  last_updated: 2026-10-06T05:55:42.202Z
+inputs:
+  requirements:
+    - id: FR-1
+      title: 成交量异常检测必须真正运行
+      source: requirement.md
+      line: 131
+    - id: FR-2
+      title: 失败不得冒充「无异常」（本需求的语义核心）
+      source: requirement.md
+      line: 137
+    - id: FR-3
+      title: 下游消费点按三态处置并把未知留痕
+      source: requirement.md
+      line: 143
+    - id: FR-4
+      title: 质量分的异常率项不得白送满分
+      source: requirement.md
+      line: 149
+    - id: FR-5
+      title: 回归锁与实跑复验
+      source: requirement.md
+      line: 154
+  design_sections:
+    - ref: design/architecture.md#1
+      title: 缺陷定位（一行错 + 一层吞）（
+      serves:
+        - FR-1
+        - FR-2
+      file: design/architecture.md
+      section: "1"
+    - ref: design/architecture.md#2
+      title: 三态模型（本设计的中心）（
+      serves:
+        - FR-1
+        - FR-2
+      file: design/architecture.md
+      section: "2"
+    - ref: design/architecture.md#3
+      title: 下游处置：三处消费点，一份规则（
+      serves:
+        - FR-3
+        - FR-4
+      file: design/architecture.md
+      section: "3"
+    - ref: design/architecture.md#4
+      title: 文件结构（新建 / 修改 / 删除，各自职责一句话）（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+      file: design/architecture.md
+      section: "4"
+    - ref: design/architecture.md#5
+      title: 回滚与灰度（
+      serves:
+        - FR-3
+      file: design/architecture.md
+      section: "5"
+    - ref: design/architecture.md#6
+      title: 读数会变差（必须写进验收口径，否则会被误判为回归）（
+      serves:
+        - FR-4
+      file: design/architecture.md
+      section: "6"
+    - ref: design/architecture.md#7
+      title: 不做什么（防范围蔓延）（
+      serves:
+        - FR-5
+      file: design/architecture.md
+      section: "7"
+    - ref: design/data-model.md#1
+      title: 是否改表 / 改 schema（
+      serves:
+        - FR-3
+      file: design/data-model.md
+      section: "1"
+    - ref: design/data-model.md#2
+      title: 写入面 1：审计表 `public.kline_data_quality`（
+      serves:
+        - FR-3
+      file: design/data-model.md
+      section: "2"
+    - ref: design/data-model.md#3
+      title: 写入面 2：任务结果 `quant.scheduler_runs.result`（jsonb）（
+      serves:
+        - FR-3
+      file: design/data-model.md
+      section: "3"
+    - ref: design/data-model.md#4
+      title: 质量分口径变化（读数契约）（
+      serves:
+        - FR-4
+      file: design/data-model.md
+      section: "4"
+    - ref: design/data-model.md#5
+      title: 读契约：`detect_anomalies` 的输入数据（
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: "5"
+    - ref: design/data-model.md#6
+      title: 不写什么（负向契约）（
+      serves:
+        - FR-2
+        - FR-3
+      file: design/data-model.md
+      section: "6"
+    - ref: design/interfaces.md#1
+      title: "`DataValidator.detect_anomalies` 三态契约（核心）（"
+      serves:
+        - FR-1
+        - FR-2
+      file: design/interfaces.md
+      section: "1"
+    - ref: design/interfaces.md#2
+      title: "`DataValidator.get_data_quality_score` 分量口径（"
+      serves:
+        - FR-4
+      file: design/interfaces.md
+      section: "2"
+    - ref: design/interfaces.md#3
+      title: 三处消费点的处置契约（
+      serves:
+        - FR-3
+      file: design/interfaces.md
+      section: "3"
+    - ref: design/interfaces.md#3.1
+      title: "`data_quality_service.check_quality_for_symbol`（单股，`:152-190`）（"
+      serves:
+        - FR-3
+      file: design/interfaces.md
+      section: "3.1"
+    - ref: design/interfaces.md#3.2
+      title: "`data_quality_service.check_data_quality`（汇总，`:205/:223/:238`）（"
+      serves:
+        - FR-3
+      file: design/interfaces.md
+      section: "3.2"
+    - ref: design/interfaces.md#3.3
+      title: "`data_quality_service.check_data_quality_single` 附近（`:469-481`）（"
+      serves:
+        - FR-3
+      file: design/interfaces.md
+      section: "3.3"
+    - ref: design/interfaces.md#3.4
+      title: 审计落库 `_record_quality_check`（`:546`）（
+      serves:
+        - FR-3
+      file: design/interfaces.md
+      section: "3.4"
+    - ref: design/interfaces.md#4
+      title: 数据契约（是否改表）（
+      serves:
+        - FR-3
+      file: design/interfaces.md
+      section: "4"
+    - ref: design/interfaces.md#5
+      title: 错误语义与日志（
+      serves:
+        - FR-2
+        - FR-3
+      file: design/interfaces.md
+      section: "5"
+    - ref: design/interfaces.md#6
+      title: 静态与兼容红线（
+      serves:
+        - FR-2
+        - FR-5
+      file: design/interfaces.md
+      section: "6"
+    - ref: design/use-cases.md#1
+      title: 场景 A：普通股票，K 线充足且无异常（
+      serves:
+        - FR-1
+        - FR-2
+      file: design/use-cases.md
+      section: "1"
+    - ref: design/use-cases.md#2
+      title: 场景 B：真有异常（价格或成交量）（
+      serves:
+        - FR-1
+        - FR-4
+      file: design/use-cases.md
+      section: "2"
+    - ref: design/use-cases.md#3
+      title: 场景 C：次新股 / 长停股（K 线 <30 行）（
+      serves:
+        - FR-2
+        - FR-4
+      file: design/use-cases.md
+      section: "3"
+    - ref: design/use-cases.md#4
+      title: 场景 D：检测失败（取数异常 / 代码异常）（
+      serves:
+        - FR-2
+        - FR-3
+      file: design/use-cases.md
+      section: "4"
+    - ref: design/use-cases.md#5
+      title: 场景 E：人看质量报告 / 日报（
+      serves:
+        - FR-3
+        - FR-4
+      file: design/use-cases.md
+      section: "5"
+    - ref: design/use-cases.md#6
+      title: 场景 F：回滚（
+      serves:
+        - FR-3
+      file: design/use-cases.md
+      section: "6"
+    - ref: design/use-cases.md#7
+      title: 非目标：同型写法的一并处置（明确不做）（
+      serves:
+        - FR-5
+      file: design/use-cases.md
+      section: "7"
+outputs:
+  tasks:
+    - id: t-0a6461
+      title: 让异常检测真的运行，并输出可区分的三态
+      implements: "改 application/services/data_validator.py：① detect_anomalies 成交量段 for kline in klines: 改为 for kline in klines_list:（:369，与价格段同源）；② 数据不足早退（:331-338）改为 B 态：ok=True、has_anomalies=None、unknown_reason='insufficient_data'，message 文案逐字不变；③ 成功路径返回 ok=True / has_anomalies=<bool> / unknown_reason=None / error=None（既有四键语义不变）；④ except 路径返回 ok=False、has_anomalies=None、unknown_reason=<摘要≤200>、error=同摘要（兼容别名），并把 symbol / unknown_reason 加进 error 日志结构化字段（保留既有中文文案）；⑤ get_data_quality_score 异常率分量按 interfaces.md §2 四态分流：有异常=既有公式、确无异常=20、数据不足=剔除并重新归一 (coverage+dup)/80*100、失败=0 且记 error。依据 design/interfaces.md §1–§2。"
+      serves:
+        - FR-1
+        - FR-2
+        - FR-4
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-163105
+      title: 下游按三态处置：失败不当干净、数据不足不扣分
+      implements: 改 application/services/data_quality_service.py：① 抽出同一份判定 helper（anomaly_failed = info.get('ok') is False；anomaly_unknown = info.get('has_anomalies') is None）；② :152-190 与 :469-481 两处都用它：has_issues = gap>0 or dup or has_anomalies is True or anomaly_failed；条目新增 anomaly_unknown / anomaly_unknown_reason（既有键保留）；③ 汇总 :205/:223/:238 新增 anomaly_unknown_count（失败）与 insufficient_history_count（数据不足）；④ _record_quality_check（:546）改为遍历 price_anomalies + volume_anomalies 写 type='anomaly' warning，并在未知时写 type='anomaly_detection_unknown'（带 reason）。依据 design/interfaces.md §3。
+      serves:
+        - FR-3
+        - FR-4
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-b1dd5c
+      title: 真 polars 回归锁与反例锁（先红后绿）
+      implements: 新建 tests/test_data_validator_anomaly_detection.py，实现 design/test-cases.md 的 T1–T15：真 pl.DataFrame（≥40 行）正/负例、成交量异常直击（T3）、数据不足 B 态、失败 C 态、键集兼容、质量分四分态、两处消费点计数、审计 warnings、静态红线；并先在本卡开工前（改前）状态上跑一遍记录 L1–L4 的红（detect_anomalies 抛错被吞）。打桩点：用实例属性替换 validator.kline_repo / service.validator，KlineQualityRepository 用注入或实例替换。
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+      depends_on:
+        - t-0a6461
+        - t-163105
+      phase: test
+      side: backend
+    - id: t-420a52
+      title: 抽样实跑复验与读数对照留档
+      implements: 新建 docs/requirements/REQ-261006133733-1fdf/notes/anomaly-recheck.md，记录：① 抽样 ≥20 只（K 线 ≥60 行）跑 detect_anomalies → ok=False 数与 total_anomalies 分布（须出现 >0）；② 复验窗口内 grep -c 检测异常值失败 logs/api.log = 0（对照今日基线 7995 条/4 分钟）；③ 读数变化对照：质量分（异常率分量不再白送）与 stocks_with_issues 方向，按 design/architecture.md §6 口径写明「这是读数变真、不是回归」；④ 若窗口内未重跑质量检查（task 232 每日 00:00），如实写明「未取到当日复跑」，不得用单测顶替。
+      serves:
+        - FR-1
+        - FR-5
+      depends_on:
+        - t-b1dd5c
+      phase: test
+      side: backend
+    - id: t-a75776
+      title: 让异常检测真的运行，并输出可区分的三态·研发
+      implements: |-
+        改 application/services/data_validator.py：① detect_anomalies 成交量段 for kline in klines: 改为 for kline in klines_list:（:369，与价格段同源）；② 数据不足早退（:331-338）改为 B 态：ok=True、has_anomalies=None、unknown_reason='insufficient_data'，message 文案逐字不变；③ 成功路径返回 ok=True / has_anomalies=<bool> / unknown_reason=None / error=None（既有四键语义不变）；④ except 路径返回 ok=False、has_anomalies=None、unknown_reason=<摘要≤200>、error=同摘要（兼容别名），并把 symbol / unknown_reason 加进 error 日志结构化字段（保留既有中文文案）；⑤ get_data_quality_score 异常率分量按 interfaces.md §2 四态分流：有异常=既有公式、确无异常=20、数据不足=剔除并重新归一 (coverage+dup)/80*100、失败=0 且记 error。依据 design/interfaces.md §1–§2。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-af8fa3
+      title: 让异常检测真的运行，并输出可区分的三态·复核
+      implements: |-
+        改 application/services/data_validator.py：① detect_anomalies 成交量段 for kline in klines: 改为 for kline in klines_list:（:369，与价格段同源）；② 数据不足早退（:331-338）改为 B 态：ok=True、has_anomalies=None、unknown_reason='insufficient_data'，message 文案逐字不变；③ 成功路径返回 ok=True / has_anomalies=<bool> / unknown_reason=None / error=None（既有四键语义不变）；④ except 路径返回 ok=False、has_anomalies=None、unknown_reason=<摘要≤200>、error=同摘要（兼容别名），并把 symbol / unknown_reason 加进 error 日志结构化字段（保留既有中文文案）；⑤ get_data_quality_score 异常率分量按 interfaces.md §2 四态分流：有异常=既有公式、确无异常=20、数据不足=剔除并重新归一 (coverage+dup)/80*100、失败=0 且记 error。依据 design/interfaces.md §1–§2。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-a75776
+      phase: implement
+      side: backend
+    - id: t-e8a5e3
+      title: 让异常检测真的运行，并输出可区分的三态·测试
+      implements: |-
+        改 application/services/data_validator.py：① detect_anomalies 成交量段 for kline in klines: 改为 for kline in klines_list:（:369，与价格段同源）；② 数据不足早退（:331-338）改为 B 态：ok=True、has_anomalies=None、unknown_reason='insufficient_data'，message 文案逐字不变；③ 成功路径返回 ok=True / has_anomalies=<bool> / unknown_reason=None / error=None（既有四键语义不变）；④ except 路径返回 ok=False、has_anomalies=None、unknown_reason=<摘要≤200>、error=同摘要（兼容别名），并把 symbol / unknown_reason 加进 error 日志结构化字段（保留既有中文文案）；⑤ get_data_quality_score 异常率分量按 interfaces.md §2 四态分流：有异常=既有公式、确无异常=20、数据不足=剔除并重新归一 (coverage+dup)/80*100、失败=0 且记 error。依据 design/interfaces.md §1–§2。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-af8fa3
+      phase: implement
+      side: backend
+    - id: t-9dc9eb
+      title: 下游按三态处置：失败不当干净、数据不足不扣分·研发
+      implements: |-
+        改 application/services/data_quality_service.py：① 抽出同一份判定 helper（anomaly_failed = info.get('ok') is False；anomaly_unknown = info.get('has_anomalies') is None）；② :152-190 与 :469-481 两处都用它：has_issues = gap>0 or dup or has_anomalies is True or anomaly_failed；条目新增 anomaly_unknown / anomaly_unknown_reason（既有键保留）；③ 汇总 :205/:223/:238 新增 anomaly_unknown_count（失败）与 insufficient_history_count（数据不足）；④ _record_quality_check（:546）改为遍历 price_anomalies + volume_anomalies 写 type='anomaly' warning，并在未知时写 type='anomaly_detection_unknown'（带 reason）。依据 design/interfaces.md §3。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-02907b
+      title: 下游按三态处置：失败不当干净、数据不足不扣分·复核
+      implements: |-
+        改 application/services/data_quality_service.py：① 抽出同一份判定 helper（anomaly_failed = info.get('ok') is False；anomaly_unknown = info.get('has_anomalies') is None）；② :152-190 与 :469-481 两处都用它：has_issues = gap>0 or dup or has_anomalies is True or anomaly_failed；条目新增 anomaly_unknown / anomaly_unknown_reason（既有键保留）；③ 汇总 :205/:223/:238 新增 anomaly_unknown_count（失败）与 insufficient_history_count（数据不足）；④ _record_quality_check（:546）改为遍历 price_anomalies + volume_anomalies 写 type='anomaly' warning，并在未知时写 type='anomaly_detection_unknown'（带 reason）。依据 design/interfaces.md §3。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-9dc9eb
+      phase: implement
+      side: backend
+    - id: t-0a6147
+      title: 下游按三态处置：失败不当干净、数据不足不扣分·测试
+      implements: |-
+        改 application/services/data_quality_service.py：① 抽出同一份判定 helper（anomaly_failed = info.get('ok') is False；anomaly_unknown = info.get('has_anomalies') is None）；② :152-190 与 :469-481 两处都用它：has_issues = gap>0 or dup or has_anomalies is True or anomaly_failed；条目新增 anomaly_unknown / anomaly_unknown_reason（既有键保留）；③ 汇总 :205/:223/:238 新增 anomaly_unknown_count（失败）与 insufficient_history_count（数据不足）；④ _record_quality_check（:546）改为遍历 price_anomalies + volume_anomalies 写 type='anomaly' warning，并在未知时写 type='anomaly_detection_unknown'（带 reason）。依据 design/interfaces.md §3。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-02907b
+      phase: implement
+      side: backend
+    - id: t-da0215
+      title: 真 polars 回归锁与反例锁（先红后绿）·研发
+      implements: |-
+        新建 tests/test_data_validator_anomaly_detection.py，实现 design/test-cases.md 的 T1–T15：真 pl.DataFrame（≥40 行）正/负例、成交量异常直击（T3）、数据不足 B 态、失败 C 态、键集兼容、质量分四分态、两处消费点计数、审计 warnings、静态红线；并先在本卡开工前（改前）状态上跑一遍记录 L1–L4 的红（detect_anomalies 抛错被吞）。打桩点：用实例属性替换 validator.kline_repo / service.validator，KlineQualityRepository 用注入或实例替换。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-0a6461
+        - t-163105
+      phase: test
+      side: backend
+    - id: t-97f26c
+      title: 真 polars 回归锁与反例锁（先红后绿）·复核
+      implements: |-
+        新建 tests/test_data_validator_anomaly_detection.py，实现 design/test-cases.md 的 T1–T15：真 pl.DataFrame（≥40 行）正/负例、成交量异常直击（T3）、数据不足 B 态、失败 C 态、键集兼容、质量分四分态、两处消费点计数、审计 warnings、静态红线；并先在本卡开工前（改前）状态上跑一遍记录 L1–L4 的红（detect_anomalies 抛错被吞）。打桩点：用实例属性替换 validator.kline_repo / service.validator，KlineQualityRepository 用注入或实例替换。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-da0215
+      phase: test
+      side: backend
+    - id: t-7463bd
+      title: 真 polars 回归锁与反例锁（先红后绿）·测试
+      implements: |-
+        新建 tests/test_data_validator_anomaly_detection.py，实现 design/test-cases.md 的 T1–T15：真 pl.DataFrame（≥40 行）正/负例、成交量异常直击（T3）、数据不足 B 态、失败 C 态、键集兼容、质量分四分态、两处消费点计数、审计 warnings、静态红线；并先在本卡开工前（改前）状态上跑一遍记录 L1–L4 的红（detect_anomalies 抛错被吞）。打桩点：用实例属性替换 validator.kline_repo / service.validator，KlineQualityRepository 用注入或实例替换。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-97f26c
+      phase: test
+      side: backend
+    - id: t-45f50a
+      title: 抽样实跑复验与读数对照留档·研发
+      implements: |-
+        新建 docs/requirements/REQ-261006133733-1fdf/notes/anomaly-recheck.md，记录：① 抽样 ≥20 只（K 线 ≥60 行）跑 detect_anomalies → ok=False 数与 total_anomalies 分布（须出现 >0）；② 复验窗口内 grep -c 检测异常值失败 logs/api.log = 0（对照今日基线 7995 条/4 分钟）；③ 读数变化对照：质量分（异常率分量不再白送）与 stocks_with_issues 方向，按 design/architecture.md §6 口径写明「这是读数变真、不是回归」；④ 若窗口内未重跑质量检查（task 232 每日 00:00），如实写明「未取到当日复跑」，不得用单测顶替。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-b1dd5c
+      phase: test
+      side: backend
+    - id: t-0dd2ae
+      title: 抽样实跑复验与读数对照留档·复核
+      implements: |-
+        新建 docs/requirements/REQ-261006133733-1fdf/notes/anomaly-recheck.md，记录：① 抽样 ≥20 只（K 线 ≥60 行）跑 detect_anomalies → ok=False 数与 total_anomalies 分布（须出现 >0）；② 复验窗口内 grep -c 检测异常值失败 logs/api.log = 0（对照今日基线 7995 条/4 分钟）；③ 读数变化对照：质量分（异常率分量不再白送）与 stocks_with_issues 方向，按 design/architecture.md §6 口径写明「这是读数变真、不是回归」；④ 若窗口内未重跑质量检查（task 232 每日 00:00），如实写明「未取到当日复跑」，不得用单测顶替。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-45f50a
+      phase: test
+      side: backend
+    - id: t-9050ff
+      title: 抽样实跑复验与读数对照留档·测试
+      implements: |-
+        新建 docs/requirements/REQ-261006133733-1fdf/notes/anomaly-recheck.md，记录：① 抽样 ≥20 只（K 线 ≥60 行）跑 detect_anomalies → ok=False 数与 total_anomalies 分布（须出现 >0）；② 复验窗口内 grep -c 检测异常值失败 logs/api.log = 0（对照今日基线 7995 条/4 分钟）；③ 读数变化对照：质量分（异常率分量不再白送）与 stocks_with_issues 方向，按 design/architecture.md §6 口径写明「这是读数变真、不是回归」；④ 若窗口内未重跑质量检查（task 232 每日 00:00），如实写明「未取到当日复跑」，不得用单测顶替。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-0dd2ae
+      phase: test
+      side: backend
+task_coverage:
+  - task_id: t-0a6461
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-163105
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-b1dd5c
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-420a52
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-a75776
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-af8fa3
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-e8a5e3
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-9dc9eb
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-02907b
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-0a6147
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-da0215
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-97f26c
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-7463bd
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-45f50a
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-0dd2ae
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-9050ff
+    covers_prototypes: []
+    covers_decisions: []
+traceability:
+  design_to_tasks:
+    design/architecture.md#1:
+      - t-0a6461
+      - t-b1dd5c
+      - t-420a52
+    design/architecture.md#2:
+      - t-0a6461
+      - t-b1dd5c
+      - t-420a52
+    design/architecture.md#3:
+      - t-0a6461
+      - t-163105
+      - t-b1dd5c
+    design/architecture.md#4:
+      - t-0a6461
+      - t-163105
+      - t-b1dd5c
+      - t-420a52
+    design/architecture.md#5:
+      - t-163105
+      - t-b1dd5c
+    design/architecture.md#6:
+      - t-0a6461
+      - t-163105
+      - t-b1dd5c
+    design/architecture.md#7:
+      - t-b1dd5c
+      - t-420a52
+    design/data-model.md#1:
+      - t-163105
+      - t-b1dd5c
+    design/data-model.md#2:
+      - t-163105
+      - t-b1dd5c
+    design/data-model.md#3:
+      - t-163105
+      - t-b1dd5c
+    design/data-model.md#4:
+      - t-0a6461
+      - t-163105
+      - t-b1dd5c
+    design/data-model.md#5:
+      - t-0a6461
+      - t-b1dd5c
+      - t-420a52
+    design/data-model.md#6:
+      - t-0a6461
+      - t-163105
+      - t-b1dd5c
+    design/interfaces.md#1:
+      - t-0a6461
+      - t-b1dd5c
+      - t-420a52
+    design/interfaces.md#2:
+      - t-0a6461
+      - t-163105
+      - t-b1dd5c
+    design/interfaces.md#3:
+      - t-163105
+      - t-b1dd5c
+    design/interfaces.md#3.1:
+      - t-163105
+      - t-b1dd5c
+    design/interfaces.md#3.2:
+      - t-163105
+      - t-b1dd5c
+    design/interfaces.md#3.3:
+      - t-163105
+      - t-b1dd5c
+    design/interfaces.md#3.4:
+      - t-163105
+      - t-b1dd5c
+    design/interfaces.md#4:
+      - t-163105
+      - t-b1dd5c
+    design/interfaces.md#5:
+      - t-0a6461
+      - t-163105
+      - t-b1dd5c
+    design/interfaces.md#6:
+      - t-0a6461
+      - t-b1dd5c
+      - t-420a52
+    design/use-cases.md#1:
+      - t-0a6461
+      - t-b1dd5c
+      - t-420a52
+    design/use-cases.md#2:
+      - t-0a6461
+      - t-163105
+      - t-b1dd5c
+      - t-420a52
+    design/use-cases.md#3:
+      - t-0a6461
+      - t-163105
+      - t-b1dd5c
+    design/use-cases.md#4:
+      - t-0a6461
+      - t-163105
+      - t-b1dd5c
+    design/use-cases.md#5:
+      - t-0a6461
+      - t-163105
+      - t-b1dd5c
+    design/use-cases.md#6:
+      - t-163105
+      - t-b1dd5c
+    design/use-cases.md#7:
+      - t-b1dd5c
+      - t-420a52
+  fr_to_tasks:
+    FR-1:
+      - t-0a6461
+      - t-b1dd5c
+      - t-420a52
+      - t-163105
+    FR-2:
+      - t-0a6461
+      - t-b1dd5c
+      - t-420a52
+      - t-163105
+    FR-3:
+      - t-0a6461
+      - t-163105
+      - t-b1dd5c
+      - t-420a52
+    FR-4:
+      - t-0a6461
+      - t-163105
+      - t-b1dd5c
+      - t-420a52
+    FR-5:
+      - t-0a6461
+      - t-163105
+      - t-b1dd5c
+      - t-420a52
+coverage:
+  implementation:
+    total: 30
+    covered: 30
+    uncovered: []
+    rate: 100
+    total_designs: 30
+    covered_designs: 30

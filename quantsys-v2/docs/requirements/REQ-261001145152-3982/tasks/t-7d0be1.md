@@ -9,9 +9,11 @@
 （未填写——开工前补充这张卡要解决的业务问题）
 
 ## 得到什么结果
-接口联调通过：给出请求样例与期望响应，实际返回与预期一致
 
----
+1) 真实调用方逐个可跑（报告中列出 7 条路径），至少覆盖：`python -c "from infrastructure.persistence.database.engine import get_engine; get_engine(); print('engine-ok')"` 输出 `engine-ok`。
+2) 各视图取得到值：`python -c "from infrastructure.config.settings import get_config as g; c=g(); print(bool(c.database.url), bool(c.async_url), bool(c.redis.host))"` 三个均为 True。
+3) `pytest tests/ -q -k config` 的失败数不高于改动前基线。
+
 ## 汇报 1（2026-10-01T09:30:10.840Z，窗口 session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22）
 
 联调段：7 条真实调用链全部通了，DSN 也确实改从配置来（而不是"抛异常后退回环境变量"）；服务重启后读写、健康检查、K 线接口都正常，启动日志干净。

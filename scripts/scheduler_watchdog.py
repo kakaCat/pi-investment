@@ -284,9 +284,13 @@ def scan_v2(conn, now_utc, since_utc):
                     continue  # 仍在宽限期，可能补投
                 note = "；APScheduler 有未来排期（只说明下次会跑）" if tid in scheduled_ids else ""
                 # 覆盖判定：槽位之后是否已有成功运行（漏跑已由后续运行覆盖 → 补跑只会重复）
+                # REQ-261006093620-a315 t7：`skipped`（交易日门按日历跳过）也算「该槽位已有留痕」，
+                # 否则休市日会刷出一串"漏跑"假警（R3）。
+                # ⚠️ 本文件下方 `os:missed` 段查的是 Agent OS 的 `public.task_runs` —— 那是**另一套调度**
+                # （agent 侧任务，没有交易日门、也没有 skipped 语义），**不要**一并改。
                 cur.execute(
                     "SELECT count(*) AS n FROM quant.scheduler_runs "
-                    "WHERE task_id=%s AND status='success' AND started_at > %s",
+                    "WHERE task_id=%s AND status IN ('success', 'skipped') AND started_at > %s",
                     (tid, e),
                 )
                 superseded = int(cur.fetchone()["n"] or 0) > 0

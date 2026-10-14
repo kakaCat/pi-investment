@@ -1,0 +1,35 @@
+task:
+  id: t-60e3a6
+  title: alerting 抽出完成消息组装 format_completion·研发
+  status: done
+  implements: |-
+    在 adapters/inbound/fastapi_app/daily_jobs/alerting.py 新增 format_completion(job_id, description, elapsed, result, *, manual=False, warn_no_output=False) -> str：标题优先级 manual（'✅ 每日任务完成（人工触发）：{job_id}'）> warn_no_output（'⚠️ 每日任务完成（无有效产出）：{job_id}'）> '✅ 每日任务完成：{job_id}'；正文 {description}\n耗时: {_format_elapsed(elapsed)} + 非空摘要（_summarize_result）。不改 _send_feishu / _summarize_result / _format_elapsed / _job_failure_watch。
+
+    [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+  serves: []
+  depends_on: []
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261006165125-23a9
+    TASK_ID: t-60e3a6
+    TASK_TITLE: alerting 抽出完成消息组装 format_completion·研发
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-06T09:03:24.421Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006165125-23a9
+  generated_at: 2026-10-06T09:03:05.316Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-06T09:03:28.757Z

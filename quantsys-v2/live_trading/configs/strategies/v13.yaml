@@ -1,10 +1,23 @@
 # V13 策略配置
 # V13 XGBoost Multi-Factor Strategy Configuration
+#
+# ⚠️ 本文件是 V13 策略参数的**唯一声明源**（REQ-261004154902-a7cd · FR-5 · t-979319）。
+# `live_trading/config_simulation.yaml` 只保留执行环境参数（佣金/滑点/存储/日志/通知）；
+# 二者冲突时**以本文件为准**，运行时会打印「声明值 vs 生效值」对照表。
+#
+# 声明键 → 运行时键的对应关系（勿凭名字猜，改键名时两边同改）：
+#   trading.rebalance_days            → trader.config['strategy']['rebalance_days']
+#   trading.top_n（同义 max_positions）→ risk_controller.top_n
+#   risk.single_stock_stop_loss       → risk_controller.single_stop_loss
+#   risk.portfolio_stop_loss          → risk_controller.portfolio_stop_loss
+#   risk.max_position_pct             → risk_controller.max_position
+#   risk.min_position                 → risk_controller.min_position
+#   risk.single_stock_weight          → risk_controller.max_single_weight
 
 strategy:
   name: "V13 XGBoost Multi-Factor"
   version: "1.0.0"
-  description: "基于XGBoost的多因子选股策略，5日调仓周期，最多持仓8只股票"
+  description: "基于XGBoost的多因子选股策略，5日调仓周期，最多持仓5只股票（2026-10-04 用户裁定）"
   account_name: "v13_simulation"  # 数据库账户名称
   enabled: true
 
@@ -12,21 +25,30 @@ model:
   model_path: "live_trading/models/v13_model.json"
   factor_calculator: v13
   factors_path: "live_trading/models/valid_factors.json"
-  factors_count: 68
+  factors_count: 75          # 实测：valid_factors.json 75 条 = 模型特征数 75（原写 68，失真已改正）
   ic_value: 0.5465
 
 trading:
   rebalance_days: 5          # 调仓周期（天）
-  max_positions: 8           # 最大持仓数量
-  max_position_pct: 0.85     # 最大总仓位比例
-  top_n: 8                   # 选股数量
-  min_score: 0.5             # 最低预测分数
+  # 2026-10-04（REQ-261004154902-a7cd FR-5 · 用户裁定）：持仓数 **5**。
+  # 背景：执行环境 config_simulation.yaml 曾把持仓数从 8 优化到 5（该文件自述
+  # 「优化：从 8 只集中到 5 只」），而声明源这里一直写 8 —— 于是「声明 8、实际 5」。
+  # 修好「声明=生效」后必须二选一：用户的裁定是**保留 5 只**（集中持仓是有意调优），
+  # 因此把声明源改成 5，而不是把线上拉回 8。
+  max_positions: 5           # 最大持仓数量（与 top_n 同义；不一致时以 top_n 为准并告警）
+  max_position_pct: 0.85     # 最大总仓位比例 → risk_controller.max_position
+  top_n: 5                   # 选股数量 = 持仓数量上限 → risk_controller.top_n
+  # min_score（最低预测分数）**已删除**（REQ-261004154902-a7cd FR-5 · t-979319）：
+  # 该键在全仓**无任何读取点**（实测 grep 零命中），声明一个没人读的阈值正是本需求要消灭的
+  # 「假声明」。将来若要按最低分过滤选股，请**先接线、再**在此恢复本键。
 
 risk:
   single_stock_stop_loss: -0.15     # 单股止损线（-15%）
   portfolio_stop_loss: -0.20        # 组合止损线（-20%）
-  single_stock_weight: 0.15         # 单股权重（~15%）
-  max_single_stock_weight: 0.20     # 单股最大权重
+  single_stock_weight: 0.15         # 单股权重（~15%）→ risk_controller.max_single_weight
+  max_single_stock_weight: 0.20     # 硬上限声明：**当前无读取点**（RiskController 只有一个权重上限，
+                                    # 取上面的 single_stock_weight）；保留以备将来接线
+  min_position: 0.70                # 最小仓位比例（原仅存在于 config_simulation.yaml，现声明化；取值不变）
   min_market_cap: 50                # 最小市值（亿）
   min_liquidity: 1000000            # 最小日成交量
 

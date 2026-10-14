@@ -9,9 +9,13 @@
 （未填写——开工前补充这张卡要解决的业务问题）
 
 ## 得到什么结果
-目标命令输出全绿（贴命令与结果摘要）
 
----
+1) 正负例逐值验证（在 quantsys-v2 下执行）：
+`python -c "import os;os.environ['DISABLE_APSCHEDULER']='';print(bool(os.getenv('DISABLE_APSCHEDULER')))"` 类比对空串/false → False；
+`='true'` 与 `='TRUE'` → True；`='1'` → False（与仓内既有开关同口径：只认 true）。
+2) `python -m py_compile adapters/inbound/fastapi_app/main.py` 退出码 0。
+3) `pytest tests/ -q -k scheduler` 的失败数不高于改动前基线。
+
 ## 汇报 1（2026-10-01T07:15:47.993Z，窗口 session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22）
 
 测试段：开关的开关语义与预期一致（只认 true），验收命令全绿；唯一局限是它不认 1，这与本仓其它开关口径相同、已在汇报中如实标注。

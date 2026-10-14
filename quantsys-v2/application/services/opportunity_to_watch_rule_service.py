@@ -14,7 +14,11 @@
 创建的规则：
 - trigger_level: L1（观察提醒）
 - action_hint: observe（不自动买入）
-- escalation_policy: 默认（价格偏差>5%或触发频率异常时升级L2）
+- escalation_policy: 显式默认（`auto_escalate=true` + 涨跌幅 ≥ 5% 时叫我）
+  —— 2026-10-07（REQ-261007133807-eda6 t12）改：此处原写「价格偏差>5% 或「触发频率」异常时升级 L2」，
+  而「触发频率」那条判据早在 REQ-c9f899 t7 已删除（文档与实现不一致 = 第二份错误事实源）。
+  现行判据见 domain/watch/services/escalation_verdict.py 码表与
+  docs/architecture/watch-notification-contract.md §6。
 - expires_at: 30天后
 """
 import re

@@ -1,0 +1,34 @@
+task:
+  id: t-152a0b
+  title: 规则侧显式化与人话说明（explain_escalation + 默认值显式化）
+  status: done
+  implements: domain/watch/models.py：EscalationPolicy.default() 改为显式含 anomaly_change_pct（取 EscalationChecker.DEFAULT_ANOMALY_CHANGE_PCT 常量，不手写 5.0），新增 to_dict() 只输出 auto_escalate 与 anomaly_change_pct（不回写历史字段）。在 escalation_verdict.py 新增 explain_escalation(rule) -> str，按 L2 / auto_escalate 关闭 / 显式 escalate / 阈值覆写 / 策略未声明 分支给一句人话；策略缺失时返回「策略未声明（按默认口径）」而非空串。测试 tests/domain/test_escalation_policy_defaults.py。
+  serves:
+    - FR-4
+  depends_on:
+    - t-d24cfb
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261007133807-eda6
+    TASK_ID: t-152a0b
+    TASK_TITLE: 规则侧显式化与人话说明（explain_escalation + 默认值显式化）
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-07T10:56:28.396Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261007133807-eda6
+  generated_at: 2026-10-07T10:52:02.825Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-07T10:57:29.110Z

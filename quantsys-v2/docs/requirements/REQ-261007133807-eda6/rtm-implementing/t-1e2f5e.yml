@@ -1,0 +1,41 @@
+task:
+  id: t-1e2f5e
+  title: 端到端验收：触发 → 库有码 → 卡有理由（含唤醒量回归锁）·校验
+  status: done
+  implements: |-
+    新增 tests/application/test_watch_escalation_e2e.py：用冻结时钟与桩外发跑一次完整触发（不真实交易日、不真实外发），断言触发记录带 code 与 reason、卡面正文含「升级原因」、通知守卫记账为声明值；作为结单卡汇总跑不破现状全套与两条结构判据（无第二处 L2 叫醒、陈旧文案归零）。
+
+    [子卡阶段·校验] 只做本阶段；验收：校验项逐条给出结果：`npx vitest run tests/` → 全绿；异常项已列出并标注影响面
+  serves: []
+  depends_on:
+    - t-fc92ab
+    - t-ba3f1f
+    - t-7c7d38
+    - t-435423
+  phase: test
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261007133807-eda6
+    TASK_ID: t-1e2f5e
+    TASK_TITLE: 端到端验收：触发 → 库有码 → 卡有理由（含唤醒量回归锁）·校验
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: test
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: test
+      status: done
+      completed_at: 2026-10-07T11:21:59.106Z
+    - phase: implement
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261007133807-eda6
+  generated_at: 2026-10-07T11:21:54.722Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-07T11:21:59.107Z

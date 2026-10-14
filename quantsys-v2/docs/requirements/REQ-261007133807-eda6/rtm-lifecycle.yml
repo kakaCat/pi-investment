@@ -1,0 +1,66 @@
+requirement:
+  id: REQ-261007133807-eda6
+  title: 「何时叫 agent」判据收敛与可见化（升级路径单一入口）
+  category: feature
+  created_at: 2026-10-07T05:38:07.766Z
+  source_session: session-f9c75862-cab1-4a4d-b7b3-9d69c6c42d49
+  dir: /Users/mac/Documents/ai/pi-investment/quantsys-v2/docs/requirements/REQ-261007133807-eda6
+lifecycle:
+  current_stage: accepting
+  stage_count: 7
+  stage_list:
+    - draft
+    - brainstorming
+    - design
+    - decomposing
+    - implementing
+    - accepting
+    - done
+  stages:
+    - stage: draft
+      status: completed
+      enabled: true
+      entered_at: 2026-10-07T05:38:07.766Z
+      completed_at: 2026-10-07T11:24:35.233Z
+      timestamps_inferred: true
+    - stage: brainstorming
+      status: completed
+      enabled: true
+      entered_at: 2026-10-07T05:38:07.766Z
+      completed_at: 2026-10-07T11:24:35.233Z
+      timestamps_inferred: true
+    - stage: design
+      status: completed
+      enabled: true
+      entered_at: 2026-10-07T05:38:07.766Z
+      completed_at: 2026-10-07T11:24:35.233Z
+      timestamps_inferred: true
+    - stage: decomposing
+      status: completed
+      enabled: true
+      entered_at: 2026-10-07T05:38:07.766Z
+      completed_at: 2026-10-07T11:24:35.233Z
+      timestamps_inferred: true
+    - stage: implementing
+      status: completed
+      enabled: true
+      entered_at: 2026-10-07T05:38:07.766Z
+      completed_at: 2026-10-07T11:24:35.233Z
+      timestamps_inferred: true
+    - stage: accepting
+      status: in_progress
+      enabled: true
+      entered_at: 2026-10-07T05:38:07.766Z
+      timestamps_inferred: true
+    - stage: done
+      status: pending
+      enabled: true
+metadata:
+  stage: lifecycle
+  requirement_id: REQ-261007133807-eda6
+  generated_at: 2026-10-07T05:38:07.855Z
+  version: 14
+  generated_by: dsh-pmboard
+  rtm_version: "1.0"
+  file_path: /Users/mac/Documents/ai/pi-investment/quantsys-v2/docs/requirements/REQ-261007133807-eda6/rtm-lifecycle.yml
+  last_updated: 2026-10-07T11:24:35.302Z

@@ -249,11 +249,19 @@ class AgentChannel(NotificationChannel):
     def supports(self, notification_type: NotificationType) -> bool:
         """Agent OS 支持所有类型（由 OS 自行决定如何处理）
 
+        ⚠️ 契约说明（2026-10-04 · REQ-261004154902-a7cd t8 / FR-9）：
+        这是**能力**检查，不是**存活**检查。它恒为真在语义上没错，但**调用方必须**把它
+        当作「排序依据」而不是「排除依据」——NotificationPolicy.select_channels 曾写成
+        `return supported if supported else available`，于是本方法的恒真把飞书挤出候选，
+        而 Agent OS 下线时那 7 类通知被 100% 丢弃（已修：支持者优先、其余兜底跟进）。
+        存活/降级由 NotificationService 的逐渠道重试与 policy 的兜底排序承担，
+        不在这里做网络探测（每发一条通知探一次健康检查是不可接受的代价）。
+
         Args:
             notification_type: 通知类型
 
         Returns:
-            bool: 始终返回 True
+            bool: 始终返回 True（能力层面）
         """
         return True
 

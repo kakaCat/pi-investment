@@ -1,0 +1,97 @@
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006130750-0654
+  generated_at: 2026-10-06T05:16:43.523Z
+  version: 52
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 16
+  last_updated: 2026-10-06T06:43:05.376Z
+inputs:
+  tasks:
+    - id: t-37a691
+      title: 给 IntradayMonitor.check() 加权威日级门
+      status: done
+    - id: t-bcbe54
+      title: 编排循环加 A 层日历预过滤与跳过去噪
+      status: done
+    - id: t-45c620
+      title: 回归锁与假绿防线（新建用例文件）
+      status: done
+    - id: t-22d1ba
+      title: 休市日 / 复市首日真实观察留档
+      status: done
+    - id: t-32ec6a
+      title: 给 IntradayMonitor.check() 加权威日级门·研发
+      status: done
+    - id: t-6d2074
+      title: 给 IntradayMonitor.check() 加权威日级门·复核
+      status: done
+    - id: t-164414
+      title: 给 IntradayMonitor.check() 加权威日级门·测试
+      status: done
+    - id: t-2ab0a5
+      title: 编排循环加 A 层日历预过滤与跳过去噪·研发
+      status: done
+    - id: t-011042
+      title: 编排循环加 A 层日历预过滤与跳过去噪·复核
+      status: done
+    - id: t-67db61
+      title: 编排循环加 A 层日历预过滤与跳过去噪·测试
+      status: done
+    - id: t-ea86ce
+      title: 回归锁与假绿防线（新建用例文件）·研发
+      status: done
+    - id: t-1d7233
+      title: 回归锁与假绿防线（新建用例文件）·复核
+      status: done
+    - id: t-bcf326
+      title: 回归锁与假绿防线（新建用例文件）·测试
+      status: done
+    - id: t-b554a3
+      title: 休市日 / 复市首日真实观察留档·研发
+      status: done
+    - id: t-b87557
+      title: 休市日 / 复市首日真实观察留档·复核
+      status: done
+    - id: t-047d90
+      title: 休市日 / 复市首日真实观察留档·测试
+      status: done
+status:
+  tasks_total: 16
+  tasks_done: 16
+  tasks_in_progress: 0
+  tasks_todo: 0
+tasks:
+  - id: t-37a691
+    status: done
+  - id: t-bcbe54
+    status: done
+  - id: t-45c620
+    status: done
+  - id: t-22d1ba
+    status: done
+  - id: t-32ec6a
+    status: done
+  - id: t-6d2074
+    status: done
+  - id: t-164414
+    status: done
+  - id: t-2ab0a5
+    status: done
+  - id: t-011042
+    status: done
+  - id: t-67db61
+    status: done
+  - id: t-ea86ce
+    status: done
+  - id: t-1d7233
+    status: done
+  - id: t-bcf326
+    status: done
+  - id: t-b554a3
+    status: done
+  - id: t-b87557
+    status: done
+  - id: t-047d90
+    status: done

@@ -1,0 +1,35 @@
+task:
+  id: t-8e4de7
+  title: 实现交易日解析器（最近一个已收盘交易日）·研发
+  status: done
+  implements: |-
+    新增 application/services/trading_day_resolver.py。定义 TradingDayResult(date, source, degraded) 与 last_closed_trading_day(ref, *, cutoff=15:30, provider_lookback_days=30)。anchor = ref.date() 若 >=15:30 否则 ref.date()-1；结果 = 日历中 <=anchor 的最大交易日。三级解析：① quant.trading_calendar（需 max(trade_date)>=anchor 才算覆盖）；② ServiceFactory.get_data_provider_manager().get_trading_calendar(start, anchor)；③ 周一至周五回退。任一级失败不抛异常、记 warning、降级；source 取 calendar_table|provider|weekday_fallback。
+
+    [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+  serves: []
+  depends_on: []
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261004102115-d3de
+    TASK_ID: t-8e4de7
+    TASK_TITLE: 实现交易日解析器（最近一个已收盘交易日）·研发
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-04T02:26:56.810Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261004102115-d3de
+  generated_at: 2026-10-04T02:26:48.012Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-04T02:26:56.847Z

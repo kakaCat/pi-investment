@@ -1,0 +1,45 @@
+task:
+  id: t-9f0fbe
+  title: 设计文档自洽性 + 版本面取证
+  status: done
+  implements: 读 a7cd 设计目录下的 6 份文档与 requirement.md，建「设计条目清单」（每条：文档:行 / 声明内容 / serves 哪条 FR）。做四类自洽性检查：① 同一事实跨文档取值（design.md §12 验收命令 vs test-cases.md §6；§2 的 reason 枚举 vs interfaces.md §1）；② 文档间引用有效性（互链、被点名的文件与工具是否存在）；③ §13 四个未定决策是否闭环（对照 requirement.md 与 verification.md）；④ 数值口径（持仓数 / 止损线 / factors_count / cron 时刻在设计与需求间是否一致）。再跑面 E：对设计点名的每个文件与工具执行 git check-ignore -v、git ls-files --error-unmatch、git log -1 -- <path>、git status --porcelain。产出 docs/requirements/REQ-261006010812-cd19/evidence/a1-design-selfconsistency.md。
+  serves:
+    - FR-1
+  depends_on: []
+  phase: analysis
+  side: doc
+  workflow_params:
+    REQ_ID: REQ-261006010812-cd19
+    TASK_ID: t-9f0fbe
+    TASK_TITLE: 设计文档自洽性 + 版本面取证
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: doc
+    PHASE: analysis
+  workflow_total: 5
+  workflow_done: 5
+  workflow:
+    - phase: analysis
+      status: done
+      started_at: 2026-10-06T01:23:49.044Z
+      completed_at: 2026-10-06T01:25:54.320Z
+    - phase: implement
+      status: done
+      completed_at: 2026-10-06T01:25:54.320Z
+    - phase: test
+      status: done
+      completed_at: 2026-10-06T01:25:54.320Z
+    - phase: commit
+      status: done
+      completed_at: 2026-10-06T01:25:54.320Z
+    - phase: review
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006010812-cd19
+  generated_at: 2026-10-06T01:23:38.559Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 5
+  last_updated: 2026-10-06T01:25:54.320Z

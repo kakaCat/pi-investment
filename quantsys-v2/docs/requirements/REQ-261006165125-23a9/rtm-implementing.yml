@@ -1,0 +1,137 @@
+metadata:
+  stage: implementing
+  requirement_id: REQ-261006165125-23a9
+  generated_at: 2026-10-06T09:01:56.747Z
+  version: 73
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 24
+  last_updated: 2026-10-06T09:12:47.581Z
+inputs:
+  tasks:
+    - id: t-9c727a
+      title: 新建通知判据模块 notify_policy（无事判据 + env 解析）
+      status: done
+    - id: t-9a1066
+      title: alerting 抽出完成消息组装 format_completion
+      status: done
+    - id: t-15bb12
+      title: runtime 接线：通知收敛 + manual 参数 + 超阈值提示 + trigger_job
+      status: done
+    - id: t-1ec5fa
+      title: 新增 tests/test_daily_jobs_quiet_noop.py（T-1~T-16 回归锁）
+      status: done
+    - id: t-fd8513
+      title: 改写被新口径推翻的 2 条既有断言 + 相邻回归
+      status: done
+    - id: t-f9a549
+      title: 回滚态验证 + 部署重启 + 真实观察留痕
+      status: done
+    - id: t-bf39b1
+      title: 新建通知判据模块 notify_policy（无事判据 + env 解析）·研发
+      status: done
+    - id: t-f78a6f
+      title: 新建通知判据模块 notify_policy（无事判据 + env 解析）·复核
+      status: done
+    - id: t-eacc2e
+      title: 新建通知判据模块 notify_policy（无事判据 + env 解析）·测试
+      status: done
+    - id: t-60e3a6
+      title: alerting 抽出完成消息组装 format_completion·研发
+      status: done
+    - id: t-2f0bc5
+      title: alerting 抽出完成消息组装 format_completion·复核
+      status: done
+    - id: t-11b46b
+      title: alerting 抽出完成消息组装 format_completion·测试
+      status: done
+    - id: t-dd129f
+      title: runtime 接线：通知收敛 + manual 参数 + 超阈值提示 + trigger_job·研发
+      status: done
+    - id: t-e34e81
+      title: runtime 接线：通知收敛 + manual 参数 + 超阈值提示 + trigger_job·复核
+      status: done
+    - id: t-319ae0
+      title: runtime 接线：通知收敛 + manual 参数 + 超阈值提示 + trigger_job·测试
+      status: done
+    - id: t-0b1d7e
+      title: 改写被新口径推翻的 2 条既有断言 + 相邻回归·研发
+      status: done
+    - id: t-6465f8
+      title: 改写被新口径推翻的 2 条既有断言 + 相邻回归·复核
+      status: done
+    - id: t-4eefcc
+      title: 改写被新口径推翻的 2 条既有断言 + 相邻回归·测试
+      status: done
+    - id: t-9138db
+      title: 新增 tests/test_daily_jobs_quiet_noop.py（T-1~T-16 回归锁）·研发
+      status: done
+    - id: t-e704f1
+      title: 新增 tests/test_daily_jobs_quiet_noop.py（T-1~T-16 回归锁）·复核
+      status: done
+    - id: t-4a30f8
+      title: 新增 tests/test_daily_jobs_quiet_noop.py（T-1~T-16 回归锁）·测试
+      status: done
+    - id: t-759ba0
+      title: 回滚态验证 + 部署重启 + 真实观察留痕·研发
+      status: done
+    - id: t-8e8912
+      title: 回滚态验证 + 部署重启 + 真实观察留痕·复核
+      status: done
+    - id: t-ddc9c6
+      title: 回滚态验证 + 部署重启 + 真实观察留痕·测试
+      status: done
+status:
+  tasks_total: 24
+  tasks_done: 24
+  tasks_in_progress: 0
+  tasks_todo: 0
+tasks:
+  - id: t-9c727a
+    status: done
+  - id: t-9a1066
+    status: done
+  - id: t-15bb12
+    status: done
+  - id: t-1ec5fa
+    status: done
+  - id: t-fd8513
+    status: done
+  - id: t-f9a549
+    status: done
+  - id: t-bf39b1
+    status: done
+  - id: t-f78a6f
+    status: done
+  - id: t-eacc2e
+    status: done
+  - id: t-60e3a6
+    status: done
+  - id: t-2f0bc5
+    status: done
+  - id: t-11b46b
+    status: done
+  - id: t-dd129f
+    status: done
+  - id: t-e34e81
+    status: done
+  - id: t-319ae0
+    status: done
+  - id: t-0b1d7e
+    status: done
+  - id: t-6465f8
+    status: done
+  - id: t-4eefcc
+    status: done
+  - id: t-9138db
+    status: done
+  - id: t-e704f1
+    status: done
+  - id: t-4a30f8
+    status: done
+  - id: t-759ba0
+    status: done
+  - id: t-8e8912
+    status: done
+  - id: t-ddc9c6
+    status: done

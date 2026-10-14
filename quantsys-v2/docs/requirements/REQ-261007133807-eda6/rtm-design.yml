@@ -1,0 +1,482 @@
+metadata:
+  stage: design
+  requirement_id: REQ-261007133807-eda6
+  generated_at: 2026-10-07T09:16:00.221Z
+  version: 4
+  generated_by: dsh-pmboard
+  rtm_version: "2.0"
+  last_updated: 2026-10-07T11:24:35.299Z
+inputs:
+  requirements: []
+outputs:
+  design_sections:
+    - ref: design/architecture.md#目标与总体方案
+      title: 目标与总体方案 `
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 目标与总体方案
+    - ref: design/architecture.md#模块改动地图
+      title: 模块改动地图 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+      file: design/architecture.md
+      section: 模块改动地图
+    - ref: design/architecture.md#裁决顺序唯一事实源
+      title: 裁决顺序（唯一事实源） `
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 裁决顺序唯一事实源
+    - ref: design/architecture.md#数据流
+      title: 数据流 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/architecture.md
+      section: 数据流
+    - ref: design/architecture.md#单点入口与兼容壳
+      title: 单点入口与兼容壳 `
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 单点入口与兼容壳
+    - ref: design/architecture.md#错误处理与降级
+      title: 错误处理与降级 `
+      serves:
+        - FR-1
+        - FR-2
+      file: design/architecture.md
+      section: 错误处理与降级
+    - ref: design/architecture.md#关键决策与取舍
+      title: 关键决策与取舍 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-4
+      file: design/architecture.md
+      section: 关键决策与取舍
+    - ref: design/architecture.md#测试策略
+      title: 测试策略 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+      file: design/architecture.md
+      section: 测试策略
+    - ref: design/architecture.md#目录结构
+      title: 目录结构 `
+      serves:
+        - FR-1
+        - FR-5
+      file: design/architecture.md
+      section: 目录结构
+    - ref: design/backend.md#服务与接口实现
+      title: 服务与接口实现 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/backend.md
+      section: 服务与接口实现
+    - ref: design/backend.md#数据流
+      title: 数据流 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/backend.md
+      section: 数据流
+    - ref: design/backend.md#关键逻辑
+      title: 关键逻辑 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/backend.md
+      section: 关键逻辑
+    - ref: design/backend.md#S-1-decideescalation-顺序实现
+      title: S-1 `decide_escalation` 顺序实现 `
+      serves:
+        - FR-1
+      file: design/backend.md
+      section: S-1-decideescalation-顺序实现
+    - ref: design/backend.md#S-3-explainescalation-分支
+      title: S-3 `explain_escalation` 分支 `
+      serves:
+        - FR-4
+      file: design/backend.md
+      section: S-3-explainescalation-分支
+    - ref: design/backend.md#S-5-tick-接线改动点
+      title: S-5 tick 接线（改动点） `
+      serves:
+        - FR-1
+        - FR-2
+      file: design/backend.md
+      section: S-5-tick-接线改动点
+    - ref: design/backend.md#S-7-渲染实现要点
+      title: S-7 渲染实现要点 `
+      serves:
+        - FR-3
+      file: design/backend.md
+      section: S-7-渲染实现要点
+    - ref: design/backend.md#错误处理
+      title: 错误处理 `
+      serves:
+        - FR-1
+        - FR-2
+      file: design/backend.md
+      section: 错误处理
+    - ref: design/backend.md#数据库设计
+      title: 数据库设计 `
+      serves:
+        - FR-2
+      file: design/backend.md
+      section: 数据库设计
+    - ref: design/backend.md#新增修改表
+      title: 新增/修改表 `
+      serves:
+        - FR-2
+      file: design/backend.md
+      section: 新增修改表
+    - ref: design/backend.md#字段说明
+      title: 字段说明 `
+      serves:
+        - FR-2
+      file: design/backend.md
+      section: 字段说明
+    - ref: design/backend.md#索引设计
+      title: 索引设计 `
+      serves:
+        - FR-2
+      file: design/backend.md
+      section: 索引设计
+    - ref: design/backend.md#约束说明
+      title: 约束说明 `
+      serves:
+        - FR-2
+      file: design/backend.md
+      section: 约束说明
+    - ref: design/backend.md#性能考量
+      title: 性能考量 `
+      serves:
+        - FR-1
+        - FR-2
+      file: design/backend.md
+      section: 性能考量
+    - ref: design/backend.md#安全设计
+      title: 安全设计 `
+      serves:
+        - FR-4
+      file: design/backend.md
+      section: 安全设计
+    - ref: design/backend.md#鉴权
+      title: 鉴权 `
+      serves:
+        - FR-4
+      file: design/backend.md
+      section: 鉴权
+    - ref: design/backend.md#输入校验
+      title: 输入校验 `
+      serves:
+        - FR-4
+      file: design/backend.md
+      section: 输入校验
+    - ref: design/backend.md#敏感信息
+      title: 敏感信息 `
+      serves:
+        - FR-4
+      file: design/backend.md
+      section: 敏感信息
+    - ref: design/data-model.md#新增修改的数据结构
+      title: 新增/修改的数据结构 `
+      serves:
+        - FR-1
+        - FR-2
+      file: design/data-model.md
+      section: 新增修改的数据结构
+    - ref: design/data-model.md#Verdict领域值对象新增
+      title: Verdict（领域值对象，新增） `
+      serves:
+        - FR-1
+        - FR-2
+      file: design/data-model.md
+      section: Verdict领域值对象新增
+    - ref: design/data-model.md#EscalationCode受控枚举新增
+      title: EscalationCode（受控枚举，新增） `
+      serves:
+        - FR-1
+        - FR-2
+      file: design/data-model.md
+      section: EscalationCode受控枚举新增
+    - ref: design/data-model.md#quantwatchtriggers表变更
+      title: "`quant.watch_triggers`（表变更） `"
+      serves:
+        - FR-2
+      file: design/data-model.md
+      section: quantwatchtriggers表变更
+    - ref: design/data-model.md#EscalationPolicy领域模型显式化
+      title: "`EscalationPolicy`（领域模型，显式化） `"
+      serves:
+        - FR-4
+      file: design/data-model.md
+      section: EscalationPolicy领域模型显式化
+    - ref: design/data-model.md#兼容性分析
+      title: 兼容性分析 `
+      serves:
+        - FR-2
+        - FR-4
+      file: design/data-model.md
+      section: 兼容性分析
+    - ref: design/data-model.md#迁移与回滚
+      title: 迁移与回滚 `
+      serves:
+        - FR-2
+      file: design/data-model.md
+      section: 迁移与回滚
+    - ref: design/data-model.md#关键决策与取舍
+      title: 关键决策与取舍 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-4
+      file: design/data-model.md
+      section: 关键决策与取舍
+    - ref: design/interfaces.md#接口清单
+      title: 接口清单 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/interfaces.md
+      section: 接口清单
+    - ref: design/interfaces.md#裁决出口IF-1
+      title: 裁决出口（IF-1）`
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: 裁决出口IF-1
+    - ref: design/interfaces.md#规则侧说明IF-2
+      title: 规则侧说明（IF-2）`
+      serves:
+        - FR-4
+      file: design/interfaces.md
+      section: 规则侧说明IF-2
+    - ref: design/interfaces.md#落库接口IF-5
+      title: 落库接口（IF-5）`
+      serves:
+        - FR-2
+      file: design/interfaces.md
+      section: 落库接口IF-5
+    - ref: design/interfaces.md#HTTP-API-变更
+      title: HTTP API 变更 `
+      serves:
+        - FR-4
+      file: design/interfaces.md
+      section: HTTP-API-变更
+    - ref: design/interfaces.md#GET-apiwatchrules追加字段
+      title: GET /api/watch/rules（追加字段） `
+      serves:
+        - FR-4
+      file: design/interfaces.md
+      section: GET-apiwatchrules追加字段
+    - ref: design/interfaces.md#POSTPUTPATCH-apiwatchrules缺省显式化
+      title: POST/PUT/PATCH /api/watch/rules（缺省显式化） `
+      serves:
+        - FR-4
+      file: design/interfaces.md
+      section: POSTPUTPATCH-apiwatchrules缺省显式化
+    - ref: design/interfaces.md#卡面渲染契约IF-8
+      title: 卡面渲染契约（IF-8）`
+      serves:
+        - FR-3
+      file: design/interfaces.md
+      section: 卡面渲染契约IF-8
+    - ref: design/interfaces.md#删除的接口
+      title: 删除的接口 `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: 删除的接口
+    - ref: design/interfaces.md#关键决策与取舍
+      title: 关键决策与取舍 `
+      serves:
+        - FR-1
+        - FR-3
+      file: design/interfaces.md
+      section: 关键决策与取舍
+    - ref: design/use-cases.md#场景总览
+      title: 场景总览 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+      file: design/use-cases.md
+      section: 场景总览
+    - ref: design/use-cases.md#UC-1-收到卡片这次为什么叫我
+      title: UC-1 收到卡片：这次为什么叫我 `
+      serves:
+        - FR-3
+      file: design/use-cases.md
+      section: UC-1-收到卡片这次为什么叫我
+    - ref: design/use-cases.md#UC-2-建规则写下什么条件会叫我
+      title: UC-2 建规则：写下"什么条件会叫我" `
+      serves:
+        - FR-4
+      file: design/use-cases.md
+      section: UC-2-建规则写下什么条件会叫我
+    - ref: design/use-cases.md#UC-3-排障一条-SQL-回答因果
+      title: UC-3 排障：一条 SQL 回答因果 `
+      serves:
+        - FR-2
+      file: design/use-cases.md
+      section: UC-3-排障一条-SQL-回答因果
+    - ref: design/use-cases.md#UC-4-改口径只改一处
+      title: UC-4 改口径：只改一处 `
+      serves:
+        - FR-1
+        - FR-5
+      file: design/use-cases.md
+      section: UC-4-改口径只改一处
+    - ref: design/use-cases.md#UC-5-被压掉的触发原判可查
+      title: UC-5 被压掉的触发：原判可查 `
+      serves:
+        - FR-2
+      file: design/use-cases.md
+      section: UC-5-被压掉的触发原判可查
+    - ref: design/use-cases.md#关键决策与取舍
+      title: 关键决策与取舍 `
+      serves:
+        - FR-3
+        - FR-4
+      file: design/use-cases.md
+      section: 关键决策与取舍
+    - ref: design/use-cases.md#技术方案与亮点
+      title: 技术方案与亮点 `
+      serves:
+        - FR-1
+        - FR-2
+      file: design/use-cases.md
+      section: 技术方案与亮点
+traceability:
+  fr_to_design:
+    FR-1:
+      - design/architecture.md#目标与总体方案
+      - design/architecture.md#模块改动地图
+      - design/architecture.md#裁决顺序唯一事实源
+      - design/architecture.md#数据流
+      - design/architecture.md#单点入口与兼容壳
+      - design/architecture.md#错误处理与降级
+      - design/architecture.md#关键决策与取舍
+      - design/architecture.md#测试策略
+      - design/architecture.md#目录结构
+      - design/backend.md#服务与接口实现
+      - design/backend.md#数据流
+      - design/backend.md#关键逻辑
+      - design/backend.md#S-1-decideescalation-顺序实现
+      - design/backend.md#S-5-tick-接线改动点
+      - design/backend.md#错误处理
+      - design/backend.md#性能考量
+      - design/data-model.md#新增修改的数据结构
+      - design/data-model.md#Verdict领域值对象新增
+      - design/data-model.md#EscalationCode受控枚举新增
+      - design/data-model.md#关键决策与取舍
+      - design/interfaces.md#接口清单
+      - design/interfaces.md#裁决出口IF-1
+      - design/interfaces.md#删除的接口
+      - design/interfaces.md#关键决策与取舍
+      - design/use-cases.md#场景总览
+      - design/use-cases.md#UC-4-改口径只改一处
+      - design/use-cases.md#技术方案与亮点
+    FR-2:
+      - design/architecture.md#模块改动地图
+      - design/architecture.md#数据流
+      - design/architecture.md#错误处理与降级
+      - design/architecture.md#关键决策与取舍
+      - design/architecture.md#测试策略
+      - design/backend.md#服务与接口实现
+      - design/backend.md#数据流
+      - design/backend.md#关键逻辑
+      - design/backend.md#S-5-tick-接线改动点
+      - design/backend.md#错误处理
+      - design/backend.md#数据库设计
+      - design/backend.md#新增修改表
+      - design/backend.md#字段说明
+      - design/backend.md#索引设计
+      - design/backend.md#约束说明
+      - design/backend.md#性能考量
+      - design/data-model.md#新增修改的数据结构
+      - design/data-model.md#Verdict领域值对象新增
+      - design/data-model.md#EscalationCode受控枚举新增
+      - design/data-model.md#quantwatchtriggers表变更
+      - design/data-model.md#兼容性分析
+      - design/data-model.md#迁移与回滚
+      - design/data-model.md#关键决策与取舍
+      - design/interfaces.md#接口清单
+      - design/interfaces.md#落库接口IF-5
+      - design/use-cases.md#场景总览
+      - design/use-cases.md#UC-3-排障一条-SQL-回答因果
+      - design/use-cases.md#UC-5-被压掉的触发原判可查
+      - design/use-cases.md#技术方案与亮点
+    FR-3:
+      - design/architecture.md#模块改动地图
+      - design/architecture.md#数据流
+      - design/architecture.md#测试策略
+      - design/backend.md#服务与接口实现
+      - design/backend.md#数据流
+      - design/backend.md#关键逻辑
+      - design/backend.md#S-7-渲染实现要点
+      - design/interfaces.md#接口清单
+      - design/interfaces.md#卡面渲染契约IF-8
+      - design/interfaces.md#关键决策与取舍
+      - design/use-cases.md#场景总览
+      - design/use-cases.md#UC-1-收到卡片这次为什么叫我
+      - design/use-cases.md#关键决策与取舍
+    FR-4:
+      - design/architecture.md#模块改动地图
+      - design/architecture.md#关键决策与取舍
+      - design/architecture.md#测试策略
+      - design/backend.md#服务与接口实现
+      - design/backend.md#关键逻辑
+      - design/backend.md#S-3-explainescalation-分支
+      - design/backend.md#安全设计
+      - design/backend.md#鉴权
+      - design/backend.md#输入校验
+      - design/backend.md#敏感信息
+      - design/data-model.md#EscalationPolicy领域模型显式化
+      - design/data-model.md#兼容性分析
+      - design/data-model.md#关键决策与取舍
+      - design/interfaces.md#接口清单
+      - design/interfaces.md#规则侧说明IF-2
+      - design/interfaces.md#HTTP-API-变更
+      - design/interfaces.md#GET-apiwatchrules追加字段
+      - design/interfaces.md#POSTPUTPATCH-apiwatchrules缺省显式化
+      - design/use-cases.md#场景总览
+      - design/use-cases.md#UC-2-建规则写下什么条件会叫我
+      - design/use-cases.md#关键决策与取舍
+    FR-5:
+      - design/architecture.md#模块改动地图
+      - design/architecture.md#测试策略
+      - design/architecture.md#目录结构
+      - design/use-cases.md#场景总览
+      - design/use-cases.md#UC-4-改口径只改一处
+coverage:
+  design:
+    total: 0
+    covered: 0
+    uncovered: []
+    rate: 100
+    total_frs: 0
+    covered_frs: 0

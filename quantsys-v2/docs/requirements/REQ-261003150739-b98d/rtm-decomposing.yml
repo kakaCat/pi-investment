@@ -1,0 +1,388 @@
+metadata:
+  stage: decomposing
+  requirement_id: REQ-261003150739-b98d
+  generated_at: 2026-10-03T07:11:36.749Z
+  version: 59
+  generated_by: dsh-pmboard
+  last_updated: 2026-10-03T07:34:03.423Z
+inputs:
+  requirements:
+    - id: FR-1
+      title: 打桩点对齐实现命名空间
+      source: requirement.md
+      line: 94
+    - id: FR-2
+      title: e2e 手动触发用例不再执行真实 handler
+      source: requirement.md
+      line: 99
+    - id: FR-3
+      title: 测试期外发守卫
+      source: requirement.md
+      line: 104
+    - id: FR-4
+      title: 回归锁
+      source: requirement.md
+      line: 109
+  design_sections:
+    - ref: design/architecture.md#目标与判定
+      title: 目标与判定（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/architecture.md
+      section: 目标与判定
+    - ref: design/architecture.md#根因结构
+      title: 根因结构（
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 根因结构
+    - ref: design/architecture.md#守卫落点传输层-URL-分类
+      title: 守卫落点：传输层 URL 分类（
+      serves:
+        - FR-3
+      file: design/architecture.md
+      section: 守卫落点传输层-URL-分类
+    - ref: design/architecture.md#启用顺序与回滚
+      title: 启用顺序与回滚（
+      serves:
+        - FR-3
+      file: design/architecture.md
+      section: 启用顺序与回滚
+    - ref: design/architecture.md#不改什么
+      title: 不改什么（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/architecture.md
+      section: 不改什么
+    - ref: design/data-model.md#记账结构
+      title: 记账结构（
+      serves:
+        - FR-3
+      file: design/data-model.md
+      section: 记账结构
+    - ref: design/data-model.md#不改表不落库
+      title: 不改表、不落库（
+      serves:
+        - FR-3
+        - FR-4
+      file: design/data-model.md
+      section: 不改表不落库
+    - ref: design/data-model.md#判定数据
+      title: 判定数据（
+      serves:
+        - FR-4
+      file: design/data-model.md
+      section: 判定数据
+    - ref: design/interfaces.md#守卫模块-API
+      title: 守卫模块 API（
+      serves:
+        - FR-3
+      file: design/interfaces.md
+      section: 守卫模块-API
+    - ref: design/interfaces.md#打桩点契约
+      title: 打桩点契约（
+      serves:
+        - FR-1
+        - FR-2
+      file: design/interfaces.md
+      section: 打桩点契约
+    - ref: design/interfaces.md#错误语义
+      title: 错误语义（
+      serves:
+        - FR-3
+        - FR-4
+      file: design/interfaces.md
+      section: 错误语义
+    - ref: design/use-cases.md#角色与关注点
+      title: 角色与关注点（
+      serves:
+        - FR-3
+      file: design/use-cases.md
+      section: 角色与关注点
+    - ref: design/use-cases.md#场景-1开发者跑测试
+      title: 场景 1：开发者跑测试（
+      serves:
+        - FR-3
+      file: design/use-cases.md
+      section: 场景-1开发者跑测试
+    - ref: design/use-cases.md#场景-2有人再次打错桩
+      title: 场景 2：有人再次打错桩（
+      serves:
+        - FR-4
+      file: design/use-cases.md
+      section: 场景-2有人再次打错桩
+    - ref: design/use-cases.md#场景-3需要断言通知确实被调用的用例
+      title: 场景 3：需要断言"通知确实被调用"的用例（
+      serves:
+        - FR-3
+      file: design/use-cases.md
+      section: 场景-3需要断言通知确实被调用的用例
+outputs:
+  tasks:
+    - id: t-0cb72d
+      title: 修正 test_false_success_guard 的打桩点
+      implements: 把两处 monkeypatch.setattr(host_alerting, '_send_feishu', …) 改为打在 daily_jobs.runtime（文件内已导入 host_runtime）；保留 _mark_running/_mark_done 桩与全部断言；注释改成正确的打桩点规则。
+      serves:
+        - FR-1
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-59908f
+      title: e2e 手动触发用例不再执行真实 handler
+      implements: tests/e2e/test_daily_orchestrator.py::test_trigger_known_job_returns_success：先打桩 daily_jobs.runtime._run_job（记录调用），再调 trigger_job(JOBS[0].job_id, force=True)；断言返回 success 且记录器收到该 job_id。
+      serves:
+        - FR-2
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-47c844
+      title: 新增测试期通知外发守卫（report 模式接线）
+      implements: 新增 tests/notify_guard.py（classify / install_notify_guard / attempts / real_egress_count / assert_no_real_egress）；conftest.py 会话级安装 + notify_guard fixture + pytest_sessionfinish 汇总 + QUANTSYS_NOTIFY_GUARD 开关；默认 report（只拦截记账）。
+      serves:
+        - FR-3
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-bfaab6
+      title: 回归锁 + 切换 fail 模式并验证回滚
+      implements: 新增 tests/test_notify_guard.py 回归段（egress == 0、两个已知文件的 intercepted 计数）；默认模式切到 fail（未声明的外发 → teardown 判失败）；做一次反向验证并留证。
+      serves:
+        - FR-4
+      depends_on:
+        - t-0cb72d
+        - t-59908f
+        - t-47c844
+      phase: test
+      side: backend
+    - id: t-821cbb
+      title: 修正 test_false_success_guard 的打桩点·研发
+      implements: |-
+        把两处 monkeypatch.setattr(host_alerting, '_send_feishu', …) 改为打在 daily_jobs.runtime（文件内已导入 host_runtime）；保留 _mark_running/_mark_done 桩与全部断言；注释改成正确的打桩点规则。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-91bf18
+      title: 修正 test_false_success_guard 的打桩点·联调
+      implements: |-
+        把两处 monkeypatch.setattr(host_alerting, '_send_feishu', …) 改为打在 daily_jobs.runtime（文件内已导入 host_runtime）；保留 _mark_running/_mark_done 桩与全部断言；注释改成正确的打桩点规则。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-821cbb
+      phase: implement
+      side: backend
+    - id: t-0ff3c9
+      title: 修正 test_false_success_guard 的打桩点·复核
+      implements: |-
+        把两处 monkeypatch.setattr(host_alerting, '_send_feishu', …) 改为打在 daily_jobs.runtime（文件内已导入 host_runtime）；保留 _mark_running/_mark_done 桩与全部断言；注释改成正确的打桩点规则。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-91bf18
+      phase: implement
+      side: backend
+    - id: t-77768c
+      title: 修正 test_false_success_guard 的打桩点·测试
+      implements: |-
+        把两处 monkeypatch.setattr(host_alerting, '_send_feishu', …) 改为打在 daily_jobs.runtime（文件内已导入 host_runtime）；保留 _mark_running/_mark_done 桩与全部断言；注释改成正确的打桩点规则。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-0ff3c9
+      phase: implement
+      side: backend
+    - id: t-e8c8e2
+      title: e2e 手动触发用例不再执行真实 handler·研发
+      implements: |-
+        tests/e2e/test_daily_orchestrator.py::test_trigger_known_job_returns_success：先打桩 daily_jobs.runtime._run_job（记录调用），再调 trigger_job(JOBS[0].job_id, force=True)；断言返回 success 且记录器收到该 job_id。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-568226
+      title: e2e 手动触发用例不再执行真实 handler·联调
+      implements: |-
+        tests/e2e/test_daily_orchestrator.py::test_trigger_known_job_returns_success：先打桩 daily_jobs.runtime._run_job（记录调用），再调 trigger_job(JOBS[0].job_id, force=True)；断言返回 success 且记录器收到该 job_id。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-e8c8e2
+      phase: implement
+      side: backend
+    - id: t-5e56b0
+      title: e2e 手动触发用例不再执行真实 handler·复核
+      implements: |-
+        tests/e2e/test_daily_orchestrator.py::test_trigger_known_job_returns_success：先打桩 daily_jobs.runtime._run_job（记录调用），再调 trigger_job(JOBS[0].job_id, force=True)；断言返回 success 且记录器收到该 job_id。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-568226
+      phase: implement
+      side: backend
+    - id: t-927202
+      title: e2e 手动触发用例不再执行真实 handler·测试
+      implements: |-
+        tests/e2e/test_daily_orchestrator.py::test_trigger_known_job_returns_success：先打桩 daily_jobs.runtime._run_job（记录调用），再调 trigger_job(JOBS[0].job_id, force=True)；断言返回 success 且记录器收到该 job_id。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-5e56b0
+      phase: implement
+      side: backend
+    - id: t-48d78d
+      title: 新增测试期通知外发守卫（report 模式接线）·研发
+      implements: |-
+        新增 tests/notify_guard.py（classify / install_notify_guard / attempts / real_egress_count / assert_no_real_egress）；conftest.py 会话级安装 + notify_guard fixture + pytest_sessionfinish 汇总 + QUANTSYS_NOTIFY_GUARD 开关；默认 report（只拦截记账）。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-7dffbf
+      title: 新增测试期通知外发守卫（report 模式接线）·联调
+      implements: |-
+        新增 tests/notify_guard.py（classify / install_notify_guard / attempts / real_egress_count / assert_no_real_egress）；conftest.py 会话级安装 + notify_guard fixture + pytest_sessionfinish 汇总 + QUANTSYS_NOTIFY_GUARD 开关；默认 report（只拦截记账）。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-48d78d
+      phase: implement
+      side: backend
+    - id: t-7321dc
+      title: 新增测试期通知外发守卫（report 模式接线）·复核
+      implements: |-
+        新增 tests/notify_guard.py（classify / install_notify_guard / attempts / real_egress_count / assert_no_real_egress）；conftest.py 会话级安装 + notify_guard fixture + pytest_sessionfinish 汇总 + QUANTSYS_NOTIFY_GUARD 开关；默认 report（只拦截记账）。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-7dffbf
+      phase: implement
+      side: backend
+    - id: t-60761f
+      title: 新增测试期通知外发守卫（report 模式接线）·测试
+      implements: |-
+        新增 tests/notify_guard.py（classify / install_notify_guard / attempts / real_egress_count / assert_no_real_egress）；conftest.py 会话级安装 + notify_guard fixture + pytest_sessionfinish 汇总 + QUANTSYS_NOTIFY_GUARD 开关；默认 report（只拦截记账）。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-7321dc
+      phase: implement
+      side: backend
+    - id: t-290c47
+      title: 回归锁 + 切换 fail 模式并验证回滚·研发
+      implements: |-
+        新增 tests/test_notify_guard.py 回归段（egress == 0、两个已知文件的 intercepted 计数）；默认模式切到 fail（未声明的外发 → teardown 判失败）；做一次反向验证并留证。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-0cb72d
+        - t-59908f
+        - t-47c844
+      phase: test
+      side: backend
+    - id: t-a8df02
+      title: 回归锁 + 切换 fail 模式并验证回滚·复核
+      implements: |-
+        新增 tests/test_notify_guard.py 回归段（egress == 0、两个已知文件的 intercepted 计数）；默认模式切到 fail（未声明的外发 → teardown 判失败）；做一次反向验证并留证。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-290c47
+      phase: test
+      side: backend
+    - id: t-6dc8f2
+      title: 回归锁 + 切换 fail 模式并验证回滚·测试
+      implements: |-
+        新增 tests/test_notify_guard.py 回归段（egress == 0、两个已知文件的 intercepted 计数）；默认模式切到 fail（未声明的外发 → teardown 判失败）；做一次反向验证并留证。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-a8df02
+      phase: test
+      side: backend
+traceability:
+  design_to_tasks:
+    design/architecture.md#目标与判定:
+      - t-0cb72d
+      - t-59908f
+      - t-47c844
+    design/architecture.md#根因结构:
+      - t-0cb72d
+    design/architecture.md#守卫落点传输层-URL-分类:
+      - t-47c844
+    design/architecture.md#启用顺序与回滚:
+      - t-47c844
+    design/architecture.md#不改什么:
+      - t-0cb72d
+      - t-59908f
+      - t-47c844
+    design/data-model.md#记账结构:
+      - t-47c844
+    design/data-model.md#不改表不落库:
+      - t-47c844
+      - t-bfaab6
+    design/data-model.md#判定数据:
+      - t-bfaab6
+    design/interfaces.md#守卫模块-API:
+      - t-47c844
+    design/interfaces.md#打桩点契约:
+      - t-0cb72d
+      - t-59908f
+    design/interfaces.md#错误语义:
+      - t-47c844
+      - t-bfaab6
+    design/use-cases.md#角色与关注点:
+      - t-47c844
+    design/use-cases.md#场景-1开发者跑测试:
+      - t-47c844
+    design/use-cases.md#场景-2有人再次打错桩:
+      - t-bfaab6
+    design/use-cases.md#场景-3需要断言通知确实被调用的用例:
+      - t-47c844
+  fr_to_tasks:
+    FR-1:
+      - t-0cb72d
+      - t-59908f
+      - t-47c844
+    FR-2:
+      - t-0cb72d
+      - t-59908f
+      - t-47c844
+    FR-3:
+      - t-0cb72d
+      - t-59908f
+      - t-47c844
+      - t-bfaab6
+    FR-4:
+      - t-47c844
+      - t-bfaab6
+coverage:
+  implementation:
+    total: 15
+    covered: 15
+    uncovered: []
+    rate: 100
+    total_designs: 15
+    covered_designs: 15

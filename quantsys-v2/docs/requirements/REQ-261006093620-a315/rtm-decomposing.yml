@@ -1,0 +1,1043 @@
+metadata:
+  stage: decomposing
+  requirement_id: REQ-261006093620-a315
+  generated_at: 2026-10-06T01:49:17.223Z
+  version: 122
+  generated_by: dsh-pmboard
+  rtm_version: "2.0"
+  last_updated: 2026-10-06T02:22:06.917Z
+inputs:
+  requirements:
+    - id: FR-1
+      title: 库表任务可声明"只在交易日自动执行"
+      source: requirement.md
+      line: 139
+    - id: FR-2
+      title: 交易日门必须 fail-open，且复用唯一判定源
+      source: requirement.md
+      line: 145
+    - id: FR-3
+      title: 跳过 = 留痕 + 不打扰 + 不误报
+      source: requirement.md
+      line: 151
+    - id: FR-4
+      title: 范围内逐任务语义（8 条挂门，3 条不挂）
+      source: requirement.md
+      line: 157
+    - id: FR-5
+      title: 门的周末分档语义
+      source: requirement.md
+      line: 174
+    - id: FR-6
+      title: 门只拦自动排班，人工仍可强制
+      source: requirement.md
+      line: 180
+    - id: FR-7
+      title: 门必须真的生效（含重启与存量 jobstore）
+      source: requirement.md
+      line: 185
+    - id: FR-8
+      title: 回归锁与真实观察
+      source: requirement.md
+      line: 190
+  design_sections:
+    - ref: design/architecture.md#落点与依赖方向
+      title: 落点与依赖方向（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/architecture.md
+      section: 落点与依赖方向
+    - ref: design/architecture.md#执行期落点而不是排班期落点
+      title: 执行期落点，而不是排班期落点（
+      serves:
+        - FR-7
+      file: design/architecture.md
+      section: 执行期落点而不是排班期落点
+    - ref: design/architecture.md#为什么策略是三值而不是布尔
+      title: 为什么策略是三值而不是布尔（
+      serves:
+        - FR-4
+        - FR-5
+      file: design/architecture.md
+      section: 为什么策略是三值而不是布尔
+    - ref: design/architecture.md#人工触发的旁路
+      title: 人工触发的旁路（
+      serves:
+        - FR-6
+      file: design/architecture.md
+      section: 人工触发的旁路
+    - ref: design/architecture.md#文件结构新建-修改各自职责一句话
+      title: 文件结构（新建 / 修改，各自职责一句话）（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-6
+      file: design/architecture.md
+      section: 文件结构新建-修改各自职责一句话
+    - ref: design/architecture.md#打桩点迁移本设计唯一碰-③-文件的动作
+      title: 打桩点迁移（本设计唯一碰 ③ 文件的动作）（
+      serves:
+        - FR-3
+        - FR-8
+      file: design/architecture.md
+      section: 打桩点迁移本设计唯一碰-③-文件的动作
+    - ref: design/architecture.md#回滚路径
+      title: 回滚路径（
+      serves:
+        - FR-1
+        - FR-3
+        - FR-7
+      file: design/architecture.md
+      section: 回滚路径
+    - ref: design/architecture.md#不做什么
+      title: 不做什么（
+      serves:
+        - FR-4
+      file: design/architecture.md
+      section: 不做什么
+    - ref: design/data-model.md#1
+      title: 新增列：`quant.scheduler_tasks.trading_day_policy`（
+      serves:
+        - FR-1
+        - FR-4
+        - FR-5
+      file: design/data-model.md
+      section: "1"
+    - ref: design/data-model.md#2
+      title: 策略回填（8 条挂门 / 3 条不挂）（
+      serves:
+        - FR-4
+        - FR-5
+      file: design/data-model.md
+      section: "2"
+    - ref: design/data-model.md#3
+      title: ORM 映射（
+      serves:
+        - FR-1
+        - FR-7
+      file: design/data-model.md
+      section: "3"
+    - ref: design/data-model.md#4
+      title: 迁移方式与回滚（
+      serves:
+        - FR-1
+        - FR-7
+      file: design/data-model.md
+      section: "4"
+    - ref: design/data-model.md#5
+      title: 台账契约：`quant.scheduler_runs.status` 新增 `'skipped'`（
+      serves:
+        - FR-3
+      file: design/data-model.md
+      section: "5"
+    - ref: design/data-model.md#三态语义本设计定死
+      title: 三态语义（本设计定死）（
+      serves:
+        - FR-3
+      file: design/data-model.md
+      section: 三态语义本设计定死
+    - ref: design/data-model.md#消费者矩阵逐个对账不靠-的副作用
+      title: 消费者矩阵（逐个对账，不靠 `!=` 的副作用）（
+      serves:
+        - FR-3
+        - FR-7
+      file: design/data-model.md
+      section: 消费者矩阵逐个对账不靠-的副作用
+    - ref: design/data-model.md#记账方法契约
+      title: 记账方法契约（
+      serves:
+        - FR-3
+      file: design/data-model.md
+      section: 记账方法契约
+    - ref: design/interfaces.md#1
+      title: "`application/services/trading_day_gate.py`（新建，判据唯一真源）（"
+      serves:
+        - FR-1
+        - FR-2
+        - FR-5
+      file: design/interfaces.md
+      section: "1"
+    - ref: design/interfaces.md#2
+      title: 判据口径：两个函数不可互换（
+      serves:
+        - FR-2
+        - FR-4
+      file: design/interfaces.md
+      section: "2"
+    - ref: design/interfaces.md#3
+      title: "`infrastructure/scheduler/job_executor.py`（"
+      serves:
+        - FR-2
+        - FR-3
+        - FR-6
+      file: design/interfaces.md
+      section: "3"
+    - ref: design/interfaces.md#4
+      title: "`apscheduler_service.trigger_task_now`（"
+      serves:
+        - FR-6
+      file: design/interfaces.md
+      section: "4"
+    - ref: design/interfaces.md#5
+      title: 仓储层（
+      serves:
+        - FR-3
+      file: design/interfaces.md
+      section: "5"
+    - ref: design/interfaces.md#6
+      title: "`application/services/should_have_run.py`（"
+      serves:
+        - FR-3
+      file: design/interfaces.md
+      section: "6"
+    - ref: design/interfaces.md#7
+      title: 对外 HTTP 契约（
+      serves:
+        - FR-6
+      file: design/interfaces.md
+      section: "7"
+    - ref: design/interfaces.md#8
+      title: 错误语义（
+      serves:
+        - FR-2
+        - FR-3
+      file: design/interfaces.md
+      section: "8"
+    - ref: design/use-cases.md#UC-1-休市日自动到点整段跳过
+      title: UC-1 休市日：自动到点整段跳过（
+      serves:
+        - FR-1
+        - FR-3
+        - FR-4
+      file: design/use-cases.md
+      section: UC-1-休市日自动到点整段跳过
+    - ref: design/use-cases.md#UC-2-交易日行为逐字不变
+      title: UC-2 交易日：行为逐字不变（
+      serves:
+        - FR-1
+        - FR-4
+        - FR-8
+      file: design/use-cases.md
+      section: UC-2-交易日行为逐字不变
+    - ref: design/use-cases.md#UC-3-日历链降级fail-open-照跑但不静默
+      title: UC-3 日历链降级：fail-open 照跑、但不静默（
+      serves:
+        - FR-2
+      file: design/use-cases.md
+      section: UC-3-日历链降级fail-open-照跑但不静默
+    - ref: design/use-cases.md#UC-4-复市首日不得被跳过
+      title: UC-4 复市首日：不得被跳过（
+      serves:
+        - FR-2
+        - FR-4
+        - FR-8
+      file: design/use-cases.md
+      section: UC-4-复市首日不得被跳过
+    - ref: design/use-cases.md#UC-5-休市日的人工触发仍然跑
+      title: UC-5 休市日的人工触发：仍然跑（
+      serves:
+        - FR-6
+      file: design/use-cases.md
+      section: UC-5-休市日的人工触发仍然跑
+    - ref: design/use-cases.md#UC-6-232-的周末分档周六照跑法定节假日跳过
+      title: UC-6 `#232` 的周末分档：周六照跑、法定节假日跳过（
+      serves:
+        - FR-5
+      file: design/use-cases.md
+      section: UC-6-232-的周末分档周六照跑法定节假日跳过
+    - ref: design/use-cases.md#UC-7-策略值未知fail-open-照跑并留痕
+      title: UC-7 策略值未知：fail-open 照跑并留痕（
+      serves:
+        - FR-1
+        - FR-2
+      file: design/use-cases.md
+      section: UC-7-策略值未知fail-open-照跑并留痕
+    - ref: design/use-cases.md#UC-8-巡检侧休市日的-skipped-不产生漏跑告警
+      title: UC-8 巡检侧：休市日的 `skipped` 不产生"漏跑"告警（
+      serves:
+        - FR-3
+      file: design/use-cases.md
+      section: UC-8-巡检侧休市日的-skipped-不产生漏跑告警
+    - ref: design/use-cases.md#UC-9-回滚改回-always-即回到今天的行为
+      title: UC-9 回滚：改回 `always` 即回到今天的行为（
+      serves:
+        - FR-1
+        - FR-7
+      file: design/use-cases.md
+      section: UC-9-回滚改回-always-即回到今天的行为
+outputs:
+  tasks:
+    - id: t-63bc0a
+      title: 判据真源：trading_day_gate 模块与策略入口
+      implements: 新建 application/services/trading_day_gate.py：把 adapters/inbound/fastapi_app/daily_jobs/gate.py 的三个函数（verdict_info / skip_non_trading_day / is_non_trading_day）原样搬入，签名逐字不变；新增 POLICY_ALWAYS/POLICY_TRADING_DAYS/POLICY_HOLIDAYS、KNOWN_POLICIES 与 should_skip(policy, now=None)->(bool, dict)：always 不跳；trading-days 判 (not is_trading_day) and (not degraded)；holidays 判 source=='trading-calendar-holiday' and (not degraded)；未知/None 不跳且 info 带 policy_unknown=True 并记 warning。判据只用 TradingDayGuard.check(now)，函数永不抛（自身异常 → (False, {'source':'gate-error','degraded':True})）。新建 tests/test_scheduler_trading_day_gate.py：13 行真值表（含 holidays+weekend 必须不跳、holidays+降级必须不跳两行核心断言），桩打在 application.services.trading_day_gate.TradingDayGuard；另加 future 反例锁断言 TradingDayGuard.check('2026-10-08').source=='future'。
+      serves:
+        - FR-1
+        - FR-2
+        - FR-5
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-e05ce2
+      title: 数据契约：三值列 + CHECK + 8 行回填 + ORM
+      implements: 新建 infrastructure/persistence/migrations/20261006_scheduler_tasks_trading_day_policy.py：ADD COLUMN IF NOT EXISTS trading_day_policy varchar(16) NOT NULL DEFAULT 'always' 并加 CHECK (trading_day_policy IN ('always','trading-days','holidays'))；按 id 精确回填 8 行（250/247/242/259/249/261/237 = 'trading-days'；232 = 'holidays'），每行 rowcount=0 只打印警告不失败；沿用 20261002 迁移约定：缺省 dry-run 只打印、--apply 才写、加 lock_timeout、verify 段防空表（避免 row[0] 在空表 TypeError）。修改 infrastructure/persistence/orm/models/scheduler.py 的 SchedulerTaskConfig 加同名列（String(16), nullable=False, server_default='always'）。生产库与测试库都必须 apply（显式 --dsn），否则 test_orm_db_drift.py 红。
+      serves:
+        - FR-1
+        - FR-4
+        - FR-5
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-d91b87
+      title: ③ 退为薄转发 + 打桩点迁移（行为零变化）
+      implements: 修改 adapters/inbound/fastapi_app/daily_jobs/gate.py：改为薄转发，只做 from application.services.trading_day_gate import (SOURCE_GATE_ERROR, verdict_info, skip_non_trading_day, is_non_trading_day)，不留任何判定实现；runtime.py 与 pipeline.py 的导入路径与调用方式一行不改。修改 tests/test_daily_jobs_trading_day_gate.py：把三处 monkeypatch.setattr(gate_mod, 'TradingDayGuard', ...)（约 80/131/139 行）的目标改为 application.services.trading_day_gate（被调函数所在模块），并新增一条证伪断言：patch 新模块后应用側 gate 的结论确实随之改变（若转发链路上名字解析没走新模块，此断言即红，专治桩静默失效）。
+      serves:
+        - FR-3
+        - FR-8
+      depends_on:
+        - t-63bc0a
+      phase: implement
+      side: backend
+    - id: t-da502d
+      title: 仓储层：complete_run_skipped + 抽 _finish_run
+      implements: 修改 adapters/outbound/repositories/scheduler_repository.py：抽出私有 _finish_run(run_id, status, result=None, error=None, completed_at=None)，承载 completed_at / duration_ms / result 过 _json_safe / config.last_status / next_run_at 重算；complete_run 的签名与返回值逐字不变、内部改调 _finish_run(status=('success' if success else 'failed'))；新增 complete_run_skipped(run_id, result=None, completed_at=None) -> bool：写 status='skipped'、last_error=None、失败返回 False 绝不抛。列是 text NOT NULL DEFAULT 'running' 且无 CHECK，无需 DDL。
+      serves:
+        - FR-3
+      depends_on:
+        - t-e05ce2
+      phase: implement
+      side: backend
+    - id: t-42eb9a
+      title: 执行期接门与跳过落账（含 manual 旁路）
+      implements: 修改 infrastructure/scheduler/job_executor.py：execute_scheduled_job(task_id, manual=False) 透传到 _execute_scheduled_job_impl(task_id, manual=manual)；在 is_enabled 检查之后、并发检查之前插入门：manual=True 直接放行；否则 policy = task.get('trading_day_policy') or 'always'、skip, info = should_skip(policy, now)，skip 为真时 create_run 后调 complete_run_skipped(run_id, result={'skipped':True,'reason':info['reason'],'trading_day_source':info['source'],'degraded':info['degraded'],'policy':policy})，打一行 info 日志并 return——不调 _execute_command、不调 _report_failure_to_sink、不发 Agent OS 事件、不写 last_error。照跑路径逐字不变（门放执行期正是 FR-7 免 reload 生效的机制）。新增 tests/infrastructure/test_scheduler_skip_ledger.py 覆盖四条负向断言。
+      serves:
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-6
+        - FR-7
+      depends_on:
+        - t-63bc0a
+        - t-da502d
+      phase: implement
+      side: backend
+    - id: t-3a7ebb
+      title: 人工触发改投一次性 manual=True job
+      implements: "修改 infrastructure/scheduler/apscheduler_service.py 的 trigger_task_now：保留 job 不存在时抛 ValueError 的既有语义；把 modify_job(next_run_time=now) 换成 add_job(func=execute_scheduled_job, trigger=DateTrigger(run_date=datetime.now()), args=[task_id], kwargs={'manual': True}, id=f'manual_{task_id}_{int(time.time())}', name=f'[manual] {job.name}', replace_existing=False, misfire_grace_time=None)。同步修改 tests/infrastructure/test_apscheduler_service.py 的 test_trigger_task_now 断言。路由层不做改动。"
+      serves:
+        - FR-6
+      depends_on:
+        - t-42eb9a
+      phase: implement
+      side: backend
+    - id: t-54d79f
+      title: 巡检口径同步：should_have_run 与 watchdog
+      implements: 修改 application/services/should_have_run.py：把「最近一次真执行（status != 'missed'）」拆成两套写出来的常量集合——NOT_MISSED_STATUSES=('success','failed','skipped') 用于判该槽位是否已处理，REAL_RUN_STATUSES=('success','failed') 用于 last_run_at 呈现，替换原先依赖 != 的副作用判据；不改 missed 的告警语义。修改 scripts/scheduler_watchdog.py 两处（约 289/390 行）的 status='success' 为 status IN ('success','skipped')。在 tests/test_should_have_run.py 增量补用例（不要另起平行文件）。
+      serves:
+        - FR-3
+      depends_on:
+        - t-42eb9a
+      phase: implement
+      side: backend
+    - id: t-ea51f0
+      title: 端到端验收、真实台账观察与回滚演练
+      implements: 跑齐 decomposition.md §6 的六条命令并把实际输出写进 notes/acceptance-run.md；准备 docs/requirements/REQ-261006093620-a315/verification.md（交付结论 + 可复核证据清单）。真实读数：休市日 2026-10-07 挂门任务应为 skipped 且无通知，复市首日 2026-10-08 应恢复 success。回滚演练：UPDATE quant.scheduler_tasks SET trading_day_policy='always' WHERE id IN (250,247,242,259,249,261,237,232) 后确认无需 reload/重启即恢复照跑，再改回策略值并记录前后读数。
+      serves:
+        - FR-8
+      depends_on:
+        - t-d91b87
+        - t-3a7ebb
+        - t-54d79f
+      phase: test
+      side: backend
+    - id: t-da2b87
+      title: 判据真源：trading_day_gate 模块与策略入口·研发
+      implements: |-
+        新建 application/services/trading_day_gate.py：把 adapters/inbound/fastapi_app/daily_jobs/gate.py 的三个函数（verdict_info / skip_non_trading_day / is_non_trading_day）原样搬入，签名逐字不变；新增 POLICY_ALWAYS/POLICY_TRADING_DAYS/POLICY_HOLIDAYS、KNOWN_POLICIES 与 should_skip(policy, now=None)->(bool, dict)：always 不跳；trading-days 判 (not is_trading_day) and (not degraded)；holidays 判 source=='trading-calendar-holiday' and (not degraded)；未知/None 不跳且 info 带 policy_unknown=True 并记 warning。判据只用 TradingDayGuard.check(now)，函数永不抛（自身异常 → (False, {'source':'gate-error','degraded':True})）。新建 tests/test_scheduler_trading_day_gate.py：13 行真值表（含 holidays+weekend 必须不跳、holidays+降级必须不跳两行核心断言），桩打在 application.services.trading_day_gate.TradingDayGuard；另加 future 反例锁断言 TradingDayGuard.check('2026-10-08').source=='future'。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-ae7033
+      title: 判据真源：trading_day_gate 模块与策略入口·联调
+      implements: |-
+        新建 application/services/trading_day_gate.py：把 adapters/inbound/fastapi_app/daily_jobs/gate.py 的三个函数（verdict_info / skip_non_trading_day / is_non_trading_day）原样搬入，签名逐字不变；新增 POLICY_ALWAYS/POLICY_TRADING_DAYS/POLICY_HOLIDAYS、KNOWN_POLICIES 与 should_skip(policy, now=None)->(bool, dict)：always 不跳；trading-days 判 (not is_trading_day) and (not degraded)；holidays 判 source=='trading-calendar-holiday' and (not degraded)；未知/None 不跳且 info 带 policy_unknown=True 并记 warning。判据只用 TradingDayGuard.check(now)，函数永不抛（自身异常 → (False, {'source':'gate-error','degraded':True})）。新建 tests/test_scheduler_trading_day_gate.py：13 行真值表（含 holidays+weekend 必须不跳、holidays+降级必须不跳两行核心断言），桩打在 application.services.trading_day_gate.TradingDayGuard；另加 future 反例锁断言 TradingDayGuard.check('2026-10-08').source=='future'。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-da2b87
+      phase: implement
+      side: backend
+    - id: t-eb87e5
+      title: 判据真源：trading_day_gate 模块与策略入口·复核
+      implements: |-
+        新建 application/services/trading_day_gate.py：把 adapters/inbound/fastapi_app/daily_jobs/gate.py 的三个函数（verdict_info / skip_non_trading_day / is_non_trading_day）原样搬入，签名逐字不变；新增 POLICY_ALWAYS/POLICY_TRADING_DAYS/POLICY_HOLIDAYS、KNOWN_POLICIES 与 should_skip(policy, now=None)->(bool, dict)：always 不跳；trading-days 判 (not is_trading_day) and (not degraded)；holidays 判 source=='trading-calendar-holiday' and (not degraded)；未知/None 不跳且 info 带 policy_unknown=True 并记 warning。判据只用 TradingDayGuard.check(now)，函数永不抛（自身异常 → (False, {'source':'gate-error','degraded':True})）。新建 tests/test_scheduler_trading_day_gate.py：13 行真值表（含 holidays+weekend 必须不跳、holidays+降级必须不跳两行核心断言），桩打在 application.services.trading_day_gate.TradingDayGuard；另加 future 反例锁断言 TradingDayGuard.check('2026-10-08').source=='future'。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-ae7033
+      phase: implement
+      side: backend
+    - id: t-54a3c8
+      title: 判据真源：trading_day_gate 模块与策略入口·测试
+      implements: |-
+        新建 application/services/trading_day_gate.py：把 adapters/inbound/fastapi_app/daily_jobs/gate.py 的三个函数（verdict_info / skip_non_trading_day / is_non_trading_day）原样搬入，签名逐字不变；新增 POLICY_ALWAYS/POLICY_TRADING_DAYS/POLICY_HOLIDAYS、KNOWN_POLICIES 与 should_skip(policy, now=None)->(bool, dict)：always 不跳；trading-days 判 (not is_trading_day) and (not degraded)；holidays 判 source=='trading-calendar-holiday' and (not degraded)；未知/None 不跳且 info 带 policy_unknown=True 并记 warning。判据只用 TradingDayGuard.check(now)，函数永不抛（自身异常 → (False, {'source':'gate-error','degraded':True})）。新建 tests/test_scheduler_trading_day_gate.py：13 行真值表（含 holidays+weekend 必须不跳、holidays+降级必须不跳两行核心断言），桩打在 application.services.trading_day_gate.TradingDayGuard；另加 future 反例锁断言 TradingDayGuard.check('2026-10-08').source=='future'。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-eb87e5
+      phase: implement
+      side: backend
+    - id: t-a7e4bb
+      title: 数据契约：三值列 + CHECK + 8 行回填 + ORM·研发
+      implements: |-
+        新建 infrastructure/persistence/migrations/20261006_scheduler_tasks_trading_day_policy.py：ADD COLUMN IF NOT EXISTS trading_day_policy varchar(16) NOT NULL DEFAULT 'always' 并加 CHECK (trading_day_policy IN ('always','trading-days','holidays'))；按 id 精确回填 8 行（250/247/242/259/249/261/237 = 'trading-days'；232 = 'holidays'），每行 rowcount=0 只打印警告不失败；沿用 20261002 迁移约定：缺省 dry-run 只打印、--apply 才写、加 lock_timeout、verify 段防空表（避免 row[0] 在空表 TypeError）。修改 infrastructure/persistence/orm/models/scheduler.py 的 SchedulerTaskConfig 加同名列（String(16), nullable=False, server_default='always'）。生产库与测试库都必须 apply（显式 --dsn），否则 test_orm_db_drift.py 红。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-faf05d
+      title: 数据契约：三值列 + CHECK + 8 行回填 + ORM·联调
+      implements: |-
+        新建 infrastructure/persistence/migrations/20261006_scheduler_tasks_trading_day_policy.py：ADD COLUMN IF NOT EXISTS trading_day_policy varchar(16) NOT NULL DEFAULT 'always' 并加 CHECK (trading_day_policy IN ('always','trading-days','holidays'))；按 id 精确回填 8 行（250/247/242/259/249/261/237 = 'trading-days'；232 = 'holidays'），每行 rowcount=0 只打印警告不失败；沿用 20261002 迁移约定：缺省 dry-run 只打印、--apply 才写、加 lock_timeout、verify 段防空表（避免 row[0] 在空表 TypeError）。修改 infrastructure/persistence/orm/models/scheduler.py 的 SchedulerTaskConfig 加同名列（String(16), nullable=False, server_default='always'）。生产库与测试库都必须 apply（显式 --dsn），否则 test_orm_db_drift.py 红。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-a7e4bb
+      phase: implement
+      side: backend
+    - id: t-37ba53
+      title: 数据契约：三值列 + CHECK + 8 行回填 + ORM·复核
+      implements: |-
+        新建 infrastructure/persistence/migrations/20261006_scheduler_tasks_trading_day_policy.py：ADD COLUMN IF NOT EXISTS trading_day_policy varchar(16) NOT NULL DEFAULT 'always' 并加 CHECK (trading_day_policy IN ('always','trading-days','holidays'))；按 id 精确回填 8 行（250/247/242/259/249/261/237 = 'trading-days'；232 = 'holidays'），每行 rowcount=0 只打印警告不失败；沿用 20261002 迁移约定：缺省 dry-run 只打印、--apply 才写、加 lock_timeout、verify 段防空表（避免 row[0] 在空表 TypeError）。修改 infrastructure/persistence/orm/models/scheduler.py 的 SchedulerTaskConfig 加同名列（String(16), nullable=False, server_default='always'）。生产库与测试库都必须 apply（显式 --dsn），否则 test_orm_db_drift.py 红。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-faf05d
+      phase: implement
+      side: backend
+    - id: t-3d3d60
+      title: 数据契约：三值列 + CHECK + 8 行回填 + ORM·测试
+      implements: |-
+        新建 infrastructure/persistence/migrations/20261006_scheduler_tasks_trading_day_policy.py：ADD COLUMN IF NOT EXISTS trading_day_policy varchar(16) NOT NULL DEFAULT 'always' 并加 CHECK (trading_day_policy IN ('always','trading-days','holidays'))；按 id 精确回填 8 行（250/247/242/259/249/261/237 = 'trading-days'；232 = 'holidays'），每行 rowcount=0 只打印警告不失败；沿用 20261002 迁移约定：缺省 dry-run 只打印、--apply 才写、加 lock_timeout、verify 段防空表（避免 row[0] 在空表 TypeError）。修改 infrastructure/persistence/orm/models/scheduler.py 的 SchedulerTaskConfig 加同名列（String(16), nullable=False, server_default='always'）。生产库与测试库都必须 apply（显式 --dsn），否则 test_orm_db_drift.py 红。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-37ba53
+      phase: implement
+      side: backend
+    - id: t-989aba
+      title: ③ 退为薄转发 + 打桩点迁移（行为零变化）·研发
+      implements: |-
+        修改 adapters/inbound/fastapi_app/daily_jobs/gate.py：改为薄转发，只做 from application.services.trading_day_gate import (SOURCE_GATE_ERROR, verdict_info, skip_non_trading_day, is_non_trading_day)，不留任何判定实现；runtime.py 与 pipeline.py 的导入路径与调用方式一行不改。修改 tests/test_daily_jobs_trading_day_gate.py：把三处 monkeypatch.setattr(gate_mod, 'TradingDayGuard', ...)（约 80/131/139 行）的目标改为 application.services.trading_day_gate（被调函数所在模块），并新增一条证伪断言：patch 新模块后应用側 gate 的结论确实随之改变（若转发链路上名字解析没走新模块，此断言即红，专治桩静默失效）。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-63bc0a
+      phase: implement
+      side: backend
+    - id: t-b8b7c6
+      title: ③ 退为薄转发 + 打桩点迁移（行为零变化）·联调
+      implements: |-
+        修改 adapters/inbound/fastapi_app/daily_jobs/gate.py：改为薄转发，只做 from application.services.trading_day_gate import (SOURCE_GATE_ERROR, verdict_info, skip_non_trading_day, is_non_trading_day)，不留任何判定实现；runtime.py 与 pipeline.py 的导入路径与调用方式一行不改。修改 tests/test_daily_jobs_trading_day_gate.py：把三处 monkeypatch.setattr(gate_mod, 'TradingDayGuard', ...)（约 80/131/139 行）的目标改为 application.services.trading_day_gate（被调函数所在模块），并新增一条证伪断言：patch 新模块后应用側 gate 的结论确实随之改变（若转发链路上名字解析没走新模块，此断言即红，专治桩静默失效）。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-989aba
+      phase: implement
+      side: backend
+    - id: t-2d64a2
+      title: ③ 退为薄转发 + 打桩点迁移（行为零变化）·复核
+      implements: |-
+        修改 adapters/inbound/fastapi_app/daily_jobs/gate.py：改为薄转发，只做 from application.services.trading_day_gate import (SOURCE_GATE_ERROR, verdict_info, skip_non_trading_day, is_non_trading_day)，不留任何判定实现；runtime.py 与 pipeline.py 的导入路径与调用方式一行不改。修改 tests/test_daily_jobs_trading_day_gate.py：把三处 monkeypatch.setattr(gate_mod, 'TradingDayGuard', ...)（约 80/131/139 行）的目标改为 application.services.trading_day_gate（被调函数所在模块），并新增一条证伪断言：patch 新模块后应用側 gate 的结论确实随之改变（若转发链路上名字解析没走新模块，此断言即红，专治桩静默失效）。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-b8b7c6
+      phase: implement
+      side: backend
+    - id: t-6373a5
+      title: ③ 退为薄转发 + 打桩点迁移（行为零变化）·测试
+      implements: |-
+        修改 adapters/inbound/fastapi_app/daily_jobs/gate.py：改为薄转发，只做 from application.services.trading_day_gate import (SOURCE_GATE_ERROR, verdict_info, skip_non_trading_day, is_non_trading_day)，不留任何判定实现；runtime.py 与 pipeline.py 的导入路径与调用方式一行不改。修改 tests/test_daily_jobs_trading_day_gate.py：把三处 monkeypatch.setattr(gate_mod, 'TradingDayGuard', ...)（约 80/131/139 行）的目标改为 application.services.trading_day_gate（被调函数所在模块），并新增一条证伪断言：patch 新模块后应用側 gate 的结论确实随之改变（若转发链路上名字解析没走新模块，此断言即红，专治桩静默失效）。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-2d64a2
+      phase: implement
+      side: backend
+    - id: t-13669a
+      title: 仓储层：complete_run_skipped + 抽 _finish_run·研发
+      implements: |-
+        修改 adapters/outbound/repositories/scheduler_repository.py：抽出私有 _finish_run(run_id, status, result=None, error=None, completed_at=None)，承载 completed_at / duration_ms / result 过 _json_safe / config.last_status / next_run_at 重算；complete_run 的签名与返回值逐字不变、内部改调 _finish_run(status=('success' if success else 'failed'))；新增 complete_run_skipped(run_id, result=None, completed_at=None) -> bool：写 status='skipped'、last_error=None、失败返回 False 绝不抛。列是 text NOT NULL DEFAULT 'running' 且无 CHECK，无需 DDL。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-e05ce2
+      phase: implement
+      side: backend
+    - id: t-4b81fd
+      title: 仓储层：complete_run_skipped + 抽 _finish_run·联调
+      implements: |-
+        修改 adapters/outbound/repositories/scheduler_repository.py：抽出私有 _finish_run(run_id, status, result=None, error=None, completed_at=None)，承载 completed_at / duration_ms / result 过 _json_safe / config.last_status / next_run_at 重算；complete_run 的签名与返回值逐字不变、内部改调 _finish_run(status=('success' if success else 'failed'))；新增 complete_run_skipped(run_id, result=None, completed_at=None) -> bool：写 status='skipped'、last_error=None、失败返回 False 绝不抛。列是 text NOT NULL DEFAULT 'running' 且无 CHECK，无需 DDL。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-13669a
+      phase: implement
+      side: backend
+    - id: t-b8df8c
+      title: 仓储层：complete_run_skipped + 抽 _finish_run·复核
+      implements: |-
+        修改 adapters/outbound/repositories/scheduler_repository.py：抽出私有 _finish_run(run_id, status, result=None, error=None, completed_at=None)，承载 completed_at / duration_ms / result 过 _json_safe / config.last_status / next_run_at 重算；complete_run 的签名与返回值逐字不变、内部改调 _finish_run(status=('success' if success else 'failed'))；新增 complete_run_skipped(run_id, result=None, completed_at=None) -> bool：写 status='skipped'、last_error=None、失败返回 False 绝不抛。列是 text NOT NULL DEFAULT 'running' 且无 CHECK，无需 DDL。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-4b81fd
+      phase: implement
+      side: backend
+    - id: t-4006a7
+      title: 仓储层：complete_run_skipped + 抽 _finish_run·测试
+      implements: |-
+        修改 adapters/outbound/repositories/scheduler_repository.py：抽出私有 _finish_run(run_id, status, result=None, error=None, completed_at=None)，承载 completed_at / duration_ms / result 过 _json_safe / config.last_status / next_run_at 重算；complete_run 的签名与返回值逐字不变、内部改调 _finish_run(status=('success' if success else 'failed'))；新增 complete_run_skipped(run_id, result=None, completed_at=None) -> bool：写 status='skipped'、last_error=None、失败返回 False 绝不抛。列是 text NOT NULL DEFAULT 'running' 且无 CHECK，无需 DDL。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-b8df8c
+      phase: implement
+      side: backend
+    - id: t-49f017
+      title: 执行期接门与跳过落账（含 manual 旁路）·研发
+      implements: |-
+        修改 infrastructure/scheduler/job_executor.py：execute_scheduled_job(task_id, manual=False) 透传到 _execute_scheduled_job_impl(task_id, manual=manual)；在 is_enabled 检查之后、并发检查之前插入门：manual=True 直接放行；否则 policy = task.get('trading_day_policy') or 'always'、skip, info = should_skip(policy, now)，skip 为真时 create_run 后调 complete_run_skipped(run_id, result={'skipped':True,'reason':info['reason'],'trading_day_source':info['source'],'degraded':info['degraded'],'policy':policy})，打一行 info 日志并 return——不调 _execute_command、不调 _report_failure_to_sink、不发 Agent OS 事件、不写 last_error。照跑路径逐字不变（门放执行期正是 FR-7 免 reload 生效的机制）。新增 tests/infrastructure/test_scheduler_skip_ledger.py 覆盖四条负向断言。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-63bc0a
+        - t-da502d
+      phase: implement
+      side: backend
+    - id: t-b88384
+      title: 执行期接门与跳过落账（含 manual 旁路）·联调
+      implements: |-
+        修改 infrastructure/scheduler/job_executor.py：execute_scheduled_job(task_id, manual=False) 透传到 _execute_scheduled_job_impl(task_id, manual=manual)；在 is_enabled 检查之后、并发检查之前插入门：manual=True 直接放行；否则 policy = task.get('trading_day_policy') or 'always'、skip, info = should_skip(policy, now)，skip 为真时 create_run 后调 complete_run_skipped(run_id, result={'skipped':True,'reason':info['reason'],'trading_day_source':info['source'],'degraded':info['degraded'],'policy':policy})，打一行 info 日志并 return——不调 _execute_command、不调 _report_failure_to_sink、不发 Agent OS 事件、不写 last_error。照跑路径逐字不变（门放执行期正是 FR-7 免 reload 生效的机制）。新增 tests/infrastructure/test_scheduler_skip_ledger.py 覆盖四条负向断言。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-49f017
+      phase: implement
+      side: backend
+    - id: t-cddd7a
+      title: 执行期接门与跳过落账（含 manual 旁路）·复核
+      implements: |-
+        修改 infrastructure/scheduler/job_executor.py：execute_scheduled_job(task_id, manual=False) 透传到 _execute_scheduled_job_impl(task_id, manual=manual)；在 is_enabled 检查之后、并发检查之前插入门：manual=True 直接放行；否则 policy = task.get('trading_day_policy') or 'always'、skip, info = should_skip(policy, now)，skip 为真时 create_run 后调 complete_run_skipped(run_id, result={'skipped':True,'reason':info['reason'],'trading_day_source':info['source'],'degraded':info['degraded'],'policy':policy})，打一行 info 日志并 return——不调 _execute_command、不调 _report_failure_to_sink、不发 Agent OS 事件、不写 last_error。照跑路径逐字不变（门放执行期正是 FR-7 免 reload 生效的机制）。新增 tests/infrastructure/test_scheduler_skip_ledger.py 覆盖四条负向断言。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-b88384
+      phase: implement
+      side: backend
+    - id: t-0b6aaf
+      title: 执行期接门与跳过落账（含 manual 旁路）·测试
+      implements: |-
+        修改 infrastructure/scheduler/job_executor.py：execute_scheduled_job(task_id, manual=False) 透传到 _execute_scheduled_job_impl(task_id, manual=manual)；在 is_enabled 检查之后、并发检查之前插入门：manual=True 直接放行；否则 policy = task.get('trading_day_policy') or 'always'、skip, info = should_skip(policy, now)，skip 为真时 create_run 后调 complete_run_skipped(run_id, result={'skipped':True,'reason':info['reason'],'trading_day_source':info['source'],'degraded':info['degraded'],'policy':policy})，打一行 info 日志并 return——不调 _execute_command、不调 _report_failure_to_sink、不发 Agent OS 事件、不写 last_error。照跑路径逐字不变（门放执行期正是 FR-7 免 reload 生效的机制）。新增 tests/infrastructure/test_scheduler_skip_ledger.py 覆盖四条负向断言。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-cddd7a
+      phase: implement
+      side: backend
+    - id: t-2bf7e5
+      title: 人工触发改投一次性 manual=True job·研发
+      implements: |-
+        修改 infrastructure/scheduler/apscheduler_service.py 的 trigger_task_now：保留 job 不存在时抛 ValueError 的既有语义；把 modify_job(next_run_time=now) 换成 add_job(func=execute_scheduled_job, trigger=DateTrigger(run_date=datetime.now()), args=[task_id], kwargs={'manual': True}, id=f'manual_{task_id}_{int(time.time())}', name=f'[manual] {job.name}', replace_existing=False, misfire_grace_time=None)。同步修改 tests/infrastructure/test_apscheduler_service.py 的 test_trigger_task_now 断言。路由层不做改动。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-42eb9a
+      phase: implement
+      side: backend
+    - id: t-02dd78
+      title: 人工触发改投一次性 manual=True job·联调
+      implements: |-
+        修改 infrastructure/scheduler/apscheduler_service.py 的 trigger_task_now：保留 job 不存在时抛 ValueError 的既有语义；把 modify_job(next_run_time=now) 换成 add_job(func=execute_scheduled_job, trigger=DateTrigger(run_date=datetime.now()), args=[task_id], kwargs={'manual': True}, id=f'manual_{task_id}_{int(time.time())}', name=f'[manual] {job.name}', replace_existing=False, misfire_grace_time=None)。同步修改 tests/infrastructure/test_apscheduler_service.py 的 test_trigger_task_now 断言。路由层不做改动。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-2bf7e5
+      phase: implement
+      side: backend
+    - id: t-badb26
+      title: 人工触发改投一次性 manual=True job·复核
+      implements: |-
+        修改 infrastructure/scheduler/apscheduler_service.py 的 trigger_task_now：保留 job 不存在时抛 ValueError 的既有语义；把 modify_job(next_run_time=now) 换成 add_job(func=execute_scheduled_job, trigger=DateTrigger(run_date=datetime.now()), args=[task_id], kwargs={'manual': True}, id=f'manual_{task_id}_{int(time.time())}', name=f'[manual] {job.name}', replace_existing=False, misfire_grace_time=None)。同步修改 tests/infrastructure/test_apscheduler_service.py 的 test_trigger_task_now 断言。路由层不做改动。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-02dd78
+      phase: implement
+      side: backend
+    - id: t-2a9fe9
+      title: 人工触发改投一次性 manual=True job·测试
+      implements: |-
+        修改 infrastructure/scheduler/apscheduler_service.py 的 trigger_task_now：保留 job 不存在时抛 ValueError 的既有语义；把 modify_job(next_run_time=now) 换成 add_job(func=execute_scheduled_job, trigger=DateTrigger(run_date=datetime.now()), args=[task_id], kwargs={'manual': True}, id=f'manual_{task_id}_{int(time.time())}', name=f'[manual] {job.name}', replace_existing=False, misfire_grace_time=None)。同步修改 tests/infrastructure/test_apscheduler_service.py 的 test_trigger_task_now 断言。路由层不做改动。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-badb26
+      phase: implement
+      side: backend
+    - id: t-79a341
+      title: 巡检口径同步：should_have_run 与 watchdog·研发
+      implements: |-
+        修改 application/services/should_have_run.py：把「最近一次真执行（status != 'missed'）」拆成两套写出来的常量集合——NOT_MISSED_STATUSES=('success','failed','skipped') 用于判该槽位是否已处理，REAL_RUN_STATUSES=('success','failed') 用于 last_run_at 呈现，替换原先依赖 != 的副作用判据；不改 missed 的告警语义。修改 scripts/scheduler_watchdog.py 两处（约 289/390 行）的 status='success' 为 status IN ('success','skipped')。在 tests/test_should_have_run.py 增量补用例（不要另起平行文件）。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-42eb9a
+      phase: implement
+      side: backend
+    - id: t-7d47dd
+      title: 巡检口径同步：should_have_run 与 watchdog·联调
+      implements: |-
+        修改 application/services/should_have_run.py：把「最近一次真执行（status != 'missed'）」拆成两套写出来的常量集合——NOT_MISSED_STATUSES=('success','failed','skipped') 用于判该槽位是否已处理，REAL_RUN_STATUSES=('success','failed') 用于 last_run_at 呈现，替换原先依赖 != 的副作用判据；不改 missed 的告警语义。修改 scripts/scheduler_watchdog.py 两处（约 289/390 行）的 status='success' 为 status IN ('success','skipped')。在 tests/test_should_have_run.py 增量补用例（不要另起平行文件）。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-79a341
+      phase: implement
+      side: backend
+    - id: t-98ed3c
+      title: 巡检口径同步：should_have_run 与 watchdog·复核
+      implements: |-
+        修改 application/services/should_have_run.py：把「最近一次真执行（status != 'missed'）」拆成两套写出来的常量集合——NOT_MISSED_STATUSES=('success','failed','skipped') 用于判该槽位是否已处理，REAL_RUN_STATUSES=('success','failed') 用于 last_run_at 呈现，替换原先依赖 != 的副作用判据；不改 missed 的告警语义。修改 scripts/scheduler_watchdog.py 两处（约 289/390 行）的 status='success' 为 status IN ('success','skipped')。在 tests/test_should_have_run.py 增量补用例（不要另起平行文件）。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-7d47dd
+      phase: implement
+      side: backend
+    - id: t-23d580
+      title: 巡检口径同步：should_have_run 与 watchdog·测试
+      implements: |-
+        修改 application/services/should_have_run.py：把「最近一次真执行（status != 'missed'）」拆成两套写出来的常量集合——NOT_MISSED_STATUSES=('success','failed','skipped') 用于判该槽位是否已处理，REAL_RUN_STATUSES=('success','failed') 用于 last_run_at 呈现，替换原先依赖 != 的副作用判据；不改 missed 的告警语义。修改 scripts/scheduler_watchdog.py 两处（约 289/390 行）的 status='success' 为 status IN ('success','skipped')。在 tests/test_should_have_run.py 增量补用例（不要另起平行文件）。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-98ed3c
+      phase: implement
+      side: backend
+    - id: t-173a83
+      title: 端到端验收、真实台账观察与回滚演练·研发
+      implements: |-
+        跑齐 decomposition.md §6 的六条命令并把实际输出写进 notes/acceptance-run.md；准备 docs/requirements/REQ-261006093620-a315/verification.md（交付结论 + 可复核证据清单）。真实读数：休市日 2026-10-07 挂门任务应为 skipped 且无通知，复市首日 2026-10-08 应恢复 success。回滚演练：UPDATE quant.scheduler_tasks SET trading_day_policy='always' WHERE id IN (250,247,242,259,249,261,237,232) 后确认无需 reload/重启即恢复照跑，再改回策略值并记录前后读数。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-d91b87
+        - t-3a7ebb
+        - t-54d79f
+      phase: test
+      side: backend
+    - id: t-fde9be
+      title: 端到端验收、真实台账观察与回滚演练·复核
+      implements: |-
+        跑齐 decomposition.md §6 的六条命令并把实际输出写进 notes/acceptance-run.md；准备 docs/requirements/REQ-261006093620-a315/verification.md（交付结论 + 可复核证据清单）。真实读数：休市日 2026-10-07 挂门任务应为 skipped 且无通知，复市首日 2026-10-08 应恢复 success。回滚演练：UPDATE quant.scheduler_tasks SET trading_day_policy='always' WHERE id IN (250,247,242,259,249,261,237,232) 后确认无需 reload/重启即恢复照跑，再改回策略值并记录前后读数。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-173a83
+      phase: test
+      side: backend
+    - id: t-cabaf9
+      title: 端到端验收、真实台账观察与回滚演练·测试
+      implements: |-
+        跑齐 decomposition.md §6 的六条命令并把实际输出写进 notes/acceptance-run.md；准备 docs/requirements/REQ-261006093620-a315/verification.md（交付结论 + 可复核证据清单）。真实读数：休市日 2026-10-07 挂门任务应为 skipped 且无通知，复市首日 2026-10-08 应恢复 success。回滚演练：UPDATE quant.scheduler_tasks SET trading_day_policy='always' WHERE id IN (250,247,242,259,249,261,237,232) 后确认无需 reload/重启即恢复照跑，再改回策略值并记录前后读数。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-fde9be
+      phase: test
+      side: backend
+task_coverage:
+  - task_id: t-63bc0a
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-e05ce2
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-d91b87
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-da502d
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-42eb9a
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-3a7ebb
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-54d79f
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-ea51f0
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-da2b87
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-ae7033
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-eb87e5
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-54a3c8
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-a7e4bb
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-faf05d
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-37ba53
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-3d3d60
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-989aba
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-b8b7c6
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-2d64a2
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-6373a5
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-13669a
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-4b81fd
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-b8df8c
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-4006a7
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-49f017
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-b88384
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-cddd7a
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-0b6aaf
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-2bf7e5
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-02dd78
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-badb26
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-2a9fe9
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-79a341
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-7d47dd
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-98ed3c
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-23d580
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-173a83
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-fde9be
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-cabaf9
+    covers_prototypes: []
+    covers_decisions: []
+traceability:
+  design_to_tasks:
+    design/architecture.md#落点与依赖方向:
+      - t-63bc0a
+      - t-e05ce2
+      - t-d91b87
+      - t-da502d
+      - t-42eb9a
+      - t-54d79f
+    design/architecture.md#执行期落点而不是排班期落点:
+      - t-42eb9a
+    design/architecture.md#为什么策略是三值而不是布尔:
+      - t-63bc0a
+      - t-e05ce2
+      - t-42eb9a
+    design/architecture.md#人工触发的旁路:
+      - t-42eb9a
+      - t-3a7ebb
+    design/architecture.md#文件结构新建-修改各自职责一句话:
+      - t-63bc0a
+      - t-e05ce2
+      - t-d91b87
+      - t-da502d
+      - t-42eb9a
+      - t-3a7ebb
+      - t-54d79f
+    design/architecture.md#打桩点迁移本设计唯一碰-③-文件的动作:
+      - t-d91b87
+      - t-da502d
+      - t-42eb9a
+      - t-54d79f
+      - t-ea51f0
+    design/architecture.md#回滚路径:
+      - t-63bc0a
+      - t-e05ce2
+      - t-d91b87
+      - t-da502d
+      - t-42eb9a
+      - t-54d79f
+    design/architecture.md#不做什么:
+      - t-e05ce2
+      - t-42eb9a
+    design/data-model.md#1:
+      - t-63bc0a
+      - t-e05ce2
+      - t-42eb9a
+    design/data-model.md#2:
+      - t-63bc0a
+      - t-e05ce2
+      - t-42eb9a
+    design/data-model.md#3:
+      - t-63bc0a
+      - t-e05ce2
+      - t-42eb9a
+    design/data-model.md#4:
+      - t-63bc0a
+      - t-e05ce2
+      - t-42eb9a
+    design/data-model.md#5:
+      - t-d91b87
+      - t-da502d
+      - t-42eb9a
+      - t-54d79f
+    design/data-model.md#三态语义本设计定死:
+      - t-d91b87
+      - t-da502d
+      - t-42eb9a
+      - t-54d79f
+    design/data-model.md#消费者矩阵逐个对账不靠-的副作用:
+      - t-d91b87
+      - t-da502d
+      - t-42eb9a
+      - t-54d79f
+    design/data-model.md#记账方法契约:
+      - t-d91b87
+      - t-da502d
+      - t-42eb9a
+      - t-54d79f
+    design/interfaces.md#1:
+      - t-63bc0a
+      - t-e05ce2
+      - t-42eb9a
+    design/interfaces.md#2:
+      - t-63bc0a
+      - t-e05ce2
+      - t-42eb9a
+    design/interfaces.md#3:
+      - t-63bc0a
+      - t-d91b87
+      - t-da502d
+      - t-42eb9a
+      - t-3a7ebb
+      - t-54d79f
+    design/interfaces.md#4:
+      - t-42eb9a
+      - t-3a7ebb
+    design/interfaces.md#5:
+      - t-d91b87
+      - t-da502d
+      - t-42eb9a
+      - t-54d79f
+    design/interfaces.md#6:
+      - t-d91b87
+      - t-da502d
+      - t-42eb9a
+      - t-54d79f
+    design/interfaces.md#7:
+      - t-42eb9a
+      - t-3a7ebb
+    design/interfaces.md#8:
+      - t-63bc0a
+      - t-d91b87
+      - t-da502d
+      - t-42eb9a
+      - t-54d79f
+    design/use-cases.md#UC-1-休市日自动到点整段跳过:
+      - t-63bc0a
+      - t-e05ce2
+      - t-d91b87
+      - t-da502d
+      - t-42eb9a
+      - t-54d79f
+    design/use-cases.md#UC-2-交易日行为逐字不变:
+      - t-63bc0a
+      - t-e05ce2
+      - t-d91b87
+      - t-42eb9a
+      - t-ea51f0
+    design/use-cases.md#UC-3-日历链降级fail-open-照跑但不静默:
+      - t-63bc0a
+      - t-42eb9a
+    design/use-cases.md#UC-4-复市首日不得被跳过:
+      - t-63bc0a
+      - t-e05ce2
+      - t-d91b87
+      - t-42eb9a
+      - t-ea51f0
+    design/use-cases.md#UC-5-休市日的人工触发仍然跑:
+      - t-42eb9a
+      - t-3a7ebb
+    design/use-cases.md#UC-6-232-的周末分档周六照跑法定节假日跳过:
+      - t-63bc0a
+      - t-e05ce2
+    design/use-cases.md#UC-7-策略值未知fail-open-照跑并留痕:
+      - t-63bc0a
+      - t-e05ce2
+      - t-42eb9a
+    design/use-cases.md#UC-8-巡检侧休市日的-skipped-不产生漏跑告警:
+      - t-d91b87
+      - t-da502d
+      - t-42eb9a
+      - t-54d79f
+    design/use-cases.md#UC-9-回滚改回-always-即回到今天的行为:
+      - t-63bc0a
+      - t-e05ce2
+      - t-42eb9a
+  fr_to_tasks:
+    FR-1:
+      - t-63bc0a
+      - t-e05ce2
+      - t-d91b87
+      - t-da502d
+      - t-42eb9a
+      - t-54d79f
+      - t-3a7ebb
+      - t-ea51f0
+    FR-2:
+      - t-63bc0a
+      - t-e05ce2
+      - t-d91b87
+      - t-da502d
+      - t-42eb9a
+      - t-54d79f
+      - t-3a7ebb
+      - t-ea51f0
+    FR-3:
+      - t-63bc0a
+      - t-e05ce2
+      - t-d91b87
+      - t-da502d
+      - t-42eb9a
+      - t-54d79f
+      - t-3a7ebb
+      - t-ea51f0
+    FR-4:
+      - t-63bc0a
+      - t-e05ce2
+      - t-42eb9a
+      - t-d91b87
+      - t-da502d
+      - t-3a7ebb
+      - t-54d79f
+      - t-ea51f0
+    FR-5:
+      - t-63bc0a
+      - t-e05ce2
+      - t-42eb9a
+    FR-6:
+      - t-42eb9a
+      - t-3a7ebb
+      - t-63bc0a
+      - t-e05ce2
+      - t-d91b87
+      - t-da502d
+      - t-54d79f
+    FR-7:
+      - t-42eb9a
+      - t-63bc0a
+      - t-e05ce2
+      - t-d91b87
+      - t-da502d
+      - t-54d79f
+    FR-8:
+      - t-d91b87
+      - t-da502d
+      - t-42eb9a
+      - t-54d79f
+      - t-ea51f0
+      - t-63bc0a
+      - t-e05ce2
+coverage:
+  implementation:
+    total: 33
+    covered: 33
+    uncovered: []
+    rate: 100
+    total_designs: 33
+    covered_designs: 33

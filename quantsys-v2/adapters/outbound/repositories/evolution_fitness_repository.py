@@ -3,10 +3,12 @@
 表 DDL 见 infrastructure/persistence/migrations/add_evolution_fitness_table.sql。
 """
 from datetime import date, datetime
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import structlog
-from sqlalchemy import Column, Date, DateTime, Integer, Numeric, String, UniqueConstraint
+from sqlalchemy import (
+    Column, Date, DateTime, Integer, Numeric, String, UniqueConstraint, case, func,
+)
 
 from infrastructure.persistence.orm import BaseORMRepository
 from infrastructure.persistence.orm.base import Base
@@ -100,6 +102,38 @@ class EvolutionFitnessORMRepository(BaseORMRepository[EvolutionFitness]):
             .first()
         )
         return row[0] if row else None
+
+    def list_recent_window_ok_counts(
+        self, limit: int = 20, window_days: int = 20
+    ) -> List[Tuple[date, int]]:
+        """最近 limit 个 window_end 的**有效产出条数**（倒序）。只读。
+
+        REQ-261005210015-1603 t-17fce0（FR-5）：空转统计的读数口。
+        实证 10-02 与 10-05 两次运行的 ok 数都是 0（全表 280 行只有 60 行有 fitness 值，
+        最后一天 2026-09-12）——"连续几次没算出东西"此前无人可见。
+        只读、不写库、不加列。
+        """
+        rows = (
+            self.session.query(
+                EvolutionFitness.window_end,
+                func.count(case((EvolutionFitness.status == 'ok', 1))).label('ok_count'),
+            )
+            .filter(EvolutionFitness.window_days == window_days)
+            .group_by(EvolutionFitness.window_end)
+            .order_by(EvolutionFitness.window_end.desc())
+            .limit(limit)
+            .all()
+        )
+        return [(r[0], int(r[1] or 0)) for r in rows]
+
+    def get_last_ok_window_end(self, window_days: int = 20) -> Optional[date]:
+        """最近一次**有有效产出**的 window_end；从未有过返回 None。只读。"""
+        return (
+            self.session.query(func.max(EvolutionFitness.window_end))
+            .filter(EvolutionFitness.window_days == window_days,
+                    EvolutionFitness.status == 'ok')
+            .scalar()
+        )
 
     def delete_by_accounts(self, account_names: Sequence[str]) -> None:
         """测试清理用：按账户名批量删除"""

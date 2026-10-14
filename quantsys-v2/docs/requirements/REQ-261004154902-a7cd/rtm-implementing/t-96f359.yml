@@ -1,0 +1,39 @@
+task:
+  id: t-96f359
+  title: 账本超卖拦截与现金重放对账器·复核
+  status: done
+  implements: |-
+    改 live_trading/simulation_trader.py 与 application/services/account_trading_service.py：卖出前硬校验「累计买入 - 累计卖出 >= 本次卖出量」，不满足则拒绝 + reason='oversell_blocked' + FailureSink 告警；单一真源仍是 simulation_trades（simulation_positions 只可由它派生）；新增 tools/reconcile_sim_account.py（只读）：输出逐标的买卖净额、现金重放差额、超卖清单，并把用户裁定的「历史虚增标记为脏」白名单口径留出入口；新增 tests/test_oversell_guard.py。
+
+    [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+  serves: []
+  depends_on:
+    - t-0bd4f5
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261004154902-a7cd
+    TASK_ID: t-96f359
+    TASK_TITLE: 账本超卖拦截与现金重放对账器·复核
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      started_at: 2026-10-04T08:47:02.407Z
+      completed_at: 2026-10-04T08:47:02.486Z
+    - phase: review
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261004154902-a7cd
+  generated_at: 2026-10-04T08:46:32.757Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-04T08:47:02.486Z

@@ -1,0 +1,37 @@
+task:
+  id: t-0fb46d
+  title: 卡面「升级原因」行（旧渲染 + 分级渲染两条路径）·研发
+  status: in_progress
+  implements: |-
+    infrastructure/notification/formatters/watch_level_templates.py：WatchCardItem 增 escalation_code / escalation_reason 两字段，card_item_from_variables 取值，_skeleton_lines 在「处置」行后插入 _escalation_line；infrastructure/notification/formatters/feishu_formatters.py 旧渲染路径同样追加该行（同一条件表：无理由隐藏、只有码显示码）。行序保持 c392 四段契约不变。
+
+    [子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要
+  serves: []
+  depends_on:
+    - t-08d545
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261007133807-eda6
+    TASK_ID: t-0fb46d
+    TASK_TITLE: 卡面「升级原因」行（旧渲染 + 分级渲染两条路径）·研发
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: pending
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261007133807-eda6
+  generated_at: 2026-10-07T11:12:51.358Z
+  version: 2
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-07T11:12:51.359Z

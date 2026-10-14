@@ -21,6 +21,13 @@ class SchedulerTaskConfig(Base):
     params = Column(JSONB, comment='任务参数', default={})
     is_enabled = Column(Boolean, default=True, comment='是否启用')
     task_type = Column(String(20), nullable=False, default='cron', comment='任务类型: cron/delay/interval/once')
+    # 交易日门策略（REQ-261006093620-a315 t2）：缺省 always = 行为与装门之前完全一致。
+    # 三值而非布尔的原因见 application/services/trading_day_gate.py 的模块 docstring
+    # （布尔无法同时表达「非交易日一律跳」与「只跳法定节假日、周末照跑」两档）。
+    trading_day_policy = Column(
+        String(16), nullable=False, server_default='always',
+        comment='交易日门策略: always=不判门 / trading-days=非交易日跳过 / holidays=只跳法定节假日',
+    )
     
     # 运行时状态
     last_run_at = Column(DateTime(timezone=True), comment='上次执行时间')

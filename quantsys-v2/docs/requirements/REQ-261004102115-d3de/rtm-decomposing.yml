@@ -1,0 +1,407 @@
+metadata:
+  stage: decomposing
+  requirement_id: REQ-261004102115-d3de
+  generated_at: 2026-10-04T02:25:51.492Z
+  version: 48
+  generated_by: dsh-pmboard
+  last_updated: 2026-10-04T02:39:23.899Z
+inputs:
+  requirements:
+    - id: FR-1
+      title: 节假日感知的「应有交易日」单一实现
+      source: requirement.md
+      line: 94
+    - id: FR-2
+      title: 探针接入新口径并显式标注来源
+      source: requirement.md
+      line: 100
+    - id: FR-3
+      title: "`freshness_guard` 复用同一实现"
+      source: requirement.md
+      line: 105
+    - id: FR-4
+      title: 回归锁（日期用例）
+      source: requirement.md
+      line: 110
+  design_sections:
+    - ref: design/architecture.md#目标与判定
+      title: 目标与判定（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/architecture.md
+      section: 目标与判定
+    - ref: design/architecture.md#落点与依赖方向
+      title: 落点与依赖方向（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/architecture.md
+      section: 落点与依赖方向
+    - ref: design/architecture.md#解析链
+      title: 解析链（
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 解析链
+    - ref: design/architecture.md#为什么-②-不能被省掉
+      title: 为什么 ② 不能被省掉（
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 为什么-②-不能被省掉
+    - ref: design/architecture.md#已知并存的第三个口径
+      title: 已知并存的第三个口径（
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 已知并存的第三个口径
+    - ref: design/architecture.md#探针的硬约束如何保持
+      title: 探针的硬约束如何保持（
+      serves:
+        - FR-2
+      file: design/architecture.md
+      section: 探针的硬约束如何保持
+    - ref: design/architecture.md#回滚路径
+      title: 回滚路径（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/architecture.md
+      section: 回滚路径
+    - ref: design/data-model.md#既有表契约
+      title: 既有表契约（
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: 既有表契约
+    - ref: design/data-model.md#刷新脚本的数据源改造
+      title: 刷新脚本的数据源改造（
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: 刷新脚本的数据源改造
+    - ref: design/data-model.md#读取口径与兼容影响
+      title: 读取口径与兼容影响（
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: 读取口径与兼容影响
+    - ref: design/data-model.md#需要迁移回填的东西
+      title: 需要迁移/回填的东西（
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: 需要迁移回填的东西
+    - ref: design/data-model.md#探针守卫输出结构
+      title: 探针/守卫输出结构（
+      serves:
+        - FR-2
+      file: design/data-model.md
+      section: 探针守卫输出结构
+    - ref: design/interfaces.md#核心-API
+      title: 核心 API（
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: 核心-API
+    - ref: design/interfaces.md#探针输出契约
+      title: 探针输出契约（
+      serves:
+        - FR-2
+      file: design/interfaces.md
+      section: 探针输出契约
+    - ref: design/interfaces.md#freshnessguard-调用点契约
+      title: "`freshness_guard` 调用点契约（"
+      serves:
+        - FR-3
+      file: design/interfaces.md
+      section: freshnessguard-调用点契约
+    - ref: design/interfaces.md#日历真源接口
+      title: 日历真源接口（
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: 日历真源接口
+    - ref: design/use-cases.md#角色与关注点
+      title: 角色与关注点（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/use-cases.md
+      section: 角色与关注点
+    - ref: design/use-cases.md#场景-1国庆中秋休市巡检
+      title: 场景 1：国庆/中秋休市巡检（
+      serves:
+        - FR-2
+      file: design/use-cases.md
+      section: 场景-1国庆中秋休市巡检
+    - ref: design/use-cases.md#场景-2真断供
+      title: 场景 2：真断供（
+      serves:
+        - FR-2
+        - FR-3
+      file: design/use-cases.md
+      section: 场景-2真断供
+    - ref: design/use-cases.md#场景-3日历源不可用
+      title: 场景 3：日历源不可用（
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: 场景-3日历源不可用
+    - ref: design/use-cases.md#场景-4下一个节日春节-中秋再来一次
+      title: 场景 4：下一个节日（春节 / 中秋）再来一次（
+      serves:
+        - FR-4
+      file: design/use-cases.md
+      section: 场景-4下一个节日春节-中秋再来一次
+    - ref: design/use-cases.md#场景-5表被填上之后的管道行为
+      title: 场景 5：表被填上之后的管道行为（
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: 场景-5表被填上之后的管道行为
+outputs:
+  tasks:
+    - id: t-dc66e2
+      title: 实现交易日解析器（最近一个已收盘交易日）
+      implements: 新增 application/services/trading_day_resolver.py。定义 TradingDayResult(date, source, degraded) 与 last_closed_trading_day(ref, *, cutoff=15:30, provider_lookback_days=30)。anchor = ref.date() 若 >=15:30 否则 ref.date()-1；结果 = 日历中 <=anchor 的最大交易日。三级解析：① quant.trading_calendar（需 max(trade_date)>=anchor 才算覆盖）；② ServiceFactory.get_data_provider_manager().get_trading_calendar(start, anchor)；③ 周一至周五回退。任一级失败不抛异常、记 warning、降级；source 取 calendar_table|provider|weekday_fallback。
+      serves:
+        - FR-1
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-b952d0
+      title: 写日期表驱动回归用例（含降级与周末语义）
+      implements: 新增 tests/test_trading_day_resolver.py；注入假日历与假 provider，零网络零 DB。覆盖 test-cases.md 用例 1-7（10-04→09-30、10-02 16:00→09-30、10-08 15:29→09-30、10-08 15:30→10-08、09-25→09-24、09-26→09-24、09-29→09-28）。覆盖降级用例 8-10：表空走 provider、provider 抛异常→weekday_fallback 且不抛、返回空→降级并记 warning（caplog 断言）。
+      serves:
+        - FR-1
+        - FR-4
+      depends_on:
+        - t-dc66e2
+      phase: test
+      side: backend
+    - id: t-f062d4
+      title: 探针接入新口径并标注判定来源
+      implements: tools/health_probe.py：expected_trading_day() 改为调 last_closed_trading_day（删掉 import _last_trading_day 的路径）。probe_freshness() 返回体新增 expected_source、expected_degraded，既有键语义不变。build_alert() 仅在 expected_degraded 为真时追加降级标注，正常路径正文与现状逐字一致。同步新增 tests/test_health_probe.py（用例 11-13）：打桩 resolver 与 kline_latest，断言 ok/lag_days/两个新键；只测 probe_freshness 与 build_alert，不调 main()/send_alert。
+      serves:
+        - FR-2
+        - FR-4
+      depends_on:
+        - t-dc66e2
+      phase: implement
+      side: backend
+    - id: t-1d780d
+      title: freshness_guard 复用同一实现
+      implements: adapters/inbound/fastapi_app/daily_jobs/pipeline.py:_last_trading_day(ref)->str 签名与返回类型不变，内部改调 last_closed_trading_day(ref).date.isoformat()。行 76/177 两个调用点输入不变（177 仍传 now-1 天）。return 字典新增 expected_source 键（jsonb，无需迁移）；其余键与判定逻辑一行不改。daily_jobs_bootstrap 的转发导出保持不变（44 个模块的导入路径不动）。
+      serves:
+        - FR-3
+      depends_on:
+        - t-dc66e2
+      phase: implement
+      side: backend
+    - id: t-ed8425
+      title: 刷新脚本改接 provider 源并一次性回填日历表
+      implements: tools/refresh_trading_calendar.py：数据源改为 get_data_provider_manager().get_trading_calendar（含未来交易日），与既有 daily_klines DISTINCT trade_date 取并集。保留原有 ON CONFLICT DO NOTHING 与空表时的复合主键确保逻辑。先 --dry-run 看清将写入行数，再实跑一次回填 quant.trading_calendar（只写 TRUE/FALSE，不写 NULL）。
+      serves:
+        - FR-1
+      depends_on:
+        - t-dc66e2
+      phase: implement
+      side: backend
+    - id: t-4caf2a
+      title: 核验迁移与兼容（管道读表切换、引用方、无新依赖）
+      implements: 核验 load_trading_calendar_from_db(exchange) 从「空表回退 K 线」切换为「读表」后行为正常，回退路径与异常处理未被破坏。核验全仓 _last_trading_day 引用方（tools/health_probe.py 之外）仍可导入且语义未回归。核验未改 deployment/launchd/com.pi-investment.health-probe.plist、未改 quant.data_contracts、未新增第三方依赖。
+      serves:
+        - FR-1
+        - FR-3
+      depends_on:
+        - t-f062d4
+        - t-1d780d
+        - t-ed8425
+      phase: analysis
+      side: backend
+    - id: t-8e4de7
+      title: 实现交易日解析器（最近一个已收盘交易日）·研发
+      implements: |-
+        新增 application/services/trading_day_resolver.py。定义 TradingDayResult(date, source, degraded) 与 last_closed_trading_day(ref, *, cutoff=15:30, provider_lookback_days=30)。anchor = ref.date() 若 >=15:30 否则 ref.date()-1；结果 = 日历中 <=anchor 的最大交易日。三级解析：① quant.trading_calendar（需 max(trade_date)>=anchor 才算覆盖）；② ServiceFactory.get_data_provider_manager().get_trading_calendar(start, anchor)；③ 周一至周五回退。任一级失败不抛异常、记 warning、降级；source 取 calendar_table|provider|weekday_fallback。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-2aae82
+      title: 实现交易日解析器（最近一个已收盘交易日）·复核
+      implements: |-
+        新增 application/services/trading_day_resolver.py。定义 TradingDayResult(date, source, degraded) 与 last_closed_trading_day(ref, *, cutoff=15:30, provider_lookback_days=30)。anchor = ref.date() 若 >=15:30 否则 ref.date()-1；结果 = 日历中 <=anchor 的最大交易日。三级解析：① quant.trading_calendar（需 max(trade_date)>=anchor 才算覆盖）；② ServiceFactory.get_data_provider_manager().get_trading_calendar(start, anchor)；③ 周一至周五回退。任一级失败不抛异常、记 warning、降级；source 取 calendar_table|provider|weekday_fallback。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-8e4de7
+      phase: implement
+      side: backend
+    - id: t-598ad3
+      title: 实现交易日解析器（最近一个已收盘交易日）·测试
+      implements: |-
+        新增 application/services/trading_day_resolver.py。定义 TradingDayResult(date, source, degraded) 与 last_closed_trading_day(ref, *, cutoff=15:30, provider_lookback_days=30)。anchor = ref.date() 若 >=15:30 否则 ref.date()-1；结果 = 日历中 <=anchor 的最大交易日。三级解析：① quant.trading_calendar（需 max(trade_date)>=anchor 才算覆盖）；② ServiceFactory.get_data_provider_manager().get_trading_calendar(start, anchor)；③ 周一至周五回退。任一级失败不抛异常、记 warning、降级；source 取 calendar_table|provider|weekday_fallback。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-2aae82
+      phase: implement
+      side: backend
+    - id: t-391941
+      title: 返工：E2E 覆盖：**无（缺口）**——本需求交付涉及多组件串联，但只交了单元/集成测试。请补一条端到端场景用例（断言可观察
+      implements: 按验收意见修复：需修改
+      serves: []
+      depends_on: []
+      phase: implement
+      side: fullstack
+traceability:
+  design_to_tasks:
+    design/architecture.md#目标与判定:
+      - t-dc66e2
+      - t-b952d0
+      - t-f062d4
+      - t-1d780d
+      - t-ed8425
+      - t-4caf2a
+    design/architecture.md#落点与依赖方向:
+      - t-dc66e2
+      - t-b952d0
+      - t-f062d4
+      - t-1d780d
+      - t-ed8425
+      - t-4caf2a
+    design/architecture.md#解析链:
+      - t-dc66e2
+      - t-b952d0
+      - t-ed8425
+      - t-4caf2a
+    design/architecture.md#为什么-②-不能被省掉:
+      - t-dc66e2
+      - t-b952d0
+      - t-ed8425
+      - t-4caf2a
+    design/architecture.md#已知并存的第三个口径:
+      - t-dc66e2
+      - t-b952d0
+      - t-ed8425
+      - t-4caf2a
+    design/architecture.md#探针的硬约束如何保持:
+      - t-f062d4
+    design/architecture.md#回滚路径:
+      - t-dc66e2
+      - t-b952d0
+      - t-f062d4
+      - t-1d780d
+      - t-ed8425
+      - t-4caf2a
+    design/data-model.md#既有表契约:
+      - t-dc66e2
+      - t-b952d0
+      - t-ed8425
+      - t-4caf2a
+    design/data-model.md#刷新脚本的数据源改造:
+      - t-dc66e2
+      - t-b952d0
+      - t-ed8425
+      - t-4caf2a
+    design/data-model.md#读取口径与兼容影响:
+      - t-dc66e2
+      - t-b952d0
+      - t-ed8425
+      - t-4caf2a
+    design/data-model.md#需要迁移回填的东西:
+      - t-dc66e2
+      - t-b952d0
+      - t-ed8425
+      - t-4caf2a
+    design/data-model.md#探针守卫输出结构:
+      - t-f062d4
+    design/interfaces.md#核心-API:
+      - t-dc66e2
+      - t-b952d0
+      - t-ed8425
+      - t-4caf2a
+    design/interfaces.md#探针输出契约:
+      - t-f062d4
+    design/interfaces.md#freshnessguard-调用点契约:
+      - t-1d780d
+      - t-4caf2a
+    design/interfaces.md#日历真源接口:
+      - t-dc66e2
+      - t-b952d0
+      - t-ed8425
+      - t-4caf2a
+    design/use-cases.md#角色与关注点:
+      - t-dc66e2
+      - t-b952d0
+      - t-f062d4
+      - t-1d780d
+      - t-ed8425
+      - t-4caf2a
+    design/use-cases.md#场景-1国庆中秋休市巡检:
+      - t-f062d4
+    design/use-cases.md#场景-2真断供:
+      - t-f062d4
+      - t-1d780d
+      - t-4caf2a
+    design/use-cases.md#场景-3日历源不可用:
+      - t-dc66e2
+      - t-b952d0
+      - t-ed8425
+      - t-4caf2a
+    design/use-cases.md#场景-4下一个节日春节-中秋再来一次:
+      - t-b952d0
+      - t-f062d4
+    design/use-cases.md#场景-5表被填上之后的管道行为:
+      - t-dc66e2
+      - t-b952d0
+      - t-ed8425
+      - t-4caf2a
+  fr_to_tasks:
+    FR-1:
+      - t-dc66e2
+      - t-b952d0
+      - t-f062d4
+      - t-1d780d
+      - t-ed8425
+      - t-4caf2a
+    FR-2:
+      - t-dc66e2
+      - t-b952d0
+      - t-f062d4
+      - t-1d780d
+      - t-ed8425
+      - t-4caf2a
+    FR-3:
+      - t-dc66e2
+      - t-b952d0
+      - t-f062d4
+      - t-1d780d
+      - t-ed8425
+      - t-4caf2a
+    FR-4:
+      - t-dc66e2
+      - t-b952d0
+      - t-f062d4
+      - t-1d780d
+      - t-ed8425
+      - t-4caf2a
+coverage:
+  implementation:
+    total: 22
+    covered: 22
+    uncovered: []
+    rate: 100
+    total_designs: 22
+    covered_designs: 22

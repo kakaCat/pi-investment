@@ -1048,6 +1048,57 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
             raise
         return {r[0] for r in rows}
 
+    # ==================== 检查域分域用的两个只读事实（REQ-261006163444-8e4f）============
+    # 分域逻辑在 application/services/kline_domain.py（纯函数）；这里只提供数据，
+    # 保证 daily_klines 的访问**只在本仓储**（裸 SQL 不进作业层）。
+
+    def list_recent_trade_dates(self, limit: int = 2) -> List[str]:
+        """全市场交易日**倒序**前 limit 个（'YYYY-MM-DD'；[0] = 最后交易日）。
+
+        用途：分域快照要拿 D_last 与 prev_trade_date（见 kline_domain.DomainSnapshot）。
+        **不加时间过滤**——分域要认识"已退市"的标的，任何"最近 N 天"过滤都会把它们藏起来。
+        """
+        try:
+            limit = int(limit)
+        except (TypeError, ValueError):
+            limit = 2
+        if limit <= 0:
+            return []
+        try:
+            rows = (
+                self.session.query(DailyKline.trade_date)
+                .distinct()
+                .order_by(desc(DailyKline.trade_date))
+                .limit(limit)
+                .all()
+            )
+        except Exception:
+            self._safe_rollback()
+            raise
+        return [r[0].isoformat() if hasattr(r[0], 'isoformat') else str(r[0])[:10] for r in rows]
+
+    def list_symbol_last_trade_date(self) -> List[tuple]:
+        """每个标的**最后**一个有 K 线的交易日：[(symbol, 'YYYY-MM-DD'), ...]。
+
+        用途：配合 list_recent_trade_dates 算出每只标的的 gap（隔了几个交易日没数据）。
+        **不加时间过滤、不排除退市**——那些标的正是要识别出来的对象。
+        与 list_recent_trade_dates 同属一次快照口径，调用方应成对使用。
+        """
+        try:
+            rows = (
+                self.session.query(DailyKline.symbol, func.max(DailyKline.trade_date))
+                .group_by(DailyKline.symbol)
+                .all()
+            )
+        except Exception:
+            self._safe_rollback()
+            raise
+        out: List[tuple] = []
+        for symbol, last_day in rows:
+            day = last_day.isoformat() if hasattr(last_day, 'isoformat') else str(last_day)[:10]
+            out.append((str(symbol), day))
+        return out
+
     def batch_insert_daily_klines(self, klines: List[DailyKline]) -> bool:
         """批量插入日K线数据（使用 upsert 避免重复键冲突）
 

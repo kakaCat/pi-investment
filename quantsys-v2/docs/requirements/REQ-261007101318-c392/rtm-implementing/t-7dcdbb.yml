@@ -1,0 +1,38 @@
+task:
+  id: t-7dcdbb
+  title: FR-4 文案契约：意图/处置级别 + 闭环承诺解耦（回填）·测试
+  status: done
+  implements: |-
+    application/services/watch_engine/engine.py：_notify_level 去掉 todo_service is None 的早退（级别恒解析），notify_kwargs 增加 closed_loop=(todo_service is not None)。dto.py：TriggerPayload 增加 closed_loop 并随 variables 下发。notification_facade.py、watch_level_templates.py、feishu_formatters.py：新增「处置级别」行（TRIGGER_LEVEL_META）与来源尾注；闭环承诺（处置入口/不可静默/回执位/待办#）改由 closed_loop 门控。翻新三处旧契约测试：tests/application/test_watch_disposition_engine.py（替身接受 level/closed_loop）、test_watch_t12_todo_creation.py、test_watch_t12_wiring.py。
+
+    [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+  serves: []
+  depends_on:
+    - t-2af346
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261007101318-c392
+    TASK_ID: t-7dcdbb
+    TASK_TITLE: FR-4 文案契约：意图/处置级别 + 闭环承诺解耦（回填）·测试
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-07T05:49:01.684Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261007101318-c392
+  generated_at: 2026-10-07T05:48:51.890Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-07T05:49:01.684Z

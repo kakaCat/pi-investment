@@ -10,6 +10,24 @@ import pytest
 from application.services.evolution.daily_snapshot_service import DailySnapshotService
 
 
+@pytest.fixture(autouse=True)
+def _stub_daily_write_gate(monkeypatch):
+    """把按日落库的交易日门注入「常真」。
+
+    2026-10-06（REQ-261006190953-fc43 卡 C）：净值快照写入接了交易日门后，本文件
+    用**假仓储**跑估值数学，但门是真的——测试库日历表为空，判据会走到 provider 链
+    （有网络往返/缓存，单文件耗时从 0.3s 涨到 ~4s），还让"估值数学"这类用例
+    的结果随真实日历漂移。交易日判定不是本文件的目标，故统一打桩；
+    门本身的行为由 tests/test_equity_snapshot_trading_day_gate.py 专门覆盖。
+    """
+    monkeypatch.setattr(
+        'application.services.trading_day_gate.skip_non_trading_day',
+        lambda day=None: (False, {'day': str(day), 'is_trading_day': True,
+                                  'source': 'test-double', 'degraded': False,
+                                  'reason': '本文件统一注入常真门'}),
+    )
+
+
 def _account(name='agent_virtual', cash=90000.0, frozen=0.0, initial=100000.0, peak=105000.0):
     return MagicMock(account_name=name, cash_available=cash, cash_frozen=frozen,
                      initial_capital=initial, peak_value=peak)

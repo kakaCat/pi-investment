@@ -9,9 +9,11 @@
 （未填写——开工前补充这张卡要解决的业务问题）
 
 ## 得到什么结果
-改动已落盘，相关测试或命令跑通并附输出摘要
 
----
+1) 无参调用不再返回空壳：`python -c "from infrastructure.config.settings import get_config; c=get_config(); print(type(c).__name__)"` 输出的类型不是 dict（应为可属性访问的兼容对象）。
+2) 带键调用取真实值：`python -c "from infrastructure.config.settings import get_config; print(get_config('PGHOST','FALLBACK'))"` 输出不是 FALLBACK。
+3) 报告中逐个列出 17 处真实调用方路径，并说明每处取的是哪个键。
+
 ## 汇报 1（2026-10-01T09:28:14.476Z，窗口 session-7fc133ad-e896-4aa2-9cb5-443ac7c5af22）
 
 研发段：**"配置看起来配了、其实没生效"这个洞被补上了**——原先那个名为兼容层的函数永远返回默认值/空字典，而 17 处生产调用都按"能取到真实配置"在写，于是 DSN、密钥这些东西全部静默走默认；现在它返回真实配置，取不到的密钥明确返回 None 而不是抛异常被吞掉。

@@ -114,6 +114,7 @@ class NotificationFacade:
         trigger_level: str = None,      # ← 新增：L0/L1/L2
         action_hint: dict = None,       # ← 新增：行动指引
         escalation_reason: str = None,  # ← 新增：升级原因
+        escalation_code: str = None,    # ← 新增：升级理由码（受控枚举，与 reason 同行下发）
         decision_audit_id: str = None,  # ← 新增：审计ID
         intent: str = None,             # ← REQ-f08def P8：规则意图（消息主体）
         lifecycle_stage: str = None,    # ← 阶段
@@ -127,6 +128,8 @@ class NotificationFacade:
         rule_id: int = None,                # ← 规则号（REQ-ad0a FR-10：模板显示真实号；缺失=手工）
         todo_id: str = None,                # ← 关联待办 id（L2 wake 载荷上下文，可选）
         todo: dict = None,                  # ← 关联待办快照（L2 wake 载荷上下文，可选）
+        closed_loop: bool = True,           # ← 闭环开关（FR-4：只决定是否承诺处置闭环）
+        sender_id: str = None,              # ← 发送方标识（FR-3：卡面与审计自证来源）
     ) -> ChannelResult:
         """发送盯盘触发通知
 
@@ -162,6 +165,13 @@ class NotificationFacade:
         from domain.notification.policies.watch_delivery_policy import WatchDeliveryPolicy
         target_agent = target_agent or WatchDeliveryPolicy().resolve(account=account)
 
+        # FR-3（REQ-261007101318-c392）：**卡面自带来源**。取不到时用当前进程标识
+        # （`v2-watch@<host>#<pid>`）——用户已指出"执行可能是另外一个机器执行的"，
+        # 而 v2 与 agent-ts 共用同一飞书机器人 ⇒ 不写来源就永远分不清是谁发的。
+        if not sender_id:
+            from application.notification.sender_identity import current_sender_id
+            sender_id = current_sender_id()
+
         notification = Notification(
             notification_type=NotificationType.WATCH_TRIGGERED,
             title=f"盯盘触发 - {symbol}",
@@ -182,6 +192,7 @@ class NotificationFacade:
                 'trigger_level': trigger_level,
                 'action_hint': action_hint,
                 'escalation_reason': escalation_reason,
+                'escalation_code': escalation_code,
                 'decision_audit_id': decision_audit_id,
                 # REQ-f08def P8：消息必须让用户一眼看清"主体是谁、为什么提醒"
                 'intent': intent,
@@ -199,10 +210,16 @@ class NotificationFacade:
                 'target_agent': target_agent,
                 # os_channel 是 agent 网关的既有覆盖点：逻辑频道码写入此处即完成路由
                 'os_channel': watch_channel,
+                # FR-4：闭环开关随通知下发（渲染层据此决定是否渲染「处置入口/回执位」）
+                'closed_loop': bool(closed_loop),
+                # FR-3：来源标识随通知下发（卡面尾注 + 审计）
+                'sender_id': sender_id,
             },
             priority=NotificationPriority.HIGH if trigger_level == 'L2' else NotificationPriority.NORMAL,
             # target_agent 的规范落点（渠道无关）：渠道层当前不支持它，见 _annotate_target_agent
-            metadata={'wake_target': target_agent} if target_agent else {},
+            # FR-3：sender_id 无条件进 metadata，供渠道/审计留痕（谁发的可查）
+            metadata={'sender_id': sender_id,
+                      **({'wake_target': target_agent} if target_agent else {})},
         )
 
         # 根据模式选择发送策略
@@ -224,6 +241,7 @@ class NotificationFacade:
                 pnl_pct=pnl_pct,
                 action_hint=action_hint,
                 escalation_reason=escalation_reason,
+                escalation_code=escalation_code,
                 decision_audit_id=decision_audit_id,
                 intent=intent,
                 lifecycle_stage=lifecycle_stage,
@@ -258,6 +276,7 @@ class NotificationFacade:
     def _send_l2_via_target_agent(self, notification, target_agent, *, symbol, name,
                                   price, condition, message, context, notify_mode,
                                   change_pct, pnl_pct, action_hint, escalation_reason,
+                                  escalation_code,
                                   decision_audit_id, intent, lifecycle_stage,
                                   next_action_hint, account, scope, action_amount_yuan,
                                   watch_channel, level, todo_id, todo):
@@ -292,6 +311,7 @@ class NotificationFacade:
             'pnl_pct': pnl_pct,
             'action_hint': action_hint,
             'escalation_reason': escalation_reason,
+            'escalation_code': escalation_code,
             'decision_audit_id': decision_audit_id,
             'intent': intent,
             'lifecycle_stage': lifecycle_stage,
