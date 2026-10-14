@@ -1,0 +1,33 @@
+task:
+  id: t-a4d449
+  title: 补跑中断的行情与因子数据
+  status: done
+  implements: 服务恢复后按既有链路补跑 kline_update → 因子 → 筹码分布，全部走 DataProviderManager 现有入口，禁止新写脚本绕开数据访问层。
+  serves: []
+  depends_on:
+    - t-c63378
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261001145152-3982
+    TASK_ID: t-a4d449
+    TASK_TITLE: 补跑中断的行情与因子数据
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-01T07:18:40.374Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261001145152-3982
+  generated_at: 2026-10-01T07:17:13.279Z
+  version: 6
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-01T09:07:24.465Z

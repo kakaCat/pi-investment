@@ -1,0 +1,38 @@
+task:
+  id: t-468f80
+  title: 拆两个文件级上帝·复核
+  status: done
+  implements: |-
+    纯文件级拆分（保持函数签名与注册表不变）：application/services/scheduler_tasks.py（1607 行 / 0 类 35 个顶层函数）按 job 域分文件；adapters/inbound/fastapi_app/daily_jobs_bootstrap.py（1147 行 / 42 个顶层函数）拆为 daily_jobs/{pipeline,jobs_health,pools}.py + 保留薄注册层。
+
+    [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+  serves: []
+  depends_on:
+    - t-702be3
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261001145152-3982
+    TASK_ID: t-468f80
+    TASK_TITLE: 拆两个文件级上帝·复核
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-02T00:25:01.065Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261001145152-3982
+  generated_at: 2026-10-02T00:23:11.041Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-02T00:25:01.065Z

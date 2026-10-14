@@ -44,8 +44,8 @@ class StrategyEngine:
         else:
             # Not found in Python strategies, try database
             if self._strategy_repo is None:
-                from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
-                strategy_repo = EnhancedServiceFactory.resolve(IStrategyRepository)
+                from infrastructure.services.service_factory import ServiceFactory
+                strategy_repo = ServiceFactory.resolve(IStrategyRepository)
             else:
                 strategy_repo = self._strategy_repo
             db_strategy = strategy_repo.get_by_name(strategy_name)
@@ -69,16 +69,16 @@ class StrategyEngine:
     def kline_repo(self):
         """延迟加载 kline_repo"""
         if self._kline_repo is None:
-            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
-            self._kline_repo = EnhancedServiceFactory.resolve(IKlineRepository)
+            from infrastructure.services.service_factory import ServiceFactory
+            self._kline_repo = ServiceFactory.resolve(IKlineRepository)
         return self._kline_repo
 
     @property
     def stock_repo(self):
         """延迟加载 stock_repo"""
         if self._stock_repo is None:
-            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
-            self._stock_repo = EnhancedServiceFactory.resolve(IStockRepository)
+            from infrastructure.services.service_factory import ServiceFactory
+            self._stock_repo = ServiceFactory.resolve(IStockRepository)
         return self._stock_repo
 
     def execute(self, symbol: str, date: str = None) -> Dict:
@@ -277,8 +277,8 @@ class StrategyExecutionService:
     def signal_repo(self):
         """延迟加载 signal_repo"""
         if self._signal_repo is None:
-            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
-            self._signal_repo = EnhancedServiceFactory.resolve(ISignalRepository)
+            from infrastructure.services.service_factory import ServiceFactory
+            self._signal_repo = ServiceFactory.resolve(ISignalRepository)
         return self._signal_repo
 
     def execute_single(self, request: Dict) -> Dict:

@@ -15,6 +15,14 @@ echo "🔍 Running architecture checks..."
 # Change to quantsys-v2 directory
 cd "$(git rev-parse --show-toplevel)/quantsys-v2" 2>/dev/null || cd "$(git rev-parse --show-toplevel)"
 
+# 2026-10-01（REQ-261001145152-3982 t-c3a097）：本 hooksPath 是**仓库级**的（monorepo），
+# 但本 hook 只检查 quantsys-v2。若本次提交完全没碰 quantsys-v2，直接放行——
+# 否则在 agent-dh / web-frontend 上提交也会被本项目的架构检查拖慢甚至拦下。
+if ! git diff --cached --name-only | grep -q "^quantsys-v2/\|^\.git-hooks/"; then
+    echo "⏭️  本次提交未涉及 quantsys-v2，跳过架构检查"
+    exit 0
+fi
+
 # Check if the analyzer tool exists
 if [ ! -f "tools/analyze_layer_violations.py" ]; then
     echo "⚠️  Architecture analyzer not found, skipping check"
@@ -31,10 +39,37 @@ fi
 
 # Run the analyzer
 echo "📊 Analyzing layer violations..."
-VIOLATIONS=$($PYTHON tools/analyze_layer_violations.py 2>/dev/null | grep "违规导入总数" | awk '{print $3}' || echo "0")
+# 2026-10-01（t-c3a097）：修**取数 bug**。原写法 `awk '{print $3}'` 取的是空值——
+# 因为工具输出是 `违规导入总数: 117`，数字在第 2 列。空值让下面所有 `[ ... -gt ... ]`
+# 报 "integer expression expected"，而 `set -e` 对 `[` 的失败在 if 条件里不算致命，
+# 于是脚本一路走到最后 **静默打印"检查通过"**。这是护栏的第二个独立缺陷
+# （第一个是 BASELINE 低 16 倍，第三个是从未安装）。
+ANALYZER_OUT=$($PYTHON tools/analyze_layer_violations.py 2>/dev/null || true)
+VIOLATIONS=$(printf '%s\n' "$ANALYZER_OUT" | grep "违规导入总数" | grep -oE "[0-9]+" | head -1)
+
+if ! printf '%s' "$VIOLATIONS" | grep -qE '^[0-9]+$'; then
+    echo ""
+    echo "❌ 无法从分析器输出解析违规数（拿到的值：'$VIOLATIONS'）"
+    echo "   不要把它当成 0 —— 解析失败即视为**护栏失效**，本次提交拒绝放行。"
+    echo "   排查：cd quantsys-v2 && $PYTHON tools/analyze_layer_violations.py"
+    echo "   确需紧急提交：git commit --no-verify（请同时在 PR/提交信息里说明原因）"
+    exit 1
+fi
 
 # Get baseline (current acceptable number)
-BASELINE=7  # Current baseline from main branch
+# 2026-10-01（t-c3a097）：7 → 117。旧值停留在早期状态，实测 117（差 16 倍）——
+# 基线比现实低 16 倍的护栏等于没有护栏：它要么被 --no-verify 绕过，要么让 hook 被停用。
+# 口径：与 tools/analyze_layer_violations.py 一致，只统计 application→adapters 一侧。
+# 更宽的全域口径（313 处，含 domain→外 / application→infra / adapters 反向）由
+# tests/test_layer_purity.py 断言守着——那里是"只许降不许升"的真正锁。
+BASELINE=119  # 2026-10-01 实测存量（t-c3a097 校正为 117；t-f04052 因**规范强制**上调至 119）
+# 为什么 +2（可复核，不是放宽）：分析器 tools/analyze_layer_violations.py:72 的判定是
+#   `imported_module.startswith('adapters')` —— 即 application 只要 import adapters 就算违规。
+# 而 CLAUDE.md「Data Access Rules」**强制**以 DataProviderManager（就在
+# adapters.outbound.datasources.manager）作为外部数据的唯一出口，
+# 于是"按规范取数"必然产生被判违规的 import。t-f04052 的两处（core_plan_service 的沪深300 基准、
+# market_style_detector 的新浪行业截面，均为函数内惰性导入）正是如此——属**度量与规范的冲突**
+# （假阳性）。目标不变：持续下调；若日后把 manager 换成端口注入，这 2 处会自然消失。
 
 echo "   Violations found: $VIOLATIONS"
 echo "   Baseline: $BASELINE"

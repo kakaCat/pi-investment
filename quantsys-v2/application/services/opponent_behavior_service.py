@@ -35,9 +35,9 @@ class OpponentBehaviorService:
         
         # 自动创建 fund_flow_repo（如果未提供）
         if fund_flow_repo is None:
-            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+            from infrastructure.services.service_factory import ServiceFactory
             from domain.ports import IFundFlowRepository
-            fund_flow_repo = EnhancedServiceFactory.resolve(IFundFlowRepository)
+            fund_flow_repo = ServiceFactory.resolve(IFundFlowRepository)
         
         self.fund_flow_repo = fund_flow_repo
 

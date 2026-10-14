@@ -94,8 +94,8 @@ class ChanService:
         """加载 chan_theory 蒸馏知识 → {strategy: {win_rate, samples, suggested_confidence}}
         任何异常返回空 map（知识是增强项，不阻塞分析）"""
         try:
-            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
-            repo = EnhancedServiceFactory.resolve(IAgentKnowledgeRepository)
+            from infrastructure.services.service_factory import ServiceFactory
+            repo = ServiceFactory.resolve(IAgentKnowledgeRepository)
             rows = repo.get_by_domain('chan_theory', 'signal_effectiveness')
             out = {}
             for r in rows:

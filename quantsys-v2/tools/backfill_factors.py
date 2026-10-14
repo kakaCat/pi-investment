@@ -21,7 +21,7 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from infrastructure.services.service_factory import ServiceFactory
-from domain.quantlib.stages.factor_stage import FactorStage
+from domain.backtest.stages.factor_stage import FactorStage
 from adapters.shared.fund_flow_helpers import (
     _inject_fund_flow_to_klines, _extract_fund_flow_factors,
 )

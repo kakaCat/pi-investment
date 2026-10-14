@@ -179,8 +179,8 @@ class TechnicalAnalysisService:
             end_date = datetime.now().strftime('%Y-%m-%d')
             start_date = (datetime.now() - timedelta(days=self.config.buy_range_period_days)).strftime('%Y-%m-%d')
 
-            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
-            kline_repo = EnhancedServiceFactory.resolve(IKlineRepository)
+            from infrastructure.services.service_factory import ServiceFactory
+            kline_repo = ServiceFactory.resolve(IKlineRepository)
             # 确保 symbol 有后缀
             if '.' not in symbol:
                 symbol_with_suffix = symbol + ('.SH' if symbol.startswith('6') else '.SZ')
@@ -274,8 +274,8 @@ class TechnicalAnalysisService:
                 else:
                     symbol_with_suffix = symbol
 
-                from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
-                kline_repo = EnhancedServiceFactory.resolve(IKlineRepository)
+                from infrastructure.services.service_factory import ServiceFactory
+                kline_repo = ServiceFactory.resolve(IKlineRepository)
                 klines = kline_repo.get_daily_klines(symbol_with_suffix, start_date, end_date)
 
                 if not klines or len(klines) == 0:

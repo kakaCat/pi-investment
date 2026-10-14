@@ -124,7 +124,7 @@ python3 benchmark_backtest.py
 python3 --version
 
 # 安装依赖
-pip install -r requirements.txt
+pip install -e .
 ```
 
 ### GPU测试（可选）

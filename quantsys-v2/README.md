@@ -23,7 +23,7 @@ source activate-py313.sh
 source venv/bin/activate
 
 # 4. Install dependencies
-pip install -r requirements.txt
+pip install -e .
 
 # 5. Start services
 python start_all.py
@@ -235,7 +235,7 @@ action = agent.predict(obs)
 
 ```bash
 # Core dependencies
-pip install -r requirements.txt
+pip install -e .
 
 # RL dependencies (optional)
 pip install stable-baselines3>=2.0.0  # For FinRL

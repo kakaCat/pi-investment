@@ -99,7 +99,7 @@ class ConditionMonitorService:
             # 解析条件表达式
             try:
                 condition = json.loads(rule.condition_expr) if isinstance(rule.condition_expr, str) else rule.condition_expr
-            except:
+            except Exception:
                 condition = {'expr': rule.condition_expr}
 
             # 执行检查

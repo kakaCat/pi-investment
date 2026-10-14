@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key><string>com.pi-investment.health-probe</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/mac/Documents/ai/pi-investment/quantsys-v2/venv/bin/python</string>
+        <string>/Users/mac/Documents/ai/pi-investment/quantsys-v2/tools/health_probe.py</string>
+        <string>--max-lag-days</string>
+        <string>1</string>
+    </array>
+    <key>WorkingDirectory</key><string>/Users/mac/Documents/ai/pi-investment/quantsys-v2</string>
+    <!-- 外部健康探针（2026-10-01 立，REQ-261001145152-3982 t-cf3f82）。
+         动因：本仓已静默死亡 3 次（08-02 盯盘消失一周 / 08-05 调度死讯静默 8 天 /
+         2026-10-01 实测第 3 次：服务停摆 18 天、K 线停在 09-11 而无人知晓）。
+         三次共同点 = 监控跑在被监控进程里，进程一死监控同死。
+         本作业由 launchd 直接拉起独立进程，只做两件外部可判定的事：端口连通性 + 数据新鲜度；
+         异常时经 NotificationFacade 发告警并 exit 2（fail-loud，状态可在 launchctl 里看到）。
+         间隔 300 秒（5 分钟）——与"服务静默停止后 5 分钟内收到告警"的验收口径一致。 -->
+    <key>StartInterval</key><integer>300</integer>
+    <key>RunAtLoad</key><true/>
+    <key>StandardOutPath</key><string>/Users/mac/Documents/ai/pi-investment/quantsys-v2/logs/health_probe.log</string>
+    <key>StandardErrorPath</key><string>/Users/mac/Documents/ai/pi-investment/quantsys-v2/logs/health_probe.err.log</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>TZ</key><string>Asia/Shanghai</string>
+    </dict>
+</dict>
+</plist>

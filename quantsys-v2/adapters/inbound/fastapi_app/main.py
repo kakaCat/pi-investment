@@ -14,6 +14,17 @@ import os
 from pathlib import Path
 from contextlib import asynccontextmanager
 
+# ── 路径引导必须在**任何项目内导入之前** ──────────────────────────────
+# 2026-10-02（REQ-261001145152-3982 · 用户裁定"修"）：原先这段在文件中部（第 31-34 行），
+# 而本文件第 24 行就已经 `from adapters.inbound...` —— 于是文档里写的
+# `python adapters/inbound/fastapi_app/main.py` **必然报 ModuleNotFoundError: No module named
+# 'adapters'**（脚本模式下 sys.path[0] 是脚本自身目录，不是项目根；那行路径代码对自己的
+# 导入是死代码，只有在被 import 时才生效）。真实启动一直隐含依赖 `PYTHONPATH=.`，文档却没写。
+# 现在把引导提前：照文档命令直接可跑，不依赖外部环境变量。
+project_root = Path(__file__).resolve().parent.parent.parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -28,10 +39,7 @@ from dotenv import load_dotenv
 env_path = Path(__file__).resolve().parent.parent.parent.parent / '.env'
 load_dotenv(env_path)
 
-# 确保项目根目录在 PYTHONPATH
-project_root = Path(__file__).resolve().parent.parent.parent.parent
-if str(project_root) not in sys.path:
-    sys.path.insert(0, str(project_root))
+# （路径引导已上移至文件顶部，见上）
 
 # 统一使用结构化日志配置
 from infrastructure.logging import configure_structured_logging
@@ -248,7 +256,15 @@ async def lifespan(app: FastAPI):
 
         # 本地 APScheduler 作为备用（仅当 Agent OS 不可用时启动）
         # 2026-09-01: 从手写调度器迁移到 APScheduler 框架
-        if not use_agent_os_scheduler:
+        # 2026-10-01（REQ-261001145152-3982 t-c63378）：补一个**总开关**。
+        # 背景（实测）：服务停摆 18 天后重启时，APScheduler 会立刻补跑「已过点的启用任务」，
+        # 包括 15:30 的「每日信号执行」「恐慌抄底每日扫描」——等于在滞后 20 天的数据上开火，
+        # 并发飞书通知。原有 DISABLE_DAILY_JOBS / DISABLE_UNIFIED_SCHEDULER 都关不掉这条路径，
+        # 故补 DISABLE_APSCHEDULER：置 true 时只起 API、不起任何调度（默认 false = 行为不变）。
+        _apscheduler_disabled = os.getenv('DISABLE_APSCHEDULER', '').lower() == 'true'
+        if _apscheduler_disabled:
+            logger.warning("⚠️ APScheduler disabled via DISABLE_APSCHEDULER（只起 API，不起调度）")
+        elif not use_agent_os_scheduler:
             try:
                 from infrastructure.scheduler.apscheduler_service import APSchedulerService
                 from adapters.outbound.repositories.scheduler_repository import SchedulerRepository
@@ -349,18 +365,13 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("⚠️ DailyJobs disabled via DISABLE_DAILY_JOBS")
 
-    # P2.3: 启动统一调度器（YAML-config-driven）
-    if os.getenv('DISABLE_UNIFIED_SCHEDULER', '').lower() != 'true':
-        try:
-            from infrastructure.scheduler.unified_scheduler import get_scheduler
-            unified_scheduler = get_scheduler()
-            unified_scheduler.start()
-            app.state.unified_scheduler = unified_scheduler
-            logger.info("✅ UnifiedScheduler started", jobs_count=len(unified_scheduler.jobs))
-        except Exception as e:
-            logger.error(f"❌ UnifiedScheduler startup failed: {e}")
-    else:
-        logger.warning("⚠️ UnifiedScheduler disabled via DISABLE_UNIFIED_SCHEDULER")
+    # P2.3 的 YAML 配置驱动调度器已于 2026-10-02 **删除**（REQ-261001145152-3982 t-2d52a7）：
+    # 它的 start() 只把 _running 置 True、**没有驱动循环**，生产代码无人调 run_job，
+    # config/scheduler_jobs.yml 的 4 个任务从未真正触发——是"跑着却不干活"的第四条调度路径。
+    # 按用户裁定（业务的定时任务归 v2 自己调度），v2 侧只保留：
+    #   ② APSchedulerService（读 quant.scheduler_tasks，已去重）
+    #   ③ DailyJobs 宿主线程（核心数据任务）
+    # 连同它的 API 路由与专属 e2e 测试一并删除（P2.3 那套 YAML 配置驱动调度）。
 
     logger.info("📖 API Documentation: http://localhost:5001/docs")
     logger.info("📚 ReDoc: http://localhost:5001/redoc")
@@ -1285,14 +1296,8 @@ def register_routes():
         optional_failed.append("scheduler")
         logger.warning(f"⚠️ Failed to import scheduler_async: {e}")
 
-    # 统一调度器（P2.3 YAML-config-driven scheduler）
-    try:
-        from adapters.inbound.fastapi_app.routes.unified_scheduler_async import router as unified_scheduler_router
-        app.include_router(unified_scheduler_router)
-        logger.info("✅ Registered: unified_scheduler (P2.3)")
-    except ImportError as e:
-        optional_failed.append("unified_scheduler")
-        logger.warning(f"⚠️ Failed to import unified_scheduler_async: {e}")
+    # 统一调度器（P2.3 YAML-config-driven scheduler）的路由注册已于 2026-10-02 移除
+    # （t-2d52a7：调度器本体与其 API 路由一并删除，见 lifespan 中的说明）。
 
     # 统一事件总线（P2.4 unified event bus）
     try:

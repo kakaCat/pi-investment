@@ -13,7 +13,11 @@ from dataclasses import dataclass
 from datetime import datetime
 import logging
 
-from .exceptions import DataValidationError, InsufficientDataError
+# 2026-10-01（REQ-261001145152-3982 t-9ccd5e）：原为相对导入 `from .exceptions import ...`。
+# 本目录下的 exceptions.py 是 domain.quantlib.core.exceptions 的逐字副本（md5 相同），
+# 副本已删除 → 这里改指 domain 正本。**这是删除时按绝对路径 grep 漏掉的一类引用**
+# （包内相对导入），删除后由 test_integration 收集失败暴露出来。
+from domain.quantlib.core.exceptions import DataValidationError, InsufficientDataError
 
 logger = logging.getLogger(__name__)
 

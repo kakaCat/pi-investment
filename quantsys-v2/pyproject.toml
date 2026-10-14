@@ -14,33 +14,146 @@ readme = "README.md"
 license = {text = "Proprietary"}
 
 dependencies = [
-    "fastapi>=0.100.0",
-    "uvicorn[standard]>=0.23.0",
+    # ── Web 框架 ────────────────────────────────────────────────
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.27.0",
+    "python-multipart>=0.0.6",
+    "starlette>=0.27.0",          # 2026-10-01：fastapi 传递依赖，但代码直接 import（4 处）
+
+    # ── 数据库 ──────────────────────────────────────────────────
+    # 2026-10-01（REQ-261001145152-3982 t-504421）：由「psycopg2 的 binary 发行版」改为源码版。
+    # 原声明是**踩过事故的那一版**：binary wheel 自带第二套 OpenSSL，与 homebrew openssl@3
+    # 同进程共存会 double-free 崩溃（macOS 26 xzone malloc 直接 abort，2026-08-11 事故，
+    # 记录在 docs/misc/requirements.txt 的 Database 一节）。源码编译需 pg_config 在 PATH。
+    "psycopg2>=2.9.0",
     # 2026-09-10(w-8f2c4cc5)：原 pin <2.0.0 与线上 venv（SQLAlchemy 2.0.51）及代码不符——
     # infrastructure/persistence/orm/async_config.py 用的是 2.0 才有的 async_sessionmaker，
     # 按旧 pin 重建环境会直接装 1.4 把整个异步层打死。
-    "sqlalchemy>=2.0.0,<3.0.0",
-    "psycopg2-binary>=2.9.0",
+    # 2026-10-01（t-a4d449 联调发现）补 `[asyncio]` extra：它带来 greenlet，
+    # 而**整个异步读路径**（DataAsyncService.get_klines 等）缺 greenlet 会抛
+    # "the greenlet library is required"，再被 `except → return []` 静默吞掉 →
+    # 表现是「异步接口一律 200 且返回空数组」，极难从现象反推。
+    "sqlalchemy[asyncio]>=2.0.0,<3.0.0",
+    "greenlet>=3.0.0",            # 显式声明：async SQLAlchemy 的运行时前提（见上）
     # 异步 ORM 驱动：9 个文件 / 51 处 get_async_session_context 依赖它；
     # 此前未声明也未安装 → 错误事件 f00fd8fe（ModuleNotFoundError: No module named 'asyncpg'）。
     "asyncpg>=0.29.0",
-    "pandas>=1.5.0",
-    "numpy>=1.23.0",
-    "akshare>=1.10.0",
-    "python-dotenv>=1.0.0",
-    "structlog>=23.1.0",
-    "httpx>=0.24.0",
+
+    # ── 数值 / 数据 ─────────────────────────────────────────────
+    "pandas>=2.0.0",
+    "numpy>=1.24.0",
+    "scipy>=1.11.0",              # 2026-10-01 补声明：被 63 处引用，此前两套清单都漏了
+    "statsmodels>=0.14.0",        # 2026-10-01 补声明：被 24 处引用
+    "polars>=0.20.0",
+    "pyarrow>=14.0.0",
+    "python-dateutil>=2.8.0",
+
+    # ── 配置 / 日志 ─────────────────────────────────────────────
     "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",   # 2026-10-01 补声明：infrastructure/config/settings.py 模块级硬导入
+    "python-dotenv>=1.0.0",
+    "structlog>=24.1.0",
+    "python-json-logger>=2.0.7",
+    "PyYAML>=6.0",                # 2026-10-01 补声明：被 10 处引用（含调度配置加载）
+    "rich>=13.0.0",               # 2026-10-01 补声明
+    "loguru>=0.7.0",              # 2026-10-01 补声明：application/services/realtime_signal_service.py 用它
+    "werkzeug>=3.0.0",            # 2026-10-01 补声明：agent_sessions_async.py 用 werkzeug.http.http_date
+                                  # （Flask 层已删，但这一处仍在用；依赖传递依赖是脆的，故显式声明）
+
+    # ── HTTP / 数据源 ───────────────────────────────────────────
+    "httpx>=0.24.0",
+    "aiohttp>=3.9.0",
+    "requests>=2.31.0",
+    "urllib3>=2.0.0",
+    "akshare>=1.12.0",
+    "baostock>=0.8.9",
+    "tushare>=1.4.0",             # 2026-10-01 补声明（financial_providers/tushare_provider.py）
+    "beautifulsoup4>=4.12.0",     # 2026-10-01 补声明（bs4）
+    "lxml>=4.9.0",
+
+    # ── 调度 / 可靠性 ───────────────────────────────────────────
+    "APScheduler>=3.10.0",        # 2026-10-01 补声明：被 21 处引用，是现网回退调度的真身
+    "pybreaker>=1.1.0",           # 2026-10-01 补声明：熔断器；此前未声明未安装 → 101 个测试模块导入失败
+    "psutil>=7.0.0",
+
+    # ── 鉴权 / 监控 / DI ────────────────────────────────────────
+    "PyJWT>=2.8.0",               # 2026-10-01 补声明（infrastructure/auth/jwt_manager.py）
+    "prometheus_client>=0.19.0",  # 2026-10-01 补声明（4 处指标端点）
+    "sentry-sdk>=1.40.0",
+
+    # ── 记忆检索（混合检索 W1.3）─────────────────────────────────
+    "jieba>=0.42.1",              # 2026-10-01 补声明：domain/memory/hybrid_search.py 模块级硬导入
+    "rank-bm25>=0.2.2",           # 2026-10-01 补声明：同上
+
+    # ── 技术指标 / 回测（核心策略链路）──────────────────────────
+    "TA-Lib>=0.4.28",
+    "pandas-ta>=0.3.14b",
+    "backtrader>=1.9.78",
+
+    # ── 机器学习（策略默认链路）─────────────────────────────────
+    "xgboost>=1.7.0",
+    "scikit-learn>=1.3.0",
+    "scikit-optimize>=0.9.0",
+
+    # ── 分析 / 绘图 ─────────────────────────────────────────────
+    "matplotlib>=3.7.0",
+    "seaborn>=0.12.0",
+    "empyrical-reloaded>=0.5.9",
+    "alphalens-reloaded>=0.4.3",
 ]
 
 [project.optional-dependencies]
+# 断言：上述 dependencies 是**运行必需**；下面是按用途分组的可选栈。
+# 2026-10-01（t-504421）：原 docs/misc/requirements.txt 把 61 个包平铺成一份清单，
+# 含 torch/tensorflow/qlib 等重型件 —— 直接并入 dependencies 会让 `pip install -e .`
+# 拉取数个 GB。故按用途分组为 extras：声明齐全，但不强加安装。
 dev = [
     "pytest>=7.4.0",
     "pytest-asyncio>=0.21.0",
     "pytest-cov>=4.1.0",
+    "pytest-mock>=3.11.0",
+    "pytest-timeout>=2.4.0",
     "black>=23.7.0",
     "ruff>=0.0.280",
     "mypy>=1.4.0",
+]
+ml = [
+    "lightgbm>=4.0.0",
+    "keras>=3.0.0",
+    "tensorflow>=2.15.0",
+    "river>=0.18.0",
+    "mlflow>=2.5.0",
+]
+rl = [
+    "gymnasium>=0.29.0",
+    "stable-baselines3>=2.0.0",
+    "sb3-contrib>=2.0.0",
+    "torch>=2.5.0",
+    "tensorboard>=2.13.0",
+    "finrl>=0.3.7",
+    "qlib>=0.9.0",
+]
+quant = [
+    "cvxpy>=1.3.0",
+    "arch>=6.0.0",
+    "pmdarima>=2.0.0",
+    "numba>=0.58.0",
+]
+cache = [
+    "redis>=5.0.0",
+    "hiredis>=2.2.0",
+]
+brokers = [
+    "alpaca-py>=0.20.0",
+    "ib-insync>=0.9.86",
+]
+serve = [
+    "slowapi>=0.1.9",
+]
+# GPU：需 CUDA 环境，默认不装（domain/quantlib/gpu_acceleration 内为 try 软导入）
+gpu = [
+    "cupy-cuda12x",
+    "cuml",
 ]
 
 [tool.setuptools]

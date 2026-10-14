@@ -26,7 +26,7 @@
 幂等：DDL 用 IF NOT EXISTS；种子用 ON CONFLICT (dataset) DO UPDATE，可重复执行。
 
 用法：
-  ./venv/bin/python infrastructure/persistence/migrations/20260911_data_contracts.py
+  PYTHONPATH=. ./venv/bin/python infrastructure/persistence/migrations/20260911_data_contracts.py
 """
 # ⚠️ R-020 数据卫生（2026-09-13 w-a9ec14d7）——登记纪律：
 #   任何新增的**派生表/审计表/缓存表**都必须在本文件登记（owner / kind / 上游 / TTL / 删除策略），
@@ -42,8 +42,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+# 2026-10-01（t-008062 主题C）：此处原有一行 sys.path 插入 —— 路径改由入口提供，
+# 运行方式见本文件头部说明（需 `PYTHONPATH=.`）。库层不得自行改 sys.path。
 
 
 def _engine():

@@ -18,6 +18,15 @@ htmlcov/
 *.db
 .pi-invest/
 
+# 2026-10-01（REQ-261001145152-3982 t-d4199a）：运行时/构建产物补登记。
+# 这三类此前既没被忽略、又有部分文件在版本控制里（"规则失效的已入库产物"）：
+#   - *.egg-info/：pip install -e . 的构建产物（本次依赖收口时首次生成）
+#   - data/      ：运行时状态（pipeline_runs.json / groups.json），会随每次任务重写
+#   - test_reports/：测试产物
+*.egg-info/
+data/
+test_reports/
+
 # 例行任务自动重写的运行时报告/计划（core_plan_generate / data-hygiene-weekly /
 # strategy_loop 等每次运行即重写，generated_at/checked_at 时间戳噪声；
 # 非手动维护配置，不应入库。手动配置如 data_contracts/scheduler_jobs/services.* 仍跟踪）
@@ -28,6 +37,13 @@ config/data_hygiene_report.json
 config/strategy_loop_report.json
 
 # One-off scripts & tools
+# 2026-10-01（REQ-261001145152-3982 t-d4199a）裁定：**脚本属一次性资产 → 保持忽略**。
+# 依据：scripts/ 下 140+ 个文件里只有 80 个曾入库，其余是 ad-hoc 脚本（本意即不入库）；
+# 试删本规则会让 60+ 个从未入库的脚本立刻涌成 untracked（实测 git status 从干净变 84 条）——
+# 那是把"没打算入库的东西"倒进仓库，方向相反。
+# 已知例外：80 个已跟踪的历史脚本**不追溯删除**（.git-hooks/pre-commit、scheduler plist
+# 与多份 docs 在引用它们）；它们的去留（迁 oneoff/、删、还是正式入库）由 t-9b20eb 逐个处置。
+# 新脚本请放 scripts/oneoff/ 或 tools/oneoff/ 并显式 `git add -f`，不要依赖本规则兜底。
 scripts/
 quantlib/tools/
 fix_typing_imports.py

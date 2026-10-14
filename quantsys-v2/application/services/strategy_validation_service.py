@@ -21,16 +21,16 @@ class StrategyValidationService:
         self._strategy_repo = strategy_repo
         from application.services.stock_pool_service import StockPoolService
         if stock_repo is None:
-            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
-            stock_repo = EnhancedServiceFactory.resolve(IStockRepository)
+            from infrastructure.services.service_factory import ServiceFactory
+            stock_repo = ServiceFactory.resolve(IStockRepository)
         self.stock_pool_service = StockPoolService(stock_repo)
 
     @property
     def strategy_repo(self):
         """延迟加载 strategy_repo"""
         if self._strategy_repo is None:
-            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
-            self._strategy_repo = EnhancedServiceFactory.resolve(IStrategyRepository)
+            from infrastructure.services.service_factory import ServiceFactory
+            self._strategy_repo = ServiceFactory.resolve(IStrategyRepository)
         return self._strategy_repo
 
     def normalize(

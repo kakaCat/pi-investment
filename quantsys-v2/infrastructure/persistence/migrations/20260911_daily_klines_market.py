@@ -20,21 +20,22 @@
 全部语句 IF NOT EXISTS / CREATE OR REPLACE，可重复执行；回填按 symbol 前缀分段 UPDATE。
 
 用法：
-    ./venv/bin/python infrastructure/persistence/migrations/20260911_daily_klines_market.py            # dry-run（默认）
-    ./venv/bin/python infrastructure/persistence/migrations/20260911_daily_klines_market.py --apply
+    PYTHONPATH=. ./venv/bin/python infrastructure/persistence/migrations/20260911_daily_klines_market.py            # dry-run（默认）
+    PYTHONPATH=. ./venv/bin/python infrastructure/persistence/migrations/20260911_daily_klines_market.py --apply
 
 ## 测试库也要跑（实测坑）
 ORM 模型加了 market 字段后，**测试库 quant_test 的 daily_klines 仍是旧 schema**，
 tests/test_kline_repository.py 立刻报 "column daily_klines.market does not exist"（1 failed / 22 passed）。
 测试库需同样执行本迁移：
-    ./venv/bin/python infrastructure/persistence/migrations/20260911_daily_klines_market.py \
+    PYTHONPATH=. ./venv/bin/python infrastructure/persistence/migrations/20260911_daily_klines_market.py \
         --apply --dsn postgresql+psycopg2:///quant_test
 """
 import argparse
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+# 2026-10-01（t-008062 主题C）：此处原有一行 sys.path 插入 —— 路径改由入口提供，
+# 运行方式见本文件头部说明（需 `PYTHONPATH=.`）。库层不得自行改 sys.path。
 
 from sqlalchemy import create_engine, text  # noqa: E402
 
@@ -91,10 +92,21 @@ def main() -> int:
     engine = create_engine(args.dsn) if args.dsn else create_engine('postgresql+psycopg2:///quant_investment')
 
     if not args.apply:
+        # 2026-10-01（REQ-261001145152-3982 t-a4d449）：修 dry-run 崩溃。
+        # 原实现直接 `WHERE market IS NULL`，而在**尚未迁移的库**上该列不存在 →
+        # dry-run 抛 UndefinedColumn，等于"空跑都跑不了"（实测：本库正是这个状态）。
+        # 干跑的全部意义就是在动手前看现状，故先探测列是否存在。
         with engine.connect() as conn:
-            n = conn.execute(text('SELECT count(*) FROM quant.daily_klines WHERE market IS NULL')).scalar()
+            has_market = conn.execute(text(
+                "SELECT count(*) FROM information_schema.columns "
+                "WHERE table_schema='quant' AND table_name='daily_klines' AND column_name='market'"
+            )).scalar() > 0
             total = conn.execute(text('SELECT count(*) FROM quant.daily_klines')).scalar()
-        print(f'[dry-run] daily_klines 共 {total} 行，market 为空 {n} 行')
+            n = conn.execute(text('SELECT count(*) FROM quant.daily_klines WHERE market IS NULL')).scalar() if has_market else None
+        if has_market:
+            print(f'[dry-run] daily_klines 共 {total} 行，market 为空 {n} 行')
+        else:
+            print(f'[dry-run] daily_klines 共 {total} 行，**market 列不存在**（需执行本迁移）')
         print('[dry-run] 将执行：加列 → 建函数/触发器 → 分段回填 → 并发建复合唯一索引')
         print('[dry-run] 加参数 --apply 真正执行（幂等，可重复跑）')
         return 0

@@ -8,7 +8,7 @@ Quantsys-v2 是一个功能强大的量化交易框架，提供了从因子工�
 
 ```bash
 cd quantsys-v2
-pip install -r requirements.txt
+pip install -e .
 
 # 如果需要GPU加速（可选）
 pip install cupy-cuda11x  # 根据CUDA版本选择

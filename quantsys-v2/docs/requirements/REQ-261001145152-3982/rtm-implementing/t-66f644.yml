@@ -1,0 +1,36 @@
+task:
+  id: t-66f644
+  title: 修悬空 import + 裁决 BaseCalculator 双类·联调
+  status: done
+  implements: |-
+    ① 6+ 处悬空 import 改到现存位置：tools/backfill_factors.py:24、tools/backfill_factors_standalone.py:19、scripts/tools/retrain_pipeline.py:19、scripts/train_hs300_xgboost.py:185、tests/test_factor_compute_stage.py:18 指向 domain/backtest/engine/strategy_base.py 等；domain/quantlib/engine/{ensemble_vote_strategy,multi_factor_swing_strategy}.py 从同包 import 不存在的 strategy_base/strategy_combiner/strategy_factory 需改路径。② 人工裁决 domain/quantlib/base_calculator.py(501 行) 与 domain/quantlib/core/base_calculator.py(327 行) 两个不同类对象，建议收敛到 core 并逐调用方改导入。
+
+    [子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）
+  serves: []
+  depends_on:
+    - t-bb3890
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261001145152-3982
+    TASK_ID: t-66f644
+    TASK_TITLE: 修悬空 import + 裁决 BaseCalculator 双类·联调
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-01T10:32:53.746Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261001145152-3982
+  generated_at: 2026-10-01T10:31:47.810Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-01T10:33:52.897Z

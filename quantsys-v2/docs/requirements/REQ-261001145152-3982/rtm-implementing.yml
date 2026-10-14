@@ -1,0 +1,522 @@
+metadata:
+  stage: implementing
+  requirement_id: REQ-261001145152-3982
+  generated_at: 2026-10-01T07:07:50.908Z
+  version: 297
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 101
+  last_updated: 2026-10-02T01:33:16.864Z
+inputs:
+  tasks:
+    - id: t-c63378
+      title: 把 V2 服务救活并留下运行证据
+      status: done
+    - id: t-a4d449
+      title: 补跑中断的行情与因子数据
+      status: done
+    - id: t-cf3f82
+      title: 装外部存活与数据新鲜度探针
+      status: done
+    - id: t-504421
+      title: 依赖声明收口（pyproject 为唯一权威）
+      status: done
+    - id: t-649eb9
+      title: 修 get_config() 空壳
+      status: done
+    - id: t-9ccd5e
+      title: 删重复实现（零引用项）
+      status: done
+    - id: t-3f2444
+      title: 修悬空 import + 裁决 BaseCalculator 双类
+      status: done
+    - id: t-2d52a7
+      title: 调度去重：4 套 → 1 套（分步灰度）
+      status: in_progress
+    - id: t-59468b
+      title: 删 5 个孤儿的重复 provider
+      status: done
+    - id: t-c3a097
+      title: 挂上分层护栏（hook + 基线 + 纯净性断言）
+      status: done
+    - id: t-4f6f4b
+      title: 消 application 层 12 处顶层越层导入
+      status: done
+    - id: t-686185
+      title: 拆两个文件级上帝
+      status: done
+    - id: t-71051b
+      title: 端口与 DI 收敛
+      status: done
+    - id: t-52c511
+      title: Repository 双轨收敛 + 修文档指向
+      status: done
+    - id: t-f04052
+      title: 数据访问规则收口 + provider 归位
+      status: done
+    - id: t-720861
+      title: docs 分层归位（140 个 md）
+      status: done
+    - id: t-d4199a
+      title: git 产物出库（含 ignore 失效项）
+      status: done
+    - id: t-6a02e6
+      title: 体积与虚拟环境（先清 5.2G）
+      status: done
+    - id: t-f777da
+      title: 修 CLAUDE.md 的 8 条矛盾
+      status: done
+    - id: t-008062
+      title: 卫生债批量清理（550 处）
+      status: done
+    - id: t-9b20eb
+      title: scripts/tools 归位
+      status: done
+    - id: t-d878d7
+      title: 把 V2 服务救活并留下运行证据·研发
+      status: done
+    - id: t-d51b25
+      title: 把 V2 服务救活并留下运行证据·联调
+      status: done
+    - id: t-f2c01b
+      title: 把 V2 服务救活并留下运行证据·复核
+      status: done
+    - id: t-cd55bf
+      title: 把 V2 服务救活并留下运行证据·测试
+      status: done
+    - id: t-6a8b02
+      title: 补跑中断的行情与因子数据·研发
+      status: done
+    - id: t-a9cbe0
+      title: 补跑中断的行情与因子数据·联调
+      status: done
+    - id: t-245f18
+      title: 补跑中断的行情与因子数据·复核
+      status: done
+    - id: t-65e702
+      title: 补跑中断的行情与因子数据·测试
+      status: done
+    - id: t-0cff3a
+      title: 修 CLAUDE.md 的 8 条矛盾·研发
+      status: done
+    - id: t-f273d1
+      title: 修 CLAUDE.md 的 8 条矛盾·复核
+      status: done
+    - id: t-15448b
+      title: 体积与虚拟环境（先清 5.2G）·研发
+      status: done
+    - id: t-e3df07
+      title: 体积与虚拟环境（先清 5.2G）·联调
+      status: done
+    - id: t-1f13a5
+      title: 体积与虚拟环境（先清 5.2G）·复核
+      status: done
+    - id: t-9c79c3
+      title: 体积与虚拟环境（先清 5.2G）·测试
+      status: done
+    - id: t-d8f0c3
+      title: git 产物出库（含 ignore 失效项）·研发
+      status: done
+    - id: t-b5cdb6
+      title: git 产物出库（含 ignore 失效项）·联调
+      status: done
+    - id: t-c95f22
+      title: git 产物出库（含 ignore 失效项）·复核
+      status: done
+    - id: t-d9bc61
+      title: git 产物出库（含 ignore 失效项）·测试
+      status: done
+    - id: t-7c9c03
+      title: 依赖声明收口（pyproject 为唯一权威）·研发
+      status: done
+    - id: t-c6d950
+      title: 依赖声明收口（pyproject 为唯一权威）·联调
+      status: done
+    - id: t-9254d9
+      title: 依赖声明收口（pyproject 为唯一权威）·复核
+      status: done
+    - id: t-6d1800
+      title: 依赖声明收口（pyproject 为唯一权威）·测试
+      status: done
+    - id: t-723156
+      title: 挂上分层护栏（hook + 基线 + 纯净性断言）·研发
+      status: done
+    - id: t-3da04c
+      title: 挂上分层护栏（hook + 基线 + 纯净性断言）·联调
+      status: done
+    - id: t-78d5a3
+      title: 挂上分层护栏（hook + 基线 + 纯净性断言）·复核
+      status: done
+    - id: t-646e7f
+      title: 挂上分层护栏（hook + 基线 + 纯净性断言）·测试
+      status: done
+    - id: t-b0f994
+      title: 装外部存活与数据新鲜度探针·研发
+      status: done
+    - id: t-805d4c
+      title: 装外部存活与数据新鲜度探针·联调
+      status: done
+    - id: t-1f1299
+      title: 装外部存活与数据新鲜度探针·复核
+      status: done
+    - id: t-d7750a
+      title: 装外部存活与数据新鲜度探针·测试
+      status: done
+    - id: t-a70b3c
+      title: 修 get_config() 空壳·研发
+      status: done
+    - id: t-7d0be1
+      title: 修 get_config() 空壳·联调
+      status: done
+    - id: t-f3d965
+      title: 修 get_config() 空壳·复核
+      status: done
+    - id: t-a7d164
+      title: 修 get_config() 空壳·测试
+      status: done
+    - id: t-05079e
+      title: 删重复实现（零引用项）·研发
+      status: done
+    - id: t-9dd27b
+      title: 删重复实现（零引用项）·联调
+      status: done
+    - id: t-fb9b61
+      title: 删重复实现（零引用项）·复核
+      status: done
+    - id: t-6e7b28
+      title: 删重复实现（零引用项）·测试
+      status: done
+    - id: t-bb3890
+      title: 修悬空 import + 裁决 BaseCalculator 双类·研发
+      status: done
+    - id: t-66f644
+      title: 修悬空 import + 裁决 BaseCalculator 双类·联调
+      status: done
+    - id: t-73b221
+      title: 修悬空 import + 裁决 BaseCalculator 双类·复核
+      status: done
+    - id: t-560297
+      title: 修悬空 import + 裁决 BaseCalculator 双类·测试
+      status: done
+    - id: t-916eed
+      title: 删 5 个孤儿的重复 provider·研发
+      status: done
+    - id: t-aa9dcb
+      title: 删 5 个孤儿的重复 provider·联调
+      status: done
+    - id: t-eab6e9
+      title: 删 5 个孤儿的重复 provider·复核
+      status: done
+    - id: t-b52f3f
+      title: 删 5 个孤儿的重复 provider·测试
+      status: done
+    - id: t-33ef88
+      title: 消 application 层 12 处顶层越层导入·研发
+      status: done
+    - id: t-59838e
+      title: 消 application 层 12 处顶层越层导入·联调
+      status: done
+    - id: t-3d787f
+      title: 消 application 层 12 处顶层越层导入·复核
+      status: done
+    - id: t-25dd9f
+      title: 消 application 层 12 处顶层越层导入·测试
+      status: done
+    - id: t-806aa2
+      title: Repository 双轨收敛 + 修文档指向·研发
+      status: done
+    - id: t-4494ff
+      title: Repository 双轨收敛 + 修文档指向·联调
+      status: done
+    - id: t-416540
+      title: Repository 双轨收敛 + 修文档指向·复核
+      status: done
+    - id: t-8ecf4e
+      title: Repository 双轨收敛 + 修文档指向·测试
+      status: done
+    - id: t-98fce1
+      title: scripts/tools 归位·研发
+      status: done
+    - id: t-1a4d3e
+      title: scripts/tools 归位·联调
+      status: done
+    - id: t-2d2ada
+      title: scripts/tools 归位·复核
+      status: done
+    - id: t-e6c970
+      title: scripts/tools 归位·测试
+      status: done
+    - id: t-25540f
+      title: 数据访问规则收口 + provider 归位·研发
+      status: done
+    - id: t-a78a3c
+      title: 数据访问规则收口 + provider 归位·联调
+      status: done
+    - id: t-812ecc
+      title: 数据访问规则收口 + provider 归位·复核
+      status: done
+    - id: t-e95009
+      title: 数据访问规则收口 + provider 归位·测试
+      status: done
+    - id: t-35e6fe
+      title: docs 分层归位（140 个 md）·研发
+      status: done
+    - id: t-b1497f
+      title: docs 分层归位（140 个 md）·复核
+      status: done
+    - id: t-76aba1
+      title: 卫生债批量清理（550 处）·研发
+      status: done
+    - id: t-b17ab4
+      title: 卫生债批量清理（550 处）·联调
+      status: done
+    - id: t-d66ee4
+      title: 卫生债批量清理（550 处）·复核
+      status: done
+    - id: t-669f1b
+      title: 卫生债批量清理（550 处）·测试
+      status: done
+    - id: t-f235bc
+      title: 拆两个文件级上帝·研发
+      status: done
+    - id: t-702be3
+      title: 拆两个文件级上帝·联调
+      status: done
+    - id: t-468f80
+      title: 拆两个文件级上帝·复核
+      status: done
+    - id: t-1b912c
+      title: 拆两个文件级上帝·测试
+      status: done
+    - id: t-9891e9
+      title: 调度去重：4 套 → 1 套（分步灰度）·研发
+      status: done
+    - id: t-3bead2
+      title: 调度去重：4 套 → 1 套（分步灰度）·联调
+      status: todo
+    - id: t-50d053
+      title: 调度去重：4 套 → 1 套（分步灰度）·复核
+      status: todo
+    - id: t-1027a9
+      title: 调度去重：4 套 → 1 套（分步灰度）·测试
+      status: todo
+    - id: t-ba5eca
+      title: 端口与 DI 收敛·研发
+      status: done
+    - id: t-4da3bf
+      title: 端口与 DI 收敛·联调
+      status: done
+    - id: t-216e3c
+      title: 端口与 DI 收敛·复核
+      status: done
+    - id: t-0efb76
+      title: 端口与 DI 收敛·测试
+      status: done
+status:
+  tasks_total: 101
+  tasks_done: 97
+  tasks_in_progress: 1
+  tasks_todo: 3
+tasks:
+  - id: t-c63378
+    status: done
+  - id: t-a4d449
+    status: done
+  - id: t-cf3f82
+    status: done
+  - id: t-504421
+    status: done
+  - id: t-649eb9
+    status: done
+  - id: t-9ccd5e
+    status: done
+  - id: t-3f2444
+    status: done
+  - id: t-2d52a7
+    status: in_progress
+  - id: t-59468b
+    status: done
+  - id: t-c3a097
+    status: done
+  - id: t-4f6f4b
+    status: done
+  - id: t-686185
+    status: done
+  - id: t-71051b
+    status: done
+  - id: t-52c511
+    status: done
+  - id: t-f04052
+    status: done
+  - id: t-720861
+    status: done
+  - id: t-d4199a
+    status: done
+  - id: t-6a02e6
+    status: done
+  - id: t-f777da
+    status: done
+  - id: t-008062
+    status: done
+  - id: t-9b20eb
+    status: done
+  - id: t-d878d7
+    status: done
+  - id: t-d51b25
+    status: done
+  - id: t-f2c01b
+    status: done
+  - id: t-cd55bf
+    status: done
+  - id: t-6a8b02
+    status: done
+  - id: t-a9cbe0
+    status: done
+  - id: t-245f18
+    status: done
+  - id: t-65e702
+    status: done
+  - id: t-0cff3a
+    status: done
+  - id: t-f273d1
+    status: done
+  - id: t-15448b
+    status: done
+  - id: t-e3df07
+    status: done
+  - id: t-1f13a5
+    status: done
+  - id: t-9c79c3
+    status: done
+  - id: t-d8f0c3
+    status: done
+  - id: t-b5cdb6
+    status: done
+  - id: t-c95f22
+    status: done
+  - id: t-d9bc61
+    status: done
+  - id: t-7c9c03
+    status: done
+  - id: t-c6d950
+    status: done
+  - id: t-9254d9
+    status: done
+  - id: t-6d1800
+    status: done
+  - id: t-723156
+    status: done
+  - id: t-3da04c
+    status: done
+  - id: t-78d5a3
+    status: done
+  - id: t-646e7f
+    status: done
+  - id: t-b0f994
+    status: done
+  - id: t-805d4c
+    status: done
+  - id: t-1f1299
+    status: done
+  - id: t-d7750a
+    status: done
+  - id: t-a70b3c
+    status: done
+  - id: t-7d0be1
+    status: done
+  - id: t-f3d965
+    status: done
+  - id: t-a7d164
+    status: done
+  - id: t-05079e
+    status: done
+  - id: t-9dd27b
+    status: done
+  - id: t-fb9b61
+    status: done
+  - id: t-6e7b28
+    status: done
+  - id: t-bb3890
+    status: done
+  - id: t-66f644
+    status: done
+  - id: t-73b221
+    status: done
+  - id: t-560297
+    status: done
+  - id: t-916eed
+    status: done
+  - id: t-aa9dcb
+    status: done
+  - id: t-eab6e9
+    status: done
+  - id: t-b52f3f
+    status: done
+  - id: t-33ef88
+    status: done
+  - id: t-59838e
+    status: done
+  - id: t-3d787f
+    status: done
+  - id: t-25dd9f
+    status: done
+  - id: t-806aa2
+    status: done
+  - id: t-4494ff
+    status: done
+  - id: t-416540
+    status: done
+  - id: t-8ecf4e
+    status: done
+  - id: t-98fce1
+    status: done
+  - id: t-1a4d3e
+    status: done
+  - id: t-2d2ada
+    status: done
+  - id: t-e6c970
+    status: done
+  - id: t-25540f
+    status: done
+  - id: t-a78a3c
+    status: done
+  - id: t-812ecc
+    status: done
+  - id: t-e95009
+    status: done
+  - id: t-35e6fe
+    status: done
+  - id: t-b1497f
+    status: done
+  - id: t-76aba1
+    status: done
+  - id: t-b17ab4
+    status: done
+  - id: t-d66ee4
+    status: done
+  - id: t-669f1b
+    status: done
+  - id: t-f235bc
+    status: done
+  - id: t-702be3
+    status: done
+  - id: t-468f80
+    status: done
+  - id: t-1b912c
+    status: done
+  - id: t-9891e9
+    status: done
+  - id: t-3bead2
+    status: todo
+  - id: t-50d053
+    status: todo
+  - id: t-1027a9
+    status: todo
+  - id: t-ba5eca
+    status: done
+  - id: t-4da3bf
+    status: done
+  - id: t-216e3c
+    status: done
+  - id: t-0efb76
+    status: done

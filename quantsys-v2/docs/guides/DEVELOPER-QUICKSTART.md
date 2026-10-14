@@ -28,7 +28,7 @@ cd pi-investment/quantsys-v2
 source activate-py313.sh
 
 # 安装依赖
-pip install -r requirements.txt
+pip install -e .
 ```
 
 **常见问题**：

@@ -1,0 +1,36 @@
+task:
+  id: t-9891e9
+  title: 调度去重：4 套 → 1 套（分步灰度）·研发
+  status: done
+  implements: |-
+    ① 先只禁用 DB 内重复任务（quant.scheduler_tasks 中 4 个 cron 时点各 2~3 个启用任务，保留一份）；② UnifiedScheduler 二选一：补驱动循环或删除（连同 config/scheduler_jobs.yml 86 行 + 路由 + 测试）——其 start() 只翻标志位、生产无人调 run_job；③ 统一文档里的 USE_AGENT_OS_SCHEDULER 与真实开关 AGENT_OS_ENABLED。必须观察一周后才删。
+
+    [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+  serves: []
+  depends_on:
+    - t-c63378
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261001145152-3982
+    TASK_ID: t-9891e9
+    TASK_TITLE: 调度去重：4 套 → 1 套（分步灰度）·研发
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-02T00:49:39.421Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261001145152-3982
+  generated_at: 2026-10-02T00:49:39.420Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-02T00:51:45.341Z

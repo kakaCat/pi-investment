@@ -225,5 +225,5 @@ class SinaWebFinancialProvider(FinancialProvider):
 
         try:
             return float(text)
-        except:
+        except Exception:
             return text

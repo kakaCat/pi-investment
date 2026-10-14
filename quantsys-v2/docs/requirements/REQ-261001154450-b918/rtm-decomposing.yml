@@ -1,0 +1,412 @@
+metadata:
+  stage: decomposing
+  requirement_id: REQ-261001154450-b918
+  generated_at: 2026-10-01T08:58:01.163Z
+  version: 1
+  generated_by: dsh-pmboard
+  last_updated: 2026-10-01T08:58:01.163Z
+inputs:
+  requirements: []
+  design_sections: []
+outputs:
+  tasks:
+    - id: t-55cb09
+      title: 定门规纯函数与状态契约
+      implements: domain 层新增/修改：status/Predicates.ts 加 closingGapOf(req)；workflow/AcceptanceSheetSpec.ts 导出 isSystemItem(item)；workflow/DoneEvidenceSpec.ts 节流判定返回剩余毫秒；limits.ts 加 pendingConfirmTtlMs；verification 条目状态联合加 unverified。纯函数、零 I/O。
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-bebc07
+      title: 验收裁决收口：两问一批 + 去占位 + 系统项必处置
+      implements: AcceptSheet.ts 每题拆两问（<id> 选项 + <id>#result 文本）；verdicts.ts 删占位兜底，通过且结果空 → unverified；系统项通过且处置空 → 整批拒绝 system_item_disposition_required；需求级全通过排除 unverified。
+      serves: []
+      depends_on:
+        - t-55cb09
+      phase: implement
+      side: backend
+    - id: t-dc9156
+      title: 挂起确认 TTL 与过期回执
+      implements: pending-confirm.ts 登记写 createdAt/ttlMs；pending-guard.ts 过期不拦；ConfirmReceipt 对过期返回 expired:true + 指引；pending_confirms 不列过期项；旧记录无 createdAt 视为不过期。
+      serves: []
+      depends_on:
+        - t-55cb09
+      phase: implement
+      side: backend
+    - id: t-e775c7
+      title: 计划引用通道与落库门禁
+      implements: SubmitArtifact(kind=plan) 的 tasks 接受 requirement_refs（工具 schema 同步放开，见 FR-7 实测：当前 additionalProperties:false 传不进）；缺省回退解析计划文档覆盖表；plan-landing 落库后逐卡校验非空，空 → REQBOARD_PLAN_REFS_MISSING。
+      serves: []
+      depends_on:
+        - t-55cb09
+      phase: implement
+      side: backend
+    - id: t-3e89d1
+      title: 批准计划后自动投递一次链
+      implements: confirm-settle.ts 在落库+推进 implementing 之后调用一次 advanceRequirement（开关 autoAdvanceOnApprove）；已有 active run 幂等跳过；失败 → dispatched:false + reason。
+      serves: []
+      depends_on:
+        - t-e775c7
+      phase: implement
+      side: backend
+    - id: t-bfd9bb
+      title: 节流拒绝文案可执行化
+      implements: support.ts 节流分支用剩余毫秒生成 message，含「剩余 N 秒」与合规路径（等待 / 由自动链关闭 / 单张推进）。
+      serves: []
+      depends_on:
+        - t-55cb09
+      phase: implement
+      side: backend
+    - id: t-2c1163
+      title: 收尾闭环可见：closingGap + 看板红标 + 下一步
+      implements: 只读投影加 closing_gap 与 unverified_items；client 徽标渲染红标与下一步指引；归档材料登记后红标消失。只读，不新增写路径。
+      serves: []
+      depends_on:
+        - t-55cb09
+      phase: implement
+      side: fullstack
+    - id: t-243098
+      title: kb-probe K11：规范期望可达性
+      implements: kb-probe.mts 新增 K11：解析 C 条目「期望：」行要求含可判定锚点；「退出码 0」类断言必须有「基线：」行；kb-conventions-sync 骨架带基线占位。
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-3566b3
+      title: 兼容与回归：旧台账 / 旧挂起 / 旧回执 + 基线对照
+      implements: HEAD worktree 对照跑旧路径；补存量兼容用例（无 unverified、无 createdAt、无 closingGap）；全量测试与类型检查与基线比对。
+      serves: []
+      depends_on:
+        - t-bebc07
+        - t-dc9156
+        - t-3e89d1
+        - t-bfd9bb
+        - t-2c1163
+        - t-243098
+      phase: test
+      side: backend
+    - id: t-fb9711
+      title: 端到端演练与验收证据
+      implements: 写 evidence/e2e-drill.py：①refs 非空 ②批准即投递 ③通过不填结果→unverified ④系统项无处置→拒 ⑤未交归档→closingGap ⑥交归档→闭环；六步退出码与输出留档。
+      serves: []
+      depends_on:
+        - t-3566b3
+      phase: test
+      side: backend
+    - id: t-ac0851
+      title: 定门规纯函数与状态契约·研发
+      implements: |-
+        domain 层新增/修改：status/Predicates.ts 加 closingGapOf(req)；workflow/AcceptanceSheetSpec.ts 导出 isSystemItem(item)；workflow/DoneEvidenceSpec.ts 节流判定返回剩余毫秒；limits.ts 加 pendingConfirmTtlMs；verification 条目状态联合加 unverified。纯函数、零 I/O。
+
+        [子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-8d6b60
+      title: 定门规纯函数与状态契约·联调
+      implements: |-
+        domain 层新增/修改：status/Predicates.ts 加 closingGapOf(req)；workflow/AcceptanceSheetSpec.ts 导出 isSystemItem(item)；workflow/DoneEvidenceSpec.ts 节流判定返回剩余毫秒；limits.ts 加 pendingConfirmTtlMs；verification 条目状态联合加 unverified。纯函数、零 I/O。
+
+        [子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致
+      serves: []
+      depends_on:
+        - t-ac0851
+      phase: implement
+      side: backend
+    - id: t-0b6023
+      title: 定门规纯函数与状态契约·复核
+      implements: |-
+        domain 层新增/修改：status/Predicates.ts 加 closingGapOf(req)；workflow/AcceptanceSheetSpec.ts 导出 isSystemItem(item)；workflow/DoneEvidenceSpec.ts 节流判定返回剩余毫秒；limits.ts 加 pendingConfirmTtlMs；verification 条目状态联合加 unverified。纯函数、零 I/O。
+
+        [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-8d6b60
+      phase: implement
+      side: backend
+    - id: t-079ce6
+      title: 定门规纯函数与状态契约·测试
+      implements: |-
+        domain 层新增/修改：status/Predicates.ts 加 closingGapOf(req)；workflow/AcceptanceSheetSpec.ts 导出 isSystemItem(item)；workflow/DoneEvidenceSpec.ts 节流判定返回剩余毫秒；limits.ts 加 pendingConfirmTtlMs；verification 条目状态联合加 unverified。纯函数、零 I/O。
+
+        [子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）
+      serves: []
+      depends_on:
+        - t-0b6023
+      phase: implement
+      side: backend
+    - id: t-bcea2d
+      title: kb-probe K11：规范期望可达性·研发
+      implements: |-
+        kb-probe.mts 新增 K11：解析 C 条目「期望：」行要求含可判定锚点；「退出码 0」类断言必须有「基线：」行；kb-conventions-sync 骨架带基线占位。
+
+        [子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-64e2b2
+      title: kb-probe K11：规范期望可达性·联调
+      implements: |-
+        kb-probe.mts 新增 K11：解析 C 条目「期望：」行要求含可判定锚点；「退出码 0」类断言必须有「基线：」行；kb-conventions-sync 骨架带基线占位。
+
+        [子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致
+      serves: []
+      depends_on:
+        - t-bcea2d
+      phase: implement
+      side: backend
+    - id: t-b88eda
+      title: kb-probe K11：规范期望可达性·复核
+      implements: |-
+        kb-probe.mts 新增 K11：解析 C 条目「期望：」行要求含可判定锚点；「退出码 0」类断言必须有「基线：」行；kb-conventions-sync 骨架带基线占位。
+
+        [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-64e2b2
+      phase: implement
+      side: backend
+    - id: t-0e8126
+      title: kb-probe K11：规范期望可达性·测试
+      implements: |-
+        kb-probe.mts 新增 K11：解析 C 条目「期望：」行要求含可判定锚点；「退出码 0」类断言必须有「基线：」行；kb-conventions-sync 骨架带基线占位。
+
+        [子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）
+      serves: []
+      depends_on:
+        - t-b88eda
+      phase: implement
+      side: backend
+    - id: t-8511d0
+      title: 验收裁决收口：两问一批 + 去占位 + 系统项必处置·研发
+      implements: |-
+        AcceptSheet.ts 每题拆两问（<id> 选项 + <id>#result 文本）；verdicts.ts 删占位兜底，通过且结果空 → unverified；系统项通过且处置空 → 整批拒绝 system_item_disposition_required；需求级全通过排除 unverified。
+
+        [子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要
+      serves: []
+      depends_on:
+        - t-55cb09
+      phase: implement
+      side: backend
+    - id: t-e4b1e9
+      title: 验收裁决收口：两问一批 + 去占位 + 系统项必处置·联调
+      implements: |-
+        AcceptSheet.ts 每题拆两问（<id> 选项 + <id>#result 文本）；verdicts.ts 删占位兜底，通过且结果空 → unverified；系统项通过且处置空 → 整批拒绝 system_item_disposition_required；需求级全通过排除 unverified。
+
+        [子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致
+      serves: []
+      depends_on:
+        - t-8511d0
+      phase: implement
+      side: backend
+    - id: t-ef2c27
+      title: 验收裁决收口：两问一批 + 去占位 + 系统项必处置·复核
+      implements: |-
+        AcceptSheet.ts 每题拆两问（<id> 选项 + <id>#result 文本）；verdicts.ts 删占位兜底，通过且结果空 → unverified；系统项通过且处置空 → 整批拒绝 system_item_disposition_required；需求级全通过排除 unverified。
+
+        [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-e4b1e9
+      phase: implement
+      side: backend
+    - id: t-2a8717
+      title: 验收裁决收口：两问一批 + 去占位 + 系统项必处置·测试
+      implements: |-
+        AcceptSheet.ts 每题拆两问（<id> 选项 + <id>#result 文本）；verdicts.ts 删占位兜底，通过且结果空 → unverified；系统项通过且处置空 → 整批拒绝 system_item_disposition_required；需求级全通过排除 unverified。
+
+        [子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）
+      serves: []
+      depends_on:
+        - t-ef2c27
+      phase: implement
+      side: backend
+    - id: t-fa5f52
+      title: 挂起确认 TTL 与过期回执·研发
+      implements: |-
+        pending-confirm.ts 登记写 createdAt/ttlMs；pending-guard.ts 过期不拦；ConfirmReceipt 对过期返回 expired:true + 指引；pending_confirms 不列过期项；旧记录无 createdAt 视为不过期。
+
+        [子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要
+      serves: []
+      depends_on:
+        - t-55cb09
+      phase: implement
+      side: backend
+    - id: t-a8d8e6
+      title: 挂起确认 TTL 与过期回执·联调
+      implements: |-
+        pending-confirm.ts 登记写 createdAt/ttlMs；pending-guard.ts 过期不拦；ConfirmReceipt 对过期返回 expired:true + 指引；pending_confirms 不列过期项；旧记录无 createdAt 视为不过期。
+
+        [子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致
+      serves: []
+      depends_on:
+        - t-fa5f52
+      phase: implement
+      side: backend
+    - id: t-715fd3
+      title: 挂起确认 TTL 与过期回执·复核
+      implements: |-
+        pending-confirm.ts 登记写 createdAt/ttlMs；pending-guard.ts 过期不拦；ConfirmReceipt 对过期返回 expired:true + 指引；pending_confirms 不列过期项；旧记录无 createdAt 视为不过期。
+
+        [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-a8d8e6
+      phase: implement
+      side: backend
+    - id: t-be3d40
+      title: 挂起确认 TTL 与过期回执·测试
+      implements: |-
+        pending-confirm.ts 登记写 createdAt/ttlMs；pending-guard.ts 过期不拦；ConfirmReceipt 对过期返回 expired:true + 指引；pending_confirms 不列过期项；旧记录无 createdAt 视为不过期。
+
+        [子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）
+      serves: []
+      depends_on:
+        - t-715fd3
+      phase: implement
+      side: backend
+    - id: t-f1a3ea
+      title: 计划引用通道与落库门禁·研发
+      implements: |-
+        SubmitArtifact(kind=plan) 的 tasks 接受 requirement_refs（工具 schema 同步放开，见 FR-7 实测：当前 additionalProperties:false 传不进）；缺省回退解析计划文档覆盖表；plan-landing 落库后逐卡校验非空，空 → REQBOARD_PLAN_REFS_MISSING。
+
+        [子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要
+      serves: []
+      depends_on:
+        - t-55cb09
+      phase: implement
+      side: backend
+    - id: t-d56787
+      title: 计划引用通道与落库门禁·联调
+      implements: |-
+        SubmitArtifact(kind=plan) 的 tasks 接受 requirement_refs（工具 schema 同步放开，见 FR-7 实测：当前 additionalProperties:false 传不进）；缺省回退解析计划文档覆盖表；plan-landing 落库后逐卡校验非空，空 → REQBOARD_PLAN_REFS_MISSING。
+
+        [子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致
+      serves: []
+      depends_on:
+        - t-f1a3ea
+      phase: implement
+      side: backend
+    - id: t-151af0
+      title: 计划引用通道与落库门禁·复核
+      implements: |-
+        SubmitArtifact(kind=plan) 的 tasks 接受 requirement_refs（工具 schema 同步放开，见 FR-7 实测：当前 additionalProperties:false 传不进）；缺省回退解析计划文档覆盖表；plan-landing 落库后逐卡校验非空，空 → REQBOARD_PLAN_REFS_MISSING。
+
+        [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-d56787
+      phase: implement
+      side: backend
+    - id: t-cd1a8b
+      title: 计划引用通道与落库门禁·测试
+      implements: |-
+        SubmitArtifact(kind=plan) 的 tasks 接受 requirement_refs（工具 schema 同步放开，见 FR-7 实测：当前 additionalProperties:false 传不进）；缺省回退解析计划文档覆盖表；plan-landing 落库后逐卡校验非空，空 → REQBOARD_PLAN_REFS_MISSING。
+
+        [子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）
+      serves: []
+      depends_on:
+        - t-151af0
+      phase: implement
+      side: backend
+    - id: t-5967fd
+      title: 批准计划后自动投递一次链·研发
+      implements: |-
+        confirm-settle.ts 在落库+推进 implementing 之后调用一次 advanceRequirement（开关 autoAdvanceOnApprove）；已有 active run 幂等跳过；失败 → dispatched:false + reason。
+
+        [子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要
+      serves: []
+      depends_on:
+        - t-e775c7
+      phase: implement
+      side: backend
+    - id: t-c7e355
+      title: 批准计划后自动投递一次链·联调
+      implements: |-
+        confirm-settle.ts 在落库+推进 implementing 之后调用一次 advanceRequirement（开关 autoAdvanceOnApprove）；已有 active run 幂等跳过；失败 → dispatched:false + reason。
+
+        [子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致
+      serves: []
+      depends_on:
+        - t-5967fd
+      phase: implement
+      side: backend
+    - id: t-79bd72
+      title: 批准计划后自动投递一次链·复核
+      implements: |-
+        confirm-settle.ts 在落库+推进 implementing 之后调用一次 advanceRequirement（开关 autoAdvanceOnApprove）；已有 active run 幂等跳过；失败 → dispatched:false + reason。
+
+        [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-c7e355
+      phase: implement
+      side: backend
+    - id: t-d92f6a
+      title: 批准计划后自动投递一次链·测试
+      implements: |-
+        confirm-settle.ts 在落库+推进 implementing 之后调用一次 advanceRequirement（开关 autoAdvanceOnApprove）；已有 active run 幂等跳过；失败 → dispatched:false + reason。
+
+        [子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）
+      serves: []
+      depends_on:
+        - t-79bd72
+      phase: implement
+      side: backend
+    - id: t-4ca7a3
+      title: 节流拒绝文案可执行化·研发
+      implements: |-
+        support.ts 节流分支用剩余毫秒生成 message，含「剩余 N 秒」与合规路径（等待 / 由自动链关闭 / 单张推进）。
+
+        [子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要
+      serves: []
+      depends_on:
+        - t-55cb09
+      phase: implement
+      side: backend
+    - id: t-99aeea
+      title: 节流拒绝文案可执行化·联调
+      implements: |-
+        support.ts 节流分支用剩余毫秒生成 message，含「剩余 N 秒」与合规路径（等待 / 由自动链关闭 / 单张推进）。
+
+        [子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致
+      serves: []
+      depends_on:
+        - t-4ca7a3
+      phase: implement
+      side: backend
+    - id: t-d09794
+      title: 节流拒绝文案可执行化·复核
+      implements: |-
+        support.ts 节流分支用剩余毫秒生成 message，含「剩余 N 秒」与合规路径（等待 / 由自动链关闭 / 单张推进）。
+
+        [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-99aeea
+      phase: implement
+      side: backend
+    - id: t-4deef0
+      title: 节流拒绝文案可执行化·测试
+      implements: |-
+        support.ts 节流分支用剩余毫秒生成 message，含「剩余 N 秒」与合规路径（等待 / 由自动链关闭 / 单张推进）。
+
+        [子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）
+      serves: []
+      depends_on:
+        - t-d09794
+      phase: implement
+      side: backend
+traceability:
+  design_to_tasks: {}
+  fr_to_tasks: {}
+coverage:
+  implementation:
+    total: 0
+    covered: 0
+    uncovered: []
+    rate: 100
+    total_designs: 0
+    covered_designs: 0

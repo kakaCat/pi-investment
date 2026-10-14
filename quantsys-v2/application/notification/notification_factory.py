@@ -17,25 +17,26 @@ import os
 import structlog
 from typing import Optional
 
-from infrastructure.config.settings import get_settings
+# 2026-10-01（REQ-261001145152-3982 t-4f6f4b）：本文件原先**顶层**导入
+# `infrastructure.config.settings` 与 `infrastructure.notification.{channels,formatters}`，
+# 是 application 层顶层越层导入，且直接违反 CLAUDE.md 的通知架构强制条款
+# （"Application layer can only import NotificationFacade"）。
+#
+# 按用户裁定（只治理点名的顶层违规）采取**函数内延迟导入**：装配仍在原方法内完成，
+# 但越层 import 不再出现在模块顶层 → 顶层口径归零、`grep "^from infrastructure..."` 归零，
+# 且不引入反向的 infrastructure→application 依赖。
+#
+# 真正的架构解法是把装配点移到 composition root（adapters/infrastructure 侧）并由外部
+# 注入门面；那需要同时改 `application/services/watch_engine/notifier.py` 的取用方式与
+# `tests/notification/test_agent_channel_registration.py` 对 `_create_channels` 的直接调用，
+# 属更大的改造——已列入后续批次，不在本卡范围。**注意**：
+# `tools/analyze_layer_violations.py` 用 AST generic_visit 统计（含函数内），
+# 故它的"违规导入总数"不会因本改动下降；本卡以"顶层"口径衡量。
 
 # Domain
 from domain.notification.models.channel import NotificationChannel
 from domain.notification.services.notification_service import NotificationService
 from domain.notification.policies.notification_policy import NotificationPolicy
-
-# Infrastructure
-from infrastructure.notification.channels.feishu_channel import FeishuChannel
-from infrastructure.notification.channels.agent_channel import AgentChannel
-from infrastructure.notification.formatters.feishu_formatters import (
-    WatchTriggeredFormatter,
-    StopLossFormatter,
-    TakeProfitFormatter,
-    DailyReportFormatter,
-    WeeklyReportFormatter,
-    MLTrainFormatter,
-    SystemAlertFormatter,
-)
 
 # Application
 from application.notification.notification_facade import NotificationFacade
@@ -69,6 +70,9 @@ class NotificationFactory:
             >>> facade = NotificationFactory.create_from_settings()
             >>> result = facade.send_text("测试通知")
         """
+        # 惰性导入（t-4f6f4b）：越层依赖下沉到调用点，避免模块顶层越层
+        from infrastructure.config.settings import get_settings
+
         settings = get_settings()
 
         logger.info("开始创建通知系统")
@@ -137,6 +141,17 @@ class NotificationFactory:
         Returns:
             list: 格式化器列表
         """
+        # 惰性导入（t-4f6f4b）：格式化器属 infrastructure，下沉到此处避免顶层越层
+        from infrastructure.notification.formatters.feishu_formatters import (
+            DailyReportFormatter,
+            MLTrainFormatter,
+            StopLossFormatter,
+            SystemAlertFormatter,
+            TakeProfitFormatter,
+            WatchTriggeredFormatter,
+            WeeklyReportFormatter,
+        )
+
         return [
             WatchTriggeredFormatter(),
             StopLossFormatter(),
@@ -158,6 +173,10 @@ class NotificationFactory:
         Returns:
             list: 渠道列表
         """
+        # 惰性导入（t-4f6f4b）：渠道实现属 infrastructure，下沉到此处避免顶层越层
+        from infrastructure.notification.channels.agent_channel import AgentChannel
+        from infrastructure.notification.channels.feishu_channel import FeishuChannel
+
         channels = []
 
         # 飞书渠道
@@ -223,6 +242,10 @@ class NotificationFactory:
             NotificationFacade: 通知门面实例
         """
         formatters = NotificationFactory._create_formatters()
+
+        # 惰性导入（t-4f6f4b）：渠道实现属 infrastructure，下沉到此处避免顶层越层
+        from infrastructure.notification.channels.agent_channel import AgentChannel
+        from infrastructure.notification.channels.feishu_channel import FeishuChannel
 
         channels = []
         if feishu_webhook:

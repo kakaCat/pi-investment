@@ -1,0 +1,35 @@
+task:
+  id: t-15448b
+  title: 体积与虚拟环境（先清 5.2G）·研发
+  status: done
+  implements: |-
+    ① 先清 live_trading/logs/（5.2G，纯运行日志且 git 跟踪 0）；② 统一到一个 venv（对齐 .python-version 3.13，清掉另一套 642M）；③ 日志轮转（logrotate 或 RotatingFileHandler），覆盖 live_trading/ 与主 logs/；④ 清历史大日志与 htmlcov/（157M）。
+
+    [子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要
+  serves: []
+  depends_on: []
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261001145152-3982
+    TASK_ID: t-15448b
+    TASK_TITLE: 体积与虚拟环境（先清 5.2G）·研发
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-01T07:38:46.719Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261001145152-3982
+  generated_at: 2026-10-01T07:38:40.767Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-01T07:38:49.240Z

@@ -256,7 +256,7 @@ register_all_services(use_config=False)
 1. **生产环境验证** ⏳
    ```bash
    # 在完整依赖环境中
-   pip install -r requirements.txt
+   pip install -e .
    python verify_p2_3_integration.py
    ```
 

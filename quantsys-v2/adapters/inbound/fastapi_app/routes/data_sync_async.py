@@ -59,7 +59,7 @@ def get_active_stocks() -> set[str]:
         try:
             from infrastructure.persistence.orm import close_session
             close_session()
-        except:
+        except Exception:
             pass
         raise
 

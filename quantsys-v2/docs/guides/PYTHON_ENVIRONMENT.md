@@ -29,10 +29,10 @@ python --version  # 应该显示 Python 3.13.x
 
 ```bash
 # 激活虚拟环境后
-pip install -r requirements.txt
+pip install -e .
 
 # 或使用 pip-tools
-pip-sync requirements.txt
+pip install -e .
 ```
 
 ### 3. 版本锁定
@@ -117,7 +117,7 @@ apt install python3.13     # Ubuntu
 rm -rf venv
 /opt/homebrew/bin/python3.13 -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
+pip install -e .
 ```
 
 ### 问题 3：多个 Python 版本混用
@@ -174,7 +174,7 @@ jobs:
 pip install --upgrade structlog
 
 # 更新所有包（谨慎）
-pip install --upgrade -r requirements.txt
+pip install -e . --upgrade
 
 # 锁定版本
 pip freeze > requirements.txt

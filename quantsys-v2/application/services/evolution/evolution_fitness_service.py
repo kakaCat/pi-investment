@@ -27,8 +27,8 @@ class EvolutionFitnessService:
     ):
         if sim_repo is None:
             from domain.ports import ISimulationRepository
-            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
-            sim_repo = EnhancedServiceFactory.resolve(ISimulationRepository)
+            from infrastructure.services.service_factory import ServiceFactory
+            sim_repo = ServiceFactory.resolve(ISimulationRepository)
         if fitness_repo is None:
             from domain.ports.repository_ports_extended import (
                 EvolutionFitnessORMRepository,

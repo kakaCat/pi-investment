@@ -1,0 +1,38 @@
+task:
+  id: t-812ecc
+  title: 数据访问规则收口 + provider 归位·复核
+  status: done
+  implements: |-
+    ① application 层 7 处直连外部数据源改走 DataProviderManager（core_plan_service.py:450、market_style_detector.py:250、financial_providers/{sina,akshare,eastmoney}_provider.py、quote_providers/akshare_provider.py:5、financial_providers/tushare_provider.py:35）；② 裁决 application/services/{financial_providers,quote_providers} 去向——provider 属 adapters 职责，建议下沉。
+
+    [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/<REQ>/design/` 逐条核对；`npx vitest run <相关测试文件>` → 全绿；无偏离时显式写明「无偏离」及依据
+  serves: []
+  depends_on:
+    - t-a78a3c
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261001145152-3982
+    TASK_ID: t-812ecc
+    TASK_TITLE: 数据访问规则收口 + provider 归位·复核
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-01T12:44:20.096Z
+    - phase: doc
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261001145152-3982
+  generated_at: 2026-10-01T12:41:59.175Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-01T12:44:20.097Z

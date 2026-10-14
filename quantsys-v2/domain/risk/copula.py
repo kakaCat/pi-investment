@@ -349,7 +349,7 @@ class CopulaCalculator(BaseCalculator):
                         df=nu
                     )
                 return -log_lik
-            except:
+            except Exception:
                 return 1e10
 
         # Optimize degrees of freedom

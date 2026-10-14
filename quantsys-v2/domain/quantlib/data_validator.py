@@ -495,7 +495,7 @@ class DataValidator:
                     if jb_pvalue < 0.01:
                         report.add_warning('non_normal_returns',
                                            f"{name}Returns significantly deviate from normal distribution")
-                except:
+                except Exception:
                     pass
 
         if isinstance(data, pd.DataFrame):

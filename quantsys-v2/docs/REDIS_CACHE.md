@@ -28,7 +28,7 @@ quantsys-v2已集成Redis分布式缓存，用于缓存热数据以减少数据�
 
 ```bash
 cd quantsys-v2
-pip install -r requirements.txt
+pip install -e .
 ```
 
 新增依赖：

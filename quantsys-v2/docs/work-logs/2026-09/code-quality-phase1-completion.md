@@ -162,7 +162,7 @@ QuantSysError (基类)
 
 **P1 - 数据层** (预计 +10% 覆盖率):
 - [ ] `application/services/data_service.py` - 数据服务
-- [ ] `infrastructure/repositories/base_repository.py` - 仓储基类
+- [ ] `adapters/outbound/repositories/base_repository.py` - 仓储基类（2026-10-01 更正：原文此处写作 `infrastructure/` 下的 `repositories/`，该目录**从未存在**，真实位置是 adapters 层，见 CLAUDE.md 速查表）
 - [ ] `adapters/outbound/data_providers/*.py` - 数据提供者
 
 **P2 - API 层** (预计 +5% 覆盖率):

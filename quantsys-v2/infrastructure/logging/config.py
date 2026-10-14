@@ -66,11 +66,26 @@ def configure_structured_logging(
         return _configure_standard_logging(level)
 
     # 配置标准库 logging（structlog 的底层）
-    logging.basicConfig(
-        format="%(message)s",
-        stream=sys.stdout,
-        level=getattr(logging, level.upper()),
-    )
+    # 2026-10-01（REQ-261001145152-3982 t-6a02e6）：补**可选的文件轮转**。
+    # 背景（实测）：本仓日志此前只走 stdout，靠调用方 shell 重定向落盘 →
+    # 单文件涨到 174M/168M 且从不轮转（logs/ 曾达 355M，live_trading/logs 达 5.2G）。
+    # 设 LOG_FILE 即启用轮转；不设则行为与改前完全一致（仅 stdout）。
+    _handlers: list = [logging.StreamHandler(sys.stdout)]
+    _log_file = os.getenv('LOG_FILE')
+    if _log_file:
+        from logging.handlers import RotatingFileHandler
+        from pathlib import Path as _Path
+
+        _max_bytes = int(os.getenv('LOG_MAX_BYTES', str(50 * 1024 * 1024)))  # 默认 50MB
+        _backups = int(os.getenv('LOG_BACKUPS', '5'))
+        _Path(_log_file).parent.mkdir(parents=True, exist_ok=True)
+        _handlers.append(
+            RotatingFileHandler(
+                _log_file, maxBytes=_max_bytes, backupCount=_backups, encoding='utf-8'
+            )
+        )
+
+    _apply_root_handlers(_handlers, level, fmt="%(message)s")
 
     # 选择渲染器
     if json_format:
@@ -130,11 +145,31 @@ def configure_structured_logging(
     return logger
 
 
+def _apply_root_handlers(handlers: list, level: str, fmt: str, datefmt: str | None = None) -> None:
+    """显式给 root logger 装 handler（替代 `basicConfig`）。
+
+    2026-10-01（REQ-261001145152-3982 t-008062 主题B）：本仓约定"库层不得调用
+    `basicConfig`，日志由入口统一配置"，而本模块**就是那个入口配置器**——
+    为守住这条约定同时保持行为，这里显式装配 root handler。
+
+    语义对齐 `basicConfig(handlers=..., level=..., force=False)`：
+    **root 已有 handler 时不动它**（重复调用幂等，不会叠加 handler）。
+    """
+    root = logging.getLogger()
+    if root.handlers:
+        return
+    root.setLevel(getattr(logging, level.upper()))
+    for h in handlers:
+        h.setFormatter(logging.Formatter(fmt, datefmt=datefmt))
+        root.addHandler(h)
+
+
 def _configure_standard_logging(level: str) -> logging.Logger:
     """降级到标准 logging（structlog 不可用时）"""
-    logging.basicConfig(
-        level=getattr(logging, level.upper()),
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    _apply_root_handlers(
+        [logging.StreamHandler()],
+        level,
+        fmt="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
     logger = logging.getLogger(__name__)

@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 def main():
     from adapters.shared.services import get_stock_repo, get_kline_repo, get_factor_repo
-    from domain.quantlib.stages.factor_stage import FactorStage
+    from domain.backtest.stages.factor_stage import FactorStage
     import numpy as np
     import pandas as pd
 

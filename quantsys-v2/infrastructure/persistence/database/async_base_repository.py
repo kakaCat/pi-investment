@@ -82,7 +82,7 @@ def _resolve_db_dsn():
             try:
                 config = get_config()
                 db_name = config.database.database
-            except:
+            except Exception:
                 pass
 
         if db_name and not db_name.endswith(TEST_DB_SUFFIX):

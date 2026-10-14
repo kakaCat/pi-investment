@@ -138,7 +138,7 @@ def _get_release_version() -> str:
             stderr=subprocess.DEVNULL
         ).decode().strip()
         return f"quantsys-v2@{commit}"
-    except:
+    except Exception:
         return "quantsys-v2@unknown"
 
 

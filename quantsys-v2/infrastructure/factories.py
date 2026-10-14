@@ -12,7 +12,7 @@ def create_signal_execution_scheduler():
 
     SignalExecutionScheduler 有多个依赖
     """
-    from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+    from infrastructure.services.service_factory import ServiceFactory
     from application.services.signal_execution_scheduler import SignalExecutionScheduler
     from application.services.strategy_code_service import StrategyCodeService
     from application.services.risk_check_service import RiskCheckService
@@ -23,12 +23,12 @@ def create_signal_execution_scheduler():
     )
     from application.services.paper_trading_engine import PaperTradingEngine
 
-    strategy_service = EnhancedServiceFactory.resolve(StrategyCodeService)
-    risk_service = EnhancedServiceFactory.resolve(RiskCheckService)
-    signal_repo = EnhancedServiceFactory.resolve(ISignalRepository)
-    log_repo = EnhancedServiceFactory.resolve(ISignalExecutionLogRepository)
-    strategy_repo = EnhancedServiceFactory.resolve(IStrategyRepository)
-    paper_engine = EnhancedServiceFactory.resolve(PaperTradingEngine)
+    strategy_service = ServiceFactory.resolve(StrategyCodeService)
+    risk_service = ServiceFactory.resolve(RiskCheckService)
+    signal_repo = ServiceFactory.resolve(ISignalRepository)
+    log_repo = ServiceFactory.resolve(ISignalExecutionLogRepository)
+    strategy_repo = ServiceFactory.resolve(IStrategyRepository)
+    paper_engine = ServiceFactory.resolve(PaperTradingEngine)
 
     return SignalExecutionScheduler(
         strategy_service=strategy_service,

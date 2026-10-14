@@ -388,9 +388,9 @@ class MarketDataService:
 
             # 3. 收盘价(用对比日的最新 K 线)
             if self._kline_repo is None:
-                from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+                from infrastructure.services.service_factory import ServiceFactory
                 from domain.ports import IKlineRepository
-                kline_repo = EnhancedServiceFactory.resolve(IKlineRepository)
+                kline_repo = ServiceFactory.resolve(IKlineRepository)
             else:
                 kline_repo = self._kline_repo
             symbols = list({r['symbol'] for r in snapshots[latest_date]}

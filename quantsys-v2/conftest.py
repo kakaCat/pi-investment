@@ -22,24 +22,32 @@ try:
 except ImportError:
     collect_ignore.append("tests/services/test_risk_metrics_service.py")
 
-# ── Module-level stub for EnhancedServiceFactory ──
-# Route modules (shared.py → adapters.shared.__init__.__getattr__) trigger
-# EnhancedServiceFactory.resolve() at import / collection time.
-# In test environments the factory is not initialized, so resolve() would raise
-# ValueError("Service not registered: ..."). We patch it here to return a
-# MagicMock, allowing tests that don't depend on real services to collect.
+# ── Module-level stub for service resolution ──
+# Route modules (shared.py → adapters.shared.__init__.__getattr__) trigger DI resolution
+# at import / collection time. In test environments the factory is not initialized, so
+# resolve() would raise ValueError("Service not registered: ..."). We patch it here to
+# return a MagicMock, allowing tests that don't depend on real services to collect.
+#
+# 2026-10-02（REQ-261001145152-3982 t-71051b）：**两层都要包**——
+# 生产代码已改用 DI 唯一入口 `ServiceFactory.resolve`（它委托内部层），
+# 而测试仍在直接调 `EnhancedServiceFactory.resolve`。只包一层会让另一条路径裸奔。
+# （前一版改动误把目标写成 `_esf.ServiceFactory`（enhanced 模块并无该类）→ 赋值抛错
+#  被下面的 except 吞掉 → 包装整体失效；此处改为按对象分别取原方法。）
 try:
     from unittest.mock import MagicMock as _MagicMock
     import infrastructure.services.enhanced_service_factory as _esf
-    _original_resolve = _esf.EnhancedServiceFactory.resolve
+    import infrastructure.services.service_factory as _sf
 
-    def _safe_resolve(service_type, *args, **kwargs):
-        try:
-            return _original_resolve(service_type, *args, **kwargs)
-        except (ValueError, KeyError):
-            return _MagicMock()
+    def _make_safe(original):
+        def _safe_resolve(service_type, *args, **kwargs):
+            try:
+                return original(service_type, *args, **kwargs)
+            except (ValueError, KeyError):
+                return _MagicMock()
+        return staticmethod(_safe_resolve)
 
-    _esf.EnhancedServiceFactory.resolve = staticmethod(_safe_resolve)
+    _esf.EnhancedServiceFactory.resolve = _make_safe(_esf.EnhancedServiceFactory.resolve)
+    _sf.ServiceFactory.resolve = _make_safe(_sf.ServiceFactory.resolve)
 except Exception:
     pass  # If import fails, tests that need real services will still work
 

@@ -282,7 +282,7 @@ pytest tests/infrastructure/config/test_config_validator.py -v
 
 ```bash
 # 1. 安装完整依赖
-pip install -r requirements.txt
+pip install -e .
 
 # 2. 运行所有测试
 pytest tests/infrastructure/config/ -v

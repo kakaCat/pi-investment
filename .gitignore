@@ -90,6 +90,10 @@ check_*.py
 # check_undefined_names：生产代码未定义名（防 NameError 及"崩在 except 里掩盖真实异常"）
 !quantsys-v2/tools/check_module_paths.py
 !quantsys-v2/tools/check_undefined_names.py
+# 例外：调度去重验收检查器是常驻交付物（REQ-261001145152-3982 t-2d52a7，2026-10-02）
+#     把"撞点=0 / 每 job 每日仅 1 条 success / adapters 单一调度入口"三条验收固化成一条命令，
+#     否则那条"连续 3 个交易日"的时间型判据只能靠人三天后手工翻库
+!quantsys-v2/tools/check_scheduler_dedup.py
 daily_*.sh
 demo-*.js
 demo-*.py

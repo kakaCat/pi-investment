@@ -145,7 +145,7 @@ curl -X POST http://localhost:5001/api/ml/train \
 docker run -it --rm \
   -v /path/to/quantsys-v2:/app \
   python:3.11-slim \
-  bash -c "cd /app && pip install -r requirements.txt && python tools/test_train.py"
+  bash -c "cd /app && pip install -e . && python tools/test_train.py"
 ```
 
 ### 方法3：使用虚拟机

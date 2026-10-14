@@ -1,0 +1,38 @@
+task:
+  id: t-1a4d3e
+  title: scripts/tools 归位·联调
+  status: done
+  implements: |-
+    ① 删 5 个已确认 0 引用的日期戳脚本（calibrate_20260723_{v13,v14}_return.py、migrate_20260720_multi_account.py、migrate_20260813_{action_case_unify,scheduler_tasks}.py）；② 14 个误置 test_*.py 从 scripts/ git mv 到 tests/ 并更新文档引用（test_orm*.py 被文档引用 10~11 次，不可盲删）；③ 7 个 _v2/_fixed 补丁产物逐个反查调用方后处理；④ 新脚本一律进已有分类子目录（94 个仍平铺在 scripts/ 根）。
+
+    [子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）
+  serves: []
+  depends_on:
+    - t-98fce1
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261001145152-3982
+    TASK_ID: t-1a4d3e
+    TASK_TITLE: scripts/tools 归位·联调
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-01T12:24:52.179Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261001145152-3982
+  generated_at: 2026-10-01T12:22:34.677Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-01T12:24:52.180Z

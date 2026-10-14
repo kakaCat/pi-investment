@@ -16,7 +16,7 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from infrastructure.services.service_factory import ServiceFactory
-from domain.quantlib.stages.factor_stage import FactorStage
+from domain.backtest.stages.factor_stage import FactorStage
 from adapters.outbound.repositories.stock_repository import StockORMRepository
 
 logger = structlog.get_logger(__name__)

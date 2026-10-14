@@ -31,14 +31,13 @@
    并同步 requires_agent（L2=True），避免"默认 L1"这种隐式行为。
 
 用法：
-  ./venv/bin/python infrastructure/persistence/migrations/20260911_watch_trigger_disposition.py
+  PYTHONPATH=. ./venv/bin/python infrastructure/persistence/migrations/20260911_watch_trigger_disposition.py
 """
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[3]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+# 2026-10-01（t-008062 主题C）：此处原有一行 sys.path 插入 —— 路径改由入口提供，
+# 运行方式见本文件头部说明（需 `PYTHONPATH=.`）。库层不得自行改 sys.path。
 
 DDL = [
     """ALTER TABLE quant.watch_triggers

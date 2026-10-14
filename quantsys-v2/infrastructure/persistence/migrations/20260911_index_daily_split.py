@@ -17,7 +17,7 @@
    删除放到读路径切换之后（见 --drop-from-daily-klines 步骤），避免切换期读空。
 
 用法：
-  python infrastructure/persistence/migrations/20260911_index_daily_split.py            # dry-run
+  PYTHONPATH=. python infrastructure/persistence/migrations/20260911_index_daily_split.py            # dry-run
   python ... --apply                        # 建表 + 备份 + 搬迁
   python ... --apply --drop-from-daily-klines   # 读路径切换后再执行：删原行
 """
@@ -25,7 +25,8 @@ import argparse
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+# 2026-10-01（t-008062 主题C）：此处原有一行 sys.path 插入 —— 路径改由入口提供，
+# 运行方式见本文件头部说明（需 `PYTHONPATH=.`）。库层不得自行改 sys.path。
 
 from sqlalchemy import create_engine, text  # noqa: E402
 

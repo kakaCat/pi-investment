@@ -264,9 +264,9 @@ def _dedup(symbols: List[str]) -> List[str]:
 
 def main():
     import argparse
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    from infrastructure.logging import configure_structured_logging
+    configure_structured_logging(level="INFO", json_format=False)  # 统一日志入口（2026-10-01 t-008062 主题B：库层不再调用 basicConfig）
+
     parser = argparse.ArgumentParser(description='财务数据更新（基础指标列）')
     parser.add_argument('--report-date', default=DEFAULT_REPORT_DATE,
                         help='报告期 YYYYMMDD（默认 20260630）')

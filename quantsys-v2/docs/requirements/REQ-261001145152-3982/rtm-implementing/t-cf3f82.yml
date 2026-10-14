@@ -1,0 +1,33 @@
+task:
+  id: t-cf3f82
+  title: 装外部存活与数据新鲜度探针
+  status: done
+  implements: 在外部（不依赖被监控进程）新增 1~2 个探针：进程/端口心跳（5001 + 8080）与数据新鲜度（max(trade_date) 落后最近交易日 >1 天告警）；复用 NotificationFacade，不新写通知通道。
+  serves: []
+  depends_on:
+    - t-c63378
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261001145152-3982
+    TASK_ID: t-cf3f82
+    TASK_TITLE: 装外部存活与数据新鲜度探针
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-01T09:17:33.204Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261001145152-3982
+  generated_at: 2026-10-01T09:08:05.504Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-01T09:18:38.234Z

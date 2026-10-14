@@ -8,14 +8,13 @@ action_hint/escalation_policy——agent 无法知道「这条规则盯的是趋
 
 幂等：ADD COLUMN IF NOT EXISTS；回填只更新空值。
 
-用法：./venv/bin/python infrastructure/persistence/migrations/20260911_watch_value_lifecycle.py
+用法：PYTHONPATH=. ./venv/bin/python infrastructure/persistence/migrations/20260911_watch_value_lifecycle.py
 """
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[3]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+# 2026-10-01（t-008062 主题C）：此处原有一行 sys.path 插入 —— 路径改由入口提供，
+# 运行方式见本文件头部说明（需 `PYTHONPATH=.`）。库层不得自行改 sys.path。
 
 
 DDL = [

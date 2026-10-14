@@ -1,0 +1,36 @@
+task:
+  id: t-4da3bf
+  title: 端口与 DI 收敛·联调
+  status: done
+  implements: |-
+    ① 端口去重：domain/ports/repository_ports.py 与 repository_ports_extended.py 有 7 个同名接口，保留一份并 re-export，另有 domain/{trading,portfolio,watch}/ports/ 第三套需裁决；② DI 收敛为 1 套入口（service_factory 893 行 / enhanced_service_factory 543 行 / service_registry 662 行 / di/container.py 四套并存）；③ 87 处直连 adapters.outbound.repositories 改走端口。
+
+    [子卡阶段·联调] 只做本阶段；验收：`npx vitest run <本卡接口/契约对应的测试文件>` → 全绿（请求样例与期望响应一致）
+  serves: []
+  depends_on:
+    - t-ba5eca
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261001145152-3982
+    TASK_ID: t-4da3bf
+    TASK_TITLE: 端口与 DI 收敛·联调
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-02T01:27:10.138Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261001145152-3982
+  generated_at: 2026-10-02T01:27:09.950Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-02T01:28:14.498Z

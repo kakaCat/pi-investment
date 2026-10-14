@@ -86,7 +86,7 @@ class EastMoneyLhbSource(BaseLhbSource):
                             stock_records = stock_records.copy()
                             stock_records['交易日期'] = date.strftime('%Y-%m-%d')
                             all_records.append(stock_records)
-                except:
+                except Exception:
                     # 某日无数据或查询失败，继续下一天
                     continue
 
@@ -147,7 +147,7 @@ class SinaLhbSource(BaseLhbSource):
                         stock_records = df[df['股票代码'].str.contains(symbol, na=False)]
                         if not stock_records.empty:
                             all_records.append(stock_records)
-                except:
+                except Exception:
                     continue
 
             if not all_records:
@@ -323,7 +323,7 @@ class LhbDataSource:
                         trade_date = datetime.strptime(date_str, '%Y-%m-%d')
                     else:
                         trade_date = datetime.strptime(date_str, '%Y%m%d')
-                except:
+                except Exception:
                     continue
 
                 if trade_date < cutoff_date:

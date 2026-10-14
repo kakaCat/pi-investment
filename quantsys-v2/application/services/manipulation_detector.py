@@ -73,9 +73,9 @@ class ManipulationDetector:
         """
         try:
             import domain.ports as _ports
-            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+            from infrastructure.services.service_factory import ServiceFactory
 
-            instance = EnhancedServiceFactory.resolve(getattr(_ports, port_name))
+            instance = ServiceFactory.resolve(getattr(_ports, port_name))
             if instance is not None:
                 return instance
             logger.warning(f"{attr} 端口 {port_name} 解析结果为 None，改用兜底实现")

@@ -76,8 +76,8 @@ class StrategyService:
         from domain.ports.repository_ports_extended import (
             ISimulationRepository,
         )
-        from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
-        repo = EnhancedServiceFactory.resolve(ISimulationRepository)
+        from infrastructure.services.service_factory import ServiceFactory
+        repo = ServiceFactory.resolve(ISimulationRepository)
         valid = []
         for name in strategies:
             account_name = self.get_config(name)['strategy'].get('account_name')

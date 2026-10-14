@@ -1,0 +1,39 @@
+task:
+  id: t-33ef88
+  title: 消 application 层 12 处顶层越层导入·研发
+  status: done
+  implements: |-
+    12 处顶层越层导入改为经 port/工厂注入或按裁定口径下沉；application/notification/notification_factory.py:20,28,29,30 的 infrastructure.config.settings 与 notification.channels.* 顶层导入移至 infrastructure 侧装配；删除 application/services/scheduler.py 的 `from infrastructure.scheduler.scheduler import *` 通配壳。
+
+    [子卡阶段·研发] 只做本阶段；验收：`npx vitest run <本卡改动涉及的测试文件>` → 全绿；并附 `git diff --stat` 摘要
+  serves: []
+  depends_on:
+    - t-c3a097
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261001145152-3982
+    TASK_ID: t-33ef88
+    TASK_TITLE: 消 application 层 12 处顶层越层导入·研发
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      started_at: 2026-10-01T11:07:59.200Z
+      completed_at: 2026-10-01T11:08:58.354Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261001145152-3982
+  generated_at: 2026-10-01T11:06:57.344Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-01T11:08:58.354Z

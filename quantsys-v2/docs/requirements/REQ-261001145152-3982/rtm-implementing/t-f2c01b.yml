@@ -1,0 +1,39 @@
+task:
+  id: t-f2c01b
+  title: 把 V2 服务救活并留下运行证据·复核
+  status: done
+  implements: |-
+    确认现网拉起方式（~/Library/LaunchAgents/com.pi-investment.v2-api.plist 已不存在，需按实际部署方式重建或改用其它守护）；启动 adapters/inbound/fastapi_app/main.py；首次启动经 checkfirst 建 quant.inprocess_job_runs 表。不改业务代码。
+
+    [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+  serves: []
+  depends_on:
+    - t-d51b25
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261001145152-3982
+    TASK_ID: t-f2c01b
+    TASK_TITLE: 把 V2 服务救活并留下运行证据·复核
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      started_at: 2026-10-01T07:15:42.037Z
+      completed_at: 2026-10-01T07:15:45.339Z
+    - phase: review
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261001145152-3982
+  generated_at: 2026-10-01T07:15:38.596Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-01T07:15:45.339Z

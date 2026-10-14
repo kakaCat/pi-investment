@@ -406,9 +406,9 @@ def _f(value) -> Optional[float]:
 
 def main():
     import argparse
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    from infrastructure.logging import configure_structured_logging
+    configure_structured_logging(level="INFO", json_format=False)  # 统一日志入口（2026-10-01 t-008062 主题B：库层不再调用 basicConfig）
+
     parser = argparse.ArgumentParser(description='季度财报更新')
     parser.add_argument('--symbols', nargs='*', default=None,
                         help='指定股票列表（默认：池成员+watchlist+沪深300）')

@@ -74,8 +74,8 @@ class FinancialAnalysisService:
             # 2. Fallback 到数据库（直接查询）
             try:
                 if self._financial_repo is None:
-                    from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
-                    financial_repo = EnhancedServiceFactory.resolve(IFinancialRepository)
+                    from infrastructure.services.service_factory import ServiceFactory
+                    financial_repo = ServiceFactory.resolve(IFinancialRepository)
                 else:
                     financial_repo = self._financial_repo
                 income_data = financial_repo.get_income_statements(symbol, period_type='Y', limit=5)
@@ -189,9 +189,9 @@ class FinancialAnalysisService:
             # 方案2: 从财务报表和股价计算 PE/PB（降级方案）
             try:
                 if self._financial_repo is None or self._kline_repo is None:
-                    from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
-                    financial_repo = self._financial_repo or EnhancedServiceFactory.resolve(IFinancialRepository)
-                    kline_repo = self._kline_repo or EnhancedServiceFactory.resolve(IKlineRepository)
+                    from infrastructure.services.service_factory import ServiceFactory
+                    financial_repo = self._financial_repo or ServiceFactory.resolve(IFinancialRepository)
+                    kline_repo = self._kline_repo or ServiceFactory.resolve(IKlineRepository)
                 else:
                     financial_repo = self._financial_repo
                     kline_repo = self._kline_repo
