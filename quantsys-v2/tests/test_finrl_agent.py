@@ -16,8 +16,8 @@ import tempfile
 import shutil
 
 # Import the modules we're testing
-from domain.quantlib.finrl import FINRL_AVAILABLE
-from domain.quantlib.finrl.config import get_default_config
+from qs_quantlib.finrl import FINRL_AVAILABLE
+from qs_quantlib.finrl.config import get_default_config
 
 
 # Mock environment for testing
@@ -62,7 +62,7 @@ class TestFinRLAgentWithDependencies:
 
     def test_finrl_agent_instantiation_ppo(self, mock_env):
         """Test FinRLAgent instantiation with PPO algorithm."""
-        from domain.quantlib.finrl.finrl_agent import FinRLAgent
+        from qs_quantlib.finrl.finrl_agent import FinRLAgent
 
         agent = FinRLAgent(algorithm='ppo', env=mock_env)
 
@@ -72,7 +72,7 @@ class TestFinRLAgentWithDependencies:
 
     def test_finrl_agent_instantiation_all_algorithms(self, mock_env):
         """Test FinRLAgent instantiation with all supported algorithms."""
-        from domain.quantlib.finrl.finrl_agent import FinRLAgent
+        from qs_quantlib.finrl.finrl_agent import FinRLAgent
 
         algorithms = ['ppo', 'a2c', 'ddpg', 'sac', 'td3']
 
@@ -83,31 +83,31 @@ class TestFinRLAgentWithDependencies:
 
     def test_finrl_agent_invalid_algorithm(self, mock_env):
         """Test FinRLAgent with invalid algorithm raises ValueError."""
-        from domain.quantlib.finrl.finrl_agent import FinRLAgent
+        from qs_quantlib.finrl.finrl_agent import FinRLAgent
 
         with pytest.raises(ValueError, match="Unsupported algorithm"):
             FinRLAgent(algorithm='invalid_algo', env=mock_env)
 
     def test_finrl_agent_inherits_from_base_rl_agent(self, mock_env):
         """Test that FinRLAgent inherits from BaseRLAgent."""
-        from domain.quantlib.finrl.finrl_agent import FinRLAgent
-        from domain.quantlib.finrl.base_rl_agent import BaseRLAgent
+        from qs_quantlib.finrl.finrl_agent import FinRLAgent
+        from qs_quantlib.finrl.base_rl_agent import BaseRLAgent
 
         agent = FinRLAgent(algorithm='ppo', env=mock_env)
         assert isinstance(agent, BaseRLAgent)
 
     def test_finrl_agent_inherits_from_base_calculator(self, mock_env):
         """Test that FinRLAgent inherits from BaseCalculator."""
-        from domain.quantlib.finrl.finrl_agent import FinRLAgent
-        from domain.quantlib.base_calculator import BaseCalculator
+        from qs_quantlib.finrl.finrl_agent import FinRLAgent
+        from qs_quantlib.base_calculator import BaseCalculator
 
         agent = FinRLAgent(algorithm='ppo', env=mock_env)
         assert isinstance(agent, BaseCalculator)
 
-    @patch('domain.quantlib.finrl.finrl_agent.PPO')
+    @patch('qs_quantlib.finrl.finrl_agent.PPO')
     def test_train_method_ppo(self, mock_ppo_class, mock_env):
         """Test train() method with PPO algorithm."""
-        from domain.quantlib.finrl.finrl_agent import FinRLAgent
+        from qs_quantlib.finrl.finrl_agent import FinRLAgent
 
         # Setup mock
         mock_model = MagicMock()
@@ -131,10 +131,10 @@ class TestFinRLAgentWithDependencies:
         assert 'algorithm' in result
         assert result['algorithm'] == 'ppo'
 
-    @patch('domain.quantlib.finrl.finrl_agent.A2C')
+    @patch('qs_quantlib.finrl.finrl_agent.A2C')
     def test_train_method_a2c(self, mock_a2c_class, mock_env):
         """Test train() method with A2C algorithm."""
-        from domain.quantlib.finrl.finrl_agent import FinRLAgent
+        from qs_quantlib.finrl.finrl_agent import FinRLAgent
 
         # Setup mock
         mock_model = MagicMock()
@@ -155,11 +155,11 @@ class TestFinRLAgentWithDependencies:
         # Verify result
         assert result['algorithm'] == 'a2c'
 
-    @patch('domain.quantlib.finrl.finrl_agent.PPO')
+    @patch('qs_quantlib.finrl.finrl_agent.PPO')
     def test_train_with_callbacks(self, mock_ppo_class, mock_env):
         """Test train() method with callbacks."""
-        from domain.quantlib.finrl.finrl_agent import FinRLAgent
-        from domain.quantlib.finrl.callbacks import CheckpointCallback
+        from qs_quantlib.finrl.finrl_agent import FinRLAgent
+        from qs_quantlib.finrl.callbacks import CheckpointCallback
 
         # Setup mock
         mock_model = MagicMock()
@@ -176,10 +176,10 @@ class TestFinRLAgentWithDependencies:
         call_kwargs = mock_model.learn.call_args[1]
         assert 'callback' in call_kwargs
 
-    @patch('domain.quantlib.finrl.finrl_agent.PPO')
+    @patch('qs_quantlib.finrl.finrl_agent.PPO')
     def test_predict_method(self, mock_ppo_class, mock_env):
         """Test predict() method."""
-        from domain.quantlib.finrl.finrl_agent import FinRLAgent
+        from qs_quantlib.finrl.finrl_agent import FinRLAgent
 
         # Setup mock
         mock_model = MagicMock()
@@ -202,10 +202,10 @@ class TestFinRLAgentWithDependencies:
         assert action is not None
         assert isinstance(action, np.ndarray)
 
-    @patch('domain.quantlib.finrl.finrl_agent.PPO')
+    @patch('qs_quantlib.finrl.finrl_agent.PPO')
     def test_predict_batch_observations(self, mock_ppo_class, mock_env):
         """Test predict() with batch observations."""
-        from domain.quantlib.finrl.finrl_agent import FinRLAgent
+        from qs_quantlib.finrl.finrl_agent import FinRLAgent
 
         # Setup mock
         mock_model = MagicMock()
@@ -226,7 +226,7 @@ class TestFinRLAgentWithDependencies:
 
     def test_predict_without_training_raises_error(self, mock_env):
         """Test predict() without training raises error."""
-        from domain.quantlib.finrl.finrl_agent import FinRLAgent
+        from qs_quantlib.finrl.finrl_agent import FinRLAgent
 
         agent = FinRLAgent(algorithm='ppo', env=mock_env)
         observation = np.random.randn(10)
@@ -234,10 +234,10 @@ class TestFinRLAgentWithDependencies:
         with pytest.raises(RuntimeError, match="Model not trained"):
             agent.predict(observation)
 
-    @patch('domain.quantlib.finrl.finrl_agent.PPO')
+    @patch('qs_quantlib.finrl.finrl_agent.PPO')
     def test_save_model(self, mock_ppo_class, mock_env, temp_dir):
         """Test save_model() method."""
-        from domain.quantlib.finrl.finrl_agent import FinRLAgent
+        from qs_quantlib.finrl.finrl_agent import FinRLAgent
 
         # Setup mock
         mock_model = MagicMock()
@@ -255,10 +255,10 @@ class TestFinRLAgentWithDependencies:
         # Verify save was called
         mock_model.save.assert_called_once()
 
-    @patch('domain.quantlib.finrl.finrl_agent.PPO')
+    @patch('qs_quantlib.finrl.finrl_agent.PPO')
     def test_load_model(self, mock_ppo_class, mock_env, temp_dir):
         """Test load_model() method."""
-        from domain.quantlib.finrl.finrl_agent import FinRLAgent
+        from qs_quantlib.finrl.finrl_agent import FinRLAgent
 
         # Setup mock
         mock_model = MagicMock()
@@ -276,10 +276,10 @@ class TestFinRLAgentWithDependencies:
         # Verify model is set
         assert agent.model is not None
 
-    @patch('domain.quantlib.finrl.finrl_agent.PPO')
+    @patch('qs_quantlib.finrl.finrl_agent.PPO')
     def test_calculate_method(self, mock_ppo_class, mock_env):
         """Test calculate() method (inherited from BaseCalculator)."""
-        from domain.quantlib.finrl.finrl_agent import FinRLAgent
+        from qs_quantlib.finrl.finrl_agent import FinRLAgent
 
         # Setup mock
         mock_model = MagicMock()
@@ -301,10 +301,10 @@ class TestFinRLAgentWithDependencies:
         assert 'parameters' in result
         assert 'metadata' in result
 
-    @patch('domain.quantlib.finrl.finrl_agent.PPO')
+    @patch('qs_quantlib.finrl.finrl_agent.PPO')
     def test_get_supported_methods(self, mock_ppo_class, mock_env):
         """Test get_supported_methods() returns correct methods."""
-        from domain.quantlib.finrl.finrl_agent import FinRLAgent
+        from qs_quantlib.finrl.finrl_agent import FinRLAgent
 
         agent = FinRLAgent(algorithm='ppo', env=mock_env)
         methods = agent.get_supported_methods()
@@ -329,7 +329,7 @@ class TestFinRLAgentWithoutDependencies:
         """Test graceful degradation when FinRL is not available."""
         # When FinRL is not available, import should still work but raise error on use
         try:
-            from domain.quantlib.finrl.finrl_agent import FinRLAgent
+            from qs_quantlib.finrl.finrl_agent import FinRLAgent
             # If import succeeds, trying to use it should fail gracefully
             with pytest.raises((ImportError, RuntimeError)):
                 agent = FinRLAgent(algorithm='ppo', env=None)
@@ -353,7 +353,7 @@ class TestBaseRLAgent:
     @pytest.mark.skipif(not FINRL_AVAILABLE, reason="FinRL dependencies not available")
     def test_base_rl_agent_is_abstract(self):
         """Test that BaseRLAgent is abstract and cannot be instantiated directly."""
-        from domain.quantlib.finrl.base_rl_agent import BaseRLAgent
+        from qs_quantlib.finrl.base_rl_agent import BaseRLAgent
 
         # BaseRLAgent should be abstract
         with pytest.raises(TypeError):
@@ -362,7 +362,7 @@ class TestBaseRLAgent:
     @pytest.mark.skipif(not FINRL_AVAILABLE, reason="FinRL dependencies not available")
     def test_base_rl_agent_defines_interface(self):
         """Test that BaseRLAgent defines the required interface."""
-        from domain.quantlib.finrl.base_rl_agent import BaseRLAgent
+        from qs_quantlib.finrl.base_rl_agent import BaseRLAgent
 
         # Check that abstract methods are defined
         assert hasattr(BaseRLAgent, 'train')
@@ -375,10 +375,10 @@ class TestFinRLAgentIntegration:
     """Integration tests for FinRLAgent."""
 
     @pytest.mark.skipif(not FINRL_AVAILABLE, reason="FinRL dependencies not available")
-    @patch('domain.quantlib.finrl.finrl_agent.PPO')
+    @patch('qs_quantlib.finrl.finrl_agent.PPO')
     def test_full_training_pipeline(self, mock_ppo_class, mock_env, temp_dir):
         """Test full training pipeline: train -> predict -> save -> load."""
-        from domain.quantlib.finrl.finrl_agent import FinRLAgent
+        from qs_quantlib.finrl.finrl_agent import FinRLAgent
 
         # Setup mock
         mock_model = MagicMock()
@@ -413,7 +413,7 @@ class TestFinRLAgentIntegration:
     @pytest.mark.skipif(not FINRL_AVAILABLE, reason="FinRL dependencies not available")
     def test_algorithm_mapping(self):
         """Test that all algorithms in ALGORITHM_MAP are supported."""
-        from domain.quantlib.finrl.finrl_agent import ALGORITHM_MAP
+        from qs_quantlib.finrl.finrl_agent import ALGORITHM_MAP
 
         expected_algorithms = ['ppo', 'a2c', 'ddpg', 'sac', 'td3']
 

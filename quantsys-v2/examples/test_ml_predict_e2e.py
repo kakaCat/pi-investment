@@ -68,7 +68,7 @@ def test_feature_engineering_directly():
     try:
 
         from application.services.ml_pipeline.feature_engineering import FeatureEngineer
-        from domain.quantlib.adapters import get_factor_adapter
+        from qs_quantlib.adapters import get_factor_adapter
 
         # Create sample klines with only 115 days (insufficient for MA120)
         print("\n🔧 Creating sample data with 115 data points...")

@@ -17,14 +17,14 @@ Date: 2026-05-24
 
 import pytest
 import numpy as np
-from domain.quantlib.fixed_income import (
+from qs_quantlib.fixed_income import (
     BondPricingCalculator,
     DurationConvexityCalculator,
     YieldCurveCalculator,
     CreditAnalysisCalculator,
     BondPortfolioCalculator
 )
-from domain.quantlib.exceptions import DataValidationError, CalculationError
+from qs_quantlib.exceptions import DataValidationError, CalculationError
 
 
 class TestBondPricing:

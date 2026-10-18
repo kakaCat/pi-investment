@@ -8,19 +8,19 @@ Tests the fusion of FinceptTerminal's design patterns into QuantSys V2.
 import pytest
 import numpy as np
 
-from domain.quantlib.base_calculator import (
+from qs_quantlib.base_calculator import (
     BaseCalculator,
     validate_inputs,
     timing_decorator,
     CalculatorFactory
 )
-from domain.quantlib.exceptions import (
+from qs_quantlib.exceptions import (
     DataValidationError as CoreDataValidationError,
     InsufficientDataError as CoreInsufficientDataError,
     CalculationError as CoreCalculationError,
     ConvergenceError as CoreConvergenceError
 )
-from domain.quantlib.exceptions import (
+from qs_quantlib.exceptions import (
     handle_calculation_error,
     DataValidationError as QLDataValidationError,
     InsufficientDataError as QLInsufficientDataError,
@@ -32,8 +32,8 @@ DataValidationError = (CoreDataValidationError, QLDataValidationError)
 InsufficientDataError = (CoreInsufficientDataError, QLInsufficientDataError)
 CalculationError = (CoreCalculationError, QLCalculationError)
 ConvergenceError = (CoreConvergenceError, QLConvergenceError)
-from domain.quantlib.derivatives.black_scholes import BlackScholesCalculator
-from domain.quantlib.derivatives.greeks import GreeksCalculator
+from qs_quantlib.derivatives.black_scholes import BlackScholesCalculator
+from qs_quantlib.derivatives.greeks import GreeksCalculator
 
 
 class TestBaseCalculator:
@@ -184,7 +184,7 @@ class TestBlackScholesCalculator:
         market_price = price_result["value"]
 
         # Now recover the volatility
-        from domain.quantlib.derivatives.implied_volatility import ImpliedVolatilityCalculator
+        from qs_quantlib.derivatives.implied_volatility import ImpliedVolatilityCalculator
         iv_calc = ImpliedVolatilityCalculator()
         iv_result = iv_calc.calculate(
             S=S, K=K, T=T, r=r, option_price=market_price, option_type="call"
@@ -196,7 +196,7 @@ class TestBlackScholesCalculator:
     def test_bond_price_calculation(self):
         """Test bond price calculation."""
         pricer = BlackScholesCalculator()
-        from domain.quantlib.fixed_income.bond_pricing import BondPricingCalculator
+        from qs_quantlib.fixed_income.bond_pricing import BondPricingCalculator
         bond_calc = BondPricingCalculator()
         result = bond_calc.calculate(
             face_value=1000,

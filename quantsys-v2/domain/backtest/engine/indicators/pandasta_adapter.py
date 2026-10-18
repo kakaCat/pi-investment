@@ -24,7 +24,7 @@ class PandasTAAdapter(IndicatorAdapter):
 
     def is_available(self) -> bool:
         try:
-            import domain.quantlib.engine.indicators._numba_compat  # noqa: F401
+            import qs_quantlib.engine.indicators._numba_compat  # noqa: F401
             import pandas_ta  # noqa: F401
             return True
         except ImportError:

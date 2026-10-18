@@ -15,7 +15,7 @@ import pandas as pd
 from typing import Dict
 
 from domain.backtest.stages.data_pipeline import PipelineContext, PipelineResult
-from domain.quantlib.data_validator import DataValidator
+from qs_quantlib.data_validator import DataValidator
 
 logger = logging.getLogger(__name__)
 

@@ -8,7 +8,7 @@
 import sys
 import os
 
-from domain.quantlib.engine.code_validator import CodeValidator
+from qs_quantlib.engine.code_validator import CodeValidator
 
 
 def test_validator():

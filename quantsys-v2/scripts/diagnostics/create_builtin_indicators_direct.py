@@ -23,8 +23,8 @@ db_config = {
 }
 
 # 添加项目路径以便导入验证器
-from domain.quantlib.engine.code_validator import CodeValidator
-from domain.quantlib.engine.param_parser import ParamParser
+from qs_quantlib.engine.code_validator import CodeValidator
+from qs_quantlib.engine.param_parser import ParamParser
 
 def create_builtin_indicators():
     """创建系统内置指标"""

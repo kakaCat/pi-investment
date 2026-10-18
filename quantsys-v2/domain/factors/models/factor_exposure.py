@@ -24,8 +24,8 @@ import pandas as pd
 from typing import Dict, Any, Optional, Union, List
 from scipy import stats
 
-from domain.quantlib import BaseCalculator
-from domain.quantlib.exceptions import (
+from qs_quantlib import BaseCalculator
+from qs_quantlib.exceptions import (
     DataValidationError,
     InsufficientDataError,
     CalculationError

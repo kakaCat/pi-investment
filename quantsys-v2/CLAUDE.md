@@ -38,6 +38,18 @@ QuantSys V2 is built with hexagonal architecture, dual anti-corruption layer, an
 
 ## Environment Setup
 
+### 0. 二方包 editable 安装（2026-10-18 起必需）
+
+量化计算库已整体抽离为独立二方包（方案卡：`docs/plans/package-boundaries-import-linter.md`）。
+主依赖安装之外**必须再装它**，否则 `import qs_quantlib` 失败、且旧路径 shim 报 ImportError：
+
+```bash
+pip install -e ./packages/qs_quantlib    # 必须指向本工作区内路径，勿用外部 worktree 路径
+```
+
+> ⚠️ 新代码 import 一律走 `from qs_quantlib import ...`；`from domain.quantlib import ...` 是兼容 shim，后续删除。
+> 当前已迁移：`qs_quantlib`（原 domain/quantlib，75 文件）。后续按方案卡 §11.4 迁移 notification/ops/trading/watch。
+
 ### 1. Install Dependencies
 
 **权威声明是 `pyproject.toml`**（仓库根目录**没有** `requirements.txt`——

@@ -23,7 +23,7 @@ from typing import Dict, List
 import json
 
 
-from domain.quantlib.gpu_acceleration.gpu_factors import GPUFactorCalculator
+from qs_quantlib.gpu_acceleration.gpu_factors import GPUFactorCalculator
 
 
 def generate_test_data(n_stocks: int, n_days: int = 252) -> pd.DataFrame:

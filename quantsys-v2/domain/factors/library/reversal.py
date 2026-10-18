@@ -13,7 +13,7 @@ import numpy as np
 from typing import Dict, Any, List
 
 from domain.factors.library.base import TechnicalFactorCalculator
-from domain.quantlib.core.base_calculator import validate_inputs, timing_decorator
+from qs_quantlib.core.base_calculator import validate_inputs, timing_decorator
 
 
 class ReversalFactors(TechnicalFactorCalculator):

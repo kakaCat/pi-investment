@@ -12,10 +12,10 @@ from pathlib import Path
 
 # Add parent directory to path
 
-from domain.quantlib.engine.slippage import create_slippage_model
-from domain.quantlib.engine.commission import create_commission_model
-from domain.quantlib.engine.position_sizing import create_position_sizer
-from domain.quantlib.engine.backtest_report import BacktestReportGenerator
+from qs_quantlib.engine.slippage import create_slippage_model
+from qs_quantlib.engine.commission import create_commission_model
+from qs_quantlib.engine.position_sizing import create_position_sizer
+from qs_quantlib.engine.backtest_report import BacktestReportGenerator
 from datetime import datetime, timedelta
 import random
 
