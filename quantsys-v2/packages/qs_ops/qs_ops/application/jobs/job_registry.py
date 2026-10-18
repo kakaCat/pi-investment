@@ -7,7 +7,7 @@ JobRegistry - 统一的任务注册表
 import logging
 from typing import Any, Dict, Optional
 
-from application.jobs.job_protocol import Job, JobResult
+from qs_ops.application.jobs.job_protocol import Job, JobResult
 
 logger = logging.getLogger(__name__)
 

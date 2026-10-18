@@ -286,7 +286,7 @@ def _execute_command(command: str, params: Dict[str, Any]) -> Dict[str, Any]:
         ValueError: 命令未在 JobRegistry 或 Legacy Handler 中找到
         Exception: 任务执行过程中的异常
     """
-    from application.jobs.job_registry import job_registry
+    from qs_ops.application.jobs.job_registry import job_registry
 
     # 1. 优先从 JobRegistry 获取 job
     job = job_registry.get(command)

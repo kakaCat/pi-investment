@@ -8,7 +8,7 @@ import asyncio
 import logging
 from typing import Any, Dict
 
-from application.jobs.job_protocol import Job, JobResult, result_from_dict
+from qs_ops.application.jobs.job_protocol import Job, JobResult, result_from_dict
 
 logger = logging.getLogger(__name__)
 

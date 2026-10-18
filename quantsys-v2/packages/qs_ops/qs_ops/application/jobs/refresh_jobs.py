@@ -44,7 +44,7 @@ class _RefreshJobBase:
         return self._timeout_seconds
 
     async def execute(self, params: Dict[str, Any]):
-        from application.jobs.job_protocol import JobResult, result_from_dict
+        from qs_ops.application.jobs.job_protocol import JobResult, result_from_dict
         try:
             result = self._run(params or {})
         except Exception as exc:  # noqa: BLE001 失败必须显式，调度器据此标红

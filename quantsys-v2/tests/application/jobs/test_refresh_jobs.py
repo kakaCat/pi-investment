@@ -18,7 +18,7 @@ import importlib
 
 import pytest
 
-MODULE = 'application.jobs.refresh_jobs'
+MODULE = 'qs_ops.application.jobs.refresh_jobs'
 
 
 def _mod():
