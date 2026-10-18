@@ -1232,7 +1232,7 @@ class CorePlanGenerateJob:
         return 600
 
     async def execute(self, params=None):
-        from application.jobs.job_protocol import JobResult, result_from_dict
+        from qs_ops.application.jobs.job_protocol import JobResult, result_from_dict
         import asyncio
         p = params or {}
         try:

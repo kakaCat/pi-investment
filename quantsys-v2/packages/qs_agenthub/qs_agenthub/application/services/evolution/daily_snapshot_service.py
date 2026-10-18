@@ -276,7 +276,7 @@ class EquitySnapshotJob:
 
     async def execute(self, params=None):
         import asyncio
-        from application.jobs.job_protocol import JobResult, result_from_dict
+        from qs_ops.application.jobs.job_protocol import JobResult, result_from_dict
         try:
             out = await asyncio.to_thread(self.run)
         except Exception as exc:  # noqa: BLE001 —— 失败必须显式（调度器据此标红）

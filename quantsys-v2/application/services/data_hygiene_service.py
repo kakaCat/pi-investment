@@ -362,7 +362,7 @@ class DataHygieneProbeJob:
 
     async def execute(self, params=None):
         import asyncio
-        from application.jobs.job_protocol import JobResult, result_from_dict
+        from qs_ops.application.jobs.job_protocol import JobResult, result_from_dict
         try:
             rep = await asyncio.to_thread(probe)
         except Exception as exc:  # noqa: BLE001 —— 失败必须显式（调度器据此标红）

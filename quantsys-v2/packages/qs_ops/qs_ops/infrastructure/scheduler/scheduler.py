@@ -704,7 +704,7 @@ class SchedulerService:
         # 现补 JobRegistry 兜底，与 job_executor 对齐。
         job = None
         try:
-            from application.jobs.job_registry import job_registry
+            from qs_ops.application.jobs.job_registry import job_registry
             job = job_registry.get(command)
         except Exception as exc:  # noqa: BLE001 注册表不可用不应改变"未知命令"的语义
             logger.warning("JobRegistry lookup failed for %r: %s", command, exc)

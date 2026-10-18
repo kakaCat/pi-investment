@@ -92,7 +92,7 @@ async def lifespan(app: FastAPI):
 
     # 初始化 JobRegistry（2026-09-01: scheduler 重构，优先使用 JobRegistry）
     try:
-        from application.jobs.registry_setup import register_all_jobs
+        from qs_ops.application.jobs.registry_setup import register_all_jobs
         register_all_jobs()
         logger.info("✅ JobRegistry initialized (28 jobs registered)")
     except Exception as e:
@@ -105,7 +105,7 @@ async def lifespan(app: FastAPI):
     # 注册顺序在 register_all_jobs 之后：JobRegistry.register 对同名不同实例会抛错，
     # 放在此处可让"同名冲突"在启动日志里立刻可见，而不是被静默覆盖。
     try:
-        from application.jobs.job_registry import job_registry
+        from qs_ops.application.jobs.job_registry import job_registry
         from qs_intel.application.services.event_feed_service import build_event_ingest_jobs
         from adapters.inbound.fastapi_app.routes.events_async import get_feed_service
         for _job in build_event_ingest_jobs(get_feed_service()):
@@ -118,7 +118,7 @@ async def lifespan(app: FastAPI):
     # 上迁原因：用户裁定「脚本不能写进 v2 项目，脚本只能测试用」；
     # 但本能力是账户建仓决策入口（工作日 09:05 生成计划，09:10 的 agent 任务只读取文件）。
     try:
-        from application.jobs.job_registry import job_registry
+        from qs_ops.application.jobs.job_registry import job_registry
         from application.services.core_plan_service import build_core_plan_jobs
         for _job in build_core_plan_jobs():
             job_registry.register(_job)
@@ -130,7 +130,7 @@ async def lifespan(app: FastAPI):
     # 上迁原因：用户裁定「脚本不能写进 v2 项目，脚本只能测试用」；
     # 本能力是策略门槛守门人（周日 20:30 复核 → 未过门槛则退役 → 落报告供 agent 读取通知）。
     try:
-        from application.jobs.job_registry import job_registry
+        from qs_ops.application.jobs.job_registry import job_registry
         from qs_strategy.application.services.strategy_lifecycle_service import build_strategy_loop_jobs
         for _job in build_strategy_loop_jobs():
             job_registry.register(_job)
@@ -142,7 +142,7 @@ async def lifespan(app: FastAPI):
     # 上迁原因：用户裁定「脚本不能写进 v2 项目，脚本只能测试用」；
     # 本能力是"悬空引用/数据悄悄变空"的持续探测（周日 21:00 产报告，agent 任务按契约处置）。
     try:
-        from application.jobs.job_registry import job_registry
+        from qs_ops.application.jobs.job_registry import job_registry
         from application.services.data_hygiene_service import build_data_hygiene_jobs
         for _job in build_data_hygiene_jobs():
             job_registry.register(_job)
@@ -154,7 +154,7 @@ async def lifespan(app: FastAPI):
     # 上迁原因：用户裁定「脚本不能写进 v2 项目，脚本只能测试用」；
     # 本能力此前**没有生产调用方**（无活动的交易日就没有快照 → risk_metrics 日收益序列有缺口）。
     try:
-        from application.jobs.job_registry import job_registry
+        from qs_ops.application.jobs.job_registry import job_registry
         from application.services.evolution.daily_snapshot_service import build_equity_snapshot_jobs
         for _job in build_equity_snapshot_jobs():
             job_registry.register(_job)
@@ -169,8 +169,8 @@ async def lifespan(app: FastAPI):
     # 落库前提：save_minute_klines 已于 2026-09-11 改为幂等 upsert，
     # 否则"每 5 分钟反复跑"第二次必然因重叠 K 线主键冲突整批失败。
     try:
-        from application.jobs.job_registry import job_registry
-        from application.jobs.refresh_jobs import build_refresh_jobs
+        from qs_ops.application.jobs.job_registry import job_registry
+        from qs_ops.application.jobs.refresh_jobs import build_refresh_jobs
         from qs_market_data.adapters.outbound.datasources import get_data_provider_manager
         from adapters.outbound.repositories.minute_kline_repository import get_minute_kline_repo
         from adapters.outbound.repositories.event_repository import get_market_event_repo

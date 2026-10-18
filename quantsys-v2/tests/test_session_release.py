@@ -47,7 +47,7 @@ def test_score_single_stock_releases_session(released):
 
 
 def test_data_update_job_releases_outer_thread_session(released, monkeypatch):
-    from application.jobs.data_jobs import DataUpdateJob
+    from qs_ops.application.jobs.data_jobs import DataUpdateJob
     import adapters.outbound.repositories as repos
 
     class _Stocks:

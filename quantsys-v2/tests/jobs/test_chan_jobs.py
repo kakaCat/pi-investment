@@ -15,7 +15,7 @@ pool_repo=None 会崩）。本测试用 mock 服务验证 execute 委托与契�
 from unittest.mock import MagicMock, patch
 import pytest
 
-from application.jobs.analysis_jobs import ChanScanJob, ChanKnowledgeDistillJob
+from qs_ops.application.jobs.analysis_jobs import ChanScanJob, ChanKnowledgeDistillJob
 
 
 class TestChanScanJob:

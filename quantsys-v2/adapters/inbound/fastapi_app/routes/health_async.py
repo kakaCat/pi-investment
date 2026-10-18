@@ -284,7 +284,7 @@ async def platform_status():
 # 发现异常返回 high 告警供 Agent OS 记录与外部监控拾取。
 try:
     from api.internal.scheduler_webhook import register_job_handler
-    from application.jobs.health_monitor import check_job_health
+    from qs_ops.application.jobs.health_monitor import check_job_health
     from adapters.outbound.repositories.scheduler_repository import SchedulerRepository
     from infrastructure.persistence.orm import get_session
 
