@@ -6,12 +6,12 @@
 
 调度配置（quant.scheduler_tasks，旧表 scheduler_task_configs 已于 2026-09-11 删除/归档）：
     task_name: financial_statement_update
-    command:   infrastructure.jobs.financial_statement_update_job.execute
+    command:   qs_ops.infrastructure.jobs.financial_statement_update_job.execute
     cron:      0 20 * * 6（每周六 20:00）
 
 手动执行：
-    python -m infrastructure.jobs.financial_statement_update_job
-    python -m infrastructure.jobs.financial_statement_update_job --symbols 600519 601899
+    python -m qs_ops.infrastructure.jobs.financial_statement_update_job
+    python -m qs_ops.infrastructure.jobs.financial_statement_update_job --symbols 600519 601899
 
 背景：2026-07-30 动态评分系统上线后发现 income_statements 仅剩历史遗产
 （沪深300×3季度，写入方 UpdateFinancialDataJob 已被删除），profile 分类全部

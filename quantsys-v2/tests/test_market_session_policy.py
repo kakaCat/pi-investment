@@ -225,7 +225,7 @@ def test_service_is_trading_day_accepts_date_and_str(monkeypatch):
     """`MarketSessionService.is_trading_day` 必须接受 date / 'YYYY-MM-DD'（曾 AttributeError）"""
     from datetime import date
     from qs_trading.application.services.market_session_service import MarketSessionService
-    from application.services.trading_day_guard import TradingDayGuard
+    from qs_ops.application.services.trading_day_guard import TradingDayGuard
 
     monkeypatch.setattr(
         TradingDayGuard, 'is_trading_day', classmethod(lambda cls, day=None: True))
@@ -287,7 +287,7 @@ def test_assert_can_trade_raises_trading_error(monkeypatch):
     日级真源按仓库惯用法打桩（monkeypatch `_kline_stats`），不碰 DB。
     """
     from qs_trading.application.services.market_session_service import MarketSessionService
-    from application.services.trading_day_guard import TradingDayGuard
+    from qs_ops.application.services.trading_day_guard import TradingDayGuard
     from qs_trading.domain.trading.exceptions import TradingError
 
     # 先清空 60s 判决缓存——否则本用例会被前一个用例预热的缓存命中，

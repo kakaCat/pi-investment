@@ -5,7 +5,7 @@
 import sys
 sys.path.insert(0, '/Users/yunpeng/pi-investment/.claude/worktrees/apscheduler-migration/quantsys-v2')
 
-from infrastructure.scheduler.apscheduler_service import APSchedulerService
+from qs_ops.infrastructure.scheduler.apscheduler_service import APSchedulerService
 from adapters.outbound.repositories.scheduler_repository import SchedulerRepository
 from infrastructure.persistence.orm import get_session
 

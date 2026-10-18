@@ -9,7 +9,7 @@
 规避东财 WAF 封 IP 风险）。
 
 调度配置：task_name=index_constituents_update, cron '40 15 * * 1-5'
-也可手动执行：python -m infrastructure.jobs.index_constituents_update_job
+也可手动执行：python -m qs_ops.infrastructure.jobs.index_constituents_update_job
 """
 import os
 os.environ['OMP_NUM_THREADS'] = '1'

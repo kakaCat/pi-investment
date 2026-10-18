@@ -18,8 +18,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from infrastructure.jobs.risk_check_job import RiskCheckJob
-from infrastructure.jobs.verification_job import VerificationJob
+from qs_ops.infrastructure.jobs.risk_check_job import RiskCheckJob
+from qs_ops.infrastructure.jobs.verification_job import VerificationJob
 
 
 class FakeSimulationRepo:
@@ -132,7 +132,7 @@ class TestHandleFactorCompute:
     def test_compute_and_persist_via_factor_stage(self, monkeypatch):
         saved = []
 
-        import application.services.scheduler_tasks as st
+        import qs_ops.application.services.scheduler_tasks as st
         import domain.backtest.stages.factor_stage as fs_mod
         import adapters.outbound.repositories as repos
 

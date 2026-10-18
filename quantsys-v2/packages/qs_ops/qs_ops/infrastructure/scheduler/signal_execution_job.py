@@ -2,7 +2,7 @@
 每日信号执行任务
 运行策略 → 生成信号 → 风控检查 → 创建订单
 
-被调度器调用: infrastructure.scheduler.signal_execution_job
+被调度器调用: qs_ops.infrastructure.scheduler.signal_execution_job
 """
 
 import logging

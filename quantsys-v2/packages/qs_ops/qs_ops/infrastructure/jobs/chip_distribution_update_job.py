@@ -3,12 +3,12 @@
 
 调度配置（quant.scheduler_tasks，旧表 scheduler_task_configs 已于 2026-09-11 删除/归档）：
     task_name: chip_distribution_update
-    command:   infrastructure.jobs.chip_distribution_update_job.execute
+    command:   qs_ops.infrastructure.jobs.chip_distribution_update_job.execute
     cron:      30 18 * * 0-4（kline_update 17:40 之后）
 
 手动执行：
-    python -m infrastructure.jobs.chip_distribution_update_job [--limit 100]
-    python -m infrastructure.jobs.chip_distribution_update_job --symbol 600519.SH
+    python -m qs_ops.infrastructure.jobs.chip_distribution_update_job [--limit 100]
+    python -m qs_ops.infrastructure.jobs.chip_distribution_update_job --symbol 600519.SH
 """
 import os
 import logging

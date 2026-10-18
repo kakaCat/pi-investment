@@ -91,7 +91,7 @@ def update_gem_klines(**params):
         # 规则：今天是交易日且已过 15:00 → 今天；否则 → 上一个交易日。
         # 2026-09-11（w-f4aa1f6a 步2）：改用 TradingDayGuard（原为只判周末，
         # 节假日会把基准日判错，仅影响 stale 计数不影响入库）
-        from application.services.trading_day_guard import TradingDayGuard
+        from qs_ops.application.services.trading_day_guard import TradingDayGuard
 
         now = datetime.now()
         target_date = end_date

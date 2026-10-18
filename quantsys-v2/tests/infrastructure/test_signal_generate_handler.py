@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from infrastructure.scheduler.scheduler import SchedulerService
+from qs_ops.infrastructure.scheduler.scheduler import SchedulerService
 
 
 def _scan_result(buys=(), sells=()):
@@ -35,9 +35,9 @@ def svc():
 
 def _run(svc, universe=('600000', '300750'), names=None, scan_side_effect=None, create_returns=None):
     names = names or {'600000': '浦发银行', '300750': '宁德时代'}
-    with patch('infrastructure.scheduler.scheduler.HeatmapRepository') as MockHM, \
-         patch('infrastructure.scheduler.scheduler.PoolSignalScanner') as MockScanner, \
-         patch('infrastructure.scheduler.scheduler.SignalORMRepository') as MockSigRepo:
+    with patch('qs_ops.infrastructure.scheduler.scheduler.HeatmapRepository') as MockHM, \
+         patch('qs_ops.infrastructure.scheduler.scheduler.PoolSignalScanner') as MockScanner, \
+         patch('qs_ops.infrastructure.scheduler.scheduler.SignalORMRepository') as MockSigRepo:
         hm = MockHM.return_value
         hm.get_pool_members_now.return_value = set(universe[:1])
         hm.get_current_holding_symbols.return_value = set(universe[1:])
@@ -89,7 +89,7 @@ class TestSignalGenerateHandler:
         assert 'strategy boom' in str(result['strategy_errors'])
 
     def test_empty_universe_returns_success_with_zero(self, svc):
-        with patch('infrastructure.scheduler.scheduler.HeatmapRepository') as MockHM:
+        with patch('qs_ops.infrastructure.scheduler.scheduler.HeatmapRepository') as MockHM:
             hm = MockHM.return_value
             hm.get_pool_members_now.return_value = set()
             hm.get_current_holding_symbols.return_value = set()
@@ -101,9 +101,9 @@ class TestSignalGenerateHandler:
     def test_suffixed_symbols_normalized_to_bare(self, svc):
         """池成员带交易所后缀（688012.SH）必须归一为裸代码——
         signals.symbol 有 FK 到 stocks.symbol，带后缀会 ForeignKeyViolation"""
-        with patch('infrastructure.scheduler.scheduler.HeatmapRepository') as MockHM, \
-             patch('infrastructure.scheduler.scheduler.PoolSignalScanner') as MockScanner, \
-             patch('infrastructure.scheduler.scheduler.SignalORMRepository') as MockSigRepo:
+        with patch('qs_ops.infrastructure.scheduler.scheduler.HeatmapRepository') as MockHM, \
+             patch('qs_ops.infrastructure.scheduler.scheduler.PoolSignalScanner') as MockScanner, \
+             patch('qs_ops.infrastructure.scheduler.scheduler.SignalORMRepository') as MockSigRepo:
             hm = MockHM.return_value
             hm.get_pool_members_now.return_value = {'688012.SH'}
             hm.get_current_holding_symbols.return_value = set()

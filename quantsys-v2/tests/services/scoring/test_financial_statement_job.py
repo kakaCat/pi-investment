@@ -1,6 +1,6 @@
 """financial_statement_update_job 单元测试（映射与 universe 逻辑，不碰网络）"""
 import pytest
-from infrastructure.jobs.financial_statement_update_job import (
+from qs_ops.infrastructure.jobs.financial_statement_update_job import (
     _map_income_rows, _dedup_universe,
 )
 

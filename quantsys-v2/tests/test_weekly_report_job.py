@@ -3,7 +3,7 @@ from datetime import date, datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-from infrastructure.jobs.weekly_report_job import WeeklyReportJob
+from qs_ops.infrastructure.jobs.weekly_report_job import WeeklyReportJob
 
 
 def _make_job():

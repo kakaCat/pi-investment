@@ -66,7 +66,7 @@ def mock_repo():
 @pytest.fixture
 def apscheduler_service(mock_repo):
     """创建 APScheduler 服务实例"""
-    from infrastructure.scheduler.apscheduler_service import APSchedulerService
+    from qs_ops.infrastructure.scheduler.apscheduler_service import APSchedulerService
 
     # 使用内存数据库进行测试
     db_url = "sqlite:///:memory:"
@@ -186,7 +186,7 @@ def test_job_execution_integration(apscheduler_service):
     # 这里只验证 job 是否正确配置
     assert job is not None
     # 验证 func 的模块和名称
-    assert job.func.__module__ == 'infrastructure.scheduler.job_executor'
+    assert job.func.__module__ == 'qs_ops.infrastructure.scheduler.job_executor'
     assert job.func.__name__ == 'execute_scheduled_job'
     assert job.args == (1,)
 
@@ -209,7 +209,7 @@ def test_cron_trigger_parsing(apscheduler_service):
 
 def test_delay_task_with_date_trigger(mock_repo):
     """测试延迟任务使用 DateTrigger"""
-    from infrastructure.scheduler.apscheduler_service import APSchedulerService
+    from qs_ops.infrastructure.scheduler.apscheduler_service import APSchedulerService
 
     # 添加延迟任务到 mock_repo
     delay_task = MockTask(
@@ -248,7 +248,7 @@ def test_delay_task_with_date_trigger(mock_repo):
 
 def test_interval_task_with_interval_trigger(mock_repo):
     """测试间隔任务使用 IntervalTrigger"""
-    from infrastructure.scheduler.apscheduler_service import APSchedulerService
+    from qs_ops.infrastructure.scheduler.apscheduler_service import APSchedulerService
 
     # 添加间隔任务到 mock_repo
     interval_task = MockTask(
@@ -284,7 +284,7 @@ def test_interval_task_with_interval_trigger(mock_repo):
 
 def test_once_task_with_date_trigger(mock_repo):
     """测试一次性任务使用 DateTrigger"""
-    from infrastructure.scheduler.apscheduler_service import APSchedulerService
+    from qs_ops.infrastructure.scheduler.apscheduler_service import APSchedulerService
     from datetime import datetime, timedelta
 
     # 计算未来时间

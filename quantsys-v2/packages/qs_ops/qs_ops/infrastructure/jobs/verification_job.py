@@ -48,7 +48,7 @@ class VerificationJob:
         原实现①只排周末（法定节假日误判为交易日）②直接开裸 DB cursor
         绕过连接池与 ORM 会话管理。
         """
-        from application.services.trading_day_guard import TradingDayGuard
+        from qs_ops.application.services.trading_day_guard import TradingDayGuard
 
         verdict = TradingDayGuard.check(date_str, use_cache=False)
         if verdict.degraded or verdict.source == 'unavailable':

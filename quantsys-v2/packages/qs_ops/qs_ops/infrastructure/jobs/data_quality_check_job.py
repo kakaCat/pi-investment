@@ -15,7 +15,7 @@ from typing import Dict, Any, Tuple
 
 # 添加项目路径
 
-from application.services.data_quality_service import DataQualityService
+from qs_ops.application.services.data_quality_service import DataQualityService
 
 logger = logging.getLogger(__name__)
 

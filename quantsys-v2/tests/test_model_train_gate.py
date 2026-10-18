@@ -12,7 +12,7 @@
 """
 from datetime import datetime, timedelta
 
-import application.services.scheduler_tasks as st
+import qs_ops.application.services.scheduler_tasks as st
 
 
 class _Repo:

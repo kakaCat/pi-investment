@@ -6,7 +6,7 @@
 调度配置：
     task_name: financial_timeliness_check
     cron: 0 9 * * * (每日 09:00)
-    command: infrastructure.jobs.financial_timeliness_check_job.execute
+    command: qs_ops.infrastructure.jobs.financial_timeliness_check_job.execute
 """
 import logging
 import threading
@@ -55,7 +55,7 @@ def _already_attempted_today() -> bool:
 def _run_statement_update() -> None:
     """后台重跑：把利润表 + 资产负债表刷到最新披露期。"""
     try:
-        from infrastructure.jobs.financial_statement_update_job import execute as update_statements
+        from qs_ops.infrastructure.jobs.financial_statement_update_job import execute as update_statements
         result = update_statements()
         logger.info("财报自动重跑完成: %s", result)
     except Exception as e:  # noqa: BLE001 后台线程异常不能外泄
@@ -248,7 +248,7 @@ def _send_timeliness_alert(check_result: Dict, facade=None) -> bool:
 建议行动:
 手动执行财务数据更新任务
 cd /Users/yunpeng/pi-investment/quantsys-v2
-python -m infrastructure.jobs.financial_data_update_job --report-date {check_result['expected_report_date'].replace('-', '')}
+python -m qs_ops.infrastructure.jobs.financial_data_update_job --report-date {check_result['expected_report_date'].replace('-', '')}
 """
 
         # 财报时效性告警落日志

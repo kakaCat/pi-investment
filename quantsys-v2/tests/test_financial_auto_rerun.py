@@ -11,8 +11,8 @@ from datetime import datetime, time as dtime, timedelta
 
 import pytest
 
-from infrastructure.jobs.financial_statement_update_job import _map_balance_rows
-from infrastructure.jobs import financial_timeliness_check_job as tj
+from qs_ops.infrastructure.jobs.financial_statement_update_job import _map_balance_rows
+from qs_ops.infrastructure.jobs import financial_timeliness_check_job as tj
 from adapters.inbound.fastapi_app.daily_jobs_bootstrap import JobDef, catchup_due
 
 

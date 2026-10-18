@@ -12,7 +12,7 @@ Covers:
 import pytest
 from datetime import datetime, timedelta, timezone
 
-from infrastructure.scheduler.scheduler import (
+from qs_ops.infrastructure.scheduler.scheduler import (
     CronSchedule,
     SchedulerService,
     _cron_dow,

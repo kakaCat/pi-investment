@@ -22,8 +22,8 @@ from pathlib import Path
 import pytest
 
 import qs_notification.application as _notif_pkg
-from infrastructure.jobs import financial_timeliness_check_job as mod
-from infrastructure.jobs.financial_timeliness_check_job import _send_timeliness_alert
+from qs_ops.infrastructure.jobs import financial_timeliness_check_job as mod
+from qs_ops.infrastructure.jobs.financial_timeliness_check_job import _send_timeliness_alert
 
 SAMPLE = {
     'check_date': '2026-09-13',

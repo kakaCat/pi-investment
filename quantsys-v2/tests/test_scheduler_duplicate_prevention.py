@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 from unittest.mock import MagicMock, patch
-from infrastructure.scheduler.scheduler import SchedulerService
+from qs_ops.infrastructure.scheduler.scheduler import SchedulerService
 
 
 class TestSchedulerDuplicatePrevention:

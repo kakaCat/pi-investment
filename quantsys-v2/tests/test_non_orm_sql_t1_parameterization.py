@@ -9,7 +9,7 @@ import contextlib
 import pytest
 
 from infrastructure.adapters import industry_data_adapter as ida
-from infrastructure.jobs import financial_data_update_job as fdu
+from qs_ops.infrastructure.jobs import financial_data_update_job as fdu
 
 
 # ═══════════════ industry_data_adapter ═══════════════

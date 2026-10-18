@@ -1,5 +1,7 @@
-"""基础设施层 - 调度器"""
-
-from .scheduler import SchedulerService
-
-__all__ = ['SchedulerService']
+"""兼容 shim（2026-10-18）：调度装配已迁至二方包 qs_ops。
+__path__ 转发：保住 from infrastructure.scheduler import X 与子模块导入。
+30 天观察期后删除（方案卡 S9）。
+"""
+import qs_ops.infrastructure.scheduler as _real
+__path__ = _real.__path__
+from qs_ops.infrastructure.scheduler import *  # noqa: F401,F403

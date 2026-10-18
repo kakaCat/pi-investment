@@ -22,12 +22,12 @@
 
 调度配置（quant.scheduler_tasks，旧表 scheduler_task_configs 已于 2026-09-11 删除/归档）：
     task_name: financial_data_update
-    command:   infrastructure.jobs.financial_data_update_job.execute
+    command:   qs_ops.infrastructure.jobs.financial_data_update_job.execute
 
 手动执行：
-    python -m infrastructure.jobs.financial_data_update_job
-    python -m infrastructure.jobs.financial_data_update_job --report-date 20260630
-    python -m infrastructure.jobs.financial_data_update_job --symbols 600519 000858
+    python -m qs_ops.infrastructure.jobs.financial_data_update_job
+    python -m qs_ops.infrastructure.jobs.financial_data_update_job --report-date 20260630
+    python -m qs_ops.infrastructure.jobs.financial_data_update_job --symbols 600519 000858
 """
 import sys
 import time

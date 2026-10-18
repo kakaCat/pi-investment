@@ -22,7 +22,7 @@ from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.executors.pool import ThreadPoolExecutor
 from apscheduler.triggers.cron import CronTrigger
 
-from infrastructure.scheduler.cron_compat import build_cron_trigger
+from qs_ops.infrastructure.scheduler.cron_compat import build_cron_trigger
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
@@ -122,7 +122,7 @@ class APSchedulerService:
 
                 # 添加任务到 APScheduler
                 # 注意：使用模块级函数避免序列化问题
-                from infrastructure.scheduler.job_executor import execute_scheduled_job
+                from qs_ops.infrastructure.scheduler.job_executor import execute_scheduled_job
 
                 self.scheduler.add_job(
                     func=execute_scheduled_job,

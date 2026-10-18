@@ -295,7 +295,7 @@ class ServiceFactory:
     def get_data_quality_service(cls):
         """获取DataQualityService实例"""
         if 'data_quality_service' not in cls._instances:
-            from application.services.data_quality_service import DataQualityService
+            from qs_ops.application.services.data_quality_service import DataQualityService
             cls._instances['data_quality_service'] = DataQualityService()
             logger.info("DataQualityService initialized")
         return cls._instances['data_quality_service']

@@ -48,7 +48,7 @@ class FlakyRepo:
 
 @pytest.fixture
 def flaky_service():
-    from infrastructure.scheduler.apscheduler_service import APSchedulerService
+    from qs_ops.infrastructure.scheduler.apscheduler_service import APSchedulerService
 
     repo = FlakyRepo([
         FakeTask(1, '任务甲', '0 9 * * 1-5', 'fund_flow_update'),

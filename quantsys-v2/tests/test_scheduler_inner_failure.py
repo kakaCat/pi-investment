@@ -16,7 +16,7 @@ import asyncio
 import pytest
 
 from api.internal import scheduler_webhook as wh
-from infrastructure.scheduler.job_executor import classify_job_result
+from qs_ops.infrastructure.scheduler.job_executor import classify_job_result
 
 
 # --------------------------- 判定口径（单一真源） ---------------------------

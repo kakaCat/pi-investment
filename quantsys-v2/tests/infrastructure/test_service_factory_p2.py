@@ -189,7 +189,7 @@ def test_all_p2_1_services():
         ('qs_strategy.application.services.strategy_circuit_breaker', 'StrategyCircuitBreaker'),
 
         # 数据质量
-        ('application.services.data_quality_service', 'DataQualityService'),
+        ('qs_ops.application.services.data_quality_service', 'DataQualityService'),
         ('qs_market_data.application.services.stock_code_validator', 'StockCodeValidator'),
 
         # 决策与知识
