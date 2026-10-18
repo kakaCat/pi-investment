@@ -238,17 +238,17 @@ class WatchDigestService:
 
     def _resolve_target(self, account: Optional[str], category: Optional[str] = None) -> str:
         """账户 → 处置 agent（决策在 domain 策略；本方法只做调用，**不读频道码**）"""
-        from domain.notification.policies.watch_delivery_policy import WatchDeliveryPolicy
+        from qs_notification.domain.policies.watch_delivery_policy import WatchDeliveryPolicy
         return WatchDeliveryPolicy().resolve(account=account, category=category)
 
     @staticmethod
     def _is_strategy_managed(account: Optional[str]) -> bool:
-        from domain.notification.policies.watch_delivery_policy import WatchDeliveryPolicy
+        from qs_notification.domain.policies.watch_delivery_policy import WatchDeliveryPolicy
         return WatchDeliveryPolicy.is_strategy_managed(account)
 
     def _resolve_autonomy(self, account: Optional[str]) -> str:
         """账户 → 授权等级（agent 自有账户可自主操作；用户账户只提醒）"""
-        from domain.notification.policies.watch_delivery_policy import WatchDeliveryPolicy
+        from qs_notification.domain.policies.watch_delivery_policy import WatchDeliveryPolicy
         return WatchDeliveryPolicy().resolve_autonomy(account)
 
     @staticmethod
@@ -258,7 +258,7 @@ class WatchDigestService:
         授权按账户给：agent 自有账户（agent_virtual/agent_brain）agent 自己操作；
         用户账户（user_main_simulation）只提醒、不得下单。未知账户兜底只提醒。
         """
-        from domain.notification.policies.watch_delivery_policy import AUTONOMOUS, REMIND_ONLY
+        from qs_notification.domain.policies.watch_delivery_policy import AUTONOMOUS, REMIND_ONLY
         if autonomy == AUTONOMOUS:
             authority = ("本账户是 **agent 自有账户**：**你可以自主操作**（含下单），"
                          "按交易宪法与 R-001~R-009 执行，下单 reason 写明规则ID+数据依据，"

@@ -11,7 +11,7 @@ Date: 2026-09-02
 """
 
 from typing import Dict, Any, List
-from domain.notification.models.formatter import NotificationFormatter
+from qs_notification.domain.models.formatter import NotificationFormatter
 
 
 class FeishuFormatter(NotificationFormatter):

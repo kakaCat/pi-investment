@@ -14,9 +14,9 @@ import requests
 import structlog
 from typing import List, Optional
 
-from domain.notification.models.notification import Notification, NotificationType
-from domain.notification.models.channel import NotificationChannel, ChannelResult
-from domain.notification.models.formatter import NotificationFormatter
+from qs_notification.domain.models.notification import Notification, NotificationType
+from qs_notification.domain.models.channel import NotificationChannel, ChannelResult
+from qs_notification.domain.models.formatter import NotificationFormatter
 
 logger = structlog.get_logger(__name__)
 

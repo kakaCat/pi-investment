@@ -14,9 +14,9 @@ Date: 2026-09-02
 import structlog
 from typing import List, Dict, Optional
 
-from domain.notification.models.notification import Notification, NotificationStatus
-from domain.notification.models.channel import NotificationChannel, ChannelResult
-from domain.notification.policies.notification_policy import NotificationPolicy
+from qs_notification.domain.models.notification import Notification, NotificationStatus
+from qs_notification.domain.models.channel import NotificationChannel, ChannelResult
+from qs_notification.domain.policies.notification_policy import NotificationPolicy
 
 logger = structlog.get_logger(__name__)
 

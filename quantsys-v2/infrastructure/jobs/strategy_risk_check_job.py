@@ -32,7 +32,7 @@ from typing import Dict, List, Optional
 
 from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
 from adapters.outbound.repositories.kline_repository import KlineORMRepository as KlineRepository
-from application.notification.notification_factory import get_notification_facade
+from qs_notification.application.notification_factory import get_notification_facade
 from application.services.strategy_service import StrategyService
 from live_trading.simulation_trader import SimulationTrader
 import yaml

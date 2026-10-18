@@ -9,7 +9,7 @@ L2 的 trend_observe 优先级冲突、宪法级压过观察、市场/板块 sco
 """
 import pytest
 
-from domain.notification.policies.watch_delivery_policy import (
+from qs_notification.domain.policies.watch_delivery_policy import (
     AGENT_DH, AGENT_TS, AUTONOMOUS, NOT_APPLICABLE, REMIND_ONLY, WatchDeliveryPolicy,
 )
 from domain.watch.services.level_resolver import (

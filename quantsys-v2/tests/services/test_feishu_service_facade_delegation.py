@@ -5,10 +5,10 @@ requests.post 飞书 webhook（绕过 DDD 通知域），本测试锁定它已�
 P1 回归：门面不再硬编码 preferred_channels=['feishu']，策略的「agent 优先、飞书降级」生效。
 """
 
-import application.notification as notification_pkg
-import application.notification.legacy_adapters as legacy_adapters
+import qs_notification.application as notification_pkg
+import qs_notification.application.legacy_adapters as legacy_adapters
 from application.services.feishu_service import FeishuNotificationService
-from domain.notification.models.channel import ChannelResult
+from qs_notification.domain.models.channel import ChannelResult
 
 
 def _patch_legacy_bridge(monkeypatch, fake):

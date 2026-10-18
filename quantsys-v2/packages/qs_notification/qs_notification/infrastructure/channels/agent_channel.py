@@ -22,12 +22,12 @@ import requests
 import structlog
 from typing import Any, Dict, Optional
 
-from domain.notification.models.notification import (
+from qs_notification.domain.models.notification import (
     Notification,
     NotificationPriority,
     NotificationType,
 )
-from domain.notification.models.channel import NotificationChannel, ChannelResult
+from qs_notification.domain.models.channel import NotificationChannel, ChannelResult
 
 logger = structlog.get_logger(__name__)
 

@@ -162,7 +162,7 @@ def send_alert(payload: Dict[str, Any]) -> Dict[str, Any]:
     运维群（FEISHU_WEBHOOK_OPS），不再与股票类消息混群；且**不再经 Agent OS**
     （探活必须独立于被监控链路：8080 就是被监控对象之一）。
     """
-    from application.notification.notification_factory import NotificationFactory
+    from qs_notification.application.notification_factory import NotificationFactory
 
     facade = NotificationFactory.get_instance()
     ok = facade.send_ops_text(

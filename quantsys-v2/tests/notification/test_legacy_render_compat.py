@@ -10,13 +10,13 @@ feishu_formatters.WatchTriggeredFormatter 旧渲染，且旧特征结构完整�
 """
 import pytest
 
-from domain.notification.models.notification import Notification, NotificationType
-from infrastructure.notification.formatters.feishu_formatters import WatchTriggeredFormatter
+from qs_notification.domain.models.notification import Notification, NotificationType
+from qs_notification.infrastructure.formatters.feishu_formatters import WatchTriggeredFormatter
 
 
 @pytest.fixture(autouse=True)
 def _force_legacy_render(monkeypatch):
-    from infrastructure.notification.formatters import watch_message_renderer
+    from qs_notification.infrastructure.formatters import watch_message_renderer
     monkeypatch.setattr(watch_message_renderer, 'MSG_V2_ENABLED', False)
 
 

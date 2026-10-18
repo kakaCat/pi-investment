@@ -3,7 +3,7 @@
 路由是**通知域**的通用能力：盯盘只声明语义（intent/scope/disposition/是否宪法级/金额），
 由策略决定落到哪个逻辑频道。10 个逻辑频道按"你会不会想单独静音它"切分。
 """
-from domain.notification.policies.watch_channel_policy import (
+from qs_notification.domain.policies.watch_channel_policy import (
     CH_DECISION_INBOX, CH_ENTRY_SIGNAL, CH_EXIT_MANAGE, CH_MARKET_STATE, CH_POSITION_OPS,
     CH_RISK_STOP, CH_RULE_GOVERNANCE, CH_SYSTEM_OPS, CH_WATCH_MARKET, CH_WATCH_SYMBOL,
     UNMUTABLE_CHANNELS, WATCH_CHANNELS, WatchChannelPolicy,

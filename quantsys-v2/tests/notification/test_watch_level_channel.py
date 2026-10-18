@@ -13,15 +13,15 @@ test_unified_render_consistency.py 守护。
 """
 import pytest
 
-from domain.notification.models.notification import Notification, NotificationType
-from infrastructure.notification.formatters.feishu_formatters import WatchTriggeredFormatter
-from infrastructure.notification.formatters.watch_level_templates import render_watch_variables
+from qs_notification.domain.models.notification import Notification, NotificationType
+from qs_notification.infrastructure.formatters.feishu_formatters import WatchTriggeredFormatter
+from qs_notification.infrastructure.formatters.watch_level_templates import render_watch_variables
 
 
 @pytest.fixture(autouse=True)
 def _force_legacy_render(monkeypatch):
     """本文件全部用例强制走旧渲染链（守护 V2 关闭的回退路径）。"""
-    from infrastructure.notification.formatters import watch_message_renderer
+    from qs_notification.infrastructure.formatters import watch_message_renderer
     monkeypatch.setattr(watch_message_renderer, 'MSG_V2_ENABLED', False)
 
 

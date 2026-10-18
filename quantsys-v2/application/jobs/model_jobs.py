@@ -25,7 +25,7 @@ def _send_feishu(text: str) -> bool:
     不再与股票类消息混群。
     """
     try:
-        from application.notification import get_notification_facade
+        from qs_notification.application import get_notification_facade
 
         title, _, body = text.partition('\n')
         title = title.strip() or '模型新鲜度告警'

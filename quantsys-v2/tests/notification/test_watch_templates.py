@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from infrastructure.notification.formatters.watch_level_templates import (
+from qs_notification.infrastructure.formatters.watch_level_templates import (
     ACTION_ENTRY_TEXT,
     LEVELS,
     MENTION_USER,
@@ -25,16 +25,16 @@ from infrastructure.notification.formatters.watch_level_templates import (
     render_watch_message,
     resolve_level_template,
 )
-from domain.notification.policies.watch_channel_policy import (
+from qs_notification.domain.policies.watch_channel_policy import (
     CH_ENTRY_SIGNAL,
     CH_RISK_STOP,
     WatchChannelPolicy,
 )
-from application.notification.notification_facade import (
+from qs_notification.application.notification_facade import (
     NotificationFacade,
     TARGET_AGENT_TRANSPORT,
 )
-from domain.notification.models.channel import ChannelResult
+from qs_notification.domain.models.channel import ChannelResult
 
 
 # ── 工具 ─────────────────────────────────────────────────────────────────────

@@ -49,9 +49,9 @@ def _todo(**over):
 @pytest.fixture
 def facade(monkeypatch):
     fake = _FakeFacade()
-    # watch_channels 在函数体内 `from application.notification import get_notification_facade`，
+    # watch_channels 在函数体内 `from qs_notification.application import get_notification_facade`，
     # 故 patch 包属性（sys.modules 查得到）而不是 watch_channels 的模块属性。
-    import application.notification as notification_pkg
+    import qs_notification.application as notification_pkg
     monkeypatch.setattr(notification_pkg, 'get_notification_facade', lambda: fake)
     return fake
 

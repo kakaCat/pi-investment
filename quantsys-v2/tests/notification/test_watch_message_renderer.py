@@ -5,7 +5,7 @@
 from domain.watch.services.watch_message import (
     ActionSection, FactSection, WatchMessage, resolve_action,
 )
-from infrastructure.notification.formatters.watch_message_renderer import (
+from qs_notification.infrastructure.formatters.watch_message_renderer import (
     LEVEL_COLORS, MSG_V2_ENABLED, render_watch_message,
 )
 

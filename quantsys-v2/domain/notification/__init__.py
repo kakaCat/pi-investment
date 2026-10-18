@@ -1,57 +1,13 @@
+"""已迁移占位 shim：notification 领域层（模型/策略/服务）已抽离为独立二方包 `qs-notification`（packages/qs_notification）。
+
+保留本兼容层用于吸收未跟踪代码/实验脚本中的旧路径 import。
+新代码一律使用 `from qs_notification.domain import Notification`；本 shim 计划在 30 天观察期后删除。
 """
-通知领域模型
+import warnings as _warnings
 
-Domain-Driven Design 架构的通知系统：
-- 统一的通知抽象（Notification 聚合根）
-- 多渠道支持（Feishu, Agent, Email, SMS）
-- 清晰的职责分离（领域层、应用层、基础设施层）
-- 可扩展的格式化器体系
-
-作者: System
-日期: 2026-09-02
-"""
-
-from .models.notification import (
-    Notification,
-    NotificationPriority,
-    NotificationStatus,
-    NotificationType,
-    NotificationRecipient,
-)
-
-from .models.channel import (
-    NotificationChannel,
-    ChannelResult,
-)
-
-from .models.formatter import (
-    NotificationFormatter,
-)
-
-from .services.notification_service import (
-    NotificationService,
-)
-
-from .policies.notification_policy import (
-    NotificationPolicy,
-)
-
-__all__ = [
-    # Models
-    'Notification',
-    'NotificationPriority',
-    'NotificationStatus',
-    'NotificationType',
-    'NotificationRecipient',
-
-    # Interfaces
-    'NotificationChannel',
-    'ChannelResult',
-    'NotificationFormatter',
-
-    # Services
-    'NotificationService',
-
-    # Policies
-    'NotificationPolicy',
-]
+try:
+    import qs_notification.domain as _pkg
+    from qs_notification.domain import *  # noqa: F401,F403
+    __path__ = _pkg.__path__
+except ImportError as _e:  # pragma: no cover
+    _warnings.warn(f"旧路径 domain.notification 已迁移为 qs_notification.domain，但包不可导入: {_e}")

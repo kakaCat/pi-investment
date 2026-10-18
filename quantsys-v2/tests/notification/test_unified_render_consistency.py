@@ -4,8 +4,8 @@
 WatchTriggeredFormatter 出的是统一渲染器的同一份四段式骨架——消灭格式清单的
 "分级卡/旧意图卡两套版式漂移"（调研 §4 根因三）。
 """
-from domain.notification.models.notification import Notification, NotificationType
-from infrastructure.notification.formatters.feishu_formatters import WatchTriggeredFormatter
+from qs_notification.domain.models.notification import Notification, NotificationType
+from qs_notification.infrastructure.formatters.feishu_formatters import WatchTriggeredFormatter
 
 
 def _notification(**variables):

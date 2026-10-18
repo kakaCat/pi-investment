@@ -476,9 +476,9 @@ def _get_notification_facade():
     """获取通知门面（单独抽出，便于测试注入假门面）
 
     架构铁律（CLAUDE.md 通知架构）：所有外发通知必须走
-    application.notification.NotificationFacade，禁止直接调用飞书 SDK/webhook。
+    qs_notification.application.NotificationFacade，禁止直接调用飞书 SDK/webhook。
     """
-    from application.notification import get_notification_facade
+    from qs_notification.application import get_notification_facade
     return get_notification_facade()
 
 

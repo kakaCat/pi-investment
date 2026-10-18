@@ -223,7 +223,7 @@ def _job_event_calendar_check() -> Dict[str, Any]:
     )
     # 2026-09-11（w-23c70356）：改走 NotificationFacade（原直接 new 旧版
     # FeishuNotificationService，绕过 DDD 通知域）
-    from application.notification import get_notification_facade
+    from qs_notification.application import get_notification_facade
 
     events = get_event_calendar_repo().list_upcoming(days_ahead=2)
     target = [e for e in events if e.status == 'pending' and (e.importance or 1) >= 2]

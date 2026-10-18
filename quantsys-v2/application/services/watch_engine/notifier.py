@@ -19,7 +19,7 @@ from typing import Optional
 import requests
 import structlog
 
-from application.notification.notification_factory import NotificationFactory
+from qs_notification.application.notification_factory import NotificationFactory
 from application.services.watch_engine.dto import TriggerPayload
 from domain.watch.models import MetricKind, TriggerLevel
 from domain.watch.services.metric_contract import metric_matches

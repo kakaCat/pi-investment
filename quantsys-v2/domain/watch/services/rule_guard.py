@@ -33,7 +33,7 @@ class WatchRuleNotApplicable(ValueError):
 
 def guard_account_applicable(account, symbol=None) -> None:
     """盯盘适用性：策略账户（v13/v14/v15/chip 等）由策略执行，不进盯盘体系。"""
-    from domain.notification.policies.watch_delivery_policy import WatchDeliveryPolicy
+    from qs_notification.domain.policies.watch_delivery_policy import WatchDeliveryPolicy
     if account and WatchDeliveryPolicy.is_strategy_managed(account):
         raise WatchRuleNotApplicable(
             "策略账户不接受盯盘规则：%s 的交易由策略引擎执行，与盯盘无关"

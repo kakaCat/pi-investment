@@ -4,8 +4,8 @@
 产出的四段式正文（agent-os 网关裸转发路径信息完整）；action_params 直达 variables；
 缺指引规则渲染 ⚠️ 标注而非推责文案。
 """
-import application.notification as notification_pkg
-from domain.notification.models.channel import ChannelResult
+import qs_notification.application as notification_pkg
+from qs_notification.domain.models.channel import ChannelResult
 
 
 def _capture(monkeypatch):

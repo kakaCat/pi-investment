@@ -13,7 +13,7 @@ Date: 2026-09-02
 """
 
 from typing import Dict, Any
-from domain.notification.models.notification import Notification, NotificationType
+from qs_notification.domain.models.notification import Notification, NotificationType
 from .feishu_base_formatter import FeishuFormatter
 
 
@@ -61,14 +61,14 @@ class WatchTriggeredFormatter(FeishuFormatter):
         骨架（消灭"分级卡/旧意图卡两套版式漂移"）；关时保持上述旧分支（可灰度回退）。
         """
         vars = notification.variables
-        from infrastructure.notification.formatters.watch_message_renderer import (
+        from qs_notification.infrastructure.formatters.watch_message_renderer import (
             MSG_V2_ENABLED,
         )
         if MSG_V2_ENABLED:
             return self._format_via_unified_renderer(notification)
         watch_level = vars.get('watch_level') or vars.get('level')
         if watch_level:
-            from infrastructure.notification.formatters.watch_level_templates import (
+            from qs_notification.infrastructure.formatters.watch_level_templates import (
                 render_watch_variables,
             )
             return render_watch_variables(vars)
@@ -143,10 +143,10 @@ class WatchTriggeredFormatter(FeishuFormatter):
         from domain.watch.services.watch_message import (
             FactSection, WatchMessage, resolve_action,
         )
-        from infrastructure.notification.formatters.watch_level_templates import (
+        from qs_notification.infrastructure.formatters.watch_level_templates import (
             MENTION_USER,
         )
-        from infrastructure.notification.formatters.watch_message_renderer import (
+        from qs_notification.infrastructure.formatters.watch_message_renderer import (
             render_watch_message,
         )
 

@@ -151,7 +151,7 @@ class AgentNotificationService:
             candidates = [p.strip().strip('"\'') for p in raw.strip('[]').split(',')]
         else:
             try:
-                from domain.notification.policies.watch_delivery_policy import WATCH_AGENTS
+                from qs_notification.domain.policies.watch_delivery_policy import WATCH_AGENTS
                 candidates = [a for a in WATCH_AGENTS if a != requested]
             except Exception:  # noqa: BLE001 - 策略表不可用时退回默认 agent（不阻断投递）
                 candidates = []

@@ -11,14 +11,14 @@ import structlog
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
-from domain.notification.models.notification import (
+from qs_notification.domain.models.notification import (
     Notification,
     NotificationType,
     NotificationPriority,
     NotificationStatus,
 )
-from domain.notification.models.channel import ChannelResult
-from domain.notification.services.notification_service import NotificationService
+from qs_notification.domain.models.channel import ChannelResult
+from qs_notification.domain.services.notification_service import NotificationService
 
 logger = structlog.get_logger(__name__)
 
@@ -184,7 +184,7 @@ class NotificationFacade:
             ChannelResult: 发送结果（metadata 内含 wake_target 与传输能力报告）
         """
         # P8：路由决策交给**通知域策略**（盯盘只声明语义，不关心发到哪个群）
-        from domain.notification.policies.watch_channel_policy import WatchChannelPolicy
+        from qs_notification.domain.policies.watch_channel_policy import WatchChannelPolicy
         # REQ-c9f899 t9 金额门死代码修复：此前用无参构造 → account_total_yuan 恒为 None，
         # 金额门从未生效。这里把调用方给的账户总资产注入策略（缺失=None=门关闭，行为不变）。
         watch_channel = WatchChannelPolicy(
@@ -195,7 +195,7 @@ class NotificationFacade:
             action_amount_yuan=action_amount_yuan,
         )
         # 处置 agent（谁接手）是**独立维度**：按账户归属解析，绝不从消息频道推导（2026-09-11 用户定调）
-        from domain.notification.policies.watch_delivery_policy import WatchDeliveryPolicy
+        from qs_notification.domain.policies.watch_delivery_policy import WatchDeliveryPolicy
         target_agent = target_agent or WatchDeliveryPolicy().resolve(account=account)
 
         # 2026-10-15（用户反馈 002074 触发只有一行干巴巴的事实）：WATCH_TRIGGERED 优先投
@@ -207,7 +207,7 @@ class NotificationFacade:
         # 2026-10-16（REQ-261016155500-4f2a）：WATCH_MSG_V2 开时正文改由统一渲染器产出——
         # 四段式（事实→意义→建议动作→重估条件）在**消息本体**组装完成，agent-os 裸转发
         # 与飞书降级路径看到同一份内容；关时回退 10-15 的 enrich 平铺逻辑（可灰度回滚）。
-        from infrastructure.notification.formatters.watch_message_renderer import (
+        from qs_notification.infrastructure.formatters.watch_message_renderer import (
             MSG_V2_ENABLED, render_watch_message,
         )
         if MSG_V2_ENABLED:

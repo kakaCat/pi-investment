@@ -15,7 +15,7 @@ Date: 2026-09-02
 
 import structlog
 from typing import Dict, Any, Optional
-from application.notification.notification_factory import get_notification_facade
+from qs_notification.application.notification_factory import get_notification_facade
 
 logger = structlog.get_logger(__name__)
 

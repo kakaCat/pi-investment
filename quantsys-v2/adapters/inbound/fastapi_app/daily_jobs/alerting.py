@@ -31,7 +31,7 @@ def _send_feishu(text: str) -> bool:
     全是系统消息，此前与股票消息同群造成混流。
     """
     try:
-        from application.notification import get_notification_facade
+        from qs_notification.application import get_notification_facade
 
         title, _, body = text.partition('\n')
         title = title.strip() or '每日任务通知'

@@ -276,7 +276,7 @@ python -m infrastructure.jobs.financial_data_update_job --report-date {check_res
         # 2026-10-14：财报超期未更新是**数据链路**健康问题（无个股观点）→ 走
         # send_ops_card 落独立运维群，不再与个股/盘前例程等股票消息混群。
         if facade is None:
-            from application.notification import get_notification_facade
+            from qs_notification.application import get_notification_facade
             facade = get_notification_facade()
 
         delivered = bool(facade.send_ops_card(

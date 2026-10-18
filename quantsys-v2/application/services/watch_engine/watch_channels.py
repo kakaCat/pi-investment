@@ -4,8 +4,8 @@
 log-only，告警只在日志里、人看不到（§6 待接线项 6/10）。
 
 纪律（对齐 pi-investment/CLAUDE.md 通知架构铁律）：
-  · 只经 application.notification.get_notification_facade()；禁止直接 import
-    infrastructure.notification.channels.*，禁止 requests.post(飞书 webhook)。
+  · 只经 qs_notification.application.get_notification_facade()；禁止直接 import
+    qs_notification.infrastructure.channels.*，禁止 requests.post(飞书 webhook)。
   · 发送失败必须抛错，不许静默返回 False：run_heartbeat_check 用 sender 是否抛错
     统计 sent；ReceiptService 用 sender 是否抛错 决定 delivery_status=sent/failed。
     若这里吞掉失败返回 False，回执会被记成 sent（假成功），心跳会把失败当成已送达。
@@ -52,7 +52,7 @@ def send_watch_alert(text: str) -> bool:
     run_heartbeat_check 传入的是「标题 | 原因」；按首个竖线拆标题与正文。
     失败抛错（run_heartbeat_check 会如实记 sent=0），绝不假装已发。
     """
-    from application.notification import get_notification_facade
+    from qs_notification.application import get_notification_facade
 
     raw = str(text or "").strip()
     title, _, body = raw.partition("|")
@@ -73,7 +73,7 @@ def send_watch_receipt(payload: Dict[str, Any]) -> bool:
     timeout/P0 → risk_stop（盯盘群内高优位），其余 → watch_symbol；
     失败抛错 → delivery_status=failed（如实）。
     """
-    from application.notification import get_notification_facade
+    from qs_notification.application import get_notification_facade
 
     data = payload or {}
     kind = str(data.get('kind') or '').strip().lower()
@@ -144,7 +144,7 @@ def wake_todo_assignment(todo: Any) -> bool:
     返回 True=已送达（wake ok）；False=未送达（不回退卡片：建单阶段没有面向用户的
     文案，工单仍会在超时升级时兜底）。**不抛错**——派单失败绝不能打挂建单。
     """
-    from application.notification import get_notification_facade
+    from qs_notification.application import get_notification_facade
 
     owner_ref = str(getattr(todo, 'owner_ref', '') or '').strip() or None
     data = _todo_wake_data(todo, event=WAKE_EVENT_TODO_ASSIGNED)
@@ -180,7 +180,7 @@ def wake_todo_owner(todo: Any, context: Optional[Dict[str, Any]] = None) -> bool
     agent_waker 契约（ReceiptService._wake_owner）：返回 True=sent / False=failed，
     异常向上抛由调用方记 failed。
     """
-    from application.notification import get_notification_facade
+    from qs_notification.application import get_notification_facade
 
     ctx = context or {}
     level = str(getattr(todo, 'level', '') or '').strip().upper()

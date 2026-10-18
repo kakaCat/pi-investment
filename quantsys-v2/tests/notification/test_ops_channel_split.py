@@ -15,15 +15,15 @@
 """
 from types import SimpleNamespace
 
-from application.notification.notification_facade import (
+from qs_notification.application.notification_facade import (
     NotificationFacade,
     OPS_CHANNEL_NAME,
 )
-from application.notification.notification_factory import NotificationFactory
-from domain.notification.models.channel import ChannelResult, NotificationChannel
-from domain.notification.policies.notification_policy import NotificationPolicy
-from domain.notification.services.notification_service import NotificationService
-from infrastructure.notification.channels.feishu_channel import FeishuChannel
+from qs_notification.application.notification_factory import NotificationFactory
+from qs_notification.domain.models.channel import ChannelResult, NotificationChannel
+from qs_notification.domain.policies.notification_policy import NotificationPolicy
+from qs_notification.domain.services.notification_service import NotificationService
+from qs_notification.infrastructure.channels.feishu_channel import FeishuChannel
 
 GENERAL_HOOK = "https://open.feishu.cn/open-apis/bot/v2/hook/general-group"
 OPS_HOOK = "https://open.feishu.cn/open-apis/bot/v2/hook/ops-group"

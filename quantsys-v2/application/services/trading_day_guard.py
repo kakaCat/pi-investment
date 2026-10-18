@@ -102,7 +102,7 @@ def notify_degraded(title: str, content: str, urgency: str) -> bool:
     （send_ops_card），不再与股票类消息混群。
     """
     try:
-        from application.notification import get_notification_facade
+        from qs_notification.application import get_notification_facade
 
         return bool(get_notification_facade().send_ops_card(
             title=title, content=content,

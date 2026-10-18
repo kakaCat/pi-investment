@@ -4,7 +4,7 @@
 """
 import pytest
 
-from domain.notification.policies.watch_delivery_policy import (
+from qs_notification.domain.policies.watch_delivery_policy import (
     AGENT_DH, AGENT_TS, AUTONOMOUS, DEFAULT_AGENT, NOT_APPLICABLE, REMIND_ONLY, _parse_map,
     WATCH_AGENTS, WatchDeliveryPolicy,
 )
