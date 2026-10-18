@@ -2,7 +2,7 @@
 from datetime import datetime
 from types import SimpleNamespace
 
-from application.services.watch_engine.position_lifecycle_service import (
+from qs_watch.application.services.watch_engine.position_lifecycle_service import (
     PositionLifecycleService, stop_loss_pct,
 )
 

@@ -6,12 +6,12 @@
 """
 import pytest
 
-from application.services.watch_engine.conditions import EvalResult
-from domain.watch.models import (
+from qs_watch.application.services.watch_engine.conditions import EvalResult
+from qs_watch.domain.watch.models import (
     ActionHint, EscalationPolicy, MetricKind, QuoteData, TriggerLevel, WatchMetricContractViolation,
     WatchRule,
 )
-from domain.watch.services.escalation_checker import EscalationChecker
+from qs_watch.domain.watch.services.escalation_checker import EscalationChecker
 
 
 def _rule(**over):

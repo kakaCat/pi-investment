@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qs-watch"
+version = "0.1.0"
+description = "PI Investment 实时盯盘包 - WatchEngine 引擎/规则判定/触发通知/回执/降噪自愈"
+requires-python = ">=3.10"
+dependencies = [
+    "requests",
+    "structlog",
+]
+
+[tool.setuptools.packages.find]
+include = ["qs_watch*"]
+exclude = ["__pycache__*", "*.egg-info*"]

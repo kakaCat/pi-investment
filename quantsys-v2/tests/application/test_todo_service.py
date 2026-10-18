@@ -20,9 +20,9 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from adapters.outbound.repositories.watch_todo_repository import WatchTodoRepository
-from application.services.watch_engine import todo_service as todo_service_module
-from application.services.watch_engine.todo_service import TodoService
-from domain.watch.ports import (
+from qs_watch.application.services.watch_engine import todo_service as todo_service_module
+from qs_watch.application.services.watch_engine.todo_service import TodoService
+from qs_watch.domain.watch.ports import (
     IWatchTodoRepository,
     WatchTodoAlreadyClosed,
     WatchTodoInvalidAutonomy,
@@ -32,7 +32,7 @@ from domain.watch.ports import (
     WatchTodoNotFound,
     WatchTodoOutOfScope,
 )
-from domain.watch.services.owner_router import OwnerRoute
+from qs_watch.domain.watch.services.owner_router import OwnerRoute
 
 NOW = datetime(2026, 9, 18, 10, 0, tzinfo=timezone.utc)
 

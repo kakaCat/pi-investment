@@ -6,7 +6,7 @@
 import pytest
 
 from adapters.outbound.repositories.watch_rule_repository import WatchRuleRepository
-from domain.watch.services.rule_guard import TradeRuleWithoutAccount
+from qs_watch.domain.watch.services.rule_guard import TradeRuleWithoutAccount
 
 COND = [{"type": "price_break", "params": {"direction": "below", "price": 10.0}}]
 

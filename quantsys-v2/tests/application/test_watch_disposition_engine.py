@@ -11,8 +11,8 @@ tick 里到底有没有把去重结果传到通知器、通知器有没有真的
 from datetime import datetime
 from types import SimpleNamespace
 
-from application.services.watch_engine.engine import WatchEngine
-from application.services.watch_engine.notifier import WatchNotifier
+from qs_watch.application.services.watch_engine.engine import WatchEngine
+from qs_watch.application.services.watch_engine.notifier import WatchNotifier
 
 
 def _rule(rule_id, symbol, conds, level='L1', action='observe', policy=None):

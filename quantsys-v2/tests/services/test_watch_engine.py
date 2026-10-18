@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from application.services.watch_engine.engine import WatchEngine, elapsed_trading_fraction
+from qs_watch.application.services.watch_engine.engine import WatchEngine, elapsed_trading_fraction
 
 
 def make_rule(id=1, symbol='600519.SH', conditions=None, cost_price=None,

@@ -1,24 +1,9 @@
-"""Watch 领域模块"""
-from domain.watch.models import (
-    TriggerLevel,
-    ActionHint,
-    EscalationPolicy,
-    WatchRule,
-    RuleHealthReport,
-)
-from domain.watch.ports import (
-    IWatchRuleRepository,
-    ITriggerHistoryRepository,
-    IQuoteProvider,
-)
+"""兼容 shim（2026-10-18）：已迁至二方包 qs_watch。
+__path__ 转发：保住 from domain.watch import X 与子模块导入。
+30 天观察期后删除（方案卡 S8）。
+"""
+import qs_watch.domain.watch as _real
 
-__all__ = [
-    'TriggerLevel',
-    'ActionHint',
-    'EscalationPolicy',
-    'WatchRule',
-    'RuleHealthReport',
-    'IWatchRuleRepository',
-    'ITriggerHistoryRepository',
-    'IQuoteProvider',
-]
+__path__ = _real.__path__
+
+from qs_watch.domain.watch import *  # noqa: F401,F403

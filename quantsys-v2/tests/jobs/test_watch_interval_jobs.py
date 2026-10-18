@@ -92,7 +92,7 @@ class _FakeFacade:
 
 
 def test_send_watch_alert_uses_facade_and_raises_on_failure(monkeypatch):
-    from application.services.watch_engine import watch_channels
+    from qs_watch.application.services.watch_engine import watch_channels
     good = _FakeFacade(True)
     monkeypatch.setattr("qs_notification.application.get_notification_facade", lambda: good)
     assert watch_channels.send_watch_alert("【盯盘引擎】心跳丢失 | 已过期 600s") is True
@@ -108,7 +108,7 @@ def test_send_watch_alert_uses_facade_and_raises_on_failure(monkeypatch):
 
 
 def test_send_watch_receipt_channel_drives_urgency_and_raises(monkeypatch):
-    from application.services.watch_engine import watch_channels
+    from qs_watch.application.services.watch_engine import watch_channels
     import pytest
     good = _FakeFacade(True)
     monkeypatch.setattr("qs_notification.application.get_notification_facade", lambda: good)

@@ -56,19 +56,19 @@ def _job_watch_heartbeat() -> Dict[str, Any]:
     from adapters.outbound.repositories.watch_runtime_state_repository import (
         WatchRuntimeStateRepository,
     )
-    from application.services.watch_engine.watch_channels import send_watch_alert
+    from qs_watch.application.services.watch_engine.watch_channels import send_watch_alert
     return run_heartbeat_check(store=WatchRuntimeStateRepository(), sender=send_watch_alert)
 
 
 def _job_watch_sla() -> Dict[str, Any]:
     """待办到期巡检（唯一收敛权威，architecture §4）"""
-    from application.services.watch_engine.watch_loop_wiring import build_sla_job
+    from qs_watch.application.services.watch_engine.watch_loop_wiring import build_sla_job
     return build_sla_job().run_once()
 
 
 def _job_watch_self_heal() -> Dict[str, Any]:
     """规则自愈扫描（反复触发 → 抑噪 + 修规则待办，R6）"""
-    from application.services.watch_engine.watch_loop_wiring import build_self_heal_service
+    from qs_watch.application.services.watch_engine.watch_loop_wiring import build_self_heal_service
     return build_self_heal_service().scan()
 
 

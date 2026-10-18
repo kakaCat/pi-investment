@@ -12,7 +12,7 @@ from types import SimpleNamespace
 import pytest
 
 from qs_notification.application.notification_facade import NotificationFacade
-from application.services.watch_engine import watch_channels
+from qs_watch.application.services.watch_engine import watch_channels
 from qs_notification.domain.models.channel import ChannelResult
 from qs_notification.domain.models.notification import NotificationStatus
 

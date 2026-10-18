@@ -1,8 +1,8 @@
 """规则守卫单测：没有账户的规则不能进入买卖（2026-09-11，w-aebfddcd）"""
 import pytest
 
-from domain.watch.services.disposition import TRADE_INTENTS
-from domain.watch.services.rule_guard import (
+from qs_watch.domain.watch.services.disposition import TRADE_INTENTS
+from qs_watch.domain.watch.services.rule_guard import (
     TradeRuleWithoutAccount, effective_account, guard_new_rule, guard_rule_change,
 )
 

@@ -19,7 +19,7 @@ import pytest
 
 from adapters.inbound.fastapi_app.watch_sla_job import WatchSlaJob
 from adapters.outbound.repositories.watch_receipt_repository import WatchReceiptRepository
-from application.services.watch_engine.receipt_service import (
+from qs_watch.application.services.watch_engine.receipt_service import (
     CHANNEL_ALERTS,
     CHANNEL_REPORTS,
     DELIVERY_FAILED,
@@ -29,7 +29,7 @@ from application.services.watch_engine.receipt_service import (
     payload_digest,
     resolve_channel,
 )
-from domain.watch.ports import IWatchReceiptRepository, RECEIPT_KINDS
+from qs_watch.domain.watch.ports import IWatchReceiptRepository, RECEIPT_KINDS
 
 NOW = datetime(2026, 9, 18, 10, 0, 0, tzinfo=timezone.utc)
 DUE_PAST = NOW - timedelta(minutes=5)

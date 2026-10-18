@@ -9,7 +9,7 @@
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 
-from domain.watch.services.disposition import (
+from qs_watch.domain.watch.services.disposition import (
     DISPOSITION_AUTO_OBSERVED, DISPOSITION_ESCALATED, DISPOSITION_META_REVIEW,
     DISPOSITION_PENDING, GateContext, InterventionConfig, decide,
     dedup_key, evaluate_meta_trigger, is_resolved, normalize_symbol,

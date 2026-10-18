@@ -29,10 +29,10 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from adapters.inbound.fastapi_app.routes import watch_rule_repair_async as repair_route
-from application.services.watch_engine.engine import SUPPRESSED_TRIGGER_REASON, WatchEngine
-from application.services.watch_engine.noise_self_heal_service import NoiseSelfHealService
-from application.services.watch_engine.todo_service import TodoService
-from domain.watch.ports import (
+from qs_watch.application.services.watch_engine.engine import SUPPRESSED_TRIGGER_REASON, WatchEngine
+from qs_watch.application.services.watch_engine.noise_self_heal_service import NoiseSelfHealService
+from qs_watch.application.services.watch_engine.todo_service import TodoService
+from qs_watch.domain.watch.ports import (
     IWatchRuleChangeRepository,
     IWatchRuleNoiseRepository,
     WatchRuleChangeInvalidKind,

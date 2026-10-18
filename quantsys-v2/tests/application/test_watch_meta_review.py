@@ -5,10 +5,10 @@
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 
-from domain.watch.services.disposition import (
+from qs_watch.domain.watch.services.disposition import (
     DISPOSITION_META_REVIEW, InterventionConfig,
 )
-from application.services.watch_engine.meta_review_service import WatchMetaReviewService
+from qs_watch.application.services.watch_engine.meta_review_service import WatchMetaReviewService
 
 NOW = datetime(2026, 9, 11, 16, 0, 0)
 

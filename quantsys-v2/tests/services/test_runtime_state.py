@@ -15,11 +15,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from application.services.watch_engine.engine import (
+from qs_watch.application.services.watch_engine.engine import (
     RUNTIME_PERSIST_ENV, WatchEngine, _runtime_persist_enabled,
 )
-from application.services.watch_engine.state_manager import StateManager
-from application.services.watch_engine.trigger_judge import TriggerJudge
+from qs_watch.application.services.watch_engine.state_manager import StateManager
+from qs_watch.application.services.watch_engine.trigger_judge import TriggerJudge
 
 # 状态层测试用（naive，与引擎 datetime.now 口径一致）
 NOW = datetime(2026, 9, 18, 10, 0, 0)

@@ -9,11 +9,11 @@
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 
-from application.services.watch_engine.conditions import (
+from qs_watch.application.services.watch_engine.conditions import (
     DEFAULT_DAILY_EMIT_CAP, hysteresis_rearm_price, within_hysteresis_band,
 )
-from application.services.watch_engine.state_manager import StateManager
-from application.services.watch_engine.trigger_judge import TriggerJudge
+from qs_watch.application.services.watch_engine.state_manager import StateManager
+from qs_watch.application.services.watch_engine.trigger_judge import TriggerJudge
 
 NOW = datetime(2026, 10, 16, 10, 0, 0)
 BELOW = {'type': 'price_break', 'params': {'price': 12.85, 'direction': 'below'}}

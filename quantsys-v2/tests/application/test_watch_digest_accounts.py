@@ -6,7 +6,7 @@
 """
 from datetime import datetime
 
-from application.services.watch_engine.digest_service import UNASSIGNED, WatchDigestService
+from qs_watch.application.services.watch_engine.digest_service import UNASSIGNED, WatchDigestService
 
 
 class _Rule:

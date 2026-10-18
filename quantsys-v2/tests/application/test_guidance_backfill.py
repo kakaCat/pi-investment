@@ -7,8 +7,8 @@
 from datetime import datetime
 from types import SimpleNamespace
 
-from domain.watch.services.rule_lint import guidance_state, is_missing_guidance
-from application.services.watch_engine.guidance_backfill_service import (
+from qs_watch.domain.watch.services.rule_lint import guidance_state, is_missing_guidance
+from qs_watch.application.services.watch_engine.guidance_backfill_service import (
     GuidanceBackfillService,
 )
 

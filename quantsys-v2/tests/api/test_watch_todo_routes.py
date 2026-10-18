@@ -72,8 +72,8 @@ def _capture_receipt_sends(monkeypatch):
     """拦 close 回执的真实外发（Agent OS/飞书）与名称解析 DB 依赖。"""
     from types import SimpleNamespace
 
-    from application.services.watch_engine import watch_loop_wiring as wiring
-    from application.services.watch_engine.receipt_service import ReceiptService
+    from qs_watch.application.services.watch_engine import watch_loop_wiring as wiring
+    from qs_watch.application.services.watch_engine.receipt_service import ReceiptService
     RECEIPT_SENT.clear()
     monkeypatch.setattr(
         wiring, 'build_receipt_service',

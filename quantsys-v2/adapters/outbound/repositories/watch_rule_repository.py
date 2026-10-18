@@ -187,7 +187,7 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
                     intent=None, action_hint=None, action_params=None) -> WatchRule:
         # 铁律下沉（2026-09-11，w-aebfddcd）：没有账户的规则不能进入买卖——在**仓储层**拦，
         # 这样任何创建路径（API / 内部服务 / 定时任务）都绕不过去。观察类规则放行。
-        from domain.watch.services.rule_guard import guard_new_rule
+        from qs_watch.domain.watch.services.rule_guard import guard_new_rule
         guard_new_rule(intent=intent, action_hint=action_hint, conditions=conditions,
                        account=(linked_account or account), symbol=symbol)
         # 账户归一：account 与 linked_account 是同一语义的两个字段，
@@ -237,7 +237,7 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
             return None
         # 铁律下沉：按"改后状态"判——不许把观察规则改成买卖规则却不给账户，
         # 也不许把已有买卖规则的账户清空（任何调用方都绕不过）
-        from domain.watch.services.rule_guard import guard_rule_change
+        from qs_watch.domain.watch.services.rule_guard import guard_rule_change
         guard_rule_change(rule, {k: v for k, v in fields.items()
                                  if k in ('intent', 'action_hint', 'conditions',
                                           'account', 'linked_account')} or None)
@@ -377,7 +377,7 @@ class WatchTriggerRepository(BaseORMRepository[WatchTrigger]):
     def update_disposition(self, trigger_id: int, disposition: str,
                            reason: str = None, by: str = 'agent') -> Optional[WatchTrigger]:
         """处置一条触发（handled / ignored / expired）。ignored 必须带 reason。"""
-        from domain.watch.services.disposition import DISPOSITION_IGNORED
+        from qs_watch.domain.watch.services.disposition import DISPOSITION_IGNORED
         if disposition == DISPOSITION_IGNORED and not (reason or '').strip():
             raise ValueError('ignored 状态必须填写 reason（为什么知悉但不动作）')
         trigger = self.get_by_id(trigger_id)

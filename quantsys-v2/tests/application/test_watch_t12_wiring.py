@@ -8,9 +8,9 @@
 """
 from types import SimpleNamespace
 
-from application.services.watch_engine import watch_loop_wiring as wiring
-from application.services.watch_engine.engine import WatchEngine
-from application.services.watch_engine.factory import build_watch_loop_services
+from qs_watch.application.services.watch_engine import watch_loop_wiring as wiring
+from qs_watch.application.services.watch_engine.engine import WatchEngine
+from qs_watch.application.services.watch_engine.factory import build_watch_loop_services
 
 
 def _clear_switches(monkeypatch):
@@ -92,7 +92,7 @@ def _eval_result():
 
 
 def test_notifier_passes_account_total_and_level():
-    from application.services.watch_engine.notifier import WatchNotifier
+    from qs_watch.application.services.watch_engine.notifier import WatchNotifier
     facade = _Facade()
     notifier = WatchNotifier(trigger_repo=None, ws_url=None,
                              notification_facade=facade,
@@ -105,7 +105,7 @@ def test_notifier_passes_account_total_and_level():
 
 
 def test_notifier_account_total_failure_is_none():
-    from application.services.watch_engine.notifier import WatchNotifier
+    from qs_watch.application.services.watch_engine.notifier import WatchNotifier
     facade = _Facade()
 
     def _boom(_rule):

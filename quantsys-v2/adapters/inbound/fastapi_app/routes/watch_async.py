@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from adapters.outbound.repositories.watch_rule_repository import (
     WatchTrigger, WatchRuleRepository, WatchTriggerRepository, rule_to_dict, trigger_to_dict,
 )
-from application.services.watch_engine.conditions import validate_condition
+from qs_watch.application.services.watch_engine.conditions import validate_condition
 
 router = APIRouter(tags=['Watch - 实时盯盘'])
 
@@ -38,7 +38,7 @@ def list_rules(symbol: Optional[str] = Query(None), enabled: Optional[str] = Que
     enabled_value = None if enabled is None else enabled.lower() == 'true'
     rules = rule_repo.list_rules(symbol=symbol, enabled=enabled_value, account=account)
     if lint == 'missing_guidance':
-        from domain.watch.services.rule_lint import guidance_state, is_missing_guidance
+        from qs_watch.domain.watch.services.rule_lint import guidance_state, is_missing_guidance
         hits = [r for r in rules if is_missing_guidance(r)]
         return {'success': True, 'data': {
             'lint': 'missing_guidance',
@@ -87,7 +87,7 @@ def create_rule(payload: Dict[str, Any] = Body(default_factory=dict)):
         return _err(EXPIRES_AT_ERROR, 400)
     if 'action_params' in data:
         # REQ-261016155500-4f2a：结构化操作指引的领域校验（与更新路径同一判据）
-        from domain.watch.models import validate_action_params
+        from qs_watch.domain.watch.models import validate_action_params
         err = validate_action_params(data.get('action_params'))
         if err:
             return _err(err, 400)
@@ -139,7 +139,7 @@ def _update_rule(rule_id: int, payload: Dict[str, Any]):
         return _err('action_hint 必须为对象', 400)
     if 'action_params' in data:
         # REQ-261016155500-4f2a：结构化操作指引的领域校验（纯函数，错误文案直接可读）
-        from domain.watch.models import validate_action_params
+        from qs_watch.domain.watch.models import validate_action_params
         err = validate_action_params(data.get('action_params'))
         if err:
             return _err(err, 400)
@@ -179,7 +179,7 @@ def backfill_guidance():
     「补全预案」待办（同规则已有未收敛补全待办则跳过），交处置 agent 回填
     action_params / intent / observation_criterion。幂等可重复调用。"""
     try:
-        from application.services.watch_engine.guidance_backfill_service import (
+        from qs_watch.application.services.watch_engine.guidance_backfill_service import (
             GuidanceBackfillService,
         )
         result = GuidanceBackfillService.create_default().ensure_todos()
@@ -224,7 +224,7 @@ def trigger_disposition_stats(date: Optional[str] = Query(None)):
     legacy_unknown（状态机上线前的历史数据）不计入分母，避免美化指标。
     agent_wakeups_estimate = escalated + L2 触发的去重合并数（估算实际唤醒量级）。
     """
-    from domain.watch.services.disposition import UNRESOLVED, is_resolved
+    from qs_watch.domain.watch.services.disposition import UNRESOLVED, is_resolved
     trigger_repo = WatchTriggerRepository()
     rows = trigger_repo.list_triggers(limit=200)
     day = date or datetime.now().strftime('%Y-%m-%d')
@@ -249,7 +249,7 @@ def trigger_disposition_stats(date: Optional[str] = Query(None)):
 @router.get('/api/watch/triggers/unresolved')
 def list_unresolved_triggers(date: Optional[str] = Query(None), limit: Optional[str] = Query(None)):
     """盘后未处置清单（pending/escalated）——把"触发后没人管"变成可追的待办。"""
-    from domain.watch.services.disposition import UNRESOLVED
+    from qs_watch.domain.watch.services.disposition import UNRESOLVED
     trigger_repo = WatchTriggerRepository()
     day = date or datetime.now().strftime('%Y-%m-%d')
     rows = trigger_repo.list_triggers(dispositions=UNRESOLVED, limit=_limit_of(limit, 200))
@@ -301,7 +301,7 @@ def trigger_digest(since: Optional[str] = Query(None), limit: Optional[str] = Qu
     2) 载荷里带 `text`（紧凑文本）：唤醒提示词可直接内嵌，agent 无需再发工具调用取数（省 token）。
     3) 按标的聚合：一次跌穿常产生同标的多条触发，聚合后 agent 按"标的"而不是按"触发"决策。
     """
-    from domain.watch.services.disposition import UNRESOLVED
+    from qs_watch.domain.watch.services.disposition import UNRESOLVED
     trigger_repo = WatchTriggerRepository()
     rule_repo = WatchRuleRepository()
     rows = trigger_repo.list_triggers(dispositions=UNRESOLVED, limit=_limit_of(limit, 200))

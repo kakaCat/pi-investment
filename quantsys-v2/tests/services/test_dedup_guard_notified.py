@@ -8,8 +8,8 @@
 from datetime import datetime
 from types import SimpleNamespace
 
-from application.services.watch_engine.engine import WatchEngine
-from application.services.watch_engine.notifier import WatchNotifier
+from qs_watch.application.services.watch_engine.engine import WatchEngine
+from qs_watch.application.services.watch_engine.notifier import WatchNotifier
 
 NOW = datetime(2026, 7, 21, 10, 30)
 

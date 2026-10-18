@@ -12,7 +12,7 @@ import pytest
 from datetime import datetime
 from unittest.mock import Mock, MagicMock
 
-from application.services.opportunity_to_watch_rule_service import OpportunityToWatchRuleService
+from qs_watch.application.services.opportunity_to_watch_rule_service import OpportunityToWatchRuleService
 
 
 class TestOpportunityToWatchRuleService:
