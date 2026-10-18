@@ -39,7 +39,8 @@ qs_trading/
 ## 依赖边界（方案卡 §11.3）
 
 - 允许：本包 → kernel（`domain.ports` / `infrastructure.persistence` / events）、→ `qs_market_data`（行情）、→ `qs_quantlib`（计算）、→ `qs_strategy`（仿真回放，**白名单边，2026-10-18 登记**）、→ `qs_intel`（场景 read-only）
-- 暂留 L1 引用（后续归属阶段收口）：核心 L1 仓储（order/trade/position/account/simulation 等仍在 `adapters/outbound/repositories/`，sourcing 先例）、`core_async_services.py` 混装残件（调用方只取 Data/MarketData/Performance 三类）、infrastructure 两套 DI 反向装配
+- core_async_services 拆分完成（2026-10-19，split/core-async-services）：L1 同名录包化 `application/services/core_async_services/{data,market_data,performance}.py`，import 面不变；无消费者的 RiskCheck/StrategyCode/Portfolio 三死类删除（内部还在按 09-11 已证废模式实例化端口 ABC，调用即炸且全仓零调用点）；**残留已登记**：`get_stock_info`/`get_active_stocks`/`search_stocks` 仍是 `IStockRepository(session)` 必炸路径（09-11 同款，charts 生产活路只用 get_klines，无现网风险），待单独小卡换具体异步仓储
+- 暂留 L1 引用（后续归属阶段收口）：核心 L1 仓储（order/trade/position/account/simulation 等仍在 `adapters/outbound/repositories/`，sourcing 先例）、infrastructure 两套 DI 反向装配
 - 旧路径兼容 shim 在 L1：`application/services/<14 模块名>.py`（sys.modules 别名）、`domain/{accounts,trading,portfolio,brokers,legacy,risk}/__init__.py`（__path__ 转发，含 ports 子包），30 天观察期后删除
 - `watch→trading`（S8 单）与 `agent-hub→各项目 public` 边不在本包实现
 
