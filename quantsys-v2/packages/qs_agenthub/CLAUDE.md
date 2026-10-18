@@ -40,3 +40,4 @@ qs_agenthub/
 ## 已修缺陷（2026-10-19）
 
 - ~~`session_service` 测试线程事务挂死~~：根因为 pytest 线程无人调用 `close_session()`（scoped_session 契约），ai_diagnosis 缓存命中路径的 SELECT 开事务后 defer——fixture teardown 补 `close_session()`（test_ai_diagnosis.py / test_session_service.py），运行态（FastAPI 中间件 + jobs 收口）本就健全。分支 `fix/session-service-conn-leak`。
+- ~~`test_evolution_pipeline::test_fitness_score_recorded_in_db` 预存失败~~：断言读全表"最新行"，而适应度表被孤儿账户 data_gap 全 NULL 残留（64 行 0 非空）占位，属结构性必挂——用例改为自给自足（真实 EvolutionFitnessORMRepository 落库 + 按账户/窗口过滤断言）；随修发现 e2e 文件 cleanup 因连接非 autocommit 从不提交（close 即回滚），fixture 补 `commit()` 使清理生效。**hub 26 成员集现 0F/185P/2S**。分支 `fix/evolution-fitness-test`。
