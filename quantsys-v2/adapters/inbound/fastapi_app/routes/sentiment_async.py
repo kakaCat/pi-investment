@@ -35,7 +35,7 @@ router = APIRouter(tags=["Sentiment - 情绪/资金"])
 def get_stock_fund_flow_v2(symbol: str, days: int = Query(5)):
     """个股资金流向 - v2 原生实现"""
     from qs_market_data.adapters.outbound.datasources.fund_flow_source import FundFlowDataSource
-    from application.services.sentiment_service import SentimentService
+    from qs_intel.application.services.sentiment_service import SentimentService
 
     # 初始化服务
     fund_flow_source = FundFlowDataSource()

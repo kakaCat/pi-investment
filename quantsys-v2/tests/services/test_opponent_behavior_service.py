@@ -14,7 +14,7 @@ load_dotenv()
 from infrastructure.persistence.database.engine import init_engine
 init_engine()
 
-from application.services.opponent_behavior_service import OpponentBehaviorService
+from qs_intel.application.services.opponent_behavior_service import OpponentBehaviorService
 
 
 def test_opponent_behavior_service():

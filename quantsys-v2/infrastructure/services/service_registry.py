@@ -237,7 +237,7 @@ def _register_services_hardcoded():
     )
 
     # OpportunityScoringService - 依赖 DataService 和 FactorAdapter
-    from application.services.opportunity_scoring_service import OpportunityScoringService
+    from qs_intel.application.services.opportunity_scoring_service import OpportunityScoringService
     def create_scoring_service():
         # 2026-09-05（w-8366e526）：score_stocks 无条件调用
         # financial_repo.batch_get_quarterly_margins / fund_flow_repo.batch_get_latest_flows，
@@ -309,7 +309,7 @@ def _register_services_hardcoded():
     )
 
     # SectorRotationService - 依赖 DataService 的子服务
-    from application.services.sector_rotation_service import SectorRotationService
+    from qs_intel.application.services.sector_rotation_service import SectorRotationService
     def create_sector_rotation_service():
         from infrastructure.services.service_factory import ServiceFactory
         stock_repo = ServiceFactory.get_stock_repository()

@@ -1,4 +1,9 @@
-"""竞争分析领域模块 - 行业竞争格局分析"""
-from .service import CompetitionAnalysisService
+"""兼容 shim（2026-10-18）：已迁至二方包 qs_intel。
+__path__ 转发：保住 from domain.competition import X 与子模块导入。
+30 天观察期后删除（方案卡 S5）。
+"""
+import qs_intel.domain.competition as _real
 
-__all__ = ['CompetitionAnalysisService']
+__path__ = _real.__path__
+
+from qs_intel.domain.competition import *  # noqa: F401,F403

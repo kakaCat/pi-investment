@@ -115,7 +115,7 @@ def execute(**params: Any) -> Dict[str, Any]:
 
     # 1. 拉取真实行业截面
     try:
-        from application.services.market_style_detector import (
+        from qs_intel.application.services.market_style_detector import (
             compute_style_from_boards,
             fetch_sina_sector_boards,
         )

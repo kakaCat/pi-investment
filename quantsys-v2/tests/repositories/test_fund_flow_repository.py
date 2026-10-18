@@ -21,7 +21,7 @@ from datetime import datetime, timedelta
 
 from adapters.outbound.repositories import FundFlowORMRepository
 from adapters.outbound.repositories.fund_flow_repository import FundFlow
-from application.services.opponent_behavior_service import OpponentBehaviorService
+from qs_intel.application.services.opponent_behavior_service import OpponentBehaviorService
 
 
 @pytest.fixture
@@ -151,7 +151,7 @@ class TestSentimentScoreGuard:
     """情绪评分边界（pos == total 在 0==0 时不得加分）"""
 
     def test_empty_index_performance_no_score(self):
-        from application.services.market_sentiment_service import MarketSentimentService
+        from qs_intel.application.services.market_sentiment_service import MarketSentimentService
         # 2026-09-13（w-c8cae280）：MarketSentimentService 的签名已改为 (kline_repo=None)，
         # data_service 参数不存在 → TypeError。本用例只测 _calculate_sentiment_score 的边界，
         # 构造参数与断言意图无关，按当前签名修正即可（不是放宽断言）。

@@ -29,7 +29,7 @@ from adapters.inbound.fastapi_app.shared import error_response
 from adapters.outbound.repositories.event_calendar_repository import (
     get_event_calendar_repo, event_to_dict,
 )
-from application.services.event_feed_service import (
+from qs_intel.application.services.event_feed_service import (
     EventFeedService, get_event_feed_service, set_event_feed_service,
 )
 

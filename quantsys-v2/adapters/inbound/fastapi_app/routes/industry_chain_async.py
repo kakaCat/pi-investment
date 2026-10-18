@@ -23,7 +23,7 @@ from fastapi import APIRouter, Body, Query
 import structlog
 
 from adapters.inbound.fastapi_app.shared import error_response
-from application.services.industry_chain_service import (
+from qs_intel.application.services.industry_chain_service import (
     IndustryChainService,
     get_industry_chain_service,
     set_industry_chain_service,

@@ -1,7 +1,7 @@
 """竞争分析服务测试"""
 import pytest
 from unittest.mock import Mock
-from domain.competition.service import CompetitionAnalysisService
+from qs_intel.domain.competition.service import CompetitionAnalysisService
 
 
 @pytest.fixture

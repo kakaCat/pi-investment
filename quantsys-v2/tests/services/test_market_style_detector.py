@@ -13,7 +13,7 @@ market_style_detector 单测（2026-09-03 真实化后重写）
   - 推荐因子与主导风格一致
 """
 import pytest
-from application.services.market_style_detector import (
+from qs_intel.application.services.market_style_detector import (
     MarketStyleDetector,
     compute_style_from_boards,
     BOARD_STYLE_MAP,
@@ -121,7 +121,7 @@ def test_compute_style_from_boards_unknown_boards_excluded_with_coverage():
 
 def test_sina_49_boards_mapping_complete():
     """新浪 49 行业必须全部落入某风格桶或被显式排除——防覆盖静默下降"""
-    from application.services.market_style_detector import (
+    from qs_intel.application.services.market_style_detector import (
         EXCLUDED_BOARDS, VALUE_BOARDS, GROWTH_BOARDS, CYCLE_BOARDS,
     )
     all_buckets = VALUE_BOARDS | GROWTH_BOARDS | CYCLE_BOARDS | EXCLUDED_BOARDS
@@ -151,7 +151,7 @@ def test_detect_returns_db_latest_when_real_row_exists(monkeypatch):
     monkeypatch.setattr(detector, '_read_latest_db_row', lambda: db_row)
     # 若 DB 有真实行，不应触发网络拉取
     fetched = []
-    monkeypatch.setattr('application.services.market_style_detector.fetch_sina_sector_boards',
+    monkeypatch.setattr('qs_intel.application.services.market_style_detector.fetch_sina_sector_boards',
                         lambda: fetched.append(1) or None)
     result = detector.detect_market_style()
     assert result['style'] == STYLE_GROWTH
@@ -167,7 +167,7 @@ def test_detect_falls_back_to_realtime_when_no_db_row(monkeypatch):
         ('电子信息', -1.2), ('电子器件', -1.0),
         ('钢铁行业', -2.5), ('煤炭行业', -2.8),
     ])
-    monkeypatch.setattr('application.services.market_style_detector.fetch_sina_sector_boards',
+    monkeypatch.setattr('qs_intel.application.services.market_style_detector.fetch_sina_sector_boards',
                         lambda: boards)
     result = detector.detect_market_style()
     assert result['style'] == STYLE_VALUE
@@ -179,7 +179,7 @@ def test_detect_falls_back_to_realtime_when_no_db_row(monkeypatch):
 def test_detect_degraded_when_no_db_and_fetch_fails(monkeypatch):
     detector = MarketStyleDetector()
     monkeypatch.setattr(detector, '_read_latest_db_row', lambda: None)
-    monkeypatch.setattr('application.services.market_style_detector.fetch_sina_sector_boards',
+    monkeypatch.setattr('qs_intel.application.services.market_style_detector.fetch_sina_sector_boards',
                         lambda: None)
     result = detector.detect_market_style()
     assert result['style'] == 'unknown'

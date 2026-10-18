@@ -120,7 +120,7 @@ def test_execute_job_exception_still_failed(monkeypatch):
 
 def _patch_service(monkeypatch, service_factory):
     monkeypatch.setattr(
-        "application.services.market_perception_service.MarketPerceptionService",
+        "qs_intel.application.services.market_perception_service.MarketPerceptionService",
         service_factory,
     )
 

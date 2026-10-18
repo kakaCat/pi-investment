@@ -131,7 +131,7 @@ class ServiceFactory:
         # 回退到旧实现
         if 'stock_pool_service' not in cls._instances:
             from adapters.outbound.repositories import StockPoolORMRepository
-            from application.services.opportunity_scoring_service import OpportunityScoringService
+            from qs_intel.application.services.opportunity_scoring_service import OpportunityScoringService
             from adapters.outbound.datasources.providers.quantlib import get_factor_adapter
             from adapters.outbound.repositories.financial_repository import FinancialORMRepository
             from adapters.outbound.repositories.fund_flow_repository import FundFlowORMRepository
@@ -167,7 +167,7 @@ class ServiceFactory:
     def get_scoring_service(cls):
         """获取OpportunityScoringService实例"""
         # P2-1: 优先从 EnhancedServiceFactory 获取
-        from application.services.opportunity_scoring_service import OpportunityScoringService
+        from qs_intel.application.services.opportunity_scoring_service import OpportunityScoringService
         enhanced = _try_get_from_enhanced(OpportunityScoringService)
         if enhanced:
             return enhanced
@@ -212,7 +212,7 @@ class ServiceFactory:
     def get_sector_rotation_service(cls):
         """获取SectorRotationService实例"""
         # P2-1: 优先从 EnhancedServiceFactory 获取
-        from application.services.sector_rotation_service import SectorRotationService
+        from qs_intel.application.services.sector_rotation_service import SectorRotationService
         enhanced = _try_get_from_enhanced(SectorRotationService)
         if enhanced:
             return enhanced
@@ -265,7 +265,7 @@ class ServiceFactory:
     def get_condition_monitor_service(cls):
         """获取ConditionMonitorService实例"""
         if 'condition_monitor_service' not in cls._instances:
-            from application.services.condition_monitor import ConditionMonitorService
+            from qs_intel.application.services.condition_monitor import ConditionMonitorService
             cls._instances['condition_monitor_service'] = ConditionMonitorService()
             logger.info("ConditionMonitorService initialized")
         return cls._instances['condition_monitor_service']
@@ -357,7 +357,7 @@ class ServiceFactory:
     def get_lhb_service(cls):
         """获取LhbService实例"""
         if 'lhb_service' not in cls._instances:
-            from application.services.lhb_service import LhbService
+            from qs_intel.application.services.lhb_service import LhbService
             cls._instances['lhb_service'] = LhbService()
             logger.info("LhbService initialized")
         return cls._instances['lhb_service']
@@ -563,7 +563,7 @@ class ServiceFactory:
     def get_game_alert_service(cls):
         """获取GameAlertService实例"""
         if 'game_alert_service' not in cls._instances:
-            from application.services.game_alert_service import GameAlertService
+            from qs_intel.application.services.game_alert_service import GameAlertService
             cls._instances['game_alert_service'] = GameAlertService()
             logger.info("GameAlertService initialized")
         return cls._instances['game_alert_service']

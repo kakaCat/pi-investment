@@ -114,7 +114,7 @@ def get_sectors_v2(days: Optional[int] = Query(None)):
 
 @router.get('/api/market/heatmap')
 def get_market_heatmap(date: Optional[str] = Query(None), window: int = Query(5)):
-    from application.services.heatmap_service import heatmap_service
+    from qs_intel.application.services.heatmap_service import heatmap_service
     result = heatmap_service.get_heatmap(date=date, window=window)
     if not result.get('success', False):
         return {"success": False, "error": result.get("error", "heatmap failed")}

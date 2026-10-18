@@ -15,7 +15,7 @@ from fastapi import APIRouter, Body, Query
 import structlog
 
 from adapters.inbound.fastapi_app.shared import error_response
-from application.services.microstructure_service import (
+from qs_intel.application.services.microstructure_service import (
     MicrostructureService,
     get_microstructure_service,
     set_microstructure_service,

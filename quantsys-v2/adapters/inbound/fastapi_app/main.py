@@ -106,7 +106,7 @@ async def lifespan(app: FastAPI):
     # 放在此处可让"同名冲突"在启动日志里立刻可见，而不是被静默覆盖。
     try:
         from application.jobs.job_registry import job_registry
-        from application.services.event_feed_service import build_event_ingest_jobs
+        from qs_intel.application.services.event_feed_service import build_event_ingest_jobs
         from adapters.inbound.fastapi_app.routes.events_async import get_feed_service
         for _job in build_event_ingest_jobs(get_feed_service()):
             job_registry.register(_job)

@@ -7,8 +7,8 @@ from domain.ports import IFundFlowRepository, IStockPoolRepository
 import structlog
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
-from application.services.opponent_behavior_service import OpponentBehaviorService
-from application.services.manipulation_detector import ManipulationDetector
+from qs_intel.application.services.opponent_behavior_service import OpponentBehaviorService
+from qs_intel.application.services.manipulation_detector import ManipulationDetector
 
 logger = structlog.get_logger(__name__)
 

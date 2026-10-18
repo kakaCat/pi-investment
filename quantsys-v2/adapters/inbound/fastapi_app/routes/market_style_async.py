@@ -18,7 +18,7 @@ def detect_market_style(request: Request):
     params = get_query_params_snake_case(request)
     lookback_days = int(params.get('lookback_days', 60))
     try:
-        from application.services.market_style_detector import MarketStyleDetector
+        from qs_intel.application.services.market_style_detector import MarketStyleDetector
         detector = MarketStyleDetector()
         result = detector.detect_market_style(lookback_days)
         return api_response(result)
