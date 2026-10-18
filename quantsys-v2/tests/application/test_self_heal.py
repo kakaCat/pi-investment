@@ -144,6 +144,15 @@ class FakeTodoRepo:
         self.rows.append(todo)
         return todo
 
+    def list_open_by_rule(self, rule_id, action_kind=None, trigger_id_null=False):
+        rows = [r for r in self.rows
+                if r.rule_id == rule_id and r.terminal is None]
+        if action_kind:
+            rows = [r for r in rows if r.action_kind == action_kind]
+        if trigger_id_null:
+            rows = [r for r in rows if r.trigger_id is None]
+        return rows
+
 
 AGENT_RULE = _rule(1, "600150.SH", "agent_brain")
 USER_RULE = _rule(2, "601888.SH", "user_main_simulation")
@@ -172,8 +181,9 @@ def _three_days(rule_id, counts=(4, 4, 4)):
 
 # ── 服务：单日阈值 ────────────────────────────────────────────
 
-def test_scan_7_triggers_no_suppress_no_todo():
-    service, rule_repo, change_repo, todo_repo = _build(daily={1: {TODAY: 7}})
+def test_scan_2_triggers_no_suppress_no_todo():
+    """阈值 8→3 后（REQ-261016155500-4f2a wt:engine:3）：单日 2 次（=日通知上限）不抑噪"""
+    service, rule_repo, change_repo, todo_repo = _build(daily={1: {TODAY: 2}})
     result = service.scan(now=NOW)
     assert result["suppressed"] == []
     assert rule_repo.rules[1]["noise_state"] is None
@@ -223,21 +233,23 @@ def test_scan_3_days_avg_4_suppress():
 
 
 def test_scan_2_days_avg_4_no_suppress():
-    service, rule_repo, change_repo, todo_repo = _build(daily=_three_days(1, (4, 4)))
+    # 单日计数取 2（< 新阈值 3），隔离「连续天数不足 3 天不抑噪」的判定
+    service, rule_repo, change_repo, todo_repo = _build(daily=_three_days(1, (2, 2)))
     assert service.scan(now=NOW)["suppressed"] == []
     assert rule_repo.rules[1]["noise_state"] is None
     assert (change_repo.rows, todo_repo.rows) == ([], [])
 
 
 def test_scan_3_days_avg_below_4_no_suppress():
-    service, rule_repo, _, _ = _build(daily=_three_days(1, (3, 3, 3)))
+    # 单日计数取 2（< 新阈值 3），隔离「日均 < 4 不抑噪」的判定
+    service, rule_repo, _, _ = _build(daily=_three_days(1, (2, 2, 2)))
     assert service.scan(now=NOW)["suppressed"] == []
     assert rule_repo.rules[1]["noise_state"] is None
 
 
 def test_scan_break_in_run_no_suppress():
     """今天火但昨天断档：连续天数是 1，不算「连续多日骚扰」（不误抑噪）"""
-    daily = {1: {TODAY: 4, TODAY - 2 * DAY: 9, TODAY - 3 * DAY: 9}}
+    daily = {1: {TODAY: 2, TODAY - 2 * DAY: 9, TODAY - 3 * DAY: 9}}
     service, rule_repo, _, _ = _build(daily=daily)
     assert service.scan(now=NOW)["suppressed"] == []
     assert rule_repo.rules[1]["noise_state"] is None
@@ -266,10 +278,23 @@ def test_scan_idempotent_within_same_day():
     assert second["skipped"][0]["reason"] == "already_healed_today"
 
 
-def test_scan_next_day_can_heal_again():
-    """跨日：新的一天若仍超阈值 → 再建一条修规则待办（R6 每日都要有人管）"""
+def test_scan_next_day_reuses_open_todo():
+    """跨日仍超阈值：抑噪照做（新 suppress 审计），但待办幂等——同规则已有未收敛
+    rule_change 待办时不重复建（REQ-261016155500-4f2a 实测 #250/#255 双待办修复；
+    设计 §4.4「修规则待办跨日复用」）。"""
     service, _, change_repo, todo_repo = _build(daily={1: {TODAY: 8, TODAY + DAY: 8}})
     service.scan(now=NOW)
+    second = service.scan(now=NOW + DAY)
+    assert len(todo_repo.rows) == 1                       # 不重复建
+    assert len(change_repo.rows) == 2                     # 抑噪审计每天照写
+    assert second["skipped"][0]["reason"] == 'open_repair_todo_exists'
+
+
+def test_scan_next_day_creates_todo_after_close():
+    """待办已收敛（agent 修完）后跨日再超阈值 → 允许重建（每日都要有人管）"""
+    service, _, change_repo, todo_repo = _build(daily={1: {TODAY: 8, TODAY + DAY: 8}})
+    service.scan(now=NOW)
+    todo_repo.rows[0].terminal = 'handled'               # agent 收口
     service.scan(now=NOW + DAY)
     assert len(todo_repo.rows) == 2
     assert len(change_repo.rows) == 2
@@ -453,7 +478,11 @@ def client():
 
 @pytest.fixture
 def fake_service(monkeypatch):
-    service, rule_repo, change_repo, todo_repo = _build(daily=_eight_today(1))
+    # 用真实今天的日期造计数：路由层按真实 7 天窗口取数，模块常量 TODAY(2026-09-18)
+    # 已滑出窗口会让 trigger_today 恒 0（日期炸弹，干净 HEAD 同样红）。
+    from datetime import date as _date
+    service, rule_repo, change_repo, todo_repo = _build(
+        daily={1: {_date.today(): 8}})
     monkeypatch.setattr(repair_route, "_service", lambda: service)
     return SimpleNamespace(service=service, rules=rule_repo, changes=change_repo,
                            todos=todo_repo)
@@ -466,7 +495,7 @@ def test_route_get_noise_200(client, fake_service):
     assert data["rule_id"] == 1 and data["trigger_today"] == 8
     assert data["noise_state"] is None
     assert data["trigger_days"] == 1
-    assert data["thresholds"]["max_triggers_per_day"] == 8
+    assert data["thresholds"]["max_triggers_per_day"] == 3  # 8→3（wt:engine:3）
 
 
 def test_route_get_noise_404(client, fake_service):
@@ -834,7 +863,7 @@ class _EngineNotifier:
     def notify(self, rule, condition, quote, result, **kwargs):
         self.notifications.append((rule.id, condition["type"]))
         if self.trigger_repo is None:
-            return SimpleNamespace(id=len(self.notifications))
+            return SimpleNamespace(id=len(self.notifications), notified=True)
         return self.trigger_repo.record(
             rule_id=rule.id, symbol=rule.symbol, condition=condition,
             trigger_price=float(quote.price),

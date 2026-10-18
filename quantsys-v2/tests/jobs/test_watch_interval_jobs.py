@@ -86,6 +86,10 @@ class _FakeFacade:
         self.calls.append(kwargs)
         return self.ok
 
+    def send_watch_receipt(self, **kwargs):
+        self.calls.append(kwargs)
+        return self.ok
+
 
 def test_send_watch_alert_uses_facade_and_raises_on_failure(monkeypatch):
     from application.services.watch_engine import watch_channels

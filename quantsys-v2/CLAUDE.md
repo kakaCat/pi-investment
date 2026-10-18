@@ -271,6 +271,28 @@ LOG_FILE=logs/api.log LOG_MAX_BYTES=52428800 LOG_BACKUPS=5 python adapters/inbou
 # 需要旧行为请从 git 历史 commit 54851df0^ 取回，不要在现网查找 Flask 入口。
 ```
 
+### 飞书通知分群：系统消息 ≠ 股票消息（2026-10-14 · 用户裁定）
+
+**规则**：消息主体是"系统/数据链路/任务/引擎的健康与执行状态" → **运维群**；
+消息主体是"个股/市场/交易/盯盘行情" → **原群**。
+
+| | 落点 | 配置 | 代表消息 |
+|---|---|---|---|
+| 系统类 | 运维群 | `FEISHU_WEBHOOK_OPS`（v2）<br>`WATCHDOG_FEISHU_WEBHOOK`（看门狗） | 调度看门狗告警/已恢复 · 每日任务开始·完成·失败 · 失败残留 · 数据质量 · 财报时效性 · 模型新鲜度 · 交易日守卫降级 · 外部探活 |
+| 股票类 | 原群（不变） | `FEISHU_WEBHOOK_URL` | 盘前例程 · 实盘账户·保护线 · 事件日历 · 盯盘触发/回执（另走盯盘群）· 交易信号 |
+
+- v2 侧入口：`NotificationFacade.send_ops_card / send_ops_text` —— 只选渠道
+  `feishu_ops`，**不走 Agent OS**（OS 的 `alerts` 渠道落在原群，且运维消息本就该独立于
+  被监控链路）。渠道缺失时返回 `False`，**绝不静默改投原群**；未配
+  `FEISHU_WEBHOOK_OPS` 时工厂把 `feishu_ops` 兜到原群并打 warning（显式降级，可被发现）。
+- `FeishuChannel(..., name=...)` 必须给运维实例起不同名字（`feishu_ops`）——
+  `NotificationService` 用 `{get_name(): channel}` 建索引，同名会互相顶掉。
+- 看门狗 `scripts/scheduler_watchdog.py` 直发 webhook（不依赖 v2/Agent OS 通知链路），
+  取值优先级 `WATCHDOG_FEISHU_WEBHOOK` > `FEISHU_WEBHOOK_OPS` > 内置默认值，
+  **故意不读** `FEISHU_WEBHOOK_URL`（那个变量指向原群，读了就等于混群）。
+- 回归测试：`tests/notification/test_ops_channel_split.py`（v2）、
+  `scripts/tests/test_scheduler_watchdog_ops_group.py`（看门狗落点优先级）。
+
 ## Architecture
 
 ### Hexagonal Architecture (Ports & Adapters)

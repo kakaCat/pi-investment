@@ -152,7 +152,11 @@ def create_watch_engine() -> WatchEngine:
         digest_service = WatchDigestService(
             trigger_repo=WatchTriggerRepository(),
             rule_repo=WatchRuleRepository(),
-            agent_service=AgentNotificationService(),
+            agent_service=AgentNotificationService(
+                # 唤醒是 fire-and-forget：agent 离线时绝不能用默认 300s 超时（AGENT_TIMEOUT）
+                # 把引擎主循环卡死——2026-10-16 实测每轮循环被卡 ~5 分钟，心跳周期性
+                # 「丢失」误报。10s 足够局域网唤醒投递；失败按原路径留痕下轮重试。
+                timeout=int(os.getenv('WATCH_DIGEST_WAKE_TIMEOUT_SEC', '10'))),
             state_repo=WatchDigestStateRepository(),   # 端口实现（ADR-001：SQL 只在适配器层）
             market_watch_service=_market_watch,        # 摘要内嵌市场状态（P6）
             # 影子模式默认**开**（fail-safe）：只写日志不发唤醒；显式 WATCH_DIGEST_DRY_RUN=false
@@ -196,7 +200,31 @@ def create_watch_engine() -> WatchEngine:
         receipt_service=receipt_service,
         sla_job=sla_job,
         self_heal_service=self_heal_service,
+        # 观察聚合缓冲（REQ-261016155500-4f2a wt:validate:1）：无判据 observe 15min 合屏
+        observe_agg=_build_observe_aggregator(),
     )
+
+
+def _build_observe_aggregator():
+    """观察聚合缓冲装配：发送走盯盘群回执通道（watch_symbol 频道）。
+
+    开关 WATCH_OBSERVE_AGG（默认开）；关闭时返回 None = 引擎完全退回即时单发。
+    """
+    from application.services.watch_engine.observe_aggregator import (
+        OBSERVE_AGG_ENABLED, ObserveAggregator,
+    )
+    if not OBSERVE_AGG_ENABLED:
+        return None
+
+    def _sender(title: str, content: str) -> bool:
+        from application.services.watch_engine.watch_channels import send_watch_receipt
+        return send_watch_receipt({
+            'kind': 'observe_digest',    # 聚合卡专用 kind（非三段回执语义，不落 receipts 表）
+            'os_channel': 'watch_symbol',
+            'message': '%s\n%s' % (title, content),
+        })
+
+    return ObserveAggregator(sender=_sender)
 
 
 def start_watch_engine_in_thread() -> tuple[WatchEngine, threading.Thread]:
@@ -204,5 +232,8 @@ def start_watch_engine_in_thread() -> tuple[WatchEngine, threading.Thread]:
     engine = create_watch_engine()
     thread = threading.Thread(target=engine.run_forever, name='watch-engine', daemon=True)
     thread.start()
+    # 独立心跳写线程：存活信号与主循环各阶段耗时解耦（主循环被慢 I/O 卡住时
+    # 巡检不再误报「心跳丢失」；2026-10-16 事故修补）。
+    engine.spawn_heartbeat_thread()
     logger.info('✓ WatchEngine 已在后台线程启动')
     return engine, thread

@@ -40,7 +40,7 @@ class _Notifier:
     def notify(self, rule, condition, quote, result, **kwargs):
         self.notifications.append((rule.id, kwargs.get("level")))
         self._next += 1
-        return SimpleNamespace(id=self._next - 1, todo_id=None)
+        return SimpleNamespace(id=self._next - 1, todo_id=None, notified=True)
 
 
 class FakeTodoRepo:
@@ -144,7 +144,10 @@ def test_p0_trigger_creates_todo_due_300():
 
 
 def test_deduped_trigger_does_not_create_todo():
-    rules = [_rule("P1"), _rule("P1")]
+    # 观察类（trend_observe → auto_observed）命中 dedup 才改判 deduped（守卫内）；
+    # 交易/宪法级 escalated 不吞消息（REQ-261016155500-4f2a wt:engine:2）——
+    # 故本用例用 P2 观察类规则验证「被去重的不建待办」。
+    rules = [_rule("P2"), _rule("P2")]
     rules[0].id, rules[1].id = 1, 2
     repo, notifier = FakeTodoRepo(), _Notifier()
     engine = _engine(rules, PRICE_UP, notifier, TodoService(repo))

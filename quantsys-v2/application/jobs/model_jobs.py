@@ -19,13 +19,17 @@ MODEL_MIN_TEST_ACCURACY = 0.55
 
 
 def _send_feishu(text: str) -> bool:
-    """飞书告警（失败只记日志，不阻断任务流）。经 NotificationFacade 投递。"""
+    """飞书告警（失败只记日志，不阻断任务流）。经 NotificationFacade 投递。
+
+    2026-10-14：模型新鲜度属**系统类**消息 → 走 send_ops_card 落独立运维群，
+    不再与股票类消息混群。
+    """
     try:
         from application.notification import get_notification_facade
 
         title, _, body = text.partition('\n')
         title = title.strip() or '模型新鲜度告警'
-        return bool(get_notification_facade().send_card(
+        return bool(get_notification_facade().send_ops_card(
             title=title, content=(body.strip() or title), urgency='high'))
     except Exception as e:  # pragma: no cover - 告警失败不影响任务判定
         logger.error("model freshness alert send failed: %s", e)

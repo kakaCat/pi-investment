@@ -271,7 +271,7 @@ class _Notifier:
 
     def notify(self, rule, condition, quote, result, **kwargs):
         self.notifications.append((rule.id, quote.price))
-        return SimpleNamespace(id=len(self.notifications))
+        return SimpleNamespace(id=len(self.notifications), notified=True)
 
 
 def _engine(rules, prices, **kw):

@@ -271,6 +271,23 @@ class TestWatchPriceHistoryPersistence:
         assert s.flush(now=NOW) is True
         assert [r['price'] for r in store.history_calls[1]] == [102.0]   # 只写新点
 
+    def test_flush_dedupes_duplicate_symbol_ts_in_batch(self):
+        '''回归 2026-10-16 线上事故：同批次重复 (symbol, ts) 让 ON CONFLICT 抛
+        CardinalityViolation，整批运行态回滚（watch_price_history 实测 0 行）。'''
+        store = FakeCompleteStore()
+        s = StateManager(store=store, history_flush_sec=0)
+        s.push_history('002007', NOW, 13.05)   # 同 tick 第一条规则推的点
+        s.push_history('002007', NOW, 13.07)   # 同 tick 第二条规则推的重复 ts 点
+        s.push_history('002007', NOW + timedelta(seconds=1), 13.10)
+
+        assert s.flush(now=NOW) is True
+        rows = store.history_calls[0]
+        assert len(rows) == 2                       # 重复键被合并，不抛错
+        assert [(r['ts'], r['price']) for r in rows] == [
+            (NOW, 13.07),                           # 后者覆盖前者
+            (NOW + timedelta(seconds=1), 13.10),
+        ]
+
     def test_history_flush_is_throttled_per_symbol(self):
         store = FakeCompleteStore()
         s = StateManager(store=store, history_flush_sec=60)

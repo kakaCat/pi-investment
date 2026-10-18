@@ -58,7 +58,10 @@ class FakeNotifier:
     # → 用例看到 0 次通知。用 *args/**kwargs 适配，测试只关心"通知了几次"。
     def notify(self, rule, condition, quote, result, **kwargs):
         self.notifications.append((rule.id, condition['type'], quote.price))
-        return SimpleNamespace(id=len(self.notifications))
+        # notified 反映真实语义：deduped 只归档不送达（与真 notifier 落库口径一致，
+        # REQ-261016155500-4f2a wt:engine:2——events.notified 现取 trigger.notified）
+        return SimpleNamespace(id=len(self.notifications),
+                               notified=kwargs.get('disposition') != 'deduped')
 
 
 NOW = datetime(2026, 7, 21, 10, 30)  # 周二，交易时段内
@@ -75,6 +78,17 @@ def make_engine(rules, prices, notifier=None, **kw):
 
 
 class TestTick:
+    def test_tick_pushes_one_history_point_per_symbol(self):
+        '''回归 2026-10-16：同一标的多条规则在同一 tick 各推一个同 ts 价格点，
+        批量 upsert 的 ON CONFLICT 抛 CardinalityViolation，整批运行态回滚。'''
+        rules = [make_rule(id=1, symbol='002007'),
+                 make_rule(id=2, symbol='002007'),
+                 make_rule(id=3, symbol='600036.SH')]
+        engine = make_engine(rules, {'002007': 13.07, '600036.SH': 42.5})
+        engine.tick()
+        assert engine.state.history['002007'] == [(NOW, 13.07)]   # 同 tick 只推一次
+        assert engine.state.history['600036.SH'] == [(NOW, 42.5)]
+
     def test_trigger_fires_notification(self):
         notifier = FakeNotifier()
         engine = make_engine([make_rule()], {'600519.SH': 101.0}, notifier)
@@ -340,3 +354,42 @@ class TestEscalationCounters:
         e.state.current_date = NOW.date()
         e._reset_daily_state_if_needed(NOW + timedelta(days=1))  # 跨天 → 清空
         assert e.state.trigger_events == []
+
+
+class TestHeartbeatThread:
+    '''回归 2026-10-16：主循环被慢 I/O（摘要门投递 agent 离线 x 300s 超时）卡住 ~5 分钟，
+    心跳只在主循环每轮开头写一次 → 年龄周期性冲破 180s 巡检阈值误报「心跳丢失」。
+    修补：独立心跳写线程，存活信号与主循环各阶段耗时解耦。'''
+
+    def test_heartbeat_thread_writes_without_running_loop(self, monkeypatch):
+        import time as _time
+        monkeypatch.setenv('WATCH_HEARTBEAT_INTERVAL_SEC', '0.05')
+        clock = {'now': NOW}                 # 可变时钟：推进它才能越过写入节流
+        engine = WatchEngine(                # make_engine 自带冻结 now_fn，这里直接构造
+            rule_repo=FakeRepo([]), quote_service=FakeQuoteService({}),
+            notifier=FakeNotifier(), now_fn=lambda: clock['now'])
+        assert engine is not None            # 主循环 run_forever 根本没有启动
+        saves = []
+
+        class _Store:
+            def save_meta(self, **fields):
+                saves.append(fields)
+
+        engine._heartbeat_store = _Store()
+        t = engine.spawn_heartbeat_thread()
+        assert t is not None and t.is_alive()
+        assert engine.spawn_heartbeat_thread() is t    # 幂等：不重复起线程
+
+        for _ in range(6):                           # 每轮推进时钟并越过真实间隔
+            clock['now'] += timedelta(seconds=0.06)
+            _time.sleep(0.08)
+        engine.stop()
+        t.join(timeout=2)
+        assert not t.is_alive()                        # stop 后线程退出
+        assert len(saves) >= 3                         # 存活信号持续续写
+        assert all('heartbeat_at' in s for s in saves)
+
+    def test_heartbeat_thread_not_spawned_when_disabled(self, monkeypatch):
+        monkeypatch.setenv('WATCH_HEARTBEAT_ENABLED', 'false')
+        engine = make_engine([], {})
+        assert engine.spawn_heartbeat_thread() is None

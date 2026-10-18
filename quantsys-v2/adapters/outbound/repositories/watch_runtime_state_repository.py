@@ -68,6 +68,8 @@ class WatchRuntimeStateRepository:
                     WatchRuntimeState.latched,
                     WatchRuntimeState.last_triggered_at,
                     WatchRuntimeState.cooldown_effective_sec,
+                    WatchRuntimeState.emit_count_date,
+                    WatchRuntimeState.emit_count,
                 )
                 .all()
             )
@@ -81,6 +83,8 @@ class WatchRuntimeStateRepository:
                 'latched': bool(r[2]),
                 'last_triggered_at': r[3],
                 'cooldown_effective_sec': r[4],
+                'emit_count_date': r[5],
+                'emit_count': r[6],
             }
             for r in rows
         ]
@@ -97,6 +101,8 @@ class WatchRuntimeStateRepository:
                     'latched': bool(row.get('latched')),
                     'last_triggered_at': row.get('last_triggered_at'),
                     'cooldown_effective_sec': row.get('cooldown_effective_sec'),
+                    'emit_count_date': row.get('emit_count_date'),
+                    'emit_count': row.get('emit_count'),
                     'updated_at': func.now(),
                 }
                 for row in rows
@@ -108,6 +114,8 @@ class WatchRuntimeStateRepository:
                     'latched': stmt.excluded.latched,
                     'last_triggered_at': stmt.excluded.last_triggered_at,
                     'cooldown_effective_sec': stmt.excluded.cooldown_effective_sec,
+                    'emit_count_date': stmt.excluded.emit_count_date,
+                    'emit_count': stmt.excluded.emit_count,
                     'updated_at': func.now(),
                 },
             )
@@ -200,6 +208,49 @@ class WatchRuntimeStateRepository:
             session.commit()
         except Exception as e:
             logger.error('影子起始时间写入失败', error=str(e))
+            _safe_rollback()
+            raise
+
+    # ── 跨规则重叠已上报对（REQ-261016155500-4f2a wt:engine:3，20261016 新增列）──
+
+    def load_overlap_reported(self) -> List[List[int]]:
+        """读 quant.watch_runtime_meta.overlap_reported（无行/无值返回 []）。
+
+        走 shadow 同款隔离：列由 20261016 迁移新增，未迁移的库上只有本方法抛错，
+        由调用方（state_manager）降级为「重启后允许重复治理一项」——不牵连心跳读取。
+        """
+        try:
+            row = (
+                get_session()
+                .query(WatchRuntimeMeta.overlap_reported)
+                .filter(WatchRuntimeMeta.id == _META_ID)
+                .first()
+            )
+        except Exception:
+            _safe_rollback()
+            raise
+        value = None if row is None else row[0]
+        if not value:
+            return []
+        return [[int(p[0]), int(p[1])] for p in value]
+
+    def save_overlap_reported(self, pairs) -> None:
+        """写 overlap_reported（仅该列）；pairs 为 [[a,b],...]，空列表也写（清零语义）。"""
+        try:
+            tbl = WatchRuntimeMeta.__table__
+            payload = [[int(a), int(b)] for a, b in (pairs or [])]
+            stmt = pg_insert(tbl).values(
+                id=_META_ID, updated_at=func.now(), overlap_reported=payload)
+            stmt = stmt.on_conflict_do_update(
+                index_elements=[tbl.c.id],
+                set_={'overlap_reported': stmt.excluded.overlap_reported,
+                      'updated_at': func.now()},
+            )
+            session = get_session()
+            session.execute(stmt)
+            session.commit()
+        except Exception as e:
+            logger.error('重叠治理对已写入失败', error=str(e))
             _safe_rollback()
             raise
 

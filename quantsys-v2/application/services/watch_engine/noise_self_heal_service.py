@@ -143,10 +143,22 @@ class NoiseSelfHealService:
                                 'reason': 'already_healed_today'})
                 continue
 
+            open_todo = self._open_repair_todo(rule_id)
+            if open_todo is not None:
+                # 待办幂等（REQ-261016155500-4f2a；实测 10-16 规则 #250/#255：P2 补全
+                # 待办未关闭，自愈又建 P1 修规则待办 = 同规则双待办）：抑噪照做（状态机
+                # 动作，跨日仍超阈值要持续压住），但**不新建待办**——收口交给现有那条
+                # （补全/修复任一级别均可），抑噪审计里关联现有待办 id 以便溯源。
+                skipped.append({'rule_id': rule_id, 'account': account,
+                                'reason': 'open_repair_todo_exists'})
+
             reason = self._noise_reason(summary)
             until = noise_policy.suppress_until(current, hours=self._suppress_hours)
             self._rule_repo.mark_suppressed(rule_id, until, now=current)
-            todo = self._create_repair_todo(rule, account, rule_id, current, reason)
+            todo = (None if open_todo is not None
+                    else self._create_repair_todo(rule, account, rule_id, current, reason))
+            if todo is None:
+                todo = open_todo
             change = self._change_repo.record(
                 rule_id, changed_by='system', change_kind='suppress',
                 before={'noise_state': rule.get('noise_state'),
@@ -285,6 +297,21 @@ class NoiseSelfHealService:
         """日幂等判据：今日 00:00 起是否已有该规则的 suppress 审计行"""
         day_start = datetime(now.year, now.month, now.day)
         return bool(self._change_repo.exists_since(rule_id, 'suppress', day_start))
+
+    def _open_repair_todo(self, rule_id: int):
+        """该规则未收敛的 rule_change 待办（补全/修复任一，跨级别）；无则 None。
+
+        待办幂等判据（与 GuidanceBackfillService 同一 list_open_by_rule 口径）：
+        有则不新建——同规则双待办会让 agent 重复收口（实测 10-16 规则 #250/#255）。
+        """
+        try:
+            rows = self._todo_service.list_open_by_rule(
+                rule_id, action_kind='rule_change')
+            return rows[0] if rows else None
+        except Exception as e:  # noqa: BLE001 - 查询失败不阻断抑噪（宁可不新建待办）
+            logger.warning('待办幂等查询失败（按无待办处理，可能重复建）',
+                           rule_id=rule_id, error=str(e))
+            return None
 
     def _create_repair_todo(self, rule: Dict[str, Any], account: Optional[str],
                             rule_id: int, now: datetime, reason: str) -> Any:

@@ -19,6 +19,14 @@ AGENT_DH = 'agent-dh'
 AGENT_TS = 'agent-ts'
 DEFAULT_TARGET = AGENT_DH
 
+#: wake 候选链的兜底顺序（2026-10-16）：默认 **agent-dh ⇄ agent-ts 互备**。
+#: 动因：旧实现只在 `key != DEFAULT_TARGET` 时回退，而回退目标又是 DEFAULT_TARGET 自己——
+#: 于是「目标就是 agent-dh」时**没有任何回退**，agent-dh 一挂就投不出去（2026-10-16 实测
+#: 21:36 全部 `wake_status=error`），而当时 agent-ts 明明也能接手。
+#: 配置：WATCH_AGENT_FALLBACKS='agent-ts,agent-dh'（逗号分隔，按序尝试；不给则按策略表的
+#: WATCH_AGENTS 取"除目标外的其余 agent"，最后补 DEFAULT_TARGET）。
+FALLBACKS_ENV = 'WATCH_AGENT_FALLBACKS'
+
 #: agent 键 → 默认 wake 基地址
 #:   agent-dh :13080 = DSH investment profile（当前唯一在线，POST /wake）
 #:   agent-ts :3002  = 旧版 TS agent（npm run wake，需显式拉起；未在线时投递层会回退）
@@ -129,6 +137,31 @@ class AgentNotificationService:
         return (self._env_url(key) or DEFAULT_TARGET_URLS.get(key)
                 or self.agent_url).rstrip('/')
 
+    @staticmethod
+    def candidate_chain(target: Optional[str] = None) -> list:
+        """wake 候选链（去重、按序）：目标优先，其后是互备 agent，最后兜底默认 agent。
+
+        2026-10-16：把"只回退到默认 agent"改成**候选链依次尝试**——默认 agent-dh 与
+        agent-ts 互为备份（谁在线谁接手），因此 agent-dh 掉线不再等于投不出去。
+        纯函数（只读环境变量 WATCH_AGENT_FALLBACKS），便于单测与审计。
+        """
+        requested = str(target or DEFAULT_TARGET).strip() or DEFAULT_TARGET
+        raw = (os.getenv(FALLBACKS_ENV) or '').strip()
+        if raw:
+            candidates = [p.strip().strip('"\'') for p in raw.strip('[]').split(',')]
+        else:
+            try:
+                from domain.notification.policies.watch_delivery_policy import WATCH_AGENTS
+                candidates = [a for a in WATCH_AGENTS if a != requested]
+            except Exception:  # noqa: BLE001 - 策略表不可用时退回默认 agent（不阻断投递）
+                candidates = []
+            candidates.append(DEFAULT_TARGET)
+        chain = []
+        for name in [requested] + list(candidates):
+            if name and name not in chain:
+                chain.append(name)
+        return chain
+
     def notify_agent_detailed(self, event: str, data: Dict[str, Any],
                               target: Optional[str] = None) -> str:
         """通知指定 agent 并返回详细结果（按分类投递，见 watch_delivery_policy）
@@ -143,9 +176,13 @@ class AgentNotificationService:
             'disabled'- 通知被禁用
             'skipped' - 非生产环境（测试库/pytest 进程），按纪律不投递真实 agent
 
-        回退纪律（2026-09-11，w-aebfddcd）：目标 agent 连接失败时回退到默认 agent，
-        并在 payload 里标注 delivery_target / delivery_fallback_from ——
-        **绝不静默丢事件**（盯盘事件里有止损这类不能丢的东西）。
+        回退纪律（2026-09-11 w-aebfddcd 起；2026-10-16 改为**候选链**）：
+        按 candidate_chain(target) 依次尝试（默认 agent-dh ⇄ agent-ts 互备），命中即止；
+        回退成功时在 payload 里标注 delivery_target / delivery_fallback_from /
+        delivery_fallback_reason —— **绝不静默丢事件**（盯盘事件里有止损这类不能丢的东西）。
+
+        'timeout' **不换下一个候选**：那是"大概率已送达但无法确认"，换人就有重复处置风险
+        （与 2026-09-11 定下的"超时不重试"同一口径）。
         """
         if not self.enabled:
             logger.debug(f"Agent notify disabled, skipping: {event}")
@@ -159,24 +196,43 @@ class AgentNotificationService:
                                target=target or DEFAULT_TARGET)
                 return 'skipped'
 
-        key = target or DEFAULT_TARGET
-        url = self.resolve_target_url(key)
-        status, detail = self._post_once(url, event, data, target_key=key)
+        return self._deliver_chain(event, data, target)
 
-        if status == 'error' and key != DEFAULT_TARGET:
-            fallback_url = self.resolve_target_url(DEFAULT_TARGET)
-            # structlog 的 event= 是保留字段（日志正文），业务字段一律用 notify_event
-            logger.error("目标 agent 投递失败，回退默认 agent",
-                         notify_event=event, target=key, url=url, detail=str(detail)[:200])
-            fb_data = dict(data or {})
-            fb_data['delivery_target'] = key
-            fb_data['delivery_fallback_from'] = key
-            fb_data['delivery_fallback_reason'] = str(detail)[:200]
-            status, detail = self._post_once(fallback_url, event, fb_data,
-                                             target_key=DEFAULT_TARGET)
+    def _deliver_chain(self, event: str, data: Dict[str, Any],
+                       target: Optional[str] = None) -> str:
+        """候选链投递（见 notify_agent_detailed 的纪律）。返回最终状态串。"""
+        requested = str(target or DEFAULT_TARGET).strip() or DEFAULT_TARGET
+        chain = self.candidate_chain(requested)
+        status, detail = 'error', None
+        attempts = []
+        for idx, key in enumerate(chain):
+            payload = data
+            if idx:
+                # 回退载荷：标注真实落点与来源（绝不静默换人）
+                payload = dict(data or {})
+                payload['delivery_target'] = key
+                payload['delivery_fallback_from'] = requested
+                payload['delivery_fallback_reason'] = str(detail)[:200]
+                payload['delivery_fallback_hops'] = idx
+            url = self.resolve_target_url(key)
+            status, detail = self._post_once(url, event, payload, target_key=key)
+            attempts.append({'target': key, 'status': status})
             if status == 'ok':
-                logger.warning("回退投递成功", notify_event=event,
-                               target=key, fallback=DEFAULT_TARGET)
+                if idx:
+                    logger.warning("候选链回退投递成功", notify_event=event,
+                                   requested=requested, delivered_to=key, hops=idx)
+                return status
+            if status == 'timeout':
+                logger.warning("候选链首个候选超时：不再换人（避免重复处置）",
+                               notify_event=event, target=key)
+                return status
+            logger.error("候选链候选不可达，尝试下一个",
+                         notify_event=event, target=key, url=url,
+                         status=status, detail=str(detail)[:200],
+                         remaining=[c for c in chain[idx + 1:]])
+        logger.error("候选链全部候选失败（事件未送达）",
+                     notify_event=event, requested=requested, attempts=attempts,
+                     detail=str(detail)[:200])
         return status
 
     def _post_once(self, url: str, event: str, data: Dict[str, Any],

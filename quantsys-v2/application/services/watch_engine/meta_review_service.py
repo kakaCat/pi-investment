@@ -3,14 +3,17 @@
 用户明确要求：「盯盘总触发或者超时也需要 agent 介入处理，不能一直一个规则盯盘」。
 
 本服务把"规则自身的健康度"变成 agent 的检查点：
-  · burst  一直响：单日触发 ≥ N 次 → 阈值是否失真？该转阶段？该取消？
   · idle   一直不响：距上次触发 ≥ T 天 → 价值还在吗？续期/调整/取消？
   · stage  阶段滞留：距上次复核 ≥ T 天且仍在同一阶段 → 推进还是回退？
   · expiry 快到期：expires_at ≤ 2 天 → 续期还是收摊？
+  · ~~burst 一直响~~（2026-10-16 REQ-261016155500-4f2a wt:engine:3 **下线**）：与噪音自愈
+    （noise_self_heal：单日 ≥3 次 → 抑噪 24h + 修规则待办）双头治理且阈值打架
+    （5 vs 3）——"响得太频"归自愈一家管，本服务只留"不响/滞留/到期"三类。
 命中即落一条 meta_review 触发（复用 watch_triggers 流转，进未处置清单 → 会被摘要唤醒带走），
 并更新规则的 last_reviewed_at / review_due_at（保证"到期必被 agent 看一次"）。
 
-与「去重」的区别：去重解决"同一次跌穿不要响多次"；本服务解决"同一条规则长期响/长期不响"。
+与「去重」的区别：去重解决"同一次跌穿不要响多次"；本服务解决"同一条规则长期不响/长期滞留"。
+与「自愈抑噪」的边界：响得太频 → 自愈（noise_self_heal）；不响/滞留/到期 → 本服务。
 """
 import json
 from datetime import datetime, timedelta
@@ -69,9 +72,7 @@ class WatchMetaReviewService:
                 continue
 
             reasons = []
-            ok, why = evaluate_meta_trigger("burst", burst_count=st["today"], cfg=self.cfg)
-            if ok:
-                reasons.append(why)
+            # burst 检查已下线（wt:engine:3，见模块 docstring）：单日高频归自愈一家管。
 
             anchor = st["last_at"] or getattr(rule, "created_at", None) or now
             idle_days = (now - anchor).days
@@ -101,7 +102,7 @@ class WatchMetaReviewService:
                     rule_id=rule.id,
                     symbol=rule.symbol,
                     condition={"type": "meta_review",
-                               "params": {"kinds": ["burst", "idle", "stage", "expiry"],
+                               "params": {"kinds": ["idle", "stage", "expiry"],
                                           "intent": intent}},
                     trigger_price=None,
                     detail={"message": reason, "intent": intent,

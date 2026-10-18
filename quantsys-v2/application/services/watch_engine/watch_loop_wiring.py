@@ -61,17 +61,31 @@ def build_todo_repo() -> Any:
     return WatchTodoRepository()
 
 
-def build_todo_service() -> Any:
+def build_todo_service(assigner: Optional[Any] = None) -> Any:
+    """待办服务；缺省接上"建单即派给 owner agent"（2026-10-16 补缺环）。
+
+    assigner 显式给 None 时**仍接真实派单**（生产语义）；要关派单请在测试里传假
+    assigner 或直接构造 TodoService。派单实现自己吞异常，不会打挂建单。
+    """
     from application.services.watch_engine.todo_service import TodoService
-    return TodoService(build_todo_repo())
+    from application.services.watch_engine.watch_channels import wake_todo_assignment
+    return TodoService(build_todo_repo(), assigner=assigner or wake_todo_assignment)
 
 
 def build_receipt_service() -> Any:
-    """三段回执服务（sender 接 NotificationFacade，见 watch_channels）"""
+    """三段回执服务（sender 接 NotificationFacade，见 watch_channels）
+
+    agent_waker（2026-10-16）：agent 自有待办的超时升级改唤醒 owner agent，
+    而不是把"请处置"推给用户；wake 未送达时由 wake_todo_owner 退回盯盘群卡片。
+    """
     from adapters.outbound.repositories.watch_receipt_repository import WatchReceiptRepository
     from application.services.watch_engine.receipt_service import ReceiptService
-    from application.services.watch_engine.watch_channels import send_watch_receipt
-    return ReceiptService(WatchReceiptRepository(), sender=send_watch_receipt)
+    from application.services.watch_engine.watch_channels import (
+        send_watch_receipt,
+        wake_todo_owner,
+    )
+    return ReceiptService(WatchReceiptRepository(), sender=send_watch_receipt,
+                          agent_waker=wake_todo_owner)
 
 
 def build_self_heal_service(todo_service: Optional[Any] = None) -> Any:

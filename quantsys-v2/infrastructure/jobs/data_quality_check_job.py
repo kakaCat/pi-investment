@@ -487,10 +487,13 @@ def _dispatch_alert_to_feishu(title: str, message: str, urgency: str = 'normal')
 
     2026-09-11 w-23c70356：用户要求质量告警不能只落日志，需真实外发。
     失败只记录、绝不影响任务结果（通知是旁路，不是主线）。
+
+    2026-10-14：数据质量属**系统/数据链路**消息 → 走 send_ops_card 落独立运维群
+    （FEISHU_WEBHOOK_OPS），不再与股票类消息混群。
     """
     try:
         facade = _get_notification_facade()
-        ok = facade.send_card(title=title, content=message, urgency=urgency)
+        ok = facade.send_ops_card(title=title, content=message, urgency=urgency)
         if ok:
             logger.info(f"✅ 质量告警已外发飞书（urgency={urgency}）")
         else:

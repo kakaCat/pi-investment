@@ -97,11 +97,14 @@ def notify_degraded(title: str, content: str, urgency: str) -> bool:
     为什么放在守卫模块而不是 main：通道实现属于"守卫的输出端口"，放这里让
     install_degraded_alert_notifier(notify_degraded) 成为启动期一行接线，
     同时保持守卫核心（判定/去重）不依赖通知栈——延迟 import，调用时才解析。
+
+    2026-10-14：交易日判定降级属**系统/数据链路**消息 → 落独立运维群
+    （send_ops_card），不再与股票类消息混群。
     """
     try:
         from application.notification import get_notification_facade
 
-        return bool(get_notification_facade().send_card(
+        return bool(get_notification_facade().send_ops_card(
             title=title, content=content,
             urgency='high' if urgency == 'high' else 'normal',
         ))

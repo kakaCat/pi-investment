@@ -21,6 +21,53 @@ VALID_TYPES = {'price_break', 'pct_change', 'pnl_pct', 'velocity', 'volume_surge
 DEFAULT_COOLDOWN_SEC = 300
 MAX_NESTING_DEPTH = 3
 
+# ── 迟滞闩锁 + 每条件日上限（REQ-261016155500-4f2a wt:engine:1，2026-10-16）────────
+#: price_break 触发后重新武装的迟滞带：h = max(0.5% × 阈值, 最小报价单位×5)。
+#: 阈值附近的小幅反复穿越不再重新武装——治「跌穿后每 30 分钟复读一张卡」。
+HYSTERESIS_PCT = 0.5          # 0.5%
+MIN_HYSTERESIS_ABS = 0.05     # A 股最小报价单位 0.01 × 5
+#: 每规则每条件每交易日的通知上限（超限只落库不通知）。
+DEFAULT_DAILY_EMIT_CAP = 2
+
+
+def hysteresis_rearm_price(cond: dict):
+    """price_break 的重新武装边界（纯函数）。
+
+    下破触发（price ≤ T）后：需回升到 T+h 以上才重新武装；上破触发（price ≥ T）
+    后：需回落到 T-h 以下。非 price_break（或无 price/direction）→ None（维持
+    「未触发即重新武装」的原语义）。阈值必须为正数。
+    """
+    if not isinstance(cond, dict) or cond.get('type') != 'price_break':
+        return None
+    params = cond.get('params') or {}
+    threshold, direction = params.get('price'), params.get('direction')
+    if threshold is None or direction not in ('above', 'below'):
+        return None
+    threshold = float(threshold)
+    if threshold <= 0:
+        return None
+    h = max(threshold * HYSTERESIS_PCT / 100.0, MIN_HYSTERESIS_ABS)
+    return threshold + h if direction == 'below' else threshold - h
+
+
+def within_hysteresis_band(cond: dict, value) -> bool:
+    """闩锁保持期间，value 是否仍在迟滞带内（带内 → 不重新武装，继续等）。
+
+    仅在 hysteresis_rearm_price 有定义（price_break）且 value 可解析时生效。
+    """
+    if value is None:
+        return False
+    rearm = hysteresis_rearm_price(cond)
+    if rearm is None:
+        return False
+    try:
+        value = float(value)
+    except (TypeError, ValueError):
+        return False
+    direction = (cond.get('params') or {}).get('direction')
+    return value <= rearm if direction == 'below' else value >= rearm
+
+
 
 @dataclass
 class EvalResult:

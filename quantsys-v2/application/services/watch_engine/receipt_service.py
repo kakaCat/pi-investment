@@ -137,6 +137,28 @@ def _humanize_overdue(due: Any, now: Optional[datetime] = None) -> Optional[str]
     return f'{hours}h{minutes}m' if hours else f'{minutes}m'
 
 
+def _timeline_of(todo: Any, now: Optional[datetime] = None) -> str:
+    """待办全过程时间线（REQ-261016155500-4f2a）：创建 → 认领 → 关闭（+晋升次数）。
+
+    缺失的节点跳过（不臆造，R-013）；一个节点都没有 → 空串（调用方整行省略）。
+    """
+    def _stamp(value: Any, label: str) -> Optional[str]:
+        if hasattr(value, 'strftime'):
+            return '%s %s' % (value.strftime('%m-%d %H:%M'), label)
+        return None
+
+    segs = [_stamp(getattr(todo, 'created_at', None), '创建'),
+            _stamp(getattr(todo, 'claimed_at', None), '认领'),
+            _stamp(getattr(todo, 'closed_at', None), '关闭')]
+    segs = [s for s in segs if s]
+    if not segs:
+        return ''
+    esc = int(getattr(todo, 'escalate_count', 0) or 0)
+    if esc:
+        segs.append('晋升 %d 次' % esc)
+    return ' → '.join(segs)
+
+
 def render_receipt(todo: Any, *, kind: str, period: str,
                    name: Optional[str] = None,
                    close_reason: Optional[str] = None,
@@ -200,6 +222,11 @@ def render_receipt(todo: Any, *, kind: str, period: str,
             result_lines.append('后续意见：NEXT 条件缺失（ignored 必填，数据异常）')
         else:
             result_lines.append('后续意见：无')
+        # REQ-261016155500-4f2a：全过程时间线（触发→晋升→关闭）——升级回执下线后，
+        # 晋升历史只在结果卡里可见，必须带全。
+        timeline = _timeline_of(todo, now)
+        if timeline:
+            result_lines.append('时间线：' + timeline)
         body = '\n'.join(result_lines)
     else:
         body = f'待办#{todo_id} {display} {level} · 归属 {account}'
@@ -233,10 +260,14 @@ class ReceiptService:
     无状态；不做级别判定、不决定晋升、不碰 SQL。
     """
 
-    def __init__(self, repo: Any, sender: Optional[Sender] = None):
+    def __init__(self, repo: Any, sender: Optional[Sender] = None,
+                 agent_waker: Optional[Callable[[Any, Dict[str, Any]], bool]] = None):
         self._repo = repo
         #: 缺省 None = log-only（真实通道接线归 t12），**不得**在服务内自建飞书通道
         self._sender = sender
+        #: agent 自有待办的升级通道（2026-10-16）：agent_waker(todo, context) -> bool。
+        #: 缺省 None = 行为与改前一致（超时一律走 sender 卡片）。见 _deliver_to_agent。
+        self._agent_waker = agent_waker
         # REQ-ad0a t4（FR-8）聚合投递状态：begin_group 开启一轮 → escalate/timeout
         # 入组不投递 → flush_grouped 按 kind 各发一张聚合卡并逐条落库。
         self._group_open = False
@@ -269,12 +300,33 @@ class ReceiptService:
                            action_kind=action_kind)
 
     def timeout(self, todo: Any, *, channel: Optional[str] = None,
-                name: Optional[str] = None) -> Dict[str, Any]:
-        """超时回执：已在 L3 仍超时未收敛 → 升级给你本人（不改变终态，等处置）。
+                name: Optional[str] = None, deliver: bool = True) -> Dict[str, Any]:
+        """超时回执：已在 L3 仍超时未收敛 → 升级给**该负责的人**（不改变终态，等处置）。
 
-        name：标的名称（FR-13）。"""
+        name：标的名称（FR-13）。
+        deliver（REQ-261016155500-4f2a）：False = 只落台账不发送（P2/P3 超时不打扰
+        用户，留日终汇总）；delivery_status 如实记 log_only，绝不假装已发。
+        **仅对 owner_kind=user 的待办生效**：agent 自有的待办走 agent_waker（唤醒 owner
+        agent），级别门不适用——那是发给 agent 的私信，不占用户卡片（2026-10-16）。"""
         return self._issue(todo, kind='timeout',
-                           period=receipt_period(todo, ''), channel=channel, name=name)
+                           period=receipt_period(todo, ''), channel=channel, name=name,
+                           deliver=deliver)
+
+    # ── 升级去向 ────────────────────────────────────────────
+
+    @staticmethod
+    def _audience_of(todo: Any, kind: str) -> str:
+        """升级投给谁：'agent'（owner 是 agent）/ 'user'（其余）。
+
+        只有"超时升级"分流（2026-10-16）：规则自愈/元评审派出的 agent 自有待办超时后
+        该催 agent，把"请逐项勾选或回复处置"推给人是错的责任人——它还掩盖了
+        「agent 从未被告知」这条断链（见 watch_channels 的待办唤醒）。
+        升级即/处置后回执的语义不变（处置结论给人看）。
+        """
+        if str(kind or '').strip().lower() != 'timeout':
+            return 'user'
+        owner_kind = str(getattr(todo, 'owner_kind', '') or '').strip().lower()
+        return 'agent' if owner_kind == 'agent' else 'user'
 
     # ── 幂等 + 发送 ─────────────────────────────────────────
 
@@ -282,13 +334,16 @@ class ReceiptService:
                channel: Optional[str] = None, name: Optional[str] = None,
                close_reason: Optional[str] = None,
                next_condition: Optional[str] = None,
-               action_kind: Optional[str] = None) -> Dict[str, Any]:
+               action_kind: Optional[str] = None,
+               deliver: bool = True) -> Dict[str, Any]:
         """幂等落一条回执：exists → 发送 → record。sender 失败不抛，仓储失败抛。
 
         顺序说明：**先查后发再落库**。查命中即整段跳过（含发送）——这是"只发一次"的
         实现；发送失败仍落库（delivery_status=failed），保证"只落一条"且失败可见，
         不把失败伪装成没发生。仓储异常向上抛给调用方（WatchSlaJob 按单条记录并继续），
         绝不在此吞掉——"回执库坏了"必须暴露。
+        deliver=False（REQ-261016155500-4f2a）：跳过发送只留台账（P2/P3 超时），
+        delivery_status 如实记 log_only。
         """
         kind_value = str(kind or '').strip().lower()
         if kind_value not in RECEIPT_KINDS:
@@ -310,12 +365,21 @@ class ReceiptService:
 
         # REQ-ad0a t4（FR-8）：聚合轮开启且属聚合类型 → 入组（flush 时投递+落库）；
         # 否则保持即时投递（result/suppressed 与聚合轮外的直调行为不变）。
-        grouped = kind_value in AGGREGATE_KINDS and self._group_open
+        # deliver=False（P2/P3 超时）**不参与聚合**：入组会在 flush 时发卡，绕过"只落
+        # 台账"——故直接走即时路径，记 log_only 不发送。
+        # audience='agent'（agent 自有待办）同样**不聚合**：那是发给 owner 的私信，
+        # 不能折进用户看的聚合卡。
+        audience = self._audience_of(todo, kind_value)
+        grouped = (kind_value in AGGREGATE_KINDS and self._group_open and deliver
+                   and audience == 'user')
+        # agent 自有的条目在聚合轮内也走 flush 的卡（唤醒失败时折进同一张卡），
+        # 故文案同样用**一行形态**（无 [超时] 前缀），否则折进卡里的行带前缀、与同卡其他行不同版式。
+        in_group = grouped or (self._group_open and audience == 'agent')
         message = render_receipt(todo, kind=kind_value, period=period, name=name,
                                  close_reason=close_reason,
                                  next_condition=next_condition,
                                  action_kind=action_kind,
-                                 in_group=grouped)
+                                 in_group=in_group)
         if grouped:
             self._group_buffer.setdefault(kind_value, []).append({
                 'todo_id': todo_id, 'channel': ch, 'period': period,
@@ -328,18 +392,44 @@ class ReceiptService:
                 'issued': True, 'duplicate': False, 'sent': False, 'kind': kind_value,
                 'todo_id': todo_id, 'channel': ch, 'delivery_status': None,
                 'digest': digest, 'message': message, 'receipt': None, 'grouped': True,
+                'audience': audience,
             }
-        delivery, sent = self._deliver(todo_id, kind_value, ch, message, period, todo=todo)
+        # audience='agent'（agent 自有待办）**不折进用户卡**：改为私信唤醒 owner；
+        # 聚合轮内先入组，由 flush 统一唤醒（唤醒成功的条目根本不进卡，失败的 P0/P1
+        # 折进同一张卡）——否则 agent 离线时会按条炸出 N 张卡（2026-10-16 实测缺陷）。
+        if audience == 'agent' and self._group_open:
+            self._group_buffer.setdefault(kind_value, []).append({
+                'todo_id': todo_id, 'channel': ch, 'period': period,
+                'digest': digest, 'message': message,
+                'level': getattr(todo, 'level', None),
+                'wake_owner': True, 'todo': todo,
+            })
+            logger.info('回执已入聚合组（flush 时唤醒 owner 并落库）', todo_id=todo_id,
+                        kind=kind_value, digest=digest)
+            return {
+                'issued': True, 'duplicate': False, 'sent': False, 'kind': kind_value,
+                'todo_id': todo_id, 'channel': ch, 'delivery_status': None,
+                'digest': digest, 'message': message, 'receipt': None, 'grouped': True,
+                'audience': audience,
+            }
+        if audience == 'agent':
+            delivery, sent = self._deliver_to_agent(todo, kind_value, ch, message, period)
+        elif not deliver:
+            delivery, sent = DELIVERY_LOG_ONLY, False
+        else:
+            delivery, sent = self._deliver(todo_id, kind_value, ch, message, period,
+                                           todo=todo)
 
         receipt = self._repo.record(todo_id, kind_value, channel=ch,
                                     delivery_status=delivery, message_id=None,
                                     payload_digest=digest)
         logger.info('回执已落库', todo_id=todo_id, kind=kind_value, channel=ch,
-                    delivery_status=delivery, digest=digest)
+                    delivery_status=delivery, digest=digest, audience=audience)
         return {
             'issued': True, 'duplicate': False, 'sent': sent, 'kind': kind_value,
             'todo_id': todo_id, 'channel': ch, 'delivery_status': delivery,
             'digest': digest, 'message': message, 'receipt': receipt,
+            'audience': audience,
         }
 
     def _deliver(self, todo_id: int, kind: str, channel: str,
@@ -365,6 +455,40 @@ class ReceiptService:
             return DELIVERY_FAILED, False
         return DELIVERY_SENT, True
 
+    def _wake_owner(self, todo: Any, kind: str, channel: str, message: str, period: str,
+                    *, allow_card_fallback: bool) -> bool:
+        """唤醒 owner agent（不抛；True=送达）。未接线 = False（log-only，不假装已发）。
+
+        allow_card_fallback：True（即时投递路径）= 允许 waker 自己退回盯盘群卡片；
+        False（聚合轮）= 退回交给 flush 折进**同一张**卡（避免 agent 离线时按条炸卡）。
+        """
+        if self._agent_waker is None:
+            logger.warning('owner agent 唤醒未接线（log-only，未送达）',
+                           todo_id=getattr(todo, 'id', None), kind=kind, channel=channel)
+            return False
+        try:
+            return bool(self._agent_waker(todo, {
+                'kind': kind, 'channel': channel, 'period': period, 'message': message,
+                'level': getattr(todo, 'level', None),
+                'allow_card_fallback': allow_card_fallback,
+            }))
+        except Exception as e:  # noqa: BLE001 - 唤醒失败不许打挂巡检
+            logger.error('owner agent 唤醒失败（如实记 failed，不打断巡检）',
+                         todo_id=getattr(todo, 'id', None), kind=kind, error=str(e))
+            return False
+
+    def _deliver_to_agent(self, todo: Any, kind: str, channel: str,
+                          message: str, period: str) -> (str, bool):
+        """把升级投给 owner agent（2026-10-16）：返回 (delivery_status, sent)。
+
+        与 _deliver 同一纪律：未接线 = log_only（不假装已发）；waker 抛错 = failed，
+        不打断巡检。waker 的实现（watch_channels.wake_todo_owner）负责
+        "wake 未送达时对 P0/P1 退回盯盘群卡片"（即时路径 = 单条，不会炸卡）。
+        """
+        delivered = self._wake_owner(todo, kind, channel, message, period,
+                                     allow_card_fallback=True)
+        return (DELIVERY_SENT, True) if delivered else (DELIVERY_FAILED, False)
+
     # ── 聚合投递（REQ-260924104605-ad0a t4，FR-8）───────────────────────────
 
     def begin_group(self) -> None:
@@ -383,7 +507,12 @@ class ReceiptService:
         sender 未接线 = 整组 log_only（诚实边界，不假装已发）。
         去重键仍是 per-todo 的 payload_digest（digest 语义不变），聚合只发生在
         **投递层**——同周期重复巡检在 _issue 的 exists 处即整段跳过（含入组）。
-        返回 {kind: {count, sent, delivery_status, batch_id}} 供调用方合并统计。
+
+        agent 自有的条目（wake_owner，2026-10-16）先**私信唤醒 owner**：
+        送达的条目**不进用户卡**（agent 的活不占用户卡）；未送达的 P0/P1 折进
+        本轮**同一张**卡（绝不静默丢，也不按条炸卡——agent 离线时按条兜底会一轮
+        发 N 张，2026-10-16 生产实测），P2/P3 只记 failed。
+        返回 {kind: {count, card_count, sent, delivery_status, batch_id}}。
         """
         self._group_open = False
         summary: Dict[str, Dict[str, Any]] = {}
@@ -391,36 +520,76 @@ class ReceiptService:
             items = self._group_buffer.pop(kind_value)
             if not items:
                 continue
-            batch_id = 'batch:%s:%s' % (kind_value, datetime.now().strftime('%Y%m%d%H%M'))
-            has_p0 = any(str(it.get('level') or '').strip().upper() == 'P0' for it in items)
-            high = (kind_value == 'timeout') or has_p0
-            ch = CHANNEL_RISK_STOP if high else CHANNEL_WATCH_SYMBOL
-            card = render_group_card(kind_value, items)
-            payload = {
-                'kind': kind_value, 'channel': ch, 'message': card,
-                # t3 的 watch_channels：显式 os_channel 优先（timeout/P0 → risk_stop）
-                'os_channel': 'risk_stop' if high else 'watch_symbol',
-                'batch_id': batch_id, 'items': len(items),
-                'level': 'P0' if has_p0 else None,
-            }
-            if self._sender is None:
-                logger.warning('聚合回执未接线（log-only，未送达）',
-                               kind=kind_value, count=len(items))
-                delivery, sent = DELIVERY_LOG_ONLY, False
-            else:
-                try:
-                    self._sender(payload)
-                    delivery, sent = DELIVERY_SENT, True
-                except Exception as e:  # noqa: BLE001 - sender 失败不抛，整组记 failed
-                    logger.error('聚合回执发送失败（整组记 failed）',
-                                 kind=kind_value, count=len(items), error=str(e))
-                    delivery, sent = DELIVERY_FAILED, False
+
+            # ① agent 自有条目：先唤醒 owner（成功者出卡，失败者按级别折进卡）
+            card_items: List[Dict[str, Any]] = []
             for it in items:
-                self._repo.record(it['todo_id'], kind_value, channel=ch,
-                                  delivery_status=delivery, message_id=batch_id,
-                                  payload_digest=it['digest'])
-            logger.info('聚合回执已落库', kind=kind_value, count=len(items),
-                        delivery_status=delivery, batch_id=batch_id)
-            summary[kind_value] = {'count': len(items), 'sent': sent,
-                                   'delivery_status': delivery, 'batch_id': batch_id}
+                if not it.get('wake_owner'):
+                    card_items.append(it)
+                    continue
+                todo = it.get('todo')
+                delivered = self._wake_owner(
+                    todo, kind_value, it.get('channel') or CHANNEL_RISK_STOP,
+                    it.get('message') or '', it.get('period') or '',
+                    allow_card_fallback=False)          # 退回交给本函数折进同一张卡
+                if delivered:
+                    it['delivery_status'] = DELIVERY_SENT
+                    it['message_id'] = 'wake'
+                else:
+                    it['delivery_status'] = DELIVERY_FAILED
+                    if str(it.get('level') or '').strip().upper() in ('P0', 'P1'):
+                        card_items.append(it)
+
+            # ② 卡片投递（整轮一张）
+            batch_id = None
+            card_delivery, card_sent = None, False
+            if card_items:
+                batch_id = 'batch:%s:%s' % (kind_value,
+                                            datetime.now().strftime('%Y%m%d%H%M'))
+                has_p0 = any(str(it.get('level') or '').strip().upper() == 'P0'
+                             for it in card_items)
+                high = (kind_value == 'timeout') or has_p0
+                ch = CHANNEL_RISK_STOP if high else CHANNEL_WATCH_SYMBOL
+                payload = {
+                    'kind': kind_value, 'channel': ch,
+                    'message': render_group_card(kind_value, card_items),
+                    # t3 的 watch_channels：显式 os_channel 优先（timeout/P0 → risk_stop）
+                    'os_channel': 'risk_stop' if high else 'watch_symbol',
+                    'batch_id': batch_id, 'items': len(card_items),
+                    'level': 'P0' if has_p0 else None,
+                }
+                if self._sender is None:
+                    logger.warning('聚合回执未接线（log-only，未送达）',
+                                   kind=kind_value, count=len(card_items))
+                    card_delivery, card_sent = DELIVERY_LOG_ONLY, False
+                else:
+                    try:
+                        self._sender(payload)
+                        card_delivery, card_sent = DELIVERY_SENT, True
+                    except Exception as e:  # noqa: BLE001 - sender 失败不抛，整组记 failed
+                        logger.error('聚合回执发送失败（整组记 failed）',
+                                     kind=kind_value, count=len(card_items), error=str(e))
+                        card_delivery, card_sent = DELIVERY_FAILED, False
+                for it in card_items:
+                    # 卡片结果覆盖逐条状态：折进卡的 agent 条目以"卡是否送达"为准
+                    it['delivery_status'] = card_delivery
+                    it['message_id'] = batch_id
+                    it['channel'] = ch
+
+            # ③ 逐条落库（不重不漏）：私信送达的条目单独记，卡内条目记卡片结果
+            for it in items:
+                self._repo.record(
+                    it['todo_id'], kind_value,
+                    channel=it.get('channel') or CHANNEL_RISK_STOP,
+                    delivery_status=it.get('delivery_status') or DELIVERY_LOG_ONLY,
+                    message_id=it.get('message_id'), payload_digest=it['digest'])
+
+            # 私信全部送达（无卡）= 也是"已送达"，调用方的 alerts 不应漏计
+            sent = card_sent if card_items else True
+            delivery = card_delivery or DELIVERY_SENT
+            logger.info('聚合轮收尾已落库', kind=kind_value, count=len(items),
+                        card_count=1 if card_items else 0, delivery_status=delivery)
+            summary[kind_value] = {'count': len(items), 'card_count': 1 if card_items else 0,
+                                   'sent': sent, 'delivery_status': delivery,
+                                   'batch_id': batch_id}
         return summary

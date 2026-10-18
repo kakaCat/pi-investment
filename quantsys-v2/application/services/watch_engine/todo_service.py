@@ -57,7 +57,8 @@ class TodoService:
     """待办落库 / 认领 / 关闭的编排服务（无状态，仓储由构造注入）"""
 
     def __init__(self, repo: IWatchTodoRepository, policy: Any = None, *,
-                 receipt_service: Any = None, name_resolver: Any = None):
+                 receipt_service: Any = None, name_resolver: Any = None,
+                 assigner: Any = None):
         self._repo = repo
         #: WatchDeliveryPolicy（可注入，缺省由 route_owner 用默认策略）——不缓存账户映射内容
         self._policy = policy
@@ -66,6 +67,9 @@ class TodoService:
         self._receipt_service = receipt_service
         #: StockNameResolver（可选，FR-13）：close 单条解析标的名称，缺失 → 名称缺失标注
         self._name_resolver = name_resolver
+        # 待办派单（可选，2026-10-16）：assigner(todo) -> bool。未注入 = 行为与改前一致
+        # （只落库，不发通知——正是"工单没人接"的病根，见 _dispatch_assignment）。
+        self._assigner = assigner
 
     # ── 创建 ────────────────────────────────────────────────
 
@@ -101,7 +105,32 @@ class TodoService:
         logger.info('盯盘待办已建', todo_id=todo.id, symbol=symbol, level=level,
                     flow_state=state, account=account, owner_kind=route.owner_kind,
                     owner_ref=route.owner_ref, autonomy=autonomy)
+        self._dispatch_assignment(todo, route, trigger_id)
         return todo
+
+    def _dispatch_assignment(self, todo: Any, route: Any, trigger_id: Optional[int]) -> None:
+        """把工单派给 owner agent（2026-10-16，补「待办 → agent」缺环）。
+
+        为什么只在"没有触发"时派：
+          · trigger_id 非空 → 该触发已由引擎的 L2 目标路由唤醒过 owner
+            （notification_facade._send_l2_via_target_agent），再派就是双唤醒；
+          · trigger_id 为空 → 规则自愈 / 元评审 / 补全指引派出的**修规则工单**，
+            此前没有任何送达 agent 的通道（生产事故：13 条 P1 工单挂 4 小时无人知）。
+        为什么只派 agent 自有的：用户账户的待办按 owner_router 归属用户，agent 无权
+        替其决策（只出建议），把它唤醒等于投错责任人。
+
+        纪律：派单失败**绝不打挂建单**（工单已落库，超时升级仍会兜底），异常只记日志。
+        未注入 assigner（缺省）= 行为与改前完全一致。
+        """
+        if self._assigner is None or trigger_id is not None:
+            return
+        if str(getattr(route, 'owner_kind', '') or '').strip().lower() != 'agent':
+            return
+        try:
+            self._assigner(todo)
+        except Exception as e:  # noqa: BLE001 - 派单失败不打挂建单
+            logger.error('待办派单唤醒异常（工单已落库，靠超时升级兜底）',
+                         todo_id=getattr(todo, 'id', None), error=str(e))
 
     # ── 认领 ────────────────────────────────────────────────
 
@@ -223,6 +252,12 @@ class TodoService:
     def overdue(self, now: Any = None, limit: int = 100) -> List[Any]:
         """到期未收敛待办（巡检读侧；I1 晋升依据）"""
         return self._repo.list_overdue(now=now, limit=limit)
+
+    def list_open_by_rule(self, rule_id: int, action_kind: Optional[str] = None,
+                          trigger_id_null: bool = False) -> List[Any]:
+        """某规则的未收敛待办（补全待办幂等判定用，REQ-261016155500-4f2a）"""
+        return self._repo.list_open_by_rule(rule_id, action_kind=action_kind,
+                                            trigger_id_null=trigger_id_null)
 
     # ── 内部 ────────────────────────────────────────────────
 

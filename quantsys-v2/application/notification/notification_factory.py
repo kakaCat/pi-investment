@@ -192,6 +192,32 @@ class NotificationFactory:
         else:
             logger.warning("飞书 webhook 未配置，飞书渠道未启用")
 
+        # 系统运维群（2026-10-14）：调度/任务/探活/数据质量等**系统类**消息的独立落点。
+        # 渠道名必须是 'feishu_ops'——facade.send_ops_* 用 preferred_channels 精确选它；
+        # 两个 FeishuChannel 同名会互相顶掉（见 FeishuChannel.name 的说明）。
+        # 未配置 FEISHU_WEBHOOK_OPS 时**回退通用群**：宁可混群也不丢系统告警，
+        # 但把"没分群"这件事明确打成 warning，避免静默退回旧行为。
+        ops_webhook = getattr(settings.external, 'feishu_webhook_ops', None)
+        if ops_webhook:
+            channels.append(FeishuChannel(
+                webhook_url=ops_webhook,
+                formatters=formatters,
+                timeout=10,
+                name='feishu_ops',
+            ))
+            logger.info("飞书运维渠道已启用（系统运维消息分群）")
+        elif feishu_webhook:
+            channels.append(FeishuChannel(
+                webhook_url=feishu_webhook,
+                formatters=formatters,
+                timeout=10,
+                name='feishu_ops',
+            ))
+            logger.warning(
+                "FEISHU_WEBHOOK_OPS 未配置：系统运维消息将落在通用群"
+                "（与股票类消息混群）。配置该项即可分群。"
+            )
+
         # Agent 渠道（通知投递）。REQ-ad0a t7：注册闸门用**投递专用开关**
         # agent_os_notify_enabled——调度权开关 agent_os_enabled=false（ADR-002，
         # v2 APScheduler 接管业务任务）不该把通知的「agent 优先」链路一并关掉。

@@ -83,6 +83,10 @@ class WatchRuntimeState(Base):
     latched = Column(Boolean, nullable=False, server_default=text('false'), comment='是否处于闩锁（电平保持不重复推）')
     last_triggered_at = Column(DateTime(timezone=True), nullable=True, comment='最近一次产出时间（冷却基准）')
     cooldown_effective_sec = Column(Integer, nullable=True, comment='自愈临时延长后的有效冷却（秒）')
+    # 每日通知计数（REQ-261016155500-4f2a）：配合 daily_emit_counts 内存态，
+    # 跨重启保住「每规则每条件每日 ≤N 次」的上限（重启不丢）。
+    emit_count_date = Column(Date, nullable=True, comment='通知计数所属交易日（非今天则计数作废）')
+    emit_count = Column(Integer, nullable=True, comment='当日已通知次数')
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 
@@ -101,6 +105,9 @@ class WatchRuntimeMeta(Base):
     digest_shadow_since = Column(
         DateTime(timezone=True), nullable=True,
         comment='影子模式首次进入时间（跨重启保持，库优先 env 兜底）')
+    # 跨规则重叠已上报的规则对（REQ-261016155500-4f2a wt:engine:3）：[[a,b],...]，
+    # 持久化后重启不重复落治理项。列为 20261016 迁移新增，读写走专用方法隔离。
+    overlap_reported = Column(JSONB, nullable=True, comment='跨规则重叠已上报规则对')
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 

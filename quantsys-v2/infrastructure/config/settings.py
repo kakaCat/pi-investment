@@ -93,6 +93,10 @@ class ExternalServiceSettings(BaseSettings):
 
     # 飞书
     feishu_webhook_url: Optional[str] = Field(default=None, alias="FEISHU_WEBHOOK_URL")
+    # 系统运维群（2026-10-14）：调度看门狗 / 每日任务开始·完成·失败 / 数据质量 / 探活
+    # 等**系统类**消息的独立落点，避免与个股·盘前例程·保护线等股票类消息混群。
+    # 不配置时运维消息回退通用群（不丢消息，但会混群）——见 notification_factory。
+    feishu_webhook_ops: Optional[str] = Field(default=None, alias="FEISHU_WEBHOOK_OPS")
 
     # HTTP 代理
     http_proxy: Optional[str] = Field(default=None, alias="HTTP_PROXY")

@@ -33,13 +33,15 @@ class FeishuChannel(NotificationChannel):
     配置：
     - webhook_url: 飞书机器人 Webhook 地址
     - timeout: 请求超时时间（秒）
+    - name: 渠道名（2026-10-14 新增，见下）
     """
 
     def __init__(
         self,
         webhook_url: str,
         formatters: List[NotificationFormatter],
-        timeout: int = 10
+        timeout: int = 10,
+        name: str = "feishu"
     ):
         """初始化飞书渠道
 
@@ -47,9 +49,17 @@ class FeishuChannel(NotificationChannel):
             webhook_url: 飞书 Webhook URL
             formatters: 格式化器列表
             timeout: 请求超时时间（秒）
+            name: 渠道名，默认 'feishu'（行为不变）。
+
+        2026-10-14：系统运维消息要与股票消息分群（用户裁定：调度看门狗/每日任务
+        完成这类系统消息不许和盘前例程/保护线这类股票消息混在一个群）。于是本仓
+        需要**同时持有两个飞书群**：通用群 'feishu' + 运维群 'feishu_ops'。
+        NotificationService 用 {channel.get_name(): channel} 建索引，而原实现
+        get_name() 恒返回 'feishu' —— 第二个实例会静默顶掉第一个，故渠道名必须可配。
         """
         self.webhook_url = webhook_url
         self.timeout = timeout
+        self.name = name or "feishu"
 
         # 构建格式化器映射表
         self.formatters: dict[str, NotificationFormatter] = {}
@@ -179,9 +189,9 @@ class FeishuChannel(NotificationChannel):
         """获取渠道名称
 
         Returns:
-            str: 'feishu'
+            str: 渠道名（构造时传入，默认 'feishu'；运维群为 'feishu_ops'）
         """
-        return "feishu"
+        return self.name
 
     def healthcheck(self) -> bool:
         """健康检查：检查 webhook 是否配置

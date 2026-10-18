@@ -308,8 +308,13 @@ class IWatchTodoRepository(ABC):
     @abstractmethod
     def promote(self, todo_id: int, to_state: str, *,
                 escalate_count: Optional[int] = None,
-                now: Optional[datetime] = None) -> Optional[Any]:
-        """晋升流转态（L1→L2→L3）。仅对未终态行生效；escalate_count 缺省自增 1。"""
+                now: Optional[datetime] = None,
+                extend_due_minutes: Optional[int] = 30) -> Optional[Any]:
+        """晋升流转态（L1→L2→L3）。仅对未终态行生效；escalate_count 缺省自增 1。
+
+        extend_due_minutes（REQ-261016155500-4f2a）：晋升同时顺延 due_at（缺省 30min），
+        防收盘时同一分钟连升多级；传 None/0 表示不顺延。
+        """
         pass
 
     @abstractmethod
@@ -317,6 +322,16 @@ class IWatchTodoRepository(ABC):
                      limit: int = 100, *, flow_state: Optional[str] = None,
                      terminal: Optional[str] = None) -> List[Any]:
         """列出待办。缺省只含未收敛（terminal IS NULL）；terminal='*' 表示不过滤终态。"""
+        pass
+
+    @abstractmethod
+    def list_open_by_rule(self, rule_id: int, action_kind: Optional[str] = None,
+                          trigger_id_null: bool = False) -> List[Any]:
+        """某规则的未收敛待办（REQ-261016155500-4f2a 补全待办幂等判定用）。
+
+        trigger_id_null=True 只取 trigger_id IS NULL 的——补全待办不带触发溯源，
+        借此与 meta_review 类 rule_change 待办（trigger_id 非空）区分。
+        """
         pass
 
 

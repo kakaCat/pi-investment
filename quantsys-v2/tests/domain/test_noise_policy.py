@@ -20,8 +20,9 @@ NOW = datetime(2026, 9, 18, 10, 0, 0)
 # ── 阈值常量与覆写能力 ────────────────────────────────────────
 
 def test_default_thresholds_are_documented_module_constants():
-    """默认阈值 = design/test-cases.md 定稿值（单日 8 次 / 连续 3 日日均 4 次）"""
-    assert noise_policy.DEFAULT_MAX_TRIGGERS_PER_DAY == 8
+    """默认阈值（2026-10-16 REQ-261016155500-4f2a wt:engine:3 收敛：单日 8→3——
+    配合每条件日通知上限 2，单日到 3 次必是多条件设计问题；连续 3 日日均 4 次不变）"""
+    assert noise_policy.DEFAULT_MAX_TRIGGERS_PER_DAY == 3
     assert noise_policy.DEFAULT_MIN_CONSECUTIVE_DAYS == 3
     assert noise_policy.DEFAULT_MIN_AVG_PER_DAY == 4.0
     # 阈值必须能被参数覆写（keyword-only），否则"可调"只是口号
@@ -32,14 +33,14 @@ def test_default_thresholds_are_documented_module_constants():
             noise_policy, "DEFAULT_" + name.upper())
 
 
-# ── 单日阈值边界：7 / 8 ───────────────────────────────────────
+# ── 单日阈值边界：2 / 3（8→3 收敛后）──────────────────────────
 
-def test_single_day_7_not_suppressed():
-    assert noise_policy.should_suppress(7, 0, 0.0) is False
+def test_single_day_2_not_suppressed():
+    assert noise_policy.should_suppress(2, 0, 0.0) is False
 
 
-def test_single_day_8_suppressed():
-    assert noise_policy.should_suppress(8, 0, 0.0) is True
+def test_single_day_3_suppressed():
+    assert noise_policy.should_suppress(3, 0, 0.0) is True
 
 
 def test_single_day_hits_without_consecutive_days():
@@ -48,34 +49,34 @@ def test_single_day_hits_without_consecutive_days():
 
 
 def test_single_day_just_below_threshold_not_suppressed():
-    assert noise_policy.should_suppress(7, 99, 0.0) is False   # 单日不够且连续条件未给
+    assert noise_policy.should_suppress(2, 99, 0.0) is False   # 单日不够且连续条件未给
 
 
-# ── 连续阈值边界：2 日 / 3 日 × 日均 ──────────────────────────
+# ── 连续阈值边界：2 日 / 3 日 × 日均（单日计数取 2，隔离连续条件）──
 
 def test_consecutive_3_days_avg_4_suppressed():
-    assert noise_policy.should_suppress(4, 3, 4.0) is True
+    assert noise_policy.should_suppress(2, 3, 4.0) is True
 
 
 def test_consecutive_2_days_not_suppressed():
-    assert noise_policy.should_suppress(4, 2, 4.0) is False
+    assert noise_policy.should_suppress(2, 2, 4.0) is False
 
 
 def test_consecutive_3_days_low_avg_not_suppressed():
-    assert noise_policy.should_suppress(3, 3, 3.0) is False
+    assert noise_policy.should_suppress(2, 3, 3.0) is False
 
 
 def test_avg_boundary_3_9_vs_4_0():
     """日均边界：3.9 不命中、4.0 命中（连续 3 日）"""
-    assert noise_policy.should_suppress(4, 3, 3.9) is False
-    assert noise_policy.should_suppress(4, 3, 4.0) is True
+    assert noise_policy.should_suppress(2, 3, 3.9) is False
+    assert noise_policy.should_suppress(2, 3, 4.0) is True
 
 
 def test_thresholds_overridable_by_parameters():
-    """参数覆写立即生效：把单日阈值降到 3，则 3 次即命中；连续门槛改 2 日同理"""
-    assert noise_policy.should_suppress(3, 0, 0.0, max_triggers_per_day=3) is True
-    assert noise_policy.should_suppress(2, 2, 5.0, min_consecutive_days=2) is True
-    assert noise_policy.should_suppress(2, 2, 5.0, min_avg_per_day=6.0) is False
+    """参数覆写立即生效：把单日阈值降到 2，则 2 次即命中；连续门槛改 2 日同理"""
+    assert noise_policy.should_suppress(2, 0, 0.0, max_triggers_per_day=2) is True
+    assert noise_policy.should_suppress(1, 2, 5.0, min_consecutive_days=2) is True
+    assert noise_policy.should_suppress(1, 2, 5.0, min_avg_per_day=6.0) is False
 
 
 def test_missing_and_invalid_values_treated_as_zero():
@@ -186,7 +187,8 @@ def test_summarize_feeds_should_suppress():
         summary["trigger_today"], summary["consecutive_days"],
         summary["avg_per_day"]) is True
 
-    two = {TODAY: 4, TODAY - timedelta(days=1): 4}
+    # 连续 2 日不抑噪：单日计数取 2（< 新阈值 3）隔离「连续天数不足」判定
+    two = {TODAY: 2, TODAY - timedelta(days=1): 4}
     s2 = noise_policy.summarize(two, TODAY)
     assert noise_policy.should_suppress(
         s2["trigger_today"], s2["consecutive_days"], s2["avg_per_day"]) is False

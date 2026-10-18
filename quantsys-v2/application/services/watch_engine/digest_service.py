@@ -82,9 +82,23 @@ class WatchDigestService:
         2026-09-11（w-aebfddcd）：账户是投送维度（哪个 agent 接手），因此**同一标的被两个
         账户盯盘时绝不合并**——合并 = 把 A 账户的止损预案投给 B 账户的 agent。
         每条规则应先有 linked_account（账户归属）；无归属的进"未归属"桶并显式暴露。
+        2026-10-16（REQ-261016155500-4f2a wt:engine:4）积压可见：since 增量段只覆盖
+        「上次唤醒后」的触发，更早的未处置触发此前完全不可见（库表越积越多、摘要却显示
+        无事）。现另算 backlog 段（早于 since 的 UNRESOLVED 计数 + 最旧时间），
+        结果带 backlog 字段、文本带积压行——溢出（超 limit 截断）一并计入计数。
         """
         from domain.watch.services.disposition import UNRESOLVED
         rows = self.trigger_repo.list_triggers(dispositions=UNRESOLVED, limit=self.limit)
+
+        # 积压段：早于 since 的未处置触发（与 limit 截断无关，独立计数）
+        backlog: Dict[str, Any] = {'count': 0, 'oldest_at': None}
+        if since is not None:
+            counter = getattr(self.trigger_repo, 'count_older_unresolved', None)
+            if callable(counter):
+                try:
+                    backlog = counter(since, UNRESOLVED)
+                except Exception as e:  # noqa: BLE001 - 积压统计失败不阻断摘要
+                    logger.warning('积压统计失败（摘要继续，积压不可见）', error=str(e))
         if since is not None:
             rows = [t for t in rows if t.triggered_at and t.triggered_at >= since]
         rules = {r.id: r for r in self.rule_repo.list_rules()}
@@ -156,12 +170,25 @@ class WatchDigestService:
             k = g["account"] or "未归属"
             by_account[k] = by_account.get(k, 0) + g["count"]
 
+        # 积压行（wt:engine:4）：早于 since 的未处置触发不计入上面的分组，单独点名，
+        # 防止「未处置清单越积越多、摘要却显示无事」的隐形积压。
+        if backlog.get("count"):
+            oldest = backlog.get("oldest_at")
+            oldest_text = (oldest.strftime("%m-%d %H:%M")
+                           if hasattr(oldest, "strftime") else "-")
+            lines.insert(0, "⚠️ 积压：另有 %d 条更早的未处置触发（最旧 %s）未入本摘要"
+                         % (backlog["count"], oldest_text))
+
         return {
             "gate": sum(g["count"] for g in groups.values()) > 0,
             "by_account": by_account,
             "unassigned": sum(g["count"] for g in groups.values() if not g["account"]),
             "market_summary": market_text,
             "count": sum(g["count"] for g in groups.values()),
+            "backlog": {"count": int(backlog.get("count") or 0),
+                        "oldest_at": (backlog.get("oldest_at").isoformat()
+                                      if hasattr(backlog.get("oldest_at"), "isoformat")
+                                      else None)},
             "by_disposition": by_disp,
             "group_count": len(groups),
             "groups": list(groups.values()),
@@ -333,6 +360,8 @@ class WatchDigestService:
                 "unassigned": acc_key == UNASSIGNED,
                 "since": last_at.isoformat() if last_at else None,
                 "digest": seg["text"],
+                # 积压可见（wt:engine:4）：增量段之外更早的未处置触发计数与最旧时间
+                "backlog": digest.get("backlog"),
                 "target_agent": target_agent,
                 # 授权等级（账户维度）：autonomous=agent 自己操作 / remind_only=只提醒不下单
                 "autonomy": autonomy,
@@ -362,6 +391,13 @@ class WatchDigestService:
             return {"woke": True, "count": digest["count"], "group_count": digest["group_count"],
                     "accounts": woke_accounts, "failed": failed, "wakes": delivered,
                     "data_defects": defects, "out_of_scope": out_of_scope}
+        if failed:
+            # 2026-10-15：此前唤醒失败完全静默——实测 agent-dh :13080 不在线，10-12 起
+            # 每 tick 重试均无日志、无状态更新，"未处置清单"积压成山无人发现。
+            # 唤醒通道失败是异常（不是每 tick 的正常门控拒绝），必须留痕。
+            logger.warning('盯盘摘要唤醒投递失败（不写状态，下个 tick 重试）',
+                           failed_accounts=failed, count=digest["count"],
+                           data_defects=defects, out_of_scope=out_of_scope)
         if out_of_scope and not delivered and not defects:
             return {"woke": False,
                     "reason": "仅命中策略账户（策略执行，盯盘不介入）：不唤醒 agent",

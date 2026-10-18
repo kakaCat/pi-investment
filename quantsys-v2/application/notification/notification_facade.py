@@ -63,6 +63,11 @@ TARGET_AGENT_TRANSPORT_WAKE_FALLBACK = "feishu_fallback"
 #: 当失败、下轮重试的既有口径一致），并在响应 metadata 如实标注 wake_status。
 WAKE_DELIVERED_STATUSES = ("ok",)
 
+#: 系统运维群渠道名（2026-10-14）——webhook 由 FEISHU_WEBHOOK_OPS 提供，工厂注册为
+#: 'feishu_ops'。send_ops_card / send_ops_text 用它把调度·任务·探活·数据质量等
+#: **系统类**消息与股票类消息分到不同的飞书群。
+OPS_CHANNEL_NAME = "feishu_ops"
+
 
 class NotificationFacade:
     """通知门面
@@ -99,6 +104,35 @@ class NotificationFacade:
 
     # ==================== 盯盘相关 ====================
 
+    @staticmethod
+    def _enrich_watch_content(message: str, context: str,
+                              max_lines: int = 10):
+        """触发事实 + 预案摘要 → 自洽正文（agent-os 裸转发场景的信息兜底）。
+
+        背景（2026-10-15，002074 触发实案）：盯盘触发优先走 agent-os 网关，网关只转发
+        title/content，variables 里的 context 不被渲染——用户只看到
+        「盯盘触发 - 002074 / 现价 26.99 ≤ 阈值 30.67（下破）」，公司名、评分依据、
+        风控全部丢失。把预案摘要直接编进正文后，任何只认 title/content 的落点都信息完整；
+        v2 本地富渲染（WatchTriggeredFormatter）看到 context_embedded=True 会跳过
+        重复的「预案」行。
+
+        Args:
+            message: 触发事实（result.message，如「现价 26.99 ≤ 阈值 30.67（下破）」）
+            context: 规则预案全文（评分依据/风控/来源，可能为空）
+            max_lines: 摘要最多保留的行数（防长预案刷屏）
+
+        Returns:
+            (正文, 是否已内嵌预案摘要)
+        """
+        text = (context or '').strip()
+        if not text:
+            return message or '', False
+        lines = [ln.rstrip() for ln in text.splitlines() if ln.strip()]
+        if len(lines) > max_lines:
+            lines = lines[:max_lines] + ['…（完整预案见盯盘规则）']
+        body = (message or '').strip()
+        return (body + '\n' if body else '') + '\n'.join(lines), True
+
     def send_watch_triggered(
         self,
         symbol: str,
@@ -127,6 +161,8 @@ class NotificationFacade:
         rule_id: int = None,                # ← 规则号（REQ-ad0a FR-10：模板显示真实号；缺失=手工）
         todo_id: str = None,                # ← 关联待办 id（L2 wake 载荷上下文，可选）
         todo: dict = None,                  # ← 关联待办快照（L2 wake 载荷上下文，可选）
+        action_params: dict = None,         # ← REQ-261016155500-4f2a：结构化操作指引（建议动作块数据源）
+        merged_from_rule: int = None,       # ← REQ-261016155500-4f2a wt:engine:2：dedup 合并展示标注
     ) -> ChannelResult:
         """发送盯盘触发通知
 
@@ -162,10 +198,53 @@ class NotificationFacade:
         from domain.notification.policies.watch_delivery_policy import WatchDeliveryPolicy
         target_agent = target_agent or WatchDeliveryPolicy().resolve(account=account)
 
+        # 2026-10-15（用户反馈 002074 触发只有一行干巴巴的事实）：WATCH_TRIGGERED 优先投
+        # agent-os 网关（NotificationPolicy），网关照原样转发 title+content——v2 本地的富卡片
+        # 渲染（WatchTriggeredFormatter）在这条链路上根本不执行，variables 里的 context
+        # （评分依据/风控/来源）到不了用户眼前。故在**消息本体**里就带全：
+        #   标题 = 盯盘触发 - 公司名（代码）；正文 = 触发事实 + 预案摘要。
+        # context_embedded 供本地富渲染去重（「预案」行不再重复贴一遍）。
+        # 2026-10-16（REQ-261016155500-4f2a）：WATCH_MSG_V2 开时正文改由统一渲染器产出——
+        # 四段式（事实→意义→建议动作→重估条件）在**消息本体**组装完成，agent-os 裸转发
+        # 与飞书降级路径看到同一份内容；关时回退 10-15 的 enrich 平铺逻辑（可灰度回滚）。
+        from infrastructure.notification.formatters.watch_message_renderer import (
+            MSG_V2_ENABLED, render_watch_message,
+        )
+        if MSG_V2_ENABLED:
+            from domain.watch.services.watch_message import (
+                FactSection, WatchMessage, resolve_action,
+            )
+            ap = action_params if isinstance(action_params, dict) else None
+            msg = WatchMessage(
+                level=(level or 'P2'),
+                symbol=symbol, name=name or '', account=account, intent=intent,
+                stage=lifecycle_stage,
+                fact=FactSection(condition_text=message, price=price,
+                                 change_pct=change_pct, pnl_pct=pnl_pct),
+                plan=context,
+                action=resolve_action(action_params=ap,
+                                      next_action_hint=next_action_hint,
+                                      intent=intent, rule_id=rule_id),
+                reevaluate=(ap or {}).get('invalidation') or None,
+                rule_id=rule_id,
+                escalation_reason=escalation_reason,
+                merged_from_rule=merged_from_rule,
+                mode='agent' if notify_mode == 'agent' else 'direct',
+            )
+            rendered = render_watch_message(msg)
+            title = rendered.title
+            rich_content = rendered.text
+            context_embedded = bool(context)
+        else:
+            display = (f"{name}（{symbol}）"
+                       if name and str(name).strip() and str(name).strip() != str(symbol)
+                       else symbol)
+            title = f"盯盘触发 - {display}"
+            rich_content, context_embedded = self._enrich_watch_content(message, context)
         notification = Notification(
             notification_type=NotificationType.WATCH_TRIGGERED,
-            title=f"盯盘触发 - {symbol}",
-            content=message,
+            title=title,
+            content=rich_content,
             variables={
                 'symbol': symbol,
                 'name': name,
@@ -194,6 +273,11 @@ class NotificationFacade:
                 # （watch_level_templates），无值 → 旧 WatchTriggeredFormatter（兼容，不破坏非分级通知）
                 'watch_level': level,
                 'rule_id': rule_id,
+                # REQ-261016155500-4f2a：结构化操作指引随 variables 下发（渲染/回执共用）
+                'action_params': action_params,
+                # 2026-10-15：预案摘要已内嵌 content（见 _enrich_watch_content），
+                # 本地富渲染据此跳过重复的「预案」行
+                'context_embedded': context_embedded,
                 'watch_channel': watch_channel,
                 # 处置 agent：投递层（AgentNotificationService）据此选择 wake 端点
                 'target_agent': target_agent,
@@ -345,15 +429,39 @@ class NotificationFacade:
             transport=TARGET_AGENT_TRANSPORT_WAKE_FALLBACK,
             status=status, detail=detail, fallback='feishu')
 
+    def wake_agent(self, event: str, data: Dict[str, Any],
+                   target_agent: Optional[str] = None) -> str:
+        """把任意事件经 wake 通道投给处置 agent（公开入口，2026-10-16）。
+
+        为什么需要它：L2 触发有 `_send_l2_via_target_agent` 专用路径，而**待办**
+        （规则自愈/元评审/补全指引派出的修规则工单）此前没有任何送达 agent 的通道——
+        建完就只剩"超时回执发给你"这一条出口（2026-10-16 生产事故：13 条 P1 修规则
+        待办挂了 4 小时，agent 全程未被唤醒）。待办派单（watch_channels.wake_todo_assignment）
+        与超时催办（wake_todo_owner）共用本方法。
+
+        返回 AgentNotificationService.notify_agent_detailed 的状态串：
+          'ok' → 已送达；'timeout'/'error'/'disabled'/'skipped' → **未确认送达**；
+          'not_configured' → 未装配 wake 通道（不假装投递过）。
+        调用方据「是否 'ok'」决定是否降级到飞书卡片（绝不静默丢事件）。
+        """
+        service = self._agent_notification_service
+        if service is None:
+            logger.warning('wake 通道未装配，事件未投递（不假装已送达）',
+                           notify_event=event, target_agent=target_agent)
+            return 'not_configured'
+        status, _ = self._attempt_wake(service, target_agent, data, event=event)
+        return status
+
     @staticmethod
-    def _attempt_wake(service, target_agent: str, wake_data: dict):
+    def _attempt_wake(service, target_agent: str, wake_data: dict,
+                      event: str = WAKE_EVENT_WATCH_L2):
         """调用注入的 wake 实现，返回 (status, detail)。
 
         优先 notify_agent_detailed（拿到 ok/timeout/error/disabled/skipped 细分状态）；
         旧实现只有 notify_agent(event,data) 时退化为布尔。不在此处创建任何 HTTP 客户端。
         异常一律收敛为 ('error', 原因)——投递失败不该打挂通知主流程。
+        event 缺省 = L2 触发事件；待办派单/超时催办走各自的 event（wake_agent）。
         """
-        event = WAKE_EVENT_WATCH_L2
         try:
             detailed = getattr(service, 'notify_agent_detailed', None)
             if callable(detailed):
@@ -691,6 +799,70 @@ class NotificationFacade:
 
         result = self.service.send(notification)
         return result.success
+
+    def send_ops_card(
+        self,
+        title: str,
+        content: str,
+        urgency: str = 'normal'
+    ) -> bool:
+        """系统运维通知（卡片）——投递到**独立运维群**，与股票类消息分群（2026-10-14）
+
+        用户裁定：调度看门狗、每日任务开始/完成/失败这类**系统消息**不许和
+        「盘前例程」「实盘账户·保护线」这类**股票消息**混在同一个飞书群。
+
+        路由口径（与盯盘/交易类刻意分开）：
+          · 只发渠道名 'feishu_ops'（FEISHU_WEBHOOK_OPS 配的运维群）；
+          · **不走 Agent OS 网关**——OS 的 alerts 渠道落在通用群，且运维消息本就
+            该独立于被监控链路（同 scheduler_watchdog「不依赖被测进程」的取向）；
+          · 渠道缺失时返回 False 并**不偷偷改投通用群**：运维消息混群正是本次要修的
+            问题，静默退回旧行为会让分群看起来生效、实际没有。
+            （未配 FEISHU_WEBHOOK_OPS 时工厂会把 feishu_ops 兜到通用群，并在启动日志
+            打 warning——那是显式降级，可被运维发现，不是静默混群。）
+
+        Args:
+            title: 卡片标题
+            content: 卡片正文
+            urgency: 'normal' | 'high' | 'critical'
+
+        Returns:
+            bool: 是否投递成功
+        """
+        try:
+            priority_enum = NotificationPriority[urgency.upper()]
+        except KeyError:
+            priority_enum = NotificationPriority.NORMAL
+
+        notification = Notification(
+            notification_type=NotificationType.SYSTEM_ALERT,
+            title=title,
+            content=content,
+            variables={'ops': True},
+            priority=priority_enum,
+            preferred_channels=[OPS_CHANNEL_NAME],
+        )
+        return self.service.send(notification).success
+
+    def send_ops_text(
+        self,
+        text: str,
+        priority: str = 'normal'
+    ) -> bool:
+        """系统运维通知（纯文本）——投递到独立运维群。路由口径见 send_ops_card。"""
+        try:
+            priority_enum = NotificationPriority[priority.upper()]
+        except KeyError:
+            priority_enum = NotificationPriority.NORMAL
+
+        notification = Notification(
+            notification_type=NotificationType.SYSTEM_ALERT,
+            title='系统通知',
+            content=text,
+            variables={'ops': True},
+            priority=priority_enum,
+            preferred_channels=[OPS_CHANNEL_NAME],
+        )
+        return self.service.send(notification).success
 
     def send_watch_receipt(
         self,

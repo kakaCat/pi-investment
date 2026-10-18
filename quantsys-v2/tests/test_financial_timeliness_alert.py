@@ -51,6 +51,14 @@ class _FakeFacade:
             raise self.raises
         return self.ok
 
+    def send_ops_card(self, **kwargs):
+        """2026-10-14：财报时效性属数据链路系统消息 → 生产改走 send_ops_card
+        （独立运维群）。记录形状与 send_card 相同。"""
+        self.calls.append(kwargs)
+        if self.raises:
+            raise self.raises
+        return self.ok
+
 
 @pytest.fixture(autouse=True)
 def _forbid_real_notifications(monkeypatch):

@@ -41,6 +41,12 @@ class TriggerPayload:
     scope: Optional[str] = None             # market/sector/symbol/position（P8 路由用）
     action_amount_yuan: Optional[float] = None  # 动作影响金额（P8：≥账户 5% → 风控频道）
     level: Optional[str] = None             # 级别 P0..P3（REQ-c9f899 t12：按级别模板渲染用）
+    # REQ-261016155500-4f2a：结构化操作指引（消息「建议动作」块的权威数据源，
+    # 优先于 next_action_hint / intent 映射；缺指引由渲染层如实标注）
+    action_params: Optional[Dict[str, Any]] = None
+    # REQ-261016155500-4f2a wt:engine:2：dedup 窗内先响规则 id（escalated/exit_stop
+    # 命中去重不吞消息，渲染层标注「与规则#M 同事件，合并展示」）
+    merged_from_rule: Optional[int] = None
     
     def to_notification_variables(self) -> Dict[str, Any]:
         """转换为 NotificationFacade 的 variables 格式"""
@@ -64,6 +70,9 @@ class TriggerPayload:
             'action_amount_yuan': self.action_amount_yuan,
             # REQ-c9f899 t12：级别随 payload 下发；有值 → 渠道走按级别模板（无值走旧渲染，兼容）
             'level': self.level,
+            # REQ-261016155500-4f2a：结构化操作指引随 payload 下发
+            'action_params': self.action_params,
+            'merged_from_rule': self.merged_from_rule,
         }
         
         if self.action_hint:

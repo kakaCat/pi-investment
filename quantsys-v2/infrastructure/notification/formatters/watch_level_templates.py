@@ -441,7 +441,9 @@ def card_item_from_variables(variables: Dict[str, Any]) -> WatchCardItem:
         rule_id=data.get('rule_id'),
         level=str(data.get('watch_level') or data.get('level') or P2),
         condition=condition_text,
-        plan=str(data.get('context') or ''),
+        # 2026-10-15：context_embedded=True 时预案摘要已在「触发」正文里，plan 置空防重复
+        plan=('' if data.get('context_embedded')
+              else str(data.get('context') or '')),
         todo_id=data.get('todo_id'),
         change_pct=data.get('change_pct'),
         pnl_pct=data.get('pnl_pct'),

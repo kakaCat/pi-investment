@@ -114,16 +114,38 @@ def test_B4_quote_failure_does_not_crash():
 
 
 def test_B5_duplicate_rules_same_event_dedup():
-    """同标的同向两条规则同时命中 → 第二条被去重（deduped，不重复打扰）"""
+    """同标的同向两条规则同时命中：
+      · 观察类（trend_observe → auto_observed）→ 第二条 deduped 不重复打扰（守卫内）；
+      · 宪法级（exit_stop → escalated）→ **不吞消息**：第二条保留升级通道照发，
+        只标注「与规则#1 同事件，合并展示」（REQ-261016155500-4f2a wt:engine:2，
+        止损被吞 = 资损风险）。"""
+    from tests.services.test_watch_engine import make_rule as _mk
+    observe, observe2 = _mk(id=1), _mk(id=2)
+    for r in (observe, observe2):                       # 观察类 → auto_observed（守卫内）
+        r.intent = 'trend_observe'
+        r.action_hint = {'trigger_level': 'L1', 'action_on_trigger': 'observe'}
     n = FakeNotifier()
-    rules = [make_rule(id=1), make_rule(id=2)]
-    engine = make_engine(rules, PRICE_UP(), n)
+    engine = make_engine([observe, observe2], PRICE_UP(), n)
     engine.now_fn = lambda: NOW
     events = engine.tick()
     dispositions = [e.get('disposition') for e in events]
-    assert 'deduped' in dispositions, '同事件重复未被去重：%s' % dispositions
+    assert 'deduped' in dispositions, '观察类同事件重复未被去重：%s' % dispositions
     deduped = [e for e in events if e.get('disposition') == 'deduped'][0]
     assert deduped['notified'] is False
+
+    # 宪法级：两条都 escalated，第二条带合并标注、notified=True（消息必达）
+    n2 = FakeNotifier()
+    rules = [make_rule(id=1), make_rule(id=2)]     # intent=exit_stop（make_rule 默认）
+    engine2 = make_engine(rules, PRICE_UP(), n2)
+    engine2.now_fn = lambda: NOW
+    events2 = engine2.tick()
+    disp2 = [e.get('disposition') for e in events2]
+    assert disp2 == ['escalated', 'escalated'], '宪法级触发被吞：%s' % disp2
+    second = events2[1]
+    assert second['notified'] is True
+    assert second['merged_from_rule'] == 1
+    assert '合并展示' in (second['disposition_reason'] or '')
+    assert len(n2.notifications) == 2
 
 
 def test_B6_tick_self_checks_trading_hours():

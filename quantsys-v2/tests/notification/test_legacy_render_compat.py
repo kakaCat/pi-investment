@@ -3,9 +3,21 @@
 改版（t2 新分级模板）不得回断旧路径：不带 watch_level/level 的存量通知
 （非分级 WatchTriggered、其他系统沿用旧载荷的调用方）必须继续走
 feishu_formatters.WatchTriggeredFormatter 旧渲染，且旧特征结构完整。
+
+2026-10-16（REQ-261016155500-4f2a wt:messaging:3）：WATCH_MSG_V2 默认开后，
+本文件通过 autouse fixture 强制关 V2——守护**灰度回退路径**；V2 开启时的
+统一骨架由 test_unified_render_consistency.py 守护。
 """
+import pytest
+
 from domain.notification.models.notification import Notification, NotificationType
 from infrastructure.notification.formatters.feishu_formatters import WatchTriggeredFormatter
+
+
+@pytest.fixture(autouse=True)
+def _force_legacy_render(monkeypatch):
+    from infrastructure.notification.formatters import watch_message_renderer
+    monkeypatch.setattr(watch_message_renderer, 'MSG_V2_ENABLED', False)
 
 
 def _notification(**variables):

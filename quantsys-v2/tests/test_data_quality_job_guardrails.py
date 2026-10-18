@@ -294,6 +294,14 @@ class FakeFacade:
             raise self.raises
         return self.ok
 
+    def send_ops_card(self, title=None, content=None, urgency=None):
+        """2026-10-14：数据质量属系统消息 → 生产改走 send_ops_card（独立运维群）。
+        记录形状与 send_card 一致，便于既有断言同时覆盖两条入口。"""
+        self.calls.append({"title": title, "content": content, "urgency": urgency})
+        if self.raises:
+            raise self.raises
+        return self.ok
+
 
 def _summary():
     return {"total_stocks": 5689, "stocks_with_issues": 5689,

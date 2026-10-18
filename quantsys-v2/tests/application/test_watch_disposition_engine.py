@@ -48,10 +48,11 @@ class FakeNotifier:
 
     def notify(self, rule, condition, quote, result, escalation_reason=None,
                disposition=None, disposition_reason=None, dup_of=None,
-               action_amount_yuan=None):
+               action_amount_yuan=None, level=None, merged_from_rule=None):
         self._next_id += 1
         self.calls.append({'rule_id': rule.id, 'disposition': disposition,
-                           'dup_of': dup_of, 'reason': disposition_reason})
+                           'dup_of': dup_of, 'reason': disposition_reason,
+                           'merged_from_rule': merged_from_rule})
         return SimpleNamespace(id=self._next_id, notified=(disposition != 'deduped'))
 
 
@@ -131,6 +132,16 @@ class FakeTriggerRepo:
     def record(self, **kwargs):
         self.recorded.append(kwargs)
         return SimpleNamespace(id=len(self.recorded), **kwargs)
+
+    def mark_notified(self, trigger_id, notified):
+        self.recorded[trigger_id - 1]['notified'] = bool(notified)
+
+    def latest_unsent(self, rule_id):
+        for row in reversed(self.recorded):
+            if row.get('rule_id') == rule_id and not row.get('notified'):
+                return SimpleNamespace(id=self.recorded.index(row) + 1,
+                                       condition=row.get('condition'), **row)
+        return None
 
 
 class FakeFacade:

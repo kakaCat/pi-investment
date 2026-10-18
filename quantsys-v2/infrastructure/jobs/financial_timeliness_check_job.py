@@ -273,11 +273,13 @@ python -m infrastructure.jobs.financial_data_update_job --report-date {check_res
 
         # ② 外部投递：架构铁律——出站通知只能经 NotificationFacade
         #（application/notification/notification_facade.py），禁止直连飞书 SDK/webhook。
+        # 2026-10-14：财报超期未更新是**数据链路**健康问题（无个股观点）→ 走
+        # send_ops_card 落独立运维群，不再与个股/盘前例程等股票消息混群。
         if facade is None:
             from application.notification import get_notification_facade
             facade = get_notification_facade()
 
-        delivered = bool(facade.send_card(
+        delivered = bool(facade.send_ops_card(
             title="📅 财报时效性告警：财务数据超期未更新",
             content=message,
             urgency='high',

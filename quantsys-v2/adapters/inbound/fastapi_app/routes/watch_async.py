@@ -27,12 +27,26 @@ def _parse_expires_at(value):
 
 @router.get('/api/watch/rules')
 def list_rules(symbol: Optional[str] = Query(None), enabled: Optional[str] = Query(None),
-               account: Optional[str] = Query(None)):
+               account: Optional[str] = Query(None),
+               lint: Optional[str] = Query(None)):
     """account=某账户名时仅返回该账户归属 + 通用观察(account 为空)的规则
-    （看板按账户展示盯盘）；不传返回全部。"""
+    （看板按账户展示盯盘）；不传返回全部。
+
+    lint=missing_guidance（REQ-261016155500-4f2a）：只返回四要素（action_params /
+    next_action_hint / intent / action_on_trigger）全空的启用规则，并附缺项明细。"""
     rule_repo = WatchRuleRepository()
     enabled_value = None if enabled is None else enabled.lower() == 'true'
     rules = rule_repo.list_rules(symbol=symbol, enabled=enabled_value, account=account)
+    if lint == 'missing_guidance':
+        from domain.watch.services.rule_lint import guidance_state, is_missing_guidance
+        hits = [r for r in rules if is_missing_guidance(r)]
+        return {'success': True, 'data': {
+            'lint': 'missing_guidance',
+            'count': len(hits),
+            'rules': [{**rule_to_dict(r), 'missing': guidance_state(r)} for r in hits],
+        }}
+    if lint:
+        return _err('未知 lint 类型: %s（目前支持 missing_guidance）' % lint, 400)
     items = [rule_to_dict(r) for r in rules]
     # 2026-09-11（REQ-733c5e, w-348bf585）：补权威 triggered_count。
     # rule_to_dict 此前不含该字段，下游工具层只好多查一次 /api/watch/triggers 自算（双口径），
@@ -71,6 +85,12 @@ def create_rule(payload: Dict[str, Any] = Body(default_factory=dict)):
         expires_at = _parse_expires_at(data.get('expires_at'))
     except ValueError:
         return _err(EXPIRES_AT_ERROR, 400)
+    if 'action_params' in data:
+        # REQ-261016155500-4f2a：结构化操作指引的领域校验（与更新路径同一判据）
+        from domain.watch.models import validate_action_params
+        err = validate_action_params(data.get('action_params'))
+        if err:
+            return _err(err, 400)
     try:
         rule_repo = WatchRuleRepository()
         rule = rule_repo.create_rule(
@@ -88,6 +108,7 @@ def create_rule(payload: Dict[str, Any] = Body(default_factory=dict)):
             linked_account=(data.get('linked_account') or data.get('account') or None),
             intent=data.get('intent'),
             action_hint=data.get('action_hint'),
+            action_params=data.get('action_params'),
         )
     except ValueError as e:
         # 领域守卫拒绝（没有账户不能进入买卖 / 策略账户不接受盯盘规则）→ 400 而非 500：
@@ -116,6 +137,12 @@ def _update_rule(rule_id: int, payload: Dict[str, Any]):
             return _err(EXPIRES_AT_ERROR, 400)
     if 'action_hint' in data and not isinstance(data['action_hint'], dict):
         return _err('action_hint 必须为对象', 400)
+    if 'action_params' in data:
+        # REQ-261016155500-4f2a：结构化操作指引的领域校验（纯函数，错误文案直接可读）
+        from domain.watch.models import validate_action_params
+        err = validate_action_params(data.get('action_params'))
+        if err:
+            return _err(err, 400)
     if 'escalation_policy' in data and not isinstance(data['escalation_policy'], dict):
         return _err('escalation_policy 必须为对象', 400)
 
@@ -144,6 +171,21 @@ def update_rule_put(rule_id: int, payload: Dict[str, Any] = Body(default_factory
 @router.patch('/api/watch/rules/{rule_id}')
 def update_rule_patch(rule_id: int, payload: Dict[str, Any] = Body(default_factory=dict)):
     return _update_rule(rule_id, payload)
+
+
+@router.post('/api/watch/rules/backfill-guidance')
+def backfill_guidance():
+    """缺指引补全闭环（REQ-261016155500-4f2a）：对 lint 命中的启用规则幂等建 P2
+    「补全预案」待办（同规则已有未收敛补全待办则跳过），交处置 agent 回填
+    action_params / intent / observation_criterion。幂等可重复调用。"""
+    try:
+        from application.services.watch_engine.guidance_backfill_service import (
+            GuidanceBackfillService,
+        )
+        result = GuidanceBackfillService.create_default().ensure_todos()
+    except Exception as e:  # noqa: BLE001
+        return _err(f'补全待办创建失败: {e}', 500)
+    return {'success': True, 'data': result}
 
 
 @router.delete('/api/watch/rules/{rule_id}')

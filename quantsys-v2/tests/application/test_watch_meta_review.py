@@ -47,13 +47,13 @@ def _svc(rules, stats):
     return svc, tr
 
 
-def test_burst_triggers_review_when_rule_keeps_firing():
-    """一直响：单日触发 ≥ 5 次 → 必须回到 agent 复核（阈值失真/该转阶段/该取消）"""
-    svc, tr = _svc([_rule()], {1: {"today": 5, "last_at": NOW}})
+def test_burst_no_longer_raises_meta_review():
+    """REQ-261016155500-4f2a wt:engine:3：burst 复核下线（与自愈双头治理）——
+    单日高频不再产生 meta_review 项（归 noise_self_heal：抑噪 + 修规则待办）。"""
+    svc, tr = _svc([_rule()], {1: {"today": 9, "last_at": NOW}})
     out = svc.scan(now=NOW)
-    assert out["raised"] == 1
-    assert tr.records[0]["disposition"] == DISPOSITION_META_REVIEW
-    assert "频次超限" in tr.records[0]["disposition_reason"]
+    assert out["raised"] == 0
+    assert tr.records == []
 
 
 def test_idle_triggers_review_when_rule_never_fires():
@@ -82,16 +82,20 @@ def test_healthy_rule_not_reviewed():
 
 
 def test_force_bypasses_daily_guard():
-    svc, tr = _svc([_rule(last_reviewed=NOW)], {1: {"today": 9, "last_at": NOW}})
+    # burst 下线后用 expiry 类验证 force 绕过「当日已复核」守卫
+    svc, tr = _svc([_rule(last_reviewed=NOW, expires_in_days=1)],
+                   {1: {"today": 9, "last_at": NOW}})
     out = svc.scan(now=NOW, force=True)
     assert out["raised"] == 1
 
 
 def test_meta_trigger_param_shape():
-    svc, tr = _svc([_rule()], {1: {"today": 6, "last_at": NOW}})
+    svc, tr = _svc([_rule(expires_in_days=1)], {1: {"today": 6, "last_at": NOW}})
     svc.scan(now=NOW)
     rec = tr.records[0]
     assert rec["condition"]["type"] == "meta_review"
+    # burst 下线后 kinds 只剩 idle/stage/expiry（REQ-261016155500-4f2a wt:engine:3）
+    assert rec["condition"]["params"]["kinds"] == ["idle", "stage", "expiry"]
     assert rec["trigger_price"] is None
     assert rec["notified"] is False
     assert rec["disposition_by"] == "system"

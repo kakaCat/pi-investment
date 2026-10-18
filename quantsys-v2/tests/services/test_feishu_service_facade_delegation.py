@@ -113,17 +113,28 @@ def test_facade_agent_reminder_still_agent_only(monkeypatch):
 
 
 def test_watch_direct_mode_keeps_feishu(monkeypatch):
-    """盯盘 direct 模式是有意为之（RFC 009 双通道），不应被 P1 清理误伤。"""
+    """盯盘触发走「agent 优先、feishu 降级」的 send_with_fallback（现行契约；RFC 009
+    双通道已由 REQ-260924104605-ad0a FR-2 的 fallback 链取代）：facade 不短路
+    preferred_channels（[] = 交给 NotificationPolicy 在 service 内部决定顺序）。
+    2026-10-16 改断言对齐现行契约（原断言基于已删除的 facade 层 feishu 直投逻辑，
+    自 facade 改走 send_with_fallback 后本测试即红灯，与工作区改动无关）。"""
     facade, captured = _capture_facade_notifications(monkeypatch)
-    monkeypatch.setattr(facade.service, "send_with_fallback",
-                        lambda notification, primary, fallback: ChannelResult.ok(message="fallback"))
+    fallback_calls = []
+
+    def fake_fallback(notification, primary, fallback):
+        fallback_calls.append((primary, fallback))
+        captured.append(notification)
+        return ChannelResult.ok(message="fallback")
+
+    monkeypatch.setattr(facade.service, "send_with_fallback", fake_fallback)
 
     facade.send_watch_triggered(
         symbol="600519", name="贵州茅台", price=1500.0,
         condition={"type": "price_break"},
         message="突破", notify_mode="direct")
 
-    assert captured[0].preferred_channels == ["feishu"]
+    assert fallback_calls == [('agent', 'feishu')]
+    assert captured[0].preferred_channels == []
 
 
 # ==================== 旁路清理（2026-09-11 第二轮：残留直接删除） ====================

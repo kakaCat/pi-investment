@@ -23,7 +23,7 @@ quant.watch_todos **没有该列**。为避免"参数收下不生效"，此处�
 close_reason / decision_audit_id 与（t6 的回执表）承担。若后续要给该列落库，必须走迁移
 （本任务不改表结构）。
 """
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 import structlog
@@ -170,14 +170,22 @@ class WatchTodoRepository(BaseORMRepository[WatchTodo]):
 
     def promote(self, todo_id: int, to_state: str, *,
                 escalate_count: Optional[int] = None,
-                now: Optional[datetime] = None) -> Optional[WatchTodo]:
-        """晋升：仅未终态行生效；escalate_count 缺省自增 1"""
+                now: Optional[datetime] = None,
+                extend_due_minutes: Optional[int] = 30) -> Optional[WatchTodo]:
+        """晋升：仅未终态行生效；escalate_count 缺省自增 1。
+
+        extend_due_minutes（REQ-261016155500-4f2a）：晋升同时把 due_at 顺延 N 分钟
+        （缺省 30）——修 P2 收盘三连升（15:00 due 一到，60s 巡检 L1→L2→L3→timeout
+        三分钟三张卡）。顺延后下一级 SLA 从新的 due 起算，巡检不会在同一分钟连升。
+        """
         values: dict = {
             'flow_state': to_state,
             'updated_at': func.now(),
         }
         values['escalate_count'] = (WatchTodo.escalate_count + 1
                                     if escalate_count is None else escalate_count)
+        if extend_due_minutes:
+            values['due_at'] = WatchTodo.due_at + timedelta(minutes=extend_due_minutes)
         stmt = (
             sa_update(WatchTodo)
             .where(WatchTodo.id == todo_id, WatchTodo.terminal.is_(None))
@@ -267,6 +275,21 @@ class WatchTodoRepository(BaseORMRepository[WatchTodo]):
             'closed_today': closed_today,
             'terminal_rate_today': (closed_today / created_today) if created_today else None,
         }
+
+    def list_open_by_rule(self, rule_id: int, action_kind: Optional[str] = None,
+                          trigger_id_null: bool = False) -> List[WatchTodo]:
+        """某规则的未收敛待办（补全待办幂等判定用，REQ-261016155500-4f2a）。
+
+        trigger_id_null=True 时只取 trigger_id IS NULL 的（补全待办不带触发溯源，
+        与 meta_review 类 rule_change 待办区分——后者 trigger_id 非空）。
+        """
+        query = self.session.query(WatchTodo).filter(
+            WatchTodo.rule_id == rule_id, WatchTodo.terminal.is_(None))
+        if action_kind:
+            query = query.filter(WatchTodo.action_kind == action_kind)
+        if trigger_id_null:
+            query = query.filter(WatchTodo.trigger_id.is_(None))
+        return query.order_by(WatchTodo.due_at.asc()).all()
 
     def list_pending(self, level: Optional[str] = None, account: Optional[str] = None,
                      limit: int = DEFAULT_LIMIT, *, flow_state: Optional[str] = None,

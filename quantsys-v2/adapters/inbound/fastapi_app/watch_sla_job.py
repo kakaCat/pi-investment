@@ -6,10 +6,13 @@ architecture.md §4：「**唯一收敛权威 = WatchSlaJob**（机械、可测�
 
 每轮（run_once）逐条处理 list_overdue(now) 的结果：
 
-  · flow_state == 'L1' → 晋升 'L2'（写 escalate 回执）；
-  · flow_state == 'L2' → 晋升 'L3'（写 escalate 回执）；
-  · flow_state == 'L3' → **升级给用户**：写 timeout 回执（不改终态，等处置），并把
-    escalate_count +1（同一 due 周期只做一次，幂等由回执摘要保证）。
+  · flow_state == 'L1' → 晋升 'L2'（**不发卡**：晋升是引擎内部状态机迁移，不是市场事实，
+    历史在待办 flow_state / escalate_count 与结果回执时间线可见——REQ-261016155500-4f2a
+    回执收敛：一待办生命周期卡片 ≤2）；
+  · flow_state == 'L2' → 晋升 'L3'（同样不发卡；due_at 顺延 30min 防收盘三连升）；
+  · flow_state == 'L3' → **升级给用户**：写 timeout 回执（不改终态，等处置），
+    P0/P1 发送、P2/P3 只落台账（deliver=False，日终汇总点名）；escalate_count +1
+    （同一 due 周期只做一次，幂等由回执摘要保证）。
 
 设计要点（都可被 tests/application/test_sla_job.py 证伪）：
   · **时间由调用方注入**（now 参数），全程无隐式时钟——可单测、可回放；
@@ -71,15 +74,19 @@ class WatchSlaJob:
             'now': at.isoformat() if hasattr(at, 'isoformat') else str(at),
             'scanned': 0,          # list_overdue 命中条数
             'promoted': 0,         # 流转态晋升条数（L1→L2 / L2→L3）
-            'escalated': 0,        # escalate 回执新发条数
-            'timeout': 0,          # timeout 回执新发条数（L3 升级给用户）
+            'escalated': 0,        # escalate 回执新发条数（REQ-261016155500-4f2a 起恒 0：
+                                   # 升级回执下线，晋升历史在结果回执时间线可见）
+            'timeout': 0,          # timeout 回执新发条数（L3；含 P2/P3 仅台账）
+            'timeout_suppressed': 0,  # P2/P3 超时只落台账未发送条数
+            'agent_wakes': 0,      # 超时升级**去向为 agent** 的条数（owner_kind=agent；
+                                   # 是否送达看回执 delivery_status，不再计入 alerts 误读）
             'alerts': 0,           # 回执实际送达（sender 未抛错）条数
             'duplicates': 0,       # 幂等跳过的回执条数
             'skipped': 0,          # 仓储返回 None（已收敛/并发抢先）或未知流转态
             'errors': 0,           # 单条处理异常条数
             'degraded': False,     # 扫描失败（整轮降级，不抛）
             'degraded_reason': None,
-            'group_cards': 0,      # 聚合卡张数（REQ-ad0a t4：一 kind 一卡）
+            'group_cards': 0,      # 聚合卡**实发张数**（agent 私有唤醒占满一轮时可为 0）
         }
 
         try:
@@ -117,7 +124,9 @@ class WatchSlaJob:
         finally:
             try:
                 flush = self._receipts.flush_grouped()
-                stats['group_cards'] = len(flush)
+                # group_cards = 实发卡数（card_count）；一个 kind 的条目可能全部走私信唤醒而无卡
+                stats['group_cards'] = sum(int(v.get('card_count', 0))
+                                           for v in flush.values())
                 # 聚合卡送达 → 按条数补记 alerts（grouped 回执在入组时 sent=False）
                 stats['alerts'] += sum(v['count'] for v in flush.values() if v.get('sent'))
             except Exception as e:  # noqa: BLE001 - 收尾失败记错不抛（仓储失败会向上抛到此处）
@@ -127,7 +136,7 @@ class WatchSlaJob:
         logger.info('到期巡检完成',
                     **{k: stats[k] for k in ('scanned', 'promoted', 'escalated', 'timeout',
                                              'alerts', 'duplicates', 'skipped', 'errors',
-                                             'group_cards')})
+                                             'group_cards', 'agent_wakes')})
         return stats
 
     # ── 单条编排 ────────────────────────────────────────────
@@ -157,7 +166,12 @@ class WatchSlaJob:
 
     def _promote(self, todo: Any, to_state: str, now: datetime, stats: Dict[str, Any],
                  names: Optional[Dict[str, Any]] = None) -> None:
-        """晋升一级并写升级即回执。仓储返回 None = 已收敛/并发抢先 → 不改不发。"""
+        """晋升一级（不发卡，REQ-261016155500-4f2a 回执收敛）。
+
+        晋升是引擎内部状态机迁移（L1→L2→L3），不是市场事实——盯盘群不再为它单发卡，
+        历史留三处：待办 flow_state + escalate_count（仓储）、结果回执时间线
+        （「晋升 N 次」）。仓储 promote 会把 due_at 顺延 30min（防收盘三连升）。
+        仓储返回 None = 已收敛/并发抢先 → 不改不发。"""
         todo_id = getattr(todo, 'id')
         updated = self._todo_repo.promote(todo_id, to_state, now=now)
         if updated is None:
@@ -166,42 +180,52 @@ class WatchSlaJob:
                         to_state=to_state)
             return
         stats['promoted'] += 1
-        outcome = self._receipts.escalate(updated, to_state=to_state,
-                                          name=self._name_of(todo, names or {}))
-        self._tally(outcome, stats, 'escalated')
+        logger.info('待办已晋升（不发卡，历史见待办状态与结果回执时间线）',
+                    todo_id=todo_id, to_state=to_state)
 
     def _escalate_to_user(self, todo: Any, now: datetime, stats: Dict[str, Any],
                           names: Optional[Dict[str, Any]] = None) -> None:
         """L3 仍超时：写 timeout 回执（不改变终态）并把 escalate_count +1。
 
-        幂等：同一 due 周期只升级一次——第二次巡检回执 exists 命中即整段跳过
-        （既不重发、也不重复累加计数）。
+        REQ-261016155500-4f2a：仅 P0/P1 发送给用户；P2/P3 只落台账（deliver=False，
+        日终汇总点名），不打扰。幂等：同一 due 周期只升级一次——第二次巡检回执
+        exists 命中即整段跳过（既不重发、也不重复累加计数）。
+
+        升级去向按**待办归属**分流（owner_kind，见 TodoService 的 route_owner）：
+        agent 自有的待办由 ReceiptService 改唤醒 owner agent（不占用用户卡片），
+        用户账户的待办才升级给人。
+
+        2026-10-16 修复（生产实测缺陷）：给 escalate_count +1 复用 `promote()` 时
+        **必须显式 extend_due_minutes=0**。仓储的 promote 缺省会顺延 due_at 30min
+        （那是给 L1→L2/L2→L3 晋升防收盘三连升用的），而 due_at 是回执幂等键
+        （payload_digest 的 period）的一部分——顺延一次就换一个新 digest，
+        于是"同一 due 周期只发一次"变成"每 30 分钟复读一张超时卡"，永不收敛
+        （2026-10-16 实测：13 条 P1 待办 3 小时内刷了 78 条 timeout 回执）。
         """
         todo_id = getattr(todo, 'id')
-        outcome = self._receipts.timeout(todo, name=self._name_of(todo, names or {}))
+        level = str(getattr(todo, 'level', '') or '').strip().upper()
+        deliver = level in ('P0', 'P1')
+        outcome = self._receipts.timeout(todo, name=self._name_of(todo, names or {}),
+                                         deliver=deliver)
         if not outcome.get('issued'):
             stats['duplicates'] += 1
             return
         stats['timeout'] += 1
+        if outcome.get('audience') == 'agent':
+            stats['agent_wakes'] += 1
+        elif not deliver:
+            stats['timeout_suppressed'] += 1
         if outcome.get('sent'):
             stats['alerts'] += 1
         # 记 escalate_count：待办端口没有独立的"只加计数"方法，复用 promote 语义
         # （流转态保持 L3、显式传新值），保证"升级次数"可被统计与回溯。
+        # extend_due_minutes=0：**不得**顺延 due_at，否则幂等键轮换 → 复读（见 docstring）。
         current = int(getattr(todo, 'escalate_count', 0) or 0)
-        bumped = self._todo_repo.promote(todo_id, 'L3', escalate_count=current + 1, now=now)
+        bumped = self._todo_repo.promote(todo_id, 'L3', escalate_count=current + 1, now=now,
+                                         extend_due_minutes=0)
         if bumped is None:
             logger.warning('超时回执已写但 escalate_count 未累加（待办已收敛/并发抢先）',
                            todo_id=todo_id)
-
-    @staticmethod
-    def _tally(outcome: Dict[str, Any], stats: Dict[str, Any], key: str) -> None:
-        """回执结果计入统计：新发 → key+1（送达再 +alerts）；幂等命中 → duplicates+1。"""
-        if outcome.get('issued'):
-            stats[key] += 1
-            if outcome.get('sent'):
-                stats['alerts'] += 1
-        else:
-            stats['duplicates'] += 1
 
 
 def run_sla_once(now: Optional[datetime] = None, *, todo_repo: Any = None,

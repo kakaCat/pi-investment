@@ -3,6 +3,7 @@ import z from '@deepseek-ai/schemastery';
 import { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 import { createWatchListTool } from './tools/WatchListTool';
 import { createWatchManageTool } from './tools/WatchManageTool';
+import { createWatchTodoTool } from './tools/WatchTodoTool';
 import { createMarketAlertTool } from './tools/MarketAlertTool';
 import { createSignalTrackTool } from './tools/SignalTrackTool';
 import { createDecisionAuditTool } from './tools/DecisionAuditTool';
@@ -51,6 +52,10 @@ export default class IntelligencePlugin extends Service {
 
     // 盯盘规则管理
     ctx.tools.register(createWatchManageTool(qv2));
+
+    // 盯盘待办（闭环工单）读/认领/收敛（2026-10-16）
+    // 背景：自愈/元评审派出的修规则工单此前只落库、只发卡给用户，agent 无工具可处置
+    ctx.tools.register(createWatchTodoTool(qv2));
 
     // 市场异动提醒
     ctx.tools.register(createMarketAlertTool(qv2));

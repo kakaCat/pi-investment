@@ -32,6 +32,16 @@ def _norm_symbol(symbol: str) -> str:
     return (symbol or '').split('.')[0].strip()
 
 
+def _same_condition(a: dict, b: dict) -> bool:
+    """两条条件 JSON 是否同一条（补发去重比对用，键序不敏感）。"""
+    import json
+    try:
+        return json.dumps(a or {}, sort_keys=True, ensure_ascii=False) == \
+               json.dumps(b or {}, sort_keys=True, ensure_ascii=False)
+    except (TypeError, ValueError):
+        return False
+
+
 def _lookup_stock_name(symbol: str) -> Optional[str]:
     """兜底查股票名称（quant.stocks）。失败返回 None，不影响主流程。
 
@@ -45,20 +55,6 @@ def _lookup_stock_name(symbol: str) -> Optional[str]:
     except Exception as e:
         logger.debug('股票名称兜底查询失败', symbol=symbol, error=str(e))
         return None
-
-
-def _direction_advice(condition: dict) -> str:
-    """从 condition.direction 解读操作倾向（结合 price_break/pnl 等类型）。"""
-    if not isinstance(condition, dict):
-        return ''
-    params = condition.get('params') or {}
-    direction = params.get('direction')
-    ctype = condition.get('type', '')
-    if direction == 'above':
-        return '📈 方向：上破（强势）——持仓参考止盈/锁利，空仓为买入候选'
-    if direction == 'below':
-        return '📉 方向：下破（弱势）——持仓警惕止损，空仓暂不介入'
-    return f'类型：{ctype}' if ctype else ''
 
 
 class WatchNotifier:
@@ -125,7 +121,8 @@ class WatchNotifier:
 
     def notify(self, rule, condition: dict, quote, result, escalation_reason: str = None,
                disposition: str = None, disposition_reason: str = None,
-               dup_of: int = None, action_amount_yuan: float = None, level: str = None):
+               dup_of: int = None, action_amount_yuan: float = None, level: str = None,
+               merged_from_rule: int = None):
         """触发通知
         
         Args:
@@ -156,22 +153,82 @@ class WatchNotifier:
 
         # 1. 构建 TriggerPayload
         payload = self._build_payload(rule, condition, quote, result, escalation_reason,
-                                      action_amount_yuan=action_amount_yuan, level=level)
-        
-        # 2. 确定通知模式
-        trigger_level = payload.trigger_level
-        notify_mode = 'agent' if trigger_level == 'L2' else 'direct'
-        
+                                      action_amount_yuan=action_amount_yuan, level=level,
+                                      merged_from_rule=merged_from_rule)
+
+        # 1.5 补发短路（REQ-261016155500-4f2a wt:engine:2）：同条件存在未送达记录
+        # （上轮发送失败、引擎未闩锁重试到这里）→ 只补发那一条（同一 trigger 行回写），
+        # 不新建记录、不重复发送。
+        prev = self._find_unsent(rule, condition)
+        if prev is not None:
+            payload0 = self._build_payload(rule, condition, quote, result, escalation_reason,
+                                           action_amount_yuan=action_amount_yuan, level=level,
+                                           merged_from_rule=merged_from_rule)
+            ok = self._deliver_payload(rule, payload0)
+            try:
+                self.trigger_repo.mark_notified(prev.id, ok)
+                prev.notified = ok
+            except Exception as e:  # noqa: BLE001
+                logger.error('notified 回写失败（补发）', trigger_id=prev.id, error=str(e))
+            return prev
+
+        # 2. 先落库（notified=False）→ 发送 → 回写：发送失败时 trigger 行已存在且
+        #    notified=False，下 tick 经上方补发短路重发同一条（不新建不双发）。
+        trigger = self._record(rule, condition, quote, result, notified=False,
+                               disposition=disposition, disposition_reason=disposition_reason)
+        trigger_id = getattr(trigger, 'id', None)
+
         # 3. 调用 NotificationFacade 发送通知
         logger.info(
             '发送盯盘触发通知',
             rule_id=rule.id,
             symbol=rule.symbol,
-            trigger_level=trigger_level,
-            notify_mode=notify_mode,
+            trigger_level=payload.trigger_level,
+            notify_mode='agent' if payload.trigger_level == 'L2' else 'direct',
             escalation_reason=escalation_reason,
+            merged_from_rule=merged_from_rule,
         )
-        
+        notified = self._deliver_payload(rule, payload)
+
+        # 4. 回写实际发送结果（notified = 真实送达与否，观测口径的事实源）
+        if trigger is not None:
+            try:
+                self.trigger_repo.mark_notified(trigger_id, notified)
+                trigger.notified = notified
+            except Exception as e:  # noqa: BLE001 - 回写失败不得中断通知
+                logger.error('notified 回写失败', trigger_id=trigger_id, error=str(e))
+
+        # 5. WebSocket 广播
+        self._broadcast_ws(payload)
+
+        return trigger
+
+    def record_only(self, rule, condition: dict, quote, result,
+                    disposition: str = None, disposition_reason: str = None):
+        """只落触发记录不发送（REQ-261016155500-4f2a wt:validate:1 观察聚合缓冲用）。
+
+        无判据 observe 触发进 15 分钟聚合卡：逐条触发照常落库（审计不丢，
+        notified=False + reason 标「已进聚合缓冲」），聚合卡本身由 aggregator 发送。
+        """
+        return self._record(rule, condition, quote, result, notified=False,
+                            disposition=disposition, disposition_reason=disposition_reason)
+
+    def _find_unsent(self, rule, condition: dict):
+        """该规则最近一条 notified=False 且条件相同的触发；无则 None。"""
+        repo = self.trigger_repo
+        if repo is None:
+            return None
+        try:
+            prev = repo.latest_unsent(getattr(rule, 'id', None))
+        except Exception as e:  # noqa: BLE001
+            logger.debug('未送达记录查询失败', error=str(e))
+            return None
+        if prev is None or not _same_condition(getattr(prev, 'condition', None), condition):
+            return None
+        return prev
+
+    def _deliver_payload(self, rule, payload) -> bool:
+        """经 NotificationFacade 发送，返回是否送达；任何异常都不抛出（如实 False）。"""
         try:
             # 构建 NotificationFacade 参数
             facade_result = self.notification_facade.send_watch_triggered(
@@ -181,12 +238,12 @@ class WatchNotifier:
                 condition=payload.condition,
                 message=payload.message,
                 context=payload.context,
-                notify_mode=notify_mode,
+                notify_mode='agent' if payload.trigger_level == 'L2' else 'direct',
                 change_pct=payload.change_pct,
                 pnl_pct=payload.pnl_pct,
-                trigger_level=trigger_level,
+                trigger_level=payload.trigger_level,
                 action_hint=payload.to_notification_variables().get('action_hint'),
-                escalation_reason=escalation_reason,
+                escalation_reason=payload.escalation_reason,
                 decision_audit_id=payload.decision_audit_id,
                 intent=payload.intent,
                 lifecycle_stage=payload.lifecycle_stage,
@@ -200,23 +257,19 @@ class WatchNotifier:
                 level=payload.level,
                 # REQ-ad0a FR-10：规则号随通知下发（模板显示真实号；缺失=None=手工）
                 rule_id=getattr(rule, 'id', None),
+                # REQ-261016155500-4f2a：结构化操作指引随通知下发（建议动作块数据源）
+                action_params=payload.action_params,
+                # REQ-261016155500-4f2a wt:engine:2：dedup 合并展示标注
+                merged_from_rule=payload.merged_from_rule,
             )
-            notified = facade_result.success if hasattr(facade_result, 'success') else bool(facade_result)
+            return facade_result.success if hasattr(facade_result, 'success') else bool(facade_result)
         except Exception as e:
             logger.error('通知发送失败', symbol=payload.symbol, error=str(e))
-            notified = False
-        
-        # 4. WebSocket 广播
-        self._broadcast_ws(payload)
-        
-        # 5. 触发记录落库（含处置初态）
-        trigger = self._record(rule, condition, quote, result, notified,
-                               disposition=disposition, disposition_reason=disposition_reason)
-
-        return trigger
+            return False
 
     def _build_payload(self, rule, condition, quote, result, escalation_reason: str = None,
-                       action_amount_yuan: float = None, level: str = None) -> TriggerPayload:
+                       action_amount_yuan: float = None, level: str = None,
+                       merged_from_rule: int = None) -> TriggerPayload:
         """构建 TriggerPayload"""
         price = float(quote.price)
         
@@ -290,6 +343,10 @@ class WatchNotifier:
             scope=getattr(rule, 'scope', None),
             action_amount_yuan=action_amount_yuan,
             level=level,
+            # REQ-261016155500-4f2a：结构化操作指引（消息「建议动作」块权威数据源）
+            action_params=getattr(rule, 'action_params', None),
+            # REQ-261016155500-4f2a wt:engine:2：dedup 合并展示标注
+            merged_from_rule=merged_from_rule,
         )
 
     def record_governance(self, rule, reason: str, detail: dict = None):

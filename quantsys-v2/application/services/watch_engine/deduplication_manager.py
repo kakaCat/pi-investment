@@ -24,6 +24,7 @@ class DedupOutcome:
     is_duplicate: bool
     key: Tuple[str, str]
     dup_of: Optional[int] = None                    # 合并到的触发 id
+    prev_rule_id: Optional[int] = None              # 窗内先响规则的 id（合并标注用）
     overlap_pair: Optional[Tuple[int, int]] = None  # 本次**首次**发现的跨规则重叠
 
 
@@ -48,7 +49,7 @@ class DeduplicationManager:
                 self.state.overlap_reported.add(pair)
                 overlap = pair
         return DedupOutcome(is_duplicate=True, key=key, dup_of=prev[1],
-                            overlap_pair=overlap)
+                            prev_rule_id=prev_rule_id, overlap_pair=overlap)
 
     def mark_notified(self, rule, cond, now: datetime, trigger_id: int) -> None:
         """记录一次已通知，供后续窗内去重"""

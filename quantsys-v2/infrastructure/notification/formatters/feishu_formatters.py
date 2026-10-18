@@ -55,8 +55,17 @@ class WatchTriggeredFormatter(FeishuFormatter):
         REQ-c9f899 t12（§6 待接线项 1）：payload 带级别（watch_level/level）→ 走
         watch_level_templates 的**按级别渲染**（P0 红卡 / P1 橙卡 / P2 蓝卡 / P3 汇总）；
         不带级别 → 退回本类旧渲染，**非分级路径与既有非盯盘通知行为不变**。
+
+        2026-10-16（REQ-261016155500-4f2a wt:messaging:3）：WATCH_MSG_V2 开时**两条渲染链
+        统一收敛到 watch_message_renderer**——同一 variables 无论有无级别都出同一份四段式
+        骨架（消灭"分级卡/旧意图卡两套版式漂移"）；关时保持上述旧分支（可灰度回退）。
         """
         vars = notification.variables
+        from infrastructure.notification.formatters.watch_message_renderer import (
+            MSG_V2_ENABLED,
+        )
+        if MSG_V2_ENABLED:
+            return self._format_via_unified_renderer(notification)
         watch_level = vars.get('watch_level') or vars.get('level')
         if watch_level:
             from infrastructure.notification.formatters.watch_level_templates import (
@@ -110,7 +119,9 @@ class WatchTriggeredFormatter(FeishuFormatter):
         lines.append('**这条提醒为了**：' + purpose)
 
         if context:
-            if trigger_level == 'L1' and not escalation_reason:
+            if vars.get('context_embedded'):
+                pass  # 2026-10-15：预案摘要已内嵌「触发」正文（facade 组装），不再重复
+            elif trigger_level == 'L1' and not escalation_reason:
                 lines.append('**预案**：' + self._simplify_context(context, condition, price))
             else:
                 lines.append('**预案**：' + context)
@@ -122,6 +133,52 @@ class WatchTriggeredFormatter(FeishuFormatter):
             content=chr(10).join(lines),
             color=self._get_color_by_condition(condition),
         )
+
+    def _format_via_unified_renderer(self, notification: Notification) -> Dict[str, Any]:
+        """V2 薄适配：同一 variables → WatchMessage → 统一渲染器（REQ-261016155500-4f2a）。
+
+        与 agent-os 网关路径（facade 产出的 content）**同源同骨架**——消灭"分级卡/
+        旧意图卡/网关平铺"三套版式漂移；P0 保留 @所有人 首行（对齐分级模板 FR-5）。
+        """
+        from domain.watch.services.watch_message import (
+            FactSection, WatchMessage, resolve_action,
+        )
+        from infrastructure.notification.formatters.watch_level_templates import (
+            MENTION_USER,
+        )
+        from infrastructure.notification.formatters.watch_message_renderer import (
+            render_watch_message,
+        )
+
+        v = notification.variables or {}
+        ap = v.get('action_params') if isinstance(v.get('action_params'), dict) else None
+        msg = WatchMessage(
+            level=(v.get('watch_level') or v.get('level') or 'P2'),
+            symbol=str(v.get('symbol') or ''),
+            name=str(v.get('name') or ''),
+            account=v.get('account'),
+            intent=v.get('intent'),
+            stage=v.get('lifecycle_stage'),
+            fact=FactSection(condition_text=str(v.get('message') or ''),
+                             price=v.get('price'),
+                             change_pct=v.get('change_pct'),
+                             pnl_pct=v.get('pnl_pct')),
+            plan=v.get('context') or None,
+            action=resolve_action(action_params=ap,
+                                  next_action_hint=v.get('next_action_hint'),
+                                  intent=v.get('intent'),
+                                  rule_id=v.get('rule_id')),
+            reevaluate=(ap or {}).get('invalidation') or None,
+            rule_id=v.get('rule_id'),
+            escalation_reason=v.get('escalation_reason'),
+            mode='agent' if v.get('notify_mode') == 'agent' else 'direct',
+        )
+        rendered = render_watch_message(msg)
+        content = rendered.text
+        if rendered.mention_all:
+            content = MENTION_USER + chr(10) + content
+        return self.format_card(title=rendered.title, content=content,
+                                color=rendered.color)
 
     def _get_direction_advice(self, condition: dict) -> str:
         """方向的中性事实描述。
@@ -163,22 +220,20 @@ class WatchTriggeredFormatter(FeishuFormatter):
         return 'blue'
 
     def _simplify_context(self, context: str, condition: dict, price: float) -> str:
-        """简化 context，提取关键信息（用于 L1 直发提醒）
+        """简化 context 供 L1 直发（3 行以内）。
 
-        Args:
-            context: 完整的预案文本
-            condition: 触发条件
-            price: 当前价格
-
-        Returns:
-            str: 简化后的提示（3 行以内）
+        2026-10-15 修正：此前完全丢弃真实预案、编造「跌破 X，进入观察区」式通用文案，
+        评分依据/风控/来源全部到不了用户——opportunity_scan 自动规则的 context 本就自带
+        这些块，先提取真实关键行；只有提取不到（非标准结构）时才回退通用提示。
         """
-        # 提取关键价格位（从条件中获取）
+        extracted = self._extract_plan_lines(context)
+        if extracted:
+            return extracted
+
         params = condition.get('params') or {}
         trigger_price = params.get('price')
         direction = params.get('direction', 'below')
 
-        # 构建简洁提示
         if direction == 'below':
             if trigger_price:
                 return f"跌破 {trigger_price}，进入观察区，等企稳信号"
@@ -188,8 +243,19 @@ class WatchTriggeredFormatter(FeishuFormatter):
                 return f"突破 {trigger_price}，观察量能是否确认"
             return "价格走强，关注持续性"
 
-        # 如果无法提取，返回通用提示
         return "触发盯盘条件，请查看详细预案"
+
+    @staticmethod
+    def _extract_plan_lines(context: str, max_lines: int = 5) -> str:
+        """从完整预案文本提取关键行（标题 + 条目行），块标题行（以「：」结尾）跳过。"""
+        if not context:
+            return ''
+        lines = [ln.strip() for ln in context.splitlines() if ln.strip()]
+        if not lines:
+            return ''
+        head = lines[0]
+        rest = [ln for ln in lines[1:] if not ln.endswith('：')][:max_lines - 1]
+        return '；'.join([head] + rest)
 
 
 class StopLossFormatter(FeishuFormatter):

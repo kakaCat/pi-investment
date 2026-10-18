@@ -81,6 +81,10 @@ class StateManager:
         # 触发事件日志：频率升级与多规则共振统计的**单一事实源**
         # （2026-09-14：原两条路径共用 last_triggered，而它是覆盖写、且不含 symbol）
         self.trigger_events: List[Tuple[datetime, int, str]] = []
+        # 每日通知计数（REQ-261016155500-4f2a）：key=(rule_id, cond_idx) -> (date, n)
+        # 上限 DEFAULT_DAILY_EMIT_CAP，超限只归档不通知；随 runtime state 持久化，
+        # 重启不丢（否则日上限在重启后形同虚设）。
+        self.daily_emit_counts: Dict[Tuple[int, int], Tuple[Any, int]] = {}
         # 当前状态所属日期（跨天重置判定）
         self.current_date: Optional[date] = None
 
@@ -96,6 +100,8 @@ class StateManager:
         # 已持久化快照：key -> (latched, last_triggered_at)，flush 据此只写脏键
         self._persisted: Dict[Tuple[int, int],
                               Tuple[bool, Optional[datetime]]] = {}
+        # 每日通知计数的已持久化快照：key -> (date_iso, n)，语义同上
+        self._persisted_emit: Dict[Tuple[int, int], Optional[Tuple[str, int]]] = {}
         # 显式脏键（diff 之外的补充，调用方可主动 mark）
         self._dirty: Set[Tuple[int, int]] = set()
         # 自愈临时延长后的有效冷却：本类不消费（判定仍读 cond['cooldown_sec']），
@@ -121,6 +127,8 @@ class StateManager:
         self.history_max_points = history_max_points
         # 去重/事件/价格三表裁剪的最小间隔
         self.extras_prune_sec = extras_prune_sec
+        # 重叠治理对已持久化快照（REQ-261016155500-4f2a wt:engine:3）：flush 只写变化
+        self._persisted_overlap: Set[Tuple[int, int]] = set()
 
     # ── 触发事件日志：频率 / 共振统计的唯一事实源 ──────────────
     def record_trigger_event(self, now: datetime, rule_id: int, symbol: str) -> None:
@@ -170,9 +178,12 @@ class StateManager:
         self._pending_events.clear()
         self._persisted_dedup.clear()
         self.overlap_reported.clear()
+        # 注意：_persisted_overlap **不清**——保留旧快照，下一个 flush 才能检测出
+        # 「集合变小」并把清零落库（否则重启后会把昨天的对又灌回来，跨天重置失效）。
         self.last_intervention.clear()
         self.interventions_today = 0
         self.trigger_events = []
+        self.daily_emit_counts.clear()
         if active_rule_ids is not None:
             self.last_triggered = {k: v for k, v in self.last_triggered.items()
                                    if k[0] in active_rule_ids}
@@ -244,6 +255,7 @@ class StateManager:
                          error=str(e))
             return 0
         restored = 0
+        today = (now or datetime.now()).date()
         for row in rows:
             try:
                 key = (int(row['rule_id']), int(row['cond_idx']))
@@ -260,6 +272,16 @@ class StateManager:
             cooldown = row.get('cooldown_effective_sec')
             if cooldown is not None:
                 self.cooldown_effective[key] = cooldown
+            # 每日通知计数：只接「今天」的计数（昨天的归零重计）。
+            # emit_count_date 是 DATE 列：psycopg2 返回 datetime.date（无 .date()），
+            # 测试桩可能给 datetime——两种都接住。
+            emit_date = row.get('emit_count_date')
+            emit_count = int(row.get('emit_count') or 0)
+            if emit_date is not None and emit_count > 0:
+                ed = emit_date.date() if hasattr(emit_date, 'date') else emit_date
+                if ed == today:
+                    self.daily_emit_counts[key] = (today, emit_count)
+                    self._persisted_emit[key] = (today.isoformat(), emit_count)
             # 快照与内存对齐：恢复后首个 flush 不应把全部行重写一遍
             self._persisted[key] = self._runtime_value(key)
             restored += 1
@@ -270,10 +292,31 @@ class StateManager:
     # 三类扩展共用一条纪律：适配器不支持就跳过（行为等价）、读失败只降级不抛错。
 
     def _restore_extras(self, now: datetime, symbols=None) -> None:
-        """恢复去重窗 / 事件窗 / 价格历史（各自独立容错，互不牵连）"""
+        """恢复去重窗 / 事件窗 / 价格历史 / 重叠治理对（各自独立容错，互不牵连）"""
         self._restore_dedup(now)
         self._restore_events(now)
         self._restore_history(now, symbols)
+        self._restore_overlap_reported()
+
+    def _restore_overlap_reported(self) -> None:
+        """恢复跨规则重叠已上报对（REQ-261016155500-4f2a wt:engine:3）。
+
+        重启前已上报的规则对重新灌回内存集合——否则重启后同一对重叠会再落一条
+        治理项（重复打扰 agent）。适配器不支持/读失败：跳过（当轮允许重复治理一项，
+        记 degraded 供监控）。
+        """
+        loader = getattr(self.store, 'load_overlap_reported', None)
+        if not callable(loader):
+            return
+        try:
+            pairs = loader() or []
+        except Exception as e:  # noqa: BLE001 —— 响亮但不致命
+            self.degraded = True
+            logger.error('重叠治理对恢复失败：重启后同一对可能重复治理', error=str(e))
+            return
+        self.overlap_reported = {(int(a), int(b)) for a, b in pairs}
+        self._persisted_overlap = set(self.overlap_reported)
+        logger.info('重叠治理对已恢复', pairs=len(self.overlap_reported))
 
     def _restore_dedup(self, now: datetime) -> None:
         loader = getattr(self.store, 'load_dedup', None)
@@ -383,18 +426,24 @@ class StateManager:
         now = now or datetime.now()
         try:
             keys = (set(self.latched) | set(self.last_triggered)
-                    | set(self._persisted) | set(self._dirty))
+                    | set(self._persisted) | set(self._dirty)
+                    | set(self.daily_emit_counts))
             rows: List[Dict[str, Any]] = []
             written: List[Tuple[int, int]] = []
             for key in keys:
                 current = self._runtime_value(key)
-                if key in self._dirty or self._persisted.get(key) != current:
+                emit = self.daily_emit_counts.get(key)
+                emit_snapshot = (emit[0].isoformat(), emit[1]) if emit else None
+                if (key in self._dirty or self._persisted.get(key) != current
+                        or self._persisted_emit.get(key) != emit_snapshot):
                     rows.append({
                         'rule_id': key[0],
                         'cond_idx': key[1],
                         'latched': current[0],
                         'last_triggered_at': current[1],
                         'cooldown_effective_sec': self.cooldown_effective.get(key),
+                        'emit_count_date': emit[0] if emit else None,
+                        'emit_count': emit[1] if emit else None,
                     })
                     written.append(key)
             if rows:
@@ -408,6 +457,8 @@ class StateManager:
             return False
         for key in written:
             self._persisted[key] = self._runtime_value(key)
+            emit = self.daily_emit_counts.get(key)
+            self._persisted_emit[key] = (emit[0].isoformat(), emit[1]) if emit else None
         self._dirty.clear()
         self.degraded = False
         return True
@@ -417,7 +468,18 @@ class StateManager:
         self._flush_dedup(now)
         self._flush_events()
         self._flush_history(now)
+        self._flush_overlap_reported()
         self._prune_extras(now)
+
+    def _flush_overlap_reported(self) -> None:
+        """重叠治理对增量落库：集合变化才写（REQ-261016155500-4f2a wt:engine:3）。"""
+        saver = getattr(self.store, 'save_overlap_reported', None)
+        if not callable(saver):
+            return
+        if self.overlap_reported == self._persisted_overlap:
+            return
+        saver(sorted(self.overlap_reported))
+        self._persisted_overlap = set(self.overlap_reported)
 
     def _flush_dedup(self, now: datetime) -> None:
         upsert = getattr(self.store, 'upsert_dedup', None)
@@ -473,8 +535,27 @@ class StateManager:
             newest[sym] = last_ts
         if not rows:
             return
-        upsert(rows)
+        # 2026-10-16 线上事故：同一标的多条规则在同一 tick 各推一个**同 ts** 价格点
+        # （引擎侧已按 tick 去重，这里是兜底），同批次重复 (symbol, ts) 会让
+        # ON CONFLICT (symbol, ts) DO UPDATE 直接抛 CardinalityViolation，**整批**
+        # 运行态回滚（实测 quant.watch_price_history 0 行、每 tick 去重/闩锁全丢）。
+        upsert(self._dedupe_history_rows(rows))
         self._persisted_history_ts.update(newest)
+
+    @staticmethod
+    def _dedupe_history_rows(rows):
+        '''同一批次内按 (symbol, ts) 去重，后者覆盖前者（最后一次取价为准）。
+
+        保持首次出现顺序，仅对重复键覆盖价格——同键下其余字段必然一致。
+        '''
+        merged = {}
+        order = []
+        for row in rows:
+            key = (row['symbol'], row['ts'])
+            if key not in merged:
+                order.append(key)
+            merged[key] = row
+        return [merged[k] for k in order]
 
     def _prune_extras(self, now: datetime) -> None:
         """按窗口裁剪三张扩展表（节流到 extras_prune_sec，避免每 tick 发 DELETE）"""

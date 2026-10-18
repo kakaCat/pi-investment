@@ -20,6 +20,48 @@ class TriggerLevel(Enum):
     L2_ACTION = "L2"         # 行动类：关键操作，发给 agent 决策
 
 
+# ── 决策化改造（REQ-261016155500-4f2a，2026-10-16）─────────────────────────
+#: action_params.action 的合法取值——消息「建议动作」块的动词词表。
+#: observe 不是动作；写 observe 类规则时必须同时给 observation_criterion
+#: （"观察到什么变化才值得叫我"），由本校验器强制。
+ACTION_PARAM_ACTIONS = ('buy', 'sell', 'hold', 'reduce', 'observe')
+
+
+def validate_action_params(value: Any) -> Optional[str]:
+    """校验 action_params 结构；合法返回 None，非法返回错误文案（纯函数，无 I/O）。
+
+    schema（全部可选，但给了就必须合法）：
+      action                ∈ ACTION_PARAM_ACTIONS
+      reference_price       数值
+      position_pct          0 < x <= 100（占总资产 %）
+      quantity              正整数（股数）
+      invalidation          字符串（失效/重估条件）
+      observation_criterion 字符串（observe 类必填）
+    """
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        return 'action_params 必须为对象'
+    action = value.get('action')
+    if action is not None and action not in ACTION_PARAM_ACTIONS:
+        return 'action_params.action 必须为 %s 之一' % '/'.join(ACTION_PARAM_ACTIONS)
+    rp = value.get('reference_price')
+    if rp is not None and not isinstance(rp, (int, float)):
+        return 'action_params.reference_price 必须为数值'
+    pp = value.get('position_pct')
+    if pp is not None and (not isinstance(pp, (int, float)) or pp <= 0 or pp > 100):
+        return 'action_params.position_pct 必须在 (0, 100] 区间'
+    qty = value.get('quantity')
+    if qty is not None and (not isinstance(qty, int) or qty <= 0):
+        return 'action_params.quantity 必须为正整数'
+    for key in ('invalidation', 'observation_criterion'):
+        if value.get(key) is not None and not isinstance(value.get(key), str):
+            return 'action_params.%s 必须为字符串' % key
+    if action == 'observe' and not (value.get('observation_criterion') or '').strip():
+        return 'observe 类规则必须给 observation_criterion（观察到什么变化才值得叫我）'
+    return None
+
+
 @dataclass(frozen=True)
 class ActionHint:
     """行动指引（值对象）

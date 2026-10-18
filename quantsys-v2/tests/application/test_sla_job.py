@@ -48,6 +48,12 @@ class FakeTodo:
     due_at: datetime = None
     escalate_count: int = 0
     terminal: str = None
+    created_at: datetime = None
+    claimed_at: datetime = None
+    closed_at: datetime = None
+    #: 归属（route_owner 的结果）：缺省 None = 走用户路径（与改前的所有断言一致）
+    owner_kind: str = None
+    owner_ref: str = None
 
 
 class FakeTodoRepo:
@@ -71,7 +77,8 @@ class FakeTodoRepo:
         rows.sort(key=lambda t: t.due_at)
         return rows[:limit]
 
-    def promote(self, todo_id, to_state, *, escalate_count=None, now=None):
+    def promote(self, todo_id, to_state, *, escalate_count=None, now=None,
+                extend_due_minutes=30):
         self.promote_calls.append({'todo_id': todo_id, 'to_state': to_state,
                                    'escalate_count': escalate_count})
         if todo_id in self.promote_boom_ids:
@@ -82,6 +89,9 @@ class FakeTodoRepo:
         todo.flow_state = to_state
         todo.escalate_count = (todo.escalate_count + 1 if escalate_count is None
                                else escalate_count)
+        # 对齐适配器契约：晋升顺延 due_at（REQ-261016155500-4f2a 防收盘三连升）
+        if extend_due_minutes and todo.due_at is not None:
+            todo.due_at = todo.due_at + timedelta(minutes=extend_due_minutes)
         return todo
 
 
@@ -121,10 +131,16 @@ class FakeReceiptRepo:
                    and r['payload_digest'] == payload_digest for r in self.rows)
 
 
-def build_job(todo_repo, receipts=None, sender=None, limit=100):
-    """组装巡检 job：默认 log-only（sender=None），需要"已送达"时显式注入 sender。"""
+def build_job(todo_repo, receipts=None, sender=None, limit=100, agent_waker=None):
+    """组装巡检 job：默认 log-only（sender=None），需要"已送达"时显式注入 sender。
+
+    agent_waker：agent 自有待办的升级通道（2026-10-16）。缺省 None = 超时一律走卡片
+    （与改前一致），要验证"催 agent 而不是用户"的用例显式注入。
+    """
     receipts = receipts if receipts is not None else FakeReceiptRepo()
-    job = WatchSlaJob(todo_repo, ReceiptService(receipts, sender=sender), limit=limit)
+    job = WatchSlaJob(todo_repo,
+                      ReceiptService(receipts, sender=sender, agent_waker=agent_waker),
+                      limit=limit)
     return job, receipts
 
 
@@ -197,7 +213,9 @@ def test_resolve_channel_by_level_and_kind():
 
 # ── 机械晋升：L1→L2 / L2→L3 ─────────────────────────────────
 
-def test_l1_promoted_to_l2_and_writes_escalate_receipt():
+def test_l1_promoted_to_l2_without_receipt():
+    """REQ-261016155500-4f2a 回执收敛：晋升不发卡（升级回执下线），历史在
+    flow_state/escalate_count 与结果回执时间线。"""
     todo = overdue(1, flow='L1')
     repo = FakeTodoRepo([todo])
     sent = []
@@ -207,14 +225,11 @@ def test_l1_promoted_to_l2_and_writes_escalate_receipt():
 
     assert repo.rows[1].flow_state == 'L2'
     assert repo.rows[1].escalate_count == 1
-    assert (stats['scanned'], stats['promoted'], stats['escalated']) == (1, 1, 1)
-    assert [r['kind'] for r in receipts.rows] == ['escalate']
-    assert receipts.rows[0]['delivery_status'] == DELIVERY_SENT
-    assert len(sent) == 1 and stats['alerts'] == 1
-    assert '升级即' in sent[0]['message']
+    assert (stats['scanned'], stats['promoted'], stats['escalated']) == (1, 1, 0)
+    assert receipts.rows == [] and sent == [] and stats['alerts'] == 0
 
 
-def test_l2_promoted_to_l3_with_distinct_digest():
+def test_l2_promoted_to_l3_without_receipt():
     repo = FakeTodoRepo([overdue(2, flow='L2')])
     sent = []
     job, receipts = build_job(repo, sender=sent.append)
@@ -222,26 +237,37 @@ def test_l2_promoted_to_l3_with_distinct_digest():
     stats = job.run_once(NOW)
 
     assert repo.rows[2].flow_state == 'L3'
-    assert (stats['promoted'], stats['escalated']) == (1, 1)
-    l2_digest = payload_digest('escalate', 2, 'L2|' + DUE_PAST.isoformat())
-    l3_digest = payload_digest('escalate', 2, 'L3|' + DUE_PAST.isoformat())
-    assert receipts.rows[0]['payload_digest'] == l3_digest != l2_digest
+    assert (stats['promoted'], stats['escalated']) == (1, 0)
+    assert receipts.rows == [] and sent == []
+
+
+def test_promotion_extends_due_30min_to_prevent_close_cascade():
+    """REQ-261016155500-4f2a：晋升顺延 due_at 30min——P2 收盘不再三连升。"""
+    repo = FakeTodoRepo([overdue(23, flow='L1')])
+    job, _ = build_job(repo)
+
+    job.run_once(NOW)
+
+    assert repo.rows[23].due_at == DUE_PAST + timedelta(minutes=30)
 
 
 def test_chain_advances_one_step_per_round():
-    """机械保证：同一待办连续三轮 → L1→L2→L3→超时升级，不存在滞留"""
+    """机械保证：同一待办逐轮推进 → L1→L2→L3→超时；每步 due 顺延 30min，
+    故每轮时钟需推进 31min 才会命中下一轮（这正是防收盘三连升的语义）。"""
     repo = FakeTodoRepo([overdue(3, flow='L1')])
     seen = []
     job, receipts = build_job(repo, sender=seen.append)
 
     first = job.run_once(NOW)
-    second = job.run_once(NOW)
-    third = job.run_once(NOW)
+    second = job.run_once(NOW + timedelta(minutes=31))
+    third = job.run_once(NOW + timedelta(minutes=62))
 
     assert repo.rows[3].flow_state == 'L3'
     assert [(s['promoted'], s['escalated'], s['timeout']) for s in (first, second, third)] == [
-        (1, 1, 0), (1, 1, 0), (0, 0, 1)]
-    assert [r['kind'] for r in receipts.rows] == ['escalate', 'escalate', 'timeout']
+        (1, 0, 0), (1, 0, 0), (0, 0, 1)]
+    # 升级回执下线：只有 timeout 一条台账（P2 默认级别 → 只落台账不发送）
+    assert [r['kind'] for r in receipts.rows] == ['timeout']
+    assert receipts.rows[0]['delivery_status'] == DELIVERY_LOG_ONLY
     assert repo.rows[3].escalate_count == 3   # 两次晋升 + 一次超时升级
 
 
@@ -266,8 +292,13 @@ def test_l3_overdue_writes_timeout_and_bumps_escalate_count():
 
 
 def test_l3_timeout_is_idempotent_within_same_due_period():
-    """同一待办同一 due 周期：第二轮不重发、不重复累加 escalate_count"""
-    repo = FakeTodoRepo([overdue(5, flow='L3')])
+    """P1 超时：只发一次；第二轮仍命中 overdue 但幂等跳过（duplicates=1，不重发不重复计数）
+
+    2026-10-16 修正：超时 bump **不再顺延 due_at**（见下一条回归），所以第二轮**会**
+    命中并走到 exists 分支——这正是"同一 due 周期只发一次"的实现方式；此前的断言
+    ("第二轮不再命中") 恰好把缺陷当成了契约。
+    """
+    repo = FakeTodoRepo([overdue(5, flow='L3', level='P1')])
     sent = []
     job, receipts = build_job(repo, sender=sent.append)
 
@@ -276,28 +307,159 @@ def test_l3_timeout_is_idempotent_within_same_due_period():
 
     assert (first['timeout'], first['alerts']) == (1, 1)
     assert (second['timeout'], second['alerts']) == (0, 0)
-    assert second['duplicates'] == 1
+    assert second['duplicates'] == 1                # 命中但已存在 → 整段跳过
     assert len(receipts.rows) == 1 and len(sent) == 1
     assert repo.rows[5].escalate_count == 1
 
 
-def test_escalate_receipt_idempotent_when_already_recorded():
-    """升级即回执已存在（例如上一轮落库后进程被杀重跑）→ 晋升照做，回执不重发"""
+def test_l3_timeout_does_not_rotate_due_at_no_repeat_every_30min():
+    """① 回归（2026-10-16 生产缺陷）：超时 bump **不得**顺延 due_at。
+
+    病根：due_at 是回执幂等键（payload_digest 的 period）的一部分，而 bump 复用了
+    promote()，其缺省会 due_at +30min → 每 30 分钟换一个新 digest → 同一待办无限复读
+    （实测 13 条 P1 待办 3 小时刷 78 条卡）。本用例把时钟推到 +31min：
+    若有人把 extend_due_minutes 改回缺省（或删掉显式 0），这张卡就会再发一次 → 红。
+    """
+    repo = FakeTodoRepo([overdue(41, flow='L3', level='P1')])
+    sent = []
+    job, receipts = build_job(repo, sender=sent.append)
+
+    first = job.run_once(NOW)
+    later = job.run_once(NOW + timedelta(minutes=31))
+
+    assert first['timeout'] == 1
+    assert later['timeout'] == 0 and later['duplicates'] == 1
+    assert repo.rows[41].due_at == DUE_PAST          # due_at 原地不动（幂等键稳定）
+    assert len(receipts.rows) == 1 and len(sent) == 1
+    assert repo.rows[41].escalate_count == 1         # 幂等跳过时不再累加计数
+
+
+def test_l3_timeout_of_agent_owned_todo_wakes_owner_not_user():
+    """② agent 自有待办的超时升级 → 唤醒 owner agent，不占用户卡片（2026-10-16）"""
+    todo = overdue(42, flow='L3', level='P1', owner_kind='agent', owner_ref='agent-dh')
+    repo = FakeTodoRepo([todo])
+    sent, wakes = [], []
+    job, receipts = build_job(repo, sender=sent.append,
+                              agent_waker=lambda t, ctx: wakes.append((t.id, ctx)) or True)
+
+    stats = job.run_once(NOW)
+
+    assert [w[0] for w in wakes] == [42]              # 唤醒 owner
+    assert wakes[0][1]['kind'] == 'timeout'
+    assert sent == []                                 # 用户一张卡都不发
+    assert stats['timeout'] == 1 and stats['agent_wakes'] == 1
+    assert stats['alerts'] == 1 and stats['timeout_suppressed'] == 0
+    assert receipts.rows[0]['delivery_status'] == DELIVERY_SENT
+    assert repo.rows[42].escalate_count == 1
+
+
+def test_l3_timeout_agent_owned_p2_wakes_owner_without_user_card():
+    """agent 自有 P2 超时：照常催 owner（私信），但不发用户卡（级别门只管用户路径）"""
+    todo = overdue(43, flow='L3', level='P2', owner_kind='agent', owner_ref='agent-dh')
+    repo = FakeTodoRepo([todo])
+    sent, wakes = [], []
+    job, receipts = build_job(repo, sender=sent.append,
+                              agent_waker=lambda t, ctx: wakes.append(t.id) or True)
+
+    stats = job.run_once(NOW)
+
+    assert wakes == [43] and sent == []
+    assert stats['agent_wakes'] == 1 and stats['timeout_suppressed'] == 0
+    assert receipts.rows[0]['delivery_status'] == DELIVERY_SENT
+
+
+def test_l3_timeout_agent_wake_failure_is_folded_into_one_card():
+    """唤醒 owner 失败：P1 折进本轮**同一张**卡（绝不静默丢，也不按条炸卡）"""
+    todo = overdue(44, flow='L3', level='P1', owner_kind='agent', owner_ref='agent-dh')
+    repo = FakeTodoRepo([todo])
+    sent = []
+
+    def _boom(t, ctx):
+        raise RuntimeError('wake down')
+
+    job, receipts = build_job(repo, sender=sent.append, agent_waker=_boom)
+    stats = job.run_once(NOW)
+
+    assert stats['timeout'] == 1 and stats['agent_wakes'] == 1
+    assert stats['group_cards'] == 1 and len(sent) == 1      # 一张卡，不是每个待办一张
+    assert '待办#44' in sent[0]['message']
+    assert receipts.rows[0]['delivery_status'] == DELIVERY_SENT
+
+
+def test_l3_timeout_many_agent_owned_failures_still_one_card():
+    """炸卡回归（2026-10-16 生产实测一轮 10 张）：N 条唤醒失败 → 仍只有 1 张卡"""
+    todos = [overdue(50 + i, flow='L3', level='P1', owner_kind='agent',
+                     owner_ref='agent-dh') for i in range(10)]
+    repo = FakeTodoRepo(todos)
+    sent = []
+    job, receipts = build_job(repo, sender=sent.append,
+                              agent_waker=lambda t, ctx: False)   # 全部未送达
+
+    stats = job.run_once(NOW)
+
+    assert stats['timeout'] == 10 and stats['group_cards'] == 1
+    assert len(sent) == 1
+    assert sent[0]['message'].count('- 待办#') == 10          # 10 行折进同一张卡
+    assert len(receipts.rows) == 10
+
+
+def test_l3_timeout_agent_owned_without_waker_falls_back_to_card():
+    """未接线 agent_waker（缺省）：P0/P1 仍退回用户卡（行为与改前一致，绝不静默丢）"""
+    todo = overdue(45, flow='L3', level='P1', owner_kind='agent', owner_ref='agent-dh')
+    repo = FakeTodoRepo([todo])
+    sent = []
+    job, receipts = build_job(repo, sender=sent.append)     # agent_waker=None
+
+    stats = job.run_once(NOW)
+
+    assert stats['timeout'] == 1 and stats['agent_wakes'] == 1
+    assert stats['alerts'] == 1 and len(sent) == 1
+    assert receipts.rows[0]['delivery_status'] == DELIVERY_SENT
+
+
+def test_l3_p2_timeout_suppressed_ledger_only():
+    """REQ-261016155500-4f2a：P2 超时不发卡——只落台账（log_only），日终汇总点名"""
+    repo = FakeTodoRepo([overdue(24, flow='L3', level='P2')])
+    sent = []
+    job, receipts = build_job(repo, sender=sent.append)
+
+    stats = job.run_once(NOW)
+
+    assert stats['timeout'] == 1 and stats['timeout_suppressed'] == 1
+    assert stats['alerts'] == 0 and sent == []
+    assert len(receipts.rows) == 1
+    assert receipts.rows[0]['kind'] == 'timeout'
+    assert receipts.rows[0]['delivery_status'] == DELIVERY_LOG_ONLY
+    assert repo.rows[24].escalate_count == 1
+
+
+def test_l3_p0_timeout_still_delivers():
+    """P0 超时仍发送（收敛只压 P2/P3）"""
+    repo = FakeTodoRepo([overdue(25, flow='L3', level='P0')])
+    sent = []
+    job, receipts = build_job(repo, sender=sent.append)
+
+    stats = job.run_once(NOW)
+
+    assert stats['timeout'] == 1 and stats['timeout_suppressed'] == 0
+    assert stats['alerts'] == 1 and len(sent) == 1
+    assert receipts.rows[0]['delivery_status'] == DELIVERY_SENT
+
+
+def test_promotion_never_writes_escalate_receipt():
+    """升级回执下线后，重复巡检/预置 digest 场景不再存在 escalate 回执；
+    晋升是纯状态推进，任何情况下不为它落回执。"""
     todo = overdue(6, flow='L1')
     repo = FakeTodoRepo([todo])
     sent = []
-    receipts = FakeReceiptRepo()
-    service = ReceiptService(receipts, sender=sent.append)
-    service.escalate(todo, to_state='L2')            # 预置同 digest 回执
-    assert len(sent) == 1
-    job = WatchSlaJob(repo, service)
+    job, receipts = build_job(repo, sender=sent.append)
 
     stats = job.run_once(NOW)
 
     assert repo.rows[6].flow_state == 'L2'           # 晋升仍然发生（机械保证）
     assert stats['promoted'] == 1
-    assert stats['escalated'] == 0 and stats['duplicates'] == 1
-    assert len(sent) == 1 and len(receipts.rows) == 1
+    assert stats['escalated'] == 0 and stats['duplicates'] == 0
+    assert len(sent) == 0 and len(receipts.rows) == 0
 
 
 # ── 健壮性：异常与降级 ──────────────────────────────────────
@@ -312,7 +474,7 @@ def test_single_item_failure_does_not_stop_round():
     assert stats['errors'] == 1
     assert stats['promoted'] == 1
     assert repo.rows[8].flow_state == 'L2'           # 后一条照常处理
-    assert [r['todo_id'] for r in receipts.rows] == [8]
+    assert receipts.rows == []                       # 晋升不发卡
 
 
 def test_repo_scan_failure_returns_degraded_without_raising():
@@ -329,7 +491,9 @@ def test_repo_scan_failure_returns_degraded_without_raising():
 
 
 def test_receipt_repo_failure_is_counted_not_crashing():
-    """回执仓储抛错：单条计入 errors，整轮继续（且不得谎报已发）"""
+    """回执仓储抛错只在真正发回执时（L3 超时）发生；晋升不再触回执仓储。
+
+    本用例：L1 待办晋升，回执仓储坏了也不影响——不报错、不回执、状态照推进。"""
     repo = FakeTodoRepo([overdue(10, flow='L1'), overdue(11, flow='L1')])
     receipts = FakeReceiptRepo()
     receipts.exists_boom = True
@@ -337,13 +501,13 @@ def test_receipt_repo_failure_is_counted_not_crashing():
 
     stats = job.run_once(NOW)
 
-    assert stats['errors'] == 2                       # 两条都在发回执时失败
-    assert stats['promoted'] == 2                     # 晋升已发生（状态推进不受回执影响）
-    assert stats['escalated'] == 0
+    assert stats['errors'] == 0                       # 晋升路径不触回执仓储
+    assert stats['promoted'] == 2
+    assert receipts.record_calls == []
 
 
 def test_sender_failure_records_failed_and_does_not_crash():
-    repo = FakeTodoRepo([overdue(12, flow='L1')])
+    repo = FakeTodoRepo([overdue(12, flow='L3', level='P1')])
 
     def boom(_payload):
         raise RuntimeError('feishu down')
@@ -352,13 +516,14 @@ def test_sender_failure_records_failed_and_does_not_crash():
 
     stats = job.run_once(NOW)
 
-    assert stats['escalated'] == 1 and stats['alerts'] == 0
+    assert stats['timeout'] == 1 and stats['alerts'] == 0
+    assert stats['timeout_suppressed'] == 0
     assert receipts.rows[0]['delivery_status'] == DELIVERY_FAILED
-    assert repo.rows[12].flow_state == 'L2'
+    assert repo.rows[12].flow_state == 'L3'
 
 
 def test_default_sender_is_log_only_and_never_claims_sent():
-    repo = FakeTodoRepo([overdue(13, flow='L3')])
+    repo = FakeTodoRepo([overdue(13, flow='L3', level='P1')])
     job, receipts = build_job(repo, sender=None)      # 缺省 log-only（t12 才接线）
 
     stats = job.run_once(NOW)
@@ -396,22 +561,20 @@ def test_unknown_flow_state_is_skipped_not_guessed():
 
 def test_counts_aggregate_multiple_todos():
     repo = FakeTodoRepo([overdue(16, flow='L1'), overdue(17, flow='L2'),
-                         overdue(18, flow='L3')])
+                         overdue(18, flow='L3', level='P1')])
     sent = []
     job, receipts = build_job(repo, sender=sent.append)
 
     stats = job.run_once(NOW)
 
     assert stats['scanned'] == 3
-    assert stats['promoted'] == 2        # L1→L2、L2→L3
-    assert stats['escalated'] == 2
-    assert stats['timeout'] == 1         # L3 升级给用户
-    assert stats['alerts'] == 3          # 按条数计（聚合卡内 3 条都送达）
-    # REQ-ad0a t4（FR-8）：一 kind 一卡——2 条 escalate 合 1 卡 + 1 条 timeout 1 卡
-    assert len(sent) == 2
-    assert stats['group_cards'] == 2
-    escalate_card = [p for p in sent if p['kind'] == 'escalate'][0]
-    assert escalate_card['message'].count('待办#') == 2     # 2 条晋升合成一张卡
+    assert stats['promoted'] == 2        # L1→L2、L2→L3（不发卡）
+    assert stats['escalated'] == 0
+    assert stats['timeout'] == 1         # L3/P1 升级给用户
+    assert stats['alerts'] == 1
+    # REQ-261016155500-4f2a：只有 timeout 一张聚合卡（升级回执已下线）
+    assert len(sent) == 1 and sent[0]['kind'] == 'timeout'
+    assert stats['group_cards'] == 1
 
 
 def test_job_passes_now_and_limit_to_repo():
@@ -461,3 +624,22 @@ def test_result_and_timeout_have_distinct_digests():
     service.result(todo, terminal='handled')
 
     assert len({r['payload_digest'] for r in receipts.rows}) == 2
+
+
+def test_result_receipt_carries_full_timeline():
+    """REQ-261016155500-4f2a：结果回执附全过程时间线（升级回执下线后晋升历史只在结果卡可见）"""
+    todo = overdue(26, flow='L3', escalate_count=2)
+    todo.created_at = NOW - timedelta(hours=3)
+    todo.claimed_at = NOW - timedelta(hours=2)
+    todo.closed_at = NOW - timedelta(minutes=5)
+    receipts = FakeReceiptRepo()
+    sent = []
+    service = ReceiptService(receipts, sender=sent.append)
+
+    service.result(todo, terminal='handled', close_reason='已按预案减仓',
+                   action_kind='trade')
+
+    message = sent[0]['message']
+    assert '时间线：' in message
+    assert '创建' in message and '认领' in message and '关闭' in message
+    assert '晋升 2 次' in message

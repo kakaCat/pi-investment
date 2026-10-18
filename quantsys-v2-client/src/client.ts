@@ -69,6 +69,9 @@ import type {
   EvolutionEngineRunResult,
   CorePlanSnapshot,
   EvolutionEngineRunsResponse,
+  WatchTodo,
+  WatchTodoListParams,
+  WatchTodoCloseRequest,
 } from './types.js';
 
 
@@ -897,6 +900,54 @@ export class QuantsysV2Client {
     const response = await this.client.get(`/api/watch/triggers?${qs.toString()}`);
     const data = this.unwrap<any>(response.data, 'listWatchTriggers');
     return Array.isArray(data) ? data : (data?.triggers ?? []);
+  }
+
+  // ==================== Watch Todo APIs（2026-10-16）====================
+  // 闭环最后一段：待办（watch_todos）的读 / 认领 / 收敛。
+  // 此前 agent 只有"建规则 + 看告警"，工单只能靠人处置——处置结论回执全库仅 1 条。
+
+  /**
+   * 待办列表
+   * Real endpoint: GET /api/watch/todos
+   * Response: {success, data: {items: [...], total: n}}
+   * terminal 不传 = 只返回未收敛（闭环工作队列的默认视图）
+   */
+  async listWatchTodos(params?: WatchTodoListParams): Promise<WatchTodo[]> {
+    const qs = new URLSearchParams();
+    const p = params ?? {};
+    if (p.level) qs.set('level', p.level);
+    if (p.flow_state) qs.set('flow_state', p.flow_state);
+    if (p.account) qs.set('account', p.account);
+    if (p.terminal) qs.set('terminal', p.terminal);
+    if (p.limit !== undefined) qs.set('limit', String(p.limit));
+    const suffix = qs.toString() ? `?${qs.toString()}` : '';
+    const response = await this.client.get(`/api/watch/todos${suffix}`);
+    const data = this.unwrap<any>(response.data, 'listWatchTodos');
+    return Array.isArray(data) ? data : (data?.items ?? []);
+  }
+
+  /**
+   * 认领待办（L1→L2；仅未终态行生效）
+   * Real endpoint: POST /api/watch/todos/{id}/claim
+   * 失败：404 watch_todo_not_found / 409 watch_todo_already_closed
+   */
+  async claimWatchTodo(todoId: number, ownerRef: string): Promise<WatchTodo> {
+    const response = await this.client.post(`/api/watch/todos/${todoId}/claim`,
+                                            { owner_ref: ownerRef });
+    const data = this.unwrap<any>(response.data, 'claimWatchTodo');
+    return (data?.todo ?? data) as WatchTodo;
+  }
+
+  /**
+   * 收敛待办（终态校验在服务端）
+   * Real endpoint: POST /api/watch/todos/{id}/close
+   * Response: {success, data: {todo, receipt}}
+   * 失败：400 watch_todo_invalid_terminal / watch_todo_missing_next_condition /
+   *       watch_todo_missing_audit（L3 + trade|rule_change 缺 decision_audit_id）
+   */
+  async closeWatchTodo(todoId: number, request: WatchTodoCloseRequest): Promise<any> {
+    const response = await this.client.post(`/api/watch/todos/${todoId}/close`, request);
+    return this.unwrap<any>(response.data, 'closeWatchTodo');
   }
 
   // ==================== Portfolio/Trading APIs ====================

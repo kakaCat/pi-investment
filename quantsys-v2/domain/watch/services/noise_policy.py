@@ -6,9 +6,12 @@
 一律由调用方注入。这样阈值边界可以用真值表单测，也不会出现"第二份时钟"（同一份统计在
 不同进程/时区下给出不同结论）。
 
-阈值（R6 要求「必须先于实施给出可证伪默认值」，默认值来自 design/test-cases.md §1）：
+阈值（R6 要求「必须先于实施给出可证伪默认值」，默认值来自 design/test-cases.md §1；
+2026-10-16 REQ-261016155500-4f2a wt:engine:3 收敛：单日 8→3——配合每条件日通知上限
+DEFAULT_DAILY_EMIT_CAP=2（trigger_judge），单日触发到 3 次只可能是多条件设计问题，
+当天即抑噪 + 派修规则待办，不再等吵满 8 张卡）：
 
-    ｜ 单日触发 ≥ 8 次（DEFAULT_MAX_TRIGGERS_PER_DAY）
+    ｜ 单日触发 ≥ 3 次（DEFAULT_MAX_TRIGGERS_PER_DAY）
     ｜ 或 连续 ≥ 3 日触发且日均 ≥ 4 次（DEFAULT_MIN_CONSECUTIVE_DAYS / DEFAULT_MIN_AVG_PER_DAY）
 
 **阈值是模块常量且可被参数覆写**（每个判定函数的入参都带同名 keyword-only 覆盖项），
@@ -30,8 +33,8 @@ from datetime import date, datetime, timedelta
 from typing import Any, Dict, Mapping, Optional
 
 # ── 默认阈值（模块常量，可被判定函数的 keyword-only 参数覆写）────────────────
-#: 单日触发次数上限：≥ 此值即抑噪
-DEFAULT_MAX_TRIGGERS_PER_DAY = 8
+#: 单日触发次数上限：≥ 此值即抑噪（8→3，REQ-261016155500-4f2a wt:engine:3）
+DEFAULT_MAX_TRIGGERS_PER_DAY = 3
 #: 连续触发天数门槛
 DEFAULT_MIN_CONSECUTIVE_DAYS = 3
 #: 连续触发段内的日均触发次数门槛
@@ -76,11 +79,11 @@ def should_suppress(trigger_today, consecutive_days, avg_per_day, *,
     """反复触发判定（纯函数）：是否应进入抑噪态。
 
     命中任一条件即为 True（先判单日，再判连续）：
-      · 今日触发次数 >= max_triggers_per_day                       （默认 8）
+      · 今日触发次数 >= max_triggers_per_day                       （默认 3）
       · 连续触发天数 >= min_consecutive_days 且 日均 >= min_avg_per_day（默认 3 日 / 4 次）
 
-    边界（test-cases.md §1「自愈阈值」）：7 次不命中、8 次命中；连续 2 日不命中、
-    连续 3 日且日均 ≥4 命中。None / 非法输入按 0 处理。
+    边界（2026-10-16 REQ-261016155500-4f2a wt:engine:3 收敛 8→3 后）：2 次不命中、
+    3 次命中；连续 2 日不命中、连续 3 日且日均 ≥4 命中。None / 非法输入按 0 处理。
     """
     today = _num(trigger_today)
     if today >= _num(max_triggers_per_day):
