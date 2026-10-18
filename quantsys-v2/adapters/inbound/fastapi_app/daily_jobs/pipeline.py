@@ -27,7 +27,7 @@ def _probe_kline_sources() -> bool:
     且对已封禁 IP 的反复重试会加重封禁。
     """
     try:
-        from adapters.outbound.datasources.manager import DataProviderManager
+        from qs_market_data.adapters.outbound.datasources.manager import DataProviderManager
         m = DataProviderManager()
         r = m.get_klines('601857', 'daily', '2026-08-25', '2026-09-02')
         ok = bool(isinstance(r, dict) and r.get('success') and r.get('data'))

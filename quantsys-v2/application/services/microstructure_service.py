@@ -2,7 +2,7 @@
 
 RFC 015 §4.2（2026-09-11 REQ-cf627b）。应用层只做**编排**：
 - 领域判定（ST/停牌/涨跌停/可交易）在 domain.trading.services.TradingStatusPolicy
-- 多源取数与故障转移在 adapters.outbound.datasources.manager（本层只依赖注入）
+- 多源取数与故障转移在 qs_market_data.adapters.outbound.datasources.manager（本层只依赖注入）
 - 具体实现的装配（组合根）在入站适配器
   adapters/inbound/fastapi_app/routes/microstructure_async.py
 

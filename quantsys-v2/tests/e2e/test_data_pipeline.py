@@ -15,12 +15,12 @@ def db_conn():
 class TestCircuitBreaker:
 
     def test_breaker_starts_closed(self):
-        from adapters.outbound.datasources.circuit_breaker import CircuitBreaker
+        from qs_market_data.adapters.outbound.datasources.circuit_breaker import CircuitBreaker
         breaker = CircuitBreaker(failure_threshold=3, timeout=60)
         assert not breaker.is_open()
 
     def test_breaker_opens_after_threshold(self):
-        from adapters.outbound.datasources.circuit_breaker import CircuitBreaker
+        from qs_market_data.adapters.outbound.datasources.circuit_breaker import CircuitBreaker
         breaker = CircuitBreaker(failure_threshold=3, timeout=60)
 
         def failing():
@@ -35,7 +35,7 @@ class TestCircuitBreaker:
         assert breaker.is_open()
 
     def test_breaker_rejects_when_open(self):
-        from adapters.outbound.datasources.circuit_breaker import CircuitBreaker
+        from qs_market_data.adapters.outbound.datasources.circuit_breaker import CircuitBreaker
         breaker = CircuitBreaker(failure_threshold=2, timeout=60)
 
         def failing():
@@ -51,7 +51,7 @@ class TestCircuitBreaker:
             breaker.call(lambda: "should not run")
 
     def test_breaker_reset(self):
-        from adapters.outbound.datasources.circuit_breaker import CircuitBreaker
+        from qs_market_data.adapters.outbound.datasources.circuit_breaker import CircuitBreaker
         breaker = CircuitBreaker(failure_threshold=2, timeout=60)
 
         def failing():
@@ -68,7 +68,7 @@ class TestCircuitBreaker:
         assert not breaker.is_open()
 
     def test_breaker_allows_after_timeout(self):
-        from adapters.outbound.datasources.circuit_breaker import CircuitBreaker
+        from qs_market_data.adapters.outbound.datasources.circuit_breaker import CircuitBreaker
         breaker = CircuitBreaker(failure_threshold=2, timeout=1)
 
         def failing():
@@ -129,7 +129,7 @@ class TestDataIntegrity:
 class TestDataProviderManager:
 
     def test_get_provider_health(self):
-        from adapters.outbound.datasources.manager import DataProviderManager
+        from qs_market_data.adapters.outbound.datasources.manager import DataProviderManager
         m = DataProviderManager()
         health = m.get_provider_health()
         assert isinstance(health, dict)
@@ -140,13 +140,13 @@ class TestDataProviderManager:
             assert 'consecutive_failures' in info
 
     def test_get_provider_stats(self):
-        from adapters.outbound.datasources.manager import DataProviderManager
+        from qs_market_data.adapters.outbound.datasources.manager import DataProviderManager
         m = DataProviderManager()
         stats = m.get_provider_stats()
         assert isinstance(stats, dict)
 
     def test_reset_circuit_breakers(self):
-        from adapters.outbound.datasources.manager import DataProviderManager
+        from qs_market_data.adapters.outbound.datasources.manager import DataProviderManager
         m = DataProviderManager()
         m.reset_circuit_breakers()
         health = m.get_provider_health()
@@ -158,7 +158,7 @@ class TestDataProviderManager:
 class TestFailureRecovery:
 
     def test_breaker_state_dict(self):
-        from adapters.outbound.datasources.circuit_breaker import CircuitBreaker
+        from qs_market_data.adapters.outbound.datasources.circuit_breaker import CircuitBreaker
         breaker = CircuitBreaker(failure_threshold=3, timeout=60, name="test_breaker")
         state = breaker.get_state()
         assert state['name'] == "test_breaker"
@@ -167,7 +167,7 @@ class TestFailureRecovery:
         assert 'is_available' in state
 
     def test_breaker_decorator(self):
-        from adapters.outbound.datasources.circuit_breaker import CircuitBreaker
+        from qs_market_data.adapters.outbound.datasources.circuit_breaker import CircuitBreaker
         breaker = CircuitBreaker(failure_threshold=3, timeout=60)
 
         @breaker.decorator

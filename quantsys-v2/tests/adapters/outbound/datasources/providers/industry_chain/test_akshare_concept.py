@@ -14,8 +14,8 @@ import types
 import pandas as pd
 import pytest
 
-from adapters.outbound.datasources.providers.industry_chain import akshare_concept as mod
-from adapters.outbound.datasources.providers.industry_chain.akshare_concept import (
+from qs_market_data.adapters.outbound.datasources.providers.industry_chain import akshare_concept as mod
+from qs_market_data.adapters.outbound.datasources.providers.industry_chain.akshare_concept import (
     AkshareConceptProvider,
 )
 

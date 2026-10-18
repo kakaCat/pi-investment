@@ -291,7 +291,7 @@ class SignalTrackingService:
         真实交易日历推进。
         """
         try:
-            from application.services.trading_calendar_service import TradingCalendarService
+            from qs_market_data.application.services.trading_calendar_service import TradingCalendarService
             from datetime import datetime, timedelta
 
             base = datetime.strptime(date_str, '%Y-%m-%d').date()

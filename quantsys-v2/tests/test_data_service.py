@@ -2,7 +2,7 @@
 DataService单元测试
 """
 import pytest
-from application.services.data_service import DataService
+from qs_market_data.application.services.data_service import DataService
 
 
 class TestStockQueries:

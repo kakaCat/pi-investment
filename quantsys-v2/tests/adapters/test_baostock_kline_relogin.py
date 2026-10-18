@@ -6,7 +6,7 @@
 """
 from unittest.mock import MagicMock
 
-from adapters.outbound.datasources.providers.kline.baostock import BaostockKlineProvider
+from qs_market_data.adapters.outbound.datasources.providers.kline.baostock import BaostockKlineProvider
 
 
 def _ok_rs(rows):
@@ -104,7 +104,7 @@ def test_socket_watchdog_interrupts_blackhole():
     import socket
     import time
     import baostock.common.context as bs_context
-    from adapters.outbound.datasources.providers.kline.baostock import _with_socket_timeout
+    from qs_market_data.adapters.outbound.datasources.providers.kline.baostock import _with_socket_timeout
 
     # 本地回环模拟黑洞：连接成功但对端永不 send
     srv = socket.socket()

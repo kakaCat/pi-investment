@@ -12,7 +12,7 @@ from typing import Dict, List, Optional
 from datetime import datetime
 
 from domain.ports import IKlineRepository
-from application.services.stock_code_validator import StockCodeValidator
+from qs_market_data.application.services.stock_code_validator import StockCodeValidator
 
 logger = structlog.get_logger(__name__)
 

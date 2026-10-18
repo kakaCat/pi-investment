@@ -56,7 +56,7 @@ class TestBackwardCompatibility:
     def test_signal_processor_handles_legacy_signals(self, klines):
         """测试 SignalProcessor 处理旧格式信号"""
         from application.services.signal_processor import SignalProcessor
-        from application.services.data_service import DataService
+        from qs_market_data.application.services.data_service import DataService
 
         # 模拟旧策略返回的信号
         legacy_signal = {

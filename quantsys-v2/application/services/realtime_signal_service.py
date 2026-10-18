@@ -36,7 +36,7 @@ class RealtimeSignalService:
         Returns:
             可执行的信号列表（附加执行建议）
         """
-        from application.services.market_data_service import MarketDataService
+        from qs_market_data.application.services.market_data_service import MarketDataService
 
         executable = []
         market_service = MarketDataService()

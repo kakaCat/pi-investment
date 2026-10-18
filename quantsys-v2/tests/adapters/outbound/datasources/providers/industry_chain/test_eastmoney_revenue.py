@@ -15,8 +15,8 @@
 """
 import pytest
 
-from adapters.outbound.datasources.providers.industry_chain import eastmoney_revenue as mod
-from adapters.outbound.datasources.providers.industry_chain.eastmoney_revenue import (
+from qs_market_data.adapters.outbound.datasources.providers.industry_chain import eastmoney_revenue as mod
+from qs_market_data.adapters.outbound.datasources.providers.industry_chain.eastmoney_revenue import (
     EastmoneyRevenueProvider, ThsRevenueProvider, market_prefixed,
 )
 

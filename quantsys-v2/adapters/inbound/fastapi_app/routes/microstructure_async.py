@@ -30,7 +30,7 @@ def get_service() -> MicrostructureService:
     """组合根：装配 IDataProviderManager + ITradingStatusRepository（进程级复用）"""
     svc = get_microstructure_service()
     if svc is None:
-        from adapters.outbound.datasources.manager import get_data_provider_manager
+        from qs_market_data.adapters.outbound.datasources.manager import get_data_provider_manager
         from adapters.outbound.repositories.trading_status_repository import get_trading_status_repo
         svc = MicrostructureService(
             manager=get_data_provider_manager(),

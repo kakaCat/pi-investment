@@ -181,7 +181,7 @@ class MarketPerceptionService:
 
     def _fetch_index_history(self) -> Optional[List[Dict[str, Any]]]:
         """拉取沪深300 全量日线（升序），失败返回 None。"""
-        from adapters.outbound.datasources.manager import get_data_provider_manager
+        from qs_market_data.adapters.outbound.datasources.manager import get_data_provider_manager
 
         try:
             result = get_data_provider_manager().get_index_daily('sh000300')
@@ -317,7 +317,7 @@ class MarketPerceptionService:
 
     def _fetch_zt_pool(self, trade_date: Optional[str]):
         """拉取涨停池记录。返回 (records, error, date_str)。"""
-        from adapters.outbound.datasources.manager import get_data_provider_manager
+        from qs_market_data.adapters.outbound.datasources.manager import get_data_provider_manager
 
         date_arg = (trade_date or datetime.now().strftime('%Y-%m-%d')).replace('-', '')
         try:

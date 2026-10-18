@@ -16,14 +16,14 @@ from datetime import date, timedelta
 
 import pytest
 
-from adapters.outbound.datasources.providers.minute_kline import sina as sina_mod
-from adapters.outbound.datasources.providers.minute_kline import tencent as tencent_mod
-from adapters.outbound.datasources.providers.minute_kline.base import (
+from qs_market_data.adapters.outbound.datasources.providers.minute_kline import sina as sina_mod
+from qs_market_data.adapters.outbound.datasources.providers.minute_kline import tencent as tencent_mod
+from qs_market_data.adapters.outbound.datasources.providers.minute_kline.base import (
     bars_needed, bars_per_day, in_date_range, limit_klines, ohlc_sanity,
     period_label, period_minutes, to_prefixed_code,
 )
-from adapters.outbound.datasources.providers.minute_kline.sina import SinaMinuteKlineProvider
-from adapters.outbound.datasources.providers.minute_kline.tencent import (
+from qs_market_data.adapters.outbound.datasources.providers.minute_kline.sina import SinaMinuteKlineProvider
+from qs_market_data.adapters.outbound.datasources.providers.minute_kline.tencent import (
     TencentMinuteKlineProvider,
 )
 from domain.models.market_data import MinuteKline
@@ -338,8 +338,8 @@ def test_三源无数据时不计故障不影响熔断(monkeypatch):
 
     修复前：三源无数据 → 各计 1 次 failure → 连续失败累计 → 10 次后熔断该源。
     """
-    from adapters.outbound.datasources.manager import DataProviderManager
-    from adapters.outbound.datasources.providers.minute_kline.database import (
+    from qs_market_data.adapters.outbound.datasources.manager import DataProviderManager
+    from qs_market_data.adapters.outbound.datasources.providers.minute_kline.database import (
         DatabaseMinuteKlineProvider,
     )
 

@@ -37,7 +37,7 @@ def _inject_fund_flow_to_klines(klines: List[dict], symbol: str) -> List[dict]:
             k[alias] = 0.0
 
     try:
-        from adapters.outbound.datasources.fund_flow_source import FundFlowDataSource
+        from qs_market_data.adapters.outbound.datasources.fund_flow_source import FundFlowDataSource
         days = len(klines)
         fund_data = FundFlowDataSource().get_stock_fund_flow(symbol, days=days)
 

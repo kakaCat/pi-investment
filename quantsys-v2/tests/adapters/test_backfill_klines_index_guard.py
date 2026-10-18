@@ -7,7 +7,7 @@ daily_klines 只放个股 —— 修复是在建 stocks 元数据之前拦截，
 """
 import pytest
 
-from adapters.outbound.datasources.manager import DataProviderManager
+from qs_market_data.adapters.outbound.datasources.manager import DataProviderManager
 from utils.symbol_classifier import is_index_symbol
 
 

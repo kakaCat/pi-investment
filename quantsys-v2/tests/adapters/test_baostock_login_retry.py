@@ -12,8 +12,8 @@ import pytest
 pytest.importorskip("baostock", reason="baostock 未安装")
 
 import baostock
-from adapters.outbound.datasources.providers.kline import baostock as bsmod
-from adapters.outbound.datasources.providers.kline.baostock import BaostockKlineProvider
+from qs_market_data.adapters.outbound.datasources.providers.kline import baostock as bsmod
+from qs_market_data.adapters.outbound.datasources.providers.kline.baostock import BaostockKlineProvider
 
 
 @pytest.fixture(autouse=True)

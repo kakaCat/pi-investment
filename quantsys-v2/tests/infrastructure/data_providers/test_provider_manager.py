@@ -1,6 +1,6 @@
 """Tests for DataProviderManager."""
 import pytest
-from adapters.outbound.datasources.manager import DataProviderManager, get_data_provider_manager
+from qs_market_data.adapters.outbound.datasources.manager import DataProviderManager, get_data_provider_manager
 
 
 def test_manager_initialization():
@@ -51,7 +51,7 @@ def test_manager_record_failure():
 
 def test_manager_is_valid():
     """Test data validation"""
-    from adapters.outbound.datasources.models import QuoteData
+    from qs_market_data.adapters.outbound.datasources.models import QuoteData
 
     manager = DataProviderManager()
 

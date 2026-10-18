@@ -77,7 +77,7 @@ class _StubSource:
 
 
 def _patch(monkeypatch, records, sink):
-    import adapters.outbound.datasources.fund_flow_source as ffs
+    import qs_market_data.adapters.outbound.datasources.fund_flow_source as ffs
     import adapters.outbound.repositories as repos
 
     monkeypatch.setattr(ffs, 'EastMoneyFundFlowSource', lambda: _StubSource('eastmoney', records))

@@ -10,8 +10,8 @@
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-from application.services.market_data_service import MarketDataService
-from adapters.outbound.datasources.providers.hk.akshare import AkshareHKProvider
+from qs_market_data.application.services.market_data_service import MarketDataService
+from qs_market_data.adapters.outbound.datasources.providers.hk.akshare import AkshareHKProvider
 
 
 class TestGetMarketOverview:

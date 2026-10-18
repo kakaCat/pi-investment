@@ -18,7 +18,7 @@ import types
 import pandas as pd
 import pytest
 
-from adapters.outbound.datasources.providers.market import eastmoney as em
+from qs_market_data.adapters.outbound.datasources.providers.market import eastmoney as em
 
 
 class _Resp:
@@ -158,8 +158,8 @@ def test_illegal_symbol_sets_last_error(provider):
 
 def test_manager_fails_over_to_eastmoney(monkeypatch):
     """拔掉 akshare：manager 必须自动切到 eastmoney，且 attempted_sources 含两个源。"""
-    from adapters.outbound.datasources import get_data_provider_manager
-    from adapters.outbound.datasources.providers.market.akshare import AkshareMarketProvider
+    from qs_market_data.adapters.outbound.datasources import get_data_provider_manager
+    from qs_market_data.adapters.outbound.datasources.providers.market.akshare import AkshareMarketProvider
 
     def broken(self, *a, **kw):
         self.last_error = '模拟 akshare 故障'
@@ -187,8 +187,8 @@ def test_manager_recovers_top_fund_stocks_via_eastmoney(monkeypatch):
     这是 t9 的第二个（更重要的）价值：不只是多一个源，而是修好了
     /api/sentiment/top-fund-stocks —— akshare 的位置式列名会返回错位表。
     """
-    from adapters.outbound.datasources import get_data_provider_manager
-    from adapters.outbound.datasources.providers.market import akshare as mk
+    from qs_market_data.adapters.outbound.datasources import get_data_provider_manager
+    from qs_market_data.adapters.outbound.datasources.providers.market import akshare as mk
 
     broken = pd.DataFrame([
         {'序号': 1, '股票代码': -42049165018.7, '股票简称': '600519',
@@ -332,7 +332,7 @@ def test_m2_stock_route_honours_manager_level_empty(monkeypatch, batch_client):
     原实现只看内层 empty → 输出 empty:false/comment:null，与本次要消灭的
     「success:true + 空」同型（审查实测）。
     """
-    import adapters.outbound.datasources as ds_pkg
+    import qs_market_data.adapters.outbound.datasources as ds_pkg
 
     class _M:
         def get_stock_comment(self, symbol):
@@ -355,7 +355,7 @@ def test_m2_stock_route_honours_manager_level_empty(monkeypatch, batch_client):
 
 def test_m5_stock_route_failure_returns_502(monkeypatch, batch_client):
     """M5：失败必须 502，与其余 6 个端点一致（原为 200+success:false）。"""
-    import adapters.outbound.datasources as ds_pkg
+    import qs_market_data.adapters.outbound.datasources as ds_pkg
 
     class _M:
         def get_stock_comment(self, symbol):
@@ -375,9 +375,9 @@ def test_h1_failover_triggered_by_parse_errors(monkeypatch):
     这是本需求的核心失败模式：旧实现把解析异常吞成"健康空"并走成功分支，
     导致兜底源**根本不参与**。
     """
-    from adapters.outbound.datasources import get_data_provider_manager
-    from adapters.outbound.datasources.providers.market import akshare as mk
-    from adapters.outbound.datasources.providers.market import eastmoney as em
+    from qs_market_data.adapters.outbound.datasources import get_data_provider_manager
+    from qs_market_data.adapters.outbound.datasources.providers.market import akshare as mk
+    from qs_market_data.adapters.outbound.datasources.providers.market import eastmoney as em
 
     def boom(self, symbol, holder_type='top10'):
         self.last_error = 'get_top_holders 全部报告期解析失败（疑接口改名/结构变更）'
@@ -410,8 +410,8 @@ def test_no_consumer_assert_contract_keys_documented(monkeypatch, provider):
     docstring 已声明该差异。
     """
     import inspect
-    from adapters.outbound.datasources.providers.market import akshare as mk
-    from adapters.outbound.datasources.providers.market import eastmoney as em
+    from qs_market_data.adapters.outbound.datasources.providers.market import akshare as mk
+    from qs_market_data.adapters.outbound.datasources.providers.market import eastmoney as em
 
     # 行为断言：东财源**不产出**它拿不到的列（如实省略而不是编造 None 键）
     # ⚠️ 必须走 monkeypatch —— 直接赋值 em.requests.get 会污染全局，
@@ -433,7 +433,7 @@ def test_no_consumer_assert_contract_keys_documented(monkeypatch, provider):
 
 def test_l1_ttl_prefix_matching():
     """L1：基金持仓 key 形如 fund_hold:<type>:<period>，TTL 必须按**前缀**命中 1800s。"""
-    from adapters.outbound.datasources.providers.market._common import ttl_for
+    from qs_market_data.adapters.outbound.datasources.providers.market._common import ttl_for
     assert ttl_for('fund_hold:基金持仓:20260630') == 1800.0, '前缀匹配失效（死配置）'
     assert ttl_for('fund_hold') == 1800.0
     assert ttl_for('inner_trades') == 300.0
@@ -449,7 +449,7 @@ def test_l6_unknown_fund_type_is_explicit_failure(monkeypatch, provider):
 
 def test_m1_insider_last_error_no_stale(monkeypatch):
     """M1：insider_trades 必须重置并设置 last_error，不得串上一次调用的原因。"""
-    from adapters.outbound.datasources.providers.market import akshare as mk
+    from qs_market_data.adapters.outbound.datasources.providers.market import akshare as mk
     p = mk.AkshareMarketProvider()
     p.last_error = 'STALE-FROM-OTHER-CALL'
     _install_stmt = 'import akshare as ak'
@@ -477,8 +477,8 @@ def test_m3_success_branch_surfaces_provider_errors():
     避免受健康排序影响（实测走真实源列表时 akshare 可能因健康分靠后被跳过，
     导致断言不稳定）。
     """
-    from adapters.outbound.datasources import get_data_provider_manager
-    from adapters.outbound.datasources.models import MarketData
+    from qs_market_data.adapters.outbound.datasources import get_data_provider_manager
+    from qs_market_data.adapters.outbound.datasources.models import MarketData
 
     class _Boom:
         name = 'boom'

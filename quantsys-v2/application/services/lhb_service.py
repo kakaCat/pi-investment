@@ -8,7 +8,7 @@ import pandas as pd
 import structlog
 from datetime import datetime, timedelta
 from domain.ports.datasource_ports import ILhbDataSource
-from adapters.outbound.datasources.lhb_source import LhbDataSource
+from qs_market_data.adapters.outbound.datasources.lhb_source import LhbDataSource
 
 from application.services.base_service import ServiceBase
 

@@ -12,8 +12,8 @@ from datetime import date, timedelta
 
 import pytest
 
-from adapters.outbound.datasources.providers.events import akshare_unlock as mod
-from adapters.outbound.datasources.providers.events.akshare_unlock import (
+from qs_market_data.adapters.outbound.datasources.providers.events import akshare_unlock as mod
+from qs_market_data.adapters.outbound.datasources.providers.events.akshare_unlock import (
     _DETAIL_COLUMNS, _QUEUE_COLUMNS, AkshareUnlockProvider,
 )
 

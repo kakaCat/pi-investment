@@ -40,14 +40,14 @@ class AccountTradingService:
                  now_fn=None):
         self.repo = repo
         if calendar is None:
-            from application.services.trading_calendar_service import TradingCalendarService
+            from qs_market_data.application.services.trading_calendar_service import TradingCalendarService
             calendar = TradingCalendarService()
         self.calendar = calendar
         # 时间源可注入（测试用固定时间）；默认真实时钟
         self.now_fn = now_fn or datetime.now
 
     def _get_price(self, symbol: str) -> float:
-        from application.services.realtime_quote_service import RealtimeQuoteService
+        from qs_market_data.application.services.realtime_quote_service import RealtimeQuoteService
         quote = RealtimeQuoteService().get_realtime_quote(symbol)
         if not quote or not quote.price or quote.price <= 0:
             raise TradingError(f'无法获取 {symbol} 实时价格', 502)

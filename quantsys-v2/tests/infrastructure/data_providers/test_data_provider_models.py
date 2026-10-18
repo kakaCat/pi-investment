@@ -1,7 +1,7 @@
 """Tests for data models."""
 import pytest
 from datetime import datetime
-from adapters.outbound.datasources.models import (
+from qs_market_data.adapters.outbound.datasources.models import (
     QuoteData, FinancialData, DividendData, MarketData, StockData
 )
 

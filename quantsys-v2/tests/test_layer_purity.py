@@ -38,7 +38,7 @@ LAYERS = ("domain", "application", "adapters", "infrastructure")
 #       adapters(outbound+shared)→application 8。
 # 2026-10-01 调整（t-f04052）：总 313 → **315**（顶层不变 56，新增的 2 处都是函数内惰性导入）。
 # 为什么 +2 可接受：CLAUDE.md「Data Access Rules」**强制** application 走
-# DataProviderManager（位于 adapters.outbound.datasources.manager）取外部数据——
+# DataProviderManager（位于 qs_market_data.adapters.outbound.datasources.manager）取外部数据——
 # 于是"按规范取数"必然新增 application→adapters 引用，被本口径计为违规。
 # 这 2 处（core_plan_service 的沪深300 基准、market_style_detector 的新浪行业截面）
 # 是**度量与规范冲突**的假阳性，不是债上加债；目标是持续下调，

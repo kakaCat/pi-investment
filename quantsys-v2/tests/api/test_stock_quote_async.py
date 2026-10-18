@@ -8,7 +8,7 @@ from adapters.inbound.fastapi_app.routes.stock_async import (
     router,
     _quote_failure_suggestion,
 )
-from adapters.outbound.datasources.models import QuoteData
+from qs_market_data.adapters.outbound.datasources.models import QuoteData
 
 
 @pytest.fixture
@@ -56,7 +56,7 @@ def _failed_manager_result():
 
 
 class TestQuoteRouteDiagnostics:
-    @patch('adapters.outbound.datasources.get_data_provider_manager')
+    @patch('qs_market_data.adapters.outbound.datasources.get_data_provider_manager')
     def test_realtime_failure_returns_diagnostics(self, mock_get_manager, client):
         mock_get_manager.return_value.get_quote.return_value = _failed_manager_result()
 
@@ -71,7 +71,7 @@ class TestQuoteRouteDiagnostics:
         assert '00836.HK' in body['suggestion']
         assert 'source=db' in body['suggestion']
 
-    @patch('adapters.outbound.datasources.get_data_provider_manager')
+    @patch('qs_market_data.adapters.outbound.datasources.get_data_provider_manager')
     def test_realtime_success_unchanged(self, mock_get_manager, client):
         quote = QuoteData(
             symbol='600519', name='贵州茅台', price=1294.97, open=1308.0,
@@ -92,7 +92,7 @@ class TestQuoteRouteDiagnostics:
         assert body['data']['source'] == 'tencent'
 
     @patch('adapters.inbound.fastapi_app.routes.stock_async._get_db_quote', return_value=None)
-    @patch('adapters.outbound.datasources.get_data_provider_manager')
+    @patch('qs_market_data.adapters.outbound.datasources.get_data_provider_manager')
     def test_auto_failure_after_db_fallback(self, mock_get_manager, mock_db, client):
         mock_get_manager.return_value.get_quote.return_value = _failed_manager_result()
 

@@ -13,7 +13,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from adapters.outbound.datasources.providers.kline.tencent import TencentKlineProvider
+from qs_market_data.adapters.outbound.datasources.providers.kline.tencent import TencentKlineProvider
 
 
 class _FakeResp:
@@ -32,7 +32,7 @@ def _payload(code: str, rows):
 
 
 def _patch(monkeypatch, payload):
-    import adapters.outbound.datasources.providers.kline.tencent as mod
+    import qs_market_data.adapters.outbound.datasources.providers.kline.tencent as mod
 
     monkeypatch.setattr(mod.requests, 'get', lambda *a, **kw: _FakeResp(payload))
 

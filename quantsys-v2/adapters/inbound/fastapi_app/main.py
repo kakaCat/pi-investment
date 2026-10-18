@@ -171,7 +171,7 @@ async def lifespan(app: FastAPI):
     try:
         from application.jobs.job_registry import job_registry
         from application.jobs.refresh_jobs import build_refresh_jobs
-        from adapters.outbound.datasources import get_data_provider_manager
+        from qs_market_data.adapters.outbound.datasources import get_data_provider_manager
         from adapters.outbound.repositories.minute_kline_repository import get_minute_kline_repo
         from adapters.outbound.repositories.event_repository import get_market_event_repo
         from adapters.inbound.fastapi_app.routes.industry_chain_async import get_service as _get_chain_service

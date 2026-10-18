@@ -49,9 +49,9 @@ class DataQualityService:
         P2-1: 推荐通过 ServiceFactory 获取实例
         """
         from domain.ports import IKlineRepository
-        from application.services.trading_calendar_service import TradingCalendarService
-        from application.services.data_gap_detector import DataGapDetector
-        from application.services.data_backfiller import DataBackfiller
+        from qs_market_data.application.services.trading_calendar_service import TradingCalendarService
+        from qs_market_data.application.services.data_gap_detector import DataGapDetector
+        from qs_market_data.application.services.data_backfiller import DataBackfiller
         from application.services.data_validator import DataValidator
 
         # 2026-09-01 修复：kline_repo 缺省时自动装配（原 None 透传致 DataValidator

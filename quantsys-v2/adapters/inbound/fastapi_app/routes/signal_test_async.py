@@ -100,7 +100,7 @@ def run_strategy_and_record(payload: Optional[Dict[str, Any]] = Body(None)):
     fund_flow_data = None
     try:
         from application.services.sentiment_service import SentimentService
-        from adapters.outbound.datasources.fund_flow_source import FundFlowDataSource
+        from qs_market_data.adapters.outbound.datasources.fund_flow_source import FundFlowDataSource
         fund_flow_source = FundFlowDataSource()
         sentiment_service = SentimentService(fund_flow_source)
         ff_result = sentiment_service.get_stock_fund_flow(symbol, days=10)

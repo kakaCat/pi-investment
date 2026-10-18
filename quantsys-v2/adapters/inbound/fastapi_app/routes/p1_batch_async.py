@@ -152,7 +152,7 @@ async def get_stock_sentiment(symbol: str):
     未覆盖的标的显式返回 empty:true（而非 null + success:true 的假成功）。
     """
     try:
-        from adapters.outbound.datasources import get_data_provider_manager
+        from qs_market_data.adapters.outbound.datasources import get_data_provider_manager
 
         result = get_data_provider_manager().get_stock_comment(symbol)
         # 2026-09-14（独立审查 M2/M5 修复）：

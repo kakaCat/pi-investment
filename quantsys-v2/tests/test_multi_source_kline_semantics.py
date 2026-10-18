@@ -6,7 +6,7 @@
 """
 import pytest
 
-from adapters.outbound.datasources.multi_source_data_fetcher import (
+from qs_market_data.adapters.outbound.datasources.multi_source_data_fetcher import (
     MultiSourceDataFetcher,
     classify_chain_outcome,
     contains_weekday,

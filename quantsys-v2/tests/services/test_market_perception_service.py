@@ -176,7 +176,7 @@ class TestRegimeBoundaryConditions:
 class TestDataSourceResilience:
     """测试数据源容错机制"""
 
-    @patch('adapters.outbound.datasources.manager.get_data_provider_manager')
+    @patch('qs_market_data.adapters.outbound.datasources.manager.get_data_provider_manager')
     def test_index_trend_provider_failure(self, mock_mgr):
         """测试指数数据源返回失败"""
         # Mock 数据源返回失败
@@ -190,7 +190,7 @@ class TestDataSourceResilience:
         assert result is None, "数据源失败应返回 None"
         mock_provider.get_index_daily.assert_called_once()
 
-    @patch('adapters.outbound.datasources.manager.get_data_provider_manager')
+    @patch('qs_market_data.adapters.outbound.datasources.manager.get_data_provider_manager')
     def test_index_trend_insufficient_history(self, mock_mgr):
         """测试指数历史不足 60 日"""
         # Mock 返回少于 60 条记录

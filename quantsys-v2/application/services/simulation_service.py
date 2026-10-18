@@ -251,7 +251,7 @@ class SimulationService:
             Dict[str, float]: {symbol: price}
         """
         try:
-            from application.services.realtime_quote_service import RealtimeQuoteService
+            from qs_market_data.application.services.realtime_quote_service import RealtimeQuoteService
             quote_service = RealtimeQuoteService()
             prices = {}
             # 记录每个 symbol 的行情时间戳，供 get_account_status 透传

@@ -11,8 +11,8 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-from adapters.outbound.datasources.providers.kline.base import KlineData
-from adapters.outbound.datasources.providers.kline.baostock import BaostockKlineProvider
+from qs_market_data.adapters.outbound.datasources.providers.kline.base import KlineData
+from qs_market_data.adapters.outbound.datasources.providers.kline.baostock import BaostockKlineProvider
 
 
 def _mock_bs(rows, error_code='0'):
@@ -103,7 +103,7 @@ def test_non_daily_period_returns_none():
 
 def test_manager_kline_chain_order():
     """fallback 链：baostock → tencent → akshare（database 视环境可能缺席）"""
-    from adapters.outbound.datasources.manager import DataProviderManager
+    from qs_market_data.adapters.outbound.datasources.manager import DataProviderManager
     names = [p.name for p in DataProviderManager().kline_providers]
     if 'database' in names:
         assert names.index('database') < names.index('baostock')

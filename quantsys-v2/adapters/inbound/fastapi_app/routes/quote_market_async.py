@@ -60,7 +60,7 @@ def get_stock_history(
     支持多数据源自动降级：database (主) → 网络源 (备)
     日/周/月线优先从数据库获取，分钟线使用实时查询（仅A股，最近30天）
     """
-    from adapters.outbound.datasources import get_data_provider_manager
+    from qs_market_data.adapters.outbound.datasources import get_data_provider_manager
 
     limit = min(limit, 200)
 

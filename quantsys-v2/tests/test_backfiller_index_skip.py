@@ -9,7 +9,7 @@
 """
 import pytest
 
-from application.services.data_backfiller import DataBackfiller
+from qs_market_data.application.services.data_backfiller import DataBackfiller
 
 
 INDEX_CODES = ('399300', '399300.SZ', '000300')

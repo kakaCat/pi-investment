@@ -36,10 +36,10 @@ def client(mock_manager):
     patch 在 fixture 级别激活，整个测试生命周期内 mock 都生效。
     """
     with patch(
-        "adapters.outbound.datasources.get_data_provider_manager",
+        "qs_market_data.adapters.outbound.datasources.get_data_provider_manager",
         return_value=mock_manager,
     ), patch(
-        "adapters.outbound.datasources.manager.get_data_provider_manager",
+        "qs_market_data.adapters.outbound.datasources.manager.get_data_provider_manager",
         return_value=mock_manager,
     ):
         app = FastAPI()

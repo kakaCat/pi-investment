@@ -6,7 +6,7 @@ SwingPointService 单元测试
 import pytest
 from unittest.mock import patch, MagicMock
 from application.services.swing_point_service import SwingPointService
-from application.services.stock_code_validator import StockCodeValidator
+from qs_market_data.application.services.stock_code_validator import StockCodeValidator
 
 
 def _make_klines(prices):

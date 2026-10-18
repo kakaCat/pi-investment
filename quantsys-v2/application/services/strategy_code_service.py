@@ -60,7 +60,7 @@ except ImportError as e:
     OTHER_FACTORS_AVAILABLE = False
     logger.warning(f"其他因子导入失败: {e}")
 from application.services.sentiment_service import SentimentService
-from adapters.outbound.datasources.fund_flow_source import FundFlowDataSource
+from qs_market_data.adapters.outbound.datasources.fund_flow_source import FundFlowDataSource
 
 logger = structlog.get_logger(__name__)
 
@@ -132,7 +132,7 @@ class StrategyCodeService:
 
         # 数据提供者管理器
         # 延迟导入避免顶层依赖
-        from adapters.outbound.datasources.manager import get_data_provider_manager
+        from qs_market_data.adapters.outbound.datasources.manager import get_data_provider_manager
         self.provider_manager = get_data_provider_manager()
 
         # 初始化资金流服务
