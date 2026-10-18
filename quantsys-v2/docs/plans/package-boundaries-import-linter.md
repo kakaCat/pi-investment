@@ -256,6 +256,23 @@ forbidden_modules =
 
 ## 12. 目标态架构图（业务关系 × 技术关系）
 
+## 13. 残留登记台账（2026-10-19 起：S1-S10 + 增量卡完结后的等待态统一载体）
+
+此前部分残留只记录在会话上下文中，本节将其固化，按状态分列：
+
+| 项 | 状态 | 依据/锚点 | 处置口径 |
+|---|---|---|---|
+| L1 转发 shim 30 天观察期（2026-10-18 各包落地起算） | 等待 | 本卡各 S 行 shim 句 | 2026-11 中旬收割：reflog 确认无回退引用后逐包删 shim |
+| S11 kernel 独立成型 | 等待 | §11 | 待各项目稳定后另行开卡 |
+| 5 存疑账户终裁（不动） | 结案 | 既裁登记 | 不处置 |
+| hub→qd_agenthub 对 api.internal 方向异常 | 缓议 | session_service 归并卡登记 | qs_agenthub project 化时收口 |
+| watch_triggers.condition varchar(50) 截断隐患 | **可动卡候选** | 待查截断实据定谳 | 需先取证再开修复卡 |
+| event_bus "线程泄漏" | **判否结案（2026-10-19）** | 取证见下 | 不改码 |
+| qs_quantlib docstring 内 domain.risk 旧路径示例 | 已登记 | S7 行 | 非执行面，随包维护顺带 |
+| 调度能力缺口 3 项（DataPipelineService 接线定标的 / signal_monitor_realtime 无实现 / 周度风险无实现） | 等用户定夺 | ADR-004 卡 | 不当"已修复" |
+
+**event_bus 判否取证**（2026-10-19）：① `EventBus()` 全仓实例化仅 `tests/test_event_bus.py` 8 处 + 模块级单例 1 处，生产无多实例路径；② `shutdown()` 零调用属 daemon 设计（线程随进程存亡，非累积）；③ 生产进程（PID 21298）总量 12 线程（APScheduler/DailyJobs/watch 全家兼容），结构上 event_bus 只可能占 1 个 worker，无法无界增长；④ events 包其余文件（progress_emitter/handlers）零线程引用。"泄漏"机制只存在于代码形状（构造即起线程），无生产可见缺陷。可选加固点（不作为缺陷修复）：worker 惰性启动（首次订阅/发布才起线程）、lifespan 显式调 shutdown()——记入观察项，需时另开卡。
+
 ### 12.1 业务运行视图（数据怎么流）
 
 ```mermaid
