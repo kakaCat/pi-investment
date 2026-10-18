@@ -26,7 +26,7 @@
 与其他领域的关系：
 - 为 domain.strategies 提供因子信号
 - 为 domain.backtest 提供因子计算
-- 使用 domain.quantlib 的统计和技术指标
+- 使用 qs_quantlib 的统计和技术指标
 
 示例：
     from domain.factors.library import MomentumFactor, ValueFactor

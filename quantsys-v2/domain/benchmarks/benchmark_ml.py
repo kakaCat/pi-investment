@@ -23,7 +23,7 @@ from typing import Dict, Tuple
 import json
 
 
-from domain.quantlib.gpu_acceleration.gpu_ml import GPUMLTrainer
+from qs_quantlib.gpu_acceleration.gpu_ml import GPUMLTrainer
 
 
 def generate_classification_data(

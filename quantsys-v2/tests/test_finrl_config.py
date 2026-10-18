@@ -14,7 +14,7 @@ from typing import Any, Dict
 
 def test_import_config_module():
     """Test that config module can be imported."""
-    from domain.quantlib.finrl.config import (
+    from qs_quantlib.finrl.config import (
         get_default_config,
         validate_config,
         PPO_PARAMS,
@@ -39,7 +39,7 @@ def test_import_config_module():
 
 def test_ppo_default_config():
     """Test PPO algorithm default configuration."""
-    from domain.quantlib.finrl.config import get_default_config
+    from qs_quantlib.finrl.config import get_default_config
 
     config = get_default_config('ppo')
 
@@ -64,7 +64,7 @@ def test_ppo_default_config():
 
 def test_a2c_default_config():
     """Test A2C algorithm default configuration."""
-    from domain.quantlib.finrl.config import get_default_config
+    from qs_quantlib.finrl.config import get_default_config
 
     config = get_default_config('a2c')
 
@@ -83,7 +83,7 @@ def test_a2c_default_config():
 
 def test_ddpg_default_config():
     """Test DDPG algorithm default configuration."""
-    from domain.quantlib.finrl.config import get_default_config
+    from qs_quantlib.finrl.config import get_default_config
 
     config = get_default_config('ddpg')
 
@@ -106,7 +106,7 @@ def test_ddpg_default_config():
 
 def test_sac_default_config():
     """Test SAC algorithm default configuration."""
-    from domain.quantlib.finrl.config import get_default_config
+    from qs_quantlib.finrl.config import get_default_config
 
     config = get_default_config('sac')
 
@@ -129,7 +129,7 @@ def test_sac_default_config():
 
 def test_td3_default_config():
     """Test TD3 algorithm default configuration."""
-    from domain.quantlib.finrl.config import get_default_config
+    from qs_quantlib.finrl.config import get_default_config
 
     config = get_default_config('td3')
 
@@ -152,7 +152,7 @@ def test_td3_default_config():
 
 def test_environment_config():
     """Test environment configuration."""
-    from domain.quantlib.finrl.config import get_default_config
+    from qs_quantlib.finrl.config import get_default_config
 
     config = get_default_config('ppo')
 
@@ -173,7 +173,7 @@ def test_environment_config():
 
 def test_training_config():
     """Test training configuration."""
-    from domain.quantlib.finrl.config import get_default_config
+    from qs_quantlib.finrl.config import get_default_config
 
     config = get_default_config('ppo')
 
@@ -194,7 +194,7 @@ def test_training_config():
 
 def test_invalid_algorithm():
     """Test that invalid algorithm raises error."""
-    from domain.quantlib.finrl.config import get_default_config
+    from qs_quantlib.finrl.config import get_default_config
 
     with pytest.raises(ValueError, match="Unsupported algorithm"):
         get_default_config('invalid_algo')
@@ -202,7 +202,7 @@ def test_invalid_algorithm():
 
 def test_case_insensitive_algorithm():
     """Test that algorithm names are case-insensitive."""
-    from domain.quantlib.finrl.config import get_default_config
+    from qs_quantlib.finrl.config import get_default_config
 
     config_lower = get_default_config('ppo')
     config_upper = get_default_config('PPO')
@@ -215,7 +215,7 @@ def test_case_insensitive_algorithm():
 
 def test_validate_config_valid():
     """Test validation of valid configuration."""
-    from domain.quantlib.finrl.config import get_default_config, validate_config
+    from qs_quantlib.finrl.config import get_default_config, validate_config
 
     config = get_default_config('ppo')
 
@@ -227,7 +227,7 @@ def test_validate_config_valid():
 
 def test_validate_config_missing_algorithm():
     """Test validation fails when algorithm is missing."""
-    from domain.quantlib.finrl.config import validate_config
+    from qs_quantlib.finrl.config import validate_config
 
     config = {
         'learning_rate': 3e-4,
@@ -242,7 +242,7 @@ def test_validate_config_missing_algorithm():
 
 def test_validate_config_missing_env():
     """Test validation fails when env config is missing."""
-    from domain.quantlib.finrl.config import validate_config
+    from qs_quantlib.finrl.config import validate_config
 
     config = {
         'algorithm': 'ppo',
@@ -257,7 +257,7 @@ def test_validate_config_missing_env():
 
 def test_validate_config_missing_training():
     """Test validation fails when training config is missing."""
-    from domain.quantlib.finrl.config import validate_config
+    from qs_quantlib.finrl.config import validate_config
 
     config = {
         'algorithm': 'ppo',
@@ -272,7 +272,7 @@ def test_validate_config_missing_training():
 
 def test_validate_config_invalid_learning_rate():
     """Test validation fails for invalid learning rate."""
-    from domain.quantlib.finrl.config import get_default_config, validate_config
+    from qs_quantlib.finrl.config import get_default_config, validate_config
 
     config = get_default_config('ppo')
     config['learning_rate'] = -0.001  # Negative learning rate
@@ -284,7 +284,7 @@ def test_validate_config_invalid_learning_rate():
 
 def test_validate_config_invalid_gamma():
     """Test validation fails for invalid gamma."""
-    from domain.quantlib.finrl.config import get_default_config, validate_config
+    from qs_quantlib.finrl.config import get_default_config, validate_config
 
     config = get_default_config('ppo')
     config['gamma'] = 1.5  # Gamma should be in [0, 1]
@@ -296,7 +296,7 @@ def test_validate_config_invalid_gamma():
 
 def test_validate_config_invalid_initial_balance():
     """Test validation fails for invalid initial balance."""
-    from domain.quantlib.finrl.config import get_default_config, validate_config
+    from qs_quantlib.finrl.config import get_default_config, validate_config
 
     config = get_default_config('ppo')
     config['env']['initial_balance'] = -10000  # Negative balance
@@ -308,7 +308,7 @@ def test_validate_config_invalid_initial_balance():
 
 def test_validate_config_invalid_transaction_cost():
     """Test validation fails for invalid transaction cost."""
-    from domain.quantlib.finrl.config import get_default_config, validate_config
+    from qs_quantlib.finrl.config import get_default_config, validate_config
 
     config = get_default_config('ppo')
     config['env']['transaction_cost'] = 1.5  # Transaction cost > 1
@@ -320,7 +320,7 @@ def test_validate_config_invalid_transaction_cost():
 
 def test_config_immutability():
     """Test that getting config returns a copy, not reference."""
-    from domain.quantlib.finrl.config import get_default_config
+    from qs_quantlib.finrl.config import get_default_config
 
     config1 = get_default_config('ppo')
     config2 = get_default_config('ppo')
@@ -334,7 +334,7 @@ def test_config_immutability():
 
 def test_all_algorithms_have_required_fields():
     """Test that all algorithms have required configuration fields."""
-    from domain.quantlib.finrl.config import get_default_config
+    from qs_quantlib.finrl.config import get_default_config
 
     algorithms = ['ppo', 'a2c', 'ddpg', 'sac', 'td3']
     required_fields = ['algorithm', 'learning_rate', 'gamma', 'env', 'training']
@@ -347,7 +347,7 @@ def test_all_algorithms_have_required_fields():
 
 def test_config_types():
     """Test that configuration values have correct types."""
-    from domain.quantlib.finrl.config import get_default_config
+    from qs_quantlib.finrl.config import get_default_config
 
     config = get_default_config('ppo')
 
@@ -368,7 +368,7 @@ def test_config_types():
 
 def test_custom_config_override():
     """Test that custom parameters can override defaults."""
-    from domain.quantlib.finrl.config import get_default_config
+    from qs_quantlib.finrl.config import get_default_config
 
     custom_params = {
         'learning_rate': 1e-3,
@@ -385,7 +385,7 @@ def test_custom_config_override():
 
 def test_env_config_override():
     """Test that environment config can be overridden."""
-    from domain.quantlib.finrl.config import get_default_config
+    from qs_quantlib.finrl.config import get_default_config
 
     custom_env = {
         'initial_balance': 50000,
@@ -400,7 +400,7 @@ def test_env_config_override():
 
 def test_training_config_override():
     """Test that training config can be overridden."""
-    from domain.quantlib.finrl.config import get_default_config
+    from qs_quantlib.finrl.config import get_default_config
 
     custom_training = {
         'total_timesteps': 500000,

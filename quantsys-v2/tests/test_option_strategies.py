@@ -8,7 +8,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 from datetime import datetime
 
-from domain.quantlib.derivatives.option_trading_strategies import (
+from qs_quantlib.derivatives.option_trading_strategies import (
     OptionStrategy,
     DeltaNeutralStrategy,
     VolatilityArbitrageStrategy

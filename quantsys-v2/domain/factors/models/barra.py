@@ -28,8 +28,8 @@ from typing import Dict, Any, List, Optional, Union, Tuple
 from scipy import stats
 from scipy.linalg import lstsq
 
-from domain.quantlib import BaseCalculator
-from domain.quantlib.exceptions import (
+from qs_quantlib import BaseCalculator
+from qs_quantlib.exceptions import (
     DataValidationError,
     InsufficientDataError,
     CalculationError,

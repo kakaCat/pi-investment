@@ -10,7 +10,7 @@ Date: 2026-05-25
 """
 
 import pytest
-from domain.quantlib.qlib.config import (
+from qs_quantlib.qlib.config import (
     get_default_config,
     validate_config,
     PPO_PARAMS,

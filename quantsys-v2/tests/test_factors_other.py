@@ -9,7 +9,7 @@ import pytest
 import numpy as np
 
 from domain.factors.library.other import OtherFactors
-from domain.quantlib.exceptions import InsufficientDataError, DataValidationError
+from qs_quantlib.exceptions import InsufficientDataError, DataValidationError
 
 
 class TestOtherFactors:

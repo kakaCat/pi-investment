@@ -1,6 +1,6 @@
 """时间序列分析 API - FastAPI 版（从 Flask timeseries.py 迁移，响应契约保持一致）
 
-复用同一 ds 单例与 domain.quantlib.timeseries 计算器（ARIMACalculator/
+复用同一 ds 单例与 qs_quantlib.timeseries 计算器（ARIMACalculator/
 GARCHCalculator/KalmanFilterCalculator）。
 """
 from typing import Any, Dict, List, Optional
@@ -10,7 +10,7 @@ import structlog
 
 from adapters.inbound.fastapi_app.shared import api_response, handle_api_error, kline_repo
 
-from domain.quantlib.timeseries import (
+from qs_quantlib.timeseries import (
     ARIMACalculator,
     GARCHCalculator,
     KalmanFilterCalculator,

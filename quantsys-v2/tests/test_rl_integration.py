@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Dict, Any
 
 # Import FinRL components
-from domain.quantlib.finrl import (
+from qs_quantlib.finrl import (
     FINRL_AVAILABLE,
     get_default_config,
     validate_config,
@@ -35,20 +35,20 @@ from domain.quantlib.finrl import (
 
 # Import Qlib components - handle gracefully if not available
 try:
-    from domain.quantlib.qlib import QLIB_RL_AVAILABLE
+    from qs_quantlib.qlib import QLIB_RL_AVAILABLE
 except ImportError:
     QLIB_RL_AVAILABLE = False
 
 # Import QlibTradingEnv directly from module (always available)
-from domain.quantlib.qlib.qlib_environment import QlibTradingEnv
+from qs_quantlib.qlib.qlib_environment import QlibTradingEnv
 
 # Conditional imports for agents (only if dependencies available)
 if FINRL_AVAILABLE:
-    from domain.quantlib.finrl import FinRLAgent
+    from qs_quantlib.finrl import FinRLAgent
 
 if QLIB_RL_AVAILABLE:
-    from domain.quantlib.qlib import QlibRLAgent
-    from domain.quantlib.qlib.config import get_default_config as get_qlib_config
+    from qs_quantlib.qlib import QlibRLAgent
+    from qs_quantlib.qlib.config import get_default_config as get_qlib_config
 
 
 # ============================================================================
@@ -530,7 +530,7 @@ class TestGracefulDegradation:
 
         if FINRL_AVAILABLE:
             # If available, should be able to import
-            from domain.quantlib.finrl import FinRLAgent
+            from qs_quantlib.finrl import FinRLAgent
             assert FinRLAgent is not None
 
     def test_qlib_availability_flag(self):
@@ -539,13 +539,13 @@ class TestGracefulDegradation:
 
         if QLIB_RL_AVAILABLE:
             # If available, should be able to import
-            from domain.quantlib.qlib import QlibRLAgent
+            from qs_quantlib.qlib import QlibRLAgent
             assert QlibRLAgent is not None
 
     def test_config_always_available(self):
         """Test that config modules are always available (no external deps)."""
         # FinRL config should always be importable
-        from domain.quantlib.finrl import get_default_config, validate_config
+        from qs_quantlib.finrl import get_default_config, validate_config
 
         config = get_default_config('ppo')
         assert config is not None
@@ -557,7 +557,7 @@ class TestGracefulDegradation:
     def test_environment_always_available(self, sample_price_data):
         """Test that environments are always available (no external deps)."""
         # StockTradingEnv should always be importable
-        from domain.quantlib.finrl import StockTradingEnv
+        from qs_quantlib.finrl import StockTradingEnv
 
         env = StockTradingEnv(df=sample_price_data)
         assert env is not None
@@ -566,7 +566,7 @@ class TestGracefulDegradation:
         assert obs is not None
 
         # QlibTradingEnv should always be importable (import directly from module)
-        from domain.quantlib.qlib.qlib_environment import QlibTradingEnv
+        from qs_quantlib.qlib.qlib_environment import QlibTradingEnv
 
         env2 = QlibTradingEnv(df=sample_price_data)
         assert env2 is not None

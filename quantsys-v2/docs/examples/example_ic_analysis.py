@@ -15,7 +15,7 @@ import os
 import numpy as np
 import pandas as pd
 from datetime import datetime
-from domain.quantlib.factor_analysis.ic_analyzer import ICAnalyzer
+from qs_quantlib.factor_analysis.ic_analyzer import ICAnalyzer
 
 
 def prepare_sample_data():

@@ -31,7 +31,7 @@ class TestCallbackImports:
 
     def test_import_callbacks_module(self):
         """Test that callbacks module can be imported."""
-        from domain.quantlib.finrl.callbacks import (
+        from qs_quantlib.finrl.callbacks import (
             TensorBoardCallback,
             CheckpointCallback,
             EvalCallback,
@@ -45,7 +45,7 @@ class TestCallbackImports:
 
     def test_callbacks_inherit_from_base(self):
         """Test that all callbacks inherit from BaseCallback."""
-        from domain.quantlib.finrl.callbacks import (
+        from qs_quantlib.finrl.callbacks import (
             TensorBoardCallback,
             CheckpointCallback,
             EvalCallback,
@@ -62,7 +62,7 @@ class TestTensorBoardCallback:
 
     def test_tensorboard_callback_initialization(self):
         """Test TensorBoardCallback can be initialized."""
-        from domain.quantlib.finrl.callbacks import TensorBoardCallback
+        from qs_quantlib.finrl.callbacks import TensorBoardCallback
 
         with tempfile.TemporaryDirectory() as tmpdir:
             callback = TensorBoardCallback(log_dir=tmpdir, verbose=0)
@@ -72,7 +72,7 @@ class TestTensorBoardCallback:
 
     def test_tensorboard_callback_has_required_methods(self):
         """Test TensorBoardCallback has required callback methods."""
-        from domain.quantlib.finrl.callbacks import TensorBoardCallback
+        from qs_quantlib.finrl.callbacks import TensorBoardCallback
 
         with tempfile.TemporaryDirectory() as tmpdir:
             callback = TensorBoardCallback(log_dir=tmpdir)
@@ -87,7 +87,7 @@ class TestTensorBoardCallback:
 
     def test_tensorboard_callback_creates_log_dir(self):
         """Test TensorBoardCallback creates log directory."""
-        from domain.quantlib.finrl.callbacks import TensorBoardCallback
+        from qs_quantlib.finrl.callbacks import TensorBoardCallback
 
         with tempfile.TemporaryDirectory() as tmpdir:
             log_dir = Path(tmpdir) / "tensorboard_logs"
@@ -103,7 +103,7 @@ class TestTensorBoardCallback:
 
     def test_tensorboard_callback_logs_metrics(self):
         """Test TensorBoardCallback logs training metrics."""
-        from domain.quantlib.finrl.callbacks import TensorBoardCallback
+        from qs_quantlib.finrl.callbacks import TensorBoardCallback
 
         with tempfile.TemporaryDirectory() as tmpdir:
             callback = TensorBoardCallback(log_dir=tmpdir)
@@ -130,7 +130,7 @@ class TestCheckpointCallback:
 
     def test_checkpoint_callback_initialization(self):
         """Test CheckpointCallback can be initialized."""
-        from domain.quantlib.finrl.callbacks import CheckpointCallback
+        from qs_quantlib.finrl.callbacks import CheckpointCallback
 
         with tempfile.TemporaryDirectory() as tmpdir:
             callback = CheckpointCallback(
@@ -147,7 +147,7 @@ class TestCheckpointCallback:
 
     def test_checkpoint_callback_has_required_methods(self):
         """Test CheckpointCallback has required callback methods."""
-        from domain.quantlib.finrl.callbacks import CheckpointCallback
+        from qs_quantlib.finrl.callbacks import CheckpointCallback
 
         with tempfile.TemporaryDirectory() as tmpdir:
             callback = CheckpointCallback(save_path=tmpdir, save_freq=1000)
@@ -161,7 +161,7 @@ class TestCheckpointCallback:
 
     def test_checkpoint_callback_creates_save_dir(self):
         """Test CheckpointCallback creates save directory."""
-        from domain.quantlib.finrl.callbacks import CheckpointCallback
+        from qs_quantlib.finrl.callbacks import CheckpointCallback
 
         with tempfile.TemporaryDirectory() as tmpdir:
             save_path = Path(tmpdir) / "checkpoints"
@@ -180,7 +180,7 @@ class TestCheckpointCallback:
 
     def test_checkpoint_callback_saves_model(self):
         """Test CheckpointCallback saves model at specified frequency."""
-        from domain.quantlib.finrl.callbacks import CheckpointCallback
+        from qs_quantlib.finrl.callbacks import CheckpointCallback
 
         with tempfile.TemporaryDirectory() as tmpdir:
             callback = CheckpointCallback(
@@ -208,7 +208,7 @@ class TestCheckpointCallback:
 
     def test_checkpoint_callback_naming(self):
         """Test CheckpointCallback uses correct naming pattern."""
-        from domain.quantlib.finrl.callbacks import CheckpointCallback
+        from qs_quantlib.finrl.callbacks import CheckpointCallback
 
         with tempfile.TemporaryDirectory() as tmpdir:
             callback = CheckpointCallback(
@@ -239,7 +239,7 @@ class TestEvalCallback:
 
     def test_eval_callback_initialization(self):
         """Test EvalCallback can be initialized."""
-        from domain.quantlib.finrl.callbacks import EvalCallback
+        from qs_quantlib.finrl.callbacks import EvalCallback
 
         # Mock environment
         eval_env = Mock()
@@ -258,7 +258,7 @@ class TestEvalCallback:
 
     def test_eval_callback_has_required_methods(self):
         """Test EvalCallback has required callback methods."""
-        from domain.quantlib.finrl.callbacks import EvalCallback
+        from qs_quantlib.finrl.callbacks import EvalCallback
 
         eval_env = Mock()
         callback = EvalCallback(eval_env=eval_env, eval_freq=1000)
@@ -272,7 +272,7 @@ class TestEvalCallback:
 
     def test_eval_callback_evaluates_at_frequency(self):
         """Test EvalCallback evaluates model at specified frequency."""
-        from domain.quantlib.finrl.callbacks import EvalCallback
+        from qs_quantlib.finrl.callbacks import EvalCallback
 
         # Mock environment
         eval_env = Mock()
@@ -304,7 +304,7 @@ class TestEvalCallback:
 
     def test_eval_callback_tracks_best_model(self):
         """Test EvalCallback tracks best model performance."""
-        from domain.quantlib.finrl.callbacks import EvalCallback
+        from qs_quantlib.finrl.callbacks import EvalCallback
 
         # Mock environment with improving rewards
         eval_env = Mock()
@@ -336,7 +336,7 @@ class TestCreateCallbacks:
 
     def test_create_callbacks_returns_list(self):
         """Test create_callbacks returns a list of callbacks."""
-        from domain.quantlib.finrl.callbacks import create_callbacks
+        from qs_quantlib.finrl.callbacks import create_callbacks
 
         with tempfile.TemporaryDirectory() as tmpdir:
             callbacks = create_callbacks(
@@ -351,7 +351,7 @@ class TestCreateCallbacks:
 
     def test_create_callbacks_with_all_params(self):
         """Test create_callbacks with all parameters."""
-        from domain.quantlib.finrl.callbacks import create_callbacks
+        from qs_quantlib.finrl.callbacks import create_callbacks
 
         eval_env = Mock()
 
@@ -371,7 +371,7 @@ class TestCreateCallbacks:
 
     def test_create_callbacks_without_eval(self):
         """Test create_callbacks without evaluation environment."""
-        from domain.quantlib.finrl.callbacks import create_callbacks
+        from qs_quantlib.finrl.callbacks import create_callbacks
 
         with tempfile.TemporaryDirectory() as tmpdir:
             callbacks = create_callbacks(
@@ -386,7 +386,7 @@ class TestCreateCallbacks:
 
     def test_create_callbacks_minimal_params(self):
         """Test create_callbacks with minimal parameters."""
-        from domain.quantlib.finrl.callbacks import create_callbacks
+        from qs_quantlib.finrl.callbacks import create_callbacks
 
         with tempfile.TemporaryDirectory() as tmpdir:
             callbacks = create_callbacks(
@@ -399,7 +399,7 @@ class TestCreateCallbacks:
 
     def test_create_callbacks_types(self):
         """Test create_callbacks returns correct callback types."""
-        from domain.quantlib.finrl.callbacks import (
+        from qs_quantlib.finrl.callbacks import (
             create_callbacks,
             TensorBoardCallback,
             CheckpointCallback,
@@ -430,7 +430,7 @@ class TestCallbackIntegration:
 
     def test_callbacks_work_with_dummy_env(self):
         """Test callbacks work with a simple dummy environment."""
-        from domain.quantlib.finrl.callbacks import create_callbacks
+        from qs_quantlib.finrl.callbacks import create_callbacks
         import gym
         from stable_baselines3 import PPO
 
@@ -460,7 +460,7 @@ class TestCallbackIntegration:
 
     def test_callback_lifecycle(self):
         """Test callback lifecycle methods are called in correct order."""
-        from domain.quantlib.finrl.callbacks import TensorBoardCallback
+        from qs_quantlib.finrl.callbacks import TensorBoardCallback
 
         with tempfile.TemporaryDirectory() as tmpdir:
             callback = TensorBoardCallback(log_dir=tmpdir)
@@ -512,7 +512,7 @@ class TestCallbacksWithoutFinRL:
         # This test runs only when FINRL_AVAILABLE is False
         # The module should handle missing dependencies gracefully
         try:
-            from domain.quantlib.finrl import FINRL_AVAILABLE
+            from qs_quantlib.finrl import FINRL_AVAILABLE
             assert FINRL_AVAILABLE is False
         except ImportError:
             # Expected when dependencies are missing

@@ -6,7 +6,7 @@ from datetime import date
 
 from domain.backtest.stages.data_pipeline.anomaly_detection_stage import AnomalyDetectionStage
 from domain.backtest.stages.data_pipeline import PipelineContext, PipelineResult
-from domain.quantlib.data_validator import DataValidator
+from qs_quantlib.data_validator import DataValidator
 
 
 class TestAnomalyDetectionStage:

@@ -22,8 +22,8 @@ from dataclasses import dataclass
 from scipy import optimize
 from scipy.stats import norm
 
-from domain.quantlib import BaseCalculator
-from domain.quantlib.exceptions import (
+from qs_quantlib import BaseCalculator
+from qs_quantlib.exceptions import (
     CalculationError,
     InsufficientDataError,
     DataValidationError,

@@ -13,11 +13,11 @@ from datetime import datetime, timedelta
 
 
 # 导入策略
-from domain.quantlib.engine.ma_cross import MACrossStrategy
-from domain.quantlib.engine.rsi_reversal import RSIReversalStrategy
-from domain.quantlib.engine.bollinger_breakout import BollingerBreakoutStrategy
-from domain.quantlib.engine.momentum_strategy import MomentumStrategy
-from domain.quantlib.engine.mean_reversion_strategy import MeanReversionStrategy
+from qs_quantlib.engine.ma_cross import MACrossStrategy
+from qs_quantlib.engine.rsi_reversal import RSIReversalStrategy
+from qs_quantlib.engine.bollinger_breakout import BollingerBreakoutStrategy
+from qs_quantlib.engine.momentum_strategy import MomentumStrategy
+from qs_quantlib.engine.mean_reversion_strategy import MeanReversionStrategy
 
 
 def generate_sample_klines(symbol: str, days: int = 100) -> list:

@@ -15,7 +15,7 @@ import os
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
-from domain.quantlib.cross_asset_strategies.index_futures_hedge import (
+from qs_quantlib.cross_asset_strategies.index_futures_hedge import (
     BetaCalculator,
     IndexFuturesHedgeStrategy,
     DynamicHedgeStrategy,

@@ -29,7 +29,7 @@
 与其他领域的关系：
 - 为 domain.backtest 提供风险评估
 - 为 domain.strategies 提供风险控制
-- 使用 domain.quantlib 的统计计算能力
+- 使用 qs_quantlib 的统计计算能力
 
 示例：
     from domain.risk.attribution import RiskAttributionCalculator

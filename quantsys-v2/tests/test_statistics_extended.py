@@ -9,8 +9,8 @@ import pytest
 import numpy as np
 import pandas as pd
 
-from domain.quantlib.statistics import StatisticalAnalyzer
-from domain.quantlib.exceptions import DataValidationError
+from qs_quantlib.statistics import StatisticalAnalyzer
+from qs_quantlib.exceptions import DataValidationError
 
 
 class TestExtendedStatisticalMethods:

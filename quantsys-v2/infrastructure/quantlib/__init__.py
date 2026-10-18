@@ -36,7 +36,7 @@ Circular Dependency Prevention:
     解决方案：不在 __init__ 中导入，由用户显式导入子模块。
 
 Refactoring History:
-    - 2026-08-23: Phase 1 - 从 domain.quantlib 下沉到 infrastructure.quantlib
+    - 2026-08-23: Phase 1 - 从 qs_quantlib 下沉到 infrastructure.quantlib
     - 2026-08-23: Phase 4 - 移除 __init__ 中的导入以打破循环依赖
 """
 

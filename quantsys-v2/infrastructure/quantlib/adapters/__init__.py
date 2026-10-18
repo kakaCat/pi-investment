@@ -1,5 +1,5 @@
 """
-Backward-compatibility shim for domain.quantlib.adapters.
+Backward-compatibility shim for qs_quantlib.adapters.
 
 These adapters have been migrated to adapters.outbound.datasources.providers.quantlib
 as part of the architecture audit P0-2 fix (2026-08-19).
@@ -13,7 +13,7 @@ TODO: Remove this shim after all callers have updated their imports (target: 202
 import warnings
 
 warnings.warn(
-    "domain.quantlib.adapters is deprecated. "
+    "qs_quantlib.adapters is deprecated. "
     "Use adapters.outbound.datasources.providers.quantlib instead. "
     "This shim will be removed after 2026-09-19.",
     DeprecationWarning,

@@ -12,7 +12,7 @@ Date: 2026-05-25
 import pytest
 import numpy as np
 from unittest.mock import Mock, MagicMock, patch
-from domain.quantlib.qlib import QLIB_RL_AVAILABLE
+from qs_quantlib.qlib import QLIB_RL_AVAILABLE
 
 # Skip all tests if Qlib is not available
 pytestmark = pytest.mark.skipif(
@@ -48,12 +48,12 @@ class TestQlibRLAgent:
 
     def test_import_qlib_agent(self):
         """Test that QlibRLAgent can be imported."""
-        from domain.quantlib.qlib import QlibRLAgent
+        from qs_quantlib.qlib import QlibRLAgent
         assert QlibRLAgent is not None
 
     def test_agent_initialization(self, mock_env):
         """Test agent initialization."""
-        from domain.quantlib.qlib import QlibRLAgent
+        from qs_quantlib.qlib import QlibRLAgent
 
         agent = QlibRLAgent(algorithm='ppo', env=mock_env)
 
@@ -63,35 +63,35 @@ class TestQlibRLAgent:
 
     def test_agent_inherits_from_base(self, mock_env):
         """Test that QlibRLAgent inherits from BaseRLAgent."""
-        from domain.quantlib.qlib import QlibRLAgent
-        from domain.quantlib.finrl.base_rl_agent import BaseRLAgent
+        from qs_quantlib.qlib import QlibRLAgent
+        from qs_quantlib.finrl.base_rl_agent import BaseRLAgent
 
         agent = QlibRLAgent(algorithm='ppo', env=mock_env)
         assert isinstance(agent, BaseRLAgent)
 
     def test_supported_algorithms(self, mock_env):
         """Test that agent supports Qlib RL algorithms."""
-        from domain.quantlib.qlib import QlibRLAgent
+        from qs_quantlib.qlib import QlibRLAgent
 
         algorithms = ['ppo', 'dqn', 'a2c', 'sac', 'td3']
         for algo in algorithms:
             agent = QlibRLAgent(algorithm=algo, env=mock_env)
             assert agent.algorithm == algo
 
-    @patch('domain.quantlib.qlib.qlib_agent.QLIB_RL_AVAILABLE', True)
+    @patch('qs_quantlib.qlib.qlib_agent.QLIB_RL_AVAILABLE', True)
     def test_train_method_exists(self, mock_env):
         """Test that train method exists."""
-        from domain.quantlib.qlib import QlibRLAgent
+        from qs_quantlib.qlib import QlibRLAgent
 
         agent = QlibRLAgent(algorithm='ppo', env=mock_env)
         assert hasattr(agent, 'train')
         assert callable(agent.train)
 
-    @patch('domain.quantlib.qlib.qlib_agent.QLIB_RL_AVAILABLE', True)
+    @patch('qs_quantlib.qlib.qlib_agent.QLIB_RL_AVAILABLE', True)
     def test_train_with_config(self, mock_env, mock_qlib_model):
         """Test training with configuration."""
-        from domain.quantlib.qlib import QlibRLAgent
-        from domain.quantlib.qlib.config import get_default_config
+        from qs_quantlib.qlib import QlibRLAgent
+        from qs_quantlib.qlib.config import get_default_config
 
         agent = QlibRLAgent(algorithm='ppo', env=mock_env)
         config = get_default_config('ppo')
@@ -105,7 +105,7 @@ class TestQlibRLAgent:
 
     def test_predict_before_training_raises_error(self, mock_env):
         """Test that predict raises error before training."""
-        from domain.quantlib.qlib import QlibRLAgent
+        from qs_quantlib.qlib import QlibRLAgent
 
         agent = QlibRLAgent(algorithm='ppo', env=mock_env)
         observation = np.random.randn(10)
@@ -113,10 +113,10 @@ class TestQlibRLAgent:
         with pytest.raises(RuntimeError, match="not trained"):
             agent.predict(observation)
 
-    @patch('domain.quantlib.qlib.qlib_agent.QLIB_RL_AVAILABLE', True)
+    @patch('qs_quantlib.qlib.qlib_agent.QLIB_RL_AVAILABLE', True)
     def test_predict_after_training(self, mock_env, mock_qlib_model):
         """Test prediction after training."""
-        from domain.quantlib.qlib import QlibRLAgent
+        from qs_quantlib.qlib import QlibRLAgent
 
         agent = QlibRLAgent(algorithm='ppo', env=mock_env)
         agent.model = mock_qlib_model
@@ -129,7 +129,7 @@ class TestQlibRLAgent:
 
     def test_save_model_before_training_raises_error(self, mock_env, tmp_path):
         """Test that save_model raises error before training."""
-        from domain.quantlib.qlib import QlibRLAgent
+        from qs_quantlib.qlib import QlibRLAgent
 
         agent = QlibRLAgent(algorithm='ppo', env=mock_env)
         model_path = str(tmp_path / "model.pkl")
@@ -137,10 +137,10 @@ class TestQlibRLAgent:
         with pytest.raises(RuntimeError, match="not trained"):
             agent.save_model(model_path)
 
-    @patch('domain.quantlib.qlib.qlib_agent.QLIB_RL_AVAILABLE', True)
+    @patch('qs_quantlib.qlib.qlib_agent.QLIB_RL_AVAILABLE', True)
     def test_save_model_after_training(self, mock_env, mock_qlib_model, tmp_path):
         """Test saving model after training."""
-        from domain.quantlib.qlib import QlibRLAgent
+        from qs_quantlib.qlib import QlibRLAgent
 
         agent = QlibRLAgent(algorithm='ppo', env=mock_env)
         agent.model = mock_qlib_model
@@ -150,10 +150,10 @@ class TestQlibRLAgent:
 
         mock_qlib_model.save.assert_called_once()
 
-    @patch('domain.quantlib.qlib.qlib_agent.QLIB_RL_AVAILABLE', True)
+    @patch('qs_quantlib.qlib.qlib_agent.QLIB_RL_AVAILABLE', True)
     def test_load_model(self, mock_env, mock_qlib_model, tmp_path):
         """Test loading model from disk."""
-        from domain.quantlib.qlib import QlibRLAgent
+        from qs_quantlib.qlib import QlibRLAgent
 
         agent = QlibRLAgent(algorithm='ppo', env=mock_env)
         model_path = str(tmp_path / "model.pkl")
@@ -166,7 +166,7 @@ class TestQlibRLAgent:
 
     def test_load_model_nonexistent_file(self, mock_env, tmp_path):
         """Test that loading nonexistent model raises error."""
-        from domain.quantlib.qlib import QlibRLAgent
+        from qs_quantlib.qlib import QlibRLAgent
 
         agent = QlibRLAgent(algorithm='ppo', env=mock_env)
         model_path = str(tmp_path / "nonexistent.pkl")
@@ -176,7 +176,7 @@ class TestQlibRLAgent:
 
     def test_calculate_method(self, mock_env, mock_qlib_model):
         """Test calculate method (BaseCalculator interface)."""
-        from domain.quantlib.qlib import QlibRLAgent
+        from qs_quantlib.qlib import QlibRLAgent
 
         agent = QlibRLAgent(algorithm='ppo', env=mock_env)
         agent.model = mock_qlib_model
@@ -192,7 +192,7 @@ class TestQlibRLAgent:
 
     def test_get_supported_methods(self, mock_env):
         """Test get_supported_methods."""
-        from domain.quantlib.qlib import QlibRLAgent
+        from qs_quantlib.qlib import QlibRLAgent
 
         agent = QlibRLAgent(algorithm='ppo', env=mock_env)
         methods = agent.get_supported_methods()
@@ -204,11 +204,11 @@ class TestQlibRLAgent:
         assert 'load_model' in methods
         assert 'calculate' in methods
 
-    @patch('domain.quantlib.qlib.qlib_agent.QLIB_RL_AVAILABLE', False)
+    @patch('qs_quantlib.qlib.qlib_agent.QLIB_RL_AVAILABLE', False)
     def test_graceful_degradation_when_qlib_unavailable(self, mock_env):
         """Test that agent handles missing Qlib gracefully."""
-        from domain.quantlib.qlib import QlibRLAgent
-        from domain.quantlib.qlib.config import get_default_config
+        from qs_quantlib.qlib import QlibRLAgent
+        from qs_quantlib.qlib.config import get_default_config
 
         agent = QlibRLAgent(algorithm='ppo', env=mock_env)
         config = get_default_config('ppo')
@@ -219,8 +219,8 @@ class TestQlibRLAgent:
 
     def test_agent_with_callbacks(self, mock_env, mock_qlib_model):
         """Test training with callbacks."""
-        from domain.quantlib.qlib import QlibRLAgent
-        from domain.quantlib.qlib.config import get_default_config
+        from qs_quantlib.qlib import QlibRLAgent
+        from qs_quantlib.qlib.config import get_default_config
 
         agent = QlibRLAgent(algorithm='ppo', env=mock_env)
         config = get_default_config('ppo')
@@ -233,14 +233,14 @@ class TestQlibRLAgent:
 
     def test_agent_precision_parameter(self, mock_env):
         """Test that precision parameter is passed to BaseCalculator."""
-        from domain.quantlib.qlib import QlibRLAgent
+        from qs_quantlib.qlib import QlibRLAgent
 
         agent = QlibRLAgent(algorithm='ppo', env=mock_env, precision=4)
         assert agent.precision == 4
 
     def test_agent_risk_free_rate_parameter(self, mock_env):
         """Test that risk_free_rate parameter is passed to BaseCalculator."""
-        from domain.quantlib.qlib import QlibRLAgent
+        from qs_quantlib.qlib import QlibRLAgent
 
         agent = QlibRLAgent(algorithm='ppo', env=mock_env, risk_free_rate=0.03)
         assert agent.risk_free_rate == 0.03

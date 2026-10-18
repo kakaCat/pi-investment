@@ -6,7 +6,7 @@
 - /api/factor-models/carhart/calculate        Carhart 4因子模型回归分析
 - /api/factor-models/barra/calculate          Barra 风险模型分析（桩：提示用 Python API）
 
-复用同一 ds 单例与 domain.quantlib.factor_models 计算器，保证 parity。
+复用同一 ds 单例与 qs_quantlib.factor_models 计算器，保证 parity。
 （/api/factor-models/barra/marginal-risk 不在本批迁移范围。）
 """
 from typing import Any, Dict, Optional

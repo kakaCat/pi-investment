@@ -345,7 +345,7 @@ class SignalTestLog:
         """
         try:
             # 尝试从 quantlib 获取
-            from domain.quantlib.data_sources.akshare_adapter import get_realtime_price
+            from qs_quantlib.data_sources.akshare_adapter import get_realtime_price
             return get_realtime_price(symbol)
         except Exception:
             logger.debug("Cannot get realtime price for %s via akshare", symbol)

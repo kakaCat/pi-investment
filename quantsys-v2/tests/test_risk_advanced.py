@@ -29,7 +29,7 @@ from domain.risk.backtesting import BacktestingCalculator
 from domain.risk.margining import MarginCalculator
 from domain.risk.reporting import RiskReportCalculator
 
-from domain.quantlib.exceptions import (
+from qs_quantlib.exceptions import (
     DataValidationError,
     InsufficientDataError,
     ConfigurationError,

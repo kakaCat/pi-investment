@@ -13,8 +13,8 @@ import numpy as np
 import pandas as pd
 from typing import Union, Dict, List, Any, Optional, Tuple
 
-from domain.quantlib import BaseCalculator
-from domain.quantlib.exceptions import (
+from qs_quantlib import BaseCalculator
+from qs_quantlib.exceptions import (
     CalculationError,
     DataValidationError,
     InsufficientDataError,

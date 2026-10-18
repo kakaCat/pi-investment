@@ -11,8 +11,8 @@ from __future__ import annotations
 from typing import Optional, Union
 import numpy as np
 
-from domain.quantlib.core.base_calculator import BaseCalculator
-from domain.quantlib.core.exceptions import DataValidationError, InsufficientDataError
+from qs_quantlib.core.base_calculator import BaseCalculator
+from qs_quantlib.core.exceptions import DataValidationError, InsufficientDataError
 
 # TA-Lib 为可选加速依赖（未安装时降级纯 numpy 实现，2026-09-10，w-f4aa1f6a）：
 # 此前 _sma/_ema/_ema_series 在函数内直接 import talib，talib 未装时整个因子

@@ -6,7 +6,7 @@ import sys
 import os
 
 
-from domain.quantlib.ml.mlflow_manager import MLflowManager
+from qs_quantlib.ml.mlflow_manager import MLflowManager
 
 
 class TestMLflowManager:

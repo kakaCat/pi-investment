@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from domain.quantlib.core.base_calculator import BaseCalculator
+from qs_quantlib.core.base_calculator import BaseCalculator
 
 
 # ──────────────────────────────────────────────────────────────────────

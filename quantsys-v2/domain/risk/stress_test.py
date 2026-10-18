@@ -14,8 +14,8 @@ import pandas as pd
 from typing import Union, Dict, List, Any, Optional, Tuple, Callable
 from dataclasses import dataclass
 
-from domain.quantlib import BaseCalculator
-from domain.quantlib.exceptions import (
+from qs_quantlib import BaseCalculator
+from qs_quantlib.exceptions import (
     CalculationError,
     InsufficientDataError,
     DataValidationError,

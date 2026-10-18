@@ -15,7 +15,7 @@ import os
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
-from domain.quantlib.hft_strategies.market_making import (
+from qs_quantlib.hft_strategies.market_making import (
     OrderBook,
     MarketMakingStrategy,
     StatisticalArbitrageStrategy

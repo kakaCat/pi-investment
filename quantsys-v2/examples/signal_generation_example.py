@@ -12,7 +12,7 @@ import numpy as np
 from datetime import datetime, timedelta
 
 
-from domain.quantlib.engine.strategy_runner import StrategyRunner
+from qs_quantlib.engine.strategy_runner import StrategyRunner
 from adapters.outbound.repositories import StrategyORMRepository
 from domain.backtest.engine.strategy_combiner import StrategyCombiner
 

@@ -15,7 +15,7 @@ import os
 
 import numpy as np
 import pandas as pd
-from domain.quantlib.factor_analysis.orthogonalizer import FactorOrthogonalizer
+from qs_quantlib.factor_analysis.orthogonalizer import FactorOrthogonalizer
 
 
 def create_correlated_factors():

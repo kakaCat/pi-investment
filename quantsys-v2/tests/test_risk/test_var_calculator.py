@@ -15,7 +15,7 @@ import pandas as pd
 
 from domain.risk.var import VaRCalculator, quick_var, quick_cvar
 from domain.risk.cvar import CVaRCalculator
-from domain.quantlib.exceptions import InsufficientDataError, DataValidationError
+from qs_quantlib.exceptions import InsufficientDataError, DataValidationError
 
 
 class TestVaRCalculator:

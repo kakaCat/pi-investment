@@ -18,8 +18,8 @@ from typing import Union, Dict, List, Any, Optional, Tuple
 from itertools import product
 from scipy import stats
 
-from domain.quantlib import BaseCalculator
-from domain.quantlib.exceptions import (
+from qs_quantlib import BaseCalculator
+from qs_quantlib.exceptions import (
     CalculationError,
     DataValidationError,
     InsufficientDataError,

@@ -8,7 +8,7 @@ import sys
 import os
 
 
-from domain.quantlib.ml.lstm_predictor import LSTMPredictor
+from qs_quantlib.ml.lstm_predictor import LSTMPredictor
 
 
 class TestLSTMPredictor:

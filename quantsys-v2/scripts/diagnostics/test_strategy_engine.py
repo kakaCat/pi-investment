@@ -185,7 +185,7 @@ def test_code_validator():
     print("测试 5: 代码安全验证")
     print("="*60)
 
-    from domain.quantlib.engine.code_validator import CodeValidator
+    from qs_quantlib.engine.code_validator import CodeValidator
 
     validator = CodeValidator()
 
