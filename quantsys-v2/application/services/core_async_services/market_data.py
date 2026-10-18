@@ -4,7 +4,7 @@ from typing import Dict, List
 
 import structlog
 
-from domain.ports.repository_ports_extended import IStockRepository
+from adapters.outbound.repositories.stock_async_repository import StockAsyncRepository
 from infrastructure.persistence.orm.async_config import get_async_session_context
 
 logger = structlog.get_logger(__name__)
@@ -17,7 +17,7 @@ class MarketDataAsyncService:
         """获取活跃股票列表"""
         try:
             async with get_async_session_context() as session:
-                stock_repo = IStockRepository(session)
+                stock_repo = StockAsyncRepository(session)
                 stocks = await stock_repo.get_active_stocks(market)
                 return stocks
         except Exception as e:
@@ -28,7 +28,7 @@ class MarketDataAsyncService:
         """搜索股票"""
         try:
             async with get_async_session_context() as session:
-                stock_repo = IStockRepository(session)
+                stock_repo = StockAsyncRepository(session)
                 stocks = await stock_repo.search_by_name(keyword)
                 return stocks
         except Exception as e:
