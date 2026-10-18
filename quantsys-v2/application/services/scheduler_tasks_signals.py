@@ -21,7 +21,7 @@ def _scan_pool_signals_by_name(
 
     Returns: 买入/卖出信号列表，每个信号附带 pool/strategy_id/signal_type。
     """
-    from application.services.pool_signal_scanner import PoolSignalScanner
+    from qs_sourcing.application.services.pool_signal_scanner import PoolSignalScanner
     # 2026-09-03 修复（258 同类）：显式调用 getter 拿实例，裸名导入会拿到函数（services.py 显式绑定挡住惰性代理）
     from adapters.shared.services import get_stock_pool_service
     stock_pool_service = get_stock_pool_service()
@@ -186,7 +186,7 @@ def handle_signal_execution_daily(params: Dict[str, Any] = None) -> Dict[str, An
     """
     params = params or {}
 
-    from application.services.signal_execution_scheduler import SignalExecutionScheduler
+    from qs_sourcing.application.services.signal_execution_scheduler import SignalExecutionScheduler
 
     logger.info("Starting daily signal summary push (fallback)")
 

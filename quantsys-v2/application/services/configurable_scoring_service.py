@@ -111,7 +111,7 @@ class ConfigurableScoringService:
         """技术面评分 - 配置驱动版本"""
         if not TECHNICAL_SCORING:
             # 如果没有配置，使用原始方法
-            from application.services.stock_scoring_service import StockScoringService
+            from qs_sourcing.application.services.stock_scoring_service import StockScoringService
             legacy = StockScoringService(stock_repo=self.stock_repo, factor_repo=self.factor_repo)
             return legacy._calculate_technical_score(factors)
 
@@ -179,7 +179,7 @@ class ConfigurableScoringService:
     def _calculate_fundamental_score_v2(self, factors: Dict) -> float:
         """基本面评分 - 配置驱动版本"""
         if not FUNDAMENTAL_SCORING:
-            from application.services.stock_scoring_service import StockScoringService
+            from qs_sourcing.application.services.stock_scoring_service import StockScoringService
             legacy = StockScoringService(stock_repo=self.stock_repo, factor_repo=self.factor_repo)
             return legacy._calculate_fundamental_score(factors)
 
@@ -230,7 +230,7 @@ class ConfigurableScoringService:
     def _calculate_momentum_score_v2(self, factors: Dict) -> float:
         """动量评分 - 配置驱动版本"""
         if not MOMENTUM_SCORING:
-            from application.services.stock_scoring_service import StockScoringService
+            from qs_sourcing.application.services.stock_scoring_service import StockScoringService
             legacy = StockScoringService(stock_repo=self.stock_repo, factor_repo=self.factor_repo)
             return legacy._calculate_momentum_score(factors)
 
@@ -270,7 +270,7 @@ class ConfigurableScoringService:
     def _calculate_quality_score_v2(self, factors: Dict) -> float:
         """质量评分 - 配置驱动版本"""
         if not QUALITY_SCORING:
-            from application.services.stock_scoring_service import StockScoringService
+            from qs_sourcing.application.services.stock_scoring_service import StockScoringService
             legacy = StockScoringService(stock_repo=self.stock_repo, factor_repo=self.factor_repo)
             return legacy._calculate_quality_score(factors)
 
@@ -304,7 +304,7 @@ class ConfigurableScoringService:
     def _generate_signals_v2(self, factors: Dict, total_score: float) -> list:
         """生成交易信号 - 配置驱动版本"""
         if not SIGNAL_RULES:
-            from application.services.stock_scoring_service import StockScoringService
+            from qs_sourcing.application.services.stock_scoring_service import StockScoringService
             legacy = StockScoringService(stock_repo=self.stock_repo, factor_repo=self.factor_repo)
             return legacy._generate_signals(factors, total_score)
 

@@ -149,8 +149,8 @@ class ChanScanJob(Job):
         # Kline/StockPool/Signal 三个 ORM repo（同 StrategyValidateDailyJob Fix④ 模式）。
         try:
             from adapters.outbound.repositories.kline_repository import KlineORMRepository
-            from adapters.outbound.repositories.stock_pool_repository import StockPoolRepository
-            from adapters.outbound.repositories.signal_repository import SignalORMRepository
+            from qs_sourcing.adapters.outbound.repositories.stock_pool_repository import StockPoolRepository
+            from qs_sourcing.adapters.outbound.repositories.signal_repository import SignalORMRepository
             from application.services.chan_service import ChanService
             from application.services.chan_scan_service import ChanScanService
 
@@ -202,7 +202,7 @@ class ChanKnowledgeDistillJob(Job):
             params = params or {}
             from adapters.outbound.repositories.agent_knowledge_repository import AgentKnowledgeORMRepository
             from adapters.outbound.repositories.kline_repository import KlineORMRepository
-            from adapters.outbound.repositories.signal_repository import SignalORMRepository
+            from qs_sourcing.adapters.outbound.repositories.signal_repository import SignalORMRepository
             from application.services.chan_knowledge_distiller import ChanKnowledgeDistiller
 
             service = ChanKnowledgeDistiller(

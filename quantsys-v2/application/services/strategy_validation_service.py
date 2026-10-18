@@ -19,7 +19,7 @@ class StrategyValidationService:
 
     def __init__(self, strategy_repo=None, stock_repo=None):
         self._strategy_repo = strategy_repo
-        from application.services.stock_pool_service import StockPoolService
+        from qs_sourcing.application.services.stock_pool_service import StockPoolService
         if stock_repo is None:
             from infrastructure.services.service_factory import ServiceFactory
             stock_repo = ServiceFactory.resolve(IStockRepository)

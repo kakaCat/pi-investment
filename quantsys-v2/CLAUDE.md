@@ -47,10 +47,11 @@ QuantSys V2 is built with hexagonal architecture, dual anti-corruption layer, an
 pip install -e ./packages/qs_quantlib       # 量化计算库（原 domain/quantlib）
 pip install -e ./packages/qs_notification   # 通知三件套（原 application+infrastructure+domain/notification）
 pip install -e ./packages/qs_market_data    # 数据供给（原 adapters/outbound/datasources + 15 个数据面服务）
+pip install -e ./packages/qs_sourcing       # 选股→信号流水线（原 16 个池/信号/筛选服务 + 9 个池/信号系仓储）
 ```
 
-> ⚠️ 新代码 import 一律走 `from qs_quantlib import ...` / `from qs_notification.application import ...` / `from qs_market_data.adapters.outbound.datasources import get_data_provider_manager`（包内三层沿用原领域布局）；`domain.quantlib`、`*/notification`、`adapters/outbound/datasources`、`application/services/<数据面 15 模块>` 等旧路径均为 `__path__`/转发兼容 shim，30 天观察期后删除。
-> 当前已迁移：`qs_quantlib`（75 文件）、`qs_notification`（23 文件）、`qs_market_data`（103 文件：81 datasources + 22 服务/子包）。后续按方案卡 §11.4 顺序迁移 sourcing / intel / strategy / trading / watch / ops / agent-hub。
+> ⚠️ 新代码 import 一律走 `from qs_quantlib import ...` / `from qs_notification.application import ...` / `from qs_market_data.adapters.outbound.datasources import get_data_provider_manager`（包内三层沿用原领域布局）；`domain.quantlib`、`*/notification`、`adapters/outbound/datasources`、`application/services/<数据面 15 模块>`、`application/services/<pool/signal 系 16 模块>`、`repositories/<stock_pool/signal 系 9 模块>` 等旧路径均为 `__path__`/转发兼容 shim，30 天观察期后删除。
+> 当前已迁移：`qs_quantlib`（75 文件）、`qs_notification`（23 文件）、`qs_market_data`（103 文件：81 datasources + 22 服务/子包）、`qs_sourcing`（25 文件：16 服务 + 9 仓储）。后续按方案卡 §11.4 顺序迁移 intel / strategy / trading / watch / ops / agent-hub。
 
 ### 1. Install Dependencies
 

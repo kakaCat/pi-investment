@@ -65,7 +65,7 @@ def get_opponent_behavior():
     """
     try:
         from application.services.opponent_behavior_service import OpponentBehaviorService
-        from adapters.outbound.repositories.stock_pool_repository import StockPoolRepository
+        from qs_sourcing.adapters.outbound.repositories.stock_pool_repository import StockPoolRepository
         from adapters.outbound.repositories.kline_repository import KlineORMRepository
         
         # 初始化服务（提供 pool/kline repo 作为数据源）
@@ -112,7 +112,7 @@ def get_pool_battlefield_assessment(pool_id: int):
     try:
         from application.services.battlefield_assessor import BattlefieldAssessor
         from application.services.opponent_behavior_service import OpponentBehaviorService
-        from adapters.outbound.repositories.stock_pool_repository import StockPoolRepository
+        from qs_sourcing.adapters.outbound.repositories.stock_pool_repository import StockPoolRepository
         from adapters.outbound.repositories.kline_repository import KlineORMRepository
         from adapters.outbound.repositories.fund_flow_repository import FundFlowORMRepository
         

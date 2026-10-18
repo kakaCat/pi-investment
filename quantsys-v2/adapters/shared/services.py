@@ -69,7 +69,7 @@ def get_risk_repo():
     return get_service_factory().get_risk_repository()
 
 def get_execution_repo():
-    from adapters.outbound.repositories.signal_execution_repository import SignalExecutionORMRepository
+    from qs_sourcing.adapters.outbound.repositories.signal_execution_repository import SignalExecutionORMRepository
     return SignalExecutionORMRepository()
 
 def get_backtest_repo():
