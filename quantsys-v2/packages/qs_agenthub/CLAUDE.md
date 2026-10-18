@@ -27,7 +27,7 @@ qs_agenthub/
 
 - 允许：→ kernel、→ 业务包 public API（qs_notification 通知三件、qs_strategy 策略面…）
 - **登记面**：hub→`api/internal/scheduler_webhook.py`（Agent OS webhook 收件器留 app 壳，handlers 经它共享 JOB_HANDLERS 注册表——方向异常（包→app 壳），agent-hub 进一步项目化时收口）
-- 暂留 L1：`session_service.py`（agent 会话，agent-dh 项目化的耦合件）；`application/jobs/` 已归并 qs_ops（2026-10-19，hub 侧倒灌 import 同批改线至 `qs_ops.application.jobs`）
+- ~~暂留 L1~~ 已清零：`session_service.py` 已归并 hub 平级目录（2026-10-19，feat/session-service-hub，4 处接线不留 shim）；`application/jobs/` 已归并 qs_ops（2026-10-19，hub 侧倒灌 import 同批改线至 `qs_ops.application.jobs`）
 - 旧路径 shim：9 alias + `application/services/evolution/`（__path__），30 天观察期
 
 ## 常见任务路径

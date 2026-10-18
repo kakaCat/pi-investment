@@ -3,7 +3,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 from datetime import datetime, timezone
 from infrastructure.persistence.database.engine import db_cursor
-from application.services.session_service import SessionService
+from qs_agenthub.application.services.session_service import SessionService
 from tests.services.test_session_service import DDL
 
 

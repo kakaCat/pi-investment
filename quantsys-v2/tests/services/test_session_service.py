@@ -2,7 +2,7 @@
 import pytest
 from datetime import datetime, timezone
 from infrastructure.persistence.database.engine import db_cursor
-from application.services.session_service import SessionService
+from qs_agenthub.application.services.session_service import SessionService
 
 DDL = """
 CREATE TABLE IF NOT EXISTS quant.agent_sessions (

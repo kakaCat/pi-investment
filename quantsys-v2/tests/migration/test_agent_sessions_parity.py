@@ -78,7 +78,7 @@ def test_get_diagnosis(fastapi_client, seeded):
 
 def test_ai_diagnosis(fastapi_client, seeded, monkeypatch):
     """ai-diagnosis 走外部 LLM，mock 掉 service 避免真实调用；两端应同样映射 RuntimeError→503"""
-    from application.services.session_service import SessionService
+    from qs_agenthub.application.services.session_service import SessionService
 
     def _boom(self, session_key, refresh=False):
         raise RuntimeError("LLM unavailable (test)")
