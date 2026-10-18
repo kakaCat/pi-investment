@@ -468,7 +468,7 @@ class ServiceFactory:
     def get_session_service(cls):
         """获取SessionService实例"""
         if 'session_service' not in cls._instances:
-            from application.services.session_service import SessionService
+            from qs_agenthub.application.services.session_service import SessionService
             cls._instances['session_service'] = SessionService()
             logger.info("SessionService initialized")
         return cls._instances['session_service']
