@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler, RobustScaler
 
-from infrastructure.quantlib.adapters import get_factor_adapter
+from adapters.outbound.datasources.providers.quantlib.factor_calculator_adapter import get_factor_adapter
 
 logger = logging.getLogger(__name__)
 

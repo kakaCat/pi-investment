@@ -14,8 +14,8 @@ import json
 
 from qs_quantlib.core.pipeline import PipelineStage
 # 2026-09-11（investor / w-8f2c4cc5）修复：cd952915 盲改 qs_quantlib.adapters，该路径不存在
-# （domain/quantlib/adapters/ 为空目录）→ 导入即 ImportError。真实定义在 infrastructure.quantlib.adapters。
-from infrastructure.quantlib.adapters import get_factor_adapter
+# （domain/quantlib/adapters/ 为空目录）→ 导入即 ImportError。get_factor_adapter 现实现于 adapters.outbound.datasources.providers.quantlib.factor_calculator_adapter（2026-10-19 shim 移除后）。
+from adapters.outbound.datasources.providers.quantlib.factor_calculator_adapter import get_factor_adapter
 import logging
 
 logger = logging.getLogger(__name__)
