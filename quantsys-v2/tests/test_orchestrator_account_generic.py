@@ -189,7 +189,7 @@ def test_post_market_snapshots_every_account_but_factors_once():
         return {"status": "ok"}
 
     with patch("application.trading.paper_trading_engine.PaperTradingEngine", _FakeEngine), \
-         patch("application.services.scheduler_tasks.handle_factor_compute", _factor):
+         patch("qs_ops.application.services.scheduler_tasks.handle_factor_compute", _factor):
         result = orch._phase_post_market(_make_state())
 
     assert set(_FakeEngine.instances) == {"agent_virtual", "agent_brain", "v13_simulation"}

@@ -195,7 +195,7 @@ def execute(**params: Any) -> Dict[str, Any]:
 
 
 def main(argv: Optional[List[str]] = None) -> int:
-    """CLI 入口：python -m infrastructure.jobs.market_style_update_job [--trade_date 2026-09-02] [--dry-run]"""
+    """CLI 入口：python -m qs_ops.infrastructure.jobs.market_style_update_job [--trade_date 2026-09-02] [--dry-run]"""
     parser = argparse.ArgumentParser(description='市场风格检测并落库 (task 312)')
     parser.add_argument('--trade_date', default=None, help='落库交易日 YYYY-MM-DD（默认=最近有K线交易日）')
     parser.add_argument('--dry-run', action='store_true', help='只计算不落库')

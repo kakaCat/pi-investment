@@ -339,7 +339,7 @@ def _execute_legacy_handler(command: str, params: Dict[str, Any]) -> Dict[str, A
     Raises:
         ValueError: 命令未找到
     """
-    from infrastructure.scheduler.scheduler import SchedulerService
+    from qs_ops.infrastructure.scheduler.scheduler import SchedulerService
 
     # 创建一个临时的 SchedulerService 实例（只用它的 legacy handlers）
     # 注意：这里传 repo=None 是安全的，因为 legacy handlers 不依赖 repo

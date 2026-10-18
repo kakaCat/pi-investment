@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qs-ops"
+version = "0.1.0"
+description = "PI Investment 运维装配包 - 调度器/APScheduler/jobs 作业/scheduler_tasks 任务域/交易日守卫/数据质量"
+requires-python = ">=3.10"
+dependencies = [
+    "APScheduler",
+    "structlog",
+]
+
+[tool.setuptools.packages.find]
+include = ["qs_ops*"]
+exclude = ["__pycache__*", "*.egg-info*"]

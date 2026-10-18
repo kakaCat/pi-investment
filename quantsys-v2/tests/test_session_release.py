@@ -75,7 +75,7 @@ class _Repo:
 
 def test_financial_job_releases_session_even_on_probe_failure(released, monkeypatch):
     """探活失败会早退——此时宇宙读取的事务也必须已归还，否则又是一次泄漏。"""
-    from infrastructure.jobs import financial_statement_update_job as job
+    from qs_ops.infrastructure.jobs import financial_statement_update_job as job
     import qs_market_data.application.services.financial_data_service_adapter as ad
     import adapters.outbound.repositories.financial_repository as fr
 

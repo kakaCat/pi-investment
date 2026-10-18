@@ -12,7 +12,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from infrastructure.jobs import financial_statement_update_job as job
+from qs_ops.infrastructure.jobs import financial_statement_update_job as job
 
 
 class _Result:

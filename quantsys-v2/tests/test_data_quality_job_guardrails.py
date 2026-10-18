@@ -8,8 +8,8 @@
 """
 import pytest
 
-from infrastructure.jobs import data_quality_check_job as job
-from application.services.data_quality_service import DataQualityService, RETRY_SKIP_FAIL_RATE
+from qs_ops.infrastructure.jobs import data_quality_check_job as job
+from qs_ops.application.services.data_quality_service import DataQualityService, RETRY_SKIP_FAIL_RATE
 
 
 # ── 参数归一 ──────────────────────────────────────────────────────────────

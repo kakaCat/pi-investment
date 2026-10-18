@@ -8,7 +8,7 @@ APScheduler 核心功能集成测试
 """
 import pytest
 from datetime import datetime
-from infrastructure.scheduler.apscheduler_service import APSchedulerService
+from qs_ops.infrastructure.scheduler.apscheduler_service import APSchedulerService
 from adapters.outbound.repositories.scheduler_repository import SchedulerRepository
 from infrastructure.persistence.orm import get_session
 

@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Optional, Set
 
 from domain.ports import ISchedulerRepository
 # 失败判定口径唯一来源（job_executor 无重依赖，导入无环）
-from infrastructure.scheduler.job_executor import find_result_failure
+from qs_ops.infrastructure.scheduler.job_executor import find_result_failure
 
 # 信号生成链路的依赖（模块级导入便于测试 patch；均有惰性单例语义无副作用）
 from adapters.outbound.repositories.heatmap_repository import HeatmapRepository
@@ -745,41 +745,41 @@ class SchedulerService:
         raise ValueError(f"Unknown scheduler command: {command!r}")
 
     def _handle_kline_update(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """K 线日更：委托 infrastructure.jobs.kline_update_job.execute（多数据源 fallback + 限速防封）"""
-        from infrastructure.jobs.kline_update_job import execute
+        """K 线日更：委托 qs_ops.infrastructure.jobs.kline_update_job.execute（多数据源 fallback + 限速防封）"""
+        from qs_ops.infrastructure.jobs.kline_update_job import execute
         return execute(**(params or {}))
 
     def _handle_index_constituents_update(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """指数成分股日更：委托 infrastructure.jobs.index_constituents_update_job.execute"""
-        from infrastructure.jobs.index_constituents_update_job import execute
+        """指数成分股日更：委托 qs_ops.infrastructure.jobs.index_constituents_update_job.execute"""
+        from qs_ops.infrastructure.jobs.index_constituents_update_job import execute
         return execute(**(params or {}))
 
     def _handle_chip_distribution_update(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """筹码分布日更：委托 infrastructure.jobs.chip_distribution_update_job.execute（增量，幂等）"""
-        from infrastructure.jobs.chip_distribution_update_job import execute
+        """筹码分布日更：委托 qs_ops.infrastructure.jobs.chip_distribution_update_job.execute（增量，幂等）"""
+        from qs_ops.infrastructure.jobs.chip_distribution_update_job import execute
         return execute(**(params or {}))
 
     # -- 2026-08-13 自 scheduler_daemon 迁入的任务（薄封装委托原 job） --
 
     def _handle_v13_risk_check(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """v13 盘后风险检查：委托 infrastructure.jobs.risk_check_job.execute"""
-        from infrastructure.jobs.risk_check_job import execute
+        """v13 盘后风险检查：委托 qs_ops.infrastructure.jobs.risk_check_job.execute"""
+        from qs_ops.infrastructure.jobs.risk_check_job import execute
         return execute(**(params or {}))
 
     def _handle_v13_verification(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """v13 交易验证：委托 infrastructure.jobs.verification_job.execute"""
-        from infrastructure.jobs.verification_job import execute
+        """v13 交易验证：委托 qs_ops.infrastructure.jobs.verification_job.execute"""
+        from qs_ops.infrastructure.jobs.verification_job import execute
         return execute(**(params or {}))
 
     def _handle_v13_weekly_report(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """v13 周报：委托 infrastructure.jobs.weekly_report_job.execute"""
-        from infrastructure.jobs.weekly_report_job import execute
+        """v13 周报：委托 qs_ops.infrastructure.jobs.weekly_report_job.execute"""
+        from qs_ops.infrastructure.jobs.weekly_report_job import execute
         return execute(**(params or {}))
 
     def _handle_financial_statement_update(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """季度财报三大报表落库：委托 financial_statement_update_job.execute
         （≠ financial_data_update——后者是财务指标，勿合并）"""
-        from infrastructure.jobs.financial_statement_update_job import execute
+        from qs_ops.infrastructure.jobs.financial_statement_update_job import execute
         return execute(**(params or {}))
 
     # -- individual handlers -------------------------------------------
@@ -796,7 +796,7 @@ class SchedulerService:
             max_workers: (optional) parallel workers, default 8.
             quality_threshold: (optional) alert threshold, default 95.0.
         """
-        from infrastructure.jobs.data_quality_check_job import DataQualityCheckJob
+        from qs_ops.infrastructure.jobs.data_quality_check_job import DataQualityCheckJob
 
         job = DataQualityCheckJob()
         result = job.run(params)
@@ -1173,7 +1173,7 @@ class SchedulerService:
 
         2026-09-05 修复（w-8366e526）：原实现子进程调用 infrastructure/scripts/train_ml.py，
         该脚本不存在 → 恒返回 "skipped/train_ml.py script not found"（死路径）。
-        现委托唯一真实训练器 application.services.scheduler_tasks.handle_model_train_auto
+        现委托唯一真实训练器 qs_ops.application.services.scheduler_tasks.handle_model_train_auto
         （lightgbm 全流程 + 性能门控），model_type 默认改 lightgbm（xgboost 旧模型不可信）。
         """
         params = dict(params or {})
@@ -1181,7 +1181,7 @@ class SchedulerService:
         params["model_type"] = model_type
 
         try:
-            from application.services.scheduler_tasks import handle_model_train_auto
+            from qs_ops.application.services.scheduler_tasks import handle_model_train_auto
             result = handle_model_train_auto(params)
             result.setdefault("action", "model_train")
             result.setdefault("model_type", model_type)
@@ -1200,10 +1200,10 @@ class SchedulerService:
 
         Runs the signal execution pipeline at 15:30 (after market close).
 
-        242 修复（2026-09-02）：rebind 到 application.services.scheduler_tasks.
+        242 修复（2026-09-02）：rebind 到 qs_ops.application.services.scheduler_tasks.
         handle_signal_execution_daily——v2 盈利闭环改造后本任务不再自动下单，
         职责=当日 pending 信号兜底推送 Agent。原空壳
-        infrastructure.scheduler.signal_execution_job（策略全跳过、orders=0 的
+        qs_ops.infrastructure.scheduler.signal_execution_job（策略全跳过、orders=0 的
         TODO）已废弃。
 
         Args:
@@ -1212,7 +1212,7 @@ class SchedulerService:
         Returns:
             Result dictionary from the scheduled task
         """
-        from application.services.scheduler_tasks import handle_signal_execution_daily
+        from qs_ops.application.services.scheduler_tasks import handle_signal_execution_daily
 
         logger.info("Executing signal_execution_daily command")
         return handle_signal_execution_daily(params or {})
@@ -1229,13 +1229,13 @@ class SchedulerService:
             Result dictionary from the scheduled task
         """
         # P1-A 修复（2026-09-10 w-23c70356 审计）：原实现 import
-        # infrastructure.scheduler.market_style_jobs —— 该模块从未存在（git log 无此文件，
+        # qs_ops.infrastructure.scheduler.market_style_jobs —— 该模块从未存在（git log 无此文件，
         # 全仓仅此一处引用），命令必然 ModuleNotFoundError。实证：任务 325
         # market_style_update 2026-09-08/09/10 连续 3 天（近 7 天 4/4）failed，
         # 耗时 14ms。真实现在 infrastructure/jobs/market_style_update_job.py:execute
         # （CLI 与调度共用入口，返回 {'success': bool, ...}），与其他 handler（kline_update
         # / risk_check / weekly_report …）的迁移约定一致。
-        from infrastructure.jobs.market_style_update_job import execute
+        from qs_ops.infrastructure.jobs.market_style_update_job import execute
 
         logger.info("Executing market_style_update command")
         return execute(**(params or {}))
@@ -1261,7 +1261,7 @@ class SchedulerService:
         Returns:
             Result dictionary with execution status and account state
         """
-        from infrastructure.jobs.strategy_trading_job import v13_daily_check as execute
+        from qs_ops.infrastructure.jobs.strategy_trading_job import v13_daily_check as execute
 
         logger.info("Executing v13_daily_check command")
         return execute(**params)

@@ -17,7 +17,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from sqlalchemy import text
 
-from infrastructure.scheduler.scheduler import SchedulerService
+from qs_ops.infrastructure.scheduler.scheduler import SchedulerService
 from adapters.outbound.repositories.scheduler_repository import SchedulerRepository
 
 
@@ -109,7 +109,7 @@ class TestMisfireGrace:
 
     def test_rescheduled_next_run_matches_cron(self, scheduler):
         """重排后的 next_run_at 必须匹配 cron 且严格在未来"""
-        from infrastructure.scheduler.scheduler import parse_cron
+        from qs_ops.infrastructure.scheduler.scheduler import parse_cron
         past = datetime.now(timezone.utc) - timedelta(hours=5)
         task_id = _add_task(scheduler, 'test-misfire-cron', 60, past)
 

@@ -10,7 +10,7 @@ from datetime import date
 
 import pytest
 
-from application.services.trading_day_guard import (
+from qs_ops.application.services.trading_day_guard import (
     SOURCE_COMPUTE_ERROR,
     SOURCE_INTRADAY,
     SOURCE_KLINE,
@@ -173,7 +173,7 @@ def _fake_kline_repo(monkeypatch):
 
 def test_kline_stats_coerces_string_latest_date_to_date(_fake_kline_repo):
     """取数层回字符串时，_kline_stats 必须把它归一成 date（否则下游相减就炸）。"""
-    from application.services.trading_day_guard import TradingDayGuard
+    from qs_ops.application.services.trading_day_guard import TradingDayGuard
 
     _fake_kline_repo(has_bar=False, latest='2026-09-11')
     exists, latest = TradingDayGuard._kline_stats(date(2026, 9, 14))
@@ -184,7 +184,7 @@ def test_kline_stats_coerces_string_latest_date_to_date(_fake_kline_repo):
 
 def test_today_intraday_heuristic_works_with_string_repo_date(_fake_kline_repo):
     """端到端复现：今天无K线 + 取数层回字符串 → 必须给出判定而不是抛 TypeError。"""
-    from application.services.trading_day_guard import TradingDayGuard
+    from qs_ops.application.services.trading_day_guard import TradingDayGuard
 
     _fake_kline_repo(has_bar=False, latest=date.today().isoformat())
     v = TradingDayGuard.check(date.today(), use_cache=False)   # 不得抛异常
@@ -198,7 +198,7 @@ def test_check_tolerates_string_from_stats_even_if_coercion_is_lost(monkeypatch)
     与上两条的分工：上面测"归一化在不在"，这条测"就算归一化被后人删掉，
     击穿调用方的路径也不存在"——09-14 的事故形态就是异常直接上抛踢死 orchestrator。
     """
-    from application.services.trading_day_guard import TradingDayGuard
+    from qs_ops.application.services.trading_day_guard import TradingDayGuard
 
     monkeypatch.setattr(
         TradingDayGuard, '_kline_stats',
@@ -211,7 +211,7 @@ def test_check_tolerates_string_from_stats_even_if_coercion_is_lost(monkeypatch)
 
 def test_compute_failure_degrades_instead_of_raising(monkeypatch):
     """判定阶段任何异常都不许击穿调用方：必须降级为"不可用"并留痕。"""
-    from application.services.trading_day_guard import TradingDayGuard
+    from qs_ops.application.services.trading_day_guard import TradingDayGuard
 
     def _boom(day):
         raise TypeError("unsupported operand type(s) for -: 'datetime.date' and 'str'")
@@ -311,7 +311,7 @@ def test_is_trading_day_does_not_log_for_normal_verdicts(monkeypatch, _fake_guar
 
 def test_compute_error_is_distinguishable_from_datasource_unavailable(monkeypatch):
     """两种降级必须可区分：数据源不可用 vs 判定器异常（前者是行情，后者是 bug）。"""
-    from application.services.trading_day_guard import TradingDayGuard
+    from qs_ops.application.services.trading_day_guard import TradingDayGuard
 
     monkeypatch.setattr(
         TradingDayGuard, '_kline_stats',

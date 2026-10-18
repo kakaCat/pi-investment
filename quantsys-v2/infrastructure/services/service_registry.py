@@ -466,7 +466,7 @@ def _register_services_hardcoded():
     )
 
     # DataQualityService - 复杂依赖
-    from application.services.data_quality_service import DataQualityService
+    from qs_ops.application.services.data_quality_service import DataQualityService
     def create_data_quality_service():
         # DataQualityService 内部会创建其他服务，暂时保持原样
         return DataQualityService()

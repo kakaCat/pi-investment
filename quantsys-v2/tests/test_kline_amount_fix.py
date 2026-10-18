@@ -92,7 +92,7 @@ def test_kline_update_job_writes_amount():
     断言点随之从"INSERT 语句的位置参数"改为"交给写入口的 DailyKline 对象"。
     断言的不变量完全不变：amount / turnover_rate 必须一路传到落库层。
     """
-    from infrastructure.jobs import kline_update_job
+    from qs_ops.infrastructure.jobs import kline_update_job
     from adapters.outbound.repositories.kline_sync_repository import KlineSyncRepository
     from adapters.outbound.repositories import kline_repository as kr_module
 

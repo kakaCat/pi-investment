@@ -132,7 +132,7 @@ class DailyOrchestrator:
 
         # 非交易日跳过（周末 + 法定节假日）；统一走 TradingDayGuard 唯一入口
         # （2026-09-11 w-f4aa1f6a 步2：原先只判周末，节假日会被当交易日执行）
-        from application.services.trading_day_guard import TradingDayGuard
+        from qs_ops.application.services.trading_day_guard import TradingDayGuard
         if not TradingDayGuard.is_trading_day(today):
             return
 
@@ -255,7 +255,7 @@ class DailyOrchestrator:
 
     def _phase_pre_market(self, state: DailyOrchestratorState) -> Dict[str, Any]:
         """盘前阶段：数据更新 + 市场风格检测 + 策略轮动 + 信号生成"""
-        from application.services.scheduler_tasks import (
+        from qs_ops.application.services.scheduler_tasks import (
             handle_data_update,
             handle_market_style_update,
             handle_signal_generate,
@@ -506,7 +506,7 @@ class DailyOrchestrator:
         snapshots_by_account / performance_by_account，供后续消费方使用。
         """
         from application.trading.paper_trading_engine import PaperTradingEngine
-        from application.services.scheduler_tasks import handle_factor_compute
+        from qs_ops.application.services.scheduler_tasks import handle_factor_compute
 
         accounts = self._active_accounts(self._sim_repo())
 
@@ -862,7 +862,7 @@ class DailyOrchestrator:
         now = datetime.now()
         today = now.date()
 
-        from application.services.trading_day_guard import TradingDayGuard
+        from qs_ops.application.services.trading_day_guard import TradingDayGuard
         if not TradingDayGuard.is_trading_day(today):
             return
 

@@ -13,8 +13,8 @@
 """
 import pytest
 
-from infrastructure.jobs import fund_flow_update_job as job
-from infrastructure.jobs.fund_flow_update_job import _snapshot_matches_reference
+from qs_ops.infrastructure.jobs import fund_flow_update_job as job
+from qs_ops.infrastructure.jobs.fund_flow_update_job import _snapshot_matches_reference
 
 
 def _recs(pairs):

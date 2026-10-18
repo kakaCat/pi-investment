@@ -6,11 +6,11 @@
 
 调度配置（quant.scheduler_tasks，旧表 scheduler_task_configs 已于 2026-09-11 删除/归档）：
     task_name: fund_flow_update
-    command:   infrastructure.jobs.fund_flow_update_job.execute
+    command:   qs_ops.infrastructure.jobs.fund_flow_update_job.execute
     cron:      30 15 * * 1-5（交易日收盘后）
 
 也可手动执行：
-    python -m infrastructure.jobs.fund_flow_update_job [--date 2026-07-28]
+    python -m qs_ops.infrastructure.jobs.fund_flow_update_job [--date 2026-07-28]
 """
 import os
 import sys
@@ -123,7 +123,7 @@ def execute(**params):
     # 闸门①：非交易日一律不落库。
     # 快照来自「发请求那一刻」，非交易日运行时上游返回的是上一交易日的陈旧快照，
     # 若按当天记就是**凭空造出一行交易数据**（实测 2026-09-05 周六整行复制 09-04）。
-    from application.services.trading_day_guard import TradingDayGuard
+    from qs_ops.application.services.trading_day_guard import TradingDayGuard
     if not TradingDayGuard.is_trading_day(trade_date):
         logger.warning(f"跳过：{trade_date} 非交易日，不落库")
         return {'success': False, 'skipped': True, 'reason': 'non_trading_day',

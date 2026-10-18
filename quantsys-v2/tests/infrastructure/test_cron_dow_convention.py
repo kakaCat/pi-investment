@@ -7,7 +7,7 @@ Mon-Fri 实跑 Tue-Sat（周一整日缺失），周日任务实跑周一。本�
 """
 from datetime import datetime, timedelta, timezone
 
-from infrastructure.scheduler.cron_compat import build_cron_trigger, convert_standard_dow
+from qs_ops.infrastructure.scheduler.cron_compat import build_cron_trigger, convert_standard_dow
 
 CST = timezone(timedelta(hours=8))
 SAT = datetime(2026, 9, 12, 12, 0, tzinfo=CST)  # 2026-09-12 是星期六

@@ -30,7 +30,7 @@ async def handle_kline_update(metadata: Dict[str, Any]) -> Dict[str, Any]:
     Schedule: 工作日 17:40
     """
     logger.info("Starting kline_update job")
-    from infrastructure.jobs.kline_update_job import execute
+    from qs_ops.infrastructure.jobs.kline_update_job import execute
 
     result = execute(**(metadata or {}))
     return result
@@ -46,7 +46,7 @@ async def handle_index_constituents_update(metadata: Dict[str, Any]) -> Dict[str
     机会雷达扫描池静默过期。
     """
     logger.info("Starting index_constituents_update job")
-    from infrastructure.jobs.index_constituents_update_job import execute
+    from qs_ops.infrastructure.jobs.index_constituents_update_job import execute
 
     result = execute(**(metadata or {}))
     return result
@@ -60,7 +60,7 @@ async def handle_chip_distribution_update(metadata: Dict[str, Any]) -> Dict[str,
     Schedule: 工作日 18:00
     """
     logger.info("Starting chip_distribution_update job")
-    from infrastructure.jobs.chip_distribution_update_job import execute
+    from qs_ops.infrastructure.jobs.chip_distribution_update_job import execute
 
     result = execute(**(metadata or {}))
     return result
@@ -74,7 +74,7 @@ async def handle_data_update(metadata: Dict[str, Any]) -> Dict[str, Any]:
     Schedule: 工作日 07:30
     """
     logger.info("Starting data_update job")
-    from infrastructure.scheduler.scheduler import SchedulerService
+    from qs_ops.infrastructure.scheduler.scheduler import SchedulerService
 
     scheduler = SchedulerService()
     result = scheduler._handle_data_update(metadata)
@@ -89,7 +89,7 @@ async def handle_data_quality_check(metadata: Dict[str, Any]) -> Dict[str, Any]:
     Schedule: 每日 22:00
     """
     logger.info("Starting data_quality_check job")
-    from infrastructure.scheduler.scheduler import SchedulerService
+    from qs_ops.infrastructure.scheduler.scheduler import SchedulerService
 
     scheduler = SchedulerService()
     result = scheduler._handle_data_quality_check(metadata)
@@ -103,7 +103,7 @@ async def handle_financial_timeliness_check(metadata: Dict[str, Any]) -> Dict[st
     Schedule: 每日 09:00
     """
     logger.info("Starting financial_timeliness_check job")
-    from infrastructure.jobs.financial_timeliness_check_job import execute
+    from qs_ops.infrastructure.jobs.financial_timeliness_check_job import execute
 
     result = execute(**(metadata or {}))
     return result
@@ -120,7 +120,7 @@ async def handle_pool_refresh(metadata: Dict[str, Any]) -> Dict[str, Any]:
     Schedule: 每日 02:00
     """
     logger.info("Starting pool_refresh job")
-    from application.services.scheduler_tasks import _TASK_HANDLERS
+    from qs_ops.application.services.scheduler_tasks import _TASK_HANDLERS
 
     handler = _TASK_HANDLERS.get("pool_refresh_daily")
     if handler:
@@ -191,7 +191,7 @@ async def handle_signal_generate(metadata: Dict[str, Any]) -> Dict[str, Any]:
     Schedule: 工作日 09:00 (买入), 15:30 (卖出)
     """
     logger.info("Starting signal_generate job")
-    from infrastructure.scheduler.scheduler import SchedulerService
+    from qs_ops.infrastructure.scheduler.scheduler import SchedulerService
 
     scheduler = SchedulerService()
     result = scheduler._handle_signal_generate(metadata)
@@ -206,7 +206,7 @@ async def handle_signal_execution_daily(metadata: Dict[str, Any]) -> Dict[str, A
     Schedule: 工作日 15:30
     """
     logger.info("Starting signal_execution_daily job")
-    from infrastructure.scheduler.scheduler import SchedulerService
+    from qs_ops.infrastructure.scheduler.scheduler import SchedulerService
 
     scheduler = SchedulerService()
     result = scheduler._handle_signal_execution_daily(metadata)
@@ -224,7 +224,7 @@ async def handle_strategy_validate_daily(metadata: Dict[str, Any]) -> Dict[str, 
     Schedule: 工作日 13:00
     """
     logger.info("Starting strategy_validate_daily job")
-    from infrastructure.scheduler.scheduler import SchedulerService
+    from qs_ops.infrastructure.scheduler.scheduler import SchedulerService
 
     scheduler = SchedulerService()
     result = scheduler._handle_strategy_validate_daily(metadata)
@@ -240,7 +240,7 @@ async def handle_strategy_discover_weekly(metadata: Dict[str, Any]) -> Dict[str,
     原注释写"每周日"与标准 cron 语义不符，2026-09-13 w-c8cae280 按配置口径更正）
     """
     logger.info("Starting strategy_discover_weekly job")
-    from infrastructure.scheduler.scheduler import SchedulerService
+    from qs_ops.infrastructure.scheduler.scheduler import SchedulerService
 
     scheduler = SchedulerService()
     result = scheduler._handle_strategy_discover_weekly(metadata)
@@ -258,7 +258,7 @@ async def handle_v13_daily_check(metadata: Dict[str, Any]) -> Dict[str, Any]:
     Schedule: 工作日 14:30
     """
     logger.info("Starting v13_daily_check job")
-    from infrastructure.scheduler.scheduler import SchedulerService
+    from qs_ops.infrastructure.scheduler.scheduler import SchedulerService
 
     scheduler = SchedulerService()
     result = scheduler._handle_v13_daily_check(metadata)
@@ -279,7 +279,7 @@ async def handle_v13_risk_check(metadata: Dict[str, Any]) -> Dict[str, Any]:
     Schedule: 工作日 08:00
     """
     logger.info("Starting v13_risk_check job (strategy_risk_check_job)")
-    from infrastructure.jobs.strategy_risk_check_job import v13_risk_check
+    from qs_ops.infrastructure.jobs.strategy_risk_check_job import v13_risk_check
 
     result = v13_risk_check(**(metadata or {}))
     return result
@@ -294,7 +294,7 @@ async def handle_v14_risk_check(metadata: Dict[str, Any]) -> Dict[str, Any]:
     Schedule: 工作日 08:00
     """
     logger.info("Starting v14_risk_check job (strategy_risk_check_job)")
-    from infrastructure.jobs.strategy_risk_check_job import v14_risk_check
+    from qs_ops.infrastructure.jobs.strategy_risk_check_job import v14_risk_check
 
     result = v14_risk_check(**(metadata or {}))
     return result
@@ -308,7 +308,7 @@ async def handle_v13_verification(metadata: Dict[str, Any]) -> Dict[str, Any]:
     Schedule: 工作日 16:30
     """
     logger.info("Starting v13_verification job")
-    from infrastructure.scheduler.scheduler import SchedulerService
+    from qs_ops.infrastructure.scheduler.scheduler import SchedulerService
 
     scheduler = SchedulerService()
     result = scheduler._handle_v13_verification(metadata)
@@ -323,7 +323,7 @@ async def handle_v13_weekly_report(metadata: Dict[str, Any]) -> Dict[str, Any]:
     Schedule: 每周六
     """
     logger.info("Starting v13_weekly_report job")
-    from infrastructure.scheduler.scheduler import SchedulerService
+    from qs_ops.infrastructure.scheduler.scheduler import SchedulerService
 
     scheduler = SchedulerService()
     result = scheduler._handle_v13_weekly_report(metadata)
@@ -334,11 +334,11 @@ async def handle_v13_weekly_report(metadata: Dict[str, Any]) -> Dict[str, Any]:
 async def handle_strategy_execute_all(metadata: Dict[str, Any]) -> Dict[str, Any]:
     """统一策略每日执行：StrategyExecutor.execute_all（V13 + V14）.
 
-    Job function: infrastructure.jobs.strategy_trading_job.strategy_execute_all
+    Job function: qs_ops.infrastructure.jobs.strategy_trading_job.strategy_execute_all
     Schedule: 工作日 14:30（替代 v13_daily_check / v14_daily_check）
     """
     logger.info("Starting strategy_execute_all job")
-    from infrastructure.jobs.strategy_trading_job import strategy_execute_all
+    from qs_ops.infrastructure.jobs.strategy_trading_job import strategy_execute_all
 
     result = strategy_execute_all(**(metadata or {}))
     return result
@@ -355,7 +355,7 @@ async def handle_financial_statement_update(metadata: Dict[str, Any]) -> Dict[st
     Schedule: 每周六 20:00
     """
     logger.info("Starting financial_statement_update job")
-    from infrastructure.scheduler.scheduler import SchedulerService
+    from qs_ops.infrastructure.scheduler.scheduler import SchedulerService
 
     scheduler = SchedulerService()
     result = scheduler._handle_financial_statement_update(metadata)
@@ -370,7 +370,7 @@ async def handle_financial_data_update(metadata: Dict[str, Any]) -> Dict[str, An
     Schedule: 每周六 18:30
     """
     logger.info("Starting financial_data_update job")
-    from infrastructure.scheduler.scheduler import SchedulerService
+    from qs_ops.infrastructure.scheduler.scheduler import SchedulerService
 
     scheduler = SchedulerService()
     result = scheduler._handle_financial_data_update(metadata)
@@ -388,7 +388,7 @@ async def handle_factor_compute(metadata: Dict[str, Any]) -> Dict[str, Any]:
     Schedule: 工作日 08:00
     """
     logger.info("Starting factor_compute job")
-    from infrastructure.scheduler.scheduler import SchedulerService
+    from qs_ops.infrastructure.scheduler.scheduler import SchedulerService
 
     scheduler = SchedulerService()
     result = scheduler._handle_factor_compute(metadata)
@@ -402,7 +402,7 @@ async def handle_chan_scan(metadata: Dict[str, Any]) -> Dict[str, Any]:
     Schedule: 工作日 10:10
     """
     logger.info("Starting chan_scan job")
-    from application.services.scheduler_tasks import _TASK_HANDLERS
+    from qs_ops.application.services.scheduler_tasks import _TASK_HANDLERS
 
     handler = _TASK_HANDLERS.get("chan_scan")
     if handler:
@@ -419,7 +419,7 @@ async def handle_chan_knowledge_distill(metadata: Dict[str, Any]) -> Dict[str, A
     Schedule: 每周日 12:00
     """
     logger.info("Starting chan_knowledge_distill job")
-    from application.services.scheduler_tasks import _TASK_HANDLERS
+    from qs_ops.application.services.scheduler_tasks import _TASK_HANDLERS
 
     handler = _TASK_HANDLERS.get("chan_knowledge_distill_weekly")
     if handler:
@@ -440,7 +440,7 @@ async def handle_market_style_update(metadata: Dict[str, Any]) -> Dict[str, Any]
     Schedule: 工作日 15:30
     """
     logger.info("Starting market_style_update job")
-    from infrastructure.scheduler.scheduler import SchedulerService
+    from qs_ops.infrastructure.scheduler.scheduler import SchedulerService
 
     scheduler = SchedulerService()
     result = scheduler._handle_market_style_update(metadata)
@@ -455,7 +455,7 @@ async def handle_market_scan_preopen(metadata: Dict[str, Any]) -> Dict[str, Any]
     Schedule: 工作日 09:00
     """
     logger.info("Starting market_scan_preopen job")
-    from infrastructure.scheduler.scheduler import SchedulerService
+    from qs_ops.infrastructure.scheduler.scheduler import SchedulerService
 
     scheduler = SchedulerService()
     result = scheduler._handle_market_scan_preopen(metadata)
@@ -466,11 +466,11 @@ async def handle_market_scan_preopen(metadata: Dict[str, Any]) -> Dict[str, Any]
 async def handle_intraday_risk_check(metadata: Dict[str, Any]) -> Dict[str, Any]:
     """盘中风控检查：IntradayRiskService.check_positions（止损/移动止损）.
 
-    Job function: infrastructure.jobs.strategy_trading_job.intraday_risk_check
+    Job function: qs_ops.infrastructure.jobs.strategy_trading_job.intraday_risk_check
     Schedule: 工作日每30分钟 10:00-14:30（intraday_risk_1000…1430 共7个 cron 任务）
     """
     logger.info("Starting intraday_risk_check job")
-    from infrastructure.jobs.strategy_trading_job import intraday_risk_check
+    from qs_ops.infrastructure.jobs.strategy_trading_job import intraday_risk_check
 
     result = intraday_risk_check(**(metadata or {}))
     return result
@@ -487,7 +487,7 @@ async def handle_report_daily(metadata: Dict[str, Any]) -> Dict[str, Any]:
     Schedule: 每周五 10:00
     """
     logger.info("Starting report_daily job")
-    from infrastructure.scheduler.scheduler import SchedulerService
+    from qs_ops.infrastructure.scheduler.scheduler import SchedulerService
 
     scheduler = SchedulerService()
     result = scheduler._handle_report_daily(metadata)
@@ -504,7 +504,7 @@ async def handle_backtest_run(metadata: Dict[str, Any]) -> Dict[str, Any]:
     Original: SchedulerService._handle_backtest_run
     """
     logger.info("Starting backtest_run job")
-    from infrastructure.scheduler.scheduler import SchedulerService
+    from qs_ops.infrastructure.scheduler.scheduler import SchedulerService
 
     scheduler = SchedulerService()
     result = scheduler._handle_backtest_run(metadata)
@@ -518,7 +518,7 @@ async def handle_benchmark_run(metadata: Dict[str, Any]) -> Dict[str, Any]:
     Original: SchedulerService._handle_benchmark_run
     """
     logger.info("Starting benchmark_run job")
-    from infrastructure.scheduler.scheduler import SchedulerService
+    from qs_ops.infrastructure.scheduler.scheduler import SchedulerService
 
     scheduler = SchedulerService()
     result = scheduler._handle_benchmark_run(metadata)
@@ -535,7 +535,7 @@ async def handle_model_train(metadata: Dict[str, Any]) -> Dict[str, Any]:
     Original: SchedulerService._handle_model_train
     """
     logger.info("Starting model_train job")
-    from infrastructure.scheduler.scheduler import SchedulerService
+    from qs_ops.infrastructure.scheduler.scheduler import SchedulerService
 
     scheduler = SchedulerService()
     result = scheduler._handle_model_train(metadata)
