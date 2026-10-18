@@ -325,7 +325,7 @@ def _register_services_hardcoded():
     # ========== P2-1 重构的服务 ==========
 
     # RiskCheckService - 依赖 DataService
-    from application.services.risk_check_service import RiskCheckService
+    from qs_trading.application.services.risk_check_service import RiskCheckService
     def create_risk_check_service():
         return RiskCheckService()
 
@@ -527,7 +527,7 @@ def _register_services_hardcoded():
     )
 
     # SimulationService
-    from application.services.simulation_service import SimulationService
+    from qs_trading.application.services.simulation_service import SimulationService
     def create_simulation_service():
         repo = EnhancedServiceFactory.resolve(ISimulationRepository)
         return SimulationService(repo=repo)

@@ -4,7 +4,7 @@
 import pytest
 import pandas as pd
 import numpy as np
-from application.services.risk_metrics_service import RiskMetricsService
+from qs_trading.application.services.risk_metrics_service import RiskMetricsService
 
 
 @pytest.fixture

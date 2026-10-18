@@ -186,7 +186,7 @@ class DailyOrchestrator:
         教训：实例化依赖必须显式注入，默认值 None 是延时炸弹。
         """
         try:
-            from application.services.account_trading_service import (
+            from qs_trading.application.services.account_trading_service import (
                 AccountTradingService,
             )
             from adapters.outbound.repositories.simulation_repository import (

@@ -23,7 +23,7 @@ from adapters.outbound.repositories.simulation_repository import (
     SimulationORMRepository,
     SNAPSHOT_RETURN_SUSPICIOUS,
 )
-from application.services.risk_metrics_service import (
+from qs_trading.application.services.risk_metrics_service import (
     RiskMetricsService,
     nav_returns_from_snapshots,
 )

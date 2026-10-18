@@ -13,7 +13,7 @@ import threading
 
 import pytest
 
-from application.services.account_trading_service import AccountTradingService
+from qs_trading.application.services.account_trading_service import AccountTradingService
 from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
 from infrastructure.persistence.orm.models.simulation import (
     SimulationAccount, SimulationPosition, SimulationTrade,

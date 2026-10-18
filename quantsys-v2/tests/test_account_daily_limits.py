@@ -2,7 +2,7 @@
 import pytest
 from unittest.mock import MagicMock
 
-from application.services.account_trading_service import (
+from qs_trading.application.services.account_trading_service import (
     AccountTradingService,
     TradingError,
 )

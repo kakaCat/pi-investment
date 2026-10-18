@@ -29,7 +29,7 @@ def setup_infrastructure() -> None:
 
     # Setup brokers
     try:
-        from domain.brokers import BrokerRegistry
+        from qs_trading.domain.brokers import BrokerRegistry
         from infrastructure.brokers import setup_brokers
 
         registry = BrokerRegistry.instance()

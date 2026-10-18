@@ -181,7 +181,7 @@ def test_空入参不触网():
 # --------------------------- ③ 消费侧真的走批量 ---------------------------
 
 def test_投递到账户路径的是批量入口(monkeypatch):
-    import application.services.simulation_service as sim_mod
+    import qs_trading.application.services.simulation_service as sim_mod
 
     calls = []
 

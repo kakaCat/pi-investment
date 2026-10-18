@@ -199,7 +199,7 @@ def test_all_p2_1_services():
 
         # 其他服务
         ('qs_strategy.application.services.strategy_service', 'StrategyService'),
-        ('application.services.simulation_service', 'SimulationService'),
+        ('qs_trading.application.services.simulation_service', 'SimulationService'),
         ('application.services.scheduler_config_service', 'SchedulerConfigService'),
         ('application.services.smart_scheduler', 'SmartSchedulerService'),
         ('application.services.swing_point_service', 'SwingPointService'),

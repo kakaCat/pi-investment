@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from unittest.mock import MagicMock
 
-from application.services.simulation_service import SimulationService
+from qs_trading.application.services.simulation_service import SimulationService
 
 
 def _make_service():

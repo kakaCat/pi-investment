@@ -3,7 +3,7 @@
 RFC 015 §4.4（2026-09-11 REQ-cf627b）。数据流：
     agent-dh 工具 / web → 本路由（入站适配器）
         → application/services/microstructure_service（编排，零 adapters 依赖）
-            → domain.trading.services.TradingStatusPolicy（领域判定）
+            → qs_trading.domain.trading.services.TradingStatusPolicy（领域判定）
             → 端口 ← adapters.outbound（minute_kline providers / repositories）
 
 组合根说明：具体实现的装配放在**本文件**（入站适配器），因此应用层可以完全不出现

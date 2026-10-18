@@ -13,7 +13,7 @@ from datetime import datetime
 from typing import List, Optional
 
 from domain.models.market_data import MinuteKline
-from domain.trading.ports.IMinuteKlineRepository import IMinuteKlineRepository
+from qs_trading.domain.trading.ports.IMinuteKlineRepository import IMinuteKlineRepository
 
 from infrastructure.persistence.orm.models import MinuteKline as MinuteKlineORM
 

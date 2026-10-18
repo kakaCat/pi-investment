@@ -2,11 +2,11 @@
 import pytest
 from unittest.mock import Mock, MagicMock
 from datetime import datetime, timedelta
-from domain.accounts.services.account_service import AccountService
-from domain.portfolio.services.position_service import PositionService
-from domain.trading.models.order import Order, OrderSide, OrderType, OrderStatus
-from domain.trading.ports.IOrderRepository import IOrderRepository
-from domain.trading.services.order_service import OrderService
+from qs_trading.domain.accounts.services.account_service import AccountService
+from qs_trading.domain.portfolio.services.position_service import PositionService
+from qs_trading.domain.trading.models.order import Order, OrderSide, OrderType, OrderStatus
+from qs_trading.domain.trading.ports.IOrderRepository import IOrderRepository
+from qs_trading.domain.trading.services.order_service import OrderService
 
 class TestOrderService:
     """OrderService 单元测试"""

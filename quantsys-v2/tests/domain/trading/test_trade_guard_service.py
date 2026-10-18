@@ -14,7 +14,7 @@ import pytest
 from datetime import datetime, date, time as dt_time
 from unittest.mock import Mock, MagicMock
 
-from domain.trading.services.trade_guard_service import TradeGuardService, TradingError
+from qs_trading.domain.trading.services.trade_guard_service import TradeGuardService, TradingError
 
 
 class MockAccount:

@@ -24,7 +24,7 @@ def _p2_due(now: datetime):
     """P2 due：当日收盘（口径与 engine._todo_due 一致：CONTINUOUS_END，退化 15:00）；
     已过收盘退化为 now+1min，避免 due_at 落在过去被巡检立即晋升。"""
     try:
-        from domain.trading.services.market_session_policy import CONTINUOUS_END as _close
+        from qs_trading.domain.trading.services.market_session_policy import CONTINUOUS_END as _close
     except Exception:  # noqa: BLE001 - 常量缺失时退回最简口径
         from datetime import time as _t
         _close = _t(15, 0)

@@ -1,45 +1,9 @@
+"""兼容 shim（2026-10-18）：已迁至二方包 qs_trading。
+__path__ 转发：保住 from domain.brokers import X 与子模块导入（含 ports）。
+30 天观察期后删除（方案卡 S7）。
 """
-Broker abstraction layer for QuantSys V2.
+import qs_trading.domain.brokers as _real
 
-This module provides a unified interface for integrating multiple brokers and data sources,
-inspired by FinceptTerminal's broker abstraction architecture.
+__path__ = _real.__path__
 
-Key components:
-- BaseBroker: Abstract base class defining the broker interface
-- BrokerRegistry: Singleton registry for broker discovery and instantiation
-- Unified types: Common data structures for orders, positions, quotes, etc.
-"""
-
-from .base_broker import BaseBroker
-from .broker_registry import BrokerRegistry
-from .trading_types import (
-    OrderSide,
-    OrderType,
-    ProductType,
-    UnifiedOrder,
-    BrokerProfile,
-    BrokerCredentials,
-    ApiResponse,
-    BrokerQuote,
-    BrokerCandle,
-    BrokerPosition,
-    BrokerHolding,
-)
-
-__all__ = [
-    "BaseBroker",
-    "BrokerRegistry",
-    "OrderSide",
-    "OrderType",
-    "ProductType",
-    "UnifiedOrder",
-    "BrokerProfile",
-    "BrokerCredentials",
-    "ApiResponse",
-    "BrokerQuote",
-    "BrokerCandle",
-    "BrokerPosition",
-    "BrokerHolding",
-]
-
-__version__ = "1.0.0"
+from qs_trading.domain.brokers import *  # noqa: F401,F403

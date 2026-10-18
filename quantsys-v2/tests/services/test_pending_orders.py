@@ -11,7 +11,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from application.services.account_trading_service import (
+from qs_trading.application.services.account_trading_service import (
     AccountTradingService, TradingError,
 )
 

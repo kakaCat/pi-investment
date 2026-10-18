@@ -12,7 +12,7 @@ from fastapi import APIRouter, Body, Query
 from fastapi.responses import JSONResponse
 
 from adapters.shared.services import simulation_service
-from application.services.account_trading_service import (
+from qs_trading.application.services.account_trading_service import (
     AccountTradingService, TradingError,
 )
 from adapters.outbound.repositories.simulation_repository import (

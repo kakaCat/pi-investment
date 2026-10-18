@@ -285,7 +285,7 @@ class ServiceFactory:
     def get_risk_service(cls):
         """获取RiskService实例"""
         if 'risk_service' not in cls._instances:
-            from application.services.risk_service import RiskService
+            from qs_trading.application.services.risk_service import RiskService
             cls._instances['risk_service'] = RiskService()
             logger.info("RiskService initialized")
         return cls._instances['risk_service']
@@ -317,7 +317,7 @@ class ServiceFactory:
     def get_account_trading_service(cls):
         """获取AccountTradingService实例"""
         if 'account_trading_service' not in cls._instances:
-            from application.services.account_trading_service import account_trading_service
+            from qs_trading.application.services.account_trading_service import account_trading_service
             cls._instances['account_trading_service'] = account_trading_service
             logger.info("AccountTradingService initialized")
         return cls._instances['account_trading_service']
@@ -488,7 +488,7 @@ class ServiceFactory:
     def get_simulation_service(cls):
         """获取SimulationService实例"""
         if 'simulation_service' not in cls._instances:
-            from application.services.simulation_service import SimulationService
+            from qs_trading.application.services.simulation_service import SimulationService
             from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
             repo = SimulationORMRepository()
             cls._instances['simulation_service'] = SimulationService(repo=repo)
