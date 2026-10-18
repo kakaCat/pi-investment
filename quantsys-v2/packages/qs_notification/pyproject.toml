@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qs-notification"
+version = "0.1.0"
+description = "QuantSys V2 - Notification domain package (NotificationFacade / channels / formatters / policies, ops|stock|watch group routing)"
+requires-python = ">=3.9"
+license = {text = "Proprietary"}
+
+dependencies = [
+    "requests",
+    "structlog",
+]
+
+[tool.setuptools.packages.find]
+include = ["qs_notification*"]

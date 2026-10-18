@@ -10,7 +10,7 @@ from types import SimpleNamespace
 
 from application.services.watch_engine.receipt_service import render_receipt
 from domain.watch.ports import StockNameResolver
-from infrastructure.notification.formatters.watch_level_templates import WatchCardItem
+from qs_notification.infrastructure.formatters.watch_level_templates import WatchCardItem
 
 
 # ── WatchCardItem：新字段默认值（向后兼容——旧调用方一个都不传也不炸）────────

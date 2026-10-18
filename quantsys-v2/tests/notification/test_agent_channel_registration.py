@@ -8,14 +8,14 @@ metadata.fallback_cause 标注，facade 据此区分降级原因。
 """
 from types import SimpleNamespace
 
-from application.notification.notification_factory import NotificationFactory
-from application.notification.notification_facade import NotificationFacade
-from domain.notification.models.notification import (
+from qs_notification.application.notification_factory import NotificationFactory
+from qs_notification.application.notification_facade import NotificationFacade
+from qs_notification.domain.models.notification import (
     Notification,
     NotificationPriority,
     NotificationType,
 )
-from domain.notification.services.notification_service import NotificationService
+from qs_notification.domain.services.notification_service import NotificationService
 
 
 def _settings(agent_os_enabled=True, notify_enabled=None):
@@ -46,7 +46,7 @@ class _OkChannel:
         return 'feishu'
 
     def send(self, notification):
-        from domain.notification.models.channel import ChannelResult
+        from qs_notification.domain.models.channel import ChannelResult
         return ChannelResult.ok(message='ok')
 
     def healthcheck(self):

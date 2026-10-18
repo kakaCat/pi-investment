@@ -4,8 +4,8 @@
 （非分级 WatchTriggered、其他系统沿用旧载荷的调用方）必须继续走
 feishu_formatters.WatchTriggeredFormatter 旧渲染，且旧特征结构完整。
 """
-from domain.notification.models.notification import Notification, NotificationType
-from infrastructure.notification.formatters.feishu_formatters import WatchTriggeredFormatter
+from qs_notification.domain.models.notification import Notification, NotificationType
+from qs_notification.infrastructure.formatters.feishu_formatters import WatchTriggeredFormatter
 
 
 def _notification(**variables):

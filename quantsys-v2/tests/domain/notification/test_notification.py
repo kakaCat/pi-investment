@@ -10,7 +10,7 @@ Date: 2026-09-02
 import pytest
 from datetime import datetime
 
-from domain.notification.models.notification import (
+from qs_notification.domain.models.notification import (
     Notification,
     NotificationPriority,
     NotificationStatus,

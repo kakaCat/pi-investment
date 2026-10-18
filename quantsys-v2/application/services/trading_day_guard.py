@@ -99,7 +99,7 @@ def notify_degraded(title: str, content: str, urgency: str) -> bool:
     同时保持守卫核心（判定/去重）不依赖通知栈——延迟 import，调用时才解析。
     """
     try:
-        from application.notification import get_notification_facade
+        from qs_notification.application import get_notification_facade
 
         return bool(get_notification_facade().send_card(
             title=title, content=content,

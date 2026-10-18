@@ -13,7 +13,7 @@ Date: 2026-09-02
 """
 
 from typing import Dict, Any
-from domain.notification.models.notification import Notification, NotificationType
+from qs_notification.domain.models.notification import Notification, NotificationType
 from .feishu_base_formatter import FeishuFormatter
 
 
@@ -59,7 +59,7 @@ class WatchTriggeredFormatter(FeishuFormatter):
         vars = notification.variables
         watch_level = vars.get('watch_level') or vars.get('level')
         if watch_level:
-            from infrastructure.notification.formatters.watch_level_templates import (
+            from qs_notification.infrastructure.formatters.watch_level_templates import (
                 render_watch_variables,
             )
             return render_watch_variables(vars)

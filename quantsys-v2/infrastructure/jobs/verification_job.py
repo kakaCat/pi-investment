@@ -18,7 +18,7 @@ import logging
 project_root = Path(__file__).parent.parent.parent
 
 from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
-from application.notification.notification_factory import get_notification_facade
+from qs_notification.application.notification_factory import get_notification_facade
 import yaml
 
 # 统一日志入口（2026-10-01 t-008062 主题B：库层不再调用 basicConfig）：此处的日志配置已移除（由入口统一配置）

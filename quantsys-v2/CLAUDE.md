@@ -40,15 +40,16 @@ QuantSys V2 is built with hexagonal architecture, dual anti-corruption layer, an
 
 ### 0. 二方包 editable 安装（2026-10-18 起必需）
 
-量化计算库已整体抽离为独立二方包（方案卡：`docs/plans/package-boundaries-import-linter.md`）。
-主依赖安装之外**必须再装它**，否则 `import qs_quantlib` 失败、且旧路径 shim 报 ImportError：
+量化计算库与通知三件套已抽离为独立二方包（方案卡：`docs/plans/package-boundaries-import-linter.md`）。
+主依赖安装之外**必须再装它们**（必须指向本工作区内路径，勿用外部 worktree 路径），否则新路径 import 失败、旧路径 shim 报 ImportError：
 
 ```bash
-pip install -e ./packages/qs_quantlib    # 必须指向本工作区内路径，勿用外部 worktree 路径
+pip install -e ./packages/qs_quantlib       # 量化计算库（原 domain/quantlib）
+pip install -e ./packages/qs_notification   # 通知三件套（原 application+infrastructure+domain/notification）
 ```
 
-> ⚠️ 新代码 import 一律走 `from qs_quantlib import ...`；`from domain.quantlib import ...` 是兼容 shim，后续删除。
-> 当前已迁移：`qs_quantlib`（原 domain/quantlib，75 文件）。后续按方案卡 §11.4 迁移 notification/ops/trading/watch。
+> ⚠️ 新代码 import 一律走 `from qs_quantlib import ...` / `from qs_notification.application import ...`（包内三层：`qs_notification.{application,infrastructure,domain}`）；`domain.quantlib`、`application/notification`、`infrastructure/notification`、`domain/notification` 均为 `__path__` 转发兼容 shim，30 天观察期后删除。
+> 当前已迁移：`qs_quantlib`（75 文件）、`qs_notification`（23 文件）。后续按方案卡 §11.4 顺序迁移 market-data / sourcing / intel / strategy / trading / watch / ops / agent-hub。
 
 ### 1. Install Dependencies
 

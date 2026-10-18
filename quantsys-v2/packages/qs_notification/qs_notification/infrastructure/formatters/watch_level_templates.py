@@ -25,11 +25,11 @@ from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 
-from domain.notification.models.notification import NotificationType
-from infrastructure.notification.formatters.feishu_base_formatter import FeishuFormatter
+from qs_notification.domain.models.notification import NotificationType
+from qs_notification.infrastructure.formatters.feishu_base_formatter import FeishuFormatter
 # INTENT_META/STAGE_LABELS 复用旧意图驱动格式化的同一份表（单一真相，不复制）；
 # feishu_formatters 对本模块是 format() 内的延迟 import，此处模块级 import 无循环。
-from infrastructure.notification.formatters.feishu_formatters import (
+from qs_notification.infrastructure.formatters.feishu_formatters import (
     WatchTriggeredFormatter as _LegacyWatchFormatter,
 )
 

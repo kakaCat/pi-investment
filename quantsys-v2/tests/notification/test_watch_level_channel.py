@@ -6,9 +6,9 @@
   · level 与 watch_level 两个字段名都支持（兼容分流口径）；
   · 未知级别 → P2 兜底且卡片内含显式标注（不静默降级）。
 """
-from domain.notification.models.notification import Notification, NotificationType
-from infrastructure.notification.formatters.feishu_formatters import WatchTriggeredFormatter
-from infrastructure.notification.formatters.watch_level_templates import render_watch_variables
+from qs_notification.domain.models.notification import Notification, NotificationType
+from qs_notification.infrastructure.formatters.feishu_formatters import WatchTriggeredFormatter
+from qs_notification.infrastructure.formatters.watch_level_templates import render_watch_variables
 
 
 def _notification(**variables):

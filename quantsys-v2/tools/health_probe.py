@@ -158,7 +158,7 @@ def send_alert(payload: Dict[str, Any]) -> Dict[str, Any]:
       **不是** `(title, message, level, source)`。本探针要发的是不带标的的系统告警，
       故用 `send_text(text, priority, mention_all)` —— 它内部即构造 `SYSTEM_ALERT`。
     """
-    from application.notification.notification_factory import NotificationFactory
+    from qs_notification.application.notification_factory import NotificationFactory
 
     facade = NotificationFactory.get_instance()
     ok = facade.send_text(

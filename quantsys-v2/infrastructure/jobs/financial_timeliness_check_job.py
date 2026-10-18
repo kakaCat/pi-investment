@@ -274,7 +274,7 @@ python -m infrastructure.jobs.financial_data_update_job --report-date {check_res
         # ② 外部投递：架构铁律——出站通知只能经 NotificationFacade
         #（application/notification/notification_facade.py），禁止直连飞书 SDK/webhook。
         if facade is None:
-            from application.notification import get_notification_facade
+            from qs_notification.application import get_notification_facade
             facade = get_notification_facade()
 
         delivered = bool(facade.send_card(

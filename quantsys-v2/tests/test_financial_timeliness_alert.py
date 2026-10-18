@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pytest
 
-import application.notification as _notif_pkg
+import qs_notification.application as _notif_pkg
 from infrastructure.jobs import financial_timeliness_check_job as mod
 from infrastructure.jobs.financial_timeliness_check_job import _send_timeliness_alert
 
@@ -176,7 +176,7 @@ def test_delivery_exception_does_not_escape(caplog):
 
 def test_no_direct_feishu_channel_or_webhook_in_this_module():
     """架构铁律（CLAUDE.md）：出站通知只能经 NotificationFacade，
-    禁止直接 import infrastructure.notification.channels.* 或裸 requests.post(webhook)。"""
+    禁止直接 import qs_notification.infrastructure.channels.* 或裸 requests.post(webhook)。"""
     src = Path(mod.__file__).read_text(encoding='utf-8')
     tree = ast.parse(src)
     for node in ast.walk(tree):

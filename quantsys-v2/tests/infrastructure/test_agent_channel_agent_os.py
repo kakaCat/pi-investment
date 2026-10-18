@@ -11,13 +11,13 @@
 
 import requests
 
-from domain.notification.models.notification import (
+from qs_notification.domain.models.notification import (
     Notification,
     NotificationPriority,
     NotificationType,
 )
-from domain.notification.policies.notification_policy import NotificationPolicy
-from infrastructure.notification.channels.agent_channel import AgentChannel
+from qs_notification.domain.policies.notification_policy import NotificationPolicy
+from qs_notification.infrastructure.channels.agent_channel import AgentChannel
 
 
 class FakeResponse:

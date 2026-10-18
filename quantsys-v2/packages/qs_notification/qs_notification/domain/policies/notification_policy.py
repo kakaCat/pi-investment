@@ -11,8 +11,8 @@ Date: 2026-09-02
 """
 
 from typing import Dict, List
-from domain.notification.models.notification import NotificationType, Notification
-from domain.notification.models.channel import NotificationChannel
+from qs_notification.domain.models.notification import NotificationType, Notification
+from qs_notification.domain.models.channel import NotificationChannel
 
 
 class NotificationPolicy:

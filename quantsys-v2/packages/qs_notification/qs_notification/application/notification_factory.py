@@ -18,7 +18,7 @@ import structlog
 from typing import Optional
 
 # 2026-10-01（REQ-261001145152-3982 t-4f6f4b）：本文件原先**顶层**导入
-# `infrastructure.config.settings` 与 `infrastructure.notification.{channels,formatters}`，
+# `infrastructure.config.settings` 与 `qs_notification.infrastructure.{channels,formatters}`，
 # 是 application 层顶层越层导入，且直接违反 CLAUDE.md 的通知架构强制条款
 # （"Application layer can only import NotificationFacade"）。
 #
@@ -34,12 +34,12 @@ from typing import Optional
 # 故它的"违规导入总数"不会因本改动下降；本卡以"顶层"口径衡量。
 
 # Domain
-from domain.notification.models.channel import NotificationChannel
-from domain.notification.services.notification_service import NotificationService
-from domain.notification.policies.notification_policy import NotificationPolicy
+from qs_notification.domain.models.channel import NotificationChannel
+from qs_notification.domain.services.notification_service import NotificationService
+from qs_notification.domain.policies.notification_policy import NotificationPolicy
 
 # Application
-from application.notification.notification_facade import NotificationFacade
+from qs_notification.application.notification_facade import NotificationFacade
 
 logger = structlog.get_logger(__name__)
 
@@ -142,7 +142,7 @@ class NotificationFactory:
             list: 格式化器列表
         """
         # 惰性导入（t-4f6f4b）：格式化器属 infrastructure，下沉到此处避免顶层越层
-        from infrastructure.notification.formatters.feishu_formatters import (
+        from qs_notification.infrastructure.formatters.feishu_formatters import (
             DailyReportFormatter,
             MLTrainFormatter,
             StopLossFormatter,
@@ -174,8 +174,8 @@ class NotificationFactory:
             list: 渠道列表
         """
         # 惰性导入（t-4f6f4b）：渠道实现属 infrastructure，下沉到此处避免顶层越层
-        from infrastructure.notification.channels.agent_channel import AgentChannel
-        from infrastructure.notification.channels.feishu_channel import FeishuChannel
+        from qs_notification.infrastructure.channels.agent_channel import AgentChannel
+        from qs_notification.infrastructure.channels.feishu_channel import FeishuChannel
 
         channels = []
 
@@ -244,8 +244,8 @@ class NotificationFactory:
         formatters = NotificationFactory._create_formatters()
 
         # 惰性导入（t-4f6f4b）：渠道实现属 infrastructure，下沉到此处避免顶层越层
-        from infrastructure.notification.channels.agent_channel import AgentChannel
-        from infrastructure.notification.channels.feishu_channel import FeishuChannel
+        from qs_notification.infrastructure.channels.agent_channel import AgentChannel
+        from qs_notification.infrastructure.channels.feishu_channel import FeishuChannel
 
         channels = []
         if feishu_webhook:
@@ -273,7 +273,7 @@ def get_notification_facade() -> NotificationFacade:
         NotificationFacade: 通知门面
 
     Examples:
-        >>> from application.notification.notification_factory import get_notification_facade
+        >>> from qs_notification.application.notification_factory import get_notification_facade
         >>> facade = get_notification_facade()
         >>> facade.send_text("测试通知")
     """

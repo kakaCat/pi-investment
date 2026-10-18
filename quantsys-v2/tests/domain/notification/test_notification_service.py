@@ -10,18 +10,18 @@ Date: 2026-09-02
 import pytest
 from unittest.mock import Mock, MagicMock
 
-from domain.notification.models.notification import (
+from qs_notification.domain.models.notification import (
     Notification,
     NotificationType,
     NotificationPriority,
     NotificationStatus,
 )
-from domain.notification.models.channel import (
+from qs_notification.domain.models.channel import (
     NotificationChannel,
     ChannelResult,
 )
-from domain.notification.services.notification_service import NotificationService
-from domain.notification.policies.notification_policy import NotificationPolicy
+from qs_notification.domain.services.notification_service import NotificationService
+from qs_notification.domain.policies.notification_policy import NotificationPolicy
 
 
 class TestNotificationService:

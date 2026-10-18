@@ -4,8 +4,8 @@
 log-only，告警只在日志里、人看不到（§6 待接线项 6/10）。
 
 纪律（对齐 pi-investment/CLAUDE.md 通知架构铁律）：
-  · 只经 application.notification.get_notification_facade()；禁止直接 import
-    infrastructure.notification.channels.*，禁止 requests.post(飞书 webhook)。
+  · 只经 qs_notification.application.get_notification_facade()；禁止直接 import
+    qs_notification.infrastructure.channels.*，禁止 requests.post(飞书 webhook)。
   · 发送失败必须抛错，不许静默返回 False：run_heartbeat_check 用 sender 是否抛错
     统计 sent；ReceiptService 用 sender 是否抛错 决定 delivery_status=sent/failed。
     若这里吞掉失败返回 False，回执会被记成 sent（假成功），心跳会把失败当成已送达。
@@ -37,7 +37,7 @@ def send_watch_alert(text: str) -> bool:
     run_heartbeat_check 传入的是「标题 | 原因」；按首个竖线拆标题与正文。
     失败抛错（run_heartbeat_check 会如实记 sent=0），绝不假装已发。
     """
-    from application.notification import get_notification_facade
+    from qs_notification.application import get_notification_facade
 
     raw = str(text or "").strip()
     title, _, body = raw.partition("|")
@@ -58,7 +58,7 @@ def send_watch_receipt(payload: Dict[str, Any]) -> bool:
     timeout/P0 → risk_stop（盯盘群内高优位），其余 → watch_symbol；
     失败抛错 → delivery_status=failed（如实）。
     """
-    from application.notification import get_notification_facade
+    from qs_notification.application import get_notification_facade
 
     data = payload or {}
     kind = str(data.get('kind') or '').strip().lower()

@@ -17,7 +17,7 @@ REQ-c9f899 不变式 I5 / 需求 R3「账户定接收者」的判据落点：一
         交易由策略引擎执行，与盯盘无关（用户 2026-09-11）——盯盘不介入、不建待办。
 
 ⚠️ **不新造第二份账户映射表**：账户→agent 名（owner_ref）、授权等级（autonomy）、策略账户判定
-全部复用 domain.notification.policies.watch_delivery_policy.WatchDeliveryPolicy
+全部复用 qs_notification.domain.policies.watch_delivery_policy.WatchDeliveryPolicy
 （resolve / resolve_autonomy / is_strategy_managed）；本模块只做"账户事实 → 归属结构"的翻译。
 
 纪律：路由失败绝不抛错——未知账户兜底最保守档（remind_only），路由不该阻断风控告警。
@@ -25,7 +25,7 @@ REQ-c9f899 不变式 I5 / 需求 R3「账户定接收者」的判据落点：一
 from dataclasses import dataclass
 from typing import Optional
 
-from domain.notification.policies.watch_delivery_policy import (
+from qs_notification.domain.policies.watch_delivery_policy import (
     AUTONOMOUS,
     REMIND_ONLY,
     WatchDeliveryPolicy,

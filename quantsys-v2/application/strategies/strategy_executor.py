@@ -18,7 +18,7 @@ from application.strategies.strategy_factory import StrategyFactory
 from application.strategies.v13_config import V13_CONFIG
 from application.strategies.v14_config import V14_CONFIG
 from domain.strategies.value_objects import StrategyConfig
-from application.notification import get_notification_facade
+from qs_notification.application import get_notification_facade
 
 __all__ = ["StrategyExecutor"]
 

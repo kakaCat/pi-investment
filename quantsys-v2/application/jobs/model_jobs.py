@@ -21,7 +21,7 @@ MODEL_MIN_TEST_ACCURACY = 0.55
 def _send_feishu(text: str) -> bool:
     """飞书告警（失败只记日志，不阻断任务流）。经 NotificationFacade 投递。"""
     try:
-        from application.notification import get_notification_facade
+        from qs_notification.application import get_notification_facade
 
         title, _, body = text.partition('\n')
         title = title.strip() or '模型新鲜度告警'

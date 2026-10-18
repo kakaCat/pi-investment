@@ -27,7 +27,7 @@ def _send_feishu(text: str) -> bool:
     卡片消息观感不一致。urgency：🚨/❌ 开头按 high，其余 normal。
     """
     try:
-        from application.notification import get_notification_facade
+        from qs_notification.application import get_notification_facade
 
         title, _, body = text.partition('\n')
         title = title.strip() or '每日任务通知'

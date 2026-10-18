@@ -47,7 +47,7 @@ from infrastructure.persistence.database.engine import init_engine, get_engine
 
 # 可选依赖：飞书通知（如果导入失败则禁用）
 try:
-    from application.notification.notification_factory import get_notification_facade
+    from qs_notification.application.notification_factory import get_notification_facade
     _notification_available = True
 except ImportError:
     logger.warning("Notification system not available")
