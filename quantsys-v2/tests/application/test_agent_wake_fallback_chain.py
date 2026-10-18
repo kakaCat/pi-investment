@@ -31,21 +31,21 @@ def _ok_response():
 
 
 def _service(**kwargs):
-    from application.services.agent_notification_service import AgentNotificationService
+    from qs_agenthub.application.services.agent_notification_service import AgentNotificationService
     return AgentNotificationService(allow_non_prod=True, **kwargs)
 
 
 # ── 候选链构造（纯函数）─────────────────────────────────────────────────────
 
 def test_default_chain_is_mutual_backup():
-    from application.services.agent_notification_service import AgentNotificationService as S
+    from qs_agenthub.application.services.agent_notification_service import AgentNotificationService as S
     assert S.candidate_chain('agent-dh') == ['agent-dh', 'agent-ts']
     assert S.candidate_chain('agent-ts') == ['agent-ts', 'agent-dh']
     assert S.candidate_chain(None) == ['agent-dh', 'agent-ts']      # None = 默认 agent
 
 
 def test_chain_honours_env_override(monkeypatch):
-    from application.services.agent_notification_service import AgentNotificationService as S
+    from qs_agenthub.application.services.agent_notification_service import AgentNotificationService as S
     monkeypatch.setenv('WATCH_AGENT_FALLBACKS', 'agent-ts')
     # 显式配置即"按配置的顺序兜底"，但目标仍优先且去重
     assert S.candidate_chain('agent-dh') == ['agent-dh', 'agent-ts']
@@ -64,7 +64,7 @@ def test_default_agent_down_falls_back_to_other_agent():
             raise requests.exceptions.ConnectionError('refused')
         return _ok_response()
 
-    with patch('application.services.agent_notification_service.requests.post',
+    with patch('qs_agenthub.application.services.agent_notification_service.requests.post',
                side_effect=_post):
         status = _service().notify_agent_detailed('watch_todo_timeout', {'todo_id': 91},
                                                   target='agent-dh')
@@ -87,7 +87,7 @@ def test_primary_ok_stops_chain():
         calls.append(url)
         return _ok_response()
 
-    with patch('application.services.agent_notification_service.requests.post',
+    with patch('qs_agenthub.application.services.agent_notification_service.requests.post',
                side_effect=_post):
         assert _service().notify_agent_detailed('e', {}, target='agent-ts') == 'ok'
 
@@ -102,7 +102,7 @@ def test_timeout_does_not_switch_agent():
         calls.append(url)
         raise requests.exceptions.Timeout('slow')
 
-    with patch('application.services.agent_notification_service.requests.post',
+    with patch('qs_agenthub.application.services.agent_notification_service.requests.post',
                side_effect=_post):
         status = _service().notify_agent_detailed('e', {}, target='agent-dh')
 
@@ -117,7 +117,7 @@ def test_all_candidates_failed_reports_error():
         calls.append(url)
         raise requests.exceptions.ConnectionError('refused')
 
-    with patch('application.services.agent_notification_service.requests.post',
+    with patch('qs_agenthub.application.services.agent_notification_service.requests.post',
                side_effect=_post):
         status = _service().notify_agent_detailed('e', {}, target='agent-dh')
 
@@ -134,7 +134,7 @@ def test_chain_uses_injected_target_urls():
         calls.append(url)
         raise requests.exceptions.ConnectionError('refused')
 
-    with patch('application.services.agent_notification_service.requests.post',
+    with patch('qs_agenthub.application.services.agent_notification_service.requests.post',
                side_effect=_post):
         assert svc.notify_agent_detailed('e', {}) == 'error'
 

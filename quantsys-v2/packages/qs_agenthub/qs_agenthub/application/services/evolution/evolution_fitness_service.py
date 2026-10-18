@@ -7,7 +7,7 @@ import structlog
 from application.services.benchmark_comparison import (
     _benchmark_daily_returns, fetch_benchmark_klines,
 )
-from application.services.evolution.fitness_calculator import compute_capture
+from qs_agenthub.application.services.evolution.fitness_calculator import compute_capture
 
 logger = structlog.get_logger(__name__)
 

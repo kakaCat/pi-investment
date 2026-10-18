@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from application.services.evolution.daily_snapshot_service import DailySnapshotService
+from qs_agenthub.application.services.evolution.daily_snapshot_service import DailySnapshotService
 
 
 def _account(name='agent_virtual', cash=90000.0, frozen=0.0, initial=100000.0, peak=105000.0):

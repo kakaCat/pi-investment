@@ -10,7 +10,7 @@ import logging
 from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional
 
-from application.services.evolution.decision_score_service import _as_date
+from qs_agenthub.application.services.evolution.decision_score_service import _as_date
 
 logger = logging.getLogger(__name__)
 

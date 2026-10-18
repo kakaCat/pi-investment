@@ -24,7 +24,7 @@ class TestChanScanHandler:
 
 
 class TestChanKnowledgeDistillHandler:
-    @patch('application.services.chan_knowledge_distiller.ChanKnowledgeDistiller')
+    @patch('qs_agenthub.application.services.chan_knowledge_distiller.ChanKnowledgeDistiller')
     def test_handler_passes_params(self, mock_distiller):
         mock_distiller.return_value.distill.return_value = {
             'strategies_distilled': 3, 'signals_total': 50, 'signals_excluded': 2,

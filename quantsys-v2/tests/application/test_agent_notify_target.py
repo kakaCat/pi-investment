@@ -4,7 +4,7 @@
 """
 import pytest
 
-from application.services.agent_notification_service import (
+from qs_agenthub.application.services.agent_notification_service import (
     AGENT_DH, AGENT_TS, AgentNotificationService,
 )
 
@@ -49,7 +49,7 @@ def test_explicit_targets_beat_env(monkeypatch):
 
 def test_delivers_to_selected_agent(monkeypatch):
     calls = []
-    monkeypatch.setattr("application.services.agent_notification_service.requests.post",
+    monkeypatch.setattr("qs_agenthub.application.services.agent_notification_service.requests.post",
                         lambda url, **kw: (calls.append((url, kw.get("json"))), _Resp())[1])
     svc = AgentNotificationService()
     assert svc.notify_agent("watch_digest", {"a": 1}, target=AGENT_TS) is True
@@ -68,7 +68,7 @@ def test_unreachable_target_falls_back_to_default_with_marker(monkeypatch):
             raise _requests.exceptions.ConnectionError("connection refused")
         return _Resp()
 
-    monkeypatch.setattr("application.services.agent_notification_service.requests.post", _post)
+    monkeypatch.setattr("qs_agenthub.application.services.agent_notification_service.requests.post", _post)
     svc = AgentNotificationService()
     assert svc.notify_agent("watch_digest", {"a": 1}, target=AGENT_TS) is True
     assert len(calls) == 2
@@ -88,7 +88,7 @@ def test_timeout_does_not_fall_back(monkeypatch):
         calls.append(url)
         raise _requests.exceptions.Timeout("slow")
 
-    monkeypatch.setattr("application.services.agent_notification_service.requests.post", _post)
+    monkeypatch.setattr("qs_agenthub.application.services.agent_notification_service.requests.post", _post)
     svc = AgentNotificationService()
     assert svc.notify_agent_detailed("watch_digest", {}, target=AGENT_TS) == "timeout"
     assert len(calls) == 1

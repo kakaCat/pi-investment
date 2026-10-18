@@ -16,7 +16,7 @@ import requests
 from adapters.outbound.repositories.watch_rule_repository import (
     WatchRuleRepository, WatchTriggerRepository,
 )
-from application.services.agent_notification_service import AgentNotificationService
+from qs_agenthub.application.services.agent_notification_service import AgentNotificationService
 from qs_watch.application.services.watch_engine.digest_service import WatchDigestService
 from qs_watch.application.services.watch_engine.factory import create_watch_engine
 

@@ -40,8 +40,8 @@ def test_ai_diagnosis_success(service):
     fake_resp.status_code = 200
     fake_resp.json.return_value = {'choices': [{'message': {'content': '做得好：X\n问题：Y\n建议：Z'}}]}
 
-    with patch('application.services.llm_service.get_config', return_value=_fake_config()):
-        with patch('application.services.llm_service.requests.post', return_value=fake_resp):
+    with patch('qs_agenthub.application.services.llm_service.get_config', return_value=_fake_config()):
+        with patch('qs_agenthub.application.services.llm_service.requests.post', return_value=fake_resp):
             result = service.ai_diagnosis('agent:main:wake:e2e')
 
     assert '做得好' in result['analysis']
@@ -53,8 +53,8 @@ def test_ai_diagnosis_cached_no_second_call(service):
     fake_resp.status_code = 200
     fake_resp.json.return_value = {'choices': [{'message': {'content': '分析内容'}}]}
 
-    with patch('application.services.llm_service.get_config', return_value=_fake_config()):
-        with patch('application.services.llm_service.requests.post', return_value=fake_resp) as mock_post:
+    with patch('qs_agenthub.application.services.llm_service.get_config', return_value=_fake_config()):
+        with patch('qs_agenthub.application.services.llm_service.requests.post', return_value=fake_resp) as mock_post:
             service.ai_diagnosis('agent:main:wake:e2e')
             second = service.ai_diagnosis('agent:main:wake:e2e')
 
@@ -63,7 +63,7 @@ def test_ai_diagnosis_cached_no_second_call(service):
 
 
 def test_ai_diagnosis_no_api_key(service):
-    with patch('application.services.llm_service.get_config', return_value=_fake_config(api_key='')):
+    with patch('qs_agenthub.application.services.llm_service.get_config', return_value=_fake_config(api_key='')):
         with pytest.raises(RuntimeError, match='DEEPSEEK_API_KEY'):
             service.ai_diagnosis('agent:main:wake:e2e')
 
@@ -73,8 +73,8 @@ def test_ai_diagnosis_refresh_forces_regenerate(service):
     fake_resp.status_code = 200
     fake_resp.json.return_value = {'choices': [{'message': {'content': '新分析'}}]}
 
-    with patch('application.services.llm_service.get_config', return_value=_fake_config()):
-        with patch('application.services.llm_service.requests.post', return_value=fake_resp) as mock_post:
+    with patch('qs_agenthub.application.services.llm_service.get_config', return_value=_fake_config()):
+        with patch('qs_agenthub.application.services.llm_service.requests.post', return_value=fake_resp) as mock_post:
             service.ai_diagnosis('agent:main:wake:e2e')
             service.ai_diagnosis('agent:main:wake:e2e', refresh=True)
 

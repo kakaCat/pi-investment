@@ -25,7 +25,7 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from infrastructure.persistence.orm import get_session
 from infrastructure.persistence.orm.models.orchestrator import DailyOrchestratorState
-from application.services.agent_notification_service import agent_service
+from qs_agenthub.application.services.agent_notification_service import agent_service
 
 logger = structlog.get_logger(__name__)
 
@@ -624,7 +624,7 @@ class DailyOrchestrator:
 
         # 1. 决策打分（20日成熟决策）
         try:
-            from application.services.evolution.decision_score_service import DecisionScoreService
+            from qs_agenthub.application.services.evolution.decision_score_service import DecisionScoreService
             from adapters.outbound.repositories.agent_intelligence_repository import AgentIntelligenceORMRepository
             from adapters.outbound.repositories.kline_repository import KlineORMRepository
             logger.info("review_phase: decision_score_service starting")
@@ -640,7 +640,7 @@ class DailyOrchestrator:
 
         # 2. 踏空捕获（5日宽限期）
         try:
-            from application.services.evolution.missed_opportunity_service import MissedOpportunityService
+            from qs_agenthub.application.services.evolution.missed_opportunity_service import MissedOpportunityService
             from qs_sourcing.adapters.outbound.repositories.signal_repository import SignalORMRepository
             from adapters.outbound.repositories.agent_intelligence_repository import AgentIntelligenceORMRepository
             from adapters.outbound.repositories.kline_repository import KlineORMRepository
@@ -658,7 +658,7 @@ class DailyOrchestrator:
 
         # 3. 适应度计算（20日滚动窗口）
         try:
-            from application.services.evolution.evolution_fitness_service import EvolutionFitnessService
+            from qs_agenthub.application.services.evolution.evolution_fitness_service import EvolutionFitnessService
             from adapters.outbound.repositories.evolution_fitness_repository import EvolutionFitnessORMRepository
             from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
             logger.info("review_phase: evolution_fitness_service starting")

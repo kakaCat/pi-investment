@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from application.services.evolution.evolution_fitness_service import EvolutionFitnessService
+from qs_agenthub.application.services.evolution.evolution_fitness_service import EvolutionFitnessService
 
 
 def _make_service(snaps_by_acct, bench_returns, trades_by_acct):

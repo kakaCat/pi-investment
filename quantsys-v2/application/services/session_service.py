@@ -149,7 +149,7 @@ class SessionService:
         events = self.get_events(session_key, limit=500)
         prompt = self._build_diagnosis_prompt(session_key, events)
 
-        from application.services.llm_service import chat_completion
+        from qs_agenthub.application.services.llm_service import chat_completion
         analysis = chat_completion(prompt)
 
         now = datetime.now(timezone.utc)

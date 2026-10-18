@@ -130,7 +130,7 @@ def test_multiple_services():
 
     from application.services.chan_service import ChanService
     from qs_market_data.application.services.stock_code_validator import StockCodeValidator
-    from application.services.decision_service import DecisionService
+    from qs_agenthub.application.services.decision_service import DecisionService
 
     services = [
         ChanService,
@@ -181,7 +181,7 @@ def test_all_p2_1_services():
         # 缠论相关
         ('application.services.chan_service', 'ChanService'),
         ('application.services.chan_scan_service', 'ChanScanService'),
-        ('application.services.chan_knowledge_distiller', 'ChanKnowledgeDistiller'),
+        ('qs_agenthub.application.services.chan_knowledge_distiller', 'ChanKnowledgeDistiller'),
 
         # 策略相关
         ('qs_strategy.application.services.strategy_backtest_service', 'StrategyBacktestService'),
@@ -193,8 +193,8 @@ def test_all_p2_1_services():
         ('qs_market_data.application.services.stock_code_validator', 'StockCodeValidator'),
 
         # 决策与知识
-        ('application.services.decision_service', 'DecisionService'),
-        ('application.services.knowledge_service', 'KnowledgeService'),
+        ('qs_agenthub.application.services.decision_service', 'DecisionService'),
+        ('qs_agenthub.application.services.knowledge_service', 'KnowledgeService'),
         ('application.services.experience_accumulator', 'ExperienceAccumulator'),
 
         # 其他服务

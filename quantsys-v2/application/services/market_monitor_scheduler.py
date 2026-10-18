@@ -81,7 +81,7 @@ class MarketMonitorScheduler:
                 }
 
                 # 4. 通知 Agent
-                from application.services.agent_notification_service import agent_service
+                from qs_agenthub.application.services.agent_notification_service import agent_service
                 agent_service.notify_agent('market_alert', data)
 
         except Exception as e:

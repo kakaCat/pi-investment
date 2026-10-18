@@ -7,7 +7,7 @@ from datetime import date, datetime, timedelta
 
 import polars as pl
 
-from application.services.evolution.decision_score_service import DecisionScoreService
+from qs_agenthub.application.services.evolution.decision_score_service import DecisionScoreService
 
 
 class FakeDecisionRepo:
