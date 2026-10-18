@@ -13,8 +13,8 @@
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 
-from application.services.watch_engine.engine import WatchEngine
-from application.services.watch_engine.todo_service import TodoService
+from qs_watch.application.services.watch_engine.engine import WatchEngine
+from qs_watch.application.services.watch_engine.todo_service import TodoService
 from tests.services.test_watch_engine import FakeQuoteService, FakeRepo, make_rule
 
 NOW = datetime(2026, 7, 21, 10, 30)      # 周二，交易时段内

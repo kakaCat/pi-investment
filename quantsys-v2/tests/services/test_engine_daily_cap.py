@@ -2,7 +2,7 @@
 from datetime import datetime
 from types import SimpleNamespace
 
-from application.services.watch_engine.engine import DAILY_CAP_REASON, WatchEngine
+from qs_watch.application.services.watch_engine.engine import DAILY_CAP_REASON, WatchEngine
 
 NOW = datetime(2026, 7, 21, 10, 30)  # 周二交易时段
 

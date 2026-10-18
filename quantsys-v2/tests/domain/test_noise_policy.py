@@ -11,7 +11,7 @@ from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
-from domain.watch.services import noise_policy
+from qs_watch.domain.watch.services import noise_policy
 
 TODAY = date(2026, 9, 18)
 NOW = datetime(2026, 9, 18, 10, 0, 0)

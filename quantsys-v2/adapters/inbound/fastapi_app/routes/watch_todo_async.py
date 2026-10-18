@@ -30,8 +30,8 @@ from fastapi.responses import JSONResponse
 from adapters.outbound.repositories.watch_todo_repository import (
     WatchTodoRepository, todo_to_dict,
 )
-from application.services.watch_engine.todo_service import TodoService
-from domain.watch.ports import WatchTodoError
+from qs_watch.application.services.watch_engine.todo_service import TodoService
+from qs_watch.domain.watch.ports import WatchTodoError
 
 router = APIRouter(tags=['Watch - 待办闭环'])
 
@@ -72,7 +72,7 @@ def _service() -> TodoService:
     name_resolver 供回执卡显示「名称（代码）」。测试拦发送：patch
     watch_loop_wiring.build_receipt_service 即可，无需动本工厂。
     """
-    from application.services.watch_engine import watch_loop_wiring as _wiring
+    from qs_watch.application.services.watch_engine import watch_loop_wiring as _wiring
     return TodoService(WatchTodoRepository(),
                        receipt_service=_wiring.build_receipt_service(),
                        name_resolver=_wiring.build_name_resolver())

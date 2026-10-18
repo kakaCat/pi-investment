@@ -4,7 +4,7 @@
 """
 import pytest
 
-from domain.watch.models import ACTION_PARAM_ACTIONS, validate_action_params
+from qs_watch.domain.watch.models import ACTION_PARAM_ACTIONS, validate_action_params
 
 
 def test_none_and_non_dict():

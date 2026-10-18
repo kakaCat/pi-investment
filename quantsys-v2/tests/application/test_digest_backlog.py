@@ -6,7 +6,7 @@
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 
-from application.services.watch_engine.digest_service import WatchDigestService
+from qs_watch.application.services.watch_engine.digest_service import WatchDigestService
 
 NOW = datetime(2026, 10, 16, 10, 0, 0)
 SINCE = NOW - timedelta(minutes=25)

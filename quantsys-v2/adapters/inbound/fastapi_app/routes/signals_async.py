@@ -19,7 +19,7 @@ from adapters.inbound.fastapi_app.shared import (
     _read_watchlist, _safe_float,
     signal_repo, stock_repo,
 )
-from application.services.opportunity_to_watch_rule_service import OpportunityToWatchRuleService
+from qs_watch.application.services.opportunity_to_watch_rule_service import OpportunityToWatchRuleService
 from qs_sourcing.application.services.signal_processor import SignalProcessingError
 
 logger = structlog.get_logger(__name__)

@@ -295,7 +295,7 @@ async def lifespan(app: FastAPI):
     # 注：该值现已落库（quant.watch_runtime_meta.digest_shadow_since，迁移 20260918b），
     # shadow_mode_clock 走「库优先 → env 兜底」，重启读回真值；仅库不可用时才退化为 env 口径。
     try:
-        from application.services.watch_engine.shadow_mode_clock import ensure_shadow_since_env
+        from qs_watch.application.services.watch_engine.shadow_mode_clock import ensure_shadow_since_env
         _shadow_since = ensure_shadow_since_env()
         if _shadow_since:
             logger.info("✅ 影子模式起始时间已落地", since=_shadow_since)

@@ -5,7 +5,7 @@
 """
 from datetime import datetime, timedelta
 
-from application.services.watch_engine.state_manager import StateManager, TriggerRecord
+from qs_watch.application.services.watch_engine.state_manager import StateManager, TriggerRecord
 
 NOW = datetime(2026, 9, 14, 10, 30)
 

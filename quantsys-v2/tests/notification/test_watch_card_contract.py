@@ -8,8 +8,8 @@ StockNameResolver 端口可注入 / render_receipt 签名扩展。
 """
 from types import SimpleNamespace
 
-from application.services.watch_engine.receipt_service import render_receipt
-from domain.watch.ports import StockNameResolver
+from qs_watch.application.services.watch_engine.receipt_service import render_receipt
+from qs_watch.domain.watch.ports import StockNameResolver
 from qs_notification.infrastructure.formatters.watch_level_templates import WatchCardItem
 
 

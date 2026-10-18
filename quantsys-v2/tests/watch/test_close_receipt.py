@@ -11,9 +11,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from application.services.watch_engine.receipt_service import ReceiptService
-from application.services.watch_engine.todo_service import TodoService
-from domain.watch.ports import WatchTodoAlreadyClosed
+from qs_watch.application.services.watch_engine.receipt_service import ReceiptService
+from qs_watch.application.services.watch_engine.todo_service import TodoService
+from qs_watch.domain.watch.ports import WatchTodoAlreadyClosed
 
 NOW = datetime(2026, 9, 24, 12, 0, tzinfo=timezone.utc)
 

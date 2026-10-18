@@ -140,7 +140,7 @@ def test_sender_failure_does_not_crash_check(monkeypatch):
 
 # ── 引擎侧心跳 ──────────────────────────────────────────────
 def _engine(store):
-    from application.services.watch_engine.engine import WatchEngine
+    from qs_watch.application.services.watch_engine.engine import WatchEngine
     eng = WatchEngine(rule_repo=SimpleNamespace(list_enabled=lambda: []),
                       quote_service=SimpleNamespace(get_realtime_quote=lambda s: None),
                       notifier=SimpleNamespace())

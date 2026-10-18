@@ -51,10 +51,11 @@ pip install -e ./packages/qs_sourcing       # 选股→信号流水线（原 16 
 pip install -e ./packages/qs_intel          # 市场情报博弈（原 19 个情报类服务 + competition/industry_chain 两域）
 pip install -e ./packages/qs_strategy       # 策略生命周期（原 22 个策略服务 + strategy_engine 代码引擎 + domain/strategies 策略域）
 pip install -e ./packages/qs_trading        # 交易执行（原 14 个交易服务 + domain 六域 accounts/trading/portfolio/brokers/legacy/risk）
+pip install -e ./packages/qs_watch          # 实时盯盘（原 watch_engine 引擎子包 25 文件 + domain/watch 盯盘域 15 文件）
 ```
 
-> ⚠️ 新代码 import 一律走 `from qs_quantlib import ...` / `from qs_notification.application import ...` / `from qs_market_data.adapters.outbound.datasources import get_data_provider_manager`（包内三层沿用原领域布局）；`domain.quantlib`、`*/notification`、`adapters/outbound/datasources`、`application/services/<数据面 15 模块>`、`application/services/<pool/signal 系 16 模块>`、`repositories/<stock_pool/signal 系 9 模块>`、`application/services/<情报系 19 模块>`、`domain/{competition,industry_chain}`、`application/services/<策略系 22 模块>+strategy_engine`、`domain/strategies`、`application/services/<交易系 14 模块>`、`domain/{accounts,trading,portfolio,brokers,legacy,risk}` 等旧路径均为 `__path__`/转发兼容 shim，30 天观察期后删除。
-> 当前已迁移：`qs_quantlib`（75 文件）、`qs_notification`（23 文件）、`qs_market_data`（103 文件：81 datasources + 22 服务/子包）、`qs_sourcing`（25 文件：16 服务 + 9 仓储）、`qs_intel`（35 文件：19 服务 + competition/industry_chain 两域 16 文件）、`qs_strategy`（39 文件：22 服务 + strategy_engine 代码引擎 5 文件 + domain/strategies 策略域 12 文件）、`qs_trading`（79 文件：14 服务 + domain 六域 65 文件）。后续按方案卡 §11.4 顺序迁移 watch / ops / agent-hub。
+> ⚠️ 新代码 import 一律走 `from qs_quantlib import ...` / `from qs_notification.application import ...` / `from qs_market_data.adapters.outbound.datasources import get_data_provider_manager`（包内三层沿用原领域布局）；`domain.quantlib`、`*/notification`、`adapters/outbound/datasources`、`application/services/<数据面 15 模块>`、`application/services/<pool/signal 系 16 模块>`、`repositories/<stock_pool/signal 系 9 模块>`、`application/services/<情报系 19 模块>`、`domain/{competition,industry_chain}`、`application/services/<策略系 22 模块>+strategy_engine`、`domain/strategies`、`application/services/<交易系 14 模块>`、`domain/{accounts,trading,portfolio,brokers,legacy,risk}`、`application/services/<watch 系 2 路径>`、`domain/watch` 等旧路径均为 `__path__`/转发兼容 shim，30 天观察期后删除。
+> 当前已迁移：`qs_quantlib`（75 文件）、`qs_notification`（23 文件）、`qs_market_data`（103 文件：81 datasources + 22 服务/子包）、`qs_sourcing`（25 文件：16 服务 + 9 仓储）、`qs_intel`（35 文件：19 服务 + competition/industry_chain 两域 16 文件）、`qs_strategy`（39 文件：22 服务 + strategy_engine 代码引擎 5 文件 + domain/strategies 策略域 12 文件）、`qs_trading`（79 文件：14 服务 + domain 六域 65 文件）、`qs_watch`（41 文件：watch_engine 引擎子包 25 + opportunity_to_watch_rule_service 1 + domain/watch 盯盘域 15）。后续按方案卡 §11.4 顺序迁移 ops / agent-hub。
 
 ### 1. Install Dependencies
 

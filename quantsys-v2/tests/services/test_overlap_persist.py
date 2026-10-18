@@ -5,7 +5,7 @@ flush 只在集合变化时写；跨天清空后落库同步清零。
 """
 from datetime import datetime
 
-from application.services.watch_engine.state_manager import StateManager
+from qs_watch.application.services.watch_engine.state_manager import StateManager
 
 NOW = datetime(2026, 10, 16, 10, 0, 0)
 

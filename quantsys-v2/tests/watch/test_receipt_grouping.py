@@ -11,7 +11,7 @@ from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 from adapters.inbound.fastapi_app.watch_sla_job import WatchSlaJob
-from application.services.watch_engine.receipt_service import (
+from qs_watch.application.services.watch_engine.receipt_service import (
     DELIVERY_LOG_ONLY,
     DELIVERY_SENT,
     ReceiptService,

@@ -17,8 +17,8 @@ from adapters.outbound.repositories.watch_rule_repository import (
     WatchRuleRepository, WatchTriggerRepository,
 )
 from application.services.agent_notification_service import AgentNotificationService
-from application.services.watch_engine.digest_service import WatchDigestService
-from application.services.watch_engine.factory import create_watch_engine
+from qs_watch.application.services.watch_engine.digest_service import WatchDigestService
+from qs_watch.application.services.watch_engine.factory import create_watch_engine
 
 SYMBOL = "600887"          # 伊利：agent_virtual 持仓标的（止损伤痕真实存在）
 ACCOUNT = "agent_virtual"

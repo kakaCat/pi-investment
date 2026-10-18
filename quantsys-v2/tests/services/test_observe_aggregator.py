@@ -6,7 +6,7 @@
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 
-from application.services.watch_engine.observe_aggregator import (
+from qs_watch.application.services.watch_engine.observe_aggregator import (
     DAILY_AGG_CAP_PER_SYMBOL, ObserveAggregator, _has_observation_criterion,
 )
 
@@ -108,7 +108,7 @@ def test_failed_send_retries_without_loss():
 
 def test_engine_routes_uncriterioned_observe_to_buffer():
     from tests.services.test_engine_daily_cap import _Notifier  # noqa: F401
-    from application.services.watch_engine.engine import WatchEngine
+    from qs_watch.application.services.watch_engine.engine import WatchEngine
 
     sent, sender = _sender_rec()
     agg = ObserveAggregator(sender=sender, window_sec=60)

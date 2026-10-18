@@ -29,7 +29,7 @@ from typing import Any, Dict, Optional
 
 import structlog
 
-from application.services.watch_engine.receipt_service import ReceiptService
+from qs_watch.application.services.watch_engine.receipt_service import ReceiptService
 
 logger = structlog.get_logger(__name__)
 

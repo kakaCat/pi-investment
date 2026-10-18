@@ -23,10 +23,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from application.services.watch_engine.conditions import EvalContext, evaluate
-from application.services.watch_engine.deduplication_manager import DeduplicationManager
-from application.services.watch_engine.engine import WatchEngine
-from application.services.watch_engine.state_manager import StateManager
+from qs_watch.application.services.watch_engine.conditions import EvalContext, evaluate
+from qs_watch.application.services.watch_engine.deduplication_manager import DeduplicationManager
+from qs_watch.application.services.watch_engine.engine import WatchEngine
+from qs_watch.application.services.watch_engine.state_manager import StateManager
 
 # 状态层测试用（naive，与引擎 datetime.now 口径一致）
 NOW = datetime(2026, 9, 18, 10, 30, 0)

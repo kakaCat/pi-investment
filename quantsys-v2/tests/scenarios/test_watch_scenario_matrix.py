@@ -14,8 +14,8 @@ from qs_notification.domain.policies.watch_channel_policy import (
 from qs_notification.domain.policies.watch_delivery_policy import (
     AGENT_DH, AUTONOMOUS, NOT_APPLICABLE, REMIND_ONLY, WatchDeliveryPolicy,
 )
-from domain.watch.services.disposition import TRADE_INTENTS
-from domain.watch.services.rule_guard import (
+from qs_watch.domain.watch.services.disposition import TRADE_INTENTS
+from qs_watch.domain.watch.services.rule_guard import (
     TradeRuleWithoutAccount, WatchRuleNotApplicable, guard_new_rule, guard_rule_change,
 )
 from tests.services.test_watch_engine import FakeNotifier, make_engine, make_rule, NOW
@@ -23,7 +23,7 @@ from tests.application.test_watch_digest_accounts import (
     TRADING_NOW, UNASSIGNED, _Agent, _Rule, _RuleRepo, _Trig, _TriggerRepo,
     _StateRepo as _DigestStateRepo,
 )
-from application.services.watch_engine.digest_service import WatchDigestService
+from qs_watch.application.services.watch_engine.digest_service import WatchDigestService
 
 PRICE_UP = lambda: {'600519.SH': 101.0}   # 上破 100 → 命中
 

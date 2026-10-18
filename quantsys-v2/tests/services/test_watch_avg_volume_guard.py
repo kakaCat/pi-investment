@@ -6,7 +6,7 @@
 import time
 from datetime import datetime, timedelta
 
-from application.services.watch_engine.engine import WatchEngine
+from qs_watch.application.services.watch_engine.engine import WatchEngine
 from tests.services.test_watch_engine import FakeNotifier, FakeQuoteService
 
 

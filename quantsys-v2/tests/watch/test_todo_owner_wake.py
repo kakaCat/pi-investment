@@ -14,7 +14,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from application.services.watch_engine import watch_channels
+from qs_watch.application.services.watch_engine import watch_channels
 
 NOW = datetime(2026, 10, 16, 18, 5, 58, tzinfo=timezone.utc)
 

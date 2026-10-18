@@ -27,7 +27,7 @@ def start_watch_engine(skip: bool = False) -> Optional[Tuple[object, object]]:
     if skip:
         return None
 
-    from application.services.watch_engine.factory import start_watch_engine_in_thread
+    from qs_watch.application.services.watch_engine.factory import start_watch_engine_in_thread
     engine, thread = start_watch_engine_in_thread()
     logger.info('✅ WatchEngine 实时盯盘线程已启动（宿主: FastAPI 5001）')
     return engine, thread

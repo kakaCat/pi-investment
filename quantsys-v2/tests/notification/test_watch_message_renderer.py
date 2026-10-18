@@ -2,7 +2,7 @@
 
 验收锚点：四段完整 / 缺指引标注 / 级别颜色与 emoji 语义 / 升级与合并标注 / P0 @所有人。
 """
-from domain.watch.services.watch_message import (
+from qs_watch.domain.watch.services.watch_message import (
     ActionSection, FactSection, WatchMessage, resolve_action,
 )
 from qs_notification.infrastructure.formatters.watch_message_renderer import (

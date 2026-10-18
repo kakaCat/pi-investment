@@ -3,9 +3,9 @@ import pytest
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 
-from domain.watch.models import WatchRule, RuleHealthReport
-from domain.watch.services.rule_health_checker import RuleHealthChecker
-from domain.watch.ports import IWatchRuleRepository, ITriggerHistoryRepository, IQuoteProvider
+from qs_watch.domain.watch.models import WatchRule, RuleHealthReport
+from qs_watch.domain.watch.services.rule_health_checker import RuleHealthChecker
+from qs_watch.domain.watch.ports import IWatchRuleRepository, ITriggerHistoryRepository, IQuoteProvider
 
 
 class FakeRuleRepo(IWatchRuleRepository):

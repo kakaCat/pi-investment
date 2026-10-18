@@ -4,7 +4,7 @@
 （原类没有 __init__），结果工厂传参 TypeError、**引擎起不来**，而测试全绿——因为没有任何
 测试构造过这些应用服务。装配签名必须有测试守着。
 """
-from application.services.watch_engine.intervention_ledger import InterventionLedger
+from qs_watch.application.services.watch_engine.intervention_ledger import InterventionLedger
 
 
 class FakeInterventionRepo:

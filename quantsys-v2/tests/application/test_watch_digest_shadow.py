@@ -5,7 +5,7 @@
 from tests.application.test_watch_digest_accounts import (
     TRADING_NOW, _Agent, _Rule, _RuleRepo, _Trig, _TriggerRepo, _StateRepo,
 )
-from application.services.watch_engine.digest_service import WatchDigestService
+from qs_watch.application.services.watch_engine.digest_service import WatchDigestService
 
 
 def _svc(agent, state=None, dry_run=True):

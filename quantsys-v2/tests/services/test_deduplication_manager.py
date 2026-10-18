@@ -6,8 +6,8 @@
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 
-from application.services.watch_engine.deduplication_manager import DeduplicationManager
-from application.services.watch_engine.state_manager import StateManager
+from qs_watch.application.services.watch_engine.deduplication_manager import DeduplicationManager
+from qs_watch.application.services.watch_engine.state_manager import StateManager
 
 NOW = datetime(2026, 9, 14, 10, 30)
 

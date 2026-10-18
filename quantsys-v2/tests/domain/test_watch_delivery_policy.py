@@ -87,7 +87,7 @@ def test_strategy_accounts_are_not_applicable():
 
 
 def test_strategy_account_rule_rejected():
-    from domain.watch.services.rule_guard import WatchRuleNotApplicable, guard_new_rule
+    from qs_watch.domain.watch.services.rule_guard import WatchRuleNotApplicable, guard_new_rule
     with pytest.raises(WatchRuleNotApplicable):
         guard_new_rule(intent="trend_observe", account="v13_simulation")
     # 非策略账户不受影响

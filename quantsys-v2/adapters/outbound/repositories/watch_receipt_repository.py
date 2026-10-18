@@ -22,7 +22,7 @@ from typing import Any, List, Optional
 
 import structlog
 
-from domain.watch.ports import RECEIPT_KINDS
+from qs_watch.domain.watch.ports import RECEIPT_KINDS
 from infrastructure.persistence.orm.base_repository import BaseORMRepository
 from infrastructure.persistence.orm.models.watch_todo import WatchReceipt
 
