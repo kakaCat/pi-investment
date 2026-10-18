@@ -2,7 +2,7 @@
 
 import sys
 
-from application.services.strategy_code_service import StrategyCodeService
+from qs_strategy.application.services.strategy_code_service import StrategyCodeService
 
 service = StrategyCodeService()
 

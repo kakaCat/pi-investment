@@ -1,7 +1,7 @@
 import pytest
 import sys
 import os
-from application.services.strategy_engine.ml_filter import MLFilter, MLVote
+from qs_strategy.application.services.strategy_engine.ml_filter import MLFilter, MLVote
 
 
 class TestMLFilter:

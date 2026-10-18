@@ -12,7 +12,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from domain.strategies.value_objects import (
+from qs_strategy.domain.strategies.value_objects import (
     Order,
     OrderSide,
     Signal,

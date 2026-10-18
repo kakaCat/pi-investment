@@ -13,7 +13,7 @@ from pathlib import Path
 # 添加项目路径
 
 from qs_intel.application.services.market_regime_detector import MarketRegimeDetector
-from application.services.strategy_performance_stats import StrategyPerformanceStats
+from qs_strategy.application.services.strategy_performance_stats import StrategyPerformanceStats
 
 
 def test_market_regime_detector():

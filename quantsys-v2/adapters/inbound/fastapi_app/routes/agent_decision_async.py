@@ -116,7 +116,7 @@ async def get_rotation_proposal():
     - 下一步建议
     """
     try:
-        from application.services.strategy_rotation_engine import get_rotation_engine
+        from qs_strategy.application.services.strategy_rotation_engine import get_rotation_engine
         engine = get_rotation_engine()
         context = engine.get_proposal_context()
 
@@ -135,7 +135,7 @@ async def simulate_rotation(sim: RotationSimulate):
     Agent 可以修改 actions 后重新模拟。
     """
     try:
-        from application.services.strategy_rotation_engine import get_rotation_engine
+        from qs_strategy.application.services.strategy_rotation_engine import get_rotation_engine
         engine = get_rotation_engine()
         result = engine.simulate_rotation(sim.actions)
 
@@ -155,7 +155,7 @@ async def execute_rotation(execution: RotationExecution):
     try:
         # 2026-09-01：dry_run=true 时只模拟不执行（此前工具层 dry_run 被忽略会真下单）
         if execution.dry_run:
-            from application.services.strategy_rotation_engine import get_rotation_engine
+            from qs_strategy.application.services.strategy_rotation_engine import get_rotation_engine
             engine = get_rotation_engine()
             sim = engine.simulate_rotation(execution.actions)
             return {
@@ -206,7 +206,7 @@ async def execute_rotation(execution: RotationExecution):
                 },
             }
 
-        from application.services.strategy_rotation_engine import get_rotation_engine
+        from qs_strategy.application.services.strategy_rotation_engine import get_rotation_engine
         engine = get_rotation_engine()
 
         proposal = {'actions': execution.actions, 'target_style': None}
@@ -273,7 +273,7 @@ async def verify_rotation(rotation_date: Optional[str] = None):
     对比轮动前后的实际表现 vs 预期。
     """
     try:
-        from application.services.strategy_rotation_engine import get_rotation_engine
+        from qs_strategy.application.services.strategy_rotation_engine import get_rotation_engine
         engine = get_rotation_engine()
         result = engine.verify_rotation(rotation_date)
 
@@ -370,7 +370,7 @@ async def get_performance():
         # 增强：风险暴露
         risk_exposure = None
         try:
-            from application.services.strategy_rotation_engine import get_rotation_engine
+            from qs_strategy.application.services.strategy_rotation_engine import get_rotation_engine
             engine = get_rotation_engine()
             positions = engine._get_current_positions()
             risk_exposure = engine._calculate_risk_metrics(positions)

@@ -184,9 +184,9 @@ def test_all_p2_1_services():
         ('application.services.chan_knowledge_distiller', 'ChanKnowledgeDistiller'),
 
         # 策略相关
-        ('application.services.strategy_backtest_service', 'StrategyBacktestService'),
-        ('application.services.strategy_weight_adjuster', 'StrategyWeightAdjuster'),
-        ('application.services.strategy_circuit_breaker', 'StrategyCircuitBreaker'),
+        ('qs_strategy.application.services.strategy_backtest_service', 'StrategyBacktestService'),
+        ('qs_strategy.application.services.strategy_weight_adjuster', 'StrategyWeightAdjuster'),
+        ('qs_strategy.application.services.strategy_circuit_breaker', 'StrategyCircuitBreaker'),
 
         # 数据质量
         ('application.services.data_quality_service', 'DataQualityService'),
@@ -198,7 +198,7 @@ def test_all_p2_1_services():
         ('application.services.experience_accumulator', 'ExperienceAccumulator'),
 
         # 其他服务
-        ('application.services.strategy_service', 'StrategyService'),
+        ('qs_strategy.application.services.strategy_service', 'StrategyService'),
         ('application.services.simulation_service', 'SimulationService'),
         ('application.services.scheduler_config_service', 'SchedulerConfigService'),
         ('application.services.smart_scheduler', 'SmartSchedulerService'),

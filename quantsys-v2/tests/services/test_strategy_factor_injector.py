@@ -4,7 +4,7 @@
 
 import pytest
 import numpy as np
-from application.services.strategy_factor_injector import StrategyFactorInjector
+from qs_strategy.application.services.strategy_factor_injector import StrategyFactorInjector
 
 
 class TestStrategyFactorInjector:

@@ -33,8 +33,8 @@ from typing import Any, Callable, Dict, List, Optional
 import numpy as np
 import pandas as pd
 
-from domain.strategies.base_strategy import BaseStrategy
-from domain.strategies.value_objects import (
+from qs_strategy.domain.strategies.base_strategy import BaseStrategy
+from qs_strategy.domain.strategies.value_objects import (
     Order,
     OrderSide,
     Signal,

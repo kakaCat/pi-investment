@@ -4,7 +4,7 @@
 
 import pytest
 import pandas as pd
-from application.services.strategy_backtest_service import StrategyBacktestService
+from qs_strategy.application.services.strategy_backtest_service import StrategyBacktestService
 
 
 class TestStrategyBacktestService:

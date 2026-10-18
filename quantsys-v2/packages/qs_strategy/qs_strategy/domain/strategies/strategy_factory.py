@@ -4,9 +4,9 @@
 负责创建和管理所有策略实例
 """
 from typing import Optional
-from domain.strategies.base_strategy import BaseStrategy
-from domain.strategies.strategy_272 import Strategy272
-from domain.strategies.strategy_273 import Strategy273
+from qs_strategy.domain.strategies.base_strategy import BaseStrategy
+from qs_strategy.domain.strategies.strategy_272 import Strategy272
+from qs_strategy.domain.strategies.strategy_273 import Strategy273
 import logging
 
 logger = logging.getLogger(__name__)

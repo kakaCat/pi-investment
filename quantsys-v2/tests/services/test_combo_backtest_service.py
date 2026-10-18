@@ -1,6 +1,6 @@
 import pytest
 from datetime import datetime
-from application.services.combo_strategy_backtest_service import ComboStrategyBacktestService
+from qs_strategy.application.services.combo_strategy_backtest_service import ComboStrategyBacktestService
 
 
 class TestComboStrategyBacktestService:

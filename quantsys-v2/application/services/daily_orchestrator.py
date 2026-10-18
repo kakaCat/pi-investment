@@ -281,7 +281,7 @@ class DailyOrchestrator:
         # 3. 策略轮动判断
         logger.info("pre_market: strategy_rotation_check")
         try:
-            from application.services.strategy_rotation_engine import get_rotation_engine
+            from qs_strategy.application.services.strategy_rotation_engine import get_rotation_engine
             rotation_engine = get_rotation_engine()
             rotation_result = rotation_engine.evaluate()
             results['rotation'] = rotation_result

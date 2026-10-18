@@ -406,7 +406,7 @@ def _register_services_hardcoded():
     )
 
     # StrategyWeightAdjuster - 依赖 Repository
-    from application.services.strategy_weight_adjuster import StrategyWeightAdjuster
+    from qs_strategy.application.services.strategy_weight_adjuster import StrategyWeightAdjuster
     from domain.ports.repository_ports_extended import IStrategyWeightRepository, IStrategyPerformanceRepository
     def create_strategy_weight_adjuster():
         weight_repo = IStrategyWeightRepository()
@@ -448,7 +448,7 @@ def _register_services_hardcoded():
     )
 
     # StrategyBacktestService - 依赖 IStrategyRepository
-    from application.services.strategy_backtest_service import StrategyBacktestService
+    from qs_strategy.application.services.strategy_backtest_service import StrategyBacktestService
     from domain.backtest.engine.indicator_strategy_executor import IndicatorStrategyExecutor
     from domain.backtest.engine.script_strategy_executor import ScriptStrategyExecutor
     def create_strategy_backtest_service():
@@ -478,7 +478,7 @@ def _register_services_hardcoded():
     )
 
     # StrategyService (统一策略服务)
-    from application.services.strategy_service import StrategyService
+    from qs_strategy.application.services.strategy_service import StrategyService
     def create_strategy_service():
         return StrategyService(repo=EnhancedServiceFactory.resolve(ISimulationRepository))
 
@@ -501,7 +501,7 @@ def _register_services_hardcoded():
     )
 
     # StrategyCircuitBreaker
-    from application.services.strategy_circuit_breaker import StrategyCircuitBreaker
+    from qs_strategy.application.services.strategy_circuit_breaker import StrategyCircuitBreaker
     from domain.ports.repository_ports_extended import IStrategyCircuitBreakerRepository
     def create_strategy_circuit_breaker():
         repo = IStrategyCircuitBreakerRepository()
@@ -621,7 +621,7 @@ def _register_services_hardcoded():
 
     # SignalExecutionScheduler
     from application.services.signal_execution_scheduler import SignalExecutionScheduler
-    from application.services.strategy_code_service import StrategyCodeService
+    from qs_strategy.application.services.strategy_code_service import StrategyCodeService
     from domain.ports.repository_ports_extended import ISignalExecutionLogRepository
     def create_signal_execution_scheduler():
         from infrastructure.services.service_factory import ServiceFactory

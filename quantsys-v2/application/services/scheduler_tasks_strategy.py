@@ -22,7 +22,7 @@ def handle_strategy_validate_daily(params: Dict[str, Any] = None) -> Dict[str, A
     logger.info("Starting strategy_validate_daily task")
 
     try:
-        from application.services.strategy_validation_service import StrategyValidationService
+        from qs_strategy.application.services.strategy_validation_service import StrategyValidationService
         from adapters.outbound.repositories.strategy_repository import StrategyORMRepository
         from adapters.outbound.repositories.stock_repository import StockORMRepository
 
@@ -65,7 +65,7 @@ def handle_strategy_discover_weekly(params: Dict[str, Any] = None) -> Dict[str, 
     logger.info("Starting strategy_discover_weekly task")
 
     try:
-        from application.services.strategy_discovery_service import StrategyDiscoveryService
+        from qs_strategy.application.services.strategy_discovery_service import StrategyDiscoveryService
 
         service = StrategyDiscoveryService()
 
@@ -106,7 +106,7 @@ def handle_strategy_discover_weekly(params: Dict[str, Any] = None) -> Dict[str, 
 def handle_strategy_rotation(params: Dict[str, Any] = None) -> Dict[str, Any]:
     """策略轮动评估任务处理器"""
     try:
-        from application.services.strategy_rotation_engine import get_rotation_engine
+        from qs_strategy.application.services.strategy_rotation_engine import get_rotation_engine
         engine = get_rotation_engine()
         result = engine.evaluate()
         return {"action": "strategy_rotation", "status": "success", "result": result}

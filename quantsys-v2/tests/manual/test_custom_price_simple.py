@@ -8,7 +8,7 @@ import os
 quantsys_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
 
 import pandas as pd
-from application.services.strategy_backtest_service import StrategyBacktestService
+from qs_strategy.application.services.strategy_backtest_service import StrategyBacktestService
 
 
 def test_price_reading_logic():
@@ -139,7 +139,7 @@ def test_price_validator():
     print("测试：价格校验器")
     print("=" * 60)
 
-    from application.services.strategy_code_validator import StrategyCodeValidator
+    from qs_strategy.application.services.strategy_code_validator import StrategyCodeValidator
 
     # 测试1: 基础范围检查
     print("\n【测试1】价格超出 OHLC 范围")

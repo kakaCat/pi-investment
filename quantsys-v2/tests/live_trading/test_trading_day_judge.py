@@ -115,7 +115,7 @@ class TestRunDailyCheckSkipContract:
 
 class TestDisabledStrategyGuard:
     def test_daily_check_refuses_disabled_strategy(self, monkeypatch):
-        from application.services.strategy_service import StrategyService
+        from qs_strategy.application.services.strategy_service import StrategyService
 
         svc = object.__new__(StrategyService)
         monkeypatch.setattr(

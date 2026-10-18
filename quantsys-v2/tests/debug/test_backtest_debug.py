@@ -12,7 +12,7 @@ logging.basicConfig(
 )
 
 # 导入必要的模块
-from application.services.strategy_code_service import StrategyCodeService
+from qs_strategy.application.services.strategy_code_service import StrategyCodeService
 
 def main():
     """直接调用 backtest_strategy"""

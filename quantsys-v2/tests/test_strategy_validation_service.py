@@ -1,7 +1,7 @@
 """Tests for StrategyValidationService"""
 import pytest
 from unittest.mock import Mock, patch
-from application.services.strategy_validation_service import StrategyValidationService
+from qs_strategy.application.services.strategy_validation_service import StrategyValidationService
 
 
 @pytest.fixture

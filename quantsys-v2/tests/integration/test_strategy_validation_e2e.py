@@ -1,6 +1,6 @@
 """End-to-end integration test for strategy validation"""
 import pytest
-from application.services.strategy_validation_service import StrategyValidationService
+from qs_strategy.application.services.strategy_validation_service import StrategyValidationService
 from adapters.outbound.repositories import StrategyORMRepository
 
 

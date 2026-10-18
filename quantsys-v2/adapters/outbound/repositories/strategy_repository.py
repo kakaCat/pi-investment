@@ -582,14 +582,14 @@ class StrategyORMRepository(BaseORMRepository[Strategy], IStrategyRepository):
             strategy_id: 策略 ID
             performance_status: passing / underperform / failing / unmeasured
             evidence: 判定证据（年化/夏普/回撤/基准/来源/窗口/规则），由
-                      application.services.strategy_status.performance_evidence() 生成
+                      qs_strategy.application.services.strategy_status.performance_evidence() 生成
 
         Returns:
             dict: {'strategy_id', 'performance_status', 'performance_evidence'}；策略不存在返回 None
         Raises:
             ValueError: 状态非法
         """
-        from application.services.strategy_status import PERFORMANCE_STATUSES
+        from qs_strategy.application.services.strategy_status import PERFORMANCE_STATUSES
         if performance_status not in PERFORMANCE_STATUSES:
             raise ValueError(
                 f"performance_status 必须是 {', '.join(PERFORMANCE_STATUSES)} 之一，收到: {performance_status}"
