@@ -263,7 +263,7 @@ forbidden_modules =
 | 项 | 状态 | 依据/锚点 | 处置口径 |
 |---|---|---|---|
 | L1 转发 shim 30 天观察期（2026-10-18 各包落地起算） | 等待 | 本卡各 S 行 shim 句 | 2026-11 中旬收割：reflog 确认无回退引用后逐包删 shim |
-| S11 kernel 独立成型 | 等待 | §11 | 待各项目稳定后另行开卡 |
+| S11 kernel 独立成型 | 等待（预研已毕 2026-10-19，见下） | §11 + 立项预研段 | 用户定夺后再开卡 |
 | 5 存疑账户终裁（不动） | 结案 | 既裁登记 | 不处置 |
 | hub→qd_agenthub 对 api.internal 方向异常 | 缓议 | session_service 归并卡登记 | qs_agenthub project 化时收口 |
 | watch_triggers 处置列宽度（原登记误写为 condition） | **结案（2026-10-19，fix/watch-disposition-by-width）** | 取证见下 | disposition_by 已加宽 50→120 |
@@ -276,6 +276,8 @@ forbidden_modules =
 **watch_triggers 定谳取证**（2026-10-19）：① `watch_triggers.condition` 是 JSONB 无宽度问题——原登记张冠李戴：真实 varchar(50) 是 `disposition_by`（处置主体，审计归因字段）。② 【复证修正 2026-10-19】顶格 50 字符并非截断，而是**完整 ID 的天然长度**：库内全谱（DISTINCT disposition_by）存在规整三段式 `investor-session-<8hex>-<24hex>`（17+8+1+24=50；24hex 为 ObjectId 标准长度），且同一会话 f0101ceb 同时有完整长形与短形 `investor-session-<8hex>`（25 字符）两种自发形态、其余会话（3379bf00 / agent_brain 04dec682 / agent-dh ddd16044）均以**短形完整**落库——15 次重复同一 ID=单会话稳定复用；PG 对超宽 varchar 报错而非静默截断（发来的值必然 ≤50），故从未发生裁剪。③ 【复证修正】原"调用方为适配 50 宽度先自裁"假设撤销：无自裁证据；真残留是**调用方形态不统一**（短形丢 24hex 尾码=归因粒度不一致，且 `agent:agent-ts`/`agent:w-c8cae280`/`investor(w-f0101ceb)` 等多形态并存）——v2 侧无动作，观察项。④ 修复保留（定谳复证后**降级为预防性加固**）：现格式恰好顶格，任何格式延长都会在 PG 报错，加宽无害且已合并（ORM `disposition_by String(50)→String(120)` + 迁移 `20261019_watch_triggers_disposition_by_widen`，实测列现 120、历史行原样；commit d20d96053/9ac60cb0d 的"截断实锤"表述由本复证修正取代）。⑤ 原"跨项目防御性截断"残留撤销；替代观察项：agent 侧统一以完整长形 ID 发 disposition_by（跨项目非 v2 范围）。
 
 **测试批环境口径（2026-10-19 合并回归日实证）**：跑 DB 依赖测试批必须**剔除 DSN 变量**——`set -a; source .env; set +a; unset QUANT_DATABASE_URL DATABASE_URL POSTGRES_DSN && export PGDATABASE=quant_test && PYTHONPATH=. pytest ...`。根因：DSN 解析链 QUANT_DATABASE_URL/DATABASE_URL/POSTGRES_DSN 优先级高于 PGDATABASE（`infrastructure/persistence/database/engine.py:43-72`），source .env 导出的生产 DSN 会在 pytest 安全闸（engine.py:92）把整个 DB 批拦爆——当日实证 26 批首跑 2F/6E 全部同根（非代码回退），干净配方复跑 **185P/0F/2S 持平基线**（覆盖当日 5 合并：core_async 拆分 / ABC 修复 / session_service 归并 / quantlib shim 移除 / 处置列加宽）。附带观察项：`base_repository.py:114` `Query.get()` 的 SQLAlchemy 2.0 LegacyAPIWarning（watch e2e +2 warnings 来源，前存既定，随 2.0 现代化统一清理）。
+
+**S11 立项预研（2026-10-19，只读普查不改码）**：10 包→L1 全谱 543 弦（按包：qs_ops=167、qs_market_data=92、qs_strategy=92 最重，编排属性所致；qs_quantlib/qs_notification 近净，仅 3/5 弦）。多包共同依赖（kernel 候选，按扇入）：① `domain/ports` 集中端口库——7 包 69 弦；② `infrastructure/services/service_factory`（DI 唯一入口）——7 包 62 弦；③ `infrastructure/persistence/orm`（models/base/config/async 双轨）+ `database/engine`——约 6 包；④ `application/services/agent_notification_service`——5 包；⑤ 共享域原语 `domain/models/market_data`、`domain/common/dates`、`domain/events.model`。单一向边最重的存量簇是 `adapters/outbound/repositories`（仅 kline_repository 即 5 包 22 弦，全簇 8 包）。立项必答的架构决策点：ServiceFactory 的业务注册表（enhanced_service_factory/service_registry 中的应用服务接线）kernel 不能携带，须拆"kernel-DI（端口+通用件）"与"业务装配留 L1"双层。反向越层待收两例：qs_watch→`adapters.inbound.fastapi_app.watch_sla_job`、qs_ops→`adapters.inbound.fastapi_app.daily_jobs_bootstrap`（包引内部适配器首例实锤）。工作量口径：约 50 文件搬迁 + 10 包 ~540 弦改线，体量相当于一张大 S 卡。
 
 ### 12.1 业务运行视图（数据怎么流）
 
