@@ -50,7 +50,7 @@ def get_feed_service() -> EventFeedService:
     """
     svc = get_event_feed_service()
     if svc is None:
-        from adapters.outbound.datasources.manager import get_data_provider_manager
+        from qs_market_data.adapters.outbound.datasources.manager import get_data_provider_manager
         from adapters.outbound.repositories.event_repository import get_market_event_repo
         svc = EventFeedService(
             manager=get_data_provider_manager(),

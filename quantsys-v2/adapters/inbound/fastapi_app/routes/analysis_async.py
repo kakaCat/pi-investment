@@ -644,7 +644,7 @@ def get_candlestick(symbol: str):
 @handle_api_error
 def get_indicators(symbol: str):
     """财务指标 - v2 原生实现"""
-    from application.services.financial_analysis_service import FinancialAnalysisService
+    from qs_market_data.application.services.financial_analysis_service import FinancialAnalysisService
     service = FinancialAnalysisService()
     result = service.get_financial_indicators(symbol)
 
@@ -660,7 +660,7 @@ def get_indicators(symbol: str):
 @handle_api_error
 def get_valuation(symbol: str):
     """估值分析 - v2 原生实现"""
-    from application.services.financial_analysis_service import FinancialAnalysisService
+    from qs_market_data.application.services.financial_analysis_service import FinancialAnalysisService
     service = FinancialAnalysisService()
     result = service.get_stock_valuation(symbol)
 
@@ -714,7 +714,7 @@ def get_quality_score_v2(symbol: str, framework: str = Query('auto')):
 @handle_api_error
 def get_data_health(symbol: str):
     """单票数据健康检查（保持 snake_case，绕过 api_response 的驼峰转换）"""
-    from application.services.stock_code_validator import StockCodeValidator
+    from qs_market_data.application.services.stock_code_validator import StockCodeValidator
 
     validator = StockCodeValidator()
     result = validator.validate(symbol)
@@ -1214,7 +1214,7 @@ def generate_factor_report(payload: Optional[Dict[str, Any]] = Body(None)):
 def analyze_swing_points(payload: Optional[Dict[str, Any]] = Body(None)):
     """ZigZag 波段分析 — 根据历史价格波动识别买卖点"""
     from application.services.swing_point_service import SwingPointService
-    from application.services.stock_code_validator import StockCodeValidator
+    from qs_market_data.application.services.stock_code_validator import StockCodeValidator
 
     raw = payload or {}
     params = convert_keys_to_snake(raw)

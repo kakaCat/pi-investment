@@ -150,5 +150,5 @@ class TestDataServiceReportIntegration:
     """
 
     def test_generate_factor_report_removed(self):
-        from application.services.data_service import DataService
+        from qs_market_data.application.services.data_service import DataService
         assert not hasattr(DataService, 'generate_factor_report')

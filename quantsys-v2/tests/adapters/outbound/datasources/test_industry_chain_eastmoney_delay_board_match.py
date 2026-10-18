@@ -9,7 +9,7 @@
 """
 import importlib
 
-MODULE = 'adapters.outbound.datasources.providers.industry_chain.eastmoney_delay_concept'
+MODULE = 'qs_market_data.adapters.outbound.datasources.providers.industry_chain.eastmoney_delay_concept'
 
 # 模拟东财板块清单（行业 + 概念），含同词根干扰项与通用词干扰项
 # 注意：每行必须带 'kind'（provider 内部按 board['kind'] 判「行业 vs 概念」优先）

@@ -6,7 +6,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from application.services.stock_code_validator import StockCodeValidator
+from qs_market_data.application.services.stock_code_validator import StockCodeValidator
 
 
 class TestStockCodeValidatorOptimized:

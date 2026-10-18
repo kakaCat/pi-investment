@@ -1,6 +1,6 @@
 """Tests for quote providers integration."""
 import pytest
-from adapters.outbound.datasources import get_data_provider_manager
+from qs_market_data.adapters.outbound.datasources import get_data_provider_manager
 
 
 def test_quote_providers_registered():

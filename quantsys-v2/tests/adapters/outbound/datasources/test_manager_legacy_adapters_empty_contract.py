@@ -16,7 +16,7 @@ domain/models/market_data.py 与 adapters/outbound/datasources/models.py **各�
 dataclass**，跨模块 isinstance 恒为假。manager 与 IDataProviderManager 端口统一用 domain 侧，
 测试也必须用 domain 侧，否则会出现「repr 看着对、isinstance 却是 False」的假失败。
 """
-from adapters.outbound.datasources.manager import DataProviderManager
+from qs_market_data.adapters.outbound.datasources.manager import DataProviderManager
 # ⚠️ 必须用 domain 侧模型：manager 与 IDataProviderManager 端口都用 domain/models/market_data.py，
 # 而 adapters/outbound/datasources/models.py 有**同名另一套** dataclass（isinstance 跨模块为假）
 from domain.models.market_data import MarketData, StockData

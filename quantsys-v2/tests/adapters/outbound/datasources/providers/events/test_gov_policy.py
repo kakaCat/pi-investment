@@ -10,8 +10,8 @@ from datetime import date, timedelta
 
 import pytest
 
-from adapters.outbound.datasources.providers.events import gov_policy as mod
-from adapters.outbound.datasources.providers.events.gov_policy import (
+from qs_market_data.adapters.outbound.datasources.providers.events import gov_policy as mod
+from qs_market_data.adapters.outbound.datasources.providers.events.gov_policy import (
     GovPolicyProvider, _clean, _in_window,
 )
 

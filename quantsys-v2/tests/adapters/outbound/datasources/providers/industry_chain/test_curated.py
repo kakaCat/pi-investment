@@ -8,7 +8,7 @@
 import yaml
 import pytest
 
-from adapters.outbound.datasources.providers.industry_chain.curated import CuratedChainProvider
+from qs_market_data.adapters.outbound.datasources.providers.industry_chain.curated import CuratedChainProvider
 
 SEED = {
     'chain_id': 'glass',

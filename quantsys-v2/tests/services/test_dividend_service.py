@@ -1,8 +1,8 @@
 import pytest
 import pandas as pd
 from unittest.mock import Mock
-from application.services.dividend_service import DividendService
-from application.services.dividend_data_source import EastMoneyDividendSource, DividendDataSource
+from qs_market_data.application.services.dividend_service import DividendService
+from qs_market_data.application.services.dividend_data_source import EastMoneyDividendSource, DividendDataSource
 
 
 class TestDividendServiceInit:

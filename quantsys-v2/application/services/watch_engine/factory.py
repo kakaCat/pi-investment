@@ -7,12 +7,12 @@ from domain.ports.datasource_ports import IDataProviderManager
 
 import structlog
 
-from adapters.outbound.datasources.manager import get_data_provider_manager
+from qs_market_data.adapters.outbound.datasources.manager import get_data_provider_manager
 from adapters.outbound.repositories.watch_rule_repository import (
     WatchRuleRepository, WatchTriggerRepository
 )
 from application.services.agent_notification_service import AgentNotificationService
-from application.services.realtime_quote_service_v2 import RealtimeQuoteServiceV2
+from qs_market_data.application.services.realtime_quote_service_v2 import RealtimeQuoteServiceV2
 from application.services.watch_engine.engine import WatchEngine
 from application.services.watch_engine.notifier import WatchNotifier
 from application.services.watch_engine.digest_service import WatchDigestService
@@ -23,7 +23,7 @@ from adapters.outbound.repositories.watch_state_repository import (
 from application.services.watch_engine.meta_review_service import WatchMetaReviewService
 from application.services.watch_engine.position_lifecycle_service import PositionLifecycleService
 from application.services.watch_engine.market_watch_service import MarketWatchService
-from adapters.outbound.datasources.market_state_provider import MarketStateProvider
+from qs_market_data.adapters.outbound.datasources.market_state_provider import MarketStateProvider
 from adapters.outbound.repositories.simulation_position_repository import SimulationPositionRepository
 
 logger = structlog.get_logger(__name__)

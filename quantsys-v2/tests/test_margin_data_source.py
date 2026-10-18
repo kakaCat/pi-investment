@@ -17,7 +17,7 @@ import types
 import pandas as pd
 import pytest
 
-from adapters.outbound.datasources.margin_data_source import (
+from qs_market_data.adapters.outbound.datasources.margin_data_source import (
     AkShareMarginSource,
     MarginDataSource,
 )

@@ -8,7 +8,7 @@ from typing import Optional, List
 import structlog
 from datetime import datetime, timedelta
 
-from application.services.data_backfiller import DataBackfiller
+from qs_market_data.application.services.data_backfiller import DataBackfiller
 from adapters.outbound.repositories.kline_repository import KlineORMRepository
 from infrastructure.persistence.orm import get_session
 

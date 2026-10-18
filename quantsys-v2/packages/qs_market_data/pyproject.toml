@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qs-market-data"
+version = "0.1.0"
+description = "PI Investment 数据供给包 - 外部行情/K线/财务数据的唯一取数出口 (DataProviderManager + providers)"
+requires-python = ">=3.10"
+dependencies = [
+    "pandas",
+    "polars",
+    "structlog",
+    "pybreaker",
+    "prometheus-client",
+    "requests",
+    "beautifulsoup4",
+    "akshare",
+]
+
+[tool.setuptools.packages.find]
+include = ["qs_market_data*"]
+exclude = ["__pycache__*", "*.egg-info*"]

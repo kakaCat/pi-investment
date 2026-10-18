@@ -3,8 +3,8 @@ RealtimeQuoteService 单元测试
 """
 import pytest
 from unittest.mock import patch
-from application.services.realtime_quote_service import RealtimeQuoteService
-from application.services.quote_providers import QuoteData
+from qs_market_data.application.services.realtime_quote_service import RealtimeQuoteService
+from qs_market_data.application.services.quote_providers import QuoteData
 
 
 class FakeDataProviderManager:
@@ -39,7 +39,7 @@ class TestRealtimeQuoteService:
 
     def _service(self, manager):
         with patch(
-            'adapters.outbound.datasources.manager.get_data_provider_manager',
+            'qs_market_data.adapters.outbound.datasources.manager.get_data_provider_manager',
             return_value=manager,
         ):
             return RealtimeQuoteService()

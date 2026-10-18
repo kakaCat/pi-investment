@@ -38,7 +38,7 @@ def get_service() -> IndustryChainService:
     """组合根：装配 IDataProviderManager + IIndustryChainRepository（进程级复用）"""
     svc = get_industry_chain_service()
     if svc is None:
-        from adapters.outbound.datasources.manager import get_data_provider_manager
+        from qs_market_data.adapters.outbound.datasources.manager import get_data_provider_manager
         from adapters.outbound.repositories.industry_chain_repository import (
             get_industry_chain_repo,
         )

@@ -73,7 +73,7 @@ def test_stock_code_validator():
     """测试 StockCodeValidator 解析"""
     register_all_services()
 
-    from application.services.stock_code_validator import StockCodeValidator
+    from qs_market_data.application.services.stock_code_validator import StockCodeValidator
 
     validator = EnhancedServiceFactory.resolve(StockCodeValidator)
 
@@ -129,7 +129,7 @@ def test_multiple_services():
     register_all_services()
 
     from application.services.chan_service import ChanService
-    from application.services.stock_code_validator import StockCodeValidator
+    from qs_market_data.application.services.stock_code_validator import StockCodeValidator
     from application.services.decision_service import DecisionService
 
     services = [
@@ -190,7 +190,7 @@ def test_all_p2_1_services():
 
         # 数据质量
         ('application.services.data_quality_service', 'DataQualityService'),
-        ('application.services.stock_code_validator', 'StockCodeValidator'),
+        ('qs_market_data.application.services.stock_code_validator', 'StockCodeValidator'),
 
         # 决策与知识
         ('application.services.decision_service', 'DecisionService'),

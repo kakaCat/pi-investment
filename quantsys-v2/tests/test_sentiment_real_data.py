@@ -18,7 +18,7 @@ from datetime import date, timedelta
 import pandas as pd
 import pytest
 
-from adapters.outbound.datasources.providers.market import akshare as mk
+from qs_market_data.adapters.outbound.datasources.providers.market import akshare as mk
 
 
 @pytest.fixture(autouse=True)
@@ -316,7 +316,7 @@ def batch_client():
 
 
 def _patch_manager(monkeypatch, method, result):
-    import adapters.outbound.datasources as ds_pkg
+    import qs_market_data.adapters.outbound.datasources as ds_pkg
 
     class _M:
         def __getattr__(self, name):

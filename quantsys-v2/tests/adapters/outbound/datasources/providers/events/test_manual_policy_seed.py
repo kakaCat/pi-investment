@@ -9,7 +9,7 @@ from datetime import datetime
 
 import pytest
 
-from adapters.outbound.datasources.providers.events.manual_policy_seed import (
+from qs_market_data.adapters.outbound.datasources.providers.events.manual_policy_seed import (
     OPERATOR, SEED_POLICIES, SEED_AS_OF, ManualPolicySeedProvider,
 )
 

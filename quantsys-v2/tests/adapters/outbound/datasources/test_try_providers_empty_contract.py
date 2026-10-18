@@ -17,7 +17,7 @@
 """
 import pytest
 
-from adapters.outbound.datasources.manager import DataProviderManager
+from qs_market_data.adapters.outbound.datasources.manager import DataProviderManager
 
 
 class FakeProvider:

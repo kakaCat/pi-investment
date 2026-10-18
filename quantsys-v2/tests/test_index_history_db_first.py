@@ -15,7 +15,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from application.services.market_data_service import MarketDataService
+from qs_market_data.application.services.market_data_service import MarketDataService
 
 
 def _svc() -> MarketDataService:

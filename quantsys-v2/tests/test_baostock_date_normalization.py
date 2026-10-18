@@ -16,7 +16,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from adapters.outbound.datasources.providers.kline.baostock import BaostockKlineProvider
+from qs_market_data.adapters.outbound.datasources.providers.kline.baostock import BaostockKlineProvider
 
 
 def test_normalize_date_accepts_both_formats():

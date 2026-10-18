@@ -1,7 +1,7 @@
 import pytest
 import pandas as pd
 from unittest.mock import patch, Mock
-from application.services.dividend_data_source import EastMoneyDividendSource
+from qs_market_data.application.services.dividend_data_source import EastMoneyDividendSource
 
 
 def _eastmoney_response(rows):
@@ -34,7 +34,7 @@ def _icbc_row(divident_ratio, report_date="2024-07-16 00:00:00", pretax=3.064):
 class TestEastMoneyDividendSource:
     """The live data source. Contract: 股息率 is returned in PERCENT (akshare-compatible)."""
 
-    @patch("application.services.dividend_data_source.requests.get")
+    @patch("qs_market_data.application.services.dividend_data_source.requests.get")
     def test_normalizes_yield_fraction_to_percent(self, mock_get):
         """Regression: EastMoney DIVIDENT_RATIO is a fraction (0.0494); downstream
         filters/formatters expect percent (4.94). Must be converted at the source."""
@@ -49,7 +49,7 @@ class TestEastMoneyDividendSource:
         assert not df.empty
         assert df["股息率"].iloc[0] == pytest.approx(4.9419, rel=1e-3)
 
-    @patch("application.services.dividend_data_source.requests.get")
+    @patch("qs_market_data.application.services.dividend_data_source.requests.get")
     def test_strips_suffix_and_maps_columns(self, mock_get):
         mock_resp = Mock()
         mock_resp.raise_for_status = Mock()
@@ -64,7 +64,7 @@ class TestEastMoneyDividendSource:
         # filter uses bare 6-digit code
         assert "601398" in mock_get.call_args.kwargs["params"]["filter"]
 
-    @patch("application.services.dividend_data_source.requests.get")
+    @patch("qs_market_data.application.services.dividend_data_source.requests.get")
     def test_empty_result_returns_empty_dataframe(self, mock_get):
         mock_resp = Mock()
         mock_resp.raise_for_status = Mock()
@@ -77,7 +77,7 @@ class TestEastMoneyDividendSource:
         assert isinstance(df, pd.DataFrame)
         assert df.empty
 
-    @patch("application.services.dividend_data_source.requests.get")
+    @patch("qs_market_data.application.services.dividend_data_source.requests.get")
     def test_normalizes_dates_to_date_only(self, mock_get):
         """EastMoney dates arrive as 'YYYY-MM-DD 00:00:00'. They must be normalized
         to 'YYYY-MM-DD' so downstream string range comparisons include events that

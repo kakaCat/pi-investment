@@ -16,7 +16,7 @@ import json
 
 import pytest
 
-MODULE = 'adapters.outbound.datasources.providers.minute_kline.eastmoney'
+MODULE = 'qs_market_data.adapters.outbound.datasources.providers.minute_kline.eastmoney'
 
 # 实测样本（2026-09-11，600150）——字段序：时间,开,收,高,低,量(手),额(元),涨跌幅
 SAMPLE_F2 = [

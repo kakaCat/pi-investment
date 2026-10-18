@@ -34,7 +34,7 @@ router = APIRouter(tags=["Sentiment - 情绪/资金"])
 @handle_api_error
 def get_stock_fund_flow_v2(symbol: str, days: int = Query(5)):
     """个股资金流向 - v2 原生实现"""
-    from adapters.outbound.datasources.fund_flow_source import FundFlowDataSource
+    from qs_market_data.adapters.outbound.datasources.fund_flow_source import FundFlowDataSource
     from application.services.sentiment_service import SentimentService
 
     # 初始化服务
@@ -55,7 +55,7 @@ def get_stock_fund_flow_v2(symbol: str, days: int = Query(5)):
 @handle_api_error
 def get_stock_margin(symbol: str, days: int = Query(5)):
     """个股融资融券 - v2 原生实现"""
-    from adapters.outbound.datasources.margin_data_source import MarginDataSource
+    from qs_market_data.adapters.outbound.datasources.margin_data_source import MarginDataSource
 
     # 初始化数据源
     margin_source = MarginDataSource()
@@ -116,7 +116,7 @@ def get_fund_holdings(symbol: str, quarter: Optional[str] = Query(None)):
 
     原生列：基金名称/基金代码/持仓数量/占流通股比例/持股市值/占净值比例/截止日期
     """
-    from adapters.outbound.datasources import get_data_provider_manager
+    from qs_market_data.adapters.outbound.datasources import get_data_provider_manager
 
     return _provider_or_502(get_data_provider_manager().get_fund_holdings(symbol, quarter))
 
@@ -129,7 +129,7 @@ def get_top_holders(symbol: str, holder_type: str = Query('all')):
     holder_type: 'free' / 'circulating' → 十大流通股东；其余（含 'all'）→ 十大股东
     原生列：名次/股东名称/股份类型/持股数/占总股本持股比例/增减/变动比率
     """
-    from adapters.outbound.datasources import get_data_provider_manager
+    from qs_market_data.adapters.outbound.datasources import get_data_provider_manager
 
     return _provider_or_502(get_data_provider_manager().get_top_holders(symbol, holder_type))
 
@@ -141,7 +141,7 @@ def get_holder_changes(symbol: str, periods: int = Query(4)):
 
     原生列：股东户数统计截止日/股东户数-本次/上次/增减/增减比例/户均持股市值...
     """
-    from adapters.outbound.datasources import get_data_provider_manager
+    from qs_market_data.adapters.outbound.datasources import get_data_provider_manager
 
     return _provider_or_502(get_data_provider_manager().get_holder_changes(symbol, periods))
 
@@ -157,6 +157,6 @@ def get_top_fund_stocks(fund_type: str = Query('all'), limit: int = Query(50)):
     故本端点目前会**诚实返回 502**（而不是回造数据）；上游修复后自动恢复。
     详见 docs/work-logs/2026-09/ 的 REQ-48d896 记录。
     """
-    from adapters.outbound.datasources import get_data_provider_manager
+    from qs_market_data.adapters.outbound.datasources import get_data_provider_manager
 
     return _provider_or_502(get_data_provider_manager().get_top_fund_stocks(fund_type, limit))

@@ -1,8 +1,8 @@
 """End-to-end integration test for unified data provider architecture."""
 import pytest
-from adapters.outbound.datasources import get_data_provider_manager
-from application.services.stock_data_service import StockDataService
-from application.services.realtime_quote_service import RealtimeQuoteService
+from qs_market_data.adapters.outbound.datasources import get_data_provider_manager
+from qs_market_data.application.services.stock_data_service import StockDataService
+from qs_market_data.application.services.realtime_quote_service import RealtimeQuoteService
 
 
 def test_e2e_provider_manager_singleton():

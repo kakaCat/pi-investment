@@ -10,8 +10,8 @@ import logging
 
 import pytest
 
-from adapters.outbound.datasources.providers.events import eastmoney_notice as mod
-from adapters.outbound.datasources.providers.events.eastmoney_notice import (
+from qs_market_data.adapters.outbound.datasources.providers.events import eastmoney_notice as mod
+from qs_market_data.adapters.outbound.datasources.providers.events.eastmoney_notice import (
     _MAX_SYMBOLS, EastmoneyNoticeProvider,
 )
 

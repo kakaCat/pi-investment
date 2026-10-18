@@ -10,8 +10,8 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
-from adapters.outbound.datasources.providers.quantlib.base_adapter import BaseMarketAdapter
-from adapters.outbound.datasources.providers.quantlib.factory import get_adapter, register_adapter, list_adapters
+from qs_market_data.adapters.outbound.datasources.providers.quantlib.base_adapter import BaseMarketAdapter
+from qs_market_data.adapters.outbound.datasources.providers.quantlib.factory import get_adapter, register_adapter, list_adapters
 
 
 # ========================================================================
@@ -141,19 +141,19 @@ class TestAdapterFactory:
 
     def test_default_returns_akshare_adapter(self):
         """Default adapter is the AkShareAdapter."""
-        from adapters.outbound.datasources.providers.quantlib.akshare_adapter import AkShareAdapter
+        from qs_market_data.adapters.outbound.datasources.providers.quantlib.akshare_adapter import AkShareAdapter
         adapter = get_adapter()
         assert isinstance(adapter, BaseMarketAdapter)
         assert isinstance(adapter, AkShareAdapter)
 
     def test_explicit_name_returns_akshare_adapter(self):
-        from adapters.outbound.datasources.providers.quantlib.akshare_adapter import AkShareAdapter
+        from qs_market_data.adapters.outbound.datasources.providers.quantlib.akshare_adapter import AkShareAdapter
         adapter = get_adapter("akshare")
         assert isinstance(adapter, AkShareAdapter)
 
     def test_env_var_overrides_default(self, monkeypatch):
         monkeypatch.setenv("QUANT_MARKET_ADAPTER", "akshare")
-        from adapters.outbound.datasources.providers.quantlib.akshare_adapter import AkShareAdapter
+        from qs_market_data.adapters.outbound.datasources.providers.quantlib.akshare_adapter import AkShareAdapter
         adapter = get_adapter()
         assert isinstance(adapter, AkShareAdapter)
 
@@ -162,10 +162,10 @@ class TestAdapterFactory:
             get_adapter("nonexistent_source")
 
     def test_register_adapter(self):
-        register_adapter("mock_test", "adapters.outbound.datasources.providers.quantlib.base_adapter.BaseMarketAdapter")
+        register_adapter("mock_test", "qs_market_data.adapters.outbound.datasources.providers.quantlib.base_adapter.BaseMarketAdapter")
         assert "mock_test" in list_adapters()
         # Clean up — remove from registry to avoid polluting other tests
-        from adapters.outbound.datasources.providers.quantlib import factory
+        from qs_market_data.adapters.outbound.datasources.providers.quantlib import factory
         factory._REGISTRY.pop("mock_test", None)
 
     def test_list_adapters(self):
@@ -186,10 +186,10 @@ class _BaseMockAkshareTest:
         """Patch the `ak` reference inside ak_share_adapter so tests never
         call the real akshare library."""
         self.mock_ak = MagicMock()
-        monkeypatch.setattr("adapters.outbound.datasources.providers.quantlib.akshare_adapter.ak", self.mock_ak)
+        monkeypatch.setattr("qs_market_data.adapters.outbound.datasources.providers.quantlib.akshare_adapter.ak", self.mock_ak)
 
     def _make_adapter(self):
-        from adapters.outbound.datasources.providers.quantlib.akshare_adapter import AkShareAdapter
+        from qs_market_data.adapters.outbound.datasources.providers.quantlib.akshare_adapter import AkShareAdapter
         return AkShareAdapter()
 
     def _make_kline_frame(self, symbols=1):
@@ -263,7 +263,7 @@ class TestGetStockInfo(_BaseMockAkshareTest):
 
     def test_import_error_returns_error_dict(self, monkeypatch):
         # Simulate akshare not being installed
-        import adapters.outbound.datasources.providers.quantlib.akshare_adapter as mod
+        import qs_market_data.adapters.outbound.datasources.providers.quantlib.akshare_adapter as mod
         monkeypatch.setattr(mod, "ak", _make_unavailable_stub())
 
         adapter = self._make_adapter()
@@ -376,7 +376,7 @@ class TestGetKlines(_BaseMockAkshareTest):
         assert result == []
 
     def test_import_error_returns_empty_list(self, monkeypatch):
-        import adapters.outbound.datasources.providers.quantlib.akshare_adapter as mod
+        import qs_market_data.adapters.outbound.datasources.providers.quantlib.akshare_adapter as mod
         monkeypatch.setattr(mod, "ak", _make_unavailable_stub())
 
         adapter = self._make_adapter()
@@ -684,7 +684,7 @@ class TestAkShareAdapterStructure:
     """Verify the adapter implements the full BaseMarketAdapter interface."""
 
     def setup_method(self):
-        from adapters.outbound.datasources.providers.quantlib.akshare_adapter import AkShareAdapter
+        from qs_market_data.adapters.outbound.datasources.providers.quantlib.akshare_adapter import AkShareAdapter
         self.adapter = AkShareAdapter()
 
     def test_implements_all_abstract_methods(self):
@@ -715,7 +715,7 @@ class TestAkShareAdapterStructure:
 
 class TestModuleExports:
     def test_init_exports_all_symbols(self):
-        from adapters.outbound.datasources.providers.quantlib import (
+        from qs_market_data.adapters.outbound.datasources.providers.quantlib import (
             BaseMarketAdapter,
             AkShareAdapter,
             get_adapter,
@@ -729,6 +729,6 @@ class TestModuleExports:
         assert callable(list_adapters)
 
     def test_factory_importable_from_package(self):
-        from adapters.outbound.datasources.providers.quantlib import get_adapter
+        from qs_market_data.adapters.outbound.datasources.providers.quantlib import get_adapter
         adapter = get_adapter("akshare")
         assert isinstance(adapter, BaseMarketAdapter)

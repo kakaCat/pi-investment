@@ -6,7 +6,7 @@ data.{code}.qfqday = [[date, open, close, high, low, volume], ...]
 """
 from unittest.mock import patch, MagicMock
 
-from adapters.outbound.datasources.providers.kline.tencent import TencentKlineProvider
+from qs_market_data.adapters.outbound.datasources.providers.kline.tencent import TencentKlineProvider
 
 
 SAMPLE_RESPONSE = {
@@ -27,7 +27,7 @@ def _mock_get(payload):
     resp = MagicMock()
     resp.json.return_value = payload
     resp.raise_for_status.return_value = None
-    return patch('adapters.outbound.datasources.providers.kline.tencent.requests.get',
+    return patch('qs_market_data.adapters.outbound.datasources.providers.kline.tencent.requests.get',
                  return_value=resp)
 
 
@@ -109,7 +109,7 @@ def test_empty_data_returns_none():
 
 
 def test_network_exception_returns_none():
-    with patch('adapters.outbound.datasources.providers.kline.tencent.requests.get',
+    with patch('qs_market_data.adapters.outbound.datasources.providers.kline.tencent.requests.get',
                side_effect=ConnectionError('reset')):
         assert TencentKlineProvider().get_klines(
             '300001', 'daily', '2026-07-15', '2026-07-22') is None
@@ -117,7 +117,7 @@ def test_network_exception_returns_none():
 
 def test_manager_kline_chain_has_tencent_before_akshare():
     """DataProviderManager 的 K线 fallback 链：tencent 必须在 akshare 之前"""
-    from adapters.outbound.datasources.manager import DataProviderManager
+    from qs_market_data.adapters.outbound.datasources.manager import DataProviderManager
     manager = DataProviderManager()
     names = [p.name for p in manager.kline_providers]
     assert 'tencent' in names and 'akshare' in names
@@ -156,7 +156,7 @@ def test_last_error_cleared_on_success():
 
 def test_try_providers_aggregates_failure_reasons():
     """manager 必须聚合每个 provider 的具体失败原因到 provider_errors"""
-    from adapters.outbound.datasources.manager import DataProviderManager
+    from qs_market_data.adapters.outbound.datasources.manager import DataProviderManager
 
     class DummyProvider:
         def __init__(self, name, reason=None, exc=None):

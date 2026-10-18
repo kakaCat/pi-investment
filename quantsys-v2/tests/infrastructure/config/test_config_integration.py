@@ -182,7 +182,7 @@ class TestEnhancedServiceFactoryConfigIntegration:
         EnhancedServiceFactory.register_from_config(config)
 
         # data_service 使用工厂函数
-        from application.services.data_service import DataService
+        from qs_market_data.application.services.data_service import DataService
         data_service = EnhancedServiceFactory.resolve(DataService)
 
         assert data_service is not None

@@ -452,7 +452,7 @@ def risk_lens(exposure_by_symbol: dict, total_value: float, start: str = "2024-0
             # 违反 CLAUDE.md「NEVER directly import external data libraries」。
             # 改走唯一出口 DataProviderManager，姿势与既有先例
             # `market_perception_service._fetch_index_history()` 一致。
-            from adapters.outbound.datasources.manager import get_data_provider_manager
+            from qs_market_data.adapters.outbound.datasources.manager import get_data_provider_manager
 
             result = get_data_provider_manager().get_index_daily("sh000300")
             if not result.get("success") or not result.get("data"):

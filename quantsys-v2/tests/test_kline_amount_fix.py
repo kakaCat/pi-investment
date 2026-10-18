@@ -10,9 +10,9 @@ from unittest.mock import patch, MagicMock
 
 import pandas as pd
 
-from adapters.outbound.datasources.providers.kline.base import KlineData
-from adapters.outbound.datasources.providers.kline.tencent import TencentKlineProvider
-from adapters.outbound.datasources.providers.kline.akshare import AkshareKlineProvider
+from qs_market_data.adapters.outbound.datasources.providers.kline.base import KlineData
+from qs_market_data.adapters.outbound.datasources.providers.kline.tencent import TencentKlineProvider
+from qs_market_data.adapters.outbound.datasources.providers.kline.akshare import AkshareKlineProvider
 
 
 TENCENT_RESPONSE = {
@@ -36,7 +36,7 @@ def _mock_tencent_get(payload):
     resp = MagicMock()
     resp.json.return_value = payload
     resp.raise_for_status.return_value = None
-    return patch('adapters.outbound.datasources.providers.kline.tencent.requests.get',
+    return patch('qs_market_data.adapters.outbound.datasources.providers.kline.tencent.requests.get',
                  return_value=resp)
 
 

@@ -32,7 +32,7 @@ def handle_report_daily(params: Dict[str, Any] = None) -> Dict[str, Any]:
         # AttributeError 被下方 except 吞掉 → "市场概况"节自始永远缺失），改走真实存在的
         # MarketDataService.get_market_overview()（全市场涨跌家数统计）。
         try:
-            from application.services.market_data_service import MarketDataService
+            from qs_market_data.application.services.market_data_service import MarketDataService
             market_service = MarketDataService()
             market_summary = market_service.get_market_overview()
             if market_summary.get("success") and market_summary.get("data"):

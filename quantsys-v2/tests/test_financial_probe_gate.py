@@ -53,7 +53,7 @@ class _Repo:
 
 
 def _patch(monkeypatch, svc):
-    import application.services.financial_data_service_adapter as ad
+    import qs_market_data.application.services.financial_data_service_adapter as ad
     import adapters.outbound.repositories.financial_repository as fr
     monkeypatch.setattr(ad, "FinancialDataServiceAdapter", lambda *a, **k: svc)
     monkeypatch.setattr(fr, "FinancialORMRepository", lambda *a, **k: _Repo())

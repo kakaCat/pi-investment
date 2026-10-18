@@ -82,7 +82,7 @@ class TestExecuteTradeV2Buy:
         now_fn = lambda: datetime(2026, 9, 1, 10, 0, 0)
 
         # Mock 行情
-        with patch('application.services.realtime_quote_service.RealtimeQuoteService') as mock_quote_service:
+        with patch('qs_market_data.application.services.realtime_quote_service.RealtimeQuoteService') as mock_quote_service:
             mock_quote = Mock()
             mock_quote.price = 10.0
             mock_quote_service.return_value.get_realtime_quote.return_value = mock_quote
@@ -136,7 +136,7 @@ class TestExecuteTradeV2Buy:
         mock_calendar.is_trading_day.return_value = True
         now_fn = lambda: datetime(2026, 9, 1, 10, 0, 0)
 
-        with patch('application.services.realtime_quote_service.RealtimeQuoteService') as mock_quote_service:
+        with patch('qs_market_data.application.services.realtime_quote_service.RealtimeQuoteService') as mock_quote_service:
             mock_quote = Mock()
             mock_quote.price = 10.0
             mock_quote_service.return_value.get_realtime_quote.return_value = mock_quote
@@ -181,7 +181,7 @@ class TestExecuteTradeV2Buy:
         mock_calendar.is_trading_day.return_value = True
         now_fn = lambda: datetime(2026, 9, 1, 10, 0, 0)
 
-        with patch('application.services.realtime_quote_service.RealtimeQuoteService') as mock_quote_service:
+        with patch('qs_market_data.application.services.realtime_quote_service.RealtimeQuoteService') as mock_quote_service:
             mock_quote = Mock()
             mock_quote.price = 10.0
             mock_quote_service.return_value.get_realtime_quote.return_value = mock_quote
@@ -232,7 +232,7 @@ class TestExecuteTradeV2Sell:
         mock_calendar.is_trading_day.return_value = True
         now_fn = lambda: datetime(2026, 9, 1, 10, 0, 0)
 
-        with patch('application.services.realtime_quote_service.RealtimeQuoteService') as mock_quote_service:
+        with patch('qs_market_data.application.services.realtime_quote_service.RealtimeQuoteService') as mock_quote_service:
             mock_quote = Mock()
             mock_quote.price = 12.0
             mock_quote_service.return_value.get_realtime_quote.return_value = mock_quote
@@ -279,7 +279,7 @@ class TestExecuteTradeV2Sell:
         mock_calendar.is_trading_day.return_value = True
         now_fn = lambda: datetime(2026, 9, 1, 10, 0, 0)
 
-        with patch('application.services.realtime_quote_service.RealtimeQuoteService') as mock_quote_service:
+        with patch('qs_market_data.application.services.realtime_quote_service.RealtimeQuoteService') as mock_quote_service:
             mock_quote = Mock()
             mock_quote.price = 12.0
             mock_quote_service.return_value.get_realtime_quote.return_value = mock_quote
@@ -351,7 +351,7 @@ class TestExecuteTradeV2Validation:
         mock_calendar.is_trading_day.return_value = True
         now_fn = lambda: datetime(2026, 9, 1, 10, 0, 0)
 
-        with patch('application.services.realtime_quote_service.RealtimeQuoteService') as mock_quote_service:
+        with patch('qs_market_data.application.services.realtime_quote_service.RealtimeQuoteService') as mock_quote_service:
             mock_quote = Mock()
             mock_quote.price = 10.0
             mock_quote_service.return_value.get_realtime_quote.return_value = mock_quote

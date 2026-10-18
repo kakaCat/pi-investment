@@ -8,7 +8,7 @@
 """
 import pytest
 
-from adapters.outbound.datasources.providers.events.database import (
+from qs_market_data.adapters.outbound.datasources.providers.events.database import (
     _MAX_SYMBOLS, DatabaseEventProvider,
 )
 

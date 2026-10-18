@@ -258,7 +258,7 @@ def fetch_sina_sector_boards() -> Optional[List[Dict[str, Any]]]:
     东财（行业口径不同），会让上层风格检测的数值悄悄改变。
     """
     # 惰性 import（避免 application 模块顶层引用 adapters；本仓既有的 182 处函数内跨层导入同此处理）
-    from adapters.outbound.datasources.manager import get_data_provider_manager
+    from qs_market_data.adapters.outbound.datasources.manager import get_data_provider_manager
 
     try:
         manager = get_data_provider_manager()

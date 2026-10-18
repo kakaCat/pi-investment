@@ -8,7 +8,7 @@ from typing import Optional
 from fastapi import APIRouter, Query
 import structlog
 
-from adapters.outbound.datasources import get_data_provider_manager
+from qs_market_data.adapters.outbound.datasources import get_data_provider_manager
 
 logger = structlog.get_logger(__name__)
 
@@ -24,7 +24,7 @@ def _apply_sector_window(payload: dict, days: int) -> dict:
     快照历史深度不足时按实际深度计算并显式标注，不冒充完整窗口。
     """
     try:
-        from adapters.outbound.datasources.sector_snapshot import load_snapshots
+        from qs_market_data.adapters.outbound.datasources.sector_snapshot import load_snapshots
         # 响应嵌套：payload.data = MarketData 序列化 {data_type, data:{industries,...}, ...}
         outer = payload.get('data')
         o = outer if isinstance(outer, dict) else getattr(outer, 'data', None)
@@ -83,14 +83,14 @@ def get_sectors_v2(days: Optional[int] = Query(None)):
     if result.get('success') and result.get('data'):
         # 成功：尽力落库当日快照（板块列表每日低频，供数据源故障时兜底）
         try:
-            from adapters.outbound.datasources.sector_snapshot import save_snapshot
+            from qs_market_data.adapters.outbound.datasources.sector_snapshot import save_snapshot
             save_snapshot(result.get('data'), source=result.get('source') or 'eastmoney')
         except Exception:  # noqa: BLE001 落库失败不影响主链路
             logger.warning('sector 快照落库失败（不影响本次返回）', exc_info=True)
     else:
         # 数据源故障/超时：回退 DB 快照（stale-while-error，标注 degraded）
         try:
-            from adapters.outbound.datasources.sector_snapshot import load_snapshot
+            from qs_market_data.adapters.outbound.datasources.sector_snapshot import load_snapshot
             snapshot = load_snapshot()
             if snapshot:
                 logger.warning(
