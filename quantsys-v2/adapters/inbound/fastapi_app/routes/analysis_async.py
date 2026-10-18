@@ -755,7 +755,7 @@ def get_market_sentiment():
 def screen_stocks_v2(request: Request):
     """多条件选股 - 使用 v2 原生实现"""
     try:
-        from application.services.stock_screening_service import StockScreeningService
+        from qs_sourcing.application.services.stock_screening_service import StockScreeningService
 
         # 解析筛选条件
         criteria = {}
@@ -798,7 +798,7 @@ def screening_quality(sector: str = Query(''),
                       limit: int = Query(10)):
     """行业质量筛选 - 使用 v2 质量评分服务"""
     # 使用 v2 的质量评分和筛选功能
-    from application.services.stock_screening_service import StockScreeningService
+    from qs_sourcing.application.services.stock_screening_service import StockScreeningService
 
     criteria = {'min_score': min_score, 'limit': limit}
     if max_pe:

@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 import structlog
 
-from adapters.outbound.repositories.signal_async_repository import SignalAsyncRepository
+from qs_sourcing.adapters.outbound.repositories.signal_async_repository import SignalAsyncRepository
 from infrastructure.persistence.orm.async_config import get_async_session_context
 from adapters.shared.services import realtime_signal_service
 

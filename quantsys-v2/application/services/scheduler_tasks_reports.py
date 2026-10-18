@@ -59,7 +59,7 @@ def handle_report_daily(params: Dict[str, Any] = None) -> Dict[str, Any]:
 
         # 3. 信号统计
         try:
-            from application.services.signal_monitoring import SignalMonitor
+            from qs_sourcing.application.services.signal_monitoring import SignalMonitor
             signal_monitor = SignalMonitor()
             signal_stats = signal_monitor.get_daily_stats()
             report_content["sections"].append({

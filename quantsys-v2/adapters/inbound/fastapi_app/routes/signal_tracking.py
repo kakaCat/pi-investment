@@ -13,7 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field
 import structlog
 
 from adapters.inbound.fastapi_app.shared import api_response, error_response, handle_api_error
-from application.services.signal_tracking_service import SignalTrackingService
+from qs_sourcing.application.services.signal_tracking_service import SignalTrackingService
 
 logger = structlog.get_logger(__name__)
 

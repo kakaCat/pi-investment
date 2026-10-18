@@ -30,9 +30,9 @@ class SignalGenerateJob(Job):
         try:
             from adapters.outbound.repositories.heatmap_repository import HeatmapRepository
             from adapters.outbound.repositories.kline_repository import KlineORMRepository
-            from adapters.outbound.repositories.signal_repository import SignalORMRepository
+            from qs_sourcing.adapters.outbound.repositories.signal_repository import SignalORMRepository
             from adapters.outbound.repositories.strategy_repository import StrategyORMRepository
-            from application.services.pool_signal_scanner import PoolSignalScanner
+            from qs_sourcing.application.services.pool_signal_scanner import PoolSignalScanner
             from datetime import date as date_type
 
             strategy_ids = params.get("strategy_ids") or [179, 178, 163, 193]
@@ -180,7 +180,7 @@ class SignalPerfBackfillJob(Job):
         import asyncio
 
         def _run() -> Dict[str, Any]:
-            from application.services.signal_tracking_service import SignalTrackingService
+            from qs_sourcing.application.services.signal_tracking_service import SignalTrackingService
             # 不传连接：SignalTrackingRepository 内部自建 psycopg2 裸连接
             svc = SignalTrackingService()
             return svc.update_performance(lookback_days=params.get('lookback_days', 30))

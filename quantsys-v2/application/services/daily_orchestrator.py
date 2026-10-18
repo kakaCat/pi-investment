@@ -367,7 +367,7 @@ class DailyOrchestrator:
 
     def _collect_pending_signals(self) -> List[Dict[str, Any]]:
         """收集当日 pending 信号（复用 SignalExecutionScheduler 的收集逻辑，不下单）"""
-        from application.services.signal_execution_scheduler import SignalExecutionScheduler
+        from qs_sourcing.application.services.signal_execution_scheduler import SignalExecutionScheduler
         scheduler = SignalExecutionScheduler()
         return scheduler._collect_signals(date.today().strftime('%Y-%m-%d'))
 
@@ -641,7 +641,7 @@ class DailyOrchestrator:
         # 2. 踏空捕获（5日宽限期）
         try:
             from application.services.evolution.missed_opportunity_service import MissedOpportunityService
-            from adapters.outbound.repositories.signal_repository import SignalORMRepository
+            from qs_sourcing.adapters.outbound.repositories.signal_repository import SignalORMRepository
             from adapters.outbound.repositories.agent_intelligence_repository import AgentIntelligenceORMRepository
             from adapters.outbound.repositories.kline_repository import KlineORMRepository
             logger.info("review_phase: missed_opportunity_service starting")
