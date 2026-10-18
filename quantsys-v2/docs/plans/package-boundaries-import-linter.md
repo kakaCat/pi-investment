@@ -275,6 +275,8 @@ forbidden_modules =
 
 **watch_triggers 定谳取证**（2026-10-19）：① `watch_triggers.condition` 是 JSONB 无宽度问题——原登记张冠李戴：真实 varchar(50) 是 `disposition_by`（处置主体，审计归因字段）。② 【复证修正 2026-10-19】顶格 50 字符并非截断，而是**完整 ID 的天然长度**：库内全谱（DISTINCT disposition_by）存在规整三段式 `investor-session-<8hex>-<24hex>`（17+8+1+24=50；24hex 为 ObjectId 标准长度），且同一会话 f0101ceb 同时有完整长形与短形 `investor-session-<8hex>`（25 字符）两种自发形态、其余会话（3379bf00 / agent_brain 04dec682 / agent-dh ddd16044）均以**短形完整**落库——15 次重复同一 ID=单会话稳定复用；PG 对超宽 varchar 报错而非静默截断（发来的值必然 ≤50），故从未发生裁剪。③ 【复证修正】原"调用方为适配 50 宽度先自裁"假设撤销：无自裁证据；真残留是**调用方形态不统一**（短形丢 24hex 尾码=归因粒度不一致，且 `agent:agent-ts`/`agent:w-c8cae280`/`investor(w-f0101ceb)` 等多形态并存）——v2 侧无动作，观察项。④ 修复保留（定谳复证后**降级为预防性加固**）：现格式恰好顶格，任何格式延长都会在 PG 报错，加宽无害且已合并（ORM `disposition_by String(50)→String(120)` + 迁移 `20261019_watch_triggers_disposition_by_widen`，实测列现 120、历史行原样；commit d20d96053/9ac60cb0d 的"截断实锤"表述由本复证修正取代）。⑤ 原"跨项目防御性截断"残留撤销；替代观察项：agent 侧统一以完整长形 ID 发 disposition_by（跨项目非 v2 范围）。
 
+**测试批环境口径（2026-10-19 合并回归日实证）**：跑 DB 依赖测试批必须**剔除 DSN 变量**——`set -a; source .env; set +a; unset QUANT_DATABASE_URL DATABASE_URL POSTGRES_DSN && export PGDATABASE=quant_test && PYTHONPATH=. pytest ...`。根因：DSN 解析链 QUANT_DATABASE_URL/DATABASE_URL/POSTGRES_DSN 优先级高于 PGDATABASE（`infrastructure/persistence/database/engine.py:43-72`），source .env 导出的生产 DSN 会在 pytest 安全闸（engine.py:92）把整个 DB 批拦爆——当日实证 26 批首跑 2F/6E 全部同根（非代码回退），干净配方复跑 **185P/0F/2S 持平基线**（覆盖当日 5 合并：core_async 拆分 / ABC 修复 / session_service 归并 / quantlib shim 移除 / 处置列加宽）。附带观察项：`base_repository.py:114` `Query.get()` 的 SQLAlchemy 2.0 LegacyAPIWarning（watch e2e +2 warnings 来源，前存既定，随 2.0 现代化统一清理）。
+
 ### 12.1 业务运行视图（数据怎么流）
 
 ```mermaid
