@@ -107,7 +107,7 @@ def test_策展不提供主营构成时返回空列表():
 
 def test_真实seed全部可加载且拓扑自校验通过():
     """离线校验仓库内 8 条策展链：能加载 + 拓扑对称 + 能构建聚合根。"""
-    from domain.industry_chain.service import IndustryChainService
+    from qs_intel.domain.industry_chain.service import IndustryChainService
 
     provider = CuratedChainProvider()
     chains = provider.list_chains()

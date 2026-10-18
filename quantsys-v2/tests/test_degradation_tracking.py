@@ -7,7 +7,7 @@ import pytest
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
-from application.services.opportunity_scoring_service import OpportunityScoringService
+from qs_intel.application.services.opportunity_scoring_service import OpportunityScoringService
 from application.services.scoring.degradation_tracker import DegradationTracker, Severity
 
 

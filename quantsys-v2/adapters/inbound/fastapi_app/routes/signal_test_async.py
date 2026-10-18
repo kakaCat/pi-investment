@@ -99,7 +99,7 @@ def run_strategy_and_record(payload: Optional[Dict[str, Any]] = Body(None)):
     # 4. 获取资金流数据（使用 v2 原生 SentimentService，替代已删除的 quant_cli）
     fund_flow_data = None
     try:
-        from application.services.sentiment_service import SentimentService
+        from qs_intel.application.services.sentiment_service import SentimentService
         from qs_market_data.adapters.outbound.datasources.fund_flow_source import FundFlowDataSource
         fund_flow_source = FundFlowDataSource()
         sentiment_service = SentimentService(fund_flow_source)

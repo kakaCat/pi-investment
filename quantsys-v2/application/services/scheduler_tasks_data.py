@@ -153,7 +153,7 @@ def handle_market_style_update(params: Dict[str, Any] = None) -> Dict[str, Any]:
     logger.info("Starting market_style_update task")
 
     try:
-        from application.services.market_style_detector import MarketStyleDetector
+        from qs_intel.application.services.market_style_detector import MarketStyleDetector
 
         detector = MarketStyleDetector()
 

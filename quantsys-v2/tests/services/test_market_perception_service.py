@@ -12,7 +12,7 @@ import pytest
 from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime
 
-from application.services.market_perception_service import (
+from qs_intel.application.services.market_perception_service import (
     MarketPerceptionService,
     PANIC_SENTIMENT,
     PANIC_INDEX_5D_PCT,
@@ -213,7 +213,7 @@ class TestDataSourceResilience:
         svc = MarketPerceptionService(kline_repo=Mock())
 
         # Mock MarketSentimentService 异常
-        with patch('application.services.market_sentiment_service.MarketSentimentService') as mock_sentiment_cls:
+        with patch('qs_intel.application.services.market_sentiment_service.MarketSentimentService') as mock_sentiment_cls:
             mock_sentiment = Mock()
             mock_sentiment.analyze_market_sentiment.side_effect = Exception("计算失败")
             mock_sentiment_cls.return_value = mock_sentiment
@@ -235,7 +235,7 @@ class TestBoundaryConditions:
         """测试 coverage=4000 边界（刚好不 partial）"""
         svc = MarketPerceptionService(kline_repo=Mock())
 
-        with patch('application.services.market_sentiment_service.MarketSentimentService') as mock_sentiment_cls:
+        with patch('qs_intel.application.services.market_sentiment_service.MarketSentimentService') as mock_sentiment_cls:
             mock_sentiment = Mock()
             mock_sentiment.analyze_market_sentiment.return_value = {
                 'fear_greed_index': 50,
@@ -275,7 +275,7 @@ class TestBoundaryConditions:
         """测试 coverage=3999（刚好 partial）"""
         svc = MarketPerceptionService(kline_repo=Mock())
 
-        with patch('application.services.market_sentiment_service.MarketSentimentService') as mock_sentiment_cls:
+        with patch('qs_intel.application.services.market_sentiment_service.MarketSentimentService') as mock_sentiment_cls:
             mock_sentiment = Mock()
             mock_sentiment.analyze_market_sentiment.return_value = {
                 'fear_greed_index': 50,

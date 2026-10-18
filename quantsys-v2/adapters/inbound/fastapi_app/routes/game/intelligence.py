@@ -64,7 +64,7 @@ def get_opponent_behavior():
         OpponentBehaviorResponse: 包含散户、机构、游资的行为分析
     """
     try:
-        from application.services.opponent_behavior_service import OpponentBehaviorService
+        from qs_intel.application.services.opponent_behavior_service import OpponentBehaviorService
         from qs_sourcing.adapters.outbound.repositories.stock_pool_repository import StockPoolRepository
         from adapters.outbound.repositories.kline_repository import KlineORMRepository
         
@@ -110,8 +110,8 @@ def get_pool_battlefield_assessment(pool_id: int):
         BattlefieldAssessmentResponse: 战场评估结果
     """
     try:
-        from application.services.battlefield_assessor import BattlefieldAssessor
-        from application.services.opponent_behavior_service import OpponentBehaviorService
+        from qs_intel.application.services.battlefield_assessor import BattlefieldAssessor
+        from qs_intel.application.services.opponent_behavior_service import OpponentBehaviorService
         from qs_sourcing.adapters.outbound.repositories.stock_pool_repository import StockPoolRepository
         from adapters.outbound.repositories.kline_repository import KlineORMRepository
         from adapters.outbound.repositories.fund_flow_repository import FundFlowORMRepository
@@ -169,7 +169,7 @@ def detect_manipulation():
     避免同步 Service 阻塞事件循环。
     """
     try:
-        from application.services.manipulation_detector import ManipulationDetector
+        from qs_intel.application.services.manipulation_detector import ManipulationDetector
 
         detector = ManipulationDetector()
         result = detector.detect_market_manipulation()

@@ -146,7 +146,7 @@ async def handle_market_perception_daily(metadata: Dict[str, Any]) -> Dict[str, 
     """
     logger.info("Starting market_perception_daily job")
     
-    from application.services.market_perception_service import MarketPerceptionService
+    from qs_intel.application.services.market_perception_service import MarketPerceptionService
     
     try:
         service = MarketPerceptionService()

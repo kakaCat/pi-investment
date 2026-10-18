@@ -29,7 +29,7 @@ R3 证据冲突裁决（resolve_conflicts）
 import logging
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
-from domain.industry_chain.model import (
+from qs_intel.domain.industry_chain.model import (
     CONFIDENCE_ORDER, ChainMember, ChainNode, ChainStage, EvidenceConflict,
     EvidenceKind, IndustryChain, RevenueExposure,
 )

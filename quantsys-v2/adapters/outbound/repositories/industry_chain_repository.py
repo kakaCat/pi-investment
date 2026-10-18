@@ -15,7 +15,7 @@ from typing import Dict, List, Optional
 
 from sqlalchemy.exc import SQLAlchemyError
 
-from domain.industry_chain.ports.IIndustryChainRepository import IIndustryChainRepository
+from qs_intel.domain.industry_chain.ports.IIndustryChainRepository import IIndustryChainRepository
 from infrastructure.persistence.orm.models.industry_chain import (
     IndustryChain as IndustryChainORM,
     IndustryChainMember as IndustryChainMemberORM,

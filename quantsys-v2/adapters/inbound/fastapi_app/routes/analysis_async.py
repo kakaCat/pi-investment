@@ -733,7 +733,7 @@ def get_data_health(symbol: str):
 @handle_api_error
 def get_market_sentiment():
     """市场情绪分析 - v2 原生实现"""
-    from application.services.market_sentiment_service import MarketSentimentService
+    from qs_intel.application.services.market_sentiment_service import MarketSentimentService
 
     # 初始化服务
     from infrastructure.services.service_factory import ServiceFactory
@@ -1267,7 +1267,7 @@ def get_competition_analysis(
     - 对比盈利能力和增长速度
     """
     from adapters.outbound.repositories.competition_repository import CompetitionRepository
-    from domain.competition.service import CompetitionAnalysisService
+    from qs_intel.domain.competition.service import CompetitionAnalysisService
 
     repo = CompetitionRepository()
     service = CompetitionAnalysisService(repo)

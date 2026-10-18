@@ -1,12 +1,9 @@
-"""产业链图谱限界上下文（RFC 015 §2，P2）"""
-from domain.industry_chain.model import (
-    CONFIDENCE_HIGH, CONFIDENCE_LOW, CONFIDENCE_MEDIUM, CONFIDENCE_ORDER,
-    ChainMember, ChainNode, ChainStage, EvidenceConflict, EvidenceKind,
-    IndustryChain, RevenueExposure,
-)
+"""兼容 shim（2026-10-18）：已迁至二方包 qs_intel。
+__path__ 转发：保住 from domain.industry_chain import X 与子模块导入。
+30 天观察期后删除（方案卡 S5）。
+"""
+import qs_intel.domain.industry_chain as _real
 
-__all__ = [
-    'ChainStage', 'EvidenceKind', 'RevenueExposure', 'ChainMember', 'ChainNode',
-    'EvidenceConflict', 'IndustryChain',
-    'CONFIDENCE_HIGH', 'CONFIDENCE_MEDIUM', 'CONFIDENCE_LOW', 'CONFIDENCE_ORDER',
-]
+__path__ = _real.__path__
+
+from qs_intel.domain.industry_chain import *  # noqa: F401,F403

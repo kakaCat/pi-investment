@@ -10,10 +10,10 @@ import logging
 
 import pytest
 
-from domain.industry_chain.model import (
+from qs_intel.domain.industry_chain.model import (
     ChainMember, ChainNode, ChainStage, EvidenceKind, RevenueExposure,
 )
-from domain.industry_chain.service import (
+from qs_intel.domain.industry_chain.service import (
     IndustryChainService, _match_node, _to_ratio,
 )
 

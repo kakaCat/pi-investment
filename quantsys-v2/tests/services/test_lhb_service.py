@@ -4,7 +4,7 @@ LhbService 单元测试
 import pytest
 from unittest.mock import Mock
 
-from application.services.lhb_service import LhbService
+from qs_intel.application.services.lhb_service import LhbService
 
 
 class TestLhbService:

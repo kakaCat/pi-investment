@@ -3,7 +3,7 @@ from datetime import date, datetime
 
 import pytest
 
-from application.services.heatmap_service import HeatmapService
+from qs_intel.application.services.heatmap_service import HeatmapService
 from adapters.outbound.repositories.heatmap_repository import HeatmapRepository
 from adapters.outbound.repositories.pool_change_log_repository import PoolChangeLog
 from adapters.outbound.repositories.stock_pool_repository import StockPool

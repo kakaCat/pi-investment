@@ -15,7 +15,7 @@ import pytest
 from qs_market_data.adapters.outbound.datasources.manager import DataProviderManager
 from adapters.outbound.repositories import KlineORMRepository, StockORMRepository
 from adapters.shared.services import get_factor_adapter
-from application.services.opportunity_scoring_service import OpportunityScoringService
+from qs_intel.application.services.opportunity_scoring_service import OpportunityScoringService
 
 
 # ══════════════════════════════════════════════════════════════════════

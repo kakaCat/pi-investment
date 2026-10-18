@@ -12,7 +12,7 @@ from typing import Dict, Any, Optional
 import logging
 import pandas as pd
 
-from application.services.market_regime_detector import MarketRegimeDetector
+from qs_intel.application.services.market_regime_detector import MarketRegimeDetector
 from infrastructure.cache.cache_service import get_cache_service
 
 logger = logging.getLogger(__name__)

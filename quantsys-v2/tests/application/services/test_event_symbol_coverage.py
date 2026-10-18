@@ -12,7 +12,7 @@ quant.event_calendar 的 individual 事件只覆盖 **24 只标的**，池外标
 """
 import pytest
 
-from application.services.event_feed_service import EventFeedService
+from qs_intel.application.services.event_feed_service import EventFeedService
 
 
 def _macro_row(title='2026年9月 CPI/PPI 发布'):

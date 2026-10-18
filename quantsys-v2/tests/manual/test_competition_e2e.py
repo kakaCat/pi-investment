@@ -11,7 +11,7 @@ project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
 from adapters.outbound.repositories.competition_repository import CompetitionRepository
-from domain.competition.service import CompetitionAnalysisService
+from qs_intel.domain.competition.service import CompetitionAnalysisService
 import json
 
 

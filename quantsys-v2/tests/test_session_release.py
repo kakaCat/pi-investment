@@ -38,7 +38,7 @@ class _Gate:
 
 
 def test_score_single_stock_releases_session(released):
-    from application.services.opportunity_scoring_service import OpportunityScoringService
+    from qs_intel.application.services.opportunity_scoring_service import OpportunityScoringService
     svc = OpportunityScoringService(kline_repo=None, stock_repo=None, factor_adapter=None,
                                     quality_gate=_Gate())
     out = svc._score_single_stock('600519', [], None, {})

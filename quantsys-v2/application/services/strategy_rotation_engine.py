@@ -23,7 +23,7 @@ import structlog
 from typing import Dict, Any, Optional, List
 from datetime import datetime, date, timedelta
 
-from application.services.market_style_detector import MarketStyleDetector
+from qs_intel.application.services.market_style_detector import MarketStyleDetector
 from application.services.strategy_weight_adjuster import StrategyWeightAdjuster
 from application.services.agent_notification_service import agent_service
 
