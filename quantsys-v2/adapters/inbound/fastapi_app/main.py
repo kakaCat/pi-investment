@@ -131,7 +131,7 @@ async def lifespan(app: FastAPI):
     # 本能力是策略门槛守门人（周日 20:30 复核 → 未过门槛则退役 → 落报告供 agent 读取通知）。
     try:
         from application.jobs.job_registry import job_registry
-        from application.services.strategy_lifecycle_service import build_strategy_loop_jobs
+        from qs_strategy.application.services.strategy_lifecycle_service import build_strategy_loop_jobs
         for _job in build_strategy_loop_jobs():
             job_registry.register(_job)
         logger.info("✅ Registered: strategy loop job (strategy_loop_weekly)")

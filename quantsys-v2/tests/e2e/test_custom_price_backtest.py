@@ -6,8 +6,8 @@
 
 import pytest
 from datetime import datetime, timedelta
-from application.services.strategy_backtest_service import StrategyBacktestService
-from application.services.strategy_code_validator import StrategyCodeValidator
+from qs_strategy.application.services.strategy_backtest_service import StrategyBacktestService
+from qs_strategy.application.services.strategy_code_validator import StrategyCodeValidator
 from adapters.outbound.repositories import KlineORMRepository
 
 

@@ -3,7 +3,7 @@
 """
 import pytest
 from datetime import datetime, timedelta
-from application.services.strategy_circuit_breaker import StrategyCircuitBreaker, CircuitBreakerState
+from qs_strategy.application.services.strategy_circuit_breaker import StrategyCircuitBreaker, CircuitBreakerState
 
 
 @pytest.fixture

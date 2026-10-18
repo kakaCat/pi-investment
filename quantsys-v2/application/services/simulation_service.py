@@ -7,7 +7,7 @@ import logging
 from typing import Dict, List, Optional, Any
 from datetime import datetime, date
 
-from domain.strategies import get_registry, Signal
+from qs_strategy.domain.strategies import get_registry, Signal
 from domain.ports import ISimulationRepository
 
 

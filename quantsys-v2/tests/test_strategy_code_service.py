@@ -4,7 +4,7 @@ Tests for StrategyCodeService
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 import pandas as pd
-from application.services.strategy_code_service import StrategyCodeService
+from qs_strategy.application.services.strategy_code_service import StrategyCodeService
 
 
 class TestBacktestStrategyWithParamsOverride:

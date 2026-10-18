@@ -2,7 +2,7 @@
 测试策略模板系统 - 新增 3 种用户模板
 """
 import pytest
-from application.services.strategy_code_service import StrategyCodeService
+from qs_strategy.application.services.strategy_code_service import StrategyCodeService
 
 
 class TestTrendFollowingTemplate:

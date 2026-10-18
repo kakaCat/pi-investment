@@ -44,7 +44,7 @@ class ServiceConfig:
         # 方式3：工厂函数
         ServiceConfig(
             name='strategy_code_service',
-            class_path='application.services.strategy_code_service.StrategyCodeService',
+            class_path='qs_strategy.application.services.strategy_code_service.StrategyCodeService',
             lifecycle='singleton'
         )
     """

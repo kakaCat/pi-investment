@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import sys
 import os
-from application.services.strategy_engine.factor_selection import FactorSelector, FactorConfig
+from qs_strategy.application.services.strategy_engine.factor_selection import FactorSelector, FactorConfig
 
 
 class TestFactorSelector:

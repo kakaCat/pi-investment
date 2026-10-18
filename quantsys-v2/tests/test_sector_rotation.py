@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import sys
 import os
-from application.services.strategy_engine.sector_rotation import SectorRotation, SectorScore
+from qs_strategy.application.services.strategy_engine.sector_rotation import SectorRotation, SectorScore
 
 
 class TestSectorRotation:

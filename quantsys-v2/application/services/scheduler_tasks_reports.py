@@ -94,7 +94,7 @@ def handle_backtest_run(params: Dict[str, Any] = None) -> Dict[str, Any]:
     logger.info("Starting backtest_run task")
 
     try:
-        from application.services.combo_strategy_backtest_service import ComboStrategyBacktestService
+        from qs_strategy.application.services.combo_strategy_backtest_service import ComboStrategyBacktestService
         from datetime import date, timedelta
 
         service = ComboStrategyBacktestService()

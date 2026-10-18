@@ -3,7 +3,7 @@
 """
 import pytest
 from unittest.mock import Mock, patch
-from application.services.strategy_circuit_breaker import StrategyCircuitBreaker
+from qs_strategy.application.services.strategy_circuit_breaker import StrategyCircuitBreaker
 from application.services.circuit_breaker_alert_service import CircuitBreakerAlertService, CircuitBreakerAlert
 
 

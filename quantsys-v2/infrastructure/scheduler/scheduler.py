@@ -1384,7 +1384,7 @@ class SchedulerService:
         logger.info("Executing strategy_validate_daily command (real backtest-evidence validation)")
         
         try:
-            from application.services.strategy_validation_service import StrategyValidationService
+            from qs_strategy.application.services.strategy_validation_service import StrategyValidationService
 
             service = StrategyValidationService(
                 strategy_repo=StrategyORMRepository(),

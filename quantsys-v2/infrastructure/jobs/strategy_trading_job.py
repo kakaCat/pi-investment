@@ -22,7 +22,7 @@ from pathlib import Path
 
 # 添加项目路径
 
-from application.services.strategy_service import StrategyService
+from qs_strategy.application.services.strategy_service import StrategyService
 
 logger = logging.getLogger(__name__)
 

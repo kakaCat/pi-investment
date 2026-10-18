@@ -9,7 +9,7 @@ import structlog
 import uuid
 import re
 
-from application.services.strategy_analyzer import StrategyAnalyzer
+from qs_strategy.application.services.strategy_analyzer import StrategyAnalyzer
 from application.services.report_generator import ReportGenerator
 
 logger = structlog.get_logger(__name__)

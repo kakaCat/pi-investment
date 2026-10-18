@@ -5,7 +5,7 @@
 """
 from typing import Optional, Dict, List
 from datetime import datetime
-from domain.strategies.base_strategy import BaseStrategy
+from qs_strategy.domain.strategies.base_strategy import BaseStrategy
 import logging
 import numpy as np
 

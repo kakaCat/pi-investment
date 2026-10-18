@@ -92,7 +92,7 @@ class ServiceFactory:
         if 'strategy_code_service' not in cls._instances:
             try:
                 from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
-                from application.services.strategy_code_service import StrategyCodeService
+                from qs_strategy.application.services.strategy_code_service import StrategyCodeService
 
                 # 确保 EnhancedServiceFactory 已完成注册（同 get_data_service 的时序修复）
                 _ensure_enhanced_factory()
@@ -520,7 +520,7 @@ class ServiceFactory:
     def get_strategy_service(cls):
         """获取StrategyService实例"""
         if 'strategy_service' not in cls._instances:
-            from application.services.strategy_service import StrategyService
+            from qs_strategy.application.services.strategy_service import StrategyService
             from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
             repo = SimulationORMRepository()
             cls._instances['strategy_service'] = StrategyService(repo=repo)
@@ -532,7 +532,7 @@ class ServiceFactory:
     def get_strategy_execution_service(cls):
         """获取StrategyExecutionService实例"""
         if 'strategy_execution_service' not in cls._instances:
-            from application.services.strategy_execution_service import StrategyExecutionService
+            from qs_strategy.application.services.strategy_execution_service import StrategyExecutionService
             cls._instances['strategy_execution_service'] = StrategyExecutionService()
             logger.info("StrategyExecutionService initialized")
         return cls._instances['strategy_execution_service']
@@ -542,7 +542,7 @@ class ServiceFactory:
     def get_strategy_validation_service(cls):
         """获取StrategyValidationService实例"""
         if 'strategy_validation_service' not in cls._instances:
-            from application.services.strategy_validation_service import StrategyValidationService
+            from qs_strategy.application.services.strategy_validation_service import StrategyValidationService
             cls._instances['strategy_validation_service'] = StrategyValidationService()
             logger.info("StrategyValidationService initialized")
         return cls._instances['strategy_validation_service']
@@ -552,7 +552,7 @@ class ServiceFactory:
     def get_strategy_optimizer(cls):
         """获取StrategyOptimizer实例"""
         if 'strategy_optimizer' not in cls._instances:
-            from application.services.strategy_optimizer import StrategyOptimizer
+            from qs_strategy.application.services.strategy_optimizer import StrategyOptimizer
             strategy_service = cls.get_strategy_code_service()
             cls._instances['strategy_optimizer'] = StrategyOptimizer(strategy_service)
             logger.info("StrategyOptimizer initialized")
@@ -831,7 +831,7 @@ class ServiceFactory:
     def get_strategy_evolution_service(cls):
         """获取策略进化引擎（RFC 012 P1）——无参门面，重量依赖（StrategyCodeService/
         落库 repo）在服务内运行时经本工厂/仓库懒解析，故直接构造即可。"""
-        from application.services.strategy_evolution_service import StrategyEvolutionService
+        from qs_strategy.application.services.strategy_evolution_service import StrategyEvolutionService
         return StrategyEvolutionService()
 
     @classmethod

@@ -451,7 +451,7 @@ def combo_backtest(payload: Optional[Dict[str, Any]] = Body(None)):
     # ② ServiceFactory.get_backtest_engine() 原返回随机数假引擎 BacktestAsyncEngine
     #    （E-1），现已改为真实引擎 RealBacktestEngineAdapter（E-3 回收：本路由不再
     #    内嵌 _MockStrategyRepo/_RealEngineAdapter，repo 用真 strategy_repository）。
-    from application.services.combo_strategy_backtest_service import ComboStrategyBacktestService
+    from qs_strategy.application.services.combo_strategy_backtest_service import ComboStrategyBacktestService
     from domain.backtest.engine.strategy_combiner import StrategyCombiner
     from adapters.shared.services import get_strategy_repository, get_backtest_engine
 

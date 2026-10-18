@@ -6,7 +6,7 @@
 import pytest
 from unittest.mock import Mock
 
-from application.services.strategy_evolution_service import (
+from qs_strategy.application.services.strategy_evolution_service import (
     StrategyEvolutionService,
     _normalize,
     FITNESS_WEIGHTS,

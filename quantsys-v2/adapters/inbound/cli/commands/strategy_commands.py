@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import Any, Dict
 
 from ..command_base import Command, CommandResult
-from application.services.strategy_code_service import StrategyCodeService
+from qs_strategy.application.services.strategy_code_service import StrategyCodeService
 
 
 class StrategyCreateCommand(Command):

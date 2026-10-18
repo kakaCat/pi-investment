@@ -10,7 +10,7 @@ import os
 quantsys_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
 
 import pandas as pd
-from application.services.strategy_backtest_service import StrategyBacktestService
+from qs_strategy.application.services.strategy_backtest_service import StrategyBacktestService
 
 
 def test_validation_integration():

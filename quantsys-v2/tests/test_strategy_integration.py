@@ -4,8 +4,8 @@
 import pytest
 import sys
 import os
-from application.services.strategy_engine.engine import StrategyEngine
-from application.services.strategy_engine.ml_filter import MLFilter
+from qs_strategy.application.services.strategy_engine.engine import StrategyEngine
+from qs_strategy.application.services.strategy_engine.ml_filter import MLFilter
 
 
 class TestStrategyIntegration:
