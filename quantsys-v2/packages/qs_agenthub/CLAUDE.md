@@ -41,3 +41,4 @@ qs_agenthub/
 
 - ~~`session_service` 测试线程事务挂死~~：根因为 pytest 线程无人调用 `close_session()`（scoped_session 契约），ai_diagnosis 缓存命中路径的 SELECT 开事务后 defer——fixture teardown 补 `close_session()`（test_ai_diagnosis.py / test_session_service.py），运行态（FastAPI 中间件 + jobs 收口）本就健全。分支 `fix/session-service-conn-leak`。
 - ~~`test_evolution_pipeline::test_fitness_score_recorded_in_db` 预存失败~~：断言读全表"最新行"，而适应度表被孤儿账户 data_gap 全 NULL 残留（64 行 0 非空）占位，属结构性必挂——用例改为自给自足（真实 EvolutionFitnessORMRepository 落库 + 按账户/窗口过滤断言）；随修发现 e2e 文件 cleanup 因连接非 autocommit 从不提交（close 即回滚），fixture 补 `commit()` 使清理生效。**hub 26 成员集现 0F/185P/2S**。分支 `fix/evolution-fitness-test`。
+- **quant_test 孤儿数据一次性清理**（2026-10-19，`fix/testdb-hygiene`）：适应度表 64 行 data_gap 残留（0 非空）→ 0，test_status_* 孤儿账户/流水/快照 27/27/182 → 0（备份 `opencode/quant_test_hygiene_backup_20261019.csv`）；teardown 补进 test_simulation_repo_status.py（账户+流水双清，批后 32→32 无新增）；v13/v14/v15_simulation、rotation_main、test_route_t1_acc 来源存疑保留。清理后 hub 26 成员集 0F/185P/2S 守住。
