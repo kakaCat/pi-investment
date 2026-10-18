@@ -28,6 +28,8 @@ def service():
         cursor.execute("DELETE FROM quant.agent_session_events")
         cursor.execute("DELETE FROM quant.agent_sessions")
     yield SessionService()
+    from infrastructure.persistence.orm.config import close_session
+    close_session()
 
 
 def _ev(seq, etype, payload, key="agent:main:wake:default"):

@@ -26,6 +26,10 @@ def service():
         "created_at": datetime.now(timezone.utc).isoformat(),
     }])
     yield s
+    # 缓存命中路径的 SELECT 会留下未 commit 的事务；不释放 scoped_session，
+    # 下个用例的 DDL 会被同线程残留 AccessShare 长期阻塞（2026-10-19 挂死取证）。
+    from infrastructure.persistence.orm.config import close_session
+    close_session()
 
 
 def _fake_config(api_key: str = 'sk-test'):

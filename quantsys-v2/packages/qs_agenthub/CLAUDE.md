@@ -37,6 +37,6 @@ qs_agenthub/
 - **决策回填/归因** → `decision_service`（update_decision_outcome）+ `decision_evaluator`
 - **进化打分/教训生成** → `evolution/decision_score_service` / `evolution/lesson_generator`
 
-## 已知预存缺陷（与搬迁无关，登记待修）
+## 已修缺陷（2026-10-19）
 
-- `session_service.ingest_events` 连接不关：并发/连续调用留下的 idle-in-transaction 会阻塞后续 DDL（tests/services/test_ai_diagnosis.py 成员集被排除即因此挂死）——hub 项目化时修
+- ~~`session_service` 测试线程事务挂死~~：根因为 pytest 线程无人调用 `close_session()`（scoped_session 契约），ai_diagnosis 缓存命中路径的 SELECT 开事务后 defer——fixture teardown 补 `close_session()`（test_ai_diagnosis.py / test_session_service.py），运行态（FastAPI 中间件 + jobs 收口）本就健全。分支 `fix/session-service-conn-leak`。
