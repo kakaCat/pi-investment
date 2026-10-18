@@ -1,18 +1,9 @@
-from .models.order import Order, OrderSide, OrderType, OrderStatus
-from .models.trade import Trade
-from .ports.IOrderRepository import IOrderRepository
-from .ports.ITradeRepository import ITradeRepository
-from .models.signal import Signal
-from .models.trade_result import TradeResult
+"""兼容 shim（2026-10-18）：已迁至二方包 qs_trading。
+__path__ 转发：保住 from domain.trading import X 与子模块导入（含 ports）。
+30 天观察期后删除（方案卡 S7）。
+"""
+import qs_trading.domain.trading as _real
 
-__all__ = [
-    'Order',
-    'OrderSide',
-    'OrderType',
-    'OrderStatus',
-    'Trade',
-    'IOrderRepository',
-    'ITradeRepository',
-    'Signal',
-    'TradeResult',
-]
+__path__ = _real.__path__
+
+from qs_trading.domain.trading import *  # noqa: F401,F403

@@ -5,8 +5,8 @@ SimulationPositionRepository - 适配 SimulationORMRepository 到 IPositionRepos
 from typing import Optional, List
 import structlog
 
-from domain.portfolio.models.position import Position
-from domain.portfolio.ports.IPositionRepository import IPositionRepository
+from qs_trading.domain.portfolio.models.position import Position
+from qs_trading.domain.portfolio.ports.IPositionRepository import IPositionRepository
 from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
 
 logger = structlog.get_logger(__name__)

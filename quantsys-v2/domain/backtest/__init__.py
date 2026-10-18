@@ -15,7 +15,7 @@
 
 与其他领域的关系：
 - 使用 domain.strategies 中的策略定义
-- 使用 domain.risk 进行风险评估
+- 使用 qs_trading.domain.risk 进行风险评估
 - 使用 domain.factors 计算因子
 - 调用 infrastructure.quantlib 进行技术计算
 

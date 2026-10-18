@@ -13,7 +13,7 @@ import pytest
 from datetime import datetime, time as dt_time
 from unittest.mock import Mock, MagicMock, patch
 
-from application.services.account_trading_service import AccountTradingService, TradingError
+from qs_trading.application.services.account_trading_service import AccountTradingService, TradingError
 
 
 class MockAccount:

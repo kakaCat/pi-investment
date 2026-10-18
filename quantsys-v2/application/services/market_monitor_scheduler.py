@@ -11,8 +11,8 @@ from apscheduler.triggers.cron import CronTrigger
 from datetime import datetime
 from typing import Optional
 
-from domain.trading.models.market_session import SessionPhase
-from domain.trading.services.market_session_policy import MarketSessionPolicy
+from qs_trading.domain.trading.models.market_session import SessionPhase
+from qs_trading.domain.trading.services.market_session_policy import MarketSessionPolicy
 
 logger = structlog.get_logger(__name__)
 

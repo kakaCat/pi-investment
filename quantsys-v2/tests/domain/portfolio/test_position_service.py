@@ -1,9 +1,9 @@
 # tests/domain/portfolio/test_position_service.py
 import pytest
 from unittest.mock import Mock
-from domain.portfolio.models.position import Position
-from domain.portfolio.services.position_service import PositionService
-from domain.portfolio.ports.IPositionRepository import IPositionRepository
+from qs_trading.domain.portfolio.models.position import Position
+from qs_trading.domain.portfolio.services.position_service import PositionService
+from qs_trading.domain.portfolio.ports.IPositionRepository import IPositionRepository
 
 class TestPositionService:
     """PositionService 单元测试"""

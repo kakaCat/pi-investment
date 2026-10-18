@@ -25,7 +25,7 @@ def handle_orchestrator_tick(params: Dict[str, Any] = None) -> Dict[str, Any]:
 def handle_intraday_monitor(params: Dict[str, Any] = None) -> Dict[str, Any]:
     """盘中监控任务处理器"""
     try:
-        from application.services.intraday_monitor import get_intraday_monitor
+        from qs_trading.application.services.intraday_monitor import get_intraday_monitor
         monitor = get_intraday_monitor()
         result = monitor.check()
         return {"action": "intraday_monitor", "status": "success", "result": result}
@@ -56,7 +56,7 @@ def handle_pending_orders_match(params: Dict[str, Any] = None) -> Dict[str, Any]
     logger.info("开始挂单撮合任务", params=params)
 
     try:
-        from application.services.account_trading_service import AccountTradingService
+        from qs_trading.application.services.account_trading_service import AccountTradingService
         from infrastructure.services.service_factory import ServiceFactory
         from domain.ports import ISimulationRepository
 

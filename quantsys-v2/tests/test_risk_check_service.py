@@ -5,7 +5,7 @@
 import pytest
 from unittest.mock import Mock, MagicMock
 import polars as pl
-from application.services.risk_check_service import RiskCheckService
+from qs_trading.application.services.risk_check_service import RiskCheckService
 
 
 @pytest.fixture

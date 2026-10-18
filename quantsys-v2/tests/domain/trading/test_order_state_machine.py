@@ -3,10 +3,10 @@ import pytest
 from datetime import datetime
 from unittest.mock import Mock, MagicMock
 
-from domain.trading.services.order_service import OrderService
-from domain.trading.models.order import Order, OrderSide, OrderType, OrderStatus
-from domain.accounts.services.account_service import AccountService
-from domain.portfolio.services.position_service import PositionService
+from qs_trading.domain.trading.services.order_service import OrderService
+from qs_trading.domain.trading.models.order import Order, OrderSide, OrderType, OrderStatus
+from qs_trading.domain.accounts.services.account_service import AccountService
+from qs_trading.domain.portfolio.services.position_service import PositionService
 
 
 class TestOrderStateMachine:
@@ -256,7 +256,7 @@ class TestOrderStateMachine:
 
     def test_all_valid_transitions_defined(self):
         """测试所有定义的合法转换"""
-        from domain.trading.services.order_service import VALID_TRANSITIONS
+        from qs_trading.domain.trading.services.order_service import VALID_TRANSITIONS
 
         # 验证 VALID_TRANSITIONS 包含所有预期转换
         expected_transitions = [

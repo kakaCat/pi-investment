@@ -5,8 +5,8 @@ import pytest
 import pandas as pd
 import numpy as np
 
-from domain.risk.risk_monitor import RiskMonitorService
-from domain.risk.var import VaRCalculator
+from qs_trading.domain.risk.risk_monitor import RiskMonitorService
+from qs_trading.domain.risk.var import VaRCalculator
 
 
 class TestRiskMonitorService:

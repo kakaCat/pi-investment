@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Optional
 
 import structlog
 
-from domain.trading.services.market_session_policy import MarketSessionPolicy
+from qs_trading.domain.trading.services.market_session_policy import MarketSessionPolicy
 
 logger = structlog.get_logger(__name__)
 

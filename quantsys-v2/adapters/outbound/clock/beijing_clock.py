@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
-from domain.trading.ports.IMarketClock import IMarketClock
+from qs_trading.domain.trading.ports.IMarketClock import IMarketClock
 
 BEIJING_TZ = ZoneInfo('Asia/Shanghai')
 

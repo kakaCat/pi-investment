@@ -365,7 +365,7 @@ def get_buy_range(symbol: str,
     """买入区间计算（简化模式 + 增强模式）"""
     try:
         if enhanced.lower() == 'true':
-            from application.services.enhanced_buy_range_service import EnhancedBuyRangeService
+            from qs_trading.application.services.enhanced_buy_range_service import EnhancedBuyRangeService
 
             period_list = [p.strip() for p in periods.split(',')]
             include_volume = volume.lower() == 'true'
@@ -840,7 +840,7 @@ def calculate_risk_metrics(payload: Optional[Dict[str, Any]] = Body(None)):
        holdings_proxy（回退口径，当前持仓等权、忽略现金权重，会高估风险）
        explicit_returns（调用方直传）
     """
-    from application.services.risk_metrics_service import RiskMetricsService
+    from qs_trading.application.services.risk_metrics_service import RiskMetricsService
     import pandas as pd
 
     data = payload or {}
@@ -858,7 +858,7 @@ def calculate_risk_metrics(payload: Optional[Dict[str, Any]] = Body(None)):
             # 旧实现只用「当前持仓等权 + 忽略现金」的个股 K 线拼收益，现金占比高的账户风险被严重
             # 高估——实测 agent_virtual（现金 87%）60 日回撤 -6.7%，而账户净值直算仅 -1.83%，
             # 4.9pct 的差距会直接改写熔断与仓位判定。
-            from application.services.risk_metrics_service import nav_returns_from_snapshots
+            from qs_trading.application.services.risk_metrics_service import nav_returns_from_snapshots
             nav_returns: List[float] = []
             nav_points = 0
             try:

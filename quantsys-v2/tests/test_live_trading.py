@@ -14,9 +14,9 @@ import sys
 import os
 from datetime import datetime
 
-from domain.brokers.base_broker import BaseBroker
-from domain.brokers.broker_registry import BrokerRegistry
-from domain.brokers.trading_types import ApiResponse
+from qs_trading.domain.brokers.base_broker import BaseBroker
+from qs_trading.domain.brokers.broker_registry import BrokerRegistry
+from qs_trading.domain.brokers.trading_types import ApiResponse
 
 # Ensure the quantsys-v2 directory is on the path
 
@@ -74,7 +74,7 @@ class TestIBKRBroker:
 
     def test_place_order_without_connection(self, broker):
         """Verify trading returns failure when not connected."""
-        from domain.brokers.trading_types import (
+        from qs_trading.domain.brokers.trading_types import (
             BrokerCredentials, UnifiedOrder, OrderSide, OrderType
         )
 
@@ -148,7 +148,7 @@ class TestAlpacaBroker:
 
     def test_authenticate_missing_credentials(self, broker):
         """Verify authentication fails with no credentials."""
-        from domain.brokers.trading_types import BrokerCredentials
+        from qs_trading.domain.brokers.trading_types import BrokerCredentials
         creds = BrokerCredentials(broker_id='alpaca')
 
         response = broker.authenticate(creds)
@@ -219,7 +219,7 @@ class TestExecutionService:
 
     def test_execute_order_basic(self):
         """Verify basic order execution returns success."""
-        from application.services.execution_service import execute_order
+        from qs_trading.application.services.execution_service import execute_order
 
         order_details = {
             'symbol': 'AAPL',
@@ -239,7 +239,7 @@ class TestExecutionService:
 
     def test_execute_order_missing_symbol(self):
         """Verify execution fails gracefully with missing symbol."""
-        from application.services.execution_service import execute_order
+        from qs_trading.application.services.execution_service import execute_order
 
         order_details = {
             'action': 'BUY',
@@ -253,7 +253,7 @@ class TestExecutionService:
 
     def test_twap_execution_splits_correctly(self):
         """Verify TWAP splits order into correct number of slices."""
-        from application.services.execution_service import execute_twap
+        from qs_trading.application.services.execution_service import execute_twap
 
         order = {
             'symbol': 'AAPL',
@@ -278,7 +278,7 @@ class TestExecutionService:
 
     def test_vwap_execution_uses_volume_profile(self):
         """Verify VWAP execution uses volume profile to weight slices."""
-        from application.services.execution_service import execute_vwap
+        from qs_trading.application.services.execution_service import execute_vwap
 
         order = {
             'symbol': 'AAPL',
@@ -303,7 +303,7 @@ class TestExecutionService:
 
     def test_iceberg_execution_displays_limit(self):
         """Verify Iceberg execution respects display size."""
-        from application.services.execution_service import execute_iceberg
+        from qs_trading.application.services.execution_service import execute_iceberg
 
         order = {
             'symbol': 'AAPL',
@@ -328,7 +328,7 @@ class TestExecutionService:
 
     def test_execution_result_dataclass(self):
         """Verify ExecutionResult dataclass structure."""
-        from application.services.execution_service import ExecutionResult
+        from qs_trading.application.services.execution_service import ExecutionResult
 
         result = ExecutionResult(
             success=True,
@@ -357,7 +357,7 @@ class TestExecutionService:
 
     def test_get_execution_report_handles_missing(self):
         """Verify execution report handles missing orders gracefully."""
-        from application.services.execution_service import get_execution_report
+        from qs_trading.application.services.execution_service import get_execution_report
 
         result = get_execution_report('ibkr', 'nonexistent-99999')
 
@@ -366,7 +366,7 @@ class TestExecutionService:
 
     def test_cancel_all_orders_handles_no_broker(self):
         """Verify cancel all orders handles missing broker gracefully."""
-        from application.services.execution_service import cancel_all_orders
+        from qs_trading.application.services.execution_service import cancel_all_orders
 
         result = cancel_all_orders('nonexistent_broker')
 
@@ -384,7 +384,7 @@ class TestPositionService:
 
     def test_get_average_cost_basis_simple(self):
         """Verify weighted average cost calculation."""
-        from application.services.position_service import get_average_cost_basis
+        from qs_trading.application.services.position_service import get_average_cost_basis
 
         trades = [
             {'symbol': 'AAPL', 'action': 'BUY', 'quantity': 100, 'price': 150.0},
@@ -403,7 +403,7 @@ class TestPositionService:
 
     def test_get_average_cost_basis_with_sells(self):
         """Verify cost basis ignores sell trades."""
-        from application.services.position_service import get_average_cost_basis
+        from qs_trading.application.services.position_service import get_average_cost_basis
 
         trades = [
             {'symbol': 'MSFT', 'action': 'BUY', 'quantity': 50, 'price': 400.0},
@@ -422,7 +422,7 @@ class TestPositionService:
 
     def test_get_average_cost_basis_empty(self):
         """Verify cost basis handles empty trade list."""
-        from application.services.position_service import get_average_cost_basis
+        from qs_trading.application.services.position_service import get_average_cost_basis
 
         result = get_average_cost_basis([], 'EMPTY')
 
@@ -432,7 +432,7 @@ class TestPositionService:
 
     def test_close_position_returns_order_details_structure(self):
         """Verify close_position returns structured data about the closing order."""
-        from application.services.position_service import close_position
+        from qs_trading.application.services.position_service import close_position
 
         result = close_position('ibkr', 'AAPL')
 
@@ -464,7 +464,7 @@ class TestRiskServicePreTradeChecks:
 
     def test_check_trade_risk_returns_structured_result(self):
         """Verify structured pre-trade risk result on a normal order."""
-        from application.services.risk_service import RiskService
+        from qs_trading.application.services.risk_service import RiskService
 
         result = RiskService().check_trade_risk('AAPL', 'buy', 150.0, 100)
 
@@ -479,7 +479,7 @@ class TestRiskServicePreTradeChecks:
 
     def test_check_trade_risk_size_limit_blocks_oversized_order(self):
         """$5M 大单（10000 股 × $500）应触发单笔金额上限 → 拦截。"""
-        from application.services.risk_service import RiskService
+        from qs_trading.application.services.risk_service import RiskService
 
         result = RiskService().check_trade_risk('AAPL', 'buy', 500.0, 10000)
 
@@ -490,7 +490,7 @@ class TestRiskServicePreTradeChecks:
 
     def test_check_trade_risk_medium_order_warns_but_passes(self):
         """中额订单（$600k）→ medium 预警但放行。"""
-        from application.services.risk_service import RiskService
+        from qs_trading.application.services.risk_service import RiskService
 
         result = RiskService().check_trade_risk('AAPL', 'buy', 150.0, 4000)
 

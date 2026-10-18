@@ -20,5 +20,5 @@ def daily_orchestrator_tick():
 
 def intraday_monitor_check():
     """盘中监控 check：运行时才获取单例，避免序列化绑定方法。"""
-    from application.services.intraday_monitor import get_intraday_monitor
+    from qs_trading.application.services.intraday_monitor import get_intraday_monitor
     get_intraday_monitor().check()

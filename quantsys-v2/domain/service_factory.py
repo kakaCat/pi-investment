@@ -7,9 +7,9 @@
 from typing import Optional
 import structlog
 
-from domain.accounts.services.account_service import AccountService
-from domain.portfolio.services.position_service import PositionService
-from domain.trading.services.order_service import OrderService
+from qs_trading.domain.accounts.services.account_service import AccountService
+from qs_trading.domain.portfolio.services.position_service import PositionService
+from qs_trading.domain.trading.services.order_service import OrderService
 
 logger = structlog.get_logger(__name__)
 

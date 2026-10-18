@@ -26,7 +26,7 @@ from application.services.watch_engine.disposition_engine import DispositionEngi
 from application.services.watch_engine.escalation_coordinator import EscalationCoordinator
 from domain.watch.services.escalation_checker import EscalationChecker
 from domain.watch.models import QuoteData
-from domain.trading.services.market_session_policy import (
+from qs_trading.domain.trading.services.market_session_policy import (
     TOTAL_TRADING_MINUTES,   # 单一出处（RFC 016 §8.1）；本模块继续再导出以兼容既有 importer
     MarketSessionPolicy,
 )
@@ -766,7 +766,7 @@ class WatchEngine:
         if lv == 'P1':
             return now + timedelta(seconds=1800), 1800
         try:
-            from domain.trading.services.market_session_policy import CONTINUOUS_END as _close
+            from qs_trading.domain.trading.services.market_session_policy import CONTINUOUS_END as _close
         except Exception:  # noqa: BLE001 - 常量缺失时退回最简口径（当日 15:00）
             _close = time(15, 0)
         day_close = datetime.combine(now.date(), _close)
