@@ -1,7 +1,7 @@
 """打分纯函数测试（P0a）——口径见计划头部。"""
 import pytest
 
-from application.services.evolution.score_calculator import compute_trade_score, score_band
+from qs_agenthub.application.services.evolution.score_calculator import compute_trade_score, score_band
 
 
 def test_buy_beats_benchmark_scores_positive():

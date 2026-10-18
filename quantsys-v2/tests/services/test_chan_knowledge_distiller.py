@@ -5,7 +5,7 @@ from types import SimpleNamespace
 import polars as pl
 import pytest
 
-from application.services.chan_knowledge_distiller import ChanKnowledgeDistiller
+from qs_agenthub.application.services.chan_knowledge_distiller import ChanKnowledgeDistiller
 
 
 def _signals():

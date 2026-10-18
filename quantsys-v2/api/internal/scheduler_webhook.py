@@ -311,7 +311,7 @@ async def execute_job(handler: Callable, payload: WebhookPayload):
         return
 
     try:
-        from application.services.agent_os_client import get_agent_os_client
+        from qs_agenthub.application.services.agent_os_client import get_agent_os_client
 
         agent_os_client = get_agent_os_client()
         await agent_os_client.report_job_result(

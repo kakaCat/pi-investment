@@ -52,7 +52,7 @@ def _build_decision_dict(decision_id, symbol, action, price, created_at):
 class TestDecisionScoringPipeline:
 
     def _make_service(self, klines_data, decisions):
-        from application.services.evolution.decision_score_service import DecisionScoreService
+        from qs_agenthub.application.services.evolution.decision_score_service import DecisionScoreService
         service = DecisionScoreService(mature_window=20)
         service.kline_repo = MockKlineRepository(klines_data)
         service.decision_repo = MockDecisionRepository(decisions)
@@ -129,7 +129,7 @@ class TestFitnessComputationPipeline:
 
     def test_compute_fitness_for_active_accounts(self, db_conn):
         from unittest.mock import MagicMock, patch
-        from application.services.evolution.evolution_fitness_service import EvolutionFitnessService
+        from qs_agenthub.application.services.evolution.evolution_fitness_service import EvolutionFitnessService
 
         mock_repo = MagicMock()
         mock_account = MagicMock()
@@ -178,7 +178,7 @@ class TestFitnessComputationPipeline:
 class TestEvolutionErrorHandling:
 
     def test_graceful_failure_on_invalid_data(self, db_conn):
-        from application.services.evolution.decision_score_service import DecisionScoreService
+        from qs_agenthub.application.services.evolution.decision_score_service import DecisionScoreService
         service = DecisionScoreService(mature_window=20)
         service.decision_repo = MockDecisionRepository([])
         service.kline_repo = MockKlineRepository({})
@@ -219,7 +219,7 @@ class TestEvolutionIntegration:
                 _build_decision_dict(full_id, TEST_SYMBOL, "trade_buy",
                                      1650.00 + i * 10, today - timedelta(days=25 + i)))
 
-        from application.services.evolution.decision_score_service import DecisionScoreService
+        from qs_agenthub.application.services.evolution.decision_score_service import DecisionScoreService
         service = DecisionScoreService(mature_window=20)
         service.decision_repo = MockDecisionRepository(decision_dicts)
         service.bench_klines_provider = lambda symbol, start_date, end_date: []

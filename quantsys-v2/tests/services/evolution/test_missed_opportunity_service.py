@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 import polars as pl
 
-from application.services.evolution.missed_opportunity_service import MissedOpportunityService
+from qs_agenthub.application.services.evolution.missed_opportunity_service import MissedOpportunityService
 
 TODAY = date(2026, 8, 11)
 SIGNAL_DATE = date(2026, 8, 3)  # 距 TODAY 6 个交易日（造 8 根 K 线，含信号日）

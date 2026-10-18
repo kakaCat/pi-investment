@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qs-agenthub"
+version = "0.1.0"
+description = "PI Investment Agent Hub 包 - agent-os 对接/LLM/知识沉淀/决策档案/进化学习"
+requires-python = ">=3.10"
+dependencies = [
+    "httpx",
+    "requests",
+]
+
+[tool.setuptools.packages.find]
+include = ["qs_agenthub*"]
+exclude = ["__pycache__*", "*.egg-info*"]

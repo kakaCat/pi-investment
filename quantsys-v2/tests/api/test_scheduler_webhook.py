@@ -40,7 +40,7 @@ def isolated_side_effects(monkeypatch, fake_agent_os_client):
 
     monkeypatch.setattr(wh, "_write_run_to_database", fake_write_run_to_database)
     monkeypatch.setattr(
-        "application.services.agent_os_client.get_agent_os_client",
+        "qs_agenthub.application.services.agent_os_client.get_agent_os_client",
         lambda: fake_agent_os_client,
     )
 

@@ -14,8 +14,8 @@ from datetime import date, datetime
 from typing import Any, Callable, Dict, Optional
 from domain.common.dates import as_date, as_datetime, as_date_str
 
-from application.services.evolution.score_calculator import compute_trade_score
-from application.services.evolution.lesson_generator import generate_lesson
+from qs_agenthub.application.services.evolution.score_calculator import compute_trade_score
+from qs_agenthub.application.services.evolution.lesson_generator import generate_lesson
 
 logger = logging.getLogger(__name__)
 

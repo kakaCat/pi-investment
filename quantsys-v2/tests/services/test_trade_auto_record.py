@@ -43,7 +43,7 @@ class TestTradeAutoRecord:
         _setup_account(svc)
         svc._get_price = lambda symbol: 10.0
 
-        with patch("application.services.decision_service.DecisionService") as MockDS:
+        with patch("qs_agenthub.application.services.decision_service.DecisionService") as MockDS:
             svc.execute_trade(
                 account_name="agent_virtual",
                 action="buy",
@@ -62,7 +62,7 @@ class TestTradeAutoRecord:
         _setup_account(svc)
         svc._get_price = lambda symbol: 10.0
 
-        with patch("application.services.decision_service.DecisionService") as MockDS:
+        with patch("qs_agenthub.application.services.decision_service.DecisionService") as MockDS:
             MockDS.return_value.record_decision.side_effect = Exception("db down")
             result = svc.execute_trade(
                 account_name="agent_virtual",
