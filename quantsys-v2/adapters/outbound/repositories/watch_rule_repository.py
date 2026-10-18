@@ -100,7 +100,8 @@ class WatchTrigger(Base):
     # disposition 让每条触发有明确归属：机械归档 / 去重合并 / 升级给 agent / 待处置 / 已处置。
     disposition = Column(String(20), default='pending')
     disposition_reason = Column(Text)
-    disposition_by = Column(String(50))
+    # 2026-10-19 加宽 50→120：生产实测 15 条顶格值全为 agent 会话 ID（investor-session-*,恰 50 字符被调用方先裁）——处置人是审计归因字段，须容下完整会话 ID（迁移：20261019_watch_triggers_disposition_by_widen）
+    disposition_by = Column(String(120))
     disposition_at = Column(DateTime)
     dup_of = Column(Integer)
     # 抑噪标记（REQ-c9f899 R6 / t8）：规则处于抑噪期时触发的触发记录标 true，

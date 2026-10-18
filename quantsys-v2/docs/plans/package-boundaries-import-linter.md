@@ -266,12 +266,14 @@ forbidden_modules =
 | S11 kernel 独立成型 | 等待 | §11 | 待各项目稳定后另行开卡 |
 | 5 存疑账户终裁（不动） | 结案 | 既裁登记 | 不处置 |
 | hub→qd_agenthub 对 api.internal 方向异常 | 缓议 | session_service 归并卡登记 | qs_agenthub project 化时收口 |
-| watch_triggers.condition varchar(50) 截断隐患 | **可动卡候选** | 待查截断实据定谳 | 需先取证再开修复卡 |
+| watch_triggers 处置列宽度（原登记误写为 condition） | **结案（2026-10-19，fix/watch-disposition-by-width）** | 取证见下 | disposition_by 已加宽 50→120 |
 | event_bus "线程泄漏" | **判否结案（2026-10-19）** | 取证见下 | 不改码 |
 | qs_quantlib docstring 内 domain.risk 旧路径示例 | 已登记 | S7 行 | 非执行面，随包维护顺带 |
 | 调度能力缺口 3 项（DataPipelineService 接线定标的 / signal_monitor_realtime 无实现 / 周度风险无实现） | 等用户定夺 | ADR-004 卡 | 不当"已修复" |
 
 **event_bus 判否取证**（2026-10-19）：① `EventBus()` 全仓实例化仅 `tests/test_event_bus.py` 8 处 + 模块级单例 1 处，生产无多实例路径；② `shutdown()` 零调用属 daemon 设计（线程随进程存亡，非累积）；③ 生产进程（PID 21298）总量 12 线程（APScheduler/DailyJobs/watch 全家兼容），结构上 event_bus 只可能占 1 个 worker，无法无界增长；④ events 包其余文件（progress_emitter/handlers）零线程引用。"泄漏"机制只存在于代码形状（构造即起线程），无生产可见缺陷。可选加固点（不作为缺陷修复）：worker 惰性启动（首次订阅/发布才起线程）、lifespan 显式调 shutdown()——记入观察项，需时另开卡。
+
+**watch_triggers 定谳取证**（2026-10-19）：① `watch_triggers.condition` 是 JSONB 无宽度问题——原登记张冠李戴：真实 varchar(50) 是 `disposition_by`（处置主体，审计归因字段）。② 生产实据：15 条顶格行全为 `investor-session-f0101ceb-bf3e487e8ed2a36089ac4788`，恰 50 字符=列上限，真实会话 ID 尾部被裁（已丢失不可恢复）。③ 裁剪点定谳：PG 对超宽 varchar 报错而非静默截断 + 路由 `by=str(payload.get('by') or 'agent')` 无切片直传（watch_async.py:287）→ 裁剪发生在调用方（agent 链路为适配 v2 的 50 宽度先自裁再发）。④ 修复：ORM `watch_rule_repository` `disposition_by String(50)→String(120)` + 迁移 `20261019_watch_triggers_disposition_by_widen`（幂等加宽，实测列现 120、历史行原样）。⑤ 跨项目残留：agent 侧发送值的防御性截断需在 agent-dh/agent-ts 侧收口（其会把 by 裁到 50），登记勿忘。
 
 ### 12.1 业务运行视图（数据怎么流）
 
