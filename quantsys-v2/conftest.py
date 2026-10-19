@@ -11,6 +11,7 @@ DATABASE SEPARATION:
 - All other scenarios (API, scripts) use production database
 """
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -100,6 +101,50 @@ def pytest_configure(config):
         sys.exit(1)
 
     print(f"✓ Test database validated: {pgdatabase}")
+
+
+# ── Live HTTP 测试默认跳过闸（2026-10-19）──────────────────────────────
+# 背景事故：tests/integration/test_batch_entry_exit.py 等用例直接对
+# 127.0.0.1:5001 的**生产 API** 发真实 POST 建策略——只要跑套件时生产服务
+# 恰好在线，垃圾策略行就写进 quant_investment.strategy_configs（2026-09-13 起
+# 累计 124 行 "-TEST-" 污染，最近一次 2026-10-18 23:06）。进程内 DSN 三层防护
+# 管不到这条路（写入发生在服务端进程，不在 pytest 进程）。
+#
+# 口径：测试文件源码同时满足 ① 出现 live 服务地址 ② import 了 requests/httpx
+# → 视为 live 测试，默认 skip；显式放行：pytest --live 或 LIVE_E2E=1。
+_LIVE_URL_RE = re.compile(r"(?:127\.0\.0\.1|localhost|0\.0\.0\.0):5001")
+_LIVE_LIB_RE = re.compile(r"^\s*(?:import|from)\s+(?:requests|httpx)\b", re.M)
+_live_scan_cache: dict = {}
+
+
+def _is_live_test_file(path) -> bool:
+    key = str(path)
+    if key not in _live_scan_cache:
+        try:
+            src = Path(key).read_text(encoding="utf-8", errors="ignore")
+            _live_scan_cache[key] = bool(
+                _LIVE_URL_RE.search(src) and _LIVE_LIB_RE.search(src))
+        except OSError:
+            _live_scan_cache[key] = False
+    return _live_scan_cache[key]
+
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--live", action="store_true", default=False,
+        help="放行直连运行中服务（127.0.0.1:5001 等）的 live HTTP 测试；"
+             "默认跳过以防打穿生产库。等价于 LIVE_E2E=1 环境变量。")
+
+
+def pytest_collection_modifyitems(config, items):
+    if config.getoption("--live", default=False) or os.environ.get("LIVE_E2E") == "1":
+        return
+    skip_live = pytest.mark.skip(
+        reason="live HTTP 测试（直连运行中服务，会写真实库）——默认跳过；"
+               "显式放行：pytest --live 或 LIVE_E2E=1")
+    for item in items:
+        if _is_live_test_file(item.path):
+            item.add_marker(skip_live)
 
 
 @pytest.fixture(scope="session")
