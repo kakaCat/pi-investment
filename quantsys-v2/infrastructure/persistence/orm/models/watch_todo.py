@@ -16,7 +16,7 @@
 的 DB 侧兜底——应用层校验之外的第二道闸门。
 """
 from sqlalchemy import (
-    Boolean, CheckConstraint, Column, Date, DateTime, Float, Integer, String, Text,
+    Boolean, CheckConstraint, Column, Date, DateTime, Float, Integer, Numeric, String, Text,
     func, text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -27,6 +27,7 @@ __all__ = [
     'WatchTodo', 'WatchRuntimeState', 'WatchRuntimeMeta',
     'WatchRuleChange', 'WatchReceipt',
     'WatchRuntimeDedup', 'WatchTriggerEvent', 'WatchPriceHistory',
+    'WatchOutcomeCheck',
 ]
 
 
@@ -108,6 +109,10 @@ class WatchRuntimeMeta(Base):
     # 跨规则重叠已上报的规则对（REQ-261016155500-4f2a wt:engine:3）：[[a,b],...]，
     # 持久化后重启不重复落治理项。列为 20261016 迁移新增，读写走专用方法隔离。
     overlap_reported = Column(JSONB, nullable=True, comment='跨规则重叠已上报规则对')
+    # 两段式伏击（staged_break）观察态快照（2026-10-19 P1）：
+    # {'<rule_id>:<cond_idx>': {touch_at, deadline, touch_price}}——重启不丢观察窗。
+    # 列为 20261019c 迁移新增，读写走专用方法隔离（列缺失时降级纯内存）。
+    staged_break_states = Column(JSONB, nullable=True, comment='staged_break 观察态快照')
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 
@@ -216,3 +221,29 @@ class WatchPriceHistory(Base):
     symbol = Column(String(32), primary_key=True, comment='标的代码')
     ts = Column(DateTime(timezone=True), primary_key=True, comment='价格时间戳')
     price = Column(Float, nullable=False, comment='价格（元）')
+
+
+class WatchOutcomeCheck(Base):
+    """盯盘触发走势回填（2026-10-20 P3 预判验证闭环）
+
+    对应数据库表：quant.watch_outcome_checks（迁移 20261020_watch_outcome_checks）。
+    每条触发在触发后第 5/10/20 个交易日回填一次：收盘价 vs 触发价、预判方向、是否命中。
+    命中率统计的事实表；expected_direction 写入时快照，事后不改（改口径=篡改历史）。
+    """
+    __tablename__ = 'watch_outcome_checks'
+    __table_args__ = {'schema': 'quant'}
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    trigger_id = Column(Integer, nullable=False, comment='溯源 watch_triggers.id')
+    rule_id = Column(Integer, nullable=True, comment='规则 id')
+    symbol = Column(String(20), nullable=False)
+    horizon_td = Column(Integer, nullable=False, comment='回填窗口（交易日数：5/10/20）')
+    trigger_at = Column(DateTime(timezone=False), nullable=True)
+    trigger_price = Column(Numeric(12, 4), nullable=True)
+    expected_direction = Column(String(8), nullable=True, comment='预判方向 up/down（写入时快照）')
+    check_date = Column(Date, nullable=True, comment='回填交易日')
+    close_price = Column(Numeric(12, 4), nullable=True)
+    pct_change = Column(Numeric(10, 4), nullable=True, comment='(close/trigger_price-1)*100')
+    hit = Column(Boolean, nullable=True, comment='预判是否命中；NULL=不定论（不计入分母）')
+    note = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=False), nullable=False, server_default=func.now())

@@ -12,6 +12,7 @@
 闩锁/冷却语义与个股完全一致：由引擎 TriggerJudge 承担（运行态持久化后重启不重报）。
 """
 from datetime import datetime
+from dataclasses import replace
 from types import SimpleNamespace
 from typing import Any, Dict, List, Optional
 
@@ -27,7 +28,7 @@ MARKET_SCOPES = ("market", "sector")
 class MarketWatchService:
 
     def __init__(self, rule_repo, trigger_repo, state_provider=None, evaluator=None,
-                 trigger_interval_sec: int = 300):
+                 trigger_interval_sec: int = 300, held_sector_map=None):
         self.rule_repo = rule_repo
         # trigger_repo 保留在签名里（装配兼容）；落库自 2026-10-19 起由引擎主流水线承担
         self.trigger_repo = trigger_repo
@@ -35,6 +36,14 @@ class MarketWatchService:
         self.evaluator = evaluator or MarketRuleEvaluator()
         self.trigger_interval_sec = trigger_interval_sec
         self._last_scan_at: Optional[datetime] = None
+        # 持仓板块映射（P2 联动）：HeldSectorMapService；None = 未装配（held_sector_pct 恒 skipped）
+        self.held_sector_map = held_sector_map
+
+    def refresh_held_boards(self, force: bool = False) -> None:
+        """sidecar 每日刷新入口（重建映射是重活——逐板块外呼，绝不在 tick 热路径跑）。"""
+        if self.held_sector_map is None:
+            return
+        self.held_sector_map.refresh(force=force)
 
     # ── 市场级规则扫描 ────────────────────────────────────────
     def scan_market_rules(self, now: Optional[datetime] = None) -> Dict[str, Any]:
@@ -55,6 +64,10 @@ class MarketWatchService:
         self._last_scan_at = now
 
         state = self.state_provider.get_state()
+        # P2 持仓板块联动：held_sector_pct 需要「板块→持仓」映射；MarketState 是 frozen
+        # 快照，用 replace 挂上（无映射服务时挂空——评估器据此 skipped，诚实标注）。
+        if self.held_sector_map is not None:
+            state = replace(state, held_boards=self.held_sector_map.held_boards())
         rules = [r for r in self.rule_repo.list_enabled()
                  if (getattr(r, "scope", None) in MARKET_SCOPES)]
         evaluated: List[Dict[str, Any]] = []

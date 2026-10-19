@@ -12,14 +12,25 @@ from datetime import datetime, timedelta
 from typing import Optional, Tuple
 
 from qs_watch.domain.watch.models import MetricKind
+from qs_watch.domain.watch.services.market_rule_evaluator import (
+    MARKET_CONDITION_TYPES, validate_market_condition,
+)
 from qs_watch.domain.watch.services.metric_contract import (  # noqa: F401 - 供消费侧复用同一契约
     metric_matches, metric_of, require_metric,
 )
 
-VALID_TYPES = {'price_break', 'pct_change', 'pnl_pct', 'velocity', 'volume_surge', 'combined'}
+VALID_TYPES = {'price_break', 'pct_change', 'pnl_pct', 'velocity', 'volume_surge', 'combined',
+               'staged_break'}
 
 DEFAULT_COOLDOWN_SEC = 300
 MAX_NESTING_DEPTH = 3
+
+# ── 两段式伏击（staged_break，2026-10-19 P1）────────────────────────────
+#: 触及后等待确认的默认观察窗（分钟）
+DEFAULT_STAGED_WINDOW_MIN = 120
+#: hold 确认的默认持续分钟数
+DEFAULT_STAGED_HOLD_MIN = 30
+STAGED_CONFIRM_KINDS = ('hold', 'reclaim', 'volume')
 
 # ── 迟滞闩锁 + 每条件日上限（REQ-261016155500-4f2a wt:engine:1，2026-10-16）────────
 #: price_break 触发后重新武装的迟滞带：h = max(0.5% × 阈值, 最小报价单位×5)。
@@ -30,42 +41,61 @@ MIN_HYSTERESIS_ABS = 0.05     # A 股最小报价单位 0.01 × 5
 DEFAULT_DAILY_EMIT_CAP = 2
 
 
-def freshness_of(cond: dict, prev_close):
-    """price_break 触发是否「今日新鲜穿越」（2026-10-19 用户裁定：穿越 vs 驻留）。
+def _price_line_of(cond: dict) -> Tuple[Optional[float], Optional[str]]:
+    """条件的「价格线」语义：(阈值, 方向)。price_break 取 params，staged_break 取 params.touch。
 
-    定义：昨收时条件尚不成立（price_break 未触发）→ True（今日新穿越，有信息增量）；
-    昨收已在触发侧 → False（陈旧驻留，零增量——它是规则失真信号不是市场事件）。
-    无法判定返回 None（prev_close 缺失 / 非 price_break）——调用方按既有行为处理。
+    两段式的触及线就是它的价格线——陈旧驻留判定与迟滞带对两者同口径。
+    其它类型返回 (None, None)。
     """
-    if not isinstance(cond, dict) or cond.get('type') != 'price_break':
-        return None
+    if not isinstance(cond, dict):
+        return None, None
+    ctype = cond.get('type')
     params = cond.get('params') or {}
-    threshold, direction = params.get('price'), params.get('direction')
-    if threshold is None or prev_close is None or direction not in ('above', 'below'):
+    if ctype == 'price_break':
+        src = params
+    elif ctype == 'staged_break':
+        src = params.get('touch') or {}
+    else:
+        return None, None
+    threshold, direction = src.get('price'), src.get('direction')
+    if threshold is None or direction not in ('above', 'below'):
+        return None, None
+    try:
+        threshold = float(threshold)
+    except (TypeError, ValueError):
+        return None, None
+    if threshold <= 0:
+        return None, None
+    return threshold, direction
+
+
+def freshness_of(cond: dict, prev_close):
+    """price_break/staged_break 触发是否「今日新鲜穿越」（2026-10-19 用户裁定：穿越 vs 驻留）。
+
+    定义：昨收时条件尚不成立（未触及价格线）→ True（今日新穿越，有信息增量）；
+    昨收已在触发侧 → False（陈旧驻留，零增量——它是规则失真信号不是市场事件）。
+    无法判定返回 None（prev_close 缺失 / 无价格线类型）——调用方按既有行为处理。
+    """
+    threshold, direction = _price_line_of(cond)
+    if threshold is None or prev_close is None:
         return None
     try:
-        prev, t = float(prev_close), float(threshold)
+        prev = float(prev_close)
     except (TypeError, ValueError):
         return None
-    prev_triggered = prev >= t if direction == 'above' else prev <= t
+    prev_triggered = prev >= threshold if direction == 'above' else prev <= threshold
     return not prev_triggered
 
 
 def hysteresis_rearm_price(cond: dict):
-    """price_break 的重新武装边界（纯函数）。
+    """price_break/staged_break 的重新武装边界（纯函数）。
 
     下破触发（price ≤ T）后：需回升到 T+h 以上才重新武装；上破触发（price ≥ T）
-    后：需回落到 T-h 以下。非 price_break（或无 price/direction）→ None（维持
-    「未触发即重新武装」的原语义）。阈值必须为正数。
+    后：需回落到 T-h 以下。无价格线类型 → None（维持「未触发即重新武装」的原语义）。
+    staged_break 以其 touch 线为价格线。
     """
-    if not isinstance(cond, dict) or cond.get('type') != 'price_break':
-        return None
-    params = cond.get('params') or {}
-    threshold, direction = params.get('price'), params.get('direction')
-    if threshold is None or direction not in ('above', 'below'):
-        return None
-    threshold = float(threshold)
-    if threshold <= 0:
+    threshold, direction = _price_line_of(cond)
+    if threshold is None:
         return None
     h = max(threshold * HYSTERESIS_PCT / 100.0, MIN_HYSTERESIS_ABS)
     return threshold + h if direction == 'below' else threshold - h
@@ -74,7 +104,7 @@ def hysteresis_rearm_price(cond: dict):
 def within_hysteresis_band(cond: dict, value) -> bool:
     """闩锁保持期间，value 是否仍在迟滞带内（带内 → 不重新武装，继续等）。
 
-    仅在 hysteresis_rearm_price 有定义（price_break）且 value 可解析时生效。
+    仅在 hysteresis_rearm_price 有定义（price_break / staged_break）且 value 可解析时生效。
     """
     if value is None:
         return False
@@ -85,7 +115,7 @@ def within_hysteresis_band(cond: dict, value) -> bool:
         value = float(value)
     except (TypeError, ValueError):
         return False
-    direction = (cond.get('params') or {}).get('direction')
+    _t, direction = _price_line_of(cond)
     return value <= rearm if direction == 'below' else value >= rearm
 
 
@@ -116,17 +146,25 @@ class EvalContext:
 
 def validate_condition(cond: dict, depth: int = 0) -> None:
     """校验条件结构，非法时抛 ValueError。支持递归校验 combined 类型。
-    
+
+    市场级类型（index_break/sector_pct/held_sector_pct 等）委托领域服务
+    validate_market_condition——它们不进个股 DSL 的 VALID_TYPES，但 REST
+    出入库校验不能缺位（2026-10-19 P2 前市场级规则无法经 API 创建）。
+
     Args:
         cond: 条件字典
         depth: 当前嵌套深度（防止无限递归）
     """
     if depth > MAX_NESTING_DEPTH:
         raise ValueError(f'条件嵌套深度超过限制（最大 {MAX_NESTING_DEPTH} 层）')
-    
+
     ctype = cond.get('type')
+    if ctype in MARKET_CONDITION_TYPES:
+        validate_market_condition(cond)
+        return
     if ctype not in VALID_TYPES:
-        raise ValueError(f'未知条件类型: {ctype}，支持: {sorted(VALID_TYPES)}')
+        raise ValueError(f'未知条件类型: {ctype}，支持: {sorted(VALID_TYPES)}'
+                         f'（市场级: {list(MARKET_CONDITION_TYPES)}）')
     
     params = cond.get('params') or {}
     
@@ -173,11 +211,39 @@ def validate_condition(cond: dict, depth: int = 0) -> None:
             raise ValueError('volume_surge 需要 params.multiple')
         if params['multiple'] <= 0:
             raise ValueError('volume_surge 的 multiple 必须为正数')
+    elif ctype == 'staged_break':
+        touch = params.get('touch') or {}
+        if 'price' not in touch:
+            raise ValueError('staged_break 需要 params.touch.price')
+        if touch['price'] <= 0:
+            raise ValueError('staged_break 的 touch.price 必须为正数')
+        if touch.get('direction') not in ('above', 'below'):
+            raise ValueError('staged_break 需要 params.touch.direction: above|below')
+        confirm = params.get('confirm') or {}
+        kind = confirm.get('kind')
+        if kind not in STAGED_CONFIRM_KINDS:
+            raise ValueError(f'staged_break 需要 params.confirm.kind: {STAGED_CONFIRM_KINDS}')
+        if kind == 'hold':
+            minutes = confirm.get('minutes', DEFAULT_STAGED_HOLD_MIN)
+            if minutes <= 0:
+                raise ValueError('staged_break hold 确认需要 confirm.minutes > 0')
+        if kind == 'volume':
+            if 'multiple' not in confirm or confirm['multiple'] <= 0:
+                raise ValueError('staged_break volume 确认需要 confirm.multiple > 0')
+        window_min = params.get('window_min', DEFAULT_STAGED_WINDOW_MIN)
+        if window_min <= 0:
+            raise ValueError('staged_break 的 window_min 必须为正数')
 
 
 def evaluate(cond: dict, quote, ctx: EvalContext, now: Optional[datetime] = None) -> EvalResult:
-    """评估单个条件（支持递归评估 combined）。quote 需有 .price，可选 .prev_close / .change_pct / .volume"""
+    """评估单个条件（支持递归评估 combined）。quote 需有 .price，可选 .prev_close / .change_pct / .volume
+
+    staged_break 不在此评估：它是有状态的两段式（触及→观察→确认），由引擎经
+    StagedBreakManager 处理；直接 evaluate 会丢状态语义，故响亮拒绝。
+    """
     ctype = cond['type']
+    if ctype == 'staged_break':
+        raise ValueError('staged_break 是有状态条件，需经 StagedBreakManager 评估（引擎 tick 内拦截）')
     if ctype not in _HANDLERS:
         raise ValueError(f'未知条件类型: {ctype}')
     params = cond.get('params') or {}
@@ -337,3 +403,74 @@ _HANDLERS = {
     'volume_surge': _eval_volume_surge,
     'combined': _eval_combined,
 }
+
+
+# ── staged_break 两段式伏击：无状态评估件（状态机在 StagedBreakManager）────
+#
+# 语义（2026-10-19 P1，用户裁定：盯盘是「守伏击点」，触及 ≠ 信号）：
+#   触及 touch 线 → 进观察态（静默，不发卡不占日配额）；
+#   观察窗内 confirm 满足 → 才作为真实触发进入正常流水线；
+#   窗口到期未确认 → 归档一条 suppressed 样本（复盘用），回到待命。
+# 这两个函数保持纯函数：状态（是否已触及、窗口截止）由调用方传入/持有。
+
+
+def eval_staged_touch(cond: dict, quote) -> EvalResult:
+    """触及判定：与 price_break 同语义，阈值/方向取自 params.touch。"""
+    params = cond.get('params') or {}
+    touch = params.get('touch') or {}
+    return _eval_price_break({'price': touch['price'], 'direction': touch['direction']},
+                             quote, None, None)
+
+
+def eval_staged_confirm(cond: dict, quote, ctx: EvalContext, now: datetime,
+                        touch_at: datetime) -> EvalResult:
+    """确认判定（观察窗内每个 tick 调用一次）。
+
+    kind:
+      hold    —— 触及后价格在触发侧持续 confirm.minutes 分钟不回落（企稳）；
+                 判定依据 ctx.price_history：窗内所有价格点都在触发侧且时长达标。
+      reclaim —— 触及后价格收复阈值回到非触发侧（假摔收回）。
+      volume  —— 观察窗内放量（复用 volume_surge 口径；数据缺失 degraded，不判死）。
+    """
+    params = cond.get('params') or {}
+    touch = params.get('touch') or {}
+    confirm = params.get('confirm') or {}
+    kind = confirm['kind']
+    threshold = float(touch['price'])
+    direction = touch['direction']
+    price = float(quote.price)
+
+    if kind == 'reclaim':
+        # 下破触及（≤T）后收复 = price > T；上破触及（≥T）后回落 = price < T
+        reclaimed = price > threshold if direction == 'below' else price < threshold
+        word = '收复' if direction == 'below' else '回落破'
+        return _threshold_result(
+            reclaimed, price, threshold,
+            'above' if direction == 'below' else 'below',
+            f'现价 {price} 已{word}触及线 {threshold}（reclaim 确认）' if reclaimed
+            else f'现价 {price} 未{word}触及线 {threshold}',
+            metric=MetricKind.PRICE, unit='元')
+
+    if kind == 'volume':
+        res = _eval_volume_surge({'multiple': confirm['multiple']}, quote, ctx, now)
+        if res.triggered:
+            res.message = f'观察窗内放量确认：{res.message}'
+        return res
+
+    # hold：持续 minutes 分钟不回落
+    minutes = float(confirm.get('minutes', DEFAULT_STAGED_HOLD_MIN))
+    points = [(ts, float(p)) for ts, p in (ctx.price_history or ()) if ts >= touch_at]
+    on_side = (lambda v: v <= threshold) if direction == 'below' else (lambda v: v >= threshold)
+    if points and not all(on_side(p) for _ts, p in points):
+        # 窗内曾回落到非触发侧：企稳被破坏，确认不成立（状态机负责是否作废）
+        return EvalResult(False, price, None,
+                          f'观察窗内价格曾离开触发侧（阈值 {threshold}），企稳未成立',
+                          metric=MetricKind.PRICE, unit='元')
+    held_sec = (now - touch_at).total_seconds()
+    triggered = held_sec >= minutes * 60 and on_side(price)
+    return EvalResult(
+        triggered, price,
+        0.0 if triggered else max(0.0, 1.0 - held_sec / (minutes * 60)),
+        f'触及侧已持续 {held_sec / 60:.1f}min（hold 确认需 {minutes:.0f}min）'
+        + ('，企稳成立' if triggered else ''),
+        metric=MetricKind.PRICE, unit='元')

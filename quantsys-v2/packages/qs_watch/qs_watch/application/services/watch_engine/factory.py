@@ -23,6 +23,9 @@ from adapters.outbound.repositories.watch_state_repository import (
 from qs_watch.application.services.watch_engine.meta_review_service import WatchMetaReviewService
 from qs_watch.application.services.watch_engine.position_lifecycle_service import PositionLifecycleService
 from qs_watch.application.services.watch_engine.market_watch_service import MarketWatchService
+from qs_watch.application.services.watch_engine.held_sector_map import HeldSectorMapService
+from qs_watch.application.services.watch_engine.outcome_backfill_service import OutcomeBackfillService
+from adapters.outbound.repositories.watch_outcome_repository import WatchOutcomeRepository
 from qs_market_data.adapters.outbound.datasources.market_state_provider import MarketStateProvider
 from adapters.outbound.repositories.simulation_position_repository import SimulationPositionRepository
 from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
@@ -148,6 +151,13 @@ def create_watch_engine() -> WatchEngine:
         rule_repo=WatchRuleRepository(),
         trigger_repo=WatchTriggerRepository(),
         state_provider=MarketStateProvider(),
+        # P2 市场环境联动（2026-10-19）：持仓→板块映射，账户口径与 P5 生命周期一致
+        # （agent 三账户；v13/v14 传统量化策略自有日检闭环，不进盯盘联动）。
+        # 每日重建由引擎 sidecar 驱动（refresh_held_boards），tick 只读缓存。
+        held_sector_map=HeldSectorMapService(
+            position_repo=SimulationPositionRepository(),
+            accounts=("agent_virtual", "agent_brain", "user_main_simulation"),
+        ),
     )
 
     # 摘要门（REQ-f08def P2/P4）：唤醒走 AgentNotificationService → POST /wake（官方通道）。
@@ -215,6 +225,10 @@ def create_watch_engine() -> WatchEngine:
         todo_service=todo_service,
         # 观察聚合缓冲（REQ-261016155500-4f2a wt:validate:1）：无判据 observe 15min 合屏
         observe_agg=_build_observe_aggregator(),
+        # P3 预判验证闭环（2026-10-20）：走势回填，sidecar 每日一次；
+        # 取数走 qs_market_data 单例（服务内惰性取），仓储 L1 暂留同其它 watch 仓储。
+        outcome_backfill_service=OutcomeBackfillService(
+            outcome_repo=WatchOutcomeRepository()),
     )
 
 

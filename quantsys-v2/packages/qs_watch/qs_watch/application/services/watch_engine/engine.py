@@ -16,6 +16,9 @@ from qs_watch.application.services.watch_engine.conditions import (
     freshness_of,
 )
 from qs_watch.application.services.watch_engine.rule_evaluator import RuleEvaluator
+from qs_watch.application.services.watch_engine.staged_break_manager import (
+    OUTCOME_CONFIRMED, OUTCOME_EXPIRED, StagedBreakManager,
+)
 from qs_watch.application.services.watch_engine.state_manager import StateManager
 from qs_watch.application.services.watch_engine.trigger_judge import TriggerJudge
 from qs_watch.domain.watch.services.disposition import (
@@ -52,6 +55,10 @@ SUPPRESSED_TRIGGER_REASON = '规则处于抑噪期（反复触发），已改造
 #: 直接内插常量（曾用 %d 占位忘记格式化，数字会原样落库——2026-10-16 审核修正）。
 DAILY_CAP_REASON = ('当日通知次数已达上限（每规则每条件每日 '
                     f'{DEFAULT_DAILY_EMIT_CAP} 次），仅归档不推送')
+
+#: 两段式伏击「触及未确认」的归档理由（2026-10-19 P1）：观察窗到期确认未成立，
+#: 落一条 suppressed 样本供复盘（盘感样本的事实源），不通知、不占日配额。
+STAGED_EXPIRED_REASON = '伏击观察窗到期未确认（触及≠信号），仅归档样本'
 
 
 def _build_runtime_store():
@@ -106,7 +113,8 @@ class WatchEngine:
                  digest_service=None, ledger=None, meta_review_service=None,
                  position_lifecycle_service=None, market_watch_service=None,
                  runtime_state_store=None,
-                 todo_service=None, observe_agg=None):
+                 todo_service=None, observe_agg=None, staged_manager=None,
+                 outcome_backfill_service=None):
         self.rule_repo = rule_repo
         self.quote_service = quote_service
         self.notifier = notifier
@@ -150,6 +158,9 @@ class WatchEngine:
         self.state = StateManager(event_retention_min=30,
                                   dedup_window_sec=self.dedup_window_sec,
                                   store=self._runtime_store)
+        # 两段式伏击状态机（2026-10-19 P1）：staged_break 条件的触及→观察→确认
+        # 状态归它管；与 StateManager 共用同一个运行态 store（各自专用方法，互不干扰）。
+        self.staged = staged_manager or StagedBreakManager(store=self._runtime_store)
         # 去重（同标的同向合并 + 跨规则重叠转治理）→ DeduplicationManager
         self.dedup = DeduplicationManager(self.state, self.dedup_window_sec)
         # 规则取数保护（2026-09-14 重构 P1）：原内联在本类的按日缓存 / 硬超时 /
@@ -179,6 +190,10 @@ class WatchEngine:
         # 持仓生命周期联动（P5）：买入成交 → 等买规则退役 + 补挂止损；清仓 → 卖出族收摊
         self.position_lifecycle_service = position_lifecycle_service
         self._last_lifecycle_date = None
+        self._last_held_map_date = None   # P2：持仓板块映射的每日重建水位
+        # P3 预判验证闭环（2026-10-20）：走势回填服务，sidecar 每日驱动；None=未装配不跑
+        self.outcome_backfill_service = outcome_backfill_service
+        self._last_outcome_backfill_date = None
         # 市场级盯盘（P6）：指数/涨停家数/情绪/量能/板块——盯盘是紧盯市场的工具
         self.market_watch_service = market_watch_service
         # ── 闭环装配（REQ-c9f899 t12 §6-项8）──────────────────────────────
@@ -375,6 +390,31 @@ class WatchEngine:
             logger.error('持仓生命周期联动异常', error=str(e))
         finally:
             close_session()
+        # 持仓板块映射重建：每日一次（P2 市场环境联动，2026-10-19）。
+        # 逐板块外呼的重活只在 sidecar 跑；tick 热路径只读缓存快照。
+        # 独立于生命周期联动：持仓有变动（联动重建/收摊）的同日语义正好覆盖。
+        try:
+            if (self.market_watch_service is not None
+                    and self._last_held_map_date != now.date()):
+                self.market_watch_service.refresh_held_boards()
+                self._last_held_map_date = now.date()
+        except Exception as e:
+            logger.error('持仓板块映射重建异常', error=str(e))
+        finally:
+            close_session()
+        # 走势回填：每日一次（P3 预判验证闭环，2026-10-20）。
+        # 触发后第 5/10/20 个交易日回填收盘对照——盘感样本库的入料口。
+        try:
+            if (self.outcome_backfill_service is not None
+                    and self._last_outcome_backfill_date != now.date()):
+                s = self.outcome_backfill_service.backfill(now)
+                self._last_outcome_backfill_date = now.date()
+                if s.get('filled') or s.get('failed'):
+                    logger.info('走势回填完成', filled=s['filled'], failed=s['failed'])
+        except Exception as e:
+            logger.error('走势回填异常', error=str(e))
+        finally:
+            close_session()
 
     # ── 主循环 ──────────────────────────────────────────────
 
@@ -496,6 +536,27 @@ class WatchEngine:
             ctx = self._build_ctx(rule, now)
 
             for idx, cond in enumerate(rule.conditions):
+                # 两段式伏击（2026-10-19 P1）：staged_break 不走无状态 evaluate——
+                # 触及只进观察态（静默），确认成立才进 _process_condition 正常流水线；
+                # 窗口到期未确认只归档 suppressed 样本（复盘用，不通知）。
+                if isinstance(cond, dict) and cond.get('type') == 'staged_break':
+                    try:
+                        outcome, result = self.staged.process(
+                            rule.id, idx, cond, quote, ctx, now)
+                    except Exception as e:
+                        logger.error('staged_break 评估异常', rule_id=rule.id,
+                                     cond=cond, error=str(e))
+                        continue
+                    if (result is not None and result.distance_ratio is not None
+                            and result.distance_ratio <= self.buffer_ratio):
+                        fast = True
+                    if outcome == OUTCOME_CONFIRMED:
+                        self._process_condition(rule, idx, cond, quote, result,
+                                                now, events)
+                    elif outcome == OUTCOME_EXPIRED:
+                        self._archive_staged_expired(rule, cond, quote, result,
+                                                     now, events)
+                    continue
                 try:
                     result = evaluate(cond, quote, ctx, now=now)
                 except Exception as e:
@@ -819,6 +880,9 @@ class WatchEngine:
         except Exception as e:  # noqa: BLE001 - 拿不到规则不阻断恢复
             logger.warning('启动恢复取启用规则失败，价格历史退化为按窗口恢复', error=str(e))
             symbols = None
+        staged_restored = self.staged.restore_from_store()
+        if staged_restored:
+            logger.info('staged 观察态已恢复', count=staged_restored)
         return self.state.restore_from_store(now=self.now_fn(), symbols=symbols)
 
     def _flush_runtime_state(self) -> bool:
@@ -826,8 +890,11 @@ class WatchEngine:
 
         now 由引擎时钟注入：三类扩展的窗口裁剪/节流都以它为准（此前 StateManager
         内部取 datetime.now() 会与引擎注入的 now_fn 形成两套时间口径）。
+        staged 观察态独立 flush（脏才写，失败不抛）。
         """
-        return self.state.flush(now=self.now_fn())
+        flushed = self.state.flush(now=self.now_fn())
+        self.staged.flush()
+        return flushed
 
     def _build_gate_ctx(self, rule, cond, quote):
         """委托 DispositionEngine（保留入口名）"""
@@ -978,6 +1045,7 @@ class WatchEngine:
         if self.state.current_date == now.date():
             return
         self.evaluator.reset_daily(now)
+        self.staged.reset_daily()   # 观察窗不隔夜：跨天回到待命重新等触及
         active = self.rule_repo.list_enabled()
         self.state.reset_daily(
             now,
@@ -1194,6 +1262,26 @@ class WatchEngine:
         except Exception as e:  # noqa: BLE001 - 落库失败不得中断本轮 tick
             logger.error('抑噪触发落库失败', rule_id=getattr(rule, 'id', None), error=str(e))
             return None
+
+    def _archive_staged_expired(self, rule, cond, quote, result, now, events) -> None:
+        """两段式伏击「触及未确认」：归档 suppressed 样本（不通知/不占配额/不建待办）。
+
+        与抑噪/日上限共用 _record_suppressed_trigger 通道（reason 区分溯源）。
+        这些样本是「盘感样本积累」的事实源：触及了但没确认的伏击，复盘时
+        正是它们回答「这个伏击点胜率如何」。
+        """
+        archived = self._record_suppressed_trigger(rule, cond, quote, result,
+                                                   reason=STAGED_EXPIRED_REASON)
+        events.append({'rule_id': rule.id, 'symbol': rule.symbol,
+                       'condition': cond, 'price': float(quote.price),
+                       'message': result.message,
+                       'disposition': DISPOSITION_AUTO_OBSERVED,
+                       'disposition_reason': STAGED_EXPIRED_REASON,
+                       'dup_of': None,
+                       'trigger_id': getattr(archived, 'id', None),
+                       'trigger_level': self._get_trigger_level(rule),
+                       'suppressed': True,
+                       'notified': False})
 
     def _record_trigger_event(self, now: datetime, rule_id: int, symbol: str) -> None:
         """委托 StateManager（保留薄封装：既有调用点与测试直接用它）"""

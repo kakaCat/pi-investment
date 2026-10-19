@@ -40,7 +40,10 @@ qs_watch/
 
 ## 常见任务路径
 
-- **加触发规则类型/条件** → `watch_engine/conditions.py`（条件 DSL）+ `trigger_judge.py`（分级判定）
+- **加触发规则类型/条件** → `watch_engine/conditions.py`（条件 DSL）+ `trigger_judge.py`（分级判定）；两段式伏击 `staged_break`（触及→观察→确认，2026-10-19 P1）的状态机在 `watch_engine/staged_break_manager.py`（有状态，不进 evaluate()）
 - **改通知文案/落群** → `watch_engine/watch_channels.py`（频道映射）——群选择规则见根 CLAUDE.md「飞书通知分群」
 - **降噪调参** → `watch_engine/deduplication_manager.py` / `noise_self_heal_service.py`
 - **改机会转规则** → `opportunity_to_watch_rule_service.py`
+- **预判验证闭环** → `watch_engine/outcome_backfill_service.py`（触发后 5/10/20 交易日回填，sidecar 每日）+ 领域 `domain/watch/services/outcome_direction.py`（预判方向/命中判定）+ 仓储 L1 `watch_outcome_repository.py` + 查询 `GET /api/watch/outcomes/stats`
+- **规则停用守卫** → 领域 `domain/watch/services/rule_guard.py`（`guard_disable_rule`：宪法级止损规则停用必须随附理由）卡点在仓储 `update_fields`（L1）；自愈裸 SQL 旁路在 `noise_self_heal_service._config_repair_after` 同源拦截
+- **市场环境联动** → `watch_engine/market_watch_service.py`（市场级规则扫描）+ `watch_engine/held_sector_map.py`（持仓→板块映射，sidecar 每日重建）+ 领域 `domain/watch/services/market_rule_evaluator.py`（含 held_sector_pct 评估与校验）

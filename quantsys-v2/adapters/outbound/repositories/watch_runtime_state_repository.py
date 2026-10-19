@@ -254,6 +254,46 @@ class WatchRuntimeStateRepository:
             _safe_rollback()
             raise
 
+    # ── staged_break 观察态（2026-10-19 P1，20261019c 迁移新增列）────────
+
+    def load_staged_states(self) -> Dict[str, Any]:
+        """读 quant.watch_runtime_meta.staged_break_states（无行/无值返回 {}）。
+
+        走 overlap_reported 同款隔离：列缺失（迁移未应用）只有本方法抛错，
+        由调用方（StagedBreakManager）降级为纯内存——不牵连心跳读取。
+        """
+        try:
+            row = (
+                get_session()
+                .query(WatchRuntimeMeta.staged_break_states)
+                .filter(WatchRuntimeMeta.id == _META_ID)
+                .first()
+            )
+        except Exception:
+            _safe_rollback()
+            raise
+        value = None if row is None else row[0]
+        return dict(value) if value else {}
+
+    def save_staged_states(self, states: Dict[str, Any]) -> None:
+        """写 staged_break_states（仅该列）；空 dict 也写（清零语义）。"""
+        try:
+            tbl = WatchRuntimeMeta.__table__
+            stmt = pg_insert(tbl).values(
+                id=_META_ID, updated_at=func.now(), staged_break_states=dict(states or {}))
+            stmt = stmt.on_conflict_do_update(
+                index_elements=[tbl.c.id],
+                set_={'staged_break_states': stmt.excluded.staged_break_states,
+                      'updated_at': func.now()},
+            )
+            session = get_session()
+            session.execute(stmt)
+            session.commit()
+        except Exception as e:
+            logger.error('staged 观察态写入失败', error=str(e))
+            _safe_rollback()
+            raise
+
     # ── 去重窗（返工 B）─────────────────────────────────────
 
     def load_dedup(self) -> List[Dict[str, Any]]:

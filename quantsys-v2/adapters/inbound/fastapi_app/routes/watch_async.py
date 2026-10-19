@@ -25,6 +25,24 @@ def _parse_expires_at(value):
     return datetime.fromisoformat(value)
 
 
+@router.get('/api/watch/outcomes/stats')
+def outcome_stats(rule_id: Optional[int] = Query(None),
+                  horizon_td: Optional[int] = Query(None)):
+    """预判命中率（2026-10-20 P3 预判验证闭环）：触发后 5/10/20 交易日走势对照的聚合。
+
+    返回按 (rule_id, horizon_td) 分组的 judged/hits/hit_rate/avg_pct；
+    hit IS NULL（震荡不定论/方向不可判）的样本不计入分母。
+    """
+    from adapters.outbound.repositories.watch_outcome_repository import (
+        WatchOutcomeRepository,
+    )
+    try:
+        rows = WatchOutcomeRepository().hit_rate(rule_id=rule_id, horizon_td=horizon_td)
+    except Exception as e:
+        return _err(f'命中率查询失败: {e}', 500)
+    return {'success': True, 'data': {'stats': rows}}
+
+
 @router.get('/api/watch/rules')
 def list_rules(symbol: Optional[str] = Query(None), enabled: Optional[str] = Query(None),
                account: Optional[str] = Query(None),

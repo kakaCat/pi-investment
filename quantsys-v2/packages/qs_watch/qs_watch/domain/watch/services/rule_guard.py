@@ -83,3 +83,35 @@ def guard_rule_change(rule, payload) -> None:
         account = effective_account(rule)
     guard_new_rule(intent=intent, action_hint=action_hint, conditions=conditions,
                    account=account, symbol=getattr(rule, 'symbol', None))
+
+
+class ConstitutionalRuleSilentDisable(ValueError):
+    """宪法级规则（止损铁律）被无理由停用——拒绝执行（2026-10-20 用户裁定）。
+
+    背景：300677 止损规则 #103 曾被静默停用，持仓浮亏 -19% 时保护网是断的，
+    且无人知道何时、为何被关。止损规则的停用是「拆保护网」动作，必须留痕。
+    """
+
+
+def guard_disable_rule(rule, payload) -> None:
+    """停用守卫：宪法级意图（exit_stop）的规则，enabled True→False 必须随附理由。
+
+    理由载体：ops_notes 或 context（既有停用路径都会写 banner/注记，天然通过）；
+    裸 `{'enabled': false}`（没有理由字段）一律拒绝——这只能来自「想悄悄关掉它」。
+    非宪法级规则不受影响。
+    """
+    from qs_watch.domain.watch.services.disposition import CONSTITUTIONAL_INTENTS
+    data = dict(payload or {})
+    if data.get('enabled') is not False:
+        return
+    if getattr(rule, 'enabled', True) is not True:
+        return                                        # 本就停用（幂等重放）放行
+    if (getattr(rule, 'intent', None) or '') not in CONSTITUTIONAL_INTENTS:
+        return
+    has_reason = bool(data.get('ops_notes')) or bool(data.get('context'))
+    if has_reason:
+        return
+    raise ConstitutionalRuleSilentDisable(
+        '止损规则（宪法铁律）不允许无理由停用：rule_id=%s symbol=%s。'
+        '请在本次更新中随附 ops_notes 或 context 说明理由（谁、为什么、替代保护是什么）。'
+        % (getattr(rule, 'id', None), getattr(rule, 'symbol', None)))

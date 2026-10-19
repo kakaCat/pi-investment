@@ -123,4 +123,5 @@ __all__ = [
 ]
 from .watch_todo import (
     WatchTodo, WatchRuntimeState, WatchRuntimeMeta, WatchRuleChange, WatchReceipt,
+    WatchOutcomeCheck,
 )

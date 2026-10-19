@@ -176,6 +176,10 @@ class MarketState:
     advance_decline_ratio: Optional[float] = None
     volume_ratio: Optional[float] = None
     sectors: Dict[str, float] = field(default_factory=dict)            # 板块名 -> 涨跌幅%
+    # 持仓板块映射（2026-10-19 P2 市场环境联动）：板块名 -> [{symbol, account, shares}]。
+    # frozen 快照，由应用层在扫描前用 dataclasses.replace 挂上；空 = 未构建/无持仓
+    # （held_sector_pct 据此 skipped，诚实标注而非误判）。
+    held_boards: Dict[str, List[Dict[str, Any]]] = field(default_factory=dict)
     degraded: List[str] = field(default_factory=list)                  # 不可用数据源
 
     def index_change_pct(self, code: str) -> Optional[float]:

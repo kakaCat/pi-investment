@@ -320,7 +320,7 @@ class NoiseSelfHealService:
         返回 dict 即 apply_config_repair 的 after（列白名单 enabled/conditions 见适配器）：
           · cooldown  → 每条条件写 cooldown_sec（params.cooldown_sec 必填）
           · threshold → 每条条件的 params.price 改写（params.price 必填；direction 可同改）
-          · retire    → enabled=False
+          · retire    → enabled=False（宪法级止损规则除外：2026-10-20 裁定不许自愈退役）
           · split/merge → WatchRuleChangeInvalidKind（多规则结构变更，走规则 CRUD 手工处理）
         """
         payload = params if isinstance(params, dict) else {}
@@ -329,6 +329,15 @@ class NoiseSelfHealService:
                 f'{kind} 无法机械落地（涉及多规则结构变更）：请通过规则 CRUD 手工处理；'
                 f'本服务拒绝"只写审计不改配置"的假修复（会引发抑噪振荡，E1）')
         if kind == 'retire':
+            # 宪法级守卫（2026-10-20 用户裁定，与 rule_guard.guard_disable_rule 同源）：
+            # apply_config_repair 走裸 SQL 绕过 update_fields 的停用卡口，故在此拦截——
+            # 止损规则不许被自愈流程退役（止损反复触发是"保护网在工作"，不是噪音）。
+            from qs_watch.domain.watch.services.disposition import CONSTITUTIONAL_INTENTS
+            if (rule.get('intent') or '') in CONSTITUTIONAL_INTENTS:
+                raise WatchRuleChangeInvalidKind(
+                    f'规则 {rule.get("id")} 是宪法级止损规则（intent={rule.get("intent")}），'
+                    f'不允许自愈退役——止损反复触发是保护网在工作，不是噪音；'
+                    f'如阈值失真请走人工修复并随附理由（ops_notes/context）')
             return {'enabled': False}
 
         conditions = rule.get('conditions') or []

@@ -240,10 +240,16 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
         was_enabled = bool(rule.enabled)
         # 铁律下沉：按"改后状态"判——不许把观察规则改成买卖规则却不给账户，
         # 也不许把已有买卖规则的账户清空（任何调用方都绕不过）
-        from qs_watch.domain.watch.services.rule_guard import guard_rule_change
+        from qs_watch.domain.watch.services.rule_guard import (
+            guard_disable_rule, guard_rule_change,
+        )
         guard_rule_change(rule, {k: v for k, v in fields.items()
                                  if k in ('intent', 'action_hint', 'conditions',
                                           'account', 'linked_account')} or None)
+        # 停用守卫（2026-10-20 用户裁定）：宪法级止损规则的停用必须随附理由
+        # （ops_notes/context），裸 enabled=false 拒绝——300677 #103 静默停用事故的收口。
+        # 卡口设在仓储层：API/批量/生命周期/引擎/自愈全部停用路径都经 update_fields，漏不掉。
+        guard_disable_rule(rule, fields)
         allowed = {'symbol', 'enabled', 'conditions', 'context',
                    'cost_price', 'active_window', 'expires_at', 'account',
                    'notify_mode',  # 2026-09-05 补：notify_mode 曾被白名单静默丢弃
