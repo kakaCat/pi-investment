@@ -147,14 +147,7 @@ func getResourceService() (*resource.Service, *sql.DB, error) {
 	// Build DSN - omit password if empty to avoid libpq issues
 	var dsn string
 	if cfg.Database.Password != "" {
-		dsn = fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
-			cfg.Database.Host,
-			cfg.Database.Port,
-			cfg.Database.User,
-			cfg.Database.Password,
-			cfg.Database.DBName,
-			cfg.Database.SSLMode,
-		)
+		dsn = buildPostgresConnStr(cfg.Database)
 	} else {
 		dsn = fmt.Sprintf("host=%s port=%d user=%s dbname=%s sslmode=%s",
 			cfg.Database.Host,
