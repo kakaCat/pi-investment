@@ -43,7 +43,7 @@ from live_trading.simulation_broker import SimulationBroker
 from adapters.outbound.repositories import SimulationORMRepository
 from live_trading.v13_factors import get_factor_names
 from live_trading.risk_control import RiskController
-from infrastructure.persistence.database.engine import init_engine, get_engine
+from qs_kernel.infrastructure.persistence.database.engine import init_engine, get_engine
 
 # 可选依赖：飞书通知（如果导入失败则禁用）
 try:
@@ -221,7 +221,7 @@ class SimulationTrader:
 
     def _rebuild_portfolio_from_trades(self):
         """从交易记录重建持仓（单一数据源）"""
-        from infrastructure.persistence.database.engine import get_engine
+        from qs_kernel.infrastructure.persistence.database.engine import get_engine
 
         engine = get_engine()
         conn = engine.raw_connection()
@@ -458,7 +458,7 @@ class SimulationTrader:
         4. 日均成交额 >= 1亿（保证流动性，过滤超小盘股）
         """
         # 兼容ORM和非ORM Repository
-        from infrastructure.persistence.database.engine import get_engine
+        from qs_kernel.infrastructure.persistence.database.engine import get_engine
         engine = get_engine()
         conn = engine.raw_connection()
         try:
@@ -524,7 +524,7 @@ class SimulationTrader:
         placeholders = ','.join(['%s'] * len(symbol_list))
 
         # 兼容ORM和非ORM Repository
-        from infrastructure.persistence.database.engine import get_engine
+        from qs_kernel.infrastructure.persistence.database.engine import get_engine
         engine = get_engine()
         conn = engine.raw_connection()
         try:

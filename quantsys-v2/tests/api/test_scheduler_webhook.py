@@ -218,7 +218,7 @@ def test_write_run_to_database_persists_run():
 
     from psycopg2.extras import RealDictCursor
 
-    from infrastructure.persistence.database.engine import get_engine
+    from qs_kernel.infrastructure.persistence.database.engine import get_engine
 
     engine = get_engine()
     conn = engine.raw_connection()

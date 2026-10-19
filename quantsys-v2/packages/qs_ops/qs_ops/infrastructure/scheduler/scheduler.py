@@ -580,7 +580,7 @@ class SchedulerService:
             # 连接泄漏——2026-08-02 FastAPI 托管 SchedulerService 后实测每次任务
             # 执行泄漏 1 个连接）。每次执行后强制回收。
             try:
-                from infrastructure.persistence.orm import close_session
+                from qs_kernel.infrastructure.persistence.orm import close_session
                 close_session()
             except Exception:
                 pass
@@ -636,7 +636,7 @@ class SchedulerService:
                     # 任务级 finally（_run_task）已有关闭，这里是轮询级兜底
                     # （2026-08-18 后台线程连接治理）。
                     try:
-                        from infrastructure.persistence.orm import close_session
+                        from qs_kernel.infrastructure.persistence.orm import close_session
                         close_session()
                     except Exception:
                         pass

@@ -411,7 +411,7 @@ class OpportunityScoringService:
             # 连接（idle in transaction）。session_guard 实测 39 次 session_leak_detected 中，
             # 本路径（_score_single_stock → stock_repository.get_by_symbol）占 10+ 次。
             try:
-                from infrastructure.persistence.orm import close_session
+                from qs_kernel.infrastructure.persistence.orm import close_session
                 close_session()
             except Exception:
                 pass

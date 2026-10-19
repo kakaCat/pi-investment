@@ -55,7 +55,7 @@ def is_index_symbol(symbol: str) -> bool:
         # 实证 traceback：data_backfiller.backfill_symbol → manager.get_klines → _ensure_amount
         #   → is_pseudo_symbol → is_index_symbol → get_by_symbol → get_session（22:08 那条泄漏）。
         # 该判定只读一行、且处在热路径，改用**池化游标**（借完即还，不占用 thread-local session）。
-        from infrastructure.persistence.database.engine import db_cursor
+        from qs_kernel.infrastructure.persistence.database.engine import db_cursor
         with db_cursor() as cur:
             cur.execute('select list_date from quant.stocks where symbol = %s', (s,))
             row = cur.fetchone()

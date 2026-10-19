@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional
 import structlog
 from sqlalchemy import func
 
-from infrastructure.persistence.orm import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
 from infrastructure.persistence.orm.models import Stock
 
 logger = structlog.get_logger(__name__)

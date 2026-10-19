@@ -10,7 +10,7 @@ from typing import Optional, List, Dict, Any
 import structlog
 
 from qs_sourcing.adapters.outbound.repositories.signal_async_repository import SignalAsyncRepository
-from infrastructure.persistence.orm.async_config import get_async_session_context
+from qs_kernel.infrastructure.persistence.orm.async_config import get_async_session_context
 from adapters.shared.services import realtime_signal_service
 
 logger = structlog.get_logger(__name__)

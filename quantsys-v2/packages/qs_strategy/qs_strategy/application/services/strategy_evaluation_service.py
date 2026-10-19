@@ -54,7 +54,7 @@ OVERLAY_TEST_WINDOW = ("2024-07-01", "2026-09-11")
 # DB 访问：统一走 engine（原脚本用 psql subprocess，上迁时一并收口）
 # --------------------------------------------------------------------------- #
 def _engine():
-    from infrastructure.persistence.database.engine import get_engine
+    from qs_kernel.infrastructure.persistence.database.engine import get_engine
     return get_engine()
 
 

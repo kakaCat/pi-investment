@@ -351,7 +351,7 @@ def test_repository_roundtrip_on_test_db():
     数据库不可用时 skip（不伪造通过）；可用而适配器坏掉时必须红。
     """
     import psycopg2
-    from infrastructure.persistence.database.engine import _resolve_db_dsn
+    from qs_kernel.infrastructure.persistence.database.engine import _resolve_db_dsn
 
     dsn = _resolve_db_dsn()
     if not dsn:
@@ -361,7 +361,7 @@ def test_repository_roundtrip_on_test_db():
     except Exception as e:  # noqa: BLE001
         pytest.skip(f'test database unavailable: {e}')
 
-    from infrastructure.persistence.orm import Base, close_session, get_session
+    from qs_kernel.infrastructure.persistence.orm import Base, close_session, get_session
     from infrastructure.persistence.orm.models.watch_todo import (
         WatchRuntimeMeta, WatchRuntimeState,
     )

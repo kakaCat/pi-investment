@@ -24,7 +24,7 @@ from qs_kernel.domain.ports.repository_ports_extended import (
     ISignalExecutionRepository,
 )
 
-from infrastructure.persistence.orm import close_session
+from qs_kernel.infrastructure.persistence.orm import close_session
 from qs_market_data.application.services.financial_data_service_adapter import FinancialDataServiceAdapter as FinancialDataService
 from domain.exceptions import DatabaseError, ExternalServiceError
 

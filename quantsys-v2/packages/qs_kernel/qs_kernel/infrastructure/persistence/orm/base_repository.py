@@ -95,7 +95,7 @@ class BaseORMRepository(Generic[T]):
             挂在实例上复用，关闭后下次调用自动重建。
         """
         from psycopg2.extras import RealDictCursor
-        from infrastructure.persistence.database.engine import get_engine
+        from qs_kernel.infrastructure.persistence.database.engine import get_engine
 
         if getattr(self, '_raw_conn', None) is None or self._raw_conn.closed:
             self._raw_conn = get_engine().connect()

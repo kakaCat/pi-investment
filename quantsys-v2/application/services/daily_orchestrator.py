@@ -23,7 +23,7 @@ from enum import Enum
 
 from sqlalchemy.orm.attributes import flag_modified
 
-from infrastructure.persistence.orm import get_session
+from qs_kernel.infrastructure.persistence.orm import get_session
 from infrastructure.persistence.orm.models.orchestrator import DailyOrchestratorState
 from qs_agenthub.application.services.agent_notification_service import agent_service
 

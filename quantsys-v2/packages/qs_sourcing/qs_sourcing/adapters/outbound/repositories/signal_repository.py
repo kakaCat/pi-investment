@@ -21,7 +21,7 @@ import structlog
 
 from sqlalchemy import and_, or_, func, desc, case, cast, Date, select
 from sqlalchemy.exc import SQLAlchemyError
-from infrastructure.persistence.orm import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
 from infrastructure.persistence.orm.models import Signal, SignalExecution
 from infrastructure.persistence.orm.models.action_norm import signal_action_type
 from qs_kernel.domain.ports import ISignalRepository

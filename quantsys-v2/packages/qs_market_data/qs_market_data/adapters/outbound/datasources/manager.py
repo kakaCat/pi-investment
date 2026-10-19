@@ -357,7 +357,7 @@ class DataProviderManager(IDataProviderManager):
                         return method(*args, **kwargs)
                     finally:
                         try:
-                            from infrastructure.persistence.orm import close_session
+                            from qs_kernel.infrastructure.persistence.orm import close_session
                             close_session()
                         except Exception:
                             pass
@@ -1200,7 +1200,7 @@ class DataProviderManager(IDataProviderManager):
                 f"（chk_daily_klines_no_indexrows），指数价格存 quant.index_daily")
             return False
         try:
-            from infrastructure.persistence.orm.config import get_session
+            from qs_kernel.infrastructure.persistence.orm.config import get_session
             from infrastructure.persistence.orm.models.stock import DailyKline, Stock
             from datetime import datetime
             from dateutil.parser import parse as parse_date

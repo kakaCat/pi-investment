@@ -3,7 +3,7 @@
 """
 from sqlalchemy import Column, Integer, String, Boolean, Text, TIMESTAMP, JSON, Float
 from sqlalchemy.sql import func
-from infrastructure.persistence.orm.base import Base
+from qs_kernel.infrastructure.persistence.orm.base import Base
 
 
 class ConditionRule(Base):

@@ -60,7 +60,7 @@ def _in_intraday_window(now: datetime) -> bool:
 
 def _monitor_loop(stop_event: threading.Event) -> None:
     from infrastructure.jobs import monitor_jobs
-    from infrastructure.persistence.orm import close_session
+    from qs_kernel.infrastructure.persistence.orm import close_session
 
     while not stop_event.is_set():
         now = datetime.now()

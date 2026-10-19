@@ -17,7 +17,7 @@ from datetime import datetime, date
 import structlog
 
 from sqlalchemy import func, and_, desc
-from infrastructure.persistence.orm import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
 from infrastructure.persistence.orm.models import (
     SimulationAccount,
     SimulationPosition,

@@ -19,7 +19,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy import Float, case, func
 
-from infrastructure.persistence.orm import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
 from infrastructure.persistence.orm.models import SignalTestRecord
 
 logger = logging.getLogger(__name__)
@@ -38,8 +38,8 @@ class SignalTestLogRepository(BaseORMRepository[SignalTestRecord]):
 
     def create_table_if_missing(self) -> None:
         """确保表存在（幂等）。原为服务里的一段裸 CREATE TABLE IF NOT EXISTS。"""
-        from infrastructure.persistence.orm.base import Base
-        from infrastructure.persistence.database.engine import get_engine
+        from qs_kernel.infrastructure.persistence.orm.base import Base
+        from qs_kernel.infrastructure.persistence.database.engine import get_engine
 
         Base.metadata.create_all(
             bind=get_engine(), tables=[SignalTestRecord.__table__], checkfirst=True)

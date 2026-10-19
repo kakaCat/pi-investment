@@ -10,7 +10,7 @@ import pytest
 from datetime import datetime
 from qs_ops.infrastructure.scheduler.apscheduler_service import APSchedulerService
 from adapters.outbound.repositories.scheduler_repository import SchedulerRepository
-from infrastructure.persistence.orm import get_session
+from qs_kernel.infrastructure.persistence.orm import get_session
 
 
 def test_load_real_tasks_from_database():

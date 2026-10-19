@@ -104,7 +104,7 @@ def sync_test_schema(engine=None) -> Dict[str, Any]:
         return _done_report
 
     if engine is None:
-        from infrastructure.persistence.database.engine import get_engine
+        from qs_kernel.infrastructure.persistence.database.engine import get_engine
         engine = get_engine()
 
     # 安全闸：只允许打在 *_test 库上（第二道防线；conftest 已在校验一遍）
@@ -118,7 +118,7 @@ def sync_test_schema(engine=None) -> Dict[str, Any]:
     # watch_rules/watch_triggers 的模型内联在仓储适配器里，需显式 import 才登记。
     import infrastructure.persistence.orm.models  # noqa: F401
     import adapters.outbound.repositories.watch_rule_repository  # noqa: F401
-    from infrastructure.persistence.orm.base import Base
+    from qs_kernel.infrastructure.persistence.orm.base import Base
 
     report: Dict[str, Any] = {
         'database': db_name,

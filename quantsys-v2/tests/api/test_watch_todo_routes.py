@@ -31,7 +31,7 @@ from fastapi.testclient import TestClient
 
 from adapters.inbound.fastapi_app.routes.watch_todo_async import router
 from adapters.outbound.repositories.watch_todo_repository import WatchTodoRepository
-from infrastructure.persistence.orm import get_session
+from qs_kernel.infrastructure.persistence.orm import get_session
 from infrastructure.persistence.orm.models.watch_todo import WatchTodo
 
 #: 哨兵：测试账户 + 标的（便于 list 过滤与清理，远离真实数据）
@@ -104,7 +104,7 @@ _REQUIRED_CONSTRAINTS = (
 
 
 def _dsn():
-    from infrastructure.persistence.database.engine import _resolve_db_dsn
+    from qs_kernel.infrastructure.persistence.database.engine import _resolve_db_dsn
     return _resolve_db_dsn()
 
 

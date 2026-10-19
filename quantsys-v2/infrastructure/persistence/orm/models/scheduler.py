@@ -4,7 +4,7 @@
 from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, BigInteger, Time
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
-from infrastructure.persistence.orm.base import Base
+from qs_kernel.infrastructure.persistence.orm.base import Base
 
 
 class SchedulerTaskConfig(Base):

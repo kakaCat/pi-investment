@@ -29,7 +29,7 @@ from typing import Any, Dict, List, Optional
 import structlog
 from sqlalchemy import case, func, update as sa_update
 
-from infrastructure.persistence.orm.base_repository import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm.base_repository import BaseORMRepository
 from infrastructure.persistence.orm.models.watch_todo import WatchTodo
 
 logger = structlog.get_logger(__name__)

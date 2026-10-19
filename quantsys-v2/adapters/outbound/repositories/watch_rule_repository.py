@@ -8,8 +8,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import JSONB
 
-from infrastructure.persistence.orm import BaseORMRepository
-from infrastructure.persistence.orm.base import Base
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm.base import Base
 
 
 class WatchRule(Base):

@@ -9,18 +9,18 @@ ORM模块 - SQLAlchemy ORM支持
 
 使用指南：
     # 1. 应用启动时初始化ORM
-    from infrastructure.persistence.orm import init_orm
+    from qs_kernel.infrastructure.persistence.orm import init_orm
     init_orm()
 
     # 2. 定义Model
-    from infrastructure.persistence.orm import Base
+    from qs_kernel.infrastructure.persistence.orm import Base
     class Stock(Base):
         __tablename__ = 'stocks'
         __table_args__ = {'schema': 'quant'}
         symbol = Column(String(10), primary_key=True)
 
     # 3. 创建Repository
-    from infrastructure.persistence.orm import BaseORMRepository
+    from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
     class StockORMRepository(BaseORMRepository[Stock]):
         model = Stock
 
@@ -29,7 +29,7 @@ ORM模块 - SQLAlchemy ORM支持
     stock = repo.get_by_id('000001')
 
     # 5. 请求/Job结束时清理
-    from infrastructure.persistence.orm import close_session
+    from qs_kernel.infrastructure.persistence.orm import close_session
     close_session()
 """
 

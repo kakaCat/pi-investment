@@ -93,7 +93,7 @@ def _purge_watch_symbol_state(symbol: str) -> None:
     """
     from sqlalchemy import text
 
-    from infrastructure.persistence.orm import get_session
+    from qs_kernel.infrastructure.persistence.orm import get_session
 
     session = get_session()
     session.rollback()

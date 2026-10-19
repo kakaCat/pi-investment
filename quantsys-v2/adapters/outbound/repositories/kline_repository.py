@@ -21,7 +21,7 @@ import polars as pl
 import structlog
 
 from sqlalchemy import desc, and_, func, select
-from infrastructure.persistence.orm import BaseORMRepository, get_session
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository, get_session
 from infrastructure.persistence.orm.models import DailyKline, IndexDaily, MinuteKline, Stock
 # 指数与个股分表（2026-09-11 w-f4aa1f6a）：指数键带市场后缀，解析统一走 symbol_classifier，
 # 绝不在调用方手写后缀（399xxx 恒 .SZ，其余白名单 .SH，歧义码由 stocks 表定夺）。

@@ -248,7 +248,7 @@ class EquitySnapshotJob:
             # 按会话来源聚合 40 次泄漏：本路径是**其余来源修完后唯一剩下的**
             #（其余 6 条末次出现均停在各自修前）。
             try:
-                from infrastructure.persistence.orm import close_session
+                from qs_kernel.infrastructure.persistence.orm import close_session
                 close_session()
             except Exception:  # noqa: BLE001 - 归还会话失败不应影响 has_bar 判定
                 pass

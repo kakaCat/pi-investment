@@ -119,7 +119,7 @@ class DataUpdateJob(Job):
         from concurrent.futures import ThreadPoolExecutor
 
         def _run() -> Dict[str, Any]:
-            from infrastructure.persistence.orm import close_session
+            from qs_kernel.infrastructure.persistence.orm import close_session
             from adapters.outbound.repositories import KlineORMRepository, StockORMRepository
 
             stocks = StockORMRepository().get_all(limit=500)

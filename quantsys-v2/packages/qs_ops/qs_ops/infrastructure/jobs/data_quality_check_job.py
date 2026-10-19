@@ -370,7 +370,7 @@ def _release_db_session(stage: str) -> None:
     导致紧随其后的告警查询直接失败（告警内容丢失）。此处显式回滚，代价近乎为零。
     """
     try:
-        from infrastructure.persistence.orm.config import get_session
+        from qs_kernel.infrastructure.persistence.orm.config import get_session
         get_session().rollback()
     except Exception as e:  # 回滚失败不阻断主流程，仅记录
         logger.warning(f"释放 DB 会话失败（{stage}）: {e}")

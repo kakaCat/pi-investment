@@ -291,7 +291,7 @@ class GameAlertService:
                 return fn(*args)
             finally:
                 try:
-                    from infrastructure.persistence.orm import close_session
+                    from qs_kernel.infrastructure.persistence.orm import close_session
                     close_session()
                 except Exception:
                     pass

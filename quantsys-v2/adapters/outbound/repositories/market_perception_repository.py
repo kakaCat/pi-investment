@@ -15,7 +15,7 @@ import structlog
 from sqlalchemy import delete
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from infrastructure.persistence.orm.base_repository import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm.base_repository import BaseORMRepository
 from infrastructure.persistence.orm.models import (
     MarketRegime, MarketSentimentDaily, MarketTheme,
 )

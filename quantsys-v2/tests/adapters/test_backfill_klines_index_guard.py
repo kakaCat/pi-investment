@@ -27,14 +27,14 @@ def test_is_index_symbol_detects_399_family():
 
 def test_backfill_skips_index_symbol_before_db(monkeypatch):
     monkeypatch.setattr('utils.symbol_classifier.is_index_symbol', lambda s: True)
-    monkeypatch.setattr('infrastructure.persistence.orm.config.get_session', _boom)
+    monkeypatch.setattr('qs_kernel.infrastructure.persistence.orm.config.get_session', _boom)
     mgr = object.__new__(DataProviderManager)
     assert mgr._backfill_klines_to_db('399001', []) is False
 
 
 def test_backfill_does_not_over_block_real_stock(monkeypatch):
     monkeypatch.setattr('utils.symbol_classifier.is_index_symbol', lambda s: False)
-    monkeypatch.setattr('infrastructure.persistence.orm.config.get_session', _boom)
+    monkeypatch.setattr('qs_kernel.infrastructure.persistence.orm.config.get_session', _boom)
     mgr = object.__new__(DataProviderManager)
     with pytest.raises(_DbReached):
         mgr._backfill_klines_to_db('600519', [])

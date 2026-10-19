@@ -16,8 +16,8 @@ from typing import Any, Dict
 import structlog
 from sqlalchemy import Column, DateTime, Integer, String, Text, func, insert
 
-from infrastructure.persistence.orm import BaseORMRepository
-from infrastructure.persistence.orm.base import Base
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm.base import Base
 
 logger = structlog.get_logger(__name__)
 
@@ -39,7 +39,7 @@ class AuditLog(Base):
     存下去的就不是同一个值了。
 
     新增模型带来的**已知副作用**（2026-09-14 实测）：本模块一被 import，AuditLog 就注册进
-    infrastructure.persistence.orm.base.Base.metadata（实测 59 -> 60 张表）。两个 create_all
+    qs_kernel.infrastructure.persistence.orm.base.Base.metadata（实测 59 -> 60 张表）。两个 create_all
     脚本（scripts/migrate_20260720_multi_account.py / migrate_20260813_action_case_unify.py）
     都是先 import orm.models（不含仓储）再 create_all，所以**当前不会被顺带建出来**；
     但若哪天有脚本在 import 本模块之后 create_all，就会按这里的列定义 CREATE 出这张

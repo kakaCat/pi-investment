@@ -244,7 +244,7 @@ class TestMemoryIntegration:
         assert len(exported_test) == 2
 
         # 删除原数据
-        from infrastructure.persistence.orm import get_session
+        from qs_kernel.infrastructure.persistence.orm import get_session
         from sqlalchemy import text
         temp_session = get_session()
         for eid in created_ids:

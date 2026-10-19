@@ -7,7 +7,7 @@ Trade ORM Model
 from sqlalchemy import Column, BigInteger, Text, Float, Integer, Date, DateTime, CheckConstraint
 from sqlalchemy.orm import validates
 from sqlalchemy.sql import func
-from infrastructure.persistence.orm import Base
+from qs_kernel.infrastructure.persistence.orm import Base
 from .action_norm import normalize_legacy_trade_action
 
 __all__ = ['Trade']

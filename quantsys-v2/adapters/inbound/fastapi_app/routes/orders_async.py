@@ -154,7 +154,7 @@ def get_trade_history(
     }
     """
     from infrastructure.persistence.orm.models.simulation import SimulationTrade
-    from infrastructure.persistence.orm import get_session
+    from qs_kernel.infrastructure.persistence.orm import get_session
 
     try:
         session = get_session()

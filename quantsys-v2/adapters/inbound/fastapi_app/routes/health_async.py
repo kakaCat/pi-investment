@@ -76,7 +76,7 @@ async def health_db_pool():
     - 503: unhealthy (pool 未初始化或连接数已满)
     """
     try:
-        from infrastructure.persistence.database.engine import get_pool_status
+        from qs_kernel.infrastructure.persistence.database.engine import get_pool_status
         status = get_pool_status()
 
         if not status.get('initialized', False):
@@ -132,7 +132,7 @@ async def db_metrics():
     返回纯文本格式的监控指标
     """
     try:
-        from infrastructure.persistence.database.engine import get_pool_status
+        from qs_kernel.infrastructure.persistence.database.engine import get_pool_status
         status = get_pool_status()
 
         if not status.get('initialized', False):
@@ -286,7 +286,7 @@ try:
     from api.internal.scheduler_webhook import register_job_handler
     from qs_ops.application.jobs.health_monitor import check_job_health
     from adapters.outbound.repositories.scheduler_repository import SchedulerRepository
-    from infrastructure.persistence.orm import get_session
+    from qs_kernel.infrastructure.persistence.orm import get_session
 
     @register_job_handler("v2_health_check")
     async def handle_v2_health_check(metadata=None):

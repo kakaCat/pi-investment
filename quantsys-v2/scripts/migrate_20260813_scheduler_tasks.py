@@ -25,7 +25,7 @@ import json
 import structlog
 from sqlalchemy import text
 
-from infrastructure.persistence.database.engine import get_engine
+from qs_kernel.infrastructure.persistence.database.engine import get_engine
 from infrastructure.scheduler.scheduler import next_run_time
 
 logger = structlog.get_logger(__name__)

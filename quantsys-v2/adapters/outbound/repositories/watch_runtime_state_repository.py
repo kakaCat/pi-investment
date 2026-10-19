@@ -28,7 +28,7 @@ import structlog
 from sqlalchemy import func
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from infrastructure.persistence.orm import get_session
+from qs_kernel.infrastructure.persistence.orm import get_session
 from infrastructure.persistence.orm.models.watch_todo import (
     WatchPriceHistory, WatchRuntimeDedup, WatchRuntimeMeta, WatchRuntimeState,
     WatchTriggerEvent,

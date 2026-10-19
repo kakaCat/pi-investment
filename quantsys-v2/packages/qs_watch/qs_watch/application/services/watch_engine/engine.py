@@ -315,7 +315,7 @@ class WatchEngine:
                     # 否则盯盘线程连接长期 idle in transaction（挡 autovacuum/
                     # 持旧快照，2026-08-18 后台线程连接治理）
                     try:
-                        from infrastructure.persistence.orm import close_session
+                        from qs_kernel.infrastructure.persistence.orm import close_session
                         close_session()
                     except Exception:
                         pass

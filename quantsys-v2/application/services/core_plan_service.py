@@ -56,7 +56,7 @@ OUT = ROOT / "config" / "core_plan.json"
 # DB 访问：统一走 engine（B7，2026-09-13 w-a9ec14d7）
 # --------------------------------------------------------------------------- #
 def _engine():
-    from infrastructure.persistence.database.engine import get_engine
+    from qs_kernel.infrastructure.persistence.database.engine import get_engine
     return get_engine()
 
 

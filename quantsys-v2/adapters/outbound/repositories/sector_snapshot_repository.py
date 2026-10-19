@@ -11,7 +11,7 @@ from datetime import date as _date
 from datetime import datetime
 from typing import Dict, List, Optional
 
-from infrastructure.persistence.orm import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
 from infrastructure.persistence.orm.models import SectorSnapshot
 
 logger = logging.getLogger(__name__)

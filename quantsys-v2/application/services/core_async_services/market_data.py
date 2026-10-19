@@ -5,7 +5,7 @@ from typing import Dict, List
 import structlog
 
 from adapters.outbound.repositories.stock_async_repository import StockAsyncRepository
-from infrastructure.persistence.orm.async_config import get_async_session_context
+from qs_kernel.infrastructure.persistence.orm.async_config import get_async_session_context
 
 logger = structlog.get_logger(__name__)
 

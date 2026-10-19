@@ -78,7 +78,7 @@ class TestMigration:
         run_migration()   # 第二次不报错即幂等
 
         from sqlalchemy import inspect
-        from infrastructure.persistence.database.engine import get_engine
+        from qs_kernel.infrastructure.persistence.database.engine import get_engine
         insp = inspect(get_engine())
         acc_cols = {c['name'] for c in insp.get_columns('simulation_account', schema='quant')}
         assert 'cash_available' in acc_cols and 'cash' not in acc_cols

@@ -8,7 +8,7 @@ ORM Session 泄漏检测和自动清理
 
 用法：
     # 在应用启动时启用
-    from infrastructure.persistence.orm.session_guard import enable_session_guard
+    from qs_kernel.infrastructure.persistence.orm.session_guard import enable_session_guard
     enable_session_guard(timeout=300)  # 5 分钟超时
 """
 

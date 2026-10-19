@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 2026-09-10 已直接 psql 建表上线，本文件供幂等复现。
 """
 
-from infrastructure.persistence.database.engine import db_cursor
+from qs_kernel.infrastructure.persistence.database.engine import db_cursor
 
 DDL = """
 CREATE TABLE IF NOT EXISTS quant.portfolio_circuit_breaker (

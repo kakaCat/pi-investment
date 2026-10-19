@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 from typing import List, Set
 from application.services.data_backfiller import DataBackfiller
 from adapters.outbound.repositories.kline_repository import KlineORMRepository
-from infrastructure.persistence.orm import get_session
+from qs_kernel.infrastructure.persistence.orm import get_session
 
 logger = structlog.get_logger(__name__)
 

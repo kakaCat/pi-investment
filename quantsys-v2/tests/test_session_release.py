@@ -25,9 +25,17 @@ import infrastructure.persistence.orm as orm_pkg
 
 @pytest.fixture
 def released(monkeypatch):
-    """记录线程会话释放调用次数。"""
+    """记录线程会话释放调用次数。
+
+    需要双桩（S11-B-1 实测）：生产方通过包内编辑安装（qs_intel/qs_ops 等）导入close_session，
+    合并前后分别解析到 L1 shim / qs_kernel 两个不同模块对象，只补其一会漏。
+    """
     calls = []
-    monkeypatch.setattr(orm_pkg, "close_session", lambda: calls.append(1), raising=False)
+    _stub = lambda: calls.append(1)
+    import qs_kernel.infrastructure.persistence.orm as kernel_orm
+
+    monkeypatch.setattr(orm_pkg, "close_session", _stub, raising=False)  # L1 shim
+    monkeypatch.setattr(kernel_orm, "close_session", _stub, raising=False)  # kernel 正身
     return calls
 
 

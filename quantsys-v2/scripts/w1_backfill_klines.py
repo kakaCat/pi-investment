@@ -22,7 +22,7 @@ from application.services.data_backfiller import DataBackfiller
 from adapters.outbound.repositories.kline_repository import KlineORMRepository
 from adapters.outbound.repositories.stock_pool_repository import StockPoolRepository
 from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
-from infrastructure.persistence.orm import get_session
+from qs_kernel.infrastructure.persistence.orm import get_session
 
 logger = structlog.get_logger(__name__)
 

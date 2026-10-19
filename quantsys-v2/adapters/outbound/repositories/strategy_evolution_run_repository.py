@@ -11,8 +11,8 @@ from sqlalchemy import Column, DateTime, Float, Integer, String, Text, func, sel
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import aliased
 
-from infrastructure.persistence.orm import BaseORMRepository
-from infrastructure.persistence.orm.base import Base
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm.base import Base
 
 logger = structlog.get_logger(__name__)
 

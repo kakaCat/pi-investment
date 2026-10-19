@@ -3,7 +3,7 @@ from typing import Dict, List, Optional
 
 import structlog
 
-from infrastructure.persistence.orm.async_config import get_async_session_context
+from qs_kernel.infrastructure.persistence.orm.async_config import get_async_session_context
 # 2026-09-11 修复（w-f4aa1f6a）：IAsyncKlineRepository 是 domain 层 ABC 端口，
 # 直接 IAsyncKlineRepository(session) 会抛 "takes no arguments"，导致
 # DataAsyncService.get_klines / get_latest_price 静默返回空

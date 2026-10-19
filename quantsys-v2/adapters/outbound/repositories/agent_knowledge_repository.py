@@ -8,8 +8,8 @@ from datetime import datetime
 import structlog
 
 from sqlalchemy import Column, Integer, String, Float, JSON, DateTime
-from infrastructure.persistence.orm import BaseORMRepository
-from infrastructure.persistence.orm.base import Base
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm.base import Base
 
 logger = structlog.get_logger(__name__)
 

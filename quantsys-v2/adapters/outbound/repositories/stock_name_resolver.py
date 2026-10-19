@@ -16,7 +16,7 @@ from typing import Dict, List, Optional
 import structlog
 
 from qs_watch.domain.watch.ports import StockNameResolver
-from infrastructure.persistence.orm.base_repository import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm.base_repository import BaseORMRepository
 from infrastructure.persistence.orm.models.stock import Stock
 
 logger = structlog.get_logger(__name__)

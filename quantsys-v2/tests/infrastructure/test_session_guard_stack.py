@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
-from infrastructure.persistence.orm import session_guard
+from qs_kernel.infrastructure.persistence.orm import session_guard
 
 
 class _FakeSession:

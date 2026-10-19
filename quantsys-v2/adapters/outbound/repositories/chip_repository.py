@@ -11,8 +11,8 @@ import structlog
 from sqlalchemy import Column, Date, DateTime, Float, LargeBinary, Text, func, or_, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from infrastructure.persistence.orm import BaseORMRepository
-from infrastructure.persistence.orm.base import Base
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm.base import Base
 from infrastructure.persistence.orm.models import DailyKline, Stock
 
 logger = structlog.get_logger(__name__)

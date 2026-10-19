@@ -30,7 +30,7 @@ _APSCHEDULER_JOBS = table(
 )
 
 from qs_kernel.domain.ports import ISchedulerRepository
-from infrastructure.persistence.orm import get_session
+from qs_kernel.infrastructure.persistence.orm import get_session
 from infrastructure.persistence.orm.models.scheduler import (
     SchedulerTaskConfig,
     SchedulerRun,

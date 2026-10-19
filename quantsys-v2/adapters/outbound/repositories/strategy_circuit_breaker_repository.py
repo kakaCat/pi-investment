@@ -6,10 +6,10 @@ Strategy Circuit Breaker ORM Repository - 策略熔断器仓储
   - 实际表 quant.strategy_circuit_breaker（主键 strategy_name）
   - 补齐 get_state / save_state / get_all_states
 """
-from infrastructure.persistence.orm import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
 from sqlalchemy import Column, Integer, String, Numeric, Text, DateTime, JSON
 from sqlalchemy.exc import SQLAlchemyError
-from infrastructure.persistence.orm.base import Base
+from qs_kernel.infrastructure.persistence.orm.base import Base
 from qs_kernel.domain.ports import IStrategyCircuitBreakerRepository
 from typing import List, Optional, Dict, Any
 from datetime import datetime

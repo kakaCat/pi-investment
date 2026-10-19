@@ -1,68 +1,55 @@
+"""L1 兼容 shim（S11 · Slice B-1 · 30 天观察期）。
+
+原 ``infrastructure.persistence.orm`` 已迁至 ``qs_kernel.infrastructure.persistence.orm``。
+已迁子模块经 sys.modules 别名绑定到 kernel 模块（保证 Base/engine 单例身份唯一）；
+models 业务表模型仍在本目录，经本包 __path__ 保持可达。
 """
-ORM模块 - SQLAlchemy ORM支持
+import importlib
+import sys
 
-提供：
-1. Session管理（scoped_session，线程安全）
-2. Base类（所有Model的基类）
-3. BaseORMRepository（通用CRUD操作）
-4. TimestampMixin（自动时间戳）
-
-使用指南：
-    # 1. 应用启动时初始化ORM
-    from infrastructure.persistence.orm import init_orm
-    init_orm()
-
-    # 2. 定义Model
-    from infrastructure.persistence.orm import Base
-    class Stock(Base):
-        __tablename__ = 'stocks'
-        __table_args__ = {'schema': 'quant'}
-        symbol = Column(String(10), primary_key=True)
-
-    # 3. 创建Repository
-    from infrastructure.persistence.orm import BaseORMRepository
-    class StockORMRepository(BaseORMRepository[Stock]):
-        model = Stock
-
-    # 4. 使用Repository
-    repo = StockORMRepository()
-    stock = repo.get_by_id('000001')
-
-    # 5. 请求/Job结束时清理
-    from infrastructure.persistence.orm import close_session
-    close_session()
-"""
-
-from .config import (
+_canonical = "qs_kernel.infrastructure.persistence.orm"
+from qs_kernel.infrastructure.persistence.orm import (  # noqa: F401 canonical home
     Base,
     init_orm,
     get_session,
+    get_db_session,
     close_session,
     close_orm,
     get_engine,
-    is_initialized
+    is_initialized,
+    TimestampMixin,
+    to_dict,
+    BaseORMRepository,
 )
-from .base import TimestampMixin, to_dict
-from .base_repository import BaseORMRepository
 
-# 向后兼容别名
-get_db_session = get_session
+for _name in (
+    "base",
+    "base_repository",
+    "async_base",
+    "async_config",
+    "config",
+    "session_guard",
+):
+    _mod = importlib.import_module(f"{_canonical}.{_name}")
+    sys.modules[f"infrastructure.persistence.orm.{_name}"] = _mod
+    globals()[_name] = _mod
 
 __all__ = [
-    # 核心
-    'Base',
-    'init_orm',
-    'get_session',
-    'get_db_session',  # 向后兼容
-    'close_session',
-    'close_orm',
-    'get_engine',
-    'is_initialized',
-
-    # Mixin和工具
-    'TimestampMixin',
-    'to_dict',
-
-    # Repository基类
-    'BaseORMRepository',
+    "Base",
+    "init_orm",
+    "get_session",
+    "get_db_session",
+    "close_session",
+    "close_orm",
+    "get_engine",
+    "is_initialized",
+    "TimestampMixin",
+    "to_dict",
+    "BaseORMRepository",
+    "base",
+    "base_repository",
+    "async_base",
+    "async_config",
+    "config",
+    "session_guard",
 ]

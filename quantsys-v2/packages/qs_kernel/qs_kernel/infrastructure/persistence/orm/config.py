@@ -65,7 +65,7 @@ def init_orm(
 
     # 解析DSN
     if dsn is None:
-        from infrastructure.persistence.database.engine import _resolve_db_dsn
+        from qs_kernel.infrastructure.persistence.database.engine import _resolve_db_dsn
         dsn = _resolve_db_dsn()
 
     if not dsn:
@@ -132,7 +132,7 @@ def get_session() -> Session:
 
     # 如果启用了 Session Guard，记录创建
     try:
-        from infrastructure.persistence.orm.session_guard import track_session_creation
+        from qs_kernel.infrastructure.persistence.orm.session_guard import track_session_creation
         track_session_creation(session)
     except ImportError:
         pass
@@ -157,7 +157,7 @@ def close_session():
         # 如果启用了 Session Guard，记录关闭
         try:
             session = _SessionFactory()
-            from infrastructure.persistence.orm.session_guard import track_session_close
+            from qs_kernel.infrastructure.persistence.orm.session_guard import track_session_close
             track_session_close(session)
         except ImportError:
             pass

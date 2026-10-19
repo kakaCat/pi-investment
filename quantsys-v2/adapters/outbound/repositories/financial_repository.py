@@ -6,10 +6,10 @@ Financial ORM Repository - 财务报表仓储
   - 实际数据分布在 quant.income_statements / quant.balance_sheets 两张表
   - 补齐 get_income_statements / get_balance_sheets / get_financial_data
 """
-from infrastructure.persistence.orm import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
 from sqlalchemy import Column, Integer, String, Float, Date, DateTime, func
 from sqlalchemy.exc import SQLAlchemyError
-from infrastructure.persistence.orm.base import Base
+from qs_kernel.infrastructure.persistence.orm.base import Base
 from qs_kernel.domain.ports import IFinancialRepository
 from typing import List, Optional, Dict, Any
 from datetime import datetime

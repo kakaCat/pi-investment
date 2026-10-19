@@ -12,7 +12,7 @@ Flask 请求线程通过 scoped_session 懒加载 Session，首个查询开启�
 import pytest
 from flask import Flask
 
-from infrastructure.persistence.orm.config import (
+from qs_kernel.infrastructure.persistence.orm.config import (
     close_orm,
     get_session,
     init_orm,

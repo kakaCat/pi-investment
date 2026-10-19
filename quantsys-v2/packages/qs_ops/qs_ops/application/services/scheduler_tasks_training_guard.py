@@ -23,7 +23,7 @@ def _release_thread_session() -> None:
     是 v2 DB 连接池健康度被打满（utilization 100%，事件 ed7d2f6a）的来源之一。
     """
     try:
-        from infrastructure.persistence.orm.config import close_session
+        from qs_kernel.infrastructure.persistence.orm.config import close_session
         close_session()
     except Exception as e:  # 释放失败不应影响任务本身
         logger.debug(f"release thread session failed: {e}")

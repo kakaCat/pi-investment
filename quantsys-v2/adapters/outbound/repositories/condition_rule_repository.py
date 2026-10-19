@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import structlog
 
 from sqlalchemy import and_, or_
-from infrastructure.persistence.orm import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
 from infrastructure.persistence.orm.models import ConditionRule, ConditionResult
 
 logger = structlog.get_logger(__name__)

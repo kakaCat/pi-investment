@@ -11,7 +11,7 @@
 """
 from qs_kernel.domain.ports import IStockPoolRepository, IStockRepository
 from typing import Dict, List, Optional
-from infrastructure.persistence.orm.async_config import get_async_session_context
+from qs_kernel.infrastructure.persistence.orm.async_config import get_async_session_context
 import time
 import structlog
 

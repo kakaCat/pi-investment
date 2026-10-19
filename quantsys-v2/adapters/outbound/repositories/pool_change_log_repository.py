@@ -4,10 +4,10 @@ Pool Change Log ORM Repository - 股票池变更日志仓储
 2026-07-19 新建：DecisionService.record_pool_change 依赖此仓储，
 原代码中从未存在（导致 decision_tracking 模块被禁用）。
 """
-from infrastructure.persistence.orm import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
 from sqlalchemy import Column, Integer, String, Text, DateTime, JSON
 from sqlalchemy.exc import SQLAlchemyError
-from infrastructure.persistence.orm.base import Base
+from qs_kernel.infrastructure.persistence.orm.base import Base
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 import structlog

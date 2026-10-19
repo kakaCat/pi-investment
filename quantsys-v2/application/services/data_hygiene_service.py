@@ -36,7 +36,7 @@ REPORT = ROOT / "config" / "data_hygiene_report.json"
 
 
 def _engine():
-    from infrastructure.persistence.database.engine import get_engine
+    from qs_kernel.infrastructure.persistence.database.engine import get_engine
     return get_engine()
 
 

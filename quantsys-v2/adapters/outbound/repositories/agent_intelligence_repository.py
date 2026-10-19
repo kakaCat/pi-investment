@@ -6,10 +6,10 @@ Agent Intelligence ORM Repository - 智能体决策仓储
   - 补齐 DecisionService/DecisionEvaluator 需要的全部方法
   - save_snapshot/save_metrics/create_event 等博弈模块方法保持原有日志 stub 行为
 """
-from infrastructure.persistence.orm import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
 from sqlalchemy import Column, Integer, String, Float, Text, JSON, Boolean, DateTime
 from sqlalchemy.exc import SQLAlchemyError
-from infrastructure.persistence.orm.base import Base
+from qs_kernel.infrastructure.persistence.orm.base import Base
 from qs_kernel.domain.ports import IAgentIntelligenceRepository
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta

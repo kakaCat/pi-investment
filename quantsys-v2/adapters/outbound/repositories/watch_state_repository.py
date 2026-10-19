@@ -26,7 +26,7 @@ import structlog
 from sqlalchemy import case, func
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from infrastructure.persistence.orm import get_session
+from qs_kernel.infrastructure.persistence.orm import get_session
 from infrastructure.persistence.orm.models import WatchDigestState, WatchIntervention
 from adapters.outbound.repositories.watch_rule_repository import WatchRuleRepository
 

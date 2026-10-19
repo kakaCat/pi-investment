@@ -2,7 +2,7 @@
 import pytest
 import sys
 import os
-from infrastructure.persistence.database.async_base_repository import AsyncConnectionPool, TEST_DB_SUFFIX
+from qs_kernel.infrastructure.persistence.database.async_base_repository import AsyncConnectionPool, TEST_DB_SUFFIX
 
 
 def test_async_pool_rejects_production_db_in_pytest():

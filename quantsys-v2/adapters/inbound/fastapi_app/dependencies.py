@@ -43,7 +43,7 @@ def get_orm_session() -> Generator[Session, None, None]:
         def list_items(session: Session = Depends(get_orm_session)):
             return session.query(Item).all()
     """
-    from infrastructure.persistence.orm import get_session, close_session
+    from qs_kernel.infrastructure.persistence.orm import get_session, close_session
 
     session = get_session()
     try:
@@ -71,7 +71,7 @@ def orm_session_context():
             stock = session.query(Stock).first()
             # session auto-commits on exit (if no exception)
     """
-    from infrastructure.persistence.orm import get_session, close_session
+    from qs_kernel.infrastructure.persistence.orm import get_session, close_session
 
     session = get_session()
     try:
@@ -99,7 +99,7 @@ def get_orm_session_optional() -> Generator[Session, None, None]:
         def list_items(session: Session = Depends(get_orm_session_optional)):
             if session is None:
                 # Fallback to old scoped_session approach
-                from infrastructure.persistence.orm import get_session
+                from qs_kernel.infrastructure.persistence.orm import get_session
                 session = get_session()
             return session.query(Item).all()
     """

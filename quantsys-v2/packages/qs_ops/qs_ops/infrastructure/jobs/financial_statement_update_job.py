@@ -74,7 +74,7 @@ def execute(**params) -> Dict[str, Any]:
     # 读操作会 autobegin 一个事务，若不清，随后数百次网络抓取（或探活失败早退）期间该事务
     # 一直占着连接——session_guard 实测 job-financial-statements 线程因此被判 session_leak_detected。
     try:
-        from infrastructure.persistence.orm import close_session
+        from qs_kernel.infrastructure.persistence.orm import close_session
         close_session()
     except Exception:
         pass
@@ -138,7 +138,7 @@ def execute(**params) -> Dict[str, Any]:
 
     elapsed = time.time() - started
     try:      # 收尾同样归还会话（与上方同因，避免任务结束后连接滞留在线程本地注册表）
-        from infrastructure.persistence.orm import close_session
+        from qs_kernel.infrastructure.persistence.orm import close_session
         close_session()
     except Exception:
         pass

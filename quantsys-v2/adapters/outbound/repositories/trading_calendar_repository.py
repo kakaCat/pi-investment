@@ -15,7 +15,7 @@ from typing import Set
 
 import structlog
 
-from infrastructure.persistence.orm import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
 from infrastructure.persistence.orm.models import TradingCalendar
 
 logger = structlog.get_logger(__name__)
