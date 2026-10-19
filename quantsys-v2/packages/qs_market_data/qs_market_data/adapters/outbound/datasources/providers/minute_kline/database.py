@@ -18,7 +18,7 @@ from typing import List, Optional
 from qs_market_data.adapters.outbound.datasources.providers.minute_kline.base import (
     MinuteKlineProvider, in_date_range, limit_klines, period_minutes,
 )
-from domain.models.market_data import MinuteKline
+from qs_kernel.domain.models.market_data import MinuteKline
 
 logger = logging.getLogger(__name__)
 

@@ -26,8 +26,8 @@ import logging
 from datetime import datetime
 from typing import Dict, List, Optional
 
-from domain.events.model import AUTHORITY_MANUAL
-from domain.events.ports.IMarketEventProvider import IMarketEventProvider
+from qs_kernel.domain.events.model import AUTHORITY_MANUAL
+from qs_kernel.domain.events.ports.IMarketEventProvider import IMarketEventProvider
 
 logger = logging.getLogger(__name__)
 

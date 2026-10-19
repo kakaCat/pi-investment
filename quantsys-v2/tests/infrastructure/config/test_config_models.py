@@ -4,7 +4,7 @@ P2-3: 测试配置数据结构和合并逻辑
 """
 
 import pytest
-from infrastructure.config.models import (
+from qs_kernel.infrastructure.config.models import (
     ServiceConfig,
     RepositoryConfig,
     EnvironmentConfig,

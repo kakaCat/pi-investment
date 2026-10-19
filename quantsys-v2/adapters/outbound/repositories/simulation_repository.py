@@ -27,7 +27,7 @@ from infrastructure.persistence.orm.models import (
     SimulationEquitySnapshot,
     SimulationPendingOrder,
 )
-from domain.ports import ISimulationRepository
+from qs_kernel.domain.ports import ISimulationRepository
 
 logger = structlog.get_logger(__name__)
 

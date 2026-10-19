@@ -21,7 +21,7 @@ from qs_market_data.adapters.outbound.datasources.margin_data_source import (
     AkShareMarginSource,
     MarginDataSource,
 )
-from domain.ports.datasource_ports import DataSourceError
+from qs_kernel.domain.ports.datasource_ports import DataSourceError
 
 
 def _sse_frame(date_str: str, code: str = "600887") -> pd.DataFrame:

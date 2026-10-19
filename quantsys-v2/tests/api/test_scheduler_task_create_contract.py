@@ -77,7 +77,7 @@ def test_service_forwards_task_type_to_repository():
 
 def test_port_signature_is_subset_of_adapter_signature():
     """端口声明必须能被实现层满足（实现层可有额外可选参数，但端口参数不能被实现层拒绝）。"""
-    from domain.ports import ISchedulerRepository
+    from qs_kernel.domain.ports import ISchedulerRepository
     from adapters.outbound.repositories.scheduler_repository import SchedulerRepository
 
     port_params = inspect.signature(ISchedulerRepository.add_task).parameters
@@ -87,7 +87,7 @@ def test_port_signature_is_subset_of_adapter_signature():
 
 
 def test_port_declares_task_type():
-    from domain.ports import ISchedulerRepository
+    from qs_kernel.domain.ports import ISchedulerRepository
 
     params = inspect.signature(ISchedulerRepository.add_task).parameters
     assert "task_type" in params, "端口未声明 task_type → 实现层的 task_type 支持无法被类型契约看见"

@@ -20,7 +20,7 @@ akshare `stock_report_disclosure(market='沪深京', period='2026半年报')` �
 from datetime import date
 from typing import Dict, List, Optional, Tuple
 
-from domain.events.ports.IMarketEventProvider import IMarketEventProvider
+from qs_kernel.domain.events.ports.IMarketEventProvider import IMarketEventProvider
 
 #: 默认关注期（按财季滚动维护；新增期需先打样确认接口返回非空）
 #: ⚠️ 期名规则（2026-09-13 实测踩坑）：接口内部映射的 key 是「{年}一季 / {年}半年报 /

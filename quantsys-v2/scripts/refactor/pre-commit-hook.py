@@ -106,7 +106,7 @@ def main():
         
         print("💡 修复建议:", file=sys.stderr)
         print("  - 移除 sys.path.insert: python scripts/refactor/remove_sys_path_hacks.py --fix", file=sys.stderr)
-        print("  - 替换 print() 为 logger: from infrastructure.logging import get_logger", file=sys.stderr)
+        print("  - 替换 print() 为 logger: from qs_kernel.infrastructure.logging import get_logger", file=sys.stderr)
         print("  - 使用数据访问层: from adapters.outbound.datasources.manager import get_data_provider_manager", file=sys.stderr)
         print("", file=sys.stderr)
         print("要跳过此检查（不推荐）: git commit --no-verify", file=sys.stderr)

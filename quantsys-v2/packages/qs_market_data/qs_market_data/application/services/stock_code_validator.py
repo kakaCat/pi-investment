@@ -5,7 +5,7 @@ import structlog
 from typing import Optional, Dict, List
 from datetime import datetime, timedelta
 
-from domain.ports import IKlineRepository
+from qs_kernel.domain.ports import IKlineRepository
 
 logger = structlog.get_logger(__name__)
 

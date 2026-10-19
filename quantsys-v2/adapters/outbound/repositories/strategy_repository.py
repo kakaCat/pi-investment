@@ -63,7 +63,7 @@ class StrategyConfig(Base):
     updated_at = Column(DateTime)
     last_executed_at = Column(DateTime)  # 最后执行时间
 
-from domain.ports import IStrategyRepository
+from qs_kernel.domain.ports import IStrategyRepository
 
 class StrategyORMRepository(BaseORMRepository[Strategy], IStrategyRepository):
     model = Strategy

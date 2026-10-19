@@ -8,7 +8,7 @@
 
 confidence 按 0-100 存储（缠论 0-1 × 100），与 agent 决策链"强度≥70"习惯对齐。
 """
-from domain.ports import ISignalRepository, IStockPoolRepository
+from qs_kernel.domain.ports import ISignalRepository, IStockPoolRepository
 from typing import Dict, Any, List, Optional
 import structlog
 

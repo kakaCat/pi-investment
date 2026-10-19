@@ -20,7 +20,7 @@ def fix_service_file(file_path: Path, dry_run: bool = True) -> bool:
                 self.manager = get_data_provider_manager()
 
     改为:
-        from domain.ports.datasource_ports import IDataProviderManager
+        from qs_kernel.domain.ports.datasource_ports import IDataProviderManager
 
         class Service:
             def __init__(self, provider_manager: IDataProviderManager = None):

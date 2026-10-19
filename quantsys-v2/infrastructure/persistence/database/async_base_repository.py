@@ -52,7 +52,7 @@ def _resolve_db_dsn():
     Raises:
         RuntimeError: If pytest environment detected but database is not a test database
     """
-    from infrastructure.config import get_config
+    from qs_kernel.infrastructure.config import get_config
     import os
     
     # Priority 1: Legacy full DSN env vars (for backward compat)

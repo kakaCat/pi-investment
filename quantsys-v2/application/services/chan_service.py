@@ -1,6 +1,6 @@
 """缠论分析服务"""
 import logging
-from domain.ports import IAgentKnowledgeRepository, IKlineRepository
+from qs_kernel.domain.ports import IAgentKnowledgeRepository, IKlineRepository
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 import pandas as pd

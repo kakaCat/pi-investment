@@ -17,7 +17,7 @@ from pathlib import Path
 # 添加项目路径
 sys.path.insert(0, str(Path(__file__).parent))
 
-from infrastructure.config.settings import get_settings
+from qs_kernel.infrastructure.config.settings import get_settings
 from infrastructure.persistence.database.engine import init_engine
 from infrastructure.persistence.orm import init_orm, get_session
 from infrastructure.scheduler.apscheduler_service import APSchedulerService

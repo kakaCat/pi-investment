@@ -9,7 +9,7 @@ import requests
 from typing import Dict, Any, Optional
 from datetime import datetime
 import pandas as pd
-from domain.ports.datasource_ports import IDataProviderManager
+from qs_kernel.domain.ports.datasource_ports import IDataProviderManager
 
 logger = structlog.get_logger(__name__)
 

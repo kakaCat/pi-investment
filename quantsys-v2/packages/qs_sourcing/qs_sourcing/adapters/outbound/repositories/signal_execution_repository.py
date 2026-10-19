@@ -12,7 +12,7 @@ import structlog
 from sqlalchemy import func, desc, and_
 from infrastructure.persistence.orm import BaseORMRepository
 from infrastructure.persistence.orm.models import SignalExecution
-from domain.ports import ISignalExecutionRepository
+from qs_kernel.domain.ports import ISignalExecutionRepository
 
 logger = structlog.get_logger(__name__)
 

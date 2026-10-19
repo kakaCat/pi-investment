@@ -17,6 +17,16 @@ from .models import (
 )
 
 
+def _find_config_dir_upward(current_file: Path) -> Path:
+    """向上查找最近含 config/services.yaml 的工程根（S11：loader 随 kernel 迁入 packages/ 后固定三级上溯不再指向工程根）。"""
+    for parent in current_file.parents:
+        candidate = parent / 'config' / 'services.yaml'
+        if candidate.is_file():
+            return candidate.parent
+    # 兜底维持原推导：给非 worktree 安装方式保留原有 FileNotFoundError 报错路径
+    return current_file.parent.parent.parent / 'config'
+
+
 class ConfigLoader:
     """配置加载器
 
@@ -40,10 +50,8 @@ class ConfigLoader:
             config_dir: 配置目录，默认为 quantsys-v2/config
         """
         if config_dir is None:
-            # 自动检测配置目录
             current_file = Path(__file__)
-            quantsys_root = current_file.parent.parent.parent
-            config_dir = quantsys_root / 'config'
+            config_dir = _find_config_dir_upward(current_file)
 
         self.config_dir = Path(config_dir)
         self.base_config_file = self.config_dir / 'services.yaml'

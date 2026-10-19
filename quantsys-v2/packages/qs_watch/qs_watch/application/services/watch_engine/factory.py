@@ -3,7 +3,7 @@ import os
 import threading
 from datetime import datetime, timedelta
 from typing import Optional
-from domain.ports.datasource_ports import IDataProviderManager
+from qs_kernel.domain.ports.datasource_ports import IDataProviderManager
 
 import structlog
 

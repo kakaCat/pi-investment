@@ -9,8 +9,8 @@ import time
 
 import structlog
 from typing import Optional
-from domain.ports.datasource_ports import IDataProviderManager
-from domain.models.market_data import QuoteData
+from qs_kernel.domain.ports.datasource_ports import IDataProviderManager
+from qs_kernel.domain.models.market_data import QuoteData
 
 logger = structlog.get_logger(__name__)
 

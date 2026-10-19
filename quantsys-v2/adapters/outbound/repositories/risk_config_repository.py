@@ -10,7 +10,7 @@ from infrastructure.persistence.orm import BaseORMRepository
 from sqlalchemy import Column, Integer, String, Text, Numeric, Boolean, DateTime, JSON
 from sqlalchemy.exc import SQLAlchemyError
 from infrastructure.persistence.orm.base import Base
-from domain.ports import IRiskConfigRepository
+from qs_kernel.domain.ports import IRiskConfigRepository
 from typing import Optional, Dict, Any
 from datetime import datetime
 import structlog

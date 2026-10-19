@@ -18,7 +18,7 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
 import structlog
 
-from infrastructure.config.constants.detection_config import (
+from qs_kernel.infrastructure.config.constants.detection_config import (
     MarketRegimeDetectorConfig,
     DEFAULT_MARKET_REGIME_DETECTOR_CONFIG,
 )

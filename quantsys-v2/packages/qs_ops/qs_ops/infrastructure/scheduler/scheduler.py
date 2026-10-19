@@ -16,7 +16,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
-from domain.ports import ISchedulerRepository
+from qs_kernel.domain.ports import ISchedulerRepository
 # 失败判定口径唯一来源（job_executor 无重依赖，导入无环）
 from qs_ops.infrastructure.scheduler.job_executor import find_result_failure
 

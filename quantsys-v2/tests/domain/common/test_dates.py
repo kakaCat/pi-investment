@@ -16,7 +16,7 @@ while _root.parent != _root and not (_root / "domain").is_dir():
 if str(_root) not in sys.path:
     sys.path.insert(0, str(_root))
 
-from domain.common.dates import as_date, as_datetime, as_date_str  # noqa: E402
+from qs_kernel.domain.common.dates import as_date, as_datetime, as_date_str  # noqa: E402
 
 
 class TestAsDate:

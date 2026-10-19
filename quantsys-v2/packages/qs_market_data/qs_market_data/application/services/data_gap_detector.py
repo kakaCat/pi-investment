@@ -25,7 +25,7 @@ class DataGapDetector:
             kline_repo: K线数据仓库实例
             calendar_service: 交易日历服务实例
         """
-        from domain.ports import IKlineRepository
+        from qs_kernel.domain.ports import IKlineRepository
         from qs_market_data.application.services.trading_calendar_service import TradingCalendarService
 
         self.kline_repo = kline_repo

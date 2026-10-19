@@ -9,8 +9,8 @@ from pathlib import Path
 import tempfile
 import yaml
 
-from infrastructure.config.loader import ConfigLoader, load_config
-from infrastructure.config.models import ServicesConfig
+from qs_kernel.infrastructure.config.loader import ConfigLoader, load_config
+from qs_kernel.infrastructure.config.models import ServicesConfig
 
 
 class TestConfigLoader:
@@ -148,7 +148,7 @@ class TestGlobalLoader:
 
     def test_get_default_loader_singleton(self):
         """测试默认加载器是单例"""
-        from infrastructure.config.loader import get_default_loader
+        from qs_kernel.infrastructure.config.loader import get_default_loader
 
         loader1 = get_default_loader()
         loader2 = get_default_loader()

@@ -13,7 +13,7 @@ from domain.memory.service import MemoryService
 from domain.memory.models import MemoryEntry, MemoryKind, MemoryStatus
 
 if TYPE_CHECKING:
-    from domain.ports import IMemoryRepository, IAgentIntelligenceRepository
+    from qs_kernel.domain.ports import IMemoryRepository, IAgentIntelligenceRepository
 
 logger = structlog.get_logger(__name__)
 

@@ -9,7 +9,7 @@ import time
 from typing import Any, Dict, Optional
 import pybreaker
 
-from domain.ports.datasource_ports import ICircuitBreaker
+from qs_kernel.domain.ports.datasource_ports import ICircuitBreaker
 
 logger = logging.getLogger(__name__)
 

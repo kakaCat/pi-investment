@@ -166,7 +166,7 @@ def _stop_loss_rule_to_dict(rule: StopLossRule) -> Dict[str, Any]:
         'updated_at': rule.updated_at,
     }
 
-from domain.ports import IRiskRepository
+from qs_kernel.domain.ports import IRiskRepository
 
 class RiskORMRepository(BaseORMRepository[RiskMetric], IRiskRepository):
     """风险管理ORM Repository"""

@@ -9,7 +9,7 @@ from adapters.inbound.fastapi_app.shared import (
     error_response,
     handle_api_error,
 )
-from infrastructure.events.unified_event_bus import (
+from qs_kernel.infrastructure.events.unified_event_bus import (
     EventType,
     UnifiedEventBus,
     get_event_bus,

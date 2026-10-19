@@ -31,7 +31,7 @@ class TestServiceRegistryConfigIntegration:
         assert len(registered) > 0, "Should register services from config"
 
         # 验证关键 Repository 已注册
-        from domain.ports import IStockRepository, IKlineRepository
+        from qs_kernel.domain.ports import IStockRepository, IKlineRepository
         assert EnhancedServiceFactory.is_registered(IStockRepository)
         assert EnhancedServiceFactory.is_registered(IKlineRepository)
 
@@ -45,7 +45,7 @@ class TestServiceRegistryConfigIntegration:
         assert len(registered) > 0, "Should register services via hardcoded logic"
 
         # 验证关键 Repository 已注册
-        from domain.ports import IStockRepository, IKlineRepository
+        from qs_kernel.domain.ports import IStockRepository, IKlineRepository
         assert EnhancedServiceFactory.is_registered(IStockRepository)
         assert EnhancedServiceFactory.is_registered(IKlineRepository)
 
@@ -82,7 +82,7 @@ class TestBackwardCompatibility:
         register_all_services()
 
         # 应该能够解析服务
-        from domain.ports import IStockRepository
+        from qs_kernel.domain.ports import IStockRepository
         stock_repo = EnhancedServiceFactory.resolve(IStockRepository)
         assert stock_repo is not None
 
@@ -91,7 +91,7 @@ class TestBackwardCompatibility:
         # 明确指定不使用配置
         register_all_services(use_config=False)
 
-        from domain.ports import IKlineRepository
+        from qs_kernel.domain.ports import IKlineRepository
         kline_repo = EnhancedServiceFactory.resolve(IKlineRepository)
         assert kline_repo is not None
 
@@ -158,7 +158,7 @@ class TestConfigDrivenVsHardcoded:
 
     def test_both_methods_register_core_repositories(self):
         """测试两种方式都能注册核心 Repository"""
-        from domain.ports import IStockRepository, IKlineRepository, ISignalRepository
+        from qs_kernel.domain.ports import IStockRepository, IKlineRepository, ISignalRepository
 
         # 方式 1: 配置驱动
         EnhancedServiceFactory._descriptors.clear()

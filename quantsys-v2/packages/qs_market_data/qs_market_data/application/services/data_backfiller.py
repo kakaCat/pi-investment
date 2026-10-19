@@ -8,7 +8,7 @@ import time
 from typing import List, Dict, Optional, Tuple
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from domain.ports.datasource_ports import IDataProviderManager
+from qs_kernel.domain.ports.datasource_ports import IDataProviderManager
 
 logger = structlog.get_logger(__name__)
 
@@ -32,7 +32,7 @@ class DataBackfiller:
             kline_repo: K线数据仓库实例
             data_source_manager: 数据源管理器实例
         """
-        from domain.ports import IKlineRepository
+        from qs_kernel.domain.ports import IKlineRepository
 
         self.kline_repo = kline_repo
         # 延迟导入避免顶层依赖

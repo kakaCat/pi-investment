@@ -22,7 +22,7 @@ import polars as pl
 # 连带 StrategyCodeService 初始化失败（错误看板事件 236ff599，2026-09-11 00:09:57 出现）。
 # RiskLimits 是风控阈值的唯一来源（止损/仓位/集中度），复制到 domain 会造成双份真相源，
 # 故此处恢复真实来源；domain→infrastructure 常量依赖属架构债，需专项下沉，不在此处解决。
-from infrastructure.config.constants.trading.risk_limits import RiskLimits
+from qs_kernel.infrastructure.config.constants.trading.risk_limits import RiskLimits
 
 
 def _get_kline_repo():

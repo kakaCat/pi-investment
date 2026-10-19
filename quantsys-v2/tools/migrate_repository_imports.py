@@ -4,7 +4,7 @@
 
 自动将 application 层的导入从具体实现迁移到接口：
   from adapters.outbound.repositories import XxxRepository
-→ from domain.ports import IXxxRepository
+→ from qs_kernel.domain.ports import IXxxRepository
 """
 
 import re
@@ -139,7 +139,7 @@ def migrate_file(file_path: Path, dry_run: bool = True) -> bool:
         for old_name, new_name in REPOSITORY_MAPPING.items():
             # 匹配整行导入
             pattern = rf'from\s+adapters\.outbound\.repositories(?:\.\w+)?\s+import\s+{old_name}'
-            replacement = f'from domain.ports import {new_name}'
+            replacement = f'from qs_kernel.domain.ports import {new_name}'
 
             if re.search(pattern, content):
                 content = re.sub(pattern, replacement, content)
@@ -158,12 +158,12 @@ def migrate_file(file_path: Path, dry_run: bool = True) -> bool:
             for imp in imports:
                 port_imports.add(imp.strip())
 
-        # 如果有多个 from domain.ports import，合并它们
+        # 如果有多个 from qs_kernel.domain.ports import，合并它们
         if len(port_imports) > 1:
             # 移除所有旧的
             content = re.sub(r'from domain\.ports import .+\n', '', content)
             # 在文件开头添加合并后的导入
-            combined_import = f"from domain.ports import {', '.join(sorted(port_imports))}\n"
+            combined_import = f"from qs_kernel.domain.ports import {', '.join(sorted(port_imports))}\n"
             # 找到第一个导入语句的位置
             first_import_match = re.search(r'^(from|import)\s+', content, re.MULTILINE)
             if first_import_match:

@@ -118,7 +118,7 @@ class MinuteKlineSyncJob(_RefreshJobBase):
                 # 行可能是 dict，也可能是已被 provider 转好的领域模型 MinuteKline
                 # （2026-09-11 实测：manager 返回的就是 MinuteKline 对象，早期按 dict
                 #  处理导致 AttributeError: 'MinuteKline' object has no attribute 'get'）。
-                from domain.models.market_data import MinuteKline as MinuteKlineModel
+                from qs_kernel.domain.models.market_data import MinuteKline as MinuteKlineModel
 
                 def _to_model(b):
                     if isinstance(b, dict):

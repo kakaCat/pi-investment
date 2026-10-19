@@ -20,7 +20,7 @@ import structlog
 from datetime import date, datetime
 from typing import List, Tuple, Optional
 
-from domain.ports import ISimulationRepository
+from qs_kernel.domain.ports import ISimulationRepository
 from qs_trading.domain.trading.ports.ITradingCalendar import ITradingCalendar
 from qs_trading.domain.trading.services.market_session_policy import (
     AFTERNOON_START,

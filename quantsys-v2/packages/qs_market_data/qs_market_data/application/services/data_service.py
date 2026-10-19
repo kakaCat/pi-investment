@@ -11,7 +11,7 @@ import structlog
 import polars as pl
 
 # 使用ORM Repository
-from domain.ports.repository_ports_extended import (
+from qs_kernel.domain.ports.repository_ports_extended import (
     IStockRepository,
     IKlineRepository,
     ISignalRepository,

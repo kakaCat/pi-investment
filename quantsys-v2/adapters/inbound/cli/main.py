@@ -20,7 +20,7 @@ from typing import Optional
 from adapters.inbound.cli.http_client import HTTPClient
 from adapters.inbound.cli.command_registry import auto_discover_commands
 from adapters.inbound.cli.formatters import get_formatter
-from infrastructure.config import get_config
+from qs_kernel.infrastructure.config import get_config
 
 
 def create_parser() -> argparse.ArgumentParser:

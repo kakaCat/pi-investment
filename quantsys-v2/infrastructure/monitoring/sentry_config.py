@@ -5,7 +5,7 @@ Sentry 错误监控配置
 """
 import logging
 from typing import Optional
-from infrastructure.config import get_config
+from qs_kernel.infrastructure.config import get_config
 
 logger = logging.getLogger(__name__)
 

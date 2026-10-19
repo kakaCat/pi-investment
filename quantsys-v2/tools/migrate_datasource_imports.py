@@ -185,9 +185,9 @@ def migrate_file(file_path: Path, dry_run: bool = True) -> bool:
 
             imports_to_add = []
             if new_imports_ports:
-                imports_to_add.append(f"from domain.ports.datasource_ports import {', '.join(sorted(new_imports_ports))}")
+                imports_to_add.append(f"from qs_kernel.domain.ports.datasource_ports import {', '.join(sorted(new_imports_ports))}")
             if new_imports_models:
-                imports_to_add.append(f"from domain.models.market_data import {', '.join(sorted(new_imports_models))}")
+                imports_to_add.append(f"from qs_kernel.domain.models.market_data import {', '.join(sorted(new_imports_models))}")
 
             if imports_to_add:
                 new_lines = new_lines[:insert_idx] + imports_to_add + new_lines[insert_idx:]
@@ -216,7 +216,7 @@ def migrate_file(file_path: Path, dry_run: bool = True) -> bool:
                 lines = content.split('\n')
                 insert_idx = 0
                 for i, line in enumerate(lines):
-                    if 'from domain.ports.datasource_ports import' in line or 'from domain.models.market_data import' in line:
+                    if 'from qs_kernel.domain.ports.datasource_ports import' in line or 'from qs_kernel.domain.models.market_data import' in line:
                         insert_idx = i + 1
 
                 if insert_idx > 0:

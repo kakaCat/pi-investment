@@ -6,7 +6,7 @@
 真实回测：StrategyCodeService.backtest_strategy / RealBacktestEngineAdapter。
 本类保留仅为 run_backtest 异步任务外壳的兼容性，不再产生任何回测数据。
 """
-from domain.ports import IAsyncKlineRepository, IBacktestRepository
+from qs_kernel.domain.ports import IAsyncKlineRepository, IBacktestRepository
 from typing import Dict, Any, List, Optional
 from datetime import datetime, date
 import structlog

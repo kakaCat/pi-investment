@@ -2,7 +2,7 @@
 """
 修复接口导入路径
 将 from adapters.outbound.repositories import I*Repository
-改为 from domain.ports.repository_ports_extended import I*Repository
+改为 from qs_kernel.domain.ports.repository_ports_extended import I*Repository
 """
 
 import re
@@ -30,7 +30,7 @@ def fix_file(file_path: str):
     # 替换导入路径
     content = content.replace(
         'from adapters.outbound.repositories import',
-        'from domain.ports.repository_ports_extended import'
+        'from qs_kernel.domain.ports.repository_ports_extended import'
     )
 
     if content != original_content:

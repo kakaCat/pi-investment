@@ -8,7 +8,7 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime, date
 
 from qs_strategy.domain.strategies import get_registry, Signal
-from domain.ports import ISimulationRepository
+from qs_kernel.domain.ports import ISimulationRepository
 
 
 class SimulationService:

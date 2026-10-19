@@ -15,7 +15,7 @@ from typing import Dict, Any, Optional
 import structlog
 from datetime import date
 
-from domain.ports import IRiskConfigRepository, IPortfolioRepository, IStockRepository, IKlineRepository, IRiskRepository
+from qs_kernel.domain.ports import IRiskConfigRepository, IPortfolioRepository, IStockRepository, IKlineRepository, IRiskRepository
 from infrastructure.services.service_factory import ServiceFactory
 
 logger = structlog.get_logger(__name__)

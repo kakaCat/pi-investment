@@ -17,7 +17,7 @@ print("=" * 60)
 # 测试 1: 验证配置加载
 print("\n[测试 1] 验证配置加载")
 try:
-    from infrastructure.config.loader import load_config
+    from qs_kernel.infrastructure.config.loader import load_config
     config = load_config(environment='dev')
     print(f"✅ 配置加载成功")
     print(f"   - 配置版本: {config.version}")
@@ -32,7 +32,7 @@ except Exception as e:
 # 测试 2: 验证配置验证器
 print("\n[测试 2] 验证配置验证器")
 try:
-    from infrastructure.config.validator import ConfigValidator
+    from qs_kernel.infrastructure.config.validator import ConfigValidator
     validator = ConfigValidator(strict=False)
     errors = validator.validate(config)
     print(f"✅ 配置验证完成")
@@ -81,7 +81,7 @@ except Exception as e:
 # 测试 4: 验证关键 Repository 是否注册
 print("\n[测试 4] 验证关键 Repository 是否注册")
 try:
-    from domain.ports import IStockRepository, IKlineRepository, ISignalRepository
+    from qs_kernel.domain.ports import IStockRepository, IKlineRepository, ISignalRepository
 
     repositories = [
         ("IStockRepository", IStockRepository),

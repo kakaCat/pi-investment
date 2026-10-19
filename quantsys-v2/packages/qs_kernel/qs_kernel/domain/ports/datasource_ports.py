@@ -6,7 +6,7 @@
 """
 from abc import ABC, abstractmethod
 from typing import Optional, List, Dict, Any
-from domain.models.market_data import (
+from qs_kernel.domain.models.market_data import (
     QuoteData,
     KlineData,
     FinancialData,

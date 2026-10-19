@@ -11,11 +11,11 @@ from datetime import date, timedelta
 
 import pytest
 
-from domain.events.model import (
+from qs_kernel.domain.events.model import (
     AUTHORITY_CNINFO, AUTHORITY_EASTMONEY, EventScope, EventType, MarketEvent,
     source_authority,
 )
-from domain.events.service import (
+from qs_kernel.domain.events.service import (
     MarketEventService, compute_evidence_hash, infer_event_type, infer_importance,
     infer_scope, normalize_title,
 )

@@ -2,7 +2,7 @@
 事件总线基础测试（不需要WebSocket依赖）
 """
 import pytest
-from infrastructure.events.event_bus import EventBus, event_bus
+from qs_kernel.infrastructure.events.event_bus import EventBus, event_bus
 
 
 class TestEventBusBasic:

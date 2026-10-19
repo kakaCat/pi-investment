@@ -9,7 +9,7 @@
 5. 动态池刷新（基于 filter_template 重新筛选）
 6. 筛选建池（scan → create pool 一步完成）
 """
-from domain.ports import IKlineRepository, IStockRepository
+from qs_kernel.domain.ports import IKlineRepository, IStockRepository
 from typing import Dict, List, Optional
 import time
 import structlog
@@ -85,7 +85,7 @@ class StockPoolService:
                 # index_constituents 表为空（采集任务未跑过）时，不能让扫描池
                 # 静默变空——降级为「近期活跃股票」并显式标记来源
                 from infrastructure.services.service_factory import ServiceFactory
-                from domain.ports import IKlineRepository
+                from qs_kernel.domain.ports import IKlineRepository
                 fallback = ServiceFactory.resolve(IKlineRepository).get_active_symbols(days=15, min_days=3, limit=500)
                 logger.warning(
                     f"index_constituents 为空，热门池降级为活跃股票 fallback: {len(fallback)} 只")

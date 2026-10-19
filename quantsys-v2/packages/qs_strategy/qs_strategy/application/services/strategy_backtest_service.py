@@ -11,7 +11,7 @@ from typing import Dict, List, Optional
 from datetime import datetime
 from dataclasses import dataclass
 
-from domain.ports import IStrategyRepository
+from qs_kernel.domain.ports import IStrategyRepository
 from domain.backtest.engine.indicator_strategy_executor import IndicatorStrategyExecutor
 from domain.backtest.engine.script_strategy_executor import ScriptStrategyExecutor
 

@@ -3,7 +3,7 @@ LLM 服务薄封装（DeepSeek，OpenAI 兼容接口）
 """
 import requests
 import structlog
-from infrastructure.config import get_config
+from qs_kernel.infrastructure.config import get_config
 
 logger = structlog.get_logger(__name__)
 

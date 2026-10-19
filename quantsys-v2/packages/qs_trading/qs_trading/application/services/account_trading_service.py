@@ -6,7 +6,7 @@ import structlog
 from datetime import date, datetime
 from typing import Dict, Optional
 
-from domain.ports import ISimulationRepository
+from qs_kernel.domain.ports import ISimulationRepository
 from qs_trading.domain.trading.services.market_session_policy import (
     AFTERNOON_START,
     CONTINUOUS_END,

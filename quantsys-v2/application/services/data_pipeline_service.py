@@ -1,6 +1,6 @@
 """DataPipelineService - Orchestrates the 8-stage data processing pipeline."""
 
-from domain.ports import IFactorRepository, IKlineRepository
+from qs_kernel.domain.ports import IFactorRepository, IKlineRepository
 import structlog
 from typing import List, Optional
 import yaml

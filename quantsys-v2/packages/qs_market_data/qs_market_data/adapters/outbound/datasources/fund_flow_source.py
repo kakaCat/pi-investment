@@ -14,7 +14,7 @@ from typing import Dict, List, Optional
 from datetime import datetime, timedelta
 import pandas as pd
 
-from domain.ports.datasource_ports import DataSourceError
+from qs_kernel.domain.ports.datasource_ports import DataSourceError
 
 logger = logging.getLogger(__name__)
 

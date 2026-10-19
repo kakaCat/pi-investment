@@ -3,7 +3,7 @@ import pytest
 from application.services.scoring.weight_calculator import (
     base_weights, apply_regime, feature_pct_for,
 )
-from infrastructure.config.constants.scoring.scorer_params import (
+from qs_kernel.infrastructure.config.constants.scoring.scorer_params import (
     DEFAULT_WEIGHT_CALCULATOR_CONFIG,
 )
 

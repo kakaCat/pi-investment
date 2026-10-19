@@ -26,7 +26,7 @@ RFC 015 §4.3 / §1.5（2026-09-11 REQ-cf627b）：
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-from domain.models.market_data import MinuteKline
+from qs_kernel.domain.models.market_data import MinuteKline
 
 # 周期别名 → 分钟数
 _PERIOD_ALIASES = {

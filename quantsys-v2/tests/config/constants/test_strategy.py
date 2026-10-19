@@ -4,7 +4,7 @@
 """
 
 import pytest
-from infrastructure.config.constants.trading.strategy import (
+from qs_kernel.infrastructure.config.constants.trading.strategy import (
     V13StrategyDefaults,
     V14StrategyDefaults,
     V13_DEFAULTS,

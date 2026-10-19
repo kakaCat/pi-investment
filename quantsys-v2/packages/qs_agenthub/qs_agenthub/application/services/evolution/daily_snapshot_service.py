@@ -11,7 +11,7 @@
 近似声明（回填）：忽略日内择时，交易按当日收盘生效；费用取 total_cost/total_revenue
 （含佣金印花税），缺省退化为 amount；个股当日缺K线用最近可得收盘价。
 """
-from domain.ports import IKlineRepository, ISimulationRepository
+from qs_kernel.domain.ports import IKlineRepository, ISimulationRepository
 from datetime import date, timedelta
 from typing import Any, Callable, Dict, List, Mapping, Optional
 
@@ -235,7 +235,7 @@ class EquitySnapshotJob:
         return 600
 
     def _has_bar(self, target: date) -> bool:
-        from domain.ports import IKlineRepository
+        from qs_kernel.domain.ports import IKlineRepository
         from infrastructure.services.service_factory import ServiceFactory
         try:
             klines = ServiceFactory.resolve(IKlineRepository).get_daily_klines(

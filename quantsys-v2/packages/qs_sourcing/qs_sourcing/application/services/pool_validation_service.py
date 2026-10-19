@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
 import requests
-from infrastructure.events.progress_emitter import ProgressEmitter
+from qs_kernel.infrastructure.events.progress_emitter import ProgressEmitter
 
 logger = structlog.get_logger(__name__)
 
@@ -28,7 +28,7 @@ class PoolValidationService:
 
         P2-1: 推荐通过 ServiceFactory 获取实例
         """
-        from domain.ports import IStockPoolRepository, IStrategyRepository
+        from qs_kernel.domain.ports import IStockPoolRepository, IStrategyRepository
         self._pool_repo = pool_repo
         self._strategy_repo = strategy_repo
 

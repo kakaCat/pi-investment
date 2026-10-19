@@ -14,7 +14,7 @@ from dataclasses import asdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 import logging
-from infrastructure.config.constants.scoring.scorer_params import (
+from qs_kernel.infrastructure.config.constants.scoring.scorer_params import (
     DataQualityGateConfig,
     DEFAULT_DATA_QUALITY_GATE_CONFIG,
 )

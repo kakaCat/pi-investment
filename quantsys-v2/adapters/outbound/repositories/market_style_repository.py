@@ -9,7 +9,7 @@ from infrastructure.persistence.orm import BaseORMRepository
 from sqlalchemy import Column, Integer, String, Float, Date, DateTime, JSON
 from sqlalchemy.exc import SQLAlchemyError
 from infrastructure.persistence.orm.base import Base
-from domain.ports import IMarketStyleRepository
+from qs_kernel.domain.ports import IMarketStyleRepository
 from typing import List, Optional, Dict, Any
 from datetime import datetime, date
 import structlog

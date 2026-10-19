@@ -4,7 +4,7 @@
 负责执行策略代码生成交易信号
 """
 
-from domain.ports import IKlineRepository, ISignalRepository, IStrategyRepository
+from qs_kernel.domain.ports import IKlineRepository, ISignalRepository, IStrategyRepository
 import structlog
 from typing import Dict, List, Optional
 from datetime import datetime, timedelta

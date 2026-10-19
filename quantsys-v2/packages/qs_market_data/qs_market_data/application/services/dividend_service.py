@@ -8,9 +8,9 @@ import pandas as pd
 import structlog
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from domain.ports.datasource_ports import IDataProviderManager
+from qs_kernel.domain.ports.datasource_ports import IDataProviderManager
 
-from application.services.base_service import ServiceBase
+from qs_kernel.application.services.base_service import ServiceBase
 from qs_market_data.application.services.dividend_data_source import EastMoneyDividendSource, DividendDataSource
 
 logger = structlog.get_logger(__name__)

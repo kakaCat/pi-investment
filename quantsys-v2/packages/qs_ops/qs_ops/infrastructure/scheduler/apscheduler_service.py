@@ -27,7 +27,7 @@ from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
 if TYPE_CHECKING:
-    from domain.ports import ISchedulerRepository
+    from qs_kernel.domain.ports import ISchedulerRepository
 
 logger = logging.getLogger(__name__)
 

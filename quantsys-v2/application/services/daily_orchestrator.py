@@ -391,7 +391,7 @@ class DailyOrchestrator:
         if self._simulation_repo is not None:
             return self._simulation_repo
         from infrastructure.services.service_factory import ServiceFactory
-        from domain.ports import ISimulationRepository
+        from qs_kernel.domain.ports import ISimulationRepository
         return ServiceFactory.resolve(ISimulationRepository)
 
     def _active_accounts(self, repo) -> List[str]:

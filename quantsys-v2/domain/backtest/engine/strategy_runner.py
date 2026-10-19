@@ -19,7 +19,7 @@ DDD 架构:
 from typing import Dict, List, Any, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from domain.ports import IStrategyRepository
+from qs_kernel.domain.ports import IStrategyRepository
 from domain.backtest.engine.ma_cross import MACrossStrategy
 from domain.backtest.engine.rsi_reversal import RSIReversalStrategy
 from domain.backtest.engine.bollinger_breakout import BollingerBreakoutStrategy

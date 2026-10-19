@@ -579,7 +579,7 @@ class ServiceFactory:
             IMLModelRepository: ML模型仓库接口实现
         """
         # P2-1: 优先从 EnhancedServiceFactory 获取
-        from domain.ports.ml_model_port import IMLModelRepository
+        from qs_kernel.domain.ports.ml_model_port import IMLModelRepository
         enhanced = _try_get_from_enhanced(IMLModelRepository)
         if enhanced:
             return enhanced
@@ -600,7 +600,7 @@ class ServiceFactory:
             IMLModelMetadataRepository: ML模型元数据仓库接口实现
         """
         # P2-1: 优先从 EnhancedServiceFactory 获取
-        from domain.ports.ml_model_port import IMLModelMetadataRepository
+        from qs_kernel.domain.ports.ml_model_port import IMLModelMetadataRepository
         enhanced = _try_get_from_enhanced(IMLModelMetadataRepository)
         if enhanced:
             return enhanced
@@ -621,7 +621,7 @@ class ServiceFactory:
             IDataProviderManager: 数据提供者管理器接口实现
         """
         # P2-1: 优先从 EnhancedServiceFactory 获取
-        from domain.ports.datasource_ports import IDataProviderManager
+        from qs_kernel.domain.ports.datasource_ports import IDataProviderManager
         enhanced = _try_get_from_enhanced(IDataProviderManager)
         if enhanced:
             return enhanced
@@ -656,7 +656,7 @@ class ServiceFactory:
         Returns:
             IStockRepository: Stock仓库接口实现
         """
-        from domain.ports.repository_ports_extended import IStockRepository
+        from qs_kernel.domain.ports.repository_ports_extended import IStockRepository
         enhanced = _try_get_from_enhanced(IStockRepository)
         if enhanced:
             return enhanced
@@ -676,7 +676,7 @@ class ServiceFactory:
         Returns:
             IStockPoolRepository: StockPool仓库接口实现
         """
-        from domain.ports.repository_ports_extended import IStockPoolRepository
+        from qs_kernel.domain.ports.repository_ports_extended import IStockPoolRepository
         enhanced = _try_get_from_enhanced(IStockPoolRepository)
         if enhanced:
             return enhanced
@@ -696,7 +696,7 @@ class ServiceFactory:
         Returns:
             IStrategyRepository: Strategy仓库接口实现
         """
-        from domain.ports.repository_ports_extended import IStrategyRepository
+        from qs_kernel.domain.ports.repository_ports_extended import IStrategyRepository
         enhanced = _try_get_from_enhanced(IStrategyRepository)
         if enhanced:
             return enhanced
@@ -716,7 +716,7 @@ class ServiceFactory:
         Returns:
             IKlineRepository: Kline仓库接口实现
         """
-        from domain.ports.repository_ports_extended import IKlineRepository
+        from qs_kernel.domain.ports.repository_ports_extended import IKlineRepository
         enhanced = _try_get_from_enhanced(IKlineRepository)
         if enhanced:
             return enhanced
@@ -736,7 +736,7 @@ class ServiceFactory:
         Returns:
             ISignalRepository: Signal仓库接口实现
         """
-        from domain.ports.repository_ports_extended import ISignalRepository
+        from qs_kernel.domain.ports.repository_ports_extended import ISignalRepository
         enhanced = _try_get_from_enhanced(ISignalRepository)
         if enhanced:
             return enhanced
@@ -756,7 +756,7 @@ class ServiceFactory:
         Returns:
             ISignalExecutionLogRepository: 信号执行日志仓储接口实现
         """
-        from domain.ports.repository_ports_extended import ISignalExecutionLogRepository
+        from qs_kernel.domain.ports.repository_ports_extended import ISignalExecutionLogRepository
         enhanced = _try_get_from_enhanced(ISignalExecutionLogRepository)
         if enhanced:
             return enhanced
@@ -771,7 +771,7 @@ class ServiceFactory:
     @classmethod
     @lru_cache(maxsize=1)
     def get_portfolio_repository(cls):
-        from domain.ports.repository_ports import IPortfolioRepository
+        from qs_kernel.domain.ports.repository_ports import IPortfolioRepository
         enhanced = _try_get_from_enhanced(IPortfolioRepository)
         if enhanced:
             return enhanced
@@ -784,7 +784,7 @@ class ServiceFactory:
     @classmethod
     @lru_cache(maxsize=1)
     def get_risk_repository(cls):
-        from domain.ports.repository_ports import IRiskRepository
+        from qs_kernel.domain.ports.repository_ports import IRiskRepository
         enhanced = _try_get_from_enhanced(IRiskRepository)
         if enhanced:
             return enhanced
@@ -797,7 +797,7 @@ class ServiceFactory:
     @classmethod
     @lru_cache(maxsize=1)
     def get_factor_repository(cls):
-        from domain.ports.repository_ports import IFactorRepository
+        from qs_kernel.domain.ports.repository_ports import IFactorRepository
         enhanced = _try_get_from_enhanced(IFactorRepository)
         if enhanced:
             return enhanced

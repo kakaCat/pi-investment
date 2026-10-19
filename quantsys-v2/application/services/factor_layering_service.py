@@ -5,7 +5,7 @@
 提供因子分层回测的统一服务接口，封装 FactorLayeringBacktest 和 ICAnalyzer。
 """
 
-from domain.ports import IKlineRepository, IStockRepository
+from qs_kernel.domain.ports import IKlineRepository, IStockRepository
 import pandas as pd
 import numpy as np
 from typing import List, Dict, Any, Optional

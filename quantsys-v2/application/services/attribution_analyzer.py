@@ -6,7 +6,7 @@
 import structlog
 from typing import Dict, Any, List
 from datetime import datetime
-from domain.ports import IStockPoolRepository
+from qs_kernel.domain.ports import IStockPoolRepository
 
 # 2026-09-14（w-c8cae280）修**真实缺陷**：本模块用了 Optional 却从未导入 → **模块本身就 import 不了**
 # （NameError: name 'Optional' is not defined，因为参数注解在 def 时求值），

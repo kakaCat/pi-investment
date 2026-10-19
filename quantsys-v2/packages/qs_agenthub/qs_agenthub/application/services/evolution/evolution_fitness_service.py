@@ -26,11 +26,11 @@ class EvolutionFitnessService:
         trade_counter: Optional[Callable[[str, date, date], int]] = None,
     ):
         if sim_repo is None:
-            from domain.ports import ISimulationRepository
+            from qs_kernel.domain.ports import ISimulationRepository
             from infrastructure.services.service_factory import ServiceFactory
             sim_repo = ServiceFactory.resolve(ISimulationRepository)
         if fitness_repo is None:
-            from domain.ports.repository_ports_extended import (
+            from qs_kernel.domain.ports.repository_ports_extended import (
                 EvolutionFitnessORMRepository,
             )
             fitness_repo = EvolutionFitnessORMRepository()

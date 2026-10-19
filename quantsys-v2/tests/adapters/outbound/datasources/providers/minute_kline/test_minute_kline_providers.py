@@ -26,7 +26,7 @@ from qs_market_data.adapters.outbound.datasources.providers.minute_kline.sina im
 from qs_market_data.adapters.outbound.datasources.providers.minute_kline.tencent import (
     TencentMinuteKlineProvider,
 )
-from domain.models.market_data import MinuteKline
+from qs_kernel.domain.models.market_data import MinuteKline
 
 
 class FakeResp:

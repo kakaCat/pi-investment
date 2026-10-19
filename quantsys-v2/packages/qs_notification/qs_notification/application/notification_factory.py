@@ -71,7 +71,7 @@ class NotificationFactory:
             >>> result = facade.send_text("测试通知")
         """
         # 惰性导入（t-4f6f4b）：越层依赖下沉到调用点，避免模块顶层越层
-        from infrastructure.config.settings import get_settings
+        from qs_kernel.infrastructure.config.settings import get_settings
 
         settings = get_settings()
 

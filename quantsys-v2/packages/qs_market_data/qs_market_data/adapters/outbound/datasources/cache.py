@@ -9,7 +9,7 @@ import hashlib
 import logging
 from typing import Any, Optional, Dict
 
-from domain.ports.datasource_ports import ICacheService
+from qs_kernel.domain.ports.datasource_ports import ICacheService
 
 logger = logging.getLogger(__name__)
 

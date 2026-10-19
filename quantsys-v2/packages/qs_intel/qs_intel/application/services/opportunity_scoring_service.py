@@ -6,7 +6,7 @@
 2. 综合评分并确定风险等级
 3. 支持并行处理多只股票
 """
-from domain.ports import IFinancialRepository, IFundFlowRepository, IKlineRepository, IStockRepository
+from qs_kernel.domain.ports import IFinancialRepository, IFundFlowRepository, IKlineRepository, IStockRepository
 from typing import List, Dict, Optional
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -19,7 +19,7 @@ from application.services.scoring.cycle_position_scorer import CyclePositionScor
 from application.services.scoring.stock_profile_classifier import StockProfileClassifier
 from application.services.scoring.weight_calculator import (
     base_weights, apply_regime, feature_pct_for)
-from domain.ports.datasource_ports import IDataProviderManager
+from qs_kernel.domain.ports.datasource_ports import IDataProviderManager
 from application.services.scoring.regime_signal_provider import RegimeSignalProvider
 from application.services.scoring.data_quality_gate import DataQualityGate
 from infrastructure.cache.cache_service import get_cache_service

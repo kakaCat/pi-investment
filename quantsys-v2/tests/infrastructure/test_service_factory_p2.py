@@ -32,7 +32,7 @@ def test_register_all_services():
     assert len(services) > 0, "应该注册了至少一个服务"
 
     # 验证关键服务已注册
-    from domain.ports import IStockRepository, IKlineRepository, ISignalRepository
+    from qs_kernel.domain.ports import IStockRepository, IKlineRepository, ISignalRepository
     assert EnhancedServiceFactory.is_registered(IStockRepository)
     assert EnhancedServiceFactory.is_registered(IKlineRepository)
     assert EnhancedServiceFactory.is_registered(ISignalRepository)
@@ -42,7 +42,7 @@ def test_repository_resolution():
     """测试 Repository 解析"""
     register_all_services()
 
-    from domain.ports import IStockRepository, IKlineRepository
+    from qs_kernel.domain.ports import IStockRepository, IKlineRepository
 
     # 解析 Repository
     stock_repo = EnhancedServiceFactory.resolve(IStockRepository)
@@ -113,7 +113,7 @@ def test_singleton_lifecycle():
     """测试单例生命周期"""
     register_all_services()
 
-    from domain.ports import IStockRepository
+    from qs_kernel.domain.ports import IStockRepository
 
     # 多次解析应该返回同一实例
     repo1 = EnhancedServiceFactory.resolve(IStockRepository)
@@ -147,7 +147,7 @@ def test_reset_clears_singletons():
     """测试重置清空单例缓存"""
     register_all_services()
 
-    from domain.ports import IStockRepository
+    from qs_kernel.domain.ports import IStockRepository
 
     repo1 = EnhancedServiceFactory.resolve(IStockRepository)
 

@@ -5,7 +5,7 @@
 信号后涨=负分（踏空），跌=正分（正确观望）。
 防奖励投机：agent 无法靠"少交易"逃避评分（总设计 §7）。
 """
-from domain.ports import IKlineRepository, ISignalRepository
+from qs_kernel.domain.ports import IKlineRepository, ISignalRepository
 import logging
 from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional
@@ -35,7 +35,7 @@ class MissedOpportunityService:
             from infrastructure.services.service_factory import ServiceFactory
             signal_repo = ServiceFactory.resolve(ISignalRepository)
         if decision_repo is None:
-            from domain.ports.repository_ports_extended import (
+            from qs_kernel.domain.ports.repository_ports_extended import (
                 IAgentIntelligenceRepository,
             )
             from infrastructure.services.service_factory import ServiceFactory

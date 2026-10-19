@@ -1,6 +1,6 @@
 """P2.4 e2e tests for UnifiedEventBus."""
 import pytest
-from infrastructure.events.unified_event_bus import (
+from qs_kernel.infrastructure.events.unified_event_bus import (
     UnifiedEventBus,
     EventType,
     Event,

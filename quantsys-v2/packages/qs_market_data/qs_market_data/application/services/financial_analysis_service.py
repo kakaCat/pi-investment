@@ -2,12 +2,12 @@
 财务分析服务 - v2 原生实现
 提供财务指标、估值分析、现金流分析、利润表分析、质量筛选
 """
-from domain.ports import IFinancialRepository, IKlineRepository
+from qs_kernel.domain.ports import IFinancialRepository, IKlineRepository
 import structlog
 import pandas as pd
 from datetime import datetime
 from typing import Dict, Any, List, Optional
-from domain.ports.datasource_ports import IDataProviderManager
+from qs_kernel.domain.ports.datasource_ports import IDataProviderManager
 
 logger = structlog.get_logger(__name__)
 

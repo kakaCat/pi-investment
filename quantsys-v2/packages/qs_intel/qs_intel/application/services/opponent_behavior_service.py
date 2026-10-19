@@ -4,7 +4,7 @@
 
 按照 quantsys-v2 项目规范实现
 """
-from domain.ports import IAgentIntelligenceRepository, IFundFlowRepository
+from qs_kernel.domain.ports import IAgentIntelligenceRepository, IFundFlowRepository
 import structlog
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
@@ -36,7 +36,7 @@ class OpponentBehaviorService:
         # 自动创建 fund_flow_repo（如果未提供）
         if fund_flow_repo is None:
             from infrastructure.services.service_factory import ServiceFactory
-            from domain.ports import IFundFlowRepository
+            from qs_kernel.domain.ports import IFundFlowRepository
             fund_flow_repo = ServiceFactory.resolve(IFundFlowRepository)
         
         self.fund_flow_repo = fund_flow_repo

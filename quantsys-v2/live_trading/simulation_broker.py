@@ -302,7 +302,7 @@ class MockDataProvider:
 
 if __name__ == '__main__':
     # 测试代码
-    from infrastructure.logging import configure_structured_logging
+    from qs_kernel.infrastructure.logging import configure_structured_logging
     configure_structured_logging(level="INFO", json_format=False)
 
     broker = SimulationBroker()

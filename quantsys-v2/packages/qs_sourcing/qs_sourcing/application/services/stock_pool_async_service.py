@@ -9,7 +9,7 @@
 5. 动态池刷新（基于 filter_template 重新筛选）
 6. 筛选建池（scan → create pool 一步完成）
 """
-from domain.ports import IStockPoolRepository, IStockRepository
+from qs_kernel.domain.ports import IStockPoolRepository, IStockRepository
 from typing import Dict, List, Optional
 from infrastructure.persistence.orm.async_config import get_async_session_context
 import time

@@ -11,7 +11,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Any, Dict
 
-from domain.ports import ISchedulerRepository
+from qs_kernel.domain.ports import ISchedulerRepository
 
 logger = logging.getLogger(__name__)
 

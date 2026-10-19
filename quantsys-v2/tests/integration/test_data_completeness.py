@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import pandas as pd
 
 from qs_market_data.adapters.outbound.datasources.manager import DataProviderManager
-from domain.models.market_data import KlineData
+from qs_kernel.domain.models.market_data import KlineData
 
 
 class TestDataCompleteness:
