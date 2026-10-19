@@ -12,7 +12,7 @@ from typing import Optional
 
 from qs_trading.domain.trading.ports.ITradingStatusRepository import ITradingStatusRepository
 
-from infrastructure.persistence.orm import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
 from infrastructure.persistence.orm.models import DailyKline, Stock
 
 

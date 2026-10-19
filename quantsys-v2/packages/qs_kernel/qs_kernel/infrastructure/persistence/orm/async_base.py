@@ -7,7 +7,7 @@ import logging
 from typing import TypeVar, Generic, Optional, List, Type, Any, Dict
 from sqlalchemy import select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
-from infrastructure.persistence.orm.base import Base
+from qs_kernel.infrastructure.persistence.orm.base import Base
 
 logger = logging.getLogger(__name__)
 

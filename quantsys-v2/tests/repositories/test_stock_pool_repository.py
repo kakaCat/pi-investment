@@ -6,7 +6,7 @@ from adapters.outbound.repositories import StockPoolORMRepository
 
 @pytest.fixture
 def repo():
-    from infrastructure.persistence.database.engine import db_cursor
+    from qs_kernel.infrastructure.persistence.database.engine import db_cursor
     # Clean up before each test（pool_change_log 有 FK 引用 stock_pools，先清子表）
     with db_cursor(commit=True) as cursor:
         cursor.execute("DELETE FROM quant.pool_change_log")

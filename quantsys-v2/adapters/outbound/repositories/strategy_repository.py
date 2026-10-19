@@ -1,12 +1,12 @@
 """策略ORM Repository - 快速迁移版本"""
 from typing import List, Dict, Optional, Any
-from infrastructure.persistence.orm import BaseORMRepository, get_session
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository, get_session
 from sqlalchemy import (
     Column, Integer, String, Float, Date, Text, BigInteger, JSON, Boolean, DateTime, func,
     bindparam, cast, delete as sa_delete, literal_column, select, update as sa_update,
 )
 from sqlalchemy.dialects.postgresql import JSONB
-from infrastructure.persistence.orm.base import Base
+from qs_kernel.infrastructure.persistence.orm.base import Base
 from infrastructure.persistence.orm.models.strategy_validation import StrategyValidationReport
 import structlog
 

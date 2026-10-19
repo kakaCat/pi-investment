@@ -188,7 +188,7 @@ async def lifespan(app: FastAPI):
 
     # 初始化数据库引擎
     try:
-        from infrastructure.persistence.database.engine import init_engine
+        from qs_kernel.infrastructure.persistence.database.engine import init_engine
         init_engine(
             pool_size=settings.database.pool_size,
             max_overflow=settings.database.max_overflow
@@ -203,14 +203,14 @@ async def lifespan(app: FastAPI):
 
     # 初始化 ORM（可选，用于支持旧代码）
     try:
-        from infrastructure.persistence.orm import init_orm
+        from qs_kernel.infrastructure.persistence.orm import init_orm
         init_orm()
         logger.info("✅ ORM initialized successfully")
 
         # 启用 Session 泄漏检测（开发/测试环境）
         if settings.environment != 'production':
             try:
-                from infrastructure.persistence.orm.session_guard import enable_session_guard
+                from qs_kernel.infrastructure.persistence.orm.session_guard import enable_session_guard
                 enable_session_guard(timeout=300)  # 5 分钟超时
                 logger.info("✅ Session guard enabled (timeout=300s)")
             except Exception as e:
@@ -268,7 +268,7 @@ async def lifespan(app: FastAPI):
             try:
                 from infrastructure.scheduler.apscheduler_service import APSchedulerService
                 from adapters.outbound.repositories.scheduler_repository import SchedulerRepository
-                from infrastructure.persistence.orm import get_session
+                from qs_kernel.infrastructure.persistence.orm import get_session
                 from qs_kernel.infrastructure.config.settings import get_settings
 
                 settings_obj = get_settings()
@@ -425,14 +425,14 @@ async def lifespan(app: FastAPI):
         logger.warning(f"⚠️ Thread pool shutdown failed: {e}")
 
     try:
-        from infrastructure.persistence.database.engine import dispose_engine
+        from qs_kernel.infrastructure.persistence.database.engine import dispose_engine
         dispose_engine()
         logger.info("✅ Engine closed successfully")
     except Exception as e:
         logger.error(f"❌ Engine cleanup failed: {e}")
 
     try:
-        from infrastructure.persistence.orm import close_orm
+        from qs_kernel.infrastructure.persistence.orm import close_orm
         close_orm()
         logger.info("✅ ORM closed successfully")
     except Exception as e:
@@ -521,7 +521,7 @@ async def release_orm_session(request: Request, call_next):
     try:
         return await call_next(request)
     finally:
-        from infrastructure.persistence.orm.config import close_session
+        from qs_kernel.infrastructure.persistence.orm.config import close_session
         close_session()
 
 
@@ -542,7 +542,7 @@ def install_sync_session_cleanup() -> None:
     import asyncio
     import functools
     from fastapi.routing import APIRoute
-    from infrastructure.persistence.orm.config import close_session
+    from qs_kernel.infrastructure.persistence.orm.config import close_session
 
     wrapped = 0
 

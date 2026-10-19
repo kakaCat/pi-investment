@@ -10,7 +10,7 @@ from types import SimpleNamespace
 
 import pytest
 
-import infrastructure.persistence.orm.base_repository as base_repo
+import qs_kernel.infrastructure.persistence.orm.base_repository as base_repo
 from adapters.outbound.repositories.trading_status_repository import TradingStatusRepository
 
 

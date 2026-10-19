@@ -356,7 +356,7 @@ def trade_verify(
     """
     from collections import defaultdict
 
-    from infrastructure.persistence.orm import get_session
+    from qs_kernel.infrastructure.persistence.orm import get_session
     from infrastructure.persistence.orm.models.simulation import (
         SimulationTrade, SimulationPosition,
     )

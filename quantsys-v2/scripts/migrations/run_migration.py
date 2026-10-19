@@ -14,7 +14,7 @@ from pathlib import Path
 
 import psycopg2
 from psycopg2.extras import RealDictCursor
-from infrastructure.persistence.database.engine import _resolve_db_dsn
+from qs_kernel.infrastructure.persistence.database.engine import _resolve_db_dsn
 
 
 def run_migration(migration_file: str):

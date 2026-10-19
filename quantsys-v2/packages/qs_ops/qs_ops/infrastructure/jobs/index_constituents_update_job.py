@@ -62,7 +62,7 @@ def execute(**params):
     Returns:
         dict: 执行结果 {success, indices: {index_code: count}, errors}
     """
-    from infrastructure.persistence.orm import get_session
+    from qs_kernel.infrastructure.persistence.orm import get_session
     from infrastructure.persistence.orm.models import IndexConstituent
 
     logger.info("=" * 70)

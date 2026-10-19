@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy import Date, cast, func, literal_column, select
 from sqlalchemy.exc import SQLAlchemyError
 
-from infrastructure.persistence.orm import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
 from infrastructure.persistence.orm.models import AgentLog
 
 import structlog

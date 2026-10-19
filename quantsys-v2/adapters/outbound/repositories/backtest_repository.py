@@ -15,7 +15,7 @@ from datetime import date
 import structlog
 
 from sqlalchemy import func, desc, and_
-from infrastructure.persistence.orm import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
 from infrastructure.persistence.orm.models import BacktestResult
 from qs_kernel.domain.ports import IBacktestRepository
 

@@ -8,7 +8,7 @@ from typing import Optional, Dict, List
 from datetime import datetime
 import structlog
 
-from infrastructure.persistence.database.validators import validate_symbol, validate_positive_number
+from qs_kernel.infrastructure.persistence.database.validators import validate_symbol, validate_positive_number
 from infrastructure.services.service_factory import ServiceFactory
 from qs_kernel.domain.ports import IPortfolioRepository, IKlineRepository
 

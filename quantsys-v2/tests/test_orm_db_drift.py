@@ -137,7 +137,7 @@ def _load_models():
     import pkgutil
 
     import infrastructure.persistence.orm.models as models_pkg
-    from infrastructure.persistence.orm.base import Base
+    from qs_kernel.infrastructure.persistence.orm.base import Base
 
     for mod in pkgutil.iter_modules(models_pkg.__path__):
         importlib.import_module('%s.%s' % (models_pkg.__name__, mod.name))
@@ -367,7 +367,7 @@ def _load_all_models():
     用 Base.registry 而不是遍历模块属性：这样同一个类无论被 import 多少次都只算一条，
     不会把"重复 import"误报成"重复定义"。
     """
-    from infrastructure.persistence.orm.base import Base
+    from qs_kernel.infrastructure.persistence.orm.base import Base
 
     out = {}
     for cls in list(Base.registry._class_registry.values()):

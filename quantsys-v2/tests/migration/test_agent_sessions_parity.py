@@ -28,7 +28,7 @@ def sessions_tables():
 
 
 def _clean_tables():
-    from infrastructure.persistence.database.engine import db_cursor
+    from qs_kernel.infrastructure.persistence.database.engine import db_cursor
     with db_cursor(commit=True) as cursor:
         cursor.execute(DDL)
         cursor.execute("DELETE FROM quant.agent_session_events")

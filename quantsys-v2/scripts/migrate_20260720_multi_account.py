@@ -10,9 +10,9 @@
 import structlog
 from sqlalchemy import text
 
-from infrastructure.persistence.database.engine import get_engine
+from qs_kernel.infrastructure.persistence.database.engine import get_engine
 from infrastructure.persistence.orm import models  # noqa: F401 确保全部模型注册到 metadata
-from infrastructure.persistence.orm.base import Base  # 模型实际使用的 Base（非 orm.config.Base）
+from qs_kernel.infrastructure.persistence.orm.base import Base  # 模型实际使用的 Base（非 orm.config.Base）
 
 logger = structlog.get_logger(__name__)
 

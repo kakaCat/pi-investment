@@ -29,7 +29,7 @@ import structlog
 from sqlalchemy import func, text
 
 from adapters.outbound.repositories.watch_rule_repository import WatchRule, WatchTrigger
-from infrastructure.persistence.orm import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
 
 logger = structlog.get_logger(__name__)
 

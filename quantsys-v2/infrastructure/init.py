@@ -10,7 +10,7 @@
     init_application()
 """
 import logging
-from infrastructure.persistence.orm import init_orm
+from qs_kernel.infrastructure.persistence.orm import init_orm
 
 logger = logging.getLogger(__name__)
 

@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy import case, func, null
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from infrastructure.persistence.orm import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
 from infrastructure.persistence.orm.models import PortfolioCircuitBreaker
 
 logger = logging.getLogger(__name__)

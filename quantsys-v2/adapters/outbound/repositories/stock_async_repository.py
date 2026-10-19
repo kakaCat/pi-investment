@@ -3,7 +3,7 @@ Stock & DailyKline 异步ORM Repository
 
 迁移状态：✅ 异步版本
 """
-from infrastructure.persistence.orm.async_base import AsyncBaseORMRepository
+from qs_kernel.infrastructure.persistence.orm.async_base import AsyncBaseORMRepository
 from infrastructure.persistence.orm.models import Stock, DailyKline
 from sqlalchemy import select, and_, desc
 from sqlalchemy.ext.asyncio import AsyncSession

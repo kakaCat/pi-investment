@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # 初始化数据库引擎
-from infrastructure.persistence.database.engine import init_engine
+from qs_kernel.infrastructure.persistence.database.engine import init_engine
 init_engine()
 
 from qs_intel.application.services.battlefield_assessor import BattlefieldAssessor

@@ -678,7 +678,7 @@ _DB_ACCOUNT = "t8_sentinel_account"
 
 
 def _dsn():
-    from infrastructure.persistence.database.engine import _resolve_db_dsn
+    from qs_kernel.infrastructure.persistence.database.engine import _resolve_db_dsn
     return _resolve_db_dsn()
 
 

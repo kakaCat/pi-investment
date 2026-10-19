@@ -6,11 +6,11 @@ ML Model ORM Repository - 机器学习模型仓储
     get_feature_importance / _ensure_db（模型监控 500、训练元数据写入失败）
   - 模型字段补齐至 quant.ml_models 完整结构
 """
-from infrastructure.persistence.orm import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
 from sqlalchemy import Column, Integer, String, Float, Text, DateTime
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import text as sql_text
-from infrastructure.persistence.orm.base import Base
+from qs_kernel.infrastructure.persistence.orm.base import Base
 from qs_kernel.domain.ports import IMlModelRepository
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone

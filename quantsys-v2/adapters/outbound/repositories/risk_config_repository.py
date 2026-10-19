@@ -6,10 +6,10 @@ Risk Config ORM Repository - 完全迁移版本
   - 原 stub 未实现抽象方法 get_risk_config，导致类无法实例化（API 500）
   - 补齐 get_config / update_config（signal_execution 路由与风控服务依赖）
 """
-from infrastructure.persistence.orm import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
 from sqlalchemy import Column, Integer, String, Text, Numeric, Boolean, DateTime, JSON
 from sqlalchemy.exc import SQLAlchemyError
-from infrastructure.persistence.orm.base import Base
+from qs_kernel.infrastructure.persistence.orm.base import Base
 from qs_kernel.domain.ports import IRiskConfigRepository
 from typing import Optional, Dict, Any
 from datetime import datetime

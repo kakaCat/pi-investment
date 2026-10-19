@@ -4,7 +4,7 @@
 包含多个低优先级的异步Repository
 迁移状态：✅ 异步版本
 """
-from infrastructure.persistence.orm.async_base import AsyncBaseORMRepository
+from qs_kernel.infrastructure.persistence.orm.async_base import AsyncBaseORMRepository
 from sqlalchemy import Column, BigInteger, String, Float, Date, Text, DateTime, JSON, Integer, Boolean, select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional, Dict, Any

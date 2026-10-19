@@ -307,7 +307,7 @@ async def get_quality_report(
     """
     try:
         from adapters.outbound.repositories.p2_async_repositories import DataQualityAsyncRepository
-        from infrastructure.persistence.orm.async_config import get_async_session_context
+        from qs_kernel.infrastructure.persistence.orm.async_config import get_async_session_context
 
         async with get_async_session_context() as session:
             repo = DataQualityAsyncRepository(session)

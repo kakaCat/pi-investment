@@ -32,7 +32,7 @@ from typing import Any, Dict, List, Optional
 import structlog
 from sqlalchemy import and_, case, func, or_, update as sa_update
 
-from infrastructure.persistence.orm.base_repository import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm.base_repository import BaseORMRepository
 from infrastructure.persistence.orm.models.watch_todo import WatchTodo
 # WatchRule ORM 模型声明在规则仓储模块内（同层适配器互引，无循环：
 # 规则仓储只在本模块方法的函数体内反向懒引本模块）。

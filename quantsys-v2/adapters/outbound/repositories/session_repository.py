@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy import Boolean, Numeric, func
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from infrastructure.persistence.orm import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
 from infrastructure.persistence.orm.models import AgentSession, AgentSessionEvent
 from infrastructure.persistence.orm.models.agent_session import SESSION_COUNTER_COLUMNS
 

@@ -188,7 +188,7 @@ def _run_sync_handler_with_session_release(handler: Callable, metadata: dict):
         return handler(metadata)
     finally:
         try:
-            from infrastructure.persistence.orm.config import close_session
+            from qs_kernel.infrastructure.persistence.orm.config import close_session
 
             close_session()
         except Exception as exc:  # 释放失败不应影响任务结果

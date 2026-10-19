@@ -128,7 +128,7 @@ def _execute_scheduled_job_impl(task_id: int):
         task_id: scheduler_tasks 表的任务 ID
     """
     from adapters.outbound.repositories.scheduler_repository import SchedulerRepository
-    from infrastructure.persistence.orm import get_session
+    from qs_kernel.infrastructure.persistence.orm import get_session
 
     session = get_session()
     repo = SchedulerRepository(session)
@@ -254,7 +254,7 @@ def _execute_scheduled_job_impl(task_id: int):
         # session_guard 判为泄漏（线上 995 次 session_leak_detected 中约 1/3 出自
         # ThreadPoolExecutor-0_* 调度线程即此形态）。close_session() 会 remove() 掉它。
         try:
-            from infrastructure.persistence.orm import close_session
+            from qs_kernel.infrastructure.persistence.orm import close_session
             close_session()
         except Exception as e:
             logger.warning(f"Failed to deregister thread session: {e}")

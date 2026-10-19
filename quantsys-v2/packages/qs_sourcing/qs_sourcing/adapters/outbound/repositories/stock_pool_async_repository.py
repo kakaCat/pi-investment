@@ -3,7 +3,7 @@ Stock Pool 异步ORM Repository
 
 迁移状态：✅ 异步版本
 """
-from infrastructure.persistence.orm.async_base import AsyncBaseORMRepository
+from qs_kernel.infrastructure.persistence.orm.async_base import AsyncBaseORMRepository
 from sqlalchemy import Column, Integer, String, Float, Date, Text, BigInteger, JSON, Boolean, DateTime, select, ARRAY
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional, Dict, Any

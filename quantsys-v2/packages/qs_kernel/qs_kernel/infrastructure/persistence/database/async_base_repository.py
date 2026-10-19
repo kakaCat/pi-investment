@@ -106,7 +106,7 @@ class AsyncConnectionPool:
     All async database access now uses SQLAlchemy AsyncEngine.
 
     Use instead:
-        from infrastructure.persistence.database.async_engine import init_async_engine
+        from qs_kernel.infrastructure.persistence.database.async_engine import init_async_engine
         await init_async_engine(pool_size=min_size, max_overflow=max_size-min_size)
 
     This class remains as a no-op to prevent import errors in legacy code.
@@ -114,7 +114,7 @@ class AsyncConnectionPool:
     def __init__(self, *args, **kwargs):
         warnings.warn(
             "AsyncConnectionPool is deprecated. "
-            "Use 'from infrastructure.persistence.database.async_engine import init_async_engine; "
+            "Use 'from qs_kernel.infrastructure.persistence.database.async_engine import init_async_engine; "
             "await init_async_engine(pool_size=..., max_overflow=...)' instead.",
             DeprecationWarning,
             stacklevel=2
@@ -130,7 +130,7 @@ async def init_async_pool(
     DEPRECATED: 向后兼容旧脚本,内部转发到 init_async_engine()。
 
     新代码请直接使用:
-        from infrastructure.persistence.database.async_engine import init_async_engine
+        from qs_kernel.infrastructure.persistence.database.async_engine import init_async_engine
         await init_async_engine(pool_size=min_size, max_overflow=max_size-min_size)
 
     Args:
@@ -138,10 +138,10 @@ async def init_async_pool(
         min_size: 映射到 pool_size
         max_size: 映射到 pool_size + max_overflow
     """
-    from infrastructure.persistence.database.async_engine import init_async_engine
+    from qs_kernel.infrastructure.persistence.database.async_engine import init_async_engine
     warnings.warn(
         "init_async_pool() is deprecated. "
-        "Use 'from infrastructure.persistence.database.async_engine import init_async_engine; "
+        "Use 'from qs_kernel.infrastructure.persistence.database.async_engine import init_async_engine; "
         "await init_async_engine(pool_size=..., max_overflow=...)' instead.",
         DeprecationWarning,
         stacklevel=2
@@ -154,10 +154,10 @@ async def close_async_pool():
     """
     DEPRECATED: 向后兼容。新代码用 dispose_async_engine()。
     """
-    from infrastructure.persistence.database.async_engine import dispose_async_engine
+    from qs_kernel.infrastructure.persistence.database.async_engine import dispose_async_engine
     warnings.warn(
         "close_async_pool() is deprecated. "
-        "Use 'from infrastructure.persistence.database.async_engine import dispose_async_engine; "
+        "Use 'from qs_kernel.infrastructure.persistence.database.async_engine import dispose_async_engine; "
         "await dispose_async_engine()' instead.",
         DeprecationWarning,
         stacklevel=2
@@ -172,10 +172,10 @@ async def get_async_pool():
     Returns a mock object to prevent breakage in legacy code that expects
     an AsyncConnectionPool instance.
     """
-    from infrastructure.persistence.database.async_engine import get_async_engine
+    from qs_kernel.infrastructure.persistence.database.async_engine import get_async_engine
     warnings.warn(
         "get_async_pool() is deprecated. "
-        "Use 'from infrastructure.persistence.database.async_engine import get_async_engine; "
+        "Use 'from qs_kernel.infrastructure.persistence.database.async_engine import get_async_engine; "
         "engine = get_async_engine()' instead.",
         DeprecationWarning,
         stacklevel=2
@@ -197,7 +197,7 @@ class AsyncBaseRepository(ABC):
     - pool_recycle 防止 DB 端超时断开
 
     使用方式:
-    1. 应用启动时调用 init_async_engine() (from infrastructure.persistence.database.async_engine)
+    1. 应用启动时调用 init_async_engine() (from qs_kernel.infrastructure.persistence.database.async_engine)
     2. 创建 Repository 实例,自动从 AsyncEngine 池获取连接
     3. Repository 方法内部自动管理连接获取和释放
 
@@ -231,7 +231,7 @@ class AsyncBaseRepository(ABC):
         if self._external_connection is not None:
             return self._external_connection
 
-        from infrastructure.persistence.database.async_engine import get_async_engine
+        from qs_kernel.infrastructure.persistence.database.async_engine import get_async_engine
         engine = get_async_engine()
         # 返回新连接,调用方负责关闭
         return engine.connect()

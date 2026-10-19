@@ -31,7 +31,7 @@ class AttributionService:
         """返回 (cursor, pooled_connection|None)。tuple 行语义保持不变（不换 RealDictCursor）。"""
         if self._injected is not None:
             return self._injected.cursor(), None
-        from infrastructure.persistence.database.engine import get_engine
+        from qs_kernel.infrastructure.persistence.database.engine import get_engine
         pooled = get_engine().connect()
         return pooled.connection.cursor(), pooled
     

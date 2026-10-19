@@ -15,7 +15,7 @@ ORM Models模块
 
 使用示例：
     from infrastructure.persistence.orm.models import Stock, DailyKline
-    from infrastructure.persistence.orm import get_session
+    from qs_kernel.infrastructure.persistence.orm import get_session
 
     session = get_session()
     stock = session.query(Stock).filter_by(symbol='000001').first()

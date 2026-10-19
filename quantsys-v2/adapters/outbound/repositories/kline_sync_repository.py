@@ -25,7 +25,7 @@ from sqlalchemy import bindparam, text
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.types import Text
 
-from infrastructure.persistence.orm import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
 from infrastructure.persistence.orm.models import Stock
 from utils.symbol_classifier import index_symbols_for_exclusion, is_index_symbol
 

@@ -32,7 +32,7 @@ async def list_ml_models(
     """列出ML模型"""
     try:
         from adapters.outbound.repositories.p2_async_repositories import MLModelAsyncRepository
-        from infrastructure.persistence.orm.async_config import get_async_session_context
+        from qs_kernel.infrastructure.persistence.orm.async_config import get_async_session_context
 
         async with get_async_session_context() as session:
             repo = MLModelAsyncRepository(session)
@@ -89,7 +89,7 @@ async def list_positions(
     """
     try:
         from adapters.outbound.repositories.p2_async_repositories import PositionAsyncRepository
-        from infrastructure.persistence.orm.async_config import get_async_session_context
+        from qs_kernel.infrastructure.persistence.orm.async_config import get_async_session_context
 
         async with get_async_session_context() as session:
             repo = PositionAsyncRepository(session)

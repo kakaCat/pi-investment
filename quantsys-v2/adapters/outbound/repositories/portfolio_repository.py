@@ -16,7 +16,7 @@ from datetime import date
 import structlog
 
 from sqlalchemy import func, and_, or_, case
-from infrastructure.persistence.orm import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
 from qs_kernel.domain.ports import IPortfolioRepository
 from infrastructure.persistence.orm.models import PortfolioHolding, Trade
 from adapters.outbound.repositories.risk_repository import _validate_symbol, _validate_date

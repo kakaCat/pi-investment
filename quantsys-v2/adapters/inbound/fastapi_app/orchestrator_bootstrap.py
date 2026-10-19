@@ -60,7 +60,7 @@ def _in_intraday_window(now: datetime) -> bool:
 
 def _monitor_loop(stop_event: threading.Event) -> None:
     from infrastructure.jobs import monitor_jobs
-    from infrastructure.persistence.orm import close_session
+    from qs_kernel.infrastructure.persistence.orm import close_session
 
     # 断点续跑在本线程内、首个 tick 之前执行（2026-10-19 从 lifespan 挪入）：
     # 此前 resume_from_breakpoint 在 FastAPI 主线程同步跑——收盘后/滞后重启时

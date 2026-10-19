@@ -33,7 +33,7 @@ class SignalTrackingRepository:
         PooledConnection 保持 `cursor()/commit()/rollback()/close()/closed` 同一套用法，
         且 close() 是归还连接池 —— 上面的 _ensure_connection 自愈逻辑照常工作。
         """
-        from infrastructure.persistence.database.engine import PooledConnection
+        from qs_kernel.infrastructure.persistence.database.engine import PooledConnection
         return PooledConnection()
 
     def _ensure_connection(self):

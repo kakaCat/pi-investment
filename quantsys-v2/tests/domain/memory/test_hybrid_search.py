@@ -316,7 +316,7 @@ def test_route_search_returns_score_source_degraded(route_client):
             assert "score" in item
             assert item["source"] == "bm25"
     finally:
-        from infrastructure.persistence.orm import get_session
+        from qs_kernel.infrastructure.persistence.orm import get_session
         from sqlalchemy import text
 
         session = get_session()

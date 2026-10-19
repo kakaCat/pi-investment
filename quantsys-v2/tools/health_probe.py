@@ -89,7 +89,7 @@ def probe_freshness(max_lag_days: int) -> Dict[str, Any]:
     """数据新鲜度探针：K 线最新交易日 vs 应有交易日。"""
     from sqlalchemy import text
 
-    from infrastructure.persistence.database.engine import get_engine
+    from qs_kernel.infrastructure.persistence.database.engine import get_engine
 
     expected = expected_trading_day()
     with get_engine().connect() as conn:

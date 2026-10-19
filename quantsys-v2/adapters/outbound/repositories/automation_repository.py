@@ -3,10 +3,10 @@ Automation Tasks ORM Repository
 
 管理自动化任务的数据库操作
 """
-from infrastructure.persistence.orm import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, text
 from sqlalchemy.dialects.postgresql import JSONB
-from infrastructure.persistence.orm.base import Base
+from qs_kernel.infrastructure.persistence.orm.base import Base
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 import structlog

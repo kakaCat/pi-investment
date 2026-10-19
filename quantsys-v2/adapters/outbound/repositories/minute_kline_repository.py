@@ -163,7 +163,7 @@ class MinuteKlineRepository(IMinuteKlineRepository):
             return False
         try:
             from sqlalchemy.dialects.postgresql import insert as pg_insert
-            from infrastructure.persistence.orm.config import get_session
+            from qs_kernel.infrastructure.persistence.orm.config import get_session
 
             session = get_session()
             try:

@@ -2,7 +2,7 @@
 import pytest
 from unittest.mock import patch, MagicMock
 from datetime import datetime, timezone
-from infrastructure.persistence.database.engine import db_cursor
+from qs_kernel.infrastructure.persistence.database.engine import db_cursor
 from qs_agenthub.application.services.session_service import SessionService
 from tests.services.test_session_service import DDL
 
@@ -28,7 +28,7 @@ def service():
     yield s
     # 缓存命中路径的 SELECT 会留下未 commit 的事务；不释放 scoped_session，
     # 下个用例的 DDL 会被同线程残留 AccessShare 长期阻塞（2026-10-19 挂死取证）。
-    from infrastructure.persistence.orm.config import close_session
+    from qs_kernel.infrastructure.persistence.orm.config import close_session
     close_session()
 
 

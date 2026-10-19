@@ -21,7 +21,7 @@ from adapters.inbound.fastapi_app.daily_jobs.interval import _dispatch_interval_
 from adapters.inbound.fastapi_app.daily_jobs.defs import _CATCHUP_WINDOW_DAYS, _FAILED_RETRY_HOURS, _ORPHAN_GRACE_MINUTES, _RUNNING_STALE_HOURS, _TICK_SEC, logger  # noqa: F401
 
 def _ensure_table() -> None:
-    from infrastructure.persistence.database.engine import get_engine
+    from qs_kernel.infrastructure.persistence.database.engine import get_engine
     from infrastructure.persistence.orm.models import InProcessJobRun
 
     InProcessJobRun.__table__.create(bind=get_engine(), checkfirst=True)
@@ -87,7 +87,7 @@ def is_due(job: JobDef, now: datetime, last_run: Optional[Dict[str, Any]]) -> bo
 
 def _run_job(job: JobDef, run_date: str) -> None:
     """在独立线程执行一个任务（异常隔离 + 落库 + 告警 + 生命周期通知）"""
-    from infrastructure.persistence.orm import close_session
+    from qs_kernel.infrastructure.persistence.orm import close_session
     from infrastructure.monitoring.business_metrics import (
         scheduler_job_runs_total,
         scheduler_job_duration_seconds,

@@ -22,8 +22,8 @@ logger = logging.getLogger(__name__)
 from sqlalchemy import ARRAY, Boolean, Column, DateTime, Integer, JSON, String, Text
 from sqlalchemy.sql import func
 
-from infrastructure.persistence.orm import BaseORMRepository
-from infrastructure.persistence.orm.base import Base
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm.base import Base
 
 
 class StockPool(Base):

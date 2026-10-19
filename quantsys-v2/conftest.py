@@ -152,7 +152,7 @@ def db_connection():
     """Provide a database connection for tests that need it."""
     import psycopg2
     from psycopg2.extras import RealDictCursor
-    from infrastructure.persistence.database.engine import _resolve_db_dsn
+    from qs_kernel.infrastructure.persistence.database.engine import _resolve_db_dsn
 
     dsn = _resolve_db_dsn()
     if not dsn:

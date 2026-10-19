@@ -9,7 +9,7 @@ session_leak_detected（错误事件 7f0819b1，2 天 44 次）。
 """
 
 from adapters.inbound.fastapi_app import daily_jobs_bootstrap as djb
-from infrastructure.persistence import orm as orm_pkg
+from qs_kernel.infrastructure.persistence import orm as orm_pkg
 
 
 class _FakeJob:
