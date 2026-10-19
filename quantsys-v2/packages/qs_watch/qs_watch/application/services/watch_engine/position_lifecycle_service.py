@@ -102,6 +102,12 @@ class PositionLifecycleService:
                     if new_id:
                         stop_symbols.add(sym)
                         created.append({"rule_id": new_id, "symbol": sym, "why": "买入后自动补挂止损"})
+                # F1 成本同步（2026-10-19）：持仓均价才是成本唯一事实源——
+                # 加仓/调仓后规则 cost_price 不更新会让盈亏与止损线全部失真。
+                # 偏差 >2% 自动校正并留注记（position_lifecycle 的横幅口径）。
+                cost_note = self._sync_cost_price(r, positions[sym])
+                if cost_note:
+                    promoted.append({"rule_id": r.id, "symbol": sym, "why": cost_note})
                 if getattr(r, "lifecycle_stage", None) != "holding":
                     try:
                         self.rule_repo.update_fields(r.id, lifecycle_stage="holding")
@@ -126,6 +132,64 @@ class PositionLifecycleService:
             logger.info("持仓生命周期联动", retired=len(retired), created=len(created),
                         promoted=len(promoted))
         return summary
+
+    #: 成本同步的偏差阈值（|规则成本 - 持仓均价| / 持仓均价）
+    COST_SYNC_TOLERANCE = 0.02
+
+    def _sync_cost_price(self, rule, pos: Dict[str, Any]) -> Optional[str]:
+        """规则 cost_price ↔ 持仓均价同步（F1，2026-10-19 用户裁定：过期的由引擎处理）。
+
+        持仓均价是成本的唯一事实源：加仓/调仓后规则里的 cost_price 不更新，
+        会让盈亏计算与止损线全部失真。偏差 >2% 自动校正为持仓均价并留注记。
+        """
+        avg = float(pos.get("avg_cost") or 0)
+        old_cost = getattr(rule, "cost_price", None)
+        if not avg or old_cost is None:
+            return None
+        try:
+            old = float(old_cost)
+        except (TypeError, ValueError):
+            return None
+        if old <= 0 or abs(old - avg) / avg <= self.COST_SYNC_TOLERANCE:
+            return None
+        note = ("成本同步：持仓均价 %.2f（原规则成本 %.2f，偏差 %+.1f%%）"
+                % (avg, old, (old - avg) / avg * 100))
+        try:
+            notes = list(getattr(rule, "ops_notes", None) or [])
+            notes.append({"at": datetime.now().isoformat(),
+                          "by": "position_lifecycle/cost_sync", "text": note})
+            self.rule_repo.update_fields(rule.id, cost_price=avg, ops_notes=notes)
+            logger.info("规则成本已同步", rule_id=rule.id, old=old, new=avg)
+            return note
+        except Exception as e:  # noqa: BLE001
+            logger.error("成本同步失败", rule_id=rule.id, error=str(e))
+            return None
+
+    def expire_overdue_rules(self, now: Optional[datetime] = None) -> int:
+        """C5 到期收摊注记（2026-10-19）：expires_at 已过的启用规则显式收摊。
+
+        此前到期规则只是被 list_enabled 静默排除——没有任何收尾注记，
+        复盘时无法区分"被退役"与"自然到期"。
+        """
+        now = now or datetime.now()
+        n = 0
+        for r in self.rule_repo.list_rules(enabled=True):
+            exp = getattr(r, "expires_at", None)
+            if exp is None or exp > now:
+                continue
+            try:
+                notes = list(getattr(r, "ops_notes", None) or [])
+                notes.append({"at": now.isoformat(),
+                              "by": "position_lifecycle/expiry",
+                              "text": "[到期收摊 %s] expires_at=%s 已过，规则自然到期退役"
+                                      % (now.strftime("%Y-%m-%d"), exp)})
+                self.rule_repo.update_fields(r.id, enabled=False,
+                                             lifecycle_stage="closed", ops_notes=notes)
+                n += 1
+                logger.info("到期规则已收摊", rule_id=r.id, symbol=r.symbol)
+            except Exception as e:  # noqa: BLE001
+                logger.error("到期收摊失败", rule_id=getattr(r, "id", None), error=str(e))
+        return n
 
     def _retire(self, rule, why: str) -> None:
         banner = "[生命周期联动 %s] %s" % (datetime.now().strftime("%Y-%m-%d"), why)

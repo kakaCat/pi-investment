@@ -7,63 +7,43 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 
-from qs_watch.domain.watch.models import WatchRule, RuleHealthReport
+from qs_watch.domain.watch.models import WatchRule  # noqa: F401 - 端口类型标注用
 
 
 class IWatchRuleRepository(ABC):
-    """盯盘规则仓储接口"""
-    
+    """盯盘规则仓储端口——与真实实现（WatchRuleRepository）逐一对齐的契约
+    （2026-10-19 重写：旧版 5 方法（get_all_enabled/get_by_id/update/disable）
+    与真实消费面不符，逼得应用层直连适配器；现按 qs_watch 实际调用的方法面收敛）。
+
+    消费方实证（qs_watch 全包）：引擎 tick / 元复核 / 生命周期 / 市场扫描读
+    list_enabled；摘要/回填/机会转规则读 list_rules；机会转规则建 create_rule；
+    元复核/机会转规则写 update_fields。规则的「抑噪态/修复」四列操作属
+    IWatchRuleNoiseRepository（见下文），不在本端口。
+    """
+
     @abstractmethod
-    def get_all_enabled(self) -> List[WatchRule]:
-        """获取所有启用的规则"""
-        pass
-    
-    @abstractmethod
-    def get_by_id(self, rule_id: int) -> Optional[WatchRule]:
-        """根据 ID 获取规则"""
-        pass
-    
-    @abstractmethod
-    def get_by_symbol(self, symbol: str) -> List[WatchRule]:
-        """根据股票代码获取规则"""
-        pass
-    
-    @abstractmethod
-    def update(self, rule: WatchRule) -> bool:
-        """更新规则"""
-        pass
-    
-    @abstractmethod
-    def disable(self, rule_id: int, reason: str) -> bool:
-        """禁用规则"""
+    def list_enabled(self) -> List[Any]:
+        """全部启用且未过期的规则（引擎 tick 每轮的主输入）。"""
         pass
 
-
-class ITriggerHistoryRepository(ABC):
-    """触发历史仓储接口"""
-    
     @abstractmethod
-    def count_recent_triggers(self, rule_id: int, window_minutes: int) -> int:
-        """统计规则近 window_minutes 分钟内的触发次数"""
-        pass
-    
-    @abstractmethod
-    def count_concurrent_triggers(self, symbol: str, window_seconds: int) -> int:
-        """统计股票近 window_seconds 秒内的并发触发规则数"""
-        pass
-    
-    @abstractmethod
-    def get_last_trigger(self, rule_id: int) -> Optional[datetime]:
-        """获取规则最后一次触发时间"""
+    def list_rules(self, symbol: Optional[str] = None,
+                   enabled: Optional[bool] = None,
+                   account: Optional[str] = None) -> List[Any]:
+        """条件列出规则；account=某账户时含「该账户归属 + 通用观察(account NULL)」。"""
         pass
 
-
-class IQuoteProvider(ABC):
-    """实时行情端口"""
-    
     @abstractmethod
-    def get_current_price(self, symbol: str) -> Optional[float]:
-        """获取股票当前价格"""
+    def create_rule(self, symbol, conditions, context=None, cost_price=None,
+                    active_window=None, expires_at=None, created_by='agent',
+                    account=None, linked_account=None,
+                    intent=None, action_hint=None, action_params=None) -> Any:
+        """创建规则（仓储层跑 rule_guard 铁律：交易类意图必须有账户归属）。"""
+        pass
+
+    @abstractmethod
+    def update_fields(self, rule_id: int, **fields) -> Optional[Any]:
+        """按列白名单部分更新；规则不存在返回 None（不抛）。失败抛错。"""
         pass
 
 
@@ -505,6 +485,10 @@ class IWatchRuleNoiseRepository(ABC):
       · mark_suppressed 置 noise_state='suppressed' + suppress_until 并累加 self_heal_count；
       · mark_repaired 清抑噪态（noise_state/suppress_until 置空）+ 记 last_repair_at +
         累加 self_heal_count；
+      · apply_config_repair 落地**配置类修复**（2026-10-19，E1 振荡修复）：cooldown/threshold
+        改 conditions、retire 改 enabled——只写审计不改配置的"假修复"会造成
+        suppress→repair→unsuppress→suppress 振荡；after 的键必须过列白名单，
+        0 行命中/失败一律抛错（落地失败绝不允许调用方继续清抑噪）；
       · 失败语义同其它端口：读写失败一律向上抛。
     """
 
@@ -527,6 +511,16 @@ class IWatchRuleNoiseRepository(ABC):
     @abstractmethod
     def mark_repaired(self, rule_id: int, now: Optional[datetime] = None) -> None:
         """清抑噪态并记一次修复（noise_state=NULL, suppress_until=NULL, last_repair_at=now）"""
+        pass
+
+    @abstractmethod
+    def apply_config_repair(self, rule_id: int, action: str, after: Dict[str, Any]) -> None:
+        """落地配置类修复（cooldown/threshold → conditions；retire → enabled）。
+
+        after 的键必须过实现侧的列白名单（只允许 enabled / conditions）；越名单、空 after、
+        0 行命中（规则被并发删除）、SQL 失败一律**响亮抛错**——调用方据此前置拒绝
+        mark_repaired，杜绝"只写审计不改配置"的假修复（E1 振荡）。
+        """
         pass
 
 

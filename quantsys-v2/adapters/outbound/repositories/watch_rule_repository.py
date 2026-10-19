@@ -236,6 +236,8 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
         rule = self.get_by_id(rule_id)
         if rule is None:
             return None
+        # 级联判定用：改动前的启用态（停用级联只在「启用 → 停用」跳变时触发一次）
+        was_enabled = bool(rule.enabled)
         # 铁律下沉：按"改后状态"判——不许把观察规则改成买卖规则却不给账户，
         # 也不许把已有买卖规则的账户清空（任何调用方都绕不过）
         from qs_watch.domain.watch.services.rule_guard import guard_rule_change
@@ -258,7 +260,19 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
             if key in allowed:
                 setattr(rule, key, value)
         rule.updated_at = datetime.now()
-        return self.update(rule)
+        updated = self.update(rule)
+        # 级联归档（2026-10-19）：规则「启用 → 停用」时，它名下未收敛待办的触发链
+        # 已断、工单永久无法执行——不埋掉的话 SLA 巡检会继续晋升/超时打扰用户
+        # （生产实测：死工单挂 3 天晋升 3 次发 3 张超时卡，最后还要人工大扫除）。
+        # 在此收口而非逐调用点改：全部停用路径（API 单改/批量、持仓生命周期、
+        # 引擎、健康作业、合并工具）都走 update_fields，漏不掉。
+        # 静默归档不发回执——"系统扔垃圾"不值得一张卡。
+        if updated is not None and was_enabled and fields.get('enabled') is False:
+            from adapters.outbound.repositories.watch_todo_repository import (
+                WatchTodoRepository,
+            )
+            WatchTodoRepository().close_open_by_rule(rule_id)
+        return updated
 
     def apply_intervention_ledger(self, rule_id: int, cost_delta: float,
                                   valuable: bool, commit: bool = False) -> None:

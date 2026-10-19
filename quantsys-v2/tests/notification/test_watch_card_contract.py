@@ -86,3 +86,23 @@ def test_render_receipt_result_kwargs_accepted():
                           close_reason='破位放弃', next_condition='站回 22.80 再评估',
                           action_kind='ignore')
     assert '待办#32' in text
+
+
+def test_render_receipt_result_expired_humanized():
+    """2026-10-19 人话化：expired 是"规则没了、工单自动作废"的归档通知——
+    不再渲染「已过期（已修规则）」这类工程口径（用户实测看不懂、无价值）。"""
+    text = render_receipt(_todo(), kind='result', period='expired|',
+                          close_reason='盯盘规则已停用，此提醒单随之自动归档，无需处理',
+                          action_kind='rule_change')
+    assert '已失效' in text
+    assert '无需处理' in text
+    # 不再把动作标签（已修规则/已执行交易）顶上结论行
+    assert '已修规则' not in text
+    assert '（已修规则）' not in text
+
+
+def test_render_receipt_result_handled_keeps_action_label():
+    """handled/ignored 的结论行保留动作标签（真处置动作必须可见）。"""
+    text = render_receipt(_todo(), kind='result', period='handled|',
+                          close_reason='破位止损', action_kind='trade')
+    assert '已处置（已执行交易）' in text

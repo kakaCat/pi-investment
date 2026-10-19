@@ -46,6 +46,7 @@ class InterventionConfig:
     meta_burst_per_day: int = 5             # 元触发：单日触发超此数需复核
     meta_idle_days: int = 14                # 元触发：超过此天数零触发需复核
     meta_stage_idle_days: int = 7           # 元触发：阶段滞留超此天数需复核
+    meta_unactivated_days: int = 1          # 元触发：opportunity_scan 建规则超此天数仍无 intent 需复核
 
 
 @dataclass
@@ -104,7 +105,23 @@ def direction_of(condition) -> str:
 
 
 def dedup_key(rule, condition):
-    return (normalize_symbol(getattr(rule, 'symbol', '')), direction_of(condition))
+    """去重键 = (账户, 归一化标的, 方向)。
+
+    2026-10-19 加账户维度：账户是投送维度（digest 按「账户×标的」聚合、同标的被
+    两个账户盯盘时绝不合并），去重键若不含账户，B 账户的同标的同向触发会被 A 账户
+    窗内的通知吞掉——deduped 不在 UNRESOLVED 里，该账户的信号从所有通道消失。
+    账户缺失归一化为 ''（空账户是数据缺陷但不阻断去重，空账户规则彼此同键）。
+    账户解析与 rule_guard.effective_account 同口径（linked_account 优先）；
+    此处内联而非 import，是因为 rule_guard 反向 import 本模块（防循环依赖）。
+    """
+    if isinstance(rule, dict):
+        account = rule.get('linked_account') or rule.get('account') or ''
+        symbol = rule.get('symbol')
+    else:
+        account = (getattr(rule, 'linked_account', None)
+                   or getattr(rule, 'account', None) or '')
+        symbol = getattr(rule, 'symbol', '')
+    return (str(account), normalize_symbol(symbol), direction_of(condition))
 
 
 def action_hint_of(rule) -> dict:
@@ -208,10 +225,12 @@ def _meta_gate(rule, gate: GateContext, cfg: InterventionConfig):
 
 def evaluate_meta_trigger(kind: str, burst_count: int = 0, idle_days: float = 0,
                           stage_idle_days: float = 0, days_to_expiry: float = 0,
+                          unactivated_days: float = 0,
                           cfg: Optional[InterventionConfig] = None):
     """元触发判定（RFC 014 v3 §13）。返回 (need_review, reason)。
 
-    kind: burst（一直响）/ idle（一直不响）/ stage（阶段滞留）/ expiry（快到期）
+    kind: burst（一直响）/ idle（一直不响）/ stage（阶段滞留）/ expiry（快到期）/
+          unactivated（自动建规则未激活：opportunity_scan 建规则超 N 天仍无 intent/账户）
     """
     cfg = cfg or InterventionConfig()
     if kind == 'burst' and burst_count >= cfg.meta_burst_per_day:
@@ -222,6 +241,10 @@ def evaluate_meta_trigger(kind: str, burst_count: int = 0, idle_days: float = 0,
         return True, '阶段滞留：停留 %.0f 天 ≥ %d 天 → 复核（推进或回退）' % (stage_idle_days, cfg.meta_stage_idle_days)
     if kind == 'expiry' and days_to_expiry <= 2:
         return True, '规则到期：%.1f 天后过期 → 复核（续期/收摊）' % days_to_expiry
+    if kind == 'unactivated' and unactivated_days >= cfg.meta_unactivated_days:
+        return True, ('规则未激活：opportunity_scan 自动建规则已 %.0f 天（≥ %d 天）仍无 intent/账户，'
+                      '停在 L1 observe 进不了买卖闭环 → 复核（补 intent+account 激活，或退役）'
+                      % (unactivated_days, cfg.meta_unactivated_days))
     return False, ''
 
 

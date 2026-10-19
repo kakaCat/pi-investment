@@ -163,6 +163,7 @@ class NotificationFacade:
         todo: dict = None,                  # ← 关联待办快照（L2 wake 载荷上下文，可选）
         action_params: dict = None,         # ← REQ-261016155500-4f2a：结构化操作指引（建议动作块数据源）
         merged_from_rule: int = None,       # ← REQ-261016155500-4f2a wt:engine:2：dedup 合并展示标注
+        relation: str = None,               # ← 2026-10-19：「与我何干」（relation_of 产出）
     ) -> ChannelResult:
         """发送盯盘触发通知
 
@@ -229,6 +230,7 @@ class NotificationFacade:
                 rule_id=rule_id,
                 escalation_reason=escalation_reason,
                 merged_from_rule=merged_from_rule,
+                relation=relation,
                 mode='agent' if notify_mode == 'agent' else 'direct',
             )
             rendered = render_watch_message(msg)

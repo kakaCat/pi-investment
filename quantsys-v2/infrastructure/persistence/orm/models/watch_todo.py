@@ -155,8 +155,10 @@ class WatchRuntimeDedup(Base):
     """去重窗（REQ-c9f899 返工 B / R10）
 
     对应数据库表：quant.watch_price_history 的姊妹表 quant.watch_runtime_dedup。
-    主键 (symbol, direction) = 引擎 dedup_key(rule, condition) 的归一化形态：
-    「同一标的 + 同一方向」在 dedup_window_sec 内只通知一次。持久化的意义：
+    主键 (account, symbol, direction) = 引擎 dedup_key(rule, condition) 的归一化形态：
+    「同一账户 + 同一标的 + 同一方向」在 dedup_window_sec 内只通知一次（2026-10-19
+    加 account 维度：账户是投送维度，跨账户合并会把另一账户的信号静默吞掉；
+    迁移 20261019_watch_runtime_dedup_account.py）。持久化的意义：
     重启后窗内**不再重复通知**（未持久化时窗清零，同一条当天会重推）。
 
     有界性：notified_at 早于窗口的行走仓库的 prune（DELETE），
@@ -165,6 +167,8 @@ class WatchRuntimeDedup(Base):
     __tablename__ = 'watch_runtime_dedup'
     __table_args__ = {'schema': 'quant'}
 
+    account = Column(String(64), primary_key=True, server_default='',
+                     comment='规则归属账户（linked_account 优先；空串=未归属）')
     symbol = Column(String(32), primary_key=True, comment='归一化标的（去交易所后缀）')
     direction = Column(String(32), primary_key=True, comment='方向（above/below 或条件类型）')
     notified_at = Column(DateTime(timezone=True), nullable=False, comment='最近一次通知时间（窗内判据）')

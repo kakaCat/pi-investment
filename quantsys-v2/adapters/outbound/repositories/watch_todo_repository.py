@@ -10,6 +10,9 @@
                       已终态（或并发抢先）返回 None，绝不二次改写（I3）；
   · list_overdue   —— (terminal IS NULL AND due_at < now)，命中
                       idx_watch_todos_overdue(terminal, due_at)，按 due_at 升序（I1 巡检口径）；
+                      2026-10-19 起联动过滤：所挂规则已停用/已删除的待办不命中（兜底，
+                      正常路径由 close_open_by_rule 在规则停用时级联归档）；
+  · close_open_by_rule —— 规则停用/删除时级联归档其未收敛待办（静默，不发回执）；
   · promote        —— 仅对未终态行生效，置 flow_state 并累加 escalate_count；
   · list_pending   —— 缺省未收敛；支持 level/account/flow_state/terminal 过滤。
 
@@ -27,12 +30,24 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 import structlog
-from sqlalchemy import case, func, update as sa_update
+from sqlalchemy import and_, case, func, or_, update as sa_update
 
 from infrastructure.persistence.orm.base_repository import BaseORMRepository
 from infrastructure.persistence.orm.models.watch_todo import WatchTodo
+# WatchRule ORM 模型声明在规则仓储模块内（同层适配器互引，无循环：
+# 规则仓储只在本模块方法的函数体内反向懒引本模块）。
+from adapters.outbound.repositories.watch_rule_repository import WatchRule
 
 logger = structlog.get_logger(__name__)
+
+#: 级联归档的审计标记（2026-10-19）：规则停用/删除时其未收敛待办被系统级联关闭。
+#: watch_todos_action_needs_audit CHECK 要求 action_kind ∈ (trade, rule_change) 的
+#: 终态行必须带 decision_audit_id——级联不是 agent 决策，没有 DEC- 号，
+#: 用本标记如实标明"关闭者 = 系统级联"，而非伪造一个决策审计号。
+CASCADE_AUDIT_MARKER = 'SYSTEM-CASCADE-RULE-OFF'
+
+#: 级联归档的默认关闭原因（人话口径，会直接渲染进任何后续回执/看板）
+CASCADE_CLOSE_REASON = '盯盘规则已停用，此提醒单随之自动归档，无需处理'
 
 #: 待办列表默认/上限（对齐 GET /api/watch/todos 的 limit 语义）
 DEFAULT_LIMIT = 100
@@ -217,12 +232,20 @@ class WatchTodoRepository(BaseORMRepository[WatchTodo]):
         """巡检扫描：terminal IS NULL AND due_at < now（now 缺省用数据库 NOW()）
 
         WHERE 顺序即索引口径：idx_watch_todos_overdue(terminal, due_at)。
+
+        联动过滤（2026-10-19）：规则已停用（或已删除成为孤儿）的待办不命中——
+        触发链已断的工单在物理上无法执行，被巡检翻到只会晋升/超时打扰用户。
+        这是**防御兜底**：正常路径下规则停用时待办已被 close_open_by_rule
+        级联归档；本过滤保证任何漏网路径（直改库/未来新写点）也不会翻出死工单。
+        rule_id 为 NULL 的待办不挂规则，照常可见。
         """
         try:
             query = (
                 self.session.query(WatchTodo)
+                .outerjoin(WatchRule, WatchTodo.rule_id == WatchRule.id)
                 .filter(WatchTodo.terminal.is_(None))
                 .filter(WatchTodo.due_at < (now if now is not None else func.now()))
+                .filter(or_(WatchTodo.rule_id.is_(None), WatchRule.enabled.is_(True)))
                 .order_by(WatchTodo.due_at.asc())
                 .limit(_bounded_limit(limit))
             )
@@ -230,6 +253,47 @@ class WatchTodoRepository(BaseORMRepository[WatchTodo]):
         except Exception:  # noqa: BLE001
             self._safe_rollback()
             raise
+
+    def close_open_by_rule(self, rule_id: int, *,
+                           close_reason: str = CASCADE_CLOSE_REASON,
+                           terminal: str = 'expired') -> int:
+        """级联归档某规则名下全部未收敛待办（静默：只落库，不发任何回执）。
+
+        调用时机：规则被停用/删除（触发链断裂，工单永久无法执行）。返回归档条数。
+        已终态行绝不动（WHERE terminal IS NULL，与 close 同一并发纪律，I3）。
+        action_kind ∈ (trade, rule_change) 且无审计号的行补 CASCADE_AUDIT_MARKER
+        （CHECK watch_todos_action_needs_audit 要求；标记如实标明关闭者是系统级联）。
+        """
+        stmt = (
+            sa_update(WatchTodo)
+            .where(WatchTodo.rule_id == rule_id, WatchTodo.terminal.is_(None))
+            .values(
+                terminal=terminal,
+                closed_at=func.now(),
+                close_reason=close_reason,
+                decision_audit_id=case(
+                    (and_(WatchTodo.action_kind.in_(('trade', 'rule_change')),
+                          WatchTodo.decision_audit_id.is_(None)),
+                     CASCADE_AUDIT_MARKER),
+                    else_=WatchTodo.decision_audit_id,
+                ),
+                updated_at=func.now(),
+            )
+            .execution_options(synchronize_session=False)
+        )
+        try:
+            session = self.session
+            result = session.execute(stmt)
+            session.commit()
+        except Exception as e:  # noqa: BLE001 - 失败必须响亮（级联失败要暴露）
+            logger.error('待办级联归档失败', rule_id=rule_id, error=str(e))
+            self._safe_rollback()
+            raise
+        count = int(result.rowcount or 0)
+        if count:
+            logger.info('规则停用级联归档待办', rule_id=rule_id, archived=count,
+                        terminal=terminal)
+        return count
 
     def stats(self, *, now: Optional[datetime] = None) -> Dict[str, Any]:
         """闭环规模统计（GET /api/watch/metrics 的 todo 字段，REQ-c9f899 t12 §6-项7）。

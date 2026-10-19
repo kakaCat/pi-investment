@@ -155,7 +155,7 @@ class TestWatchDedupWindowPersistence:
         ])
         s = StateManager(dedup_window_sec=60, store=store)
         s.restore_from_store(now=NOW)
-        assert ('600519', 'above') in s.recent_notified
+        assert ('', '600519', 'above') in s.recent_notified
 
         out = DeduplicationManager(s, 60).check(_rule(), _cond(), NOW)
         assert out.is_duplicate is True
@@ -179,7 +179,7 @@ class TestWatchDedupWindowPersistence:
         assert s.flush(now=NOW) is True
         assert len(store.dedup_calls) == 1
         row = store.dedup_calls[0][0]
-        assert (row['symbol'], row['direction'], row['trigger_id']) == ('600519', 'above', 5)
+        assert (row['account'], row['symbol'], row['direction'], row['trigger_id']) == ('', '600519', 'above', 5)
 
         assert s.flush(now=NOW) is True
         assert len(store.dedup_calls) == 1        # 无变化不重写（节流）
@@ -384,7 +384,7 @@ class TestWatchBoundedPruneAndFailure:
         )
         s = StateManager(store=store)
         s.restore_from_store(now=NOW)
-        assert ('600519', 'above') in s.recent_notified     # 去重仍恢复
+        assert ('', '600519', 'above') in s.recent_notified     # 去重仍恢复
         assert s.history['600519.SH']                       # 价格历史仍恢复
         assert s.degraded is True                           # 事件失败被显式标记
 

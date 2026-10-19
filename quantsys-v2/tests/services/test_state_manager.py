@@ -58,7 +58,7 @@ class TestResetDaily:
     def test_clears_volatile_state(self):
         s = StateManager()
         s.latched.add((1, 0))
-        s.recent_notified[('600519', 'up')] = (NOW, 1, 1)
+        s.recent_notified[('', '600519', 'up')] = (NOW, 1, 1)
         s.overlap_reported.add((1, 2))
         s.last_intervention[('600519', 'entry')] = NOW
         s.interventions_today = 5
@@ -90,12 +90,12 @@ class TestResetDaily:
 class TestPruneDedup:
     def test_removes_expired_entries(self):
         s = StateManager(dedup_window_sec=300)
-        s.recent_notified[('600519', 'up')] = (NOW - timedelta(seconds=400), 1, 1)
-        s.recent_notified[('600519', 'down')] = (NOW - timedelta(seconds=100), 2, 1)
+        s.recent_notified[('', '600519', 'up')] = (NOW - timedelta(seconds=400), 1, 1)
+        s.recent_notified[('', '600519', 'down')] = (NOW - timedelta(seconds=100), 2, 1)
 
         s.prune_dedup(NOW)
 
-        assert set(s.recent_notified.keys()) == {('600519', 'down')}
+        assert set(s.recent_notified.keys()) == {('', '600519', 'down')}
 
     def test_noop_when_empty(self):
         s = StateManager()

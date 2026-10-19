@@ -259,12 +259,14 @@ class WatchRuntimeStateRepository:
     def load_dedup(self) -> List[Dict[str, Any]]:
         """全部去重键（调用方按窗口过滤，避免把过滤口径复制两份）。
 
-        每行：{symbol, direction, notified_at, trigger_id, rule_id}
+        每行：{account, symbol, direction, notified_at, trigger_id, rule_id}
+        （account 列由 20261019_watch_runtime_dedup_account 迁移添加；旧行 account=''）
         """
         try:
             rows = (
                 get_session()
                 .query(
+                    WatchRuntimeDedup.account,
                     WatchRuntimeDedup.symbol,
                     WatchRuntimeDedup.direction,
                     WatchRuntimeDedup.notified_at,
@@ -277,8 +279,8 @@ class WatchRuntimeStateRepository:
             _safe_rollback()
             raise
         return [
-            {'symbol': r[0], 'direction': r[1], 'notified_at': r[2],
-             'trigger_id': r[3], 'rule_id': r[4]}
+            {'account': r[0], 'symbol': r[1], 'direction': r[2], 'notified_at': r[3],
+             'trigger_id': r[4], 'rule_id': r[5]}
             for r in rows
         ]
 
@@ -289,6 +291,7 @@ class WatchRuntimeStateRepository:
             tbl = WatchRuntimeDedup.__table__
             values = [
                 {
+                    'account': row.get('account') or '',
                     'symbol': row['symbol'],
                     'direction': row['direction'],
                     'notified_at': row['notified_at'],
@@ -300,7 +303,7 @@ class WatchRuntimeStateRepository:
             ]
             stmt = pg_insert(tbl).values(values)
             stmt = stmt.on_conflict_do_update(
-                index_elements=[tbl.c.symbol, tbl.c.direction],
+                index_elements=[tbl.c.account, tbl.c.symbol, tbl.c.direction],
                 set_={
                     'notified_at': stmt.excluded.notified_at,
                     'trigger_id': stmt.excluded.trigger_id,

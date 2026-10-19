@@ -28,9 +28,14 @@ change_repo.exists_since(rule_id, 'suppress', 今日 00:00) 为真即跳过。�
 这是 R6「反复触发每日都要有人管」的刻意行为，跨日合并属后续任务。
 
 范围边界（诚实标注，避免越权）：
-  · 本服务**只写审计与抑噪态**，不落规则配置变更（cooldown/threshold/split/merge/retire
-    的 after 内容进 watch_rule_changes，真正改配置由既有规则 CRUD / 后续接线执行）——
-    t8 的验收面是"判定 + 抑噪 + 待办 + 授权 + 审计"，配置落地不在本任务卡内；
+  · 修复动作分两族（2026-10-19，E1 振荡修复）：
+    - **配置类**（cooldown/threshold/retire）必须**真正落地 watch_rules 配置变更**
+      （经 IWatchRuleNoiseRepository.apply_config_repair）才算修复——落地成功才允许
+      mark_repaired 清抑噪；落地失败抛错、抑噪态保留。此前"只写审计不改配置"的假修复
+      会造成 suppress→repair→unsuppress→suppress 振荡；
+    - split/merge 无法机械落地（涉及多规则结构变更）→ **拒绝**（WatchRuleChangeInvalidKind），
+      请走规则 CRUD 手工处理；
+    - **抑噪态类**（suppress/unsuppress）只改投递级别，照旧。
   · 抑噪只改投递级别，不改判定结果（architecture §5「不做的事」）：真信号仍进 L3，聚合里可见。
 """
 from datetime import datetime, timedelta
@@ -58,6 +63,15 @@ REPAIR_TODO_LEVEL = P1
 
 #: operator 取该值表示"用户本人确认"；其余一律视为 agent 代改（授权最保守）
 USER_OPERATOR = 'user'
+
+#: 可机械落地的配置类修复动作（真正改 watch_rules 配置才算修复，E1）
+CONFIG_REPAIR_ACTIONS = ('cooldown', 'threshold', 'retire')
+
+#: 无法机械落地的配置类动作（涉及多规则结构变更）→ apply_repair 响亮拒绝
+NON_MECHANICAL_REPAIR_ACTIONS = ('split', 'merge')
+
+#: 抑噪态类动作（只改投递级别，不改配置）
+NOISE_STATE_ACTIONS = ('suppress', 'unsuppress')
 
 
 def _iso(value) -> Optional[str]:
@@ -143,7 +157,17 @@ class NoiseSelfHealService:
                                 'reason': 'already_healed_today'})
                 continue
 
-            open_todo = self._open_repair_todo(rule_id)
+            try:
+                open_todo = self._open_repair_todo(rule_id)
+            except Exception as e:  # noqa: BLE001 - fail-closed：查询失败本轮跳过该规则自愈
+                # E4：此前查询失败返回 None 照样新建待办（与"宁可不新建"的注释相反）。
+                # 幂等判据不可信时**什么都不做**——不抑噪、不建待办、不写审计，
+                # 记 error 日志等下一轮（否则可能在已有待办的情况下重复建单）。
+                logger.error('待办幂等查询失败（fail-closed：本轮跳过该规则自愈）',
+                             rule_id=rule_id, error=str(e))
+                skipped.append({'rule_id': rule_id, 'account': account,
+                                'reason': 'todo_query_failed'})
+                continue
             if open_todo is not None:
                 # 待办幂等（REQ-261016155500-4f2a；实测 10-16 规则 #250/#255：P2 补全
                 # 待办未关闭，自愈又建 P1 修规则待办 = 同规则双待办）：抑噪照做（状态机
@@ -188,10 +212,13 @@ class NoiseSelfHealService:
                      reason: Optional[str] = None, operator: Optional[str] = None,
                      decision_audit_id: Optional[str] = None,
                      now: Optional[datetime] = None) -> Dict[str, Any]:
-        """执行一次规则修复（授权 → 校验 → 审计 → 清抑噪态）。
+        """执行一次规则修复（授权 → 校验 → 配置落地 → 审计 → 清抑噪态）。
 
         校验顺序（先校输入再查库，与 TodoService.close 同纪律）：
-          reason 必填 → change_kind 白名单 → 规则存在 → 授权 → 落审计 → 改抑噪态。
+          reason 必填 → change_kind 白名单 → 规则存在 → 授权 →
+          （配置类动作：算落地内容并**真正落库**）→ 落审计 → 改抑噪态。
+        配置类修复（cooldown/threshold/retire）落地成功才允许 mark_repaired 清抑噪；
+        split/merge 无法机械落地 → WatchRuleChangeInvalidKind（E1：拒绝假修复）。
         返回 {'rule': 最新投影, 'change': 审计行}；授权失败抛 WatchRuleChangeUnauthorized（403）。
         """
         reason_value = str(reason or '').strip()
@@ -212,6 +239,13 @@ class NoiseSelfHealService:
         account = effective_account(rule)
         operator_value = str(operator or '').strip() or 'agent'
         route = self._authorize(account, operator_value)
+
+        if noise_policy.is_repair_action(kind):
+            # 配置类修复：先算落地内容并**真正落库**（split/merge 与缺参在写任何东西之前
+            # 拒绝；落库失败向上抛、抑噪态保留）——绝不允许"只写审计不改配置"的假修复
+            # 去清抑噪，那正是 suppress→repair→unsuppress→suppress 振荡的根因（E1）。
+            config_after = self._config_repair_after(rule, kind, params)
+            self._rule_repo.apply_config_repair(rule_id, kind, config_after)
 
         change = self._change_repo.record(
             rule_id,
@@ -279,6 +313,56 @@ class NoiseSelfHealService:
 
     # ── 内部 ────────────────────────────────────────────────
 
+    def _config_repair_after(self, rule: Dict[str, Any], kind: str,
+                             params: Any) -> Dict[str, Any]:
+        """配置类修复的落地内容（按规则现状 + params 计算；无法机械落地 → 响亮拒绝）。
+
+        返回 dict 即 apply_config_repair 的 after（列白名单 enabled/conditions 见适配器）：
+          · cooldown  → 每条条件写 cooldown_sec（params.cooldown_sec 必填）
+          · threshold → 每条条件的 params.price 改写（params.price 必填；direction 可同改）
+          · retire    → enabled=False
+          · split/merge → WatchRuleChangeInvalidKind（多规则结构变更，走规则 CRUD 手工处理）
+        """
+        payload = params if isinstance(params, dict) else {}
+        if kind in NON_MECHANICAL_REPAIR_ACTIONS:
+            raise WatchRuleChangeInvalidKind(
+                f'{kind} 无法机械落地（涉及多规则结构变更）：请通过规则 CRUD 手工处理；'
+                f'本服务拒绝"只写审计不改配置"的假修复（会引发抑噪振荡，E1）')
+        if kind == 'retire':
+            return {'enabled': False}
+
+        conditions = rule.get('conditions') or []
+        if (not isinstance(conditions, list) or not conditions
+                or not all(isinstance(c, dict) for c in conditions)):
+            raise WatchRuleChangeInvalidKind(
+                f'规则 {rule.get("id")} 的 conditions 为空或形状非法，{kind} 无落地对象：'
+                f'拒绝假修复（E1）')
+
+        if kind == 'cooldown':
+            sec = payload.get('cooldown_sec')
+            if sec is None:
+                raise WatchRuleChangeInvalidKind(
+                    'cooldown 修复必须给出 params.cooldown_sec（新冷却秒数）——'
+                    '没有目标值的"修复"是假修复（E1）')
+            return {'conditions': [dict(cond, cooldown_sec=int(sec)) for cond in conditions]}
+
+        # threshold
+        price = payload.get('price')
+        if price is None:
+            raise WatchRuleChangeInvalidKind(
+                'threshold 修复必须给出 params.price（新阈值）——'
+                '没有目标值的"修复"是假修复（E1）')
+        out = []
+        for cond in conditions:
+            new_cond = dict(cond)
+            new_params = dict(new_cond.get('params') or {})
+            new_params['price'] = float(price)
+            if payload.get('direction') in ('above', 'below'):
+                new_params['direction'] = payload['direction']
+            new_cond['params'] = new_params
+            out.append(new_cond)
+        return {'conditions': out}
+
     def _is_noisy(self, summary: Dict[str, Any]) -> bool:
         return noise_policy.should_suppress(
             summary['trigger_today'], summary['consecutive_days'], summary['avg_per_day'],
@@ -303,15 +387,13 @@ class NoiseSelfHealService:
 
         待办幂等判据（与 GuidanceBackfillService 同一 list_open_by_rule 口径）：
         有则不新建——同规则双待办会让 agent 重复收口（实测 10-16 规则 #250/#255）。
+
+        失败语义（E4，2026-10-19）：查询失败**向上抛**，由 scan 捕获后 fail-closed
+        跳过该规则本轮自愈——查询失败时"按无待办处理"会重复建单（与注释相反）。
         """
-        try:
-            rows = self._todo_service.list_open_by_rule(
-                rule_id, action_kind='rule_change')
-            return rows[0] if rows else None
-        except Exception as e:  # noqa: BLE001 - 查询失败不阻断抑噪（宁可不新建待办）
-            logger.warning('待办幂等查询失败（按无待办处理，可能重复建）',
-                           rule_id=rule_id, error=str(e))
-            return None
+        rows = self._todo_service.list_open_by_rule(
+            rule_id, action_kind='rule_change')
+        return rows[0] if rows else None
 
     def _create_repair_todo(self, rule: Dict[str, Any], account: Optional[str],
                             rule_id: int, now: datetime, reason: str) -> Any:

@@ -77,5 +77,5 @@ def test_reason_text_points_to_merged_trigger():
 
 
 def test_overlap_reason_mentions_pair():
-    text = DeduplicationManager.overlap_reason((3, 7), ('600519', 'below'))
+    text = DeduplicationManager.overlap_reason((3, 7), ('', '600519', 'below'))
     assert '#3' in text and '#7' in text

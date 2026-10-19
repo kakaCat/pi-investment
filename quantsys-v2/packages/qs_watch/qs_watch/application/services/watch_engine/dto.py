@@ -47,6 +47,8 @@ class TriggerPayload:
     # REQ-261016155500-4f2a wt:engine:2：dedup 窗内先响规则 id（escalated/exit_stop
     # 命中去重不吞消息，渲染层标注「与规则#M 同事件，合并展示」）
     merged_from_rule: Optional[int] = None
+    # 「与我何干」（relation_of 产出，2026-10-19）
+    relation: Optional[str] = None
     
     def to_notification_variables(self) -> Dict[str, Any]:
         """转换为 NotificationFacade 的 variables 格式"""
@@ -73,6 +75,7 @@ class TriggerPayload:
             # REQ-261016155500-4f2a：结构化操作指引随 payload 下发
             'action_params': self.action_params,
             'merged_from_rule': self.merged_from_rule,
+            'relation': self.relation,
         }
         
         if self.action_hint:
