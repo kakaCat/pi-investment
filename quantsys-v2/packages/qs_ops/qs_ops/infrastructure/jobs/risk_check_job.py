@@ -244,8 +244,7 @@ def main() -> dict:
     """主函数"""
     # 使用绝对路径
     # 2026-10-19：固定深度 parent×3 在包抽取后指错，改标记查找（qs_kernel）
-from qs_kernel.infrastructure.paths import find_project_root as _find_root
-project_root = _find_root(__file__)
+    project_root = _find_root(__file__)  # 模块级已导入（2026-10-19 标记查找）
     config_path = project_root / 'live_trading' / 'config_simulation.yaml'
 
     job = RiskCheckJob(config_path=str(config_path))
