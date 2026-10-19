@@ -15,7 +15,9 @@ from datetime import datetime, timedelta
 import logging
 
 # 添加项目路径
-project_root = Path(__file__).parent.parent.parent
+# 2026-10-19：固定深度 parent×3 在包抽取后指错，改标记查找（qs_kernel）
+from qs_kernel.infrastructure.paths import find_project_root as _find_root
+project_root = _find_root(__file__)
 
 from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
 from qs_notification.application.notification_factory import get_notification_facade
@@ -286,7 +288,9 @@ class VerificationJob:
 def main() -> dict:
     """主函数"""
     # 使用绝对路径
-    project_root = Path(__file__).parent.parent.parent
+    # 2026-10-19：固定深度 parent×3 在包抽取后指错，改标记查找（qs_kernel）
+from qs_kernel.infrastructure.paths import find_project_root as _find_root
+project_root = _find_root(__file__)
     config_path = project_root / 'live_trading' / 'config_simulation.yaml'
 
     job = VerificationJob(config_path=str(config_path))

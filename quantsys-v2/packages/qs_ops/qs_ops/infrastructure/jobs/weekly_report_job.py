@@ -15,7 +15,9 @@ from datetime import datetime, timedelta
 import logging
 
 # 添加项目路径
-project_root = Path(__file__).parent.parent.parent
+# 2026-10-19：固定深度 parent×3 在包抽取后指错，改标记查找（qs_kernel）
+from qs_kernel.infrastructure.paths import find_project_root as _find_root
+project_root = _find_root(__file__)
 
 from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
 from qs_notification.application.notification_factory import get_notification_facade
@@ -281,7 +283,10 @@ class WeeklyReportJob:
                 logger.info("周报发送成功")
                 send_ok = True
             else:
-                send_error = getattr(result, 'error', None) or '通知渠道返回 success=False'
+                # 2026-10-19 修复：ChannelResult 的错误文案在 .message，
+                # .error 是**类方法**——getattr 拿到的是函数对象，错误日志/落库
+                # 变成 '<function ChannelResult.error at 0x...>' 的乱码（生产实锤）。
+                send_error = getattr(result, 'message', None) or '通知渠道返回 success=False'
                 logger.error(f"周报发送失败: {send_error}")
         except Exception as e:
             send_error = str(e)
@@ -307,7 +312,9 @@ class WeeklyReportJob:
 def main():
     """主函数"""
     # 使用绝对路径
-    project_root = Path(__file__).parent.parent.parent
+    # 2026-10-19：固定深度 parent×3 在包抽取后指错，改标记查找（qs_kernel）
+from qs_kernel.infrastructure.paths import find_project_root as _find_root
+project_root = _find_root(__file__)
     config_path = project_root / 'live_trading' / 'config_simulation.yaml'
 
     job = WeeklyReportJob(config_path=str(config_path))
