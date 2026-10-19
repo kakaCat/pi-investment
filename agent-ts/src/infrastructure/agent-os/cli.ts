@@ -235,6 +235,9 @@ export async function agentOSDecisionRecord(
     '--action', action,
     '--reason', String(options.reasoning ?? ''),
     '--context', JSON.stringify(context),
+    // CLI 必填校验：targets 不可空。系统级事件无标的 → SYSTEM 哨兵
+    // （options 里若以后带 symbol 列表，可换成真实标的）。
+    '--targets', 'SYSTEM',
   ];
 
   return execAgentOS(args);
