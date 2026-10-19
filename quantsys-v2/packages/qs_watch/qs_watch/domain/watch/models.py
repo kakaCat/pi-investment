@@ -159,16 +159,6 @@ class WatchRule:
         return self.action_hint.should_notify_agent()
 
 
-@dataclass
-class RuleHealthReport:
-    """规则健康度报告"""
-    rule_id: int
-    status: str  # HEALTHY/EXPIRED/STALE/OUTDATED/INACTIVE
-    reason: str
-    deviation_pct: Optional[float] = None
-    checked_at: datetime = field(default_factory=datetime.now)
-
-
 @dataclass(frozen=True)
 class MarketState:
     """市场状态快照（RFC 014 v3 §1.1/§1.3：盯盘是紧盯市场的工具）

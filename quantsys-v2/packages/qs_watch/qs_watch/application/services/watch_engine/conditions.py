@@ -30,6 +30,27 @@ MIN_HYSTERESIS_ABS = 0.05     # A 股最小报价单位 0.01 × 5
 DEFAULT_DAILY_EMIT_CAP = 2
 
 
+def freshness_of(cond: dict, prev_close):
+    """price_break 触发是否「今日新鲜穿越」（2026-10-19 用户裁定：穿越 vs 驻留）。
+
+    定义：昨收时条件尚不成立（price_break 未触发）→ True（今日新穿越，有信息增量）；
+    昨收已在触发侧 → False（陈旧驻留，零增量——它是规则失真信号不是市场事件）。
+    无法判定返回 None（prev_close 缺失 / 非 price_break）——调用方按既有行为处理。
+    """
+    if not isinstance(cond, dict) or cond.get('type') != 'price_break':
+        return None
+    params = cond.get('params') or {}
+    threshold, direction = params.get('price'), params.get('direction')
+    if threshold is None or prev_close is None or direction not in ('above', 'below'):
+        return None
+    try:
+        prev, t = float(prev_close), float(threshold)
+    except (TypeError, ValueError):
+        return None
+    prev_triggered = prev >= t if direction == 'above' else prev <= t
+    return not prev_triggered
+
+
 def hysteresis_rearm_price(cond: dict):
     """price_break 的重新武装边界（纯函数）。
 

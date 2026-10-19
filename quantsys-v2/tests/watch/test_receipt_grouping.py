@@ -242,15 +242,16 @@ def test_receipt_text_has_no_micros_no_period_tag_due_once():
     assert not re.search(r'\d{2}:\d{2}:\d{2}\.\d+', text)   # 无 ISO 微秒尾巴
 
 
-def test_result_not_grouped_sends_immediately():
-    """FR-14 前置：处置结论不参与聚合，即使聚合轮开启也即时投递。"""
+def test_result_buffered_then_flushed_by_window():
+    """2026-10-19 语义变更：result 不再即时单发——投递层聚合（90s 窗口/8 条上限），
+    稳态由巡检兜底 flush。本用例钉死：result 先缓冲、flush 后单卡发出。"""
     sent = []
     receipts = FakeReceiptRepo()
     service = ReceiptService(receipts, sender=sent.append)
-    todo = _todo(46)
-    todo.close_reason = '破位放弃'
-    service.begin_group()
-    outcome = service.result(todo, terminal='ignored')
-    assert outcome['sent'] is True
-    assert len(sent) == 1                                  # 即时单条，不等 flush
-    assert service.flush_grouped() == {}                   # 组里没残留
+    service.result(_todo(50), terminal='handled', close_reason='已处置')
+    assert sent == []                                    # 先缓冲
+    out = service.flush_result_buffer()
+    assert out['count'] == 1 and len(sent) == 1
+    assert sent[0]['kind'] == 'result'
+    assert '1 项待办已收敛' in sent[0]['message']
+    assert receipts.rows[0]['delivery_status'] == DELIVERY_SENT

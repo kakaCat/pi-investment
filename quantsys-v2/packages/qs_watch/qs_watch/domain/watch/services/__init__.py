@@ -6,12 +6,10 @@ from qs_watch.domain.watch.services.level_resolver import (
 from qs_watch.domain.watch.services.owner_router import (
     OWNER_AGENT, OWNER_USER, OwnerRoute, USER_OWNER_REF, route_owner,
 )
-from qs_watch.domain.watch.services.rule_health_checker import RuleHealthChecker
 
 __all__ = [
     'EscalationChecker',
     'QuoteData',
-    'RuleHealthChecker',
     'LEVEL_SLA_SECONDS',
     'LEVELS',
     'P0',

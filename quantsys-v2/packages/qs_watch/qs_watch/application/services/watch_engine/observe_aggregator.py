@@ -26,6 +26,10 @@ logger = structlog.get_logger(__name__)
 AGG_WINDOW_SEC = int(os.environ.get('WATCH_OBSERVE_AGG_WINDOW_SEC', '900'))
 #: 每标的每日聚合卡上限（收盘 flush 不受限）
 DAILY_AGG_CAP_PER_SYMBOL = 8
+#: 单缓冲条目数硬上限（2026-10-19）：投递持续失败时 window_start 顺延、条目无界
+#: 堆积（慢性内存泄漏）。超限丢最旧、记日志——聚合卡是降噪呈现，丢旧条目不丢
+#: 审计（每条触发在 watch_triggers 里都有留痕）。
+MAX_BUFFER_ITEMS = 100
 #: 总开关（默认开；false = 无判据 observe 也即时单发，退回改前行为）
 OBSERVE_AGG_ENABLED = os.environ.get('WATCH_OBSERVE_AGG', 'true').strip().lower() \
     not in ('false', '0', 'off')
@@ -70,20 +74,44 @@ class ObserveAggregator:
         return not _has_observation_criterion(rule)
 
     def add(self, account: Optional[str], symbol: str, item: Dict[str, Any],
-            now: datetime, price: float) -> None:
-        """入缓冲（同 key 合并；窗口从首条起算）。"""
+            now: datetime, price: float, action_text: Optional[str] = None,
+            relation_text: Optional[str] = None) -> None:
+        """入缓冲（同 key 合并；窗口从首条起算）。
+
+        action_text：规则的建议动作（resolve_action 产出），聚合卡渲染「建议动作」段——
+        没它用户拿到卡不知道该怎么操作（2026-10-19 用户反馈）。
+        """
         key = (account, symbol)
         buf = self._buffers.get(key)
         if buf is None:
             buf = {'items': [], 'window_start': now,
-                   'low': float(price), 'high': float(price)}
+                   'low': float(price), 'high': float(price),
+                   'action_text': action_text or '',
+                   'relation_text': relation_text or ''}
             self._buffers[key] = buf
+        else:
+            if action_text and not buf.get('action_text'):
+                buf['action_text'] = action_text
+            if relation_text and not buf.get('relation_text'):
+                buf['relation_text'] = relation_text
         buf['items'].append(item)
+        if len(buf['items']) > MAX_BUFFER_ITEMS:
+            dropped = len(buf['items']) - MAX_BUFFER_ITEMS
+            buf['items'] = buf['items'][-MAX_BUFFER_ITEMS:]
+            logger.warning('聚合缓冲超限截断（丢最旧 %d 条，审计在 watch_triggers）',
+                           dropped, symbol=symbol, account=account)
         buf['low'] = min(buf['low'], float(price))
         buf['high'] = max(buf['high'], float(price))
 
     def maybe_flush(self, now: datetime, market_open: bool = True) -> int:
         """到期/收盘 flush；返回发出的聚合卡张数。每 tick 由引擎调用一次。"""
+        # 跨天清理（2026-10-19）：_flush_counts 以 (date, symbol) 为键，此前只增
+        # 不减——长跑进程每日每标的积一条。flush 起点顺手裁剪非当日条目。
+        if self._flush_counts:
+            today = now.date()
+            stale = [k for k in self._flush_counts if k[0] != today]
+            for k in stale:
+                del self._flush_counts[k]
         flushed = 0
         for key in list(self._buffers.keys()):
             buf = self._buffers[key]
@@ -109,20 +137,30 @@ class ObserveAggregator:
         display = '%s（%s）' % (name, symbol) if name else symbol
         n = len(items)
         last = items[-1]
+        action_text = str(buf.get('action_text') or '').strip()
         lines = [
             '**%s** 今日第 %d 次触发聚合 ｜ 现价 %.2f（区间 %.2f ~ %.2f）'
             % (display, n, float(last.get('price') or 0), buf['low'], buf['high']),
             '最近：%s' % (last.get('message') or '-'),
+            ('**与我何干**：%s' % buf['relation_text']) if buf.get('relation_text') else None,
+            '**建议动作**：%s' % (action_text or '规则未配置操作指引（已派补全任务给 agent）'),
             '逐条溯源：',
         ]
+        def _hm(it):
+            raw = str(it.get('at') or '')
+            # ISO 格式 'YYYY-MM-DDTHH:MM:SS.ffffff' → 取 HH:MM:SS（修 10-19 乱码：
+            # 此前 [-8:] 切到微秒尾数，显示成 6.434938）
+            return raw[11:19] if len(raw) >= 19 else (raw or '-')
+
         lines.extend(
             '- #%s 规则#%s %s %s'
             % (it.get('trigger_id') or '-', it.get('rule_id') or '-',
-               (it.get('at') or '')[-8:] if it.get('at') else '-',
+               _hm(it),
                (it.get('message') or '')[:40])
             for it in items[:10])
         if n > 10:
             lines.append('- … 另有 %d 条（watch_triggers 可溯）' % (n - 10))
+        lines = [ln for ln in lines if ln is not None]
         title = '📋 观察聚合 · %s%s' % (
             symbol, '｜%s' % account if account else '')
         try:

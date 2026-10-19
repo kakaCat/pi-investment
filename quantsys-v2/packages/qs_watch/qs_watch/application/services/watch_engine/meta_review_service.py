@@ -6,9 +6,13 @@
   · idle   一直不响：距上次触发 ≥ T 天 → 价值还在吗？续期/调整/取消？
   · stage  阶段滞留：距上次复核 ≥ T 天且仍在同一阶段 → 推进还是回退？
   · expiry 快到期：expires_at ≤ 2 天 → 续期还是收摊？
+  · unactivated 未激活（2026-10-19 新增）：opportunity_scan 自动建的规则无 intent/无账户
+    （刻意绕开 rule_guard），永远停在 L1 observe 进不了买卖闭环；创建超 N 天
+    （InterventionConfig.meta_unactivated_days，默认 1）仍无 intent → 复核
+    「补 intent+account 激活，或退役」——这是「规则激活」环节挂进现有元复核的最小落地。
   · ~~burst 一直响~~（2026-10-16 REQ-261016155500-4f2a wt:engine:3 **下线**）：与噪音自愈
     （noise_self_heal：单日 ≥3 次 → 抑噪 24h + 修规则待办）双头治理且阈值打架
-    （5 vs 3）——"响得太频"归自愈一家管，本服务只留"不响/滞留/到期"三类。
+    （5 vs 3）——"响得太频"归自愈一家管，本服务只留"不响/滞留/到期/未激活"四类。
 命中即落一条 meta_review 触发（复用 watch_triggers 流转，进未处置清单 → 会被摘要唤醒带走），
 并更新规则的 last_reviewed_at / review_due_at（保证"到期必被 agent 看一次"）。
 
@@ -93,6 +97,21 @@ class WatchMetaReviewService:
                 if ok:
                     reasons.append(why)
 
+            # unactivated（2026-10-19「规则激活」环节）：opportunity_scan 自动建的规则
+            # 无 intent/无账户（刻意绕开 rule_guard），永远停在 L1 observe；创建超 N 天
+            # 仍无 intent → 复核「补 intent+account 激活，或退役」。
+            raw_intent = str(getattr(rule, "intent", "") or "").strip()
+            created_marker = (getattr(rule, "created_from", None)
+                              or getattr(rule, "created_by", None) or "")
+            created_at = getattr(rule, "created_at", None)
+            if (str(created_marker) == "opportunity_scan" and not raw_intent
+                    and created_at is not None):
+                age_days = (now - created_at).days
+                ok, why = evaluate_meta_trigger("unactivated", unactivated_days=age_days,
+                                                cfg=self.cfg)
+                if ok:
+                    reasons.append(why)
+
             if not reasons:
                 continue
 
@@ -102,7 +121,7 @@ class WatchMetaReviewService:
                     rule_id=rule.id,
                     symbol=rule.symbol,
                     condition={"type": "meta_review",
-                               "params": {"kinds": ["idle", "stage", "expiry"],
+                               "params": {"kinds": ["idle", "stage", "expiry", "unactivated"],
                                           "intent": intent}},
                     trigger_price=None,
                     detail={"message": reason, "intent": intent,

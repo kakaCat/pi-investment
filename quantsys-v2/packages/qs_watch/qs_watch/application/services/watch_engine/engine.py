@@ -13,6 +13,7 @@ import structlog
 
 from qs_watch.application.services.watch_engine.conditions import (
     DEFAULT_DAILY_EMIT_CAP, EvalContext, evaluate,
+    freshness_of,
 )
 from qs_watch.application.services.watch_engine.rule_evaluator import RuleEvaluator
 from qs_watch.application.services.watch_engine.state_manager import StateManager
@@ -105,8 +106,7 @@ class WatchEngine:
                  digest_service=None, ledger=None, meta_review_service=None,
                  position_lifecycle_service=None, market_watch_service=None,
                  runtime_state_store=None,
-                 todo_service=None, receipt_service=None, sla_job=None,
-                 self_heal_service=None, observe_agg=None):
+                 todo_service=None, observe_agg=None):
         self.rule_repo = rule_repo
         self.quote_service = quote_service
         self.notifier = notifier
@@ -182,13 +182,16 @@ class WatchEngine:
         # 市场级盯盘（P6）：指数/涨停家数/情绪/量能/板块——盯盘是紧盯市场的工具
         self.market_watch_service = market_watch_service
         # ── 闭环装配（REQ-c9f899 t12 §6-项8）──────────────────────────────
-        # 仅当 WATCH_TODO_ENABLED 开启时由 factory 注入（TodoService/ReceiptService/
-        # WatchSlaJob/NoiseSelfHealService）；默认 None → 引擎行为与改造前一致：
-        # 不建待办、通知不带级别（旧渲染路径）。
+        # 仅当 WATCH_TODO_ENABLED 开启时由 factory 注入 TodoService；默认 None →
+        # 引擎行为与改造前一致：不建待办、通知不带级别（旧渲染路径）。
+        # 2026-10-19 清死注入：receipt_service/sla_job/self_heal_service 此前注入后
+        # 全包零调用（回执/SLA 巡检在 inbound 定时任务侧，自愈由 interval job 调起），
+        # 已从构造函数移除——它们不属于引擎的依赖面。
         self.todo_service = todo_service
-        self.receipt_service = receipt_service
-        self.sla_job = sla_job
-        self.self_heal_service = self_heal_service
+        # sidecar 线程句柄（B-8：摘要门/元复核/持仓联动移出 tick 热路径）
+        self._sidecar_thread: Optional[threading.Thread] = None
+        # A2：上一轮 tick 耗时（毫秒），供 get_metrics 观测
+        self._last_tick_ms: Optional[int] = None
         # （原此处重复声明 _avg_volume_cache，已随 P1 清理；
         #   触发事件日志与跨天日期已移入 StateManager）
         self.fast_mode = False
@@ -207,7 +210,18 @@ class WatchEngine:
 
     def stop(self):
         self._stopped = True
-        self._heartbeat_stop.set()   # 心跳线程随引擎一并停止（优雅退出）
+        self._heartbeat_stop.set()   # 心跳/sidecar 线程随引擎一并停止（优雅退出）
+        # 回收线程池（2026-10-19）：均量取数池与 WS 广播池此前无回收路径
+        try:
+            self.evaluator.shutdown()
+        except Exception:  # noqa: BLE001 - 停止路径不许抛
+            pass
+        try:
+            shutdown_ws = getattr(self.notifier, 'shutdown', None)
+            if callable(shutdown_ws):
+                shutdown_ws()
+        except Exception:  # noqa: BLE001
+            pass
 
     def get_metrics(self) -> Dict[str, Any]:
         """引擎运行指标（只读，无副作用）
@@ -221,6 +235,9 @@ class WatchEngine:
             'fast_mode': self.fast_mode,
             'base_interval': self.base_interval,
             'fast_interval': self.fast_interval,
+            # A2：上一轮 tick 耗时（毫秒）——慢 tick 此前完全不可见
+            'last_tick_ms': self._last_tick_ms,
+            'sidecar_running': bool(self._sidecar_thread and self._sidecar_thread.is_alive()),
             # 心跳可观测（REQ-c9f899 t10）：外部排障时先看这三项——
             # last_at 为空 = 从未写出心跳（未启用或写失败）；failures>0 = 存活信号在丢。
             'heartbeat_enabled': _heartbeat_enabled(),
@@ -287,6 +304,78 @@ class WatchEngine:
         logger.info('WatchEngine 心跳线程已启动', interval_sec=self._heartbeat_interval_sec)
         return self._heartbeat_thread
 
+    # ── sidecar（B-8：摘要门/元复核/持仓联动的独立巡检线程）────────────
+
+    def _ensure_sidecar_thread(self):
+        """摘要门/元触发复核/持仓生命周期联动的独立线程（2026-10-19）。
+
+        这三个任务此前串在 tick 热路径上：摘要门投递（agent 离线 10s 超时）或
+        每日任务一慢，判定节拍就被推迟（2026-10-16 事故只修了心跳、没修主循环，
+        本线程是那个缺口的闭环）。幂等：重复调用返回既有线程；三个服务都没装配
+        时不起线程（行为与改造前一致）。复用心跳的 stop 事件，随引擎一并停止。
+        """
+        if self._sidecar_thread is not None:
+            return self._sidecar_thread
+        if (self.digest_service is None and self.meta_review_service is None
+                and self.position_lifecycle_service is None):
+            return None
+
+        def _loop():
+            while not self._stopped:
+                try:
+                    self._run_sidecar(self.now_fn())
+                except Exception as e:  # noqa: BLE001 - 双保险（内部已逐块隔离）
+                    logger.error('sidecar 巡检异常', error=str(e))
+                self._heartbeat_stop.wait(30)   # 30s 一拍；stop 即醒
+            logger.info('WatchEngine sidecar 线程已停止')
+
+        self._sidecar_thread = threading.Thread(
+            target=_loop, name='watch-sidecar', daemon=True)
+        self._sidecar_thread.start()
+        logger.info('WatchEngine sidecar 线程已启动（摘要门/元复核/持仓联动）')
+        return self._sidecar_thread
+
+    def _run_sidecar(self, now) -> None:
+        """摘要门 + 每日一次任务（原 run_forever 热路径块的平移，语义不变）。"""
+        from qs_ops.application.services.trading_day_guard import TradingDayGuard
+        if not (TradingDayGuard.is_trading_day(now.date())
+                and self.is_trading_time(now.time())):
+            return
+        from infrastructure.persistence.orm import close_session
+        # 摘要门：队列非空 + 冷却窗 + 当日预算（状态落库，重启不清零）
+        try:
+            if self.digest_service is not None:
+                self.digest_service.maybe_wake(now)
+        except Exception as e:
+            logger.error('摘要门异常', error=str(e))
+        finally:
+            close_session()
+        # 元触发复核：每日一次（规则不能无限期盯下去，RFC 014 v3 §13）
+        try:
+            if (self.meta_review_service is not None
+                    and self._last_meta_scan_date != now.date()):
+                summary = self.meta_review_service.scan(now)
+                self._last_meta_scan_date = now.date()
+                if summary.get('raised'):
+                    logger.info('元触发复核完成', raised=summary['raised'])
+        except Exception as e:
+            logger.error('元触发复核异常', error=str(e))
+        finally:
+            close_session()
+        # 持仓生命周期联动：每日一次（买入完成/清仓收摊，RFC 014 v3 §2.3）
+        try:
+            if (self.position_lifecycle_service is not None
+                    and self._last_lifecycle_date != now.date()):
+                s = self.position_lifecycle_service.reconcile(now)
+                self.position_lifecycle_service.expire_overdue_rules(now)
+                self._last_lifecycle_date = now.date()
+                if s.get('retired') or s.get('created'):
+                    logger.info('持仓生命周期联动完成', retired=s['retired'], created=s['created'])
+        except Exception as e:
+            logger.error('持仓生命周期联动异常', error=str(e))
+        finally:
+            close_session()
+
     # ── 主循环 ──────────────────────────────────────────────
 
     def run_forever(self):
@@ -299,13 +388,24 @@ class WatchEngine:
                 logger.info('运行态恢复完成', rows=restored, degraded=self.state.degraded)
         except Exception as e:  # 双保险：restore 已自吞异常，启动不许被它打断
             logger.error('运行态恢复异常', error=str(e))
+        # sidecar 线程：摘要门/元复核/持仓联动（B-8）——幂等，未装配服务时不起
+        self._ensure_sidecar_thread()
         # 2026-09-11（w-f4aa1f6a 步2）：交易日判断收敛到唯一入口（原为只判周末）
-        from application.services.trading_day_guard import TradingDayGuard
+        from qs_ops.application.services.trading_day_guard import TradingDayGuard  # 2026-10-19：L1 shim → qs_ops 真身
         while not self._stopped:
             now = self.now_fn()
-            # 心跳（t10）：线程若死，外部巡检据此发现"引擎不再产生心跳"
-            self._write_heartbeat(now)
+            # 心跳（t10）：线程若死，外部巡检据此发现"引擎不再产生心跳"。
+            # 2026-10-19 双写竞态修正：独立心跳线程（spawn_heartbeat_thread，factory
+            # 启动时拉起）已按 interval 续写；主循环只在心跳线程未启动时兜底写
+            # （standalone/测试场景）——两路无锁并发写 _heartbeat_store/_last_heartbeat_at
+            # 是竞态源，生产路径只留心跳线程一路。
+            if self._heartbeat_thread is None:
+                self._write_heartbeat(now)
             if TradingDayGuard.is_trading_day(now.date()) and self.is_trading_time(now.time()):
+                # B-8（2026-10-19）：摘要门/元复核/持仓联动已移入 sidecar 线程
+                # （_ensure_sidecar_thread），本循环只剩判定热路径——2026-10-16 事故
+                # 的完整修复：那次只把心跳挪出主循环，慢任务仍挡 tick。
+                tick_started = time_module.monotonic()
                 try:
                     self.tick()
                 except Exception as e:
@@ -319,39 +419,12 @@ class WatchEngine:
                         close_session()
                     except Exception:
                         pass
-                # 摘要门：队列非空 + 冷却窗 + 当日预算（状态落库，重启不清零）
-                try:
-                    if self.digest_service is not None:
-                        self.digest_service.maybe_wake(now)
-                except Exception as e:
-                    logger.error('摘要门异常', error=str(e))
-                finally:
-                    close_session()
-                # 元触发复核：每日一次（规则不能无限期盯下去，RFC 014 v3 §13）
-                try:
-                    if (self.meta_review_service is not None
-                            and self._last_meta_scan_date != now.date()):
-                        summary = self.meta_review_service.scan(now)
-                        self._last_meta_scan_date = now.date()
-                        if summary.get('raised'):
-                            logger.info('元触发复核完成', raised=summary['raised'])
-                except Exception as e:
-                    logger.error('元触发复核异常', error=str(e))
-                finally:
-                    close_session()
-                # 持仓生命周期联动：每日一次（买入完成/清仓收摊，RFC 014 v3 §2.3）
-                try:
-                    if (self.position_lifecycle_service is not None
-                            and self._last_lifecycle_date != now.date()):
-                        s = self.position_lifecycle_service.reconcile(now)
-                        self._last_lifecycle_date = now.date()
-                        if s.get('retired') or s.get('created'):
-                            logger.info('持仓生命周期联动完成', retired=s['retired'], created=s['created'])
-                except Exception as e:
-                    logger.error('持仓生命周期联动异常', error=str(e))
-                finally:
-                    close_session()
-                interval = self.fast_interval if self.fast_mode else self.base_interval
+                # A2（2026-10-19）：间隔补偿 + 耗时可观测——慢 tick 不再让判定节拍
+                # 整体漂移（此前固定 sleep，tick 卡 5 分钟节拍就漂移 5 分钟）。
+                elapsed = time_module.monotonic() - tick_started
+                self._last_tick_ms = int(elapsed * 1000)
+                interval = max(1.0, (self.fast_interval if self.fast_mode
+                                     else self.base_interval) - elapsed)
             else:
                 interval = 60  # 非交易时段低频心跳
             time_module.sleep(interval)
@@ -376,21 +449,50 @@ class WatchEngine:
         rules = self.rule_repo.list_enabled()
         events = []
         fast = False
-        # 同 tick 同 symbol 只推一个价格点（2026-10-16）：同一标的多条规则各自推点
-        # 会产生同 ts 重复行，批量 upsert 的 ON CONFLICT 直接抛 CardinalityViolation，
-        # 整批运行态回滚（实测 watch_price_history 0 行、冷却/去重每 tick 全丢）。
-        history_pushed: Set[str] = set()
 
+        # 活性过滤：活跃窗口 + 抑噪留样短路（P1-6，2026-10-19：已留样的抑噪规则
+        # 不取价不评估——归档样本每日一条已够复盘，再评估是纯浪费且灌归档表喂大
+        # 噪音统计）。
+        active_rules = []
         for rule in rules:
             if not self._in_active_window(rule, now):
                 continue
-            quote = self.quote_service.get_realtime_quote(rule.symbol)
+            if (rule.id in self.state.suppressed_reported
+                    and noise_policy.is_suppressed(getattr(rule, 'noise_state', None),
+                                                   getattr(rule, 'suppress_until', None), now)):
+                continue
+            active_rules.append(rule)
+
+        # A1（2026-10-19）：同 tick 同 symbol 只取一次价——此前同标的 N 条规则每 tick
+        # 发 N 次行情请求，规则多时 tick 时长线性膨胀。按 symbol 去重取价后逐规则
+        # 共享同一 quote（价格点天然一致）。
+        # 价格历史也按 symbol 推一次：同 tick 同 symbol 重复推点会产生同 ts 重复行，
+        # 批量 upsert 的 ON CONFLICT 直接抛 CardinalityViolation（2026-10-16 实测
+        # watch_price_history 0 行、冷却/去重每 tick 全丢）。
+        quotes: Dict[str, Any] = {}
+        quote_error_symbols: Set[str] = set()
+        for symbol in dict.fromkeys(r.symbol for r in active_rules):   # 保序去重
+            try:
+                quotes[symbol] = self.quote_service.get_realtime_quote(symbol)
+            except Exception as e:
+                # 取价异常隔离（P0-1）：数据源抖一次只让该标的本轮失明
+                logger.error('取价异常跳过（本轮该标的规则失明，其余标的不受影响）',
+                             symbol=symbol, error=str(e))
+                quote_error_symbols.add(symbol)
+        for symbol, quote in quotes.items():
+            if quote is not None:
+                self._push_history(symbol, now, float(quote.price))
+
+        for rule in active_rules:
+            if rule.symbol in quote_error_symbols:
+                continue   # 异常已记日志（上方取价循环）
+            quote = quotes.get(rule.symbol)
             if quote is None:
                 logger.warning('取价失败跳过', symbol=rule.symbol)
+                self._note_quote_failure(rule, now)
                 continue
-            if rule.symbol not in history_pushed:
-                self._push_history(rule.symbol, now, float(quote.price))
-                history_pushed.add(rule.symbol)
+            if self.state.quote_fail_days.get(rule.symbol):
+                self.state.quote_fail_days[rule.symbol] = 0
             ctx = self._build_ctx(rule, now)
 
             for idx, cond in enumerate(rule.conditions):
@@ -401,210 +503,22 @@ class WatchEngine:
                     continue
                 if result.distance_ratio is not None and result.distance_ratio <= self.buffer_ratio:
                     fast = True
-                # 三段判定（闩锁/冷却/迟滞带）委托 TriggerJudge：未触发→迟滞带内保持
-                # 闩锁、带外重新武装；持续成立→不重复；冷却内→跳过。
-                # value=result.value：price_break 的迟滞带按现价判定（combined/velocity
-                # 等非价格条件 value 语义不同或为空 → within_hysteresis_band 直接放行）。
-                if not self.judge.should_emit(rule.id, idx, result.triggered, cond, now,
-                                              value=result.value):
-                    continue
-
-                # ── 每日通知上限短路（REQ-261016155500-4f2a wt:engine:1）──────────
-                # 每规则每条件每日 ≤ DEFAULT_DAILY_EMIT_CAP 次通知：超限不通知、不建待办、
-                # 不进摘要队列，只落一条 suppressed=true 归档（与抑噪同通道，reason 区分）。
-                if self.judge.daily_emit_exceeded(rule.id, idx, now):
-                    capped = self._record_suppressed_trigger(
-                        rule, cond, quote, result, reason=DAILY_CAP_REASON)
-                    self.judge.mark_emitted(rule.id, idx, now, rule.symbol)
-                    events.append({'rule_id': rule.id, 'symbol': rule.symbol,
-                                   'condition': cond, 'price': float(quote.price),
-                                   'message': result.message,
-                                   'disposition': DISPOSITION_AUTO_OBSERVED,
-                                   'disposition_reason': DAILY_CAP_REASON,
-                                   'dup_of': None,
-                                   'trigger_id': getattr(capped, 'id', None),
-                                   'trigger_level': self._get_trigger_level(rule),
-                                   'suppressed': True,
-                                   'notified': False})
-                    logger.info('日上限触发已归档（不推送/不进队列）', rule_id=rule.id,
-                                symbol=rule.symbol,
-                                trigger_id=getattr(capped, 'id', None))
-                    continue
-
-                # ── 抑噪期短路（REQ-c9f899 R6 / t8）──────────────────────────
-                # 该规则反复触发、已被 NoiseSelfHealService 置抑噪态（noise_state +
-                # suppress_until）：本次触发不升级、**不进摘要队列、不建待办**
-                # （修规则待办已由自愈 scan 建好），只落一条 suppressed=true 的归档触发
-                # 供聚合与复盘；到点自动恢复原级别。判据复用 noise_policy.is_suppressed
-                # 单一事实源（与自愈服务同源，不新造第二份口径）。
-                if noise_policy.is_suppressed(getattr(rule, 'noise_state', None),
-                                              getattr(rule, 'suppress_until', None), now):
-                    suppressed_trigger = self._record_suppressed_trigger(rule, cond, quote, result)
-                    self.judge.mark_emitted(rule.id, idx, now, rule.symbol)
-                    events.append({'rule_id': rule.id, 'symbol': rule.symbol,
-                                   'condition': cond, 'price': float(quote.price),
-                                   'message': result.message,
-                                   'disposition': DISPOSITION_AUTO_OBSERVED,
-                                   'disposition_reason': SUPPRESSED_TRIGGER_REASON,
-                                   'dup_of': None,
-                                   'trigger_id': getattr(suppressed_trigger, 'id', None),
-                                   'trigger_level': self._get_trigger_level(rule),
-                                   'suppressed': True,
-                                   'notified': False})
-                    logger.info('抑噪期触发已归档（不推送/不进队列）', rule_id=rule.id,
-                                symbol=rule.symbol,
-                                trigger_id=getattr(suppressed_trigger, 'id', None))
-                    continue
-                
-                # 升级检查：L0/L1 触发满足条件时自动升级为 L2（委托 EscalationCoordinator）
-                escalation_reason = self.escalation.check(rule, cond, quote, result, now)
-                trigger_level = self._get_trigger_level(rule)
-                
-                # ── 处置决策（REQ-f08def）─────────────────────────────
-                # 机械优先：去重合并 / observe 类归档当场收敛（零 LLM），
-                # 只有 L2 或升级触发才进 agent 摘要队列（用户硬约束：token 成本）。
-                # escalation_reason 带进处置结论（2026-09-14）：此前 decide() 只收到
-                # escalated 布尔，固定回一句「升级策略命中（L1→L2）」，使「哪条升级
-                # 路径命中」在库里不可考（核查时曾被此误导）。
-                disposition, disposition_reason = self.disposition.decide(
-                    rule, cond, quote, escalated=bool(escalation_reason),
-                    escalation_reason=escalation_reason)
-                # 去重：同标的同向窗内合并；跨规则重叠另转治理（每对每天一次）。
-                # 守卫（REQ-261016155500-4f2a wt:engine:2）：dedup 命中**不再无条件**改判
-                # deduped——escalated/exit_stop 是宪法级消息（止损被吞 = 资损风险），
-                # 只合并展示（标注先响规则）照发不误；其余处置维持合并不通知。
-                outcome = self.dedup.check(rule, cond, now)
-                dup_of = None
-                merged_from_rule = None
-                if outcome.is_duplicate:
-                    if disposition in ('pending', 'auto_observed', 'ignored', 'expired'):
-                        disposition = 'deduped'
-                        disposition_reason = self.dedup.reason_text(outcome)
-                        dup_of = outcome.dup_of
-                    else:
-                        merged_from_rule = outcome.prev_rule_id
-                        disposition_reason = (
-                            (disposition_reason + '；') if disposition_reason else ''
-                        ) + '与规则#%s 同事件（60s 窗内），已合并展示但不吞消息' % (
-                            outcome.prev_rule_id)
-                    if outcome.overlap_pair:
-                        reason = self.dedup.overlap_reason(outcome.overlap_pair, outcome.key)
-                        try:
-                            self.notifier.record_governance(
-                                rule, reason,
-                                {'overlap_with_rule': outcome.overlap_pair[0],
-                                 'key': list(outcome.key)})
-                            logger.info('规则重叠已转治理',
-                                        rules=list(outcome.overlap_pair),
-                                        key=list(outcome.key))
-                        except Exception as e:
-                            logger.error('规则重叠治理项记录失败', error=str(e))
-
-                try:
-                    # 金额门取数复用一次（与级别判定的"是否持仓"输入同源，避免重复查库）
-                    action_amount = self._position_value(rule)
-                    # 按级别渲染（t12 §6-项1）：仅闭环开启（todo_service 注入）时给级别；
-                    # 否则 None → 通知保持旧渲染（默认行为与改造前一致）。
-                    notify_level = self._notify_level(rule, disposition,
-                                                      has_position=bool(action_amount))
-                    notify_kwargs = dict(
-                        escalation_reason=escalation_reason,
-                        disposition=disposition,
-                        disposition_reason=disposition_reason,
-                        dup_of=dup_of,
-                        action_amount_yuan=action_amount,
-                        merged_from_rule=merged_from_rule,
-                    )
-                    if notify_level:
-                        notify_kwargs['level'] = notify_level
-                    # 观察聚合路由（REQ-261016155500-4f2a wt:validate:1）：无判据 observe
-                    # 触发不进即时通道，落库后入 15 分钟聚合缓冲（卡内逐条可溯源）；
-                    # 有判据 observe 与 escalated/pending 等需动作类照旧即时单发。
-                    if (self.observe_agg is not None
-                            and self.observe_agg.should_buffer(rule, disposition)):
-                        buffer_reason = ((disposition_reason or '')
-                                         + '；已进 15 分钟聚合缓冲（合屏发送）')
-                        trigger = self.notifier.record_only(
-                            rule, cond, quote, result, disposition=disposition,
-                            disposition_reason=buffer_reason)
-                        disposition_reason = buffer_reason
-                        self.observe_agg.add(
-                            getattr(rule, 'linked_account', None) or getattr(rule, 'account', None),
-                            rule.symbol,
-                            {'rule_id': rule.id,
-                             'trigger_id': getattr(trigger, 'id', None),
-                             'message': result.message,
-                             'price': float(quote.price),
-                             'name': getattr(quote, 'name', None),
-                             'at': now.isoformat()},
-                            now, float(quote.price))
-                    else:
-                        trigger = self.notifier.notify(rule, cond, quote, result, **notify_kwargs)
-                except Exception as e:
-                    # 不闩锁、不记 _last_triggered，下个 tick 重试（at-least-once）
-                    logger.error('通知发送失败', rule_id=rule.id, cond=cond, error=str(e))
-                    continue
-                # 送达成功才算一次「日通知」（上限计数的事实源）：notifier 内部吞发送
-                # 异常并以 trigger.notified 反映结果，失败不计数、行为与改前一致。
-                if trigger is None or getattr(trigger, 'notified', False):
-                    self.judge.bump_daily_emit(rule.id, idx, now)
-                # ── 落待办（REQ-c9f899 t12）：闭环唯一载体 ────────────────────────
-                # 触发 → 待办是「L1→L2→L3 晋升 + 到期巡检 + 三段回执」的载体；没有它闭环空转。
-                # 位置说明（对父指令的 1 处偏差，已在汇报声明）：待办需要 trigger_id 做溯源与
-                # 幂等（同一触发最多一条待办）+ 回填 watch_triggers.todo_id，而 trigger_id 只在
-                # notifier.notify 落完触发记录后才存在，故创建紧跟在 notify 返回之后（不是之前）。
-                # 失败只记日志，绝不打断通知/记账/闩锁（tick 的 at-least-once 靠后续触发重试）。
-                try:
-                    self._create_watch_todo(rule, now, disposition, trigger, notify_level)
-                except Exception as e:  # 双保险：helper 已自吞异常，tick 不许被打挂
-                    logger.error('建待办异常（tick 继续）', rule_id=rule.id, error=str(e))
-                if disposition != 'deduped':
-                    self.dedup.mark_notified(rule, cond, now,
-                                             getattr(trigger, 'id', 0) or 0)
-                if disposition == 'escalated':
-                    # 增量门 + 预算记账：escalated = 进 agent 摘要队列 = 一次潜在介入
-                    norm = normalize_symbol(rule.symbol)
-                    intent = str(getattr(rule, 'intent', '') or '') or                         str((rule.action_hint or {}).get('action_on_trigger', '') if isinstance(getattr(rule, 'action_hint', None), dict) else '')
-                    self.state.last_intervention[(norm, intent or 'unknown')] = now
-                    self.state.interventions_today += 1
-                    if self.ledger is not None:
-                        self.ledger.record(
-                            symbol=rule.symbol, intent=(intent or None), rule_id=rule.id,
-                            trigger_kind='price', outcome='escalated',
-                            trigger_ids=[getattr(trigger, 'id', None)],
-                        )
-                self.judge.mark_emitted(rule.id, idx, now, rule.symbol)
-                # 未送达不闩锁（REQ-261016155500-4f2a wt:engine:2）：notifier 先落库后
-                # 发送，失败时 trigger.notified=False——回退闩锁/冷却（保留事件日志），
-                # 下个 tick 重判再走 notify 的补发短路（同一 trigger 行重发，不新建不双发）。
-                if trigger is not None and not getattr(trigger, 'notified', False):
-                    self.state.latched.discard((rule.id, idx))
-                    self.state.last_triggered.pop((rule.id, idx), None)
-                # 可观测性（2026-09-11，w-aebfddcd E2E 发现）：事件必须带**处置结论**，
-                # 否则调用方无法区分"命中并通知"与"命中但被去重/被预算压掉"，只能回查库。
-                # disposition 即答案：escalated/pending=进队列并推送；deduped=只归档不打扰；
-                # auto_observed/ignored/expired=记录但不打扰。
-                # notified 口径（REQ-261016155500-4f2a wt:engine:2）：与 notifier 真实发送
-                # 结果一致（trigger.notified）——此前 auto_observed 实际已推送却记 False，
-                # 观测口径撒谎会误导排障。
-                events.append({'rule_id': rule.id, 'symbol': rule.symbol,
-                               'condition': cond, 'price': float(quote.price),
-                               'message': result.message,
-                               'disposition': disposition,
-                               'disposition_reason': disposition_reason,
-                               'dup_of': dup_of,
-                               'merged_from_rule': merged_from_rule,
-                               'trigger_id': getattr(trigger, 'id', None),
-                               'trigger_level': trigger_level,
-                               'notified': bool(getattr(trigger, 'notified', False))})
+                self._process_condition(rule, idx, cond, quote, result, now, events)
 
         # 去重窗裁剪：清掉已过期的键，避免长跑进程内的无界增长（委托 StateManager）
         self.state.prune_dedup(now)
 
-        # 市场级规则扫描（P6）：与个股 tick 分开的数据通道；服务自带节流与闩锁
+        # 市场级规则扫描（P6，2026-10-19 并入主流水线）：取数/评估/节流在市场服务，
+        # 触发后的闩锁/冷却/日上限/抑噪/升级/处置/去重/通知/待办与个股**完全同路**
+        # （_process_condition）——此前市场级命中 notified=False 写死、闩锁纯内存、
+        # 不占预算、不建待办，即使判出 escalated 也无人接收（半条流水线）。
         try:
             if self.market_watch_service is not None:
-                self.market_watch_service.scan_market_rules(now)
+                for cand in (self.market_watch_service.scan_market_rules(now)
+                             .get('evaluated') or []):
+                    self._process_condition(
+                        cand['rule'], cand['idx'], cand['cond'],
+                        cand['quote'], cand['result'], now, events)
         except Exception as e:
             logger.error('市场级扫描异常', error=str(e))
 
@@ -626,6 +540,264 @@ class WatchEngine:
 
         self.fast_mode = fast
         return events
+
+    def _process_condition(self, rule, idx: int, cond: dict, quote, result,
+                           now, events) -> None:
+        """单条条件的「评估后」流水线（个股与市场级共用，2026-10-19 提取）。
+
+        覆盖：闩锁/冷却/迟滞 → 陈旧驻留 → 日上限（宪法豁免）→ 抑噪 → 升级 →
+        处置五门 → 去重/重叠治理 → 通知或聚合缓冲 → 日通知计数 → 待办 →
+        介入记账 → 止损使命退役 → 闩锁回退 → 事件记录。
+
+        为什么提取：市场级规则（P6）此前走「半条流水线」（notified=False 写死、
+        闩锁纯内存、不占预算、不建待办）——评估器不同（MarketRuleEvaluator 吃
+        市场快照），但评估之后的路**完全相同**。market scan 把评估结果连同
+        quote 轻量投影（price=指标值）喂进本方法，两条数据通道共用一条处置链。
+        返回 None；产出的事件追加进 events（tick 的返回载体）。
+        """
+        # 三段判定（闩锁/冷却/迟滞带）委托 TriggerJudge：未触发→迟滞带内保持
+        # 闩锁、带外重新武装；持续成立→不重复；冷却内→跳过。
+        # value=result.value：price_break 的迟滞带按现价判定（combined/velocity
+        # 等非价格条件 value 语义不同或为空 → within_hysteresis_band 直接放行）。
+        if not self.judge.should_emit(rule.id, idx, result.triggered, cond, now,
+                                      value=result.value):
+            return
+
+        # ── 陈旧驻留判定（2026-10-19 用户裁定）─────────────────────
+        # 昨收已在触发侧 = 非今日新穿越（零信息增量）：它不是市场事件，
+        # 是规则失真信号。不发消息不进缓冲，闩锁锁住（今日不再报），
+        # 每规则每日落一条「阈值失真」治理项进 agent 摘要队列。
+        if freshness_of(cond, getattr(quote, 'prev_close', None)) is False:
+            self._handle_stale_residency(rule, idx, cond, quote, result, now)
+            return
+
+        # ── 每日通知上限短路（REQ-261016155500-4f2a wt:engine:1）──────────
+        # 每规则每条件每日 ≤ DEFAULT_DAILY_EMIT_CAP 次通知：超限不通知、不建待办、
+        # 不进摘要队列，只落一条 suppressed=true 归档（与抑噪同通道，reason 区分）。
+        # 宪法豁免（2026-10-19）：exit_stop 等宪法级意图不适用日上限——与 dedup
+        # 守卫同源裁定（止损被吞 = 资损风险）。注意本判定在升级检查之前，故
+        # 「L1 升级成 L2」的触发仍受上限约束，只有规则意图本身宪法级才豁免。
+        if (self.judge.daily_emit_exceeded(rule.id, idx, now)
+                and not self._is_constitutional(rule)):
+            capped = self._record_suppressed_trigger(
+                rule, cond, quote, result, reason=DAILY_CAP_REASON)
+            self.judge.mark_emitted(rule.id, idx, now, rule.symbol)
+            events.append({'rule_id': rule.id, 'symbol': rule.symbol,
+                           'condition': cond, 'price': float(quote.price),
+                           'message': result.message,
+                           'disposition': DISPOSITION_AUTO_OBSERVED,
+                           'disposition_reason': DAILY_CAP_REASON,
+                           'dup_of': None,
+                           'trigger_id': getattr(capped, 'id', None),
+                           'trigger_level': self._get_trigger_level(rule),
+                           'suppressed': True,
+                           'notified': False})
+            logger.info('日上限触发已归档（不推送/不进队列）', rule_id=rule.id,
+                        symbol=rule.symbol,
+                        trigger_id=getattr(capped, 'id', None))
+            return
+
+        # ── 抑噪期短路（REQ-c9f899 R6 / t8）──────────────────────────
+        # 该规则反复触发、已被 NoiseSelfHealService 置抑噪态（noise_state +
+        # suppress_until）：本次触发不升级、**不进摘要队列、不建待办**
+        # （修规则待办已由自愈 scan 建好），只落一条 suppressed=true 的归档触发
+        # 供聚合与复盘；到点自动恢复原级别。判据复用 noise_policy.is_suppressed
+        # 单一事实源（与自愈服务同源，不新造第二份口径）。
+        if noise_policy.is_suppressed(getattr(rule, 'noise_state', None),
+                                      getattr(rule, 'suppress_until', None), now):
+            # 归档节流（P1-6，2026-10-19）：抑噪期每日每规则只留一条 suppressed
+            # 样本（账不丢、可复盘），后续触发只闩锁/冷却不再落库——否则会按
+            # 冷却周期灌归档表，且这些行会喂大自愈的噪音统计（自反馈）。
+            if rule.id in self.state.suppressed_reported:
+                suppressed_trigger = None
+            else:
+                self.state.suppressed_reported.add(rule.id)
+                suppressed_trigger = self._record_suppressed_trigger(rule, cond, quote, result)
+            self.judge.mark_emitted(rule.id, idx, now, rule.symbol)
+            events.append({'rule_id': rule.id, 'symbol': rule.symbol,
+                           'condition': cond, 'price': float(quote.price),
+                           'message': result.message,
+                           'disposition': DISPOSITION_AUTO_OBSERVED,
+                           'disposition_reason': SUPPRESSED_TRIGGER_REASON,
+                           'dup_of': None,
+                           'trigger_id': getattr(suppressed_trigger, 'id', None),
+                           'trigger_level': self._get_trigger_level(rule),
+                           'suppressed': True,
+                           'notified': False})
+            logger.info('抑噪期触发已归档（不推送/不进队列）', rule_id=rule.id,
+                        symbol=rule.symbol,
+                        trigger_id=getattr(suppressed_trigger, 'id', None))
+            return
+        
+        # 升级检查：L0/L1 触发满足条件时自动升级为 L2（委托 EscalationCoordinator）
+        escalation_reason = self.escalation.check(rule, cond, quote, result, now)
+        trigger_level = self._get_trigger_level(rule)
+        
+        # ── 处置决策（REQ-f08def）─────────────────────────────
+        # 机械优先：去重合并 / observe 类归档当场收敛（零 LLM），
+        # 只有 L2 或升级触发才进 agent 摘要队列（用户硬约束：token 成本）。
+        # escalation_reason 带进处置结论（2026-09-14）：此前 decide() 只收到
+        # escalated 布尔，固定回一句「升级策略命中（L1→L2）」，使「哪条升级
+        # 路径命中」在库里不可考（核查时曾被此误导）。
+        disposition, disposition_reason = self.disposition.decide(
+            rule, cond, quote, escalated=bool(escalation_reason),
+            escalation_reason=escalation_reason)
+        # 去重：同标的同向窗内合并；跨规则重叠另转治理（每对每天一次）。
+        # 守卫（REQ-261016155500-4f2a wt:engine:2）：dedup 命中**不再无条件**改判
+        # deduped——escalated/exit_stop 是宪法级消息（止损被吞 = 资损风险），
+        # 只合并展示（标注先响规则）照发不误；其余处置维持合并不通知。
+        outcome = self.dedup.check(rule, cond, now)
+        dup_of = None
+        merged_from_rule = None
+        if outcome.is_duplicate:
+            if disposition in ('pending', 'auto_observed', 'ignored', 'expired'):
+                disposition = 'deduped'
+                disposition_reason = self.dedup.reason_text(outcome)
+                dup_of = outcome.dup_of
+            else:
+                merged_from_rule = outcome.prev_rule_id
+                disposition_reason = (
+                    (disposition_reason + '；') if disposition_reason else ''
+                ) + '与规则#%s 同事件（%ds 窗内），已合并展示但不吞消息' % (
+                    outcome.prev_rule_id, self.dedup_window_sec)
+            if outcome.overlap_pair:
+                reason = self.dedup.overlap_reason(outcome.overlap_pair, outcome.key)
+                try:
+                    self.notifier.record_governance(
+                        rule, reason,
+                        {'overlap_with_rule': outcome.overlap_pair[0],
+                         'key': list(outcome.key)})
+                    logger.info('规则重叠已转治理',
+                                rules=list(outcome.overlap_pair),
+                                key=list(outcome.key))
+                except Exception as e:
+                    logger.error('规则重叠治理项记录失败', error=str(e))
+
+        try:
+            # 金额门取数复用一次（与级别判定的"是否持仓"输入同源，避免重复查库）
+            action_amount = self._position_value(rule)
+            # 按级别渲染（t12 §6-项1）：仅闭环开启（todo_service 注入）时给级别；
+            # 否则 None → 通知保持旧渲染（默认行为与改造前一致）。
+            notify_level = self._notify_level(rule, disposition,
+                                              has_position=bool(action_amount))
+            notify_kwargs = dict(
+                escalation_reason=escalation_reason,
+                disposition=disposition,
+                disposition_reason=disposition_reason,
+                dup_of=dup_of,
+                action_amount_yuan=action_amount,
+                merged_from_rule=merged_from_rule,
+            )
+            if notify_level:
+                notify_kwargs['level'] = notify_level
+            # 观察聚合路由（REQ-261016155500-4f2a wt:validate:1）：无判据 observe
+            # 触发不进即时通道，落库后入 15 分钟聚合缓冲（卡内逐条可溯源）；
+            # 有判据 observe 与 escalated/pending 等需动作类照旧即时单发。
+            buffered = (self.observe_agg is not None
+                        and self.observe_agg.should_buffer(rule, disposition))
+            if buffered:
+                buffer_reason = ((disposition_reason or '')
+                                 + '；已进 15 分钟聚合缓冲（合屏发送）')
+                trigger = self.notifier.record_only(
+                    rule, cond, quote, result, disposition=disposition,
+                    disposition_reason=buffer_reason)
+                disposition_reason = buffer_reason
+                from qs_watch.domain.watch.services.watch_message import (
+                    relation_of, resolve_action,
+                )
+                self.observe_agg.add(
+                    getattr(rule, 'linked_account', None) or getattr(rule, 'account', None),
+                    rule.symbol,
+                    {'rule_id': rule.id,
+                     'trigger_id': getattr(trigger, 'id', None),
+                     'message': result.message,
+                     'price': float(quote.price),
+                     'name': getattr(quote, 'name', None),
+                     'at': now.isoformat()},
+                    now, float(quote.price),
+                    action_text=resolve_action(
+                        action_params=getattr(rule, 'action_params', None),
+                        next_action_hint=getattr(rule, 'next_action_hint', None),
+                        intent=getattr(rule, 'intent', None),
+                        rule_id=rule.id).text,
+                    relation_text=relation_of(
+                        rule,
+                        self._pnl_of(rule, quote)))
+            else:
+                trigger = self.notifier.notify(rule, cond, quote, result, **notify_kwargs)
+        except Exception as e:
+            # 不闩锁、不记 _last_triggered，下个 tick 重试（at-least-once）
+            logger.error('通知发送失败', rule_id=rule.id, cond=cond, error=str(e))
+            return
+        # 送达成功才算一次「日通知」（上限计数的事实源）：notifier 内部吞发送
+        # 异常并以 trigger.notified 反映结果，失败不计数、行为与改前一致。
+        # 聚合缓冲也计入日上限（2026-10-19）：缓冲路径 trigger.notified 恒 False
+        # （设计上不单发），此前 observe 聚合通道完全不受日上限约束——恰是噪音
+        # 最大的通道。入缓冲即计一次（用户会在聚合卡里看到它）。
+        if buffered or trigger is None or getattr(trigger, 'notified', False):
+            self.judge.bump_daily_emit(rule.id, idx, now)
+        # ── 落待办（REQ-c9f899 t12）：闭环唯一载体 ────────────────────────
+        # 触发 → 待办是「L1→L2→L3 晋升 + 到期巡检 + 三段回执」的载体；没有它闭环空转。
+        # 位置说明（对父指令的 1 处偏差，已在汇报声明）：待办需要 trigger_id 做溯源与
+        # 幂等（同一触发最多一条待办）+ 回填 watch_triggers.todo_id，而 trigger_id 只在
+        # notifier.notify 落完触发记录后才存在，故创建紧跟在 notify 返回之后（不是之前）。
+        # 失败只记日志，绝不打断通知/记账/闩锁（tick 的 at-least-once 靠后续触发重试）。
+        # 聚合缓冲的触发不建待办（2026-10-19）：无判据 observe 属「记录不打扰」，
+        # 且聚合卡最长 15 分钟后才到用户——待办 SLA 时钟不应早于用户可见。
+        if not buffered:
+            try:
+                self._create_watch_todo(rule, now, disposition, trigger, notify_level)
+            except Exception as e:  # 双保险：helper 已自吞异常，tick 不许被打挂
+                logger.error('建待办异常（tick 继续）', rule_id=rule.id, error=str(e))
+        if disposition != 'deduped':
+            self.dedup.mark_notified(rule, cond, now,
+                                     getattr(trigger, 'id', 0) or 0)
+        if disposition == 'escalated':
+            # 增量门 + 预算记账：escalated = 进 agent 摘要队列 = 一次潜在介入
+            norm = normalize_symbol(rule.symbol)
+            intent = str(getattr(rule, 'intent', '') or '') or                         str((rule.action_hint or {}).get('action_on_trigger', '') if isinstance(getattr(rule, 'action_hint', None), dict) else '')
+            self.state.last_intervention[(norm, intent or 'unknown')] = now
+            self.state.interventions_today += 1
+            if self.ledger is not None:
+                self.ledger.record(
+                    symbol=rule.symbol, intent=(intent or None), rule_id=rule.id,
+                    trigger_kind='price', outcome='escalated',
+                    trigger_ids=[getattr(trigger, 'id', None)],
+                )
+        # ── 止损使命完成自动退役（2026-10-19 用户裁定：过期的由引擎处理）─
+        # exit_stop 触发即消费：这条止损线已被穿越，无论用户是否执行卖出，
+        # 原阈值都已失效（再挂只会变成陈旧驻留噪音）。引擎直接退役规则并
+        # 落治理注记——未平仓的新风控线由 agent 起草、用户确认后重建。
+        self._maybe_retire_executed_stop(rule, disposition, now)
+        self.judge.mark_emitted(rule.id, idx, now, rule.symbol)
+        # 未送达不闩锁（REQ-261016155500-4f2a wt:engine:2）：notifier 先落库后
+        # 发送，失败时 trigger.notified=False——回退闩锁/冷却（保留事件日志），
+        # 下个 tick 重判再走 notify 的补发短路（同一 trigger 行重发，不新建不双发）。
+        if (not buffered and trigger is not None
+                and not getattr(trigger, 'notified', False)):
+            # ⚠️ 聚合缓冲路径（buffered=True）的 trigger.notified 恒为 False
+            # （设计上就不单发），绝不可走这里——否则闩锁/冷却每发即毁，
+            # 规则每 60s dedup 窗口到期就复读（2026-10-19 实测规则 #239
+            # 6 分钟触发 25 次的根因）。
+            self.state.latched.discard((rule.id, idx))
+            self.state.last_triggered.pop((rule.id, idx), None)
+        # 可观测性（2026-09-11，w-aebfddcd E2E 发现）：事件必须带**处置结论**，
+        # 否则调用方无法区分"命中并通知"与"命中但被去重/被预算压掉"，只能回查库。
+        # disposition 即答案：escalated/pending=进队列并推送；deduped=只归档不打扰；
+        # auto_observed/ignored/expired=记录但不打扰。
+        # notified 口径（REQ-261016155500-4f2a wt:engine:2）：与 notifier 真实发送
+        # 结果一致（trigger.notified）——此前 auto_observed 实际已推送却记 False，
+        # 观测口径撒谎会误导排障。
+        events.append({'rule_id': rule.id, 'symbol': rule.symbol,
+                       'condition': cond, 'price': float(quote.price),
+                       'message': result.message,
+                       'disposition': disposition,
+                       'disposition_reason': disposition_reason,
+                       'dup_of': dup_of,
+                       'merged_from_rule': merged_from_rule,
+                       'trigger_id': getattr(trigger, 'id', None),
+                       'trigger_level': trigger_level,
+                       'notified': bool(getattr(trigger, 'notified', False))})
 
     # ── 内部 ────────────────────────────────────────────────
 
@@ -861,6 +1033,135 @@ class WatchEngine:
     def _get_trigger_level(self, rule) -> str:
         """委托 EscalationCoordinator（保留入口名）"""
         return self.escalation._get_trigger_level(rule)
+
+    @staticmethod
+    def _is_constitutional(rule) -> bool:
+        """宪法级意图判定（止损等）：日上限豁免判据（2026-10-19）。
+
+        复用 domain 的 intent_of + CONSTITUTIONAL_INTENTS 单一事实源。判定失败
+        按非宪法处理（维持上限）——宁可多归档一条，不在异常路径上放开噪音闸。
+        """
+        try:
+            from qs_watch.domain.watch.services.disposition import (
+                CONSTITUTIONAL_INTENTS, intent_of,
+            )
+            return intent_of(rule) in CONSTITUTIONAL_INTENTS
+        except Exception as e:  # noqa: BLE001
+            logger.warning('宪法意图判定失败，按非宪法处理（日上限仍生效）',
+                           rule_id=getattr(rule, 'id', None), error=str(e))
+            return False
+
+    #: 连续多少个交易日取数失败报「疑似停牌/退市」治理项
+    QUOTE_FAIL_GOVERNANCE_DAYS = 3
+
+    def _note_quote_failure(self, rule, now):
+        """取数失败计数：连续 N 个交易日失败 → 每规则每日一条停牌/退市治理项。
+
+        此前取数失败只是静默跳过——规则对停牌/退市标的永久失效且无人发现。
+        """
+        sym = str(rule.symbol)
+        n = self.state.quote_fail_days.get(sym, 0) + 1
+        self.state.quote_fail_days[sym] = n
+        if n < self.QUOTE_FAIL_GOVERNANCE_DAYS or sym in self.state.quote_fail_reported:
+            return
+        self.state.quote_fail_reported.add(sym)
+        try:
+            self.notifier.record_governance(
+                rule,
+                '疑似停牌/退市：标的 %s 连续 %d 个交易日取数失败 → 建议复核标的状态，'
+                '确认后退役规则（取数失败期规则等同失效）' % (sym, n),
+                {'quote_fail_days': n, 'suspected_halt': True})
+            logger.warning('连续取数失败已转治理', symbol=sym, days=n)
+        except Exception as e:  # noqa: BLE001
+            logger.error('停牌治理项记录失败', symbol=sym, error=str(e))
+
+    def _maybe_retire_executed_stop(self, rule, disposition, now):
+        """止损触发后自动退役规则（exit_stop 使命完成）。
+
+        只处理 exit_stop：止损即清仓，线破 = 使命完成。
+        exit_reduce/exit_take_profit（减仓档）是部分动作，不退役——剩余仓位
+        的后续风控线由 agent 复核（治理项已在 digest 链路）。
+        deduped/suppressed 的触发不算消费（那是一次合并/归档，不是线破事件本身）。
+        """
+        if str(getattr(rule, 'intent', '') or '') != 'exit_stop':
+            return
+        if disposition in ('deduped',):
+            return
+        if not getattr(rule, 'enabled', True):
+            return
+        # 用户真身账户的规则归属用户本人（2026-10-19 用户裁定："拿着，不应该修改
+        # 规则"）——止损触发≠止损执行，用户可能继续持有，而原止损线仍是用户的
+        # 有效指令。引擎**不退役不修改**，只落治理注记提示 agent 来向用户确认；
+        # agent 自有账户（agent_brain/agent_virtual）才走自动退役。
+        acct = getattr(rule, 'linked_account', None) or getattr(rule, 'account', None)
+        if acct == 'user_main_simulation':
+            try:
+                self.notifier.record_governance(
+                    rule,
+                    '止损线已触发（用户账户）：现价已穿越止损线，规则保持原样不改动——'
+                    '请 agent 向用户确认：已执行止损则规则可退役；继续持有则需用户'
+                    '指定新风控线（引擎不代改）。',
+                    {'user_account_stop_triggered': True})
+                logger.info('用户账户止损触发已转治理（规则不改动）',
+                            rule_id=rule.id, symbol=rule.symbol)
+            except Exception as e:  # noqa: BLE001
+                logger.error('用户止损治理注记失败', rule_id=rule.id, error=str(e))
+            return
+        try:
+            banner = ('[止损已触发 %s] 阈值线已被穿越，规则使命完成，引擎自动退役。'
+                      '未平仓的新风控线由 agent 起草、用户确认后重建。'
+                      % now.strftime('%Y-%m-%d %H:%M'))
+            notes = list(getattr(rule, 'ops_notes', None) or [])
+            notes.append({'at': now.isoformat(), 'by': 'watch_engine/stop_retire',
+                          'text': banner})
+            self.rule_repo.update_fields(
+                rule.id, enabled=False, lifecycle_stage='closed', ops_notes=notes)
+            logger.info('止损规则已自动退役', rule_id=rule.id, symbol=rule.symbol)
+        except Exception as e:  # noqa: BLE001 - 退役失败不阻断 tick（下轮重试）
+            logger.error('止损规则自动退役失败', rule_id=getattr(rule, 'id', None),
+                         error=str(e))
+
+    @staticmethod
+    def _pnl_of(rule, quote):
+        """规则成本价 → 当前浮盈亏 %（无成本价返回 None；relation_of 的消费端）。"""
+        cost = getattr(rule, 'cost_price', None)
+        if not cost:
+            return None
+        try:
+            return round((float(quote.price) - float(cost)) / float(cost) * 100, 2)
+        except (TypeError, ValueError, ZeroDivisionError):
+            return None
+
+    def _handle_stale_residency(self, rule, idx, cond, quote, result, now):
+        """陈旧驻留处置（2026-10-19）：闩锁 + 每日一次阈值失真治理项（不进用户群）。
+
+        闩锁必须置上：否则下一 tick 还会命中同一条件。治理项每规则每日一条
+        （state.stale_reported 去重），经 record_governance 落 meta_review
+        进 agent 摘要队列——规则失真是 agent 该修的活，不是用户该看的事。
+        """
+        self.judge.mark_emitted(rule.id, idx, now, rule.symbol)
+        if rule.id in self.state.stale_reported:
+            return
+        self.state.stale_reported.add(rule.id)
+        try:
+            threshold = float((cond.get('params') or {}).get('price'))
+            price = float(quote.price)
+            dev = (price - threshold) / abs(threshold) * 100
+        except (TypeError, ValueError, ZeroDivisionError):
+            dev = None
+        reason = ('阈值失真：现价 %.2f 偏离阈值 %.2f（%+.1f%%），昨收已在触发侧'
+                  '（陈旧驻留，非新穿越）→ 建议调阈值或退役此规则'
+                  % (float(quote.price), threshold, dev)) if dev is not None else (
+                  '阈值失真：昨收已在触发侧（陈旧驻留）→ 建议调阈值或退役此规则')
+        try:
+            self.notifier.record_governance(
+                rule, reason,
+                {'stale_residency': True,
+                 'deviation_pct': round(dev, 2) if dev is not None else None})
+            logger.info('陈旧驻留已转治理（不发消息）', rule_id=rule.id,
+                        symbol=rule.symbol)
+        except Exception as e:  # noqa: BLE001 - 治理项失败不阻断 tick
+            logger.error('陈旧驻留治理项记录失败', rule_id=rule.id, error=str(e))
 
     def _record_suppressed_trigger(self, rule, cond, quote, result,
                                    reason=None):

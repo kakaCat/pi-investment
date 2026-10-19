@@ -3,18 +3,20 @@
 用户的定位：盯盘是「紧盯市场情况的工具」。此前引擎只能盯个股，指数/板块/情绪/量能进不来。
 
 职责（应用层编排；判定在领域服务 MarketRuleEvaluator，取数在适配器 MarketStateProvider）：
-  1) scan_market_rules：评估 scope=market/sector 的启用规则 → 命中则落触发（走同一处置口径）
-     市场级观察类命中默认落 auto_observed（零 LLM，只更新认识）——这是"眼睛常睁、脑子少动"。
+  1) scan_market_rules：评估 scope=market/sector 的启用规则，把**评估结果**（含 quote
+     轻量投影）交回引擎——触发后的闩锁/冷却/日上限/抑噪/升级/处置/去重/通知/待办
+     全部走引擎 _process_condition 主流水线（2026-10-19 并入：此前本服务自行落库，
+     notified=False 写死、闩锁纯内存、不占预算、不建待办，escalated 也无人接收）。
   2) summary_text：产出「市场状态摘要」，供摘要唤醒时内嵌（agent 不必再逐个工具取数）。
 
-闩锁语义与个股一致：条件由"未成立→成立"才报一次，条件回落即重新武装（避免持续成立刷屏）。
+闩锁/冷却语义与个股完全一致：由引擎 TriggerJudge 承担（运行态持久化后重启不重报）。
 """
 from datetime import datetime
+from types import SimpleNamespace
 from typing import Any, Dict, List, Optional
 
 import structlog
 
-from qs_watch.domain.watch.services.disposition import GateContext, decide
 from qs_watch.domain.watch.services.market_rule_evaluator import MarketRuleEvaluator
 
 logger = structlog.get_logger(__name__)
@@ -27,31 +29,36 @@ class MarketWatchService:
     def __init__(self, rule_repo, trigger_repo, state_provider=None, evaluator=None,
                  trigger_interval_sec: int = 300):
         self.rule_repo = rule_repo
+        # trigger_repo 保留在签名里（装配兼容）；落库自 2026-10-19 起由引擎主流水线承担
         self.trigger_repo = trigger_repo
         self.state_provider = state_provider
         self.evaluator = evaluator or MarketRuleEvaluator()
         self.trigger_interval_sec = trigger_interval_sec
-        self._latched: set = set()
-        self._state_date = None
         self._last_scan_at: Optional[datetime] = None
 
     # ── 市场级规则扫描 ────────────────────────────────────────
     def scan_market_rules(self, now: Optional[datetime] = None) -> Dict[str, Any]:
+        """评估市场级规则，返回摘要 + evaluated 候选清单（引擎主流水线的输入）。
+
+        每条 evaluated：{rule, idx, cond, result, quote}——quote 是指标值的轻量投影
+        （price=指标值；prev_close/volume/change_pct=None，市场条件没有这些维度）。
+        未触发项也在清单内：闩锁的「回落重新武装」判定在引擎侧（TriggerJudge）。
+        """
         now = now or datetime.now()
-        if self._state_date != now.date():
-            self._latched.clear()
-            self._state_date = now.date()
         if self.state_provider is None:
-            return {"skipped": "未注入市场状态端口", "scanned": 0, "triggered": 0}
+            return {"skipped": "未注入市场状态端口", "scanned": 0, "triggered": 0,
+                    "evaluated": []}
         if (self._last_scan_at is not None
                 and (now - self._last_scan_at).total_seconds() < self.trigger_interval_sec):
-            return {"skipped": "未到扫描间隔", "scanned": 0, "triggered": 0}
+            return {"skipped": "未到扫描间隔", "scanned": 0, "triggered": 0,
+                    "evaluated": []}
         self._last_scan_at = now
 
         state = self.state_provider.get_state()
         rules = [r for r in self.rule_repo.list_enabled()
                  if (getattr(r, "scope", None) in MARKET_SCOPES)]
-        triggered: List[Dict[str, Any]] = []
+        evaluated: List[Dict[str, Any]] = []
+        triggered_n = 0
         skipped_data = 0
 
         for rule in rules:
@@ -61,50 +68,32 @@ class MarketWatchService:
                 except Exception as e:
                     logger.error("市场级条件评估异常", rule_id=rule.id, error=str(e))
                     continue
-                key = (rule.id, idx)
                 if res.skipped:
                     skipped_data += 1
                     continue
-                if not res.triggered:
-                    self._latched.discard(key)   # 回落 → 重新武装
-                    continue
-                if key in self._latched:
-                    continue
-                self._latched.add(key)
-                rec = self._record(rule, cond, res, now)
-                if rec:
-                    triggered.append(rec)
+                if res.triggered:
+                    triggered_n += 1
+                evaluated.append({"rule": rule, "idx": idx, "cond": cond,
+                                  "result": res,
+                                  "quote": self._quote_like(rule, res)})
 
-        return {"scanned": len(rules), "triggered": len(triggered),
+        return {"scanned": len(rules), "triggered": triggered_n,
                 "skipped_no_data": skipped_data, "degraded": list(state.degraded),
-                "details": triggered}
+                "evaluated": evaluated}
 
-    def _record(self, rule, condition, res, now) -> Optional[Dict[str, Any]]:
-        intent = getattr(rule, "intent", None)
-        disposition, reason = decide(
-            rule, condition, escalated=False,
-            gate=GateContext(intent=intent, trigger_kind="price", daily_wake_count=0),
+    @staticmethod
+    def _quote_like(rule, res) -> Any:
+        """市场评估结果 → 个股 quote 的轻量投影（主流水线的适配层）。
+
+        price=指标值（触发落库的 trigger_price 与通知里的「现价」位都用它；
+        市场条件的语义在 result.message 里已完整表达）。其余维度市场快照没有，
+        一律 None——freshness/volume_surge 等个股专属判定对 None 天然短路。
+        """
+        return SimpleNamespace(
+            symbol=getattr(rule, "symbol", ""),
+            price=float(res.value) if res.value is not None else 0.0,
+            name=None, prev_close=None, change_pct=None, volume=None,
         )
-        try:
-            self.trigger_repo.record(
-                rule_id=rule.id,
-                symbol=rule.symbol,
-                condition=condition,
-                trigger_price=res.value,
-                detail={"value": res.value, "message": res.message,
-                        "market_scope": getattr(rule, "scope", None)},
-                notified=False,
-                disposition=disposition,
-                disposition_reason="市场级：%s（%s）" % (res.message, reason),
-                disposition_by="system",
-            )
-        except Exception as e:
-            logger.error("市场级触发落库失败", rule_id=rule.id, error=str(e))
-            return None
-        logger.info("市场级规则命中", rule_id=rule.id, symbol=rule.symbol,
-                    message=res.message, disposition=disposition)
-        return {"rule_id": rule.id, "symbol": rule.symbol, "message": res.message,
-                "disposition": disposition, "value": res.value}
 
     # ── 市场状态摘要（供摘要唤醒内嵌）──────────────────────────
     def summary_text(self) -> str:

@@ -193,6 +193,11 @@ def delete_rule(rule_id: int):
     rule_repo = WatchRuleRepository()
     if rule_repo.get_by_id(rule_id) is None:
         return _err('规则不存在', 404)
+    # 级联归档（2026-10-19）：规则删除后其未收敛待办成孤儿，触发链已断——
+    # 先埋掉再删规则，否则 SLA 巡检会继续晋升/超时打扰用户（静默，不发回执）。
+    from adapters.outbound.repositories.watch_todo_repository import WatchTodoRepository
+    WatchTodoRepository().close_open_by_rule(
+        rule_id, close_reason='盯盘规则已删除，此提醒单随之自动归档，无需处理')
     rule_repo.delete_by_id(rule_id)
     return {'success': True}
 

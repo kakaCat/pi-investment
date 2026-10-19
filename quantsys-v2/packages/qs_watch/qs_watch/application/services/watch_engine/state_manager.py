@@ -68,10 +68,11 @@ class StateManager:
         self.last_triggered: Dict[Tuple[int, int], datetime] = {}
         # 价格历史缓冲：symbol -> [(ts, price)]，供 velocity 条件
         self.history: Dict[str, List[Tuple[datetime, float]]] = {}
-        # 去重窗：key=(归一化标的, 方向) -> (最近触发时间, 触发记录 id, 规则 id)
+        # 去重窗：key=(账户, 归一化标的, 方向) -> (最近触发时间, 触发记录 id, 规则 id)
+        # 账户必须在键里（2026-10-19）：账户是投送维度，跨账户合并不合法。
         # 带 rule_id 才能分辨「同一条规则多条件重复」（物理去重，保留）
         # 与「跨规则重叠」（业务问题，转治理）
-        self.recent_notified: Dict[Tuple[str, str], Tuple[datetime, int, int]] = {}
+        self.recent_notified: Dict[Tuple[str, str, str], Tuple[datetime, int, int]] = {}
         # 跨规则重叠已上报的规则对
         self.overlap_reported: Set[Tuple[int, int]] = set()
         # 增量门：key=(归一化标的, 意图) -> 最近介入时间
@@ -81,6 +82,16 @@ class StateManager:
         # 触发事件日志：频率升级与多规则共振统计的**单一事实源**
         # （2026-09-14：原两条路径共用 last_triggered，而它是覆盖写、且不含 symbol）
         self.trigger_events: List[Tuple[datetime, int, str]] = []
+        # 陈旧驻留治理项每日去重（2026-10-19）：rule_id 集合——同规则每天最多报一次
+        # 「阈值失真」治理项（不持久化：重启当日至多重报一次，可接受）
+        self.stale_reported: set = set()
+        # 停牌/退市检测（2026-10-19）：symbol -> 连续取数失败交易日数 + 当日已报集合
+        self.quote_fail_days: Dict[str, int] = {}
+        self.quote_fail_reported: set = set()
+        # 抑噪期归档留样每日去重（2026-10-19，P1-6）：rule_id 集合——抑噪期每日每规则
+        # 最多落一条 suppressed 归档样本（账不丢），后续触发只闩锁不落库（不灌归档表、
+        # 不喂大自愈噪音统计）。不持久化：重启当日至多补一条样本，可接受。
+        self.suppressed_reported: set = set()
         # 每日通知计数（REQ-261016155500-4f2a）：key=(rule_id, cond_idx) -> (date, n)
         # 上限 DEFAULT_DAILY_EMIT_CAP，超限只归档不通知；随 runtime state 持久化，
         # 重启不丢（否则日上限在重启后形同虚设）。
@@ -111,7 +122,7 @@ class StateManager:
 
         # ── 返工 B+C：去重窗 / 事件窗 / 价格历史的增量落库台账 ──────────
         # 已持久化的去重键快照：key -> (notified_at, trigger_id, rule_id)；flush 据此只写变化
-        self._persisted_dedup: Dict[Tuple[str, str],
+        self._persisted_dedup: Dict[Tuple[str, str, str],
                                     Tuple[datetime, int, int]] = {}
         # 新触发事件（尚未落库）：append 成功即清空；失败保留重试（事件表主键幂等）
         self._pending_events: List[Tuple[datetime, int, str]] = []
@@ -184,6 +195,9 @@ class StateManager:
         self.interventions_today = 0
         self.trigger_events = []
         self.daily_emit_counts.clear()
+        self.stale_reported.clear()
+        self.quote_fail_reported.clear()
+        self.suppressed_reported.clear()
         if active_rule_ids is not None:
             self.last_triggered = {k: v for k, v in self.last_triggered.items()
                                    if k[0] in active_rule_ids}
@@ -331,7 +345,10 @@ class StateManager:
         cutoff = now - timedelta(seconds=self.dedup_window_sec)
         for row in rows:
             try:
-                key = (str(row['symbol']), str(row['direction']))
+                # key=(账户, 标的, 方向)；2026-10-19 前的旧行无 account 列值，
+                # 归一化为 ''——不会误配新键（新键带真实账户），窗口外自然过期。
+                key = (str(row.get('account') or ''),
+                       str(row['symbol']), str(row['direction']))
                 at = self._naive(row.get('notified_at'))
             except (KeyError, TypeError, ValueError):
                 logger.warning('去重行格式非法，已跳过', row=repr(row)[:200])
@@ -490,8 +507,9 @@ class StateManager:
             if self._persisted_dedup.get(key) == val:
                 continue                       # 未变化：不重写（节流）
             changed.append((key, val, {
-                'symbol': key[0],
-                'direction': key[1],
+                'account': key[0],
+                'symbol': key[1],
+                'direction': key[2],
                 'notified_at': val[0],
                 'trigger_id': val[1] if len(val) > 1 else None,
                 'rule_id': val[2] if len(val) > 2 else None,

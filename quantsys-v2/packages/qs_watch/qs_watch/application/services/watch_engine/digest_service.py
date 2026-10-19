@@ -68,12 +68,80 @@ class WatchDigestService:
     # ── 状态（落库，重启不清零）──────────────────────────────
     def _load_state(self):
         if self.state_repo is None:
-            return {"last_wake_at": None, "wake_date": None, "wake_count": 0}
-        return self.state_repo.load_state()
+            return {"last_wake_at": None, "wake_date": None, "wake_count": 0,
+                    "wake_marks": {}}
+        state = self.state_repo.load_state()
+        state.setdefault("wake_marks", {})   # 旧端口实现/fake 无逐账户水位（兼容）
+        return state
 
-    def _save_wake(self, now) -> None:
-        if self.state_repo is not None:
+    def _save_wake(self, now, account=None) -> None:
+        if self.state_repo is None:
+            return
+        try:
+            self.state_repo.save_wake(now, account=account)
+        except TypeError:
+            # 兼容旧端口实现/fake（无逐账户水位形参）：退化为全局水位
             self.state_repo.save_wake(now)
+
+    def _save_wake_mark(self, account, at) -> None:
+        """钉某账户水位（失败不推进）。旧端口/fake 无此方法时降级为不动（日志留痕）。"""
+        if self.state_repo is None:
+            return
+        saver = getattr(self.state_repo, 'save_wake_mark', None)
+        if not callable(saver):
+            logger.debug('状态端口不支持逐账户水位（save_wake_mark 缺失），按旧语义运行')
+            return
+        try:
+            saver(account, at)
+        except Exception as e:  # noqa: BLE001 - 水位失败不阻断唤醒主流程
+            logger.warning('逐账户水位钉入失败（下轮按全局水位重试）',
+                           account=account, error=str(e))
+
+    @staticmethod
+    def _parse_wake_marks(raw) -> Dict[str, datetime]:
+        """wake_marks（{账户: ISO 串}）→ {账户: datetime}；坏值跳过（不阻断唤醒门）"""
+        marks: Dict[str, datetime] = {}
+        for acct, iso in (raw or {}).items():
+            try:
+                marks[str(acct)] = datetime.fromisoformat(str(iso))
+            except (TypeError, ValueError):
+                logger.warning('逐账户水位格式非法，按无水位处理', account=acct, raw=iso)
+        return marks
+
+    @staticmethod
+    def _effective_since(marks: Dict[str, datetime], last_at) -> Optional[datetime]:
+        """增量段起点 = 全部水位中最旧的（失败账户的水位保持旧值 → 其触发留在段内）。
+
+        迁移期兼容：wake_marks 为空时退化为全局 last_at（行为与改前一致）。
+        """
+        candidates = list(marks.values()) + ([last_at] if last_at is not None else [])
+        return min(candidates) if candidates else None
+
+    @staticmethod
+    def _segment_has_new(seg: Dict[str, Any], mark: datetime) -> bool:
+        """该账户分段里是否有水位之后的新触发（ISO 串同格式字典序可比）。"""
+        iso = mark.isoformat()
+        for g in seg.get("groups") or []:
+            for it in (g.get("items") or []):
+                if (it.get("triggered_at") or "") >= iso:
+                    return True
+        return False
+
+    @staticmethod
+    def _segment_oldest(seg: Dict[str, Any]) -> Optional[datetime]:
+        """分段内最旧触发时间（首轮失败时的水位钉值：该账户本轮窗口的真实起点）。"""
+        oldest = None
+        for g in seg.get("groups") or []:
+            for it in (g.get("items") or []):
+                ts = it.get("triggered_at") or None
+                if ts and (oldest is None or ts < oldest):
+                    oldest = ts
+        if oldest is None:
+            return None
+        try:
+            return datetime.fromisoformat(oldest)
+        except (TypeError, ValueError):
+            return None
 
     def build_digest(self, since: Optional[datetime] = None,
                      account: Optional[str] = None) -> Dict[str, Any]:
@@ -289,13 +357,16 @@ class WatchDigestService:
             return {"woke": False, "reason": "非交易时段"}
         state = self._load_state()
         last_at, wake_date, wake_count = state["last_wake_at"], state["wake_date"], state["wake_count"]
+        marks = self._parse_wake_marks(state.get("wake_marks"))
         if wake_date != now.date():
             wake_count = 0
         if last_at is not None and (now - last_at).total_seconds() < self.min_interval_sec:
             return {"woke": False, "reason": "距上次唤醒 %.0fs < %ds" % ((now - last_at).total_seconds(), self.min_interval_sec)}
         if wake_count >= self.daily_cap:
             return {"woke": False, "reason": "当日唤醒已达上限 %d/%d" % (wake_count, self.daily_cap)}
-        digest = self.build_digest(since=last_at)
+        # 增量段起点按**逐账户水位**取最旧（2026-10-19）：此前全局水位被部分成功的
+        # 账户推进，失败账户的触发被 since 过滤出增量段、只剩 backlog 计数，永久不可见。
+        digest = self.build_digest(since=self._effective_since(marks, last_at))
         if not digest["gate"]:
             return {"woke": False, "reason": "自上次唤醒以来无待处置触发", "count": 0}
         if self.agent_service is None:
@@ -347,6 +418,11 @@ class WatchDigestService:
                     "account": acct, "count": seg["count"],
                     "reason": "策略账户由策略执行，与盯盘无关：不投递 agent；该规则应清理或改归其他账户"})
                 continue
+            # 逐账户水位（2026-10-19）：该账户水位之后没有新触发 → 不唤醒、不消耗预算
+            # （它的条目可能只是因别家失败把 effective_since 拉旧而再次被扫进来）。
+            acct_mark = marks.get(acc_key) or last_at
+            if acct_mark is not None and not self._segment_has_new(seg, acct_mark):
+                continue
             if wake_count >= self.daily_cap:
                 break
             target_agent = self._resolve_target(acct)
@@ -380,10 +456,18 @@ class WatchDigestService:
             if ok:
                 wake_count += 1
                 delivered += 1
-                self._save_wake(now)
+                # 只推进**本账户**的水位：失败账户的水位不动，其触发下轮仍在增量段
+                self._save_wake(now, account=acc_key)
                 woke_accounts.append(acc_key)
             else:
                 failed.append(acc_key)
+                # 钉住失败账户的水位（不推进）：钉值 = 该账户本轮窗口起点（已有水位
+                # 则用水位，首轮则用分段内最旧触发时间）——下轮 effective_since 取
+                # 最旧水位，本轮未能送达的触发仍留在增量段（修复全局水位被部分成功
+                # 推进、失败账户内容永久掉到 backlog 的缺陷）。
+                pin = acct_mark or self._segment_oldest(seg)
+                if pin is not None:
+                    self._save_wake_mark(acc_key, pin)
         if delivered:
             logger.info("盯盘摘要已按账户唤醒", accounts=woke_accounts,
                         count=digest["count"], groups=digest["group_count"],

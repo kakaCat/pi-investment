@@ -42,7 +42,7 @@ class _Quote:
         self.open = price
         self.high = price
         self.low = price
-        self.prev_close = price
+        self.prev_close = price * 1.1   # 2026-10-19 穿越语义：昨收须在阈值上方才算新鲜穿越
         self.volume = 1_000_000
         self.amount = price * 1_000_000
         self.change_pct = -9.0

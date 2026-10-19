@@ -14,6 +14,7 @@
 - 参考：pi-investment/CLAUDE.md 架构规范章节
 """
 import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 
 import requests
@@ -30,6 +31,15 @@ logger = structlog.get_logger(__name__)
 def _norm_symbol(symbol: str) -> str:
     """'002241.SZ' -> '002241'（stocks 表为纯 6 位代码）。"""
     return (symbol or '').split('.')[0].strip()
+
+
+def _relation_of(rule, pnl_pct):
+    """「与我何干」一句话（统一委托 domain relation_of，单一事实源）。"""
+    try:
+        from qs_watch.domain.watch.services.watch_message import relation_of
+        return relation_of(rule, pnl_pct)
+    except Exception:  # noqa: BLE001 - 失败不阻断通知主路径
+        return None
 
 
 def _same_condition(a: dict, b: dict) -> bool:
@@ -80,6 +90,7 @@ class WatchNotifier:
         retry_interval: float = 1.0,
         notification_facade=None,  # 可选：注入 NotificationFacade 实例
         account_total_provider=None,  # REQ-c9f899 t12：账户总资产取数（金额门），与 factory 同口径
+        name_resolver=None,  # 2026-10-19：StockNameResolver 端口（标的名解析），factory 注入
     ):
         self.trigger_repo = trigger_repo
         self.ws_url = ws_url
@@ -87,9 +98,24 @@ class WatchNotifier:
         self.retry_interval = retry_interval
         #: 账户总资产 provider（factory 注入，避免另造第二份取数口径）
         self._account_total_provider = account_total_provider
+        #: 标的名解析端口（StockNameResolver）；None = 回退旧直连路径（测试/未接线兼容）
+        self._name_resolver = name_resolver
+        #: WS 广播线程池（懒建；shutdown 由 engine.stop 触发）
+        self._ws_pool = None
         
         # 注入或懒加载 NotificationFacade
         self._notification_facade = notification_facade
+
+    def _lookup_stock_name(self, symbol: str) -> Optional[str]:
+        """标的名解析：优先走注入的 StockNameResolver 端口（单一取数口径，
+        批量实现一轮一联查）；未注入时回退旧的直连仓储路径（兼容既有测试）。"""
+        if self._name_resolver is not None:
+            try:
+                return self._name_resolver.resolve_batch([symbol]).get(_norm_symbol(symbol))
+            except Exception as e:  # noqa: BLE001 - 名称是渲染增益，绝不阻断通知
+                logger.debug('标的名端口解析失败', symbol=symbol, error=str(e))
+                return None
+        return _lookup_stock_name(symbol)
 
     def _account_total_yuan(self, rule):
         """账户总资产（元）：供金额门判定。provider 缺失/抛错/取不到 → None（门关闭，不抛错）。
@@ -225,6 +251,10 @@ class WatchNotifier:
             return None
         if prev is None or not _same_condition(getattr(prev, 'condition', None), condition):
             return None
+        # 聚合缓冲条目 notified=False 是设计值（合屏发送），不是"未送达"——不得补发，
+        # 否则同一事件既进聚合卡又被即时补发（双通道重复）。
+        if '聚合缓冲' in str(getattr(prev, 'disposition_reason', '') or ''):
+            return None
         return prev
 
     def _deliver_payload(self, rule, payload) -> bool:
@@ -287,7 +317,7 @@ class WatchNotifier:
             pnl_pct = round((price - float(cost)) / float(cost) * 100, 2)
         
         # 名称兜底
-        name = getattr(quote, 'name', None) or _lookup_stock_name(rule.symbol)
+        name = getattr(quote, 'name', None) or self._lookup_stock_name(rule.symbol)
         
         # 获取 trigger_level（从 action_hint 或 rule 属性）
         trigger_level = 'L1'  # 默认 L1
@@ -347,6 +377,8 @@ class WatchNotifier:
             action_params=getattr(rule, 'action_params', None),
             # REQ-261016155500-4f2a wt:engine:2：dedup 合并展示标注
             merged_from_rule=merged_from_rule,
+            # 2026-10-19：「与我何干」（统一由 domain relation_of 产出）
+            relation=_relation_of(rule, pnl_pct),
         )
 
     def record_governance(self, rule, reason: str, detail: dict = None):
@@ -376,9 +408,20 @@ class WatchNotifier:
             return None
 
     def _broadcast_ws(self, payload: TriggerPayload):
-        """WebSocket 广播"""
+        """WebSocket 广播（fire-and-forget，不阻塞 tick）。
+
+        2026-10-19 异步化：此前同步 requests.post(timeout=3) 在通知主路径上——
+        WS 服务卡住时每条触发最多拖慢 tick 3 秒。现提交到单工线程池：
+        广播是给看板的实时增益，丢了不重试（下一条触发会带新状态），
+        绝不反压到判定循环。
+        """
         if not self.ws_url:
             return
+        if self._ws_pool is None:
+            self._ws_pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix='watch-ws')
+        self._ws_pool.submit(self._post_ws, payload)
+
+    def _post_ws(self, payload: TriggerPayload):
         try:
             requests.post(
                 self.ws_url,
@@ -387,6 +430,12 @@ class WatchNotifier:
             )
         except Exception as e:
             logger.debug('WS 广播失败（忽略）', error=str(e))
+
+    def shutdown(self):
+        """回收 WS 广播线程池（engine.stop 时调用；幂等）。"""
+        if self._ws_pool is not None:
+            self._ws_pool.shutdown(wait=False, cancel_futures=True)
+            self._ws_pool = None
 
     def _record(self, rule, condition, quote, result, notified,
                 disposition: str = None, disposition_reason: str = None, dup_of: int = None):

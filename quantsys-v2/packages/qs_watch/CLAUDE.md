@@ -30,10 +30,12 @@ qs_watch/
 
 ## 依赖边界（方案卡 §11.3）
 
-- 允许：本包 → kernel、→ `qs_market_data`（行情 quote tick）、→ `qs_notification`（通知三件套，白名单既定）、→ `qs_trading`（trading 回调，本就是白名单边 `watch→trading`）
+- 允许：本包 → kernel、→ `qs_market_data`（行情 quote tick / K 线收盘价）、→ `qs_notification`（通知三件套，白名单既定）、→ `qs_trading`（trading 回调，本就是白名单边 `watch→trading`）、→ `qs_ops`（TradingDayGuard）、→ `qs_agenthub`（AgentNotificationService 唤醒通道）
+- pyproject.toml 已声明上述兄弟包依赖（2026-10-19 收口：此前只写 requests/structlog，离开本工作区即坏）
 - **不依赖**：不许包内直连 broker 下单——交易动作仍由 trading 项目依事件/回执决策
-- 暂留 L1 引用（后续收口）：watch 系仓储（watch_rule/watch_receipt/watch_todo 仓储仍在 `adapters/outbound/repositories/`）、`orchestrator_bootstrap` 与 scheduler 装配面（归 ops 阶段）、app 壳 bootstrap（L1 原则）
-- 旧路径兼容 shim 在 L1：`application/services/watch_engine/`（__path__）、`application/services/opportunity_to_watch_rule_service.py`（sys.modules 别名）、`domain/watch/__init__.py`（__path__），30 天观察期后删除
+- 暂留 L1 引用（后续收口）：watch 系仓储（watch_rule/watch_receipt/watch_todo/watch_runtime_state/watch_rule_change/watch_rule_noise/stock_name_resolver 仍在 `adapters/outbound/repositories/`）、持仓/模拟账户仓储（simulation_*，归 qs_trading 项目化时迁出）、`infrastructure.persistence.orm.close_session`（归 kernel S11）、app 壳 bootstrap（L1 原则）
+- 2026-10-19 已收口的原越界项：`WatchSlaJob` 下沉本包（`watch_engine/sla_job.py`，旧 inbound 路径为 shim）；TradingDayGuard → qs_ops；AgentNotificationService → qs_agenthub；K 线收盘价 → qs_market_data 的 DataProviderManager；标的名解析 → StockNameResolver 端口注入（factory 装配 PgStockNameResolver）
+- 旧路径兼容 shim 在 L1：`application/services/watch_engine/`（__path__）、`application/services/opportunity_to_watch_rule_service.py`（sys.modules 别名）、`domain/watch/__init__.py`（__path__）、`adapters/inbound/fastapi_app/watch_sla_job.py`（转发），30 天观察期后删除
 - `watch_triggers` varchar(50) 截断告警（launchd-stderr 预存）：本包域内 dto谁触发谁收，截断问题在 watch 项目化时修
 
 ## 常见任务路径

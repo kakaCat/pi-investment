@@ -81,16 +81,19 @@ def render_watch_message(msg: WatchMessage) -> RenderedMessage:
         meta_bits.append('阶段：' + STAGE_LABELS.get(msg.stage, msg.stage))
     meta_bits.append('账户：' + (msg.account or '通用观察'))
     meta_bits.append('级别：' + level)
+    relation = str(msg.relation or '').strip()
 
     lines = [
         _mode_tag(msg),
         '**' + intent_label + '｜' + display + '**',
         ' · '.join(meta_bits),
+        ('**与我何干**：' + relation) if relation else None,
         '**事实**：' + _fact_line(msg),
         '**意义**：' + (msg.purpose or default_purpose),
         '**建议动作**：' + (msg.action.text or '-'),
         '**重估条件**：' + (msg.reevaluate or '—'),
     ]
+    lines = [ln for ln in lines if ln is not None]
     if msg.escalation_reason:
         lines.append('**升级**：' + msg.escalation_reason)
     if msg.plan:

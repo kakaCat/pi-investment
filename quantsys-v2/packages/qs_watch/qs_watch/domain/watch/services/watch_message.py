@@ -80,7 +80,34 @@ class WatchMessage:
     todo_id: Optional[int] = None
     escalation_reason: Optional[str] = None
     merged_from_rule: Optional[int] = None              # dedup 合并展示标注
-    mode: str = 'direct'                                # direct / agent（L2）
+    mode: str = 'direct'
+    relation: Optional[str] = None                     # 「与我何干」（relation_of 产出）                                # direct / agent（L2）
+
+
+def relation_of(rule: Any = None, pnl_pct: Optional[float] = None,
+                account: Optional[str] = None) -> str:
+    """「与我何干」一句话（2026-10-19 用户裁定）：标的是你的持仓 / 你账户的观察目标 /
+    agent 的观察目标 / 扫描线索——消息第一眼就要说清这条信息和你什么关系。
+
+    纯函数：cost_price / linked_account / account 从 rule 属性取，缺失逐级降级。
+    """
+    rule = rule if rule is not None else type('_E', (), {})()
+    cost = getattr(rule, 'cost_price', None)
+    acct = account or getattr(rule, 'linked_account', None) or getattr(rule, 'account', None)
+    try:
+        cost_f = float(cost) if cost is not None else None
+    except (TypeError, ValueError):
+        cost_f = None
+    if cost_f is not None:
+        base = '持仓视角：成本 ¥%.2f' % cost_f
+        if pnl_pct is not None:
+            base += '（浮%+.2f%%）' % pnl_pct
+        return base
+    if acct == 'user_main_simulation':
+        return '你账户（user_main_simulation）的观察目标'
+    if acct:
+        return '账户 %s 的观察目标（非你的持仓）' % acct
+    return '扫描线索（与你持仓无直接关系）'
 
 
 def intent_meta(intent: Optional[str]) -> Tuple[str, str]:

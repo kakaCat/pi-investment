@@ -10,6 +10,13 @@ requires-python = ">=3.10"
 dependencies = [
     "requests",
     "structlog",
+    # 兄弟二方包（方案卡 docs/plans/package-boundaries-import-linter.md §11.3 白名单）：
+    # 本包 import 它们就必须声明——否则离开本工作区 editable 环境即坏。
+    "qs-kernel",
+    "qs-market-data",
+    "qs-notification",
+    "qs-trading",
+    "qs-ops",
 ]
 
 [tool.setuptools.packages.find]

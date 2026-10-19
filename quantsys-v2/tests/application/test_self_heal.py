@@ -51,7 +51,9 @@ DAY = timedelta(days=1)
 def _rule(rule_id, symbol, account, **over):
     row = {"id": rule_id, "symbol": symbol, "account": account, "linked_account": None,
            "enabled": True, "noise_state": None, "suppress_until": None,
-           "self_heal_count": 0, "last_repair_at": None}
+           "self_heal_count": 0, "last_repair_at": None,
+           "conditions": [{"type": "price_break",
+                           "params": {"direction": "above", "price": 100.0}}]}
     row.update(over)
     return row
 
@@ -64,6 +66,8 @@ class FakeRuleNoiseRepo:
         self.daily = dict(daily or {})
         self.suppressed_calls = []
         self.repaired_calls = []
+        self.config_repairs = []
+        self.fail_config_repair = False
 
     def get_rule(self, rule_id):
         return self.rules.get(rule_id)
@@ -91,6 +95,19 @@ class FakeRuleNoiseRepo:
         row["last_repair_at"] = now
         row["self_heal_count"] = (row.get("self_heal_count") or 0) + 1
         self.repaired_calls.append((rule_id, now))
+
+    def apply_config_repair(self, rule_id, action, after):
+        if self.fail_config_repair:
+            raise RuntimeError("配置落地失败（fake 注入）")
+        unknown = set(after or {}) - {"enabled", "conditions"}
+        if unknown:
+            raise ValueError("配置修复列越白名单：%s" % sorted(unknown))
+        if not after:
+            raise ValueError("配置修复内容为空")
+        row = self.rules[rule_id]
+        for col, value in after.items():
+            row[col] = value
+        self.config_repairs.append((rule_id, action, after))
 
 
 class FakeChangeRepo:
@@ -130,6 +147,7 @@ class FakeTodoRepo:
     def __init__(self):
         self.rows = []
         self._seq = 100
+        self.fail_list_open = False
 
     def create(self, symbol, *, rule_id=None, trigger_id=None, account=None, level,
                flow_state="L1", owner_kind=None, owner_ref=None, autonomy=None,
@@ -145,6 +163,8 @@ class FakeTodoRepo:
         return todo
 
     def list_open_by_rule(self, rule_id, action_kind=None, trigger_id_null=False):
+        if self.fail_list_open:
+            raise RuntimeError("待办查询失败（fake 注入）")
         rows = [r for r in self.rows
                 if r.rule_id == rule_id and r.terminal is None]
         if action_kind:
@@ -434,6 +454,96 @@ def test_apply_repair_change_kind_case_and_space_insensitive():
     assert change_repo.rows[0].change_kind == "retire"
 
 
+# ── 服务：配置类修复真实落地（E1 假修复真放行，2026-10-19）────────────────────
+
+def test_apply_repair_cooldown_lands_config_into_conditions():
+    """E1：cooldown 修复必须把 cooldown_sec 真正写进规则 conditions（不再只写审计）"""
+    service, rule_repo, change_repo, _ = _build(daily=_eight_today(1), clock=lambda: NOW)
+    service.scan(now=NOW)
+    out = service.apply_repair(1, "cooldown", params={"cooldown_sec": 3600},
+                               reason="同一条件反复穿越，冷却 60s→3600s", operator="agent",
+                               now=NOW)
+    # 配置真实落地：每条条件都写上 cooldown_sec=3600
+    conditions = rule_repo.rules[1]["conditions"]
+    assert conditions and all(c["cooldown_sec"] == 3600 for c in conditions)
+    assert conditions[0]["params"]["price"] == 100.0      # 其余字段不动
+    assert rule_repo.config_repairs[0][0] == 1
+    assert rule_repo.config_repairs[0][1] == "cooldown"
+    # 落地成功才清抑噪
+    assert out["rule"]["noise_state"] is None
+    assert rule_repo.repaired_calls and rule_repo.repaired_calls[0][0] == 1
+    # 审计 after 照旧 = params
+    assert change_repo.rows[-1].after == {"cooldown_sec": 3600}
+
+
+def test_apply_repair_threshold_lands_price_into_condition_params():
+    """E1：threshold 修复把新阈值写进每条条件的 params.price（direction 可同改）"""
+    service, rule_repo, _, _ = _build()
+    service.apply_repair(1, "threshold", params={"price": 55.0, "direction": "below"},
+                         reason="阈值贴市价，调到 55 且反向", operator="user")
+    conditions = rule_repo.rules[1]["conditions"]
+    assert all(c["params"]["price"] == 55.0 for c in conditions)
+    assert all(c["params"]["direction"] == "below" for c in conditions)
+
+
+def test_apply_repair_retire_disables_rule():
+    """E1：retire 修复真实停用规则（enabled=False），不是只写一条审计"""
+    service, rule_repo, _, _ = _build()
+    service.apply_repair(1, "retire", reason="规则已失效", operator="agent")
+    assert rule_repo.rules[1]["enabled"] is False
+    assert rule_repo.config_repairs[0][2] == {"enabled": False}
+
+
+def test_apply_repair_split_merge_rejected_as_not_mechanical():
+    """E1：split/merge 无法机械落地 → 响亮拒绝（400），不留任何痕迹、不清抑噪"""
+    service, rule_repo, change_repo, _ = _build(daily=_eight_today(1), clock=lambda: NOW)
+    service.scan(now=NOW)                                   # 先抑噪
+    change_count = len(change_repo.rows)
+    for kind in ("split", "merge"):
+        with pytest.raises(WatchRuleChangeInvalidKind):
+            service.apply_repair(1, kind, reason="结构调整", operator="agent")
+    assert len(change_repo.rows) == change_count            # 没有新增"假修复"审计
+    assert rule_repo.config_repairs == []                   # 没有配置写入
+    assert rule_repo.rules[1]["noise_state"] == "suppressed"  # 抑噪态保留（不振荡）
+
+
+def test_apply_repair_config_landing_failure_keeps_suppression():
+    """E1：配置落地失败 → 抛错且**不清抑噪**（杜绝 suppress→repair→unsuppress 振荡）"""
+    service, rule_repo, change_repo, _ = _build(daily=_eight_today(1), clock=lambda: NOW)
+    service.scan(now=NOW)
+    change_count = len(change_repo.rows)
+    rule_repo.fail_config_repair = True
+    with pytest.raises(RuntimeError):
+        service.apply_repair(1, "cooldown", params={"cooldown_sec": 3600},
+                             reason="冷却延长", operator="agent", now=NOW)
+    assert rule_repo.rules[1]["noise_state"] == "suppressed"  # 抑噪态保留
+    assert rule_repo.repaired_calls == []                     # mark_repaired 未被调用
+    assert len(change_repo.rows) == change_count              # 未写"修复成功"审计
+
+
+def test_apply_repair_config_repair_requires_target_value():
+    """E1：cooldown/threshold 缺目标值（cooldown_sec/price）→ 拒绝（无目标值=假修复）"""
+    service, rule_repo, change_repo, _ = _build()
+    with pytest.raises(WatchRuleChangeInvalidKind):
+        service.apply_repair(1, "cooldown", reason="没给秒数", operator="agent")
+    with pytest.raises(WatchRuleChangeInvalidKind):
+        service.apply_repair(1, "threshold", reason="没给阈值", operator="agent")
+    assert change_repo.rows == []
+    assert rule_repo.config_repairs == []
+
+
+def test_scan_todo_query_failure_skips_rule_fail_closed():
+    """E4：待办幂等查询失败 → fail-closed：本轮跳过该规则自愈（不抑噪/不建待办/不写审计）"""
+    service, rule_repo, change_repo, todo_repo = _build(daily=_eight_today(1))
+    todo_repo.fail_list_open = True
+    result = service.scan(now=NOW)
+    assert result["suppressed"] == []
+    assert result["skipped"] == [{"rule_id": 1, "account": "agent_brain",
+                                  "reason": "todo_query_failed"}]
+    assert rule_repo.rules[1]["noise_state"] is None
+    assert (change_repo.rows, todo_repo.rows) == ([], [])
+
+
 # ── 服务：读侧 noise_status ───────────────────────────────────
 
 def test_noise_status_reports_state_and_counts():
@@ -551,8 +661,9 @@ def test_route_post_repair_404_unknown_rule(client, fake_service):
 
 def test_route_post_repair_user_operator_on_user_account_200(client, fake_service):
     resp = client.post("/api/watch/rules/2/repair",
-                       json={"change_kind": "cooldown", "reason": "冷却延长",
-                             "operator": "user"})
+                       json={"change_kind": "cooldown",
+                             "params": {"cooldown_sec": 3600},
+                             "reason": "冷却延长", "operator": "user"})
     assert resp.status_code == 200, resp.text
     assert resp.json()["data"]["change"]["changed_by"] == "user"
 
@@ -753,7 +864,8 @@ def test_port_method_sets_are_stable():
     assert IWatchRuleChangeRepository.__abstractmethods__ == frozenset(
         {"record", "exists_since", "list_by_rule"})
     assert IWatchRuleNoiseRepository.__abstractmethods__ == frozenset(
-        {"get_rule", "daily_counts", "mark_suppressed", "mark_repaired"})
+        {"get_rule", "daily_counts", "mark_suppressed", "mark_repaired",
+         "apply_config_repair"})
 
 
 def test_adapter_and_fake_signatures_match_ports():
@@ -975,8 +1087,11 @@ def test_real_db_engine_archives_suppressed_trigger_without_new_todo(watch_table
     )
 
     _db_cleanup()
+    # 阈值口径（2026-10-19 陈旧驻留裁定后对齐）：quote 假仓 prev_close=98.0、现价 10.0——
+    # 原 above/1.0 在昨收时已成立（98≥1）属「陈旧驻留」会被提前转治理、走不到抑噪归档；
+    # 改为 below/90.0：昨收 98>90 未成立（今日新穿越）、现价 10≤90 触发，语义不变。
     _seed_db_rule(trigger_count=8, conditions_json=(
-        '[{"type": "price_break", "params": {"direction": "above", "price": 1.0}}]'))
+        '[{"type": "price_break", "params": {"direction": "below", "price": 90.0}}]'))
     try:
         # ① 自愈 scan：置抑噪态 + 建 1 条「修规则」待办
         _real_service().scan(now=datetime.now())

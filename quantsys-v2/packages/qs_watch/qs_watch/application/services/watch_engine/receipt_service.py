@@ -53,9 +53,15 @@ CHANNEL_WATCH_SYMBOL = 'watch_symbol'
 Sender = Callable[[Dict[str, Any]], None]
 
 #: 聚合投递的回执类型（REQ-260924104605-ad0a t4，FR-8）：巡检一轮（begin_group →
-#: flush_grouped）内同 kind 合成**一张卡**；result/suppressed 不在其列——处置结论
-#: 必须即时到达（FR-14），不参与聚合。
+#: flush_grouped）内同 kind 合成**一张卡**；suppressed 不在其列。
+#: result（处置后）2026-10-19 起也走聚合——但语义不同：FR-14「处置结论必须即时到达」
+#: 只在**稳态**成立（agent 正常逐条处置时窗口自然到期即单发）；批量清积压时
+#: （实测一次 41 张结果卡）按 90s 窗口/8 条上限合屏——结论一条不少，只是不刷屏。
 AGGREGATE_KINDS = ('escalate', 'timeout')
+
+#: result 聚合窗口（秒）与单卡条数上限（投递层聚合；落库仍逐条，幂等语义不变）
+RESULT_AGG_WINDOW_SEC = 90
+RESULT_AGG_CAP = 8
 
 
 def resolve_channel(level: Any, kind: Any) -> str:
@@ -209,9 +215,17 @@ def render_receipt(todo: Any, *, kind: str, period: str,
         action_text = {'trade': '已执行交易', 'rule_change': '已修规则'}.get(
             str(action_kind or '').strip().lower(), '不动')
         reason_text = str(close_reason or '').strip() or '未填原因'
+        if tag == 'expired':
+            # 2026-10-19 人话化：expired 意味着规则已停用/到期、工单自动作废——
+            # 对用户是可忽略的归档通知，不是"处置动作"。此前渲染成
+            # 「已过期（已修规则）」并把工程语言（触发链断裂/审计号/零委托）顶上卡片，
+            # 实测用户完全看不懂、看不到价值（2026-10-19 用户反馈）。
+            conclusion = '已失效（盯盘规则已停用或到期，此提醒单自动作废，无需处理）'
+        else:
+            conclusion = f'{terminal_text}（{action_text}）'
         result_lines = [
             f'待办#{todo_id} {display} {level} · 归属 {account}',
-            f'结论：{terminal_text}（{action_text}）',
+            f'结论：{conclusion}',
             f'原因：{reason_text}',
         ]
         next_text = str(next_condition or '').strip()
@@ -272,6 +286,9 @@ class ReceiptService:
         # 入组不投递 → flush_grouped 按 kind 各发一张聚合卡并逐条落库。
         self._group_open = False
         self._group_buffer: Dict[str, List[Dict[str, Any]]] = {}
+        #: result 聚合缓冲（2026-10-19）：投递层聚合，落库仍逐条（幂等语义不变）
+        self._result_buffer: List[Dict[str, Any]] = []
+        self._result_started: Optional[datetime] = None
 
     # ── 三段回执 ────────────────────────────────────────────
 
@@ -292,12 +309,90 @@ class ReceiptService:
         """处置后回执：待办收敛出终态（handled/ignored/expired）后调用（t12 在 close 后触发）。
 
         name：标的名称（FR-13）；close_reason/next_condition/action_kind：close 时的
-        处置三要素（FR-14，渲染进卡片）。**不参与聚合**（处置结论必须即时到达）。"""
+        处置三要素（FR-14，渲染进卡片）。2026-10-19 起**投递层聚合**（90s 窗口/8 条上限）：
+        稳态逐条处置时窗口到期即单发；批量清积压时合屏一张卡（实测一次 41 张的修复）。
+        幂等语义不变：每条仍逐条落库。"""
         tag = str(terminal or 'closed').strip().lower()
-        return self._issue(todo, kind='result',
-                           period=receipt_period(todo, tag), channel=channel, name=name,
-                           close_reason=close_reason, next_condition=next_condition,
-                           action_kind=action_kind)
+        period = receipt_period(todo, tag)
+        kind_value = 'result'
+        todo_id = int(getattr(todo, 'id'))
+        digest = payload_digest(kind_value, todo_id, period)
+        ch = route_channel(getattr(todo, 'level', None), kind_value)
+        # 幂等短路（与 _issue 同一判据）：同一待办同一终态只发一次。
+        # 判据覆盖两处：①库内已落记录（flush 过的）②**缓冲中未落库的**——
+        # 窗口内同一待办被重复处置时，第一次还在缓冲里，仅查库会重复入行。
+        if (self._repo.exists(todo_id, kind_value, digest)
+                or any(it['todo_id'] == todo_id and it['digest'] == digest
+                       for it in self._result_buffer)):
+            logger.info('回执已存在，幂等跳过（不重发）', todo_id=todo_id,
+                        kind=kind_value, channel=ch, digest=digest)
+            return {'issued': False, 'duplicate': True, 'sent': False,
+                    'kind': kind_value, 'todo_id': todo_id, 'channel': ch,
+                    'delivery_status': None, 'digest': digest,
+                    'message': None, 'receipt': None}
+        message = render_receipt(todo, kind=kind_value, period=period, name=name,
+                                 close_reason=close_reason,
+                                 next_condition=next_condition,
+                                 action_kind=action_kind, in_group=True)
+        self._buffer_result(todo_id=todo_id, channel=ch, digest=digest,
+                            message=message, level=getattr(todo, 'level', None))
+        return {'issued': True, 'duplicate': False, 'sent': False,
+                'kind': kind_value, 'todo_id': todo_id, 'channel': ch,
+                'delivery_status': None, 'digest': digest,
+                'message': message, 'receipt': None, 'grouped': True}
+
+    # ── result 聚合投递（2026-10-19）─────────────────────────────────
+
+    def _buffer_result(self, **item) -> None:
+        """结果回执入聚合缓冲；窗口到期或到量即 flush（一张卡，逐条落库）。"""
+        if not self._result_buffer:
+            self._result_started = datetime.now()
+        self._result_buffer.append(item)
+        age = (datetime.now() - self._result_started).total_seconds()
+        if len(self._result_buffer) >= RESULT_AGG_CAP or age >= RESULT_AGG_WINDOW_SEC:
+            self.flush_result_buffer()
+
+    def flush_result_buffer(self) -> Dict[str, Any]:
+        """把缓冲的结果回执合成一张卡发出并逐条落库（空缓冲 = no-op）。
+
+        投递时机：缓冲满 RESULT_AGG_CAP / 窗口满 RESULT_AGG_WINDOW_SEC / 巡检轮
+        收尾兜底（watch_sla_job.run_once 每分钟调一次本方法；稳态单条最长延迟
+        ≤窗口+巡检周期）。发送失败整组记 failed（下轮随新缓冲重试，不丢结论）。
+        """
+        if not self._result_buffer:
+            return {'count': 0, 'sent': False}
+        items, self._result_buffer = self._result_buffer, []
+        self._result_started = None
+        n = len(items)
+        lines = ['📋 处置后回执聚合 ｜ %d 项待办已收敛' % n]
+        lines.extend('- %s' % it['message'] for it in items)
+        card = '\n'.join(lines)
+        has_p0 = any(str(it.get('level') or '').strip().upper() == 'P0' for it in items)
+        ch = CHANNEL_RISK_STOP if has_p0 else CHANNEL_WATCH_SYMBOL
+        payload = {'kind': 'result', 'channel': ch,
+                   'os_channel': 'risk_stop' if has_p0 else 'watch_symbol',
+                   'message': card,
+                   'batch_id': 'batch:result:%s' % datetime.now().strftime('%Y%m%d%H%M'),
+                   'items': n, 'level': 'P0' if has_p0 else None}
+        if self._sender is None:
+            logger.warning('结果回执未接线（log-only，未送达）', count=n)
+            delivery, sent = DELIVERY_LOG_ONLY, False
+        else:
+            try:
+                self._sender(payload)
+                delivery, sent = DELIVERY_SENT, True
+            except Exception as e:  # noqa: BLE001 - 失败不抛，整组记 failed
+                logger.error('结果回执聚合发送失败（整组记 failed）',
+                             count=n, error=str(e))
+                delivery, sent = DELIVERY_FAILED, False
+        for it in items:
+            self._repo.record(it['todo_id'], 'result', channel=ch,
+                              delivery_status=delivery,
+                              message_id=payload['batch_id'],
+                              payload_digest=it['digest'])
+        logger.info('结果回执聚合已投递', count=n, delivery_status=delivery)
+        return {'count': n, 'sent': sent, 'delivery_status': delivery,
+                'batch_id': payload['batch_id']}
 
     def timeout(self, todo: Any, *, channel: Optional[str] = None,
                 name: Optional[str] = None, deliver: bool = True) -> Dict[str, Any]:

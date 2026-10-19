@@ -218,16 +218,28 @@ class OpportunityToWatchRuleService:
         return rule
     
     def _latest_close_from_db(self, symbol: str) -> Optional[float]:
-        """从日K线库取该标的最新收盘价（2026-09-11 新增：载荷本身不含价格字段）
+        """取该标的最新收盘价（2026-09-11 新增：载荷本身不含价格字段）
 
-        2026-09-14（w-32314d00，REQ-24e15d）：裸 SQL 收口到
-        KlineORMRepository.get_latest_close（同过滤/同排序/同 None 语义）。
+        2026-10-19 包边界收口：不再直连 L1 的 KlineORMRepository，改走白名单内的
+        qs_market_data 统一数据入口（DataProviderManager.get_klines，自带
+        数据库 → akshare 降级，与 Data Access Rules 同口径）。失败返回 None
+        （调用方据此跳过建规则，语义不变）。
         """
         if not symbol:
             return None
         try:
-            from adapters.outbound.repositories.kline_repository import KlineORMRepository
-            return KlineORMRepository().get_latest_close(symbol)
+            from qs_market_data.adapters.outbound.datasources.manager import (
+                get_data_provider_manager,
+            )
+            bare = symbol.split('.')[0]
+            end = datetime.now().strftime('%Y-%m-%d')
+            start = (datetime.now() - timedelta(days=15)).strftime('%Y-%m-%d')
+            result = get_data_provider_manager().get_klines(bare, 'daily', start, end)
+            if not result.get('success') or not result.get('data'):
+                return None
+            last = result['data'][-1]
+            close = last.get('close') if isinstance(last, dict) else getattr(last, 'close', None)
+            return float(close) if close is not None else None
         except Exception as e:  # noqa: BLE001
             logger.warning('读取最新收盘价失败', symbol=symbol, error=str(e))
             return None

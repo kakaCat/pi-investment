@@ -46,6 +46,11 @@ class RuleEvaluator:
         self._avg_volume_blocked_until: Optional[datetime] = None
         self._avg_volume_pool = ThreadPoolExecutor(max_workers=4, thread_name_prefix='avgvol')
 
+    def shutdown(self):
+        """回收均量取数线程池（engine.stop 时调用；幂等）。此前无回收路径，
+        引擎停止后池线程空挂（2026-10-19 审查 P1）。"""
+        self._avg_volume_pool.shutdown(wait=False, cancel_futures=True)
+
     def reset_daily(self, now: datetime) -> None:
         """跨天清空均量缓存（原为引擎 _reset_daily_state_if_needed 的一部分）"""
         self._avg_volume_cache.clear()

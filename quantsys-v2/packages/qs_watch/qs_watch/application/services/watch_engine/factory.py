@@ -11,7 +11,7 @@ from qs_market_data.adapters.outbound.datasources.manager import get_data_provid
 from adapters.outbound.repositories.watch_rule_repository import (
     WatchRuleRepository, WatchTriggerRepository
 )
-from application.services.agent_notification_service import AgentNotificationService
+from qs_agenthub.application.services.agent_notification_service import AgentNotificationService  # 2026-10-19：L1 → qs_agenthub 真身
 from qs_market_data.application.services.realtime_quote_service_v2 import RealtimeQuoteServiceV2
 from qs_watch.application.services.watch_engine.engine import WatchEngine
 from qs_watch.application.services.watch_engine.notifier import WatchNotifier
@@ -25,6 +25,7 @@ from qs_watch.application.services.watch_engine.position_lifecycle_service impor
 from qs_watch.application.services.watch_engine.market_watch_service import MarketWatchService
 from qs_market_data.adapters.outbound.datasources.market_state_provider import MarketStateProvider
 from adapters.outbound.repositories.simulation_position_repository import SimulationPositionRepository
+from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
 
 logger = structlog.get_logger(__name__)
 
@@ -96,6 +97,7 @@ def build_watch_loop_services():
 
 def create_watch_engine() -> WatchEngine:
     _pos_repo = SimulationPositionRepository()
+    _sim_repo = SimulationORMRepository()   # 复用单例：原实现在闭包内每次调用新建（每 tick 每规则一次）
 
     def position_value_provider(rule):
         # 介入判据金额门：持仓级动作影响金额 = 该标的持仓市值
@@ -120,8 +122,7 @@ def create_watch_engine() -> WatchEngine:
         account = (getattr(rule, 'account', None) if rule is not None else None) \
             or os.getenv('WATCH_ENGINE_DEFAULT_ACCOUNT', 'agent_brain')
         try:
-            from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
-            status = SimulationORMRepository().get_account_status(account)
+            status = _sim_repo.get_account_status(account)
             if isinstance(status, dict):
                 return float(status.get('total_value') or 0) or None
             return float(getattr(status, 'total_value', 0) or 0) or None
@@ -130,9 +131,17 @@ def create_watch_engine() -> WatchEngine:
 
     # 通知器：金额门取数复用**同一个** account_total_provider（REQ-c9f899 t12 §6-项2，
     # 勿另造第二份账户取数口径；缺数据时 provider 返回 None → 金额门关闭，不抛错）。
+    # 标的名解析走 StockNameResolver 端口（与 SLA 巡检同一实现，单一取数口径）；
+    # 装配失败降级 None → notifier 回退旧直连路径（名称是渲染增益，不阻断启动）。
+    try:
+        from qs_watch.application.services.watch_engine import watch_loop_wiring as _w
+        _name_resolver = _w.build_name_resolver()
+    except Exception:  # noqa: BLE001
+        _name_resolver = None
     notifier = WatchNotifier(
         trigger_repo=WatchTriggerRepository(),
         account_total_provider=account_total_provider,
+        name_resolver=_name_resolver,
     )
 
     _market_watch = MarketWatchService(
@@ -191,15 +200,19 @@ def create_watch_engine() -> WatchEngine:
         position_lifecycle_service=PositionLifecycleService(
             rule_repo=WatchRuleRepository(),
             position_repo=SimulationPositionRepository(),
+            # 2026-10-19 修正：此前默认只盯 agent_virtual——user_main（用户真身）与
+            # agent_brain 的持仓联动（清仓收摊/补挂止损/阶段推进/成本同步）从不执行，
+            # 是 #128 徐工止损规则触发后永远挂着的结构性根因。
+            accounts=("agent_virtual", "agent_brain", "user_main_simulation"),
         ),
         # P6 市场级盯盘：取数走 IMarketStateProvider 端口，实现是 MarketStateProvider 适配器
         market_watch_service=_market_watch,
-        # 闭环装配（REQ-c9f899 t12）：默认 None → 行为与改造前一致
+        # 闭环装配（REQ-c9f899 t12）：默认 None → 行为与改造前一致。
+        # 2026-10-19：receipt_service/sla_job/self_heal_service 不再注入引擎
+        # （死注入已清——SLA/回执在 inbound 定时任务侧，自愈由 interval job 调起），
+        # 它们仍由 build_watch_loop_services 装配供 wiring/定时任务使用。
         runtime_state_store=runtime_store,
         todo_service=todo_service,
-        receipt_service=receipt_service,
-        sla_job=sla_job,
-        self_heal_service=self_heal_service,
         # 观察聚合缓冲（REQ-261016155500-4f2a wt:validate:1）：无判据 observe 15min 合屏
         observe_agg=_build_observe_aggregator(),
     )

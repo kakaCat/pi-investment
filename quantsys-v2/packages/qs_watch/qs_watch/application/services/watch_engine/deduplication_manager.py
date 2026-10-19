@@ -2,9 +2,10 @@
 
 把「同标的同向窗内合并」+「跨规则重叠转治理」从 tick 里提出来。
 
-语义（不变）：
-  - key = (归一化标的, 方向)：同一事件在窗内只通知一次；重复的**仍落库**
-    （disposition='deduped' + dup_of），保证账不丢、人不扰；
+语义（2026-10-19 起 key 含账户维度）：
+  - key = (账户, 归一化标的, 方向)：同一账户的同一事件在窗内只通知一次；重复的
+    **仍落库**（disposition='deduped' + dup_of），保证账不丢、人不扰；
+    账户必须在键里——账户是投送维度，不含账户会把另一账户的信号静默吞掉；
   - 跨规则重叠（不同规则在同一 key 上重复表达）属**规则该重设**的业务问题：
     除合并通知外另落一条治理项交 agent，同一天同一对规则只报一次。
 
@@ -22,7 +23,7 @@ from qs_watch.domain.watch.services.disposition import dedup_key
 class DedupOutcome:
     """一次去重判定的结果"""
     is_duplicate: bool
-    key: Tuple[str, str]
+    key: Tuple[str, str, str]                      # (账户, 归一化标的, 方向)
     dup_of: Optional[int] = None                    # 合并到的触发 id
     prev_rule_id: Optional[int] = None              # 窗内先响规则的 id（合并标注用）
     overlap_pair: Optional[Tuple[int, int]] = None  # 本次**首次**发现的跨规则重叠
@@ -58,13 +59,15 @@ class DeduplicationManager:
             now, trigger_id, int(getattr(rule, 'id', 0) or 0))
 
     def reason_text(self, outcome: DedupOutcome) -> str:
-        """去重合并的处置文案（与原实现逐字一致）"""
+        """去重合并的处置文案"""
         k = outcome.key
-        return (f'同标的同向 {self.window_sec}s 内已触发（key={k[0]}/{k[1]}），'
+        acct = k[0] or '未归属'
+        return (f'同账户同标的同向 {self.window_sec}s 内已触发'
+                f'（账户={acct}，key={k[1]}/{k[2]}），'
                 f'合并到触发 #{outcome.dup_of}，不再重复通知')
 
     @staticmethod
-    def overlap_reason(pair: Tuple[int, int], key: Tuple[str, str]) -> str:
-        return ('规则重叠：规则 #%s 与 #%s 在同一事件（%s/%s）上重复表达 → '
+    def overlap_reason(pair: Tuple[int, int], key: Tuple[str, str, str]) -> str:
+        return ('规则重叠：规则 #%s 与 #%s 在同一事件（账户=%s，%s/%s）上重复表达 → '
                 '建议合并为一条多档规则、调阈值或退役其一'
-                % (pair[0], pair[1], key[0], key[1]))
+                % (pair[0], pair[1], key[0] or '未归属', key[1], key[2]))

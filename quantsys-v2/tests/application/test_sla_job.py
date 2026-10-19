@@ -609,8 +609,10 @@ def test_result_receipt_records_once_and_is_idempotent():
     first = service.result(todo, terminal='handled')
     second = service.result(todo, terminal='handled')
 
-    assert first['issued'] is True and first['sent'] is True
+    # 2026-10-19 投递层聚合：result 先缓冲（sent 在 flush 时发生），幂等覆盖缓冲
+    assert first['issued'] is True
     assert second['issued'] is False and second['duplicate'] is True
+    service.flush_result_buffer()
     assert [r['kind'] for r in receipts.rows] == ['result']
     assert len(sent) == 1
 
@@ -622,6 +624,7 @@ def test_result_and_timeout_have_distinct_digests():
 
     service.timeout(todo)
     service.result(todo, terminal='handled')
+    service.flush_result_buffer()          # result 聚合：flush 后才落库
 
     assert len({r['payload_digest'] for r in receipts.rows}) == 2
 
@@ -638,6 +641,7 @@ def test_result_receipt_carries_full_timeline():
 
     service.result(todo, terminal='handled', close_reason='已按预案减仓',
                    action_kind='trade')
+    service.flush_result_buffer()
 
     message = sent[0]['message']
     assert '时间线：' in message

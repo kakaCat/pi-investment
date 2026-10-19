@@ -83,13 +83,14 @@ def _service(todos, sent, names=None, with_receipt=True):
 # ── 三要素卡片 ──────────────────────────────────────────────────────────────
 def test_close_handled_sends_three_element_card():
     sent = []
-    svc, _ = _service([_todo()], sent, names={'601888': '中国中免'})
+    svc, receipt = _service([_todo()], sent, names={'601888': '中国中免'})
     todo, outcome = svc.close_and_receipt(
         32, 'handled', close_reason='已按预案处置', action_kind='observe')
 
-    assert outcome is not None and outcome['sent'] is True
-    assert outcome['kind'] == 'result'
-    assert len(sent) == 1                                  # 即时单条（不聚合）
+    # 2026-10-19 投递层聚合：outcome.sent=False（缓冲中），flush 后单卡发出
+    assert outcome is not None and outcome['kind'] == 'result' and outcome['grouped']
+    receipt.flush_result_buffer()
+    assert len(sent) == 1
     card = sent[0]['message']
     assert '结论：已处置（不动）' in card                    # 要素一：结论（终态+动作）
     assert '原因：已按预案处置' in card                      # 要素二：原因原文
@@ -102,20 +103,21 @@ def test_result_receipt_channel_label_is_real_route():
     """REQ-ad0a t7：落库 channel 标签 = 真实投递路由（result → watch_symbol 盯盘频道），
     不再是 FR-1 分群前与 reports 群挂钩的旧标签（联调发现记录与落点漂移）。"""
     sent = []
-    svc, _ = _service([_todo(41)], sent)
+    svc, receipt = _service([_todo(41)], sent)
     todo, outcome = svc.close_and_receipt(41, 'handled', close_reason='核对无误')
     assert outcome['channel'] == 'watch_symbol'
+    receipt.flush_result_buffer()
     assert sent[0]['channel'] == 'watch_symbol'
 
 
 def test_close_ignored_card_contains_next_condition_verbatim():
     sent = []
-    svc, _ = _service([_todo()], sent, names={'601888': '中国中免'})
+    svc, receipt = _service([_todo()], sent, names={'601888': '中国中免'})
     _, outcome = svc.close_and_receipt(
         32, 'ignored', close_reason='破位放弃',
         next_condition='价格重新站回 20 日线')
 
-    assert outcome['sent'] is True
+    receipt.flush_result_buffer()
     card = sent[0]['message']
     assert '结论：忽略（不动）' in card
     assert '后续意见：NEXT 价格重新站回 20 日线' in card     # NEXT 条件原文
@@ -123,9 +125,10 @@ def test_close_ignored_card_contains_next_condition_verbatim():
 
 def test_close_trade_action_shown_in_conclusion():
     sent = []
-    svc, _ = _service([_todo()], sent, names={'601888': '中国中免'})
+    svc, receipt = _service([_todo()], sent, names={'601888': '中国中免'})
     svc.close_and_receipt(32, 'handled', close_reason='触发止损',
                           action_kind='trade', decision_audit_id='DA-1')
+    receipt.flush_result_buffer()
     assert '结论：已处置（已执行交易）' in sent[0]['message']
 
 
@@ -134,6 +137,7 @@ def test_duplicate_close_raises_and_never_resends():
     sent = []
     svc, receipt = _service([_todo()], sent, names={'601888': '中国中免'})
     svc.close_and_receipt(32, 'handled', close_reason='已按预案处置')
+    receipt.flush_result_buffer()
     assert len(sent) == 1
 
     with pytest.raises(WatchTodoAlreadyClosed):            # 重复 close → 409
@@ -162,8 +166,9 @@ def test_without_receipt_service_behaves_as_before():
 # ── 诚实降级 ────────────────────────────────────────────────────────────────
 def test_name_missing_marks_name_missing():
     sent = []
-    svc, _ = _service([_todo()], sent, names={'601888': None})
+    svc, receipt = _service([_todo()], sent, names={'601888': None})
     svc.close_and_receipt(32, 'handled', close_reason='已处置')
+    receipt.flush_result_buffer()
     assert '601888（名称缺失）' in sent[0]['message']        # R-013 不臆造
 
 
