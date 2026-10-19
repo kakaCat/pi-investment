@@ -8,7 +8,7 @@ from pathlib import Path
 import tempfile
 import yaml
 
-from infrastructure.config import ConfigLoader, ServicesConfig, ServiceConfig
+from qs_kernel.infrastructure.config import ConfigLoader, ServicesConfig, ServiceConfig
 from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory, ServiceLifecycle
 
 
@@ -78,7 +78,7 @@ class TestConfigValidator:
 
     def test_validate_valid_config(self):
         """测试验证有效配置"""
-        from infrastructure.config import ConfigValidator
+        from qs_kernel.infrastructure.config import ConfigValidator
 
         loader = ConfigLoader()
         config = loader.load(environment='dev')
@@ -91,7 +91,7 @@ class TestConfigValidator:
 
     def test_validate_missing_dependency(self):
         """测试验证缺失的依赖"""
-        from infrastructure.config import ConfigValidator, ServicesConfig
+        from qs_kernel.infrastructure.config import ConfigValidator, ServicesConfig
 
         # 创建一个有错误的配置
         config = ServicesConfig(
@@ -128,7 +128,7 @@ class TestEnhancedServiceFactoryConfigIntegration:
         EnhancedServiceFactory.register_from_config(config)
 
         # 验证服务已注册
-        from domain.ports import IStockRepository, IKlineRepository
+        from qs_kernel.domain.ports import IStockRepository, IKlineRepository
         assert EnhancedServiceFactory.is_registered(IStockRepository)
         assert EnhancedServiceFactory.is_registered(IKlineRepository)
 
@@ -140,7 +140,7 @@ class TestEnhancedServiceFactoryConfigIntegration:
         EnhancedServiceFactory.register_from_config(config)
 
         # 解析服务
-        from domain.ports import IKlineRepository
+        from qs_kernel.domain.ports import IKlineRepository
         kline_repo = EnhancedServiceFactory.resolve(IKlineRepository)
 
         assert kline_repo is not None
@@ -168,7 +168,7 @@ class TestEnhancedServiceFactoryConfigIntegration:
         EnhancedServiceFactory.register_from_config(config)
 
         # 解析两次，应该返回同一个实例
-        from domain.ports import IKlineRepository
+        from qs_kernel.domain.ports import IKlineRepository
         instance1 = EnhancedServiceFactory.resolve(IKlineRepository)
         instance2 = EnhancedServiceFactory.resolve(IKlineRepository)
 
@@ -230,7 +230,7 @@ class TestBackwardCompatibility:
     def test_hardcoded_registration_still_works(self):
         """测试硬编码注册仍然工作"""
         # 手动注册一个服务
-        from domain.ports import IStockRepository
+        from qs_kernel.domain.ports import IStockRepository
         from adapters.outbound.repositories import StockORMRepository
 
         EnhancedServiceFactory.register(
@@ -252,7 +252,7 @@ class TestBackwardCompatibility:
 
         # 2. 手动注册额外的服务
         from application.services.chan_service import ChanService
-        from domain.ports import IKlineRepository
+        from qs_kernel.domain.ports import IKlineRepository
 
         def custom_chan_service():
             kline_repo = EnhancedServiceFactory.resolve(IKlineRepository)

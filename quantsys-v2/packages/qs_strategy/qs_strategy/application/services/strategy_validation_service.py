@@ -3,7 +3,7 @@
 
 负责策略批量验证、综合评分计算、无效策略标记
 """
-from domain.ports import IStockRepository, IStrategyRepository
+from qs_kernel.domain.ports import IStockRepository, IStrategyRepository
 from typing import Dict, List, Optional
 import structlog
 import requests

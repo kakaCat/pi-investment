@@ -11,7 +11,7 @@ from pathlib import Path
 import structlog
 
 from qs_sourcing.application.services.signal_test_log import SignalTestLog
-from domain.ports import IStrategyPerformanceRepository
+from qs_kernel.domain.ports import IStrategyPerformanceRepository
 
 logger = structlog.get_logger(__name__)
 

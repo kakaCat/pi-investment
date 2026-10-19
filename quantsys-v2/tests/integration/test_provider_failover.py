@@ -15,7 +15,7 @@ from unittest.mock import MagicMock, patch
 from concurrent.futures import TimeoutError as FuturesTimeoutError
 
 from qs_market_data.adapters.outbound.datasources.manager import DataProviderManager
-from domain.models.market_data import QuoteData
+from qs_kernel.domain.models.market_data import QuoteData
 
 
 class TestProviderFailover:

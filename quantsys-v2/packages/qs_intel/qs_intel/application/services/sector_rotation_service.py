@@ -6,7 +6,7 @@
 2. 筛选强势行业
 3. 提供行业成分股查询
 """
-from domain.ports import IKlineRepository, IStockRepository
+from qs_kernel.domain.ports import IKlineRepository, IStockRepository
 from typing import List, Dict, Optional
 from application.services.strategy_engine.sector_rotation import SectorRotation
 import structlog

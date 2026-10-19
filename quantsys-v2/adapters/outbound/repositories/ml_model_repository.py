@@ -11,7 +11,7 @@ from sqlalchemy import Column, Integer, String, Float, Text, DateTime
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import text as sql_text
 from infrastructure.persistence.orm.base import Base
-from domain.ports import IMlModelRepository
+from qs_kernel.domain.ports import IMlModelRepository
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
 import json

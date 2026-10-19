@@ -24,7 +24,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from infrastructure.persistence.orm import BaseORMRepository
 from infrastructure.persistence.orm.models import Signal, SignalExecution
 from infrastructure.persistence.orm.models.action_norm import signal_action_type
-from domain.ports import ISignalRepository
+from qs_kernel.domain.ports import ISignalRepository
 
 logger = structlog.get_logger(__name__)
 

@@ -12,7 +12,7 @@
 from typing import Dict, Any, List, Optional
 import logging
 from .base_scorer import BaseScorer
-from infrastructure.config.constants.scoring.scorer_params import (
+from qs_kernel.infrastructure.config.constants.scoring.scorer_params import (
     CyclePositionScorerConfig,
     DEFAULT_CYCLE_POSITION_SCORER_CONFIG,
 )

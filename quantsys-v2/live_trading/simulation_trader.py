@@ -166,7 +166,7 @@ class SimulationTrader:
 
     def _setup_logging(self):
         """设置日志"""
-        from infrastructure.logging import configure_structured_logging
+        from qs_kernel.infrastructure.logging import configure_structured_logging
         import structlog
 
         log_dir = Path(self.config['logging']['log_dir'])

@@ -3,12 +3,12 @@
 
 检测市场操纵行为（拉高出货等），识别风险和机会
 """
-from domain.ports import IAgentIntelligenceRepository, IFundFlowRepository
+from qs_kernel.domain.ports import IAgentIntelligenceRepository, IFundFlowRepository
 import structlog
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 import time
-from infrastructure.config.constants.detection_config import (
+from qs_kernel.infrastructure.config.constants.detection_config import (
     ManipulationDetectorConfig,
     DEFAULT_MANIPULATION_DETECTOR_CONFIG,
 )
@@ -72,7 +72,7 @@ class ManipulationDetector:
             仓库实例或 None（None 时该维度信号缺失，调用方需容忍）
         """
         try:
-            import domain.ports as _ports
+            import qs_kernel.domain.ports as _ports
             from infrastructure.services.service_factory import ServiceFactory
 
             instance = ServiceFactory.resolve(getattr(_ports, port_name))

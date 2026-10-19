@@ -6,7 +6,7 @@ import structlog
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
 
-from infrastructure.config.constants.detection_config import (
+from qs_kernel.infrastructure.config.constants.detection_config import (
     TechnicalAnalysisConfig,
     DEFAULT_TECHNICAL_ANALYSIS_CONFIG,
 )
@@ -32,7 +32,7 @@ class TechnicalAnalysisService:
             pandas DataFrame（中文列名，与 akshare 格式兼容）或 None
         """
         import pandas as pd
-        from domain.ports.datasource_ports import IDataProviderManager
+        from qs_kernel.domain.ports.datasource_ports import IDataProviderManager
 
         if period_days is None:
             period_days = self.config.default_period_days
@@ -171,7 +171,7 @@ class TechnicalAnalysisService:
         """
         try:
             import pandas as pd
-            from domain.ports import IKlineRepository
+            from qs_kernel.domain.ports import IKlineRepository
 
             self.logger.info(f"计算买入区间: symbol={symbol}")
 
@@ -263,7 +263,7 @@ class TechnicalAnalysisService:
 
             try:
                 # 使用 KlineRepository 从数据库获取历史数据
-                from domain.ports import IKlineRepository
+                from qs_kernel.domain.ports import IKlineRepository
 
                 end_date = datetime.now().strftime('%Y-%m-%d')
                 start_date = (datetime.now() - timedelta(days=self.config.exit_plan_period_days)).strftime('%Y-%m-%d')

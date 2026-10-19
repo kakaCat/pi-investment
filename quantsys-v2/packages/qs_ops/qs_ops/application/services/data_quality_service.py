@@ -48,7 +48,7 @@ class DataQualityService:
 
         P2-1: 推荐通过 ServiceFactory 获取实例
         """
-        from domain.ports import IKlineRepository
+        from qs_kernel.domain.ports import IKlineRepository
         from qs_market_data.application.services.trading_calendar_service import TradingCalendarService
         from qs_market_data.application.services.data_gap_detector import DataGapDetector
         from qs_market_data.application.services.data_backfiller import DataBackfiller

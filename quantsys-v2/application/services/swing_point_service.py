@@ -11,7 +11,7 @@ import structlog
 from typing import Dict, List, Optional
 from datetime import datetime
 
-from domain.ports import IKlineRepository
+from qs_kernel.domain.ports import IKlineRepository
 from qs_market_data.application.services.stock_code_validator import StockCodeValidator
 
 logger = structlog.get_logger(__name__)

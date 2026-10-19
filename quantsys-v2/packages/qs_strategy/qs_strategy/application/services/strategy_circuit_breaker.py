@@ -13,7 +13,7 @@ from datetime import datetime
 import json
 import structlog
 
-from domain.ports import IStrategyCircuitBreakerRepository
+from qs_kernel.domain.ports import IStrategyCircuitBreakerRepository
 from application.services.circuit_breaker_alert_service import circuit_breaker_alert_service
 
 logger = structlog.get_logger(__name__)

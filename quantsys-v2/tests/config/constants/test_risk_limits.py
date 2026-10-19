@@ -4,7 +4,7 @@
 """
 
 import pytest
-from infrastructure.config.constants.trading.risk_limits import RiskLimits, RISK_LIMITS
+from qs_kernel.infrastructure.config.constants.trading.risk_limits import RiskLimits, RISK_LIMITS
 
 
 class TestRiskLimits:

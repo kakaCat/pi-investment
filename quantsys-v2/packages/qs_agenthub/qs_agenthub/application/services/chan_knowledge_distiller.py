@@ -6,7 +6,7 @@
 
 confidence 爬坡：<10 样本 → 0.3；10-30 → 0.5；>30 → 0.7。
 """
-from domain.ports import IAgentKnowledgeRepository, IKlineRepository, ISignalRepository
+from qs_kernel.domain.ports import IAgentKnowledgeRepository, IKlineRepository, ISignalRepository
 from datetime import date, datetime, timedelta
 from typing import Dict, Any, List, Optional
 import structlog

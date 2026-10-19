@@ -3,7 +3,7 @@
 
 在原有风险评估基础上，增加博弈维度的风险评估
 """
-from domain.ports import IFundFlowRepository, IStockPoolRepository
+from qs_kernel.domain.ports import IFundFlowRepository, IStockPoolRepository
 import structlog
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta

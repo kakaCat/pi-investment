@@ -7,7 +7,7 @@ RFC 016 §4.5（2026-09-12）：把"当前处于哪个交易相位、是否开�
 领域层零外部依赖（仅 dataclasses / enum / datetime）。
 """
 from __future__ import annotations
-from domain.common.dates import as_date, as_datetime, as_date_str
+from qs_kernel.domain.common.dates import as_date, as_datetime, as_date_str
 
 from dataclasses import dataclass
 from datetime import date, datetime, time

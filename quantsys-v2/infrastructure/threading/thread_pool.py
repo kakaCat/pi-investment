@@ -166,7 +166,7 @@ _compute_pool = None
 
 def _get_settings():
     """延迟加载配置，避免循环导入"""
-    from infrastructure.config.settings import get_settings
+    from qs_kernel.infrastructure.config.settings import get_settings
     return get_settings()
 
 

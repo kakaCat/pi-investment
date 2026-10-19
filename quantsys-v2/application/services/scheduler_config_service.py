@@ -8,7 +8,7 @@ import structlog
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
-from domain.ports import ISchedulerConfigRepository
+from qs_kernel.domain.ports import ISchedulerConfigRepository
 
 logger = structlog.get_logger(__name__)
 

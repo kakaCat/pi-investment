@@ -19,7 +19,7 @@ dataclass**，跨模块 isinstance 恒为假。manager 与 IDataProviderManager 
 from qs_market_data.adapters.outbound.datasources.manager import DataProviderManager
 # ⚠️ 必须用 domain 侧模型：manager 与 IDataProviderManager 端口都用 domain/models/market_data.py，
 # 而 adapters/outbound/datasources/models.py 有**同名另一套** dataclass（isinstance 跨模块为假）
-from domain.models.market_data import MarketData, StockData
+from qs_kernel.domain.models.market_data import MarketData, StockData
 
 
 def _manager(**routed):

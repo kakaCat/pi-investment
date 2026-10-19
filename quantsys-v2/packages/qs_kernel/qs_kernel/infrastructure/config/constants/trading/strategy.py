@@ -5,7 +5,7 @@
 """
 
 from dataclasses import dataclass
-from infrastructure.config.constants.base import ConfigBase
+from qs_kernel.infrastructure.config.constants.base import ConfigBase
 
 
 @dataclass(frozen=True)

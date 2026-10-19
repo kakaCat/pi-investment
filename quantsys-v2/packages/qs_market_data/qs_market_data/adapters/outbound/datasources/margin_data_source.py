@@ -8,7 +8,7 @@ from typing import Dict, List, Optional
 from datetime import datetime, timedelta
 import random
 
-from domain.ports.datasource_ports import DataSourceError
+from qs_kernel.domain.ports.datasource_ports import DataSourceError
 
 logger = logging.getLogger(__name__)
 

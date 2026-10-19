@@ -18,7 +18,7 @@ import polars as pl
 # 于是**同一个名字经两条导入路径得到两种接口**
 # （application/services/data_service.py 正是从本模块导入了弱版本）。
 # 现改为转发：全仓同名接口只保留一处定义。
-from domain.ports.repository_ports import (  # noqa: F401
+from qs_kernel.domain.ports.repository_ports import (  # noqa: F401
     IKlineRepository,
     ISignalRepository,
     IPortfolioRepository,

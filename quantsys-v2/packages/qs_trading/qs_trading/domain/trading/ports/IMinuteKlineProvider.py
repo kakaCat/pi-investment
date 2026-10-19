@@ -9,7 +9,7 @@ RFC 015 §4.3：分钟线 provider 的多源契约。实现方（出站适配器
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-from domain.models.market_data import MinuteKline
+from qs_kernel.domain.models.market_data import MinuteKline
 
 
 class IMinuteKlineProvider(ABC):

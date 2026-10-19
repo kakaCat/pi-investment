@@ -11,8 +11,8 @@ import json, subprocess, sys, os
 from pathlib import Path
 
 sys.path.insert(0, "/Users/yunpeng/pi-investment/quantsys-v2")
-from domain.events.service import compute_evidence_hash, infer_event_type
-from domain.events.model import EventType
+from qs_kernel.domain.events.service import compute_evidence_hash, infer_event_type
+from qs_kernel.domain.events.model import EventType
 
 ENV = dict(os.environ, PATH="/opt/homebrew/bin:/usr/local/bin:" + os.environ.get("PATH", ""))
 APPLY = "--apply" in sys.argv

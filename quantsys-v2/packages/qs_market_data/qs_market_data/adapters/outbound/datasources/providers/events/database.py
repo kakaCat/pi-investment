@@ -14,8 +14,8 @@ import logging
 from datetime import date, datetime, timedelta
 from typing import Dict, List, Optional
 
-from domain.events.model import AUTHORITY_DB
-from domain.events.ports.IMarketEventProvider import IMarketEventProvider
+from qs_kernel.domain.events.model import AUTHORITY_DB
+from qs_kernel.domain.events.ports.IMarketEventProvider import IMarketEventProvider
 
 logger = logging.getLogger(__name__)
 

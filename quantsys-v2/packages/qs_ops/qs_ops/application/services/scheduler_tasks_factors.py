@@ -3,7 +3,7 @@
 2026-10-01（REQ-261001145152-3982 t-686185）：由 scheduler_tasks.py（原 1607 行）
 机械拆分而来；函数体与签名**逐字未改**，原模块保留为转发壳，既有导入路径不受影响。
 """
-from domain.ports import IKlineRepository, IStockRepository, IStrategyRepository
+from qs_kernel.domain.ports import IKlineRepository, IStockRepository, IStrategyRepository
 import structlog
 from typing import Dict, Any, Callable
 from datetime import datetime, date, timedelta
@@ -98,7 +98,7 @@ def handle_factor_compute(params: Dict[str, Any] = None) -> Dict[str, Any]:
         symbols = params.get('symbols')
         if not symbols:
             from infrastructure.services.service_factory import ServiceFactory
-            from domain.ports import IStockRepository
+            from qs_kernel.domain.ports import IStockRepository
             repo = ServiceFactory.resolve(IStockRepository)
             stocks = repo.get_all(limit=params.get('max_symbols', 500))
             # 过滤指数代码（399开头、000300、000852、000016等）

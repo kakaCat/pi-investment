@@ -10,7 +10,7 @@ import structlog
 
 from infrastructure.persistence.database.validators import validate_symbol, validate_positive_number
 from infrastructure.services.service_factory import ServiceFactory
-from domain.ports import IPortfolioRepository, IKlineRepository
+from qs_kernel.domain.ports import IPortfolioRepository, IKlineRepository
 
 logger = structlog.get_logger(__name__)
 

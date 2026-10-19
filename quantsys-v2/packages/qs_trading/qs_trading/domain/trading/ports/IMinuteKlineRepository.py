@@ -6,7 +6,7 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-from domain.models.market_data import MinuteKline
+from qs_kernel.domain.models.market_data import MinuteKline
 
 
 class IMinuteKlineRepository(ABC):

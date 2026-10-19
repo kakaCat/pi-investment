@@ -67,7 +67,7 @@ class _MinuteRepo:
 
 
 def _bar(symbol='600150', dt='2026-09-11 09:31', as_dict=True):
-    from domain.models.market_data import MinuteKline
+    from qs_kernel.domain.models.market_data import MinuteKline
     if as_dict:
         return {'symbol': symbol, 'trade_datetime': dt, 'open': 1.0, 'high': 2.0, 'low': 0.5, 'close': 1.5, 'volume': 100.0, 'amount': 200.0}
     return MinuteKline(symbol=symbol, trade_datetime=dt, open=1.0, high=2.0, low=0.5, close=1.5, volume=100.0, amount=200.0)

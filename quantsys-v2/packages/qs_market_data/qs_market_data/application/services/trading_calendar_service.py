@@ -7,7 +7,7 @@ import structlog
 from typing import List, Optional
 from datetime import datetime, timedelta, date
 import json
-from domain.ports.datasource_ports import IDataProviderManager
+from qs_kernel.domain.ports.datasource_ports import IDataProviderManager
 from domain.trading.ports.ITradingCalendar import ITradingCalendar
 
 logger = structlog.get_logger(__name__)
@@ -29,7 +29,7 @@ class TradingCalendarService(ITradingCalendar):
             kline_repo: K线数据仓库实例
             redis_client: Redis客户端实例（可选）
         """
-        from domain.ports import IKlineRepository
+        from qs_kernel.domain.ports import IKlineRepository
 
         self.kline_repo = kline_repo
         self.redis = redis_client

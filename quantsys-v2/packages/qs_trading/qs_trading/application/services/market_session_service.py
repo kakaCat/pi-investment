@@ -11,7 +11,7 @@ RFC 016 §4.5：市况的**唯一对外入口**。应用层只做编排，不做
 使用方一律经本服务取市况，**不得**再自算时段或 weekday。
 """
 from __future__ import annotations
-from domain.common.dates import as_date, as_datetime, as_date_str
+from qs_kernel.domain.common.dates import as_date, as_datetime, as_date_str
 
 from datetime import date, datetime, time, timedelta
 from typing import Optional, Union

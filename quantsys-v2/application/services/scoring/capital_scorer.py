@@ -14,7 +14,7 @@ fund_flows 缺失时降级纯量能评分，reasons 注明（不许静默降级�
 from typing import Dict, Any, List, Optional, Tuple
 import logging
 from .base_scorer import BaseScorer
-from infrastructure.config.constants.scoring.scorer_params import (
+from qs_kernel.infrastructure.config.constants.scoring.scorer_params import (
     CapitalScorerConfig,
     DEFAULT_CAPITAL_SCORER_CONFIG,
 )

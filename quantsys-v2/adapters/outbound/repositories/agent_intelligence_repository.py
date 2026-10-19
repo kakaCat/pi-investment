@@ -10,7 +10,7 @@ from infrastructure.persistence.orm import BaseORMRepository
 from sqlalchemy import Column, Integer, String, Float, Text, JSON, Boolean, DateTime
 from sqlalchemy.exc import SQLAlchemyError
 from infrastructure.persistence.orm.base import Base
-from domain.ports import IAgentIntelligenceRepository
+from qs_kernel.domain.ports import IAgentIntelligenceRepository
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 import uuid

@@ -4,8 +4,8 @@ from datetime import date as _date, datetime as _datetime, timedelta as _timedel
 from typing import List, Dict, Any, Optional
 
 from domain.exceptions import ExternalServiceError
-from domain.ports.datasource_ports import IDataProviderManager
-from domain.models.market_data import QuoteData, FinancialData, DividendData, MarketData, StockData
+from qs_kernel.domain.ports.datasource_ports import IDataProviderManager
+from qs_kernel.domain.models.market_data import QuoteData, FinancialData, DividendData, MarketData, StockData
 
 from qs_market_data.adapters.outbound.datasources.circuit_breaker import CircuitBreaker
 from qs_market_data.adapters.outbound.datasources.providers.quote.sina import SinaQuoteProvider

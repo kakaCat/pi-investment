@@ -227,7 +227,7 @@ class EnterpriseScheduler:
     
     def _job_executed_listener(self, event):
         """任务执行监听器 - 记录执行日志"""
-        from domain.ports import ISchedulerRepository
+        from qs_kernel.domain.ports import ISchedulerRepository
         from infrastructure.services.service_factory import ServiceFactory
 
         repo = ServiceFactory.resolve(ISchedulerRepository)

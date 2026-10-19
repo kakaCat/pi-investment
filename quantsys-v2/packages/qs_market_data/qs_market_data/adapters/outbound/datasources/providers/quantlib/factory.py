@@ -18,7 +18,7 @@ from __future__ import annotations
 from typing import Optional
 
 from .base_adapter import BaseMarketAdapter
-# from infrastructure.config import get_config  # TODO: 配置系统重构
+# from qs_kernel.infrastructure.config import get_config  # TODO: 配置系统重构
 
 # Registry of known adapter names → import path
 _REGISTRY: dict[str, str] = {

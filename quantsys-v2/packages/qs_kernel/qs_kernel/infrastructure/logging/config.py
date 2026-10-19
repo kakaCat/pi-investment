@@ -43,7 +43,7 @@ def configure_structured_logging(
 
     Usage:
         # 在应用启动时调用一次
-        from infrastructure.logging import configure_structured_logging
+        from qs_kernel.infrastructure.logging import configure_structured_logging
         configure_structured_logging(level="INFO", json_format=True)
 
         # 在代码中使用
@@ -258,7 +258,7 @@ def get_trace_id() -> str:
         str: 当前请求的 trace ID
 
     Usage:
-        from infrastructure.logging import get_trace_id
+        from qs_kernel.infrastructure.logging import get_trace_id
 
         trace_id = get_trace_id()
         logger.info("processing_request", trace_id=trace_id)
@@ -277,7 +277,7 @@ def set_trace_id(trace_id: str) -> None:
         trace_id: 从上游服务接收的 trace ID
 
     Usage:
-        from infrastructure.logging import set_trace_id
+        from qs_kernel.infrastructure.logging import set_trace_id
 
         # 在 FastAPI 中间件中
         async def middleware(request: Request, call_next):
@@ -298,7 +298,7 @@ def log_execution(operation: str):
         operation: 操作名称
 
     Usage:
-        from infrastructure.logging import log_execution
+        from qs_kernel.infrastructure.logging import log_execution
 
         @log_execution("ml_predict")
         def predict_model(symbol: str):

@@ -9,7 +9,7 @@ from pathlib import Path
 import pickle
 from datetime import datetime
 
-from domain.ports.ml_model_port import IMLModelRepository, IMLModelMetadataRepository
+from qs_kernel.domain.ports.ml_model_port import IMLModelRepository, IMLModelMetadataRepository
 from adapters.shared.ml_helpers import (
     _get_model_repo,
     _resolve_latest_version,

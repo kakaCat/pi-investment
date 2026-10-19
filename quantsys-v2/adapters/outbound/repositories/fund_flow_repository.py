@@ -10,7 +10,7 @@ from datetime import datetime
 from infrastructure.persistence.orm import BaseORMRepository
 from sqlalchemy import Column, Integer, String, Date, DateTime, Numeric, func
 from infrastructure.persistence.orm.base import Base
-from domain.ports import IFundFlowRepository
+from qs_kernel.domain.ports import IFundFlowRepository
 from typing import List, Optional, Dict, Any
 import structlog
 

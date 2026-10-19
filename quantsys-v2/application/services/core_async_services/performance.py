@@ -3,7 +3,7 @@ from typing import Dict
 
 import structlog
 
-from domain.ports.repository_ports_extended import IBacktestRepository
+from qs_kernel.domain.ports.repository_ports_extended import IBacktestRepository
 from infrastructure.persistence.orm.async_config import get_async_session_context
 
 logger = structlog.get_logger(__name__)

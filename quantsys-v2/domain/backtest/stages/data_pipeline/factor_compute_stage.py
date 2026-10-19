@@ -25,7 +25,7 @@ from typing import Dict, List, Optional
 from datetime import datetime, timedelta
 
 from domain.backtest.stages.data_pipeline import PipelineContext, PipelineResult
-from domain.ports import IKlineRepository, IFactorRepository
+from qs_kernel.domain.ports import IKlineRepository, IFactorRepository
 from domain.backtest.stages.factor_stage import FactorStage
 
 logger = logging.getLogger(__name__)

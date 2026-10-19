@@ -3,7 +3,7 @@
 
 自动评估历史决策的结果，提取经验教训
 """
-from domain.ports import IAgentIntelligenceRepository, IStockPoolRepository
+from qs_kernel.domain.ports import IAgentIntelligenceRepository, IStockPoolRepository
 import structlog
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta

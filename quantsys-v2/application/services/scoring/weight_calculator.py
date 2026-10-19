@@ -10,7 +10,7 @@
 调用方显式传 weights 时本模块不被调用（显式 > 隐式）。
 """
 from typing import Dict, Optional, Any
-from infrastructure.config.constants.scoring.scorer_params import (
+from qs_kernel.infrastructure.config.constants.scoring.scorer_params import (
     WeightCalculatorConfig,
     DEFAULT_WEIGHT_CALCULATOR_CONFIG,
 )

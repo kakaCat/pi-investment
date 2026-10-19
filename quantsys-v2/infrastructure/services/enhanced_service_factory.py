@@ -235,7 +235,7 @@ class EnhancedServiceFactory:
 
         P2-3: 支持从配置文件批量注册服务
         """
-        from infrastructure.config.models import ServicesConfig
+        from qs_kernel.infrastructure.config.models import ServicesConfig
 
         merged_services = config.get_merged_services()
 
@@ -258,7 +258,7 @@ class EnhancedServiceFactory:
             service_name: 服务名称
             service_config: 服务配置对象
         """
-        from infrastructure.config.models import ServiceConfig
+        from qs_kernel.infrastructure.config.models import ServiceConfig
 
         # 1. 解析生命周期
         lifecycle_map = {
@@ -459,7 +459,7 @@ class EnhancedServiceFactory:
             repo_name = service_name.split('.', 1)[1]
             # 从配置中查找对应的 interface
             try:
-                from infrastructure.config.loader import load_config
+                from qs_kernel.infrastructure.config.loader import load_config
                 config = load_config()
                 if hasattr(config, 'repositories') and repo_name in config.repositories:
                     repo_config = config.repositories[repo_name]

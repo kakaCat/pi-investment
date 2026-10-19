@@ -44,7 +44,7 @@ def _check_talib() -> Dict[str, object]:
 def _check_postgresql() -> Dict[str, object]:
     """PostgreSQL：连接 + SELECT 1（使用 settings 的 database_url）。"""
     try:
-        from infrastructure.config.settings import get_settings
+        from qs_kernel.infrastructure.config.settings import get_settings
         settings = get_settings()
         database_url = settings.database.database_url
     except Exception as e:  # settings 本身不可读也算 critical
@@ -86,7 +86,7 @@ def _check_postgresql() -> Dict[str, object]:
 def _check_redis() -> Dict[str, object]:
     """Redis：连接 + ping（可选依赖——cache_factory 失败自动降级内存缓存）。"""
     try:
-        from infrastructure.config import get_redis_config
+        from qs_kernel.infrastructure.config import get_redis_config
         import redis as redis_py
 
         cfg = get_redis_config()

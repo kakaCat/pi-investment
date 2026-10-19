@@ -406,7 +406,7 @@ def _f(value) -> Optional[float]:
 
 def main():
     import argparse
-    from infrastructure.logging import configure_structured_logging
+    from qs_kernel.infrastructure.logging import configure_structured_logging
     configure_structured_logging(level="INFO", json_format=False)  # 统一日志入口（2026-10-01 t-008062 主题B：库层不再调用 basicConfig）
 
     parser = argparse.ArgumentParser(description='季度财报更新')

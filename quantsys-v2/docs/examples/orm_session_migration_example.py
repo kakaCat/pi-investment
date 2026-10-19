@@ -33,7 +33,7 @@ async def list_stocks_OLD(
     reflection wrapper (install_sync_session_cleanup).
     """
     from infrastructure.persistence.orm import get_session
-    from domain.models.stock import Stock
+    from qs_kernel.domain.models.stock import Stock
 
     session = get_session()  # Gets thread-local session
 
@@ -65,7 +65,7 @@ async def get_stock_OLD(symbol: str):
     If an exception occurs, transaction might not rollback.
     """
     from infrastructure.persistence.orm import get_session
-    from domain.models.stock import Stock
+    from qs_kernel.domain.models.stock import Stock
 
     session = get_session()
 
@@ -94,7 +94,7 @@ async def create_stock_OLD(
     changes are not persisted. Session cleanup is implicit.
     """
     from infrastructure.persistence.orm import get_session
-    from domain.models.stock import Stock
+    from qs_kernel.domain.models.stock import Stock
 
     session = get_session()
 
@@ -119,7 +119,7 @@ async def delete_stock_OLD(symbol: str):
     transaction is left open. No explicit rollback.
     """
     from infrastructure.persistence.orm import get_session
-    from domain.models.stock import Stock
+    from qs_kernel.domain.models.stock import Stock
 
     session = get_session()
 
@@ -168,7 +168,7 @@ async def list_stocks_NEW(
     - Auto-closes after request
     - No middleware dependency
     """
-    from domain.models.stock import Stock
+    from qs_kernel.domain.models.stock import Stock
 
     query = session.query(Stock)
     if market:
@@ -200,7 +200,7 @@ async def get_stock_NEW(
     - Session auto-rollbacks on exception
     - Transaction management is automatic
     """
-    from domain.models.stock import Stock
+    from qs_kernel.domain.models.stock import Stock
 
     stock = session.query(Stock).filter(Stock.symbol == symbol).first()
 
@@ -229,7 +229,7 @@ async def create_stock_NEW(
     - Uses structured exceptions (ConflictError)
     - Auto-rollbacks if exception occurs
     """
-    from domain.models.stock import Stock
+    from qs_kernel.domain.models.stock import Stock
 
     # Check if exists
     existing = session.query(Stock).filter(Stock.symbol == symbol).first()
@@ -257,7 +257,7 @@ async def delete_stock_NEW(
     - Auto-rollback if exception between query and delete
     - Structured exceptions
     """
-    from domain.models.stock import Stock
+    from qs_kernel.domain.models.stock import Stock
 
     stock = session.query(Stock).filter(Stock.symbol == symbol).first()
     if not stock:
@@ -286,7 +286,7 @@ class StockService_OLD:
         self.session = get_session()  # Implicit session
 
     def get_stock_with_stats(self, symbol: str):
-        from domain.models.stock import Stock
+        from qs_kernel.domain.models.stock import Stock
         stock = self.session.query(Stock).filter(Stock.symbol == symbol).first()
         if not stock:
             return None
@@ -310,7 +310,7 @@ class StockService_NEW:
         self.session = session  # Explicit session injection
 
     def get_stock_with_stats(self, symbol: str):
-        from domain.models.stock import Stock
+        from qs_kernel.domain.models.stock import Stock
         from domain.exceptions import StockNotFoundException
 
         stock = self.session.query(Stock).filter(Stock.symbol == symbol).first()

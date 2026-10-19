@@ -13,7 +13,7 @@ from domain.backtest.engine.risk_rules import (
     check_daily_drawdown,
     check_max_positions,
 )
-from infrastructure.config.constants.trading.risk_limits import RiskLimits
+from qs_kernel.infrastructure.config.constants.trading.risk_limits import RiskLimits
 
 
 class TestRiskRulesRegression:

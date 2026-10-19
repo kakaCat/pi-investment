@@ -276,11 +276,11 @@ class ConfigValidator:
         errors = self.validate(config)
 
         if not errors:
-            logger.info("✅ Configuration validation passed!")
-            logger.info(f"   Total services: {len(config.get_merged_services())}")
+            print("✅ Configuration validation passed!")
+            print(f"   Total services: {len(config.get_merged_services())}")
             return True
 
-        logger.error(f"❌ Configuration validation failed with {len(errors)} error(s):")
+        print(f"❌ Configuration validation failed with {len(errors)} error(s):")
 
         # 按错误类型分组
         by_type: Dict[str, List[ValidationError]] = {}
@@ -288,10 +288,10 @@ class ConfigValidator:
             by_type.setdefault(error.error_type, []).append(error)
 
         for error_type, type_errors in sorted(by_type.items()):
-            logger.error(f"  {error_type}:")
+            print(f"  {error_type}:")
             for error in type_errors:
-                logger.error(f"    - {error.service_name}: {error.message}")
-            logger.info()
+                print(f"    - {error.service_name}: {error.message}")
+            print()
 
         return False
 

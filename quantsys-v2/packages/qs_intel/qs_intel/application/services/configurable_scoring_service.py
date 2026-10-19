@@ -11,7 +11,7 @@ logger = structlog.get_logger(__name__)
 
 # 导入配置
 try:
-    from infrastructure.config.scoring_config import (
+    from qs_kernel.infrastructure.config.scoring_config import (
         SCORING_WEIGHTS,
         TECHNICAL_SCORING,
         FUNDAMENTAL_SCORING,

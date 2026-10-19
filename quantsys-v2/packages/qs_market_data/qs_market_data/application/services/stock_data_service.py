@@ -5,7 +5,7 @@
 import structlog
 from datetime import datetime
 from typing import Dict, Any, List
-from domain.ports.datasource_ports import IDataProviderManager
+from qs_kernel.domain.ports.datasource_ports import IDataProviderManager
 
 logger = structlog.get_logger(__name__)
 

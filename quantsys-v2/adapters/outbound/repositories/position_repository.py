@@ -10,7 +10,7 @@ from sqlalchemy import Column, Integer, String, Float, Date, DateTime, Text
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.exc import SQLAlchemyError
 from infrastructure.persistence.orm.base import Base
-from domain.ports import IPositionRepository
+from qs_kernel.domain.ports import IPositionRepository
 from typing import List, Optional, Dict, Any
 import structlog
 

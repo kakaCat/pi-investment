@@ -2,7 +2,7 @@
 """
 诊断服务 - 策略诊断主入口
 """
-from domain.ports import IBacktestRepository, IKlineRepository
+from qs_kernel.domain.ports import IBacktestRepository, IKlineRepository
 from typing import Dict, Optional
 from datetime import datetime
 import structlog

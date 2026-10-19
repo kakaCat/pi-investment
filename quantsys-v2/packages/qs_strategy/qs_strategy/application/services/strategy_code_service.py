@@ -10,12 +10,12 @@
 
 from __future__ import annotations
 from typing import Dict, List, Optional, Any
-from domain.ports import IKlineRepository, IStrategyRepository
+from qs_kernel.domain.ports import IKlineRepository, IStrategyRepository
 import json
 import structlog
 import numpy as np
 import pandas as pd
-from domain.ports.datasource_ports import IDataProviderManager, IFundFlowDataSource
+from qs_kernel.domain.ports.datasource_ports import IDataProviderManager, IFundFlowDataSource
 
 try:
     import talib

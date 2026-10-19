@@ -1,5 +1,5 @@
 from domain.strategies.value_objects import StrategyConfig
-from infrastructure.config.constants.trading.strategy import V13StrategyDefaults
+from qs_kernel.infrastructure.config.constants.trading.strategy import V13StrategyDefaults
 
 # 使用配置类管理默认参数
 _DEFAULTS = V13StrategyDefaults()

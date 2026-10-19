@@ -7,7 +7,7 @@ import logging
 from typing import Optional
 
 from infrastructure.cache import CacheService, MemoryCacheBackend
-from infrastructure.config import get_redis_config
+from qs_kernel.infrastructure.config import get_redis_config
 
 # RedisCacheBackend import - check if it exists
 try:

@@ -8,7 +8,7 @@
 4. 为通过的信号创建订单
 5. 更新信号状态并记录日志
 """
-from domain.ports import ISignalRepository, IStrategyRepository
+from qs_kernel.domain.ports import ISignalRepository, IStrategyRepository
 from typing import Dict, Any, List
 from datetime import datetime, date
 import structlog

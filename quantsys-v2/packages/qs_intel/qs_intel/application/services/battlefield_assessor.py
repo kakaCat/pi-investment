@@ -3,7 +3,7 @@
 
 评估股票池在市场博弈中的竞争优势
 """
-from domain.ports import IAgentIntelligenceRepository, IFundFlowRepository, IStockPoolRepository
+from qs_kernel.domain.ports import IAgentIntelligenceRepository, IFundFlowRepository, IStockPoolRepository
 import structlog
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta

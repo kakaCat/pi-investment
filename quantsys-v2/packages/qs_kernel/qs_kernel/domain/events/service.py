@@ -35,7 +35,7 @@ import logging
 import re
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
-from domain.events.model import (
+from qs_kernel.domain.events.model import (
     AUTHORITY_MANUAL, EventScope, EventType, MarketEvent, SourceDivergence,
 )
 

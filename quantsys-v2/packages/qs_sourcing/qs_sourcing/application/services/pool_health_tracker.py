@@ -6,7 +6,7 @@
 import structlog
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
-from domain.ports import IStockPoolRepository
+from qs_kernel.domain.ports import IStockPoolRepository
 from application.services.enhanced_risk_assessor import EnhancedRiskAssessor
 
 logger = structlog.get_logger(__name__)

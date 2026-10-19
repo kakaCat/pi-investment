@@ -8,7 +8,7 @@ import math
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 import pandas as pd
-from domain.ports.datasource_ports import IDataProviderManager, INorthFlowDataSource
+from qs_kernel.domain.ports.datasource_ports import IDataProviderManager, INorthFlowDataSource
 
 logger = structlog.get_logger(__name__)
 
@@ -362,7 +362,7 @@ class MarketDataService:
         # 原实现已注释(保留用于参考,依赖 NorthHoldingsCCASSSource 类)
         """
         try:
-            from domain.ports import IKlineRepository
+            from qs_kernel.domain.ports import IKlineRepository
             from qs_market_data.adapters.outbound.datasources.north_flow_ccass import NorthHoldingsCCASSSource
 
             source = NorthHoldingsCCASSSource()
@@ -389,7 +389,7 @@ class MarketDataService:
             # 3. 收盘价(用对比日的最新 K 线)
             if self._kline_repo is None:
                 from infrastructure.services.service_factory import ServiceFactory
-                from domain.ports import IKlineRepository
+                from qs_kernel.domain.ports import IKlineRepository
                 kline_repo = ServiceFactory.resolve(IKlineRepository)
             else:
                 kline_repo = self._kline_repo

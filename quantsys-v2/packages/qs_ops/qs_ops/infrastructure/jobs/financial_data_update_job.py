@@ -264,7 +264,7 @@ def _dedup(symbols: List[str]) -> List[str]:
 
 def main():
     import argparse
-    from infrastructure.logging import configure_structured_logging
+    from qs_kernel.infrastructure.logging import configure_structured_logging
     configure_structured_logging(level="INFO", json_format=False)  # 统一日志入口（2026-10-01 t-008062 主题B：库层不再调用 basicConfig）
 
     parser = argparse.ArgumentParser(description='财务数据更新（基础指标列）')

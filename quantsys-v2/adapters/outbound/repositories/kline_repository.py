@@ -27,7 +27,7 @@ from infrastructure.persistence.orm.models import DailyKline, IndexDaily, Minute
 # 绝不在调用方手写后缀（399xxx 恒 .SZ，其余白名单 .SH，歧义码由 stocks 表定夺）。
 # 该模块只依赖标准库 + 惰性 DB 访问，无循环导入。
 from utils.symbol_classifier import resolve_index_symbol
-from domain.ports import IKlineRepository
+from qs_kernel.domain.ports import IKlineRepository
 
 logger = structlog.get_logger(__name__)
 

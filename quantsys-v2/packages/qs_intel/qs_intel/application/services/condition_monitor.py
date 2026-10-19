@@ -10,7 +10,7 @@ from typing import Dict, Callable, Any, Optional, List
 from datetime import datetime, timedelta
 import json
 
-from domain.ports.repository_ports_extended import (
+from qs_kernel.domain.ports.repository_ports_extended import (
     IConditionRuleRepository,
     IConditionResultRepository
 )

@@ -1,14 +1,9 @@
-"""政策·个股事件源限界上下文（RFC 015 §3，P3）"""
-from domain.events.model import (
-    AUTHORITY_AKSHARE, AUTHORITY_CNINFO, AUTHORITY_CSRC, AUTHORITY_DB,
-    AUTHORITY_EASTMONEY, AUTHORITY_GOV, AUTHORITY_MANUAL,
-    EventScope, EventType, MarketEvent, SourceDivergence, source_authority,
-)
-from domain.events.service import MarketEventService
+"""S11-A 兼容 shim：domain.events 已迁入 qs_kernel.domain.events。
 
-__all__ = [
-    'EventScope', 'EventType', 'MarketEvent', 'SourceDivergence', 'source_authority',
-    'MarketEventService',
-    'AUTHORITY_CNINFO', 'AUTHORITY_CSRC', 'AUTHORITY_GOV', 'AUTHORITY_EASTMONEY',
-    'AUTHORITY_AKSHARE', 'AUTHORITY_MANUAL', 'AUTHORITY_DB',
-]
+迁移见方案卡 docs/plans/package-boundaries-import-linter.md（§S11）。
+30 天观察期后删除。
+"""
+import qs_kernel.domain.events as _kernel_mod
+from qs_kernel.domain.events import *  # noqa: F401,F403
+
+__path__ = list(__path__) + list(_kernel_mod.__path__)

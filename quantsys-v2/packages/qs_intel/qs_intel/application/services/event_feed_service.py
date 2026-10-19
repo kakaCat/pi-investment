@@ -18,8 +18,8 @@ import logging
 from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional
 
-from domain.events.model import EventScope, EventType, MarketEvent
-from domain.events.service import MarketEventService
+from qs_kernel.domain.events.model import EventScope, EventType, MarketEvent
+from qs_kernel.domain.events.service import MarketEventService
 
 logger = logging.getLogger(__name__)
 

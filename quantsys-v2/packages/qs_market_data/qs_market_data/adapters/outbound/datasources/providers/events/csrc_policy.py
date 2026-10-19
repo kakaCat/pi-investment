@@ -38,8 +38,8 @@ from typing import Dict, List, Optional
 
 import requests
 
-from domain.events.model import AUTHORITY_CSRC
-from domain.events.ports.IMarketEventProvider import IMarketEventProvider
+from qs_kernel.domain.events.model import AUTHORITY_CSRC
+from qs_kernel.domain.events.ports.IMarketEventProvider import IMarketEventProvider
 
 logger = logging.getLogger(__name__)
 

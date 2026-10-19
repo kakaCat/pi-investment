@@ -3,7 +3,7 @@
 
 根据市场风格和策略历史表现动态调整策略权重
 """
-from domain.ports import IStrategyPerformanceRepository, IStrategyWeightRepository
+from qs_kernel.domain.ports import IStrategyPerformanceRepository, IStrategyWeightRepository
 from typing import Dict, Optional
 import structlog
 

@@ -32,7 +32,7 @@ from qs_market_data.adapters.outbound.datasources.providers.minute_kline.base im
     MinuteKlineProvider, bars_needed, in_date_range, limit_klines,
     ohlc_sanity, period_minutes, to_prefixed_code,
 )
-from domain.models.market_data import MinuteKline
+from qs_kernel.domain.models.market_data import MinuteKline
 
 logger = logging.getLogger(__name__)
 

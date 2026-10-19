@@ -1,5 +1,5 @@
 """Strategy execution service - unified strategy execution interface"""
-from domain.ports import IKlineRepository, ISignalRepository, IStockRepository, IStrategyRepository
+from qs_kernel.domain.ports import IKlineRepository, ISignalRepository, IStockRepository, IStrategyRepository
 import structlog
 import time
 import uuid

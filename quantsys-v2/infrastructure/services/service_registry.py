@@ -48,8 +48,8 @@ def register_all_services(use_config: Optional[bool] = None, environment: Option
 
     # P2-3: 配置驱动注册（唯一方式）
     try:
-        from infrastructure.config.loader import load_config
-        from infrastructure.config.validator import ConfigValidator
+        from qs_kernel.infrastructure.config.loader import load_config
+        from qs_kernel.infrastructure.config.validator import ConfigValidator
 
         logger.info(f"Loading services from configuration (environment: {environment or 'auto-detect'})")
 
@@ -112,7 +112,7 @@ def _register_services_hardcoded():
     )
 
     # Stock Pool Repository
-    from domain.ports.repository_ports_extended import IStockPoolRepository
+    from qs_kernel.domain.ports.repository_ports_extended import IStockPoolRepository
     from adapters.outbound.repositories.stock_pool_repository import StockPoolORMRepository
     EnhancedServiceFactory.register(
         IStockPoolRepository,
@@ -121,7 +121,7 @@ def _register_services_hardcoded():
     )
 
     # Strategy Repository
-    from domain.ports import IStrategyRepository
+    from qs_kernel.domain.ports import IStrategyRepository
     from adapters.outbound.repositories.strategy_repository import StrategyORMRepository
     EnhancedServiceFactory.register(
         IStrategyRepository,
@@ -130,7 +130,7 @@ def _register_services_hardcoded():
     )
 
     # Kline Repository
-    from domain.ports import IKlineRepository
+    from qs_kernel.domain.ports import IKlineRepository
     from adapters.outbound.repositories.kline_repository import KlineORMRepository
     EnhancedServiceFactory.register(
         IKlineRepository,
@@ -139,7 +139,7 @@ def _register_services_hardcoded():
     )
 
     # Signal Repository
-    from domain.ports import ISignalRepository
+    from qs_kernel.domain.ports import ISignalRepository
     from adapters.outbound.repositories.signal_repository import SignalORMRepository
     EnhancedServiceFactory.register(
         ISignalRepository,
@@ -148,7 +148,7 @@ def _register_services_hardcoded():
     )
 
     # 扩展的 Repository（来自 repository_ports_extended）
-    from domain.ports.repository_ports_extended import (
+    from qs_kernel.domain.ports.repository_ports_extended import (
         ISimulationRepository,
         IPortfolioRepository,
         IFactorRepository,
@@ -196,7 +196,7 @@ def _register_services_hardcoded():
     )
 
     # ML Model Repository (P1-2 Phase 2)
-    from domain.ports.ml_model_port import IMLModelRepository, IMLModelMetadataRepository
+    from qs_kernel.domain.ports.ml_model_port import IMLModelRepository, IMLModelMetadataRepository
     from adapters.outbound.ml.ml_model_repository import MLModelFileRepository, MLModelMetadataDBRepository
     EnhancedServiceFactory.register(
         IMLModelRepository,
@@ -211,7 +211,7 @@ def _register_services_hardcoded():
 
     # Data Provider Manager (P1-2 Phase 2)
     # P0 Fix: 直接使用 DataProviderManager，删除冗余的 Adapter 层
-    from domain.ports.datasource_ports import IDataProviderManager
+    from qs_kernel.domain.ports.datasource_ports import IDataProviderManager
     from adapters.outbound.datasources.manager import DataProviderManager
 
     # DataProviderManager 不再需要 DataService 参数（已迁移至直接 repo 调用）
@@ -367,7 +367,7 @@ def _register_services_hardcoded():
 
     # ChanKnowledgeDistiller - 依赖多个 Repository
     from application.services.chan_knowledge_distiller import ChanKnowledgeDistiller
-    from domain.ports.repository_ports_extended import IAgentKnowledgeRepository
+    from qs_kernel.domain.ports.repository_ports_extended import IAgentKnowledgeRepository
     def create_chan_knowledge_distiller():
         signal_repo = EnhancedServiceFactory.resolve(ISignalRepository)
         kline_repo = EnhancedServiceFactory.resolve(IKlineRepository)
@@ -388,7 +388,7 @@ def _register_services_hardcoded():
     from application.services.factor_layering_service import FactorLayeringService
     # 2026-09-14（w-c8cae280）修**真实缺陷**：IStockRepository 在本闭包内使用却从未导入
     # → 一旦调用 create_factor_layering_service() 就 NameError（IKlineRepository 已导入，故只此一个漏）。
-    from domain.ports.repository_ports import IStockRepository
+    from qs_kernel.domain.ports.repository_ports import IStockRepository
     def create_factor_layering_service():
         kline_repo = EnhancedServiceFactory.resolve(IKlineRepository)
         stock_repo = EnhancedServiceFactory.resolve(IStockRepository)
@@ -407,7 +407,7 @@ def _register_services_hardcoded():
 
     # StrategyWeightAdjuster - 依赖 Repository
     from qs_strategy.application.services.strategy_weight_adjuster import StrategyWeightAdjuster
-    from domain.ports.repository_ports_extended import IStrategyWeightRepository, IStrategyPerformanceRepository
+    from qs_kernel.domain.ports.repository_ports_extended import IStrategyWeightRepository, IStrategyPerformanceRepository
     def create_strategy_weight_adjuster():
         weight_repo = IStrategyWeightRepository()
         performance_repo = IStrategyPerformanceRepository()
@@ -424,7 +424,7 @@ def _register_services_hardcoded():
 
     # DecisionService - 依赖 Repository
     from application.services.decision_service import DecisionService
-    from domain.ports.repository_ports_extended import IAgentIntelligenceRepository, IPoolChangeLogRepository
+    from qs_kernel.domain.ports.repository_ports_extended import IAgentIntelligenceRepository, IPoolChangeLogRepository
     def create_decision_service():
         # 2026-09-13 修：两个都是**纯 ABC**，直接实例化必抛 TypeError（该装配此前一直失败）。
         # 端口 -> 具体仓储的实现类对应关系在此显式写出；IAgentIntelligenceRepository 若也无实现，
@@ -502,7 +502,7 @@ def _register_services_hardcoded():
 
     # StrategyCircuitBreaker
     from qs_strategy.application.services.strategy_circuit_breaker import StrategyCircuitBreaker
-    from domain.ports.repository_ports_extended import IStrategyCircuitBreakerRepository
+    from qs_kernel.domain.ports.repository_ports_extended import IStrategyCircuitBreakerRepository
     def create_strategy_circuit_breaker():
         repo = IStrategyCircuitBreakerRepository()
         return StrategyCircuitBreaker(repo=repo)
@@ -515,7 +515,7 @@ def _register_services_hardcoded():
 
     # SchedulerConfigService
     from application.services.scheduler_config_service import SchedulerConfigService
-    from domain.ports.repository_ports_extended import ISchedulerConfigRepository
+    from qs_kernel.domain.ports.repository_ports_extended import ISchedulerConfigRepository
     def create_scheduler_config_service():
         repo = ISchedulerConfigRepository()
         return SchedulerConfigService(repo=repo)
@@ -622,7 +622,7 @@ def _register_services_hardcoded():
     # SignalExecutionScheduler
     from application.services.signal_execution_scheduler import SignalExecutionScheduler
     from qs_strategy.application.services.strategy_code_service import StrategyCodeService
-    from domain.ports.repository_ports_extended import ISignalExecutionLogRepository
+    from qs_kernel.domain.ports.repository_ports_extended import ISignalExecutionLogRepository
     def create_signal_execution_scheduler():
         from infrastructure.services.service_factory import ServiceFactory
         strategy_service = StrategyCodeService()

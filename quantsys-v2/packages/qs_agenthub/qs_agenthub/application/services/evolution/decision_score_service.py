@@ -12,7 +12,7 @@
 import logging
 from datetime import date, datetime
 from typing import Any, Callable, Dict, Optional
-from domain.common.dates import as_date, as_datetime, as_date_str
+from qs_kernel.domain.common.dates import as_date, as_datetime, as_date_str
 
 from qs_agenthub.application.services.evolution.score_calculator import compute_trade_score
 from qs_agenthub.application.services.evolution.lesson_generator import generate_lesson
@@ -46,13 +46,13 @@ class DecisionScoreService:
                  bench_klines_provider: Optional[Callable] = None,
                  mature_window: int = 20):
         if decision_repo is None:
-            from domain.ports.repository_ports_extended import (
+            from qs_kernel.domain.ports.repository_ports_extended import (
                 IAgentIntelligenceRepository,
             )
             from infrastructure.services.service_factory import ServiceFactory
             decision_repo = ServiceFactory.resolve(IAgentIntelligenceRepository)
         if kline_repo is None:
-            from domain.ports import IKlineRepository
+            from qs_kernel.domain.ports import IKlineRepository
             from infrastructure.services.service_factory import ServiceFactory
             kline_repo = ServiceFactory.resolve(IKlineRepository)
         if bench_klines_provider is None:

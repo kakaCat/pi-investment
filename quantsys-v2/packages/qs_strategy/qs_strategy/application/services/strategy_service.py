@@ -27,7 +27,7 @@ from typing import Dict, List, Optional
 from datetime import datetime
 
 from live_trading.simulation_trader import SimulationTrader
-from domain.ports import ISimulationRepository
+from qs_kernel.domain.ports import ISimulationRepository
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +73,7 @@ class StrategyService:
         strategies = [c.stem for c in configs]
 
         # 校验策略账户存在于注册表（simulation_account），缺失则告警并剔除
-        from domain.ports.repository_ports_extended import (
+        from qs_kernel.domain.ports.repository_ports_extended import (
             ISimulationRepository,
         )
         from infrastructure.services.service_factory import ServiceFactory

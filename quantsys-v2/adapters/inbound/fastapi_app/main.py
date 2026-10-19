@@ -42,10 +42,10 @@ load_dotenv(env_path)
 # （路径引导已上移至文件顶部，见上）
 
 # 统一使用结构化日志配置
-from infrastructure.logging import configure_structured_logging
+from qs_kernel.infrastructure.logging import configure_structured_logging
 
 # 加载统一配置
-from infrastructure.config.settings import get_settings
+from qs_kernel.infrastructure.config.settings import get_settings
 settings = get_settings()
 
 configure_structured_logging(
@@ -58,7 +58,7 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 # 加载统一配置
-from infrastructure.config.settings import get_settings
+from qs_kernel.infrastructure.config.settings import get_settings
 settings = get_settings()
 
 
@@ -269,7 +269,7 @@ async def lifespan(app: FastAPI):
                 from infrastructure.scheduler.apscheduler_service import APSchedulerService
                 from adapters.outbound.repositories.scheduler_repository import SchedulerRepository
                 from infrastructure.persistence.orm import get_session
-                from infrastructure.config.settings import get_settings
+                from qs_kernel.infrastructure.config.settings import get_settings
 
                 settings_obj = get_settings()
                 db_url = (

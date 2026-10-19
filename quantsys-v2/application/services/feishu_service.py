@@ -6,7 +6,7 @@ import json
 import structlog
 from typing import Dict, Any, List, Optional
 from datetime import datetime
-from infrastructure.config.settings import get_settings
+from qs_kernel.infrastructure.config.settings import get_settings
 
 logger = structlog.get_logger(__name__)
 

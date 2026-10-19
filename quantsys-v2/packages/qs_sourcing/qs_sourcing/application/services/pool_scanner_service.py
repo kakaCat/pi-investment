@@ -7,7 +7,7 @@
 3. 生成扫描报告
 4. 通知发现的买入机会
 """
-from domain.ports import IKlineRepository, IStockPoolRepository, IStrategyRepository
+from qs_kernel.domain.ports import IKlineRepository, IStockPoolRepository, IStrategyRepository
 import structlog
 from typing import List, Dict, Optional
 from datetime import datetime, time

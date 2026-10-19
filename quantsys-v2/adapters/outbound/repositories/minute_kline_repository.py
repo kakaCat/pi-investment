@@ -12,7 +12,7 @@ RFC 015 §4.1（2026-09-11 REQ-cf627b）：
 from datetime import datetime
 from typing import List, Optional
 
-from domain.models.market_data import MinuteKline
+from qs_kernel.domain.models.market_data import MinuteKline
 from qs_trading.domain.trading.ports.IMinuteKlineRepository import IMinuteKlineRepository
 
 from infrastructure.persistence.orm.models import MinuteKline as MinuteKlineORM

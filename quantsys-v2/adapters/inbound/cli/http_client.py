@@ -10,7 +10,7 @@ from typing import Any, Dict, Optional
 from urllib.parse import urljoin
 
 import requests
-from infrastructure.config import get_config
+from qs_kernel.infrastructure.config import get_config
 
 
 class HTTPClient:

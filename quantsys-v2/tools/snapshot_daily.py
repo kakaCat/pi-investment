@@ -30,7 +30,7 @@ def main() -> int:
     # 此处显式跳过，宁可当日不写，也不写错。参考标的取流动性好的 600519。
     from datetime import date as _date
     from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
-    from domain.ports import IKlineRepository
+    from qs_kernel.domain.ports import IKlineRepository
     ref = target or _date.today()
     klines = EnhancedServiceFactory.resolve(IKlineRepository).get_daily_klines(
         symbol="600519", start_date=ref.isoformat(), end_date=ref.isoformat()

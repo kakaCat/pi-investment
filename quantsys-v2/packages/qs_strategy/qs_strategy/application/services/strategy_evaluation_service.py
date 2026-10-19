@@ -76,7 +76,7 @@ def query_rows(sql: str, params: dict | None = None) -> list:
 # --------------------------------------------------------------------------- #
 def load_klines(symbol: str, start: str, end: str) -> pd.DataFrame:
     """从 quant.daily_klines 取日线（前复权口径以库内为准）。走 IKlineRepository 端口，与线上同源。"""
-    from domain.ports import IKlineRepository
+    from qs_kernel.domain.ports import IKlineRepository
     from infrastructure.services.service_factory import ServiceFactory
     repo = ServiceFactory.resolve(IKlineRepository)
     df = repo.get_daily_klines(symbol, start_date=start, end_date=end)
