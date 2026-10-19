@@ -11,6 +11,7 @@ Agent 通过此 API 将决策反馈给 V2 执行：
 Agent 收到 wake 事件后，分析完毕调用这些接口执行决策。
 """
 from fastapi import APIRouter, Body
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 from datetime import datetime
@@ -217,18 +218,22 @@ async def execute_rotation(execution: RotationExecution):
         repo = StrategyORMRepository()
         new_strategies = repo.get_all(active_only=True)
 
-        # 获取执行后的持仓状态
+        # 获取执行后的持仓状态（2026-10-20：rotation_main 死引用清除——
+        # 该账户冻结零持仓，读它=汇报假空仓；改为聚合全部 active 账户）。
+        # 注意：rotation 引擎本体仍以 rotation_main 为账本（legacy 子系统），
+        # 这里的聚合只是给 agent 的**全局**持仓视图，与轮动账本解耦。
         portfolio_state = None
         try:
             from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
             sim_repo = SimulationORMRepository()
-            account = sim_repo.get_account('rotation_main')
-            if account:
-                portfolio_state = {
-                    'cash': account.get('cash_available', 0),
-                    'total_value': account.get('total_value', 0),
-                    'positions_count': len(sim_repo.get_all_positions('rotation_main') or []),
-                }
+            accounts = sim_repo.list_accounts(status='active')
+            total_positions = sum(
+                len(sim_repo.get_all_positions(a.account_name) or []) for a in accounts)
+            portfolio_state = {
+                'accounts': [a.account_name for a in accounts],
+                'total_value': round(sum(float(a.total_value or 0) for a in accounts), 2),
+                'positions_count': total_positions,
+            }
         except Exception:
             pass
 
@@ -286,33 +291,28 @@ async def verify_rotation(rotation_date: Optional[str] = None):
 
 @router.post("/risk/update", summary="调整风控参数")
 async def update_risk_params(update: RiskParamUpdate):
-    """Agent 调整风控参数"""
-    try:
-        from application.trading.paper_trading_engine import PaperTradingEngine
-        engine = PaperTradingEngine(account_name='rotation_main')
+    """Agent 调整风控参数（2026-10-20 修复：假写清除，改为诚实拒绝 + 指引）。
 
-        changes = {}
-        if update.stop_loss_pct is not None:
-            engine.risk_config['stop_loss_pct'] = update.stop_loss_pct
-            changes['stop_loss_pct'] = update.stop_loss_pct
-        if update.take_profit_pct is not None:
-            engine.risk_config['take_profit_pct'] = update.take_profit_pct
-            changes['take_profit_pct'] = update.take_profit_pct
-        if update.max_position_pct is not None:
-            engine.risk_config['max_single_position_pct'] = update.max_position_pct
-            changes['max_single_position_pct'] = update.max_position_pct
-
-        logger.info("agent_risk_params_updated", changes=changes, reason=update.reason)
-
-        return {
-            'success': True,
-            'message': f'风控参数已调整: {changes}',
-            'changes': changes,
-        }
-
-    except Exception as e:
-        logger.error(f"Agent risk param update failed: {e}")
-        return {'success': False, 'error': str(e)}
+    旧实现把改动写在请求级 PaperTradingEngine 实例的内存 risk_config 上，
+    请求结束即丢——返回"已调整"是假话（且账户写死 rotation_main 空账户）。
+    风控口径的权威出处是代码/宪法（qs_trading intraday_monitor 的分级止损
+    30/68→-10%、其余 -8%，止盈 +15%），不接受运行时静默改参。
+    如需变更：改代码并留裁定记录。
+    """
+    requested = {k: v for k, v in {
+        'stop_loss_pct': update.stop_loss_pct,
+        'take_profit_pct': update.take_profit_pct,
+        'max_position_pct': update.max_position_pct,
+    }.items() if v is not None}
+    logger.warning("agent_risk_update_rejected_not_persistable",
+                   requested=requested, reason=update.reason)
+    return JSONResponse({
+        'success': False,
+        'error': ('风控参数不支持运行时修改（旧实现为内存假写，已移除）：'
+                  '当前口径为分级止损（创业板/科创板 -10%、其余 -8%）与止盈 +15%，'
+                  '权威出处 qs_trading intraday_monitor；变更需改代码并留裁定记录。'),
+        'requested': requested,
+    }, status_code=400)
 
 
 @router.post("/decision/log", summary="记录决策日志")
@@ -437,22 +437,47 @@ async def get_orchestrator_status():
 
 
 @router.get("/positions", summary="当前持仓")
-async def get_positions():
-    """查询当前持仓"""
-    try:
-        from application.trading.paper_trading_engine import PaperTradingEngine
-        engine = PaperTradingEngine(account_name='rotation_main')
-        positions = engine.get_current_positions()
+async def get_positions(account: Optional[str] = None):
+    """查询当前持仓（2026-10-20 修复：rotation_main 死引用清除）。
 
+    此前写死 rotation_main——该账户零持仓且 status=frozen，agent 查持仓
+    永远拿到空数组（"没持仓"的假话比报错危险）。现改为读表驱动：
+    缺省聚合全部 active 账户的真实持仓（每行带 account 归属）；
+    传 ?account=xxx 只查单账户。
+    """
+    try:
+        from adapters.outbound.repositories.simulation_repository import (
+            SimulationORMRepository,
+        )
+        repo = SimulationORMRepository()
+        accounts = [account] if account else [
+            a.account_name for a in repo.list_accounts(status='active')
+        ]
+        positions = []
+        for acct in accounts:
+            for p in repo.get_all_positions(acct):
+                positions.append({
+                    'account': acct,
+                    'symbol': p.symbol,
+                    'shares_total': int(p.shares_total or 0),
+                    'shares_available': int(p.shares_available or 0),
+                    'avg_cost': float(p.avg_cost or 0),
+                    'current_price': float(p.current_price or 0),
+                    'market_value': float(p.market_value or 0),
+                    'profit_total': float(p.profit_total or 0),
+                    'profit_total_rate': float(p.profit_total_rate or 0),
+                })
         return {
             'success': True,
             'data': {
                 'count': len(positions),
+                'accounts': accounts,
                 'positions': positions,
             },
         }
 
     except Exception as e:
+        logger.error(f"Get positions failed: {e}")
         return {'success': False, 'error': str(e)}
 
 
