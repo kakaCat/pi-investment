@@ -254,3 +254,15 @@ def handle_chan_knowledge_distill(params: Dict[str, Any] = None) -> Dict[str, An
         }
 
 
+
+
+def handle_weekly_profit_report(params: Dict[str, Any] = None) -> Dict[str, Any]:
+    """每周盈利报告（2026-10-19）：本周盈亏/信号命中率/机会捕捉错过三段式。
+
+    委托 qs_ops.infrastructure.jobs.weekly_profit_report_job.execute；
+    dry_run=true 只生成留痕不推送。
+    """
+    params = params or {}
+    logger.info("Starting weekly_profit_report task")
+    from qs_ops.infrastructure.jobs.weekly_profit_report_job import execute
+    return execute(params)
