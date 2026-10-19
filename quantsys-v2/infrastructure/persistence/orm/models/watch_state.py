@@ -21,6 +21,7 @@
       watch_interventions.id 是 identity 序列。
 """
 from sqlalchemy import Column, Date, DateTime, Float, Integer, String, Text, func, text
+from sqlalchemy.dialects.postgresql import JSONB
 
 from ..base import Base
 
@@ -41,6 +42,10 @@ class WatchDigestState(Base):
     wake_date = Column(Date, nullable=True, comment='上次唤醒所属日期（跨日则当日计数重置）')
     wake_count = Column(Integer, nullable=True, server_default=text('0'), comment='当日唤醒次数')
     last_digest_at = Column(DateTime(timezone=False), nullable=True, comment='上次摘要生成时间')
+    # 逐账户唤醒水位（2026-10-19）：{账户或"__unassigned__": ISO 时间}。
+    # 部分账户唤醒失败只推进成功账户的水位——失败账户的触发留在自己的增量段。
+    # 迁移：20261019_watch_digest_state_wake_marks.py
+    wake_marks = Column(JSONB, nullable=True, comment='逐账户唤醒水位 {account: ISO 时间}')
     note = Column(Text, nullable=True, comment='备注')
     updated_at = Column(DateTime(timezone=False), nullable=True, server_default=func.now(), comment='更新时间')
 

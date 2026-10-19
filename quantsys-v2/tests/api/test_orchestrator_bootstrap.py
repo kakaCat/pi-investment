@@ -66,9 +66,14 @@ def test_start_orchestrator_calls_ticks(monkeypatch):
     thread, stop_event = handles
     assert isinstance(thread, threading.Thread)
     assert thread.is_alive()
-    assert resumed == [1]  # 启动即断点续跑
 
+    # 断点续跑已挪入 tick 线程首动作（2026-10-19：启动不再被补跑阻塞），
+    # 等线程执行到它——且必须先于任何 tick（顺序语义不变）。
     deadline = datetime.now().timestamp() + 5
+    while not resumed and datetime.now().timestamp() < deadline:
+        stop_event.wait(0.05)
+    assert resumed == [1]  # 线程内启动即断点续跑
+
     while ticks['orch'] == 0 and datetime.now().timestamp() < deadline:
         stop_event.wait(0.05)
     ob.stop_orchestrator(handles)

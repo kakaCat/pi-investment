@@ -57,19 +57,25 @@ class WatchDigestStateRepository:
                     WatchDigestState.last_wake_at,
                     WatchDigestState.wake_date,
                     WatchDigestState.wake_count,
+                    WatchDigestState.wake_marks,
                 )
                 .filter(WatchDigestState.id == 1)
                 .first()
             )
             if row is None:
-                return {"last_wake_at": None, "wake_date": None, "wake_count": 0}
-            return {"last_wake_at": row[0], "wake_date": row[1], "wake_count": int(row[2] or 0)}
+                return {"last_wake_at": None, "wake_date": None, "wake_count": 0,
+                        "wake_marks": {}}
+            return {"last_wake_at": row[0], "wake_date": row[1], "wake_count": int(row[2] or 0),
+                    "wake_marks": dict(row[3] or {})}
         except Exception as e:
             logger.warning("摘要状态读取失败（按未唤醒处理）", error=str(e))
             _safe_rollback()
-            return {"last_wake_at": None, "wake_date": None, "wake_count": 0}
+            return {"last_wake_at": None, "wake_date": None, "wake_count": 0,
+                    "wake_marks": {}}
 
-    def save_wake(self, now: datetime) -> None:
+    def save_wake(self, now: datetime, account: Optional[str] = None) -> None:
+        """记一次唤醒。account 给出时同时推进**该账户**的水位（wake_marks，
+        2026-10-19）：部分账户失败时失败方水位不动，其触发留在自己的增量段。"""
         try:
             tbl = WatchDigestState.__table__
             stmt = pg_insert(tbl).values(
@@ -96,9 +102,44 @@ class WatchDigestStateRepository:
             )
             session = get_session()
             session.execute(stmt)
+            if account is not None:
+                # 单行表读-改-写合并该账户水位（唯一写入方是引擎线程，无并发竞争）；
+                # jsonb 整体替换，跨日清零（水位只服务当日增量段，隔日无意义）。
+                row = (session.query(WatchDigestState)
+                       .filter(WatchDigestState.id == 1).first())
+                if row is not None:
+                    marks = dict(row.wake_marks or {})
+                    if row.wake_date != now.date():
+                        marks = {}
+                    marks[str(account)] = now.isoformat()
+                    row.wake_marks = marks
             session.commit()
         except Exception as e:
             logger.error("摘要状态写入失败", error=str(e))
+            _safe_rollback()
+
+    def save_wake_mark(self, account: str, at: datetime) -> None:
+        """只钉某账户的水位（不动 last_wake_at/wake_count）。
+
+        用途（2026-10-19 P1-5）：账户唤醒**失败**时把水位钉在本轮窗口起点——
+        下轮 effective_since 取全部水位的最小值，失败账户的触发由此留在增量段。
+        单行表读-改-写（唯一写入方是引擎线程，无并发竞争）。
+        """
+        try:
+            session = get_session()
+            row = (session.query(WatchDigestState)
+                   .filter(WatchDigestState.id == 1).first())
+            if row is None:
+                # 单行尚未建立（从未唤醒过）：建行同时落水位
+                session.add(WatchDigestState(id=1,
+                                             wake_marks={str(account): at.isoformat()}))
+            else:
+                marks = dict(row.wake_marks or {})
+                marks[str(account)] = at.isoformat()
+                row.wake_marks = marks
+            session.commit()
+        except Exception as e:
+            logger.error("逐账户水位写入失败", error=str(e))
             _safe_rollback()
 
 

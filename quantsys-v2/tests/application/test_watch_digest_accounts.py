@@ -210,3 +210,74 @@ def test_segment_text_labels_account():
     segs = svc._segments(svc.build_digest())
     assert "[agent_virtual]" in segs["agent_virtual"]["text"]
     assert "agent_brain" not in segs["agent_virtual"]["text"]
+
+
+# ── 逐账户水位（2026-10-19，P1-5）──────────────────────────────
+class _MarkStateRepo:
+    """支持逐账户水位的状态 fake（对齐 WatchDigestStateRepository 新端口）"""
+
+    def __init__(self):
+        self.marks = {}
+        self.last_wake_at = None
+        self.wake_count = 0
+
+    def load_state(self):
+        return {"last_wake_at": self.last_wake_at, "wake_date": None,
+                "wake_count": self.wake_count,
+                "wake_marks": {k: v.isoformat() for k, v in self.marks.items()}}
+
+    def save_wake(self, now, account=None):
+        self.last_wake_at = now
+        self.wake_count += 1
+        if account is not None:
+            self.marks[str(account)] = now
+
+    def save_wake_mark(self, account, at):
+        self.marks[str(account)] = at
+
+
+class _FlakyAgent:
+    """指定账户投递失败、其余成功的 agent fake"""
+
+    def __init__(self, fail_account):
+        self.fail_account = fail_account
+        self.calls = []
+
+    def notify_agent(self, event, data, target=None):
+        self.calls.append({"event": event, "data": data, "target": target})
+        return data.get("account_name") != self.fail_account
+
+
+def test_failed_account_watermark_stays_put_and_content_redelivered():
+    """部分账户唤醒失败：失败账户水位不推进，其触发下轮仍在增量段并被补投。
+
+    修复前：全局 last_wake_at 被成功账户推进，失败账户更早的触发被 since 过滤出
+    增量段，只剩 backlog 计数、永不进摘要分组。
+    """
+    early = datetime(2026, 9, 11, 9, 50)   # 失败账户的触发早于首轮唤醒时刻
+    rules = [_Rule(1, "600519", account="agent_virtual"),
+             _Rule(2, "600036", account="agent_brain")]
+    trigs = [_Trig(11, 1, "600519"), _Trig(12, 2, "600036")]
+    trigs[1].triggered_at = early
+    state = _MarkStateRepo()
+    agent = _FlakyAgent(fail_account="agent_brain")
+    svc = WatchDigestService(trigger_repo=_TriggerRepo(trigs),
+                             rule_repo=_RuleRepo(rules),
+                             agent_service=agent, state_repo=state)
+
+    r1 = svc.maybe_wake(now=TRADING_NOW)
+    assert r1["woke"] is True and r1["accounts"] == ["agent_virtual"]
+    assert r1["failed"] == ["agent_brain"]
+    assert "agent_virtual" in state.marks            # 成功账户水位推进
+    assert state.marks.get("agent_brain") is not None  # 失败账户水位**钉住**在原窗口
+    assert state.marks["agent_brain"] < TRADING_NOW
+
+    # 第二轮（冷却过后；brain 恢复可用）：brain 的早间触发仍在增量段并被补投
+    agent2 = _Agent()
+    svc2 = WatchDigestService(trigger_repo=_TriggerRepo(trigs),
+                              rule_repo=_RuleRepo(rules),
+                              agent_service=agent2, state_repo=state)
+    r2 = svc2.maybe_wake(now=TRADING_NOW.replace(hour=11))
+    brain_calls = [c for c in agent2.calls if c["data"]["account_name"] == "agent_brain"]
+    assert brain_calls, "失败账户的触发必须在新一轮摘要中补投"
+    assert "600036" in brain_calls[0]["data"]["digest"]
