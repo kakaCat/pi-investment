@@ -163,6 +163,8 @@ class AccountTradingService:
         execute_at: Optional[str] = None,
         allow_duplicate: bool = False,
         submitted_by: Optional[str] = None,
+        signal_id: Optional[str] = None,
+        strategy_name: Optional[str] = None,
     ) -> Dict:
         """
         重构版交易执行（使用 TradeGuardService）
@@ -192,6 +194,10 @@ class AccountTradingService:
             allow_duplicate: 重复挂单确认标记（2026-09-03）。默认 False：
                 挂单时若已存在同标的同方向的 pending 单 → 409 拦截，
                 调用方确认无误后设 True 重发才放行。
+            signal_id: 关联信号 ID（2026-10-19 盈亏闭环 B1）：写入 simulation_order，
+                卖出平仓时据此把盈亏归因到信号/策略（strategy_performance）。
+            strategy_name: 策略名（归因优先于信号反查；缺省按 signal_id 反查，
+                再缺如实记 'unattributed'，不伪造归因）。
 
         Returns:
             交易结果字典
@@ -389,6 +395,7 @@ class AccountTradingService:
             order = self.repo.create_order(
                 account_name=account_name, action=action, symbol=symbol,
                 shares=shares, price_limit=price_limit, reason=reason,
+                strategy_name=strategy_name, signal_id=signal_id,
                 submitted_by=submitted_by,
                 commit=False)
 
@@ -422,6 +429,10 @@ class AccountTradingService:
                 locked_account.cash_available = float(locked_account.cash_available) - (
                     trade_amount + commission + transfer_fee)
             else:  # SELL
+                # 盈亏闭环（2026-10-19）：提交前留持仓快照（成本/开仓日），
+                # 提交后写 strategy_performance——仓位行可能被 delete，必须先留。
+                sell_pos_avg_cost = float(pos.avg_cost)
+                sell_pos_opened_at = getattr(pos, 'created_at', None)
                 remaining = pos.shares_total - shares
                 if remaining == 0:
                     self.repo.delete_position(account_name, symbol, commit=False)
@@ -476,6 +487,18 @@ class AccountTradingService:
             self.repo.session.rollback()
             logger.error("trade_transaction_failed_rollback", error=str(e), exc_info=True)
             raise TradingError(f'交易执行失败: {e}', 500)
+
+        # ---- 11b. 盈亏闭环落库（2026-10-19，断点 C 修复）----
+        # SELL 成交 → strategy_performance。写端曾随 legacy 订单栈（9-14 删除）
+        # 陪葬，此处重新接线到存活路径。审计写入失败**绝不**反向影响已成交的交易。
+        if action == 'SELL':
+            self._record_strategy_performance(
+                account_name=account_name, symbol=symbol, order=order,
+                trade_id=trade_id, exit_price=px,
+                entry_price=sell_pos_avg_cost,
+                pos_opened_at=sell_pos_opened_at,
+                realized_pnl=realized_pnl, realized_pnl_rate=realized_pnl_rate,
+                trade_date=now.date())
 
         # ---- 12. 决策记录 ----
         self._auto_record_decision(
@@ -562,6 +585,111 @@ class AccountTradingService:
             logger.info("pending_orders_matched",
                         executed=executed, failed=failed, at=now.isoformat())
         return {'executed': executed, 'failed': failed, 'details': details}
+
+    def _record_strategy_performance(
+        self, *, account_name: str, symbol: str, order, trade_id: int,
+        exit_price: float, entry_price: Optional[float],
+        pos_opened_at, realized_pnl: Optional[float],
+        realized_pnl_rate: Optional[float], trade_date,
+    ) -> None:
+        """SELL 成交 → quant.strategy_performance（盈亏闭环写端，2026-10-19 重新接线）。
+
+        归因优先级：order.strategy_name > order.signal_id 反查 signals 表
+        （策略名取 strategy_configs 实名，查不到用 strategy_id 原文）>
+        'unattributed'（如实标注，不伪造）。
+        signal_date 口径：有信号取信号日期；无信号取持仓开仓日
+        （= 入场决策日），依据写进 params_snapshot.attribution，可审计。
+        pnl_pct 口径：百分比（realized_pnl_rate 是小数率，×100 写入，
+        与 test_strategy_performance_repository 的 10.0=+10% 契约一致）。
+        失败只记日志——审计写不能拖垮已成交主链路。
+        """
+        try:
+            from adapters.outbound.repositories.strategy_performance_repository import (
+                StrategyPerformanceORMRepository,
+            )
+
+            attribution = 'unattributed'
+            sig = None
+            if getattr(order, 'signal_id', None):
+                try:
+                    from infrastructure.persistence.orm.models.signal import Signal as SignalRow
+                    sig = (self.repo.session.query(SignalRow)
+                           .filter(SignalRow.id == int(order.signal_id)).first())
+                except Exception as e:  # noqa: BLE001
+                    logger.warning('信号反查失败按无信号归因', signal_id=order.signal_id,
+                                   error=str(e)[:120])
+            if sig is not None:
+                attribution = 'signal'
+
+            strategy_name = getattr(order, 'strategy_name', None)
+            if not strategy_name and sig is not None:
+                strategy_name = self._strategy_name_of(sig.strategy_id)
+            if not strategy_name:
+                strategy_name = 'unattributed'
+
+            if sig is not None and getattr(sig, 'signal_date', None):
+                signal_date = sig.signal_date
+                signal_date_basis = 'signal'
+            elif pos_opened_at is not None:
+                signal_date = pos_opened_at.date() if hasattr(pos_opened_at, 'date') else pos_opened_at
+                signal_date_basis = 'position_open_date'
+            else:
+                signal_date = trade_date
+                signal_date_basis = 'trade_date_fallback'
+
+            holding_days = 0
+            if pos_opened_at is not None:
+                opened = pos_opened_at.date() if hasattr(pos_opened_at, 'date') else pos_opened_at
+                holding_days = max((trade_date - opened).days, 0)
+
+            if entry_price is None or realized_pnl_rate is None:
+                logger.warning('盈亏闭环缺数据跳过落库（如实不落，不按 0 记）',
+                               account=account_name, symbol=symbol, trade_id=trade_id,
+                               entry_price=entry_price, realized_pnl_rate=realized_pnl_rate)
+                return
+
+            StrategyPerformanceORMRepository().create(
+                strategy_name=str(strategy_name),
+                symbol=symbol,
+                signal_date=signal_date,
+                entry_price=float(entry_price),
+                exit_price=float(exit_price),
+                pnl_pct=round(float(realized_pnl_rate) * 100, 2),
+                holding_days=holding_days,
+                params_snapshot={
+                    'attribution': attribution,
+                    'signal_date_basis': signal_date_basis,
+                    'signal_id': getattr(order, 'signal_id', None),
+                    'order_id': getattr(order, 'id', None),
+                    'trade_id': trade_id,
+                    'account': account_name,
+                    'realized_pnl': float(realized_pnl) if realized_pnl is not None else None,
+                },
+                source='paper',
+            )
+            logger.info('盈亏闭环已落库', account=account_name, symbol=symbol,
+                        strategy=strategy_name, attribution=attribution,
+                        pnl_pct=round(float(realized_pnl_rate) * 100, 2))
+        except Exception as e:  # noqa: BLE001
+            logger.error('strategy_performance 落库失败（交易已成交，仅审计缺失）',
+                         account=account_name, symbol=symbol, trade_id=trade_id,
+                         error=str(e), exc_info=True)
+
+    @staticmethod
+    def _strategy_name_of(strategy_id) -> Optional[str]:
+        """signals.strategy_id（如 '179'）→ strategy_configs 实名；查不到返回原文。"""
+        try:
+            sid = int(strategy_id)
+        except (TypeError, ValueError):
+            return str(strategy_id) if strategy_id else None
+        try:
+            from adapters.outbound.repositories.strategy_repository import (
+                StrategyORMRepository,
+            )
+            row = StrategyORMRepository().get_by_id(sid)
+            return (row or {}).get('strategy_name') or str(strategy_id)
+        except Exception:  # noqa: BLE001
+            return str(strategy_id)
 
     def _auto_record_decision(
         self, account_name: str, action: str, symbol: str,
