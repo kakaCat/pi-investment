@@ -90,6 +90,9 @@ async def manual_trade(account_name: str, payload: Dict[str, Any] = Body(...)):
             execute_at=payload.get('execute_at'),  # 条件委托：'market_open' 盘前挂单
             allow_duplicate=bool(payload.get('allow_duplicate', False)),  # 重复挂单确认放行（2026-09-03）
             submitted_by=payload.get('submitted_by'),  # 下单窗口编码
+            # 盈亏闭环 B1（2026-10-19）：订单关联信号/策略，卖出时归因落 strategy_performance
+            signal_id=payload.get('signal_id'),
+            strategy_name=payload.get('strategy_name'),
         )
         return {'success': True, 'data': result}
     except TradingError as e:

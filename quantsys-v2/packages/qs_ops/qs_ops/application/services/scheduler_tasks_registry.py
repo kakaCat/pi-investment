@@ -11,7 +11,7 @@ import json
 from qs_ops.application.services.scheduler_tasks_data import handle_data_quality_check, handle_data_update, handle_financial_data_update, handle_market_style_update  # noqa: F401
 from qs_ops.application.services.scheduler_tasks_factors import handle_factor_compute  # noqa: F401
 from qs_ops.application.services.scheduler_tasks_models import handle_model_train, handle_model_train_auto  # noqa: F401
-from qs_ops.application.services.scheduler_tasks_reports import handle_backtest_run, handle_benchmark_run, handle_chan_knowledge_distill, handle_chan_scan, handle_performance_report, handle_report_daily  # noqa: F401
+from qs_ops.application.services.scheduler_tasks_reports import handle_backtest_run, handle_benchmark_run, handle_chan_knowledge_distill, handle_chan_scan, handle_performance_report, handle_report_daily, handle_weekly_profit_report  # noqa: F401
 from qs_ops.application.services.scheduler_tasks_runtime import handle_intraday_monitor, handle_orchestrator_tick  # noqa: F401
 from qs_ops.application.services.scheduler_tasks_signals import handle_pool_refresh_daily, handle_signal_execution_daily, handle_signal_generate  # noqa: F401
 from qs_ops.application.services.scheduler_tasks_strategy import handle_agent_reminder, handle_market_scan_preopen, handle_strategy_discover_weekly, handle_strategy_rotation, handle_strategy_validate_daily, handle_v13_daily_check  # noqa: F401
@@ -23,6 +23,7 @@ _TASK_HANDLERS: Dict[str, Callable] = {
     "pool_refresh_daily": handle_pool_refresh_daily,
     "signal_execution_daily": handle_signal_execution_daily,
     "report_daily": handle_report_daily,
+    "weekly_profit_report": handle_weekly_profit_report,
     "backtest_run": handle_backtest_run,
     "strategy_backtest": handle_backtest_run,  # 别名
     "factor_compute": handle_factor_compute,

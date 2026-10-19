@@ -54,7 +54,10 @@ class StrategyService:
 
         P2-1: 推荐通过 ServiceFactory 获取实例
         """
-        self.config_dir = Path(__file__).parent.parent.parent / 'live_trading' / 'configs' / 'strategies'
+        # 2026-10-19：固定深度 parent×3 在包抽取后指错（S6 漂移），改标记查找
+        from qs_kernel.infrastructure.paths import find_project_root
+        self.config_dir = find_project_root(
+            __file__, marker='live_trading/configs/strategies') / 'live_trading' / 'configs' / 'strategies'
         self.repo = repo
         self._configs_cache = {}
 
