@@ -17,13 +17,13 @@
   - 命中率样本不足 5 条 → 标注"样本不足，仅供参考"；
   - 净值快照缺失 → N/A，不按 0 记。
 """
-import logging
+import structlog
 from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy import text
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 #: 命中率评估的最小样本量（低于此数只展示不评价）
 MIN_HIT_SAMPLE = 5
