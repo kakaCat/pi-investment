@@ -96,9 +96,15 @@ def build_self_heal_service(todo_service: Optional[Any] = None) -> Any:
         WatchRuleNoiseRepository,
     )
     from qs_watch.application.services.watch_engine.noise_self_heal_service import NoiseSelfHealService
+    def _suppress_notify(payload):
+        # 静音告知卡：走盯盘群回执通道（失败抛错 → 服务内兜住记日志）
+        from qs_watch.application.services.watch_engine.watch_channels import send_watch_receipt
+        return send_watch_receipt(payload)
+
     return NoiseSelfHealService(
         WatchRuleNoiseRepository(), WatchRuleChangeRepository(),
-        todo_service if todo_service is not None else build_todo_service())
+        todo_service if todo_service is not None else build_todo_service(),
+        suppress_notifier=_suppress_notify)
 
 
 def build_name_resolver() -> Any:
@@ -108,7 +114,8 @@ def build_name_resolver() -> Any:
 
 
 def build_sla_job(todo_repo: Optional[Any] = None, receipt_service: Optional[Any] = None,
-                  name_resolver: Optional[Any] = None) -> Any:
+                  name_resolver: Optional[Any] = None,
+                  todo_service: Optional[Any] = None) -> Any:
     """到期巡检 job（唯一收敛权威，architecture §4）。
 
     WatchSlaJob 已下沉本包（qs_watch...watch_engine.sla_job，2026-10-19）——
@@ -119,4 +126,6 @@ def build_sla_job(todo_repo: Optional[Any] = None, receipt_service: Optional[Any
     return WatchSlaJob(
         todo_repo if todo_repo is not None else build_todo_repo(),
         receipt_service=receipt_service if receipt_service is not None else build_receipt_service(),
-        name_resolver=name_resolver if name_resolver is not None else build_name_resolver())
+        name_resolver=name_resolver if name_resolver is not None else build_name_resolver(),
+        # 2026-10-20：L3 超期自动归档要走过领域校验的 close 通道
+        todo_service=todo_service if todo_service is not None else build_todo_service())

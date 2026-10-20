@@ -112,6 +112,13 @@ class ObserveAggregator:
             stale = [k for k in self._flush_counts if k[0] != today]
             for k in stale:
                 del self._flush_counts[k]
+        if self._buffers:
+            # 缓冲可见性（2026-10-20）：此前缓冲 pending 期间完全无日志，flush 静默
+            # 失败/未触发都不可区分。有缓冲时每 tick 一行，便于对账。
+            logger.info('聚合缓冲待 flush', buffers=[
+                {'symbol': k[1], 'items': len(b['items']),
+                 'window_age_sec': int((now - b['window_start']).total_seconds())}
+                for k, b in self._buffers.items()])
         flushed = 0
         for key in list(self._buffers.keys()):
             buf = self._buffers[key]

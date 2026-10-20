@@ -29,6 +29,8 @@ _KIND_LABELS = {
     'timeout': '超时回执',
     'suppressed': '抑噪回执',
     'observe_digest': '观察聚合',
+    'daily_review': '体检日报',
+    'news_alert': '消息监控',
 }
 
 #: 待办送达处置 agent 的 wake 事件名（2026-10-16，补「待办 → owner agent」缺环）。

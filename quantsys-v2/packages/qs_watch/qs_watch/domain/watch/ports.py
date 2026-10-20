@@ -47,6 +47,38 @@ class IWatchRuleRepository(ABC):
         pass
 
 
+class INewsSource(ABC):
+    """个股新闻+公告来源端口（2026-10-20 消息监控闭环）。
+
+    实现：adapters/outbound/repositories/watch_news_repository.WatchNewsSource
+    （经 qs_market_data 的 DataProviderManager，ADR-001 不直连 akshare）。
+    返回 [{title, time, source, url}]；失败抛错（调用方按标的跳过）。
+    """
+
+    @abstractmethod
+    def fetch_news(self, symbol: str, limit: int = 20) -> List[Dict[str, Any]]:
+        pass
+
+
+class IPoolMemberSource(ABC):
+    """池成员只读端口（2026-10-20 选池↔盯盘接线）：stock_pools 是 qs_sourcing
+    领域的表，盯盘只读不写——经本端口取成员，不产生对 sourcing 服务层的运行时依赖。
+
+    实现：adapters/outbound/repositories/watch_pool_binding_repository.PoolMemberSource。
+    失败语义：读失败抛错（reconcile 调用方 fail-closed）。
+    """
+
+    @abstractmethod
+    def list_pools(self) -> List[Dict[str, Any]]:
+        """全部池的摘要（id/name/pool_type/成员数），供绑定选择用。"""
+        pass
+
+    @abstractmethod
+    def get_members(self, pool_id: int) -> List[Dict[str, Any]]:
+        """池成员投影：[{symbol(裸码), name, buy_point, sell_point, description, tags}]。"""
+        pass
+
+
 class IWatchDigestStateRepository(ABC):
     """盯盘摘要状态端口（REQ-f08def P4）
 

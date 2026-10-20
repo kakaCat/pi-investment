@@ -105,6 +105,8 @@ def elapsed_trading_fraction(now: datetime) -> float:
 class WatchEngine:
     def __init__(self, rule_repo, quote_service, notifier,
                  avg_volume_provider: Optional[Callable[[str], Optional[float]]] = None,
+                 fund_flow_provider: Optional[Callable[[str], Optional[dict]]] = None,
+                 kline_closes_provider: Optional[Callable[[str], Optional[tuple]]] = None,
                  base_interval: int = 60, fast_interval: int = 10,
                  buffer_ratio: float = 0.2, history_minutes: int = 30,
                  now_fn: Callable[[], datetime] = datetime.now,
@@ -113,6 +115,7 @@ class WatchEngine:
                  account_total_provider: Optional[Callable] = None,
                  digest_service=None, ledger=None, meta_review_service=None,
                  position_lifecycle_service=None, market_watch_service=None,
+                 pool_watch_service=None, news_watch_service=None,
                  runtime_state_store=None,
                  todo_service=None, observe_agg=None, staged_manager=None,
                  outcome_backfill_service=None):
@@ -121,6 +124,11 @@ class WatchEngine:
         self.notifier = notifier
         self.observe_agg = observe_agg
         self.avg_volume_provider = avg_volume_provider
+        # 2026-10-20 扩展条件（ma_break/rsi/fund_flow）的取数 provider；None=对应条件降级
+        self.fund_flow_provider = fund_flow_provider
+        self.kline_closes_provider = kline_closes_provider
+        # 市场环境复合门缓存（_check_market_gate 用，60s TTL）
+        self._gate_cache: tuple = (None, None)
         self.base_interval = base_interval
         self.fast_interval = fast_interval
         self.buffer_ratio = buffer_ratio
@@ -191,6 +199,13 @@ class WatchEngine:
         # 持仓生命周期联动（P5）：买入成交 → 等买规则退役 + 补挂止损；清仓 → 卖出族收摊
         self.position_lifecycle_service = position_lifecycle_service
         self._last_lifecycle_date = None
+        # 池级盯盘（2026-10-20）：选池↔盯盘接线，每日对账成员↔规则
+        self.pool_watch_service = pool_watch_service
+        self._last_pool_sync_date = None
+        # 收盘体检日报的日幂等（2026-10-20）
+        self._last_review_sent_date = None
+        # 消息监控（2026-10-20 流程图 M/N）：持仓突发消息→破坏逻辑评估提醒
+        self.news_watch_service = news_watch_service
         self._last_held_map_date = None   # P2：持仓板块映射的每日重建水位
         # P3 预判验证闭环（2026-10-20）：走势回填服务，sidecar 每日驱动；None=未装配不跑
         self.outcome_backfill_service = outcome_backfill_service
@@ -416,6 +431,42 @@ class WatchEngine:
             logger.error('走势回填异常', error=str(e))
         finally:
             close_session()
+        # 池级盯盘对账：每日一次（2026-10-20 选池↔盯盘接线）
+        try:
+            if (self.pool_watch_service is not None
+                    and self._last_pool_sync_date != now.date()):
+                rs = self.pool_watch_service.reconcile_all(now)
+                self._last_pool_sync_date = now.date()
+                total_created = sum(int(r.get('created') or 0) for r in rs)
+                if total_created or len(rs) > 1:
+                    logger.info('池盯盘对账完成', bindings=len(rs), created=total_created)
+        except Exception as e:
+            logger.error('池盯盘对账异常', error=str(e))
+        finally:
+            close_session()
+        # 消息监控扫描（2026-10-20）：sidecar 每拍调用，服务内部 15 分钟节流 +
+        # 工作日 08:00-22:00 窗口（盘后公告也要接，次日决策用）
+        try:
+            if self.news_watch_service is not None:
+                ns = self.news_watch_service.scan(now)
+                if ns.get('scanned') and ns.get('reported'):
+                    logger.info('消息监控命中', reported=ns['reported'],
+                                details=ns.get('details'))
+        except Exception as e:
+            logger.error('消息监控异常', error=str(e))
+        finally:
+            close_session()
+        # 收盘体检日报（2026-10-20）：meta_review 治理项在摘要门关闭时无人消费，
+        # 收盘把未处理项合成一张人话卡发盯盘群，一张/日。
+        try:
+            if (not self.is_trading_time(now.time())
+                    and self._last_review_sent_date != now.date()):
+                self._send_daily_review(now)
+                self._last_review_sent_date = now.date()
+        except Exception as e:  # noqa: BLE001 - 日报失败不阻断 sidecar
+            logger.error('收盘体检日报异常', error=str(e))
+        finally:
+            close_session()
 
     # ── 主循环 ──────────────────────────────────────────────
 
@@ -609,6 +660,68 @@ class WatchEngine:
         self.fast_mode = fast
         return events
 
+    def _check_market_gate(self, gate: dict, now) -> tuple:
+        """市场环境复合门判定：返回 (blocked, reason)。
+
+        gate spec（action_params.market_gate）：
+          index        看哪个指数（默认 000001.SH）
+          max_down_pct 指数跌幅 ≤ 此值（如 -1.5）→ 拦截（系统性风险日不接飞刀）
+          max_up_pct   指数涨幅 ≥ 此值（如 +3.0）→ 拦截（过热追高保护，可选）
+        数据缺失 fail-open 不拦截；市场快照 60s 缓存。
+        """
+        idx = str(gate.get('index') or '000001.SH')
+        state = None
+        cached_at, cached = self._gate_cache
+        if cached is not None and (now - cached_at).total_seconds() < 60:
+            state = cached
+        elif self.market_watch_service is not None:
+            provider = getattr(self.market_watch_service, 'state_provider', None)
+            if provider is not None:
+                try:
+                    state = provider.get_state()
+                    self._gate_cache = (now, state)
+                except Exception as e:  # noqa: BLE001 - 取数失败 fail-open
+                    logger.warning('市场门取数失败（放行）', error=str(e))
+        if state is None:
+            return False, ''
+        try:
+            pct = state.index_change_pct(idx)
+        except Exception:  # noqa: BLE001
+            pct = None
+        if pct is None:
+            return False, ''
+        max_down = gate.get('max_down_pct')
+        if max_down is not None and pct <= float(max_down):
+            return True, ('市场门拦截：%s 跌 %.2f%% 触线 %.2f%%——环境异常，'
+                          '本次信号只记录不动作' % (idx, pct, float(max_down)))
+        max_up = gate.get('max_up_pct')
+        if max_up is not None and pct >= float(max_up):
+            return True, ('市场门拦截：%s 涨 %.2f%% 触线 +%.2f%%——过热保护，'
+                          '本次信号只记录不动作' % (idx, pct, float(max_up)))
+        return False, ''
+
+    def _send_daily_review(self, now) -> None:
+        """收盘体检日报：未处理的 meta_review 治理项 → 一张人话卡发盯盘群。"""
+        repo = getattr(self.notifier, 'trigger_repo', None)
+        if repo is None:
+            return
+        rows = repo.list_triggers(dispositions=('meta_review',), limit=50) or []
+        if not rows:
+            return
+        lines = ['今日规则体检：%d 条待处理（调阈值/退役/补激活后自动消失）：' % len(rows)]
+        for t in rows[:8]:
+            lines.append('• 规则#%s %s：%s' % (t.rule_id, t.symbol,
+                                              (t.disposition_reason or '')[:60]))
+        if len(rows) > 8:
+            lines.append('• …另有 %d 条（详情查 watch_triggers）' % (len(rows) - 8))
+        from qs_watch.application.services.watch_engine.watch_channels import send_watch_receipt
+        ok = send_watch_receipt({'kind': 'daily_review', 'message': '\n'.join(lines),
+                                 'level': 'P2'})
+        if ok:
+            logger.info('收盘体检日报已发', count=len(rows))
+        else:
+            logger.warning('收盘体检日报未送达', count=len(rows))
+
     def _process_condition(self, rule, idx: int, cond: dict, quote, result,
                            now, events) -> None:
         """单条条件的「评估后」流水线（个股与市场级共用，2026-10-19 提取）。
@@ -714,6 +827,40 @@ class WatchEngine:
         # 守卫（REQ-261016155500-4f2a wt:engine:2）：dedup 命中**不再无条件**改判
         # deduped——escalated/exit_stop 是宪法级消息（止损被吞 = 资损风险），
         # 只合并展示（标注先响规则）照发不误；其余处置维持合并不通知。
+        # ── 市场环境复合门（2026-10-20，流程图 H 节点「二次校验市场环境」）────
+        # 个股信号成立后查大盘：环境异常（如暴跌）则「只记录不动作」——伏击单不在
+        # 系统性风险日接飞刀。规则侧开关：action_params.market_gate。
+        # 拦截=归档一条触发（notified=False）+ 闩锁/冷却/日计数照常，直接 return。
+        ap = getattr(rule, 'action_params', None)
+        gate = ap.get('market_gate') if isinstance(ap, dict) else None
+        if gate and disposition in ('pending', 'escalated'):
+            blocked, gate_why = self._check_market_gate(gate, now)
+            if blocked:
+                try:
+                    gated_trigger = self.notifier.record_only(
+                        rule, cond, quote, result, disposition=DISPOSITION_AUTO_OBSERVED,
+                        disposition_reason=gate_why)
+                except Exception as e:
+                    logger.error('市场门归档失败（不闩锁，下 tick 重试）',
+                                 rule_id=rule.id, error=str(e))
+                    return
+                self.judge.bump_daily_emit(rule.id, idx, now)
+                self.judge.mark_emitted(rule.id, idx, now, rule.symbol)
+                self.dedup.mark_notified(rule, cond, now,
+                                         getattr(gated_trigger, 'id', 0) or 0)
+                events.append({'rule_id': rule.id, 'symbol': rule.symbol,
+                               'condition': cond, 'price': float(quote.price),
+                               'message': result.message,
+                               'disposition': DISPOSITION_AUTO_OBSERVED,
+                               'disposition_reason': gate_why,
+                               'dup_of': None, 'merged_from_rule': None,
+                               'trigger_id': getattr(gated_trigger, 'id', None),
+                               'trigger_level': self._get_trigger_level(rule),
+                               'notified': False})
+                logger.info('市场门拦截（只记录不动作）', rule_id=rule.id,
+                            symbol=rule.symbol, reason=gate_why)
+                return
+
         outcome = self.dedup.check(rule, cond, now)
         dup_of = None
         merged_from_rule = None
@@ -1082,7 +1229,30 @@ class WatchEngine:
             price_history=tuple(self.state.history.get(rule.symbol, ())),
             avg_volume_20d=self._get_avg_volume(rule.symbol),
             elapsed_fraction=elapsed_trading_fraction(now),
+            daily_closes=self._get_daily_closes(rule.symbol),
+            fund_flow=self._get_fund_flow(rule.symbol),
         )
+
+    def _get_daily_closes(self, symbol: str):
+        """日线收盘序列（ma_break/rsi 算料）；provider 缺失/失败 → ()（条件降级）。"""
+        if self.kline_closes_provider is None:
+            return ()
+        try:
+            closes = self.kline_closes_provider(symbol)
+            return tuple(closes) if closes else ()
+        except Exception as e:  # noqa: BLE001 - 取数失败降级不判定
+            logger.debug('日线收盘取数失败（MA/RSI 降级）', symbol=symbol, error=str(e))
+            return ()
+
+    def _get_fund_flow(self, symbol: str):
+        """资金流向摘要（fund_flow 条件）；provider 缺失/失败 → None（条件降级）。"""
+        if self.fund_flow_provider is None:
+            return None
+        try:
+            return self.fund_flow_provider(symbol)
+        except Exception as e:  # noqa: BLE001
+            logger.debug('资金流向取数失败（降级）', symbol=symbol, error=str(e))
+            return None
 
     def _push_history(self, symbol: str, ts: datetime, price: float):
         """委托 StateManager（价格历史属状态）"""

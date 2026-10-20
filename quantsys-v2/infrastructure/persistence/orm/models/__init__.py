@@ -49,6 +49,8 @@ from .agent_log import AgentLog
 from .trading_calendar import TradingCalendar
 from .strategy_validation import StrategyValidationReport
 from .watch_state import WatchDigestState, WatchIntervention
+from .watch_pool_binding import WatchPoolBinding
+from .watch_news_alert import WatchNewsAlert
 
 __all__ = [
     # 股票相关

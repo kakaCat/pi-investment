@@ -9,6 +9,7 @@
 
 与 P7 元触发的分工：元触发管"规则健康度"（一直响/一直不响）；本服务管"规则使命"（买卖是否已完成）。
 """
+import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -23,6 +24,22 @@ def stop_loss_pct(symbol: str) -> float:
     """宪法止损口径：创业板/科创板（30/68 开头）-10%，其余 -8%"""
     s = str(symbol).split(".")[0]
     return 0.10 if s.startswith(("30", "68")) else 0.08
+
+
+def take_profit_pct() -> float:
+    """止盈口径（2026-10-20）：成本 +N%（默认 15，env WATCH_TAKE_PROFIT_PCT 可调）。
+
+    止盈与止损不同——不是宪法铁律（目标收益是投资判断），故做成显式开关
+    WATCH_AUTO_TAKE_PROFIT（默认开）：关掉就只补止损不补止盈。"""
+    try:
+        return float(os.getenv('WATCH_TAKE_PROFIT_PCT', '15'))
+    except (TypeError, ValueError):
+        return 15.0
+
+
+def auto_take_profit_enabled() -> bool:
+    return os.getenv('WATCH_AUTO_TAKE_PROFIT', 'true').strip().lower() in (
+        '1', 'true', 'yes', 'on')
 
 
 class PositionLifecycleService:
@@ -122,6 +139,27 @@ class PositionLifecycleService:
                 if getattr(r, "account", None):
                     self._retire(r, "已清仓，卖出规则族收摊；如需继续跟踪请另建观察规则")
                     retired.append({"rule_id": r.id, "symbol": r.symbol, "why": "已清仓收摊"})
+
+        # ③ 持仓驱动的安全网（2026-10-20）：①的补挂只覆盖「已有规则」的标的——
+        # 零规则持仓在规则循环里根本不出现，等于裸奔。宪法铁律④（持仓必须有止损）
+        # 与有没有别的规则无关，故以持仓为准再扫一遍：无止损→补挂；开关开且无止盈→补挂。
+        tp_symbols = {
+            str(r.symbol).split(".")[0] for r in rules
+            if (getattr(r, "intent", None) in ("exit_take_profit", "exit_reduce")) and r.enabled
+        }
+        for sym, pos in positions.items():
+            if sym not in stop_symbols:
+                new_id = self._create_stop_loss(None, sym, pos, now)
+                if new_id:
+                    stop_symbols.add(sym)
+                    created.append({"rule_id": new_id, "symbol": sym,
+                                    "why": "持仓安全网补挂止损（零规则标的）"})
+            if auto_take_profit_enabled() and sym not in tp_symbols:
+                new_id = self._create_take_profit(sym, pos, now)
+                if new_id:
+                    tp_symbols.add(sym)
+                    created.append({"rule_id": new_id, "symbol": sym,
+                                    "why": "持仓自动挂止盈"})
 
         summary = {"positions": len(positions), "rules_scanned": len(rules),
                    "retired": len(retired), "created": len(created),
@@ -226,4 +264,36 @@ class PositionLifecycleService:
             return rule.id
         except Exception as e:
             logger.error("止损规则创建失败", symbol=sym, error=str(e))
+            return None
+
+    def _create_take_profit(self, sym: str, pos: Dict[str, Any], now: datetime) -> Optional[int]:
+        """持仓自动挂止盈（2026-10-20）：pnl_pct 达 +N% 提醒评估锁利。
+
+        用 pnl_pct 而非固定价：止盈线随成本同步（F1）浮动，加仓后口径不失真。
+        触发是「提醒评估」而非自动下单（用户账户 remind_only / agent 账户进待办）。
+        """
+        cost = pos.get("avg_cost") or 0
+        if not cost:
+            return None
+        pct = take_profit_pct()
+        try:
+            rule = self.rule_repo.create_rule(
+                symbol=sym,
+                conditions=[{"type": "pnl_pct",
+                             "params": {"pct": pct, "direction": "above"}}],
+                context=("持仓自动挂止盈（2026-10-20）：成本 %.2f，盈利 +%.0f%% 提醒评估锁利。"
+                         "非宪法铁律，阈值可用 WATCH_TAKE_PROFIT_PCT 调整。" % (cost, pct)),
+                cost_price=cost, created_by="agent", account=pos.get("account"),
+            )
+            self.rule_repo.update_fields(
+                rule.id,
+                intent="exit_take_profit", lifecycle_stage="holding", scope="position",
+                linked_account=pos.get("account"),
+                created_from=("position_lifecycle:tp:%s" % sym)[:80],
+                action_hint={"trigger_level": "L2", "action_on_trigger": "sell", "requires_agent": True},
+                next_action_hint="盈利 +%.0f%% → 评估减半/止盈锁利（持仓成本 %.2f）" % (pct, cost),
+            )
+            return rule.id
+        except Exception as e:
+            logger.error("止盈规则创建失败", symbol=sym, error=str(e))
             return None

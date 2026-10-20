@@ -395,7 +395,8 @@ class ReceiptService:
                 'batch_id': payload['batch_id']}
 
     def timeout(self, todo: Any, *, channel: Optional[str] = None,
-                name: Optional[str] = None, deliver: bool = True) -> Dict[str, Any]:
+                name: Optional[str] = None, deliver: bool = True,
+                remind_round: int = 0) -> Dict[str, Any]:
         """超时回执：已在 L3 仍超时未收敛 → 升级给**该负责的人**（不改变终态，等处置）。
 
         name：标的名称（FR-13）。
@@ -403,8 +404,9 @@ class ReceiptService:
         用户，留日终汇总）；delivery_status 如实记 log_only，绝不假装已发。
         **仅对 owner_kind=user 的待办生效**：agent 自有的待办走 agent_waker（唤醒 owner
         agent），级别门不适用——那是发给 agent 的私信，不占用户卡片（2026-10-16）。"""
+        tag = 'R%d' % int(remind_round) if int(remind_round) > 0 else ''
         return self._issue(todo, kind='timeout',
-                           period=receipt_period(todo, ''), channel=channel, name=name,
+                           period=receipt_period(todo, tag), channel=channel, name=name,
                            deliver=deliver)
 
     # ── 升级去向 ────────────────────────────────────────────

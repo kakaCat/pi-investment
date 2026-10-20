@@ -9,7 +9,7 @@
 """
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from qs_watch.domain.watch.models import MetricKind
 from qs_watch.domain.watch.services.market_rule_evaluator import (
@@ -20,7 +20,7 @@ from qs_watch.domain.watch.services.metric_contract import (  # noqa: F401 - 供
 )
 
 VALID_TYPES = {'price_break', 'pct_change', 'pnl_pct', 'velocity', 'volume_surge', 'combined',
-               'staged_break'}
+               'staged_break', 'ma_break', 'rsi', 'fund_flow'}
 
 DEFAULT_COOLDOWN_SEC = 300
 MAX_NESTING_DEPTH = 3
@@ -142,6 +142,9 @@ class EvalContext:
     price_history: Tuple[Tuple[datetime, float], ...] = ()  # tuple[(datetime, price), ...]，按时间升序
     avg_volume_20d: Optional[float] = None
     elapsed_fraction: float = 1.0        # 当日已过交易时间比例 0~1
+    # ── 2026-10-20 扩展（流程图 D/F1 节点）：可选注入，缺失时对应条件 degraded ──
+    daily_closes: Tuple[float, ...] = ()            # 日线收盘序列（升序，MA/RSI 算料）
+    fund_flow: Optional[Dict[str, Any]] = None      # 近5日主力资金摘要（provider 注入）
 
 
 def validate_condition(cond: dict, depth: int = 0) -> None:
@@ -211,6 +214,25 @@ def validate_condition(cond: dict, depth: int = 0) -> None:
             raise ValueError('volume_surge 需要 params.multiple')
         if params['multiple'] <= 0:
             raise ValueError('volume_surge 的 multiple 必须为正数')
+    elif ctype == 'ma_break':
+        if 'days' not in params:
+            raise ValueError('ma_break 需要 params.days')
+        if int(params['days']) <= 0:
+            raise ValueError('ma_break 的 days 必须为正整数')
+        if params.get('direction') not in ('above', 'below'):
+            raise ValueError('ma_break 需要 params.direction: above|below')
+    elif ctype == 'rsi':
+        if 'threshold' not in params:
+            raise ValueError('rsi 需要 params.threshold')
+        if params.get('direction') not in ('above', 'below'):
+            raise ValueError('rsi 需要 params.direction: above|below')
+        if int(params.get('period', 14)) <= 0:
+            raise ValueError('rsi 的 period 必须为正整数')
+    elif ctype == 'fund_flow':
+        if 'amount_yi' not in params:
+            raise ValueError('fund_flow 需要 params.amount_yi（亿元）')
+        if params.get('direction') not in ('above', 'below'):
+            raise ValueError('fund_flow 需要 params.direction: above|below')
     elif ctype == 'staged_break':
         touch = params.get('touch') or {}
         if 'price' not in touch:
@@ -341,6 +363,77 @@ def _eval_volume_surge(params, quote, ctx, now) -> EvalResult:
                       metric=MetricKind.VOLUME_RATIO, unit='x')
 
 
+def _rsi_value(closes, period: int) -> Optional[float]:
+    """Wilder 平滑 RSI（与常见行情软件同口径）。数据不足返回 None。"""
+    if len(closes) < period + 1:
+        return None
+    gains: List[float] = []
+    losses: List[float] = []
+    for i in range(1, len(closes)):
+        ch = closes[i] - closes[i - 1]
+        gains.append(max(ch, 0.0))
+        losses.append(max(-ch, 0.0))
+    avg_gain = sum(gains[:period]) / period
+    avg_loss = sum(losses[:period]) / period
+    for i in range(period, len(gains)):
+        avg_gain = (avg_gain * (period - 1) + gains[i]) / period
+        avg_loss = (avg_loss * (period - 1) + losses[i]) / period
+    if avg_loss == 0:
+        return 100.0
+    rs = avg_gain / avg_loss
+    return 100.0 - 100.0 / (1.0 + rs)
+
+
+def _eval_ma_break(params, quote, ctx, now) -> EvalResult:
+    days = int(params['days'])
+    closes = ctx.daily_closes or ()
+    if len(closes) < days:
+        return EvalResult(False, None, None,
+                          '日线收盘不足 %d 根（%d 根），MA%d 未评估' % (days, len(closes), days),
+                          degraded=True, metric=MetricKind.UNKNOWN)
+    ma = sum(closes[-days:]) / days
+    price = float(quote.price)
+    direction = params['direction']
+    triggered = price >= ma if direction == 'above' else price <= ma
+    word = '上破' if direction == 'above' else '下破'
+    dist = abs(price - ma) / ma if ma else None
+    return EvalResult(triggered, price, 0.0 if triggered else dist,
+                      (f'现价 {price:.2f} {"≥" if direction == "above" else "≤"} '
+                       f'MA{days} {ma:.2f}（{word}）') if triggered else
+                      f'现价 {price:.2f} 未{word} MA{days} {ma:.2f}',
+                      metric=MetricKind.PRICE, unit='元')
+
+
+def _eval_rsi(params, quote, ctx, now) -> EvalResult:
+    period = int(params.get('period', 14))
+    closes = ctx.daily_closes or ()
+    rsi = _rsi_value(tuple(closes), period)
+    if rsi is None:
+        return EvalResult(False, None, None,
+                          '日线收盘不足 %d 根（%d 根），RSI%d 未评估' % (period + 1, len(closes), period),
+                          degraded=True, metric=MetricKind.UNKNOWN)
+    threshold = float(params['threshold'])
+    direction = params['direction']
+    triggered = rsi >= threshold if direction == 'above' else rsi <= threshold
+    return _threshold_result(triggered, rsi, threshold, direction,
+                             f'RSI{period} {rsi:.1f}（阈值 {direction} {threshold}）',
+                             metric=MetricKind.UNKNOWN, unit='点')
+
+
+def _eval_fund_flow(params, quote, ctx, now) -> EvalResult:
+    if not ctx.fund_flow:
+        return EvalResult(False, None, None, '资金流向数据缺失，未评估',
+                          degraded=True, metric=MetricKind.UNKNOWN)
+    total_yi = float(ctx.fund_flow.get('total_main_net_inflow_yi') or 0)
+    days_n = int(ctx.fund_flow.get('days') or 5)
+    threshold = float(params['amount_yi'])
+    direction = params['direction']
+    triggered = total_yi >= threshold if direction == 'above' else total_yi <= threshold
+    return _threshold_result(triggered, total_yi, threshold, direction,
+                             f'近{days_n}日主力累计净流入 {total_yi:.2f} 亿（阈值 {direction} {threshold} 亿）',
+                             metric=MetricKind.UNKNOWN, unit='亿元')
+
+
 def _eval_combined(params, quote, ctx, now) -> EvalResult:
     """复合条件评估器：递归评估子条件，按 operator 聚合结果。
 
@@ -395,12 +488,146 @@ def _eval_combined(params, quote, ctx, now) -> EvalResult:
                       message=message, degraded=degraded, metric=MetricKind.COMPOSITE)
 
 
+# ── 条件入参契约（2026-10-20）────────────────────────────────
+#: 「入参条件没有说明」的落地答复：每个条件类型的参数/单位/示例集中在这一个注册表，
+#: GET /api/watch/rules/condition-schema 原样透出给前端与 agent。
+#: 新增条件类型必须在此登记——tests 会对账 VALID_TYPES，防「双份枚举必漂移」。
+CONDITION_SCHEMA: Dict[str, Dict[str, Any]] = {
+    'price_break': {
+        'title': '价格穿越',
+        'desc': '现价上破/下破指定价位即触发，最基础的点位盯盘',
+        'params': {
+            'price': {'required': True, 'type': 'number>0', 'unit': '元',
+                      'example': 26.5, 'desc': '触发价位'},
+            'direction': {'required': True, 'type': 'above|below', 'example': 'below',
+                          'desc': 'above=上破(现价≥price)；below=下破(现价≤price)'},
+        },
+        'optional': {
+            'cooldown_sec': {'type': 'int>0', 'unit': '秒', 'default': 300,
+                             'desc': '触发后的冷却静默时长（默认 300s）'},
+        },
+        'notes': '阈值附近反复横跳会复读：调大 cooldown_sec，或改用 staged_break 两段式',
+    },
+    'pct_change': {
+        'title': '涨跌幅',
+        'desc': '相对昨收的涨跌幅达阈值即触发',
+        'params': {
+            'pct': {'required': True, 'type': 'number', 'unit': '%',
+                    'example': -3.0, 'desc': '阈值（可负：-3.0 = 跌 3%）'},
+            'direction': {'required': True, 'type': 'above|below', 'example': 'below',
+                          'desc': 'above=涨幅≥pct；below=跌幅≤pct'},
+        },
+        'optional': {'cooldown_sec': {'type': 'int>0', 'unit': '秒', 'default': 300,
+                                      'desc': '冷却静默时长'}},
+    },
+    'pnl_pct': {
+        'title': '盈亏比例',
+        'desc': '相对成本价(cost_price)的盈亏达阈值即触发——止损/止盈的标准件',
+        'params': {
+            'pct': {'required': True, 'type': 'number', 'unit': '%',
+                    'example': -8.0, 'desc': '阈值（-8.0=亏 8%，+15.0=盈 15%）'},
+            'direction': {'required': True, 'type': 'above|below', 'example': 'below',
+                          'desc': 'below=亏损达线（止损）；above=盈利达线（止盈）'},
+        },
+        'optional': {'cooldown_sec': {'type': 'int>0', 'unit': '秒', 'default': 300,
+                                      'desc': '冷却静默时长'}},
+        'notes': '规则必须带 cost_price（建规则时传入），否则无法计算、永不触发；'
+                 '配 intent=exit_stop 得宪法级待遇（不被去重吞/日上限封顶/静音）',
+    },
+    'velocity': {
+        'title': '短时波动',
+        'desc': 'N 分钟内价格波动幅度达阈值即触发（急涨急跌捕捉）',
+        'params': {
+            'pct': {'required': True, 'type': 'number>0', 'unit': '%',
+                    'example': 3.0, 'desc': '窗口内波动幅度阈值'},
+            'window_min': {'required': True, 'type': 'int>0', 'unit': '分钟',
+                           'example': 5, 'desc': '统计窗口'},
+        },
+        'optional': {'cooldown_sec': {'type': 'int>0', 'unit': '秒', 'default': 300,
+                                      'desc': '冷却静默时长'}},
+        'notes': '取窗口首点→现价的端点涨跌幅（非最大振幅）；无方向区分',
+    },
+    'volume_surge': {
+        'title': '放量',
+        'desc': '成交量相对近 20 日同期均量达倍数即触发',
+        'params': {
+            'multiple': {'required': True, 'type': 'number>0', 'unit': 'x',
+                         'example': 2.0, 'desc': '放量倍数（2.0=两倍于同期均量）'},
+        },
+        'optional': {'cooldown_sec': {'type': 'int>0', 'unit': '秒', 'default': 300,
+                                      'desc': '冷却静默时长'}},
+        'notes': '按当日已过交易时间折算同期均量；均量数据缺失时该维度降级不判定',
+    },
+    'combined': {
+        'title': '复合条件',
+        'desc': '多个子条件按 AND/OR 组合，全部/任一满足即触发',
+        'params': {
+            'operator': {'required': True, 'type': 'AND|OR', 'example': 'AND',
+                         'desc': 'AND=全部子条件满足；OR=任一满足'},
+            'conditions': {'required': True, 'type': 'array[condition]≥2',
+                           'example': '见文档',
+                           'desc': '子条件数组（每个都是完整 condition 对象），最多嵌套 3 层'},
+        },
+        'notes': '子条件数据缺失时按「该维度未评估」处理并在消息里标注，不凭空判 False',
+    },
+    'staged_break': {
+        'title': '两段式伏击',
+        'desc': '触及先静默观察、确认成立才发卡——治阈值附近横跳复读',
+        'params': {
+            'price': {'required': True, 'type': 'number>0', 'unit': '元',
+                      'example': 41.28, 'desc': '伏击点位'},
+            'direction': {'required': True, 'type': 'above|below', 'example': 'below',
+                          'desc': 'above=上破伏击；below=下破伏击'},
+        },
+        'notes': '参数同 price_break；区别在判定层：触及≠通知，观察窗口内确认才产出一次触发',
+    },
+    'ma_break': {
+        'title': '均线穿越',
+        'desc': '现价上破/下破 N 日移动平均线——「支撑企稳/趋势确认」的机械判据（2026-10-20 新上）',
+        'params': {
+            'days': {'required': True, 'type': 'int>0', 'unit': '日',
+                     'example': 20, 'desc': '均线周期（常用 5/10/20/60）'},
+            'direction': {'required': True, 'type': 'above|below', 'example': 'above',
+                          'desc': 'above=站上均线（企稳/突破）；below=跌破均线（破位）'},
+        },
+        'notes': '需要日线数据（最近 ≥ days 根收盘），数据不足时该维度降级不判定',
+    },
+    'rsi': {
+        'title': 'RSI 超买超卖',
+        'desc': 'RSI 达阈值——超买/超卖的量化判据（Wilder 平滑口径，2026-10-20 新上）',
+        'params': {
+            'threshold': {'required': True, 'type': 'number', 'unit': '点',
+                          'example': 30, 'desc': '阈值（30=超卖，70=超买）'},
+            'direction': {'required': True, 'type': 'above|below', 'example': 'below',
+                          'desc': 'below=低于（超卖）；above=高于（超买）'},
+            'period': {'required': False, 'type': 'int>0', 'default': 14,
+                       'example': 14, 'desc': 'RSI 周期'},
+        },
+        'notes': '需要日线数据（最近 ≥ period+1 根收盘）',
+    },
+    'fund_flow': {
+        'title': '主力资金流向',
+        'desc': '近 5 日主力累计净流入/流出达阈值（2026-10-20 新上，流程图 D 节点）',
+        'params': {
+            'amount_yi': {'required': True, 'type': 'number', 'unit': '亿元',
+                          'example': 1.0, 'desc': '阈值（1.0=累计净流入 1 亿）'},
+            'direction': {'required': True, 'type': 'above|below', 'example': 'below',
+                          'desc': 'above=净流入达线；below=净流出达线'},
+        },
+        'notes': '依赖资金流向数据源（东财/新浪），取数失败时该维度降级不判定',
+    },
+}
+
+
 _HANDLERS = {
     'price_break': _eval_price_break,
     'pct_change': _eval_pct_change,
     'pnl_pct': _eval_pnl_pct,
     'velocity': _eval_velocity,
     'volume_surge': _eval_volume_surge,
+    'ma_break': _eval_ma_break,
+    'rsi': _eval_rsi,
+    'fund_flow': _eval_fund_flow,
     'combined': _eval_combined,
 }
 

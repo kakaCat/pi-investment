@@ -90,6 +90,101 @@ def validate_market_condition(cond: Dict[str, Any]) -> None:
         _need_direction()
 
 
+#: 市场级条件入参契约（2026-10-20）——与 MARKET_CONDITION_TYPES 一一对应，
+#: GET /api/watch/rules/condition-schema 的 market_level 段。新增类型必须登记。
+MARKET_CONDITION_SCHEMA: Dict[str, Dict[str, Any]] = {
+    "index_break": {
+        "title": "指数点位",
+        "desc": "指数上破/下破指定点位（市场级通道，15 分钟内快照扫描）",
+        "params": {
+            "target": {"required": True, "type": "指数代码", "example": "000001.SH",
+                       "desc": "也可用 condition.target 字段传"},
+            "price": {"required": True, "type": "number>0", "unit": "点",
+                      "example": 3900.0, "desc": "触发点位"},
+            "direction": {"required": True, "type": "above|below", "example": "below",
+                          "desc": "above=上破；below=下破"},
+        },
+    },
+    "index_pct": {
+        "title": "指数涨跌幅",
+        "desc": "指数当日涨跌幅达阈值",
+        "params": {
+            "target": {"required": True, "type": "指数代码", "example": "000001.SH",
+                       "desc": "指数代码（也可用 condition.target 字段传）"},
+            "pct": {"required": True, "type": "number", "unit": "%", "example": -1.5,
+                    "desc": "阈值（-1.5=跌 1.5%）"},
+            "direction": {"required": True, "type": "above|below", "example": "below",
+                          "desc": "above=上破/高于阈值；below=下破/低于阈值"},
+        },
+    },
+    "limit_up_count": {
+        "title": "涨停家数",
+        "desc": "全市场涨停家数达阈值（情绪极热/冰点监测）",
+        "params": {
+            "count": {"required": True, "type": "int≥0", "unit": "家", "example": 80,
+                      "desc": "涨停家数阈值"},
+            "direction": {"required": True, "type": "above|below", "example": "below",
+                          "desc": "below=少于（冰点）；above=多于（过热）"},
+        },
+    },
+    "sentiment": {
+        "title": "情绪分",
+        "desc": "情绪/恐贪指数达阈值",
+        "params": {
+            "score": {"required": True, "type": "number", "example": 20,
+                      "desc": "阈值（0-100）"},
+            "direction": {"required": True, "type": "above|below", "example": "below",
+                          "desc": "above=上破/高于阈值；below=下破/低于阈值"},
+            "field": {"required": False, "type": "score|fear_greed", "default": "score",
+                      "example": "fear_greed", "desc": "用哪个情绪字段"},
+        },
+    },
+    "ad_ratio": {
+        "title": "涨跌家数比",
+        "desc": "上涨/下跌家数比达阈值（市场广度）",
+        "params": {
+            "ratio": {"required": True, "type": "number>0", "example": 0.5,
+                      "desc": "阈值（0.5=跌家数为涨家数 2 倍）"},
+            "direction": {"required": True, "type": "above|below", "example": "below",
+                          "desc": "above=上破/高于阈值；below=下破/低于阈值"},
+        },
+    },
+    "volume_ratio": {
+        "title": "量能比",
+        "desc": "全市场量能相对近期均量达倍数",
+        "params": {
+            "ratio": {"required": True, "type": "number>0", "unit": "x", "example": 1.5,
+                      "desc": "量能倍数阈值（1.5=近期均量的 1.5 倍）"},
+            "direction": {"required": True, "type": "above|below", "example": "above",
+                          "desc": "above=放量；below=缩量"},
+        },
+    },
+    "sector_pct": {
+        "title": "板块涨跌幅",
+        "desc": "指定板块当日涨跌幅达阈值",
+        "params": {
+            "target": {"required": True, "type": "板块名", "example": "半导体",
+                       "desc": "也可用 condition.target 字段传"},
+            "pct": {"required": True, "type": "number", "unit": "%", "example": -2.0,
+                    "desc": "板块涨跌幅阈值（%）"},
+            "direction": {"required": True, "type": "above|below", "example": "below",
+                          "desc": "above=上破/高于阈值；below=下破/低于阈值"},
+        },
+    },
+    "held_sector_pct": {
+        "title": "持仓板块联动",
+        "desc": "持仓所在板块（自动映射，无需指定 target）跌/涨达阈值即提醒",
+        "params": {
+            "pct": {"required": True, "type": "number", "unit": "%", "example": -2.0,
+                    "desc": "阈值（-2.0=持仓板块跌 2%）"},
+            "direction": {"required": True, "type": "above|below", "example": "below",
+                          "desc": "above=上破/高于阈值；below=下破/低于阈值"},
+        },
+        "notes": "板块↔持仓映射每日重建（held_sector_map）；映射未建成时如实跳过不臆造",
+    },
+}
+
+
 class MarketRuleEvaluator:
 
     def evaluate(self, condition: Dict[str, Any], state: MarketState) -> MarketEvalResult:

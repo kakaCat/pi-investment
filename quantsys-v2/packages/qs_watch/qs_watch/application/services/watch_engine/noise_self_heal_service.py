@@ -52,6 +52,7 @@ from qs_watch.domain.watch.ports import (
     WatchRuleChangeUnauthorized,
 )
 from qs_watch.domain.watch.services import noise_policy
+from qs_watch.domain.watch.services.disposition import TRADE_INTENTS, intent_of
 from qs_watch.domain.watch.services.level_resolver import P1, sla_seconds_for
 from qs_watch.domain.watch.services.owner_router import OWNER_USER, route_owner
 from qs_watch.domain.watch.services.rule_guard import effective_account
@@ -99,6 +100,7 @@ class NoiseSelfHealService:
                  change_repo: IWatchRuleChangeRepository,
                  todo_service: Any,
                  policy: Any = None, *,
+                 suppress_notifier: Any = None,
                  window_days: int = noise_policy.DEFAULT_WINDOW_DAYS,
                  suppress_hours: float = noise_policy.DEFAULT_SUPPRESS_HOURS,
                  max_triggers_per_day: int = noise_policy.DEFAULT_MAX_TRIGGERS_PER_DAY,
@@ -107,6 +109,9 @@ class NoiseSelfHealService:
         self._rule_repo = rule_repo
         self._change_repo = change_repo
         self._todo_service = todo_service
+        #: 静音告知卡 sender（2026-10-20）：抑噪此前完全无声——用户不知道规则已被静音。
+        #: payload dict → bool；None = 不告知（测试/未接线，行为与改前一致）。
+        self._suppress_notifier = suppress_notifier
         #: WatchDeliveryPolicy（可注入；缺省由 route_owner 用默认策略）——不缓存账户映射内容
         self._policy = policy
         self._window_days = int(window_days)
@@ -149,6 +154,25 @@ class NoiseSelfHealService:
                 # 策略账户规则属数据缺陷：盯盘不介入，不自愈（R3）
                 skipped.append({'rule_id': rule_id, 'account': account,
                                 'reason': 'out_of_scope'})
+                continue
+
+            # 交易/宪法级意图豁免（2026-10-20 用户裁定「静音规则有问题」）：
+            # 反复触发对观察类是噪音，对交易类是「用户在决策」——买入区反复到达
+            # 而没买，正确处置是继续提醒（人来裁决），不是闭嘴 24h。
+            # 与 dedup 守卫/日上限豁免同源：exit_stop 宪法级，TRADE_INTENTS 全豁免。
+            # intent 为空按运行时同源推导（防「声明 buy 没写 intent」绕过）。
+            from types import SimpleNamespace
+            probe = SimpleNamespace(intent=rule.get('intent'),
+                                    action_hint=rule.get('action_hint'),
+                                    conditions=rule.get('conditions'))
+            derived_intent = intent_of(probe)
+            if derived_intent in TRADE_INTENTS:
+                skipped.append({'rule_id': rule_id, 'account': account,
+                                'reason': 'trade_intent_not_noise',
+                                'intent': derived_intent})
+                logger.info('交易类规则反复触发不抑噪（提醒用户裁决）',
+                            rule_id=rule_id, intent=derived_intent,
+                            symbol=rule.get('symbol'))
                 continue
 
             if self._already_healed_today(rule_id, current):
@@ -203,8 +227,32 @@ class NoiseSelfHealService:
             })
             logger.info('规则已抑噪并派修规则待办', rule_id=rule_id, account=account,
                         todo_id=getattr(todo, 'id', None), reason=reason)
+            self._notify_suppressed(rule, rule_id, until, reason, summary)
+
 
         return {'scanned': len(daily), 'suppressed': suppressed, 'skipped': skipped}
+
+    def _notify_suppressed(self, rule: Dict[str, Any], rule_id: int, until: Any,
+                           reason: str, summary: Dict[str, Any]) -> None:
+        """静音告知卡（2026-10-20）：把「规则已被静音」这件事告诉用户。
+
+        背景：10-20 早盘用户反馈「都不盯盘了」——20/30 条规则被静音、用户毫无察觉。
+        降噪设计没错，缺的是可见性。失败只记日志（降噪手段绝不制造新故障）。
+        """
+        if self._suppress_notifier is None:
+            return
+        try:
+            symbol = rule.get('symbol') or '-'
+            until_text = until.strftime('%m-%d %H:%M') if hasattr(until, 'strftime') else str(until)
+            avg = float(summary.get('avg_per_day') or 0)
+            msg = ('规则 #%s（%s）因反复触发（近 %d 天日均 %.1f 次）已自动静音至 %s。'
+                   '静音期间触发只存档不推送。建议：调阈值/合并/退役该规则，或到期自动恢复。'
+                   % (rule_id, symbol, self._window_days, avg, until_text))
+            ok = self._suppress_notifier({'kind': 'suppressed', 'message': msg, 'level': 'P1'})
+            if not ok:
+                logger.warning('静音告知卡未送达', rule_id=rule_id)
+        except Exception as e:  # noqa: BLE001 - 告知卡失败不影响抑噪主流程
+            logger.error('静音告知卡发送异常（不影响抑噪）', rule_id=rule_id, error=str(e))
 
     # ── 修复 ────────────────────────────────────────────────
 

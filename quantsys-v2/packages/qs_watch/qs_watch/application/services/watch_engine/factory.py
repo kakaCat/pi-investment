@@ -57,6 +57,113 @@ def make_avg_volume_provider():
     return provider
 
 
+def make_fund_flow_provider():
+    """近5日主力资金流向 provider（2026-10-20）：返回 {total_main_net_inflow_yi, days} 或 None。
+
+    数据源 eastmoney 走代理偶发失败——失败返回 None（fund_flow 条件降级不判定），
+    同 symbol 当日缓存（日内资金流向盘中会变，缓存到午夜）。
+    """
+    from qs_market_data.adapters.outbound.datasources.fund_flow_source import FundFlowDataSource
+    ds = FundFlowDataSource()
+    cache: dict = {}
+
+    def provider(symbol: str):
+        from datetime import date
+        bare = symbol.split('.')[0]
+        key = (bare, date.today())
+        if key in cache:
+            return cache[key]
+        try:
+            r = ds.get_stock_fund_flow(bare, days=5)
+            s = (r or {}).get('summary') or {}
+            out = {
+                'total_main_net_inflow_yi': round(float(s.get('total_main_net_inflow', 0)) / 1e8, 2),
+                'consecutive_inflow_days': int(s.get('consecutive_inflow_days') or 0),
+                'trend': s.get('trend'),
+                'days': 5,
+            }
+        except Exception as e:  # noqa: BLE001 - 取数失败降级
+            logger.warning('资金流向取数失败（fund_flow 条件降级）', symbol=bare, error=str(e))
+            out = None
+        cache[key] = out
+        return out
+    return provider
+
+
+def make_kline_closes_provider():
+    """日线收盘序列 provider（2026-10-20，ma_break/rsi 算料）：最近 ~130 根升序收盘。
+
+    走白名单内 qs_market_data 的 DataProviderManager（DB→akshare 自动降级）；
+    同 symbol 当日缓存。失败返回 None（条件降级不判定）。
+    """
+    from datetime import date, timedelta
+    cache: dict = {}
+
+    def provider(symbol: str):
+        bare = symbol.split('.')[0]
+        key = (bare, date.today())
+        if key in cache:
+            return cache[key]
+        try:
+            end = date.today().strftime('%Y-%m-%d')
+            start = (date.today() - timedelta(days=240)).strftime('%Y-%m-%d')
+            result = get_data_provider_manager().get_klines(bare, 'daily', start, end)
+            if not result.get('success') or not result.get('data'):
+                cache[key] = None
+                return None
+            closes = []
+            for k in result['data'][-130:]:
+                c = k.get('close') if isinstance(k, dict) else getattr(k, 'close', None)
+                if c is not None:
+                    closes.append(float(c))
+            out = tuple(closes) if len(closes) >= 25 else None
+        except Exception as e:  # noqa: BLE001
+            logger.warning('日线收盘取数失败（MA/RSI 条件降级）', symbol=bare, error=str(e))
+            out = None
+        cache[key] = out
+        return out
+    return provider
+
+
+def _build_pool_watch_service():
+    """池级盯盘装配（2026-10-20）：绑定仓储 + 池成员来源 + 规则仓储。
+
+    池表（stock_pools）归 qs_sourcing 领域——这里经 PoolMemberSource 只读访问
+    （L1 暂留引用，登记在包 CLAUDE.md 边界清单）。
+    """
+    from adapters.outbound.repositories.watch_pool_binding_repository import (
+        PoolMemberSource, WatchPoolBindingRepository,
+    )
+    from qs_watch.application.services.watch_engine.pool_watch_service import PoolWatchService
+    return PoolWatchService(
+        WatchPoolBindingRepository(), PoolMemberSource(), WatchRuleRepository())
+
+
+def _build_news_watch_service():
+    """消息监控装配（2026-10-20）：新闻来源 + 已报留痕 + 持仓（盯盘适用三账户）。
+
+    sender 走盯盘群回执通道；未注入时服务只留痕不发（可观测、测试友好）。
+    """
+    from adapters.outbound.repositories.watch_news_repository import (
+        NewsAlertRepository, WatchNewsSource,
+    )
+    from qs_watch.application.services.watch_engine.news_watch_service import (
+        NewsWatchService,
+    )
+    from qs_watch.application.services.watch_engine.watch_channels import (
+        send_watch_receipt,
+    )
+
+    def _sender(payload):
+        return send_watch_receipt(payload)
+
+    return NewsWatchService(
+        news_source=WatchNewsSource(), alert_repo=NewsAlertRepository(),
+        position_repo=SimulationPositionRepository(),
+        accounts=("agent_virtual", "agent_brain", "user_main_simulation"),
+        sender=_sender)
+
+
 def build_watch_loop_services():
     """按开关装配闭环服务（REQ-c9f899 t12 §6-项8）——**可单测的纯装配决策**。
 
@@ -197,6 +304,8 @@ def create_watch_engine() -> WatchEngine:
         quote_service=RealtimeQuoteServiceV2(),
         notifier=notifier,
         avg_volume_provider=make_avg_volume_provider(),
+        fund_flow_provider=make_fund_flow_provider(),
+        kline_closes_provider=make_kline_closes_provider(),
         position_value_provider=position_value_provider,
         account_total_provider=account_total_provider,
         digest_service=digest_service,
@@ -207,6 +316,8 @@ def create_watch_engine() -> WatchEngine:
             trigger_repo=WatchTriggerRepository(),
         ),
         # P5 持仓生命周期联动：规则使命跟着交易走
+        pool_watch_service=_build_pool_watch_service(),
+        news_watch_service=_build_news_watch_service(),
         position_lifecycle_service=PositionLifecycleService(
             rule_repo=WatchRuleRepository(),
             position_repo=SimulationPositionRepository(),

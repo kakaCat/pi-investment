@@ -24,6 +24,7 @@ architecture.md §4：「**唯一收敛权威 = WatchSlaJob**（机械、可测�
 ⚠️ 诚实边界：本模块**不自建调度器、不直接发飞书**。定时注册与真实通知通道接线归 t12；
 未接线时回执走 log-only（delivery_status=log_only），不许假装已发。
 """
+import os
 from datetime import datetime
 from typing import Any, Dict, Optional
 
@@ -35,6 +36,29 @@ logger = structlog.get_logger(__name__)
 
 #: 单轮扫描上限（对齐仓储 list_overdue 的 limit 语义，避免一轮吃下无限积压）
 DEFAULT_LIMIT = 100
+
+#: L3 再催节奏（2026-10-20 治「L3 一生只催一次」的僵尸待办）：
+#: 首催后每超 remind_interval 且未达 max_reminds 再催一轮（逐轮升紧迫文案）；
+#: 超 auto_expire_days 仍无人处置 → 自动 expired 归档（进台账不进黑洞）。
+def _remind_interval_sec() -> float:
+    try:
+        return max(600.0, float(os.getenv('WATCH_L3_REMIND_INTERVAL_SEC', '14400')))
+    except (TypeError, ValueError):
+        return 14400.0
+
+
+def _max_reminds() -> int:
+    try:
+        return max(1, int(os.getenv('WATCH_L3_MAX_REMINDS', '3')))
+    except (TypeError, ValueError):
+        return 3
+
+
+def _auto_expire_days() -> float:
+    try:
+        return max(1.0, float(os.getenv('WATCH_TODO_AUTO_EXPIRE_DAYS', '3')))
+    except (TypeError, ValueError):
+        return 3.0
 
 
 def _default_todo_repo():
@@ -54,8 +78,10 @@ class WatchSlaJob:
 
     def __init__(self, todo_repo: Any, receipt_service: Optional[ReceiptService] = None, *,
                  receipt_repo: Any = None, sender: Any = None, limit: int = DEFAULT_LIMIT,
-                 name_resolver: Any = None):
+                 name_resolver: Any = None, todo_service: Any = None):
         self._todo_repo = todo_repo
+        # 2026-10-20 自动归档用（close 走领域校验）；None = 关闭自动归档
+        self._todo_service = todo_service
         if receipt_service is None:
             receipt_service = ReceiptService(receipt_repo or _default_receipt_repo(),
                                              sender=sender)
@@ -87,6 +113,8 @@ class WatchSlaJob:
             'degraded': False,     # 扫描失败（整轮降级，不抛）
             'degraded_reason': None,
             'group_cards': 0,      # 聚合卡**实发张数**（agent 私有唤醒占满一轮时可为 0）
+            'reminds': 0,          # 2026-10-20：L3 再催轮数（首催不计）
+            'expired': 0,          # 2026-10-20：超期未处置自动归档条数
         }
 
         try:
@@ -210,10 +238,12 @@ class WatchSlaJob:
         todo_id = getattr(todo, 'id')
         level = str(getattr(todo, 'level', '') or '').strip().upper()
         deliver = level in ('P0', 'P1')
-        outcome = self._receipts.timeout(todo, name=self._name_of(todo, names or {}),
-                                         deliver=deliver)
+        name = self._name_of(todo, names or {})
+        outcome = self._receipts.timeout(todo, name=name, deliver=deliver)
         if not outcome.get('issued'):
+            # 2026-10-20 再催节奏 + 自动归档：幂等命中（首催已发）后的两条出路。
             stats['duplicates'] += 1
+            self._remind_or_expire(todo, now, stats, name, deliver)
             return
         stats['timeout'] += 1
         if outcome.get('audience') == 'agent':
@@ -231,6 +261,63 @@ class WatchSlaJob:
         if bumped is None:
             logger.warning('超时回执已写但 escalate_count 未累加（待办已收敛/并发抢先）',
                            todo_id=todo_id)
+
+
+    def _remind_or_expire(self, todo: Any, now: datetime, stats: Dict[str, Any],
+                          name: Any, deliver: bool) -> None:
+        """首催已发过（幂等命中）后的两条出路：到点再催 / 超期归档。"""
+        todo_id = getattr(todo, 'id')
+        due = getattr(todo, 'due_at', None)
+        if due is None:
+            return
+        # 时区口径对齐（2026-10-20 生产实测）：库里的 due 是带时区（timestamptz），
+        # 巡检 now 是本地 naive——直接相减抛 TypeError。统一成 naive-UTC 再算。
+        import datetime as _dt
+        now_cmp = now
+        if due.tzinfo is not None:
+            due = due.astimezone(_dt.timezone.utc).replace(tzinfo=None)
+        if now_cmp.tzinfo is not None:
+            now_cmp = now_cmp.astimezone(_dt.timezone.utc).replace(tzinfo=None)
+        overdue_sec = (now_cmp - due).total_seconds()
+        current = int(getattr(todo, 'escalate_count', 0) or 0)
+
+        # 出路二：超 auto_expire_days 无人处置 → 自动归档（仅当注入 todo_service）
+        if overdue_sec >= _auto_expire_days() * 86400:
+            if self._todo_service is None:
+                return
+            try:
+                # action_kind=None：自动归档不是人的动作，无审计动作——
+                # 2026-10-20 领域口径收紧后 action_kind 枚举只剩 ('trade','rule_change')。
+                self._todo_service.close(
+                    todo_id, 'expired',
+                    close_reason='L3 超时 %.1f 天未处置，系统自动归档（进台账，'
+                                 '非判定；如需重开请重建待办）' % (overdue_sec / 86400),
+                    action_kind=None)
+                stats['expired'] = stats.get('expired', 0) + 1
+                logger.info('L3 待办自动归档（超期未处置）', todo_id=todo_id,
+                            overdue_days=round(overdue_sec / 86400, 1))
+            except Exception as e:  # noqa: BLE001 - 归档失败留错下轮再试
+                logger.error('自动归档失败（下轮重试）', todo_id=todo_id, error=str(e))
+            return
+
+        # 出路一：到再催点且还有预算 → 发第 current 轮催办（escalate_count 即轮次）
+        max_r = _max_reminds()
+        interval = _remind_interval_sec()
+        if not deliver or current <= 0 or current >= max_r:
+            return
+        if overdue_sec < interval * current:
+            return
+        outcome = self._receipts.timeout(todo, name=name, deliver=True,
+                                         remind_round=current)
+        if outcome.get('issued'):
+            stats['timeout'] += 1
+            stats['reminds'] = stats.get('reminds', 0) + 1
+            logger.info('L3 待办再催（第 %d/%d 轮）' % (current, max_r),
+                        todo_id=todo_id, overdue_hours=round(overdue_sec / 3600, 1))
+            bumped = self._todo_repo.promote(todo_id, 'L3', escalate_count=current + 1,
+                                             now=now, extend_due_minutes=0)
+            if bumped is None:
+                logger.warning('再催已发但 escalate_count 未累加', todo_id=todo_id)
 
 
 def run_sla_once(now: Optional[datetime] = None, *, todo_repo: Any = None,
