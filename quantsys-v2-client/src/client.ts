@@ -2013,6 +2013,34 @@ export class QuantsysV2Client {
     return response.data;
   }
 
+  /** 条件入参契约（2026-10-20 框架适配）：全部条件类型参数说明/单位/示例 + market_gate 规格 */
+  async getWatchConditionSchema(): Promise<ProviderResponse> {
+    const response = await this.client.get('/api/watch/rules/condition-schema')
+      .catch((err: any) => ({ data: { success: false, error: err.message } }));
+    return response.data;
+  }
+
+  /** 单标的盯盘简报（2026-10-20）：行情+成本+规则距离+未决触发+近48h消息命中，一张卡 */
+  async getWatchBrief(symbol: string): Promise<ProviderResponse> {
+    const response = await this.client.get('/api/watch/brief', { params: { symbol } })
+      .catch((err: any) => ({ data: { success: false, error: err.message } }));
+    return response.data;
+  }
+
+  /** 盯盘触发增量查询（2026-10-20）：since 之后的新触发（agent 轮询「有什么新信号」） */
+  async getWatchTriggers(params: { symbol?: string; disposition?: string; since?: string; limit?: number } = {}): Promise<ProviderResponse> {
+    const response = await this.client.get('/api/watch/triggers', { params })
+      .catch((err: any) => ({ data: { success: false, error: err.message } }));
+    return response.data;
+  }
+
+  /** 处置触发（2026-10-20 框架适配）：handled/ignored 收敛未决触发——agent 的处置动作 */
+  async resolveWatchTrigger(triggerId: number, body: { disposition: string; reason?: string }): Promise<ProviderResponse> {
+    const response = await this.client.patch(`/api/watch/triggers/${triggerId}`, body)
+      .catch((err: any) => ({ data: { success: false, error: err.message } }));
+    return response.data;
+  }
+
   /** 个股事件（公告/解禁/财报/股东会/减持…）——买入前排雷 */
   async getSymbolEvents(symbol: string, params: { days?: number } = {}): Promise<ProviderResponse> {
     const response = await this.client.get(`/api/events/symbol/${symbol}`, { params })
