@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key><string>com.pi-investment.v2-ws</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/yunpeng/pi-investment/quantsys-v2/start-launchd-ws.sh</string>
+    </array>
+    <key>WorkingDirectory</key><string>/Users/yunpeng/pi-investment/quantsys-v2</string>
+    <!-- QuantSys V2 WebSocket 守护（2026-10-20 立）。
+         动因：5003 websocket_server 历来靠手工 nohup 拉起、无 launchd 守护，
+         死亡不自动复活——WS 推送（盯盘触发/告警直推）可静默失效，
+         与"盯盘消失一周"类事故同型。KeepAlive 崩溃即拉起，RunAtLoad 登录即起。
+         启动脚本 start-launchd-ws.sh（与 start-launchd.sh 同型）。
+         注：repo 内 v2-api.plist 曾为过时路径（/Users/mac/...），本次同步校正为
+         装机实际版本（bash 走 start-launchd.sh）。 -->
+    <key>RunAtLoad</key><true/>
+    <key>KeepAlive</key><true/>
+    <key>ThrottleInterval</key><integer>10</integer>
+    <key>StandardOutPath</key><string>/Users/yunpeng/pi-investment/quantsys-v2/logs/launchd-ws-stdout.log</string>
+    <key>StandardErrorPath</key><string>/Users/yunpeng/pi-investment/quantsys-v2/logs/launchd-ws-stderr.log</string>
+</dict>
+</plist>
