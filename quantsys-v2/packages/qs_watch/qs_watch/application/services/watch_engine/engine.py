@@ -708,9 +708,24 @@ class WatchEngine:
         rows = repo.list_triggers(dispositions=('meta_review',), limit=50) or []
         if not rows:
             return
+        # 公司名批量解析（2026-10-20 用户反馈：纯编号不友好）——走 notifier 注入的
+        # StockNameResolver 端口一次联查；解析不到如实显示编号（R-013 不臆造）。
+        names: dict = {}
+        resolver = getattr(self.notifier, '_name_resolver', None)
+        syms = sorted({str(t.symbol).split('.')[0] for t in rows})
+        if resolver is not None:
+            try:
+                names = resolver.resolve_batch(syms) or {}
+            except Exception as e:  # noqa: BLE001 - 名称是增益，失败降级为编号
+                logger.debug('日报名称解析失败（降级编号）', error=str(e))
+
+        def _disp(sym):
+            bare = str(sym).split('.')[0]
+            return '%s（%s）' % (names.get(bare) or bare, bare)
+
         lines = ['今日规则体检：%d 条待处理（调阈值/退役/补激活后自动消失）：' % len(rows)]
         for t in rows[:8]:
-            lines.append('• 规则#%s %s：%s' % (t.rule_id, t.symbol,
+            lines.append('• 规则#%s %s：%s' % (t.rule_id, _disp(t.symbol),
                                               (t.disposition_reason or '')[:60]))
         if len(rows) > 8:
             lines.append('• …另有 %d 条（详情查 watch_triggers）' % (len(rows) - 8))
@@ -726,7 +741,7 @@ class WatchEngine:
                 lines.append('今日已处置 %d 条（agent/人）：' % len(today_rows))
                 for t in today_rows[:6]:
                     lines.append('• 规则#%s %s → %s：%s'
-                                 % (t.rule_id, t.symbol, t.disposition,
+                                 % (t.rule_id, _disp(t.symbol), t.disposition,
                                     (t.disposition_reason or '')[:50]))
                 if len(today_rows) > 6:
                     lines.append('• …另有 %d 条' % (len(today_rows) - 6))
