@@ -9,6 +9,13 @@
 节流：默认 15 分钟一轮（env WATCH_NEWS_SCAN_INTERVAL_SEC），sidecar 每次拍都调用、
 服务内部到期才真扫——与走势回填同款纪律。
 
+两种口径（2026-10-20 · 机会闭环 M2 二次核验）：
+  · scan()：持仓口径——节流 + 已报留痕 + 发卡，行为与初版一致；
+  · scan_candidates() / query_negative_news()：候选池口径（只读）——不看窗口、不做节流、
+    不写已报留痕、不发卡，供确认核验流水线随时问「这只票有没有突发利空」。
+    候选池不是持仓：把候选池命中写进持仓留痕，会让持仓扫描的幂等键提前命中而漏报，
+    等于悄悄改了口径，故候选池模式与持仓留痕完全隔离。
+
 取数失败不炸：单标的失败记日志跳过（下轮重试），整轮失败向上抛（sidecar 记错）。
 """
 import os
@@ -34,8 +41,14 @@ SOFT_WORDS = (
 NOISE_WORDS = ('业绩说明会', '调研', '回复关注函', '补充公告', '更正公告',
                '摘要', '英文版')
 
+#: 严重度排序（critical 压过 soft）；持仓扫描取最高 tier 的口径与此同源
+_TIER_ORDER = {'critical': 0, 'soft': 1}
+
 DEFAULT_ACCOUNTS = ('agent_virtual', 'agent_brain', 'user_main_simulation')
 DEFAULT_INTERVAL_SEC = 900.0
+
+MODE_HELD = 'held'
+MODE_CANDIDATE_POOL = 'candidate_pool'
 
 
 def _interval() -> float:
@@ -94,23 +107,17 @@ class NewsWatchService:
         reported, skipped, errors = [], [], 0
         for sym in symbols:
             try:
-                items = self._news.fetch_news(sym, limit=15) or []
+                items = self._fetch_news(sym, limit=15)
             except Exception as e:  # noqa: BLE001 - 单标的失败不炸整轮
                 errors += 1
                 logger.error('新闻获取失败（跳过该标的）', symbol=sym, error=str(e))
                 continue
-            fresh = [it for it in items if self._fresh(it, now)]
-            hits = []
-            for it in fresh:
-                tier, words = classify(it['title'])
-                if tier != 'none':
-                    hits.append({'item': it, 'tier': tier, 'words': words})
+            fresh, hits = self._classify_fresh(items, now)
             # 每标的每轮最多报 1 张卡（critical 优先，只报最高 tier）
             if not hits:
                 skipped.append(sym)
                 continue
-            tier_order = {'critical': 0, 'soft': 1}
-            hits.sort(key=lambda h: tier_order[h['tier']])
+            hits.sort(key=lambda h: _TIER_ORDER[h['tier']])
             top_tier = hits[0]['tier']
             picked = [h for h in hits if h['tier'] == top_tier][:5]
             # 逐条幂等留痕（已报过的跳过）
@@ -135,7 +142,109 @@ class NewsWatchService:
                     ('symbols', 'reported', 'skipped', 'errors')})
         return out
 
+    # ── 候选池口径（机会闭环 M2 二次核验；只读，不碰持仓留痕）──────
+    def query_negative_news(self, symbol: str, now: Optional[datetime] = None,
+                            limit: int = 15) -> Dict[str, Any]:
+        """单标的利空查询（只读，供二次核验当闸用）。
+
+        与 scan() 的差别：不看运行窗口、不做节流、不写已报留痕、不发卡——
+        核验流水线可以随时问「这只票现在有没有突发利空」，反复问同一标的不改变任何状态。
+
+        返回：
+          symbol / has_negative（任一命中即 True，含 soft）/
+          tier（最高一级：critical > soft > none）/
+          hits（最高 tier 至多 5 条，带 title/words/time/source/url）/
+          checked（48h 内参与判定的条数）/ total（取回条数）/
+          skipped / error —— 取数失败时 skipped=True、error=原文、
+          has_negative=False（fail-open：不因取数故障冤枉标的，交由调用方标注「未核验」）。
+        """
+        now = now or datetime.now()
+        bare = str(symbol or '').split('.')[0]
+        out = {'symbol': bare, 'has_negative': False, 'tier': 'none', 'hits': [],
+               'checked': 0, 'total': 0, 'skipped': False, 'error': None,
+               'at': now.isoformat()}
+        if not bare:
+            out['skipped'] = True
+            out['error'] = '空标的'
+            return out
+        try:
+            items = self._fetch_news(bare, limit=limit)
+        except Exception as e:  # noqa: BLE001 - 取数失败不影响调用方继续核验其它项
+            logger.error('利空查询取数失败', symbol=bare, error=str(e))
+            out['skipped'] = True
+            out['error'] = str(e)
+            return out
+        fresh, hits = self._classify_fresh(items, now)
+        out['total'] = len(items)
+        out['checked'] = len(fresh)
+        if not hits:
+            return out
+        hits.sort(key=lambda h: _TIER_ORDER[h['tier']])
+        top_tier = hits[0]['tier']
+        picked = [h for h in hits if h['tier'] == top_tier][:5]
+        out['has_negative'] = True
+        out['tier'] = top_tier
+        out['hits'] = [{'title': str(h['item'].get('title') or ''),
+                        'tier': h['tier'], 'words': list(h['words']),
+                        'time': str(h['item'].get('time') or ''),
+                        'source': str(h['item'].get('source') or ''),
+                        'url': str(h['item'].get('url') or '')}
+                       for h in picked]
+        return out
+
+    def scan_candidates(self, symbols, now: Optional[datetime] = None,
+                        limit: int = 15) -> Dict[str, Any]:
+        """候选池标的扫描模式（只读）：批量查给定标的的突发利空。
+
+        · 不读持仓（position_repo 可为 None）、不写留痕、不发卡——候选池命中若写进
+          持仓留痕，会让持仓扫描的幂等键提前命中而漏报，故与持仓口径完全隔离；
+        · 单标的取数失败只计入 skipped 并在明细里带 error，不炸整轮；
+        · symbols 可给列表或单个代码字符串（'300750.SZ'），标的去重并统一成
+          裸代码（'300750.SZ' → '300750'），空值忽略。
+
+        返回 {scanned, mode: 'candidate_pool', symbols, negative, critical, soft,
+              clean, skipped, details, at}；details 是逐标的的
+              query_negative_news 结果（含 hits，可直接归档失败样本理由）。
+        """
+        if isinstance(symbols, str):   # 单个代码字符串不该被逐字符拆开
+            symbols = [symbols]
+        now = now or datetime.now()
+        uniq: List[str] = []
+        for s in (symbols or []):
+            bare = str(s or '').split('.')[0]
+            if bare and bare not in uniq:
+                uniq.append(bare)
+
+        details = [self.query_negative_news(sym, now=now, limit=limit)
+                   for sym in uniq]
+        critical = sum(1 for r in details if r['tier'] == 'critical')
+        soft = sum(1 for r in details if r['tier'] == 'soft')
+        skipped = sum(1 for r in details if r['skipped'])
+        out = {'scanned': True, 'mode': MODE_CANDIDATE_POOL,
+               'symbols': len(uniq), 'negative': critical + soft,
+               'critical': critical, 'soft': soft,
+               'clean': len(uniq) - critical - soft - skipped,
+               'skipped': skipped, 'details': details, 'at': now.isoformat()}
+        logger.info('候选池消息扫描完成', **{k: out[k] for k in
+                    ('symbols', 'negative', 'critical', 'soft', 'skipped')})
+        return out
+
     # ── 内部 ────────────────────────────────────────────────
+    def _fetch_news(self, symbol: str, limit: int = 15) -> List[Dict[str, Any]]:
+        return self._news.fetch_news(symbol, limit=limit) or []
+
+    @staticmethod
+    def _classify_fresh(items: List[Dict[str, Any]],
+                        now: datetime) -> tuple:
+        """48h 内新鲜条目 + 分级命中列表（持仓/候选池两种口径共用同一套词表判定）。"""
+        fresh = [it for it in items if NewsWatchService._fresh(it, now)]
+        hits = []
+        for it in fresh:
+            tier, words = classify(it.get('title'))
+            if tier != 'none':
+                hits.append({'item': it, 'tier': tier, 'words': words})
+        return fresh, hits
+
     def _held_symbols(self) -> List[str]:
         if self._positions is None:
             return []

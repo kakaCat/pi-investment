@@ -2,7 +2,7 @@
 import os
 import threading
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Any, Callable, Mapping, Optional
 from qs_kernel.domain.ports.datasource_ports import IDataProviderManager
 
 import structlog
@@ -13,7 +13,18 @@ from adapters.outbound.repositories.watch_rule_repository import (
 )
 from qs_agenthub.application.services.agent_notification_service import AgentNotificationService  # 2026-10-19：L1 → qs_agenthub 真身
 from qs_market_data.application.services.realtime_quote_service_v2 import RealtimeQuoteServiceV2
-from qs_watch.application.services.watch_engine.engine import WatchEngine
+from qs_watch.application.services.watch_engine.confirm_verify_pipeline import (
+    ConfirmVerifyPipeline,
+)
+from qs_watch.application.services.watch_engine.engine import (
+    WatchEngine, elapsed_trading_fraction,
+)
+from qs_watch.application.services.watch_engine.liquidity_check_service import (
+    LiquidityCheckService,
+)
+from qs_watch.application.services.watch_engine.sector_resonance_service import (
+    SectorResonanceService,
+)
 from qs_watch.application.services.watch_engine.notifier import WatchNotifier
 from qs_watch.application.services.watch_engine.digest_service import WatchDigestService
 from qs_watch.application.services.watch_engine.intervention_ledger import InterventionLedger
@@ -164,6 +175,295 @@ def _build_news_watch_service():
         sender=_sender)
 
 
+# ── 确认核验流水线装配（2026-10-20，机会闭环 M2）────────────────────────
+#: 开关：生产默认启用；显式 false 回滚到「确认即入触发流水线」的旧路径。
+#: 未启用 = pipeline=None，引擎行为与改造前完全一致（引擎侧已有回归用例）。
+CONFIRM_VERIFY_ENABLED_ENV = 'WATCH_CONFIRM_VERIFY_ENABLED'
+
+#: 流动性阈值：装配方的**显式生产默认**（env 可覆盖）。
+#: 服务本身对「阈值未配置」保持 skipped（不猜默认值）；这里给默认值是因为
+#: 生产不装配阈值等于该阶段永久不校验——那是「装了但没启用」的假装配。
+DEFAULT_MIN_AMOUNT = 5_000_000.0        # 成交额下限 500 万
+DEFAULT_MIN_VOLUME_RATIO = 1.0          # 量比下限 1.0
+DEFAULT_TRAP_BIG_ORDER_RATIO = 0.4      # 大单占比 ≥ 40% 进入诱骗候选
+
+MIN_AMOUNT_ENV = 'WATCH_CONFIRM_VERIFY_MIN_AMOUNT'
+MIN_VOLUME_RATIO_ENV = 'WATCH_CONFIRM_VERIFY_MIN_VOLUME_RATIO'
+TRAP_BIG_ORDER_RATIO_ENV = 'WATCH_CONFIRM_VERIFY_TRAP_BIG_ORDER_RATIO'
+
+#: 候选池 id：给了就用 stock_pools 成员做板块映射候选集；
+#: 没给则回退到「盯盘规则标的」候选集（生产最贴近的口径，不瞎猜某个池）。
+SECTOR_RESONANCE_POOL_ENV = 'WATCH_SECTOR_RESONANCE_POOL_ID'
+
+#: 板块映射重建线程：启动后先等一会（不抢宿主启动），之后按服务 TTL（默认 6h）重建；
+#: 失败 5 分钟后重试。重建在独立 daemon 线程，tick 热路径只读快照。
+RESONANCE_REFRESH_START_DELAY_SEC = 5.0
+RESONANCE_REFRESH_FAIL_BACKOFF_SEC = 300.0
+
+#: `build_confirm_verify_pipeline` 的「未显式传 news_service」哨兵：
+#: None 表示调用方明确说「消息服务不可用」，不能再偷偷重建一次。
+_AUTO = object()
+
+
+def _confirm_verify_enabled() -> bool:
+    return os.getenv(CONFIRM_VERIFY_ENABLED_ENV, 'true').strip().lower() in (
+        '1', 'true', 'yes', 'on')
+
+
+def _env_positive_float(name: str, default: float) -> float:
+    """读正数 env；缺省/非法/非正 → 用默认值并记日志（可诊断，不阻断装配）。"""
+    raw = os.getenv(name)
+    if raw is None or not str(raw).strip():
+        return default
+    try:
+        value = float(str(raw).strip())
+    except (TypeError, ValueError):
+        logger.warning('确认核验阈值配置非法，使用默认值', key=name,
+                       value=str(raw), default=default)
+        return default
+    if value <= 0:
+        logger.warning('确认核验阈值必须为正数，使用默认值', key=name,
+                       value=value, default=default)
+        return default
+    return value
+
+
+def _liquidity_thresholds_from_env() -> dict:
+    return {
+        'min_amount': _env_positive_float(MIN_AMOUNT_ENV, DEFAULT_MIN_AMOUNT),
+        'min_volume_ratio': _env_positive_float(
+            MIN_VOLUME_RATIO_ENV, DEFAULT_MIN_VOLUME_RATIO),
+        'trap_big_order_ratio': _env_positive_float(
+            TRAP_BIG_ORDER_RATIO_ENV, DEFAULT_TRAP_BIG_ORDER_RATIO),
+    }
+
+
+def _build_liquidity_check_service() -> LiquidityCheckService:
+    """流动性核验服务：阈值来自 env（缺省用显式生产默认）。"""
+    return LiquidityCheckService(_liquidity_thresholds_from_env())
+
+
+class _WatchRuleCandidateSource:
+    """盯盘规则标的 → 板块映射候选集（`SectorResonanceService` 端口实现）。
+
+    「候选池」在盯盘语境里就是**正在盯的标的**：两段式伏击确认后要判断这次异动
+    是不是板块共振，候选集天然是启用的规则标的。仓储**惰性构造**——装配流水线
+    本身不碰数据库（宿主启动不被 DB 可用性阻塞），只有重建线程才读。
+    """
+
+    def __init__(self, rule_repo=None):
+        self._rule_repo = rule_repo
+
+    def get_members(self, pool_id=None):  # noqa: ARG002 - 端口签名，候选集与池 id 无关
+        repo = self._rule_repo or WatchRuleRepository()
+        out = []
+        for rule in (repo.list_enabled() or []):
+            symbol = str(getattr(rule, 'symbol', '') or '').strip()
+            if symbol:
+                out.append({'symbol': symbol})
+        return out
+
+
+def _sector_resonance_pool_id() -> Optional[int]:
+    raw = os.getenv(SECTOR_RESONANCE_POOL_ENV, '').strip()
+    if not raw:
+        return None
+    try:
+        pool_id = int(raw)
+    except (TypeError, ValueError):
+        logger.warning('WATCH_SECTOR_RESONANCE_POOL_ID 非法，回退到盯盘规则候选集',
+                       value=raw)
+        return None
+    if pool_id <= 0:
+        logger.warning('WATCH_SECTOR_RESONANCE_POOL_ID 必须为正整数，回退到盯盘规则候选集',
+                       value=pool_id)
+        return None
+    return pool_id
+
+
+def _build_sector_resonance_service() -> SectorResonanceService:
+    """板块共振核验服务：显式池 id → stock_pools 成员；否则盯盘规则标的。"""
+    pool_id = _sector_resonance_pool_id()
+    if pool_id is not None:
+        from adapters.outbound.repositories.watch_pool_binding_repository import (
+            PoolMemberSource,
+        )
+        return SectorResonanceService(candidate_source=PoolMemberSource(),
+                                      pool_id=pool_id)
+    return SectorResonanceService(candidate_source=_WatchRuleCandidateSource(),
+                                  pool_id=0)
+
+
+def make_liquidity_quote_provider(avg_volume_provider=None,
+                                  now_fn: Callable[[], datetime] = datetime.now):
+    """引擎轻量 quote → 流动性核验所需盘口视图（成交额/量比）。
+
+    引擎 `QuoteData` 有 amount/volume；量比不可直接取，按「当日成交量 ÷ 同期均量」
+    折算（与 volume_surge 同口径：20 日均量 × 已过交易时间比例）。均量按
+    (标的, 日期) 缓存，单次确认最多一次 K 线取数；取数失败 → 不填量比，
+    由服务如实 skipped（fail-open）。
+
+    `big_order_ratio` 当前行情源没有该字段，**不臆造**：quote 自带才透传，
+    否则留给服务按「数据不足」跳过——宁可少一道判定，不可伪造盘口结论。
+    """
+    cache: dict = {}
+
+    def _avg_volume(bare: str, day) -> Optional[float]:
+        key = (bare, day)
+        if key not in cache:
+            try:
+                avg = avg_volume_provider(bare) if avg_volume_provider else None
+                cache[key] = float(avg) if avg else None
+            except Exception as e:  # noqa: BLE001 - 取数失败降级为不填量比
+                logger.warning('流动性核验均量取数失败（量比降级）', symbol=bare,
+                               error=str(e))
+                cache[key] = None
+        return cache[key]
+
+    def provider(symbol: str, quote: Any) -> dict:
+        bare = str(symbol or '').split('.')[0]
+        now = now_fn()
+        payload = {'symbol': bare}
+
+        def _get(*names):
+            for name in names:
+                if isinstance(quote, Mapping):
+                    value = quote.get(name)
+                else:
+                    value = getattr(quote, name, None)
+                if value is not None:
+                    return value
+            return None
+
+        amount = _get('amount', 'turnover')
+        if amount is not None:
+            try:
+                if float(amount) > 0:
+                    payload['amount'] = float(amount)
+            except (TypeError, ValueError):
+                pass
+
+        big_order = _get('big_order_ratio', 'large_order_ratio', 'big_order_pct')
+        if big_order is not None:
+            try:
+                payload['big_order_ratio'] = float(big_order)
+            except (TypeError, ValueError):
+                pass
+
+        volume_ratio = _get('volume_ratio', 'vol_ratio')
+        if volume_ratio is not None:
+            try:
+                if float(volume_ratio) > 0:
+                    payload['volume_ratio'] = float(volume_ratio)
+            except (TypeError, ValueError):
+                pass
+        else:
+            volume = _get('volume')
+            avg = _avg_volume(bare, now.date()) if volume else None
+            if avg and avg > 0:
+                baseline = avg * min(1.0, max(elapsed_trading_fraction(now), 0.01))
+                try:
+                    payload['volume_ratio'] = float(volume) / baseline
+                except (TypeError, ValueError, ZeroDivisionError):
+                    pass
+        return payload
+
+    return provider
+
+
+def build_confirm_verify_pipeline(news_service=_AUTO, avg_volume_provider=None):
+    """装配确认核验流水线（news/liquidity/sector 三服务 + ConfirmVerifyPipeline）。
+
+    返回：
+      · 正常 → `ConfirmVerifyPipeline`（生产装配，引擎在 staged_break 确认后调用）；
+      · 开关关闭 → None（未装配路径，引擎行为与改造前一致）；
+      · 任一服务装配失败 → None + error 日志（带 stage/error，引擎照常启动）。
+
+    这里的「失败降级为 None」是刻意的：核验是旁路，装不上就不装，
+    绝不让宿主启动被一个旁路服务拖死；日志必须能定位是哪一段、什么错。
+    """
+    if not _confirm_verify_enabled():
+        logger.info('确认核验流水线未启用（%s=false）——staged 确认即入触发流水线'
+                    % CONFIRM_VERIFY_ENABLED_ENV)
+        return None
+
+    stage = 'news'
+    try:
+        if news_service is _AUTO:
+            news_service = _build_news_watch_service()
+        if news_service is None:
+            raise RuntimeError('消息监控服务缺失（NewsWatchService 不可用）')
+
+        stage = 'liquidity'
+        liquidity_service = _build_liquidity_check_service()
+
+        stage = 'sector'
+        resonance_service = _build_sector_resonance_service()
+
+        stage = 'pipeline'
+        pipeline = ConfirmVerifyPipeline(
+            news_service=news_service,
+            liquidity_service=liquidity_service,
+            resonance_service=resonance_service,
+            liquidity_quote_provider=make_liquidity_quote_provider(
+                avg_volume_provider),
+        )
+    except Exception as e:  # noqa: BLE001 - 旁路装配失败降级，不阻断引擎启动
+        logger.error(
+            '确认核验流水线装配失败（%s），降级为未装配（引擎照常启动）'
+            % stage, stage=stage, error=str(e))
+        return None
+
+    thresholds = liquidity_service.thresholds
+    logger.info(
+        '确认核验流水线已装配（news/liquidity/sector 三服务就位）',
+        min_amount=thresholds.min_amount,
+        min_volume_ratio=thresholds.min_volume_ratio,
+        trap_big_order_ratio=thresholds.trap_big_order_ratio,
+        resonance_pool=_sector_resonance_pool_id(),
+    )
+    return pipeline
+
+
+def _start_sector_resonance_refresher(pipeline) -> Optional[threading.Thread]:
+    """独立 daemon 线程重建板块映射（6h TTL / 失败 5 分钟重试）。
+
+    为什么不在 tick/确认热路径：重建要逐板块取成分（最多 120 个板块的外呼），
+    放热路径会拖慢引擎主循环。线程只读写服务自己的快照，与引擎生命周期解耦；
+    重建失败只记日志——共振阶段按 fail-open 跳过，不拦信号。
+    """
+    service = getattr(pipeline, 'resonance_service', None)
+    refresh = getattr(service, 'refresh', None)
+    if not callable(refresh):
+        return None
+    interval = float(getattr(service, '_ttl', 6 * 3600) or 6 * 3600)
+
+    def _loop():
+        threading.Event().wait(min(RESONANCE_REFRESH_START_DELAY_SEC, interval))
+        while True:
+            delay = interval
+            try:
+                out = refresh()
+                if isinstance(out, Mapping) and out.get('built'):
+                    logger.info('候选池板块映射已重建（共振阶段可用）',
+                                mapped=out.get('mapped'),
+                                sectors=out.get('sectors_scanned'))
+                else:
+                    logger.info('候选池板块映射未重建（共振阶段 fail-open 跳过）',
+                                detail=out)
+            except Exception as e:  # noqa: BLE001 - 重建失败只降级，不拦信号
+                logger.error('候选池板块映射重建失败（共振阶段 fail-open，稍后重试）',
+                             error=str(e))
+                delay = RESONANCE_REFRESH_FAIL_BACKOFF_SEC
+            threading.Event().wait(delay)
+
+    thread = threading.Thread(target=_loop, name='watch-sector-resonance',
+                              daemon=True)
+    thread.start()
+    logger.info('候选池板块映射重建线程已启动（daemon）', interval_sec=interval)
+    return thread
+
+
 def build_watch_loop_services():
     """按开关装配闭环服务（REQ-c9f899 t12 §6-项8）——**可单测的纯装配决策**。
 
@@ -208,6 +508,9 @@ def build_watch_loop_services():
 def create_watch_engine() -> WatchEngine:
     _pos_repo = SimulationPositionRepository()
     _sim_repo = SimulationORMRepository()   # 复用单例：原实现在闭包内每次调用新建（每 tick 每规则一次）
+    # 均量 provider 只建一次：引擎 volume_surge 与确认核验的「量比」共用同一取数口径
+    # （同一份 20 日均量，不另造第二套算法）。
+    _avg_volume_provider = make_avg_volume_provider()
 
     def position_value_provider(rule):
         # 介入判据金额门：持仓级动作影响金额 = 该标的持仓市值
@@ -299,11 +602,35 @@ def create_watch_engine() -> WatchEngine:
     runtime_store, todo_service, receipt_service, sla_job, self_heal_service = \
         build_watch_loop_services()
 
+    # 消息监控服务：引擎 sidecar 的持仓消息扫描与确认核验的「利空核验」共用**同一实例**
+    # （同一条新闻源/留痕口径，不建两份）。装配失败只降级（扫描/利空核验不可用），
+    # 不阻断引擎启动——消息面是旁路增益，不是引擎存活的必要条件。
+    try:
+        _news_watch_service = _build_news_watch_service()
+    except Exception as e:  # noqa: BLE001 - 装配失败降级为关闭
+        logger.error('消息监控服务装配失败，降级为关闭（消息扫描/利空核验不可用）',
+                     error=str(e))
+        _news_watch_service = None
+
+    # 确认核验流水线（2026-10-20，机会闭环 M2）：生产默认装配；未装配 = None，
+    # 引擎行为与改造前一致。装配失败只降级并记日志，绝不阻断引擎启动。
+    if _news_watch_service is None:
+        _confirm_verify_pipeline = None
+        if _confirm_verify_enabled():
+            logger.error(
+                '确认核验流水线装配失败（news），降级为未装配（引擎照常启动）',
+                stage='news', error='消息监控服务缺失（NewsWatchService 不可用）')
+    else:
+        _confirm_verify_pipeline = build_confirm_verify_pipeline(
+            news_service=_news_watch_service,
+            avg_volume_provider=_avg_volume_provider,
+        )
+
     return WatchEngine(
         rule_repo=WatchRuleRepository(),
         quote_service=RealtimeQuoteServiceV2(),
         notifier=notifier,
-        avg_volume_provider=make_avg_volume_provider(),
+        avg_volume_provider=_avg_volume_provider,
         fund_flow_provider=make_fund_flow_provider(),
         kline_closes_provider=make_kline_closes_provider(),
         position_value_provider=position_value_provider,
@@ -317,7 +644,10 @@ def create_watch_engine() -> WatchEngine:
         ),
         # P5 持仓生命周期联动：规则使命跟着交易走
         pool_watch_service=_build_pool_watch_service(),
-        news_watch_service=_build_news_watch_service(),
+        news_watch_service=_news_watch_service,
+        # 确认核验流水线（2026-10-20，机会闭环 M2）：staged_break 确认后跑
+        # 利空/流动性/板块共振三道；None = 未装配（回滚/装配失败），行为不变。
+        confirm_verify_pipeline=_confirm_verify_pipeline,
         position_lifecycle_service=PositionLifecycleService(
             rule_repo=WatchRuleRepository(),
             position_repo=SimulationPositionRepository(),
@@ -373,5 +703,9 @@ def start_watch_engine_in_thread() -> tuple[WatchEngine, threading.Thread]:
     # 独立心跳写线程：存活信号与主循环各阶段耗时解耦（主循环被慢 I/O 卡住时
     # 巡检不再误报「心跳丢失」；2026-10-16 事故修补）。
     engine.spawn_heartbeat_thread()
+    # 板块映射重建线程（确认核验·共振阶段的快照来源）：装配了流水线才起；
+    # 独立 daemon，失败只降级不阻断。放在线程启动后，不抢宿主 lifespan。
+    _start_sector_resonance_refresher(
+        getattr(engine, 'confirm_verify_pipeline', None))
     logger.info('✓ WatchEngine 已在后台线程启动')
     return engine, thread

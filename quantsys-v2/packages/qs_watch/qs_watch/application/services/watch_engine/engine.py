@@ -28,6 +28,9 @@ from qs_watch.domain.watch.services.disposition import (
 from qs_watch.domain.watch.services import noise_policy
 from qs_watch.application.services.watch_engine.deduplication_manager import DeduplicationManager
 from qs_watch.application.services.watch_engine.disposition_engine import DispositionEngine
+from qs_watch.application.services.watch_engine.environment_gate_service import (
+    EnvironmentGateService,
+)
 from qs_watch.application.services.watch_engine.escalation_coordinator import EscalationCoordinator
 from qs_watch.domain.watch.services.escalation_checker import EscalationChecker
 from qs_watch.domain.watch.models import QuoteData
@@ -60,6 +63,17 @@ DAILY_CAP_REASON = ('当日通知次数已达上限（每规则每条件每日 '
 #: 两段式伏击「触及未确认」的归档理由（2026-10-19 P1）：观察窗到期确认未成立，
 #: 落一条 suppressed 样本供复盘（盘感样本的事实源），不通知、不占日配额。
 STAGED_EXPIRED_REASON = '伏击观察窗到期未确认（触及≠信号），仅归档样本'
+
+#: 确认核验未通过的归档理由前缀（2026-10-20，机会闭环 M2）：staged_break 确认成立
+#: 但利空/流动性/共振三道核验有明确失败 → 判「假信号」，只归档样本供复盘，
+#: 不通知、不进摘要队列、不建待办。具体失败项接在冒号后（pipeline.reason）。
+CONFIRM_VERIFY_FAILED_REASON = '假信号：确认核验未通过，仅归档样本'
+
+#: 环境闸豁免理由（用户 2026-10-20 裁定）：环境不达标时 exit_stop/保护线类信号
+#: **照常通知**——止损被吞 = 资损风险，与日上限/dedup 的宪法豁免同源。
+#: 判定只认规则声明的动作类型与结构化锚点（见 `_env_gate_exemption`），
+#: 绝不匹配消息文案；具体锚点接在括号里，事件与日志可回溯。
+ENV_GATE_EXEMPT_REASON = '止损/保护线豁免：环境闸放行，照常通知'
 
 
 def _build_runtime_store():
@@ -118,7 +132,8 @@ class WatchEngine:
                  pool_watch_service=None, news_watch_service=None,
                  runtime_state_store=None,
                  todo_service=None, observe_agg=None, staged_manager=None,
-                 outcome_backfill_service=None):
+                 outcome_backfill_service=None, environment_gate_service=None,
+                 confirm_verify_pipeline=None):
         self.rule_repo = rule_repo
         self.quote_service = quote_service
         self.notifier = notifier
@@ -127,8 +142,19 @@ class WatchEngine:
         # 2026-10-20 扩展条件（ma_break/rsi/fund_flow）的取数 provider；None=对应条件降级
         self.fund_flow_provider = fund_flow_provider
         self.kline_closes_provider = kline_closes_provider
-        # 市场环境复合门缓存（_check_market_gate 用，60s TTL）
+        # 市场环境复合门缓存（_market_state 用，60s TTL）——全局环境闸与
+        # per-rule market_gate 共用同一份 MarketState 快照（一次取数两处用）。
         self._gate_cache: tuple = (None, None)
+        # 全局环境闸（2026-10-20）：tick 前置判一次（指数/板块主线/资金氛围）。
+        # 默认服务是纯判定（无 I/O），取数由 market_watch_service.state_provider 承担；
+        # 构造函数留注入点只为测试调阈值，生产装配无需改动（默认即开）。
+        self.environment_gate = environment_gate_service or EnvironmentGateService()
+        # 上一次拦截原因：tick 级日志只在原因变化时打，避免拦截期每 10s 刷屏
+        self._last_env_gate_reason: Optional[str] = None
+        # 确认核验流水线（2026-10-20，机会闭环 M2）：staged_break 确认成立后
+        # 依次跑 利空/流动性/共振，全过才进触发流水线；失败归档假信号样本。
+        # None = 未装配 → 行为与改造前完全一致（确认即进流水线），既有测试/回滚零影响。
+        self.confirm_verify_pipeline = confirm_verify_pipeline
         self.base_interval = base_interval
         self.fast_interval = fast_interval
         self.buffer_ratio = buffer_ratio
@@ -532,6 +558,14 @@ class WatchEngine:
         if now.weekday() >= 5 or not self.is_trading_time(now.time()):
             return []
         self._reset_daily_state_if_needed(now)
+        # ── 全局环境闸（2026-10-20，tick 前置）──────────────────────────
+        # 每 tick 只判一次；MarketState 复用 60s 缓存（下方 per-rule market_gate
+        # 读同一份快照，不重复取数）。环境不达标 → 个股信号全部只归档不动作；
+        # 市场级规则（scope=market/sector）本质是环境本身的信号，不在此列。
+        env_gate = self._check_environment_gate(now)
+        if env_gate[0] and env_gate[1] != self._last_env_gate_reason:
+            logger.warning('环境闸拦截：个股信号只记录不动作', reason=env_gate[1])
+        self._last_env_gate_reason = env_gate[1] or None
         # 预算计数每 tick 从库刷新一次（不每规则查，避免 N+1）；库不可用时沿用内存值
         if self.ledger is not None:
             try:
@@ -609,8 +643,13 @@ class WatchEngine:
                             and result.distance_ratio <= self.buffer_ratio):
                         fast = True
                     if outcome == OUTCOME_CONFIRMED:
+                        # 确认核验（2026-10-20，机会闭环 M2）：形态确认成立后先过
+                        # 利空/流动性/共振三道核验，全过才进触发流水线；失败归档
+                        # 假信号样本（不通知/不建待办）。核验挂在 _process_condition
+                        # 的陈旧驻留/环境闸之后——那两者不是市场事件，不该跑核验。
                         self._process_condition(rule, idx, cond, quote, result,
-                                                now, events)
+                                                now, events, env_gate=env_gate,
+                                                verify_confirm=True)
                     elif outcome == OUTCOME_EXPIRED:
                         self._archive_staged_expired(rule, cond, quote, result,
                                                      now, events)
@@ -622,7 +661,8 @@ class WatchEngine:
                     continue
                 if result.distance_ratio is not None and result.distance_ratio <= self.buffer_ratio:
                     fast = True
-                self._process_condition(rule, idx, cond, quote, result, now, events)
+                self._process_condition(rule, idx, cond, quote, result, now, events,
+                                        env_gate=env_gate)
 
         # 去重窗裁剪：清掉已过期的键，避免长跑进程内的无界增长（委托 StateManager）
         self.state.prune_dedup(now)
@@ -660,28 +700,74 @@ class WatchEngine:
         self.fast_mode = fast
         return events
 
+    # ── 市场状态与环境闸 ────────────────────────────────────
+
+    def _market_state(self, now):
+        """市场状态快照（60s TTL 缓存；全局环境闸与 per-rule market_gate 共用）。
+
+        为什么抽出来：两处判定消费同一份 MarketState——tick 前置的环境闸取一次，
+        循环里的 market_gate 若再取一次就是同 tick 双份外呼（数据源抖动时还可能
+        一份拦截一份放行）。缓存键是引擎时钟（`now_fn`），测试可冻结时间。
+
+        取数失败/未装配端口 → None（fail-open）：不把「没数据」当事实。
+        """
+        cached_at, cached = self._gate_cache
+        if cached is not None and (now - cached_at).total_seconds() < 60:
+            return cached
+        if self.market_watch_service is None:
+            return None
+        provider = getattr(self.market_watch_service, 'state_provider', None)
+        if provider is None:
+            return None
+        try:
+            state = provider.get_state()
+        except Exception as e:  # noqa: BLE001 - 取数失败 fail-open
+            logger.warning('市场状态取数失败（环境闸/市场门放行）', error=str(e))
+            return None
+        if state is not None:
+            self._gate_cache = (now, state)
+        return state
+
+    def _check_environment_gate(self, now) -> tuple:
+        """全局环境闸（tick 前置）：返回 (blocked, reason)。
+
+        三维判定（指数涨跌 / 板块主线强度 / 资金氛围）委托纯服务
+        EnvironmentGateService——本方法只负责取快照与 fail-open 兜底：
+          · 无快照 / 取数失败 / 判定异常 → (False, '')，与既有市场门同口径；
+          · 数据缺失的维度由服务标 skipped，绝不用 0 冒充事实再拦截。
+
+        拦截语义：引擎对个股信号**只归档不动作**（见 _process_condition 的
+        env_gate 分支）；reason 已是一句可直接进通知/日志的中文。
+        """
+        state = self._market_state(now)
+        if state is None:
+            return False, ''
+        # 消费口径与 service 文档一致：优先 check(state) -> (blocked, reason)
+        # （与 _check_market_gate 完全同形）；没有 check 时退到 evaluate(state)。
+        # 两种入口都兜同一个异常边界：环境闸自身故障不得让盯盘全体失明。
+        try:
+            checker = getattr(self.environment_gate, 'check', None)
+            if callable(checker):
+                blocked, reason = checker(state)
+            else:
+                decision = self.environment_gate.evaluate(state)
+                blocked, reason = decision.blocked, decision.reason
+        except Exception as e:  # noqa: BLE001 - 环境闸自身故障不得让盯盘全体失明
+            logger.error('环境闸判定异常（fail-open 放行）', error=str(e))
+            return False, ''
+        return bool(blocked), str(reason or '')
+
     def _check_market_gate(self, gate: dict, now) -> tuple:
-        """市场环境复合门判定：返回 (blocked, reason)。
+        """市场环境复合门判定（per-rule 加严项）：返回 (blocked, reason)。
 
         gate spec（action_params.market_gate）：
           index        看哪个指数（默认 000001.SH）
           max_down_pct 指数跌幅 ≤ 此值（如 -1.5）→ 拦截（系统性风险日不接飞刀）
           max_up_pct   指数涨幅 ≥ 此值（如 +3.0）→ 拦截（过热追高保护，可选）
-        数据缺失 fail-open 不拦截；市场快照 60s 缓存。
+        数据缺失 fail-open 不拦截；市场快照复用 _market_state 的 60s 缓存。
         """
         idx = str(gate.get('index') or '000001.SH')
-        state = None
-        cached_at, cached = self._gate_cache
-        if cached is not None and (now - cached_at).total_seconds() < 60:
-            state = cached
-        elif self.market_watch_service is not None:
-            provider = getattr(self.market_watch_service, 'state_provider', None)
-            if provider is not None:
-                try:
-                    state = provider.get_state()
-                    self._gate_cache = (now, state)
-                except Exception as e:  # noqa: BLE001 - 取数失败 fail-open
-                    logger.warning('市场门取数失败（放行）', error=str(e))
+        state = self._market_state(now)
         if state is None:
             return False, ''
         try:
@@ -756,12 +842,21 @@ class WatchEngine:
             logger.warning('收盘体检日报未送达', count=len(rows))
 
     def _process_condition(self, rule, idx: int, cond: dict, quote, result,
-                           now, events) -> None:
+                           now, events, env_gate: Optional[tuple] = None,
+                           verify_confirm: bool = False) -> None:
         """单条条件的「评估后」流水线（个股与市场级共用，2026-10-19 提取）。
 
-        覆盖：闩锁/冷却/迟滞 → 陈旧驻留 → 日上限（宪法豁免）→ 抑噪 → 升级 →
-        处置五门 → 去重/重叠治理 → 通知或聚合缓冲 → 日通知计数 → 待办 →
-        介入记账 → 止损使命退役 → 闩锁回退 → 事件记录。
+        覆盖：闩锁/冷却/迟滞 → 陈旧驻留 → 全局环境闸（个股）→ 确认核验（仅
+        staged_break 确认）→ 日上限（宪法豁免）→ 抑噪 → 升级 → 处置五门 →
+        per-rule market_gate（加严项）→ 去重/重叠治理 → 通知或聚合缓冲 →
+        日通知计数 → 待办 → 介入记账 → 止损使命退役 → 闩锁回退 → 事件记录。
+
+        env_gate：tick 前置算出的 (blocked, reason)，**只对个股传入**（市场级
+        规则本就是环境本身的信号）；None = 不做全局环境拦截。
+
+        verify_confirm：staged_break 确认成立时传 True，先过利空/流动性/共振
+        三道核验（失败只归档假信号样本、直接返回）。放在陈旧驻留/环境闸之后：
+        那两者不是市场事件（规则失真 / 环境日），不该触发核验外呼。
 
         为什么提取：市场级规则（P6）此前走「半条流水线」（notified=False 写死、
         闩锁纯内存、不占预算、不建待办）——评估器不同（MarketRuleEvaluator 吃
@@ -783,6 +878,61 @@ class WatchEngine:
         # 每规则每日落一条「阈值失真」治理项进 agent 摘要队列。
         if freshness_of(cond, getattr(quote, 'prev_close', None)) is False:
             self._handle_stale_residency(rule, idx, cond, quote, result, now)
+            return
+
+        # ── 全局环境闸（2026-10-20，个股信号总闸）──────────────────────
+        # 环境不达标（指数暴跌/过热、板块无主线、资金氛围偏冷）→ **全部只记录
+        # 不动作**：落一条 suppressed=true 归档 + 日志，不发通知、不进摘要队列、
+        # 不建待办、不升级、不做介入记账。
+        # 不占配额（不 bump_daily_emit）：本次没有发生通知，用「次数达上限」记
+        # 账会白白吃掉当天额度；闩锁/冷却照常置上（电平保持不每 tick 复读）。
+        # 位置在日上限/抑噪之前：环境日根本没通知，用「达上限」解释会误导；
+        # 陈旧驻留更前（那是规则失真治理，不是市场事件，环境日仍应留痕）。
+        #
+        # 止损/保护线豁免（用户 2026-10-20 裁定）：环境日 exit_stop/保护线类信号
+        # **照常通知**（止损被吞 = 资损风险）；其余个股信号仍只归档。豁免只跳过
+        # **这一道全局环境闸**，后面的抑噪/升级/处置/per-rule market_gate/去重
+        # 全部照旧——叠加语义不变（规则自己的 market_gate 仍可加严拦截）。
+        env_exempt_reason = ''
+        if env_gate and env_gate[0]:
+            exempt, env_exempt_reason = self._env_gate_exemption(rule, cond)
+            if exempt:
+                logger.info('环境闸豁免（照常通知）', rule_id=rule.id,
+                            symbol=rule.symbol, reason=env_exempt_reason)
+            else:
+                env_exempt_reason = ''
+                env_reason = env_gate[1]
+                archived = self._archive_environment_trigger(
+                    rule, cond, quote, result, env_reason)
+                if archived is None:
+                    # 归档失败：不闩锁，下 tick 重试（at-least-once，同市场门口径）
+                    logger.error('环境闸归档失败（不闩锁，下 tick 重试）',
+                                 rule_id=rule.id, symbol=rule.symbol,
+                                 reason=env_reason)
+                    return
+                self.judge.mark_emitted(rule.id, idx, now, rule.symbol)
+                events.append({'rule_id': rule.id, 'symbol': rule.symbol,
+                               'condition': cond, 'price': float(quote.price),
+                               'message': result.message,
+                               'disposition': DISPOSITION_AUTO_OBSERVED,
+                               'disposition_reason': env_reason,
+                               'dup_of': None, 'merged_from_rule': None,
+                               'trigger_id': getattr(archived, 'id', None),
+                               'trigger_level': self._get_trigger_level(rule),
+                               'suppressed': True,
+                               'notified': False})
+                logger.info('环境闸拦截（只记录不动作）', rule_id=rule.id,
+                            symbol=rule.symbol, reason=env_reason,
+                            trigger_id=getattr(archived, 'id', None))
+                return
+
+        # ── 确认核验（2026-10-20，机会闭环 M2，仅 staged_break 确认）────────
+        # 三道核验（利空/流动性/共振）全过才继续；失败只归档假信号样本并返回，
+        # 不通知、不进摘要队列、不建待办、不占日通知配额。
+        # 为什么在日上限/抑噪之前：核验回答的是「这条信号是不是真的」，是比
+        # 「今天还能发几条」更根本的问题；先判真伪，再谈投送节流。
+        if verify_confirm and not self._confirm_verify(
+                rule, cond, quote, result, now, events):
             return
 
         # ── 每日通知上限短路（REQ-261016155500-4f2a wt:engine:1）──────────
@@ -863,6 +1013,8 @@ class WatchEngine:
         # ── 市场环境复合门（2026-10-20，流程图 H 节点「二次校验市场环境」）────
         # 个股信号成立后查大盘：环境异常（如暴跌）则「只记录不动作」——伏击单不在
         # 系统性风险日接飞刀。规则侧开关：action_params.market_gate。
+        # 这是**per-rule 加严项**：全局环境闸已在 tick 前置拦截并 return（走不到
+        # 这里）；本门只在「环境闸放行/缺数据 fail-open」时按规则自己的阈值加严。
         # 拦截=归档一条触发（notified=False）+ 闩锁/冷却/日计数照常，直接 return。
         ap = getattr(rule, 'action_params', None)
         gate = ap.get('market_gate') if isinstance(ap, dict) else None
@@ -890,6 +1042,11 @@ class WatchEngine:
                                'trigger_id': getattr(gated_trigger, 'id', None),
                                'trigger_level': self._get_trigger_level(rule),
                                'notified': False})
+                # 豁免溯源（2026-10-20）：全局闸已豁免、但规则自己的 market_gate
+                # 更严 → 仍只归档。事件如实记录「为什么能走到二次校验」。
+                if env_exempt_reason:
+                    events[-1]['env_gate_exempt'] = True
+                    events[-1]['env_gate_exempt_reason'] = env_exempt_reason
                 logger.info('市场门拦截（只记录不动作）', rule_id=rule.id,
                             symbol=rule.symbol, reason=gate_why)
                 return
@@ -1046,6 +1203,11 @@ class WatchEngine:
                        'trigger_id': getattr(trigger, 'id', None),
                        'trigger_level': trigger_level,
                        'notified': bool(getattr(trigger, 'notified', False))})
+        # 豁免溯源（2026-10-20）：止损/保护线信号是在环境闸拦截日被放行的——
+        # 事件必须带得出「为什么它没被拦」，否则复盘无法区分正常日与豁免日。
+        if env_exempt_reason:
+            events[-1]['env_gate_exempt'] = True
+            events[-1]['env_gate_exempt_reason'] = env_exempt_reason
 
     # ── 内部 ────────────────────────────────────────────────
 
@@ -1329,6 +1491,72 @@ class WatchEngine:
                            rule_id=getattr(rule, 'id', None), error=str(e))
             return False
 
+    #: 「保护线」条件类型（环境闸豁免的结构锚点之一）：这些条件向下穿越即保护线
+    #: 本身——价格破位止损、均线破位止损、浮亏达线止损。方向读 params.direction
+    #: 结构化字段，不解析任何文案。
+    PROTECTIVE_CONDITION_TYPES = ('price_break', 'ma_break', 'pnl_pct')
+
+    @classmethod
+    def _protection_line_anchor(cls, rule, cond) -> str:
+        """保护线结构锚点：命中返回锚点说明，空串 = 非保护线（纯结构判定）。
+
+        持仓保护线至少具备下列一个结构化标记；四条都不满足的 exit_stop 只是
+        「止损意图」的普通告警（如 symbol 级价格上破提醒），不含保护线语义：
+          · scope=position          —— position_lifecycle 生成的持仓规则；
+          · lifecycle_stage=holding —— 已进入持仓阶段；
+          · cost_price 有值         —— 止损线锚定持仓成本（浮亏达线类）；
+          · action_hint.stop_loss    —— 规则显式声明了保护线价位（ActionHint 字段）；
+          · 触发条件是下行保护阈值（price_break/ma_break/pnl_pct 且 direction=below）。
+        **绝不**读 context/message 里的「止损」字样：文案可改、可翻译，不是事实源。
+        """
+        scope = str(getattr(rule, 'scope', '') or '').strip().lower()
+        if scope == 'position':
+            return 'scope=position'
+        stage = str(getattr(rule, 'lifecycle_stage', '') or '').strip().lower()
+        if stage == 'holding':
+            return 'lifecycle_stage=holding'
+        if getattr(rule, 'cost_price', None) is not None:
+            return 'cost_price'
+        hint = getattr(rule, 'action_hint', None)
+        hint_stop = (hint.get('stop_loss') if isinstance(hint, dict)
+                     else getattr(hint, 'stop_loss', None))
+        if hint_stop is not None:
+            return 'action_hint.stop_loss'
+        ctype = str((cond or {}).get('type') or '')
+        params = (cond or {}).get('params') or {}
+        if ctype in cls.PROTECTIVE_CONDITION_TYPES:
+            direction = str(params.get('direction') or '').strip().lower()
+            if direction == 'below':
+                return 'condition:%s:below' % ctype
+        return ''
+
+    def _env_gate_exemption(self, rule, cond) -> tuple:
+        """环境闸豁免判定：返回 (exempt, reason)。
+
+        用户 2026-10-20 裁定：环境不达标时 exit_stop/保护线类信号**照常通知**，
+        其余个股信号仍只归档。判据全部来自规则声明的动作类型与结构化字段，
+        不看消息文案（判据可回溯、可单测）：
+          ① 动作类型 ∈ CONSTITUTIONAL_INTENTS（复用 disposition 单一事实源；
+             intent 缺省时由 intent_of 按 action_on_trigger 归一，如 sell+pnl_pct
+             below → exit_stop）；
+          ② 保护线结构锚点非空（见 `_protection_line_anchor`）。
+        两条同时成立才豁免：豁免的是「持仓保护线」，不是「带止损字样的任何规则」。
+        """
+        try:
+            from qs_watch.domain.watch.services.disposition import intent_of
+            intent = intent_of(rule)
+        except Exception as e:  # noqa: BLE001 - 判定失败按不豁免处理（不放开噪音闸）
+            logger.warning('环境闸豁免判定失败，按不豁免处理',
+                           rule_id=getattr(rule, 'id', None), error=str(e))
+            return False, ''
+        if not self._is_constitutional(rule):
+            return False, ''
+        anchor = self._protection_line_anchor(rule, cond)
+        if not anchor:
+            return False, ''
+        return True, '%s（intent=%s，锚点=%s）' % (
+            ENV_GATE_EXEMPT_REASON, intent, anchor)
+
     #: 连续多少个交易日取数失败报「疑似停牌/退市」治理项
     QUOTE_FAIL_GOVERNANCE_DAYS = 3
 
@@ -1410,6 +1638,105 @@ class WatchEngine:
         except (TypeError, ValueError, ZeroDivisionError):
             return None
 
+    def _confirm_verify(self, rule, cond, quote, result, now, events) -> bool:
+        """staged_break 确认成立后的三道核验闸（2026-10-20，机会闭环 M2）。
+
+        返回 True = 放行到触发流水线；False = 判「假信号」（已归档，调用方不得通知）。
+
+        调用位置：_process_condition 的陈旧驻留/环境闸之后（那两者不是市场事件，
+        不该触发核验外呼），日上限/抑噪之前（先判真伪，再谈投送节流）。
+
+        口径：
+          · 未装配流水线 → 直接放行（行为与改造前一致，回滚/未接线零影响）；
+          · 流水线自身异常 → fail-open 放行并记日志（核验是旁路，不能因它让盯盘失明）；
+          · 核验失败 → 经 suppressed 归档口落一条样本（detail 带三道逐项结论），
+            不发通知、不进摘要队列、不建待办、不占日通知配额。
+
+        为什么不闩锁：staged 状态机在确认时已清掉观察态，下一 tick 会从 WATCHING
+        重新等触及；假信号归档后若再出现新的触及→确认，应当重新核验（可能是新的
+        消息面/盘口事实），用闩锁压掉会漏掉真正的第二次机会。
+        """
+        pipeline = self.confirm_verify_pipeline
+        if pipeline is None:
+            return True
+        try:
+            verify = pipeline.verify(rule.symbol, quote=quote, now=now)
+        except Exception as e:  # noqa: BLE001 - 核验旁路故障不得让信号全体失明
+            logger.error('确认核验流水线异常（fail-open 放行）',
+                         rule_id=getattr(rule, 'id', None),
+                         symbol=getattr(rule, 'symbol', None), error=str(e))
+            return True
+        if getattr(verify, 'passed', True):
+            if not getattr(verify, 'verified', True):
+                logger.info('确认核验通过但未完整（fail-open）', rule_id=rule.id,
+                            symbol=rule.symbol,
+                            skipped=getattr(verify, 'skipped_stages', ()))
+            return True
+
+        reason = '%s：%s' % (
+            CONFIRM_VERIFY_FAILED_REASON,
+            getattr(verify, 'reason', '') or '未说明')
+        archived = self._archive_confirm_verify_failed(
+            rule, cond, quote, result, reason=reason, verify=verify)
+        detail = None
+        to_dict = getattr(verify, 'to_dict', None)
+        if callable(to_dict):
+            try:
+                detail = to_dict()
+            except Exception:  # noqa: BLE001 - 事件附注失败不影响归档结论
+                detail = None
+        events.append({'rule_id': rule.id, 'symbol': rule.symbol,
+                       'condition': cond, 'price': float(quote.price),
+                       'message': result.message,
+                       'disposition': DISPOSITION_AUTO_OBSERVED,
+                       'disposition_reason': reason,
+                       'dup_of': None, 'merged_from_rule': None,
+                       'trigger_id': getattr(archived, 'id', None),
+                       'trigger_level': self._get_trigger_level(rule),
+                       'suppressed': True, 'notified': False,
+                       'false_signal': True,
+                       'confirm_verify': detail})
+        logger.info('确认核验未通过，假信号已归档（不通知/不建待办）',
+                    rule_id=rule.id, symbol=rule.symbol,
+                    failed_stages=getattr(verify, 'failed_stages', ()),
+                    trigger_id=getattr(archived, 'id', None))
+        return False
+
+    def _archive_confirm_verify_failed(self, rule, cond, quote, result,
+                                       reason: str, verify=None):
+        """核验失败样本归档口：suppressed 落库（detail 带逐项结论），不发送。
+
+        与抑噪/日上限/环境闸/伏击过期共用 _record_suppressed_trigger 通道，
+        reason 区分溯源；部分测试假件只提供 notifier.record_only、没有
+        trigger_repo——退化为 record_only，归档不能因端口形态不同而丢失。
+        两者都失败 → None：调用方已判假信号（不通知），归档失败只记日志。
+        """
+        extra = {'false_signal': True}
+        failed = getattr(verify, 'failed_stages', ())
+        if failed:
+            extra['failed_stages'] = list(failed)
+        to_dict = getattr(verify, 'to_dict', None)
+        if callable(to_dict):
+            try:
+                extra['confirm_verify'] = to_dict()
+            except Exception:  # noqa: BLE001
+                pass
+        if getattr(self.notifier, 'trigger_repo', None) is not None:
+            archived = self._record_suppressed_trigger(
+                rule, cond, quote, result, reason=reason, detail_extra=extra)
+            if archived is not None:
+                return archived
+        record_only = getattr(self.notifier, 'record_only', None)
+        if callable(record_only):
+            try:
+                return record_only(rule, cond, quote, result,
+                                   disposition=DISPOSITION_AUTO_OBSERVED,
+                                   disposition_reason=reason)
+            except Exception as e:  # noqa: BLE001 - 归档失败只记日志，不阻断 tick
+                logger.error('确认核验样本归档失败（record_only）',
+                             rule_id=getattr(rule, 'id', None), error=str(e))
+        return None
+
     def _handle_stale_residency(self, rule, idx, cond, quote, result, now):
         """陈旧驻留处置（2026-10-19）：闩锁 + 每日一次阈值失真治理项（不进用户群）。
 
@@ -1441,16 +1768,49 @@ class WatchEngine:
         except Exception as e:  # noqa: BLE001 - 治理项失败不阻断 tick
             logger.error('陈旧驻留治理项记录失败', rule_id=rule.id, error=str(e))
 
+    def _archive_environment_trigger(self, rule, cond, quote, result, reason):
+        """环境闸拦截的归档口：只落库、不发送（返回触发对象或 None）。
+
+        优先走 suppressed 归档通道（`_record_suppressed_trigger`，
+        watch_triggers.suppressed=true）：环境拦截与抑噪/日上限/伏击过期同属
+        「只记录不动作」，用同一列给复盘侧一个可过滤的口径。
+
+        退化为 `notifier.record_only`（不标记 suppressed）：部分装配/测试假件
+        只提供 notifier 的落库口、没有 trigger_repo——归档不能因端口形态不同
+        而丢失（丢失就会退化成"没记录也没动作"，比拦截本身更难排障）。
+
+        两者都失败 → None：调用方不闩锁，下 tick 重试（at-least-once）。
+        """
+        if getattr(self.notifier, 'trigger_repo', None) is not None:
+            archived = self._record_suppressed_trigger(
+                rule, cond, quote, result, reason=reason)
+            if archived is not None:
+                return archived
+        record_only = getattr(self.notifier, 'record_only', None)
+        if not callable(record_only):
+            return None
+        try:
+            return record_only(rule, cond, quote, result,
+                               disposition=DISPOSITION_AUTO_OBSERVED,
+                               disposition_reason=reason)
+        except Exception as e:  # noqa: BLE001 - 归档失败由调用方决定重试
+            logger.error('环境闸归档失败（record_only）',
+                         rule_id=getattr(rule, 'id', None), error=str(e))
+            return None
+
     def _record_suppressed_trigger(self, rule, cond, quote, result,
-                                   reason=None):
+                                   reason=None, detail_extra=None):
         """触发只落库归档（suppressed=true），完全不外发。
 
-        两个调用场景（reason 区分溯源）：
+        调用场景（reason 区分溯源，detail_extra 追加结构化留痕）：
           · 抑噪期（R6/t8）：规则被自愈置抑噪态（默认 reason）；
-          · 日上限（REQ-261016155500-4f2a）：每规则每条件每日通知达上限后只归档。
+          · 日上限（REQ-261016155500-4f2a）：每规则每条件每日通知达上限后只归档；
+          · 全局环境闸（2026-10-20）：环境不达标时个股信号全部只归档不动作；
+          · 确认核验失败（2026-10-20，M2）：假信号样本，detail_extra 带三道逐项结论。
 
         为什么不复用 notifier.notify：notify 会按 trigger_level 选 agent 通道（=摘要队列）
-        并推送，而抑噪/超限的语义正是"不推送、不进队列、不建待办"——只保留审计与聚合口径。
+        并推送，而抑噪/超限/环境拦截/假信号的语义正是"不推送、不进队列、不建待办"——只保留
+        审计与聚合口径。
 
         触发仓储挂在 notifier 上（引擎本不持有 trigger_repo，装配在 inbound 层），
         故这里经 notifier 取；拿不到或落库失败只记日志，**绝不让异常打崩 tick**
@@ -1461,11 +1821,14 @@ class WatchEngine:
             logger.warning('抑噪触发无法落库（notifier 未挂 trigger_repo）',
                            rule_id=getattr(rule, 'id', None))
             return None
+        detail = {'value': result.value, 'message': result.message}
+        if detail_extra:
+            detail.update(detail_extra)
         try:
             return repo.record(
                 rule_id=rule.id, symbol=rule.symbol, condition=cond,
                 trigger_price=float(quote.price),
-                detail={'value': result.value, 'message': result.message},
+                detail=detail,
                 notified=False, disposition=DISPOSITION_AUTO_OBSERVED,
                 disposition_reason=reason or SUPPRESSED_TRIGGER_REASON, suppressed=True,
             )
