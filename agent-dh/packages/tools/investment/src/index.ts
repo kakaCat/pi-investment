@@ -20,6 +20,9 @@ import { createIndexConstituentsTool } from './tools/IndexConstituentsTool';
 import { createMinuteKlineTool } from './tools/MinuteKlineTool';
 import { createStockEventsTool } from './tools/StockEventsTool';
 import { createEventWatchDigestTool } from './tools/EventWatchDigestTool';
+import { createWatchBriefTool } from './tools/WatchBriefTool';
+import { createWatchTriggersTool } from './tools/WatchTriggersTool';
+import { createWatchResolveTool } from './tools/WatchResolveTool';
 import { createTradingStatusTool } from './tools/TradingStatusTool';
 import { createCorePlanTool } from './tools/CorePlanTool';
 
@@ -123,6 +126,9 @@ export default class InvestmentPlugin extends Service {
 
     // 事件 → 盯盘规则建议（前瞻日历；2026-09-13：补上 link_to_watchlist 的消费端——此前 API 有、agent 没有工具）
     reg(createEventWatchDigestTool(qv2));
+    reg(createWatchBriefTool(qv2));
+    reg(createWatchTriggersTool(qv2));
+    reg(createWatchResolveTool(qv2));
 
     // 19. core 建仓计划（B8，2026-09-13）：计划 + 新鲜度 + 与当前持仓的机械差额。
     // 消费端原先靠**硬编码文件路径**直读 config/core_plan.json —— 读不出"陈不陈"。
