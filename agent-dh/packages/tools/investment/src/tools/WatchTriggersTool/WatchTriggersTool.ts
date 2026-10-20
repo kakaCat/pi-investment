@@ -37,5 +37,6 @@ export class WatchTriggersTool extends BaseTool<WatchTriggersParams, any> {
 }
 
 export function createWatchTriggersTool(qv2: QuantsysV2Client) {
-  return new WatchTriggersTool(qv2) as any;
+  const tool = new WatchTriggersTool(qv2);
+  return tool.toDSHToolDefinition();
 }

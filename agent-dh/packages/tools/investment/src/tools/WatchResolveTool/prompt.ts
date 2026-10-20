@@ -24,5 +24,10 @@ export const watchResolvePrompt: ToolPrompt<WatchResolveParams, any> = {
     disposition: { type: 'string', description: 'handled|ignored|expired', example: 'handled' },
     reason: { type: 'string', required: false, description: '处置理由（ignored 必填）', example: '已减半锁利' },
   },
-  output: { summary: 'data.trigger 为收敛后的记录（含 disposition/disposition_reason）' },
+  output: {
+    schema: { type: 'object', additionalProperties: true },
+    render: (_args: any, data: any) => [
+      { type: 'text', text: '触发处置结果（watch_resolve）：\n' + JSON.stringify(data, null, 2) },
+    ],
+  },
 };

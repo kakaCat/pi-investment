@@ -15,5 +15,10 @@ export const watchBriefPrompt: ToolPrompt<WatchBriefParams, any> = {
   parameters: {
     symbol: { type: 'string', description: 'A 股 6 位代码（可带 .SH/.SZ 后缀）', example: '000999' },
   },
-  output: { summary: 'data 内含 quote/position/rules/open_triggers/recent_news_hits 五段' },
+  output: {
+    schema: { type: 'object', additionalProperties: true },
+    render: (_args: any, data: any) => [
+      { type: 'text', text: '盯盘简报（watch_brief）：\n' + JSON.stringify(data, null, 2) },
+    ],
+  },
 };

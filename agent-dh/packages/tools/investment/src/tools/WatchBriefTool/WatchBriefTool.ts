@@ -31,5 +31,6 @@ export class WatchBriefTool extends BaseTool<WatchBriefParams, any> {
 }
 
 export function createWatchBriefTool(qv2: QuantsysV2Client) {
-  return new WatchBriefTool(qv2) as any;
+  const tool = new WatchBriefTool(qv2);
+  return tool.toDSHToolDefinition();
 }

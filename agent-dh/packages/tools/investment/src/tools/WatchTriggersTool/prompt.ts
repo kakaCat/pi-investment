@@ -26,5 +26,10 @@ export const watchTriggersPrompt: ToolPrompt<WatchTriggersParams, any> = {
     since: { type: 'string', required: false, description: 'ISO 时间水位（本地时区）', example: '2026-10-20T10:00:00' },
     limit: { type: 'number', required: false, description: '条数上限', default: 50 },
   },
-  output: { summary: 'data.triggers 数组，元素含 id/symbol/disposition/triggered_at 等' },
+  output: {
+    schema: { type: 'object', additionalProperties: true },
+    render: (_args: any, data: any) => [
+      { type: 'text', text: '盯盘触发查询（watch_triggers）：\n' + JSON.stringify(data, null, 2) },
+    ],
+  },
 };

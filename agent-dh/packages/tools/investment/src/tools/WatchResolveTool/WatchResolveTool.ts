@@ -42,5 +42,6 @@ export class WatchResolveTool extends BaseTool<WatchResolveParams, any> {
 }
 
 export function createWatchResolveTool(qv2: QuantsysV2Client) {
-  return new WatchResolveTool(qv2) as any;
+  const tool = new WatchResolveTool(qv2);
+  return tool.toDSHToolDefinition();
 }
