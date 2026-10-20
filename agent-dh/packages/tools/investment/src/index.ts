@@ -23,6 +23,7 @@ import { createEventWatchDigestTool } from './tools/EventWatchDigestTool';
 import { createWatchBriefTool } from './tools/WatchBriefTool';
 import { createWatchTriggersTool } from './tools/WatchTriggersTool';
 import { createWatchResolveTool } from './tools/WatchResolveTool';
+import { createDispatchTaskTool } from './tools/DispatchTaskTool';
 import { createTradingStatusTool } from './tools/TradingStatusTool';
 import { createCorePlanTool } from './tools/CorePlanTool';
 
@@ -129,6 +130,10 @@ export default class InvestmentPlugin extends Service {
     reg(createWatchBriefTool(qv2));
     reg(createWatchTriggersTool(qv2));
     reg(createWatchResolveTool(qv2));
+
+    // 任务派发（2026-10-20 框架适配）：agent 自己把活派出去（另一窗口/另一 agent），
+    // 信封+报告要求+留痕在 v2 服务端统一实现（POST /api/agent/dispatch）。
+    reg(createDispatchTaskTool(qv2));
 
     // 19. core 建仓计划（B8，2026-09-13）：计划 + 新鲜度 + 与当前持仓的机械差额。
     // 消费端原先靠**硬编码文件路径**直读 config/core_plan.json —— 读不出"陈不陈"。

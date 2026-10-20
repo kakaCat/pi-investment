@@ -2013,6 +2013,20 @@ export class QuantsysV2Client {
     return response.data;
   }
 
+  /** 把任务派给处置 agent（2026-10-20）：统一信封 + 交付要求 + 留痕；返回 wake 状态 */
+  async dispatchAgentTask(params: {
+    title: string;
+    instruction: string;
+    event?: string;
+    target?: string;
+    requires_report?: boolean;
+    urgency?: 'normal' | 'high' | 'critical';
+  }): Promise<ProviderResponse> {
+    const response = await this.client.post('/api/agent/dispatch', params)
+      .catch((err: any) => ({ data: { success: false, error: err.message } }));
+    return response.data;
+  }
+
   /** 条件入参契约（2026-10-20 框架适配）：全部条件类型参数说明/单位/示例 + market_gate 规格 */
   async getWatchConditionSchema(): Promise<ProviderResponse> {
     const response = await this.client.get('/api/watch/rules/condition-schema')

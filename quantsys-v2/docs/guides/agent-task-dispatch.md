@@ -8,28 +8,39 @@
 
 | 段 | 谁做 | 怎么看它成没成 |
 |---|---|---|
-| 派活 | 系统（`tools/dispatch_agent_task.py`） | 返回 `status=ok` 只代表通道收下，**不代表送达** |
+| 派活 | 系统或 agent（工具/端点/CLI，同一份实现） | 返回 `status=ok` 只代表通道收下，**不代表送达** |
 | 执行 | 处置 agent（默认 `agent-dh`） | 目标会话有回合、有工具调用、结果落库/落看板 |
 | 报告 | 处置 agent（收件人可执行的要求） | 盯盘群收到与模板四段对应的简报卡 |
 
-## 派单命令
+## 三个入口，一份实现
+
+信封、报告要求、派单口径只实现一次：`qs_notification.application.agent_task_dispatch`
+（`build_instruction` + `dispatch_agent_task`）。三个入口都调它：
+
+| 入口 | 谁用 | 形态 |
+|---|---|---|
+| `dispatch_task` 工具 | agent 自己派活（另一窗口/另一 agent） | agent-dh 的 investment 工具集 |
+| `POST /api/agent/dispatch` | 调度任务、其它服务 | v2 HTTP 端点 |
+| `tools/dispatch_agent_task.py` | 运维/人 | 薄 CLI（dry-run + JSONL 留痕） |
+
+**别再用 `python -c` 临时拼派单**：字段散、没留痕、下次没人记得带报告要求。
+运维留痕写 `logs/agent-dispatch.jsonl`（时间/标题/事件/目标/是否要求报告/指令摘要）。
 
 ```bash
-# 需要报告（默认）：指令末尾自动附「交付要求·必须执行」
+# 运维入口（需要报告=默认）
 PYTHONPATH=. ./venv/bin/python tools/dispatch_agent_task.py \
     --title "盯盘积压清理（10-20 晚）" \
     --instruction-file /tmp/sweep.md \
     --event watch_backlog_sweep
 
-# 静默任务（夜间哨兵/纯巡检）：无异常即沉默，不需要报告
-... --no-report
+... --no-report     # 静默任务
+... --dry-run       # 只看最终指令
 
-# 只看最终指令，不派单
-... --dry-run
+# agent 侧工具（模型调用）
+dispatch_task({ title, instruction, event?, target?, requires_report?, urgency? })
 ```
 
-- 唯一入口是脚本，别再用 `python -c` 临时拼：字段散、没留痕、下次没人记得带报告要求。
-- 派单留痕写 `logs/agent-dispatch.jsonl`（时间/标题/事件/目标/是否要求报告/指令摘要）。
+
 
 ## 两种任务，别混
 

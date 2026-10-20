@@ -896,6 +896,15 @@ def register_routes():
         optional_failed.append("watch")
         logger.warning(f"⚠️ Failed to import watch_async: {e}")
 
+    # Agent 任务派发（2026-10-20）：agent 工具/调度任务共用的派单入口（信封+报告要求+留痕）。
+    try:
+        from adapters.inbound.fastapi_app.routes.agent_dispatch_async import router as agent_dispatch_router
+        app.include_router(agent_dispatch_router)
+        logger.info("✅ Registered: agent_dispatch (任务派发)")
+    except ImportError as e:
+        optional_failed.append("agent_dispatch")
+        logger.warning(f"⚠️ Failed to import agent_dispatch_async: {e}")
+
     # 盯盘待办闭环（REQ-c9f899 t12 §6-项1/5/7）：待办 CRUD + 规则自愈 + 最小观测。
     # 三路由均为**增量**端点（interfaces.md §5），独立注册、单个失败不阻断其它；
     # 失败进 optional_failed（可由 GET /api/health/routes 发现，不静默）。
