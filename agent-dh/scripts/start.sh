@@ -426,7 +426,15 @@ cd "$PROJECT_ROOT"
 
 # 不使用符号链接，改为在项目根目录直接启动 DSH
 # DSH 会从当前目录解析 node_modules
+# 2026-10-20：加 --no-open——随手重启（含 launchd KeepAlive 拉起）不该反复弹浏览器窗口。
+# 需要看 UI 时手工访问日志里的 token URL 即可；DSH_WEB_OPEN=1 可临时恢复自动打开。
+OPEN_ARGS=()
+if [ "${DSH_WEB_OPEN:-0}" != "1" ]; then
+  OPEN_ARGS+=(--no-open)
+fi
+
 exec node --import tsx/esm "$DSH_BIN" \
   --profile "$DSH_PROFILE" \
   --port "$PORT" \
+  "${OPEN_ARGS[@]}" \
   "${EXTRA_ARGS[@]}"
