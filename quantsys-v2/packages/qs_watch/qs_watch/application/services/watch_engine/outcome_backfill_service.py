@@ -32,10 +32,19 @@ PER_HORIZON_CAP = 200
 
 
 def add_trading_days(d: date, n: int) -> date:
-    """d 之后第 n 个交易日（含 d 当天若为交易日则计为第 0 个——从次日开始数）。"""
+    """d 之后第 n 个交易日（含 d 当天若为交易日则计为第 0 个——从次日开始数）。
+
+    步数有界：TradingDayGuard 对无法核实的远期日期可能 fail-closed 恒 False
+    （2026-10-20 实测 horizon=20 撞上国庆后死循环到 date 溢出）——超过
+    n*4+15 个自然日仍未数满就按 best-effort 返回（足够覆盖任意连长假），
+    宁可近似也不许把回填线程钉死。
+    """
     cur, left = d, n
-    while left > 0:
+    guard = n * 4 + 15
+    steps = 0
+    while left > 0 and steps < guard:
         cur += timedelta(days=1)
+        steps += 1
         if TradingDayGuard.is_trading_day(cur):
             left -= 1
     return cur

@@ -109,10 +109,15 @@ class HeldSectorMapService:
     def _build(self, manager, holdings: Dict[str, List[Dict[str, Any]]]
                ) -> Dict[str, List[Dict[str, Any]]]:
         lst = manager.get_sector_list()
-        if not lst.get('success'):
-            raise RuntimeError('板块列表获取失败: %s' % lst.get('error'))
-        industries = ((lst.get('data') or {}).get('industries')) or []
-        names = [str(i.get('name')) for i in industries if i.get('name')]
+        # 形状兼容（2026-10-20 两次实测修正）：manager 返回 {'success':True,
+        # 'data': MarketData(...)}——dict 里再包一层对象，要剥两次才到 industries。
+        data = lst.get('data') if isinstance(lst, dict) else getattr(lst, 'data', None)
+        if data is not None and not isinstance(data, dict):
+            data = getattr(data, 'data', None)   # MarketData → 内层 dict
+        if not isinstance(data, dict):
+            raise RuntimeError('板块列表获取失败: %r' % (lst,))
+        industries = data.get('industries') or []
+        names = [str(i.get('name')) for i in industries if isinstance(i, dict) and i.get('name')]
         if not names:
             raise RuntimeError('板块列表为空（数据源异常）')
 
@@ -124,8 +129,10 @@ class HeldSectorMapService:
             except Exception as e:  # noqa: BLE001 - 单板块失败不拖垮整批
                 logger.warning('板块成分获取失败（跳过该板块）', board=name, error=str(e))
                 continue
-            data = res.get('data') or {}
-            if not res.get('success') or not data.get('found'):
+            data = res.get('data') if isinstance(res, dict) else getattr(res, 'data', None)
+            if data is not None and not isinstance(data, dict):
+                data = getattr(data, 'data', None)   # 同款双层包裹剥壳
+            if not isinstance(data, dict) or not data.get('found'):
                 continue
             members = [h for s in
                        (str(x.get('symbol') or '') for x in (data.get('stocks') or []))

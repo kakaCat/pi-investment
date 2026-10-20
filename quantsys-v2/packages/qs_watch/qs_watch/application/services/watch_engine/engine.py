@@ -15,6 +15,7 @@ from qs_watch.application.services.watch_engine.conditions import (
     DEFAULT_DAILY_EMIT_CAP, EvalContext, evaluate,
     freshness_of,
 )
+from qs_watch.application.services.watch_engine.market_watch_service import MARKET_SCOPES
 from qs_watch.application.services.watch_engine.rule_evaluator import RuleEvaluator
 from qs_watch.application.services.watch_engine.staged_break_manager import (
     OUTCOME_CONFIRMED, OUTCOME_EXPIRED, StagedBreakManager,
@@ -495,6 +496,12 @@ class WatchEngine:
         # 噪音统计）。
         active_rules = []
         for rule in rules:
+            # 市场级规则（scope=market/sector，2026-10-20）：走 market_watch_service 的
+            # 市场快照扫描，不走个股行情通道。此前个体管线也会给它们取价——#268 的
+            # 伪标的 HELD_SECTORS 每 tick 产生一次必败取价，给全部数据源灌失败计数、
+            # 把熔断器打到常冷，随后大量真实取价被跳过（早盘全市场盯盘失明的根因）。
+            if getattr(rule, 'scope', None) in MARKET_SCOPES:
+                continue
             if not self._in_active_window(rule, now):
                 continue
             if (rule.id in self.state.suppressed_reported
