@@ -714,6 +714,24 @@ class WatchEngine:
                                               (t.disposition_reason or '')[:60]))
         if len(rows) > 8:
             lines.append('• …另有 %d 条（详情查 watch_triggers）' % (len(rows) - 8))
+        # 今日处置段（2026-10-20）：agent/人收敛的触发也进日报——「信号→处置→报告」
+        # 闭环的推送端：用户每天收盘后被动收到"今天处理了啥、为什么"，无需拉清单。
+        try:
+            today_rows = [t for t in repo.list_triggers(
+                dispositions=('handled', 'ignored', 'expired'), limit=300)
+                if getattr(t, 'disposition_at', None)
+                and t.disposition_at.date() == now.date()]
+            if today_rows:
+                lines.append('')
+                lines.append('今日已处置 %d 条（agent/人）：' % len(today_rows))
+                for t in today_rows[:6]:
+                    lines.append('• 规则#%s %s → %s：%s'
+                                 % (t.rule_id, t.symbol, t.disposition,
+                                    (t.disposition_reason or '')[:50]))
+                if len(today_rows) > 6:
+                    lines.append('• …另有 %d 条' % (len(today_rows) - 6))
+        except Exception as e:  # noqa: BLE001 - 处置段失败不废整张日报
+            logger.warning('处置段生成失败（日报继续）', error=str(e))
         from qs_watch.application.services.watch_engine.watch_channels import send_watch_receipt
         ok = send_watch_receipt({'kind': 'daily_review', 'message': '\n'.join(lines),
                                  'level': 'P2'})
