@@ -9,6 +9,7 @@ import { join } from 'path';
 import { randomBytes } from 'crypto';
 import { formatMaybeLargeJsonToolOutput } from '../tools/shared/large-tool-output.js';
 import { setSessionDataDir } from '../tools/shared/session-utils.js';
+import { effectiveSelection } from '../../services/llm/selection.js';
 
 const LOGS_DIR = join(process.cwd(), '.pi-invest', 'sessions');
 const RUN_ID = randomBytes(4).toString('hex');
@@ -48,11 +49,27 @@ const conversation = {
   messages: [] as any[],
 };
 
+/**
+ * 会话 metadata 的模型名：以 LLM 供给模块的生效选择为准
+ * （llm-state.json > LLM_PROVIDER env > catalog 默认）。
+ * 历史实现只凭 env 猜（MODEL_ID / LLM_PROVIDER==='kimi'），与真实生效模型
+ * 脱节——state 切换 kimi 后此处曾恒显 deepseek-v4-flash，看板据此误报模型。
+ */
+function resolveSessionModelName(): string {
+  try {
+    const sel = effectiveSelection();
+    if (sel?.modelId) return sel.modelId;
+  } catch {
+    // selection 未初始化等异常 → 回退 env 推断
+  }
+  return process.env.MODEL_ID || (process.env.LLM_PROVIDER === 'kimi' ? 'kimi-k3' : 'deepseek-v4-flash');
+}
+
 const metadata = {
   session_key: '',
   run_id: RUN_ID,
   start_time: new Date().toISOString(),
-  model: process.env.MODEL_ID || (process.env.LLM_PROVIDER === 'kimi' ? 'kimi-k3' : 'deepseek-v4-flash'),
+  model: resolveSessionModelName(),
   cwd: process.cwd(),
   workspace: process.cwd(),
 };
@@ -136,15 +153,16 @@ export function initSession(sessionId?: string) {
     }
   }
   (metadata as any).session_key = sessionKey;
+  // 恢复会话也刷新模型名：合并进来的旧 metadata 可能是修复前的错误值
+  // （恒显 deepseek-v4-flash），且会话期间可能发生过 model_switch。
+  (metadata as any).model = resolveSessionModelName();
 
   logEvent('session.start', {
     session_key: sessionKey,
     session_dir: sessionDir,
   });
 
-  if (!shouldResumeExisting || !existsSync(metadataFile)) {
-    saveMetadata();
-  }
+  saveMetadata();
   if (!shouldResumeExisting || !existsSync(conversationFile)) {
     saveConversation();
   }
