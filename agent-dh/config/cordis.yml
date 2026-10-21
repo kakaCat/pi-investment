@@ -212,8 +212,9 @@
 - id: llm-deepseek
   # 0.2.1：该行真身已改为 @deepseek-ai/dsh-llm-deepseek-api-key；只按 id 覆盖，不写 name。
   config:
+    # 0.2.1 官方模型目录已改名：deepseek-v4-flash → deepseek-flash（DeepSeek-V4.1-Flash）
     models:
-      - id: deepseek-v4-flash
+      - id: deepseek-flash
         contextWindow: 128000
 
 # ========== 系统提示词 ==========
@@ -233,7 +234,7 @@
     agents:
       - id: investor
         provider: deepseek-official
-        model: deepseek-v4-flash
+        model: deepseek-flash
         cwd: !!js process.cwd()
 # ========== Agent Teams ==========
 # 0.2.1 的 agent-dh profile 不挂载 experimental agent-team（bundle 清单里没有），
