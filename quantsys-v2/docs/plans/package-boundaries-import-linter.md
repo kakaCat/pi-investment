@@ -701,3 +701,26 @@ flowchart TB
     （weight_calculator/stock_profile_classifier/regime_signal_provider/
     degradation_tracker/data_quality_gate/cycle_position_scorer/capital_scorer）
     无 canonical 包家暂留（kernel/S11 候选）
+
+## 2026-10-21 · 阶段2 收尾核查（批13 后全量 sweep）：可安全收编面扫清
+
+- **普查口径扩展 + 结果**：本轮补查 `import <ns>.*` 直引形态（此前手查仅 `from` 型）——
+  全 11 包 **import 直引形态零命中**，越层边全部为 `from` 型且已入台账
+- **qs_quantlib ×3 定性**：`__init__.py:50-52` 惰性可选导出面（RiskAttributionCalculator /
+  BacktestEngine / FactorLibrary ← domain.risk / domain.backtest.engine /
+  domain.factors.library）——与 qs_strategy 同款 kernel 候选，暂留 S11
+- **qs_watch ×4 定性**：fill_sync_service.py:617 + factory.py:886（惰性
+  paper_trading_engine，无 canonical 包家暂留）+ _repo_resolver.py:33
+  （ServiceFactory 合法 DI）+ engine.py:745（orm close_session，kernel persistence 域）
+- **各包 shell 边量快照（from 型，含全部暂留/合法）**：qs_agenthub 19 / qs_intel 24 /
+  qs_market_data 41 / qs_ops 118 / qs_quantlib 3 / qs_sourcing 20 / qs_strategy 75 /
+  qs_trading 19 / qs_watch 4 / qs_kernel 0 / qs_notification 0（合计 323）
+- **阶段2 状态判定**：shell 命名空间「有 canonical 家且无测试面依赖」的可安全收编子集
+  已扫清（批8-13 计 45 边收编推送）。剩余四类须另开卡，不在本卡继续：
+  ① 仓储归属（无 getter 实体直引：session/simulation/market_style/fund_flow/scoring 等，
+     需先定仓储二方包归属再连测试面改造）
+  ② S11 kernel 候选（factors.library×32+8、backtest.engine×12+1、orm models 面、
+     scoring 七件、benchmark_comparison、paper_trading_engine、ml_pipeline×4、
+     daily_orchestrator×2、chan_scan×2 等）
+  ③ qs_ops jobs 层 patch 敏感边（模块属性 patch 依赖测试改造后才能换 getter/canonical）
+  ④ 合法白名单（ServiceFactory×10/包 等已登记，无需动作）
