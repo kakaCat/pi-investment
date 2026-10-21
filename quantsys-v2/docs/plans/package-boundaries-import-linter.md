@@ -462,3 +462,15 @@ flowchart TB
   （不存在）致 G2 fail-open 回归，已改回正确模块并复跑 9 过
 
 **Git**：main tip `d6fe36c94` → 本批 commit 待落（只 add 本卡 11 文件 + 测试 + 台账；rule_guard.py / .dsh/ 不入）
+
+## 2026-10-21 · 阶段2 第一批：qs_ops→datasources 旧路径 shim 边清零
+
+- `fund_flow_update_job` / `index_constituents_update_job` / `kline_update_job` 三 job
+  从 `adapters.outbound.datasources`（30 天观察期 shim）换 canonical
+  `qs_market_data.adapters.outbound.datasources` 路径；qs_ops 内 datasources 边 grep 归零
+- 验证：py_compile ✓；相邻测试 6 文件 **33 passed**
+- 残留登记（非本批，属 S11 kernel 域）：
+  ① `qs_ops` ×7 处 `adapters.shared.{ml_helpers,fund_flow_helpers,services}` —— 该 helper 家族
+     本体仍在 shell（非 shim），迁移须先落 kernel，另行开卡；
+  ② `qs_market_data` 自身 manager.py ×2 处 `adapters.shared.*`（同上 S11 项）；
+  ③ `qs_intel` factor_calculator_adapter ×1、`qs_trading` BeijingClock ×1（懒加载 DI 局部实现）。

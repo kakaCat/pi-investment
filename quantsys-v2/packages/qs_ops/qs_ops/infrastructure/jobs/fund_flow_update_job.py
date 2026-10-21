@@ -113,7 +113,7 @@ def execute(**params):
     Returns:
         dict: 执行结果
     """
-    from adapters.outbound.datasources.fund_flow_source import (
+    from qs_market_data.adapters.outbound.datasources.fund_flow_source import (
         EastMoneyFundFlowSource, SinaFundFlowSource,
     )
     from adapters.outbound.repositories import FundFlowORMRepository

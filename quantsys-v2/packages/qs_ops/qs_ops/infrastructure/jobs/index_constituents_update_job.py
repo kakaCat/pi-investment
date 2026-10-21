@@ -41,7 +41,7 @@ def _fetch_constituents(code: str) -> list:
     DataProviderManager.get_index_constituents()——逻辑已内聚到
     AkshareIndexProvider（csindex 优先 + sina 兜底，与 job 原实现一致）。
     """
-    from adapters.outbound.datasources import get_data_provider_manager
+    from qs_market_data.adapters.outbound.datasources import get_data_provider_manager
     provider_manager = get_data_provider_manager()
 
     try:

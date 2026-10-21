@@ -19,7 +19,7 @@ from pathlib import Path
 
 # 添加项目路径
 
-from adapters.outbound.datasources.manager import DataProviderManager
+from qs_market_data.adapters.outbound.datasources.manager import DataProviderManager
 # 2026-09-13（w-32314d00，REQ-24e15d t4）：本作业原先自己持有 engine/raw_connection/cursor
 # 与全部 SQL 文本（选股 4 个 scope + 写入 INSERT + 3 个自检查询），现全部收敛到
 # adapters/outbound/repositories/kline_sync_repository.py —— 作业层只做编排、限速与告警。
