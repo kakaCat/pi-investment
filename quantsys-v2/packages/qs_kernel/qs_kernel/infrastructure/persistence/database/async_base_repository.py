@@ -85,7 +85,17 @@ def _resolve_db_dsn():
             except Exception:
                 pass
 
-        if db_name and not db_name.endswith(TEST_DB_SUFFIX):
+        if not db_name:
+            # 2026-10-21（S11 僵尸测试批次 1）恢复空库名防 bypass：库名不可判定
+            # （DSN 无库名且 config 也拿不到/为空）时拒绝，防止 pytest 下悄悄连到驱动默认库。
+            # 旧版本曾有此判定，重构后丢失；由 tests/test_async_pool_safety.py 锁定。
+            raise RuntimeError(
+                f"Cannot determine database name from DSN '{dsn}' and "
+                f"PGDATABASE is not set. "
+                f"This prevents accidental connection to a default database during tests."
+            )
+
+        if not db_name.endswith(TEST_DB_SUFFIX):
             raise RuntimeError(
                 f"Security check failed: Detected pytest environment but "
                 f"database name '{db_name}' is not a test database. "
