@@ -26,13 +26,20 @@ def normalize(obj: Any, ignore_keys: FrozenSet[str] = DEFAULT_IGNORE) -> Any:
 def assert_parity(fastapi_client, method: str, path: str, *,
                   params: Optional[dict] = None, json_body: Any = None,
                   ignore_keys: FrozenSet[str] = DEFAULT_IGNORE,
-                  flask_client=None) -> None:
+                  flask_client=None,
+                  allowed_status: Optional[frozenset] = None) -> None:
     """请求 FastAPI 端点，断言状态码 < 500（Flask 已删除，不再做双端比对）。
 
     保留 flask_client 位置参数仅为兼容旧调用签名，不再使用。
+
+    2026-10-21 僵尸批次3：FastAPI 侧对已知可复现异常有**确定性的错误映射**
+    （如 RuntimeError→503 + error envelope），这属于契约而非波动响应；
+    属此类端点的用例经 ``allowed_status`` 显式放行并自行断言响应体。
     """
     resp = fastapi_client.request(method, path, params=params, json=json_body)
-    assert resp.status_code < 500, (
+    ok = resp.status_code < 500 or (
+        allowed_status is not None and resp.status_code in allowed_status)
+    assert ok, (
         f"[{method} {path}] FastAPI 返回 {resp.status_code}: {resp.text[:400]}"
     )
     return resp

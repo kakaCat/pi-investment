@@ -11,13 +11,24 @@ import pytest
 
 from adapters.outbound.repositories.signal_repository import SignalORMRepository
 from infrastructure.persistence.orm.models import Signal
+from infrastructure.persistence.orm.models.stock import Stock
 
 
 @pytest.fixture
 def repo():
     r = SignalORMRepository()
+    # 2026-10-21 僵尸批次3：signals 有 FK(signals_symbol_fkey)——不预置 stocks 行
+    # 会让 create_signal 吞 IntegrityError 返回 0（裸复现已证实）。自愈式清理
+    # + 预置，防跨跑残留 UniqueViolation。
+    r.session.query(Signal).filter(Signal.symbol == 'TST900').delete()
+    r.session.query(Stock).filter(Stock.symbol == 'TST900').delete()
+    r.session.commit()
+    r.session.add(Stock(symbol='TST900', name='测试股票', industry='测试',
+                        market='A', market_cap=1.0, is_delisted=False))
+    r.session.commit()
     yield r
     r.session.query(Signal).filter(Signal.symbol == 'TST900').delete()
+    r.session.query(Stock).filter(Stock.symbol == 'TST900').delete()
     r.session.commit()
 
 
@@ -38,7 +49,9 @@ class TestCreateSignal:
         assert signal_id > 0
         row = repo.session.query(Signal).filter(Signal.symbol == 'TST900').one()
         assert row.name == '测试股票'
-        assert row.action == 'buy'
+        # 2026-10-21 僵尸批次3：08-13 大写冻结（DB canonical = 'BUY'/'SELL'，
+        # repo 查询过滤 in_(['BUY','SELL'])）——种子值原样入库，更正过时小写断言。
+        assert row.action == 'BUY'
         assert row.action_type == 1
         assert row.strategy_id == '162'
         assert row.indicators == {'rsi': 28.5}

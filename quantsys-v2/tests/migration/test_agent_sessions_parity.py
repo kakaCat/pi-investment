@@ -84,4 +84,9 @@ def test_ai_diagnosis(fastapi_client, seeded, monkeypatch):
         raise RuntimeError("LLM unavailable (test)")
 
     monkeypatch.setattr(SessionService, "ai_diagnosis", _boom)
-    assert_parity(fastapi_client, "POST", f"/api/sessions/{KEY}/ai-diagnosis")
+    # 2026-10-21 僵尸批次3：RuntimeError→503 是 FastAPI 侧确定性错误映射
+    # （error envelope 契约），assert_parity 的通用 <500 断言表达不了；
+    # 经 allowed_status 显式放行并锁定响应体。
+    resp = assert_parity(fastapi_client, "POST", f"/api/sessions/{KEY}/ai-diagnosis",
+                         allowed_status=frozenset({503}))
+    assert resp.json() == {"success": False, "error": "LLM unavailable (test)"}

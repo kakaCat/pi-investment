@@ -128,8 +128,16 @@ class TestDependencyResolution:
         service = EnhancedServiceFactory.resolve(MockServiceWithMultipleDeps)
         assert service.execute() == "processed_test_data_and_test_data"
 
-    def test_resolve_unregistered_service_raises_error(self):
-        """测试解析未注册的服务抛出异常"""
+    def test_resolve_unregistered_service_raises_error(self, monkeypatch):
+        """测试解析未注册的服务抛出异常
+
+        2026-10-21 僵尸批次3：root conftest 的 ``_make_safe`` 会吞 ValueError
+        返回 MagicMock，让本断言 DID NOT RAISE。经 conftest 存回的
+        ``_ORIGINAL_ESF_RESOLVE`` 临时还原真契约，检验 DI 本体行为。
+        """
+        import infrastructure.services.enhanced_service_factory as _esf_mod
+        monkeypatch.setattr(_esf_mod.EnhancedServiceFactory, "resolve",
+                            _esf_mod._ORIGINAL_ESF_RESOLVE)
         with pytest.raises(ValueError, match="Service not registered"):
             EnhancedServiceFactory.resolve(ITestRepository)
 
@@ -169,8 +177,17 @@ class TestLifecycleManagement:
 class TestCircularDependencyDetection:
     """测试循环依赖检测"""
 
-    def test_circular_dependency_raises_error(self):
-        """测试循环依赖抛出异常"""
+    def test_circular_dependency_raises_error(self, monkeypatch):
+        """测试循环依赖抛出异常
+
+        2026-10-21 僵尸批次3：conftest ``_make_safe`` 会把内层重入 resolve 的
+        ValueError 吞成 MagicMock，随后 ``_create_instance`` 以 MagicMock 作
+        位置依赖构造裸类 → ``TypeError: ServiceB() takes no arguments``。
+        还原真契约后应命中 resolve 的 ``_resolution_stack`` 循环检测。
+        """
+        import infrastructure.services.enhanced_service_factory as _esf_mod
+        monkeypatch.setattr(_esf_mod.EnhancedServiceFactory, "resolve",
+                            _esf_mod._ORIGINAL_ESF_RESOLVE)
         # 创建循环依赖：A -> B -> A
         # 注意：使用显式依赖声明而不是字符串注解
         class ServiceA:

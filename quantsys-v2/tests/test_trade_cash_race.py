@@ -57,7 +57,7 @@ def account():
 def _buy(symbol, results):
     """每个线程独立 service/repo/session，模拟并发请求"""
     try:
-        svc = AccountTradingService()
+        svc = AccountTradingService(repo=SimulationORMRepository())  # 2026-10-21 僵尸批次3：__init__ 不再默认供给 repo
         svc.execute_trade(
             account_name=ACCT, action='buy', symbol=symbol, shares=SHARES,
             price=PRICE, reason='并发竞态回归测试买入委托',

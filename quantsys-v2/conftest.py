@@ -47,6 +47,10 @@ try:
                 return _MagicMock()
         return staticmethod(_safe_resolve)
 
+    # 2026-10-21 僵尸批次3：原始 resolve 存回模块——DI 单测用 monkeypatch 临时
+    # 还原真契约；_make_safe 仍包住 patch 后孔位，作为未注册端口的防御层。
+    _esf._ORIGINAL_ESF_RESOLVE = _esf.EnhancedServiceFactory.resolve
+    _sf._ORIGINAL_SF_RESOLVE = _sf.ServiceFactory.resolve
     _esf.EnhancedServiceFactory.resolve = _make_safe(_esf.EnhancedServiceFactory.resolve)
     _sf.ServiceFactory.resolve = _make_safe(_sf.ServiceFactory.resolve)
 except Exception:
