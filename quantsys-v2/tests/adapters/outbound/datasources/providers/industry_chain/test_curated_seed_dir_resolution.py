@@ -88,14 +88,24 @@ def test_找不到时返回None而非假路径(monkeypatch, tmp_path):
 
 
 def test_环境变量覆盖生效(monkeypatch, tmp_path):
-    """环境变量优先于自动定位"""
+    """环境变量优先于自动定位
+
+    契约细节：`_find_seed_dir()` 每次调用都重读环境变量（动态）；
+    而 `CuratedChainProvider()` 无参时用的是**模块加载时的快照**
+    `_DEFAULT_SEED_DIR`（静态）——显式传 seed_dir 才是确定性入口。
+    两层都验，避免"以为环境变量能热改默认目录"的误解。
+    """
     seed = tmp_path / 'seed'
     seed.mkdir()
     (seed / 'x.yaml').write_text('chain_id: x\nname: X\nrationale: r\nnodes: []\n',
                                   encoding='utf-8')
     monkeypatch.setenv('QUANTSYS_INDUSTRY_CHAIN_SEED_DIR', str(seed))
+    # 动态：每次调用重读
     assert curated_mod._find_seed_dir() == str(seed)
-    assert CuratedChainProvider().available() == ['x']
+    # 确定性入口：显式传 seed_dir
+    assert CuratedChainProvider(seed_dir=str(seed)).available() == ['x']
+    # 静态快照：模块加载时已定，不随后续 monkeypatch 变化（文档化现状）
+    assert curated_mod._DEFAULT_SEED_DIR != str(seed)
 
 
 def test_环境变量指向不存在目录时不静默用假路径(monkeypatch, tmp_path):
