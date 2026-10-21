@@ -1,301 +1,289 @@
-# Quantsys-v2 快速入门指南
+# Quantsys-v2 开发者快速上手
 
-## 简介
+**目标读者**：新加入项目的开发者
+**预计时间**：30 分钟完成环境搭建，1 小时理解架构
 
-Quantsys-v2 是一个功能强大的量化交易框架，提供了从因子工程到策略回测的完整工具链。本指南将帮助您在5分钟内快速上手核心功能。
+> 依赖与调度的权威说明见根目录 [CLAUDE.md](../../CLAUDE.md)；本文是面向上手操作的合并版
+> （合并自原 DEVELOPER-QUICKSTART / DEVELOPER_ONBOARDING / PYTHON_ENVIRONMENT 三篇，2026-10-21 重组）。
 
-## 安装依赖
+---
+
+## 第一步：环境准备（10 分钟）
+
+### 1.1 系统要求
+
+- macOS 或 Linux
+- **Python 3.13+**（当前使用 3.13.x，不支持 3.8–3.11）
+- PostgreSQL 14+
+- Git
+
+### 1.2 获取仓库并 创建虚拟环境
 
 ```bash
-cd quantsys-v2
+git clone https://github.com/your-org/pi-investment.git
+cd pi-investment/quantsys-v2
+
+# 创建并激活 Python 3.13 虚拟环境（必需，勿用系统 Python）
+/opt/homebrew/bin/python3.13 -m venv venv
+source activate-py313.sh   # 或 source venv/bin/activate
+python --version           # 应显示 3.13.x
+```
+
+### 1.3 安装依赖
+
+```bash
+# 主依赖（权威清单是 pyproject.toml，仓库无 requirements.txt）
 pip install -e .
 
-# 如果需要GPU加速（可选）
-pip install cupy-cuda11x  # 根据CUDA版本选择
+# 二方包 editable 安装（2026-10-18 起必需，缺它们新路径 import 会失败）
+pip install -e ./packages/qs_quantlib
+pip install -e ./packages/qs_notification
+pip install -e ./packages/qs_market_data
+pip install -e ./packages/qs_sourcing
+pip install -e ./packages/qs_intel
+pip install -e ./packages/qs_strategy
+pip install -e ./packages/qs_trading
+pip install -e ./packages/qs_watch
+pip install -e ./packages/qs_ops
+pip install -e ./packages/qs_agenthub
 ```
 
-## 核心功能概览
+**常见问题**：
 
-Quantsys-v2 提供以下5大核心框架：
+- `psycopg2` 安装报错 → 需要 `pg_config`：
+  ```bash
+  export PATH="/opt/homebrew/opt/postgresql@14/bin:$PATH"
+  pip install psycopg2
+  ```
+- `ModuleNotFoundError: No module named 'structlog'` / `'psycopg2'` → 用了系统
+  全局 Python，先 `source activate-py313.sh`，`which python` 应指向
+  `quantsys-v2/venv/bin/python`。
+- `TypeError: unsupported operand type(s) for |: 'type' and 'type'` → Python 版本过旧，
+  升级到 3.13 后重建 venv。
 
-1. **因子工程框架** - IC/IR分析、因子正交化、分层回测、另类数据因子
-2. **期权策略框架** - Greeks计算、Delta中性、波动率套利
-3. **GPU加速框架** - 因子计算加速、机器学习加速
-4. **高频策略框架** - 做市策略、统计套利、事件驱动
-5. **跨品种策略框架** - 股指期货对冲、商品期货CTA
+> ⚠️ 旧文档提到的 `python start_all.py` **已不存在**（Flask 层 2026-08-19 整体删除）。
+> 不要按根 README 历史版本里的入口操作，以本文件与 CLAUDE.md 为准。
 
-## 5分钟快速体验
+---
 
-### 1. 因子IC分析（2分钟）
+## 第二步：数据库配置（5 分钟）
+
+```bash
+psql postgres
+CREATE DATABASE quant_investment;   # 生产库
+CREATE DATABASE quant_test;         # 测试库（pytest 自动切换）
+\q
+```
+
+创建 `.env`：
+
+```bash
+PGHOST=localhost
+PGPORT=5432
+PGDATABASE=quant_investment
+PGUSER=your_username
+PGPASSWORD=your_password
+```
+
+**测试库自动切换**：pytest 运行时自动改用 `quant_test`（conftest + 仓储双层运行时校验，
+库名必须以 `_test` 结尾）。
+
+---
+
+## 第三步：启动服务（5 分钟）
+
+### 启动 FastAPI REST API（端口 5001）
+
+```bash
+python adapters/inbound/fastapi_app/main.py
+```
+
+验证：浏览器打开 http://127.0.0.1:5001/docs 看到 Swagger UI。
+
+### 启动 WebSocket（可选，端口 5003）
+
+```bash
+python adapters/inbound/fastapi_app/websocket_server.py
+```
+
+### 生产方式（launchd 守护）
+
+launchd 守护 `com.pi-investment.v2-api` 已装（崩溃自动拉起）：
+
+```bash
+launchctl kickstart -k gui/501/com.pi-investment.v2-api   # 重启
+launchctl list | grep pi-investment                        # 看状态
+```
+
+临时只起 API、停一切调度线程（排障用）：
+
+```bash
+DISABLE_APSCHEDULER=true DISABLE_DAILY_JOBS=true DISABLE_WATCH_ENGINE=true \
+python adapters/inbound/fastapi_app/main.py
+```
+
+### 第一个 API 调用
+
+```bash
+curl http://127.0.0.1:5001/health
+curl http://127.0.0.1:5001/api/pools
+```
+
+---
+
+## 第四步：运行测试（5 分钟）
+
+```bash
+pytest                                   # 全量
+pytest tests/test_kline_repository.py -v # 单模块
+pytest --cov=. --cov-report=html         # 覆盖率
+```
+
+---
+
+## 第五步：理解架构（10 分钟）
+
+### 目录结构（六边形架构）
+
+```
+quantsys-v2/
+├── domain/               # 核心领域（accounts/trading/portfolio/…，无外部依赖）
+├── application/          # 用例编排层（services/）
+├── adapters/
+│   ├── inbound/          # fastapi_app（API 5001 / WS 5003）、cli/
+│   └── outbound/         # repositories（73 文件）、datasources
+├── infrastructure/       # persistence / scheduler / jobs / services(ServiceFactory)
+├── packages/             # 二方包：qs_quantlib / qs_market_data / qs_ops / …
+└── tests/
+```
+
+**核心原则**：
+
+1. 依赖方向：外层 → 内层；Domain 层无外部依赖，依赖 Ports 解耦
+   （架构决策记录见 [ADR-003](../adr/003-hexagonal-architecture.md)）。
+2. **数据访问只走统一入口**（防重复造轮子）：
+   - 外部行情/数据源 → `DataProviderManager`（`adapters/outbound/datasources/manager.py`）
+   - 业务逻辑 → `DataService`
+   - 数据库 → `adapters/outbound/repositories/`（FastAPI 异步路由用 `*_async_repository.py`，
+     CLI/同步上下文用 `x_repository.py`）
+3. **取服务一律走 `ServiceFactory`**（`infrastructure/services/service_factory.py`）。
+4. 通知只经 `NotificationFacade`，禁止直连飞书 SDK。
+
+---
+
+## 第六步：开发你的第一个功能（30 分钟）
+
+示例：新增一个评分端点。四步走——领域模型（可选）→ Service → 路由 → 注册。
+
+### 6.1 创建 Service（注意分层纪律）
 
 ```python
-from quantsys_v2.quant.factor_analysis.ic_analyzer import ICAnalyzer
-import numpy as np
-import pandas as pd
+# application/services/stock_scoring_service.py
 
-# 创建分析器
-analyzer = ICAnalyzer()
+class StockScoringService:
+    def __init__(self):
+        # ✅ 局部导入具体实现 + 接口类型注解（依赖倒置）
+        from domain.ports.repository_ports_extended import IStockRepository
+        from adapters.outbound.repositories.stock_repository import StockORMRepository
+        self.stock_repo: IStockRepository = StockORMRepository()
 
-# 准备模拟数据
-dates = pd.date_range('2023-01-01', '2023-12-31', freq='D')
-symbols = [f'stock_{i}' for i in range(100)]
-
-# 因子数据（日期 × 股票）
-factor_data = pd.DataFrame(
-    np.random.randn(len(dates), len(symbols)),
-    index=dates,
-    columns=symbols
-)
-
-# 收益数据
-return_data = pd.DataFrame(
-    np.random.randn(len(dates), len(symbols)) * 0.02,
-    index=dates,
-    columns=symbols
-)
-
-# 计算IC时间序列
-ic_series = analyzer.calculate_ic_series(
-    factor_data,
-    return_data,
-    periods=[1, 5, 10, 20]  # 1日、5日、10日、20日预测期
-)
-
-# 计算IC统计指标
-ic_stats = analyzer.calculate_ic_statistics()
-print("IC统计指标:")
-print(ic_stats)
-
-# 因子质量评分
-quality_scores = analyzer.get_factor_quality_score()
-for period, scores in quality_scores.items():
-    print(f"{period}: {scores['quality']} (评分: {scores['total_score']:.2f})")
+    def calculate_score(self, symbol: str, date: str) -> float:
+        klines = ...  # 通过仓储/数据服务取数，禁止在应用层 import akshare 等外部库
+        momentum = self._calc_momentum(klines)
+        value = self._calc_value(symbol)
+        return momentum * 0.6 + value * 0.4
 ```
 
-**输出示例：**
-```
-IC统计指标:
-              IC_mean    IC_std    IC_IR  IC_positive_rate  ICIR_annual
-IC_1D         0.0234    0.1456    0.161              0.523         2.56
-IC_5D         0.0412    0.1234    0.334              0.587         5.30
-IC_10D        0.0389    0.1189    0.327              0.578         5.19
-IC_20D        0.0356    0.1123    0.317              0.564         5.03
+**分层三条铁律**（违反项会被架构检测工具抓住）：
 
-IC_1D: 一般 (评分: 6.40)
-IC_5D: 良好 (评分: 7.80)
-IC_10D: 良好 (评分: 7.60)
-IC_20D: 良好 (评分: 7.20)
-```
+- ❌ 应用层顶层 import 适配器 → ✅ 放到 `__init__` 内局部 import
+- ❌ 实例属性无接口注解 → ✅ `self.repo: IStockRepository = ...`
+- ❌ 从适配器 import 领域模型 → ✅ `from domain.models.market_data import QuoteData`
 
-### 2. 期权Greeks计算（1分钟）
+接口速查：Repository 接口在 `domain/ports/repository_ports_extended.py`，
+数据源端口在 `domain/ports/datasource_ports.py`，领域模型在 `domain/models/market_data.py`。
+
+### 6.2 创建 API 端点
 
 ```python
-from quantsys_v2.quant.options.greeks_calculator import GreeksCalculator
+# adapters/inbound/fastapi_app/routes/stock_scoring.py
+from fastapi import APIRouter
 
-# 创建计算器
-calculator = GreeksCalculator()
+router = APIRouter(prefix="/api/stocks", tags=["stocks"])
 
-# 计算期权Greeks
-greeks = calculator.calculate_greeks(
-    S=100,      # 标的价格
-    K=100,      # 行权价
-    T=0.25,     # 到期时间（年）
-    r=0.03,     # 无风险利率
-    sigma=0.2,  # 波动率
-    option_type='call'
-)
-
-print("期权Greeks:")
-for key, value in greeks.items():
-    print(f"  {key}: {value:.4f}")
+@router.get("/{symbol}/score")
+async def get_stock_score(symbol: str, date: str | None = None):
+    """获取股票综合评分（返回 insights 而非裸数据）"""
+    from application.services.stock_scoring_service import StockScoringService
+    score = StockScoringService().calculate_score(symbol, date or "today")
+    return {"symbol": symbol, "score": score, "why": "..."}
 ```
 
-**输出示例：**
-```
-期权Greeks:
-  price: 3.9876
-  delta: 0.5596
-  gamma: 0.0398
-  theta: -0.0109
-  vega: 0.1990
-  rho: 0.1349
-```
-
-### 3. GPU加速因子计算（1分钟）
+### 6.3 注册路由并测试
 
 ```python
-from quantsys_v2.quant.gpu_acceleration.gpu_factors import GPUFactorCalculator
-import numpy as np
-import pandas as pd
-
-# 创建计算器（自动检测GPU）
-calculator = GPUFactorCalculator(use_gpu=True)
-
-# 准备OHLC数据
-n = 1000
-df = pd.DataFrame({
-    'close': 100 + np.cumsum(np.random.randn(n) * 0.5),
-    'high': 100 + np.cumsum(np.random.randn(n) * 0.5) + 1,
-    'low': 100 + np.cumsum(np.random.randn(n) * 0.5) - 1,
-    'volume': np.random.randint(1000, 10000, n)
-})
-
-# 批量计算因子
-factors = ['sma_20', 'ema_12', 'rsi_14', 'macd', 'bollinger', 'atr_14']
-result = calculator.batch_calculate_factors(df, factors)
-
-print("计算完成！因子列:")
-print(result.columns.tolist())
-print("\n最新数据:")
-print(result.tail())
+# adapters/inbound/fastapi_app/main.py
+from .routes import stock_scoring
+app.include_router(stock_scoring.router)
 ```
-
-### 4. 股指期货对冲（1分钟）
 
 ```python
-from quantsys_v2.quant.cross_asset_strategies.index_futures_hedge import IndexFuturesHedgeStrategy
-import numpy as np
-
-# 创建对冲策略
-strategy = IndexFuturesHedgeStrategy(
-    portfolio_value=10_000_000,  # 1000万组合
-    futures_multiplier=300,       # 期货合约乘数
-    hedge_ratio=1.0,              # 完全对冲
-    rebalance_threshold=0.1       # 10%再平衡阈值
-)
-
-# 模拟组合和指数收益
-portfolio_returns = np.random.randn(100) * 0.015
-index_returns = np.random.randn(100) * 0.012
-
-# 更新Beta
-strategy.update_beta(portfolio_returns, index_returns)
-print(f"组合Beta: {strategy.current_beta:.4f}")
-
-# 生成再平衡信号
-signal = strategy.generate_rebalance_signal(
-    portfolio_value=10_000_000,
-    futures_price=4000
-)
-
-if signal:
-    print("\n再平衡信号:")
-    print(f"  当前持仓: {signal['current_position']} 手")
-    print(f"  目标持仓: {signal['target_position']} 手")
-    print(f"  调整数量: {signal['adjustment']} 手")
+# tests/test_stock_scoring.py
+def test_calculate_score():
+    ...
 ```
 
-## 下一步
+### 6.4 提交前自检
 
-恭喜！您已经完成了快速入门。接下来可以：
-
-1. 查看 [完整示例](../examples/) - 每个模块的详细使用示例
-2. 阅读 [API参考文档](../api/) - 详细的类和方法说明
-3. 学习 [最佳实践](BEST_PRACTICES.md) - 因子开发和策略优化技巧
-4. 探索 [高级功能](#高级功能) - 更多强大特性
-
-## 高级功能预览
-
-### 因子正交化
-
-消除因子间的相关性，提高因子独立性：
-
-```python
-from quantsys_v2.quant.factor_analysis.orthogonalizer import FactorOrthogonalizer
-
-orthogonalizer = FactorOrthogonalizer()
-
-# Schmidt正交化
-orthogonal_factors = orthogonalizer.schmidt_orthogonalization(
-    factor_data,
-    base_factors=['market_cap', 'industry']
-)
-
-# PCA正交化
-pc_factors, variance_ratio = orthogonalizer.pca_orthogonalization(
-    factor_data,
-    variance_threshold=0.95
-)
+```bash
+python tools/analyze_layer_violations.py   # 分层违规检测（本仓库已自带）
 ```
 
-### 做市策略
+Git hooks：仓库带 `.git-hooks/`，可用 `git config core.hooksPath .git-hooks` 启用提交前检查。
 
-高频交易做市策略：
+---
 
-```python
-from quantsys_v2.quant.hft_strategies.market_making import MarketMakingStrategy
+## 常见问题 FAQ
 
-strategy = MarketMakingStrategy(
-    symbol='BTC/USDT',
-    min_spread=0.0002,
-    target_spread=0.0005,
-    max_inventory=1000
-)
+**Q1：pytest 报 database not found？**
+检查 `.env.test`（`PGDATABASE=quant_test`）与 `.env` 配置。
 
-# 更新订单簿
-strategy.order_book.update(bids, asks)
+**Q2：API 返回 500？**
+看服务日志 → 验证 `psql quant_investment` 可连 → `echo $PGDATABASE` 验环境变量。
+数据库相关高频坑（session 泄漏 / 写后读、bulk 操作等）先查
+[FRAMEWORK_CONSTRAINTS](../FRAMEWORK_CONSTRAINTS.md) 顶部 TL;DR。
 
-# 生成做市订单
-orders = strategy.generate_orders()
-```
+**Q3：如何添加新的数据源？**
+`adapters/outbound/datasources/providers/` 实现 provider 接口，在 `DataProviderManager` 注册，
+不要在业务代码里直接 `import akshare`。
 
-### 另类数据因子
+**Q4：如何添加新的调度任务？**
+在 `qs_ops` 的 `application/services/scheduler_tasks_registry.py` 登记分派，
+再往 `quant.scheduler_tasks` 表插行，`POST /api/scheduler/reload` 生效。
+调度归属见 [ADR-004](../adr/004-scheduling-ownership.md)；体检用
+`python tools/check_scheduler_dedup.py`。
 
-新闻情绪、社交媒体热度等另类数据因子：
+**Q5：如何重启服务？**
+开发：`python adapters/inbound/fastapi_app/main.py`；
+生产：`launchctl kickstart -k gui/501/com.pi-investment.v2-api`。
 
-```python
-from quantsys_v2.quant.alternative_factors.sentiment_factors import NewsSentimentFactor
+---
 
-news_factor = NewsSentimentFactor()
+## 开发规范摘要
 
-# 计算新闻情绪因子
-factors = news_factor.calculate(
-    symbol='000001',
-    date=datetime.now(),
-    lookback_days=7
-)
+- 代码风格：Ruff（`ruff format .` / `ruff check .`）
+- 提交信息：`feat(module): …` / `fix(module): …` / `docs(module): …`
+- 测试目标：新功能必有单测，覆盖率 80%+；提交前全量测试须过
 
-print(f"新闻情绪: {factors['news_sentiment']:.4f}")
-print(f"情绪变化: {factors['sentiment_change']:.4f}")
-print(f"新闻强度: {factors['news_intensity']:.4f}")
-```
+## 推荐阅读顺序
 
-## 常见问题
+1. 本文档
+2. [CLAUDE.md](../../CLAUDE.md) — 项目全景与硬规则
+3. [FRAMEWORK_CONSTRAINTS](../FRAMEWORK_CONSTRAINTS.md) — ORM/Session/Repository 约束
+4. [架构总览](../architecture/FUNCTIONALITY_OVERVIEW.md)
+5. [最佳实践](BEST_PRACTICES.md)
+6. [ADR 目录](../adr/) / [RFC 目录](../rfcs/)
 
-### Q1: GPU加速需要什么硬件？
+---
 
-A: 需要NVIDIA GPU和CUDA 11.x或更高版本。如果没有GPU，框架会自动回退到CPU计算。
-
-### Q2: 如何获取真实市场数据？
-
-A: 可以使用AkShare、Tushare等数据源。参考 `examples/data_preparation.py`。
-
-### Q3: 因子IC多少算好？
-
-A: 
-- IC_mean > 0.05: 优秀
-- IC_mean > 0.03: 良好
-- IC_mean > 0.01: 一般
-- IC_IR > 1.5: 优秀稳定性
-
-### Q4: 如何选择对冲比率？
-
-A: 
-- hedge_ratio=1.0: 完全对冲Beta风险
-- hedge_ratio=0.5: 部分对冲
-- 使用 `MinimumVarianceHedgeStrategy` 自动优化
-
-### Q5: 做市策略适合什么市场？
-
-A: 适合流动性好、价差稳定的市场，如主流加密货币、股指期货等。
-
-## 获取帮助
-
-- 查看示例代码: `docs/examples/`
-- API文档: `docs/api/`
-- 提交Issue: GitHub Issues
-- 技术交流: 项目讨论区
-
-## 许可证
-
-本项目采用 MIT 许可证。
+**最后更新**：2026-10-21（docs 重组；合并原 DEVELOPER-QUICKSTART / DEVELOPER_ONBOARDING / PYTHON_ENVIRONMENT）

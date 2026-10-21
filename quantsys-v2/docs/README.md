@@ -1,253 +1,64 @@
 # Quantsys-v2 文档中心
 
-欢迎使用Quantsys-v2量化交易框架！本文档中心提供完整的使用指南、示例代码和API参考。
+> 项目全景、硬规则（数据访问双禁止 / 调度归属 / 仓储双轨 / 通知架构）的**唯一权威**是根目录
+> [CLAUDE.md](../CLAUDE.md)。本 README 只做文档树导航；引用某篇文档前先确认它在下表里——
+> 不在的即已删除或归档（`archive/cleanup-2026-10/`），不要再引用旧路径。
 
-## 📚 文档导航
+## 📚 文档树导航
 
-### 设计提案（RFC）
-- **[RFC 016 · 统一市况（开市/非开市）与两态取价](rfcs/016-market-session-and-pricing-design.md)** - 市况判断收敛为唯一入口；非开市只读本地不联网；解请求路径阻塞；行情双轨归一到 `DataProviderManager`
+### 根目录（docs/*.md）
 
-### 快速开始
-- **[快速入门指南](guides/QUICK_START.md)** - 5分钟快速体验核心功能
-- **[最佳实践指南](guides/BEST_PRACTICES.md)** - 因子开发和策略优化技巧
+| 文件 | 内容 |
+|---|---|
+| [FRAMEWORK_CONSTRAINTS.md](FRAMEWORK_CONSTRAINTS.md) | ORM/Session/Repository 约束；**顶部 TL;DR = 最常见 5 个坑** |
+| [database-schema.md](database-schema.md) | 数据库表结构 |
+| [testing.md](testing.md) / [performance.md](performance.md) | 测试与性能 |
+| [FEISHU_NOTIFICATIONS.md](FEISHU_NOTIFICATIONS.md) | 飞书通知（分群规则见其正文 + CLAUDE.md 通知架构节） |
+| [REDIS_CACHE.md](REDIS_CACHE.md) | 缓存服务 |
+| [PROJECT_STATUS.md](PROJECT_STATUS.md) / [MODEL-TRAIN-TESTING-NOTES.md](MODEL-TRAIN-TESTING-NOTES.md) | 项目状态 / 模型训练备注 |
+| [strategy-validation.md](strategy-validation.md) / [simulation-account-standard.md](simulation-account-standard.md) | 策略校验 / 仿真账户标准 |
 
-### 使用示例
-所有示例代码位于 `examples/` 目录，可直接运行：
+### guides/（使用指南）
 
-#### 因子工程框架
-- **[example_ic_analysis.py](examples/example_ic_analysis.py)** - IC/IR分析完整示例
-  - IC时间序列计算
-  - IC统计指标
-  - 因子质量评分
-  - 多因子对比
+- [QUICK_START.md](guides/QUICK_START.md) — **新开发者从这里开始**（环境 → 数据库 → 启动 → 测试 → 第一个功能）
+- [BEST_PRACTICES.md](guides/BEST_PRACTICES.md) — 因子开发与策略优化
+- [data-quality.md](guides/data-quality.md) — 数据质量检查任务（参数/护栏/调度接入）
+- [LOGGING_WORKFLOW.md](guides/LOGGING_WORKFLOW.md) — 日志链路
+- [agent-task-dispatch.md](guides/agent-task-dispatch.md) / [board-workflow.md](guides/board-workflow.md) — Agent 任务与需求看板流
+- [watch-pipeline-stages.md](guides/watch-pipeline-stages.md) — 盯盘流水线
 
-- **[example_orthogonalization.py](examples/example_orthogonalization.py)** - 因子正交化示例
-  - Schmidt正交化
-  - PCA正交化
-  - 对称正交化
-  - 方法对比
+### architecture/（架构说明）
 
-#### 期权策略框架
-- **[example_greeks_calculator.py](examples/example_greeks_calculator.py)** - 期权Greeks计算
-  - Black-Scholes定价
-  - Delta/Gamma/Theta/Vega/Rho
-  - 隐含波动率
-  - 期权策略Greeks
+- [ARCHITECTURE.md](architecture/ARCHITECTURE.md) — 架构总览
+- [FUNCTIONALITY_OVERVIEW.md](architecture/FUNCTIONALITY_OVERVIEW.md) — 功能全景
+- [scheduler-architecture.md](architecture/scheduler-architecture.md) — 调度架构（归属见 ADR-004）
+- [watch-rules.md](architecture/watch-rules.md) — 盯盘规则
+- [REGISTRY_INTEGRATION.md](architecture/REGISTRY_INTEGRATION.md) — 服务注册集成
 
-#### GPU加速框架
-- **[example_gpu_factors.py](examples/example_gpu_factors.py)** - GPU加速因子计算
-  - GPU环境检测
-  - CPU vs GPU性能对比
-  - 批量因子计算
-  - 大规模数据处理
+### 决策与提案
 
-#### 跨品种策略框架
-- **[example_index_hedge.py](examples/example_index_hedge.py)** - 股指期货对冲
-  - Beta计算
-  - 静态对冲策略
-  - 动态对冲策略
-  - 最小方差对冲
-  - 对冲效果评估
+- [adr/](adr/) — 架构决策记录（001 Flask→FastAPI · 002 Agent OS 调度 · 003 六边形架构 · 004 调度归属）
+- [rfcs/](rfcs/) — 设计提案（含 RFC 016 市况与两态取价）
+- [plans/](plans/) — 进行中的方案卡（如 [package-boundaries-import-linter.md](plans/package-boundaries-import-linter.md)）
 
-#### 高频策略框架
-- **[example_market_making.py](examples/example_market_making.py)** - 做市策略
-  - 订单簿管理
-  - 做市报价计算
-  - 库存控制
-  - 统计套利
+### 记录与档案
 
-### API参考
-详细的类和方法文档（即将添加）
+- [investigations/](investigations/) — 问题排查记录（issues/audits/fixes 已归拢至此）
+- [work-logs/](work-logs/) — 工作日志（按月归档 2026-06 起）
+- [superpowers/](superpowers/) — 历史设计卡（specs/plans；reports 已归档）
+- [interfaces/](interfaces/) — 接口桩文件（py，供沙箱探查）
+- [misc/requirements.txt](misc/requirements.txt) — 归档位（依赖权威是根 `pyproject.toml`，勿按它装环境）
+- [archive/cleanup-2026-10/](archive/cleanup-2026-10/) — 2026-10 文档清理归档（过时报告/计划/旧 README 等只读史料）
 
-## 🚀 快速运行示例
+## 🔧 开发常用入口
 
-### 运行单个示例
-```bash
-# IC分析示例
-python docs/examples/example_ic_analysis.py
-
-# 期权Greeks计算
-python docs/examples/example_greeks_calculator.py
-
-# GPU加速（需要GPU）
-python docs/examples/example_gpu_factors.py
-
-# 股指对冲
-python docs/examples/example_index_hedge.py
-
-# 做市策略
-python docs/examples/example_market_making.py
-```
-
-### 运行所有示例
-```bash
-# 使用提供的测试脚本
-python docs/examples/run_all_examples.py
-```
-
-## 📖 学习路径
-
-### 初学者路径
-1. 阅读 [快速入门指南](guides/QUICK_START.md)
-2. 运行 `example_ic_analysis.py` 了解因子评估
-3. 运行 `example_greeks_calculator.py` 了解期权定价
-4. 阅读 [最佳实践指南](guides/BEST_PRACTICES.md)
-
-### 进阶路径
-1. 学习因子正交化 (`example_orthogonalization.py`)
-2. 探索GPU加速 (`example_gpu_factors.py`)
-3. 研究对冲策略 (`example_index_hedge.py`)
-4. 实现高频策略 (`example_market_making.py`)
-
-### 实战路径
-1. 使用真实数据替换示例中的模拟数据
-2. 根据最佳实践开发自己的因子
-3. 构建多因子选股模型
-4. 实现完整的回测系统
-5. 进行样本外验证
-
-## 🔧 核心功能
-
-### 1. 因子工程框架
-```python
-from quant.factor_analysis.ic_analyzer import ICAnalyzer
-from quant.factor_analysis.orthogonalizer import FactorOrthogonalizer
-
-# IC分析
-analyzer = ICAnalyzer()
-ic_series = analyzer.calculate_ic_series(factor_data, return_data)
-ic_stats = analyzer.calculate_ic_statistics()
-
-# 因子正交化
-orthogonalizer = FactorOrthogonalizer()
-orthogonal_factors = orthogonalizer.schmidt_orthogonalization(
-    factor_data, base_factors=['market_cap']
-)
-```
-
-### 2. 期权策略框架
-```python
-from quant.options.greeks_calculator import GreeksCalculator
-
-calculator = GreeksCalculator()
-greeks = calculator.calculate_greeks(
-    S=100, K=100, T=0.25, r=0.03, sigma=0.2, option_type='call'
-)
-```
-
-### 3. GPU加速框架
-```python
-from quant.gpu_acceleration.gpu_factors import GPUFactorCalculator
-
-calculator = GPUFactorCalculator(use_gpu=True)
-result = calculator.batch_calculate_factors(
-    df, factors=['sma_20', 'rsi_14', 'macd']
-)
-```
-
-### 4. 跨品种策略框架
-```python
-from quant.cross_asset_strategies.index_futures_hedge import IndexFuturesHedgeStrategy
-
-strategy = IndexFuturesHedgeStrategy(
-    portfolio_value=10_000_000,
-    futures_multiplier=300,
-    hedge_ratio=1.0
-)
-strategy.update_beta(portfolio_returns, index_returns)
-signal = strategy.generate_rebalance_signal(portfolio_value, futures_price)
-```
-
-### 5. 高频策略框架
-```python
-from quant.hft_strategies.market_making import MarketMakingStrategy
-
-strategy = MarketMakingStrategy(
-    symbol='BTC/USDT',
-    min_spread=0.0002,
-    max_inventory=1000
-)
-orders = strategy.generate_orders()
-```
-
-## 📊 性能指标
-
-### 因子评估标准
-- **IC_mean > 0.05**: 优秀
-- **IC_mean > 0.03**: 良好
-- **IC_IR > 1.5**: 优秀稳定性
-- **IC_positive_rate > 0.6**: 高胜率
-
-### GPU加速效果
-- 小数据集 (<1000): CPU更快
-- 中等数据集 (1000-10000): 2-5x加速
-- 大数据集 (>10000): 10-100x加速
-
-## 🛠️ 依赖要求
-
-### 基础依赖
-```bash
-numpy>=1.20.0
-pandas>=1.3.0
-scipy>=1.7.0
-scikit-learn>=0.24.0
-```
-
-### 可选依赖
-```bash
-# GPU加速
-cupy-cuda11x  # CUDA 11.x
-cupy-cuda12x  # CUDA 12.x
-
-# 可视化
-matplotlib>=3.3.0
-seaborn>=0.11.0
-
-# 性能优化
-numba>=0.53.0
-```
-
-## 📝 代码质量
-
-所有示例代码遵循以下标准：
-- ✅ 完整的文档字符串
-- ✅ 清晰的变量命名
-- ✅ 详细的注释说明
-- ✅ 可直接运行
-- ✅ 包含结果解读
-
-## 🤝 贡献指南
-
-欢迎贡献新的示例和文档！
-
-### 添加新示例
-1. 在 `examples/` 目录创建新文件
-2. 遵循现有示例的结构
-3. 包含完整的文档和注释
-4. 确保代码可以独立运行
-5. 更新本README
-
-### 改进文档
-1. 修正错误或不清晰的描述
-2. 添加更多使用场景
-3. 补充最佳实践
-4. 提供反馈和建议
-
-## 📞 获取帮助
-
-- 查看 [常见问题](guides/QUICK_START.md#常见问题)
-- 阅读 [最佳实践指南](guides/BEST_PRACTICES.md)
-- 运行示例代码学习
-- 查看源代码注释
-
-## 📄 许可证
-
-本项目采用 MIT 许可证。
+| 需求 | 去处 |
+|---|---|
+| 数据源怎么取 | CLAUDE.md「⚠️ Data Access Rules」节（`DataProviderManager` / `DataService` / Repository） |
+| 调度体检 | `python tools/check_scheduler_dedup.py` |
+| 分层违规检测 | `python tools/analyze_layer_violations.py` |
+| 调度任务监控 | `python tools/monitor_scheduler.py` |
 
 ---
 
-**最后更新**: 2026-05-22
-
-**版本**: 2.0.0
-
-**维护者**: Quantsys-v2 Team
+**最后更新**：2026-10-21（docs 重组后重写；旧版引用的 quant.factor_analysis/GPU/期权示例目录不存在，已移除）
