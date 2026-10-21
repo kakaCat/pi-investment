@@ -37,6 +37,10 @@ from qs_watch.domain.watch.services.disposition import (
 )
 from qs_watch.domain.watch.services.rule_guard import effective_account
 
+from qs_watch.application.services.watch_engine._repo_resolver import (
+    sim_position_repo,
+)
+
 #: 执行收敛期限（分钟，RFC §2.1.5：默认 30 分钟；与 P0 提醒 SLA 300s 是两个时钟）
 EXEC_SLA_ENV = 'WATCH_EXEC_SLA_MIN'
 DEFAULT_EXEC_SLA_MIN = 30
@@ -524,10 +528,7 @@ def _default_position_repo():
     """
     global _POSITION_REPO
     if _POSITION_REPO is None:
-        from adapters.outbound.repositories.simulation_position_repository import (
-            SimulationPositionRepository,
-        )
-        _POSITION_REPO = SimulationPositionRepository()
+        _POSITION_REPO = sim_position_repo()
     return _POSITION_REPO
 
 

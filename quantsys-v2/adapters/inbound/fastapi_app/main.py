@@ -70,6 +70,15 @@ async def lifespan(app: FastAPI):
     # 启动时
     logger.info("🚀 FastAPI application starting...")
 
+    # DI 真初始化（2026-10-21 反向越层阶段1 前置：qs_watch 出向仓储改经端口 resolve，
+    # 未注册键 resolve 抛 ValueError——未接线会炸 WatchEngine 启动）。幂等；失败仅告警
+    # 不阻塞启动（与测试 conftest._bootstrap_service_factory 同一引导面）。
+    try:
+        from infrastructure.services.service_factory import ServiceFactory
+        ServiceFactory.initialize()
+    except Exception as se:  # noqa: BLE001 - 引导只告警；各 resolve 点可按需重试
+        logger.warning("ServiceFactory.initialize() failed (DI keys may be absent)", error=str(se))
+
     # E-201 启动依赖检查（TA-Lib / PostgreSQL / Redis）
     # 尽早暴露关键依赖缺失；critical 缺失记录 ERROR，不中断启动（容错启动）。
     try:

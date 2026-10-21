@@ -22,6 +22,10 @@ from typing import Any, Dict, Optional
 
 import structlog
 
+from qs_watch.application.services.watch_engine._repo_resolver import (
+    runtime_state_store,
+)
+
 logger = structlog.get_logger(__name__)
 
 SHADOW_SINCE_ENV = 'WATCH_DIGEST_DRY_RUN_SINCE'
@@ -42,10 +46,7 @@ def _default_store() -> Any:
     构造失败或后续查询失败都必须降级而不是抛错（进程启动不允许被它打断）。
     """
     try:
-        from adapters.outbound.repositories.watch_runtime_state_repository import (
-            WatchRuntimeStateRepository,
-        )
-        return WatchRuntimeStateRepository()
+        return runtime_state_store()
     except Exception as e:  # noqa: BLE001
         logger.warning('影子起始时间适配器装配失败，退回 env 口径', error=str(e))
         return None

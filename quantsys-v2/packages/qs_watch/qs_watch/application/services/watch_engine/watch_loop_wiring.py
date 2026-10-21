@@ -16,6 +16,15 @@ from typing import Any, Optional
 
 import structlog
 
+from qs_watch.application.services.watch_engine._repo_resolver import (
+    name_resolver,
+    receipt_repo,
+    rule_change_repo,
+    rule_noise_repo,
+    runtime_state_store,
+    todo_repo,
+)
+
 logger = structlog.get_logger(__name__)
 
 TODO_ENABLED_ENV = 'WATCH_TODO_ENABLED'
@@ -50,15 +59,11 @@ def watch_runtime_persist_enabled() -> bool:
 
 def build_runtime_store() -> Any:
     """IWatchRuntimeStateStore 的 PostgreSQL 实现（运行态落库/恢复）"""
-    from adapters.outbound.repositories.watch_runtime_state_repository import (
-        WatchRuntimeStateRepository,
-    )
-    return WatchRuntimeStateRepository()
+    return runtime_state_store()
 
 
 def build_todo_repo() -> Any:
-    from adapters.outbound.repositories.watch_todo_repository import WatchTodoRepository
-    return WatchTodoRepository()
+    return todo_repo()
 
 
 def build_todo_service(assigner: Optional[Any] = None) -> Any:
@@ -78,23 +83,16 @@ def build_receipt_service() -> Any:
     agent_waker（2026-10-16）：agent 自有待办的超时升级改唤醒 owner agent，
     而不是把"请处置"推给用户；wake 未送达时由 wake_todo_owner 退回盯盘群卡片。
     """
-    from adapters.outbound.repositories.watch_receipt_repository import WatchReceiptRepository
     from qs_watch.application.services.watch_engine.receipt_service import ReceiptService
     from qs_watch.application.services.watch_engine.watch_channels import (
         send_watch_receipt,
         wake_todo_owner,
     )
-    return ReceiptService(WatchReceiptRepository(), sender=send_watch_receipt,
+    return ReceiptService(receipt_repo(), sender=send_watch_receipt,
                           agent_waker=wake_todo_owner)
 
 
 def build_self_heal_service(todo_service: Optional[Any] = None) -> Any:
-    from adapters.outbound.repositories.watch_rule_change_repository import (
-        WatchRuleChangeRepository,
-    )
-    from adapters.outbound.repositories.watch_rule_noise_repository import (
-        WatchRuleNoiseRepository,
-    )
     from qs_watch.application.services.watch_engine.noise_self_heal_service import NoiseSelfHealService
     def _suppress_notify(payload):
         # 静音告知卡：走盯盘群回执通道（失败抛错 → 服务内兜住记日志）
@@ -102,15 +100,14 @@ def build_self_heal_service(todo_service: Optional[Any] = None) -> Any:
         return send_watch_receipt(payload)
 
     return NoiseSelfHealService(
-        WatchRuleNoiseRepository(), WatchRuleChangeRepository(),
+        rule_noise_repo(), rule_change_repo(),
         todo_service if todo_service is not None else build_todo_service(),
         suppress_notifier=_suppress_notify)
 
 
 def build_name_resolver() -> Any:
     """标的名解析（REQ-ad0a t4，FR-13）：回执/聚合卡一轮一次批量联查 quant.stocks"""
-    from adapters.outbound.repositories.stock_name_resolver import PgStockNameResolver
-    return PgStockNameResolver()
+    return name_resolver()
 
 
 def build_sla_job(todo_repo: Optional[Any] = None, receipt_service: Optional[Any] = None,

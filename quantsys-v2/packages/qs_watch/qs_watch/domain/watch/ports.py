@@ -556,3 +556,32 @@ class IWatchRuleNoiseRepository(ABC):
         pass
 
 
+
+
+# ═══ 2026-10-21 反向越层阶段1：以下端口为 qs_watch 出向 resolve 注册键补齐面 ═══
+# 既有 11 类端口（本文件上方 + qs_kernel）覆盖 12 个消费类；这批 6 类补足全部
+# `adapters.outbound.repositories` 直引类的键面。方法面「以消费侧调用为准」
+# （阶段1 不反射实现全量；阶段2 收紧成真实使用面签名）。
+
+class IWatchTriggerRepository(ABC):
+    """盯盘触发记录仓储接口（实现：adapters.watch_rule_repository.WatchTriggerRepository）"""
+
+
+class IWatchOutcomeRepository(ABC):
+    """盯盘结果仓储接口（实现：adapters.watch_outcome_repository.WatchOutcomeRepository）"""
+
+
+class IWatchPoolBindingRepository(ABC):
+    """盯盘池绑定仓储接口（实现：adapters.watch_pool_binding_repository.WatchPoolBindingRepository）"""
+
+
+class IWatchNewsAlertRepository(ABC):
+    """盯盘新闻告警留痕仓储接口（实现：adapters.watch_news_repository.NewsAlertRepository）"""
+
+
+class ISimulationPositionRepository(ABC):
+    """模拟持仓仓储接口（实现：adapters.simulation_position_repository.SimulationPositionRepository）"""
+
+
+class IStockNameResolver(ABC):
+    """标的名批量解析接口（实现：adapters.stock_name_resolver.PgStockNameResolver）"""

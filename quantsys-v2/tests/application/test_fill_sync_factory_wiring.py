@@ -19,12 +19,17 @@ def test_register_helper_installs_listener():
     engine.rule_repo = MagicMock()
     engine.position_lifecycle_service = MagicMock()
 
+    # 2026-10-21 反向越层阶段1：factory 仓储改经 _repo_resolver accessor 取（按键 resolve），
+    # 测试注入点同步从「patch 类」改为「patch accessor」。
     with patch(
-        'adapters.outbound.repositories.watch_todo_repository.WatchTodoRepository'
+        'qs_watch.application.services.watch_engine._repo_resolver.todo_repo',
+        return_value=MagicMock(),
     ), patch(
-        'qs_watch.application.services.watch_engine.factory.WatchTriggerRepository'
+        'qs_watch.application.services.watch_engine._repo_resolver.watch_trigger_repo',
+        return_value=MagicMock(),
     ), patch(
-        'qs_watch.application.services.watch_engine.factory.SimulationPositionRepository'
+        'qs_watch.application.services.watch_engine._repo_resolver.sim_position_repo',
+        return_value=MagicMock(),
     ):
         _register_fill_sync_listener(engine, MagicMock())
 
@@ -42,7 +47,7 @@ def test_register_helper_failure_degrades_silently():
     # 制造装配失败：todo_service 为 None 时 FillSyncService 内部容忍，这里改让
     # 仓储构造必炸：patch 掉仓储 import 目标抛错。
     with patch(
-        'adapters.outbound.repositories.watch_todo_repository.WatchTodoRepository',
+        'qs_watch.application.services.watch_engine._repo_resolver.todo_repo',
         side_effect=RuntimeError('db down'),
     ):
         # 不抛即降级成功

@@ -25,8 +25,12 @@ import structlog
 
 # 2026-09-14（w-32314d00，REQ-24e15d）：json / sqlalchemy.text / get_engine 随
 # 两处裸 SQL（SELECT close…、UPDATE watch_rules…）一起下线，现全部走仓储。
-from adapters.outbound.repositories.watch_rule_repository import WatchRuleRepository
 from qs_watch.domain.watch.models import EscalationPolicy
+
+from qs_watch.domain.watch.ports import IWatchRuleRepository
+from qs_watch.application.services.watch_engine._repo_resolver import (
+    watch_rule_repo,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -46,8 +50,8 @@ class OpportunityToWatchRuleService:
     # 止盈比例
     TAKE_PROFIT_PCT = 10.0
     
-    def __init__(self, rule_repo: Optional[WatchRuleRepository] = None):
-        self.rule_repo = rule_repo or WatchRuleRepository()
+    def __init__(self, rule_repo: Optional[IWatchRuleRepository] = None):
+        self.rule_repo = rule_repo or watch_rule_repo()
     
     def auto_create_rules(self, opportunities: List[Dict]) -> List[Dict]:
         """为高分机会自动创建盯盘规则

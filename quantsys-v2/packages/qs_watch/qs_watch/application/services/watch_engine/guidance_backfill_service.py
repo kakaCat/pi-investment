@@ -14,6 +14,11 @@ import structlog
 from qs_watch.domain.watch.services.level_resolver import P2
 from qs_watch.domain.watch.services.rule_lint import is_missing_guidance
 
+from qs_watch.application.services.watch_engine._repo_resolver import (
+    todo_repo,
+    watch_rule_repo,
+)
+
 logger = structlog.get_logger(__name__)
 
 #: 补全待办的 action_kind（TODO_AUDIT_ACTION_KINDS 之一）：动的是规则本身。
@@ -86,8 +91,6 @@ class GuidanceBackfillService:
 
     @staticmethod
     def create_default() -> 'GuidanceBackfillService':
-        from adapters.outbound.repositories.watch_rule_repository import WatchRuleRepository
-        from adapters.outbound.repositories.watch_todo_repository import WatchTodoRepository
         from qs_watch.application.services.watch_engine.todo_service import TodoService
 
         def _account(rule):
@@ -95,7 +98,7 @@ class GuidanceBackfillService:
             return effective_account(rule)
 
         return GuidanceBackfillService(
-            rule_repo=WatchRuleRepository(),
-            todo_service=TodoService(repo=WatchTodoRepository()),
+            rule_repo=watch_rule_repo(),
+            todo_service=TodoService(repo=todo_repo()),
             account_resolver=_account,
         )

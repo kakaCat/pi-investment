@@ -44,6 +44,10 @@ from qs_trading.domain.trading.services.market_session_policy import (
     MarketSessionPolicy,
 )
 
+from qs_watch.application.services.watch_engine._repo_resolver import (
+    runtime_state_store,
+)
+
 logger = structlog.get_logger(__name__)
 
 # 运行态持久化开关（REQ-c9f899 R10）：默认关闭 —— 关掉时行为与改造前完全一致
@@ -185,9 +189,7 @@ def _load_position_state_reader():
     if _POSITION_STATE_READER is not _READER_UNSET:
         return _POSITION_STATE_READER
     try:
-        from adapters.outbound.repositories.watch_rule_repository import (
-            rule_position_state,
-        )
+        from adapters.outbound.repositories.watch_rule_repository import rule_position_state
     except Exception as e:  # noqa: BLE001 - 旧部署/缺依赖：读不到就按不可知
         logger.error('持仓状态读口径不可用（全部规则按状态不可知 fail-open）',
                      error=str(e))
@@ -285,10 +287,8 @@ def _build_runtime_store():
     延迟 import：默认关闭时不必为未启用的持久化加载 ORM/适配器链路。
     """
     try:
-        from adapters.outbound.repositories.watch_runtime_state_repository import (
-            WatchRuntimeStateRepository,
-        )
-        return WatchRuntimeStateRepository()
+
+        return runtime_state_store()
     except Exception as e:  # noqa: BLE001
         logger.error('运行态持久化适配器装配失败，降级为纯内存（冷却重启仍会丢）',
                      error=str(e))

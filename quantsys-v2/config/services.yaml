@@ -24,6 +24,88 @@ repositories:
     lifecycle: singleton
     description: '热力图聚合仓储'
 
+  # ── 2026-10-21 反向越层阶段1：watch 族出向（qs_watch 经 _repo_resolver 消费）──
+  watch_rule:
+    interface: qs_watch.domain.watch.ports.IWatchRuleRepository
+    implementation: adapters.outbound.repositories.watch_rule_repository.WatchRuleRepository
+    lifecycle: transient
+    description: '盯盘规则仓储'
+  watch_trigger:
+    interface: qs_watch.domain.watch.ports.IWatchTriggerRepository
+    implementation: adapters.outbound.repositories.watch_rule_repository.WatchTriggerRepository
+    lifecycle: transient
+    description: '盯盘触发记录仓储'
+  watch_digest_state:
+    interface: qs_watch.domain.watch.ports.IWatchDigestStateRepository
+    implementation: adapters.outbound.repositories.watch_state_repository.WatchDigestStateRepository
+    lifecycle: transient
+    description: '盯盘摘要状态仓储'
+  watch_intervention:
+    interface: qs_watch.domain.watch.ports.IWatchInterventionRepository
+    implementation: adapters.outbound.repositories.watch_state_repository.WatchInterventionRepository
+    lifecycle: transient
+    description: '盯盘人工干预留痕仓储'
+  watch_outcome:
+    interface: qs_watch.domain.watch.ports.IWatchOutcomeRepository
+    implementation: adapters.outbound.repositories.watch_outcome_repository.WatchOutcomeRepository
+    lifecycle: transient
+    description: '盯盘结果仓储'
+  simulation_position:
+    interface: qs_watch.domain.watch.ports.ISimulationPositionRepository
+    implementation: adapters.outbound.repositories.simulation_position_repository.SimulationPositionRepository
+    lifecycle: transient
+    description: '模拟盯盘持仓仓储'
+  watch_pool_binding:
+    interface: qs_watch.domain.watch.ports.IWatchPoolBindingRepository
+    implementation: adapters.outbound.repositories.watch_pool_binding_repository.WatchPoolBindingRepository
+    lifecycle: transient
+    description: '盯盘池绑定仓储'
+  pool_member_source:
+    interface: qs_watch.domain.watch.ports.IPoolMemberSource
+    implementation: adapters.outbound.repositories.watch_pool_binding_repository.PoolMemberSource
+    lifecycle: transient
+    description: '池成员只读来源'
+  news_source:
+    interface: qs_watch.domain.watch.ports.INewsSource
+    implementation: adapters.outbound.repositories.watch_news_repository.WatchNewsSource
+    lifecycle: transient
+    description: '盯盘新闻来源'
+  news_alert:
+    interface: qs_watch.domain.watch.ports.IWatchNewsAlertRepository
+    implementation: adapters.outbound.repositories.watch_news_repository.NewsAlertRepository
+    lifecycle: transient
+    description: '盯盘新闻告警留痕仓储'
+  watch_runtime_state:
+    interface: qs_watch.domain.watch.ports.IWatchRuntimeStateStore
+    implementation: adapters.outbound.repositories.watch_runtime_state_repository.WatchRuntimeStateRepository
+    lifecycle: transient
+    description: '盯盘运行态持久化（IWatchRuntimeStateStore 实现）'
+  watch_todo:
+    interface: qs_watch.domain.watch.ports.IWatchTodoRepository
+    implementation: adapters.outbound.repositories.watch_todo_repository.WatchTodoRepository
+    lifecycle: transient
+    description: '盯盘待办仓储'
+  watch_receipt:
+    interface: qs_watch.domain.watch.ports.IWatchReceiptRepository
+    implementation: adapters.outbound.repositories.watch_receipt_repository.WatchReceiptRepository
+    lifecycle: transient
+    description: '盯盘回执仓储'
+  watch_rule_change:
+    interface: qs_watch.domain.watch.ports.IWatchRuleChangeRepository
+    implementation: adapters.outbound.repositories.watch_rule_change_repository.WatchRuleChangeRepository
+    lifecycle: transient
+    description: '盯盘规则变更审计仓储'
+  watch_rule_noise:
+    interface: qs_watch.domain.watch.ports.IWatchRuleNoiseRepository
+    implementation: adapters.outbound.repositories.watch_rule_noise_repository.WatchRuleNoiseRepository
+    lifecycle: transient
+    description: '盯盘规则抑噪仓储'
+  stock_name_resolver:
+    interface: qs_watch.domain.watch.ports.IStockNameResolver
+    implementation: adapters.outbound.repositories.stock_name_resolver.PgStockNameResolver
+    lifecycle: transient
+    description: '标的名批量解析'
+
   # 交易信号相关
   signal:
     interface: qs_kernel.domain.ports.ISignalRepository

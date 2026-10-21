@@ -8,9 +8,7 @@ from qs_kernel.domain.ports.datasource_ports import IDataProviderManager
 import structlog
 
 from qs_market_data.adapters.outbound.datasources.manager import get_data_provider_manager
-from adapters.outbound.repositories.watch_rule_repository import (
-    WatchRuleRepository, WatchTriggerRepository
-)
+
 from qs_agenthub.application.services.agent_notification_service import AgentNotificationService  # 2026-10-19：L1 → qs_agenthub 真身
 from qs_market_data.application.services.realtime_quote_service_v2 import RealtimeQuoteServiceV2
 from qs_watch.application.services.watch_engine.confirm_verify_pipeline import (
@@ -28,18 +26,28 @@ from qs_watch.application.services.watch_engine.sector_resonance_service import 
 from qs_watch.application.services.watch_engine.notifier import WatchNotifier
 from qs_watch.application.services.watch_engine.digest_service import WatchDigestService
 from qs_watch.application.services.watch_engine.intervention_ledger import InterventionLedger
-from adapters.outbound.repositories.watch_state_repository import (
-    WatchDigestStateRepository, WatchInterventionRepository,
-)
+
 from qs_watch.application.services.watch_engine.meta_review_service import WatchMetaReviewService
 from qs_watch.application.services.watch_engine.position_lifecycle_service import PositionLifecycleService
 from qs_watch.application.services.watch_engine.market_watch_service import MarketWatchService
 from qs_watch.application.services.watch_engine.held_sector_map import HeldSectorMapService
 from qs_watch.application.services.watch_engine.outcome_backfill_service import OutcomeBackfillService
-from adapters.outbound.repositories.watch_outcome_repository import WatchOutcomeRepository
 from qs_market_data.adapters.outbound.datasources.market_state_provider import MarketStateProvider
-from adapters.outbound.repositories.simulation_position_repository import SimulationPositionRepository
-from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
+
+from qs_watch.application.services.watch_engine._repo_resolver import (
+    news_alert_repo,
+    news_source,
+    pool_member_source,
+    sim_position_repo,
+    sim_repo,
+    todo_repo,
+    watch_digest_state_repo,
+    watch_intervention_repo,
+    watch_outcome_repo,
+    watch_pool_binding_repo,
+    watch_rule_repo,
+    watch_trigger_repo,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -142,12 +150,10 @@ def _build_pool_watch_service():
     池表（stock_pools）归 qs_sourcing 领域——这里经 PoolMemberSource 只读访问
     （L1 暂留引用，登记在包 CLAUDE.md 边界清单）。
     """
-    from adapters.outbound.repositories.watch_pool_binding_repository import (
-        PoolMemberSource, WatchPoolBindingRepository,
-    )
+
     from qs_watch.application.services.watch_engine.pool_watch_service import PoolWatchService
     return PoolWatchService(
-        WatchPoolBindingRepository(), PoolMemberSource(), WatchRuleRepository())
+        watch_pool_binding_repo(), pool_member_source(), watch_rule_repo())
 
 
 def _build_news_watch_service():
@@ -155,9 +161,7 @@ def _build_news_watch_service():
 
     sender 走盯盘群回执通道；未注入时服务只留痕不发（可观测、测试友好）。
     """
-    from adapters.outbound.repositories.watch_news_repository import (
-        NewsAlertRepository, WatchNewsSource,
-    )
+
     from qs_watch.application.services.watch_engine.news_watch_service import (
         NewsWatchService,
     )
@@ -169,8 +173,8 @@ def _build_news_watch_service():
         return send_watch_receipt(payload)
 
     return NewsWatchService(
-        news_source=WatchNewsSource(), alert_repo=NewsAlertRepository(),
-        position_repo=SimulationPositionRepository(),
+        news_source=news_source(), alert_repo=news_alert_repo(),
+        position_repo=sim_position_repo(),
         accounts=("agent_virtual", "agent_brain", "user_main_simulation"),
         sender=_sender)
 
@@ -255,7 +259,7 @@ class _WatchRuleCandidateSource:
         self._rule_repo = rule_repo
 
     def get_members(self, pool_id=None):  # noqa: ARG002 - 端口签名，候选集与池 id 无关
-        repo = self._rule_repo or WatchRuleRepository()
+        repo = self._rule_repo or watch_rule_repo()
         out = []
         for rule in (repo.list_enabled() or []):
             symbol = str(getattr(rule, 'symbol', '') or '').strip()
@@ -285,10 +289,8 @@ def _build_sector_resonance_service() -> SectorResonanceService:
     """板块共振核验服务：显式池 id → stock_pools 成员；否则盯盘规则标的。"""
     pool_id = _sector_resonance_pool_id()
     if pool_id is not None:
-        from adapters.outbound.repositories.watch_pool_binding_repository import (
-            PoolMemberSource,
-        )
-        return SectorResonanceService(candidate_source=PoolMemberSource(),
+
+        return SectorResonanceService(candidate_source=pool_member_source(),
                                       pool_id=pool_id)
     return SectorResonanceService(candidate_source=_WatchRuleCandidateSource(),
                                   pool_id=0)
@@ -506,8 +508,8 @@ def build_watch_loop_services():
 
 
 def create_watch_engine() -> WatchEngine:
-    _pos_repo = SimulationPositionRepository()
-    _sim_repo = SimulationORMRepository()   # 复用单例：原实现在闭包内每次调用新建（每 tick 每规则一次）
+    _pos_repo = sim_position_repo()
+    _sim_repo = sim_repo()   # 复用单例：原实现在闭包内每次调用新建（每 tick 每规则一次）
     # 均量 provider 只建一次：引擎 volume_surge 与确认核验的「量比」共用同一取数口径
     # （同一份 20 日均量，不另造第二套算法）。
     _avg_volume_provider = make_avg_volume_provider()
@@ -552,20 +554,20 @@ def create_watch_engine() -> WatchEngine:
     except Exception:  # noqa: BLE001
         _name_resolver = None
     notifier = WatchNotifier(
-        trigger_repo=WatchTriggerRepository(),
+        trigger_repo=watch_trigger_repo(),
         account_total_provider=account_total_provider,
         name_resolver=_name_resolver,
     )
 
     _market_watch = MarketWatchService(
-        rule_repo=WatchRuleRepository(),
-        trigger_repo=WatchTriggerRepository(),
+        rule_repo=watch_rule_repo(),
+        trigger_repo=watch_trigger_repo(),
         state_provider=MarketStateProvider(),
         # P2 市场环境联动（2026-10-19）：持仓→板块映射，账户口径与 P5 生命周期一致
         # （agent 三账户；v13/v14 传统量化策略自有日检闭环，不进盯盘联动）。
         # 每日重建由引擎 sidecar 驱动（refresh_held_boards），tick 只读缓存。
         held_sector_map=HeldSectorMapService(
-            position_repo=SimulationPositionRepository(),
+            position_repo=sim_position_repo(),
             accounts=("agent_virtual", "agent_brain", "user_main_simulation"),
         ),
     )
@@ -579,14 +581,14 @@ def create_watch_engine() -> WatchEngine:
     import os as _os
     if _os.getenv('WATCH_DIGEST_ENABLED', 'false').lower() == 'true':
         digest_service = WatchDigestService(
-            trigger_repo=WatchTriggerRepository(),
-            rule_repo=WatchRuleRepository(),
+            trigger_repo=watch_trigger_repo(),
+            rule_repo=watch_rule_repo(),
             agent_service=AgentNotificationService(
                 # 唤醒是 fire-and-forget：agent 离线时绝不能用默认 300s 超时（AGENT_TIMEOUT）
                 # 把引擎主循环卡死——2026-10-16 实测每轮循环被卡 ~5 分钟，心跳周期性
                 # 「丢失」误报。10s 足够局域网唤醒投递；失败按原路径留痕下轮重试。
                 timeout=int(os.getenv('WATCH_DIGEST_WAKE_TIMEOUT_SEC', '10'))),
-            state_repo=WatchDigestStateRepository(),   # 端口实现（ADR-001：SQL 只在适配器层）
+            state_repo=watch_digest_state_repo(),   # 端口实现（ADR-001：SQL 只在适配器层）
             market_watch_service=_market_watch,        # 摘要内嵌市场状态（P6）
             # 影子模式默认**开**（fail-safe）：只写日志不发唤醒；显式 WATCH_DIGEST_DRY_RUN=false
             # 才是真开（会叫 agent 处置，agent 自有账户可自主下单）。
@@ -627,7 +629,7 @@ def create_watch_engine() -> WatchEngine:
         )
 
     engine = WatchEngine(
-        rule_repo=WatchRuleRepository(),
+        rule_repo=watch_rule_repo(),
         quote_service=RealtimeQuoteServiceV2(),
         notifier=notifier,
         avg_volume_provider=_avg_volume_provider,
@@ -637,10 +639,10 @@ def create_watch_engine() -> WatchEngine:
         account_total_provider=account_total_provider,
         digest_service=digest_service,
         # P4 介入记账：预算计数落库；P7 元触发复核：规则健康度回到 agent
-        ledger=InterventionLedger(WatchInterventionRepository()),
+        ledger=InterventionLedger(watch_intervention_repo()),
         meta_review_service=WatchMetaReviewService(
-            rule_repo=WatchRuleRepository(),
-            trigger_repo=WatchTriggerRepository(),
+            rule_repo=watch_rule_repo(),
+            trigger_repo=watch_trigger_repo(),
         ),
         # P5 持仓生命周期联动：规则使命跟着交易走
         pool_watch_service=_build_pool_watch_service(),
@@ -649,8 +651,8 @@ def create_watch_engine() -> WatchEngine:
         # 利空/流动性/板块共振三道；None = 未装配（回滚/装配失败），行为不变。
         confirm_verify_pipeline=_confirm_verify_pipeline,
         position_lifecycle_service=PositionLifecycleService(
-            rule_repo=WatchRuleRepository(),
-            position_repo=SimulationPositionRepository(),
+            rule_repo=watch_rule_repo(),
+            position_repo=sim_position_repo(),
             # 2026-10-19 修正：此前默认只盯 agent_virtual——user_main（用户真身）与
             # agent_brain 的持仓联动（清仓收摊/补挂止损/阶段推进/成本同步）从不执行，
             # 是 #128 徐工止损规则触发后永远挂着的结构性根因。
@@ -669,7 +671,7 @@ def create_watch_engine() -> WatchEngine:
         # P3 预判验证闭环（2026-10-20）：走势回填，sidecar 每日一次；
         # 取数走 qs_market_data 单例（服务内惰性取），仓储 L1 暂留同其它 watch 仓储。
         outcome_backfill_service=OutcomeBackfillService(
-            outcome_repo=WatchOutcomeRepository()),
+            outcome_repo=watch_outcome_repo()),
     )
 
     # 成交回执闭环接线（RFC 017 §2.1.4，2026-10-21）：trading 成交落库后回调 watch
@@ -687,7 +689,6 @@ def _register_fill_sync_listener(engine, todo_service) -> None:
     """
     try:
         from application.trading.paper_trading_engine import register_fill_listener
-        from adapters.outbound.repositories.watch_todo_repository import WatchTodoRepository
         from qs_watch.application.services.watch_engine.fill_sync_service import (
             FillSyncService,
         )
@@ -695,9 +696,9 @@ def _register_fill_sync_listener(engine, todo_service) -> None:
         listener = FillSyncService(
             rule_repo=engine.rule_repo,
             todo_service=todo_service,
-            todo_repo=WatchTodoRepository(),
-            trigger_repo=WatchTriggerRepository(),
-            position_repo=SimulationPositionRepository(),
+            todo_repo=todo_repo(),
+            trigger_repo=watch_trigger_repo(),
+            position_repo=sim_position_repo(),
             lifecycle=getattr(engine, 'position_lifecycle_service', None),
         )
         register_fill_listener(listener)

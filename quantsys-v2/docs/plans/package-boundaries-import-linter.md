@@ -433,3 +433,32 @@ flowchart TB
 | quant | `packages/qs_quantlib/`（L2 ✅ 已可用） | ✅ 不起 DB | ✅ |
 | market-data / sourcing / intel / strategy / trading / watch / ops / agent-hub | 逐包迁出后升 L2 | 迁出时建立 | 迁出时建立 |
 | app 壳 / kernel | `quantsys-v2/`（L1） | 集成测试 | 根级 |
+
+## 2026-10-21 · 反向越层阶段1 落地（qs_watch 出向收口 + 生产接线）
+
+**实施**（qs_watch ×23 处 → 唯一绕行点）：
+- 新增 `_repo_resolver.py`（watch_engine）：18 个 accessor，体 = `ServiceFactory.resolve(端口类)`
+- 端口补齐面：`qs_watch.domain.watch.ports` 追加 6 个轻量 ABC（IWatchTrigger/IWatchOutcome/
+  IWatchPoolBinding/IWatchNewsAlert/ISimulationPosition/IStockNameResolver，方法面以消费侧
+  为准，阶段2 收紧）；复用既有 11 类 watch 域端口 + 2 类 kernel 端口
+- `config/services.yaml` +16 条 watch 族注册（lifecycle: transient，与旧行为「现场 new」等价；
+  SimulationORMRepository 复用既有 'simulation' singleton 条目）
+- **生产接线缺口修复**：`main.py` lifespan 首部 + `ServiceFactory.initialize()`（幂等/失败仅
+  告警不阻塞；与测试 conftest 同一引导面）。此前 lifespan 零 initialize → resolve 必炸 WatchEngine
+- 9 文件 23 处构造点机械换（factory/engine/notifier/opportunity_to_watch_rule_service/
+  guidance_backfill/shadow_mode_clock/sla_job/watch_loop_wiring/exec_directive）
+- fill_sync_service.py（并行手脏区）**未动**——qs_watch 最后 1 处 adapters 残留在此
+
+**验证**：
+- bare smoke：initialize + 17 键 resolve 全对号 + loop_wiring 装配函数 + factory/opportunity 服务构建 ✓
+- `py_compile` 10 文件 ✓；qs_watch 出向 `grep from adapters` 仅剩 fill_sync_service.py（并行区）
+- 目标测试面 38 文件：**569 passed / 2 failed（预存）**
+  - 预存失败：`test_watch_t12_todo_creation.py` 2 例——stash 对照（撤我的 factory/engine 重复失败）实锤
+    与本批无关，疑为并行脏区（rule_guard.py M 等），不在本卡修复
+  - 附带修正：`test_fill_sync_factory_wiring.py` 注入点从「patch factory 类属性」改为「patch
+    _repo_resolver accessor」（装配语义等价，2 例过）
+- 教训：engine.py `_load_position_state_reader` 的 try-import 函数版 `rule_position_state`
+  来自 `watch_rule_repository`（函数不是类构造）——首轮交换误指向 `position_state_reader`
+  （不存在）致 G2 fail-open 回归，已改回正确模块并复跑 9 过
+
+**Git**：main tip `d6fe36c94` → 本批 commit 待落（只 add 本卡 11 文件 + 测试 + 台账；rule_guard.py / .dsh/ 不入）

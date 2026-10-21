@@ -25,6 +25,10 @@ from qs_watch.application.services.watch_engine.dto import TriggerPayload
 from qs_watch.domain.watch.models import MetricKind, TriggerLevel
 from qs_watch.domain.watch.services.metric_contract import metric_matches
 
+from qs_watch.application.services.watch_engine._repo_resolver import (
+    stock_repo,
+)
+
 logger = structlog.get_logger(__name__)
 
 
@@ -60,8 +64,7 @@ def _lookup_stock_name(symbol: str) -> Optional[str]:
     except 兜住，**兜底语义与留痕不变**）。
     """
     try:
-        from adapters.outbound.repositories.stock_repository import StockORMRepository
-        return StockORMRepository().get_name(_norm_symbol(symbol))
+        return stock_repo().get_name(_norm_symbol(symbol))
     except Exception as e:
         logger.debug('股票名称兜底查询失败', symbol=symbol, error=str(e))
         return None

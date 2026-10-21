@@ -32,6 +32,11 @@ import structlog
 
 from qs_watch.application.services.watch_engine.receipt_service import ReceiptService
 
+from qs_watch.application.services.watch_engine._repo_resolver import (
+    receipt_repo,
+    todo_repo,
+)
+
 logger = structlog.get_logger(__name__)
 
 #: 单轮扫描上限（对齐仓储 list_overdue 的 limit 语义，避免一轮吃下无限积压）
@@ -63,14 +68,12 @@ def _auto_expire_days() -> float:
 
 def _default_todo_repo():
     """缺省待办仓储（惰性导入：模块导入期不碰 DB/ORM 装配）"""
-    from adapters.outbound.repositories.watch_todo_repository import WatchTodoRepository
-    return WatchTodoRepository()
+    return todo_repo()
 
 
 def _default_receipt_repo():
     """缺省回执仓储（惰性导入）"""
-    from adapters.outbound.repositories.watch_receipt_repository import WatchReceiptRepository
-    return WatchReceiptRepository()
+    return receipt_repo()
 
 
 class WatchSlaJob:
