@@ -17,6 +17,12 @@
     等于悄悄改了口径，故候选池模式与持仓留痕完全隔离。
 
 取数失败不炸：单标的失败记日志跳过（下轮重试），整轮失败向上抛（sidecar 记错）。
+
+词表配置化（2026-10-21）：分级词表已收进 `policy_lexicon`（配置数据，不是散落判断）——
+个股 / 政策 / 行业三套口径共用同一份分级实现。本模块的 CRITICAL_WORDS / SOFT_WORDS /
+NOISE_WORDS 是**个股词表的转发别名**（词表逐字不变，既有调用方与用例不受影响），
+classify() 默认仍走个股口径、行为与初版逐字一致；需要政策/行业口径时给
+`classify(title, sector=..., policy=True)` 或直接注入 `policy_lexicon.Lexicon`。
 """
 import os
 from datetime import datetime, timedelta
@@ -24,25 +30,19 @@ from typing import Any, Callable, Dict, List, Optional
 
 import structlog
 
+from qs_watch.application.services.watch_engine import policy_lexicon
+
 logger = structlog.get_logger(__name__)
 
-#: 强提醒词：可能直接破坏交易逻辑的事件（2026-10-20 初版词表，可调）
-CRITICAL_WORDS = (
-    '立案', '退市', '爆雷', '违规', '处罚', '罚款', '破产', '债务违约', '逾期',
-    '巨亏', '商誉减值', '清仓式减持', '强制平仓', '爆仓', 'st风险', '退市风险',
-    '暂停上市', '终止上市', '重大诉讼', '实控人失联', '资金占用', '违规担保',
-)
-#: 弱提醒词：需要关注但未必破坏逻辑
-SOFT_WORDS = (
-    '减持', '问询函', '警示函', '监管函', '质押', '亏损', '预亏', '裁员',
-    '高管辞职', '高管离职', '解禁', '定增', '再融资', '关联交易', '变更会计师',
-)
-#: 噪声词：标题含这些时降权（业绩说明/回复类公告通常已消化）
-NOISE_WORDS = ('业绩说明会', '调研', '回复关注函', '补充公告', '更正公告',
-               '摘要', '英文版')
+#: 个股强提醒词（= policy_lexicon.STOCK_CRITICAL，2026-10-20 初版词表逐字保留）
+CRITICAL_WORDS = policy_lexicon.STOCK_CRITICAL
+#: 个股弱提醒词（= policy_lexicon.STOCK_SOFT）
+SOFT_WORDS = policy_lexicon.STOCK_SOFT
+#: 个股噪声词（= policy_lexicon.STOCK_NOISE）
+NOISE_WORDS = policy_lexicon.STOCK_NOISE
 
 #: 严重度排序（critical 压过 soft）；持仓扫描取最高 tier 的口径与此同源
-_TIER_ORDER = {'critical': 0, 'soft': 1}
+_TIER_ORDER = policy_lexicon.TIER_ORDER
 
 DEFAULT_ACCOUNTS = ('agent_virtual', 'agent_brain', 'user_main_simulation')
 DEFAULT_INTERVAL_SEC = 900.0
@@ -59,18 +59,16 @@ def _interval() -> float:
         return DEFAULT_INTERVAL_SEC
 
 
-def classify(title: str) -> tuple:
-    """标题分两级：返回 (tier, [命中词])。tier ∈ critical|soft|none。"""
-    t = str(title or '')
-    if any(w in t for w in NOISE_WORDS) and not any(w in t for w in CRITICAL_WORDS):
-        return 'none', []
-    hits = [w for w in CRITICAL_WORDS if w in t]
-    if hits:
-        return 'critical', hits
-    hits = [w for w in SOFT_WORDS if w in t]
-    if hits:
-        return 'soft', hits
-    return 'none', []
+def classify(title: str, lexicon=None, *, sector: Optional[str] = None,
+             policy: bool = False, include_stock: bool = False) -> tuple:
+    """标题分两级：返回 (tier, [命中词])。tier ∈ critical|soft|none。
+
+    2026-10-21 词表可注入：lexicon 给 `policy_lexicon.Lexicon`（或
+    {critical,soft,noise} 字典）即用该词表；也可按 sector / policy 选口径。
+    **不传任何词表时走个股词表，行为与初版逐字一致**（既有用例即契约）。
+    """
+    return policy_lexicon.classify(title, lexicon, sector=sector, policy=policy,
+                                   include_stock=include_stock)
 
 
 def in_scan_window(now: datetime) -> bool:
@@ -79,11 +77,17 @@ def in_scan_window(now: datetime) -> bool:
 
 
 class NewsWatchService:
-    """持仓消息监控（无状态；来源/留痕/持仓/发送器构造注入）。"""
+    """持仓消息监控（无状态；来源/留痕/持仓/发送器构造注入）。
+
+    词表口径（2026-10-21）：默认个股词表（行为与初版逐字一致）；要扫政策/行业口径时
+    注入 `lexicon=`（优先）或 `sector=` / `policy=True`，判定走 policy_lexicon 同一实现。
+    """
 
     def __init__(self, news_source, alert_repo, position_repo,
                  accounts=DEFAULT_ACCOUNTS, sender: Optional[Callable] = None,
-                 interval_sec: Optional[float] = None):
+                 interval_sec: Optional[float] = None,
+                 lexicon: Any = None, sector: Optional[str] = None,
+                 policy: bool = False):
         self._news = news_source
         self._alerts = alert_repo
         self._positions = position_repo
@@ -91,6 +95,18 @@ class NewsWatchService:
         self._sender = sender
         self._interval = float(interval_sec) if interval_sec else _interval()
         self._last_scan_at: Optional[datetime] = None
+        self._lexicon = lexicon
+        self._sector = sector
+        self._policy = bool(policy)
+
+    # ── 词表口径 ────────────────────────────────────────────
+    def _active_lexicon(self):
+        """本轮扫描用的词表；未注入任何口径时返回 None（= 个股默认，行为逐字不变）。"""
+        if self._lexicon is not None:
+            return self._lexicon
+        if self._policy or self._sector:
+            return policy_lexicon.lexicon_for(self._sector, policy=self._policy)
+        return None
 
     # ── 主入口（sidecar 每拍调用，内部节流）────────────────────
     def scan(self, now: Optional[datetime] = None) -> Dict[str, Any]:
@@ -112,7 +128,8 @@ class NewsWatchService:
                 errors += 1
                 logger.error('新闻获取失败（跳过该标的）', symbol=sym, error=str(e))
                 continue
-            fresh, hits = self._classify_fresh(items, now)
+            fresh, hits = self._classify_fresh(
+                items, now, self._active_lexicon())
             # 每标的每轮最多报 1 张卡（critical 优先，只报最高 tier）
             if not hits:
                 skipped.append(sym)
@@ -174,7 +191,7 @@ class NewsWatchService:
             out['skipped'] = True
             out['error'] = str(e)
             return out
-        fresh, hits = self._classify_fresh(items, now)
+        fresh, hits = self._classify_fresh(items, now, self._active_lexicon())
         out['total'] = len(items)
         out['checked'] = len(fresh)
         if not hits:
@@ -234,13 +251,16 @@ class NewsWatchService:
         return self._news.fetch_news(symbol, limit=limit) or []
 
     @staticmethod
-    def _classify_fresh(items: List[Dict[str, Any]],
-                        now: datetime) -> tuple:
-        """48h 内新鲜条目 + 分级命中列表（持仓/候选池两种口径共用同一套词表判定）。"""
+    def _classify_fresh(items: List[Dict[str, Any]], now: datetime,
+                        lexicon=None) -> tuple:
+        """48h 内新鲜条目 + 分级命中列表（持仓/候选池两种口径共用同一套词表判定）。
+
+        lexicon=None 时走个股默认词表（行为与初版逐字一致）。
+        """
         fresh = [it for it in items if NewsWatchService._fresh(it, now)]
         hits = []
         for it in fresh:
-            tier, words = classify(it.get('title'))
+            tier, words = classify(it.get('title'), lexicon)
             if tier != 'none':
                 hits.append({'item': it, 'tier': tier, 'words': words})
         return fresh, hits
