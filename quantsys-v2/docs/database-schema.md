@@ -1260,8 +1260,7 @@ pg_restore -h localhost -U postgres -d quant_investment -t quant.stocks backup_2
 ## 相关文档
 
 - [README.md](../README.md) - 项目总览
-- [Phase 1 总结](phase1-summary.md) - Phase 1完成情况
-- [架构设计](2026-05-20-quant-system-architecture-design.md) - 详细架构设计
+- （原 Phase 1 总结与 2026-05-20 架构设计已不在仓库，勿引用旧路径）
 
 ---
 

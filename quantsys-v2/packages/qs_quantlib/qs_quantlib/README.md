@@ -485,7 +485,7 @@ from domain.quantlib import FeatureEngineeringCalculator
 assert 'torch' in sys.modules
 ```
 
-参考: [memory/polars-numpy-malloc-crash.md](../../.claude/projects/-Users-yunpeng-pi-investment/memory/polars-numpy-malloc-crash.md)
+参考: polars-numpy-malloc-crash.md（agent 记忆笔记，已不在仓库内）
 
 ---
 
@@ -556,10 +556,8 @@ from adapters.outbound.datasources.providers.quantlib import get_factor_adapter
 
 ## 相关文档
 
-- [回测领域](../backtest/README.md) - 策略回测引擎
-- [风险领域](../risk/README.md) - 风险管理
-- [因子领域](../factors/README.md) - 因子计算与分析
-- [重构完成报告](../../docs/work-logs/2026-08/quantlib-refactoring-complete.md)
+> （原 backtest/risk/factors 域 README 为 S7 拆分前旧路径，包内已无对应子目录）
+- [重构完成报告](../../../docs/work-logs/2026-08/quantlib-refactoring-complete.md)
 - 重构计划（历史文档，已随 docs 清理移除，见 git 历史 `docs/quantlib-refactoring-plan-2026-08.md`）
 
 ---

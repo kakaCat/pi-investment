@@ -614,9 +614,8 @@ pytest tests/domain/risk/test_stress_test.py -v
 
 ## 相关文档
 
-- [QuantLib 技术计算库](../quantlib/README.md)
-- [回测领域](../backtest/README.md)
-- [因子领域](../factors/README.md)
+> （原 QuantLib/回测/因子域 README 均已随 S7 包化抽离，此处旧相对路径已失效）
+> 量化计算现由 `packages/qs_quantlib`（qs_quantlib）承担；包归属见 `packages/qs_quantlib/CLAUDE.md`。
 
 ---
 

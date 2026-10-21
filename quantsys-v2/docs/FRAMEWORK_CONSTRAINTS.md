@@ -749,10 +749,8 @@ engine = create_engine(
 
 ### 内部文档
 
-- [Bug 修复: FastAPI Session 池耗尽](docs/superpowers/specs/2026-08-18-fastapi-session-pool-fix.md)
-- [Bug 修复: 写后读数据丢失](docs/superpowers/specs/2026-08-18-baserepo-migration-audit.md)
-- [Bug 修复: Action 大小写](docs/superpowers/specs/2026-08-12-trade-action-case-fix.md)
-- [Bug 修复: T+1 可卖数量](docs/superpowers/specs/2026-08-12-t1-sellable-visibility.md)
+> 原 4 篇 bug 修复 spec（Session 池耗尽 / 写后读 / Action 大小写 / T+1 可卖数量，2026-08 系列）
+> 已不在仓库；对应坑仍以条目形式保留在本文件正文与顶部 TL;DR 中。
 
 ### 外部资料
 

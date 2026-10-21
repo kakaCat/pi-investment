@@ -178,7 +178,7 @@ Abstract base classes for RL agents and environments:
 - **BaseRLAgent** - Inherits from BaseCalculator, provides train/predict/save/load interface
 - **BaseRLEnvironment** - Gymnasium-compatible trading environment interface
 
-[📖 Read the RL Module Documentation](quantlib/rl/README.md)
+[📖 Read the RL Module Documentation](packages/qs_quantlib/qs_quantlib/rl/README.md)
 
 ### FinRL Integration (`quantlib/finrl/`)
 
@@ -188,7 +188,7 @@ Stable-Baselines3 wrapper for financial RL:
 - **Configuration System** - Default hyperparameters for each algorithm
 - **Training Callbacks** - Logging, checkpointing, evaluation
 
-[📖 Read the FinRL Documentation](quantlib/finrl/README.md)
+[📖 Read the FinRL Documentation](packages/qs_quantlib/qs_quantlib/finrl/README.md)
 
 ### Qlib Integration (`quantlib/qlib/`)
 
@@ -198,7 +198,7 @@ Microsoft Qlib RL framework integration:
 - **Data Integration** - Native Qlib data handler support
 - **Backtesting** - Integrated with Qlib backtest framework
 
-[📖 Read the Qlib Documentation](quantlib/qlib/README.md)
+[📖 Read the Qlib Documentation](packages/qs_quantlib/qs_quantlib/qlib/README.md)
 
 ### Quick Start: RL Training
 

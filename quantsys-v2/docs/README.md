@@ -15,7 +15,7 @@
 | [testing.md](testing.md) / [performance.md](performance.md) | 测试与性能 |
 | [FEISHU_NOTIFICATIONS.md](FEISHU_NOTIFICATIONS.md) | 飞书通知（分群规则见其正文 + CLAUDE.md 通知架构节） |
 | [REDIS_CACHE.md](REDIS_CACHE.md) | 缓存服务 |
-| [PROJECT_STATUS.md](PROJECT_STATUS.md) / [MODEL-TRAIN-TESTING-NOTES.md](MODEL-TRAIN-TESTING-NOTES.md) | 项目状态 / 模型训练备注 |
+| [MODEL-TRAIN-TESTING-NOTES.md](MODEL-TRAIN-TESTING-NOTES.md) | 模型训练备注 |
 | [strategy-validation.md](strategy-validation.md) / [simulation-account-standard.md](simulation-account-standard.md) | 策略校验 / 仿真账户标准 |
 | [degradation-integration-guide.md](degradation-integration-guide.md) | 降级透明化集成（降级/回退/缺失在 API 响应可见） |
 

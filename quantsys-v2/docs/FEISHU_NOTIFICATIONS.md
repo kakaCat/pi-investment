@@ -253,7 +253,7 @@ feishu:
 
 ## 📞 技术支持
 
-- 文档：[FEISHU_IMPLEMENTATION_SUMMARY.md](../FEISHU_IMPLEMENTATION_SUMMARY.md)
+- 文档：原 `FEISHU_IMPLEMENTATION_SUMMARY.md` 已不在仓库；分群/降级规则见 CLAUDE.md「飞书通知分群」节与本文
 - 配置示例：`infrastructure/jobs/crontab.example`
 - 测试脚本：`scripts/test_feishu_notification.py`
 

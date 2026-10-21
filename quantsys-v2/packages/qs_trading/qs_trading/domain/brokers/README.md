@@ -90,8 +90,7 @@ domain/brokers/
 
 ## 参考资料
 
-- [架构审计报告](../../../docs/work-logs/2026-09/quantsys-v2-account-order-broker-audit.md)
-- [P2 问题分析](../../../docs/work-logs/2026-09/quantsys-v2-p2-issues-analysis.md)
+> （原引用的 2026-09 架构审计报告与 P2 问题分析两篇 work-log 已不在仓库，勿引用旧路径）
 
 ---
 
