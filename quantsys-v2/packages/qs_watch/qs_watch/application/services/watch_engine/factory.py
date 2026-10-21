@@ -626,7 +626,7 @@ def create_watch_engine() -> WatchEngine:
             avg_volume_provider=_avg_volume_provider,
         )
 
-    return WatchEngine(
+    engine = WatchEngine(
         rule_repo=WatchRuleRepository(),
         quote_service=RealtimeQuoteServiceV2(),
         notifier=notifier,
@@ -671,6 +671,40 @@ def create_watch_engine() -> WatchEngine:
         outcome_backfill_service=OutcomeBackfillService(
             outcome_repo=WatchOutcomeRepository()),
     )
+
+    # 成交回执闭环接线（RFC 017 §2.1.4，2026-10-21）：trading 成交落库后回调 watch
+    # 收敛执行待办（trigger handled + 规则退役 + position_state 翻转 + 时延落 detail）。
+    # 组合根职责：未注册 = 回调 no-op（行为与改造前一致）；装配失败只降级记日志，
+    # 绝不阻断引擎启动（成交照常落库，回执缺失可从事后巡检发现）。
+    _register_fill_sync_listener(engine, todo_service)
+    return engine
+
+
+def _register_fill_sync_listener(engine, todo_service) -> None:
+    """把 FillSyncService 注册为 trading 的成交监听（IFillListener 组合根装配）。
+
+    任何装配异常只降级：成交路径不依赖回执，注册失败 = 未装配的旧行为。
+    """
+    try:
+        from application.trading.paper_trading_engine import register_fill_listener
+        from adapters.outbound.repositories.watch_todo_repository import WatchTodoRepository
+        from qs_watch.application.services.watch_engine.fill_sync_service import (
+            FillSyncService,
+        )
+
+        listener = FillSyncService(
+            rule_repo=engine.rule_repo,
+            todo_service=todo_service,
+            todo_repo=WatchTodoRepository(),
+            trigger_repo=WatchTriggerRepository(),
+            position_repo=SimulationPositionRepository(),
+            lifecycle=getattr(engine, 'position_lifecycle_service', None),
+        )
+        register_fill_listener(listener)
+        logger.info('成交回执同步已装配（IFillListener → FillSyncService）')
+    except Exception as e:  # noqa: BLE001 - 回执是增益链路，不阻断引擎启动
+        logger.error('成交回执同步装配失败，降级为未装配（成交照常落库）',
+                     error=str(e))
 
 
 def _build_observe_aggregator():
