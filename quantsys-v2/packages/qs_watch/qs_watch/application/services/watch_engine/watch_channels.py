@@ -140,6 +140,32 @@ def _todo_wake_data(todo: Any, *, event: str,
     }
 
 
+def _wake_deliver(event: str, data: Dict[str, Any], target_agent: Optional[str] = None) -> bool:
+    """任务唤醒投递（2026-10-21 唤醒链修复）。
+
+    直连 POST /wake（AgentNotificationService，digest 同款已验证链路）为**主路**——
+    facade 的 agent 通道经 Agent OS 中转，对「任务投递」是哑管道：Agent OS 签收后
+    只 relay 飞书，agent-dh 永远收不到作业（2026-10-20 晚 sweep 未动工的根因，
+    已在 reqboard 登记）。直连失败才回退 facade（双保险，绝不让事件静默丢失）。
+    """
+    try:
+        from qs_agenthub.application.services.agent_notification_service import (
+            AgentNotificationService,
+        )
+        if AgentNotificationService().notify_agent(event, data, target=target_agent):
+            return True
+        logger.warning('直连 /wake 未确认（回退 facade）', wake_event=event)
+    except Exception as e:  # noqa: BLE001
+        logger.warning('直连 /wake 投递异常（回退 facade）', wake_event=event, error=str(e))
+    try:
+        from qs_notification.application import get_notification_facade
+        status = get_notification_facade().wake_agent(event, data, target_agent=target_agent)
+        return status == 'ok'
+    except Exception as e:  # noqa: BLE001
+        logger.error('facade 回退投递也失败', wake_event=event, error=str(e))
+        return False
+
+
 def wake_todo_assignment(todo: Any) -> bool:
     """建单即把待办派给 owner agent（TodoService 的 assigner 实现）。
 
@@ -150,22 +176,15 @@ def wake_todo_assignment(todo: Any) -> bool:
 
     owner_ref = str(getattr(todo, 'owner_ref', '') or '').strip() or None
     data = _todo_wake_data(todo, event=WAKE_EVENT_TODO_ASSIGNED)
-    try:
-        status = get_notification_facade().wake_agent(
-            WAKE_EVENT_TODO_ASSIGNED, data, target_agent=owner_ref)
-    except Exception as e:  # noqa: BLE001 - 派单异常不打挂建单（工单已落库）
-        logger.error('待办派单唤醒异常（工单已落库，靠超时升级兜底）',
-                     todo_id=getattr(todo, 'id', None), owner_ref=owner_ref, error=str(e))
-        return False
-    if status == 'ok':
+    ok = _wake_deliver(WAKE_EVENT_TODO_ASSIGNED, data, target_agent=owner_ref)
+    if ok:
         logger.info('待办已派给 owner agent（wake 送达）',
                     todo_id=getattr(todo, 'id', None), owner_ref=owner_ref,
                     wake_event=WAKE_EVENT_TODO_ASSIGNED)
-        return True
-    logger.warning('待办派单未送达（工单已落库，靠超时升级兜底）',
-                   todo_id=getattr(todo, 'id', None), owner_ref=owner_ref,
-                   wake_status=status)
-    return False
+    else:
+        logger.warning('待办派单未送达（工单已落库，靠超时升级兜底）',
+                       todo_id=getattr(todo, 'id', None), owner_ref=owner_ref)
+    return ok
 
 
 def wake_todo_owner(todo: Any, context: Optional[Dict[str, Any]] = None) -> bool:
@@ -189,14 +208,7 @@ def wake_todo_owner(todo: Any, context: Optional[Dict[str, Any]] = None) -> bool
     owner_ref = str(getattr(todo, 'owner_ref', '') or '').strip() or None
     data = _todo_wake_data(todo, event=WAKE_EVENT_TODO_TIMEOUT,
                            message=ctx.get('message'))
-    try:
-        status = get_notification_facade().wake_agent(
-            WAKE_EVENT_TODO_TIMEOUT, data, target_agent=owner_ref)
-    except Exception as e:  # noqa: BLE001 - 唤醒异常按未送达处理，走兜底不抛
-        logger.error('待办超时唤醒异常（按未送达处理，走兜底）',
-                     todo_id=getattr(todo, 'id', None), error=str(e))
-        status = 'error'
-    if status == 'ok':
+    if _wake_deliver(WAKE_EVENT_TODO_TIMEOUT, data, target_agent=owner_ref):
         logger.info('待办超时已唤醒 owner agent',
                     todo_id=getattr(todo, 'id', None), owner_ref=owner_ref,
                     wake_event=WAKE_EVENT_TODO_TIMEOUT)
@@ -204,14 +216,12 @@ def wake_todo_owner(todo: Any, context: Optional[Dict[str, Any]] = None) -> bool
 
     if not ctx.get('allow_card_fallback', True):
         logger.warning('待办超时唤醒未送达（聚合轮内：交回执折进本轮同一张卡）',
-                       todo_id=getattr(todo, 'id', None), owner_ref=owner_ref,
-                       wake_status=status)
+                       todo_id=getattr(todo, 'id', None), owner_ref=owner_ref)
         return False
 
     if level in ('P0', 'P1'):
         logger.warning('待办超时唤醒未送达，退回盯盘群卡片（绝不静默丢）',
-                       todo_id=getattr(todo, 'id', None), owner_ref=owner_ref,
-                       wake_status=status)
+                       todo_id=getattr(todo, 'id', None), owner_ref=owner_ref)
         try:
             return send_watch_receipt({
                 'kind': 'timeout', 'channel': ctx.get('channel') or 'risk_stop',
@@ -222,6 +232,5 @@ def wake_todo_owner(todo: Any, context: Optional[Dict[str, Any]] = None) -> bool
                          todo_id=getattr(todo, 'id', None), error=str(e))
             return False
     logger.warning('待办超时唤醒未送达且级别不退回卡片（P2/P3 只落台账）',
-                   todo_id=getattr(todo, 'id', None), owner_ref=owner_ref,
-                   wake_status=status)
+                   todo_id=getattr(todo, 'id', None), owner_ref=owner_ref)
     return False
