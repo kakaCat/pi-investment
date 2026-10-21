@@ -715,6 +715,14 @@ class WatchEngine:
                     self._run_sidecar(self.now_fn())
                 except Exception as e:  # noqa: BLE001 - 双保险（内部已逐块隔离）
                     logger.error('sidecar 巡检异常', error=str(e))
+                finally:
+                    # 会话收尾（2026-10-21, w-6224baac）：sidecar 每拍兜底归还，
+                    # 防新增路径漏关（内部逐块 finally 只覆盖既有块）
+                    try:
+                        from qs_kernel.infrastructure.persistence.orm import close_session
+                        close_session()
+                    except Exception:
+                        pass
                 self._heartbeat_stop.wait(30)   # 30s 一拍；stop 即醒
             logger.info('WatchEngine sidecar 线程已停止')
 

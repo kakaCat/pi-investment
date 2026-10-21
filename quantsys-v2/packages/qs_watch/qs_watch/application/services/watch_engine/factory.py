@@ -457,6 +457,16 @@ def _start_sector_resonance_refresher(pipeline) -> Optional[threading.Thread]:
                 logger.error('候选池板块映射重建失败（共振阶段 fail-open，稍后重试）',
                              error=str(e))
                 delay = RESONANCE_REFRESH_FAIL_BACKOFF_SEC
+            finally:
+                # 会话收尾（2026-10-21, w-6224baac）：后台线程每轮归还 scoped session
+                # ——否则连接 idle in transaction ~300s 被 PG 强杀，session_guard 报
+                # session_leak_detected（error_events 3267a4ad / a6780ec3）。
+                # 与 engine.tick 主循环同一约定。
+                try:
+                    from qs_kernel.infrastructure.persistence.orm import close_session
+                    close_session()
+                except Exception:
+                    pass
             threading.Event().wait(delay)
 
     thread = threading.Thread(target=_loop, name='watch-sector-resonance',
