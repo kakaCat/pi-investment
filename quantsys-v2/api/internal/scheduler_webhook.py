@@ -195,6 +195,42 @@ def _run_sync_handler_with_session_release(handler: Callable, metadata: dict):
             logger.warning(f"释放线程会话失败（{exc}）")
 
 
+def _run_async_handler_in_thread(handler: Callable, metadata: dict) -> Any:
+    """在线程池线程内跑 async handler（**不占事件循环**）。
+
+    2026-10-21（w-36c3225e）实测事故根因：本文件 31 个 handler 全部是
+    `async def` 壳，内部调**同步**的 `execute()`（如 kline_update_job.execute →
+    update_gem_klines → 逐只 `time.sleep()` + 同步 HTTP，5277 只约 2.5 小时）。
+
+    原实现 `result = await handler(payload.metadata)` 把协程**直接 await 在
+    uvicorn 的事件循环线程上**——协程内部一旦出现同步阻塞（time.sleep /
+    同步 requests / 同步 psycopg2），整个事件循环被冻结：accept 循环停摆，
+    连 TCP 握手都完成不了，**全站所有路由（含 /health）无响应**。
+    2026-09-10（w-23c70356）已给 market_perception_daily 单独打补丁
+    （asyncio.to_thread），但同款问题在其余 30 个 handler 上原样存在——本次
+    一次性在**分发层**收口，避免逐个 handler 漏改。
+
+    做法：把**协程的创建与 await 一起**放进线程池线程，在该线程里
+    `asyncio.run(coro)` 建独立事件循环执行（与 job_executor.py 的 APScheduler
+    路径同一模式）。协程对象必须在线程内创建——若在事件循环线程里先建好
+    再传进线程，一旦线程调用前抛错就会留下 "coroutine was never awaited"。
+    协程内部若使用 `await asyncio.to_thread(...)`，会绑定到新建的这个循环，
+    语义不变。
+
+    代价：handler 的事件循环不再是 uvicorn 那个——但 handler 全部是"跑批
+    作业"语义，不依赖与 uvicorn 共享的 loop 资源（无 loop.add_reader 等）。
+    """
+    try:
+        return asyncio.run(handler(metadata))
+    finally:
+        try:
+            from qs_kernel.infrastructure.persistence.orm.config import close_session
+
+            close_session()
+        except Exception as exc:  # 释放失败不应影响任务结果
+            logger.warning(f"释放线程会话失败（{exc}）")
+
+
 async def execute_job(handler: Callable, payload: WebhookPayload):
     """Execute job handler and report results to Agent OS.
 
@@ -224,9 +260,15 @@ async def execute_job(handler: Callable, payload: WebhookPayload):
     try:
         # Detect if handler is async or sync
         if inspect.iscoroutinefunction(handler):
-            # Async handler: await directly on the event loop
-            logger.debug(f"Executing async handler for {payload.job_name}")
-            result = await handler(payload.metadata)
+            # Async handler: **在线程池里跑**，不占事件循环。
+            # 2026-10-21（w-36c3225e）：原先是 `await handler(payload.metadata)`
+            # 直接在 uvicorn 事件循环线程上执行——handler 是 async 壳但内部调同步
+            # 阻塞作业（kline_update 逐只 time.sleep 2.5 小时），事件循环被冻结，
+            # 全站路由无响应。改为线程池 + asyncio.run 后事件循环完全释放。
+            logger.debug(f"Executing async handler for {payload.job_name} in threadpool")
+            result = await run_in_threadpool(
+                _run_async_handler_in_thread, handler, payload.metadata
+            )
         else:
             # Sync handler: run in threadpool to avoid blocking event loop。
             # 2026-09-11（w-f4aa1f6a）：经 wrapper 执行，保证在线程池线程内释放 ORM 会话，
