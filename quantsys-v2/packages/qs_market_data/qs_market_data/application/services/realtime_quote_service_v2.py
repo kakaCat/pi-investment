@@ -22,6 +22,10 @@ from qs_market_data.application.services.quote_providers import (
     AkshareQuoteProvider,
     NeteaseQuoteProvider,
 )
+from qs_market_data.application.services.quote_providers.base import (
+    AllProvidersCoolingDownError,
+    QuoteUnavailableError,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -234,7 +238,17 @@ class RealtimeQuoteServiceV2:
             symbol: 股票代码（如 600519.SH）
 
         Returns:
-            QuoteData 或 None（所有数据源都失败时）
+            QuoteData —— 取到有效行情。
+
+        Raises:
+            AllProvidersCoolingDownError: 所有数据源都在熔断冷却中（上游集体休克，
+                **非**标的取数失败）。调用方不得把它当作「标的没有数据」。
+            QuoteUnavailableError: 所有数据源都尝试过且都真实失败——这才是
+                可能意味着标的停牌/退市的情形。
+
+        注意（2026-10-21）：本方法**不再返回 None 表示失败**。历史上 None 同时
+        表示「真实全灭」与「熔断冷却跳过」，调用方无法分辨，盯盘引擎据此产出了
+        70 条假的「疑似停牌/退市」治理项。
         """
         self.total_requests += 1
 
@@ -288,14 +302,25 @@ class RealtimeQuoteServiceV2:
                 self.circuit_breaker.record_failure(provider.name)
 
         # 3. 所有数据源都失败——区分"真实全灭"与"熔断冷却期跳过"（后者是预期行为，误报 error 会污染错误事件流）
+        #
+        # 2026-10-21 修复：此前两条路径都 `return None`，调用方无法分辨，
+        # 导致盯盘引擎把"熔断冷却跳过"当成"取数失败"累计，90 秒内凑满
+        # 3 次即误报「疑似停牌/退市」（10-20/10-21 共 70 条误报，29 个标的
+        # 实测 100% 未停牌）。现在让两种失败在**返回值**上可区分：
+        #   - 熔断全跳过 → 抛 AllProvidersCoolingDownError（上游集体休克，非标的故障）
+        #   - 真实全灭   → 抛 QuoteUnavailableError（可能真的停牌/退市）
         _cb = self.circuit_breaker.get_status()
-        _blocked = [f"{n}(剩{s.get('remaining_seconds', '?')}s)" for n, s in _cb.items() if s.get('blocked')]
+        _blocked = {n: s for n, s in _cb.items() if s.get('blocked')}
         if len(_blocked) == len(self.providers):
             logger.warning(f"⏸ {symbol} 本轮跳过：所有数据源熔断冷却中（{', '.join(_blocked)}），非真实失败")
-        else:
-            logger.error(f"❌ 所有数据源都无法获取 {symbol} 的实时行情（熔断中: {', '.join(_blocked) or '无'}）")
+            self.failure_count += 1
+            raise AllProvidersCoolingDownError(symbol, _blocked)
+        logger.error(f"❌ 所有数据源都无法获取 {symbol} 的实时行情（熔断中: {', '.join(_blocked) or '无'}）")
         self.failure_count += 1
-        return None
+        raise QuoteUnavailableError(
+            f'所有数据源都无法获取 {symbol} 的实时行情'
+            f'（熔断中: {", ".join(_blocked) or "无"}）'
+        )
 
     def get_browser_links(self, symbol: str) -> Dict[str, str]:
         """

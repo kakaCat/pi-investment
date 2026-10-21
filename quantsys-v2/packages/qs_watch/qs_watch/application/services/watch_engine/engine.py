@@ -11,6 +11,10 @@ from typing import Any, Callable, Dict, List, Optional, Set
 
 import structlog
 
+from qs_market_data.application.services.quote_providers.base import (
+    AllProvidersCoolingDownError,
+)
+
 from qs_watch.application.services.watch_engine.conditions import (
     EvalContext, evaluate,
 )
@@ -992,9 +996,19 @@ class WatchEngine:
         # symbol；只要还有一条到期，就取一次价给到期的规则共享——合并取价不被破坏。
         quotes: Dict[str, Any] = {}
         quote_error_symbols: Set[str] = set()
+        # 熔断冷却跳过的标的：上游集体休克，**不是**标的故障——
+        # 不计入停牌/退市计数（2026-10-21 误报 70 条的根因之一）。
+        quote_cooling_symbols: Set[str] = set()
         for symbol in dict.fromkeys(r.symbol for r in due_rules):   # 保序去重
             try:
                 quotes[symbol] = self.quote_service.get_realtime_quote(symbol)
+            except AllProvidersCoolingDownError as e:
+                # 所有数据源熔断冷却中 → 本轮整体失明是预期行为。
+                # 旧实现把它与「真实全灭」混为 None，被 _note_quote_failure 累计，
+                # 90 秒内凑满 3 次即误报「疑似停牌/退市」。
+                logger.warning('数据源熔断冷却中，本轮跳过（不计入停牌计数）',
+                               symbol=symbol, blocked=e.blocked)
+                quote_cooling_symbols.add(symbol)
             except Exception as e:
                 # 取价异常隔离（P0-1）：数据源抖一次只让该标的本轮失明
                 logger.error('取价异常跳过（本轮该标的规则失明，其余标的不受影响）',
@@ -1007,13 +1021,18 @@ class WatchEngine:
         for rule in due_rules:
             if rule.symbol in quote_error_symbols:
                 continue   # 异常已记日志（上方取价循环）
+            if rule.symbol in quote_cooling_symbols:
+                # 熔断冷却：上游集体休克，非标的故障——不计入停牌/退市治理。
+                # （2026-10-21：旧实现此处与真实失败同走 _note_quote_failure，
+                #  90 秒内累计 3 次即误报「疑似停牌/退市」，共 70 条假治理项。）
+                continue
             quote = quotes.get(rule.symbol)
             if quote is None:
                 logger.warning('取价失败跳过', symbol=rule.symbol)
                 self._note_quote_failure(rule, now)
                 continue
             if self.state.quote_fail_days.get(rule.symbol):
-                self.state.quote_fail_days[rule.symbol] = 0
+                self.state.quote_fail_days[rule.symbol] = set()
             ctx = self._build_ctx(rule, now)
             near = False   # 本拍是否观察到临近阈值（决定下一拍是否提速）
             events_before = len(events)   # 状态不一致只在真的记录触发时落事件
@@ -1644,13 +1663,29 @@ class WatchEngine:
     QUOTE_FAIL_GOVERNANCE_DAYS = 3
 
     def _note_quote_failure(self, rule, now):
-        """取数失败计数：连续 N 个交易日失败 → 每规则每日一条停牌/退市治理项。
+        """取数失败计数：连续 N 个**交易日**失败 → 每规则每日一条停牌/退市治理项。
 
         此前取数失败只是静默跳过——规则对停牌/退市标的永久失效且无人发现。
+
+        2026-10-21 修复（误报 70 条的根因之二）：
+        原实现是「每次评估拍 +1」，docstring 写的却是「连续 N 个交易日」——
+        两者不是一回事。实测 002007 的 3 次失败发生在 10-20 的
+        09:31:02.343 / 09:31:02.343 / 09:32:24.785（**90 秒内**）即触发
+        「连续 3 个交易日取数失败」。叠加熔断级联（5 源逐个失败后全体冷却
+        60 秒，所有标的批量失明），10-20/10-21 共产出 70 条假治理项，
+        29 个标的实测 100% 未停牌。
+
+        现在按**交易日**计数：记录失败日集合，跨天只保留当日——
+        同一交易日内无论失败多少次都只算 1 天。
         """
         sym = str(rule.symbol)
-        n = self.state.quote_fail_days.get(sym, 0) + 1
-        self.state.quote_fail_days[sym] = n
+        day = now.date()
+        days = self.state.quote_fail_days.setdefault(sym, set())
+        days.add(day)
+        # 只保留最近 QUOTE_FAIL_GOVERNANCE_DAYS 个交易日（自然形成"连续"窗口）
+        recent = sorted(days)[-self.QUOTE_FAIL_GOVERNANCE_DAYS:]
+        self.state.quote_fail_days[sym] = set(recent)
+        n = len(recent)
         if n < self.QUOTE_FAIL_GOVERNANCE_DAYS or sym in self.state.quote_fail_reported:
             return
         self.state.quote_fail_reported.add(sym)
@@ -1659,7 +1694,8 @@ class WatchEngine:
                 rule,
                 '疑似停牌/退市：标的 %s 连续 %d 个交易日取数失败 → 建议复核标的状态，'
                 '确认后退役规则（取数失败期规则等同失效）' % (sym, n),
-                {'quote_fail_days': n, 'suspected_halt': True})
+                {'quote_fail_days': n, 'suspected_halt': True,
+                 'failed_dates': [d.isoformat() for d in recent]})
             logger.warning('连续取数失败已转治理', symbol=sym, days=n)
         except Exception as e:  # noqa: BLE001
             logger.error('停牌治理项记录失败', symbol=sym, error=str(e))
