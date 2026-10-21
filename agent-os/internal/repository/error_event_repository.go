@@ -10,6 +10,7 @@ import (
 	"path"
 	"regexp"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/pi-investment/agent-os/internal/domain"
@@ -27,6 +28,9 @@ type ErrorEventRepository interface {
 	// ApplyAction 状态流转：claim→processing(置 assignee)；resolve→resolved(置 resolved_at/note)；
 	// ignore→ignored(置 note)；reopen→open(清 resolution)。返回 (event, message, error)。
 	ApplyAction(ctx context.Context, id string, req domain.ErrorEventActionRequest) (*domain.ErrorEvent, string, error)
+	// ReclaimZombieProcessing 回收"僵尸处理中"（P1 巡检兜底）：processing∧assignee 为空
+	// 且静默超阈值 → 回落 open（metadata 留痕）。返回回收条数。
+	ReclaimZombieProcessing(ctx context.Context, olderThan time.Duration) (int64, error)
 	Stats(ctx context.Context) (*domain.ErrorEventStats, error)
 }
 
@@ -350,6 +354,45 @@ func (r *errorEventRepository) ApplyAction(ctx context.Context, id string, req d
 	return e2, msg, nil
 }
 
+// ReclaimZombieProcessing 回收"僵尸处理中"（P1 巡检兜底，2026-10-21 w-6224baac）。
+//
+// 口径：status=processing 且 assignee 为空（NULL 或空串）且 updated_at 静默超阈值
+// → 回落 open，并在 metadata 写 zombie_reclaimed_at / zombie_reclaimed_by 留痕
+// （不碰 resolution_note：那是终态处置结论字段，reopen 会清空它）。
+//
+// 为什么 P0 之外还需要它：P0 只让僵尸"可被认领"，认领仍依赖有人看板；
+// 巡检保证「processing ∧ 无责任人」这个组合最终自动消失——把不变式
+// （任何状态都有出口）从"靠注意力"变成"靠机器"。
+// 阈值默认 2 小时（DefaultZombieThreshold）：认领是秒级动作，两小时无人
+// 认领基本可判定为"状态推进时漏写 assignee"。
+const DefaultZombieThreshold = 2 * time.Hour
+
+// zombieReclaimSQL 用字符串拼接而非 raw string：本文件的编辑通道对反引号敏感
+// （模板字面量冲突），且该 SQL 只在本包消费、无需导出。
+const zombieReclaimSQL = "UPDATE error_events " +
+	"SET status = 'open', " +
+	"    metadata = jsonb_set(jsonb_set(COALESCE(metadata, '{}'::jsonb), " +
+	"        '{zombie_reclaimed_at}', to_jsonb(NOW()::text)), " +
+	"        '{zombie_reclaimed_by}', '\"agent-os-error-patrol''), " +
+	"    updated_at = NOW() " +
+	"WHERE status = 'processing' " +
+	"  AND (assignee IS NULL OR assignee = '') " +
+	"  AND updated_at < NOW() - ($1 * INTERVAL '1 second')"
+
+func (r *errorEventRepository) ReclaimZombieProcessing(ctx context.Context, olderThan time.Duration) (int64, error) {
+	if olderThan <= 0 {
+		olderThan = DefaultZombieThreshold
+	}
+	res, err := r.db.ExecContext(ctx, zombieReclaimSQL, int64(olderThan.Seconds()))
+	if err != nil {
+		return 0, fmt.Errorf("failed to reclaim zombie processing events: %w", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("failed to count reclaimed zombie events: %w", err)
+	}
+	return n, nil
+}
 // Stats 按状态/来源统计
 func (r *errorEventRepository) Stats(ctx context.Context) (*domain.ErrorEventStats, error) {
 	stats := &domain.ErrorEventStats{

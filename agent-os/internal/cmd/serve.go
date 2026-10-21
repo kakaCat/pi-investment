@@ -229,6 +229,12 @@ var serveCmd = &cobra.Command{
 		}
 		defer errorEventWorker.Stop()
 
+		// P1 僵尸回收巡检（2026-10-21 w-6224baac）：processing∧无责任人 静默超 2h
+		// 自动回落 open（metadata 留痕）。与 P0（claim 转移边）互补：P0 让僵尸可被
+		// 认领，本巡检保证无人看板时它也最终消失。
+		zombiePatrol := service.NewErrorEventPatrol(errorEventRepo, 2*time.Hour, 30*time.Minute)
+		go zombiePatrol.RunPeriodically(ctx)
+
 		// RFC 010: 启动心跳监控器（60s 检查间隔，60s 超时阈值）
 		heartbeatMonitor := service.NewHeartbeatMonitor(
 			registryRepo,

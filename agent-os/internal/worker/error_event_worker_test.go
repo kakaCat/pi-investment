@@ -382,6 +382,12 @@ func (f *fakeErrorEventRepo) Stats(ctx context.Context) (*domain.ErrorEventStats
 	return nil, nil
 }
 
+// ReclaimZombieProcessing（P1 僵尸回收，2026-10-21）：worker 不调用它，
+// 假件仅补齐接口；worker 场景恒回收 0 条。
+func (f *fakeErrorEventRepo) ReclaimZombieProcessing(ctx context.Context, olderThan time.Duration) (int64, error) {
+	return 0, nil
+}
+
 // 续行聚合回归：栈帧回显不单独成事件，但必须并进紧随其后的错误锚点 Detail——
 // 只滤不并会把根因的调用链丢光（过滤把信号一起滤掉，比噪音更糟）。
 // 2026-09-11（w-8f2c4cc5）更新期望：栈头 "Traceback (most recent call last):" 也不再单独成事件
