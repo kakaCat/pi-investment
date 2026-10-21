@@ -174,6 +174,10 @@ if [ "$MODE" = "check" ]; then
     else
       echo "OK   apps/web                 dist/index.html"
     fi
+    # 构建指纹：dist 是否由「当前安装的框架版本」构建（版本换了没重建 = 拒）
+    if ! node "$SCRIPT_DIR/verify-artifact-stamp.mjs" --verbose; then
+      rc=1
+    fi
   fi
   python3 "$SCRIPT_DIR/relink-profile.py" --check --profile "$PROFILE_DIR" || rc=1
   exit $rc
@@ -406,6 +410,11 @@ if [ -d "$PROJECT_ROOT/apps/web" ]; then
     exit 1
   fi
   echo "OK   apps/web                 dist/index.html  ($(stat -f%z "$_web_dist/index.html") bytes)"
+  # 构建指纹闸：确认这次构建用的就是当前安装的框架版本（2026-10-21 React #130 事故）
+  if ! node "$SCRIPT_DIR/verify-artifact-stamp.mjs" --verbose; then
+    echo "❌ apps/web 构建指纹与当前依赖不一致 —— 拒绝发版"
+    exit 1
+  fi
 fi
 # 校验通过 ⇒ 换装前的旧 dist 备份可以清理（未通过时留着供回滚）
 # 清理前先把旧 dist 的 assets/ 并集进新 dist：vite chunk 文件名是内容哈希，

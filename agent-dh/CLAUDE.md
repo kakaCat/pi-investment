@@ -733,6 +733,27 @@ pnpm build
 - **部署顺序**：`pnpm install` → `python3 scripts/relink-profile.py` → `./scripts/restart-with-build.sh`
   （首次应用新配置要 `--force-config`，否则活动 patch 仍是旧副本）。
 
+### 版本变更与重建绑定（硬闸，2026-10-21 事故后补）
+
+「改了依赖要重建 dist」不能只靠纪律——已经发生过一次：`pnpm install` 换了 DSH 版本、
+dist 仍是旧版本构建，浏览器侧与主机侧契约对不上，插槽 React #130 崩溃且无任何提示。
+现在把它做成**三道机械闸**：
+
+1. **构建时留指纹**：`apps/web/vite.config.ts` 的 `agent-dh-build-stamp` 插件在
+   `closeBundle` 写入 `dist/.build-info.json`——pnpm-lock 的 sha256、9 个核心
+   `@deepseek-ai` 包的解析版本、入口 JS 的 sha256、git rev、构建时间。
+2. **启动前拒绝**：`scripts/start.sh` 在拉起前调用 `scripts/verify-artifact-stamp.mjs`；
+   指纹不一致（依赖换了但 dist 没重建）→ 打印横幅并 **exit 3 拒绝启动**。
+   指纹缺失（旧产物首次纳入）→ 警告放行一次。逃生阀 `DSH_ALLOW_STALE_ARTIFACTS=1` 仅限诊断。
+3. **巡检与发版双保险**：
+   - `scripts/restart-with-build.sh --check` 与完整发版都会校验指纹，不一致直接红；
+   - 根仓库 `scripts/dsh-watchdog.sh`（launchd 每 300s）发现不一致时记录一次并**跳过
+     kickstart**（避免"起不来→拉起→又拒绝"死循环）。
+
+因此任何路径都无法把「版本已变、dist 未重建」的状态跑起来：
+`pnpm install` 后忘了重建 → 下次重启被拒；绕重启也不行（--check 红、看门狗告警）。
+唯一出口是 `./scripts/restart-with-build.sh`——而它必然重建并做四层体检。
+
 ## Version History
 
 - 2026-10-17: DSH 整代升级 0.1.6-alpha.2 → 0.2.1-rc.2（cordis 4.0.2 → 4.0.5）。preset 由目录扫描改为
@@ -740,7 +761,8 @@ pnpm build
   config 清理 0.1.x 失效覆盖行；零参绑定守护测试改为跟随已安装版本。冒烟：启动无错、preset RPC 返回
   investment(isDefault)、插件 208 active/0 failure、页面与投资模式按钮正常渲染；测试与升级前基线一致。
   2026-10-21 正式合并：模型目录改名（deepseek-v4-flash → deepseek-flash）已修，端到端 E2E 通过（会话创建/投资模式挂载/
-  163 工具注册/LLM 回复/UI 零报错）。
+  163 工具注册/LLM 回复/UI 零报错）。同日补「版本变更与重建绑定」三道机械闸（构建指纹 / 启动拒绝 / 巡检+发版校验），
+  起因是 10-21 的 React #130：dist 由 rc.2 构建、主机跑 0.1.6，仅靠纪律没能拦住。
 
 - 2026-09-22: 插件 bundle 化（REQ-260922133113-ebc5）——投资插件行从用户层裸 insert 迁入三个
   业务域 bundle（`packages/bundle/bundle-stock|bundle-evolution|bundle-platform`，dsh.bundle.patch

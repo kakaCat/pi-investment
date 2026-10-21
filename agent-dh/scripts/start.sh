@@ -347,6 +347,43 @@ fi
 
 fi  # end: MANAGED_HOME=1 的 profile 配置脚手架
 
+# ── 产物一致性闸：版本变更必须重建（2026-10-21 React #130 事故的机械防线）──────────
+# 背景：`pnpm install` 换过 DSH 版本后没重建 apps/web/dist，浏览器侧仍是旧版本 shell，
+# 与主机侧新版本插件契约对不上 → 插槽 React #130 崩溃，且日志里没有任何"版本不一致"提示。
+# 现在构建时由 apps/web/vite.config.ts 写入 dist/.build-info.json（lockfile 哈希 + 核心包版本
+# + 入口哈希），启动前在此比对：
+#   0 = 一致；2 = 指纹缺失（旧产物首次纳入时警告放行）；1 = 不一致 → 拒绝启动。
+# 逃生阀：DSH_ALLOW_STALE_ARTIFACTS=1（只用于诊断，绝不用于发版）。
+STAMP_CHECK="$SCRIPT_DIR/verify-artifact-stamp.mjs"
+if [ -f "$STAMP_CHECK" ]; then
+  set +e
+  STAMP_MSG=$(node "$STAMP_CHECK" 2>&1)
+  STAMP_RC=$?
+  set -e
+  if [ "$STAMP_RC" != "0" ]; then
+    echo "" >&2
+    echo "╔════════════════════════════════════════════════════════════════════╗" >&2
+    if [ "$STAMP_RC" = "2" ]; then
+      echo "║  ⚠️  无法确认前端产物新鲜度（缺少构建指纹 .build-info.json）          ║" >&2
+      echo "║  首次引入或将旧产物纳入管理时会出现一次；建议重建建立基线：          ║" >&2
+    else
+      echo "║  ❌ 前端产物与当前框架版本不一致 —— 拒绝启动                         ║" >&2
+      echo "║  这正是 2026-10-21 React #130（插槽 undefined）事故的根因            ║" >&2
+    fi
+    echo "║                                                                    ║" >&2
+    printf '%s\n' "$STAMP_MSG" | sed 's/^/║  /' | head -20 >&2
+    echo "║                                                                    ║" >&2
+    echo "║  修复：./scripts/restart-with-build.sh                              ║" >&2
+    echo "╚════════════════════════════════════════════════════════════════════╝" >&2
+    if [ "$STAMP_RC" != "2" ] && [ "${DSH_ALLOW_STALE_ARTIFACTS:-0}" != "1" ]; then
+      exit 3
+    fi
+    if [ "${DSH_ALLOW_STALE_ARTIFACTS:-0}" = "1" ]; then
+      echo "  DSH_ALLOW_STALE_ARTIFACTS=1：已放行（仅限诊断，请尽快重建）" >&2
+    fi
+  fi
+fi
+
 # ── 多实例隔离：写 pidfile（exec 保持 PID 不变，$$ 即最终 node 进程 PID）─────────
 # 停机只能走 ./stop.sh（pidfile + 端口双重校验）；禁止 pkill -f 模糊匹配（会误杀同机其他实例）。
 echo $$ > "$DSH_DATA_DIR/state/server.pid"
