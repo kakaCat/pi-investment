@@ -1,4 +1,5 @@
-from domain.strategies.value_objects import StrategyConfig
+# 2026-10-21（w-5d46d252 重应用）：必须从 qs_strategy 导入，避免 shim 双类身份
+from qs_strategy.domain.strategies.value_objects import StrategyConfig
 from qs_kernel.infrastructure.config.constants.trading.strategy import V13StrategyDefaults
 
 # 使用配置类管理默认参数

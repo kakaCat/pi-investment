@@ -479,7 +479,12 @@ def validate_inputs(func):
         try:
             return func(self, *args, **kwargs)
         except Exception as e:
-            self.logger.error(f"Error in {func.__name__}: {str(e)}")
+            # 2026-10-21（w-5d46d252 重应用）：数据条件不足降 WARNING，真错误仍 ERROR
+            from qs_quantlib.core.exceptions import InsufficientDataError
+            if isinstance(e, InsufficientDataError):
+                self.logger.warning(f"Insufficient data in {func.__name__}: {str(e)}")
+            else:
+                self.logger.error(f"Error in {func.__name__}: {str(e)}")
             raise
     return wrapper
 

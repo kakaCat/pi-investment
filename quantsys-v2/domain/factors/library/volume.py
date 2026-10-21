@@ -292,7 +292,13 @@ class VolumeFactors(TechnicalFactorCalculator):
         ma5_value = float(np.mean(volumes[-5:]))
 
         if ma5_value == 0:
-            raise ValueError("Volume MA5 is zero, cannot calculate volume ratio")
+            # 2026-10-21（w-5d46d252 重应用，原修复被共享工作区 git 操作擦除）：
+            # 近 5 日全零成交=停牌/无成交，属数据条件不足非系统错误，避免 ERROR 刷屏
+            raise InsufficientDataError(
+                required=1,
+                actual=0,
+                message="Volume MA5 is zero (suspended or no trades in last 5 sessions), cannot calculate volume ratio"
+            )
 
         ratio = latest_volume / ma5_value
 

@@ -140,10 +140,19 @@ class AgentChannel(NotificationChannel):
         channel_code = None
         try:
             channel_code = self.resolve_channel_code(notification)
+            # 2026-10-21（w-5d46d252 重应用）：Agent OS 硬校验 content 非空，空 content 兜底回落 title
+            content = (notification.content or '').strip()
+            if not content:
+                content = notification.title or notification.notification_type.value
+                logger.warning(
+                    "通知 content 为空，已兜底回落 title（请上游修复空内容）",
+                    notification_id=notification.notification_id,
+                    notification_type=notification.notification_type.value,
+                )
             payload = {
                 "channel": channel_code,
                 "title": notification.title or notification.notification_type.value,
-                "content": notification.content or "",
+                "content": content,
                 "urgency": notification.priority.value,
                 "metadata": self._build_metadata(notification),
             }

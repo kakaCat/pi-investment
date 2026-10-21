@@ -270,7 +270,10 @@ class AgentNotificationService:
             return 'error', detail
 
         except requests.exceptions.Timeout:
-            logger.error(f"Agent notification timeout: {event}")
+            # 2026-10-21（w-5d46d252 重应用）：timeout 语义=大概率已送达、Agent 处理中、不重试
+            logger.warning(
+                f"Agent notification timeout（大概率已送达，Agent 处理中，不重试）: {event}",
+                notify_event=event, target=target_key, url=url, timeout_sec=self.timeout)
             return 'timeout', 'timeout'
         except requests.exceptions.ConnectionError:
             logger.error(f"Cannot connect to Agent at {url}")

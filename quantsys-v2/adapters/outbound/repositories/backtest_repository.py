@@ -55,20 +55,33 @@ class BacktestORMRepository(BaseORMRepository[BacktestResult], IBacktestReposito
     def save_backtest_result(self, result: Dict[str, Any]) -> int:
         """保存回测结果（IBacktestRepository接口实现）"""
         try:
+            # 2026-10-21（w-5d46d252 重应用）：模型无 config/metrics 列，透传必炸
+            metrics = result.get('metrics') or {}
+
+            def _m(key: str) -> Any:
+                return result.get(key, metrics.get(key))
+
             backtest = BacktestResult(
                 strategy_name=result.get('strategy_name'),
+                symbol=result.get('symbol'),
+                parameters=result.get('config') or result.get('parameters'),
                 start_date=result.get('start_date'),
                 end_date=result.get('end_date'),
                 initial_capital=result.get('initial_capital'),
                 final_capital=result.get('final_capital'),
-                total_return=result.get('total_return'),
-                annual_return=result.get('annual_return'),
-                sharpe_ratio=result.get('sharpe_ratio'),
-                max_drawdown=result.get('max_drawdown'),
-                win_rate=result.get('win_rate'),
-                total_trades=result.get('total_trades'),
-                config=result.get('config'),
-                metrics=result.get('metrics'),
+                total_return=_m('total_return'),
+                annual_return=_m('annual_return'),
+                sharpe_ratio=_m('sharpe_ratio'),
+                max_drawdown=_m('max_drawdown'),
+                win_rate=_m('win_rate'),
+                total_trades=_m('total_trades'),
+                winning_trades=_m('winning_trades'),
+                losing_trades=_m('losing_trades'),
+                avg_win=_m('avg_win'),
+                avg_loss=_m('avg_loss'),
+                profit_factor=_m('profit_factor'),
+                equity_curve=result.get('equity_curve'),
+                trade_details=result.get('trade_details'),
             )
             created = self.create(backtest)
             return created.id if created else 0
