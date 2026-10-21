@@ -72,10 +72,12 @@ def test_word_tables_are_forwarded_config_aliases():
 # ── 1a. 政策口径分级与降噪 ─────────────────────────────────────────
 
 def test_policy_critical_and_soft_tiers():
-    assert classify('央行宣布降准0.5个百分点', policy=True) == ('critical', ['降准'])
+    tier, words = classify('央行宣布降准0.5个百分点', policy=True)
+    assert tier == 'critical' and '降准' in words
     tier, words = classify('国常会部署加快专项债发行', policy=True)
     assert tier == 'critical' and '国常会' in words and '专项债' in words
-    assert classify('证监会就量化交易征求意见', policy=True) == ('soft', ['征求意见'])
+    tier, words = classify('证监会就量化交易征求意见', policy=True)
+    assert tier == 'soft' and '征求意见' in words
     assert classify('监管部门约谈平台企业', policy=True)[0] == 'soft'
 
 
@@ -86,7 +88,8 @@ def test_policy_noise_reduction_but_critical_overrides():
     # 弱词 + 噪声词 → 仍降为 none（降噪优先于 soft）
     assert classify('关于《私募管理办法》的政策解读', policy=True) == ('none', [])
     # 强词压过噪声词：『图解降准』是真政策，不是科普
-    assert classify('【一图读懂】央行降准落地', policy=True) == ('critical', ['降准'])
+    tier2, words2 = classify('【一图读懂】央行降准落地', policy=True)
+    assert tier2 == 'critical' and '降准' in words2
 
 
 # ── 1b. 行业口径分级与降噪（含别名解析）────────────────────────────

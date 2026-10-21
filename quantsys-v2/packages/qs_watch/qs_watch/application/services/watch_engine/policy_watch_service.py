@@ -216,6 +216,15 @@ def detect_sectors(title: str) -> List[Dict[str, Any]]:
         if sector in named and not any(item['sector'] == sector for item in out):
             out.append({'sector': sector, 'tier': TIER_NONE,
                         'words': [], 'basis': 'name'})
+
+    # 兜底：机构名类政策标题往往不带板块别名（「证监会：…」没有「券商」二字）。
+    # 只有**一条板块都没识别出来**时才用政策→默认板块提示，避免覆盖别名口径；
+    # basis='hint' 让留痕能区分「标题点名」与「按机构推断」。
+    if not out:
+        for sector in policy_lexicon.sector_hints_for(text):
+            if sector in policy_lexicon.INDUSTRY_LEXICONS:
+                out.append({'sector': sector, 'tier': TIER_NONE,
+                            'words': [], 'basis': 'hint'})
     return out
 
 
