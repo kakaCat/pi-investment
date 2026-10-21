@@ -189,7 +189,8 @@ def _load_position_state_reader():
     if _POSITION_STATE_READER is not _READER_UNSET:
         return _POSITION_STATE_READER
     try:
-        from adapters.outbound.repositories.watch_rule_repository import rule_position_state
+        # 2026-10-21：读口径正典在 qs_watch.domain.watch.services（qs_watch 内部域名引，无跨包）
+        from qs_watch.domain.watch.services.position_state_policy import rule_position_state
     except Exception as e:  # noqa: BLE001 - 旧部署/缺依赖：读不到就按不可知
         logger.error('持仓状态读口径不可用（全部规则按状态不可知 fail-open）',
                      error=str(e))

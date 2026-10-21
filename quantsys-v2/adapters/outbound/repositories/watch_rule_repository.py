@@ -22,8 +22,14 @@ logger = structlog.get_logger(__name__)
 # position_state: 'none' = 无持仓（entry 族可求值）/ 'holding' = 有持仓（exit 族可求值）。
 # NULL 与"列不存在"都表示**状态未知** —— 引擎必须按旧行为 fail-open（照常评估），
 # 绝不因为状态缺失而静默不评估（止损永远优先于状态机正确性，RFC 017 §2.2）。
-POSITION_STATE_NONE = 'none'
-POSITION_STATE_HOLDING = 'holding'
+# 2026-10-21：读/写口径正典迁 qs_watch.domain.watch.services.position_state_policy（纯逻辑
+# 不该挂在仓储层）；本模块转发导出保持 import 路径全兼容，单一实现不变。
+from qs_watch.domain.watch.services.position_state_policy import (  # noqa: F401
+    POSITION_STATE_NONE,
+    POSITION_STATE_HOLDING,
+    normalize_position_state,
+    rule_position_state,
+)
 POSITION_STATES = (POSITION_STATE_NONE, POSITION_STATE_HOLDING)
 
 #: 迁移 20261021_watch_rules_position_interval.py 新增的两列。
@@ -42,22 +48,6 @@ _COLUMNS_SQL = text(
 def reset_watch_rules_column_cache() -> None:
     """清空列预检缓存（测试/迁移后热生效用）。"""
     _COLUMNS_PRESENT_CACHE.clear()
-
-
-def normalize_position_state(value) -> str:
-    """写入口径：None/空 → 'none'；只接受 none/holding（大小写不敏感）。
-
-    非法值抛 ValueError —— 静默落库一个引擎读不懂的状态，等于让规则的分支行为
-    变成抽奖；让调用方（API → 400）当场知道。
-    """
-    if value is None:
-        return POSITION_STATE_NONE
-    text_value = str(value).strip().lower()
-    if text_value in ('', 'none', 'null'):
-        return POSITION_STATE_NONE
-    if text_value == POSITION_STATE_HOLDING:
-        return POSITION_STATE_HOLDING
-    raise ValueError("position_state 只接受 none/holding（收到的：%r）" % (value,))
 
 
 def normalize_interval_sec(value) -> Optional[int]:
@@ -79,26 +69,6 @@ def normalize_interval_sec(value) -> Optional[int]:
     if seconds < 1:
         raise ValueError('interval_sec 必须 >= 1 秒，或给 None 表示跟随全局档')
     return seconds
-
-
-def rule_position_state(rule) -> Optional[str]:
-    """读口径（fail-open）：'none'/'holding'；NULL、缺列、未知值 → None。
-
-    **None 不等于 'none'**：'none' 是"确认无持仓"，None 是"状态不可知"。
-    调用方拿到 None 必须退回旧行为（不按状态分支、照常评估），而不是当成无持仓。
-    """
-    try:
-        raw = getattr(rule, 'position_state', None)
-    except Exception:  # noqa: BLE001 - 分离态/过期对象/缺列懒加载失败都按未知处理
-        raw = None
-    if raw is None:
-        return None
-    try:
-        return normalize_position_state(raw)
-    except ValueError:
-        logger.debug('未知 position_state，按状态不可知 fail-open',
-                     rule_id=getattr(rule, 'id', None), value=raw)
-        return None
 
 
 def rule_interval_sec(rule) -> Optional[int]:

@@ -489,3 +489,17 @@ flowchart TB
 - market_session 相关测试 **25 passed**（含注入时钟/日期字符串边界）
 - 教训：resolve 不自动注册是**被守住的契约**（与阶段1 实现记忆相反——main.py 的 initialize
   接线因此是必要前置而非可选项）；qs_watch 经 _repo_resolver 的调用面必须保证宿主进程已 initialize
+
+## 2026-10-21 · 阶段2 批3：持仓状态口径正典迁域（qs_watch engine 侧 adapters 边清零）
+
+- 发现：`rule_position_state` / `normalize_position_state` 是**纯逻辑**（getattr + 归一，
+  不碰 DB），挂在 shell 仓储模块属错位——正典迁
+  `qs_watch.domain.watch.services.position_state_policy`；`watch_rule_repository` 转发导出
+  （单一实现不变、外部 import 路径全兼容；"读口径必须走仓储单一实现"的测试断言语义由
+  转发保住——canonical 只有一份，域内是正典）
+- engine.py `_load_position_state_reader` 惰性 import 换 `qs_watch.domain.watch.services...`
+  （同包域名引 → qs_watch 引擎侧 adapters 边又减 1，L1"不反向常驻 import L0"注释语义保留）
+- 验证：py_compile ✓；position_state_branch + watch_rule_repository + exec_loop_e2e +
+  watch_engine 四面 **103 passed**
+- 教训：切函数体时用"下一个 def"做断点会误吞夹层函数（normalize_interval_sec 被误删，
+  测试 NameError 暴露，已从 git 取回原体回填）——跨 def 切段必须断言切割区间清单
