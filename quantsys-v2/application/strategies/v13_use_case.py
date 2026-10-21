@@ -26,7 +26,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 from domain.strategies.value_objects import Order, OrderSide, StrategyConfig
 from domain.strategies.xgboost_strategy import XGBoostStrategy
-from application.notification import get_notification_facade
+from qs_notification.application import get_notification_facade
 
 from application.strategies.v13_config import V13_CONFIG
 

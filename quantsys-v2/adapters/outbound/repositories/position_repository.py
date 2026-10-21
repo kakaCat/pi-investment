@@ -5,12 +5,12 @@ Position ORM Repository - 持仓仓储
   - 原 stub 未实现抽象方法 get_positions，无法实例化
   - 实际表 quant.positions（uuid 主键，account_id 区分组合）
 """
-from infrastructure.persistence.orm import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
 from sqlalchemy import Column, Integer, String, Float, Date, DateTime, Text
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.exc import SQLAlchemyError
-from infrastructure.persistence.orm.base import Base
-from domain.ports import IPositionRepository
+from qs_kernel.infrastructure.persistence.orm.base import Base
+from qs_kernel.domain.ports import IPositionRepository
 from typing import List, Optional, Dict, Any
 import structlog
 

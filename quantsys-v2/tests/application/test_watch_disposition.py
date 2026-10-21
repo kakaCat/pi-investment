@@ -9,7 +9,7 @@
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 
-from domain.watch.services.disposition import (
+from qs_watch.domain.watch.services.disposition import (
     DISPOSITION_AUTO_OBSERVED, DISPOSITION_ESCALATED, DISPOSITION_META_REVIEW,
     DISPOSITION_PENDING, GateContext, InterventionConfig, decide,
     dedup_key, evaluate_meta_trigger, is_resolved, normalize_symbol,
@@ -132,6 +132,27 @@ def test_dedup_key_unifies_symbol_forms():
     assert dedup_key(_rule(), _cond('below')) == dedup_key(
         SimpleNamespace(id=2, symbol='600150.SH', intent=None, conditions=[], action_hint=None), _cond('below'))
     assert dedup_key(_rule(), _cond('below')) != dedup_key(_rule(), _cond('above'))
+
+
+def test_dedup_key_distinguishes_accounts():
+    """账户是投送维度（2026-10-19）：同标的同向、不同账户 → 不同键（绝不跨账户合并）。
+
+    缺账户（''）与有账户也不同键；linked_account 优先于 account（与
+    rule_guard.effective_account 同口径）。
+    """
+    base = _rule()
+    a = SimpleNamespace(id=2, symbol='600150', intent=None, conditions=[],
+                        action_hint=None, linked_account='agent_brain', account=None)
+    b = SimpleNamespace(id=3, symbol='600150', intent=None, conditions=[],
+                        action_hint=None, linked_account=None, account='user_main_simulation')
+    b2 = SimpleNamespace(id=4, symbol='600150', intent=None, conditions=[],
+                         action_hint=None, linked_account='agent_virtual',
+                         account='user_main_simulation')
+    cond = _cond('below')
+    assert dedup_key(base, cond) != dedup_key(a, cond)          # 无账户 ≠ 有账户
+    assert dedup_key(a, cond) != dedup_key(b, cond)             # 两账户互不合并
+    assert dedup_key(b2, cond)[0] == 'agent_virtual'            # linked_account 优先
+    assert dedup_key(a, cond) == dedup_key(a, cond)             # 稳定可复现
 
 
 # ── 2026-09-14：升级原因必须可考 ────────────────────────────────────

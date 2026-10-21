@@ -26,8 +26,8 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 # 统一使用结构化日志配置
-from infrastructure.config import get_config
-from infrastructure.logging import configure_structured_logging
+from qs_kernel.infrastructure.config import get_config
+from qs_kernel.infrastructure.logging import configure_structured_logging
 
 config = get_config()
 configure_structured_logging(

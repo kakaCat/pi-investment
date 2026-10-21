@@ -188,7 +188,7 @@ def _run_sync_handler_with_session_release(handler: Callable, metadata: dict):
         return handler(metadata)
     finally:
         try:
-            from infrastructure.persistence.orm.config import close_session
+            from qs_kernel.infrastructure.persistence.orm.config import close_session
 
             close_session()
         except Exception as exc:  # 释放失败不应影响任务结果
@@ -242,7 +242,7 @@ async def execute_job(handler: Callable, payload: WebhookPayload):
         # 实证：market_perception_daily 2026-09-07~09-10 连败 4 天（AttributeError），
         # 4 条 run 全 success，看门狗 v2_health_check 全程报 ok。现以内层结果为准，
         # 判定口径与 APScheduler 路径共用 classify_job_result（避免两套口径再次漂移）。
-        from infrastructure.scheduler.job_executor import classify_job_result
+        from qs_ops.infrastructure.scheduler.job_executor import classify_job_result
 
         inner_error = classify_job_result(result)
         if inner_error is None:
@@ -269,7 +269,7 @@ async def execute_job(handler: Callable, payload: WebhookPayload):
 
     # Write to local database
     try:
-        from infrastructure.scheduler.scheduler import SchedulerService
+        from qs_ops.infrastructure.scheduler.scheduler import SchedulerService
 
         scheduler = SchedulerService()
         # Note: We don't have a task_id in local DB for Agent OS jobs
@@ -311,7 +311,7 @@ async def execute_job(handler: Callable, payload: WebhookPayload):
         return
 
     try:
-        from application.services.agent_os_client import get_agent_os_client
+        from qs_agenthub.application.services.agent_os_client import get_agent_os_client
 
         agent_os_client = get_agent_os_client()
         await agent_os_client.report_job_result(

@@ -12,7 +12,7 @@ import pytest
 import numpy as np
 import pandas as pd
 from unittest.mock import Mock, patch
-from domain.quantlib.qlib import QLIB_RL_AVAILABLE
+from qs_quantlib.qlib import QLIB_RL_AVAILABLE
 
 # Skip all tests if Qlib is not available
 pytestmark = pytest.mark.skipif(
@@ -41,12 +41,12 @@ class TestQlibTradingEnv:
 
     def test_import_qlib_environment(self):
         """Test that QlibTradingEnv can be imported."""
-        from domain.quantlib.qlib import QlibTradingEnv
+        from qs_quantlib.qlib import QlibTradingEnv
         assert QlibTradingEnv is not None
 
     def test_environment_initialization(self, sample_data):
         """Test environment initialization."""
-        from domain.quantlib.qlib import QlibTradingEnv
+        from qs_quantlib.qlib import QlibTradingEnv
 
         env = QlibTradingEnv(
             df=sample_data,
@@ -60,15 +60,15 @@ class TestQlibTradingEnv:
 
     def test_environment_inherits_from_base(self, sample_data):
         """Test that QlibTradingEnv inherits from BaseRLEnvironment."""
-        from domain.quantlib.qlib import QlibTradingEnv
-        from domain.quantlib.rl.base_environment import BaseRLEnvironment
+        from qs_quantlib.qlib import QlibTradingEnv
+        from qs_quantlib.rl.base_environment import BaseRLEnvironment
 
         env = QlibTradingEnv(df=sample_data)
         assert isinstance(env, BaseRLEnvironment)
 
     def test_action_space_defined(self, sample_data):
         """Test that action space is properly defined."""
-        from domain.quantlib.qlib import QlibTradingEnv
+        from qs_quantlib.qlib import QlibTradingEnv
 
         env = QlibTradingEnv(df=sample_data)
 
@@ -77,7 +77,7 @@ class TestQlibTradingEnv:
 
     def test_observation_space_defined(self, sample_data):
         """Test that observation space is properly defined."""
-        from domain.quantlib.qlib import QlibTradingEnv
+        from qs_quantlib.qlib import QlibTradingEnv
 
         env = QlibTradingEnv(df=sample_data)
 
@@ -86,7 +86,7 @@ class TestQlibTradingEnv:
 
     def test_reset_method(self, sample_data):
         """Test environment reset."""
-        from domain.quantlib.qlib import QlibTradingEnv
+        from qs_quantlib.qlib import QlibTradingEnv
 
         env = QlibTradingEnv(df=sample_data, initial_capital=100000)
         observation, info = env.reset(seed=42)
@@ -97,7 +97,7 @@ class TestQlibTradingEnv:
 
     def test_reset_with_seed(self, sample_data):
         """Test that reset with seed is reproducible."""
-        from domain.quantlib.qlib import QlibTradingEnv
+        from qs_quantlib.qlib import QlibTradingEnv
 
         env = QlibTradingEnv(df=sample_data)
 
@@ -108,7 +108,7 @@ class TestQlibTradingEnv:
 
     def test_step_method(self, sample_data):
         """Test environment step."""
-        from domain.quantlib.qlib import QlibTradingEnv
+        from qs_quantlib.qlib import QlibTradingEnv
 
         env = QlibTradingEnv(df=sample_data)
         env.reset(seed=42)
@@ -124,7 +124,7 @@ class TestQlibTradingEnv:
 
     def test_step_before_reset_raises_error(self, sample_data):
         """Test that step before reset raises error."""
-        from domain.quantlib.qlib import QlibTradingEnv
+        from qs_quantlib.qlib import QlibTradingEnv
 
         env = QlibTradingEnv(df=sample_data)
 
@@ -133,7 +133,7 @@ class TestQlibTradingEnv:
 
     def test_render_method(self, sample_data):
         """Test environment rendering."""
-        from domain.quantlib.qlib import QlibTradingEnv
+        from qs_quantlib.qlib import QlibTradingEnv
 
         env = QlibTradingEnv(df=sample_data)
         env.reset()
@@ -145,7 +145,7 @@ class TestQlibTradingEnv:
 
     def test_close_method(self, sample_data):
         """Test environment cleanup."""
-        from domain.quantlib.qlib import QlibTradingEnv
+        from qs_quantlib.qlib import QlibTradingEnv
 
         env = QlibTradingEnv(df=sample_data)
         env.reset()
@@ -155,14 +155,14 @@ class TestQlibTradingEnv:
 
     def test_empty_dataframe_raises_error(self):
         """Test that empty DataFrame raises error."""
-        from domain.quantlib.qlib import QlibTradingEnv
+        from qs_quantlib.qlib import QlibTradingEnv
 
         with pytest.raises(ValueError, match="empty"):
             QlibTradingEnv(df=pd.DataFrame())
 
     def test_missing_columns_raises_error(self):
         """Test that missing required columns raises error."""
-        from domain.quantlib.qlib import QlibTradingEnv
+        from qs_quantlib.qlib import QlibTradingEnv
 
         df = pd.DataFrame({
             'date': pd.date_range('2024-01-01', periods=10),
@@ -174,7 +174,7 @@ class TestQlibTradingEnv:
 
     def test_portfolio_tracking(self, sample_data):
         """Test that environment tracks portfolio state."""
-        from domain.quantlib.qlib import QlibTradingEnv
+        from qs_quantlib.qlib import QlibTradingEnv
 
         env = QlibTradingEnv(df=sample_data, initial_capital=100000)
         env.reset()
@@ -186,7 +186,7 @@ class TestQlibTradingEnv:
 
     def test_transaction_cost_applied(self, sample_data):
         """Test that transaction costs are applied."""
-        from domain.quantlib.qlib import QlibTradingEnv
+        from qs_quantlib.qlib import QlibTradingEnv
 
         env = QlibTradingEnv(
             df=sample_data,
@@ -204,7 +204,7 @@ class TestQlibTradingEnv:
 
     def test_reward_calculation(self, sample_data):
         """Test that rewards are calculated correctly."""
-        from domain.quantlib.qlib import QlibTradingEnv
+        from qs_quantlib.qlib import QlibTradingEnv
 
         env = QlibTradingEnv(df=sample_data)
         env.reset()
@@ -217,7 +217,7 @@ class TestQlibTradingEnv:
 
     def test_episode_termination(self, sample_data):
         """Test that episode terminates correctly."""
-        from domain.quantlib.qlib import QlibTradingEnv
+        from qs_quantlib.qlib import QlibTradingEnv
 
         # Use small dataset to reach end quickly
         small_data = sample_data.head(5)
@@ -238,7 +238,7 @@ class TestQlibTradingEnv:
 
     def test_observation_shape_consistency(self, sample_data):
         """Test that observation shape is consistent."""
-        from domain.quantlib.qlib import QlibTradingEnv
+        from qs_quantlib.qlib import QlibTradingEnv
 
         env = QlibTradingEnv(df=sample_data)
         obs1, _ = env.reset()
@@ -248,7 +248,7 @@ class TestQlibTradingEnv:
 
     def test_seed_method(self, sample_data):
         """Test seed method."""
-        from domain.quantlib.qlib import QlibTradingEnv
+        from qs_quantlib.qlib import QlibTradingEnv
 
         env = QlibTradingEnv(df=sample_data)
         env.seed(42)
@@ -257,7 +257,7 @@ class TestQlibTradingEnv:
 
     def test_multiple_episodes(self, sample_data):
         """Test running multiple episodes."""
-        from domain.quantlib.qlib import QlibTradingEnv
+        from qs_quantlib.qlib import QlibTradingEnv
 
         env = QlibTradingEnv(df=sample_data)
 
@@ -275,7 +275,7 @@ class TestQlibTradingEnv:
 
     def test_info_dict_contains_metadata(self, sample_data):
         """Test that info dict contains useful metadata."""
-        from domain.quantlib.qlib import QlibTradingEnv
+        from qs_quantlib.qlib import QlibTradingEnv
 
         env = QlibTradingEnv(df=sample_data)
         _, info = env.reset()
@@ -287,7 +287,7 @@ class TestQlibTradingEnv:
 
     def test_qlib_data_format_integration(self, sample_data):
         """Test integration with Qlib data format."""
-        from domain.quantlib.qlib import QlibTradingEnv
+        from qs_quantlib.qlib import QlibTradingEnv
 
         # Qlib typically uses specific column names and formats
         env = QlibTradingEnv(df=sample_data)
@@ -297,10 +297,10 @@ class TestQlibTradingEnv:
         assert env.df is not None
         assert len(env.df) > 0
 
-    @patch('domain.quantlib.qlib.qlib_environment.QLIB_RL_AVAILABLE', False)
+    @patch('qs_quantlib.qlib.qlib_environment.QLIB_RL_AVAILABLE', False)
     def test_graceful_degradation_when_qlib_unavailable(self, sample_data):
         """Test that environment handles missing Qlib gracefully."""
-        from domain.quantlib.qlib import QlibTradingEnv
+        from qs_quantlib.qlib import QlibTradingEnv
 
         # Should still be able to create environment
         # but may have limited functionality

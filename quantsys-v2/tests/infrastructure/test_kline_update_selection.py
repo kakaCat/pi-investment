@@ -15,7 +15,7 @@ import pytest
 # 2026-09-13（w-32314d00，REQ-24e15d t4）：build_stock_query 从作业层移入仓储
 # （jobs 层不再持有 SQL 文本），测试随迁到新家并保持同一组断言。
 from adapters.outbound.repositories.kline_sync_repository import build_stock_query
-from infrastructure.persistence.database.engine import get_engine
+from qs_kernel.infrastructure.persistence.database.engine import get_engine
 from infrastructure.persistence.orm.models.stock import Stock
 from adapters.outbound.repositories.heatmap_repository import HeatmapRepository
 
@@ -58,7 +58,7 @@ def _run_query(sql, params):
     若只测 SQL 文本而执行路径不同，就测不到真实契约。
     """
     from sqlalchemy import bindparam, text
-    from infrastructure.persistence.orm import get_session
+    from qs_kernel.infrastructure.persistence.orm import get_session
 
     stmt = text(sql)
     if params and 'symbols' in params:

@@ -5,11 +5,11 @@ Traceability ORM Repository - 操作可追溯仓储
   - 原 stub 表名错误（traceabilities）且未实现抽象方法 log_operation
   - 实际表 quant.operation_audit（见迁移 add_operation_audit_table.sql）
 """
-from infrastructure.persistence.orm import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
 from sqlalchemy import Column, Integer, String, DateTime, JSON, Text
 from sqlalchemy.exc import SQLAlchemyError
-from infrastructure.persistence.orm.base import Base
-from domain.ports import ITraceabilityRepository
+from qs_kernel.infrastructure.persistence.orm.base import Base
+from qs_kernel.domain.ports import ITraceabilityRepository
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 import structlog

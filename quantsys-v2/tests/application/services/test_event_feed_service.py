@@ -10,7 +10,7 @@ import asyncio
 
 import pytest
 
-from application.services.event_feed_service import (
+from qs_intel.application.services.event_feed_service import (
     EventFeedService, IngestEventsDailyJob, IngestEventsPolicyJob, build_event_ingest_jobs,
 )
 

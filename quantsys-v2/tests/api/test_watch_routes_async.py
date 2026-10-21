@@ -114,8 +114,8 @@ def test_list_filter_by_symbol(client, created_rule):
 
 # ── 回归守护（2026-09-14）：处置类端点曾整体 500 ──────────────────────
 # 背景：这三个端点的函数体里 import 的是
-#   application.services.watch_engine.disposition   ← 该模块不存在
-# 正确路径是 domain.watch.services.disposition。
+#   qs_watch.application.services.watch_engine.disposition   ← 该模块不存在
+# 正确路径是 qs_watch.domain.watch.services.disposition。
 # 因路由层此前无任何测试覆盖，线上 500 持续 3 天（89a42a99 引入）才被人工核查发现。
 # 本测试的价值不在业务断言，而在**强制路由真正执行到底**：
 # 错误导入、缺符号、函数体异常都会在此暴露，而不是等线上 500。

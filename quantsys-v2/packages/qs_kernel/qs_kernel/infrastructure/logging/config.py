@@ -1,0 +1,353 @@
+"""
+结构化日志配置 - structlog
+
+提供 JSON 格式日志、trace ID 追踪、敏感信息过滤
+"""
+import logging
+import os
+import sys
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, Optional
+import uuid
+
+# 项目统一时间口径：北京时间（UTC+8）
+# 2026-09-11（w-f4aa1f6a）：此前 v2 日志用 structlog 默认的 UTC（7.2 万行），
+# 与 agent-os(zap,+0800)、launchd、PG(timestamptz/Asia-Shanghai) 不一致，排查易误读。
+CST = timezone(timedelta(hours=8))
+
+
+def _beijing_timestamp(_logger: Any, _method_name: str, event_dict: Dict[str, Any]) -> Dict[str, Any]:
+    """structlog 处理器：写入**显式北京时间**（带 +08:00 偏移）的时间戳。
+
+    键名保持 "timestamp" 不变，避免下游解析口径漂移；值形如
+    2026-09-11T19:03:43.449278+08:00（aware，不会与 UTC 混淆）。
+    """
+    event_dict["timestamp"] = datetime.now(CST).isoformat()
+    return event_dict
+
+
+def configure_structured_logging(
+    level: str = "INFO",
+    json_format: bool = True,
+    enable_trace_id: bool = True,
+) -> logging.Logger:
+    """配置结构化日志
+
+    Args:
+        level: 日志级别（DEBUG/INFO/WARNING/ERROR）
+        json_format: 是否输出 JSON 格式（生产环境建议 True）
+        enable_trace_id: 是否启用 trace ID 追踪
+
+    Returns:
+        logging.Logger: 配置好的 logger
+
+    Usage:
+        # 在应用启动时调用一次
+        from qs_kernel.infrastructure.logging import configure_structured_logging
+        configure_structured_logging(level="INFO", json_format=True)
+
+        # 在代码中使用
+        import structlog
+        logger = structlog.get_logger()
+        logger.info("ml_predict_called", symbol="600000", model_version="v2.3")
+
+        # 输出:
+        # {"event": "ml_predict_called", "symbol": "600000", "model_version": "v2.3",
+        #  "timestamp": "2026-06-24T14:30:00Z", "level": "info"}
+    """
+    try:
+        import structlog
+        from structlog.processors import JSONRenderer
+        from structlog.stdlib import add_log_level, add_logger_name
+        from structlog.dev import ConsoleRenderer
+    except ImportError:
+        print("⚠️ structlog not installed. Run: pip install structlog")
+        print("⚠️ Falling back to standard logging")
+        return _configure_standard_logging(level)
+
+    # 配置标准库 logging（structlog 的底层）
+    # 2026-10-01（REQ-261001145152-3982 t-6a02e6）：补**可选的文件轮转**。
+    # 背景（实测）：本仓日志此前只走 stdout，靠调用方 shell 重定向落盘 →
+    # 单文件涨到 174M/168M 且从不轮转（logs/ 曾达 355M，live_trading/logs 达 5.2G）。
+    # 设 LOG_FILE 即启用轮转；不设则行为与改前完全一致（仅 stdout）。
+    _handlers: list = [logging.StreamHandler(sys.stdout)]
+    _log_file = os.getenv('LOG_FILE')
+    if _log_file:
+        from logging.handlers import RotatingFileHandler
+        from pathlib import Path as _Path
+
+        _max_bytes = int(os.getenv('LOG_MAX_BYTES', str(50 * 1024 * 1024)))  # 默认 50MB
+        _backups = int(os.getenv('LOG_BACKUPS', '5'))
+        _Path(_log_file).parent.mkdir(parents=True, exist_ok=True)
+        _handlers.append(
+            RotatingFileHandler(
+                _log_file, maxBytes=_max_bytes, backupCount=_backups, encoding='utf-8'
+            )
+        )
+
+    _apply_root_handlers(_handlers, level, fmt="%(message)s")
+
+    # 选择渲染器
+    if json_format:
+        # 生产环境：JSON 格式（可搜索、可解析）
+        renderer = JSONRenderer()
+    else:
+        # 开发环境：彩色控制台输出（易读）
+        renderer = ConsoleRenderer(colors=True)
+
+    # 配置处理器链
+    processors = [
+        # 1. 添加 logger 名称
+        add_logger_name,
+        # 2. 添加日志级别
+        add_log_level,
+        # 3. 添加时间戳（ISO 8601，**显式北京时间 +08:00**）
+        # 2026-09-11（w-f4aa1f6a）：原用 TimeStamper(fmt="iso")，structlog 默认 utc=True
+        # → v2 全部日志（当时 7.2 万行）时间戳是 UTC、比北京时间早 8 小时，与
+        # agent-os(zap,+0800)、launchd、DB(timestamptz/Asia-Shanghai) 口径不一致，
+        # 排查时极易误读（本次会话就因它把 13:07 读成 05:07Z 而误判时间线）。
+        # 注意 utc=False 只给"裸本地时间"（无偏移，仍易误读），故用自定义处理器
+        # 输出带 +08:00 的 aware 时间；键名保持 "timestamp" 不变（避免下游解析漂移）。
+        _beijing_timestamp,
+        # 4. 添加堆栈信息（异常时）
+        structlog.processors.StackInfoRenderer(),
+        # 5. 格式化异常
+        structlog.processors.format_exc_info,
+        # 6. 过滤敏感信息
+        _filter_sensitive_processor,
+        # 7. Unicode 解码
+        structlog.processors.UnicodeDecoder(),
+        # 8. 最终渲染
+        renderer,
+    ]
+
+    # 如果启用 trace ID，添加到处理器链
+    if enable_trace_id:
+        processors.insert(0, _add_trace_id_processor)
+
+    # 配置 structlog
+    structlog.configure(
+        processors=processors,
+        wrapper_class=structlog.stdlib.BoundLogger,
+        context_class=dict,
+        logger_factory=structlog.stdlib.LoggerFactory(),
+        cache_logger_on_first_use=True,
+    )
+
+    logger = structlog.get_logger()
+    logger.info(
+        "structured_logging_configured",
+        level=level,
+        json_format=json_format,
+        enable_trace_id=enable_trace_id,
+    )
+
+    return logger
+
+
+def _apply_root_handlers(handlers: list, level: str, fmt: str, datefmt: str | None = None) -> None:
+    """显式给 root logger 装 handler（替代 `basicConfig`）。
+
+    2026-10-01（REQ-261001145152-3982 t-008062 主题B）：本仓约定"库层不得调用
+    `basicConfig`，日志由入口统一配置"，而本模块**就是那个入口配置器**——
+    为守住这条约定同时保持行为，这里显式装配 root handler。
+
+    语义对齐 `basicConfig(handlers=..., level=..., force=False)`：
+    **root 已有 handler 时不动它**（重复调用幂等，不会叠加 handler）。
+    """
+    root = logging.getLogger()
+    if root.handlers:
+        return
+    root.setLevel(getattr(logging, level.upper()))
+    for h in handlers:
+        h.setFormatter(logging.Formatter(fmt, datefmt=datefmt))
+        root.addHandler(h)
+
+
+def _configure_standard_logging(level: str) -> logging.Logger:
+    """降级到标准 logging（structlog 不可用时）"""
+    _apply_root_handlers(
+        [logging.StreamHandler()],
+        level,
+        fmt="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    logger = logging.getLogger(__name__)
+    logger.warning("Using standard logging (structlog not available)")
+    return logger
+
+
+def _add_trace_id_processor(
+    logger: Any, method_name: str, event_dict: Dict[str, Any]
+) -> Dict[str, Any]:
+    """添加 trace ID 到日志
+
+    trace ID 用于追踪分布式系统中的请求链路
+    """
+    # 尝试从上下文获取 trace ID
+    trace_id = _get_current_trace_id()
+
+    if not trace_id:
+        # 如果没有，生成新的 trace ID
+        trace_id = str(uuid.uuid4())[:8]
+        _set_current_trace_id(trace_id)
+
+    event_dict["trace_id"] = trace_id
+    return event_dict
+
+
+def _filter_sensitive_processor(
+    logger: Any, method_name: str, event_dict: Dict[str, Any]
+) -> Dict[str, Any]:
+    """过滤敏感信息（密码、Token、API Key）"""
+    sensitive_keys = [
+        "password",
+        "passwd",
+        "pwd",
+        "secret",
+        "token",
+        "api_key",
+        "apikey",
+        "access_token",
+        "refresh_token",
+        "authorization",
+        "auth",
+    ]
+
+    for key in list(event_dict.keys()):
+        # 检查键名是否包含敏感关键词
+        if any(sensitive in key.lower() for sensitive in sensitive_keys):
+            event_dict[key] = "***REDACTED***"
+
+        # 检查值是否是字符串且看起来像密码/Token
+        elif isinstance(event_dict[key], str):
+            value = event_dict[key]
+            # JWT Token 格式
+            if value.count(".") == 2 and len(value) > 50:
+                event_dict[key] = "***JWT_REDACTED***"
+            # API Key 格式（长字符串）
+            elif len(value) > 32 and value.isalnum():
+                event_dict[key] = "***KEY_REDACTED***"
+
+    return event_dict
+
+
+# ── Trace ID 上下文管理 ──
+
+import contextvars
+
+_trace_id_context: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
+    "trace_id", default=None
+)
+
+
+def _get_current_trace_id() -> Optional[str]:
+    """获取当前上下文的 trace ID"""
+    return _trace_id_context.get()
+
+
+def _set_current_trace_id(trace_id: str) -> None:
+    """设置当前上下文的 trace ID"""
+    _trace_id_context.set(trace_id)
+
+
+def get_trace_id() -> str:
+    """获取当前 trace ID（公共 API）
+
+    Returns:
+        str: 当前请求的 trace ID
+
+    Usage:
+        from qs_kernel.infrastructure.logging import get_trace_id
+
+        trace_id = get_trace_id()
+        logger.info("processing_request", trace_id=trace_id)
+    """
+    trace_id = _get_current_trace_id()
+    if not trace_id:
+        trace_id = str(uuid.uuid4())[:8]
+        _set_current_trace_id(trace_id)
+    return trace_id
+
+
+def set_trace_id(trace_id: str) -> None:
+    """设置 trace ID（用于跨服务传递）
+
+    Args:
+        trace_id: 从上游服务接收的 trace ID
+
+    Usage:
+        from qs_kernel.infrastructure.logging import set_trace_id
+
+        # 在 FastAPI 中间件中
+        async def middleware(request: Request, call_next):
+            trace_id = request.headers.get('X-Trace-ID')
+            if trace_id:
+                set_trace_id(trace_id)
+            return await call_next(request)
+    """
+    _set_current_trace_id(trace_id)
+
+
+# ── 日志装饰器 ──
+
+def log_execution(operation: str):
+    """装饰器：记录函数执行日志
+
+    Args:
+        operation: 操作名称
+
+    Usage:
+        from qs_kernel.infrastructure.logging import log_execution
+
+        @log_execution("ml_predict")
+        def predict_model(symbol: str):
+            # 自动记录开始/结束/耗时/异常
+            pass
+    """
+    import functools
+    import time
+    import structlog
+
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            logger = structlog.get_logger()
+            start_time = time.time()
+
+            logger.info(
+                f"{operation}_started",
+                operation=operation,
+                function=func.__name__,
+            )
+
+            try:
+                result = func(*args, **kwargs)
+                duration_ms = (time.time() - start_time) * 1000
+
+                logger.info(
+                    f"{operation}_completed",
+                    operation=operation,
+                    function=func.__name__,
+                    duration_ms=round(duration_ms, 2),
+                )
+
+                return result
+
+            except Exception as e:
+                duration_ms = (time.time() - start_time) * 1000
+
+                logger.error(
+                    f"{operation}_failed",
+                    operation=operation,
+                    function=func.__name__,
+                    duration_ms=round(duration_ms, 2),
+                    error=str(e),
+                    error_type=type(e).__name__,
+                )
+
+                # 重新抛出异常
+                raise
+
+        return wrapper
+    return decorator

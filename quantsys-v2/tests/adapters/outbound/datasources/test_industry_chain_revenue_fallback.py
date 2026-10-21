@@ -11,9 +11,9 @@ manager.get_industry_chain_revenue 分两段调用的原因见其 docstring（�
 """
 import pytest
 
-from adapters.outbound.datasources.manager import DataProviderManager
-from adapters.outbound.datasources.providers.industry_chain import eastmoney_revenue as mod
-from adapters.outbound.datasources.providers.industry_chain.eastmoney_revenue import (
+from qs_market_data.adapters.outbound.datasources.manager import DataProviderManager
+from qs_market_data.adapters.outbound.datasources.providers.industry_chain import eastmoney_revenue as mod
+from qs_market_data.adapters.outbound.datasources.providers.industry_chain.eastmoney_revenue import (
     EastmoneyRevenueProvider, ThsRevenueProvider,
 )
 

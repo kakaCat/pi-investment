@@ -5,7 +5,7 @@
 提供因子分层回测的统一服务接口，封装 FactorLayeringBacktest 和 ICAnalyzer。
 """
 
-from domain.ports import IKlineRepository, IStockRepository
+from qs_kernel.domain.ports import IKlineRepository, IStockRepository
 import pandas as pd
 import numpy as np
 from typing import List, Dict, Any, Optional
@@ -15,7 +15,7 @@ from datetime import datetime, timedelta
 from domain.factors.analysis.layering_backtest import FactorLayeringBacktest
 from domain.factors.analysis.ic_analyzer import ICAnalyzer
 from domain.backtest.stages.factor_stage import FactorStage
-from application.services.stock_pool_service import StockPoolService
+from qs_sourcing.application.services.stock_pool_service import StockPoolService
 
 logger = structlog.get_logger(__name__)
 
@@ -269,7 +269,7 @@ class FactorLayeringService:
             start_date = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
 
         # 获取因子适配器
-        from infrastructure.quantlib.adapters import get_factor_adapter
+        from adapters.outbound.datasources.providers.quantlib.factor_calculator_adapter import get_factor_adapter
         adapter = get_factor_adapter()
 
         factor_values = {}

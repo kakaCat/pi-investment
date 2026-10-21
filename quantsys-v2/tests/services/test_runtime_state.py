@@ -15,11 +15,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from application.services.watch_engine.engine import (
+from qs_watch.application.services.watch_engine.engine import (
     RUNTIME_PERSIST_ENV, WatchEngine, _runtime_persist_enabled,
 )
-from application.services.watch_engine.state_manager import StateManager
-from application.services.watch_engine.trigger_judge import TriggerJudge
+from qs_watch.application.services.watch_engine.state_manager import StateManager
+from qs_watch.application.services.watch_engine.trigger_judge import TriggerJudge
 
 # 状态层测试用（naive，与引擎 datetime.now 口径一致）
 NOW = datetime(2026, 9, 18, 10, 0, 0)
@@ -271,7 +271,7 @@ class _Notifier:
 
     def notify(self, rule, condition, quote, result, **kwargs):
         self.notifications.append((rule.id, quote.price))
-        return SimpleNamespace(id=len(self.notifications))
+        return SimpleNamespace(id=len(self.notifications), notified=True)
 
 
 def _engine(rules, prices, **kw):
@@ -351,7 +351,7 @@ def test_repository_roundtrip_on_test_db():
     数据库不可用时 skip（不伪造通过）；可用而适配器坏掉时必须红。
     """
     import psycopg2
-    from infrastructure.persistence.database.engine import _resolve_db_dsn
+    from qs_kernel.infrastructure.persistence.database.engine import _resolve_db_dsn
 
     dsn = _resolve_db_dsn()
     if not dsn:
@@ -361,7 +361,7 @@ def test_repository_roundtrip_on_test_db():
     except Exception as e:  # noqa: BLE001
         pytest.skip(f'test database unavailable: {e}')
 
-    from infrastructure.persistence.orm import Base, close_session, get_session
+    from qs_kernel.infrastructure.persistence.orm import Base, close_session, get_session
     from infrastructure.persistence.orm.models.watch_todo import (
         WatchRuntimeMeta, WatchRuntimeState,
     )

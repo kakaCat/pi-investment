@@ -18,7 +18,7 @@ from application.services.ml_pipeline.trainer import MLTrainer
 from application.services.ml_pipeline.predictor import MLPredictor
 
 # Import factor modules to register factors
-from domain.quantlib.engine import technical_factors, fundamental_factors
+from qs_quantlib.engine import technical_factors, fundamental_factors
 
 
 def generate_sample_data(n_symbols=10, n_days=200):

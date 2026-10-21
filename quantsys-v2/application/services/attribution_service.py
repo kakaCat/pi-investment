@@ -31,7 +31,7 @@ class AttributionService:
         """返回 (cursor, pooled_connection|None)。tuple 行语义保持不变（不换 RealDictCursor）。"""
         if self._injected is not None:
             return self._injected.cursor(), None
-        from infrastructure.persistence.database.engine import get_engine
+        from qs_kernel.infrastructure.persistence.database.engine import get_engine
         pooled = get_engine().connect()
         return pooled.connection.cursor(), pooled
     
@@ -81,7 +81,7 @@ class AttributionService:
         # SignalTrackingRepository.list_signals_between（列名/列顺序/ORDER BY 不变，
         # 未取到的列仍为 None）。该仓储自带连接自愈机制，本批未改动它，只新增方法；
         # 注入的 db_connection 依旧优先（与 _acquire_cursor 的注入语义一致）。
-        from adapters.outbound.repositories.signal_tracking_repository import SignalTrackingRepository
+        from qs_sourcing.adapters.outbound.repositories.signal_tracking_repository import SignalTrackingRepository
         signals = SignalTrackingRepository(self._injected).list_signals_between(start_date, end_date)
 
         # Postgres numeric → decimal.Decimal；下游按 float 累加

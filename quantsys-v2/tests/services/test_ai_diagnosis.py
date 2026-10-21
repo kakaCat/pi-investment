@@ -2,8 +2,8 @@
 import pytest
 from unittest.mock import patch, MagicMock
 from datetime import datetime, timezone
-from infrastructure.persistence.database.engine import db_cursor
-from application.services.session_service import SessionService
+from qs_kernel.infrastructure.persistence.database.engine import db_cursor
+from qs_agenthub.application.services.session_service import SessionService
 from tests.services.test_session_service import DDL
 
 
@@ -26,6 +26,10 @@ def service():
         "created_at": datetime.now(timezone.utc).isoformat(),
     }])
     yield s
+    # 缓存命中路径的 SELECT 会留下未 commit 的事务；不释放 scoped_session，
+    # 下个用例的 DDL 会被同线程残留 AccessShare 长期阻塞（2026-10-19 挂死取证）。
+    from qs_kernel.infrastructure.persistence.orm.config import close_session
+    close_session()
 
 
 def _fake_config(api_key: str = 'sk-test'):
@@ -40,8 +44,8 @@ def test_ai_diagnosis_success(service):
     fake_resp.status_code = 200
     fake_resp.json.return_value = {'choices': [{'message': {'content': '做得好：X\n问题：Y\n建议：Z'}}]}
 
-    with patch('application.services.llm_service.get_config', return_value=_fake_config()):
-        with patch('application.services.llm_service.requests.post', return_value=fake_resp):
+    with patch('qs_agenthub.application.services.llm_service.get_config', return_value=_fake_config()):
+        with patch('qs_agenthub.application.services.llm_service.requests.post', return_value=fake_resp):
             result = service.ai_diagnosis('agent:main:wake:e2e')
 
     assert '做得好' in result['analysis']
@@ -53,8 +57,8 @@ def test_ai_diagnosis_cached_no_second_call(service):
     fake_resp.status_code = 200
     fake_resp.json.return_value = {'choices': [{'message': {'content': '分析内容'}}]}
 
-    with patch('application.services.llm_service.get_config', return_value=_fake_config()):
-        with patch('application.services.llm_service.requests.post', return_value=fake_resp) as mock_post:
+    with patch('qs_agenthub.application.services.llm_service.get_config', return_value=_fake_config()):
+        with patch('qs_agenthub.application.services.llm_service.requests.post', return_value=fake_resp) as mock_post:
             service.ai_diagnosis('agent:main:wake:e2e')
             second = service.ai_diagnosis('agent:main:wake:e2e')
 
@@ -63,7 +67,7 @@ def test_ai_diagnosis_cached_no_second_call(service):
 
 
 def test_ai_diagnosis_no_api_key(service):
-    with patch('application.services.llm_service.get_config', return_value=_fake_config(api_key='')):
+    with patch('qs_agenthub.application.services.llm_service.get_config', return_value=_fake_config(api_key='')):
         with pytest.raises(RuntimeError, match='DEEPSEEK_API_KEY'):
             service.ai_diagnosis('agent:main:wake:e2e')
 
@@ -73,8 +77,8 @@ def test_ai_diagnosis_refresh_forces_regenerate(service):
     fake_resp.status_code = 200
     fake_resp.json.return_value = {'choices': [{'message': {'content': '新分析'}}]}
 
-    with patch('application.services.llm_service.get_config', return_value=_fake_config()):
-        with patch('application.services.llm_service.requests.post', return_value=fake_resp) as mock_post:
+    with patch('qs_agenthub.application.services.llm_service.get_config', return_value=_fake_config()):
+        with patch('qs_agenthub.application.services.llm_service.requests.post', return_value=fake_resp) as mock_post:
             service.ai_diagnosis('agent:main:wake:e2e')
             service.ai_diagnosis('agent:main:wake:e2e', refresh=True)
 

@@ -10,9 +10,9 @@ from unittest.mock import patch, MagicMock
 
 import pandas as pd
 
-from adapters.outbound.datasources.providers.kline.base import KlineData
-from adapters.outbound.datasources.providers.kline.tencent import TencentKlineProvider
-from adapters.outbound.datasources.providers.kline.akshare import AkshareKlineProvider
+from qs_market_data.adapters.outbound.datasources.providers.kline.base import KlineData
+from qs_market_data.adapters.outbound.datasources.providers.kline.tencent import TencentKlineProvider
+from qs_market_data.adapters.outbound.datasources.providers.kline.akshare import AkshareKlineProvider
 
 
 TENCENT_RESPONSE = {
@@ -36,7 +36,7 @@ def _mock_tencent_get(payload):
     resp = MagicMock()
     resp.json.return_value = payload
     resp.raise_for_status.return_value = None
-    return patch('adapters.outbound.datasources.providers.kline.tencent.requests.get',
+    return patch('qs_market_data.adapters.outbound.datasources.providers.kline.tencent.requests.get',
                  return_value=resp)
 
 
@@ -92,7 +92,7 @@ def test_kline_update_job_writes_amount():
     断言点随之从"INSERT 语句的位置参数"改为"交给写入口的 DailyKline 对象"。
     断言的不变量完全不变：amount / turnover_rate 必须一路传到落库层。
     """
-    from infrastructure.jobs import kline_update_job
+    from qs_ops.infrastructure.jobs import kline_update_job
     from adapters.outbound.repositories.kline_sync_repository import KlineSyncRepository
     from adapters.outbound.repositories import kline_repository as kr_module
 

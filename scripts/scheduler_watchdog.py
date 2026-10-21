@@ -11,6 +11,8 @@ scheduler_watchdog — 双调度系统独立看门狗（RFC 011 第3层）
 
 告警：飞书 bot webhook 直发（不依赖 v2/Agent OS 通知链路），同一问题去重
 （写 quant.scheduler_watchdog_log，恢复前只报一次，恢复后报一次"已恢复"）。
+2026-10-14（用户裁定分群）：落点是**系统运维群**（OPS_FEISHU_WEBHOOK /
+FEISHU_WEBHOOK_OPS / 内置默认值），不再发通用群，避免与股票类消息混流。
 
 补跑策略（业务规则驱动；2026-09-13 w-c8cae280 起启用自动补跑）：
   判定顺序（catchup_decision）：一次性任务 → 授权位 → 已被后续成功运行覆盖 → 次数上限
@@ -39,9 +41,16 @@ DB_DSN = os.environ.get(
     "WATCHDOG_DB_DSN",
     "postgresql://yunpeng@localhost:5432/quant_investment",
 )
-FEISHU_WEBHOOK = os.environ.get(
-    "FEISHU_WEBHOOK_URL",
-    "https://open.feishu.cn/open-apis/bot/v2/hook/b24be3a5-35fc-4142-90c2-3a3933172829",
+# 告警落点 = **系统运维群**（2026-10-14 · 用户裁定分群）。
+# 此前用 FEISHU_WEBHOOK_URL（通用群），调度告警与「盘前例程」「实盘账户·保护线」这类
+# 股票消息混在同一个群里。现在默认发到独立运维群：调度看门狗属系统消息。
+#
+# 取值优先级：WATCHDOG_FEISHU_WEBHOOK > FEISHU_WEBHOOK_OPS > 内置运维群默认值。
+# 注意**不再读 FEISHU_WEBHOOK_URL** —— 那个变量在别处指向通用群，读了就等于混群。
+OPS_FEISHU_WEBHOOK = (
+    os.environ.get("WATCHDOG_FEISHU_WEBHOOK")
+    or os.environ.get("FEISHU_WEBHOOK_OPS")
+    or "https://open.feishu.cn/open-apis/bot/v2/hook/7aa7ebdd-be9e-47f9-be45-ba9c772499c9"
 )
 V2_HEALTH = os.environ.get("V2_HEALTH_URL", "http://localhost:5001/api/health")
 AGENTOS_HEALTH = os.environ.get("AGENTOS_HEALTH_URL", "http://localhost:8080/health")
@@ -144,7 +153,7 @@ def send_feishu(title, content):
             },
         }
         req = urllib.request.Request(
-            FEISHU_WEBHOOK,
+            OPS_FEISHU_WEBHOOK,
             data=json.dumps(payload).encode("utf-8"),
             headers={"Content-Type": "application/json"},
         )

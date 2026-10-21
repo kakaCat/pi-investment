@@ -29,7 +29,7 @@ from adapters.inbound.fastapi_app.shared import error_response
 from adapters.outbound.repositories.event_calendar_repository import (
     get_event_calendar_repo, event_to_dict,
 )
-from application.services.event_feed_service import (
+from qs_intel.application.services.event_feed_service import (
     EventFeedService, get_event_feed_service, set_event_feed_service,
 )
 
@@ -50,7 +50,7 @@ def get_feed_service() -> EventFeedService:
     """
     svc = get_event_feed_service()
     if svc is None:
-        from adapters.outbound.datasources.manager import get_data_provider_manager
+        from qs_market_data.adapters.outbound.datasources.manager import get_data_provider_manager
         from adapters.outbound.repositories.event_repository import get_market_event_repo
         svc = EventFeedService(
             manager=get_data_provider_manager(),

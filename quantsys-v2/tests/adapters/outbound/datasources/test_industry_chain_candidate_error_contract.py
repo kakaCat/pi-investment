@@ -19,7 +19,7 @@ last_error）严格可分」，且调用方（manager 自己）已经把四态�
 
 全程不触网、不写库：`_try_providers` 与健康排序被替换为桩。
 """
-from adapters.outbound.datasources.manager import DataProviderManager
+from qs_market_data.adapters.outbound.datasources.manager import DataProviderManager
 
 
 class _P:

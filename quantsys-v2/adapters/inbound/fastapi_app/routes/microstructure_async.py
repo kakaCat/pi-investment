@@ -3,7 +3,7 @@
 RFC 015 §4.4（2026-09-11 REQ-cf627b）。数据流：
     agent-dh 工具 / web → 本路由（入站适配器）
         → application/services/microstructure_service（编排，零 adapters 依赖）
-            → domain.trading.services.TradingStatusPolicy（领域判定）
+            → qs_trading.domain.trading.services.TradingStatusPolicy（领域判定）
             → 端口 ← adapters.outbound（minute_kline providers / repositories）
 
 组合根说明：具体实现的装配放在**本文件**（入站适配器），因此应用层可以完全不出现
@@ -15,7 +15,7 @@ from fastapi import APIRouter, Body, Query
 import structlog
 
 from adapters.inbound.fastapi_app.shared import error_response
-from application.services.microstructure_service import (
+from qs_intel.application.services.microstructure_service import (
     MicrostructureService,
     get_microstructure_service,
     set_microstructure_service,
@@ -30,7 +30,7 @@ def get_service() -> MicrostructureService:
     """组合根：装配 IDataProviderManager + ITradingStatusRepository（进程级复用）"""
     svc = get_microstructure_service()
     if svc is None:
-        from adapters.outbound.datasources.manager import get_data_provider_manager
+        from qs_market_data.adapters.outbound.datasources.manager import get_data_provider_manager
         from adapters.outbound.repositories.trading_status_repository import get_trading_status_repo
         svc = MicrostructureService(
             manager=get_data_provider_manager(),

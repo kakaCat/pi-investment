@@ -10,9 +10,9 @@ RFC 015 §4.3（2026-09-11 REQ-cf627b）：
 """
 from typing import Optional
 
-from domain.trading.ports.ITradingStatusRepository import ITradingStatusRepository
+from qs_trading.domain.trading.ports.ITradingStatusRepository import ITradingStatusRepository
 
-from infrastructure.persistence.orm import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
 from infrastructure.persistence.orm.models import DailyKline, Stock
 
 

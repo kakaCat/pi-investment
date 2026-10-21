@@ -1,7 +1,7 @@
 """Tests for base provider classes."""
 import pytest
 from abc import ABC
-from adapters.outbound.datasources.base import (
+from qs_market_data.adapters.outbound.datasources.base import (
     BaseDataProvider,
     QuoteProvider,
     FinancialProvider,
@@ -9,7 +9,7 @@ from adapters.outbound.datasources.base import (
     MarketProvider,
     StockProvider
 )
-from adapters.outbound.datasources.models import QuoteData
+from qs_market_data.adapters.outbound.datasources.models import QuoteData
 
 
 def test_base_provider_is_abstract():

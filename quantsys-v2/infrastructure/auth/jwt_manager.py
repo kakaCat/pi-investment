@@ -8,7 +8,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 from functools import wraps
-from infrastructure.config import get_config
+from qs_kernel.infrastructure.config import get_config
 
 logger = logging.getLogger(__name__)
 

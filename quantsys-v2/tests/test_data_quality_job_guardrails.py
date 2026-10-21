@@ -8,8 +8,8 @@
 """
 import pytest
 
-from infrastructure.jobs import data_quality_check_job as job
-from application.services.data_quality_service import DataQualityService, RETRY_SKIP_FAIL_RATE
+from qs_ops.infrastructure.jobs import data_quality_check_job as job
+from qs_ops.application.services.data_quality_service import DataQualityService, RETRY_SKIP_FAIL_RATE
 
 
 # ── 参数归一 ──────────────────────────────────────────────────────────────
@@ -289,6 +289,14 @@ class FakeFacade:
         self.calls = []
 
     def send_card(self, title=None, content=None, urgency=None):
+        self.calls.append({"title": title, "content": content, "urgency": urgency})
+        if self.raises:
+            raise self.raises
+        return self.ok
+
+    def send_ops_card(self, title=None, content=None, urgency=None):
+        """2026-10-14：数据质量属系统消息 → 生产改走 send_ops_card（独立运维群）。
+        记录形状与 send_card 一致，便于既有断言同时覆盖两条入口。"""
         self.calls.append({"title": title, "content": content, "urgency": urgency})
         if self.raises:
             raise self.raises

@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from adapters.outbound.repositories.watch_rule_repository import (
     WatchTrigger, WatchRuleRepository, WatchTriggerRepository, rule_to_dict, trigger_to_dict,
 )
-from application.services.watch_engine.conditions import validate_condition
+from qs_watch.application.services.watch_engine.conditions import validate_condition
 
 router = APIRouter(tags=['Watch - 实时盯盘'])
 
@@ -25,14 +25,46 @@ def _parse_expires_at(value):
     return datetime.fromisoformat(value)
 
 
+@router.get('/api/watch/outcomes/stats')
+def outcome_stats(rule_id: Optional[int] = Query(None),
+                  horizon_td: Optional[int] = Query(None)):
+    """预判命中率（2026-10-20 P3 预判验证闭环）：触发后 5/10/20 交易日走势对照的聚合。
+
+    返回按 (rule_id, horizon_td) 分组的 judged/hits/hit_rate/avg_pct；
+    hit IS NULL（震荡不定论/方向不可判）的样本不计入分母。
+    """
+    from adapters.outbound.repositories.watch_outcome_repository import (
+        WatchOutcomeRepository,
+    )
+    try:
+        rows = WatchOutcomeRepository().hit_rate(rule_id=rule_id, horizon_td=horizon_td)
+    except Exception as e:
+        return _err(f'命中率查询失败: {e}', 500)
+    return {'success': True, 'data': {'stats': rows}}
+
+
 @router.get('/api/watch/rules')
 def list_rules(symbol: Optional[str] = Query(None), enabled: Optional[str] = Query(None),
-               account: Optional[str] = Query(None)):
+               account: Optional[str] = Query(None),
+               lint: Optional[str] = Query(None)):
     """account=某账户名时仅返回该账户归属 + 通用观察(account 为空)的规则
-    （看板按账户展示盯盘）；不传返回全部。"""
+    （看板按账户展示盯盘）；不传返回全部。
+
+    lint=missing_guidance（REQ-261016155500-4f2a）：只返回四要素（action_params /
+    next_action_hint / intent / action_on_trigger）全空的启用规则，并附缺项明细。"""
     rule_repo = WatchRuleRepository()
     enabled_value = None if enabled is None else enabled.lower() == 'true'
     rules = rule_repo.list_rules(symbol=symbol, enabled=enabled_value, account=account)
+    if lint == 'missing_guidance':
+        from qs_watch.domain.watch.services.rule_lint import guidance_state, is_missing_guidance
+        hits = [r for r in rules if is_missing_guidance(r)]
+        return {'success': True, 'data': {
+            'lint': 'missing_guidance',
+            'count': len(hits),
+            'rules': [{**rule_to_dict(r), 'missing': guidance_state(r)} for r in hits],
+        }}
+    if lint:
+        return _err('未知 lint 类型: %s（目前支持 missing_guidance）' % lint, 400)
     items = [rule_to_dict(r) for r in rules]
     # 2026-09-11（REQ-733c5e, w-348bf585）：补权威 triggered_count。
     # rule_to_dict 此前不含该字段，下游工具层只好多查一次 /api/watch/triggers 自算（双口径），
@@ -71,6 +103,12 @@ def create_rule(payload: Dict[str, Any] = Body(default_factory=dict)):
         expires_at = _parse_expires_at(data.get('expires_at'))
     except ValueError:
         return _err(EXPIRES_AT_ERROR, 400)
+    if 'action_params' in data:
+        # REQ-261016155500-4f2a：结构化操作指引的领域校验（与更新路径同一判据）
+        from qs_watch.domain.watch.models import validate_action_params
+        err = validate_action_params(data.get('action_params'))
+        if err:
+            return _err(err, 400)
     try:
         rule_repo = WatchRuleRepository()
         rule = rule_repo.create_rule(
@@ -88,6 +126,7 @@ def create_rule(payload: Dict[str, Any] = Body(default_factory=dict)):
             linked_account=(data.get('linked_account') or data.get('account') or None),
             intent=data.get('intent'),
             action_hint=data.get('action_hint'),
+            action_params=data.get('action_params'),
         )
     except ValueError as e:
         # 领域守卫拒绝（没有账户不能进入买卖 / 策略账户不接受盯盘规则）→ 400 而非 500：
@@ -116,6 +155,12 @@ def _update_rule(rule_id: int, payload: Dict[str, Any]):
             return _err(EXPIRES_AT_ERROR, 400)
     if 'action_hint' in data and not isinstance(data['action_hint'], dict):
         return _err('action_hint 必须为对象', 400)
+    if 'action_params' in data:
+        # REQ-261016155500-4f2a：结构化操作指引的领域校验（纯函数，错误文案直接可读）
+        from qs_watch.domain.watch.models import validate_action_params
+        err = validate_action_params(data.get('action_params'))
+        if err:
+            return _err(err, 400)
     if 'escalation_policy' in data and not isinstance(data['escalation_policy'], dict):
         return _err('escalation_policy 必须为对象', 400)
 
@@ -146,11 +191,31 @@ def update_rule_patch(rule_id: int, payload: Dict[str, Any] = Body(default_facto
     return _update_rule(rule_id, payload)
 
 
+@router.post('/api/watch/rules/backfill-guidance')
+def backfill_guidance():
+    """缺指引补全闭环（REQ-261016155500-4f2a）：对 lint 命中的启用规则幂等建 P2
+    「补全预案」待办（同规则已有未收敛补全待办则跳过），交处置 agent 回填
+    action_params / intent / observation_criterion。幂等可重复调用。"""
+    try:
+        from qs_watch.application.services.watch_engine.guidance_backfill_service import (
+            GuidanceBackfillService,
+        )
+        result = GuidanceBackfillService.create_default().ensure_todos()
+    except Exception as e:  # noqa: BLE001
+        return _err(f'补全待办创建失败: {e}', 500)
+    return {'success': True, 'data': result}
+
+
 @router.delete('/api/watch/rules/{rule_id}')
 def delete_rule(rule_id: int):
     rule_repo = WatchRuleRepository()
     if rule_repo.get_by_id(rule_id) is None:
         return _err('规则不存在', 404)
+    # 级联归档（2026-10-19）：规则删除后其未收敛待办成孤儿，触发链已断——
+    # 先埋掉再删规则，否则 SLA 巡检会继续晋升/超时打扰用户（静默，不发回执）。
+    from adapters.outbound.repositories.watch_todo_repository import WatchTodoRepository
+    WatchTodoRepository().close_open_by_rule(
+        rule_id, close_reason='盯盘规则已删除，此提醒单随之自动归档，无需处理')
     rule_repo.delete_by_id(rule_id)
     return {'success': True}
 
@@ -163,14 +228,296 @@ def _limit_of(limit, default: int = 50, cap: int = 200) -> int:
     return max(1, min(value, cap))
 
 
+
+# ── 条件入参契约 + 回测（2026-10-20 框架适配）────────────────────────────
+
+@router.get('/api/watch/rules/condition-schema')
+def get_condition_schema():
+    """条件入参契约：全部条件类型的参数说明/单位/示例 + market_gate 规格。
+    单一事实源在 qs_watch 的 CONDITION_SCHEMA / MARKET_CONDITION_SCHEMA。"""
+    from qs_watch.application.services.watch_engine.conditions import CONDITION_SCHEMA
+    from qs_watch.domain.watch.services.market_rule_evaluator import MARKET_CONDITION_SCHEMA
+    return {'symbol_level': CONDITION_SCHEMA, 'market_level': MARKET_CONDITION_SCHEMA,
+            'rule_level_options': {
+                'market_gate': {
+                    'desc': '市场环境复合门（流程图 H 节点）：信号成立后查大盘，环境异常只记录不动作',
+                    'placement': 'action_params.market_gate',
+                    'params': {
+                        'index': {'required': False, 'type': '指数代码',
+                                  'default': '000001.SH', 'example': '000001.SH'},
+                        'max_down_pct': {'required': False, 'type': 'number', 'unit': '%',
+                                         'example': -1.5,
+                                         'desc': '指数跌幅≤此值即拦截（系统性风险日不接飞刀）'},
+                        'max_up_pct': {'required': False, 'type': 'number', 'unit': '%',
+                                       'example': 3.0,
+                                       'desc': '指数涨幅≥此值即拦截（过热追高保护，可选）'},
+                    },
+                    'notes': '仅对 pending/escalated 类信号生效；取数失败 fail-open 放行',
+                },
+            }}
+
+
+@router.post('/api/watch/conditions/simulate')
+def simulate_condition(body: Dict[str, Any] = Body(default_factory=dict)):
+    """把条件 DSL 在日线历史上逐日重放：回答「这条规则过去 N 天会触发几次」。"""
+    from qs_watch.application.services.watch_engine.condition_simulator import (
+        simulate_conditions,
+    )
+    symbol = str(body.get('symbol') or '').strip()
+    conditions = body.get('conditions')
+    if not symbol or not isinstance(conditions, list) or not conditions:
+        return _err('symbol 与 conditions（数组）必填', 400)
+    try:
+        result = simulate_conditions(
+            symbol, conditions,
+            days=int(body.get('days') or 30),
+            cost_price=body.get('cost_price'))
+        return {'success': True, 'data': result}
+    except ValueError as e:
+        return _err('条件非法：%s' % e, 400)
+    except RuntimeError as e:
+        return _err(str(e), 502)
+
+
+# ── 池级盯盘绑定（2026-10-20 选池↔盯盘接线）────────────────────────────
+
+def _pool_watch_service():
+    from adapters.outbound.repositories.watch_pool_binding_repository import (
+        PoolMemberSource, WatchPoolBindingRepository,
+    )
+    from qs_watch.application.services.watch_engine.pool_watch_service import PoolWatchService
+    return PoolWatchService(
+        WatchPoolBindingRepository(), PoolMemberSource(),
+        __import__('adapters.outbound.repositories.watch_rule_repository',
+                   fromlist=['WatchRuleRepository']).WatchRuleRepository())
+
+
+@router.get('/api/watch/pools')
+def list_pools_for_binding():
+    """可绑定的池清单（stock_pools 只读摘要）。"""
+    return {'pools': _pool_watch_service()._pool_source.list_pools()}
+
+
+@router.get('/api/watch/pool-bindings')
+def list_pool_bindings(enabled: bool = True):
+    return {'bindings': _pool_watch_service().list_bindings(enabled=enabled)}
+
+
+@router.post('/api/watch/pool-bindings')
+def create_pool_binding(body: dict):
+    svc = _pool_watch_service()
+    pool_id = int(body.get('pool_id') or 0)
+    if pool_id <= 0:
+        return {'ok': False, 'error': 'pool_id 必填'}, 400
+    pools = {pp['id']: pp for pp in svc._pool_source.list_pools()}
+    if pool_id not in pools:
+        return {'ok': False, 'error': '池 #%s 不存在' % pool_id}, 404
+    fields = {
+        'pool_id': pool_id,
+        'pool_name': pools[pool_id].get('name') or '',
+        'conditions_template': body.get('conditions_template'),
+        'use_member_points': bool(body.get('use_member_points', True)),
+        'member_points_mode': body.get('member_points_mode') or 'breakout',
+        'intent': body.get('intent') or 'trend_observe',
+        'account': body.get('account'),
+        'cooldown_sec': body.get('cooldown_sec'),
+        'max_members': int(body.get('max_members') or 100),
+    }
+    try:
+        binding = svc.create_binding(**fields)
+        summary = svc.reconcile_binding(binding)
+        return {'ok': True, 'binding': binding, 'first_sync': summary}
+    except ValueError as e:
+        return {'ok': False, 'error': str(e)}, 400
+    except RuntimeError as e:
+        return {'ok': False, 'error': str(e)}, 413
+
+
+@router.post('/api/watch/pool-bindings/{binding_id}/sync')
+def sync_pool_binding(binding_id: int):
+    svc = _pool_watch_service()
+    binding = svc.get_binding(binding_id)
+    if binding is None:
+        return {'ok': False, 'error': '绑定不存在'}, 404
+    try:
+        return {'ok': True, 'summary': svc.reconcile_binding(binding)}
+    except RuntimeError as e:
+        return {'ok': False, 'error': str(e)}, 413
+
+
+@router.delete('/api/watch/pool-bindings/{binding_id}')
+def delete_pool_binding(binding_id: int, retire_rules: bool = True):
+    """删绑定；retire_rules=true 时顺带收摊其生成的规则（默认收）。"""
+    svc = _pool_watch_service()
+    binding = svc.get_binding(binding_id)
+    if binding is None:
+        return {'ok': False, 'error': '绑定不存在'}, 404
+    svc.update_binding(binding_id, enabled=False)
+    retired = 0
+    if retire_rules:
+        from qs_watch.application.services.watch_engine.pool_watch_service import (
+            binding_created_from,
+        )
+        cf = binding_created_from(binding_id)
+        for r in svc._rule_repo.list_rules(enabled=True):
+            if str(getattr(r, 'created_from', '') or '') == cf:
+                svc._rule_repo.update_fields(
+                    r.id, enabled=False,
+                    next_action_hint='池绑定 #%d 已删除，自动收摊' % binding_id)
+                retired += 1
+    return {'ok': True, 'binding_disabled': binding_id, 'rules_retired': retired}
+
+
+# ── 消息监控（2026-10-20 流程图 M/N）────────────────────────────────────
+
+def _news_service():
+    from adapters.outbound.repositories.watch_news_repository import (
+        NewsAlertRepository, WatchNewsSource,
+    )
+    from adapters.outbound.repositories.simulation_position_repository import (
+        SimulationPositionRepository,
+    )
+    from qs_watch.application.services.watch_engine.news_watch_service import (
+        NewsWatchService,
+    )
+    from qs_watch.application.services.watch_engine.watch_channels import (
+        send_watch_receipt,
+    )
+    return NewsWatchService(
+        news_source=WatchNewsSource(), alert_repo=NewsAlertRepository(),
+        position_repo=SimulationPositionRepository(),
+        accounts=("agent_virtual", "agent_brain", "user_main_simulation"),
+        sender=lambda p: send_watch_receipt(p))
+
+
+@router.post('/api/watch/news-scan')
+def news_scan_manual():
+    """手动触发一轮消息监控（平时由 sidecar 自动跑，15 分钟节流）。"""
+    svc = _news_service()
+    svc._last_scan_at = None        # 手动触发跳过节流
+    return svc.scan()
+
+
+@router.get('/api/watch/news-alerts')
+def news_alerts(limit: int = 50):
+    from adapters.outbound.repositories.watch_news_repository import NewsAlertRepository
+    return {'alerts': NewsAlertRepository().recent(limit=limit)}
+
+
+# ── 一屏简报（2026-10-20 框架适配）：agent「现在该看什么」────────────────
+
+@router.get('/api/watch/brief')
+def watch_brief(symbol: str, account: Optional[str] = Query(None)):
+    """单标的盯盘简报：行情+成本+规则距离+未决触发+近48h消息命中，一张卡。"""
+    from adapters.outbound.repositories.simulation_position_repository import (
+        SimulationPositionRepository,
+    )
+    from adapters.outbound.repositories.watch_news_repository import NewsAlertRepository
+    from adapters.outbound.repositories.watch_rule_repository import WatchRuleRepository
+    bare = symbol.split('.')[0]
+    out = {'symbol': bare, 'quote': None, 'position': None, 'rules': [],
+           'open_triggers': [], 'recent_news_hits': [], 'suppressed': False}
+
+    try:
+        from qs_market_data.adapters.outbound.datasources.manager import (
+            get_data_provider_manager,
+        )
+        q = get_data_provider_manager().get_quote(bare)
+        if q.get('success') and q.get('data'):
+            d = q['data']
+            price = getattr(d, 'price', None) or (d.get('price') if isinstance(d, dict) else None)
+            prev = getattr(d, 'prev_close', None) or (d.get('prev_close') if isinstance(d, dict) else None)
+            out['quote'] = {'price': float(price) if price else None,
+                            'prev_close': float(prev) if prev else None}
+    except Exception as e:  # noqa: BLE001
+        out['quote_error'] = str(e)[:120]
+
+    try:
+        pos_repo = SimulationPositionRepository()
+        for acct in ('agent_virtual', 'agent_brain', 'user_main_simulation'):
+            try:
+                pos = pos_repo.get_position(acct, bare)
+            except Exception:  # noqa: BLE001
+                continue
+            if pos is not None and float(getattr(pos, 'market_value', 0) or 0) > 0:
+                cost = float(getattr(pos, 'avg_cost', 0) or 0)
+                px = out['quote'] and out['quote'].get('price')
+                out['position'] = {
+                    'account': acct,
+                    'shares': float(getattr(pos, 'shares_total', 0) or 0),
+                    'avg_cost': cost,
+                    'pnl_pct': round((px - cost) / cost * 100, 2) if (px and cost) else None,
+                }
+                break
+    except Exception as e:  # noqa: BLE001
+        out['position_error'] = str(e)[:120]
+
+    try:
+        rules = WatchRuleRepository().list_rules(symbol=bare, enabled=True)
+        px = out['quote'] and out['quote'].get('price')
+        for r in rules:
+            conds = []
+            for c in (r.conditions or []):
+                pp = (c.get('params') or {})
+                t = c.get('type')
+                if t == 'price_break' and pp.get('price') and px:
+                    dist = (float(pp['price']) - px) / px * 100
+                    conds.append({'type': t, 'threshold': float(pp['price']),
+                                  'direction': pp.get('direction'),
+                                  'distance_pct': round(dist, 2)})
+                else:
+                    conds.append({'type': t, 'params': {k: pp.get(k) for k in
+                                                        ('price', 'pct', 'days', 'direction')}})
+            out['rules'].append({
+                'id': r.id, 'intent': r.intent,
+                'level': (r.action_hint or {}).get('trigger_level'),
+                'suppressed': bool(getattr(r, 'noise_state', None) == 'suppressed'),
+                'conditions': conds,
+                'next_action_hint': getattr(r, 'next_action_hint', None),
+            })
+        out['suppressed'] = any(r['suppressed'] for r in out['rules'])
+    except Exception as e:  # noqa: BLE001
+        out['rules_error'] = str(e)[:120]
+
+    try:
+        from qs_watch.domain.watch.services.disposition import UNRESOLVED
+        from adapters.outbound.repositories.watch_rule_repository import WatchTriggerRepository
+        rows = [t for t in WatchTriggerRepository().list_triggers(symbol=bare, limit=50)
+                if t.disposition in UNRESOLVED][:5]
+        out['open_triggers'] = [
+            {'id': t.id, 'disposition': t.disposition, 'triggered_at': t.triggered_at.isoformat(),
+             'reason': (t.disposition_reason or '')[:100]} for t in rows]
+    except Exception as e:  # noqa: BLE001
+        out['triggers_error'] = str(e)[:120]
+
+    try:
+        hits = [a for a in NewsAlertRepository().recent(limit=200)
+                if a['symbol'] == bare][:3]
+        out['recent_news_hits'] = hits
+    except Exception as e:  # noqa: BLE001
+        out['news_error'] = str(e)[:120]
+
+    return {'success': True, 'data': out}
+
 @router.get('/api/watch/triggers')
 def list_triggers(symbol: Optional[str] = Query(None),
                   disposition: Optional[str] = Query(None),
-                  limit: Optional[str] = Query(None)):
-    """触发记录。disposition 可过滤处置状态（待处置/已归档/去重合并/已升级等）。"""
+                  limit: Optional[str] = Query(None),
+                  since: Optional[str] = Query(None)):
+    """触发记录。disposition 过滤；since（ISO 时间）= 增量轮询（agent 信号感知通道）。"""
     trigger_repo = WatchTriggerRepository()
     triggers = trigger_repo.list_triggers(
         symbol=symbol, disposition=disposition, limit=_limit_of(limit))
+    if since:
+        from datetime import datetime as _dt
+        try:
+            since_ts = _dt.fromisoformat(since.replace('Z', '+00:00'))
+            if since_ts.tzinfo is not None:
+                since_ts = since_ts.astimezone().replace(tzinfo=None)
+            triggers = [t for t in triggers
+                        if t.triggered_at is not None and t.triggered_at >= since_ts]
+        except (ValueError, TypeError):
+            return {'success': False, 'error': 'since 非法（要求 ISO 时间）'}
     return {'success': True, 'data': {'triggers': [trigger_to_dict(t) for t in triggers]}}
 
 
@@ -182,7 +529,7 @@ def trigger_disposition_stats(date: Optional[str] = Query(None)):
     legacy_unknown（状态机上线前的历史数据）不计入分母，避免美化指标。
     agent_wakeups_estimate = escalated + L2 触发的去重合并数（估算实际唤醒量级）。
     """
-    from domain.watch.services.disposition import UNRESOLVED, is_resolved
+    from qs_watch.domain.watch.services.disposition import UNRESOLVED, is_resolved
     trigger_repo = WatchTriggerRepository()
     rows = trigger_repo.list_triggers(limit=200)
     day = date or datetime.now().strftime('%Y-%m-%d')
@@ -207,7 +554,7 @@ def trigger_disposition_stats(date: Optional[str] = Query(None)):
 @router.get('/api/watch/triggers/unresolved')
 def list_unresolved_triggers(date: Optional[str] = Query(None), limit: Optional[str] = Query(None)):
     """盘后未处置清单（pending/escalated）——把"触发后没人管"变成可追的待办。"""
-    from domain.watch.services.disposition import UNRESOLVED
+    from qs_watch.domain.watch.services.disposition import UNRESOLVED
     trigger_repo = WatchTriggerRepository()
     day = date or datetime.now().strftime('%Y-%m-%d')
     rows = trigger_repo.list_triggers(dispositions=UNRESOLVED, limit=_limit_of(limit, 200))
@@ -259,7 +606,7 @@ def trigger_digest(since: Optional[str] = Query(None), limit: Optional[str] = Qu
     2) 载荷里带 `text`（紧凑文本）：唤醒提示词可直接内嵌，agent 无需再发工具调用取数（省 token）。
     3) 按标的聚合：一次跌穿常产生同标的多条触发，聚合后 agent 按"标的"而不是按"触发"决策。
     """
-    from domain.watch.services.disposition import UNRESOLVED
+    from qs_watch.domain.watch.services.disposition import UNRESOLVED
     trigger_repo = WatchTriggerRepository()
     rule_repo = WatchRuleRepository()
     rows = trigger_repo.list_triggers(dispositions=UNRESOLVED, limit=_limit_of(limit, 200))

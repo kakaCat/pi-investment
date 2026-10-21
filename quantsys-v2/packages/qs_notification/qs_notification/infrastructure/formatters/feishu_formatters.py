@@ -1,0 +1,537 @@
+"""
+盯盘触发通知格式化器
+
+格式化 WatchEngine 触发的通知，包括：
+1. 股票名称和代码
+2. 触发条件和价格
+3. 方向建议（上破/下破）
+4. 操作预案
+5. 模式标签（直发/AI 分析/降级）
+
+Author: System
+Date: 2026-09-02
+"""
+
+from typing import Dict, Any
+from qs_notification.domain.models.notification import Notification, NotificationType
+from .feishu_base_formatter import FeishuFormatter
+
+
+class WatchTriggeredFormatter(FeishuFormatter):
+    """盯盘触发通知格式化器"""
+
+    def supports_type(self, notification_type: NotificationType) -> bool:
+        """支持盯盘触发类型
+
+        Args:
+            notification_type: 通知类型
+
+        Returns:
+            bool: 是否支持
+        """
+        return notification_type == NotificationType.WATCH_TRIGGERED
+
+    # ── 意图驱动的消息主体（REQ-f08def P8）──────────────────────────────
+    # 2026-09-11 用户反馈真实消息：中金黄金 触发盯盘条件 / 下破（弱势）——空仓暂不介入，
+    # 而该规则真实意图是【买入跟踪】（下破 25.5 = 进入买区）——通用方向建议与规则意图相反，
+    # 会误导决策。消息必须由 intent 驱动，先说清主体是谁、这条提醒为了什么。
+    INTENT_META = {
+        'trend_observe':    ('👀 趋势观察', '看趋势/结构是否变化：转强 → 升级为买入跟踪；转弱 → 考虑取消盯盘'),
+        'entry':            ('🎯 买入跟踪', '等买点：是否已进入买区、要不要建仓'),
+        'add_position':     ('➕ 加仓跟踪', '是否该加仓、加多少'),
+        't_trade':          ('🔁 做T跟踪', '区间高抛低吸：找卖出的高点 / 回补的低点'),
+        'exit_stop':        ('🛑 止损盯盘', '浮亏触及止损线 —— 宪法要求必须执行，不得延后'),
+        'exit_take_profit': ('💰 止盈盯盘', '达到目标位：减仓锁利，还是继续持有'),
+        'exit_reduce':      ('📉 减仓盯盘', '触及减仓档：减多少、还是清仓'),
+    }
+    STAGE_LABELS = {
+        'discovered': '刚发现', 'tracking': '跟踪中', 'entry_triggered': '买点已触发',
+        'holding': '持仓中', 'exit_triggered': '卖点已触发', 'closed': '已收摊',
+    }
+
+    def format(self, notification: Notification) -> Dict[str, Any]:
+        """格式化盯盘触发通知（意图驱动：主体 → 事实 → 为什么提醒 → 预案 → 下一步）
+
+        REQ-c9f899 t12（§6 待接线项 1）：payload 带级别（watch_level/level）→ 走
+        watch_level_templates 的**按级别渲染**（P0 红卡 / P1 橙卡 / P2 蓝卡 / P3 汇总）；
+        不带级别 → 退回本类旧渲染，**非分级路径与既有非盯盘通知行为不变**。
+
+        2026-10-16（REQ-261016155500-4f2a wt:messaging:3）：WATCH_MSG_V2 开时**两条渲染链
+        统一收敛到 watch_message_renderer**——同一 variables 无论有无级别都出同一份四段式
+        骨架（消灭"分级卡/旧意图卡两套版式漂移"）；关时保持上述旧分支（可灰度回退）。
+        """
+        vars = notification.variables
+        from qs_notification.infrastructure.formatters.watch_message_renderer import (
+            MSG_V2_ENABLED,
+        )
+        if MSG_V2_ENABLED:
+            return self._format_via_unified_renderer(notification)
+        watch_level = vars.get('watch_level') or vars.get('level')
+        if watch_level:
+            from qs_notification.infrastructure.formatters.watch_level_templates import (
+                render_watch_variables,
+            )
+            return render_watch_variables(vars)
+        symbol = vars.get('symbol', 'N/A')
+        name = vars.get('name', '')
+        price = vars.get('price', 0)
+        change_pct = vars.get('change_pct')
+        pnl_pct = vars.get('pnl_pct')
+        condition = vars.get('condition', {})
+        context = vars.get('context', '')
+        trigger_level = vars.get('trigger_level', 'L1')
+        escalation_reason = vars.get('escalation_reason')
+        intent = vars.get('intent')
+        stage = vars.get('lifecycle_stage')
+        account = vars.get('account')
+        next_hint = vars.get('next_action_hint')
+
+        intent_label, purpose = self.INTENT_META.get(
+            intent or '',
+            ('❓ 未标注意图', '这条规则没有声明意图——建议补 intent（无主规则=烂账）'))
+
+        if trigger_level == 'L2' or escalation_reason:
+            mode_tag = '🔔 需决策' if escalation_reason else '⚡ AI 介入'
+        else:
+            mode_tag = '📡 直发提醒'
+
+        display = name + '（' + symbol + '）' if name else symbol
+        lines = [
+            chr(96) + mode_tag + chr(96),
+            '**' + intent_label + '｜' + display + '**',
+        ]
+        meta_bits = []
+        if stage:
+            meta_bits.append('阶段：' + self.STAGE_LABELS.get(stage, stage))
+        meta_bits.append('归属：' + (account or '通用观察'))
+        lines.append(' · '.join(meta_bits))
+
+        if notification.content:
+            lines.append('**触发**：' + notification.content)
+
+        price_info = '**当前**：¥%.2f' % price
+        if change_pct is not None:
+            price_info += ' (%+.2f%%)' % change_pct
+        if pnl_pct is not None:
+            price_info += '　盈亏 %+.2f%%' % pnl_pct
+        lines.append(price_info)
+
+        lines.append('**这条提醒为了**：' + purpose)
+
+        if context:
+            if vars.get('context_embedded'):
+                pass  # 2026-10-15：预案摘要已内嵌「触发」正文（facade 组装），不再重复
+            elif trigger_level == 'L1' and not escalation_reason:
+                lines.append('**预案**：' + self._simplify_context(context, condition, price))
+            else:
+                lines.append('**预案**：' + context)
+
+        lines.append('**下一步**：' + (next_hint or '由 agent 汇总时判断（动作 / 继续观察 / 取消盯盘）'))
+
+        return self.format_card(
+            title=intent_label + ' · ' + display,
+            content=chr(10).join(lines),
+            color=self._get_color_by_condition(condition),
+        )
+
+    def _format_via_unified_renderer(self, notification: Notification) -> Dict[str, Any]:
+        """V2 薄适配：同一 variables → WatchMessage → 统一渲染器（REQ-261016155500-4f2a）。
+
+        与 agent-os 网关路径（facade 产出的 content）**同源同骨架**——消灭"分级卡/
+        旧意图卡/网关平铺"三套版式漂移；P0 保留 @所有人 首行（对齐分级模板 FR-5）。
+        """
+        from domain.watch.services.watch_message import (
+            FactSection, WatchMessage, resolve_action,
+        )
+        from qs_notification.infrastructure.formatters.watch_level_templates import (
+            MENTION_USER,
+        )
+        from qs_notification.infrastructure.formatters.watch_message_renderer import (
+            render_watch_message,
+        )
+
+        v = notification.variables or {}
+        ap = v.get('action_params') if isinstance(v.get('action_params'), dict) else None
+        msg = WatchMessage(
+            level=(v.get('watch_level') or v.get('level') or 'P2'),
+            symbol=str(v.get('symbol') or ''),
+            name=str(v.get('name') or ''),
+            account=v.get('account'),
+            intent=v.get('intent'),
+            stage=v.get('lifecycle_stage'),
+            fact=FactSection(condition_text=str(v.get('message') or ''),
+                             price=v.get('price'),
+                             change_pct=v.get('change_pct'),
+                             pnl_pct=v.get('pnl_pct')),
+            plan=v.get('context') or None,
+            action=resolve_action(action_params=ap,
+                                  next_action_hint=v.get('next_action_hint'),
+                                  intent=v.get('intent'),
+                                  rule_id=v.get('rule_id')),
+            reevaluate=(ap or {}).get('invalidation') or None,
+            rule_id=v.get('rule_id'),
+            escalation_reason=v.get('escalation_reason'),
+            mode='agent' if v.get('notify_mode') == 'agent' else 'direct',
+        )
+        rendered = render_watch_message(msg)
+        content = rendered.text
+        if rendered.mention_all:
+            content = MENTION_USER + chr(10) + content
+        return self.format_card(title=rendered.title, content=content,
+                                color=rendered.color)
+
+    def _get_direction_advice(self, condition: dict) -> str:
+        """方向的中性事实描述。
+
+        2026-09-11 修正：原文案"下破（弱势）——持仓警惕止损，空仓暂不介入"是通用判断，
+        会与规则真实意图相反（如"下破=进入买区"的买入跟踪规则）。方向只作事实陈述，
+        建议由 intent 驱动的"这条提醒为了"承担。
+        """
+        if not isinstance(condition, dict):
+            return ''
+        params = condition.get('params') or {}
+        direction = params.get('direction')
+        if direction == 'above':
+            return '📈 方向：上破（现价高于阈值）'
+        if direction == 'below':
+            return '📉 方向：下破（现价低于阈值）'
+        return ''
+
+    def _get_color_by_condition(self, condition: dict) -> str:
+        """根据条件选择颜色
+
+        Args:
+            condition: 条件字典
+
+        Returns:
+            str: 飞书卡片颜色
+        """
+        if not isinstance(condition, dict):
+            return 'blue'
+
+        params = condition.get('params') or {}
+        direction = params.get('direction')
+
+        if direction == 'above':
+            return 'green'
+        elif direction == 'below':
+            return 'red'
+
+        return 'blue'
+
+    def _simplify_context(self, context: str, condition: dict, price: float) -> str:
+        """简化 context 供 L1 直发（3 行以内）。
+
+        2026-10-15 修正：此前完全丢弃真实预案、编造「跌破 X，进入观察区」式通用文案，
+        评分依据/风控/来源全部到不了用户——opportunity_scan 自动规则的 context 本就自带
+        这些块，先提取真实关键行；只有提取不到（非标准结构）时才回退通用提示。
+        """
+        extracted = self._extract_plan_lines(context)
+        if extracted:
+            return extracted
+
+        params = condition.get('params') or {}
+        trigger_price = params.get('price')
+        direction = params.get('direction', 'below')
+
+        if direction == 'below':
+            if trigger_price:
+                return f"跌破 {trigger_price}，进入观察区，等企稳信号"
+            return "价格走弱，观望为主"
+        elif direction == 'above':
+            if trigger_price:
+                return f"突破 {trigger_price}，观察量能是否确认"
+            return "价格走强，关注持续性"
+
+        return "触发盯盘条件，请查看详细预案"
+
+    @staticmethod
+    def _extract_plan_lines(context: str, max_lines: int = 5) -> str:
+        """从完整预案文本提取关键行（标题 + 条目行），块标题行（以「：」结尾）跳过。"""
+        if not context:
+            return ''
+        lines = [ln.strip() for ln in context.splitlines() if ln.strip()]
+        if not lines:
+            return ''
+        head = lines[0]
+        rest = [ln for ln in lines[1:] if not ln.endswith('：')][:max_lines - 1]
+        return '；'.join([head] + rest)
+
+
+class StopLossFormatter(FeishuFormatter):
+    """止损触发通知格式化器"""
+
+    def supports_type(self, notification_type: NotificationType) -> bool:
+        return notification_type == NotificationType.STOP_LOSS
+
+    def format(self, notification: Notification) -> Dict[str, Any]:
+        """格式化止损触发通知
+
+        Args:
+            notification: 通知对象
+
+        Returns:
+            Dict: 飞书卡片消息载荷
+        """
+        vars = notification.variables
+
+        # 构建内容
+        symbol = vars.get('symbol', 'N/A')
+        price = vars.get('price', 0)
+        stop_loss_pct = vars.get('stop_loss_pct', 0)
+        loss_pct = vars.get('loss_pct', 0)
+
+        content = f"""**股票**: {symbol}
+**触发价格**: ¥{price:.2f}
+**止损阈值**: {stop_loss_pct:.2%}
+**当前亏损**: {loss_pct:.2%}
+
+{notification.content}"""
+
+        return self.format_card(
+            title=f"🚨 止损触发 - {symbol}",
+            content=content,
+            color="red"
+        )
+
+
+class TakeProfitFormatter(FeishuFormatter):
+    """止盈触发通知格式化器"""
+
+    def supports_type(self, notification_type: NotificationType) -> bool:
+        return notification_type == NotificationType.TAKE_PROFIT
+
+    def format(self, notification: Notification) -> Dict[str, Any]:
+        """格式化止盈触发通知
+
+        Args:
+            notification: 通知对象
+
+        Returns:
+            Dict: 飞书卡片消息载荷
+        """
+        vars = notification.variables
+
+        symbol = vars.get('symbol', 'N/A')
+        price = vars.get('price', 0)
+        take_profit_pct = vars.get('take_profit_pct', 0)
+        profit_pct = vars.get('profit_pct', 0)
+
+        content = f"""**股票**: {symbol}
+**触发价格**: ¥{price:.2f}
+**止盈阈值**: {take_profit_pct:.2%}
+**当前盈利**: {profit_pct:.2%}
+
+{notification.content}"""
+
+        return self.format_card(
+            title=f"🎉 止盈触发 - {symbol}",
+            content=content,
+            color="green"
+        )
+
+
+class DailyReportFormatter(FeishuFormatter):
+    """每日报告格式化器"""
+
+    def supports_type(self, notification_type: NotificationType) -> bool:
+        return notification_type == NotificationType.DAILY_REPORT
+
+    def format(self, notification: Notification) -> Dict[str, Any]:
+        """格式化每日报告通知
+
+        Args:
+            notification: 通知对象
+
+        Returns:
+            Dict: 飞书卡片消息载荷
+        """
+        vars = notification.variables
+
+        content = f"""**📈 市场表现**
+上证指数: {vars.get('sh_index_change', 'N/A')}
+深证成指: {vars.get('sz_index_change', 'N/A')}
+北向资金: {vars.get('north_flow', 'N/A')}亿元
+
+**💰 持仓收益**
+今日收益: {vars.get('daily_pnl', 'N/A')}
+总收益率: {vars.get('total_return', 'N/A')}
+持仓股票: {vars.get('position_count', 0)}只
+
+**📊 交易信号**
+新增信号: {vars.get('new_signals', 0)}个
+优质机会: {vars.get('opportunities', 0)}个"""
+
+        # 风险提示
+        if vars.get('risk_alerts'):
+            content += "\n\n**⚠️ 风险提示**\n"
+            for alert in vars['risk_alerts']:
+                content += f"• {alert}\n"
+
+        actions = []
+        if vars.get('detail_url'):
+            actions.append({
+                "label": "查看详情",
+                "type": "primary",
+                "url": vars['detail_url']
+            })
+
+        return self.format_card(
+            title=f"📊 每日投资报告 - {vars.get('date', '')}",
+            content=content,
+            color="blue",
+            actions=actions if actions else None
+        )
+
+
+class WeeklyReportFormatter(FeishuFormatter):
+    """每周报告格式化器"""
+
+    def supports_type(self, notification_type: NotificationType) -> bool:
+        return notification_type == NotificationType.WEEKLY_REPORT
+
+    def format(self, notification: Notification) -> Dict[str, Any]:
+        """格式化每周报告通知
+
+        Args:
+            notification: 通知对象
+
+        Returns:
+            Dict: 飞书卡片消息载荷
+        """
+        vars = notification.variables
+        week = vars.get('week', 'N/A')
+
+        content = f"""**📈 本周表现**
+周收益率: {vars.get('weekly_return', 'N/A')}
+最大回撤: {vars.get('max_drawdown', 'N/A')}
+交易胜率: {vars.get('win_rate', 'N/A')}
+累计收益: {vars.get('cumulative_return', 'N/A')}
+
+**🎯 策略表现**
+{self._format_strategy_performance(vars.get('strategies', []))}
+
+**🔮 下周展望**
+{self._format_outlook(vars.get('outlook', {}))}"""
+
+        actions = []
+        if vars.get('detail_url'):
+            actions.append({
+                "label": "查看详情",
+                "type": "primary",
+                "url": vars['detail_url']
+            })
+
+        return self.format_card(
+            title=f"📊 投资周报 - 第{week}周",
+            content=content,
+            color="blue",
+            actions=actions if actions else None
+        )
+
+    def _format_strategy_performance(self, strategies: list) -> str:
+        """格式化策略表现"""
+        if not strategies:
+            return "无策略数据"
+
+        lines = []
+        for strategy in strategies[:3]:  # 只显示前3个
+            name = strategy.get('name', 'Unknown')
+            return_rate = strategy.get('return', 'N/A')
+            lines.append(f"• {name}: {return_rate}")
+
+        return '\n'.join(lines)
+
+    def _format_outlook(self, outlook: dict) -> str:
+        """格式化展望内容"""
+        if not outlook:
+            return "暂无展望"
+
+        lines = []
+        if outlook.get('market_view'):
+            lines.append(f"• 市场观点: {outlook['market_view']}")
+        if outlook.get('recommendations'):
+            lines.append(f"• 操作建议: {outlook['recommendations']}")
+        if outlook.get('focus_sectors'):
+            lines.append(f"• 关注板块: {outlook['focus_sectors']}")
+
+        return '\n'.join(lines) if lines else "暂无展望"
+
+
+class MLTrainFormatter(FeishuFormatter):
+    """模型训练通知格式化器"""
+
+    def supports_type(self, notification_type: NotificationType) -> bool:
+        return notification_type == NotificationType.ML_TRAIN
+
+    def format(self, notification: Notification) -> Dict[str, Any]:
+        """格式化模型训练通知
+
+        Args:
+            notification: 通知对象
+
+        Returns:
+            Dict: 飞书卡片消息载荷
+        """
+        vars = notification.variables
+        status = vars.get('status', 'unknown')
+
+        # 根据状态选择颜色和标题
+        if status == 'success':
+            color = "green"
+            title_prefix = "✅"
+        elif status == 'failed':
+            color = "red"
+            title_prefix = "❌"
+        else:
+            color = "blue"
+            title_prefix = "⊙"
+
+        content = notification.content or self._format_train_content(vars)
+
+        return self.format_card(
+            title=f"{title_prefix} {notification.title}",
+            content=content,
+            color=color
+        )
+
+    def _format_train_content(self, vars: dict) -> str:
+        """格式化训练内容"""
+        status = vars.get('status')
+
+        if status == 'success':
+            return f"""**模型版本**: {vars.get('version', 'N/A')}
+**训练样本**: {vars.get('symbols_trained', 0)} 只股票
+**训练准确率**: {vars.get('train_accuracy', 0):.2%}
+**测试准确率**: {vars.get('test_accuracy', 0):.2%}
+**自动切换**: {'✅ 已切换' if vars.get('auto_switched') else '⊙ 未切换'}"""
+        elif status == 'failed':
+            return f"""**错误信息**: {vars.get('error', '未知错误')}
+**失败时间**: {vars.get('timestamp', 'N/A')}"""
+        else:
+            return f"""**跳过原因**: {vars.get('reason', '未知原因')}"""
+
+
+class SystemAlertFormatter(FeishuFormatter):
+    """系统告警通知格式化器"""
+
+    def supports_type(self, notification_type: NotificationType) -> bool:
+        return notification_type == NotificationType.SYSTEM_ALERT
+
+    def format(self, notification: Notification) -> Dict[str, Any]:
+        """格式化系统告警通知
+
+        Args:
+            notification: 通知对象
+
+        Returns:
+            Dict: 飞书卡片消息载荷
+        """
+        # 系统告警使用简单格式
+        color = self.get_urgency_color(notification.priority.value)
+
+        return self.format_card(
+            title=f"ℹ️ {notification.title}",
+            content=notification.content,
+            color=color
+        )

@@ -16,7 +16,7 @@ import asyncio
 import pytest
 
 from api.internal import scheduler_webhook as wh
-from infrastructure.scheduler.job_executor import classify_job_result
+from qs_ops.infrastructure.scheduler.job_executor import classify_job_result
 
 
 # --------------------------- 判定口径（单一真源） ---------------------------
@@ -120,7 +120,7 @@ def test_execute_job_exception_still_failed(monkeypatch):
 
 def _patch_service(monkeypatch, service_factory):
     monkeypatch.setattr(
-        "application.services.market_perception_service.MarketPerceptionService",
+        "qs_intel.application.services.market_perception_service.MarketPerceptionService",
         service_factory,
     )
 

@@ -8,7 +8,7 @@
 """
 import pytest
 
-from adapters.outbound.datasources.providers.industry_chain.database import DatabaseChainProvider
+from qs_market_data.adapters.outbound.datasources.providers.industry_chain.database import DatabaseChainProvider
 
 
 class FakeRepo:

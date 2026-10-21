@@ -38,7 +38,7 @@ def verify(cursor):
 
 if __name__ == '__main__':
     from dotenv import load_dotenv
-    from infrastructure.persistence.database.engine import get_engine
+    from qs_kernel.infrastructure.persistence.database.engine import get_engine
     load_dotenv()
     engine = get_engine()
     conn = engine.raw_connection()

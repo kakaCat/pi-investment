@@ -16,7 +16,7 @@
 的 DB 侧兜底——应用层校验之外的第二道闸门。
 """
 from sqlalchemy import (
-    Boolean, CheckConstraint, Column, Date, DateTime, Float, Integer, String, Text,
+    Boolean, CheckConstraint, Column, Date, DateTime, Float, Integer, Numeric, String, Text,
     func, text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -27,6 +27,7 @@ __all__ = [
     'WatchTodo', 'WatchRuntimeState', 'WatchRuntimeMeta',
     'WatchRuleChange', 'WatchReceipt',
     'WatchRuntimeDedup', 'WatchTriggerEvent', 'WatchPriceHistory',
+    'WatchOutcomeCheck',
 ]
 
 
@@ -83,6 +84,10 @@ class WatchRuntimeState(Base):
     latched = Column(Boolean, nullable=False, server_default=text('false'), comment='是否处于闩锁（电平保持不重复推）')
     last_triggered_at = Column(DateTime(timezone=True), nullable=True, comment='最近一次产出时间（冷却基准）')
     cooldown_effective_sec = Column(Integer, nullable=True, comment='自愈临时延长后的有效冷却（秒）')
+    # 每日通知计数（REQ-261016155500-4f2a）：配合 daily_emit_counts 内存态，
+    # 跨重启保住「每规则每条件每日 ≤N 次」的上限（重启不丢）。
+    emit_count_date = Column(Date, nullable=True, comment='通知计数所属交易日（非今天则计数作废）')
+    emit_count = Column(Integer, nullable=True, comment='当日已通知次数')
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 
@@ -101,6 +106,13 @@ class WatchRuntimeMeta(Base):
     digest_shadow_since = Column(
         DateTime(timezone=True), nullable=True,
         comment='影子模式首次进入时间（跨重启保持，库优先 env 兜底）')
+    # 跨规则重叠已上报的规则对（REQ-261016155500-4f2a wt:engine:3）：[[a,b],...]，
+    # 持久化后重启不重复落治理项。列为 20261016 迁移新增，读写走专用方法隔离。
+    overlap_reported = Column(JSONB, nullable=True, comment='跨规则重叠已上报规则对')
+    # 两段式伏击（staged_break）观察态快照（2026-10-19 P1）：
+    # {'<rule_id>:<cond_idx>': {touch_at, deadline, touch_price}}——重启不丢观察窗。
+    # 列为 20261019c 迁移新增，读写走专用方法隔离（列缺失时降级纯内存）。
+    staged_break_states = Column(JSONB, nullable=True, comment='staged_break 观察态快照')
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 
@@ -148,8 +160,10 @@ class WatchRuntimeDedup(Base):
     """去重窗（REQ-c9f899 返工 B / R10）
 
     对应数据库表：quant.watch_price_history 的姊妹表 quant.watch_runtime_dedup。
-    主键 (symbol, direction) = 引擎 dedup_key(rule, condition) 的归一化形态：
-    「同一标的 + 同一方向」在 dedup_window_sec 内只通知一次。持久化的意义：
+    主键 (account, symbol, direction) = 引擎 dedup_key(rule, condition) 的归一化形态：
+    「同一账户 + 同一标的 + 同一方向」在 dedup_window_sec 内只通知一次（2026-10-19
+    加 account 维度：账户是投送维度，跨账户合并会把另一账户的信号静默吞掉；
+    迁移 20261019_watch_runtime_dedup_account.py）。持久化的意义：
     重启后窗内**不再重复通知**（未持久化时窗清零，同一条当天会重推）。
 
     有界性：notified_at 早于窗口的行走仓库的 prune（DELETE），
@@ -158,6 +172,8 @@ class WatchRuntimeDedup(Base):
     __tablename__ = 'watch_runtime_dedup'
     __table_args__ = {'schema': 'quant'}
 
+    account = Column(String(64), primary_key=True, server_default='',
+                     comment='规则归属账户（linked_account 优先；空串=未归属）')
     symbol = Column(String(32), primary_key=True, comment='归一化标的（去交易所后缀）')
     direction = Column(String(32), primary_key=True, comment='方向（above/below 或条件类型）')
     notified_at = Column(DateTime(timezone=True), nullable=False, comment='最近一次通知时间（窗内判据）')
@@ -205,3 +221,29 @@ class WatchPriceHistory(Base):
     symbol = Column(String(32), primary_key=True, comment='标的代码')
     ts = Column(DateTime(timezone=True), primary_key=True, comment='价格时间戳')
     price = Column(Float, nullable=False, comment='价格（元）')
+
+
+class WatchOutcomeCheck(Base):
+    """盯盘触发走势回填（2026-10-20 P3 预判验证闭环）
+
+    对应数据库表：quant.watch_outcome_checks（迁移 20261020_watch_outcome_checks）。
+    每条触发在触发后第 5/10/20 个交易日回填一次：收盘价 vs 触发价、预判方向、是否命中。
+    命中率统计的事实表；expected_direction 写入时快照，事后不改（改口径=篡改历史）。
+    """
+    __tablename__ = 'watch_outcome_checks'
+    __table_args__ = {'schema': 'quant'}
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    trigger_id = Column(Integer, nullable=False, comment='溯源 watch_triggers.id')
+    rule_id = Column(Integer, nullable=True, comment='规则 id')
+    symbol = Column(String(20), nullable=False)
+    horizon_td = Column(Integer, nullable=False, comment='回填窗口（交易日数：5/10/20）')
+    trigger_at = Column(DateTime(timezone=False), nullable=True)
+    trigger_price = Column(Numeric(12, 4), nullable=True)
+    expected_direction = Column(String(8), nullable=True, comment='预判方向 up/down（写入时快照）')
+    check_date = Column(Date, nullable=True, comment='回填交易日')
+    close_price = Column(Numeric(12, 4), nullable=True)
+    pct_change = Column(Numeric(10, 4), nullable=True, comment='(close/trigger_price-1)*100')
+    hit = Column(Boolean, nullable=True, comment='预判是否命中；NULL=不定论（不计入分母）')
+    note = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=False), nullable=False, server_default=func.now())

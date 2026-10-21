@@ -1,0 +1,228 @@
+"""
+统一配置管理
+
+使用 Pydantic Settings 提供类型安全的配置管理，支持：
+- 环境变量
+- .env 文件
+- 类型验证
+- 默认值
+"""
+
+from typing import Optional
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class DatabaseSettings(BaseSettings):
+    """数据库配置"""
+
+    # PostgreSQL 连接
+    pghost: str = Field(default="localhost", alias="PGHOST")
+    pgport: int = Field(default=5432, alias="PGPORT")
+    pguser: str = Field(default="postgres", alias="PGUSER")
+    pgpassword: str = Field(default="", alias="PGPASSWORD")
+    pgdatabase: str = Field(default="quant_investment", alias="PGDATABASE")
+
+    # 连接池 (2026-08-28 扩容: pool_size 20->20 保持, max_overflow 20->30)
+    pool_size: int = Field(default=20, alias="DB_POOL_SIZE")
+    max_overflow: int = Field(default=30, alias="DB_MAX_OVERFLOW")
+    pool_recycle: int = Field(default=3600, alias="DB_POOL_RECYCLE")
+    pool_pre_ping: bool = Field(default=True, alias="DB_POOL_PRE_PING")
+
+    @property
+    def database_url(self) -> str:
+        """构建数据库 URL"""
+        if self.pgpassword:
+            return f"postgresql://{self.pguser}:{self.pgpassword}@{self.pghost}:{self.pgport}/{self.pgdatabase}"
+        return f"postgresql://{self.pguser}@{self.pghost}:{self.pgport}/{self.pgdatabase}"
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        populate_by_name=True,
+        extra="ignore",  # 忽略未定义的环境变量
+    )
+
+
+class ThreadPoolSettings(BaseSettings):
+    """线程池配置"""
+
+    default_workers: int = Field(default=10, alias="DEFAULT_POOL_WORKERS")
+    io_workers: int = Field(default=20, alias="IO_POOL_WORKERS")
+    compute_workers: int = Field(default=4, alias="COMPUTE_POOL_WORKERS")
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        populate_by_name=True,
+        extra="ignore",  # 忽略未定义的环境变量
+    )
+
+
+class SchedulerSettings(BaseSettings):
+    """调度器配置"""
+
+    tick_interval: int = Field(default=60, alias="SCHEDULER_TICK_INTERVAL")
+    misfire_grace_time: int = Field(default=300, alias="SCHEDULER_MISFIRE_GRACE_TIME")
+
+    # Agent OS 集成
+    # 2026-09-11（w-23c70356）：默认地址 3002 是已废弃的 wake-channel 网关，实测无监听，
+    # 导致 AgentChannel 恒失败、策略里的「OS 优先」从未生效；Agent OS 实际监听 8080。
+    agent_os_enabled: bool = Field(default=True, alias="AGENT_OS_ENABLED")
+    agent_os_url: str = Field(default="http://localhost:8080", alias="AGENT_OS_URL")
+    # REQ-ad0a t7 修复（2026-09-24 联调发现）：agent_os_enabled 是**调度权归属**开关
+    # （ADR-002：false=v2 APScheduler 接管业务任务），却被 notification_factory 复用为
+    # 「是否注册 AgentChannel」——导致 ADR-002 生效期间通知的「agent 优先」链路整体静默
+    # 失效（send_with_fallback 找不到 agent 渠道直接降级，无日志）。两个语义拆两个开关：
+    # 本开关只管通知投递渠道的注册（默认 True；显式 false 才关通知投递）。
+    agent_os_notify_enabled: bool = Field(default=True, alias="AGENT_OS_NOTIFY_ENABLED")
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        populate_by_name=True,
+        extra="ignore",  # 忽略未定义的环境变量
+    )
+
+
+class ExternalServiceSettings(BaseSettings):
+    """外部服务配置"""
+
+    # 飞书
+    feishu_webhook_url: Optional[str] = Field(default=None, alias="FEISHU_WEBHOOK_URL")
+    # 系统运维群（2026-10-14）：调度看门狗 / 每日任务开始·完成·失败 / 数据质量 / 探活
+    # 等**系统类**消息的独立落点，避免与个股·盘前例程·保护线等股票类消息混群。
+    # 不配置时运维消息回退通用群（不丢消息，但会混群）——见 notification_factory。
+    feishu_webhook_ops: Optional[str] = Field(default=None, alias="FEISHU_WEBHOOK_OPS")
+
+    # HTTP 代理
+    http_proxy: Optional[str] = Field(default=None, alias="HTTP_PROXY")
+    https_proxy: Optional[str] = Field(default=None, alias="HTTPS_PROXY")
+
+    # Quantsys API (用于 agent-ts 调用)
+    quantsys_api_url: str = Field(default="http://localhost:5001", alias="QUANTSYS_API_URL")
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        populate_by_name=True,
+        extra="ignore",  # 忽略未定义的环境变量
+    )
+
+
+class LoggingSettings(BaseSettings):
+    """日志配置"""
+
+    log_level: str = Field(default="INFO", alias="LOG_LEVEL")
+    log_format: str = Field(default="json", alias="LOG_FORMAT")  # json or console
+
+    @field_validator("log_level")
+    @classmethod
+    def validate_log_level(cls, v: str) -> str:
+        """验证日志级别"""
+        valid_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
+        v_upper = v.upper()
+        if v_upper not in valid_levels:
+            raise ValueError(f"Invalid log level: {v}. Must be one of {valid_levels}")
+        return v_upper
+
+    @field_validator("log_format")
+    @classmethod
+    def validate_log_format(cls, v: str) -> str:
+        """验证日志格式"""
+        valid_formats = {"json", "console"}
+        v_lower = v.lower()
+        if v_lower not in valid_formats:
+            raise ValueError(f"Invalid log format: {v}. Must be one of {valid_formats}")
+        return v_lower
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        populate_by_name=True,
+        extra="ignore",  # 忽略未定义的环境变量
+    )
+
+
+class AppSettings(BaseSettings):
+    """应用配置（统一入口）"""
+
+    # 环境
+    environment: str = Field(default="development", alias="ENVIRONMENT")
+
+    # 子配置
+    database: DatabaseSettings = Field(default_factory=DatabaseSettings)
+    thread_pool: ThreadPoolSettings = Field(default_factory=ThreadPoolSettings)
+    scheduler: SchedulerSettings = Field(default_factory=SchedulerSettings)
+    external: ExternalServiceSettings = Field(default_factory=ExternalServiceSettings)
+    logging: LoggingSettings = Field(default_factory=LoggingSettings)
+
+    @field_validator("environment")
+    @classmethod
+    def validate_environment(cls, v: str) -> str:
+        """验证环境"""
+        valid_envs = {"development", "production", "test"}
+        v_lower = v.lower()
+        if v_lower not in valid_envs:
+            raise ValueError(f"Invalid environment: {v}. Must be one of {valid_envs}")
+        return v_lower
+
+    @property
+    def is_production(self) -> bool:
+        """是否生产环境"""
+        return self.environment == "production"
+
+    @property
+    def is_test(self) -> bool:
+        """是否测试环境"""
+        return self.environment == "test"
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        populate_by_name=True,
+        extra="ignore",  # 忽略未定义的环境变量
+    )
+
+
+# ============================================================================
+# 全局配置实例
+# ============================================================================
+
+# 延迟初始化，避免导入时就读取环境变量
+_settings: Optional[AppSettings] = None
+
+
+def get_settings() -> AppSettings:
+    """
+    获取全局配置实例（单例模式）
+
+    Returns:
+        AppSettings 实例
+    """
+    global _settings
+    if _settings is None:
+        _settings = AppSettings()
+    return _settings
+
+
+def reload_settings() -> AppSettings:
+    """
+    重新加载配置（用于测试或热加载）
+
+    Returns:
+        新的 AppSettings 实例
+    """
+    global _settings
+    _settings = AppSettings()
+    return _settings
+
+
+# 便捷访问
+settings = get_settings()

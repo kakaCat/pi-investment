@@ -30,7 +30,7 @@ class SessionCleanupMiddleware(BaseHTTPMiddleware):
         finally:
             # 无论成功还是失败，都清理 Session
             try:
-                from infrastructure.persistence.orm import close_session
+                from qs_kernel.infrastructure.persistence.orm import close_session
                 close_session()
             except Exception as e:
                 logger.warning(

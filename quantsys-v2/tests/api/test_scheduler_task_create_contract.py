@@ -33,7 +33,7 @@ def _call_kwargs(path: Path, method_name: str):
 
 
 def test_route_add_task_kwargs_accepted_by_service():
-    from infrastructure.scheduler.scheduler import SchedulerService
+    from qs_ops.infrastructure.scheduler.scheduler import SchedulerService
 
     accepted = set(inspect.signature(SchedulerService.add_task).parameters)
     calls = [kw for kw in _call_kwargs(ROUTE_FILE, "add_task") if kw]
@@ -48,7 +48,7 @@ def test_route_add_task_kwargs_accepted_by_service():
 
 
 def test_service_signature_accepts_task_type():
-    from infrastructure.scheduler.scheduler import SchedulerService
+    from qs_ops.infrastructure.scheduler.scheduler import SchedulerService
 
     params = inspect.signature(SchedulerService.add_task).parameters
     assert "task_type" in params, "add_task 必须接受 task_type（路由按 schedule_kind 推导后传入）"
@@ -56,7 +56,7 @@ def test_service_signature_accepts_task_type():
 
 
 def test_service_forwards_task_type_to_repository():
-    from infrastructure.scheduler.scheduler import SchedulerService
+    from qs_ops.infrastructure.scheduler.scheduler import SchedulerService
 
     recorded = {}
 
@@ -77,7 +77,7 @@ def test_service_forwards_task_type_to_repository():
 
 def test_port_signature_is_subset_of_adapter_signature():
     """端口声明必须能被实现层满足（实现层可有额外可选参数，但端口参数不能被实现层拒绝）。"""
-    from domain.ports import ISchedulerRepository
+    from qs_kernel.domain.ports import ISchedulerRepository
     from adapters.outbound.repositories.scheduler_repository import SchedulerRepository
 
     port_params = inspect.signature(ISchedulerRepository.add_task).parameters
@@ -87,7 +87,7 @@ def test_port_signature_is_subset_of_adapter_signature():
 
 
 def test_port_declares_task_type():
-    from domain.ports import ISchedulerRepository
+    from qs_kernel.domain.ports import ISchedulerRepository
 
     params = inspect.signature(ISchedulerRepository.add_task).parameters
     assert "task_type" in params, "端口未声明 task_type → 实现层的 task_type 支持无法被类型契约看见"

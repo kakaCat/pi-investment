@@ -42,10 +42,10 @@ load_dotenv(env_path)
 # （路径引导已上移至文件顶部，见上）
 
 # 统一使用结构化日志配置
-from infrastructure.logging import configure_structured_logging
+from qs_kernel.infrastructure.logging import configure_structured_logging
 
 # 加载统一配置
-from infrastructure.config.settings import get_settings
+from qs_kernel.infrastructure.config.settings import get_settings
 settings = get_settings()
 
 configure_structured_logging(
@@ -58,7 +58,7 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 # 加载统一配置
-from infrastructure.config.settings import get_settings
+from qs_kernel.infrastructure.config.settings import get_settings
 settings = get_settings()
 
 
@@ -92,7 +92,7 @@ async def lifespan(app: FastAPI):
 
     # 初始化 JobRegistry（2026-09-01: scheduler 重构，优先使用 JobRegistry）
     try:
-        from application.jobs.registry_setup import register_all_jobs
+        from qs_ops.application.jobs.registry_setup import register_all_jobs
         register_all_jobs()
         logger.info("✅ JobRegistry initialized (28 jobs registered)")
     except Exception as e:
@@ -105,8 +105,8 @@ async def lifespan(app: FastAPI):
     # 注册顺序在 register_all_jobs 之后：JobRegistry.register 对同名不同实例会抛错，
     # 放在此处可让"同名冲突"在启动日志里立刻可见，而不是被静默覆盖。
     try:
-        from application.jobs.job_registry import job_registry
-        from application.services.event_feed_service import build_event_ingest_jobs
+        from qs_ops.application.jobs.job_registry import job_registry
+        from qs_intel.application.services.event_feed_service import build_event_ingest_jobs
         from adapters.inbound.fastapi_app.routes.events_async import get_feed_service
         for _job in build_event_ingest_jobs(get_feed_service()):
             job_registry.register(_job)
@@ -118,7 +118,7 @@ async def lifespan(app: FastAPI):
     # 上迁原因：用户裁定「脚本不能写进 v2 项目，脚本只能测试用」；
     # 但本能力是账户建仓决策入口（工作日 09:05 生成计划，09:10 的 agent 任务只读取文件）。
     try:
-        from application.jobs.job_registry import job_registry
+        from qs_ops.application.jobs.job_registry import job_registry
         from application.services.core_plan_service import build_core_plan_jobs
         for _job in build_core_plan_jobs():
             job_registry.register(_job)
@@ -130,8 +130,8 @@ async def lifespan(app: FastAPI):
     # 上迁原因：用户裁定「脚本不能写进 v2 项目，脚本只能测试用」；
     # 本能力是策略门槛守门人（周日 20:30 复核 → 未过门槛则退役 → 落报告供 agent 读取通知）。
     try:
-        from application.jobs.job_registry import job_registry
-        from application.services.strategy_lifecycle_service import build_strategy_loop_jobs
+        from qs_ops.application.jobs.job_registry import job_registry
+        from qs_strategy.application.services.strategy_lifecycle_service import build_strategy_loop_jobs
         for _job in build_strategy_loop_jobs():
             job_registry.register(_job)
         logger.info("✅ Registered: strategy loop job (strategy_loop_weekly)")
@@ -142,7 +142,7 @@ async def lifespan(app: FastAPI):
     # 上迁原因：用户裁定「脚本不能写进 v2 项目，脚本只能测试用」；
     # 本能力是"悬空引用/数据悄悄变空"的持续探测（周日 21:00 产报告，agent 任务按契约处置）。
     try:
-        from application.jobs.job_registry import job_registry
+        from qs_ops.application.jobs.job_registry import job_registry
         from application.services.data_hygiene_service import build_data_hygiene_jobs
         for _job in build_data_hygiene_jobs():
             job_registry.register(_job)
@@ -154,7 +154,7 @@ async def lifespan(app: FastAPI):
     # 上迁原因：用户裁定「脚本不能写进 v2 项目，脚本只能测试用」；
     # 本能力此前**没有生产调用方**（无活动的交易日就没有快照 → risk_metrics 日收益序列有缺口）。
     try:
-        from application.jobs.job_registry import job_registry
+        from qs_ops.application.jobs.job_registry import job_registry
         from application.services.evolution.daily_snapshot_service import build_equity_snapshot_jobs
         for _job in build_equity_snapshot_jobs():
             job_registry.register(_job)
@@ -169,9 +169,9 @@ async def lifespan(app: FastAPI):
     # 落库前提：save_minute_klines 已于 2026-09-11 改为幂等 upsert，
     # 否则"每 5 分钟反复跑"第二次必然因重叠 K 线主键冲突整批失败。
     try:
-        from application.jobs.job_registry import job_registry
-        from application.jobs.refresh_jobs import build_refresh_jobs
-        from adapters.outbound.datasources import get_data_provider_manager
+        from qs_ops.application.jobs.job_registry import job_registry
+        from qs_ops.application.jobs.refresh_jobs import build_refresh_jobs
+        from qs_market_data.adapters.outbound.datasources import get_data_provider_manager
         from adapters.outbound.repositories.minute_kline_repository import get_minute_kline_repo
         from adapters.outbound.repositories.event_repository import get_market_event_repo
         from adapters.inbound.fastapi_app.routes.industry_chain_async import get_service as _get_chain_service
@@ -188,7 +188,7 @@ async def lifespan(app: FastAPI):
 
     # 初始化数据库引擎
     try:
-        from infrastructure.persistence.database.engine import init_engine
+        from qs_kernel.infrastructure.persistence.database.engine import init_engine
         init_engine(
             pool_size=settings.database.pool_size,
             max_overflow=settings.database.max_overflow
@@ -203,14 +203,14 @@ async def lifespan(app: FastAPI):
 
     # 初始化 ORM（可选，用于支持旧代码）
     try:
-        from infrastructure.persistence.orm import init_orm
+        from qs_kernel.infrastructure.persistence.orm import init_orm
         init_orm()
         logger.info("✅ ORM initialized successfully")
 
         # 启用 Session 泄漏检测（开发/测试环境）
         if settings.environment != 'production':
             try:
-                from infrastructure.persistence.orm.session_guard import enable_session_guard
+                from qs_kernel.infrastructure.persistence.orm.session_guard import enable_session_guard
                 enable_session_guard(timeout=300)  # 5 分钟超时
                 logger.info("✅ Session guard enabled (timeout=300s)")
             except Exception as e:
@@ -268,8 +268,8 @@ async def lifespan(app: FastAPI):
             try:
                 from infrastructure.scheduler.apscheduler_service import APSchedulerService
                 from adapters.outbound.repositories.scheduler_repository import SchedulerRepository
-                from infrastructure.persistence.orm import get_session
-                from infrastructure.config.settings import get_settings
+                from qs_kernel.infrastructure.persistence.orm import get_session
+                from qs_kernel.infrastructure.config.settings import get_settings
 
                 settings_obj = get_settings()
                 db_url = (
@@ -295,7 +295,7 @@ async def lifespan(app: FastAPI):
     # 注：该值现已落库（quant.watch_runtime_meta.digest_shadow_since，迁移 20260918b），
     # shadow_mode_clock 走「库优先 → env 兜底」，重启读回真值；仅库不可用时才退化为 env 口径。
     try:
-        from application.services.watch_engine.shadow_mode_clock import ensure_shadow_since_env
+        from qs_watch.application.services.watch_engine.shadow_mode_clock import ensure_shadow_since_env
         _shadow_since = ensure_shadow_since_env()
         if _shadow_since:
             logger.info("✅ 影子模式起始时间已落地", since=_shadow_since)
@@ -425,14 +425,14 @@ async def lifespan(app: FastAPI):
         logger.warning(f"⚠️ Thread pool shutdown failed: {e}")
 
     try:
-        from infrastructure.persistence.database.engine import dispose_engine
+        from qs_kernel.infrastructure.persistence.database.engine import dispose_engine
         dispose_engine()
         logger.info("✅ Engine closed successfully")
     except Exception as e:
         logger.error(f"❌ Engine cleanup failed: {e}")
 
     try:
-        from infrastructure.persistence.orm import close_orm
+        from qs_kernel.infrastructure.persistence.orm import close_orm
         close_orm()
         logger.info("✅ ORM closed successfully")
     except Exception as e:
@@ -521,7 +521,7 @@ async def release_orm_session(request: Request, call_next):
     try:
         return await call_next(request)
     finally:
-        from infrastructure.persistence.orm.config import close_session
+        from qs_kernel.infrastructure.persistence.orm.config import close_session
         close_session()
 
 
@@ -542,7 +542,7 @@ def install_sync_session_cleanup() -> None:
     import asyncio
     import functools
     from fastapi.routing import APIRoute
-    from infrastructure.persistence.orm.config import close_session
+    from qs_kernel.infrastructure.persistence.orm.config import close_session
 
     wrapped = 0
 
@@ -895,6 +895,15 @@ def register_routes():
     except ImportError as e:
         optional_failed.append("watch")
         logger.warning(f"⚠️ Failed to import watch_async: {e}")
+
+    # Agent 任务派发（2026-10-20）：agent 工具/调度任务共用的派单入口（信封+报告要求+留痕）。
+    try:
+        from adapters.inbound.fastapi_app.routes.agent_dispatch_async import router as agent_dispatch_router
+        app.include_router(agent_dispatch_router)
+        logger.info("✅ Registered: agent_dispatch (任务派发)")
+    except ImportError as e:
+        optional_failed.append("agent_dispatch")
+        logger.warning(f"⚠️ Failed to import agent_dispatch_async: {e}")
 
     # 盯盘待办闭环（REQ-c9f899 t12 §6-项1/5/7）：待办 CRUD + 规则自愈 + 最小观测。
     # 三路由均为**增量**端点（interfaces.md §5），独立注册、单个失败不阻断其它；

@@ -1,0 +1,309 @@
+#!/usr/bin/env python
+"""
+V13策略预测验证任务
+
+功能：
+- 每天检查是否有5个交易日前的调仓记录
+- 计算预测收益 vs 实际收益
+- 发送验证通知到飞书
+"""
+
+import sys
+import os
+from pathlib import Path
+from datetime import datetime, timedelta
+import logging
+
+# 添加项目路径
+# 2026-10-19：固定深度 parent×3 在包抽取后指错，改标记查找（qs_kernel）
+from qs_kernel.infrastructure.paths import find_project_root as _find_root
+project_root = _find_root(__file__)
+
+from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
+from qs_notification.application.notification_factory import get_notification_facade
+import yaml
+
+# 统一日志入口（2026-10-01 t-008062 主题B：库层不再调用 basicConfig）：此处的日志配置已移除（由入口统一配置）
+
+logger = logging.getLogger(__name__)
+
+
+class VerificationJob:
+    """预测验证任务"""
+
+    def __init__(self, config_path: str):
+        """初始化"""
+        # 加载配置
+        with open(config_path, 'r', encoding='utf-8') as f:
+            self.config = yaml.safe_load(f)
+
+        # 初始化仓库
+        self.repo = SimulationORMRepository()
+
+        # 初始化通知门面（使用新的 DDD 通知系统）
+        self.notification_facade = get_notification_facade()
+
+    def _is_trading_day(self, date_str: str) -> bool:
+        """检查是否为交易日。
+
+        2026-09-11（w-f4aa1f6a 步2）：收敛到 TradingDayGuard 唯一入口——
+        原实现①只排周末（法定节假日误判为交易日）②直接开裸 DB cursor
+        绕过连接池与 ORM 会话管理。
+        """
+        from qs_ops.application.services.trading_day_guard import TradingDayGuard
+
+        verdict = TradingDayGuard.check(date_str, use_cache=False)
+        if verdict.degraded or verdict.source == 'unavailable':
+            logger.warning(
+                f"交易日判定降级 [{date_str}] source={verdict.source}: {verdict.reason}"
+            )
+        return verdict.is_trading_day
+
+    def _count_trading_days_between(self, start_date: str, end_date: str) -> int:
+        """计算两个日期之间的交易日数量"""
+        start = datetime.strptime(start_date, '%Y-%m-%d')
+        end = datetime.strptime(end_date, '%Y-%m-%d')
+
+        count = 0
+        current = start + timedelta(days=1)  # 不包含起始日
+
+        while current <= end:
+            if self._is_trading_day(current.strftime('%Y-%m-%d')):
+                count += 1
+            current += timedelta(days=1)
+
+        return count
+
+    def _get_stock_return(self, symbol: str, start_date: str, end_date: str) -> float:
+        """
+        获取股票在指定期间的收益率
+
+        Args:
+            symbol: 股票代码
+            start_date: 开始日期
+            end_date: 结束日期
+
+        Returns:
+            收益率（小数形式）
+        """
+        from adapters.outbound.repositories.kline_repository import KlineORMRepository as KlineRepository
+        kline_repo = KlineRepository()
+
+        # 2026-09-13（w-32314d00，REQ-24e15d t4）：原先是"先取仓储 session 再手写裸 SQL"的半迁移写法，
+        # 现改为调用仓储方法（查询收口到 kline_repository，作业层不再出现 SQL 文本）。
+        start_price = kline_repo.get_first_close_on_or_after(symbol, start_date)
+        if not start_price:
+            return 0.0
+
+        end_price = kline_repo.get_last_close_on_or_before(symbol, end_date)
+        if not end_price:
+            return 0.0
+
+        # 计算收益率
+        return (end_price - start_price) / start_price
+
+    def _get_index_return(self, start_date: str, end_date: str) -> float:
+        """
+        获取创业板指数（399006）在指定期间的收益率
+
+        Args:
+            start_date: 开始日期
+            end_date: 结束日期
+
+        Returns:
+            收益率（小数形式）；取不到指数数据时返回 0.0 并 **ERROR 告警**
+
+        ⚠️ 2026-09-13（w-32314d00，REQ-24e15d t4）修了一个**长期静默错误**：
+        原实现读的是 quant.daily_klines WHERE symbol='399006'，而指数自 2026-09-11 起
+        与个股**分表**（w-f4aa1f6a）—— daily_klines 里 399 族 **0 行**，指数在
+        quant.index_daily 且键带市场后缀（399006.SZ，实测 268 行）。
+        于是本方法此前**恒返回 0.0**：验证报表里的"基准收益"一直是 0，
+        超额收益（策略 − 基准）被系统性高估。现改走仓储的指数口径方法。
+        """
+        from adapters.outbound.repositories.kline_repository import KlineORMRepository as KlineRepository
+        kline_repo = KlineRepository()
+
+        ret = kline_repo.get_index_return('399006', start_date, end_date)
+        if ret is None:
+            # 明确区分"取不到"与"收益为 0"：宁可告警也不要再静默给 0
+            logger.error(
+                f"基准指数 399006 区间收益取数为空（{start_date} ~ {end_date}），"
+                f"本次基准按 0 计——请核查 quant.index_daily 是否有该区间数据"
+            )
+            return 0.0
+        return ret
+
+    def run(self):
+        """运行验证任务"""
+        logger.info("开始运行预测验证任务")
+
+        current_date = datetime.now().strftime('%Y-%m-%d')
+
+        # 检查今天是否为交易日
+        if not self._is_trading_day(current_date):
+            logger.info(f"{current_date} 不是交易日，跳过验证")
+            return
+
+        # 获取所有调仓记录
+        account = self.repo.get_account(account_name='default')
+        if not account or not account.last_rebalance_date:
+            logger.info("没有调仓记录，跳过验证")
+            return
+
+        last_rebalance_date = account.last_rebalance_date
+
+        # 计算距离上次调仓的交易日数
+        trading_days = self._count_trading_days_between(last_rebalance_date, current_date)
+
+        logger.info(f"上次调仓日期: {last_rebalance_date}, 距今{trading_days}个交易日")
+
+        # 只在第5个交易日后验证
+        if trading_days != 5:
+            logger.info(f"当前是第{trading_days}个交易日，等待第5个交易日")
+            return
+
+        logger.info("到达验证时间点，开始验证预测准确性")
+
+        # 获取调仓时的持仓
+        trades = self.repo.get_trades_by_date(
+            account_name='default',
+            trade_date=last_rebalance_date
+        )
+
+        # 筛选出买入交易（即本次调仓选中的股票）
+        buy_trades = [t for t in trades if t.direction == 'buy']
+
+        if not buy_trades:
+            logger.info("没有买入交易记录，跳过验证")
+            return
+
+        # 计算每只股票的预测收益 vs 实际收益
+        predictions = []
+
+        for trade in buy_trades:
+            symbol = trade.symbol
+
+            # 获取实际收益
+            actual_return = self._get_stock_return(
+                symbol,
+                last_rebalance_date,
+                current_date
+            )
+
+            # 预测收益从备注中提取（如果有保存）
+            # 这里简化处理，假设预测收益率在10-15%之间
+            # 实际应该从调仓时保存的预测数据中读取
+            predicted_return = 0.12  # TODO: 从实际数据读取
+
+            predictions.append((symbol, predicted_return, actual_return))
+
+            logger.info(
+                f"{symbol}: 预测{predicted_return*100:+.2f}%, "
+                f"实际{actual_return*100:+.2f}%"
+            )
+
+        # 获取账户变化（多账户重构后 total_value 由 update_position_prices 维护；
+        # 旧的 get_account_total_value() 已移除）
+        # ORM Numeric 字段返回 Decimal，统一转 float 避免算术/JSON 序列化问题
+        initial_value = float(account.initial_capital or 0) * (1 + float(account.cumulative_return or 0))
+        current_value = float(account.total_value or 0)
+        period_return = (current_value - initial_value) / initial_value
+
+        # 获取指数收益
+        index_return = self._get_index_return(last_rebalance_date, current_date)
+
+        # 计算当前是第几个周期
+        rebalance_days = self.config['strategy']['rebalance_days']
+        total_rebalances = self.repo.count_rebalances(account_name='default')
+        cycle = total_rebalances
+
+        # 发送验证通知
+        notification_data = {
+            'rebalance_date': last_rebalance_date,
+            'verify_date': current_date,
+            'predictions': predictions,
+            'initial_value': initial_value,
+            'current_value': current_value,
+            'period_return': period_return,
+            'index_return': index_return,
+            'cycle': cycle
+        }
+
+        try:
+            # 使用新的 DDD 通知系统
+            # 注意：旧版有 send_verification_notification，新版需要映射到通用的通知类型
+            result = self.notification_facade.send_card(
+                title=f"V13策略验证报告 - {current_date}",
+                content=self._format_verification_content(notification_data),
+                urgency='normal'
+            )
+
+            if result:
+                logger.info("验证通知发送成功")
+            else:
+                logger.error("验证通知发送失败")
+        except Exception as e:
+            logger.error(f"发送验证通知异常: {e}")
+
+        logger.info("预测验证任务完成")
+
+    def _format_verification_content(self, data: dict) -> str:
+        """格式化验证通知内容"""
+        predictions = data['predictions']
+        correct = sum(1 for _, pred, actual in predictions if (pred > 0) == (actual > 0))
+        accuracy = correct / len(predictions) * 100 if predictions else 0
+        avg_return = sum(actual for _, _, actual in predictions) / len(predictions) if predictions else 0
+
+        content = f"""**🗓 原调仓日期**: {data['rebalance_date']}
+**📅 验证日期**: {data['verify_date']} (5个交易日后)
+
+**📊 预测准确性验证**:
+"""
+        for symbol, pred_return, actual_return in predictions:
+            direction = "✅" if (pred_return > 0) == (actual_return > 0) else "❌"
+            content += f"\n{direction} {symbol}: 预测{pred_return*100:+.2f}% | 实际{actual_return*100:+.2f}%"
+
+        content += f"""
+
+**📈 整体表现**:
+• 验证股票: {len(predictions)}只
+• 预测正确: {correct}只 ({accuracy:.1f}%)
+• 平均收益: {avg_return*100:+.2f}%
+
+**💰 账户变化**:
+• 5天前: ¥{data['initial_value']:,.2f}
+• 现在: ¥{data['current_value']:,.2f}
+• 期间收益: {data['period_return']*100:+.2f}%
+
+**📊 对比创业板指数**:
+• V13收益: {data['period_return']*100:+.2f}%
+• 创业板指数: {data['index_return']*100:+.2f}%
+• 超额收益: {(data['period_return'] - data['index_return'])*100:+.2f}% {"✅" if data['period_return'] > data['index_return'] else "⚠️"}
+
+**⚠️ 观察期进度**: 第{data['cycle']}/3个调仓周期"""
+
+        return content
+
+
+def main() -> dict:
+    """主函数"""
+    # 使用绝对路径
+    # 2026-10-19：固定深度 parent×3 在包抽取后指错，改标记查找（qs_kernel）
+    project_root = _find_root(__file__)  # 模块级已导入（2026-10-19 标记查找）
+    config_path = project_root / 'live_trading' / 'config_simulation.yaml'
+
+    job = VerificationJob(config_path=str(config_path))
+    result = job.run()
+    # 269 修复（2026-09-02）：run() 无调仓/非验证日等分支无返回值，兜底为结构化结果，
+    # 避免 execute 返回 None 被调度层包装成假成功（JobResult.details=None）
+    return result if isinstance(result, dict) else {"status": "completed", "task": "v13_verification"}
+
+
+# Job注册点 - scheduler会调用这个函数
+def execute(**params) -> dict:
+    """Scheduler调用的入口函数"""
+    return main()
+
+
+if __name__ == '__main__':
+    main()

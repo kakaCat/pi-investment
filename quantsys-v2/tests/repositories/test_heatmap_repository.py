@@ -16,6 +16,12 @@ D2 = date(2009, 1, 7)
 def seeded():
     repo = HeatmapRepository()
     s = repo.session
+    # 2026-10-21 僵尸批次2：pre-clean（先前 crash 会把已 commit 的种子留在库中，
+    # 下次 setup 即 UniqueViolation；显式先删同 symbol 自愈）
+    for sym in ('TST001', 'TST002'):
+        s.query(DailyKline).filter(DailyKline.symbol == sym).delete()
+        s.query(Stock).filter(Stock.symbol == sym).delete()
+    s.commit()
     s.add_all([
         Stock(symbol='TST001', name='测试一', industry='测试半导体', market='A', market_cap=100.0),
         Stock(symbol='TST002', name='测试二', industry='测试半导体', market='A', market_cap=50.0),
@@ -63,6 +69,10 @@ class TestWindowCloses:
         """缺 d0 端点时回退到区间内最早可用收盘（回填稀疏场景）"""
         repo = seeded
         s = repo.session
+        # 2026-10-21 僵尸批次2：daily_klines 有 FK(daily_klines_symbol_fkey)——
+        # 孤儿 kline 提交即 IntegrityError，并毒化共享 session 令后续 fixture 连环
+        # PendingRollbackError。先补股票行再种 kline。
+        s.add(Stock(symbol='TST003', name='回退股', industry='测试半导体', market='A', market_cap=1.0))
         s.add_all([
             DailyKline(symbol='TST003', trade_date=D1, open=7, high=7, low=7, close=7.0, volume=1, amount=1),
             DailyKline(symbol='TST003', trade_date=D2, open=8, high=8, low=8, close=8.0, volume=1, amount=1),
@@ -76,6 +86,7 @@ class TestWindowCloses:
             assert closes['TST003']['last_close'] == 8.0
         finally:
             s.query(DailyKline).filter(DailyKline.symbol == 'TST003').delete()
+            s.query(Stock).filter(Stock.symbol == 'TST003').delete()
             s.commit()
 
     def test_range_closes_empty_symbols(self, seeded):

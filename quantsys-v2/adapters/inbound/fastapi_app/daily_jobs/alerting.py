@@ -25,14 +25,18 @@ def _send_feishu(text: str) -> bool:
     .send_text 走裸 webhook：既绕过 DDD 通知域（违反 CLAUDE.md 通知架构铁律），
     也拿不到「Agent OS 优先、飞书降级」策略路由，所以在同一飞书群里与本 Agent 的
     卡片消息观感不一致。urgency：🚨/❌ 开头按 high，其余 normal。
+
+    2026-10-14（用户裁定分群）：改投 `send_ops_card` → **独立运维群**
+    （FEISHU_WEBHOOK_OPS）。本条覆盖每日任务开始/完成/失败、失败残留、新鲜度守卫，
+    全是系统消息，此前与股票消息同群造成混流。
     """
     try:
-        from application.notification import get_notification_facade
+        from qs_notification.application import get_notification_facade
 
         title, _, body = text.partition('\n')
         title = title.strip() or '每日任务通知'
         urgency = 'high' if title.startswith(('🚨', '❌')) else 'normal'
-        return bool(get_notification_facade().send_card(
+        return bool(get_notification_facade().send_ops_card(
             title=title,
             content=(body.strip() or title),
             urgency=urgency

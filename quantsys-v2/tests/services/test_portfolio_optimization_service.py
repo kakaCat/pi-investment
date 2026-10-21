@@ -3,7 +3,7 @@
 """
 import pytest
 import numpy as np
-from application.services.portfolio_optimization_service import (
+from qs_trading.application.services.portfolio_optimization_service import (
     PortfolioOptimizationService,
     CVXPY_AVAILABLE
 )

@@ -1,10 +1,10 @@
 """signal_execution_daily 兜底推送改造测试"""
 from unittest.mock import patch
 
-from application.services.scheduler_tasks import handle_signal_execution_daily
+from qs_ops.application.services.scheduler_tasks import handle_signal_execution_daily
 
 
-@patch('application.services.agent_notification_service.agent_service')
+@patch('qs_agenthub.application.services.agent_notification_service.agent_service')
 @patch('application.services.signal_execution_scheduler.SignalExecutionScheduler')
 def test_repushes_signals_without_executing(MockSched, mock_agent):
     MockSched.return_value._collect_signals.return_value = [
@@ -24,7 +24,7 @@ def test_repushes_signals_without_executing(MockSched, mock_agent):
     assert result['pushed'] is True
 
 
-@patch('application.services.agent_notification_service.agent_service')
+@patch('qs_agenthub.application.services.agent_notification_service.agent_service')
 @patch('application.services.signal_execution_scheduler.SignalExecutionScheduler')
 def test_no_signals_no_push(MockSched, mock_agent):
     MockSched.return_value._collect_signals.return_value = []

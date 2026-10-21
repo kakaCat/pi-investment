@@ -29,10 +29,10 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from adapters.inbound.fastapi_app.routes import watch_rule_repair_async as repair_route
-from application.services.watch_engine.engine import SUPPRESSED_TRIGGER_REASON, WatchEngine
-from application.services.watch_engine.noise_self_heal_service import NoiseSelfHealService
-from application.services.watch_engine.todo_service import TodoService
-from domain.watch.ports import (
+from qs_watch.application.services.watch_engine.engine import SUPPRESSED_TRIGGER_REASON, WatchEngine
+from qs_watch.application.services.watch_engine.noise_self_heal_service import NoiseSelfHealService
+from qs_watch.application.services.watch_engine.todo_service import TodoService
+from qs_watch.domain.watch.ports import (
     IWatchRuleChangeRepository,
     IWatchRuleNoiseRepository,
     WatchRuleChangeInvalidKind,
@@ -51,7 +51,9 @@ DAY = timedelta(days=1)
 def _rule(rule_id, symbol, account, **over):
     row = {"id": rule_id, "symbol": symbol, "account": account, "linked_account": None,
            "enabled": True, "noise_state": None, "suppress_until": None,
-           "self_heal_count": 0, "last_repair_at": None}
+           "self_heal_count": 0, "last_repair_at": None,
+           "conditions": [{"type": "price_break",
+                           "params": {"direction": "above", "price": 100.0}}]}
     row.update(over)
     return row
 
@@ -64,6 +66,8 @@ class FakeRuleNoiseRepo:
         self.daily = dict(daily or {})
         self.suppressed_calls = []
         self.repaired_calls = []
+        self.config_repairs = []
+        self.fail_config_repair = False
 
     def get_rule(self, rule_id):
         return self.rules.get(rule_id)
@@ -91,6 +95,19 @@ class FakeRuleNoiseRepo:
         row["last_repair_at"] = now
         row["self_heal_count"] = (row.get("self_heal_count") or 0) + 1
         self.repaired_calls.append((rule_id, now))
+
+    def apply_config_repair(self, rule_id, action, after):
+        if self.fail_config_repair:
+            raise RuntimeError("配置落地失败（fake 注入）")
+        unknown = set(after or {}) - {"enabled", "conditions"}
+        if unknown:
+            raise ValueError("配置修复列越白名单：%s" % sorted(unknown))
+        if not after:
+            raise ValueError("配置修复内容为空")
+        row = self.rules[rule_id]
+        for col, value in after.items():
+            row[col] = value
+        self.config_repairs.append((rule_id, action, after))
 
 
 class FakeChangeRepo:
@@ -130,6 +147,7 @@ class FakeTodoRepo:
     def __init__(self):
         self.rows = []
         self._seq = 100
+        self.fail_list_open = False
 
     def create(self, symbol, *, rule_id=None, trigger_id=None, account=None, level,
                flow_state="L1", owner_kind=None, owner_ref=None, autonomy=None,
@@ -143,6 +161,17 @@ class FakeTodoRepo:
                                action_kind=action_kind, terminal=None)
         self.rows.append(todo)
         return todo
+
+    def list_open_by_rule(self, rule_id, action_kind=None, trigger_id_null=False):
+        if self.fail_list_open:
+            raise RuntimeError("待办查询失败（fake 注入）")
+        rows = [r for r in self.rows
+                if r.rule_id == rule_id and r.terminal is None]
+        if action_kind:
+            rows = [r for r in rows if r.action_kind == action_kind]
+        if trigger_id_null:
+            rows = [r for r in rows if r.trigger_id is None]
+        return rows
 
 
 AGENT_RULE = _rule(1, "600150.SH", "agent_brain")
@@ -172,8 +201,9 @@ def _three_days(rule_id, counts=(4, 4, 4)):
 
 # ── 服务：单日阈值 ────────────────────────────────────────────
 
-def test_scan_7_triggers_no_suppress_no_todo():
-    service, rule_repo, change_repo, todo_repo = _build(daily={1: {TODAY: 7}})
+def test_scan_2_triggers_no_suppress_no_todo():
+    """阈值 8→3 后（REQ-261016155500-4f2a wt:engine:3）：单日 2 次（=日通知上限）不抑噪"""
+    service, rule_repo, change_repo, todo_repo = _build(daily={1: {TODAY: 2}})
     result = service.scan(now=NOW)
     assert result["suppressed"] == []
     assert rule_repo.rules[1]["noise_state"] is None
@@ -223,21 +253,23 @@ def test_scan_3_days_avg_4_suppress():
 
 
 def test_scan_2_days_avg_4_no_suppress():
-    service, rule_repo, change_repo, todo_repo = _build(daily=_three_days(1, (4, 4)))
+    # 单日计数取 2（< 新阈值 3），隔离「连续天数不足 3 天不抑噪」的判定
+    service, rule_repo, change_repo, todo_repo = _build(daily=_three_days(1, (2, 2)))
     assert service.scan(now=NOW)["suppressed"] == []
     assert rule_repo.rules[1]["noise_state"] is None
     assert (change_repo.rows, todo_repo.rows) == ([], [])
 
 
 def test_scan_3_days_avg_below_4_no_suppress():
-    service, rule_repo, _, _ = _build(daily=_three_days(1, (3, 3, 3)))
+    # 单日计数取 2（< 新阈值 3），隔离「日均 < 4 不抑噪」的判定
+    service, rule_repo, _, _ = _build(daily=_three_days(1, (2, 2, 2)))
     assert service.scan(now=NOW)["suppressed"] == []
     assert rule_repo.rules[1]["noise_state"] is None
 
 
 def test_scan_break_in_run_no_suppress():
     """今天火但昨天断档：连续天数是 1，不算「连续多日骚扰」（不误抑噪）"""
-    daily = {1: {TODAY: 4, TODAY - 2 * DAY: 9, TODAY - 3 * DAY: 9}}
+    daily = {1: {TODAY: 2, TODAY - 2 * DAY: 9, TODAY - 3 * DAY: 9}}
     service, rule_repo, _, _ = _build(daily=daily)
     assert service.scan(now=NOW)["suppressed"] == []
     assert rule_repo.rules[1]["noise_state"] is None
@@ -266,10 +298,23 @@ def test_scan_idempotent_within_same_day():
     assert second["skipped"][0]["reason"] == "already_healed_today"
 
 
-def test_scan_next_day_can_heal_again():
-    """跨日：新的一天若仍超阈值 → 再建一条修规则待办（R6 每日都要有人管）"""
+def test_scan_next_day_reuses_open_todo():
+    """跨日仍超阈值：抑噪照做（新 suppress 审计），但待办幂等——同规则已有未收敛
+    rule_change 待办时不重复建（REQ-261016155500-4f2a 实测 #250/#255 双待办修复；
+    设计 §4.4「修规则待办跨日复用」）。"""
     service, _, change_repo, todo_repo = _build(daily={1: {TODAY: 8, TODAY + DAY: 8}})
     service.scan(now=NOW)
+    second = service.scan(now=NOW + DAY)
+    assert len(todo_repo.rows) == 1                       # 不重复建
+    assert len(change_repo.rows) == 2                     # 抑噪审计每天照写
+    assert second["skipped"][0]["reason"] == 'open_repair_todo_exists'
+
+
+def test_scan_next_day_creates_todo_after_close():
+    """待办已收敛（agent 修完）后跨日再超阈值 → 允许重建（每日都要有人管）"""
+    service, _, change_repo, todo_repo = _build(daily={1: {TODAY: 8, TODAY + DAY: 8}})
+    service.scan(now=NOW)
+    todo_repo.rows[0].terminal = 'handled'               # agent 收口
     service.scan(now=NOW + DAY)
     assert len(todo_repo.rows) == 2
     assert len(change_repo.rows) == 2
@@ -409,6 +454,96 @@ def test_apply_repair_change_kind_case_and_space_insensitive():
     assert change_repo.rows[0].change_kind == "retire"
 
 
+# ── 服务：配置类修复真实落地（E1 假修复真放行，2026-10-19）────────────────────
+
+def test_apply_repair_cooldown_lands_config_into_conditions():
+    """E1：cooldown 修复必须把 cooldown_sec 真正写进规则 conditions（不再只写审计）"""
+    service, rule_repo, change_repo, _ = _build(daily=_eight_today(1), clock=lambda: NOW)
+    service.scan(now=NOW)
+    out = service.apply_repair(1, "cooldown", params={"cooldown_sec": 3600},
+                               reason="同一条件反复穿越，冷却 60s→3600s", operator="agent",
+                               now=NOW)
+    # 配置真实落地：每条条件都写上 cooldown_sec=3600
+    conditions = rule_repo.rules[1]["conditions"]
+    assert conditions and all(c["cooldown_sec"] == 3600 for c in conditions)
+    assert conditions[0]["params"]["price"] == 100.0      # 其余字段不动
+    assert rule_repo.config_repairs[0][0] == 1
+    assert rule_repo.config_repairs[0][1] == "cooldown"
+    # 落地成功才清抑噪
+    assert out["rule"]["noise_state"] is None
+    assert rule_repo.repaired_calls and rule_repo.repaired_calls[0][0] == 1
+    # 审计 after 照旧 = params
+    assert change_repo.rows[-1].after == {"cooldown_sec": 3600}
+
+
+def test_apply_repair_threshold_lands_price_into_condition_params():
+    """E1：threshold 修复把新阈值写进每条条件的 params.price（direction 可同改）"""
+    service, rule_repo, _, _ = _build()
+    service.apply_repair(1, "threshold", params={"price": 55.0, "direction": "below"},
+                         reason="阈值贴市价，调到 55 且反向", operator="user")
+    conditions = rule_repo.rules[1]["conditions"]
+    assert all(c["params"]["price"] == 55.0 for c in conditions)
+    assert all(c["params"]["direction"] == "below" for c in conditions)
+
+
+def test_apply_repair_retire_disables_rule():
+    """E1：retire 修复真实停用规则（enabled=False），不是只写一条审计"""
+    service, rule_repo, _, _ = _build()
+    service.apply_repair(1, "retire", reason="规则已失效", operator="agent")
+    assert rule_repo.rules[1]["enabled"] is False
+    assert rule_repo.config_repairs[0][2] == {"enabled": False}
+
+
+def test_apply_repair_split_merge_rejected_as_not_mechanical():
+    """E1：split/merge 无法机械落地 → 响亮拒绝（400），不留任何痕迹、不清抑噪"""
+    service, rule_repo, change_repo, _ = _build(daily=_eight_today(1), clock=lambda: NOW)
+    service.scan(now=NOW)                                   # 先抑噪
+    change_count = len(change_repo.rows)
+    for kind in ("split", "merge"):
+        with pytest.raises(WatchRuleChangeInvalidKind):
+            service.apply_repair(1, kind, reason="结构调整", operator="agent")
+    assert len(change_repo.rows) == change_count            # 没有新增"假修复"审计
+    assert rule_repo.config_repairs == []                   # 没有配置写入
+    assert rule_repo.rules[1]["noise_state"] == "suppressed"  # 抑噪态保留（不振荡）
+
+
+def test_apply_repair_config_landing_failure_keeps_suppression():
+    """E1：配置落地失败 → 抛错且**不清抑噪**（杜绝 suppress→repair→unsuppress 振荡）"""
+    service, rule_repo, change_repo, _ = _build(daily=_eight_today(1), clock=lambda: NOW)
+    service.scan(now=NOW)
+    change_count = len(change_repo.rows)
+    rule_repo.fail_config_repair = True
+    with pytest.raises(RuntimeError):
+        service.apply_repair(1, "cooldown", params={"cooldown_sec": 3600},
+                             reason="冷却延长", operator="agent", now=NOW)
+    assert rule_repo.rules[1]["noise_state"] == "suppressed"  # 抑噪态保留
+    assert rule_repo.repaired_calls == []                     # mark_repaired 未被调用
+    assert len(change_repo.rows) == change_count              # 未写"修复成功"审计
+
+
+def test_apply_repair_config_repair_requires_target_value():
+    """E1：cooldown/threshold 缺目标值（cooldown_sec/price）→ 拒绝（无目标值=假修复）"""
+    service, rule_repo, change_repo, _ = _build()
+    with pytest.raises(WatchRuleChangeInvalidKind):
+        service.apply_repair(1, "cooldown", reason="没给秒数", operator="agent")
+    with pytest.raises(WatchRuleChangeInvalidKind):
+        service.apply_repair(1, "threshold", reason="没给阈值", operator="agent")
+    assert change_repo.rows == []
+    assert rule_repo.config_repairs == []
+
+
+def test_scan_todo_query_failure_skips_rule_fail_closed():
+    """E4：待办幂等查询失败 → fail-closed：本轮跳过该规则自愈（不抑噪/不建待办/不写审计）"""
+    service, rule_repo, change_repo, todo_repo = _build(daily=_eight_today(1))
+    todo_repo.fail_list_open = True
+    result = service.scan(now=NOW)
+    assert result["suppressed"] == []
+    assert result["skipped"] == [{"rule_id": 1, "account": "agent_brain",
+                                  "reason": "todo_query_failed"}]
+    assert rule_repo.rules[1]["noise_state"] is None
+    assert (change_repo.rows, todo_repo.rows) == ([], [])
+
+
 # ── 服务：读侧 noise_status ───────────────────────────────────
 
 def test_noise_status_reports_state_and_counts():
@@ -453,7 +588,11 @@ def client():
 
 @pytest.fixture
 def fake_service(monkeypatch):
-    service, rule_repo, change_repo, todo_repo = _build(daily=_eight_today(1))
+    # 用真实今天的日期造计数：路由层按真实 7 天窗口取数，模块常量 TODAY(2026-09-18)
+    # 已滑出窗口会让 trigger_today 恒 0（日期炸弹，干净 HEAD 同样红）。
+    from datetime import date as _date
+    service, rule_repo, change_repo, todo_repo = _build(
+        daily={1: {_date.today(): 8}})
     monkeypatch.setattr(repair_route, "_service", lambda: service)
     return SimpleNamespace(service=service, rules=rule_repo, changes=change_repo,
                            todos=todo_repo)
@@ -466,7 +605,7 @@ def test_route_get_noise_200(client, fake_service):
     assert data["rule_id"] == 1 and data["trigger_today"] == 8
     assert data["noise_state"] is None
     assert data["trigger_days"] == 1
-    assert data["thresholds"]["max_triggers_per_day"] == 8
+    assert data["thresholds"]["max_triggers_per_day"] == 3  # 8→3（wt:engine:3）
 
 
 def test_route_get_noise_404(client, fake_service):
@@ -522,8 +661,9 @@ def test_route_post_repair_404_unknown_rule(client, fake_service):
 
 def test_route_post_repair_user_operator_on_user_account_200(client, fake_service):
     resp = client.post("/api/watch/rules/2/repair",
-                       json={"change_kind": "cooldown", "reason": "冷却延长",
-                             "operator": "user"})
+                       json={"change_kind": "cooldown",
+                             "params": {"cooldown_sec": 3600},
+                             "reason": "冷却延长", "operator": "user"})
     assert resp.status_code == 200, resp.text
     assert resp.json()["data"]["change"]["changed_by"] == "user"
 
@@ -538,7 +678,7 @@ _DB_ACCOUNT = "t8_sentinel_account"
 
 
 def _dsn():
-    from infrastructure.persistence.database.engine import _resolve_db_dsn
+    from qs_kernel.infrastructure.persistence.database.engine import _resolve_db_dsn
     return _resolve_db_dsn()
 
 
@@ -724,7 +864,8 @@ def test_port_method_sets_are_stable():
     assert IWatchRuleChangeRepository.__abstractmethods__ == frozenset(
         {"record", "exists_since", "list_by_rule"})
     assert IWatchRuleNoiseRepository.__abstractmethods__ == frozenset(
-        {"get_rule", "daily_counts", "mark_suppressed", "mark_repaired"})
+        {"get_rule", "daily_counts", "mark_suppressed", "mark_repaired",
+         "apply_config_repair"})
 
 
 def test_adapter_and_fake_signatures_match_ports():
@@ -834,7 +975,7 @@ class _EngineNotifier:
     def notify(self, rule, condition, quote, result, **kwargs):
         self.notifications.append((rule.id, condition["type"]))
         if self.trigger_repo is None:
-            return SimpleNamespace(id=len(self.notifications))
+            return SimpleNamespace(id=len(self.notifications), notified=True)
         return self.trigger_repo.record(
             rule_id=rule.id, symbol=rule.symbol, condition=condition,
             trigger_price=float(quote.price),
@@ -946,8 +1087,11 @@ def test_real_db_engine_archives_suppressed_trigger_without_new_todo(watch_table
     )
 
     _db_cleanup()
+    # 阈值口径（2026-10-19 陈旧驻留裁定后对齐）：quote 假仓 prev_close=98.0、现价 10.0——
+    # 原 above/1.0 在昨收时已成立（98≥1）属「陈旧驻留」会被提前转治理、走不到抑噪归档；
+    # 改为 below/90.0：昨收 98>90 未成立（今日新穿越）、现价 10≤90 触发，语义不变。
     _seed_db_rule(trigger_count=8, conditions_json=(
-        '[{"type": "price_break", "params": {"direction": "above", "price": 1.0}}]'))
+        '[{"type": "price_break", "params": {"direction": "below", "price": 90.0}}]'))
     try:
         # ① 自愈 scan：置抑噪态 + 建 1 条「修规则」待办
         _real_service().scan(now=datetime.now())

@@ -18,7 +18,7 @@ from api.internal.scheduler_webhook import _run_sync_handler_with_session_releas
 @pytest.fixture
 def close_calls(monkeypatch):
     calls = []
-    import infrastructure.persistence.orm.config as cfg
+    import qs_kernel.infrastructure.persistence.orm.config as cfg
 
     # wrapper 内部在调用时才 from ... import close_session，故打桩模块属性即可生效
     monkeypatch.setattr(cfg, "close_session", lambda: calls.append("closed"), raising=True)
@@ -41,7 +41,7 @@ def test_releases_session_even_when_handler_raises(close_calls):
 
 
 def test_release_failure_does_not_mask_handler_result(close_calls, monkeypatch):
-    import infrastructure.persistence.orm.config as cfg
+    import qs_kernel.infrastructure.persistence.orm.config as cfg
 
     def broken_close():
         raise RuntimeError("释放失败")

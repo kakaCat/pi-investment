@@ -11,7 +11,7 @@ import os
 
 # 添加项目根目录到路径
 
-from infrastructure.persistence.database.async_base_repository import init_async_pool, close_async_pool
+from qs_kernel.infrastructure.persistence.database.async_base_repository import init_async_pool, close_async_pool
 from adapters.outbound.repositories import AsyncKlineRepository
 
 

@@ -15,7 +15,7 @@ import os
 import numpy as np
 import pandas as pd
 import time
-from domain.quantlib.gpu_acceleration.gpu_factors import GPUFactorCalculator, GPU_AVAILABLE
+from qs_quantlib.gpu_acceleration.gpu_factors import GPUFactorCalculator, GPU_AVAILABLE
 
 
 def check_gpu_environment():

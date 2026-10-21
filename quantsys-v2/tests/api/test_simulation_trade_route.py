@@ -38,7 +38,7 @@ def client():
         try:
             return await call_next(request)
         finally:
-            from infrastructure.persistence.orm.config import close_session
+            from qs_kernel.infrastructure.persistence.orm.config import close_session
             close_session()
 
     app.include_router(router)
@@ -50,7 +50,7 @@ def client():
 def _release_main_thread_session():
     """主线程 scoped_session 收尾（同理防 idle-in-transaction 阻塞 DDL）"""
     yield
-    from infrastructure.persistence.orm.config import close_session
+    from qs_kernel.infrastructure.persistence.orm.config import close_session
     close_session()
 
 

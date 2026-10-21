@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qs-trading"
+version = "0.1.0"
+description = "PI Investment 交易执行包 - 账户/订单/持仓/券商/风险/仿真/盘中止损/保护线/买入区间"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy",
+    "pandas",
+    "scipy",
+    "empyrical-reloaded",
+    "structlog",
+]
+
+[tool.setuptools.packages.find]
+include = ["qs_trading*"]
+exclude = ["__pycache__*", "*.egg-info*"]

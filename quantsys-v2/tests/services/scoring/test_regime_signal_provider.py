@@ -74,7 +74,7 @@ class TestSignals:
 class TestDetectorDataframeMethod:
     def test_detect_from_dataframe(self):
         """MarketRegimeDetector 新增公共方法：直接接受 DataFrame"""
-        from application.services.market_regime_detector import MarketRegimeDetector
+        from qs_intel.application.services.market_regime_detector import MarketRegimeDetector
         df = pd.DataFrame(_uptrend_klines()).rename(
             columns={'trade_date': 'date'})
         detector = MarketRegimeDetector()

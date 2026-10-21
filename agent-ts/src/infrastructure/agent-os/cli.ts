@@ -202,24 +202,43 @@ export interface AgentOSDecisionRecordOptions {
 
 /**
  * 记录决策
+ *
+ * 2026-10-20 契约对齐：agent-os CLI（bin/agent-os，decision record）真实支持的
+ * 只有 --agent/--action(watch|buy|sell|hold)/--reason/--confidence/--context/
+ * --targets。本函数此前传 --namespace/--type/--reasoning/--result/--metadata，
+ * 全是 CLI 不认识的 flag → 每条决策日志上传必失败（生产启动日志实测）。
+ * 映射口径（原字段零丢失，全部留痕）：
+ *   namespace  → --agent（agent-ts/<namespace>）
+ *   type       → --action 的枚举映射（买/卖/持有按词，其余一律 watch=观察），
+ *                原始 type 写进 --context 保留
+ *   reasoning  → --reason
+ *   result+metadata → 并入 --context JSON
  */
 export async function agentOSDecisionRecord(
   options: AgentOSDecisionRecordOptions
 ): Promise<CLIResult<{ id: string }>> {
+  const t = (options.type || '').toLowerCase();
+  const action = t.includes('buy') ? 'buy'
+    : t.includes('sell') ? 'sell'
+    : t.includes('hold') ? 'hold'
+    : 'watch';
+
+  const context = {
+    ...(options.metadata || {}),
+    originalType: options.type,
+    ...(options.result !== undefined ? { result: options.result } : {}),
+  };
+
   const args = [
     'decision', 'record',
-    '--namespace', options.namespace,
-    '--type', options.type,
-    '--reasoning', JSON.stringify(options.reasoning),
+    '--agent', `agent-ts/${options.namespace || 'general'}`,
+    '--action', action,
+    '--reason', String(options.reasoning ?? ''),
+    '--context', JSON.stringify(context),
+    // CLI 必填校验：targets 不可空。系统级事件无标的 → SYSTEM 哨兵
+    // （options 里若以后带 symbol 列表，可换成真实标的）。
+    '--targets', 'SYSTEM',
   ];
-
-  if (options.result) {
-    args.push('--result', JSON.stringify(options.result));
-  }
-
-  if (options.metadata) {
-    args.push('--metadata', JSON.stringify(options.metadata));
-  }
 
   return execAgentOS(args);
 }

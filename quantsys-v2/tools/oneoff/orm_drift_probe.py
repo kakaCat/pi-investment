@@ -5,7 +5,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import class_mapper
-from infrastructure.persistence.orm.base import Base
+from qs_kernel.infrastructure.persistence.orm.base import Base
 
 DB_URL = os.environ.get("QUANT_DATABASE_URL", "postgresql+psycopg2://localhost/quant_investment")
 engine = create_engine(DB_URL)

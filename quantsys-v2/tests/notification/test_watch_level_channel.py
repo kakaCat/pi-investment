@@ -5,10 +5,24 @@
   · 不带级别 → 必须退回旧 WatchTriggeredFormatter（含旧特征句），非分级通知不受影响；
   · level 与 watch_level 两个字段名都支持（兼容分流口径）；
   · 未知级别 → P2 兜底且卡片内含显式标注（不静默降级）。
+
+2026-10-16（REQ-261016155500-4f2a wt:messaging:3）：WATCH_MSG_V2 默认开后，本文件的
+旧骨架断言通过 autouse fixture 强制关 V2 运行——本文件守护的是**灰度回退路径**
+（V2 关闭时旧渲染必须原样可用）；V2 开启时的统一骨架由
+test_unified_render_consistency.py 守护。
 """
-from domain.notification.models.notification import Notification, NotificationType
-from infrastructure.notification.formatters.feishu_formatters import WatchTriggeredFormatter
-from infrastructure.notification.formatters.watch_level_templates import render_watch_variables
+import pytest
+
+from qs_notification.domain.models.notification import Notification, NotificationType
+from qs_notification.infrastructure.formatters.feishu_formatters import WatchTriggeredFormatter
+from qs_notification.infrastructure.formatters.watch_level_templates import render_watch_variables
+
+
+@pytest.fixture(autouse=True)
+def _force_legacy_render(monkeypatch):
+    """本文件全部用例强制走旧渲染链（守护 V2 关闭的回退路径）。"""
+    from qs_notification.infrastructure.formatters import watch_message_renderer
+    monkeypatch.setattr(watch_message_renderer, 'MSG_V2_ENABLED', False)
 
 
 def _notification(**variables):

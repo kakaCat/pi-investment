@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 import polars as pl
 
-from application.services.evolution.decision_score_service import DecisionScoreService
+from qs_agenthub.application.services.evolution.decision_score_service import DecisionScoreService
 
 TRADE_DATE = date(2026, 7, 1)
 

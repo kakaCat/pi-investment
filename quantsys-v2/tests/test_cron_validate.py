@@ -7,7 +7,7 @@
 """
 import pytest
 
-from infrastructure.scheduler.cron_compat import build_cron_trigger, validate_cron
+from qs_ops.infrastructure.scheduler.cron_compat import build_cron_trigger, validate_cron
 
 
 def test_valid_5_field_cron_passes_and_builds():

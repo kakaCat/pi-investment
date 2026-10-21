@@ -16,7 +16,7 @@
 """
 from datetime import datetime
 
-from application.services.watch_engine.shadow_mode_clock import (
+from qs_watch.application.services.watch_engine.shadow_mode_clock import (
     SHADOW_SINCE_ENV, ensure_shadow_since_env, resolve_shadow_since,
 )
 

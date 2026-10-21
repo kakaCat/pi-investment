@@ -11,7 +11,7 @@ from adapters.outbound.repositories import StrategyPerformanceRepository
 @pytest.fixture
 def repo():
     """创建测试 repository"""
-    from infrastructure.persistence.database.engine import db_cursor
+    from qs_kernel.infrastructure.persistence.database.engine import db_cursor
     
     repo = StrategyPerformanceRepository()
 

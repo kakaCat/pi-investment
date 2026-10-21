@@ -9,8 +9,8 @@ eastmoney_revenue 已实测「连打数十次后上游/代理开始拒连 → �
 """
 import pytest
 
-from adapters.outbound.datasources.providers.industry_chain import eastmoney_delay_concept as mod
-from adapters.outbound.datasources.providers.industry_chain.eastmoney_delay_concept import (
+from qs_market_data.adapters.outbound.datasources.providers.industry_chain import eastmoney_delay_concept as mod
+from qs_market_data.adapters.outbound.datasources.providers.industry_chain.eastmoney_delay_concept import (
     EastmoneyDelayConceptProvider,
 )
 

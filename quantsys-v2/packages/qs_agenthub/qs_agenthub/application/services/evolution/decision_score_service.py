@@ -1,0 +1,194 @@
+"""决策打分服务（文本参数进化 P0a，2026-08-07）。
+
+每日调度：对 evaluation_status='pending' 的 trade_buy/trade_sell 决策，
+满 mature_window 个交易日后用 daily_klines 收盘价 + 沪深300 基准打分回写。
+纯计算无判断——分数是裁判 agent 的待解读原料（总设计 §1.2/§3.1）。
+依赖注入模式同 EvolutionFitnessService：repo 与 provider 可替换，便于 mock 测试。
+
+窗口口径：future = 交易日之后（严格大于）的 K 线，按日期升序；
+需 len(future) >= mature_window 才成熟，参考根为 future[mature_window - 1]
+（0 基索引，即满 20 个交易日后按第 20 根收盘价定价）。
+"""
+import logging
+from datetime import date, datetime
+from typing import Any, Callable, Dict, Optional
+from qs_kernel.domain.common.dates import as_date, as_datetime, as_date_str
+
+from qs_agenthub.application.services.evolution.score_calculator import compute_trade_score
+from qs_agenthub.application.services.evolution.lesson_generator import generate_lesson
+
+logger = logging.getLogger(__name__)
+
+BENCHMARK_SYMBOL = 'sh000300'
+SCORABLE_TYPES = {'trade_buy': 'buy', 'trade_sell': 'sell',
+                  'missed_opportunity': 'miss'}
+
+
+def _as_date(value) -> Optional[date]:
+    return as_date(value)
+
+
+def _as_date_legacy(value) -> Optional[date]:   # 保留原实现供对照，已无调用方
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    if isinstance(value, str):
+        try:
+            return datetime.fromisoformat(value[:19]).date()
+        except ValueError:
+            return None
+    return None
+
+
+class DecisionScoreService:
+    def __init__(self, decision_repo=None, kline_repo=None,
+                 bench_klines_provider: Optional[Callable] = None,
+                 mature_window: int = 20):
+        if decision_repo is None:
+            from qs_kernel.domain.ports.repository_ports_extended import (
+                IAgentIntelligenceRepository,
+            )
+            from infrastructure.services.service_factory import ServiceFactory
+            decision_repo = ServiceFactory.resolve(IAgentIntelligenceRepository)
+        if kline_repo is None:
+            from qs_kernel.domain.ports import IKlineRepository
+            from infrastructure.services.service_factory import ServiceFactory
+            kline_repo = ServiceFactory.resolve(IKlineRepository)
+        if bench_klines_provider is None:
+            from application.services.benchmark_comparison import fetch_benchmark_klines
+            bench_klines_provider = fetch_benchmark_klines
+        self.decision_repo = decision_repo
+        self.kline_repo = kline_repo
+        self.bench_klines_provider = bench_klines_provider
+        self.mature_window = mature_window
+
+    def score_mature_decisions(self, pending_days: int = 1) -> Dict[str, Any]:
+        """扫描 pending 决策并打分回写，返回计数汇总（供调度 run 记录）。"""
+        from infrastructure.monitoring.business_metrics import (
+            evolution_decision_scored_total,
+            evolution_decision_score_duration_seconds,
+            evolution_errors_total,
+        )
+        
+        with evolution_decision_score_duration_seconds.time():
+            pending = self.decision_repo.list_pending_evaluations(days=pending_days)
+            result = {'scanned': 0, 'scored': 0, 'skipped_unmature': 0,
+                      'skipped_invalid': 0, 'errors': 0}
+            # 独立审阅 M5（2026-09-13 w-c8cae280）：指标按决策真实账户记账，
+            # 原实现写死 labels(account='agent_virtual')，跨账户污染监控口径。
+            scored_by_account: Dict[str, int] = {}
+            for decision in pending:
+                # 2026-09-13（w-c8cae280）：大小写归一。
+                # 成交自动审计（account_trading_service._auto_record_decision）写的是
+                # f'trade_{action}'，action 为 'BUY'/'SELL' 大写 ⇒ 落库成 trade_BUY /
+                # trade_SELL，而 SCORABLE_TYPES 只有小写键 ⇒ 这些决策**永远不被打分**
+                # （实测：agent_brain 的 DEC-20260911112419-a07cbe59 = trade_SELL，
+                #  status=pending 挂在那；同表 trade_buy 却能打分）。归一后历史行也一起修复。
+                dtype = str(decision.get('decision_type') or '').strip().lower()
+                action = SCORABLE_TYPES.get(dtype)
+                if action is None:
+                    continue
+                result['scanned'] += 1
+                try:
+                    outcome = self._score_one(decision, action)
+                except Exception as e:
+                    logger.error(f"打分失败 {decision.get('decision_id')}: {e}")
+                    result['errors'] += 1
+                    evolution_errors_total.labels(service='decision_score', error_type='scoring').inc()
+                    continue
+                if outcome == 'scored':
+                    result['scored'] += 1
+                    _acct = str((decision.get('context') or {}).get('account') or 'unknown')
+                    scored_by_account[_acct] = scored_by_account.get(_acct, 0) + 1
+                elif outcome == 'unmature':
+                    result['skipped_unmature'] += 1
+                else:
+                    result['skipped_invalid'] += 1
+            
+            for _acct, _n in scored_by_account.items():
+                evolution_decision_scored_total.labels(account=_acct).inc(_n)
+        
+        # 2026-09-10 修复（investor / w-8f2c4cc5，错误事件 363337b4）：
+        # 原实现无条件 logger.info(f"决策打分完成: {result}")，输出的是 Python dict 字面量、含 'errors' 键；
+        # Agent OS 错误采集器（agent-os/internal/worker/error_event_worker.go）对非 JSON 文本行按
+        # error 子串判定，于是这条 INFO 汇总行被误采为 error 事件——daily_orchestrator 每次进入
+        # REVIEW 阶段都会打一次，2026-09-10 一天被误采 19 次（全是 scanned=0 的空跑：
+        # pending_days=30 的截断窗口内确实没有待打分决策，见同文件 score_mature_decisions）。
+        # 现改为：真失败才 error（保留 errors=N 便于采集器识别）、有打分才 info、空跑只 debug。
+        if result['errors'] > 0:
+            logger.error(f"决策打分存在失败: errors={result['errors']} scanned={result['scanned']}")
+        elif result['scored'] > 0:
+            logger.info(f"决策打分完成: scored={result['scored']} scanned={result['scanned']}")
+        else:
+            logger.debug(f"决策打分跳过: 无待打分决策 scanned={result['scanned']}")
+        return result
+
+    def _score_one(self, decision: Dict[str, Any], action: str) -> str:
+        """单条决策打分。返回 'scored' | 'unmature' | 'invalid'。"""
+        params = decision.get('parameters') or {}
+        symbol = params.get('symbol')
+        trade_price = params.get('price')
+        trade_date = _as_date(decision.get('created_at'))
+        if not symbol or not trade_price or trade_date is None:
+            return 'invalid'
+
+        today = date.today()
+        df = self.kline_repo.get_daily_klines(
+            symbol, start_date=trade_date.isoformat(), end_date=today.isoformat())
+        if df is None or df.height == 0:
+            return 'invalid'
+        future = [r for r in df.iter_rows(named=True)
+                  if _as_date(r['trade_date']) is not None
+                  and _as_date(r['trade_date']) > trade_date]
+        if len(future) < self.mature_window:
+            return 'unmature'
+        ref = future[self.mature_window - 1]
+        ref_price = float(ref['close'])
+        ref_date = _as_date(ref['trade_date'])
+
+        bench_return, bench_missing = self._bench_return(trade_date, ref_date)
+        scored = compute_trade_score(action, float(trade_price), ref_price, bench_return)
+
+        detail = {
+            'scorer': 'decision_score_p0a',
+            'window_trading_days': self.mature_window,
+            'trade_date': trade_date.isoformat(),
+            'ref_date': ref_date.isoformat(),
+            'trade_price': float(trade_price),
+            'ref_price': ref_price,
+            'benchmark': BENCHMARK_SYMBOL,
+            'benchmark_missing': bench_missing,
+            **scored,
+        }
+        lesson = generate_lesson(
+            action=action,
+            decision_type=decision.get('decision_type') or '',
+            symbol=symbol,
+            trade_price=float(trade_price),
+            trade_date=trade_date.isoformat(),
+            ref_date=ref_date.isoformat(),
+            excess_return=float(scored['excess_return']),
+            band=scored['band'],
+            score=float(scored['score']),
+            window_trading_days=self.mature_window,
+            benchmark=BENCHMARK_SYMBOL,
+            benchmark_missing=bench_missing,
+            context=decision.get('context') if isinstance(decision.get('context'), dict) else None,
+        )
+        written = self.decision_repo.update_score(
+            decision['decision_id'], scored['score'], scored['band'], detail, lesson=lesson)
+        if written is None:
+            raise RuntimeError(f"打分回写失败: {decision['decision_id']}")
+        return 'scored'
+
+    def _bench_return(self, start: date, end: date):
+        """基准区间收益。klines 为 akshare 风格 [{'date','close'}]；缺失降级 (0.0, True)。"""
+        klines = self.bench_klines_provider(
+            symbol=BENCHMARK_SYMBOL, start_date=start.isoformat(), end_date=end.isoformat())
+        window = [k for k in klines
+                  if _as_date(k.get('date')) is not None
+                  and start <= _as_date(k.get('date')) <= end]
+        if len(window) < 2:
+            return 0.0, True
+        return float(window[-1]['close']) / float(window[0]['close']) - 1.0, False

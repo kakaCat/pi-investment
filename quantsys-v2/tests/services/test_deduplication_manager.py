@@ -6,8 +6,8 @@
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 
-from application.services.watch_engine.deduplication_manager import DeduplicationManager
-from application.services.watch_engine.state_manager import StateManager
+from qs_watch.application.services.watch_engine.deduplication_manager import DeduplicationManager
+from qs_watch.application.services.watch_engine.state_manager import StateManager
 
 NOW = datetime(2026, 9, 14, 10, 30)
 
@@ -77,5 +77,5 @@ def test_reason_text_points_to_merged_trigger():
 
 
 def test_overlap_reason_mentions_pair():
-    text = DeduplicationManager.overlap_reason((3, 7), ('600519', 'below'))
+    text = DeduplicationManager.overlap_reason((3, 7), ('', '600519', 'below'))
     assert '#3' in text and '#7' in text

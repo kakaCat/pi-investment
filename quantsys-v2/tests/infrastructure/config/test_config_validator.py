@@ -4,8 +4,8 @@ P2-3: 测试配置验证逻辑
 """
 
 import pytest
-from infrastructure.config.validator import ConfigValidator, ValidationError
-from infrastructure.config.models import ServiceConfig, ServicesConfig, RepositoryConfig
+from qs_kernel.infrastructure.config.validator import ConfigValidator, ValidationError
+from qs_kernel.infrastructure.config.models import ServiceConfig, ServicesConfig, RepositoryConfig
 
 
 class TestValidationError:

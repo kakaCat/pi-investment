@@ -2,7 +2,7 @@
 from datetime import datetime
 from types import SimpleNamespace
 
-from application.services.watch_engine.position_lifecycle_service import (
+from qs_watch.application.services.watch_engine.position_lifecycle_service import (
     PositionLifecycleService, stop_loss_pct,
 )
 
@@ -70,11 +70,15 @@ def test_entry_rule_preserved_after_buy_but_stop_loss_created():
                                                        "market_value": 1000}}))
     out = svc.reconcile(datetime(2026, 9, 11, 16, 0))
     assert out["retired"] == 0, "不得自动退役可能仍有效的等买计划"
-    assert out["created"] == 1, "必须补挂止损（宪法要求持仓有止损盯盘）"
+    # 2026-10-20 起 created = 止损 + 止盈（WATCH_AUTO_TAKE_PROFIT 默认开）
+    assert out["created"] == 2, "必须补挂止损+止盈（宪法要求持仓有止损盯盘）"
     assert out["promoted"] == 1, "阶段应推进到 holding"
-    stop = rules.created[0]
+    stop = next(r for r in rules.created
+                if r.conditions[0]["type"] == "price_break")
     assert stop.conditions[0]["params"]["price"] == 9.2   # 10.0 × (1-8%)
     assert stop.conditions[0]["params"]["direction"] == "below"
+    tp = next(r for r in rules.created if r.conditions[0]["type"] == "pnl_pct")
+    assert tp.conditions[0]["params"] == {"pct": 15.0, "direction": "above"}
     assert rules.list_enabled()[0].enabled is True, "原等买规则必须仍然启用"
 
 
@@ -100,7 +104,9 @@ def test_no_duplicate_stop_loss_when_exists():
     ])
     svc = PositionLifecycleService(rules, FakePosRepo({"600150": {"shares": 100, "avg_cost": 10.0}}))
     out = svc.reconcile()
-    assert out["created"] == 0
+    # 止损已存在不重复补；但止盈自动挂仍会建 1 条（2026-10-20 新行为）
+    assert out["created"] == 1
+    assert rules.created[0].conditions[0]["type"] == "pnl_pct", "只应建止盈"
 
 
 def test_exit_rules_retire_after_position_closed():

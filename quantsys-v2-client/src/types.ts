@@ -563,6 +563,70 @@ export interface Alert {
 }
 
 /**
+ * 盯盘待办（quant.watch_todos，2026-10-16）
+ *
+ * 为什么需要：规则自愈/元评审/补全指引会派「修规则工单」（watch_todos），而 wake
+ * 只负责通知——agent 此前**没有任何工具能读/认领/关闭待办**，工单只能靠人，
+ * 且处置结论回执全库仅 1 条（闭环从未跑通）。
+ */
+export interface WatchTodo {
+  id: number;
+  /** 触发来源（规则自愈/元评审派出的工单为 null） */
+  trigger_id?: number | null;
+  rule_id?: number | null;
+  symbol: string;
+  account?: string | null;
+  /** P0..P3 */
+  level: string;
+  /** L1 / L2 / L3（P0/P1 建出来即 L3） */
+  flow_state: string;
+  owner_kind?: 'agent' | 'user' | null;
+  owner_ref?: string | null;
+  autonomy?: string | null;
+  sla_seconds?: number | null;
+  due_at?: string | null;
+  terminal?: 'handled' | 'ignored' | 'expired' | null;
+  close_reason?: string | null;
+  next_condition?: string | null;
+  action_kind?: 'trade' | 'rule_change' | null;
+  decision_audit_id?: string | null;
+  escalate_count?: number;
+  claimed_at?: string | null;
+  closed_at?: string | null;
+  created_at?: string | null;
+}
+
+/** 待办列表查询参数（GET /api/watch/todos） */
+export interface WatchTodoListParams {
+  level?: string;
+  flow_state?: string;
+  account?: string;
+  /** 不传=只返回未收敛；'*'=全部；其余按终态精确过滤 */
+  terminal?: string;
+  /** 默认 100，上限 500 */
+  limit?: number;
+}
+
+/**
+ * 待办收敛请求（POST /api/watch/todos/{id}/close）
+ *
+ * 服务端硬约束（缺一即 400）：
+ *   · terminal=ignored 必须给 next_condition（下次什么条件下才动）；
+ *   · flow_state=L3 且 action_kind ∈ (trade, rule_change) 必须给 decision_audit_id。
+ */
+export interface WatchTodoCloseRequest {
+  terminal: 'handled' | 'ignored' | 'expired';
+  /** 处置结论（写清做了什么 / 为什么不动） */
+  close_reason?: string;
+  /** terminal=ignored 必填 */
+  next_condition?: string;
+  action_kind?: 'trade' | 'rule_change';
+  /** 决策审计 ID（L3 + trade/rule_change 必填） */
+  decision_audit_id?: string;
+  closed_by?: string;
+}
+
+/**
  * Watch rule management request
  */
 export interface WatchRuleManageRequest {

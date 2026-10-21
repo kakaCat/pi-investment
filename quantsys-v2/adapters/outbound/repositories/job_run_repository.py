@@ -25,7 +25,7 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from infrastructure.persistence.orm import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
 from infrastructure.persistence.orm.models import InProcessJobRun
 
 logger = logging.getLogger(__name__)

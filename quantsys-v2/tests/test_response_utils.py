@@ -5,7 +5,7 @@ import pytest
 import pandas as pd
 from flask import Flask
 from adapters.shared.response_helpers import normalize_indicator_fields
-from application.services.strategy_code_service import StrategyCodeService
+from qs_strategy.application.services.strategy_code_service import StrategyCodeService
 from domain.backtest.engine.indicator_strategy_executor import IndicatorStrategyResult
 
 

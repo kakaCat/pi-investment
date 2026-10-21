@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pytest
 
-from infrastructure.scheduler.job_executor import (
+from qs_ops.infrastructure.scheduler.job_executor import (
     classify_job_result,
     find_result_failure,
 )
@@ -100,7 +100,7 @@ class _FakeRepo:
 
 
 def _service_with(repo):
-    from infrastructure.scheduler.scheduler import SchedulerService
+    from qs_ops.infrastructure.scheduler.scheduler import SchedulerService
     return SchedulerService(repo=repo)
 
 
@@ -293,7 +293,7 @@ def test_orphan_reap_is_noop_when_nothing_running(monkeypatch):
 # ---------------------------------------------------------------------------
 
 def test_timeliness_job_raises_when_alert_not_delivered():
-    from infrastructure.jobs import financial_timeliness_check_job as tj
+    from qs_ops.infrastructure.jobs import financial_timeliness_check_job as tj
 
     assert hasattr(tj, 'AlertDeliveryError')
     assert issubclass(tj.AlertDeliveryError, RuntimeError)

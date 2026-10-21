@@ -3,7 +3,7 @@ Tests for technical indicators injection in strategy code service
 """
 import pytest
 import math
-from application.services.strategy_code_service import StrategyCodeService
+from qs_strategy.application.services.strategy_code_service import StrategyCodeService
 
 
 class TestTechnicalIndicatorsInjection:

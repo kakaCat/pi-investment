@@ -128,7 +128,7 @@ async def get_stock_fund_flow(
     """获取个股资金流向"""
     try:
         from adapters.outbound.repositories.p2_async_repositories import FundFlowAsyncRepository
-        from infrastructure.persistence.orm.async_config import get_async_session_context
+        from qs_kernel.infrastructure.persistence.orm.async_config import get_async_session_context
 
         async with get_async_session_context() as session:
             repo = FundFlowAsyncRepository(session)

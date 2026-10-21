@@ -19,7 +19,7 @@ from datetime import datetime
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from infrastructure.persistence.database.engine import get_engine
+from qs_kernel.infrastructure.persistence.database.engine import get_engine
 
 def check_connection_health():
     """检查数据库连接池健康状态"""

@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 import polars as pl
 import pytest
 
-from infrastructure.scheduler.scheduler import SchedulerService
+from qs_ops.infrastructure.scheduler.scheduler import SchedulerService
 
 
 def _fake_klines_df(days=30):
@@ -27,8 +27,8 @@ def _fake_klines_df(days=30):
 
 class TestFactorComputeHandler:
     @patch('domain.backtest.stages.factor_stage.FactorStage')
-    @patch('infrastructure.scheduler.scheduler.FactorORMRepository')
-    @patch('infrastructure.scheduler.scheduler.KlineORMRepository')
+    @patch('qs_ops.infrastructure.scheduler.scheduler.FactorORMRepository')
+    @patch('qs_ops.infrastructure.scheduler.scheduler.KlineORMRepository')
     def test_polars_dataframe_input_computes_factors(self, mock_kline_repo, mock_factor_repo, mock_stage):
         mock_kline_repo.return_value.get_daily_klines.return_value = _fake_klines_df()
         mock_factor_repo.return_value.save_factors.return_value = None
@@ -44,8 +44,8 @@ class TestFactorComputeHandler:
         mock_factor_repo.return_value.save_factors.assert_called()
 
     @patch('domain.backtest.stages.factor_stage.FactorStage')
-    @patch('infrastructure.scheduler.scheduler.FactorORMRepository')
-    @patch('infrastructure.scheduler.scheduler.KlineORMRepository')
+    @patch('qs_ops.infrastructure.scheduler.scheduler.FactorORMRepository')
+    @patch('qs_ops.infrastructure.scheduler.scheduler.KlineORMRepository')
     def test_list_input_still_works(self, mock_kline_repo, mock_factor_repo, mock_stage):
         klines = [{'trade_date': date(2026, 7, 31), 'close': 10.0, 'open': 9.9,
                    'high': 10.2, 'low': 9.8, 'volume': 1000}] * 25
@@ -60,8 +60,8 @@ class TestFactorComputeHandler:
         assert result['errors'] == 0
 
     @patch('domain.backtest.stages.factor_stage.FactorStage')
-    @patch('infrastructure.scheduler.scheduler.FactorORMRepository')
-    @patch('infrastructure.scheduler.scheduler.KlineORMRepository')
+    @patch('qs_ops.infrastructure.scheduler.scheduler.FactorORMRepository')
+    @patch('qs_ops.infrastructure.scheduler.scheduler.KlineORMRepository')
     def test_total_failure_marks_status_failed(self, mock_kline_repo, mock_factor_repo, mock_stage):
         mock_kline_repo.return_value.get_daily_klines.side_effect = RuntimeError('boom')
 
@@ -72,7 +72,7 @@ class TestFactorComputeHandler:
         assert result['errors'] == 2
         assert result['status'] == 'failed'
 
-    @patch('infrastructure.scheduler.scheduler.KlineORMRepository')
+    @patch('qs_ops.infrastructure.scheduler.scheduler.KlineORMRepository')
     def test_insufficient_klines_not_error(self, mock_kline_repo):
         mock_kline_repo.return_value.get_daily_klines.return_value = _fake_klines_df(days=5)
 

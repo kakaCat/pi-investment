@@ -40,8 +40,9 @@ def main() -> int:
     ap.add_argument("--report", default=str(ROOT / "config" / "event_backfill_report.json"))
     a = ap.parse_args()
 
-    from infrastructure.services.service_registry import register_all_services
-    register_all_services()
+    # S11-B-2 批次 1 (2026-10-21): DI 引导收编入口，不再直连内部 service_registry
+    from infrastructure.services.service_factory import ServiceFactory
+    ServiceFactory.initialize()
     from adapters.outbound.datasources.manager import get_data_provider_manager
     from adapters.outbound.repositories.event_repository import get_market_event_repo
     from application.services.event_feed_service import EventFeedService

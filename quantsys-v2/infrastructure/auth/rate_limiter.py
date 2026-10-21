@@ -37,7 +37,7 @@ def init_rate_limiter(app) -> Optional["Limiter"]:
         logger.warning("Rate limiting disabled - slowapi not installed")
         return None
 
-    from infrastructure.config import get_config
+    from qs_kernel.infrastructure.config import get_config
     config = get_config()
     redis_host = config.redis.host
     redis_port = config.redis.port

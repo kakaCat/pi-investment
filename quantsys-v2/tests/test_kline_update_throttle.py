@@ -10,8 +10,8 @@
 """
 from unittest.mock import patch, MagicMock
 
-from infrastructure.jobs import kline_update_job
-from adapters.outbound.datasources.providers.kline.base import KlineData
+from qs_ops.infrastructure.jobs import kline_update_job
+from qs_market_data.adapters.outbound.datasources.providers.kline.base import KlineData
 
 
 def _repo_for(symbols):

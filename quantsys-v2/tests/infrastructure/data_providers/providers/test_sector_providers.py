@@ -2,7 +2,7 @@
 import pytest
 from unittest.mock import patch, Mock
 
-from adapters.outbound.datasources.providers.sector.eastmoney import (
+from qs_market_data.adapters.outbound.datasources.providers.sector.eastmoney import (
     EastmoneySectorProvider,
     _HOSTS,
 )

@@ -14,7 +14,7 @@ import os
 
 import numpy as np
 import pandas as pd
-from domain.quantlib.options.greeks_calculator import GreeksCalculator
+from qs_quantlib.options.greeks_calculator import GreeksCalculator
 
 
 def basic_option_pricing():

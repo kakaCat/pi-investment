@@ -28,7 +28,7 @@ class TestV13ConfigRegression:
     def test_v13_config_type_unchanged(self):
         """确保 V13_CONFIG 的类型不变"""
         from application.strategies.v13_config import V13_CONFIG
-        from domain.strategies.value_objects import StrategyConfig
+        from qs_strategy.domain.strategies.value_objects import StrategyConfig
 
         assert isinstance(V13_CONFIG, StrategyConfig)
 
@@ -64,7 +64,7 @@ class TestV14ConfigRegression:
     def test_v14_config_type_unchanged(self):
         """确保 V14_CONFIG 的类型不变"""
         from application.strategies.v14_config import V14_CONFIG
-        from domain.strategies.value_objects import StrategyConfig
+        from qs_strategy.domain.strategies.value_objects import StrategyConfig
 
         assert isinstance(V14_CONFIG, StrategyConfig)
 

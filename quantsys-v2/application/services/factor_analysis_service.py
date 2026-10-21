@@ -7,7 +7,7 @@ import numpy as np
 from typing import Dict, List, Optional, Union, Tuple
 import structlog
 from io import BytesIO
-from domain.common.dates import as_date, as_datetime, as_date_str
+from qs_kernel.domain.common.dates import as_date, as_datetime, as_date_str
 
 logger = structlog.get_logger(__name__)
 

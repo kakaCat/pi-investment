@@ -30,7 +30,7 @@ def _ok_payload():
 
 class TestMarketHeatmapRoute:
     def test_success_data_contract(self, client):
-        with patch('application.services.heatmap_service.heatmap_service') as mock_svc:
+        with patch('qs_intel.application.services.heatmap_service.heatmap_service') as mock_svc:
             mock_svc.get_heatmap.return_value = _ok_payload()
             resp = client.get('/api/market/heatmap', params={'date': '2026-07-24', 'window': 5})
         assert resp.status_code == 200
@@ -47,14 +47,14 @@ class TestMarketHeatmapRoute:
         assert data['industries'][0]['agent_stance'] == 'bullish'
 
     def test_default_params(self, client):
-        with patch('application.services.heatmap_service.heatmap_service') as mock_svc:
+        with patch('qs_intel.application.services.heatmap_service.heatmap_service') as mock_svc:
             mock_svc.get_heatmap.return_value = _ok_payload()
             resp = client.get('/api/market/heatmap')
         assert resp.status_code == 200
         mock_svc.get_heatmap.assert_called_once_with(date=None, window=5)
 
     def test_service_error_returns_success_false(self, client):
-        with patch('application.services.heatmap_service.heatmap_service') as mock_svc:
+        with patch('qs_intel.application.services.heatmap_service.heatmap_service') as mock_svc:
             mock_svc.get_heatmap.return_value = {'success': False, 'error': 'window must be one of (1, 5, 20)'}
             resp = client.get('/api/market/heatmap', params={'window': 7})
         assert resp.status_code == 200

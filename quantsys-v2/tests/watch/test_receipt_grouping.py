@@ -11,7 +11,7 @@ from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 from adapters.inbound.fastapi_app.watch_sla_job import WatchSlaJob
-from application.services.watch_engine.receipt_service import (
+from qs_watch.application.services.watch_engine.receipt_service import (
     DELIVERY_LOG_ONLY,
     DELIVERY_SENT,
     ReceiptService,
@@ -58,7 +58,8 @@ class FakeTodoRepo:
     def list_overdue(self, now=None, limit=100):
         return list(self.rows.values())
 
-    def promote(self, todo_id, to_state, now=None, escalate_count=None):
+    def promote(self, todo_id, to_state, now=None, escalate_count=None,
+                extend_due_minutes=30):
         todo = self.rows.get(todo_id)
         if todo is None:
             return None
@@ -132,6 +133,58 @@ def test_empty_group_flush_is_noop():
     assert summary == {} and sent == [] and receipts.rows == []
 
 
+# ── agent 自有待办：私信唤醒，不占用户卡（2026-10-16）────────────────────────
+def test_agent_owned_all_woken_sends_no_user_card():
+    """一轮内 agent 自有条目全部唤醒成功 → 0 张用户卡，但仍逐条落库（可追溯）"""
+    sent = []
+    receipts = FakeReceiptRepo()
+    woken = []
+    service = ReceiptService(receipts, sender=sent.append,
+                             agent_waker=lambda t, ctx: woken.append(t.id) or True)
+    service.begin_group()
+    for todo in (_todo(41, owner_kind='agent', owner_ref='agent-dh'),
+                 _todo(42, owner_kind='agent', owner_ref='agent-dh')):
+        service.timeout(todo)
+    summary = service.flush_grouped()
+
+    assert sent == []                                  # 私信占满一轮 = 用户一张卡都不发
+    assert woken == [41, 42]
+    assert summary['timeout'] == {'count': 2, 'card_count': 0, 'sent': True,
+                                  'delivery_status': DELIVERY_SENT, 'batch_id': None}
+    assert [r['delivery_status'] for r in receipts.rows] == [DELIVERY_SENT, DELIVERY_SENT]
+    assert [r['message_id'] for r in receipts.rows] == ['wake', 'wake']
+
+
+def test_agent_owned_wake_failure_folds_into_same_card():
+    """agent 自有 P1 唤醒失败 → 折进本轮同一张卡（一行一条，不按条炸卡）"""
+    sent = []
+    receipts = FakeReceiptRepo()
+    service = ReceiptService(receipts, sender=sent.append, agent_waker=lambda t, ctx: False)
+    service.begin_group()
+    service.timeout(_todo(43, level='P1', owner_kind='agent', owner_ref='agent-dh'))
+    service.timeout(_todo(44, level='P1', owner_kind='agent', owner_ref='agent-dh'))
+    summary = service.flush_grouped()
+
+    assert len(sent) == 1                              # 一张卡
+    assert sent[0]['message'].count('- 待办#') == 2    # 两行
+    assert summary['timeout']['card_count'] == 1 and summary['timeout']['count'] == 2
+    assert all(r['delivery_status'] == DELIVERY_SENT for r in receipts.rows)
+
+
+def test_agent_owned_p2_wake_failure_stays_ledger_only():
+    """P2 agent 自有唤醒失败：只记 failed，不折进用户卡（级别策略：不打扰用户）"""
+    sent = []
+    receipts = FakeReceiptRepo()
+    service = ReceiptService(receipts, sender=sent.append, agent_waker=lambda t, ctx: False)
+    service.begin_group()
+    service.timeout(_todo(45, level='P2', owner_kind='agent', owner_ref='agent-dh'))
+    summary = service.flush_grouped()
+
+    assert sent == []
+    assert summary['timeout']['card_count'] == 0 and summary['timeout']['sent'] is True
+    assert receipts.rows[0]['delivery_status'] == 'failed'
+
+
 def test_log_only_when_sender_missing():
     receipts = FakeReceiptRepo()
     service = ReceiptService(receipts, sender=None)
@@ -143,14 +196,13 @@ def test_log_only_when_sender_missing():
     assert receipts.rows[0]['delivery_status'] == DELIVERY_LOG_ONLY
 
 
-def test_escalate_group_routes_watch_symbol():
+def test_promotion_sends_no_group_card():
+    """REQ-261016155500-4f2a：升级回执下线——晋升不产生任何聚合卡/回执。"""
     sent = []
-    job, _ = _job([_todo(36, flow='L1', level='P2')], sent)
-    job.run_once(NOW)
-    assert len(sent) == 1
-    assert sent[0]['kind'] == 'escalate'
-    assert sent[0]['os_channel'] == 'watch_symbol'         # 非 timeout/P0 → 普通位
-    assert '🔺 升级即回执' in sent[0]['message']
+    job, receipts = _job([_todo(36, flow='L1', level='P2')], sent)
+    stats = job.run_once(NOW)
+    assert stats['promoted'] == 1 and stats['escalated'] == 0
+    assert sent == [] and receipts.rows == []
 
 
 # ── FR-13：名称一轮一次批量解析 + 缺失降级 ──────────────────────────────────
@@ -190,15 +242,16 @@ def test_receipt_text_has_no_micros_no_period_tag_due_once():
     assert not re.search(r'\d{2}:\d{2}:\d{2}\.\d+', text)   # 无 ISO 微秒尾巴
 
 
-def test_result_not_grouped_sends_immediately():
-    """FR-14 前置：处置结论不参与聚合，即使聚合轮开启也即时投递。"""
+def test_result_buffered_then_flushed_by_window():
+    """2026-10-19 语义变更：result 不再即时单发——投递层聚合（90s 窗口/8 条上限），
+    稳态由巡检兜底 flush。本用例钉死：result 先缓冲、flush 后单卡发出。"""
     sent = []
     receipts = FakeReceiptRepo()
     service = ReceiptService(receipts, sender=sent.append)
-    todo = _todo(46)
-    todo.close_reason = '破位放弃'
-    service.begin_group()
-    outcome = service.result(todo, terminal='ignored')
-    assert outcome['sent'] is True
-    assert len(sent) == 1                                  # 即时单条，不等 flush
-    assert service.flush_grouped() == {}                   # 组里没残留
+    service.result(_todo(50), terminal='handled', close_reason='已处置')
+    assert sent == []                                    # 先缓冲
+    out = service.flush_result_buffer()
+    assert out['count'] == 1 and len(sent) == 1
+    assert sent[0]['kind'] == 'result'
+    assert '1 项待办已收敛' in sent[0]['message']
+    assert receipts.rows[0]['delivery_status'] == DELIVERY_SENT

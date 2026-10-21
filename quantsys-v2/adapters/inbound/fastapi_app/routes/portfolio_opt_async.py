@@ -6,7 +6,7 @@
 - /api/portfolio/risk-parity/optimize            Risk Parity 风险平价优化
 - /api/portfolio/risk-parity/risk-decomposition  Risk Parity 风险分解
 
-复用同一 domain.quantlib.portfolio 优化器实现，保证 parity。
+复用同一 qs_quantlib.portfolio 优化器实现，保证 parity。
 （/api/portfolio 持仓/交易等其他端点不在本批迁移范围。）
 """
 from typing import Any, Dict, Optional
@@ -16,9 +16,9 @@ from fastapi import APIRouter, Body
 import structlog
 
 from adapters.inbound.fastapi_app.shared import api_response, handle_api_error
-from domain.quantlib.portfolio.markowitz import MarkowitzOptimizer
-from domain.quantlib.portfolio.black_litterman import BlackLittermanOptimizer
-from domain.quantlib.portfolio.risk_parity import RiskParityOptimizer
+from qs_quantlib.portfolio.markowitz import MarkowitzOptimizer
+from qs_quantlib.portfolio.black_litterman import BlackLittermanOptimizer
+from qs_quantlib.portfolio.risk_parity import RiskParityOptimizer
 
 logger = structlog.get_logger(__name__)
 

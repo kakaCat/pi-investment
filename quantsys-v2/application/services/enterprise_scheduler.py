@@ -10,7 +10,7 @@ from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.executors.pool import ThreadPoolExecutor, ProcessPoolExecutor
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR, EVENT_JOB_MISSED
-from infrastructure.persistence.database.engine import _resolve_db_dsn
+from qs_kernel.infrastructure.persistence.database.engine import _resolve_db_dsn
 
 logger = logging.getLogger(__name__)
 
@@ -227,7 +227,7 @@ class EnterpriseScheduler:
     
     def _job_executed_listener(self, event):
         """任务执行监听器 - 记录执行日志"""
-        from domain.ports import ISchedulerRepository
+        from qs_kernel.domain.ports import ISchedulerRepository
         from infrastructure.services.service_factory import ServiceFactory
 
         repo = ServiceFactory.resolve(ISchedulerRepository)

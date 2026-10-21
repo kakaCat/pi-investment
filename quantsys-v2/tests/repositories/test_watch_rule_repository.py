@@ -51,6 +51,8 @@ class TestWatchRuleRepository:
         # value_ledger（intent/lifecycle_stage/scope/target/linked_account/created_from/
         # next_action_hint/last_reviewed_at/review_interval_days/review_due_at/value_ledger）。
         # 没有这些字段，agent 拿到触发不知道该回答什么问题（RFC 014 v3 §7.1）。
+        # 2026-10-16（REQ-261016155500-4f2a）：增 action_params / ops_notes——
+        # 决策化改造的结构化操作指引与机器注记（见迁移 20261016_watch_rules_upgrade.py）。
         assert set(d.keys()) == {
             'id', 'symbol', 'enabled', 'conditions', 'context', 'cost_price',
             'active_window', 'expires_at', 'created_by', 'created_at', 'updated_at',
@@ -58,6 +60,7 @@ class TestWatchRuleRepository:
             'intent', 'lifecycle_stage', 'scope', 'target', 'linked_account',
             'created_from', 'next_action_hint', 'last_reviewed_at',
             'review_interval_days', 'review_due_at', 'value_ledger',
+            'action_params', 'ops_notes',
         }
         assert isinstance(d['cost_price'], float)
         assert d['cost_price'] == 1700.0
@@ -81,6 +84,22 @@ class TestWatchRuleRepository:
         updated = self.repo.update_fields(rule.id, context='新理由', enabled=False)
         assert updated.context == '新理由'
         assert updated.enabled is False
+
+    def test_update_fields_action_params_and_ops_notes(self):
+        # REQ-261016155500-4f2a：决策化新列经 update_fields 白名单可写、可落库、可回读。
+        rule = self._make_rule()
+        updated = self.repo.update_fields(
+            rule.id,
+            action_params={'action': 'sell', 'reference_price': 26.5,
+                           'position_pct': 50, 'invalidation': '放量跌破25.8'},
+            ops_notes=[{'at': '2026-10-16T00:00:00+00:00', 'by': 'test', 'text': '注记'}],
+        )
+        assert updated.action_params['action'] == 'sell'
+        assert updated.action_params['position_pct'] == 50
+        assert updated.ops_notes[0]['by'] == 'test'
+        fetched = self.repo.get_by_id(rule.id)
+        assert fetched.action_params['action'] == 'sell'
+        assert fetched.ops_notes[0]['text'] == '注记'
 
     def test_record_trigger(self):
         rule = self._make_rule()

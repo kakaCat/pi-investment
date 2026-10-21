@@ -185,7 +185,7 @@ def get_insider_trades_v2(symbol: str, days: int = Query(30)):
     原生列：股票代码/股票名称/变动日期/变动人/变动股数/成交均价/变动后持股数/
     与董监高关系/董监高职务
     """
-    from adapters.outbound.datasources import get_data_provider_manager
+    from qs_market_data.adapters.outbound.datasources import get_data_provider_manager
     from datetime import date as _date, datetime as _dt, timedelta as _td
 
     result = get_data_provider_manager().get_insider_trades(symbol)
@@ -358,7 +358,7 @@ def get_stock_klines(symbol: str, start_date: Optional[str] = Query(None),
             # 数据库无数据，尝试从外部数据源拉取（M3-2 修复）
             logger.info(f"Database has no kline data for {clean_symbol}, attempting to fetch from external sources...")
             try:
-                from adapters.outbound.datasources.multi_source_data_fetcher import MultiSourceDataFetcher
+                from qs_market_data.adapters.outbound.datasources.multi_source_data_fetcher import MultiSourceDataFetcher
                 fetcher = MultiSourceDataFetcher()
                 
                 # 直接从外部数据源获取
@@ -589,7 +589,7 @@ def get_stock_quote(symbol: str, source: str = Query('realtime')):
     # realtime 或 auto 模式：直连 DataProviderManager（拿到各数据源失败原因，供 agent 诊断）
     quote_result = None
     try:
-        from adapters.outbound.datasources import get_data_provider_manager
+        from qs_market_data.adapters.outbound.datasources import get_data_provider_manager
         quote_result = get_data_provider_manager().get_quote(clean_symbol)
     except Exception as e:
         logger.warning(f"DataProviderManager.get_quote failed for {symbol}: {e}")

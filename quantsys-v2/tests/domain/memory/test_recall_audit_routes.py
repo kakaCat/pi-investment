@@ -21,7 +21,7 @@ def client():
 
 
 def _cleanup(ids):
-    from infrastructure.persistence.orm import get_session
+    from qs_kernel.infrastructure.persistence.orm import get_session
     from sqlalchemy import text
     session = get_session()
     session.execute(

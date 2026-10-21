@@ -11,8 +11,8 @@ from datetime import date, timedelta
 from typing import Dict, Optional
 import logging
 
-from domain.ports import IPortfolioRepository, IKlineRepository, IRiskRepository
-# from infrastructure.config import get_config  # TODO: 重构配置系统
+from qs_kernel.domain.ports import IPortfolioRepository, IKlineRepository, IRiskRepository
+# from qs_kernel.infrastructure.config import get_config  # TODO: 重构配置系统
 
 logger = logging.getLogger(__name__)
 

@@ -21,7 +21,7 @@ _engine = None
 def _get_engine():
     global _engine
     if _engine is None:
-        from application.services.strategy_engine.engine import StrategyEngine
+        from qs_strategy.application.services.strategy_engine.engine import StrategyEngine
         _engine = StrategyEngine()
     return _engine
 

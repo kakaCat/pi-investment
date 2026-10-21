@@ -12,10 +12,10 @@ from datetime import date, datetime, timedelta
 
 import pytest
 
-from adapters.outbound.datasources.providers.minute_kline.database import (
+from qs_market_data.adapters.outbound.datasources.providers.minute_kline.database import (
     DatabaseMinuteKlineProvider,
 )
-from domain.models.market_data import MinuteKline
+from qs_kernel.domain.models.market_data import MinuteKline
 
 
 class FakeMinuteRepo:

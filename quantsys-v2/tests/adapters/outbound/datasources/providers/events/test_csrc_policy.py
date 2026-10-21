@@ -8,8 +8,8 @@ from datetime import date, timedelta
 
 import pytest
 
-from adapters.outbound.datasources.providers.events import csrc_policy as mod
-from adapters.outbound.datasources.providers.events.csrc_policy import CsrcPolicyProvider
+from qs_market_data.adapters.outbound.datasources.providers.events import csrc_policy as mod
+from qs_market_data.adapters.outbound.datasources.providers.events.csrc_policy import CsrcPolicyProvider
 
 from _fakes import FakeResponse, FakeSession
 

@@ -17,7 +17,7 @@ from typing import Optional, Tuple
 
 import structlog
 
-from domain.trading.services.market_session_policy import MarketSessionPolicy
+from qs_trading.domain.trading.services.market_session_policy import MarketSessionPolicy
 
 logger = structlog.get_logger(__name__)
 
@@ -60,7 +60,25 @@ def _in_intraday_window(now: datetime) -> bool:
 
 def _monitor_loop(stop_event: threading.Event) -> None:
     from infrastructure.jobs import monitor_jobs
-    from infrastructure.persistence.orm import close_session
+    from qs_kernel.infrastructure.persistence.orm import close_session
+
+    # 断点续跑在本线程内、首个 tick 之前执行（2026-10-19 从 lifespan 挪入）：
+    # 此前 resume_from_breakpoint 在 FastAPI 主线程同步跑——收盘后/滞后重启时
+    # 补跑阶段含 factor_compute 这类重活（438 只 × 网络重试风暴），
+    # 「application startup」被卡几十分钟、API 全程不可用（2026-09-02 同款事故的
+    # 复发形态：当时只约束了 handle_data_update 一个函数，堵不住其他阶段函数）。
+    # 挪入线程后：启动只起线程、HTTP 立即可用；补跑仍在首个 tick 之前（顺序语义不变）。
+    # 失败只记日志不杀线程（与 tick 异常同纪律——编排器不许再静默死亡）。
+    try:
+        from application.services.daily_orchestrator import get_daily_orchestrator
+        get_daily_orchestrator().resume_from_breakpoint()
+    except Exception as e:
+        logger.error(f"orchestrator resume_from_breakpoint failed: {e}", exc_info=True)
+    finally:
+        try:
+            close_session()
+        except Exception:
+            pass
 
     while not stop_event.is_set():
         now = datetime.now()
@@ -95,13 +113,8 @@ def start_orchestrator(skip: bool = False) -> Optional[Tuple[threading.Thread, t
     if skip:
         return None
 
-    from application.services.daily_orchestrator import get_daily_orchestrator
-
-    # 进程启动时断点续跑（如 9:20 重启，补跑 PRE_MARKET）
-    try:
-        get_daily_orchestrator().resume_from_breakpoint()
-    except Exception as e:
-        logger.error(f"orchestrator resume_from_breakpoint failed: {e}", exc_info=True)
+    # 断点续跑 resume_from_breakpoint 已挪入 _monitor_loop 线程首动作
+    # （启动不再被补跑阻塞，顺序语义不变——见该函数内注释）。
 
     stop_event = threading.Event()
     thread = threading.Thread(

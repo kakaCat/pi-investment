@@ -8,7 +8,7 @@ import sys
 import os
 
 
-from domain.quantlib.ml.transformer_predictor import TransformerPredictor
+from qs_quantlib.ml.transformer_predictor import TransformerPredictor
 
 
 class TestTransformerPredictor:

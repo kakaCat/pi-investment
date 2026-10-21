@@ -3,7 +3,7 @@ from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 import structlog
 
-from adapters.outbound.datasources import get_data_provider_manager
+from qs_market_data.adapters.outbound.datasources import get_data_provider_manager
 from adapters.shared.services import get_stock_repo
 
 logger = structlog.get_logger(__name__)

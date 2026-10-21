@@ -3,7 +3,7 @@
 """
 import pytest
 from unittest.mock import Mock
-from application.services.strategy_weight_adjuster import StrategyWeightAdjuster
+from qs_strategy.application.services.strategy_weight_adjuster import StrategyWeightAdjuster
 
 
 def _mock_repos(sample_size: int = 0, static_weight: float = 0.30):

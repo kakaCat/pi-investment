@@ -6,11 +6,11 @@ Data Quality ORM Repository - 数据质量仓储
   - 实际表 quant.data_quality_records（见迁移 add_data_quality_records_table.sql）
   - 补齐 get_quality_records / get_daily_stats / get_quality_summary / save_quality_record
 """
-from infrastructure.persistence.orm import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
 from sqlalchemy import Column, Integer, String, Float, Date, DateTime, JSON, Text, func
 from sqlalchemy.exc import SQLAlchemyError
-from infrastructure.persistence.orm.base import Base
-from domain.ports import IDataQualityRepository
+from qs_kernel.infrastructure.persistence.orm.base import Base
+from qs_kernel.domain.ports import IDataQualityRepository
 from typing import List, Optional, Dict, Any
 from datetime import datetime, date, timedelta
 import structlog

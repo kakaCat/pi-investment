@@ -17,7 +17,7 @@ Date: 2026-05-25
 
 import pytest
 import numpy as np
-from domain.quantlib.derivatives import (
+from qs_quantlib.derivatives import (
     AdvancedGreeksCalculator,
     VolatilitySurfaceCalculator,
     StochasticVolCalculator,
@@ -27,7 +27,7 @@ from domain.quantlib.derivatives import (
     ArbitrageCalculator,
     BlackScholesCalculator,
 )
-from domain.quantlib.exceptions import DataValidationError, CalculationError
+from qs_quantlib.exceptions import DataValidationError, CalculationError
 
 
 class TestAdvancedGreeks:
@@ -757,7 +757,7 @@ class TestIntegrationAdvanced:
 
     def test_advanced_greeks_consistency_with_base_greeks(self):
         """测试高阶Greeks与基础Greeks的一致性。"""
-        from domain.quantlib.derivatives import GreeksCalculator
+        from qs_quantlib.derivatives import GreeksCalculator
 
         base_calc = GreeksCalculator()
         adv_calc = AdvancedGreeksCalculator()

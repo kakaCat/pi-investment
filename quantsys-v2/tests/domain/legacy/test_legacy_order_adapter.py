@@ -1,9 +1,9 @@
 # tests/domain/legacy/test_legacy_order_adapter.py
 import pytest
 from unittest.mock import Mock, MagicMock
-from domain.trading.services.order_service import OrderService
-from domain.trading.models.order import Order, OrderStatus
-from domain.legacy.legacy_order_adapter import LegacyOrderAdapter
+from qs_trading.domain.trading.services.order_service import OrderService
+from qs_trading.domain.trading.models.order import Order, OrderStatus
+from qs_trading.domain.legacy.legacy_order_adapter import LegacyOrderAdapter
 
 class TestLegacyOrderAdapter:
     """LegacyOrderAdapter 测试"""

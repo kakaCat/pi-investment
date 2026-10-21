@@ -6,7 +6,7 @@ from fastapi import APIRouter, Query, Body
 from fastapi.responses import JSONResponse
 import structlog
 
-from adapters.outbound.datasources import get_data_provider_manager
+from qs_market_data.adapters.outbound.datasources import get_data_provider_manager
 
 logger = structlog.get_logger(__name__)
 

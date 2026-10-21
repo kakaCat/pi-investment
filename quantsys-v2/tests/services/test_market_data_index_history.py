@@ -15,7 +15,7 @@ from unittest.mock import MagicMock
 
 import pandas as pd
 
-from application.services.market_data_service import MarketDataService
+from qs_market_data.application.services.market_data_service import MarketDataService
 
 
 def _fake_df():

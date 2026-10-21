@@ -257,7 +257,7 @@ v2_event_json: ${JSON.stringify(data)}
       const newAgent: any = (this.ctx as any).agents.get(sessionId);
       newAgent?.followup?.(createUserMessage({
         content: [{ type: 'text', text: `【OS 提醒·代执行】目标窗口 ${targetWindow ?? '未知'} 不在线，由你（新窗口 ${newWindow}）代为执行定时任务「${taskName}」：\n\n${prompt}\n\n要求：遵守交易宪法（提示词 constitution 段）；完成后把结论写入 memory（namespace=decision）并 window_update 标记 done。` }],
-        source: { kind: 'plugin', plugin: 'lifecycle' },
+        source: { kind: 'plugin:lifecycle' },
       }));
       // 登记新窗口进花名册
       await this.osWrite('skill_upsert', {
@@ -286,7 +286,7 @@ v2_event_json: ${JSON.stringify(data)}
       try {
         online.followup(createUserMessage({
           content: [{ type: 'text', text: `【OS 提醒】${taskName}\n\n${prompt}\n\n（来源：定时任务 ${taskId}，触发于 ${firedAt}）` }],
-          source: { kind: 'plugin', plugin: 'lifecycle' },
+          source: { kind: 'plugin:lifecycle' },
         }));
         executor = { mode: 'direct', session_id: String(online.id) };
       } catch { /* 投递失败走创建窗口 */ }
@@ -371,7 +371,7 @@ v2_event_json: ${JSON.stringify(data)}
             try {
               online.followup(createUserMessage({
                 content: [{ type: 'text', text: `【OS 提醒】${p.task ?? ''}\n\n${p.prompt}\n\n（来源：Agent OS 定时任务 ${p.task_id ?? ''}，触发于 ${p.fired_at ?? ''}）` }],
-                source: { kind: 'plugin', plugin: 'lifecycle' },
+                source: { kind: 'plugin:lifecycle' },
               }));
               executor = { mode: 'direct', session_id: String(online.id) };
             } catch { /* 投递失败走创建窗口 */ }
@@ -657,7 +657,7 @@ v2_event_json: ${JSON.stringify(data)}
         if (!p || p.delivered) continue;
         agent.followup(createUserMessage({
           content: [{ type: 'text', text: `【离线消息】你在离线期间收到来自窗口 ${p.from} 的消息（${p.ts}）：\n\n${p.message}\n\n回信方式：window_message(window='${p.from}', message='...')` }],
-          source: { kind: 'plugin', plugin: 'lifecycle' },
+          source: { kind: 'plugin:lifecycle' },
         }));
         // 标记已投递（append-only：写一条 delivered 标记记录）
         await this.osWrite('memory_write', {
@@ -847,7 +847,7 @@ v2_event_json: ${JSON.stringify(data)}
       try {
         agent.followup(createUserMessage({
           content: [{ type: 'text', text }],
-          source: { kind: 'plugin', plugin: 'lifecycle' },
+          source: { kind: 'plugin:lifecycle' },
         }));
       } catch (e) {
         // 投递失败不标记 done：pending 保留，等 agent/created 兜底或下次启动重投
@@ -1002,7 +1002,7 @@ v2_event_json: ${JSON.stringify(data)}
       try {
         agent.followup(createUserMessage({
           content: [{ type: 'text', text }],
-          source: { kind: 'plugin', plugin: 'lifecycle' },
+          source: { kind: 'plugin:lifecycle' },
         } as any));
         this.ctx.logger.info(`lifecycle: wip-rescue notice delivered to ${String(agent.id)}`);
         return true;
@@ -1040,7 +1040,7 @@ v2_event_json: ${JSON.stringify(data)}
         try {
           agent.followup(createUserMessage({
             content: [{ type: 'text', text }],
-            source: { kind: 'plugin', plugin: 'lifecycle' },
+            source: { kind: 'plugin:lifecycle' },
           }));
         } catch (e) {
           this.ctx.logger.warn(`lifecycle: watchdog followup failed: ${String(e)}`);

@@ -5,8 +5,8 @@ from typing import Optional
 from sqlalchemy import func
 
 from adapters.outbound.repositories.pool_change_log_repository import PoolChangeLog
-from adapters.outbound.repositories.stock_pool_repository import StockPool
-from infrastructure.persistence.orm.base_repository import BaseORMRepository
+from qs_sourcing.adapters.outbound.repositories.stock_pool_repository import StockPool
+from qs_kernel.infrastructure.persistence.orm.base_repository import BaseORMRepository
 from infrastructure.persistence.orm.models.portfolio import PortfolioHolding
 from infrastructure.persistence.orm.models.signal import Signal
 from infrastructure.persistence.orm.models.stock import DailyKline, Stock

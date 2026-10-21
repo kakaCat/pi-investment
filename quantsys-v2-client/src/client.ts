@@ -69,6 +69,9 @@ import type {
   EvolutionEngineRunResult,
   CorePlanSnapshot,
   EvolutionEngineRunsResponse,
+  WatchTodo,
+  WatchTodoListParams,
+  WatchTodoCloseRequest,
 } from './types.js';
 
 
@@ -897,6 +900,54 @@ export class QuantsysV2Client {
     const response = await this.client.get(`/api/watch/triggers?${qs.toString()}`);
     const data = this.unwrap<any>(response.data, 'listWatchTriggers');
     return Array.isArray(data) ? data : (data?.triggers ?? []);
+  }
+
+  // ==================== Watch Todo APIs（2026-10-16）====================
+  // 闭环最后一段：待办（watch_todos）的读 / 认领 / 收敛。
+  // 此前 agent 只有"建规则 + 看告警"，工单只能靠人处置——处置结论回执全库仅 1 条。
+
+  /**
+   * 待办列表
+   * Real endpoint: GET /api/watch/todos
+   * Response: {success, data: {items: [...], total: n}}
+   * terminal 不传 = 只返回未收敛（闭环工作队列的默认视图）
+   */
+  async listWatchTodos(params?: WatchTodoListParams): Promise<WatchTodo[]> {
+    const qs = new URLSearchParams();
+    const p = params ?? {};
+    if (p.level) qs.set('level', p.level);
+    if (p.flow_state) qs.set('flow_state', p.flow_state);
+    if (p.account) qs.set('account', p.account);
+    if (p.terminal) qs.set('terminal', p.terminal);
+    if (p.limit !== undefined) qs.set('limit', String(p.limit));
+    const suffix = qs.toString() ? `?${qs.toString()}` : '';
+    const response = await this.client.get(`/api/watch/todos${suffix}`);
+    const data = this.unwrap<any>(response.data, 'listWatchTodos');
+    return Array.isArray(data) ? data : (data?.items ?? []);
+  }
+
+  /**
+   * 认领待办（L1→L2；仅未终态行生效）
+   * Real endpoint: POST /api/watch/todos/{id}/claim
+   * 失败：404 watch_todo_not_found / 409 watch_todo_already_closed
+   */
+  async claimWatchTodo(todoId: number, ownerRef: string): Promise<WatchTodo> {
+    const response = await this.client.post(`/api/watch/todos/${todoId}/claim`,
+                                            { owner_ref: ownerRef });
+    const data = this.unwrap<any>(response.data, 'claimWatchTodo');
+    return (data?.todo ?? data) as WatchTodo;
+  }
+
+  /**
+   * 收敛待办（终态校验在服务端）
+   * Real endpoint: POST /api/watch/todos/{id}/close
+   * Response: {success, data: {todo, receipt}}
+   * 失败：400 watch_todo_invalid_terminal / watch_todo_missing_next_condition /
+   *       watch_todo_missing_audit（L3 + trade|rule_change 缺 decision_audit_id）
+   */
+  async closeWatchTodo(todoId: number, request: WatchTodoCloseRequest): Promise<any> {
+    const response = await this.client.post(`/api/watch/todos/${todoId}/close`, request);
+    return this.unwrap<any>(response.data, 'closeWatchTodo');
   }
 
   // ==================== Portfolio/Trading APIs ====================
@@ -1958,6 +2009,48 @@ export class QuantsysV2Client {
   /** 事件 → 盯盘规则建议（前瞻日历；2026-09-13 w-a9ec14d7 补上消费端） */
   async getEventWatchSuggestions(params: { symbols?: string; days?: number } = {}): Promise<ProviderResponse> {
     const response = await this.client.get('/api/events/watch-suggestions', { params })
+      .catch((err: any) => ({ data: { success: false, error: err.message } }));
+    return response.data;
+  }
+
+  /** 把任务派给处置 agent（2026-10-20）：统一信封 + 交付要求 + 留痕；返回 wake 状态 */
+  async dispatchAgentTask(params: {
+    title: string;
+    instruction: string;
+    event?: string;
+    target?: string;
+    requires_report?: boolean;
+    urgency?: 'normal' | 'high' | 'critical';
+  }): Promise<ProviderResponse> {
+    const response = await this.client.post('/api/agent/dispatch', params)
+      .catch((err: any) => ({ data: { success: false, error: err.message } }));
+    return response.data;
+  }
+
+  /** 条件入参契约（2026-10-20 框架适配）：全部条件类型参数说明/单位/示例 + market_gate 规格 */
+  async getWatchConditionSchema(): Promise<ProviderResponse> {
+    const response = await this.client.get('/api/watch/rules/condition-schema')
+      .catch((err: any) => ({ data: { success: false, error: err.message } }));
+    return response.data;
+  }
+
+  /** 单标的盯盘简报（2026-10-20）：行情+成本+规则距离+未决触发+近48h消息命中，一张卡 */
+  async getWatchBrief(symbol: string): Promise<ProviderResponse> {
+    const response = await this.client.get('/api/watch/brief', { params: { symbol } })
+      .catch((err: any) => ({ data: { success: false, error: err.message } }));
+    return response.data;
+  }
+
+  /** 盯盘触发增量查询（2026-10-20）：since 之后的新触发（agent 轮询「有什么新信号」） */
+  async getWatchTriggers(params: { symbol?: string; disposition?: string; since?: string; limit?: number } = {}): Promise<ProviderResponse> {
+    const response = await this.client.get('/api/watch/triggers', { params })
+      .catch((err: any) => ({ data: { success: false, error: err.message } }));
+    return response.data;
+  }
+
+  /** 处置触发（2026-10-20 框架适配）：handled/ignored 收敛未决触发——agent 的处置动作 */
+  async resolveWatchTrigger(triggerId: number, body: { disposition: string; reason?: string }): Promise<ProviderResponse> {
+    const response = await this.client.patch(`/api/watch/triggers/${triggerId}`, body)
       .catch((err: any) => ({ data: { success: false, error: err.message } }));
     return response.data;
   }

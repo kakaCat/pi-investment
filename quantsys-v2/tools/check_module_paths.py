@@ -4,7 +4,7 @@
   mock.patch('quantlib.finrl.finrl_agent.PPO')、importlib.import_module('X')、
   register_adapter("mock_test", "quantlib.adapters.base_adapter.BaseMarketAdapter") 这类调用
   把**模块路径写成字符串字面量** —— 没有任何编辑器/类型系统/导入检查会发现它失效。
-  于是当包搬家（quantlib → domain.quantlib；adapters → adapters.outbound.datasources.providers.quantlib）
+  于是当包搬家（quantlib → qs_quantlib；adapters → adapters.outbound.datasources.providers.quantlib）
   这些字符串原地不动，直到运行时才炸出 "ModuleNotFoundError: No module named 'quantlib'"，
   而报错栈全是 <frozen importlib._bootstrap>，看不到一行仓内代码 —— 极易被误判为"环境/包冲突"。
   实证：2026-09-13 全量测试里这一个根因占了约 53 项红账（35 errors + 18 failed）。

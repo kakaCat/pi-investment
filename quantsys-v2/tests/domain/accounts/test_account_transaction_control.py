@@ -2,9 +2,9 @@
 import pytest
 from unittest.mock import Mock, MagicMock
 
-from domain.accounts.services.account_service import AccountService
-from domain.accounts.models.account import Account, AccountStatus
-from domain.accounts.models.balance import Balance
+from qs_trading.domain.accounts.services.account_service import AccountService
+from qs_trading.domain.accounts.models.account import Account, AccountStatus
+from qs_trading.domain.accounts.models.balance import Balance
 
 
 class TestAccountTransactionControl:

@@ -247,7 +247,7 @@ def update_stop_loss_rule(rule_id: str, payload: Optional[Dict[str, Any]] = Body
 def check_trade_risk_v2(symbol: str, payload: Optional[Dict[str, Any]] = Body(None)):
     """交易风控检查 - 替代旧 quant_cli risk.trade_check"""
     try:
-        from application.services.risk_service import RiskService
+        from qs_trading.application.services.risk_service import RiskService
 
         data = payload or {}
         action = data.get('action', 'buy')
@@ -271,7 +271,7 @@ def check_trade_risk_v2(symbol: str, payload: Optional[Dict[str, Any]] = Body(No
 def calculate_position_size_v2(symbol: str, payload: Optional[Dict[str, Any]] = Body(None)):
     """Kelly仓位计算 - 替代旧 quant_cli risk.position_size"""
     try:
-        from application.services.risk_service import RiskService
+        from qs_trading.application.services.risk_service import RiskService
 
         data = payload or {}
         price = data.get('price', 0)
@@ -296,7 +296,7 @@ def calculate_position_size_v2(symbol: str, payload: Optional[Dict[str, Any]] = 
 def calculate_stop_loss_v2(symbol: str, payload: Optional[Dict[str, Any]] = Body(None)):
     """止损价计算 - 替代旧 quant_cli risk.stop_loss"""
     try:
-        from application.services.risk_service import RiskService
+        from qs_trading.application.services.risk_service import RiskService
 
         data = payload or {}
         entry_price = data.get('entry_price', 0)
@@ -356,7 +356,7 @@ def trade_verify(
     """
     from collections import defaultdict
 
-    from infrastructure.persistence.orm import get_session
+    from qs_kernel.infrastructure.persistence.orm import get_session
     from infrastructure.persistence.orm.models.simulation import (
         SimulationTrade, SimulationPosition,
     )

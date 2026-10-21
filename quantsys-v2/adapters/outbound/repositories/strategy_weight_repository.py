@@ -6,11 +6,11 @@ Strategy Weight ORM Repository - 策略权重仓储
   - 实际表 quant.strategy_weight_config（strategy_type + market_style → static_weight）
   - 补齐 get_static_weight / get_weights
 """
-from infrastructure.persistence.orm import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
 from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime
 from sqlalchemy.exc import SQLAlchemyError
-from infrastructure.persistence.orm.base import Base
-from domain.ports import IStrategyWeightRepository
+from qs_kernel.infrastructure.persistence.orm.base import Base
+from qs_kernel.domain.ports import IStrategyWeightRepository
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 import structlog

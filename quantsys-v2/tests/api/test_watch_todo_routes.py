@@ -31,7 +31,7 @@ from fastapi.testclient import TestClient
 
 from adapters.inbound.fastapi_app.routes.watch_todo_async import router
 from adapters.outbound.repositories.watch_todo_repository import WatchTodoRepository
-from infrastructure.persistence.orm import get_session
+from qs_kernel.infrastructure.persistence.orm import get_session
 from infrastructure.persistence.orm.models.watch_todo import WatchTodo
 
 #: 哨兵：测试账户 + 标的（便于 list 过滤与清理，远离真实数据）
@@ -72,8 +72,8 @@ def _capture_receipt_sends(monkeypatch):
     """拦 close 回执的真实外发（Agent OS/飞书）与名称解析 DB 依赖。"""
     from types import SimpleNamespace
 
-    from application.services.watch_engine import watch_loop_wiring as wiring
-    from application.services.watch_engine.receipt_service import ReceiptService
+    from qs_watch.application.services.watch_engine import watch_loop_wiring as wiring
+    from qs_watch.application.services.watch_engine.receipt_service import ReceiptService
     RECEIPT_SENT.clear()
     monkeypatch.setattr(
         wiring, 'build_receipt_service',
@@ -104,7 +104,7 @@ _REQUIRED_CONSTRAINTS = (
 
 
 def _dsn():
-    from infrastructure.persistence.database.engine import _resolve_db_dsn
+    from qs_kernel.infrastructure.persistence.database.engine import _resolve_db_dsn
     return _resolve_db_dsn()
 
 
@@ -377,12 +377,14 @@ def test_close_200_handled(client, todo_table, make_todo):
     assert data['todo']['closed_at'] is not None
     assert data['todo']['close_reason'] == '已按预案处置'
     # REQ-ad0a t5（FR-14）：close 收敛即发处置结论回执，receipt 字段真实填充
+    # 2026-10-19 投递层聚合：close 后回执先入缓冲（sent=False/grouped=True），
+    # 由 SLA 巡检兜底 flush 成卡——结论仍在 outcome.message 中完整可见
     receipt = data['receipt']
     assert receipt is not None and receipt['kind'] == 'result'
-    assert receipt['sent'] is True
+    assert receipt['grouped'] is True and receipt['sent'] is False
     assert '结论：已处置' in receipt['message']
     assert '原因：已按预案处置' in receipt['message']
-    assert len(RECEIPT_SENT) == 1             # 发送被拦截捕获（未真发飞书）
+    assert len(RECEIPT_SENT) == 0             # 缓冲中，未即时发（巡检 flush 时发出）
     fresh = _fresh(todo.id)
     assert fresh.terminal == 'handled'
     assert fresh.closed_at is not None

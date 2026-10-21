@@ -15,7 +15,7 @@ pool_repo=None 会崩）。本测试用 mock 服务验证 execute 委托与契�
 from unittest.mock import MagicMock, patch
 import pytest
 
-from application.jobs.analysis_jobs import ChanScanJob, ChanKnowledgeDistillJob
+from qs_ops.application.jobs.analysis_jobs import ChanScanJob, ChanKnowledgeDistillJob
 
 
 class TestChanScanJob:
@@ -77,7 +77,7 @@ class TestChanKnowledgeDistillJob:
             captured_kwargs.update(kwargs)
             self._kwargs = kwargs
 
-        with patch('application.services.chan_knowledge_distiller.ChanKnowledgeDistiller', autospec=True) as mock_cls:
+        with patch('qs_agenthub.application.services.chan_knowledge_distiller.ChanKnowledgeDistiller', autospec=True) as mock_cls:
             mock_cls.return_value = mock_distill
             # autospec 下直接验证构造 kwargs
             result = await ChanKnowledgeDistillJob().execute({'window_days': 25, 'lookback_days': 120})
@@ -101,7 +101,7 @@ class TestChanKnowledgeDistillJob:
         mock_distill = MagicMock()
         mock_distill.distill.return_value = distill_result
 
-        with patch('application.services.chan_knowledge_distiller.ChanKnowledgeDistiller', autospec=True) as mock_cls:
+        with patch('qs_agenthub.application.services.chan_knowledge_distiller.ChanKnowledgeDistiller', autospec=True) as mock_cls:
             mock_cls.return_value = mock_distill
             result = await ChanKnowledgeDistillJob().execute({})
             call_kwargs = mock_cls.call_args.kwargs
@@ -115,7 +115,7 @@ class TestChanKnowledgeDistillJob:
         mock_distill = MagicMock()
         mock_distill.distill.side_effect = RuntimeError('kline repo 数据不足')
 
-        with patch('application.services.chan_knowledge_distiller.ChanKnowledgeDistiller', autospec=True) as mock_cls:
+        with patch('qs_agenthub.application.services.chan_knowledge_distiller.ChanKnowledgeDistiller', autospec=True) as mock_cls:
             mock_cls.return_value = mock_distill
             result = await ChanKnowledgeDistillJob().execute({})
 

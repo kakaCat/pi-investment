@@ -11,7 +11,7 @@
 修复：仓库补 `update_user_strategy/delete_user_strategy`（写 quant.strategy_configs），服务改调它们。
 本测试用假仓库锁住"服务必须调用显式命名的用户策略方法"，并对通用 update/delete 设绊线。
 """
-from application.services.strategy_code_service import StrategyCodeService
+from qs_strategy.application.services.strategy_code_service import StrategyCodeService
 
 
 class _FakeRepo:

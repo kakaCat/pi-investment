@@ -43,11 +43,11 @@ from live_trading.simulation_broker import SimulationBroker
 from adapters.outbound.repositories import SimulationORMRepository
 from live_trading.v13_factors import get_factor_names
 from live_trading.risk_control import RiskController
-from infrastructure.persistence.database.engine import init_engine, get_engine
+from qs_kernel.infrastructure.persistence.database.engine import init_engine, get_engine
 
 # 可选依赖：飞书通知（如果导入失败则禁用）
 try:
-    from application.notification.notification_factory import get_notification_facade
+    from qs_notification.application.notification_factory import get_notification_facade
     _notification_available = True
 except ImportError:
     logger.warning("Notification system not available")
@@ -61,7 +61,7 @@ def judge_trading_day(day, *, kline_exists_on_date, latest_kline_date, today):
     """判定某天是否为交易日（纯函数，可单测）。
 
     2026-09-11（w-f4aa1f6a 步2）：唯一实现已提升到
-    application.services.trading_day_guard.judge_trading_day，
+    qs_ops.application.services.trading_day_guard.judge_trading_day，
     这里保留同名委托以兼容既有调用与单测（语义未变）：
     - 周末 → False；未来日期 → False
     - 当天日K已落库 → True（历史日期的主要判据，精确覆盖法定节假日）
@@ -69,7 +69,7 @@ def judge_trading_day(day, *, kline_exists_on_date, latest_kline_date, today):
       近期市场活跃（7 个自然日内有K线）→ True
     - 其他（过去的工作日无K线 = 节假日；长期停市/数据断供）→ False
     """
-    from application.services.trading_day_guard import judge_trading_day as _judge
+    from qs_ops.application.services.trading_day_guard import judge_trading_day as _judge
 
     return _judge(
         day,
@@ -166,7 +166,7 @@ class SimulationTrader:
 
     def _setup_logging(self):
         """设置日志"""
-        from infrastructure.logging import configure_structured_logging
+        from qs_kernel.infrastructure.logging import configure_structured_logging
         import structlog
 
         log_dir = Path(self.config['logging']['log_dir'])
@@ -221,7 +221,7 @@ class SimulationTrader:
 
     def _rebuild_portfolio_from_trades(self):
         """从交易记录重建持仓（单一数据源）"""
-        from infrastructure.persistence.database.engine import get_engine
+        from qs_kernel.infrastructure.persistence.database.engine import get_engine
 
         engine = get_engine()
         conn = engine.raw_connection()
@@ -384,7 +384,7 @@ class SimulationTrader:
         # 路径在工作日兜底时会把法定节假日当交易日（且不告知调用方），
         # 正是 2026-08-08 周末合成快照那类问题的温床。护栏改为 K 线数据驱动，
         # 并显式返回判定来源与降级标记。
-        from application.services.trading_day_guard import TradingDayGuard
+        from qs_ops.application.services.trading_day_guard import TradingDayGuard
 
         verdict = TradingDayGuard.should_write_daily(d)
         if not verdict.is_trading_day:
@@ -458,7 +458,7 @@ class SimulationTrader:
         4. 日均成交额 >= 1亿（保证流动性，过滤超小盘股）
         """
         # 兼容ORM和非ORM Repository
-        from infrastructure.persistence.database.engine import get_engine
+        from qs_kernel.infrastructure.persistence.database.engine import get_engine
         engine = get_engine()
         conn = engine.raw_connection()
         try:
@@ -524,7 +524,7 @@ class SimulationTrader:
         placeholders = ','.join(['%s'] * len(symbol_list))
 
         # 兼容ORM和非ORM Repository
-        from infrastructure.persistence.database.engine import get_engine
+        from qs_kernel.infrastructure.persistence.database.engine import get_engine
         engine = get_engine()
         conn = engine.raw_connection()
         try:
@@ -764,7 +764,7 @@ class SimulationTrader:
         """
         # 2026-09-11（w-f4aa1f6a 步2）：取数 + 判定统一交给 TradingDayGuard
         # （原实现自带一套 cursor 取数 + 失败时"默认周一~周五"的静默降级）
-        from application.services.trading_day_guard import TradingDayGuard
+        from qs_ops.application.services.trading_day_guard import TradingDayGuard
 
         verdict = TradingDayGuard.check(date_str, use_cache=False)
         if verdict.degraded or verdict.source == 'unavailable':

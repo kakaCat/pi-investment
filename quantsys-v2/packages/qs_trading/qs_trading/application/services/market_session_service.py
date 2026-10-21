@@ -1,0 +1,145 @@
+"""市况服务（应用层编排）
+
+RFC 016 §4.5：市况的**唯一对外入口**。应用层只做编排，不做判定：
+
+- **日级真源**：仍由 `application.services.trading_day_guard.TradingDayGuard` 提供
+  —— 不另造第二条日级真源（2026-08-08 周末写入 5 条合成净值快照的教训）；
+- **时段判定**：委托领域策略 `qs_trading.domain.trading.services.market_session_policy`（纯函数，零 IO）；
+- **时钟**：经 `qs_trading.domain.trading.ports.IMarketClock` 端口注入；默认实现在构造函数内
+  **局部导入**（DI，遵守"应用层类型注解只用端口 ABC"的约定）。
+
+使用方一律经本服务取市况，**不得**再自算时段或 weekday。
+"""
+from __future__ import annotations
+from qs_kernel.domain.common.dates import as_date, as_datetime, as_date_str
+
+from datetime import date, datetime, time, timedelta
+from typing import Optional, Union
+
+from application.services.trading_day_guard import TradingDayGuard
+from qs_trading.domain.trading.exceptions import TradingError
+from qs_trading.domain.trading.models.market_session import MarketSession, SessionPhase
+from qs_trading.domain.trading.ports.IMarketClock import IMarketClock
+from qs_trading.domain.trading.services.market_session_policy import MarketSessionPolicy
+
+# 「最近交易日」回溯上限（覆盖国庆/春节等连续假期）
+_LAST_TRADING_DAY_LOOKBACK = 15
+
+
+class MarketSessionService:
+    """市况服务（无状态；时钟可注入以便单测）"""
+
+    def __init__(self, clock: Optional[IMarketClock] = None):
+        if clock is None:
+            from adapters.outbound.clock.beijing_clock import BeijingClock  # DI：局部导入具体实现
+            clock = BeijingClock()
+        self._clock = clock
+        self._policy = MarketSessionPolicy()
+
+    # ---------------------------------------------------------------- 快照
+    def current(self, now: Optional[datetime] = None) -> MarketSession:
+        """当前市况快照（日级判定 + 时段判定 → 值对象）"""
+        # 2026-09-13（w-c8cae280）：now 若传 date / 'YYYY-MM-DD' 字符串，at.date() 直接 AttributeError
+        # （本文件 is_trading_day 的 2026-09-12 审查注释已记录过同一陷阱，但 current() 一直是裸调用）。
+        # 归一为 datetime：None → 时钟；datetime → 原样（保留 tzinfo）；date/str → 当日 00:00。
+        at = self._clock.now() if now is None else as_datetime(now, default=self._clock.now())
+        verdict = TradingDayGuard.check(at.date())
+        return self._policy.evaluate(
+            at,
+            is_trading_day=verdict.is_trading_day,
+            day_source=verdict.source,
+            day_degraded=verdict.degraded,
+            day_reason=verdict.reason,
+        )
+
+    # ------------------------------------------------------------ 常用判据
+    def phase(self, now: Optional[datetime] = None) -> SessionPhase:
+        """当前相位"""
+        return self.current(now).phase
+
+    def is_market_open(self, now: Optional[datetime] = None) -> bool:
+        """连续竞价中（下单硬约束的判据；= MORNING / AFTERNOON）"""
+        return self.current(now).is_market_open
+
+    def is_price_fresh_window(self, now: Optional[datetime] = None) -> bool:
+        """报价是否可能仍在变动（09:15–15:00 + 收盘后 5 分钟宽限）"""
+        return self.current(now).is_price_fresh_window
+
+    def is_trading_day(self, day: Union[None, str, date, datetime] = None) -> bool:
+        """当日是否交易日（**透传日级真源**，接受 None / 'YYYY-MM-DD' / date / datetime）
+
+        直接委托 `TradingDayGuard.is_trading_day`（不构造 VO）：旧实现把它转给 `current()`
+        再由 `at.date()` 取日，传 `date`/`str` 会 AttributeError（审查发现，2026-09-12）。
+        """
+        return TradingDayGuard.is_trading_day(self._clock.today() if day is None else day)
+
+    # -------------------------------------------------- 开始时间 / 交易进度
+    def session_start_of(self, phase: SessionPhase) -> Optional[time]:
+        """**相位开始时刻**（取代散落的 `PHASE_SCHEDULE[phase][0]` 与硬编码 09:30/13:00）"""
+        return MarketSessionPolicy.session_start_of(phase)
+
+    def next_boundary_at(self, now: Optional[datetime] = None) -> Optional[datetime]:
+        """下一个相位边界的完整时刻（当日无更晚边界时返回 None）"""
+        at = self._clock.now() if now is None else as_datetime(now, default=self._clock.now())
+        # 非交易日没有相位边界——与 current().next_boundary_at 保持一致（曾一个填值一个置空）
+        if not TradingDayGuard.is_trading_day(at.date()):
+            return None
+        nxt = MarketSessionPolicy.next_boundary(at.time())
+        # 保留 tzinfo：与 current().at 同口径（datetime.combine 默认丢 tz）
+        return datetime.combine(at.date(), nxt, tzinfo=at.tzinfo) if nxt is not None else None
+
+    def elapsed_trading_minutes(self, now: Optional[datetime] = None) -> int:
+        """当日已交易分钟（午休不计，0..240）"""
+        return self.current(now).elapsed_trading_minutes
+
+    def session_progress(self, now: Optional[datetime] = None) -> float:
+        """已交易比例 0~1（取代 `watch_engine.elapsed_trading_fraction`）"""
+        return self.current(now).session_progress
+
+    # ------------------------------------------------------------ 价格相关
+    def expected_price_date(self, now: Optional[datetime] = None) -> date:
+        """期望价日期 = 最近一个交易日（含今日）——取价门面 `stale` 判据（RFC 016 D4）
+
+        非开市日读到该日期的收盘价即为新鲜（"已收盘最终价"，不是陈旧）。
+        返回 **date**（RFC §4.5.2 契约）。
+
+        回溯窗口内找不到交易日（日K数据源不可用 / 长期断供）时 **fail-loud**：
+        静默返回一个非交易日会让下游把陈旧价判成"新鲜"（审查发现，2026-09-12）。
+        """
+        day = (now or self._clock.now()).date()
+        for _ in range(_LAST_TRADING_DAY_LOOKBACK):
+            if TradingDayGuard.is_trading_day(day):
+                return day
+            day -= timedelta(days=1)
+        raise RuntimeError(
+            '最近 %d 天内未找到交易日（日K数据源不可用？）——无法确定期望价日期'
+            % _LAST_TRADING_DAY_LOOKBACK
+        )
+
+    # ------------------------------------------------------ 硬约束（fail-closed）
+    def assert_can_trade(self, now: Optional[datetime] = None) -> MarketSession:
+        """下单前置判据（**自查用，不参与下单链**）：非开市或进入收盘截止窗口即拒绝。
+
+        ⚠️ 本方法**不是**下单链的闸门——真正生效的是
+        `TradeGuardService.validate_trading_window` 与
+        `AccountTradingService._check_trading_window`（两者 2026-09-12 已收敛到同一策略）。
+        若把它接成第三个闸门，会因**日级真源不同**（此处 `TradingDayGuard` vs 两闸门的
+        `ITradingCalendar`）在节假日/日历降级时给出相反结论。保留它是供 agent 工具侧下单前自查。
+
+        异常类型与既有闸门统一为 `TradingError(422)`（原为裸 `ValueError`，会逼每个调用方
+        自行映射，且与闸门的 422 文案口径不一）。
+        """
+        at = now or self._clock.now()
+        session = self.current(at)
+        if not MarketSessionPolicy.accepts_new_orders(
+                at.time(), is_trading_day=session.is_trading_day):
+            raise TradingError(
+                f'非交易时段或临近休市（{at.strftime("%H:%M")}），禁止委托', 422)
+        return session
+
+    def assert_daily_write_allowed(self, day: Optional[datetime] = None) -> bool:
+        """写入型守卫（净值快照/按日统计）：非交易日不得写入
+
+        委托 `TradingDayGuard.should_write_daily`（**唯一真源**，不复制判据）。
+        """
+        return TradingDayGuard.should_write_daily(day).is_trading_day

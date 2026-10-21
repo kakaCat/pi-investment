@@ -15,7 +15,7 @@ ORM Models模块
 
 使用示例：
     from infrastructure.persistence.orm.models import Stock, DailyKline
-    from infrastructure.persistence.orm import get_session
+    from qs_kernel.infrastructure.persistence.orm import get_session
 
     session = get_session()
     stock = session.query(Stock).filter_by(symbol='000001').first()
@@ -49,6 +49,8 @@ from .agent_log import AgentLog
 from .trading_calendar import TradingCalendar
 from .strategy_validation import StrategyValidationReport
 from .watch_state import WatchDigestState, WatchIntervention
+from .watch_pool_binding import WatchPoolBinding
+from .watch_news_alert import WatchNewsAlert
 
 __all__ = [
     # 股票相关
@@ -123,4 +125,5 @@ __all__ = [
 ]
 from .watch_todo import (
     WatchTodo, WatchRuntimeState, WatchRuntimeMeta, WatchRuleChange, WatchReceipt,
+    WatchOutcomeCheck,
 )

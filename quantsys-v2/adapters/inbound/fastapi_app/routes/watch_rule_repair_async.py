@@ -31,9 +31,9 @@ from adapters.outbound.repositories.watch_rule_change_repository import (
 )
 from adapters.outbound.repositories.watch_rule_noise_repository import WatchRuleNoiseRepository
 from adapters.outbound.repositories.watch_todo_repository import WatchTodoRepository
-from application.services.watch_engine.noise_self_heal_service import NoiseSelfHealService
-from application.services.watch_engine.todo_service import TodoService
-from domain.watch.ports import WatchRuleChangeError
+from qs_watch.application.services.watch_engine.noise_self_heal_service import NoiseSelfHealService
+from qs_watch.application.services.watch_engine.todo_service import TodoService
+from qs_watch.domain.watch.ports import WatchRuleChangeError
 
 router = APIRouter(tags=['Watch - 规则自愈'])
 

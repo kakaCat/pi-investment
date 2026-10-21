@@ -12,7 +12,7 @@ Covers:
 import pytest
 from datetime import datetime, timedelta, timezone
 
-from infrastructure.scheduler.scheduler import (
+from qs_ops.infrastructure.scheduler.scheduler import (
     CronSchedule,
     SchedulerService,
     _cron_dow,
@@ -759,7 +759,7 @@ class TestSchedulerConnection:
         scheduler.close()
 
     def test_close_after_use(self):
-        from infrastructure.persistence.database.engine import _resolve_db_dsn
+        from qs_kernel.infrastructure.persistence.database.engine import _resolve_db_dsn
 
         if _resolve_db_dsn() is None:
             pytest.skip("No database URL configured")

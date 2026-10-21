@@ -23,7 +23,7 @@ from adapters.outbound.repositories.simulation_repository import (
     SimulationORMRepository,
     SNAPSHOT_RETURN_SUSPICIOUS,
 )
-from application.services.risk_metrics_service import (
+from qs_trading.application.services.risk_metrics_service import (
     RiskMetricsService,
     nav_returns_from_snapshots,
 )
@@ -100,7 +100,7 @@ class _FakeSession:
 
 
 def _repo_with(monkeypatch, server: _FakeSession) -> SimulationORMRepository:
-    import infrastructure.persistence.orm.base_repository as base
+    import qs_kernel.infrastructure.persistence.orm.base_repository as base
 
     monkeypatch.setattr(base, 'get_session', lambda: server)
     return SimulationORMRepository()

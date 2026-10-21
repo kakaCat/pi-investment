@@ -16,7 +16,7 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from application.notification import get_notification_facade
+from qs_notification.application import get_notification_facade
 
 __all__ = ["IntradayRiskService"]
 

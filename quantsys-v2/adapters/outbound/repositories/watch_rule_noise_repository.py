@@ -23,17 +23,20 @@ WatchRuleChangeRepository 会混淆职责，故单列本文件（ADR-001：SQL �
 from datetime import date, datetime
 from typing import Any, Dict, Optional
 
+import json
+
 import structlog
 from sqlalchemy import func, text
 
 from adapters.outbound.repositories.watch_rule_repository import WatchRule, WatchTrigger
-from infrastructure.persistence.orm import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
 
 logger = structlog.get_logger(__name__)
 
-#: 规则最小投影（含 t1 新增的四个 noise 列——ORM 未声明，故用裸 SQL 读）
+#: 规则最小投影（含 t1 新增的四个 noise 列——ORM 未声明，故用裸 SQL 读；
+#: 2026-10-19 E1 修复起含 conditions：配置类修复要按现状计算落地内容）
 _RULE_SELECT = text("""
-    SELECT id, symbol, enabled, account, linked_account,
+    SELECT id, symbol, enabled, account, linked_account, conditions,
            noise_state, suppress_until, self_heal_count, last_repair_at
       FROM quant.watch_rules
      WHERE id = :rule_id
@@ -67,6 +70,9 @@ _MARK_REPAIRED = text("""
      WHERE id = :rule_id
 """)
 
+#: 配置类修复允许 UPDATE 的列（白名单；after 键超出即拒绝，绝不拼接未校验列名）
+_CONFIG_REPAIR_COLUMNS = frozenset({'enabled', 'conditions'})
+
 
 class WatchRuleNoiseRepository(BaseORMRepository[WatchRule]):
     """IWatchRuleNoiseRepository 的 PostgreSQL 实现（watch_rules 四列 + watch_triggers 聚合）"""
@@ -85,7 +91,14 @@ class WatchRuleNoiseRepository(BaseORMRepository[WatchRule]):
         return dict(row) if row is not None else None
 
     def daily_counts(self, since: datetime, until: datetime) -> Dict[int, Dict[date, int]]:
-        """[since, until) 内按 规则 × 自然日 聚合触发次数：{rule_id: {date: count}}"""
+        """[since, until) 内按 规则 × 自然日 聚合触发次数：{rule_id: {date: count}}
+
+        口径（2026-10-19 修正自反馈）：只统计**真实触发**——排除
+          ① suppressed=true 的抑噪归档行（否则抑噪期落库的样本行反过来喂大统计，
+             「一旦抑噪永远 noisy」：抑噪 → 归档计入 → 恢复即再抑噪的振荡）；
+          ② 治理/元触发记录（condition.type ∈ meta_review/rule_overlap）——它们带
+             rule_id 落本表但不是市场事件，计入会让被治理的规则更快被判 noisy。
+        """
         try:
             rows = (
                 self.session.query(
@@ -96,7 +109,11 @@ class WatchRuleNoiseRepository(BaseORMRepository[WatchRule]):
                 .filter(WatchTrigger.rule_id.isnot(None),
                         WatchTrigger.triggered_at.isnot(None),
                         WatchTrigger.triggered_at >= since,
-                        WatchTrigger.triggered_at < until)
+                        WatchTrigger.triggered_at < until,
+                        WatchTrigger.suppressed.isnot(True),
+                        func.coalesce(
+                            WatchTrigger.condition['type'].astext, ''
+                        ).notin_(('meta_review', 'rule_overlap')))
                 .group_by(WatchTrigger.rule_id, func.date(WatchTrigger.triggered_at))
                 .all()
             )
@@ -133,6 +150,34 @@ class WatchRuleNoiseRepository(BaseORMRepository[WatchRule]):
         """清抑噪态并记一次修复；规则不存在（0 行）→ 响亮抛错"""
         self._update_rule(_MARK_REPAIRED, rule_id,
                           {'now': now or datetime.now()}, action='mark_repaired')
+
+    def apply_config_repair(self, rule_id: int, action: str, after: Dict[str, Any]) -> None:
+        """落地配置类修复（2026-10-19，E1 振荡修复）：裸 SQL UPDATE quant.watch_rules。
+
+        - after 的键过列白名单 _CONFIG_REPAIR_COLUMNS（enabled / conditions），
+          越名单/空 after 一律 ValueError——绝不拼接未校验列名（SQL 注入防线）；
+        - conditions 以 JSON 文本 + CAST(:conditions AS jsonb) 写入（值绑定，非拼接）；
+        - 0 行命中（规则被并发删除）由 _update_rule 响亮抛错——调用方据此
+          不会继续 mark_repaired 清抑噪，杜绝假修复振荡。
+        """
+        payload = dict(after or {})
+        unknown = sorted(set(payload) - _CONFIG_REPAIR_COLUMNS)
+        if unknown:
+            raise ValueError(
+                f'配置修复列越白名单：{unknown}（允许 {sorted(_CONFIG_REPAIR_COLUMNS)}）')
+        if not payload:
+            raise ValueError(f'{action} 配置修复内容为空：拒绝假修复（只写审计不改配置）')
+        assignments = []
+        for col in sorted(payload):
+            if col == 'conditions':
+                assignments.append('conditions = CAST(:conditions AS jsonb)')
+                payload[col] = json.dumps(payload[col], ensure_ascii=False)
+            else:
+                assignments.append(f'{col} = :{col}')
+        stmt = text('UPDATE quant.watch_rules SET ' + ', '.join(assignments) +
+                    ', updated_at = :now WHERE id = :rule_id')
+        payload['now'] = datetime.now()
+        self._update_rule(stmt, rule_id, payload, action=f'apply_config_repair:{action}')
 
     # ── 内部 ────────────────────────────────────────────────
 

@@ -10,7 +10,7 @@
 """
 import pytest
 
-from infrastructure.jobs.market_style_update_job import _pick_trade_date
+from qs_ops.infrastructure.jobs.market_style_update_job import _pick_trade_date
 
 
 def _pick(explicit=None, today='2026-09-05', regime=None, sentiment=None,

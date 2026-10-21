@@ -2,14 +2,14 @@
 """
 诊断服务 - 策略诊断主入口
 """
-from domain.ports import IBacktestRepository, IKlineRepository
+from qs_kernel.domain.ports import IBacktestRepository, IKlineRepository
 from typing import Dict, Optional
 from datetime import datetime
 import structlog
 import uuid
 import re
 
-from application.services.strategy_analyzer import StrategyAnalyzer
+from qs_strategy.application.services.strategy_analyzer import StrategyAnalyzer
 from application.services.report_generator import ReportGenerator
 
 logger = structlog.get_logger(__name__)

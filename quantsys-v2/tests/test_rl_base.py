@@ -12,9 +12,9 @@ from abc import ABC
 from unittest.mock import MagicMock, patch
 from typing import Any, Tuple
 
-from domain.quantlib.base_calculator import BaseCalculator
-from domain.quantlib.rl.base_agent import BaseRLAgent
-from domain.quantlib.rl.base_environment import BaseRLEnvironment
+from qs_quantlib.base_calculator import BaseCalculator
+from qs_quantlib.rl.base_agent import BaseRLAgent
+from qs_quantlib.rl.base_environment import BaseRLEnvironment
 
 
 class ConcreteRLAgent(BaseRLAgent):

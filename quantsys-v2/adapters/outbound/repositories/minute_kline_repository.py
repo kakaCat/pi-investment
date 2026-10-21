@@ -12,8 +12,8 @@ RFC 015 §4.1（2026-09-11 REQ-cf627b）：
 from datetime import datetime
 from typing import List, Optional
 
-from domain.models.market_data import MinuteKline
-from domain.trading.ports.IMinuteKlineRepository import IMinuteKlineRepository
+from qs_kernel.domain.models.market_data import MinuteKline
+from qs_trading.domain.trading.ports.IMinuteKlineRepository import IMinuteKlineRepository
 
 from infrastructure.persistence.orm.models import MinuteKline as MinuteKlineORM
 
@@ -163,7 +163,7 @@ class MinuteKlineRepository(IMinuteKlineRepository):
             return False
         try:
             from sqlalchemy.dialects.postgresql import insert as pg_insert
-            from infrastructure.persistence.orm.config import get_session
+            from qs_kernel.infrastructure.persistence.orm.config import get_session
 
             session = get_session()
             try:

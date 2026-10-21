@@ -22,17 +22,19 @@ def main() -> int:
     if len(sys.argv) > 1 and sys.argv[1]:
         target = datetime.strptime(sys.argv[1], "%Y-%m-%d").date()
 
-    from infrastructure.services.service_registry import register_all_services
-    register_all_services()
+    # S11-B-2 批次 1 (2026-10-21): DI 引导收编入口，不再直连内部 service_registry
+    from infrastructure.services.service_factory import ServiceFactory
+    ServiceFactory.initialize()
 
     # 交易日/已收盘防护（2026-09-11）：目标日若尚无K线（未收盘或非交易日），
     # snapshot_all_accounts 会用「最近可得收盘价」估值 → 写出「旧价标新日」的假快照。
     # 此处显式跳过，宁可当日不写，也不写错。参考标的取流动性好的 600519。
     from datetime import date as _date
-    from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
-    from domain.ports import IKlineRepository
+    # S11-B-2 批次 1 (2026-10-21): 支撑解析收编入口（与 EnhancedServiceFactory.resolve 逐字同语义）
+    from infrastructure.services.service_factory import ServiceFactory
+    from qs_kernel.domain.ports import IKlineRepository
     ref = target or _date.today()
-    klines = EnhancedServiceFactory.resolve(IKlineRepository).get_daily_klines(
+    klines = ServiceFactory.resolve(IKlineRepository).get_daily_klines(
         symbol="600519", start_date=ref.isoformat(), end_date=ref.isoformat()
     )
     has_bar = klines is not None and (not hasattr(klines, "is_empty") or not klines.is_empty())

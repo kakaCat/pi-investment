@@ -14,9 +14,9 @@ def create_signal_execution_scheduler():
     """
     from infrastructure.services.service_factory import ServiceFactory
     from application.services.signal_execution_scheduler import SignalExecutionScheduler
-    from application.services.strategy_code_service import StrategyCodeService
-    from application.services.risk_check_service import RiskCheckService
-    from domain.ports import (
+    from qs_strategy.application.services.strategy_code_service import StrategyCodeService
+    from qs_trading.application.services.risk_check_service import RiskCheckService
+    from qs_kernel.domain.ports import (
         ISignalRepository,
         ISignalExecutionLogRepository,
         IStrategyRepository,

@@ -11,10 +11,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from application.notification.notification_facade import NotificationFacade
-from application.services.watch_engine import watch_channels
-from domain.notification.models.channel import ChannelResult
-from domain.notification.models.notification import NotificationStatus
+from qs_notification.application.notification_facade import NotificationFacade
+from qs_watch.application.services.watch_engine import watch_channels
+from qs_notification.domain.models.channel import ChannelResult
+from qs_notification.domain.models.notification import NotificationStatus
 
 
 _BASE = dict(
@@ -96,7 +96,7 @@ class _FakeFacade:
 @pytest.fixture
 def fake_facade(monkeypatch):
     facade = _FakeFacade()
-    monkeypatch.setattr('application.notification.get_notification_facade', lambda: facade)
+    monkeypatch.setattr('qs_notification.application.get_notification_facade', lambda: facade)
     return facade
 
 

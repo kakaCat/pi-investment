@@ -23,9 +23,9 @@ from enum import Enum
 
 from sqlalchemy.orm.attributes import flag_modified
 
-from infrastructure.persistence.orm import get_session
+from qs_kernel.infrastructure.persistence.orm import get_session
 from infrastructure.persistence.orm.models.orchestrator import DailyOrchestratorState
-from application.services.agent_notification_service import agent_service
+from qs_agenthub.application.services.agent_notification_service import agent_service
 
 logger = structlog.get_logger(__name__)
 
@@ -132,7 +132,7 @@ class DailyOrchestrator:
 
         # 非交易日跳过（周末 + 法定节假日）；统一走 TradingDayGuard 唯一入口
         # （2026-09-11 w-f4aa1f6a 步2：原先只判周末，节假日会被当交易日执行）
-        from application.services.trading_day_guard import TradingDayGuard
+        from qs_ops.application.services.trading_day_guard import TradingDayGuard
         if not TradingDayGuard.is_trading_day(today):
             return
 
@@ -186,7 +186,7 @@ class DailyOrchestrator:
         教训：实例化依赖必须显式注入，默认值 None 是延时炸弹。
         """
         try:
-            from application.services.account_trading_service import (
+            from qs_trading.application.services.account_trading_service import (
                 AccountTradingService,
             )
             from adapters.outbound.repositories.simulation_repository import (
@@ -255,7 +255,7 @@ class DailyOrchestrator:
 
     def _phase_pre_market(self, state: DailyOrchestratorState) -> Dict[str, Any]:
         """盘前阶段：数据更新 + 市场风格检测 + 策略轮动 + 信号生成"""
-        from application.services.scheduler_tasks import (
+        from qs_ops.application.services.scheduler_tasks import (
             handle_data_update,
             handle_market_style_update,
             handle_signal_generate,
@@ -281,7 +281,7 @@ class DailyOrchestrator:
         # 3. 策略轮动判断
         logger.info("pre_market: strategy_rotation_check")
         try:
-            from application.services.strategy_rotation_engine import get_rotation_engine
+            from qs_strategy.application.services.strategy_rotation_engine import get_rotation_engine
             rotation_engine = get_rotation_engine()
             rotation_result = rotation_engine.evaluate()
             results['rotation'] = rotation_result
@@ -367,7 +367,7 @@ class DailyOrchestrator:
 
     def _collect_pending_signals(self) -> List[Dict[str, Any]]:
         """收集当日 pending 信号（复用 SignalExecutionScheduler 的收集逻辑，不下单）"""
-        from application.services.signal_execution_scheduler import SignalExecutionScheduler
+        from qs_sourcing.application.services.signal_execution_scheduler import SignalExecutionScheduler
         scheduler = SignalExecutionScheduler()
         return scheduler._collect_signals(date.today().strftime('%Y-%m-%d'))
 
@@ -391,7 +391,7 @@ class DailyOrchestrator:
         if self._simulation_repo is not None:
             return self._simulation_repo
         from infrastructure.services.service_factory import ServiceFactory
-        from domain.ports import ISimulationRepository
+        from qs_kernel.domain.ports import ISimulationRepository
         return ServiceFactory.resolve(ISimulationRepository)
 
     def _active_accounts(self, repo) -> List[str]:
@@ -506,7 +506,7 @@ class DailyOrchestrator:
         snapshots_by_account / performance_by_account，供后续消费方使用。
         """
         from application.trading.paper_trading_engine import PaperTradingEngine
-        from application.services.scheduler_tasks import handle_factor_compute
+        from qs_ops.application.services.scheduler_tasks import handle_factor_compute
 
         accounts = self._active_accounts(self._sim_repo())
 
@@ -624,7 +624,7 @@ class DailyOrchestrator:
 
         # 1. 决策打分（20日成熟决策）
         try:
-            from application.services.evolution.decision_score_service import DecisionScoreService
+            from qs_agenthub.application.services.evolution.decision_score_service import DecisionScoreService
             from adapters.outbound.repositories.agent_intelligence_repository import AgentIntelligenceORMRepository
             from adapters.outbound.repositories.kline_repository import KlineORMRepository
             logger.info("review_phase: decision_score_service starting")
@@ -640,8 +640,8 @@ class DailyOrchestrator:
 
         # 2. 踏空捕获（5日宽限期）
         try:
-            from application.services.evolution.missed_opportunity_service import MissedOpportunityService
-            from adapters.outbound.repositories.signal_repository import SignalORMRepository
+            from qs_agenthub.application.services.evolution.missed_opportunity_service import MissedOpportunityService
+            from qs_sourcing.adapters.outbound.repositories.signal_repository import SignalORMRepository
             from adapters.outbound.repositories.agent_intelligence_repository import AgentIntelligenceORMRepository
             from adapters.outbound.repositories.kline_repository import KlineORMRepository
             logger.info("review_phase: missed_opportunity_service starting")
@@ -658,7 +658,7 @@ class DailyOrchestrator:
 
         # 3. 适应度计算（20日滚动窗口）
         try:
-            from application.services.evolution.evolution_fitness_service import EvolutionFitnessService
+            from qs_agenthub.application.services.evolution.evolution_fitness_service import EvolutionFitnessService
             from adapters.outbound.repositories.evolution_fitness_repository import EvolutionFitnessORMRepository
             from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
             logger.info("review_phase: evolution_fitness_service starting")
@@ -862,7 +862,7 @@ class DailyOrchestrator:
         now = datetime.now()
         today = now.date()
 
-        from application.services.trading_day_guard import TradingDayGuard
+        from qs_ops.application.services.trading_day_guard import TradingDayGuard
         if not TradingDayGuard.is_trading_day(today):
             return
 

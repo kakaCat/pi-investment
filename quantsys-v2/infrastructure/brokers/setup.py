@@ -5,13 +5,13 @@ This module is responsible for wiring up concrete broker implementations
 (from adapters layer) into the domain broker registry.
 
 Architecture:
-- Domain layer (domain.brokers) defines interfaces and registry
+- Domain layer (qs_trading.domain.brokers) defines interfaces and registry
 - Adapters layer (adapters.outbound.brokers) provides concrete implementations
 - Infrastructure layer (this module) wires them together at startup
 
 Usage:
     from infrastructure.brokers import setup_brokers
-    from domain.brokers import BrokerRegistry
+    from qs_trading.domain.brokers import BrokerRegistry
 
     registry = BrokerRegistry.instance()
     setup_brokers(registry)
@@ -21,7 +21,7 @@ import logging
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from domain.brokers.broker_registry import BrokerRegistry
+    from qs_trading.domain.brokers.broker_registry import BrokerRegistry
 
 logger = logging.getLogger(__name__)
 

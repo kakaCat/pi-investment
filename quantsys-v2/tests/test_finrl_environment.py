@@ -43,21 +43,21 @@ def sample_price_data():
 
 def test_import_stock_trading_env():
     """Test that StockTradingEnv can be imported."""
-    from domain.quantlib.finrl.finrl_environment import StockTradingEnv
+    from qs_quantlib.finrl.finrl_environment import StockTradingEnv
     assert StockTradingEnv is not None
 
 
 def test_stock_trading_env_inherits_base():
     """Test that StockTradingEnv inherits from BaseRLEnvironment."""
-    from domain.quantlib.finrl.finrl_environment import StockTradingEnv
-    from domain.quantlib.rl.base_environment import BaseRLEnvironment
+    from qs_quantlib.finrl.finrl_environment import StockTradingEnv
+    from qs_quantlib.rl.base_environment import BaseRLEnvironment
 
     assert issubclass(StockTradingEnv, BaseRLEnvironment)
 
 
 def test_stock_trading_env_initialization(sample_price_data):
     """Test StockTradingEnv initialization with default parameters."""
-    from domain.quantlib.finrl.finrl_environment import StockTradingEnv
+    from qs_quantlib.finrl.finrl_environment import StockTradingEnv
 
     env = StockTradingEnv(
         df=sample_price_data,
@@ -74,7 +74,7 @@ def test_stock_trading_env_initialization(sample_price_data):
 
 def test_action_space_discrete(sample_price_data):
     """Test that action space is discrete with 3 actions (sell, hold, buy)."""
-    from domain.quantlib.finrl.finrl_environment import StockTradingEnv
+    from qs_quantlib.finrl.finrl_environment import StockTradingEnv
 
     env = StockTradingEnv(df=sample_price_data)
 
@@ -85,7 +85,7 @@ def test_action_space_discrete(sample_price_data):
 
 def test_observation_space_box(sample_price_data):
     """Test that observation space is a box (continuous values)."""
-    from domain.quantlib.finrl.finrl_environment import StockTradingEnv
+    from qs_quantlib.finrl.finrl_environment import StockTradingEnv
 
     env = StockTradingEnv(df=sample_price_data)
 
@@ -98,7 +98,7 @@ def test_observation_space_box(sample_price_data):
 
 def test_reset_returns_initial_observation(sample_price_data):
     """Test that reset() returns initial observation and info dict."""
-    from domain.quantlib.finrl.finrl_environment import StockTradingEnv
+    from qs_quantlib.finrl.finrl_environment import StockTradingEnv
 
     env = StockTradingEnv(df=sample_price_data, initial_balance=100000)
     obs, info = env.reset(seed=42)
@@ -117,7 +117,7 @@ def test_reset_returns_initial_observation(sample_price_data):
 
 def test_reset_initializes_portfolio(sample_price_data):
     """Test that reset() initializes portfolio state correctly."""
-    from domain.quantlib.finrl.finrl_environment import StockTradingEnv
+    from qs_quantlib.finrl.finrl_environment import StockTradingEnv
 
     env = StockTradingEnv(df=sample_price_data, initial_balance=100000)
     obs, info = env.reset()
@@ -131,7 +131,7 @@ def test_reset_initializes_portfolio(sample_price_data):
 
 def test_reset_with_seed_reproducible(sample_price_data):
     """Test that reset() with same seed produces same initial state."""
-    from domain.quantlib.finrl.finrl_environment import StockTradingEnv
+    from qs_quantlib.finrl.finrl_environment import StockTradingEnv
 
     env = StockTradingEnv(df=sample_price_data)
 
@@ -143,7 +143,7 @@ def test_reset_with_seed_reproducible(sample_price_data):
 
 def test_step_returns_five_tuple(sample_price_data):
     """Test that step() returns (obs, reward, terminated, truncated, info)."""
-    from domain.quantlib.finrl.finrl_environment import StockTradingEnv
+    from qs_quantlib.finrl.finrl_environment import StockTradingEnv
 
     env = StockTradingEnv(df=sample_price_data)
     env.reset(seed=42)
@@ -162,7 +162,7 @@ def test_step_returns_five_tuple(sample_price_data):
 
 def test_step_hold_action(sample_price_data):
     """Test that hold action (1) doesn't change holdings."""
-    from domain.quantlib.finrl.finrl_environment import StockTradingEnv
+    from qs_quantlib.finrl.finrl_environment import StockTradingEnv
 
     env = StockTradingEnv(df=sample_price_data, initial_balance=100000)
     env.reset(seed=42)
@@ -179,7 +179,7 @@ def test_step_hold_action(sample_price_data):
 
 def test_step_buy_action(sample_price_data):
     """Test that buy action (2) increases holdings and decreases balance."""
-    from domain.quantlib.finrl.finrl_environment import StockTradingEnv
+    from qs_quantlib.finrl.finrl_environment import StockTradingEnv
 
     env = StockTradingEnv(df=sample_price_data, initial_balance=100000)
     env.reset(seed=42)
@@ -196,7 +196,7 @@ def test_step_buy_action(sample_price_data):
 
 def test_step_sell_action(sample_price_data):
     """Test that sell action (0) decreases holdings and increases balance."""
-    from domain.quantlib.finrl.finrl_environment import StockTradingEnv
+    from qs_quantlib.finrl.finrl_environment import StockTradingEnv
 
     env = StockTradingEnv(df=sample_price_data, initial_balance=100000)
     env.reset(seed=42)
@@ -217,7 +217,7 @@ def test_step_sell_action(sample_price_data):
 
 def test_transaction_cost_applied(sample_price_data):
     """Test that transaction costs are applied to trades."""
-    from domain.quantlib.finrl.finrl_environment import StockTradingEnv
+    from qs_quantlib.finrl.finrl_environment import StockTradingEnv
 
     env = StockTradingEnv(
         df=sample_price_data,
@@ -242,7 +242,7 @@ def test_transaction_cost_applied(sample_price_data):
 
 def test_reward_calculation(sample_price_data):
     """Test that reward is calculated based on portfolio value change."""
-    from domain.quantlib.finrl.finrl_environment import StockTradingEnv
+    from qs_quantlib.finrl.finrl_environment import StockTradingEnv
 
     env = StockTradingEnv(df=sample_price_data, initial_balance=100000)
     env.reset(seed=42)
@@ -262,7 +262,7 @@ def test_reward_calculation(sample_price_data):
 
 def test_portfolio_value_tracking(sample_price_data):
     """Test that portfolio value is correctly calculated."""
-    from domain.quantlib.finrl.finrl_environment import StockTradingEnv
+    from qs_quantlib.finrl.finrl_environment import StockTradingEnv
 
     env = StockTradingEnv(df=sample_price_data, initial_balance=100000)
     env.reset(seed=42)
@@ -278,7 +278,7 @@ def test_portfolio_value_tracking(sample_price_data):
 
 def test_episode_terminates_at_data_end(sample_price_data):
     """Test that episode terminates when data is exhausted."""
-    from domain.quantlib.finrl.finrl_environment import StockTradingEnv
+    from qs_quantlib.finrl.finrl_environment import StockTradingEnv
 
     # Use small dataset
     small_df = sample_price_data.head(10)
@@ -300,7 +300,7 @@ def test_episode_terminates_at_data_end(sample_price_data):
 
 def test_episode_terminates_on_bankruptcy(sample_price_data):
     """Test that episode terminates when portfolio value <= 0."""
-    from domain.quantlib.finrl.finrl_environment import StockTradingEnv
+    from qs_quantlib.finrl.finrl_environment import StockTradingEnv
 
     # Create environment with very small balance
     env = StockTradingEnv(df=sample_price_data, initial_balance=1)
@@ -319,7 +319,7 @@ def test_episode_terminates_on_bankruptcy(sample_price_data):
 
 def test_observation_contains_market_state(sample_price_data):
     """Test that observation contains market state information."""
-    from domain.quantlib.finrl.finrl_environment import StockTradingEnv
+    from qs_quantlib.finrl.finrl_environment import StockTradingEnv
 
     env = StockTradingEnv(df=sample_price_data)
     obs, info = env.reset(seed=42)
@@ -335,7 +335,7 @@ def test_observation_contains_market_state(sample_price_data):
 
 def test_info_dict_contains_metadata(sample_price_data):
     """Test that info dict contains useful metadata."""
-    from domain.quantlib.finrl.finrl_environment import StockTradingEnv
+    from qs_quantlib.finrl.finrl_environment import StockTradingEnv
 
     env = StockTradingEnv(df=sample_price_data)
     env.reset(seed=42)
@@ -351,7 +351,7 @@ def test_info_dict_contains_metadata(sample_price_data):
 
 def test_render_returns_string(sample_price_data):
     """Test that render() returns a string representation."""
-    from domain.quantlib.finrl.finrl_environment import StockTradingEnv
+    from qs_quantlib.finrl.finrl_environment import StockTradingEnv
 
     env = StockTradingEnv(df=sample_price_data)
     env.reset(seed=42)
@@ -367,7 +367,7 @@ def test_render_returns_string(sample_price_data):
 
 def test_close_cleans_up(sample_price_data):
     """Test that close() cleans up environment resources."""
-    from domain.quantlib.finrl.finrl_environment import StockTradingEnv
+    from qs_quantlib.finrl.finrl_environment import StockTradingEnv
 
     env = StockTradingEnv(df=sample_price_data)
     env.reset(seed=42)
@@ -381,7 +381,7 @@ def test_close_cleans_up(sample_price_data):
 
 def test_multiple_episodes(sample_price_data):
     """Test that environment can be reset and reused for multiple episodes."""
-    from domain.quantlib.finrl.finrl_environment import StockTradingEnv
+    from qs_quantlib.finrl.finrl_environment import StockTradingEnv
 
     env = StockTradingEnv(df=sample_price_data, initial_balance=100000)
 
@@ -402,7 +402,7 @@ def test_multiple_episodes(sample_price_data):
 
 def test_different_initial_balances(sample_price_data):
     """Test environment with different initial balances."""
-    from domain.quantlib.finrl.finrl_environment import StockTradingEnv
+    from qs_quantlib.finrl.finrl_environment import StockTradingEnv
 
     env1 = StockTradingEnv(df=sample_price_data, initial_balance=50000)
     env2 = StockTradingEnv(df=sample_price_data, initial_balance=200000)
@@ -418,7 +418,7 @@ def test_different_initial_balances(sample_price_data):
 
 def test_different_transaction_costs(sample_price_data):
     """Test environment with different transaction costs."""
-    from domain.quantlib.finrl.finrl_environment import StockTradingEnv
+    from qs_quantlib.finrl.finrl_environment import StockTradingEnv
 
     env1 = StockTradingEnv(df=sample_price_data, transaction_cost=0.001)
     env2 = StockTradingEnv(df=sample_price_data, transaction_cost=0.005)
@@ -429,7 +429,7 @@ def test_different_transaction_costs(sample_price_data):
 
 def test_step_increments_current_step(sample_price_data):
     """Test that step() increments current_step counter."""
-    from domain.quantlib.finrl.finrl_environment import StockTradingEnv
+    from qs_quantlib.finrl.finrl_environment import StockTradingEnv
 
     env = StockTradingEnv(df=sample_price_data)
     env.reset(seed=42)
@@ -445,7 +445,7 @@ def test_step_increments_current_step(sample_price_data):
 
 def test_cannot_step_before_reset(sample_price_data):
     """Test that step() raises error if called before reset()."""
-    from domain.quantlib.finrl.finrl_environment import StockTradingEnv
+    from qs_quantlib.finrl.finrl_environment import StockTradingEnv
 
     env = StockTradingEnv(df=sample_price_data)
 
@@ -455,7 +455,7 @@ def test_cannot_step_before_reset(sample_price_data):
 
 def test_invalid_action_raises_error(sample_price_data):
     """Test that invalid action raises error."""
-    from domain.quantlib.finrl.finrl_environment import StockTradingEnv
+    from qs_quantlib.finrl.finrl_environment import StockTradingEnv
 
     env = StockTradingEnv(df=sample_price_data)
     env.reset(seed=42)
@@ -466,7 +466,7 @@ def test_invalid_action_raises_error(sample_price_data):
 
 def test_empty_dataframe_raises_error():
     """Test that empty DataFrame raises error."""
-    from domain.quantlib.finrl.finrl_environment import StockTradingEnv
+    from qs_quantlib.finrl.finrl_environment import StockTradingEnv
 
     empty_df = pd.DataFrame(columns=['date', 'open', 'high', 'low', 'close', 'volume'])
 
@@ -476,7 +476,7 @@ def test_empty_dataframe_raises_error():
 
 def test_missing_columns_raises_error():
     """Test that DataFrame with missing columns raises error."""
-    from domain.quantlib.finrl.finrl_environment import StockTradingEnv
+    from qs_quantlib.finrl.finrl_environment import StockTradingEnv
 
     invalid_df = pd.DataFrame({
         'date': pd.date_range('2024-01-01', periods=10),

@@ -32,7 +32,7 @@ def test_register_all_services():
     assert len(services) > 0, "应该注册了至少一个服务"
 
     # 验证关键服务已注册
-    from domain.ports import IStockRepository, IKlineRepository, ISignalRepository
+    from qs_kernel.domain.ports import IStockRepository, IKlineRepository, ISignalRepository
     assert EnhancedServiceFactory.is_registered(IStockRepository)
     assert EnhancedServiceFactory.is_registered(IKlineRepository)
     assert EnhancedServiceFactory.is_registered(ISignalRepository)
@@ -42,7 +42,7 @@ def test_repository_resolution():
     """测试 Repository 解析"""
     register_all_services()
 
-    from domain.ports import IStockRepository, IKlineRepository
+    from qs_kernel.domain.ports import IStockRepository, IKlineRepository
 
     # 解析 Repository
     stock_repo = EnhancedServiceFactory.resolve(IStockRepository)
@@ -73,7 +73,7 @@ def test_stock_code_validator():
     """测试 StockCodeValidator 解析"""
     register_all_services()
 
-    from application.services.stock_code_validator import StockCodeValidator
+    from qs_market_data.application.services.stock_code_validator import StockCodeValidator
 
     validator = EnhancedServiceFactory.resolve(StockCodeValidator)
 
@@ -113,7 +113,7 @@ def test_singleton_lifecycle():
     """测试单例生命周期"""
     register_all_services()
 
-    from domain.ports import IStockRepository
+    from qs_kernel.domain.ports import IStockRepository
 
     # 多次解析应该返回同一实例
     repo1 = EnhancedServiceFactory.resolve(IStockRepository)
@@ -129,8 +129,8 @@ def test_multiple_services():
     register_all_services()
 
     from application.services.chan_service import ChanService
-    from application.services.stock_code_validator import StockCodeValidator
-    from application.services.decision_service import DecisionService
+    from qs_market_data.application.services.stock_code_validator import StockCodeValidator
+    from qs_agenthub.application.services.decision_service import DecisionService
 
     services = [
         ChanService,
@@ -147,7 +147,7 @@ def test_reset_clears_singletons():
     """测试重置清空单例缓存"""
     register_all_services()
 
-    from domain.ports import IStockRepository
+    from qs_kernel.domain.ports import IStockRepository
 
     repo1 = EnhancedServiceFactory.resolve(IStockRepository)
 
@@ -181,25 +181,25 @@ def test_all_p2_1_services():
         # 缠论相关
         ('application.services.chan_service', 'ChanService'),
         ('application.services.chan_scan_service', 'ChanScanService'),
-        ('application.services.chan_knowledge_distiller', 'ChanKnowledgeDistiller'),
+        ('qs_agenthub.application.services.chan_knowledge_distiller', 'ChanKnowledgeDistiller'),
 
         # 策略相关
-        ('application.services.strategy_backtest_service', 'StrategyBacktestService'),
-        ('application.services.strategy_weight_adjuster', 'StrategyWeightAdjuster'),
-        ('application.services.strategy_circuit_breaker', 'StrategyCircuitBreaker'),
+        ('qs_strategy.application.services.strategy_backtest_service', 'StrategyBacktestService'),
+        ('qs_strategy.application.services.strategy_weight_adjuster', 'StrategyWeightAdjuster'),
+        ('qs_strategy.application.services.strategy_circuit_breaker', 'StrategyCircuitBreaker'),
 
         # 数据质量
-        ('application.services.data_quality_service', 'DataQualityService'),
-        ('application.services.stock_code_validator', 'StockCodeValidator'),
+        ('qs_ops.application.services.data_quality_service', 'DataQualityService'),
+        ('qs_market_data.application.services.stock_code_validator', 'StockCodeValidator'),
 
         # 决策与知识
-        ('application.services.decision_service', 'DecisionService'),
-        ('application.services.knowledge_service', 'KnowledgeService'),
+        ('qs_agenthub.application.services.decision_service', 'DecisionService'),
+        ('qs_agenthub.application.services.knowledge_service', 'KnowledgeService'),
         ('application.services.experience_accumulator', 'ExperienceAccumulator'),
 
         # 其他服务
-        ('application.services.strategy_service', 'StrategyService'),
-        ('application.services.simulation_service', 'SimulationService'),
+        ('qs_strategy.application.services.strategy_service', 'StrategyService'),
+        ('qs_trading.application.services.simulation_service', 'SimulationService'),
         ('application.services.scheduler_config_service', 'SchedulerConfigService'),
         ('application.services.smart_scheduler', 'SmartSchedulerService'),
         ('application.services.swing_point_service', 'SwingPointService'),

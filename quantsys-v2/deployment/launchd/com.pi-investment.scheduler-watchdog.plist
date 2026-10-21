@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key><string>com.pi-investment.scheduler-watchdog</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/yunpeng/pi-investment/quantsys-v2/venv/bin/python3</string>
+        <string>/Users/yunpeng/pi-investment/scripts/scheduler_watchdog.py</string>
+    </array>
+    <key>WorkingDirectory</key><string>/Users/yunpeng/pi-investment</string>
+    <!-- 独立看门狗：每 15 分钟运行一次（非常驻），不依赖 v2/Agent OS 进程 -->
+    <key>StartInterval</key><integer>900</integer>
+    <key>RunAtLoad</key><true/>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>WATCHDOG_LOOKBACK_HOURS</key><string>26</string>
+        <key>WATCHDOG_ZOMBIE_MINUTES</key><string>60</string>
+        <!-- 自动补跑总开关（2026-09-13 由用户要求开启）：true 时对"规则判定可补跑"的漏跑
+             调 trigger API。规则见 scripts/scheduler_watchdog.py 的 catchup_decision（授权位/
+             覆盖判定/次数上限/窗口/最早补跑时刻/交易时段），不是无脑补跑。 -->
+        <key>WATCHDOG_AUTO_RERUN</key><string>true</string>
+        <key>WATCHDOG_CATCHUP_WINDOW_HOURS</key><string>12</string>
+        <key>WATCHDOG_CATCHUP_CHECK_AFTER</key><string>08:00</string>
+        <!-- 告警落点 = 系统运维群（2026-10-14 用户裁定分群）：调度告警不再与
+             「盘前例程」「实盘账户·保护线」等股票消息混在通用群。
+             改群只需改这一行（脚本内置同值默认）。 -->
+        <key>WATCHDOG_FEISHU_WEBHOOK</key><string>https://open.feishu.cn/open-apis/bot/v2/hook/7aa7ebdd-be9e-47f9-be45-ba9c772499c9</string>
+    </dict>
+    <key>StandardOutPath</key><string>/Users/yunpeng/pi-investment/logs/scheduler-watchdog.log</string>
+    <key>StandardErrorPath</key><string>/Users/yunpeng/pi-investment/logs/scheduler-watchdog.err.log</string>
+</dict>
+</plist>

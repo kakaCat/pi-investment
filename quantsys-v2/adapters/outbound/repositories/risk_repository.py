@@ -9,11 +9,11 @@ import json
 import structlog
 
 from sqlalchemy import desc, func
-from infrastructure.persistence.orm import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
 from sqlalchemy import Column, Integer, String, Float, Date, Text, BigInteger, DateTime
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-from infrastructure.persistence.orm.base import Base
+from qs_kernel.infrastructure.persistence.orm.base import Base
 
 logger = structlog.get_logger(__name__)
 
@@ -166,7 +166,7 @@ def _stop_loss_rule_to_dict(rule: StopLossRule) -> Dict[str, Any]:
         'updated_at': rule.updated_at,
     }
 
-from domain.ports import IRiskRepository
+from qs_kernel.domain.ports import IRiskRepository
 
 class RiskORMRepository(BaseORMRepository[RiskMetric], IRiskRepository):
     """风险管理ORM Repository"""

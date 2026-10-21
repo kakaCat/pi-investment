@@ -85,7 +85,7 @@ def main() -> int:
     else:
         # 优先复用项目 engine（若已初始化）；否则回落到本机 libpq 默认连接
         try:
-            from infrastructure.persistence.orm.config import get_engine
+            from qs_kernel.infrastructure.persistence.orm.config import get_engine
 
             engine = get_engine()
         except Exception as e:  # noqa: BLE001

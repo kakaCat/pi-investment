@@ -19,8 +19,8 @@ from adapters.inbound.fastapi_app.shared import (
     _read_watchlist, _safe_float,
     signal_repo, stock_repo,
 )
-from application.services.opportunity_to_watch_rule_service import OpportunityToWatchRuleService
-from application.services.signal_processor import SignalProcessingError
+from qs_watch.application.services.opportunity_to_watch_rule_service import OpportunityToWatchRuleService
+from qs_sourcing.application.services.signal_processor import SignalProcessingError
 
 logger = structlog.get_logger(__name__)
 
@@ -354,7 +354,7 @@ def backtest_signal(payload: Optional[Dict[str, Any]] = Body(None)):
             'hint': "示例: {'symbol':'600519','signal':{'action':'buy','confidence':0.8,'reason':'突破'}}",
         }, 400)
     try:
-        from application.services.signal_processor import SignalProcessor
+        from qs_sourcing.application.services.signal_processor import SignalProcessor
         from infrastructure.services.service_factory import ServiceFactory
         kline_repo = ServiceFactory.get_kline_repository()
         latest = kline_repo.get_latest_daily_kline(symbol)

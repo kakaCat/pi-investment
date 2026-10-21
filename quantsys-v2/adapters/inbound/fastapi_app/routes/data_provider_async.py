@@ -8,7 +8,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 
-from adapters.outbound.datasources import get_data_provider_manager
+from qs_market_data.adapters.outbound.datasources import get_data_provider_manager
 
 router = APIRouter(prefix="/api/provider", tags=["DataProvider"])
 

@@ -8,9 +8,9 @@ from typing import Optional, List
 import structlog
 from datetime import datetime, timedelta
 
-from application.services.data_backfiller import DataBackfiller
+from qs_market_data.application.services.data_backfiller import DataBackfiller
 from adapters.outbound.repositories.kline_repository import KlineORMRepository
-from infrastructure.persistence.orm import get_session
+from qs_kernel.infrastructure.persistence.orm import get_session
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()
@@ -38,7 +38,7 @@ class KlineSyncResponse(BaseModel):
 def get_active_stocks() -> set[str]:
     """获取所有活跃股票代码"""
     try:
-        from infrastructure.persistence.orm import close_session
+        from qs_kernel.infrastructure.persistence.orm import close_session
         session = get_session()
         from infrastructure.persistence.orm.models import Stock
 
@@ -57,7 +57,7 @@ def get_active_stocks() -> set[str]:
         logger.error(f"获取活跃股票失败: {e}")
         # 确保异常时也关闭 Session
         try:
-            from infrastructure.persistence.orm import close_session
+            from qs_kernel.infrastructure.persistence.orm import close_session
             close_session()
         except Exception:
             pass

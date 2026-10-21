@@ -3,7 +3,7 @@
 """
 
 import pytest
-from application.services.strategy_code_validator import StrategyCodeValidator
+from qs_strategy.application.services.strategy_code_validator import StrategyCodeValidator
 
 
 class TestStrategyCodeValidator:

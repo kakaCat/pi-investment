@@ -1,18 +1,5 @@
-# Quote providers package
+"""兼容 shim（2026-10-18）：已迁至二方包 qs_market_data（30 天观察期）。"""
+import qs_market_data.application.services.quote_providers as _t
 
-from .base import QuoteProvider, QuoteData
-from .akshare_provider import AkshareQuoteProvider
-from .sina_provider import SinaQuoteProvider
-from .eastmoney_provider import EastmoneyQuoteProvider
-from .tencent_provider import TencentQuoteProvider
-from .netease_provider import NeteaseQuoteProvider
-
-__all__ = [
-    'QuoteProvider',
-    'QuoteData',
-    'AkshareQuoteProvider',
-    'SinaQuoteProvider',
-    'EastmoneyQuoteProvider',
-    'TencentQuoteProvider',
-    'NeteaseQuoteProvider',
-]
+__path__ = _t.__path__
+from qs_market_data.application.services.quote_providers import *  # noqa: F401,F403

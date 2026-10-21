@@ -18,7 +18,7 @@ def test_start_watch_engine_calls_factory(monkeypatch):
     sentinel = (object(), object())
     calls = []
     monkeypatch.setattr(
-        'application.services.watch_engine.factory.start_watch_engine_in_thread',
+        'qs_watch.application.services.watch_engine.factory.start_watch_engine_in_thread',
         lambda: calls.append(1) or sentinel,
     )
 
@@ -34,7 +34,7 @@ def test_start_watch_engine_skip(monkeypatch):
 
     calls = []
     monkeypatch.setattr(
-        'application.services.watch_engine.factory.start_watch_engine_in_thread',
+        'qs_watch.application.services.watch_engine.factory.start_watch_engine_in_thread',
         lambda: calls.append(1),
     )
 

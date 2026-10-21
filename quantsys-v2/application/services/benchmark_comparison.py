@@ -139,7 +139,7 @@ def fetch_benchmark_klines(
         return cached[1]
 
     try:
-        from application.services.market_data_service import MarketDataService
+        from qs_market_data.application.services.market_data_service import MarketDataService
         result = MarketDataService().get_index_history(symbol, start_date, end_date)
         if result.get("success") and result.get("data"):
             klines = result["data"].get("klines") or []

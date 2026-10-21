@@ -41,9 +41,9 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy import func, literal_column, or_, select
 from sqlalchemy.exc import IntegrityError
 
-from infrastructure.persistence.orm import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
 from infrastructure.persistence.orm.models import DailyKline, Stock
-from domain.events.ports.IMarketEventRepository import IMarketEventRepository
+from qs_kernel.domain.events.ports.IMarketEventRepository import IMarketEventRepository
 from adapters.outbound.repositories.event_calendar_repository import EventCalendar
 from adapters.outbound.repositories.position_repository import Position
 from adapters.outbound.repositories.watch_rule_repository import WatchRule

@@ -25,7 +25,7 @@ router = APIRouter(prefix="/api/market/perception", tags=["M1 Market Perception"
 
 
 def _get_service():
-    from application.services.market_perception_service import MarketPerceptionService
+    from qs_intel.application.services.market_perception_service import MarketPerceptionService
     return MarketPerceptionService()
 
 
@@ -168,7 +168,7 @@ def get_panic_index(date: Optional[str] = None):
     端点曾缺失（client 调用 404），服务实现早已存在
     （retail_panic_index_service.compute_index）。本端点补齐路由层。
     """
-    from application.services.retail_panic_index_service import RetailPanicIndexService
+    from qs_intel.application.services.retail_panic_index_service import RetailPanicIndexService
     try:
         result = RetailPanicIndexService().compute_index(trade_date=date)
         return {"success": True, "data": result}
@@ -180,7 +180,7 @@ def get_panic_index(date: Optional[str] = None):
 @router.get("/panic-index/series")
 def get_panic_index_series(days: int = 30):
     """散户恐慌指数时间序列（最近 N 日）。"""
-    from application.services.retail_panic_index_service import RetailPanicIndexService
+    from qs_intel.application.services.retail_panic_index_service import RetailPanicIndexService
     from datetime import timedelta
 
     days = max(1, min(days, 60))

@@ -25,9 +25,17 @@ import infrastructure.persistence.orm as orm_pkg
 
 @pytest.fixture
 def released(monkeypatch):
-    """记录线程会话释放调用次数。"""
+    """记录线程会话释放调用次数。
+
+    需要双桩（S11-B-1 实测）：生产方通过包内编辑安装（qs_intel/qs_ops 等）导入close_session，
+    合并前后分别解析到 L1 shim / qs_kernel 两个不同模块对象，只补其一会漏。
+    """
     calls = []
-    monkeypatch.setattr(orm_pkg, "close_session", lambda: calls.append(1), raising=False)
+    _stub = lambda: calls.append(1)
+    import qs_kernel.infrastructure.persistence.orm as kernel_orm
+
+    monkeypatch.setattr(orm_pkg, "close_session", _stub, raising=False)  # L1 shim
+    monkeypatch.setattr(kernel_orm, "close_session", _stub, raising=False)  # kernel 正身
     return calls
 
 
@@ -38,7 +46,7 @@ class _Gate:
 
 
 def test_score_single_stock_releases_session(released):
-    from application.services.opportunity_scoring_service import OpportunityScoringService
+    from qs_intel.application.services.opportunity_scoring_service import OpportunityScoringService
     svc = OpportunityScoringService(kline_repo=None, stock_repo=None, factor_adapter=None,
                                     quality_gate=_Gate())
     out = svc._score_single_stock('600519', [], None, {})
@@ -47,7 +55,7 @@ def test_score_single_stock_releases_session(released):
 
 
 def test_data_update_job_releases_outer_thread_session(released, monkeypatch):
-    from application.jobs.data_jobs import DataUpdateJob
+    from qs_ops.application.jobs.data_jobs import DataUpdateJob
     import adapters.outbound.repositories as repos
 
     class _Stocks:
@@ -75,8 +83,8 @@ class _Repo:
 
 def test_financial_job_releases_session_even_on_probe_failure(released, monkeypatch):
     """探活失败会早退——此时宇宙读取的事务也必须已归还，否则又是一次泄漏。"""
-    from infrastructure.jobs import financial_statement_update_job as job
-    import application.services.financial_data_service_adapter as ad
+    from qs_ops.infrastructure.jobs import financial_statement_update_job as job
+    import qs_market_data.application.services.financial_data_service_adapter as ad
     import adapters.outbound.repositories.financial_repository as fr
 
     monkeypatch.setattr(ad, "FinancialDataServiceAdapter", lambda *a, **k: _SvcDown())

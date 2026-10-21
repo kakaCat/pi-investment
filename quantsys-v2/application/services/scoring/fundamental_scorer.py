@@ -5,7 +5,7 @@
 """
 from typing import Dict, Any, Optional
 from .base_scorer import BaseScorer
-from infrastructure.config.constants.scoring.scorer_params import (
+from qs_kernel.infrastructure.config.constants.scoring.scorer_params import (
     FundamentalScorerConfig,
     DEFAULT_FUNDAMENTAL_SCORER_CONFIG,
 )

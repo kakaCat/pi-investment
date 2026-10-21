@@ -34,8 +34,9 @@ from typing import Any, Dict, List
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MIGRATIONS_DIR = REPO_ROOT / 'infrastructure' / 'persistence' / 'migrations'
-#: REQ-c9f899 的迁移文件命名（t1：20260918_watch_todo_loop.py；t3：20260918b_watch_runtime_complete.py）
-MIGRATION_GLOB = '20260918*watch*.py'
+#: 盯盘迁移文件命名（t1：20260918_watch_todo_loop.py；t3：20260918b_watch_runtime_complete.py；
+#: 2026-10-19 起含去重键加账户维度的 20261019_watch_runtime_dedup_account.py）
+MIGRATION_GLOBS = ('20260918*watch*.py', '20261019*watch*.py')
 
 #: 基础盯盘表（更早的迁移建立；t1 的 watch_todos 有 FK 指向 watch_triggers）。
 #: 在完全空的测试库上先建这两张，迁移的 FK 才立得住——使同步不依赖"别的测试恰好建过表"。
@@ -54,6 +55,8 @@ REQUIRED_COLUMNS = (
     ('watch_rules', 'noise_state'), ('watch_rules', 'suppress_until'),
     ('watch_rules', 'self_heal_count'), ('watch_rules', 'last_repair_at'),
     ('watch_runtime_meta', 'digest_shadow_since'),
+    ('watch_runtime_dedup', 'account'),
+    ('watch_digest_state', 'wake_marks'),
 )
 
 _SCHEMA = 'quant'
@@ -63,7 +66,8 @@ _done_report: Dict[str, Any] | None = None
 def _load_migration_modules() -> List[Any]:
     """加载 REQ-c9f899 的迁移模块（只读常量与 upgrade；DB 动作在 __main__ 守卫内）。"""
     modules = []
-    for path in sorted(MIGRATIONS_DIR.glob(MIGRATION_GLOB)):
+    paths = sorted({p for g in MIGRATION_GLOBS for p in MIGRATIONS_DIR.glob(g)})
+    for path in paths:
         spec = importlib.util.spec_from_file_location(
             '_reqc9f899_watch_migration_%s' % path.stem, path)
         if spec is None or spec.loader is None:
@@ -73,8 +77,8 @@ def _load_migration_modules() -> List[Any]:
         modules.append(module)
     if not modules:
         raise RuntimeError(
-            '未发现 REQ-c9f899 迁移文件（%s/%s）：无法确定测试库结构口径'
-            % (MIGRATIONS_DIR, MIGRATION_GLOB))
+            '未发现盯盘迁移文件（%s/%s）：无法确定测试库结构口径'
+            % (MIGRATIONS_DIR, MIGRATION_GLOBS))
     return modules
 
 
@@ -104,7 +108,7 @@ def sync_test_schema(engine=None) -> Dict[str, Any]:
         return _done_report
 
     if engine is None:
-        from infrastructure.persistence.database.engine import get_engine
+        from qs_kernel.infrastructure.persistence.database.engine import get_engine
         engine = get_engine()
 
     # 安全闸：只允许打在 *_test 库上（第二道防线；conftest 已在校验一遍）
@@ -118,7 +122,7 @@ def sync_test_schema(engine=None) -> Dict[str, Any]:
     # watch_rules/watch_triggers 的模型内联在仓储适配器里，需显式 import 才登记。
     import infrastructure.persistence.orm.models  # noqa: F401
     import adapters.outbound.repositories.watch_rule_repository  # noqa: F401
-    from infrastructure.persistence.orm.base import Base
+    from qs_kernel.infrastructure.persistence.orm.base import Base
 
     report: Dict[str, Any] = {
         'database': db_name,
@@ -153,6 +157,9 @@ def sync_test_schema(engine=None) -> Dict[str, Any]:
                 conn.exec_driver_sql(
                     'CREATE INDEX IF NOT EXISTS %s ON %s' % (index, target))
                 report['indexes'] += 1
+            # 幂等杂项 DDL（如主键重建；20261019 起）：迁移模块自证幂等，逐条原样执行
+            for ddl in (getattr(module, 'IDEMPOTENT_DDL', None) or []):
+                conn.exec_driver_sql(ddl)
 
         # ORM 元数据兜底：ORM 声明但迁移未显式 CREATE 的盯盘表（checkfirst 幂等）
         watch_tables = [t for t in Base.metadata.tables.values() if t.name in REQUIRED_TABLES]

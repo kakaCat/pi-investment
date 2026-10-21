@@ -18,15 +18,15 @@
 """
 import pytest
 
-from application.notification.notification_facade import (
+from qs_notification.application.notification_facade import (
     NotificationFacade,
     TARGET_AGENT_TRANSPORT,
     TARGET_AGENT_TRANSPORT_WAKE,
     TARGET_AGENT_TRANSPORT_WAKE_FALLBACK,
     WAKE_EVENT_WATCH_L2,
 )
-from domain.notification.models.channel import ChannelResult
-from domain.notification.policies.watch_delivery_policy import DEFAULT_AGENT
+from qs_notification.domain.models.channel import ChannelResult
+from qs_notification.domain.policies.watch_delivery_policy import DEFAULT_AGENT
 
 
 # ── 假实现（不触网）────────────────────────────────────────────────────────

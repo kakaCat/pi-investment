@@ -2,7 +2,7 @@
 WebSocket和事件驱动系统测试
 """
 import pytest
-from infrastructure.events.event_bus import EventBus
+from qs_kernel.infrastructure.events.event_bus import EventBus
 
 
 class TestEventBus:

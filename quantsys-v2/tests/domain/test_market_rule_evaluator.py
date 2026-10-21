@@ -3,8 +3,8 @@
 盯盘是紧盯市场的工具——但市场级判定的第一条纪律是：**数据缺失绝不能当成事实**。
 （把"涨停家数无数据"当成 0，会被判定成情绪冰点并产出错误信号。）
 """
-from domain.watch.models import MarketState
-from domain.watch.services.market_rule_evaluator import MarketRuleEvaluator
+from qs_watch.domain.watch.models import MarketState
+from qs_watch.domain.watch.services.market_rule_evaluator import MarketRuleEvaluator
 
 
 def _state(**kw):

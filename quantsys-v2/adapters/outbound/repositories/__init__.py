@@ -9,7 +9,7 @@ ORM Repository模块
 # 批次1（核心）✅
 from .stock_repository import StockORMRepository
 from .kline_repository import KlineORMRepository
-from .signal_repository import SignalORMRepository
+from qs_sourcing.adapters.outbound.repositories.signal_repository import SignalORMRepository
 from .simulation_repository import SimulationORMRepository
 
 # 批次2（关键业务）✅
@@ -18,11 +18,11 @@ from .factor_repository import FactorORMRepository
 from .backtest_repository import BacktestORMRepository
 
 # 批次3（新增 - 完全迁移）✅
-from .signal_execution_repository import SignalExecutionORMRepository
+from qs_sourcing.adapters.outbound.repositories.signal_execution_repository import SignalExecutionORMRepository
 from .risk_repository import RiskORMRepository
 from .strategy_repository import StrategyORMRepository
 from .financial_repository import FinancialORMRepository
-from .stock_pool_repository import StockPoolRepository, StockPoolORMRepository
+from qs_sourcing.adapters.outbound.repositories.stock_pool_repository import StockPoolRepository, StockPoolORMRepository
 from .position_repository import PositionORMRepository
 from .risk_config_repository import RiskConfigORMRepository
 from .strategy_performance_repository import StrategyPerformanceRepository, StrategyPerformanceORMRepository
@@ -36,7 +36,7 @@ from .strategy_weight_repository import StrategyWeightORMRepository
 from .traceability_repository import TraceabilityORMRepository
 from .agent_intelligence_repository import AgentIntelligenceORMRepository, AgentDecisionRepository
 from .pool_change_log_repository import PoolChangeLogRepository
-from .signal_execution_log_repository import SignalExecutionLogORMRepository
+from qs_sourcing.adapters.outbound.repositories.signal_execution_log_repository import SignalExecutionLogORMRepository
 from .market_perception_repository import (
     MarketRegimeRepository, MarketSentimentDailyRepository, MarketThemeRepository,
 )

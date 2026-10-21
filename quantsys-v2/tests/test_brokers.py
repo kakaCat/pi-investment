@@ -5,7 +5,7 @@ Unit tests for Broker Abstraction Layer
 import pytest
 from datetime import datetime
 
-from domain.brokers import (
+from qs_trading.domain.brokers import (
     BrokerRegistry,
     BaseBroker,
     OrderSide,
@@ -147,7 +147,7 @@ class TestAkshareBroker:
 
     def test_trading_not_supported(self, broker):
         """测试交易功能不支持"""
-        from domain.brokers.trading_types import BrokerCredentials
+        from qs_trading.domain.brokers.trading_types import BrokerCredentials
 
         creds = BrokerCredentials(broker_id='akshare')
         order = UnifiedOrder(

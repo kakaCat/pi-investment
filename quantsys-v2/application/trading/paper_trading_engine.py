@@ -339,6 +339,68 @@ class PaperTradingEngine:
             pnl_pct=pnl_pct,
         )
 
+    def _stop_loss_threshold(self, symbol: str) -> float:
+        """止损阈值（负数口径）：risk_config['stop_loss_pct_fn']（按标的分级，
+        如宪法口径创业板/科创板 -10%、其余 -8%，函数返回正数幅度）优先；
+        缺省回落到标量 risk_config['stop_loss_pct']（行为不变，全市场 -8%）"""
+        stop_loss_fn = self.risk_config.get('stop_loss_pct_fn')
+        if callable(stop_loss_fn):
+            return -abs(float(stop_loss_fn(symbol)))
+        return self.risk_config.get('stop_loss_pct', -0.08)
+
+    def evaluate_stop_loss(self, current_prices: Dict[str, float]) -> List[Dict[str, Any]]:
+        """只评估止损/止盈触发，**绝不下单**（alert-only 账户用，如 user_main_simulation：
+        处置权在用户，系统自动卖单 = 越权，只能产出告警请用户裁定）。
+
+        Returns:
+            [{'symbol', 'type': 'stop_loss'|'take_profit', 'pnl_pct', 'threshold',
+              'avg_cost', 'current_price', 'shares_available'}]
+        """
+        triggers = []
+        positions = self.repo.get_all_positions(self.account_name)
+
+        for position in positions:
+            if position.shares_available <= 0:
+                continue
+
+            symbol = position.symbol
+            current_price = current_prices.get(symbol)
+            if current_price is None:
+                continue
+
+            avg_cost = float(position.avg_cost or 0)
+            if avg_cost <= 0:
+                continue
+
+            pnl_pct = (current_price - avg_cost) / avg_cost
+
+            stop_loss_threshold = self._stop_loss_threshold(symbol)
+            if pnl_pct <= stop_loss_threshold:
+                triggers.append({
+                    'symbol': symbol,
+                    'type': 'stop_loss',
+                    'pnl_pct': round(pnl_pct, 4),
+                    'threshold': stop_loss_threshold,
+                    'avg_cost': avg_cost,
+                    'current_price': current_price,
+                    'shares_available': int(position.shares_available),
+                })
+                continue
+
+            take_profit_threshold = self.risk_config.get('take_profit_pct', 0.15)
+            if pnl_pct >= take_profit_threshold:
+                triggers.append({
+                    'symbol': symbol,
+                    'type': 'take_profit',
+                    'pnl_pct': round(pnl_pct, 4),
+                    'threshold': take_profit_threshold,
+                    'avg_cost': avg_cost,
+                    'current_price': current_price,
+                    'shares_available': int(position.shares_available),
+                })
+
+        return triggers
+
     def check_stop_loss(self, current_prices: Dict[str, float]) -> List[TradeResult]:
         results = []
         positions = self.repo.get_all_positions(self.account_name)
@@ -358,7 +420,7 @@ class PaperTradingEngine:
 
             pnl_pct = (current_price - avg_cost) / avg_cost
 
-            stop_loss_threshold = self.risk_config.get('stop_loss_pct', -0.08)
+            stop_loss_threshold = self._stop_loss_threshold(symbol)
             if pnl_pct <= stop_loss_threshold:
                 signal = Signal(
                     symbol=symbol,

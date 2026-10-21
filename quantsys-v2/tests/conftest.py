@@ -74,7 +74,7 @@ def watch_db_advisory_lock(_bootstrap_test_db_schema):
     import time
     import warnings
 
-    from infrastructure.persistence.database.engine import get_engine
+    from qs_kernel.infrastructure.persistence.database.engine import get_engine
 
     conn = None
     cursor = None

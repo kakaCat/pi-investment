@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 import pytest
 
-from infrastructure.scheduler.scheduler import SchedulerService
+from qs_ops.infrastructure.scheduler.scheduler import SchedulerService
 
 
 @pytest.fixture
@@ -18,14 +18,14 @@ def svc():
 
 class TestKlineUpdateDispatch:
     def test_kline_update_dispatches_to_job_execute(self, svc):
-        with patch('infrastructure.jobs.kline_update_job.execute') as mock_exec:
+        with patch('qs_ops.infrastructure.jobs.kline_update_job.execute') as mock_exec:
             mock_exec.return_value = {'action': 'kline_update', 'status': 'success'}
             result = svc._execute_command('kline_update', {'days': 5})
         mock_exec.assert_called_once_with(days=5)
         assert result['status'] == 'success'
 
     def test_kline_update_empty_params(self, svc):
-        with patch('infrastructure.jobs.kline_update_job.execute') as mock_exec:
+        with patch('qs_ops.infrastructure.jobs.kline_update_job.execute') as mock_exec:
             mock_exec.return_value = {'action': 'kline_update', 'status': 'success'}
             svc._execute_command('kline_update', {})
         mock_exec.assert_called_once_with()
@@ -44,7 +44,7 @@ class TestApplicationHandlerFallback:
 
 class TestChipDistributionDispatch:
     def test_chip_update_dispatches_to_job_execute(self, svc):
-        with patch('infrastructure.jobs.chip_distribution_update_job.execute') as mock_exec:
+        with patch('qs_ops.infrastructure.jobs.chip_distribution_update_job.execute') as mock_exec:
             mock_exec.return_value = {'pending': 0, 'updated': 0, 'failed': 0, 'days_applied': 0}
             result = svc._execute_command('chip_distribution_update', {})
         mock_exec.assert_called_once_with()

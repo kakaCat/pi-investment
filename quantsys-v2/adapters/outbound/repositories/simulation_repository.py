@@ -17,7 +17,7 @@ from datetime import datetime, date
 import structlog
 
 from sqlalchemy import func, and_, desc
-from infrastructure.persistence.orm import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
 from infrastructure.persistence.orm.models import (
     SimulationAccount,
     SimulationPosition,
@@ -27,7 +27,7 @@ from infrastructure.persistence.orm.models import (
     SimulationEquitySnapshot,
     SimulationPendingOrder,
 )
-from domain.ports import ISimulationRepository
+from qs_kernel.domain.ports import ISimulationRepository
 
 logger = structlog.get_logger(__name__)
 

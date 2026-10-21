@@ -25,7 +25,7 @@ def test_job():
     print("="*70)
 
     try:
-        from infrastructure.jobs.strategy_trading_job import v13_daily_check as execute
+        from qs_ops.infrastructure.jobs.strategy_trading_job import v13_daily_check as execute
         print("✅ Job模块导入成功")
 
         result = execute(
@@ -63,7 +63,7 @@ def test_handler():
     print("="*70)
 
     try:
-        from infrastructure.scheduler.scheduler import SchedulerService
+        from qs_ops.infrastructure.scheduler.scheduler import SchedulerService
 
         scheduler = SchedulerService()
         print("✅ Scheduler初始化成功")
@@ -103,7 +103,7 @@ def test_full_task():
     print("="*70)
 
     try:
-        from infrastructure.scheduler.scheduler import SchedulerService
+        from qs_ops.infrastructure.scheduler.scheduler import SchedulerService
 
         scheduler = SchedulerService()
 

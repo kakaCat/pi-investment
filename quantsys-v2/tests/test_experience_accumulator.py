@@ -9,7 +9,7 @@ from datetime import date, timedelta
 # SignalTestLogRepository，服务不再暴露 _get_conn()。测试只是需要一条可用于
 # 夹具准备/清理的数据库连接，这里直接取平台的池化连接（语义与原先 _get_conn() 返回的
 # 完全一致：cursor()/commit()/close() 可用，且 close() 是归还连接池）。
-from infrastructure.persistence.database.engine import PooledConnection
+from qs_kernel.infrastructure.persistence.database.engine import PooledConnection
 import json
 from pathlib import Path
 from application.services.experience_accumulator import ExperienceAccumulator

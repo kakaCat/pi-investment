@@ -9,12 +9,12 @@ import types
 
 import pytest
 
-from application.services.watch_engine.conditions import EvalContext, EvalResult, evaluate
-from domain.watch.models import (
+from qs_watch.application.services.watch_engine.conditions import EvalContext, EvalResult, evaluate
+from qs_watch.domain.watch.models import (
     MetricKind, QuoteData, WatchMetricContractViolation, WatchRule,
 )
-from domain.watch.services.escalation_checker import EscalationChecker
-from domain.watch.services.metric_contract import metric_matches, metric_of, require_metric
+from qs_watch.domain.watch.services.escalation_checker import EscalationChecker
+from qs_watch.domain.watch.services.metric_contract import metric_matches, metric_of, require_metric
 
 
 def _quote(price=100.0, prev_close=99.0, volume=None):

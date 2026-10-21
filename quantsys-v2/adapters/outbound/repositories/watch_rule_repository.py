@@ -8,8 +8,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import JSONB
 
-from infrastructure.persistence.orm import BaseORMRepository
-from infrastructure.persistence.orm.base import Base
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm.base import Base
 
 
 class WatchRule(Base):
@@ -71,6 +71,16 @@ class WatchRule(Base):
     noise_state = Column(String(16))
     suppress_until = Column(DateTime)
 
+    # ── 决策化改造（REQ-261016155500-4f2a，2026-10-16）─────────────────────
+    # action_params：结构化操作指引——消息"建议动作"块的唯一权威数据源
+    # （schema: action ∈ buy/sell/hold/reduce/observe、reference_price、
+    #  position_pct|quantity、invalidation（重估条件）、observation_criterion）。
+    # ops_notes：机器注记数组 [{at, by, text}]——健康检查巡检/事实校正等机器写入
+    # 的注记从 context 剥离到这里，不进用户视野（消息只引用剥离后的真预案）。
+    # 列由迁移 20261016_watch_rules_upgrade.py 添加。
+    action_params = Column(JSONB)
+    ops_notes = Column(JSONB)
+
 
 class WatchTrigger(Base):
     __tablename__ = 'watch_triggers'
@@ -90,7 +100,8 @@ class WatchTrigger(Base):
     # disposition 让每条触发有明确归属：机械归档 / 去重合并 / 升级给 agent / 待处置 / 已处置。
     disposition = Column(String(20), default='pending')
     disposition_reason = Column(Text)
-    disposition_by = Column(String(50))
+    # 2026-10-19 加宽 50→120：生产实测 15 条顶格值全为 agent 会话 ID（investor-session-*,恰 50 字符被调用方先裁）——处置人是审计归因字段，须容下完整会话 ID（迁移：20261019_watch_triggers_disposition_by_widen）
+    disposition_by = Column(String(120))
     disposition_at = Column(DateTime)
     dup_of = Column(Integer)
     # 抑噪标记（REQ-c9f899 R6 / t8）：规则处于抑噪期时触发的触发记录标 true，
@@ -129,6 +140,9 @@ def rule_to_dict(rule: WatchRule) -> dict:
         'linked_account': getattr(rule, 'linked_account', None),
         'created_from': getattr(rule, 'created_from', None),
         'next_action_hint': getattr(rule, 'next_action_hint', None),
+        # 决策化改造（REQ-261016155500-4f2a）：结构化操作指引 + 机器注记
+        'action_params': getattr(rule, 'action_params', None),
+        'ops_notes': getattr(rule, 'ops_notes', None),
         'last_reviewed_at': rule.last_reviewed_at.isoformat() if getattr(rule, 'last_reviewed_at', None) else None,
         'review_interval_days': getattr(rule, 'review_interval_days', None),
         'review_due_at': rule.review_due_at.isoformat() if getattr(rule, 'review_due_at', None) else None,
@@ -171,10 +185,10 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
     def create_rule(self, symbol, conditions, context=None, cost_price=None,
                     active_window=None, expires_at=None, created_by='agent',
                     account=None, linked_account=None,
-                    intent=None, action_hint=None) -> WatchRule:
+                    intent=None, action_hint=None, action_params=None) -> WatchRule:
         # 铁律下沉（2026-09-11，w-aebfddcd）：没有账户的规则不能进入买卖——在**仓储层**拦，
         # 这样任何创建路径（API / 内部服务 / 定时任务）都绕不过去。观察类规则放行。
-        from domain.watch.services.rule_guard import guard_new_rule
+        from qs_watch.domain.watch.services.rule_guard import guard_new_rule
         guard_new_rule(intent=intent, action_hint=action_hint, conditions=conditions,
                        account=(linked_account or account), symbol=symbol)
         # 账户归一：account 与 linked_account 是同一语义的两个字段，
@@ -191,6 +205,7 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
             # 仓储层守卫与运行时都把它当观察类 —— 典型的参数收下不生效陷阱。
             intent=intent,
             action_hint=action_hint,
+            action_params=action_params,
         )
         return self.create(rule)
 
@@ -221,12 +236,20 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
         rule = self.get_by_id(rule_id)
         if rule is None:
             return None
+        # 级联判定用：改动前的启用态（停用级联只在「启用 → 停用」跳变时触发一次）
+        was_enabled = bool(rule.enabled)
         # 铁律下沉：按"改后状态"判——不许把观察规则改成买卖规则却不给账户，
         # 也不许把已有买卖规则的账户清空（任何调用方都绕不过）
-        from domain.watch.services.rule_guard import guard_rule_change
+        from qs_watch.domain.watch.services.rule_guard import (
+            guard_disable_rule, guard_rule_change,
+        )
         guard_rule_change(rule, {k: v for k, v in fields.items()
                                  if k in ('intent', 'action_hint', 'conditions',
                                           'account', 'linked_account')} or None)
+        # 停用守卫（2026-10-20 用户裁定）：宪法级止损规则的停用必须随附理由
+        # （ops_notes/context），裸 enabled=false 拒绝——300677 #103 静默停用事故的收口。
+        # 卡口设在仓储层：API/批量/生命周期/引擎/自愈全部停用路径都经 update_fields，漏不掉。
+        guard_disable_rule(rule, fields)
         allowed = {'symbol', 'enabled', 'conditions', 'context',
                    'cost_price', 'active_window', 'expires_at', 'account',
                    'notify_mode',  # 2026-09-05 补：notify_mode 曾被白名单静默丢弃
@@ -236,12 +259,26 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
                    # REQ-f08def P2：规则重配置所需字段（价值账本计数由系统维护，不在此列）
                    'intent', 'lifecycle_stage', 'scope', 'target',
                    'linked_account', 'created_from', 'next_action_hint',
-                   'review_interval_days', 'review_due_at'}
+                   'review_interval_days', 'review_due_at',
+                   # REQ-261016155500-4f2a：结构化操作指引与机器注记可写
+                   'action_params', 'ops_notes'}
         for key, value in fields.items():
             if key in allowed:
                 setattr(rule, key, value)
         rule.updated_at = datetime.now()
-        return self.update(rule)
+        updated = self.update(rule)
+        # 级联归档（2026-10-19）：规则「启用 → 停用」时，它名下未收敛待办的触发链
+        # 已断、工单永久无法执行——不埋掉的话 SLA 巡检会继续晋升/超时打扰用户
+        # （生产实测：死工单挂 3 天晋升 3 次发 3 张超时卡，最后还要人工大扫除）。
+        # 在此收口而非逐调用点改：全部停用路径（API 单改/批量、持仓生命周期、
+        # 引擎、健康作业、合并工具）都走 update_fields，漏不掉。
+        # 静默归档不发回执——"系统扔垃圾"不值得一张卡。
+        if updated is not None and was_enabled and fields.get('enabled') is False:
+            from adapters.outbound.repositories.watch_todo_repository import (
+                WatchTodoRepository,
+            )
+            WatchTodoRepository().close_open_by_rule(rule_id)
+        return updated
 
     def apply_intervention_ledger(self, rule_id: int, cost_delta: float,
                                   valuable: bool, commit: bool = False) -> None:
@@ -331,10 +368,37 @@ class WatchTriggerRepository(BaseORMRepository[WatchTrigger]):
         trigger.todo_id = int(todo_id)
         self.session.commit()
 
+    def mark_notified(self, trigger_id: int, notified: bool) -> None:
+        """回写触发的实际送达结果（REQ-261016155500-4f2a wt:engine:2）。
+
+        先落库后发送架构下，落库时 notified=False，发送后经此方法回写——
+        notified 字段从此等于真实送达与否（观测口径的事实源）。
+        触发不存在时静默返回（与 set_todo_id 同口径）。
+        """
+        trigger = self.get_by_id(trigger_id)
+        if trigger is None:
+            return
+        trigger.notified = bool(notified)
+        self.session.commit()
+
+    def latest_unsent(self, rule_id: int) -> Optional[WatchTrigger]:
+        """该规则最近一条 notified=false 的触发（补发去重用，REQ-261016155500-4f2a）。
+
+        只回一条（最新）；条件是否相同由调用方（notifier.retry_unsent）比对——
+        不同条件的未送达记录不属于本次补发范围。
+        """
+        return (
+            self.session.query(WatchTrigger)
+            .filter(WatchTrigger.rule_id == rule_id,
+                    WatchTrigger.notified.is_(False))
+            .order_by(WatchTrigger.id.desc())
+            .first()
+        )
+
     def update_disposition(self, trigger_id: int, disposition: str,
                            reason: str = None, by: str = 'agent') -> Optional[WatchTrigger]:
         """处置一条触发（handled / ignored / expired）。ignored 必须带 reason。"""
-        from domain.watch.services.disposition import DISPOSITION_IGNORED
+        from qs_watch.domain.watch.services.disposition import DISPOSITION_IGNORED
         if disposition == DISPOSITION_IGNORED and not (reason or '').strip():
             raise ValueError('ignored 状态必须填写 reason（为什么知悉但不动作）')
         trigger = self.get_by_id(trigger_id)
@@ -424,6 +488,23 @@ class WatchTriggerRepository(BaseORMRepository[WatchTrigger]):
         if dispositions:
             q = q.filter(WatchTrigger.disposition.in_(list(dispositions)))
         return q.order_by(WatchTrigger.triggered_at.desc()).limit(limit).all()
+
+    def count_older_unresolved(self, since: datetime,
+                               dispositions: tuple) -> dict:
+        """早于 since 的未处置触发统计（digest 积压可见，REQ-261016155500-4f2a wt:engine:4）。
+
+        返回 {'count': N, 'oldest_at': 最早 triggered_at | None}——build_digest 的
+        since 增量段只拉最近窗口，更早的未处置触发此前完全不可见（积压隐形）。
+        """
+        q = self.session.query(
+            func.count(WatchTrigger.id),
+            func.min(WatchTrigger.triggered_at),
+        ).filter(
+            WatchTrigger.disposition.in_(list(dispositions)),
+            WatchTrigger.triggered_at < since,
+        )
+        count, oldest = q.one()
+        return {'count': int(count or 0), 'oldest_at': oldest}
 
     def list_by_symbol(self, symbol: Optional[str] = None, limit: int = 50) -> List[WatchTrigger]:
         q = self.session.query(WatchTrigger)

@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qs-sourcing"
+version = "0.1.0"
+description = "PI Investment 选股→信号流水线包 - 股票池/筛选/评分/信号产生/信号执行调度 + 配套仓储"
+requires-python = ">=3.10"
+dependencies = [
+    "structlog",
+    "loguru",
+    "pandas",
+    "requests",
+    "sqlalchemy",
+    "psycopg2-binary",
+    "apscheduler",
+]
+
+[tool.setuptools.packages.find]
+include = ["qs_sourcing*"]
+exclude = ["__pycache__*", "*.egg-info*"]

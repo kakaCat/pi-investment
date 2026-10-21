@@ -1,0 +1,426 @@
+"""
+模拟交易服务
+
+提供策略执行、账户管理等业务逻辑
+"""
+import logging
+from typing import Dict, List, Optional, Any
+from datetime import datetime, date
+
+from qs_strategy.domain.strategies import get_registry, Signal
+from qs_kernel.domain.ports import ISimulationRepository
+
+
+class SimulationService:
+    """模拟交易服务
+
+    P2-1: 支持依赖注入，保持向后兼容
+    """
+
+    def __init__(self, repo: Optional[ISimulationRepository] = None):
+        """初始化服务
+
+        Args:
+            repo: 模拟仓库（可选）
+
+        P2-1: 推荐通过 ServiceFactory 获取实例
+        """
+        self.registry = get_registry()
+        self.repo = repo
+        self.logger = logging.getLogger(__name__)
+    
+    def list_strategies(self) -> List[Dict]:
+        """
+        列出所有可用策略
+        
+        Returns:
+            List[Dict]: 策略列表
+        """
+        return self.registry.list_all()
+    
+    def get_strategy_info(self, strategy_id: str) -> Optional[Dict]:
+        """
+        获取策略详情
+        
+        Args:
+            strategy_id: 策略ID
+            
+        Returns:
+            Dict: 策略详情，不存在则返回None
+        """
+        strategy = self.registry.get(strategy_id)
+        if not strategy:
+            return None
+        
+        metadata = strategy.get_metadata()
+        metadata['id'] = strategy_id
+        metadata['is_initialized'] = strategy.is_initialized
+        return metadata
+    
+    def run_strategy(
+        self,
+        strategy_id: str,
+        account_name: str,
+        force_rebalance: bool = False
+    ) -> Dict[str, Any]:
+        """
+        执行策略
+        
+        Args:
+            strategy_id: 策略ID
+            account_name: 账户名称
+            force_rebalance: 是否强制调仓
+            
+        Returns:
+            Dict: 执行结果
+        """
+        strategy = self.registry.get(strategy_id)
+        if not strategy:
+            raise ValueError(f"Strategy '{strategy_id}' not found")
+        
+        # 初始化策略
+        if not strategy.is_initialized:
+            self.logger.info(f"Initializing strategy: {strategy_id}")
+            strategy.initialize()
+        
+        # 获取账户信息
+        account = self.repo.get_account(account_name)
+        if not account:
+            raise ValueError(f"Account '{account_name}' not found")
+
+        # 判断是否需要调仓
+        current_date = datetime.now().strftime('%Y-%m-%d')
+        last_rebalance = str(account.last_rebalance_date) if account.last_rebalance_date else None
+
+        # 检查是否有持仓（空仓时每天都可以调仓）
+        positions = self.repo.get_all_positions(account_name)
+        has_positions = len(positions) > 0
+
+        should_rebalance = force_rebalance or strategy.should_rebalance(last_rebalance, current_date, has_positions)
+        
+        if not should_rebalance:
+            return {
+                'success': True,
+                'action': 'skip',
+                'message': f'No rebalance needed. Last rebalance: {last_rebalance}',
+                'last_rebalance_date': last_rebalance,
+                'next_rebalance_days': strategy.config.rebalance_days
+            }
+        
+        # 计算交易信号
+        self.logger.info(f"Calculating signals for {strategy_id}...")
+        signals = strategy.calculate_signals(current_date, account_name)
+        
+        # 验证信号
+        valid_signals = strategy.validate_signals(signals)
+        
+        self.logger.info(f"Generated {len(valid_signals)} valid signals")
+        
+        # 执行交易
+        trades = self._execute_trades(valid_signals, account_name, current_date)
+        
+        # 更新账户
+        self.repo.update_last_rebalance_date(account_name, current_date)
+        
+        return {
+            'success': True,
+            'action': 'rebalance',
+            'strategy_id': strategy_id,
+            'strategy_name': strategy.config.name,
+            'date': current_date,
+            'signals_count': len(valid_signals),
+            'trades_count': len(trades),
+            'trades': [self._trade_to_dict(t) for t in trades]
+        }
+    
+    def get_account_status(self, account_name: str) -> Dict:
+        """
+        获取账户状态
+
+        Args:
+            account_name: 账户名称
+
+        Returns:
+            Dict: 账户状态
+        """
+        account = self.repo.get_account(account_name)
+        if not account:
+            raise ValueError(f"Account '{account_name}' not found")
+
+        positions = self.repo.get_all_positions(account_name)
+
+        # 更新持仓价格；price_stale 标记行情获取失败（陈旧价）让调用方可区分
+        price_stale = False
+        if positions:
+            self.logger.info(f"Updating prices for {len(positions)} positions")
+            try:
+                symbols = [p.symbol for p in positions]
+                prices = self._fetch_current_prices(symbols)
+                if prices:
+                    self.repo.update_position_prices(account_name, prices)
+                    self.logger.info(f"Updated {len(prices)} position prices")
+                    # 重新获取positions以获取更新后的价格
+                    positions = self.repo.get_all_positions(account_name)
+                    account = self.repo.get_account(account_name)
+                    # 部分 symbol 拉价失败同样视为陈旧
+                    price_stale = len(prices) < len(set(symbols))
+                else:
+                    price_stale = True
+                    self.logger.warning("No prices fetched")
+            except Exception as e:
+                price_stale = True
+                self.logger.error(f"Failed to update position prices: {e}", exc_info=True)
+
+        # 合并行情时间戳到持仓
+        price_timestamps = getattr(self, '_price_timestamps', {}) or {}
+        position_dicts = []
+        for p in positions:
+            d = self._position_to_dict(p)
+            ts = price_timestamps.get(d.get('symbol'))
+            if ts:
+                d['price_updated_at'] = ts
+            position_dicts.append(d)
+
+        return {
+            'account_name': account_name,
+            'display_name': getattr(account, 'display_name', None),
+            'strategy_name': getattr(account, 'strategy_name', None),
+            'cash_available': float(getattr(account, 'cash_available', 0) or 0),
+            'cash_frozen': float(getattr(account, 'cash_frozen', 0) or 0),
+            'position_value': float(getattr(account, 'position_value', 0) or 0),
+            'total_value': float(getattr(account, 'total_value', 0) or 0),
+            'initial_capital': float(getattr(account, 'initial_capital', 0) or 0),
+            'cumulative_return': float(getattr(account, 'cumulative_return', 0) or 0),
+            'last_rebalance_date': str(getattr(account, 'last_rebalance_date', None)) if getattr(account, 'last_rebalance_date', None) else None,
+            'last_updated': datetime.now().isoformat(),
+            'price_stale': price_stale,
+            'positions_count': len(positions),
+            'positions': position_dicts,
+            'benchmark': self._benchmark_block(account_name)
+        }
+
+    def _fetch_benchmark_klines(self, symbol: str, start_date: str, end_date: str) -> List[Dict]:
+        """薄封装，便于测试打桩"""
+        from application.services.benchmark_comparison import fetch_benchmark_klines
+        return fetch_benchmark_klines(symbol, start_date, end_date)
+
+    def _benchmark_block(self, account_name: str, symbol: str = 'sh000300') -> Optional[Dict]:
+        """
+        基准对比块（沪深300）：账户近30日收益 vs 同期基准，含 alpha/beta/sharpe。
+        任何一步失败都降级为 None，绝不让基准计算拖垮账户查询主链路。
+        """
+        try:
+            from application.services.benchmark_comparison import compute_benchmark_comparison
+
+            snapshots = self.repo.get_equity_snapshots(account_name, limit=30)
+            if not snapshots or len(snapshots) < 2:
+                return None
+
+            series = sorted(
+                (
+                    s.snapshot_date.isoformat(),
+                    float(s.daily_return or 0),
+                    float(s.total_value or 0),
+                )
+                for s in snapshots if s.snapshot_date
+            )
+            if len(series) < 2:
+                return None
+
+            klines = self._fetch_benchmark_klines(symbol, series[0][0], series[-1][0])
+            if not klines:
+                return None
+
+            result = compute_benchmark_comparison(series, klines)
+            if result:
+                result['symbol'] = symbol
+                result['benchmark_name'] = '沪深300'
+            return result
+        except Exception as e:
+            self.logger.warning(f"基准对比计算失败（降级为无基准）: {e}")
+            return None
+
+    def _fetch_current_prices(self, symbols: List[str]) -> Dict[str, float]:
+        """
+        获取股票当前价格
+
+        Args:
+            symbols: 股票代码列表
+
+        Returns:
+            Dict[str, float]: {symbol: price}
+        """
+        try:
+            from qs_market_data.application.services.realtime_quote_service import RealtimeQuoteService
+            quote_service = RealtimeQuoteService()
+            prices = {}
+            # 记录每个 symbol 的行情时间戳，供 get_account_status 透传
+            self._price_timestamps = {}
+            # 2026-09-13（w-adb088f2）：逐只 → 批量。原实现每只各新建一次 HTTP 连接，
+            # 本机 IPv6 兜底场景下每只多付约 8s（实测 2 只持仓 = 16.4s，超过 agent 工具 10s
+            # 超时，导致 account_info/position_list 不可用）。批量后合并为 1 次请求。
+            quotes = quote_service.get_realtime_quotes(symbols)
+            for symbol, quote in quotes.items():
+                try:
+                    if quote and quote.price and quote.price > 0:
+                        prices[symbol] = float(quote.price)
+                        ts = getattr(quote, 'timestamp', None)
+                        if ts:
+                            self._price_timestamps[symbol] = (
+                                ts.isoformat() if hasattr(ts, 'isoformat') else str(ts)
+                            )
+                except Exception as e:
+                    self.logger.warning(f"Failed to parse price for {symbol}: {e}")
+            gap = sorted(set(symbols) - set(prices))
+            if gap:
+                # 缺口显式告警：调用方据此置 price_stale（部分成功 ≠ 全部成功）
+                self.logger.warning(f"批量行情缺口 {len(gap)} 只: {gap}")
+            return prices
+        except Exception as e:
+            self.logger.error(f"Error fetching prices: {e}")
+            return {}
+    
+    def get_trades(
+        self,
+        account_name: str,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        limit: int = 100
+    ) -> List[Dict]:
+        """
+        获取交易记录
+
+        Args:
+            account_name: 账户名称
+            start_date: 开始日期
+            end_date: 结束日期
+            limit: 最大返回数量
+
+        Returns:
+            List[Dict]: 交易记录列表
+        """
+        try:
+            trades = self.repo.get_trades_by_account(account_name, start_date, end_date)
+            # 应用limit限制
+            if trades and limit:
+                trades = trades[:limit]
+            return [self._trade_to_dict(t) for t in (trades or [])]
+        except Exception as e:
+            self.logger.error(f"Error getting trades: {e}")
+            return []
+    
+    def _execute_trades(self, signals: List[Signal], account_name: str, date: str) -> List[Dict]:
+        """
+        执行交易（简化版，实际需要调用SimulationTrader）
+        
+        Args:
+            signals: 交易信号列表
+            account_name: 账户名称
+            date: 交易日期
+            
+        Returns:
+            List[Dict]: 交易记录
+        """
+        # TODO: 这里应该调用实际的SimulationTrader执行交易
+        # 目前返回空列表，后续实现
+        self.logger.warning("_execute_trades not fully implemented yet")
+        return []
+    
+    def _trade_to_dict(self, trade) -> Dict:
+        """将交易记录转换为字典（前端兼容格式）"""
+        if isinstance(trade, dict):
+            return trade
+
+        # 获取基础字段
+        symbol = getattr(trade, 'symbol', None)
+        action = getattr(trade, 'action', None)
+        shares = getattr(trade, 'shares', None)
+        filled_price = getattr(trade, 'filled_price', None)
+        trade_date = getattr(trade, 'trade_date', None)
+        trade_time = getattr(trade, 'trade_time', None)
+
+        # 查询股票名称
+        stock_name = None
+        if symbol and self.repo:
+            try:
+                from infrastructure.persistence.orm.models import Stock
+                from sqlalchemy import select
+                stmt = select(Stock.name).where(Stock.symbol == symbol)
+                result = self.repo.session.execute(stmt).scalar()
+                stock_name = result if result else None
+            except Exception as e:
+                self.logger.warning(f"Failed to fetch stock name for {symbol}: {e}")
+
+        # 构造时间戳（优先使用trade_time，否则用trade_date）
+        timestamp = None
+        if trade_time:
+            timestamp = trade_time.isoformat() if hasattr(trade_time, 'isoformat') else str(trade_time)
+        elif trade_date:
+            timestamp = trade_date.isoformat() if hasattr(trade_date, 'isoformat') else str(trade_date)
+
+        # 计算金额
+        amount = None
+        if filled_price and shares:
+            amount = float(filled_price) * int(shares)
+
+        return {
+            'symbol': symbol,
+            'name': stock_name,  # 添加公司名称
+            'action': action.upper() if action else None,  # 统一大写
+            'shares': shares,
+            'price': float(filled_price) if filled_price else None,  # 前端期望price字段
+            'filled_price': float(filled_price) if filled_price else None,  # 保留原字段兼容性
+            'amount': amount,  # 计算金额
+            'timestamp': timestamp,  # 前端期望timestamp字段
+            'trade_date': trade_date.isoformat() if hasattr(trade_date, 'isoformat') else str(trade_date) if trade_date else None,
+            'commission': float(getattr(trade, 'commission', 0) or 0),
+            'stamp_duty': float(getattr(trade, 'stamp_duty', 0) or 0),
+            'total_cost': float(getattr(trade, 'total_cost', 0) or 0) if action and action.upper() == 'BUY' else None,
+            'total_revenue': float(getattr(trade, 'total_revenue', 0) or 0) if action and action.upper() == 'SELL' else None,
+            'realized_pnl': float(trade.realized_pnl) if getattr(trade, 'realized_pnl', None) is not None else None,
+            'realized_pnl_rate': float(trade.realized_pnl_rate) if getattr(trade, 'realized_pnl_rate', None) is not None else None,
+            'reason': getattr(trade, 'reason', None),
+        }
+    
+    def _position_to_dict(self, position) -> Dict:
+        """将持仓记录转换为字典（含建仓时间、持有天数、股票名称）"""
+        if isinstance(position, dict):
+            return position
+
+        symbol = getattr(position, 'symbol', None)
+        created_at = getattr(position, 'created_at', None)
+        days_held = None
+        if created_at is not None:
+            created_date = created_at.date() if hasattr(created_at, 'date') else None
+            if created_date:
+                days_held = max((date.today() - created_date).days, 0)
+
+        # 查询股票名称（与 _trade_to_dict 保持一致）
+        stock_name = None
+        if symbol and self.repo:
+            try:
+                from infrastructure.persistence.orm.models import Stock
+                from sqlalchemy import select
+                stmt = select(Stock.name).where(Stock.symbol == symbol)
+                result = self.repo.session.execute(stmt).scalar()
+                stock_name = result if result else None
+            except Exception as e:
+                self.logger.warning(f"Failed to fetch stock name for {symbol}: {e}")
+
+        result = {
+            'symbol': symbol,
+            'name': stock_name,
+            'shares_total': getattr(position, 'shares_total', None),
+            'shares_available': getattr(position, 'shares_available', None),
+            'avg_cost': float(position.avg_cost) if getattr(position, 'avg_cost', None) else None,
+            'current_price': float(position.current_price) if getattr(position, 'current_price', None) else None,
+            'market_value': float(position.market_value) if getattr(position, 'market_value', None) else None,
+            'profit_total': float(position.profit_total) if getattr(position, 'profit_total', None) else None,
+            'profit_total_rate': float(position.profit_total_rate) if getattr(position, 'profit_total_rate', None) else None,
+            'profit_today': float(position.profit_today) if getattr(position, 'profit_today', None) else None,
+            'created_at': created_at.isoformat() if hasattr(created_at, 'isoformat') else (str(created_at) if created_at else None),
+        }
+        # days_held 缺失时省略字段，绝不返回假 0（T+1 风控关键字段）
+        if days_held is not None:
+            result['days_held'] = days_held
+        return result

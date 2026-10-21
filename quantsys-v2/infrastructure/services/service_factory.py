@@ -83,6 +83,21 @@ class ServiceFactory:
         return EnhancedServiceFactory.resolve(service_type)
 
     @classmethod
+    def initialize(cls) -> None:
+        """显式引导 EnhancedServiceFactory（内部注册层的唯一公开引导面）。
+
+        供需要"提前全量就绪"的场景使用（脚本 one-off / 启动路径 / job 的 run()），
+        调用方**不再直连** `service_registry.register_all_services`（内部层）。
+
+        语义（2026-10-21 · S11-B-2 批次 1）:
+        - 幂等：已初始化即空操作；`resolve` 本身不做自动注册（见其 docstring），
+          具名 getter 的回退路径（`_try_get_from_enhanced`）内部已自带引导。
+        - 失败仅 warning 不炸进程：引导失败后可再次调用重试
+          （`_enhanced_factory_initialized` 只在成功时置 True）。
+        """
+        _ensure_enhanced_factory()
+
+    @classmethod
     @lru_cache(maxsize=1)
     def get_strategy_code_service(cls):
         """获取StrategyCodeService实例
@@ -92,7 +107,7 @@ class ServiceFactory:
         if 'strategy_code_service' not in cls._instances:
             try:
                 from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
-                from application.services.strategy_code_service import StrategyCodeService
+                from qs_strategy.application.services.strategy_code_service import StrategyCodeService
 
                 # 确保 EnhancedServiceFactory 已完成注册（同 get_data_service 的时序修复）
                 _ensure_enhanced_factory()
@@ -131,7 +146,7 @@ class ServiceFactory:
         # 回退到旧实现
         if 'stock_pool_service' not in cls._instances:
             from adapters.outbound.repositories import StockPoolORMRepository
-            from application.services.opportunity_scoring_service import OpportunityScoringService
+            from qs_intel.application.services.opportunity_scoring_service import OpportunityScoringService
             from adapters.outbound.datasources.providers.quantlib import get_factor_adapter
             from adapters.outbound.repositories.financial_repository import FinancialORMRepository
             from adapters.outbound.repositories.fund_flow_repository import FundFlowORMRepository
@@ -167,7 +182,7 @@ class ServiceFactory:
     def get_scoring_service(cls):
         """获取OpportunityScoringService实例"""
         # P2-1: 优先从 EnhancedServiceFactory 获取
-        from application.services.opportunity_scoring_service import OpportunityScoringService
+        from qs_intel.application.services.opportunity_scoring_service import OpportunityScoringService
         enhanced = _try_get_from_enhanced(OpportunityScoringService)
         if enhanced:
             return enhanced
@@ -212,7 +227,7 @@ class ServiceFactory:
     def get_sector_rotation_service(cls):
         """获取SectorRotationService实例"""
         # P2-1: 优先从 EnhancedServiceFactory 获取
-        from application.services.sector_rotation_service import SectorRotationService
+        from qs_intel.application.services.sector_rotation_service import SectorRotationService
         enhanced = _try_get_from_enhanced(SectorRotationService)
         if enhanced:
             return enhanced
@@ -265,7 +280,7 @@ class ServiceFactory:
     def get_condition_monitor_service(cls):
         """获取ConditionMonitorService实例"""
         if 'condition_monitor_service' not in cls._instances:
-            from application.services.condition_monitor import ConditionMonitorService
+            from qs_intel.application.services.condition_monitor import ConditionMonitorService
             cls._instances['condition_monitor_service'] = ConditionMonitorService()
             logger.info("ConditionMonitorService initialized")
         return cls._instances['condition_monitor_service']
@@ -285,7 +300,7 @@ class ServiceFactory:
     def get_risk_service(cls):
         """获取RiskService实例"""
         if 'risk_service' not in cls._instances:
-            from application.services.risk_service import RiskService
+            from qs_trading.application.services.risk_service import RiskService
             cls._instances['risk_service'] = RiskService()
             logger.info("RiskService initialized")
         return cls._instances['risk_service']
@@ -295,7 +310,7 @@ class ServiceFactory:
     def get_data_quality_service(cls):
         """获取DataQualityService实例"""
         if 'data_quality_service' not in cls._instances:
-            from application.services.data_quality_service import DataQualityService
+            from qs_ops.application.services.data_quality_service import DataQualityService
             cls._instances['data_quality_service'] = DataQualityService()
             logger.info("DataQualityService initialized")
         return cls._instances['data_quality_service']
@@ -317,7 +332,7 @@ class ServiceFactory:
     def get_account_trading_service(cls):
         """获取AccountTradingService实例"""
         if 'account_trading_service' not in cls._instances:
-            from application.services.account_trading_service import account_trading_service
+            from qs_trading.application.services.account_trading_service import account_trading_service
             cls._instances['account_trading_service'] = account_trading_service
             logger.info("AccountTradingService initialized")
         return cls._instances['account_trading_service']
@@ -357,7 +372,7 @@ class ServiceFactory:
     def get_lhb_service(cls):
         """获取LhbService实例"""
         if 'lhb_service' not in cls._instances:
-            from application.services.lhb_service import LhbService
+            from qs_intel.application.services.lhb_service import LhbService
             cls._instances['lhb_service'] = LhbService()
             logger.info("LhbService initialized")
         return cls._instances['lhb_service']
@@ -468,7 +483,7 @@ class ServiceFactory:
     def get_session_service(cls):
         """获取SessionService实例"""
         if 'session_service' not in cls._instances:
-            from application.services.session_service import SessionService
+            from qs_agenthub.application.services.session_service import SessionService
             cls._instances['session_service'] = SessionService()
             logger.info("SessionService initialized")
         return cls._instances['session_service']
@@ -488,7 +503,7 @@ class ServiceFactory:
     def get_simulation_service(cls):
         """获取SimulationService实例"""
         if 'simulation_service' not in cls._instances:
-            from application.services.simulation_service import SimulationService
+            from qs_trading.application.services.simulation_service import SimulationService
             from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
             repo = SimulationORMRepository()
             cls._instances['simulation_service'] = SimulationService(repo=repo)
@@ -520,7 +535,7 @@ class ServiceFactory:
     def get_strategy_service(cls):
         """获取StrategyService实例"""
         if 'strategy_service' not in cls._instances:
-            from application.services.strategy_service import StrategyService
+            from qs_strategy.application.services.strategy_service import StrategyService
             from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
             repo = SimulationORMRepository()
             cls._instances['strategy_service'] = StrategyService(repo=repo)
@@ -532,7 +547,7 @@ class ServiceFactory:
     def get_strategy_execution_service(cls):
         """获取StrategyExecutionService实例"""
         if 'strategy_execution_service' not in cls._instances:
-            from application.services.strategy_execution_service import StrategyExecutionService
+            from qs_strategy.application.services.strategy_execution_service import StrategyExecutionService
             cls._instances['strategy_execution_service'] = StrategyExecutionService()
             logger.info("StrategyExecutionService initialized")
         return cls._instances['strategy_execution_service']
@@ -542,7 +557,7 @@ class ServiceFactory:
     def get_strategy_validation_service(cls):
         """获取StrategyValidationService实例"""
         if 'strategy_validation_service' not in cls._instances:
-            from application.services.strategy_validation_service import StrategyValidationService
+            from qs_strategy.application.services.strategy_validation_service import StrategyValidationService
             cls._instances['strategy_validation_service'] = StrategyValidationService()
             logger.info("StrategyValidationService initialized")
         return cls._instances['strategy_validation_service']
@@ -552,7 +567,7 @@ class ServiceFactory:
     def get_strategy_optimizer(cls):
         """获取StrategyOptimizer实例"""
         if 'strategy_optimizer' not in cls._instances:
-            from application.services.strategy_optimizer import StrategyOptimizer
+            from qs_strategy.application.services.strategy_optimizer import StrategyOptimizer
             strategy_service = cls.get_strategy_code_service()
             cls._instances['strategy_optimizer'] = StrategyOptimizer(strategy_service)
             logger.info("StrategyOptimizer initialized")
@@ -563,7 +578,7 @@ class ServiceFactory:
     def get_game_alert_service(cls):
         """获取GameAlertService实例"""
         if 'game_alert_service' not in cls._instances:
-            from application.services.game_alert_service import GameAlertService
+            from qs_intel.application.services.game_alert_service import GameAlertService
             cls._instances['game_alert_service'] = GameAlertService()
             logger.info("GameAlertService initialized")
         return cls._instances['game_alert_service']
@@ -579,7 +594,7 @@ class ServiceFactory:
             IMLModelRepository: ML模型仓库接口实现
         """
         # P2-1: 优先从 EnhancedServiceFactory 获取
-        from domain.ports.ml_model_port import IMLModelRepository
+        from qs_kernel.domain.ports.ml_model_port import IMLModelRepository
         enhanced = _try_get_from_enhanced(IMLModelRepository)
         if enhanced:
             return enhanced
@@ -600,7 +615,7 @@ class ServiceFactory:
             IMLModelMetadataRepository: ML模型元数据仓库接口实现
         """
         # P2-1: 优先从 EnhancedServiceFactory 获取
-        from domain.ports.ml_model_port import IMLModelMetadataRepository
+        from qs_kernel.domain.ports.ml_model_port import IMLModelMetadataRepository
         enhanced = _try_get_from_enhanced(IMLModelMetadataRepository)
         if enhanced:
             return enhanced
@@ -621,7 +636,7 @@ class ServiceFactory:
             IDataProviderManager: 数据提供者管理器接口实现
         """
         # P2-1: 优先从 EnhancedServiceFactory 获取
-        from domain.ports.datasource_ports import IDataProviderManager
+        from qs_kernel.domain.ports.datasource_ports import IDataProviderManager
         enhanced = _try_get_from_enhanced(IDataProviderManager)
         if enhanced:
             return enhanced
@@ -656,7 +671,7 @@ class ServiceFactory:
         Returns:
             IStockRepository: Stock仓库接口实现
         """
-        from domain.ports.repository_ports_extended import IStockRepository
+        from qs_kernel.domain.ports.repository_ports_extended import IStockRepository
         enhanced = _try_get_from_enhanced(IStockRepository)
         if enhanced:
             return enhanced
@@ -676,7 +691,7 @@ class ServiceFactory:
         Returns:
             IStockPoolRepository: StockPool仓库接口实现
         """
-        from domain.ports.repository_ports_extended import IStockPoolRepository
+        from qs_kernel.domain.ports.repository_ports_extended import IStockPoolRepository
         enhanced = _try_get_from_enhanced(IStockPoolRepository)
         if enhanced:
             return enhanced
@@ -696,7 +711,7 @@ class ServiceFactory:
         Returns:
             IStrategyRepository: Strategy仓库接口实现
         """
-        from domain.ports.repository_ports_extended import IStrategyRepository
+        from qs_kernel.domain.ports.repository_ports_extended import IStrategyRepository
         enhanced = _try_get_from_enhanced(IStrategyRepository)
         if enhanced:
             return enhanced
@@ -716,7 +731,7 @@ class ServiceFactory:
         Returns:
             IKlineRepository: Kline仓库接口实现
         """
-        from domain.ports.repository_ports_extended import IKlineRepository
+        from qs_kernel.domain.ports.repository_ports_extended import IKlineRepository
         enhanced = _try_get_from_enhanced(IKlineRepository)
         if enhanced:
             return enhanced
@@ -736,7 +751,7 @@ class ServiceFactory:
         Returns:
             ISignalRepository: Signal仓库接口实现
         """
-        from domain.ports.repository_ports_extended import ISignalRepository
+        from qs_kernel.domain.ports.repository_ports_extended import ISignalRepository
         enhanced = _try_get_from_enhanced(ISignalRepository)
         if enhanced:
             return enhanced
@@ -756,7 +771,7 @@ class ServiceFactory:
         Returns:
             ISignalExecutionLogRepository: 信号执行日志仓储接口实现
         """
-        from domain.ports.repository_ports_extended import ISignalExecutionLogRepository
+        from qs_kernel.domain.ports.repository_ports_extended import ISignalExecutionLogRepository
         enhanced = _try_get_from_enhanced(ISignalExecutionLogRepository)
         if enhanced:
             return enhanced
@@ -771,7 +786,7 @@ class ServiceFactory:
     @classmethod
     @lru_cache(maxsize=1)
     def get_portfolio_repository(cls):
-        from domain.ports.repository_ports import IPortfolioRepository
+        from qs_kernel.domain.ports.repository_ports import IPortfolioRepository
         enhanced = _try_get_from_enhanced(IPortfolioRepository)
         if enhanced:
             return enhanced
@@ -784,7 +799,7 @@ class ServiceFactory:
     @classmethod
     @lru_cache(maxsize=1)
     def get_risk_repository(cls):
-        from domain.ports.repository_ports import IRiskRepository
+        from qs_kernel.domain.ports.repository_ports import IRiskRepository
         enhanced = _try_get_from_enhanced(IRiskRepository)
         if enhanced:
             return enhanced
@@ -797,7 +812,7 @@ class ServiceFactory:
     @classmethod
     @lru_cache(maxsize=1)
     def get_factor_repository(cls):
-        from domain.ports.repository_ports import IFactorRepository
+        from qs_kernel.domain.ports.repository_ports import IFactorRepository
         enhanced = _try_get_from_enhanced(IFactorRepository)
         if enhanced:
             return enhanced
@@ -831,7 +846,7 @@ class ServiceFactory:
     def get_strategy_evolution_service(cls):
         """获取策略进化引擎（RFC 012 P1）——无参门面，重量依赖（StrategyCodeService/
         落库 repo）在服务内运行时经本工厂/仓库懒解析，故直接构造即可。"""
-        from application.services.strategy_evolution_service import StrategyEvolutionService
+        from qs_strategy.application.services.strategy_evolution_service import StrategyEvolutionService
         return StrategyEvolutionService()
 
     @classmethod

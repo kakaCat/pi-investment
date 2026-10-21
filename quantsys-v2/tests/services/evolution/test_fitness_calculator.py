@@ -1,7 +1,7 @@
 """双侧捕获适应度纯函数测试——合成行情，不碰 DB"""
 import pytest
 
-from application.services.evolution.fitness_calculator import (
+from qs_agenthub.application.services.evolution.fitness_calculator import (
     compute_capture, SIDEWAYS_THRESHOLD, MIN_SAMPLE_DAYS,
 )
 

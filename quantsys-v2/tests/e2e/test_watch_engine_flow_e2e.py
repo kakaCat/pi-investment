@@ -16,9 +16,9 @@ import requests
 from adapters.outbound.repositories.watch_rule_repository import (
     WatchRuleRepository, WatchTriggerRepository,
 )
-from application.services.agent_notification_service import AgentNotificationService
-from application.services.watch_engine.digest_service import WatchDigestService
-from application.services.watch_engine.factory import create_watch_engine
+from qs_agenthub.application.services.agent_notification_service import AgentNotificationService
+from qs_watch.application.services.watch_engine.digest_service import WatchDigestService
+from qs_watch.application.services.watch_engine.factory import create_watch_engine
 
 SYMBOL = "600887"          # 伊利：agent_virtual 持仓标的（止损伤痕真实存在）
 ACCOUNT = "agent_virtual"
@@ -42,7 +42,7 @@ class _Quote:
         self.open = price
         self.high = price
         self.low = price
-        self.prev_close = price
+        self.prev_close = price * 1.1   # 2026-10-19 穿越语义：昨收须在阈值上方才算新鲜穿越
         self.volume = 1_000_000
         self.amount = price * 1_000_000
         self.change_pct = -9.0
@@ -93,7 +93,7 @@ def _purge_watch_symbol_state(symbol: str) -> None:
     """
     from sqlalchemy import text
 
-    from infrastructure.persistence.orm import get_session
+    from qs_kernel.infrastructure.persistence.orm import get_session
 
     session = get_session()
     session.rollback()

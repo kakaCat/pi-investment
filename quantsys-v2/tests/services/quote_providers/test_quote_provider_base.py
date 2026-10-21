@@ -2,7 +2,7 @@
 测试 QuoteProvider 基础类
 """
 import pytest
-from application.services.quote_providers.base import QuoteData, QuoteProvider
+from qs_market_data.application.services.quote_providers.base import QuoteData, QuoteProvider
 
 
 class TestQuoteData:

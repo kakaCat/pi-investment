@@ -12,8 +12,8 @@ import logging
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 
-from domain.brokers import BaseBroker
-from domain.brokers.trading_types import (
+from qs_trading.domain.brokers import BaseBroker
+from qs_trading.domain.brokers.trading_types import (
     BrokerProfile,
     UnifiedOrder,
     OrderPlaceResponse,

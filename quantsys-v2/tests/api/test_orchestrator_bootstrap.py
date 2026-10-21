@@ -42,10 +42,10 @@ def test_start_orchestrator_calls_ticks(monkeypatch):
 
     ticks = {'orch': 0, 'intraday': 0}
     monkeypatch.setattr(
-        'infrastructure.jobs.monitor_jobs.daily_orchestrator_tick',
+        'qs_ops.infrastructure.jobs.monitor_jobs.daily_orchestrator_tick',
         lambda: ticks.__setitem__('orch', ticks['orch'] + 1))
     monkeypatch.setattr(
-        'infrastructure.jobs.monitor_jobs.intraday_monitor_check',
+        'qs_ops.infrastructure.jobs.monitor_jobs.intraday_monitor_check',
         lambda: ticks.__setitem__('intraday', ticks['intraday'] + 1))
     monkeypatch.setattr(ob, '_in_orchestrator_window', lambda now: True)
     monkeypatch.setattr(ob, '_in_intraday_window', lambda now: True)
@@ -66,9 +66,14 @@ def test_start_orchestrator_calls_ticks(monkeypatch):
     thread, stop_event = handles
     assert isinstance(thread, threading.Thread)
     assert thread.is_alive()
-    assert resumed == [1]  # 启动即断点续跑
 
+    # 断点续跑已挪入 tick 线程首动作（2026-10-19：启动不再被补跑阻塞），
+    # 等线程执行到它——且必须先于任何 tick（顺序语义不变）。
     deadline = datetime.now().timestamp() + 5
+    while not resumed and datetime.now().timestamp() < deadline:
+        stop_event.wait(0.05)
+    assert resumed == [1]  # 线程内启动即断点续跑
+
     while ticks['orch'] == 0 and datetime.now().timestamp() < deadline:
         stop_event.wait(0.05)
     ob.stop_orchestrator(handles)
@@ -84,7 +89,7 @@ def test_start_orchestrator_skip(monkeypatch):
 
     calls = []
     monkeypatch.setattr(
-        'infrastructure.jobs.monitor_jobs.daily_orchestrator_tick',
+        'qs_ops.infrastructure.jobs.monitor_jobs.daily_orchestrator_tick',
         lambda: calls.append(1))
 
     assert ob.start_orchestrator(skip=True) is None
@@ -103,7 +108,7 @@ def test_tick_exception_does_not_kill_thread(monkeypatch):
             raise RuntimeError('boom')
 
     monkeypatch.setattr(
-        'infrastructure.jobs.monitor_jobs.daily_orchestrator_tick', _flaky)
+        'qs_ops.infrastructure.jobs.monitor_jobs.daily_orchestrator_tick', _flaky)
     monkeypatch.setattr(ob, '_in_orchestrator_window', lambda now: True)
     monkeypatch.setattr(ob, '_in_intraday_window', lambda now: False)
     monkeypatch.setattr(ob, '_TICK_INTERVAL_SEC', 0.05)

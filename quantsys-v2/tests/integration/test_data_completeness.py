@@ -4,8 +4,8 @@ from unittest.mock import Mock, patch
 from datetime import datetime, timedelta
 import pandas as pd
 
-from adapters.outbound.datasources.manager import DataProviderManager
-from domain.models.market_data import KlineData
+from qs_market_data.adapters.outbound.datasources.manager import DataProviderManager
+from qs_kernel.domain.models.market_data import KlineData
 
 
 class TestDataCompleteness:
@@ -42,7 +42,7 @@ class TestDataCompleteness:
                      low=11.5, close=12.5, volume=1400000, source='test'),
         ]
 
-        with patch('application.services.trading_calendar_service.TradingCalendarService') as mock_cal:
+        with patch('qs_market_data.application.services.trading_calendar_service.TradingCalendarService') as mock_cal:
             mock_cal.return_value.get_trading_days.return_value = mock_trading_days
 
             result = manager.get_data_completeness(
@@ -73,7 +73,7 @@ class TestDataCompleteness:
                      low=11.5, close=12.5, volume=1400000, source='test'),
         ]
 
-        with patch('application.services.trading_calendar_service.TradingCalendarService') as mock_cal:
+        with patch('qs_market_data.application.services.trading_calendar_service.TradingCalendarService') as mock_cal:
             mock_cal.return_value.get_trading_days.return_value = mock_trading_days
 
             result = manager.get_data_completeness(
@@ -93,7 +93,7 @@ class TestDataCompleteness:
         """No data (0/5) should return 0% completeness"""
         kline_data = []
 
-        with patch('application.services.trading_calendar_service.TradingCalendarService') as mock_cal:
+        with patch('qs_market_data.application.services.trading_calendar_service.TradingCalendarService') as mock_cal:
             mock_cal.return_value.get_trading_days.return_value = mock_trading_days
 
             result = manager.get_data_completeness(
@@ -118,7 +118,7 @@ class TestDataCompleteness:
             {'date': '2024-01-08', 'open': 12.0, 'close': 12.5},
         ])
 
-        with patch('application.services.trading_calendar_service.TradingCalendarService') as mock_cal:
+        with patch('qs_market_data.application.services.trading_calendar_service.TradingCalendarService') as mock_cal:
             mock_cal.return_value.get_trading_days.return_value = mock_trading_days
 
             result = manager.get_data_completeness(
@@ -141,7 +141,7 @@ class TestDataCompleteness:
             {'trade_date': '2024-01-04', 'open': 11.0, 'close': 11.5},
         ])
 
-        with patch('application.services.trading_calendar_service.TradingCalendarService') as mock_cal:
+        with patch('qs_market_data.application.services.trading_calendar_service.TradingCalendarService') as mock_cal:
             mock_cal.return_value.get_trading_days.return_value = mock_trading_days
 
             result = manager.get_data_completeness(
@@ -165,7 +165,7 @@ class TestDataCompleteness:
                      low=10.0, close=11.0, volume=1100000, source='database'),
         ]
 
-        with patch('application.services.trading_calendar_service.TradingCalendarService') as mock_cal, \
+        with patch('qs_market_data.application.services.trading_calendar_service.TradingCalendarService') as mock_cal, \
              patch.object(manager, 'get_klines') as mock_get:
 
             mock_cal.return_value.get_trading_days.return_value = mock_trading_days
@@ -191,7 +191,7 @@ class TestDataCompleteness:
 
     def test_completeness_fetch_failed(self, manager, mock_trading_days):
         """Should return error when auto-fetch fails"""
-        with patch('application.services.trading_calendar_service.TradingCalendarService') as mock_cal, \
+        with patch('qs_market_data.application.services.trading_calendar_service.TradingCalendarService') as mock_cal, \
              patch.object(manager, 'get_klines') as mock_get:
 
             mock_cal.return_value.get_trading_days.return_value = mock_trading_days
@@ -216,7 +216,7 @@ class TestDataCompleteness:
 
     def test_completeness_no_trading_days(self, manager):
         """Should handle date range with no trading days"""
-        with patch('application.services.trading_calendar_service.TradingCalendarService') as mock_cal:
+        with patch('qs_market_data.application.services.trading_calendar_service.TradingCalendarService') as mock_cal:
             mock_cal.return_value.get_trading_days.return_value = []
 
             result = manager.get_data_completeness(
@@ -243,7 +243,7 @@ class TestDataCompleteness:
             {'date': '2024-01-08', 'open': 12.0, 'close': 12.5},
         ]
 
-        with patch('application.services.trading_calendar_service.TradingCalendarService') as mock_cal:
+        with patch('qs_market_data.application.services.trading_calendar_service.TradingCalendarService') as mock_cal:
             mock_cal.return_value.get_trading_days.return_value = mock_trading_days
 
             result = manager.get_data_completeness(
@@ -260,7 +260,7 @@ class TestDataCompleteness:
 
     def test_completeness_exception_handling(self, manager):
         """Should handle exceptions gracefully"""
-        with patch('application.services.trading_calendar_service.TradingCalendarService') as mock_cal:
+        with patch('qs_market_data.application.services.trading_calendar_service.TradingCalendarService') as mock_cal:
             mock_cal.return_value.get_trading_days.side_effect = Exception("Calendar service down")
 
             result = manager.get_data_completeness(

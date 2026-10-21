@@ -1,43 +1,19 @@
+"""L1 兼容 shim（S11 · Slice B-1 · 30 天观察期）。
+
+原 ``infrastructure.persistence.database`` 已迁至
+``qs_kernel.infrastructure.persistence.database``。包与全部子模块经
+sys.modules 别名绑定到 kernel 模块 —— engine 持模块级单例，严禁裸拷贝。
 """
-Database Infrastructure
+import importlib
+import sys
 
-Provides database connection management and base repository classes.
-"""
+_canonical = "qs_kernel.infrastructure.persistence.database"
+_canonical_pkg = importlib.import_module(_canonical)
 
-from infrastructure.persistence.database.engine import (
-    init_engine,
-    dispose_engine,
-    get_engine,
-    get_pool_status,
-    _resolve_db_dsn,
-    TEST_DB_SUFFIX,
-)
-from infrastructure.persistence.database.async_engine import (
-    init_async_engine,
-    dispose_async_engine,
-    get_async_engine,
-    get_async_pool_status,
-)
-from infrastructure.persistence.database.async_base_repository import (
-    AsyncBaseRepository,
-    init_async_pool,  # Deprecated
-    close_async_pool,  # Deprecated
-    get_async_pool,  # Deprecated
-)
+for _name in ("engine", "async_engine", "async_base_repository", "validators"):
+    _mod = importlib.import_module(f"{_canonical}.{_name}")
+    sys.modules[f"infrastructure.persistence.database.{_name}"] = _mod
 
-__all__ = [
-    "_resolve_db_dsn",
-    "init_engine",
-    "dispose_engine",
-    "get_engine",
-    "get_pool_status",
-    "init_async_engine",
-    "dispose_async_engine",
-    "get_async_engine",
-    "get_async_pool_status",
-    "AsyncBaseRepository",
-    "init_async_pool",  # Deprecated
-    "close_async_pool",  # Deprecated
-    "get_async_pool",  # Deprecated
-    "TEST_DB_SUFFIX",
-]
+sys.modules["infrastructure.persistence.database"] = _canonical_pkg
+
+__all__ = getattr(_canonical_pkg, "__all__", [])

@@ -15,14 +15,14 @@ Date: 2026-05-24
 
 import pytest
 import numpy as np
-from domain.quantlib.derivatives import (
+from qs_quantlib.derivatives import (
     BlackScholesCalculator,
     GreeksCalculator,
     ImpliedVolatilityCalculator,
     BinomialTreeCalculator,
     MonteCarloCalculator
 )
-from domain.quantlib.exceptions import DataValidationError, CalculationError, ConvergenceError
+from qs_quantlib.exceptions import DataValidationError, CalculationError, ConvergenceError
 
 
 class TestBlackScholesCalculator:

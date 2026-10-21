@@ -365,7 +365,7 @@ def get_buy_range(symbol: str,
     """买入区间计算（简化模式 + 增强模式）"""
     try:
         if enhanced.lower() == 'true':
-            from application.services.enhanced_buy_range_service import EnhancedBuyRangeService
+            from qs_trading.application.services.enhanced_buy_range_service import EnhancedBuyRangeService
 
             period_list = [p.strip() for p in periods.split(',')]
             include_volume = volume.lower() == 'true'
@@ -644,7 +644,7 @@ def get_candlestick(symbol: str):
 @handle_api_error
 def get_indicators(symbol: str):
     """财务指标 - v2 原生实现"""
-    from application.services.financial_analysis_service import FinancialAnalysisService
+    from qs_market_data.application.services.financial_analysis_service import FinancialAnalysisService
     service = FinancialAnalysisService()
     result = service.get_financial_indicators(symbol)
 
@@ -660,7 +660,7 @@ def get_indicators(symbol: str):
 @handle_api_error
 def get_valuation(symbol: str):
     """估值分析 - v2 原生实现"""
-    from application.services.financial_analysis_service import FinancialAnalysisService
+    from qs_market_data.application.services.financial_analysis_service import FinancialAnalysisService
     service = FinancialAnalysisService()
     result = service.get_stock_valuation(symbol)
 
@@ -714,7 +714,7 @@ def get_quality_score_v2(symbol: str, framework: str = Query('auto')):
 @handle_api_error
 def get_data_health(symbol: str):
     """单票数据健康检查（保持 snake_case，绕过 api_response 的驼峰转换）"""
-    from application.services.stock_code_validator import StockCodeValidator
+    from qs_market_data.application.services.stock_code_validator import StockCodeValidator
 
     validator = StockCodeValidator()
     result = validator.validate(symbol)
@@ -733,7 +733,7 @@ def get_data_health(symbol: str):
 @handle_api_error
 def get_market_sentiment():
     """市场情绪分析 - v2 原生实现"""
-    from application.services.market_sentiment_service import MarketSentimentService
+    from qs_intel.application.services.market_sentiment_service import MarketSentimentService
 
     # 初始化服务
     from infrastructure.services.service_factory import ServiceFactory
@@ -755,7 +755,7 @@ def get_market_sentiment():
 def screen_stocks_v2(request: Request):
     """多条件选股 - 使用 v2 原生实现"""
     try:
-        from application.services.stock_screening_service import StockScreeningService
+        from qs_sourcing.application.services.stock_screening_service import StockScreeningService
 
         # 解析筛选条件
         criteria = {}
@@ -798,7 +798,7 @@ def screening_quality(sector: str = Query(''),
                       limit: int = Query(10)):
     """行业质量筛选 - 使用 v2 质量评分服务"""
     # 使用 v2 的质量评分和筛选功能
-    from application.services.stock_screening_service import StockScreeningService
+    from qs_sourcing.application.services.stock_screening_service import StockScreeningService
 
     criteria = {'min_score': min_score, 'limit': limit}
     if max_pe:
@@ -840,7 +840,7 @@ def calculate_risk_metrics(payload: Optional[Dict[str, Any]] = Body(None)):
        holdings_proxy（回退口径，当前持仓等权、忽略现金权重，会高估风险）
        explicit_returns（调用方直传）
     """
-    from application.services.risk_metrics_service import RiskMetricsService
+    from qs_trading.application.services.risk_metrics_service import RiskMetricsService
     import pandas as pd
 
     data = payload or {}
@@ -858,7 +858,7 @@ def calculate_risk_metrics(payload: Optional[Dict[str, Any]] = Body(None)):
             # 旧实现只用「当前持仓等权 + 忽略现金」的个股 K 线拼收益，现金占比高的账户风险被严重
             # 高估——实测 agent_virtual（现金 87%）60 日回撤 -6.7%，而账户净值直算仅 -1.83%，
             # 4.9pct 的差距会直接改写熔断与仓位判定。
-            from application.services.risk_metrics_service import nav_returns_from_snapshots
+            from qs_trading.application.services.risk_metrics_service import nav_returns_from_snapshots
             nav_returns: List[float] = []
             nav_points = 0
             try:
@@ -1214,7 +1214,7 @@ def generate_factor_report(payload: Optional[Dict[str, Any]] = Body(None)):
 def analyze_swing_points(payload: Optional[Dict[str, Any]] = Body(None)):
     """ZigZag 波段分析 — 根据历史价格波动识别买卖点"""
     from application.services.swing_point_service import SwingPointService
-    from application.services.stock_code_validator import StockCodeValidator
+    from qs_market_data.application.services.stock_code_validator import StockCodeValidator
 
     raw = payload or {}
     params = convert_keys_to_snake(raw)
@@ -1267,7 +1267,7 @@ def get_competition_analysis(
     - 对比盈利能力和增长速度
     """
     from adapters.outbound.repositories.competition_repository import CompetitionRepository
-    from domain.competition.service import CompetitionAnalysisService
+    from qs_intel.domain.competition.service import CompetitionAnalysisService
 
     repo = CompetitionRepository()
     service = CompetitionAnalysisService(repo)

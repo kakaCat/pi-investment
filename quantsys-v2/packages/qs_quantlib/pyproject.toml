@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qs-quantlib"
+version = "0.1.0"
+description = "QuantSys V2 - Quantitative computation library (pure compute, no app/DB dependencies)"
+requires-python = ">=3.9"
+readme = "README.md"
+license = {text = "Proprietary"}
+
+dependencies = [
+    "numpy",
+    "pandas",
+]
+
+[tool.setuptools.packages.find]
+include = ["qs_quantlib*"]

@@ -17,9 +17,9 @@ import structlog
 
 from sqlalchemy import func, update as sa_update
 
-from infrastructure.persistence.orm import BaseORMRepository, get_session
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository, get_session
 from infrastructure.persistence.orm.models import Stock
-from domain.ports import IStockRepository
+from qs_kernel.domain.ports import IStockRepository
 
 logger = structlog.get_logger(__name__)
 

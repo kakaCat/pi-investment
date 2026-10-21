@@ -5,7 +5,7 @@ import pytest
 import os
 import time
 import psutil
-from application.services.data_service import DataService
+from qs_market_data.application.services.data_service import DataService
 from application.services.factor_analysis_service import ALPHALENS_AVAILABLE
 
 

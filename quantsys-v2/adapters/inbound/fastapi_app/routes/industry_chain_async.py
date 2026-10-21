@@ -23,7 +23,7 @@ from fastapi import APIRouter, Body, Query
 import structlog
 
 from adapters.inbound.fastapi_app.shared import error_response
-from application.services.industry_chain_service import (
+from qs_intel.application.services.industry_chain_service import (
     IndustryChainService,
     get_industry_chain_service,
     set_industry_chain_service,
@@ -38,7 +38,7 @@ def get_service() -> IndustryChainService:
     """组合根：装配 IDataProviderManager + IIndustryChainRepository（进程级复用）"""
     svc = get_industry_chain_service()
     if svc is None:
-        from adapters.outbound.datasources.manager import get_data_provider_manager
+        from qs_market_data.adapters.outbound.datasources.manager import get_data_provider_manager
         from adapters.outbound.repositories.industry_chain_repository import (
             get_industry_chain_repo,
         )

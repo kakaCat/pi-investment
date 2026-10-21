@@ -1,5 +1,5 @@
 """generate_lesson 纯函数单测（REQ-9bcd0a WP1）。不连库。"""
-from application.services.evolution.lesson_generator import generate_lesson
+from qs_agenthub.application.services.evolution.lesson_generator import generate_lesson
 
 
 def _mk(**over):

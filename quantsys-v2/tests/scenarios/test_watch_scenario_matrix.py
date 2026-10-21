@@ -5,17 +5,18 @@
 """
 import pytest
 from datetime import datetime, timedelta
+from types import SimpleNamespace
 
-from domain.notification.policies.watch_channel_policy import (
+from qs_notification.domain.policies.watch_channel_policy import (
     CH_DECISION_INBOX, CH_ENTRY_SIGNAL, CH_EXIT_MANAGE, CH_MARKET_STATE, CH_POSITION_OPS,
     CH_RISK_STOP, CH_RULE_GOVERNANCE, CH_SYSTEM_OPS, CH_WATCH_MARKET, CH_WATCH_SYMBOL,
     WatchChannelPolicy,
 )
-from domain.notification.policies.watch_delivery_policy import (
+from qs_notification.domain.policies.watch_delivery_policy import (
     AGENT_DH, AUTONOMOUS, NOT_APPLICABLE, REMIND_ONLY, WatchDeliveryPolicy,
 )
-from domain.watch.services.disposition import TRADE_INTENTS
-from domain.watch.services.rule_guard import (
+from qs_watch.domain.watch.services.disposition import TRADE_INTENTS
+from qs_watch.domain.watch.services.rule_guard import (
     TradeRuleWithoutAccount, WatchRuleNotApplicable, guard_new_rule, guard_rule_change,
 )
 from tests.services.test_watch_engine import FakeNotifier, make_engine, make_rule, NOW
@@ -23,7 +24,7 @@ from tests.application.test_watch_digest_accounts import (
     TRADING_NOW, UNASSIGNED, _Agent, _Rule, _RuleRepo, _Trig, _TriggerRepo,
     _StateRepo as _DigestStateRepo,
 )
-from application.services.watch_engine.digest_service import WatchDigestService
+from qs_watch.application.services.watch_engine.digest_service import WatchDigestService
 
 PRICE_UP = lambda: {'600519.SH': 101.0}   # 上破 100 → 命中
 
@@ -114,16 +115,38 @@ def test_B4_quote_failure_does_not_crash():
 
 
 def test_B5_duplicate_rules_same_event_dedup():
-    """同标的同向两条规则同时命中 → 第二条被去重（deduped，不重复打扰）"""
+    """同标的同向两条规则同时命中：
+      · 观察类（trend_observe → auto_observed）→ 第二条 deduped 不重复打扰（守卫内）；
+      · 宪法级（exit_stop → escalated）→ **不吞消息**：第二条保留升级通道照发，
+        只标注「与规则#1 同事件，合并展示」（REQ-261016155500-4f2a wt:engine:2，
+        止损被吞 = 资损风险）。"""
+    from tests.services.test_watch_engine import make_rule as _mk
+    observe, observe2 = _mk(id=1), _mk(id=2)
+    for r in (observe, observe2):                       # 观察类 → auto_observed（守卫内）
+        r.intent = 'trend_observe'
+        r.action_hint = {'trigger_level': 'L1', 'action_on_trigger': 'observe'}
     n = FakeNotifier()
-    rules = [make_rule(id=1), make_rule(id=2)]
-    engine = make_engine(rules, PRICE_UP(), n)
+    engine = make_engine([observe, observe2], PRICE_UP(), n)
     engine.now_fn = lambda: NOW
     events = engine.tick()
     dispositions = [e.get('disposition') for e in events]
-    assert 'deduped' in dispositions, '同事件重复未被去重：%s' % dispositions
+    assert 'deduped' in dispositions, '观察类同事件重复未被去重：%s' % dispositions
     deduped = [e for e in events if e.get('disposition') == 'deduped'][0]
     assert deduped['notified'] is False
+
+    # 宪法级：两条都 escalated，第二条带合并标注、notified=True（消息必达）
+    n2 = FakeNotifier()
+    rules = [make_rule(id=1), make_rule(id=2)]     # intent=exit_stop（make_rule 默认）
+    engine2 = make_engine(rules, PRICE_UP(), n2)
+    engine2.now_fn = lambda: NOW
+    events2 = engine2.tick()
+    disp2 = [e.get('disposition') for e in events2]
+    assert disp2 == ['escalated', 'escalated'], '宪法级触发被吞：%s' % disp2
+    second = events2[1]
+    assert second['notified'] is True
+    assert second['merged_from_rule'] == 1
+    assert '合并展示' in (second['disposition_reason'] or '')
+    assert len(n2.notifications) == 2
 
 
 def test_B6_tick_self_checks_trading_hours():
@@ -139,6 +162,63 @@ def test_B6_tick_self_checks_trading_hours():
     assert engine.tick() == [] and n.notifications == []
     engine.now_fn = lambda: datetime(2026, 7, 21, 10, 30)     # 周二盘中
     assert engine.tick(), '交易时段内应正常判定'
+
+
+# ── B7. 全局环境闸（2026-10-20）：环境不达标 → 个股信号只归档不动作 ──
+class _ArchivingNotifier(FakeNotifier):
+    """在 FakeNotifier 上加「归档口」：suppressed 归档走 trigger_repo.record。"""
+
+    def __init__(self):
+        super().__init__()
+        self._seq = 0
+        self.trigger_repo = self
+
+    def record(self, **kwargs):
+        self._seq += 1
+        return SimpleNamespace(id=self._seq, **kwargs)
+
+
+class _EnvStateProvider:
+    def __init__(self, state):
+        self.state = state
+
+    def get_state(self):
+        return self.state
+
+
+class _EnvMarketSvc:
+    def __init__(self, state):
+        self.state_provider = _EnvStateProvider(state)
+
+
+def test_B7_environment_gate_archives_instead_of_notifying():
+    """tick 前置环境门：指数暴跌+板块无主线+资金偏冷 → 个股信号只归档。
+
+    证伪点：通知出口为 0、日配额不被吃掉、归档行 suppressed=true 且带拦截原因。
+    """
+    from qs_watch.domain.watch.models import MarketState
+
+    state = MarketState(
+        indices={'000300.SH': {'change_pct': -1.80}},
+        sectors={'银行': 0.30, '农林牧渔': -1.20},
+        sentiment_score=18.0, advance_decline_ratio=0.30, degraded=[])
+    n = _ArchivingNotifier()
+    engine = make_engine([make_rule()], PRICE_UP(), n,
+                         market_watch_service=_EnvMarketSvc(state))
+    engine.now_fn = lambda: NOW
+
+    events = engine.tick()
+
+    assert n.notifications == [], '环境不达标仍发了通知'
+    assert n._seq == 1, '个股信号应归档恰好一条'
+    assert engine.state.daily_emit_counts == {}, '环境拦截占用了日通知配额'
+    assert len(events) == 1
+    ev = events[0]
+    assert ev['notified'] is False and ev['suppressed'] is True
+    assert '环境闸拦截' in ev['disposition_reason']
+    # 同一条件持续成立：闩锁挡住，不重复归档
+    engine.tick()
+    assert n._seq == 1
 
 
 # ── C. 路由与授权策略 ───────────────────────────────────────────

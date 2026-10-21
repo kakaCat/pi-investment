@@ -11,7 +11,7 @@
 """
 import pytest
 
-from infrastructure.jobs.financial_statement_update_job import (
+from qs_ops.infrastructure.jobs.financial_statement_update_job import (
     _dedup_universe,
     _map_income_rows,
     _normalize_symbol,

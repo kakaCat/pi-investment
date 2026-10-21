@@ -20,9 +20,9 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from adapters.outbound.repositories.watch_todo_repository import WatchTodoRepository
-from application.services.watch_engine import todo_service as todo_service_module
-from application.services.watch_engine.todo_service import TodoService
-from domain.watch.ports import (
+from qs_watch.application.services.watch_engine import todo_service as todo_service_module
+from qs_watch.application.services.watch_engine.todo_service import TodoService
+from qs_watch.domain.watch.ports import (
     IWatchTodoRepository,
     WatchTodoAlreadyClosed,
     WatchTodoInvalidAutonomy,
@@ -32,7 +32,7 @@ from domain.watch.ports import (
     WatchTodoNotFound,
     WatchTodoOutOfScope,
 )
-from domain.watch.services.owner_router import OwnerRoute
+from qs_watch.domain.watch.services.owner_router import OwnerRoute
 
 NOW = datetime(2026, 9, 18, 10, 0, tzinfo=timezone.utc)
 
@@ -115,13 +115,16 @@ class FakeTodoRepo:
                 if t.terminal is None and t.due_at is not None and t.due_at < cutoff]
         return rows[:limit]
 
-    def promote(self, todo_id, to_state, *, escalate_count=None, now=None):
+    def promote(self, todo_id, to_state, *, escalate_count=None, now=None,
+                extend_due_minutes=30):
         todo = self.rows.get(todo_id)
         if todo is None or todo.terminal:
             return None
         todo.flow_state = to_state
         todo.escalate_count = (todo.escalate_count + 1 if escalate_count is None
                                else escalate_count)
+        if extend_due_minutes and todo.due_at is not None:
+            todo.due_at = todo.due_at + timedelta(minutes=extend_due_minutes)
         return todo
 
     def list_pending(self, level=None, account=None, limit=100, *, flow_state=None,
@@ -140,6 +143,15 @@ class FakeTodoRepo:
                 continue
             rows.append(t)
         return rows[:limit]
+
+    def list_open_by_rule(self, rule_id, action_kind=None, trigger_id_null=False):
+        rows = [t for t in self.rows.values()
+                if t.rule_id == rule_id and t.terminal is None]
+        if action_kind:
+            rows = [t for t in rows if t.action_kind == action_kind]
+        if trigger_id_null:
+            rows = [t for t in rows if t.trigger_id is None]
+        return rows
 
 
 def _seed(repo, **over):
@@ -164,9 +176,10 @@ def service(repo):
 # ── 端口 / 装配防漂移 ─────────────────────────────────────────
 
 def test_port_method_set_is_stable():
-    """端口方法集固定为 interfaces §2 的 7 个（增删/改名必须显式面对本测试）"""
+    """端口方法集固定为 interfaces §2 的 7 个 + 补全幂等 1 个（增删/改名必须显式面对本测试）"""
     assert IWatchTodoRepository.__abstractmethods__ == frozenset(
-        {'create', 'get', 'claim', 'close', 'list_overdue', 'promote', 'list_pending'})
+        {'create', 'get', 'claim', 'close', 'list_overdue', 'promote', 'list_pending',
+         'list_open_by_rule'})
 
 
 def _param_names(func):
@@ -254,6 +267,69 @@ def test_create_rejects_non_check_autonomy(service, repo, monkeypatch):
     with pytest.raises(WatchTodoInvalidAutonomy):
         service.create('A', level='P1', sla_seconds=1800, due_at=NOW, account='agent_brain')
     assert repo.create_calls == []
+
+
+# ── create：派单唤醒 owner agent（2026-10-16 补「待办 → agent」缺环）─────
+
+def test_create_without_trigger_dispatches_to_owner_agent():
+    """修规则工单（trigger_id 为空）建单即派给 owner agent——此前只落库、无人知晓"""
+    calls = []
+    repo = FakeTodoRepo()
+    svc = TodoService(repo, assigner=calls.append)
+
+    todo = svc.create('300253', level='P1', sla_seconds=1800,
+                      due_at=NOW + timedelta(minutes=30), account='agent_brain',
+                      rule_id=255, action_kind='rule_change')
+
+    assert [t.id for t in calls] == [todo.id]
+    assert calls[0].owner_ref == 'agent-dh'
+
+
+def test_create_with_trigger_does_not_dispatch_again():
+    """触发路径已由引擎的 L2 目标路由唤醒过 owner，再派就是双唤醒"""
+    calls = []
+    svc = TodoService(FakeTodoRepo(), assigner=calls.append)
+
+    svc.create('300253', level='P1', sla_seconds=1800,
+               due_at=NOW + timedelta(minutes=30), account='agent_brain',
+               trigger_id=987, action_kind='rule_change')
+
+    assert calls == []
+
+
+def test_create_user_owned_todo_is_not_dispatched_to_agent():
+    """用户账户的待办归属用户（agent 只出建议），不得改投 agent"""
+    calls = []
+    repo = FakeTodoRepo()
+    svc = TodoService(repo, assigner=calls.append)
+
+    todo = svc.create('002007', level='P1', sla_seconds=1800,
+                      due_at=NOW + timedelta(minutes=30), account='user_main_simulation',
+                      action_kind='rule_change')
+
+    assert todo.owner_kind == 'user'
+    assert calls == []
+
+
+def test_create_survives_assigner_failure():
+    """派单失败绝不打挂建单（工单已落库，超时升级仍兜底）"""
+    def _boom(todo):
+        raise RuntimeError('wake down')
+
+    repo = FakeTodoRepo()
+    svc = TodoService(repo, assigner=_boom)
+    todo = svc.create('300253', level='P1', sla_seconds=1800,
+                      due_at=NOW + timedelta(minutes=30), account='agent_brain')
+
+    assert repo.rows[todo.id].symbol == '300253'    # 建单照常成功
+
+
+def test_create_without_assigner_is_unchanged(repo):
+    """未注入 assigner（缺省）= 行为与改前完全一致（不派单、不唤醒）"""
+    svc = TodoService(repo)
+    todo = svc.create('300253', level='P1', sla_seconds=1800,
+                      due_at=NOW + timedelta(minutes=30), account='agent_brain')
+    assert repo.rows[todo.id].id == todo.id
 
 
 # ── close：四条终态校验 ───────────────────────────────────────

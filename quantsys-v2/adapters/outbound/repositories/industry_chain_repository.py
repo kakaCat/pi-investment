@@ -15,7 +15,7 @@ from typing import Dict, List, Optional
 
 from sqlalchemy.exc import SQLAlchemyError
 
-from domain.industry_chain.ports.IIndustryChainRepository import IIndustryChainRepository
+from qs_intel.domain.industry_chain.ports.IIndustryChainRepository import IIndustryChainRepository
 from infrastructure.persistence.orm.models.industry_chain import (
     IndustryChain as IndustryChainORM,
     IndustryChainMember as IndustryChainMemberORM,
@@ -33,7 +33,7 @@ class IndustryChainORMRepository(IIndustryChainRepository):
 
     @property
     def session(self):
-        from infrastructure.persistence.orm.config import get_session
+        from qs_kernel.infrastructure.persistence.orm.config import get_session
         return get_session()
 
     def _safe_rollback(self):

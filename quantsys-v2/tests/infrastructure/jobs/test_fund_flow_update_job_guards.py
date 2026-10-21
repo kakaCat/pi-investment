@@ -13,8 +13,8 @@
 """
 import pytest
 
-from infrastructure.jobs import fund_flow_update_job as job
-from infrastructure.jobs.fund_flow_update_job import _snapshot_matches_reference
+from qs_ops.infrastructure.jobs import fund_flow_update_job as job
+from qs_ops.infrastructure.jobs.fund_flow_update_job import _snapshot_matches_reference
 
 
 def _recs(pairs):
@@ -77,7 +77,7 @@ class _StubSource:
 
 
 def _patch(monkeypatch, records, sink):
-    import adapters.outbound.datasources.fund_flow_source as ffs
+    import qs_market_data.adapters.outbound.datasources.fund_flow_source as ffs
     import adapters.outbound.repositories as repos
 
     monkeypatch.setattr(ffs, 'EastMoneyFundFlowSource', lambda: _StubSource('eastmoney', records))

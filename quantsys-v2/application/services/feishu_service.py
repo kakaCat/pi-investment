@@ -6,7 +6,7 @@ import json
 import structlog
 from typing import Dict, Any, List, Optional
 from datetime import datetime
-from infrastructure.config.settings import get_settings
+from qs_kernel.infrastructure.config.settings import get_settings
 
 logger = structlog.get_logger(__name__)
 
@@ -60,7 +60,7 @@ class FeishuNotificationService:
         try:
             # 统一入口：application/notification/legacy_adapters.py 的桥接层
             # （内部转 NotificationFacade，2026-09-11 w-23c70356 起真正被启用）
-            from application.notification.legacy_adapters import get_legacy_feishu_service
+            from qs_notification.application.legacy_adapters import get_legacy_feishu_service
 
             return bool(get_legacy_feishu_service().send_text(text, mention_all=mention_all))
         except Exception as e:  # noqa: BLE001
@@ -93,7 +93,7 @@ class FeishuNotificationService:
             差异说明：extra_elements 门面不支持，会忽略并记 debug 日志。
         """
         try:
-            from application.notification.legacy_adapters import get_legacy_feishu_service
+            from qs_notification.application.legacy_adapters import get_legacy_feishu_service
 
             return bool(get_legacy_feishu_service().send_card(
                 title=title,

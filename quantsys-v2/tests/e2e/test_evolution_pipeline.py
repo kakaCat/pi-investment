@@ -32,10 +32,14 @@ def cleanup(db_conn):
     cleanup_test_decisions(db_conn, TEST_PREFIX)
     cleanup_test_fitness(db_conn)
     cleanup_test_klines(db_conn, TEST_SYMBOL)
+    # 连接非 autocommit：不显式提交，conn.close() 会回滚，清理形同虚设，
+    # ORM 侧独立提交的残留行无法被清掉（quant_test 曾积攒 64 条适应度残留）
+    db_conn.commit()
     yield
     cleanup_test_decisions(db_conn, TEST_PREFIX)
     cleanup_test_fitness(db_conn)
     cleanup_test_klines(db_conn, TEST_SYMBOL)
+    db_conn.commit()
 
 
 def _build_decision_dict(decision_id, symbol, action, price, created_at):
@@ -52,7 +56,7 @@ def _build_decision_dict(decision_id, symbol, action, price, created_at):
 class TestDecisionScoringPipeline:
 
     def _make_service(self, klines_data, decisions):
-        from application.services.evolution.decision_score_service import DecisionScoreService
+        from qs_agenthub.application.services.evolution.decision_score_service import DecisionScoreService
         service = DecisionScoreService(mature_window=20)
         service.kline_repo = MockKlineRepository(klines_data)
         service.decision_repo = MockDecisionRepository(decisions)
@@ -129,7 +133,7 @@ class TestFitnessComputationPipeline:
 
     def test_compute_fitness_for_active_accounts(self, db_conn):
         from unittest.mock import MagicMock, patch
-        from application.services.evolution.evolution_fitness_service import EvolutionFitnessService
+        from qs_agenthub.application.services.evolution.evolution_fitness_service import EvolutionFitnessService
 
         mock_repo = MagicMock()
         mock_account = MagicMock()
@@ -160,17 +164,59 @@ class TestFitnessComputationPipeline:
             assert result['computed'] >= 1
 
     def test_fitness_score_recorded_in_db(self, db_conn):
+        # 自给自足：断言只看本用例经真实仓储落库的行。
+        # 全表"最新行"会被其他用例（或孤儿账户的 data_gap 行）占住，
+        # 而 compute_capture 对无涨跌双样本（各<5 天）或无交易的账户
+        # 按契约返回 None——读全局最新行在结构上必挂。
+        from unittest.mock import MagicMock, patch
+        from qs_agenthub.application.services.evolution.evolution_fitness_service import (
+            EvolutionFitnessService,
+        )
+        from adapters.outbound.repositories.evolution_fitness_repository import (
+            EvolutionFitnessORMRepository,
+        )
+
+        account_name = 'test_agent_virtual'
+        mock_repo = MagicMock()
+        mock_account = MagicMock()
+        mock_account.account_name = account_name
+        mock_repo.list_accounts.return_value = [mock_account]
+
+        today = date.today()
+        snapshots = []
+        for i in range(1, 21):
+            snap = MagicMock()
+            snap.snapshot_date = today - timedelta(days=i)
+            snap.daily_return = 0.03
+            snapshots.append(snap)
+        mock_repo.get_equity_snapshots.return_value = snapshots
+
+        bench_days = {
+            (today - timedelta(days=i)).isoformat(): (0.02 if i % 2 == 0 else -0.02)
+            for i in range(1, 21)
+        }
+
+        with patch.object(EvolutionFitnessService, '__init__', lambda self, **kw: None):
+            service = EvolutionFitnessService()
+            service.sim_repo = mock_repo
+            service._bench_provider = lambda start, end: bench_days
+            service._trade_counter = lambda name, start, end: 1
+            service.fitness_repo = EvolutionFitnessORMRepository()
+            result = service.compute_all_accounts(window_end=today, window_days=20)
+        assert result['computed'] == 1
+
         cursor = db_conn.cursor()
         try:
             cursor.execute("""
-                SELECT account_name, up_capture, down_capture
+                SELECT up_capture, down_capture, status
                 FROM quant.evolution_fitness
-                ORDER BY computed_at DESC LIMIT 1
-            """)
+                WHERE account_name = %s AND window_end = %s AND window_days = 20
+            """, (account_name, today))
             row = cursor.fetchone()
-            if row:
-                assert row[1] is not None
-                assert row[2] is not None
+            assert row is not None
+            assert row[0] is not None
+            assert row[1] is not None
+            assert row[2] == 'ok'
         finally:
             cursor.close()
 
@@ -178,7 +224,7 @@ class TestFitnessComputationPipeline:
 class TestEvolutionErrorHandling:
 
     def test_graceful_failure_on_invalid_data(self, db_conn):
-        from application.services.evolution.decision_score_service import DecisionScoreService
+        from qs_agenthub.application.services.evolution.decision_score_service import DecisionScoreService
         service = DecisionScoreService(mature_window=20)
         service.decision_repo = MockDecisionRepository([])
         service.kline_repo = MockKlineRepository({})
@@ -219,7 +265,7 @@ class TestEvolutionIntegration:
                 _build_decision_dict(full_id, TEST_SYMBOL, "trade_buy",
                                      1650.00 + i * 10, today - timedelta(days=25 + i)))
 
-        from application.services.evolution.decision_score_service import DecisionScoreService
+        from qs_agenthub.application.services.evolution.decision_score_service import DecisionScoreService
         service = DecisionScoreService(mature_window=20)
         service.decision_repo = MockDecisionRepository(decision_dicts)
         service.bench_klines_provider = lambda symbol, start_date, end_date: []

@@ -1,8 +1,8 @@
 """SessionService 测试：事件摄入幂等、计数器、诊断聚合"""
 import pytest
 from datetime import datetime, timezone
-from infrastructure.persistence.database.engine import db_cursor
-from application.services.session_service import SessionService
+from qs_kernel.infrastructure.persistence.database.engine import db_cursor
+from qs_agenthub.application.services.session_service import SessionService
 
 DDL = """
 CREATE TABLE IF NOT EXISTS quant.agent_sessions (
@@ -28,6 +28,8 @@ def service():
         cursor.execute("DELETE FROM quant.agent_session_events")
         cursor.execute("DELETE FROM quant.agent_sessions")
     yield SessionService()
+    from qs_kernel.infrastructure.persistence.orm.config import close_session
+    close_session()
 
 
 def _ev(seq, etype, payload, key="agent:main:wake:default"):

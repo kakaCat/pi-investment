@@ -3,7 +3,7 @@ from datetime import date, datetime
 
 import pytest
 
-from application.services.heatmap_service import HeatmapService
+from qs_intel.application.services.heatmap_service import HeatmapService
 from adapters.outbound.repositories.heatmap_repository import HeatmapRepository
 from adapters.outbound.repositories.pool_change_log_repository import PoolChangeLog
 from adapters.outbound.repositories.stock_pool_repository import StockPool
@@ -35,7 +35,7 @@ def seeded():
     klines.append(DailyKline(symbol='TST102', trade_date=D0, open=1, high=1, low=1, close=8.0, volume=1, amount=1))
     s.add_all(klines)
     s.add(Signal(symbol='TST100', name='买信号股', signal_date=date(2009, 1, 30),
-                 action='buy', strategy_id='v13', price=1.0, confidence=0.8))
+                 action='BUY', strategy_id='v13', price=1.0, confidence=0.8))
     pool = StockPool(name='回放池', pool_type='dynamic', symbols='{}', members=['TST100'])
     s.add(pool)
     s.flush()
@@ -88,7 +88,7 @@ class TestGetHeatmap:
         assert 'TST102' not in by_symbol
         assert d['excluded_count'] >= 1
         # 信号透传
-        assert by_symbol['TST100']['signals'][0]['type'] == 'buy'
+        assert by_symbol['TST100']['signals'][0]['type'] == 'BUY'
         assert by_symbol['TST100']['signals'][0]['strategy'] == 'v13'
         # D 前有池日志 → 未退化
         assert d['scope_degraded'] is False

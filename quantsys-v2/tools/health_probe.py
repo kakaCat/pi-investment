@@ -89,7 +89,7 @@ def probe_freshness(max_lag_days: int) -> Dict[str, Any]:
     """数据新鲜度探针：K 线最新交易日 vs 应有交易日。"""
     from sqlalchemy import text
 
-    from infrastructure.persistence.database.engine import get_engine
+    from qs_kernel.infrastructure.persistence.database.engine import get_engine
 
     expected = expected_trading_day()
     with get_engine().connect() as conn:
@@ -156,15 +156,18 @@ def send_alert(payload: Dict[str, Any]) -> Dict[str, Any]:
       生产单例由 `NotificationFactory.get_instance()` 装配（与其它调用方同一入口）；
     - `send_alert()` 的签名是 `(alert_type, symbol, message, data, mention)`，
       **不是** `(title, message, level, source)`。本探针要发的是不带标的的系统告警，
-      故用 `send_text(text, priority, mention_all)` —— 它内部即构造 `SYSTEM_ALERT`。
+      故用系统告警入口 —— 它内部即构造 `SYSTEM_ALERT`。
+
+    2026-10-14：改用 `send_ops_text` —— 服务存活/数据过期是**系统类**消息，落独立
+    运维群（FEISHU_WEBHOOK_OPS），不再与股票类消息混群；且**不再经 Agent OS**
+    （探活必须独立于被监控链路：8080 就是被监控对象之一）。
     """
-    from application.notification.notification_factory import NotificationFactory
+    from qs_notification.application.notification_factory import NotificationFactory
 
     facade = NotificationFactory.get_instance()
-    ok = facade.send_text(
+    ok = facade.send_ops_text(
         text=f"{payload['title']}\n{payload['text']}",
         priority=payload["level"],
-        mention_all=False,
     )
     # 注意语义：ok=False 表示**没有一条渠道送达**（2026-10-01 实测正是如此：
     # 渠道选择只挑中 agent→Agent OS，而 8080 不可达 → 告警发不出去）。

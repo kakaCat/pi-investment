@@ -127,7 +127,7 @@ class TestStrategyServiceIntegration(unittest.TestCase):
 
     def test_strategy_code_service_empty_check(self):
         """测试策略代码服务的空检查"""
-        from application.services.strategy_code_service import _is_empty_df_or_list, _get_length
+        from qs_strategy.application.services.strategy_code_service import _is_empty_df_or_list, _get_length
 
         # 测试None
         self.assertTrue(_is_empty_df_or_list(None))

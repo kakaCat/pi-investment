@@ -69,7 +69,7 @@ def get_risk_repo():
     return get_service_factory().get_risk_repository()
 
 def get_execution_repo():
-    from adapters.outbound.repositories.signal_execution_repository import SignalExecutionORMRepository
+    from qs_sourcing.adapters.outbound.repositories.signal_execution_repository import SignalExecutionORMRepository
     return SignalExecutionORMRepository()
 
 def get_backtest_repo():
@@ -81,7 +81,7 @@ def get_simulation_repo():
     return SimulationORMRepository()
 
 def get_factor_adapter():
-    from adapters.outbound.datasources.providers.quantlib import get_factor_adapter as _get
+    from qs_market_data.adapters.outbound.datasources.providers.quantlib import get_factor_adapter as _get
     return _get()
 
 # ── P1-5 新增服务 getter 函数 ──

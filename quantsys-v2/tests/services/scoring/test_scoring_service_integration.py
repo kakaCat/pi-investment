@@ -1,7 +1,7 @@
 """OpportunityScoringService 动态评分集成测试"""
 import pytest
 from datetime import datetime, timedelta
-from application.services.opportunity_scoring_service import OpportunityScoringService
+from qs_intel.application.services.opportunity_scoring_service import OpportunityScoringService
 from adapters.outbound.repositories import KlineORMRepository, StockORMRepository, FinancialORMRepository
 from adapters.shared.services import get_factor_adapter
 

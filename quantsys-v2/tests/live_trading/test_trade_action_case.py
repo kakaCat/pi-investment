@@ -41,7 +41,7 @@ class TestNormalizeAction:
 def trades_table():
     from scripts.migrate_20260813_action_case_unify import run_migration
     run_migration()  # 幂等，确保 quant_test 已带 CHECK 约束
-    from infrastructure.persistence.database.engine import get_engine
+    from qs_kernel.infrastructure.persistence.database.engine import get_engine
     engine = get_engine()
     conn = engine.raw_connection()
     try:

@@ -17,9 +17,9 @@ import socket
 
 import pytest
 
-from adapters.outbound.datasources.manager import DataProviderManager
-from adapters.outbound.datasources.models import QuoteData
-from adapters.outbound.datasources.providers.quote import tencent as tencent_mod
+from qs_market_data.adapters.outbound.datasources.manager import DataProviderManager
+from qs_market_data.adapters.outbound.datasources.models import QuoteData
+from qs_market_data.adapters.outbound.datasources.providers.quote import tencent as tencent_mod
 
 
 def _quote(symbol, price, source='tencent'):
@@ -83,7 +83,7 @@ def test_腾讯批量全空时置last_error交给降级链(monkeypatch):
 
 
 def test_基类默认批量实现退化为逐只(monkeypatch):
-    from adapters.outbound.datasources.base import QuoteProvider
+    from qs_market_data.adapters.outbound.datasources.base import QuoteProvider
 
     class P(QuoteProvider):
         @property
@@ -181,7 +181,7 @@ def test_空入参不触网():
 # --------------------------- ③ 消费侧真的走批量 ---------------------------
 
 def test_投递到账户路径的是批量入口(monkeypatch):
-    import application.services.simulation_service as sim_mod
+    import qs_trading.application.services.simulation_service as sim_mod
 
     calls = []
 
@@ -197,7 +197,7 @@ def test_投递到账户路径的是批量入口(monkeypatch):
             raise AssertionError('账户路径不得再逐只取价')
 
     monkeypatch.setattr(sim_mod, 'RealtimeQuoteService', _Svc) if hasattr(sim_mod, 'RealtimeQuoteService') else None
-    import application.services.realtime_quote_service as rq_mod
+    import qs_market_data.application.services.realtime_quote_service as rq_mod
     monkeypatch.setattr(rq_mod, 'RealtimeQuoteService', _Svc)
 
     svc = sim_mod.SimulationService.__new__(sim_mod.SimulationService)
@@ -219,7 +219,7 @@ def test_投递到账户路径的是批量入口(monkeypatch):
 
 
 def test_批量接口使用manager批量入口():
-    import application.services.stock_data_service as sd_mod
+    import qs_market_data.application.services.stock_data_service as sd_mod
 
     class _PM:
         def __init__(self):
@@ -256,7 +256,7 @@ def test_批量接口使用manager批量入口():
 
 def test_进程级收敛到IPv4(monkeypatch):
     import urllib3.util.connection as uc
-    from adapters.outbound.datasources import net_prefs
+    from qs_market_data.adapters.outbound.datasources import net_prefs
 
     orig = uc.allowed_gai_family
     try:

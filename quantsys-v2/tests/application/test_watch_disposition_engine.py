@@ -11,8 +11,8 @@ tick 里到底有没有把去重结果传到通知器、通知器有没有真的
 from datetime import datetime
 from types import SimpleNamespace
 
-from application.services.watch_engine.engine import WatchEngine
-from application.services.watch_engine.notifier import WatchNotifier
+from qs_watch.application.services.watch_engine.engine import WatchEngine
+from qs_watch.application.services.watch_engine.notifier import WatchNotifier
 
 
 def _rule(rule_id, symbol, conds, level='L1', action='observe', policy=None):
@@ -32,13 +32,15 @@ class FakeRuleRepo:
 
 
 class FakeQuoteService:
-    def __init__(self, price):
+    def __init__(self, price, prev_close=None):
         self.price = price
+        self.prev_close = prev_close
 
     def get_realtime_quote(self, symbol):
         return SimpleNamespace(symbol=symbol, price=self.price,
                                change_pct=-1.5, volume=1_000_000,
-                               prev_close=self.price * 1.02)
+                               prev_close=(self.prev_close if self.prev_close is not None
+                               else self.price * 1.02))
 
 
 class FakeNotifier:
@@ -48,18 +50,19 @@ class FakeNotifier:
 
     def notify(self, rule, condition, quote, result, escalation_reason=None,
                disposition=None, disposition_reason=None, dup_of=None,
-               action_amount_yuan=None):
+               action_amount_yuan=None, level=None, merged_from_rule=None):
         self._next_id += 1
         self.calls.append({'rule_id': rule.id, 'disposition': disposition,
-                           'dup_of': dup_of, 'reason': disposition_reason})
+                           'dup_of': dup_of, 'reason': disposition_reason,
+                           'merged_from_rule': merged_from_rule})
         return SimpleNamespace(id=self._next_id, notified=(disposition != 'deduped'))
 
 
-def _engine(rules, price, now=None):
+def _engine(rules, price, now=None, prev_close=None):
     now = now or datetime(2026, 9, 11, 10, 0, 0)
     notifier = FakeNotifier()
-    eng = WatchEngine(FakeRuleRepo(rules), FakeQuoteService(price), notifier,
-                      now_fn=lambda: now)
+    eng = WatchEngine(FakeRuleRepo(rules), FakeQuoteService(price, prev_close),
+                      notifier, now_fn=lambda: now)
     return eng, notifier
 
 
@@ -67,7 +70,8 @@ def test_same_rule_same_direction_repeats_are_deduped():
     """一次跌穿：同规则两个同向阈值 → 1 条真实通知 + 1 条去重合并"""
     conds = [{'type': 'price_break', 'params': {'price': 9.6, 'direction': 'below'}},
              {'type': 'price_break', 'params': {'price': 9.4, 'direction': 'below'}}]
-    eng, notifier = _engine([_rule(129, '601600.SH', conds)], price=9.38)
+    eng, notifier = _engine([_rule(129, '601600.SH', conds)], price=9.38,
+                            prev_close=9.8)   # 昨收 > 双阈值：两个下破均为今日新鲜穿越
     eng.tick()
     dispositions = sorted(c['disposition'] for c in notifier.calls)
     assert dispositions == ['auto_observed', 'deduped'], notifier.calls
@@ -90,12 +94,20 @@ def test_cross_rule_same_symbol_same_direction_is_deduped():
 
 
 def test_opposite_direction_is_not_deduped():
-    """上破与下破是两件事，不得互相吞掉"""
+    """上破与下破是两件事，不得互相吞掉。
+
+    2026-10-19 穿越 vs 驻留语义：同一 prev_close 下，「下破高阈值新鲜穿越」与
+    「上破低阈值」不可能同时为新鲜（昨收不可能既高于高阈值又低于低阈值）。
+    本用例：昨收 9.6 → 下破 9.4 为新鲜（通知）；上破 9.35 为陈旧驻留（走治理，
+    不通知、也不被 dedup 吞——两条路各走各的）"""
     conds = [{'type': 'price_break', 'params': {'price': 9.4, 'direction': 'below'}},
              {'type': 'price_break', 'params': {'price': 9.35, 'direction': 'above'}}]
-    eng, notifier = _engine([_rule(129, '601600', conds)], price=9.38)
+    eng, notifier = _engine([_rule(129, '601600', conds)], price=9.38,
+                            prev_close=9.6)
     eng.tick()
-    assert [c['disposition'] for c in notifier.calls] == ['auto_observed', 'auto_observed']
+    assert [c['disposition'] for c in notifier.calls] == ['auto_observed']
+    # 陈旧侧转治理：阈值失真治理项（FakeNotifier 无 record_governance，引擎自吞异常）
+    assert len(notifier.calls) == 1
 
 
 def test_dedup_window_expires_between_ticks():
@@ -118,7 +130,8 @@ def test_dedup_window_expires_between_ticks():
 
 def test_l2_rule_escalates_to_agent_queue():
     cond = [{'type': 'price_break', 'params': {'price': 70.0, 'direction': 'below'}}]
-    eng, notifier = _engine([_rule(900, '601138', cond, level='L2', action='buy')], price=62.5)
+    eng, notifier = _engine([_rule(900, '601138', cond, level='L2', action='buy')],
+                            price=62.5, prev_close=70.5)   # 昨收在阈值上方：新鲜穿越
     eng.tick()
     assert notifier.calls[0]['disposition'] == 'escalated'
 
@@ -131,6 +144,16 @@ class FakeTriggerRepo:
     def record(self, **kwargs):
         self.recorded.append(kwargs)
         return SimpleNamespace(id=len(self.recorded), **kwargs)
+
+    def mark_notified(self, trigger_id, notified):
+        self.recorded[trigger_id - 1]['notified'] = bool(notified)
+
+    def latest_unsent(self, rule_id):
+        for row in reversed(self.recorded):
+            if row.get('rule_id') == rule_id and not row.get('notified'):
+                return SimpleNamespace(id=self.recorded.index(row) + 1,
+                                       condition=row.get('condition'), **row)
+        return None
 
 
 class FakeFacade:

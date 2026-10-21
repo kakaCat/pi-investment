@@ -3,7 +3,7 @@ Tests for OpportunityScoringService
 """
 import pytest
 from datetime import datetime, timedelta
-from application.services.opportunity_scoring_service import OpportunityScoringService
+from qs_intel.application.services.opportunity_scoring_service import OpportunityScoringService
 from adapters.outbound.repositories import KlineORMRepository
 from adapters.outbound.repositories import StockORMRepository
 from adapters.outbound.repositories.financial_repository import FinancialORMRepository

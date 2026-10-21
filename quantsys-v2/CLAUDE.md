@@ -38,6 +38,27 @@ QuantSys V2 is built with hexagonal architecture, dual anti-corruption layer, an
 
 ## Environment Setup
 
+### 0. 二方包 editable 安装（2026-10-18 起必需）
+
+量化计算库与通知三件套已抽离为独立二方包（方案卡：`docs/plans/package-boundaries-import-linter.md`）。
+主依赖安装之外**必须再装它们**（必须指向本工作区内路径，勿用外部 worktree 路径），否则新路径 import 失败、旧路径 shim 报 ImportError：
+
+```bash
+pip install -e ./packages/qs_quantlib       # 量化计算库（原 domain/quantlib）
+pip install -e ./packages/qs_notification   # 通知三件套（原 application+infrastructure+domain/notification）
+pip install -e ./packages/qs_market_data    # 数据供给（原 adapters/outbound/datasources + 15 个数据面服务）
+pip install -e ./packages/qs_sourcing       # 选股→信号流水线（原 16 个池/信号/筛选服务 + 9 个池/信号系仓储）
+pip install -e ./packages/qs_intel          # 市场情报博弈（原 19 个情报类服务 + competition/industry_chain 两域）
+pip install -e ./packages/qs_strategy       # 策略生命周期（原 22 个策略服务 + strategy_engine 代码引擎 + domain/strategies 策略域）
+pip install -e ./packages/qs_trading        # 交易执行（原 14 个交易服务 + domain 六域 accounts/trading/portfolio/brokers/legacy/risk）
+pip install -e ./packages/qs_watch          # 实时盯盘（原 watch_engine 引擎子包 25 文件 + domain/watch 盯盘域 15 文件）
+pip install -e ./packages/qs_ops            # 运维装配（原 scheduler_tasks 任务域 12 + 调度器 7 + jobs 作业 14 + 交易日守卫/数据质量）
+pip install -e ./packages/qs_agenthub       # Agent Hub（原 agent-os 对接 4 件 + LLM/知识/决策 5 件 + evolution 子包 7）
+```
+
+> ⚠️ 新代码 import 一律走 `from qs_quantlib import ...` / `from qs_notification.application import ...` / `from qs_market_data.adapters.outbound.datasources import get_data_provider_manager`（包内三层沿用原领域布局）；`domain.quantlib`、`*/notification`、`adapters/outbound/datasources`、`application/services/<数据面 15 模块>`、`application/services/<pool/signal 系 16 模块>`、`repositories/<stock_pool/signal 系 9 模块>`、`application/services/<情报系 19 模块>`、`domain/{competition,industry_chain}`、`application/services/<策略系 22 模块>+strategy_engine`、`domain/strategies`、`application/services/<交易系 14 模块>`、`domain/{accounts,trading,portfolio,brokers,legacy,risk}`、`application/services/<watch 系 2 路径>`、`domain/watch`、`application/services/<ops 系 14 模块>`、`infrastructure/{scheduler,jobs}`、`application/services/<hub 系 10 路径>` 等旧路径均为 `__path__`/转发兼容 shim，30 天观察期后删除。
+> 当前已迁移：`qs_quantlib`（75 文件）、`qs_notification`（23 文件）、`qs_market_data`（103 文件：81 datasources + 22 服务/子包）、`qs_sourcing`（25 文件：16 服务 + 9 仓储）、`qs_intel`（35 文件：19 服务 + competition/industry_chain 两域 16 文件）、`qs_strategy`（39 文件：22 服务 + strategy_engine 代码引擎 5 文件 + domain/strategies 策略域 12 文件）、`qs_trading`（79 文件：14 服务 + domain 六域 65 文件）、`qs_watch`（41 文件：watch_engine 引擎子包 25 + opportunity_to_watch_rule_service 1 + domain/watch 盯盘域 15）、`qs_ops`（36 文件：scheduler_tasks 任务域 12 + infrastructure/scheduler 7 + infrastructure/jobs 14 + trading_day_guard/data_quality_service 等 3）、`qs_agenthub`（17 文件：agent-os 对接 4 + LLM/知识/决策 5 + evolution 子包 8）。业务项目抽离至此完结（S1-S10，473 文件）；S11 kernel 独立成型待各项目稳定后另行开卡。
+
 ### 1. Install Dependencies
 
 **权威声明是 `pyproject.toml`**（仓库根目录**没有** `requirements.txt`——
@@ -259,6 +280,28 @@ LOG_FILE=logs/api.log LOG_MAX_BYTES=52428800 LOG_BACKUPS=5 python adapters/inbou
 # 需要旧行为请从 git 历史 commit 54851df0^ 取回，不要在现网查找 Flask 入口。
 ```
 
+### 飞书通知分群：系统消息 ≠ 股票消息（2026-10-14 · 用户裁定）
+
+**规则**：消息主体是"系统/数据链路/任务/引擎的健康与执行状态" → **运维群**；
+消息主体是"个股/市场/交易/盯盘行情" → **原群**。
+
+| | 落点 | 配置 | 代表消息 |
+|---|---|---|---|
+| 系统类 | 运维群 | `FEISHU_WEBHOOK_OPS`（v2）<br>`WATCHDOG_FEISHU_WEBHOOK`（看门狗） | 调度看门狗告警/已恢复 · 每日任务开始·完成·失败 · 失败残留 · 数据质量 · 财报时效性 · 模型新鲜度 · 交易日守卫降级 · 外部探活 |
+| 股票类 | 原群（不变） | `FEISHU_WEBHOOK_URL` | 盘前例程 · 实盘账户·保护线 · 事件日历 · 盯盘触发/回执（另走盯盘群）· 交易信号 |
+
+- v2 侧入口：`NotificationFacade.send_ops_card / send_ops_text` —— 只选渠道
+  `feishu_ops`，**不走 Agent OS**（OS 的 `alerts` 渠道落在原群，且运维消息本就该独立于
+  被监控链路）。渠道缺失时返回 `False`，**绝不静默改投原群**；未配
+  `FEISHU_WEBHOOK_OPS` 时工厂把 `feishu_ops` 兜到原群并打 warning（显式降级，可被发现）。
+- `FeishuChannel(..., name=...)` 必须给运维实例起不同名字（`feishu_ops`）——
+  `NotificationService` 用 `{get_name(): channel}` 建索引，同名会互相顶掉。
+- 看门狗 `scripts/scheduler_watchdog.py` 直发 webhook（不依赖 v2/Agent OS 通知链路），
+  取值优先级 `WATCHDOG_FEISHU_WEBHOOK` > `FEISHU_WEBHOOK_OPS` > 内置默认值，
+  **故意不读** `FEISHU_WEBHOOK_URL`（那个变量指向原群，读了就等于混群）。
+- 回归测试：`tests/notification/test_ops_channel_split.py`（v2）、
+  `scripts/tests/test_scheduler_watchdog_ops_group.py`（看门狗落点优先级）。
+
 ## Architecture
 
 ### Hexagonal Architecture (Ports & Adapters)
@@ -453,8 +496,8 @@ Technical infrastructure and cross-cutting concerns:
 | 层 | 文件 | 职责 | 现状 |
 |---|---|---|---|
 | **入口** | `service_factory.py` | 调用方唯一入口（72 文件在用） | ✅ 权威 |
-| 内部层 | `enhanced_service_factory.py` | 端口→实现绑定与生命周期（`resolve`/`register`） | 仍有 34 个生产文件直接引用 → **待分批迁到入口** |
-| 内部层 | `service_registry.py` | `create_*` 工厂函数 + `register_all_services()` 注册 | 仍有 9 个生产文件直接引用 → **同上** |
+| 内部层 | `enhanced_service_factory.py` | 端口→实现绑定与生命周期（`resolve`/`register`） | 2026-10-21 复测（S11-B-2 批次 1）：生产直引面仅剩工具脚本，已收编入口（scripts/verify_p2_3_integration.py 自检器保留直接探查豁免） |
+| 内部层 | `service_registry.py` | `create_*` 工厂函数 + `register_all_services()` 注册 | 同上（S11-B-2 批次 1 收编：引导统一走 ServiceFactory.initialize()） |
 | ~~第四套~~ | ~~`infrastructure/di/`~~ | 死件（生产零引用，只有 2 个测试用） | **已删除**（连幽灵依赖 `dependency-injector` 一并移除） |
 
 > **端口归属裁决（2026-10-02 · 同一卡）**：除 `domain/ports/`（集中式端口库）外，

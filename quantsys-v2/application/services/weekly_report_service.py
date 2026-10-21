@@ -29,7 +29,7 @@ class WeeklyReportService:
         """返回 (cursor, pooled_connection|None)；tuple 行语义不变（调用方用 row[0]）。"""
         if self._injected is not None:
             return self._injected.cursor(), None
-        from infrastructure.persistence.database.engine import get_engine
+        from qs_kernel.infrastructure.persistence.database.engine import get_engine
         pooled = get_engine().connect()
         return pooled.connection.cursor(), pooled
     
@@ -140,7 +140,7 @@ class WeeklyReportService:
         注入的 db_connection 依旧优先（与 _acquire_cursor 的注入语义一致）。
         返回 dict 的键与 0/None 归一化口径完全不变。
         """
-        from adapters.outbound.repositories.signal_tracking_repository import SignalTrackingRepository
+        from qs_sourcing.adapters.outbound.repositories.signal_tracking_repository import SignalTrackingRepository
         return SignalTrackingRepository(self._injected).get_signal_stats(start_date, end_date)
 
     def _get_regime_changes(self, start_date: str, end_date: str) -> List[Dict[str, Any]]:

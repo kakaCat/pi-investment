@@ -22,14 +22,14 @@ import os
 
 # Add project root to path
 
-from domain.risk.aggregation import RiskAggregationCalculator
-from domain.risk.counterparty_risk import CounterpartyRiskCalculator
-from domain.risk.regulatory import RegulatoryRiskCalculator
-from domain.risk.backtesting import BacktestingCalculator
-from domain.risk.margining import MarginCalculator
-from domain.risk.reporting import RiskReportCalculator
+from qs_trading.domain.risk.aggregation import RiskAggregationCalculator
+from qs_trading.domain.risk.counterparty_risk import CounterpartyRiskCalculator
+from qs_trading.domain.risk.regulatory import RegulatoryRiskCalculator
+from qs_trading.domain.risk.backtesting import BacktestingCalculator
+from qs_trading.domain.risk.margining import MarginCalculator
+from qs_trading.domain.risk.reporting import RiskReportCalculator
 
-from domain.quantlib.exceptions import (
+from qs_quantlib.exceptions import (
     DataValidationError,
     InsufficientDataError,
     ConfigurationError,

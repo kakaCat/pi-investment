@@ -54,7 +54,7 @@ def _source(rel_path: str) -> str:
 
 
 @pytest.mark.parametrize('rel_path', [
-    'adapters/outbound/datasources/manager.py',
+    'packages/qs_market_data/qs_market_data/adapters/outbound/datasources/manager.py',
     'adapters/outbound/repositories/kline_repository.py',
 ])
 def test_no_unknown_market_placeholder_left(rel_path):
@@ -66,7 +66,7 @@ def test_no_unknown_market_placeholder_left(rel_path):
 
 def test_backfill_uses_infer_market():
     """回归护栏：回填路径必须调用 infer_market，且无法推断时显式跳过"""
-    src = _source('adapters/outbound/datasources/manager.py')
+    src = _source('packages/qs_market_data/qs_market_data/adapters/outbound/datasources/manager.py')
     assert 'infer_market' in src
     assert '无法从代码推断 market' in src
 

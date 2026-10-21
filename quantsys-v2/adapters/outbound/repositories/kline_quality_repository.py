@@ -17,7 +17,7 @@ from typing import Optional
 
 from sqlalchemy import func
 
-from infrastructure.persistence.orm import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
 from infrastructure.persistence.orm.models import KlineDataQuality
 
 logger = logging.getLogger(__name__)

@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qs-intel"
+version = "0.1.0"
+description = "PI Investment 市场情报博弈包 - 对手行为/操纵检测/风格/情绪/microstructure/LHB/热点图/机会评分"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy",
+    "pandas",
+    "structlog",
+]
+
+[tool.setuptools.packages.find]
+include = ["qs_intel*"]
+exclude = ["__pycache__*", "*.egg-info*"]

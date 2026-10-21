@@ -22,7 +22,7 @@ import pandas as pd
 from typing import Dict, List, Optional
 
 from domain.backtest.stages.data_pipeline import PipelineContext, PipelineResult
-from domain.ports import IKlineRepository
+from qs_kernel.domain.ports import IKlineRepository
 
 logger = logging.getLogger(__name__)
 

@@ -84,7 +84,7 @@ def test_send_msg_returns_none_on_eof_instead_of_spinning(using_socket):
 
     这是本次修复的核心断言。修复前本用例失败（AssertionError: EOF 后仍在空转）。
     """
-    import adapters.outbound.datasources.providers.kline.baostock  # noqa: F401  安装补丁
+    import qs_market_data.adapters.outbound.datasources.providers.kline.baostock  # noqa: F401  安装补丁
 
     sock = using_socket(_EofSocket())
 
@@ -98,7 +98,7 @@ def test_send_msg_returns_none_on_eof_instead_of_spinning(using_socket):
 
 def test_eof_maps_to_session_error_marker_so_provider_relogins(using_socket):
     """EOF 的失败形态必须落在 provider 的重登判定里（闭环验证）"""
-    import adapters.outbound.datasources.providers.kline.baostock  # noqa: F401
+    import qs_market_data.adapters.outbound.datasources.providers.kline.baostock  # noqa: F401
     from baostock.security import history
 
     using_socket(_EofSocket())
@@ -112,7 +112,7 @@ def test_eof_maps_to_session_error_marker_so_provider_relogins(using_socket):
 
 def test_normal_response_still_parsed(using_socket):
     """回归：正常应答（未压缩帧）仍被原样解析，补丁不得破坏 happy path"""
-    import adapters.outbound.datasources.providers.kline.baostock  # noqa: F401
+    import qs_market_data.adapters.outbound.datasources.providers.kline.baostock  # noqa: F401
 
     payload = '1\1msgtype\1body' + '<![CDATA[]]>\n'
 
@@ -141,7 +141,7 @@ def test_watchdog_closes_inflight_socket_even_after_relogin(using_socket):
     换成新 socket，旧 socket 就再也没人关得掉——被孤立的调用只能永久阻塞/空转
     （这正是三个线程 24h 烧 CPU 的生存机制）。
     """
-    import adapters.outbound.datasources.providers.kline.baostock as provider_mod
+    import qs_market_data.adapters.outbound.datasources.providers.kline.baostock as provider_mod
 
     srv = socket.socket()
     srv.bind(('127.0.0.1', 0))
@@ -184,7 +184,7 @@ def test_send_msg_serializes_concurrent_exchanges(using_socket):
     让 A 线程读到 B 线程的应答，也正是「一个线程 logout 关 socket、另一个线程
     正在 recv」→ EOF 空转的触发路径。
     """
-    import adapters.outbound.datasources.providers.kline.baostock  # noqa: F401
+    import qs_market_data.adapters.outbound.datasources.providers.kline.baostock  # noqa: F401
     import threading
 
     payload = 'ok<![CDATA[]]>\n'

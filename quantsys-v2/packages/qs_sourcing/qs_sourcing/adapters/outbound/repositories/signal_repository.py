@@ -1,0 +1,748 @@
+"""
+交易信号ORM Repository
+
+使用SQLAlchemy ORM重构的信号数据访问层
+
+支持：
+1. 信号查询（按日期/股票/策略）
+2. 信号创建和更新
+3. 信号统计
+4. 状态管理
+
+迁移状态：✅ 已完成ORM迁移
+
+DDD架构：
+- 实现 domain.ports.ISignalRepository 接口
+- 符合依赖倒置原则
+"""
+from typing import List, Optional, Dict, Any
+from datetime import date, datetime
+import structlog
+
+from sqlalchemy import and_, or_, func, desc, case, cast, Date, select
+from sqlalchemy.exc import SQLAlchemyError
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
+from infrastructure.persistence.orm.models import Signal, SignalExecution
+from infrastructure.persistence.orm.models.action_norm import signal_action_type
+from qs_kernel.domain.ports import ISignalRepository
+
+logger = structlog.get_logger(__name__)
+
+__all__ = ['SignalORMRepository']
+
+
+class SignalORMRepository(BaseORMRepository[Signal], ISignalRepository):
+    """交易信号ORM Repository
+
+    示例用法：
+        repo = SignalORMRepository()
+
+        # 查询单个信号
+        signal = repo.get_signal(123)
+
+        # 按日期查询
+        signals = repo.get_signals_by_date('2026-06-26', action='BUY')
+
+        # 按股票查询
+        signals = repo.get_signals_by_symbol('000001', '2026-01-01', '2026-06-30')
+
+        # 更新状态
+        repo.update_signal_status(123, 'executed')
+    """
+
+    model = Signal
+
+    # ==================== ISignalRepository接口实现 ====================
+
+    def get_signals(
+        self,
+        symbol: Optional[str] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        signal_type: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """获取信号列表（ISignalRepository接口实现）
+
+        Args:
+            symbol: 股票代码（可选）
+            start_date: 开始日期（可选）
+            end_date: 结束日期（可选）
+            signal_type: 信号类型（可选），即action字段
+
+        Returns:
+            信号字典列表
+        """
+        try:
+            query = self.session.query(Signal)
+
+            if symbol:
+                query = query.filter(Signal.symbol == symbol)
+            if start_date:
+                query = query.filter(Signal.signal_date >= start_date)
+            if end_date:
+                query = query.filter(Signal.signal_date <= end_date)
+            if signal_type:
+                query = query.filter(Signal.action == signal_type)
+
+            signals = query.order_by(Signal.signal_date.desc()).all()
+            return [self._signal_to_dict(s) for s in signals]
+
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error getting signals: {e}")
+            return []
+
+    def create_signal(self, signal_data: Dict[str, Any]) -> int:
+        """创建信号（ISignalRepository接口实现）
+
+        契约（2026-08-04 修复——旧实现传 volume=/metadata= 两个模型不存在
+        的字段，每条创建都 TypeError 被吞返回 0）：
+        - 必填：signal_date, symbol, name, action, strategy_id
+        - action_type 缺省时按 action 推导：buy→1, sell→2
+        - 唯一键 (symbol, signal_date, strategy_id) 冲突 → 返回 0（幂等跳过）
+
+        Returns:
+            信号ID；冲突或失败返回 0
+        """
+        try:
+            action = signal_data.get('action')
+            action_type = signal_data.get('action_type')
+            if action_type is None and action:
+                # 2026-09-15：映射收敛到 models/action_norm.signal_action_type
+                # （原先这里的字面量是第二份事实源，与模型缺省值必须一致却无从保证）。
+                action_type = signal_action_type(action)
+
+            # 幂等：唯一键 (symbol, signal_date, strategy_id) 已存在则跳过
+            existing = (
+                self.session.query(Signal.id)
+                .filter(
+                    Signal.symbol == signal_data.get('symbol'),
+                    Signal.signal_date == signal_data.get('signal_date'),
+                    Signal.strategy_id == str(signal_data.get('strategy_id')),
+                )
+                .first()
+            )
+            if existing:
+                logger.debug(
+                    f"Signal already exists: {signal_data.get('symbol')} "
+                    f"{signal_data.get('signal_date')} {signal_data.get('strategy_id')}")
+                return 0
+
+            signal = Signal(
+                symbol=signal_data.get('symbol'),
+                signal_date=signal_data.get('signal_date'),
+                name=signal_data.get('name') or '',
+                action=action,
+                action_type=action_type,
+                strategy_id=str(signal_data.get('strategy_id')),
+                price=signal_data.get('price'),
+                confidence=signal_data.get('confidence'),
+                reason=signal_data.get('reason'),
+                indicators=signal_data.get('indicators'),
+                status=signal_data.get('status', 'pending'),
+            )
+            created = self.create(signal)
+            return created.id if created else 0
+
+        except Exception as e:
+            logger.error(f"Error creating signal: {e}")
+            self.session.rollback()
+            return 0
+
+    def _signal_to_dict(self, signal: Signal) -> Dict[str, Any]:
+        """将Signal对象转换为字典"""
+        return {
+            'id': signal.id,
+            'symbol': signal.symbol,
+            'signal_date': signal.signal_date.isoformat() if signal.signal_date else None,
+            'action': signal.action,
+            'strategy_id': signal.strategy_id,
+            'price': signal.price,
+            'confidence': signal.confidence,
+            'reason': signal.reason,
+            'status': signal.status,
+            'metadata': signal.metadata,
+            'created_at': signal.created_at.isoformat() if signal.created_at else None,
+            'updated_at': signal.updated_at.isoformat() if signal.updated_at else None,
+        }
+
+    # ==================== 查询方法 ====================
+
+    def get_signal(self, signal_id: int) -> Optional[Signal]:
+        """根据ID查询信号
+
+        Args:
+            signal_id: 信号ID
+
+        Returns:
+            Signal对象，不存在返回None
+        """
+        return self.get_by_id(signal_id)
+
+    def get_signals_by_date(
+        self,
+        signal_date: str,
+        action: Optional[str] = None,
+        status: Optional[str] = None
+    ) -> List[Signal]:
+        """查询指定日期的信号
+
+        Args:
+            signal_date: 信号日期 (YYYY-MM-DD)
+            action: 操作类型筛选 (BUY/SELL/HOLD)
+            status: 状态筛选 (pending/executed/rejected/expired)
+
+        Returns:
+            Signal对象列表
+        """
+        try:
+            query = self.session.query(Signal).filter(
+                Signal.signal_date == signal_date
+            )
+
+            if action:
+                query = query.filter(Signal.action == action)
+            if status:
+                query = query.filter(Signal.status == status)
+
+            return query.order_by(Signal.created_at.desc()).all()
+
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error getting signals by date {signal_date}: {e}")
+            return []
+
+    def get_signals_by_date_range(
+        self,
+        start_date: str,
+        end_date: str,
+        action: Optional[str] = None,
+        status: Optional[str] = None,
+        limit: Optional[int] = None
+    ) -> List[Signal]:
+        """查询日期范围内的信号
+
+        Args:
+            start_date: 开始日期 (YYYY-MM-DD)
+            end_date: 结束日期 (YYYY-MM-DD)
+            action: 操作类型筛选
+            status: 状态筛选
+
+        Returns:
+            Signal对象列表
+        """
+        try:
+            query = self.session.query(Signal).filter(
+                Signal.signal_date >= start_date,
+                Signal.signal_date <= end_date
+            )
+
+            if action:
+                query = query.filter(Signal.action == action)
+            if status:
+                query = query.filter(Signal.status == status)
+
+            query = query.order_by(
+                Signal.signal_date.desc(),
+                Signal.created_at.desc()
+            )
+
+            if limit:
+                query = query.limit(limit)
+
+            return query.all()
+
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error getting signals by date range: {e}")
+            return []
+
+    def get_signals_by_symbol(
+        self,
+        symbol: str,
+        start_date: str,
+        end_date: str,
+        action: Optional[str] = None
+    ) -> List[Signal]:
+        """查询指定股票的信号
+
+        Args:
+            symbol: 股票代码
+            start_date: 开始日期
+            end_date: 结束日期
+            action: 操作类型筛选
+
+        Returns:
+            Signal对象列表
+        """
+        try:
+            query = self.session.query(Signal).filter(
+                Signal.symbol == symbol,
+                Signal.signal_date >= start_date,
+                Signal.signal_date <= end_date
+            )
+
+            if action:
+                query = query.filter(Signal.action == action)
+
+            return query.order_by(Signal.signal_date.desc()).all()
+
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error getting signals for {symbol}: {e}")
+            return []
+
+    def get_signals_by_strategy(
+        self,
+        strategy_id: str,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        limit: int = 100
+    ) -> List[Signal]:
+        """查询指定策略的信号
+
+        Args:
+            strategy_id: 策略ID
+            start_date: 开始日期（可选）
+            end_date: 结束日期（可选）
+            limit: 返回数量限制
+
+        Returns:
+            Signal对象列表
+        """
+        try:
+            query = self.session.query(Signal).filter(
+                Signal.strategy_id == strategy_id
+            )
+
+            if start_date:
+                query = query.filter(Signal.signal_date >= start_date)
+            if end_date:
+                query = query.filter(Signal.signal_date <= end_date)
+
+            return query.order_by(
+                Signal.signal_date.desc()
+            ).limit(limit).all()
+
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error getting signals for strategy {strategy_id}: {e}")
+            return []
+
+    def get_pending_signals(
+        self,
+        signal_date: Optional[str] = None
+    ) -> List[Signal]:
+        """查询待处理信号
+
+        Args:
+            signal_date: 指定日期（可选），None表示所有
+
+        Returns:
+            Signal对象列表
+        """
+        try:
+            query = self.session.query(Signal).filter(
+                Signal.status == 'pending'
+            )
+
+            if signal_date:
+                query = query.filter(Signal.signal_date == signal_date)
+
+            return query.order_by(Signal.created_at.desc()).all()
+
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error getting pending signals: {e}")
+            return []
+
+    def get_latest_signal_by_symbol(
+        self,
+        symbol: str,
+        strategy_id: Optional[str] = None
+    ) -> Optional[Signal]:
+        """获取股票的最新信号
+
+        Args:
+            symbol: 股票代码
+            strategy_id: 策略ID（可选）
+
+        Returns:
+            Signal对象
+        """
+        try:
+            query = self.session.query(Signal).filter(
+                Signal.symbol == symbol
+            )
+
+            if strategy_id:
+                query = query.filter(Signal.strategy_id == strategy_id)
+
+            return query.order_by(Signal.signal_date.desc()).first()
+
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error getting latest signal for {symbol}: {e}")
+            return None
+
+    # ==================== 创建和更新 ====================
+
+    def batch_create_signals(self, signals: List[Signal]) -> bool:
+        """批量创建信号
+
+        Args:
+            signals: Signal对象列表
+
+        Returns:
+            成功返回True
+        """
+        return self.create_batch(signals, commit=True)
+
+    def update_signal_status(
+        self,
+        signal_id: int,
+        status: str,
+        reject_reason: Optional[str] = None,
+        error_description: Optional[str] = None
+    ) -> bool:
+        """更新信号状态
+
+        Args:
+            signal_id: 信号ID
+            status: 新状态 (pending/executed/rejected/expired)
+            reject_reason: 拒绝原因（可选）
+            error_description: 错误描述（可选）
+
+        Returns:
+            成功返回True
+        """
+        try:
+            signal = self.get_by_id(signal_id)
+            if not signal:
+                logger.warning(f"Signal {signal_id} not found")
+                return False
+
+            signal.status = status
+            if reject_reason:
+                signal.reject_reason = reject_reason
+            if error_description:
+                signal.error_description = error_description
+
+            self.session.commit()
+            return True
+
+        except Exception as e:
+            logger.error(f"Error updating signal status: {e}")
+            self.session.rollback()
+            return False
+
+    def update_signal(
+        self,
+        signal_id: int,
+        **kwargs
+    ) -> bool:
+        """更新信号字段
+
+        Args:
+            signal_id: 信号ID
+            **kwargs: 要更新的字段
+
+        Returns:
+            成功返回True
+        """
+        try:
+            signal = self.get_by_id(signal_id)
+            if not signal:
+                return False
+
+            for key, value in kwargs.items():
+                if hasattr(signal, key):
+                    setattr(signal, key, value)
+
+            self.session.commit()
+            return True
+
+        except Exception as e:
+            logger.error(f"Error updating signal {signal_id}: {e}")
+            self.session.rollback()
+            return False
+
+    # ==================== 统计方法 ====================
+
+    def count_signals_by_date(
+        self,
+        signal_date: str,
+        action: Optional[str] = None
+    ) -> int:
+        """统计指定日期的信号数量
+
+        Args:
+            signal_date: 信号日期
+            action: 操作类型筛选
+
+        Returns:
+            信号数量
+        """
+        try:
+            query = self.session.query(Signal).filter(
+                Signal.signal_date == signal_date
+            )
+
+            if action:
+                query = query.filter(Signal.action == action)
+
+            return query.count()
+
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error counting signals: {e}")
+            return 0
+
+    def count_by_status(
+        self,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None
+    ) -> Dict[str, int]:
+        """统计各状态的信号数量
+
+        Args:
+            start_date: 开始日期（可选）
+            end_date: 结束日期（可选）
+
+        Returns:
+            {status: count} 字典
+        """
+        try:
+            query = self.session.query(
+                Signal.status,
+                func.count(Signal.id)
+            )
+
+            if start_date:
+                query = query.filter(Signal.signal_date >= start_date)
+            if end_date:
+                query = query.filter(Signal.signal_date <= end_date)
+
+            result = query.group_by(Signal.status).all()
+
+            return {status: count for status, count in result}
+
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error counting by status: {e}")
+            return {}
+
+    def get_signal_stats_by_strategy(
+        self,
+        strategy_id: str,
+        start_date: str,
+        end_date: str
+    ) -> Dict:
+        """获取策略的信号统计
+
+        Args:
+            strategy_id: 策略ID
+            start_date: 开始日期
+            end_date: 结束日期
+
+        Returns:
+            统计信息字典
+        """
+        try:
+            signals = self.get_signals_by_strategy(
+                strategy_id,
+                start_date,
+                end_date,
+                limit=10000
+            )
+
+            total = len(signals)
+            buy_count = sum(1 for s in signals if s.action == 'BUY')
+            sell_count = sum(1 for s in signals if s.action == 'SELL')
+            hold_count = sum(1 for s in signals if s.action == 'HOLD')
+
+            status_counts = {}
+            for signal in signals:
+                status_counts[signal.status] = status_counts.get(signal.status, 0) + 1
+
+            return {
+                'strategy_id': strategy_id,
+                'total': total,
+                'buy': buy_count,
+                'sell': sell_count,
+                'hold': hold_count,
+                'status': status_counts
+            }
+
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error getting signal stats: {e}")
+            return {}
+
+    def get_signal_stats(self, start_date: str, end_date: str) -> Dict[str, Any]:
+        """信号统计：total / by_action / by_strategy / avg_confidence。
+
+        2026-09-14（w-c8cae280）**补实现** —— 本方法此前**不存在**，但：
+          - 生产路由 adapters/inbound/fastapi_app/routes/signals_async.py:38 直接调用它
+            → GET /api/signals/history 必然 500（AttributeError 被该路由的 except 包成 500）；
+          - tests/test_signal_repository.py 有 5 处调用，且把契约写得很完整
+            （total:int / by_action / by_strategy / avg_confidence），并明确要求非法日期抛 ValueError。
+        查证过程（决定"改调用方还是改测试"的依据）：生产调用 1 处、测试调用 5 处，且仓库里
+        只有 get_signal_stats_by_strategy（另一个方法），说明是**接口缺失**而非调用方写错。
+
+        口径：action 在库里是**大写契约**（BUY/SELL/HOLD），对外统计统一转小写键；
+        by_strategy 用 strategy_id；avg_confidence 为置信度算术平均（无置信度则 0.0）。
+        """
+        for _d in (start_date, end_date):
+            try:
+                datetime.strptime(str(_d), '%Y-%m-%d')
+            except (TypeError, ValueError) as exc:
+                raise ValueError("日期必须为 YYYY-MM-DD 格式，收到：%r" % (_d,)) from exc
+        try:
+            signals = self.get_signals_by_date_range(start_date, end_date)
+        except Exception as e:            # noqa: BLE001
+            self._safe_rollback()
+            logger.error("Error getting signal stats: %s", e)
+            return {'total': 0, 'by_action': {}, 'by_strategy': {}, 'avg_confidence': 0.0}
+
+        by_action: Dict[str, int] = {}
+        by_strategy: Dict[str, int] = {}
+        conf_sum, conf_n = 0.0, 0
+        for s in signals:
+            act = str(getattr(s, 'action', '') or '').strip().lower()
+            if act:
+                by_action[act] = by_action.get(act, 0) + 1
+            stg = str(getattr(s, 'strategy_id', '') or '').strip()
+            if stg:
+                by_strategy[stg] = by_strategy.get(stg, 0) + 1
+            conf = getattr(s, 'confidence', None)
+            if conf is not None:
+                conf_sum += float(conf)
+                conf_n += 1
+        return {
+            'total': len(signals),
+            'by_action': by_action,
+            'by_strategy': by_strategy,
+            'avg_confidence': (conf_sum / conf_n) if conf_n else 0.0,
+        }
+
+    def get_signal_statistics(self, start_date: str, end_date: str) -> Dict[str, Any]:
+        """信号状态分布 + BUY/SELL 通过率（GET /api/signals/statistics 的取数口）。
+
+        迁移背景（2026-09-14，w-32314d00，REQ-24e15d B4-c4）：
+            本方法原先**不存在** —— 路由 adapters/inbound/fastapi_app/routes/signals_async.py
+            自己 `SignalORMRepository()._get_cursor()` 拿**私有裸游标**，内联三段 SQL。
+            改为仓储方法后，路由不再触碰 cursor，也不再依赖 _get_cursor 这个兼容垫片。
+
+        契约（逐值对齐迁移前的内联 SQL，已在真实库上比对过）：
+          - total/pending/approved/rejected/error/executed：一次条件聚合（signal_date 闭区间）；
+          - avg_confidence：**只统计 confidence IS NOT NULL 的行**，全空则 0.0，结果 round 2；
+          - buy/sell_approved_rate = 该 action 的 approved 数 / 总数 × 100，round 2；
+            **原实现只在 total>0 且 approved>0 时才赋值**（approved=0 时保持初值 0.0）——
+            两者数值同为 0.0，此处按同一分支逻辑保留，避免留下"看起来等价但分母口径不同"的写法；
+          - action 是**大写契约**（models/action_norm.py），此处只认 'BUY'/'SELL'，其它 action 不参与；
+          - 异常**不吞**：原路由交给 handle_api_error 转 500，此处回滚后原样上抛。
+        """
+        try:
+            date_conds = (
+                Signal.signal_date >= cast(start_date, Date),
+                Signal.signal_date <= cast(end_date, Date),
+            )
+
+            row = self.session.execute(
+                select(
+                    func.count().label('total'),
+                    func.count(case((Signal.status == 'pending', 1))).label('pending'),
+                    func.count(case((Signal.status == 'approved', 1))).label('approved'),
+                    func.count(case((Signal.status == 'rejected', 1))).label('rejected'),
+                    func.count(case((Signal.status == 'error', 1))).label('error'),
+                    func.count(case((Signal.status == 'executed', 1))).label('executed'),
+                ).select_from(Signal).where(*date_conds)
+            ).mappings().first()
+
+            avg_confidence = self.session.execute(
+                select(func.avg(Signal.confidence))
+                .select_from(Signal)
+                .where(*date_conds, Signal.confidence.isnot(None))
+            ).scalar()
+
+            action_rows = self.session.execute(
+                select(
+                    Signal.action.label('action'),
+                    func.count().label('total'),
+                    func.count(case((Signal.status == 'approved', 1))).label('approved_count'),
+                ).select_from(Signal).where(*date_conds).group_by(Signal.action)
+            ).mappings().all()
+        except SQLAlchemyError:
+            self._safe_rollback()
+            raise
+
+        buy_accuracy = 0.0
+        sell_accuracy = 0.0
+        for r in action_rows:
+            total = r['total'] or 0
+            approved = r['approved_count'] or 0
+            if total > 0 and approved > 0:
+                accuracy = (approved / total) * 100
+                if r['action'] == 'BUY':
+                    buy_accuracy = accuracy
+                elif r['action'] == 'SELL':
+                    sell_accuracy = accuracy
+
+        if row:
+            return {
+                'total': row['total'], 'pending': row['pending'],
+                'approved': row['approved'], 'rejected': row['rejected'],
+                'error': row['error'], 'executed': row['executed'],
+                'avg_confidence': round(float(avg_confidence or 0.0), 2),
+                'buy_approved_rate': round(buy_accuracy, 2),
+                'sell_approved_rate': round(sell_accuracy, 2),
+            }
+        return {'total': 0, 'pending': 0, 'approved': 0, 'rejected': 0, 'error': 0,
+                'executed': 0, 'avg_confidence': 0.0,
+                'buy_approved_rate': 0.0, 'sell_approved_rate': 0.0}
+
+    # ==================== 删除方法 ====================
+
+    def delete_signals_by_date(self, signal_date: str) -> int:
+        """删除指定日期的信号
+
+        Args:
+            signal_date: 信号日期
+
+        Returns:
+            删除的数量
+        """
+        try:
+            count = self.session.query(Signal).filter(
+                Signal.signal_date == signal_date
+            ).delete()
+
+            self.session.commit()
+            return count
+
+        except Exception as e:
+            logger.error(f"Error deleting signals by date: {e}")
+            self.session.rollback()
+            return 0
+
+    def get_latest_signals(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """获取最新的信号列表
+
+        Args:
+            limit: 返回数量限制，默认10条
+
+        Returns:
+            最新信号列表，按创建时间降序排列
+        """
+        try:
+            signals = self.session.query(Signal).order_by(
+                Signal.created_at.desc()
+            ).limit(limit).all()
+
+            return [self._signal_to_dict(s) for s in signals]
+
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error getting latest signals: {e}", exc_info=True)
+            return []

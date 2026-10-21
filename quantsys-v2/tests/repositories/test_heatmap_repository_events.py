@@ -17,16 +17,23 @@ D = date(2009, 1, 20)
 def seeded():
     repo = HeatmapRepository()
     s = repo.session
+    # 2026-10-21 僵尸批次2：pre-clean 同上
+    s.query(Signal).filter(Signal.symbol.in_(['TST010', 'TST011'])).delete()
+    s.query(PoolChangeLog).filter(PoolChangeLog.symbol.in_(['TST010', 'TST011'])).delete()
+    s.query(StockPool).filter(StockPool.name == '测试池').delete()
+    s.query(PortfolioHolding).filter(PortfolioHolding.symbol == 'TST011').delete()
+    s.query(Stock).filter(Stock.symbol.in_(['TST010', 'TST011'])).delete()
+    s.commit()
     s.add(Stock(symbol='TST010', name='信号股', industry='测试医药', market='A', market_cap=10.0))
     s.add(Stock(symbol='TST011', name='持仓股', industry='测试医药', market='A', market_cap=20.0))
     s.add_all([
         Signal(symbol='TST010', name='信号股', signal_date=date(2009, 1, 15),
-               action='buy', strategy_id='v13', price=1.0, confidence=0.8),
+               action='BUY', strategy_id='v13', price=1.0, confidence=0.8),
         Signal(symbol='TST010', name='信号股', signal_date=date(2009, 1, 18),
-               action='sell', strategy_id='v13', price=1.0, confidence=0.7),
+               action='SELL', strategy_id='v13', price=1.0, confidence=0.7),
         # 窗口外信号（2009-01-05 前）不应返回
         Signal(symbol='TST010', name='信号股', signal_date=date(2008, 12, 1),
-               action='buy', strategy_id='v13', price=1.0, confidence=0.6),
+               action='BUY', strategy_id='v13', price=1.0, confidence=0.6),
     ])
     pool = StockPool(name='测试池', pool_type='dynamic', symbols='{}', members=['TST011'])
     s.add(pool)
@@ -54,7 +61,7 @@ class TestSignals:
         sigs = seeded['repo'].get_signals_between(date(2009, 1, 1), D)
         ours = [x for x in sigs if x['symbol'] == 'TST010']
         assert len(ours) == 2
-        assert {x['action'] for x in ours} == {'buy', 'sell'}
+        assert {x['action'] for x in ours} == {'BUY', 'SELL'}
         assert ours[0]['strategy_id'] == 'v13'
 
 

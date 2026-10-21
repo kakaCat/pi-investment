@@ -27,7 +27,7 @@ def _probe_kline_sources() -> bool:
     且对已封禁 IP 的反复重试会加重封禁。
     """
     try:
-        from adapters.outbound.datasources.manager import DataProviderManager
+        from qs_market_data.adapters.outbound.datasources.manager import DataProviderManager
         m = DataProviderManager()
         r = m.get_klines('601857', 'daily', '2026-08-25', '2026-09-02')
         ok = bool(isinstance(r, dict) and r.get('success') and r.get('data'))
@@ -70,7 +70,7 @@ def _job_evening_pipeline() -> Dict[str, Any]:
     results: Dict[str, Any] = {}
 
     # 新鲜度检查：数据已新鲜则跳过同步（幂等保护）
-    from infrastructure.persistence.database.engine import get_engine
+    from qs_kernel.infrastructure.persistence.database.engine import get_engine
     from sqlalchemy import text
 
     expected = _last_trading_day(datetime.now())
@@ -168,7 +168,7 @@ def _job_evolution_fitness() -> Dict[str, Any]:
 
 def _job_freshness_guard() -> Dict[str, Any]:
     """新鲜度巡检：K线/因子滞后于最近交易日 + 任务失败残留 → 飞书告警"""
-    from infrastructure.persistence.database.engine import get_engine
+    from qs_kernel.infrastructure.persistence.database.engine import get_engine
 
     # 基准日=前一交易日（2026-09-10，w-23c70356）：本巡检 17:20 跑，而当天 EOD 要到
     # 20:30 的 evening_pipeline 才落库 —— 原用"当天"当基准，结构上每个交易日都必然判

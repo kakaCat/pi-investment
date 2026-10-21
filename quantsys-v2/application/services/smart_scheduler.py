@@ -14,7 +14,7 @@ from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR, EVENT_JOB_MISSED
 
-from domain.ports import ISchedulerConfigRepository
+from qs_kernel.domain.ports import ISchedulerConfigRepository
 
 logger = structlog.get_logger(__name__)
 

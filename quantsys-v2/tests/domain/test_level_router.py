@@ -9,13 +9,13 @@ L2 的 trend_observe 优先级冲突、宪法级压过观察、市场/板块 sco
 """
 import pytest
 
-from domain.notification.policies.watch_delivery_policy import (
+from qs_notification.domain.policies.watch_delivery_policy import (
     AGENT_DH, AGENT_TS, AUTONOMOUS, NOT_APPLICABLE, REMIND_ONLY, WatchDeliveryPolicy,
 )
-from domain.watch.services.level_resolver import (
+from qs_watch.domain.watch.services.level_resolver import (
     LEVEL_SLA_SECONDS, LEVELS, P0, P1, P2, P3, resolve_level, sla_seconds_for,
 )
-from domain.watch.services.owner_router import (
+from qs_watch.domain.watch.services.owner_router import (
     OWNER_AGENT, OWNER_USER, USER_OWNER_REF, OwnerRoute, route_owner,
 )
 
@@ -181,7 +181,7 @@ def test_scope_outranks_observe_for_market_sector():
     市场/板块 scope 必须先于「纯观察 → P3」判定，否则 trend_observe + scope=sector
     会落 P3，与需求 R1「P2 = 知悉（含板块异动）」冲突——板块异动将永远进不了知悉层。
     """
-    from domain.watch.services.level_resolver import resolve_level
+    from qs_watch.domain.watch.services.level_resolver import resolve_level
 
     assert resolve_level(intent='trend_observe', has_position=False, scope='sector') == 'P2'
     assert resolve_level(intent='trend_observe', has_position=False, scope='market') == 'P2'

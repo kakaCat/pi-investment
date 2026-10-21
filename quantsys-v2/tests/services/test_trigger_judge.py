@@ -5,8 +5,8 @@
 """
 from datetime import datetime, timedelta
 
-from application.services.watch_engine.state_manager import StateManager
-from application.services.watch_engine.trigger_judge import TriggerJudge
+from qs_watch.application.services.watch_engine.state_manager import StateManager
+from qs_watch.application.services.watch_engine.trigger_judge import TriggerJudge
 
 NOW = datetime(2026, 9, 14, 10, 30)
 

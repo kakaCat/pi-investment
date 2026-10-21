@@ -70,7 +70,7 @@ class _FakeRepo:
 
 
 def _patch_execute(monkeypatch, return_value):
-    import infrastructure.scheduler.job_executor as je
+    import qs_ops.infrastructure.scheduler.job_executor as je
 
     repo = _FakeRepo()
     monkeypatch.setattr(je, "_execute_command", lambda command, params: return_value)
@@ -86,7 +86,7 @@ def _patch_execute(monkeypatch, return_value):
 
 def test_inner_failed_propagates_to_outer(monkeypatch):
     """内层 status='failed' 必须记外层 failed（防假成功）"""
-    import infrastructure.scheduler.job_executor as je
+    import qs_ops.infrastructure.scheduler.job_executor as je
 
     repo = _patch_execute(monkeypatch, {
         "action": "fake_cmd", "status": "failed", "error": "boom", "details": {},
@@ -101,7 +101,7 @@ def test_inner_failed_propagates_to_outer(monkeypatch):
 
 def test_inner_success_stays_success(monkeypatch):
     """内层 status='success' 记外层 success"""
-    import infrastructure.scheduler.job_executor as je
+    import qs_ops.infrastructure.scheduler.job_executor as je
 
     repo = _patch_execute(monkeypatch, {
         "action": "fake_cmd", "status": "success", "message": "ok", "details": {},
@@ -114,7 +114,7 @@ def test_inner_success_stays_success(monkeypatch):
 
 def test_job_registry_exception_still_fails(monkeypatch):
     """JobRegistry 层抛异常（_execute_command 上层未捕获）→ 外层 failed"""
-    import infrastructure.scheduler.job_executor as je
+    import qs_ops.infrastructure.scheduler.job_executor as je
 
     repo = _patch_execute(monkeypatch, None)
     # 让 _execute_command 抛异常，验证 except 分支仍记 failed

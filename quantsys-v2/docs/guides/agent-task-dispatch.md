@@ -1,0 +1,77 @@
+# Agent 任务派单规范（2026-10-20）
+
+> 起因：2026-10-20 晚的盯盘积压清理，验证出「派活 → 执行 → 报告」的**第三段**没有闭环：
+> 22:33 派单、22:36 干完 137 条，agent 只写了看板卡和记忆，飞书一张卡都没发——而派单指令里
+> 还写着「无需你发消息」。报告是用户的唯一入口，漏了它，等于活干得再好也不知道。
+
+## 三段各自的责任
+
+| 段 | 谁做 | 怎么看它成没成 |
+|---|---|---|
+| 派活 | 系统或 agent（工具/端点/CLI，同一份实现） | 返回 `status=ok` 只代表通道收下，**不代表送达** |
+| 执行 | 处置 agent（默认 `agent-dh`） | 目标会话有回合、有工具调用、结果落库/落看板 |
+| 报告 | 处置 agent（收件人可执行的要求） | 盯盘群收到与模板四段对应的简报卡 |
+
+## 三个入口，一份实现
+
+信封、报告要求、派单口径只实现一次：`qs_notification.application.agent_task_dispatch`
+（`build_instruction` + `dispatch_agent_task`）。三个入口都调它：
+
+| 入口 | 谁用 | 形态 |
+|---|---|---|
+| `dispatch_task` 工具 | agent 自己派活（另一窗口/另一 agent） | agent-dh 的 investment 工具集 |
+| `POST /api/agent/dispatch` | 调度任务、其它服务 | v2 HTTP 端点 |
+| `tools/dispatch_agent_task.py` | 运维/人 | 薄 CLI（dry-run + JSONL 留痕） |
+
+**别再用 `python -c` 临时拼派单**：字段散、没留痕、下次没人记得带报告要求。
+运维留痕写 `logs/agent-dispatch.jsonl`（时间/标题/事件/目标/是否要求报告/指令摘要）。
+
+```bash
+# 运维入口（需要报告=默认）
+PYTHONPATH=. ./venv/bin/python tools/dispatch_agent_task.py \
+    --title "盯盘积压清理（10-20 晚）" \
+    --instruction-file /tmp/sweep.md \
+    --event watch_backlog_sweep
+
+... --no-report     # 静默任务
+... --dry-run       # 只看最终指令
+
+# agent 侧工具（模型调用）
+dispatch_task({ title, instruction, event?, target?, requires_report?, urgency? })
+```
+
+
+
+## 两种任务，别混
+
+| | 需要报告（默认） | 静默任务（`--no-report`） |
+|---|---|---|
+| 典型 | 积压清理、批量收敛、需求交付 | 夜间挂单哨兵、盘前巡检 |
+| 报告口径 | 必须发飞书简报，四段：范围与结果 / 关键结论 / 需人工拍板 / 未完成失败 | 无异常不发；有异常按既有告警口径 |
+
+把静默任务写成"必须报告"，巡检每次推一张"没事"的卡，报告本身就成了噪音。
+
+## 报告模板（四段）
+
+```
+标题：<任务标题>｜完成
+① 范围与结果：处理了多少、还剩多少（数字）
+② 关键结论：不超过 3 条
+③ 需人工拍板：明确列出需要用户决定的事项
+④ 未完成/失败：没干完的部分与原因
+```
+
+四段都要写，空的写「无」——只说"发个简报"会得到一段散文，用户还得追问"完了多少、还有什么要拍板"。
+
+## 已知断点（2026-10-20 已修）
+
+- **dsh 0.2.1 的 v4 会话格式拒绝 `source.kind='plugin'`**，而 agent-loop 的 `kick()` 把该异常
+  静默吞掉 → 回执 `delivered=true`、目标会话回合 0 步。表现就是「Agent OS 签收成功但 agent
+  未动工」。修复：lifecycle 注入消息改 v4 producer kind（`plugin:lifecycle`），提交 `c8bb835f8`。
+- **launchd 作业 `com.pi-investment.dsh` 从未 bootstrap**：看门狗每次 kickstart 都报
+  `Could not find service`，agent-dh 一挂就再也起不来。已 bootstrap，KeepAlive 托管。
+
+## 验收纪律
+
+- 不信 `status=ok`，看目标会话回合 / 结果落库 / 飞书卡三样。
+- 报告卡没到 = 交付没完成，不算"agent 干了但我没看到"。

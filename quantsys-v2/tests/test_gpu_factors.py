@@ -7,7 +7,7 @@ import pandas as pd
 import pytest
 from unittest.mock import patch, MagicMock
 
-from domain.quantlib.gpu_acceleration.gpu_factors import GPUFactorCalculator, GPU_AVAILABLE
+from qs_quantlib.gpu_acceleration.gpu_factors import GPUFactorCalculator, GPU_AVAILABLE
 
 
 @pytest.fixture

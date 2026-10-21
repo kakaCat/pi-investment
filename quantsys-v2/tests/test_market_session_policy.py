@@ -16,8 +16,8 @@ from datetime import datetime, time
 
 import pytest
 
-from domain.trading.models.market_session import MarketSession, SessionPhase
-from domain.trading.services.market_session_policy import (
+from qs_trading.domain.trading.models.market_session import MarketSession, SessionPhase
+from qs_trading.domain.trading.services.market_session_policy import (
     AFTERNOON_START,
     CALL_AUCTION_START,
     CONTINUOUS_START,
@@ -224,8 +224,8 @@ def test_minute_freshness_tolerates_bounded_clock_skew():
 def test_service_is_trading_day_accepts_date_and_str(monkeypatch):
     """`MarketSessionService.is_trading_day` 必须接受 date / 'YYYY-MM-DD'（曾 AttributeError）"""
     from datetime import date
-    from application.services.market_session_service import MarketSessionService
-    from application.services.trading_day_guard import TradingDayGuard
+    from qs_trading.application.services.market_session_service import MarketSessionService
+    from qs_ops.application.services.trading_day_guard import TradingDayGuard
 
     monkeypatch.setattr(
         TradingDayGuard, 'is_trading_day', classmethod(lambda cls, day=None: True))
@@ -238,7 +238,7 @@ def test_service_is_trading_day_accepts_date_and_str(monkeypatch):
 
 def test_section_bounds_name_is_public_and_single_sourced():
     """RFC 016 D2 指定的唯一常量名 `SESSION_BOUNDS` 必须存在且被 `window_of` 使用"""
-    from domain.trading.services.market_session_policy import SESSION_BOUNDS
+    from qs_trading.domain.trading.services.market_session_policy import SESSION_BOUNDS
     assert isinstance(SESSION_BOUNDS, tuple) and len(SESSION_BOUNDS) == 5
     assert POLICY.window_of(SessionPhase.MORNING) in SESSION_BOUNDS
 
@@ -250,7 +250,7 @@ def test_intraday_gates_agree_at_sub_minute_endpoints():
     `intraday_monitor_check()`（含收盘那次止损/止盈）仍被跳过。本钉子同时钉两层。
     """
     from adapters.inbound.fastapi_app.orchestrator_bootstrap import _in_intraday_window
-    from application.services.intraday_monitor import IntradayMonitor
+    from qs_trading.application.services.intraday_monitor import IntradayMonitor
 
     monitor = object.__new__(IntradayMonitor)  # 绕过重依赖构造（仓库既有测试手法）
     for h, m, s in ((11, 30, 45), (15, 0, 30), (10, 0, 0), (14, 30, 0)):
@@ -286,9 +286,9 @@ def test_assert_can_trade_raises_trading_error(monkeypatch):
 
     日级真源按仓库惯用法打桩（monkeypatch `_kline_stats`），不碰 DB。
     """
-    from application.services.market_session_service import MarketSessionService
-    from application.services.trading_day_guard import TradingDayGuard
-    from domain.trading.exceptions import TradingError
+    from qs_trading.application.services.market_session_service import MarketSessionService
+    from qs_ops.application.services.trading_day_guard import TradingDayGuard
+    from qs_trading.domain.trading.exceptions import TradingError
 
     # 先清空 60s 判决缓存——否则本用例会被前一个用例预热的缓存命中，
     # 打桩 `_kline_stats` 根本不生效、实际依赖 DB 内容（2026-09-12 审查指出）。

@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qs-strategy"
+version = "0.1.0"
+description = "PI Investment 策略生命周期包 - 策略 CRUD/执行/回测编排/进化/验证/代码引擎"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy",
+    "pandas",
+    "scipy",
+    "TA-Lib",
+    "PyYAML",
+    "requests",
+    "sqlalchemy",
+    "structlog",
+]
+
+[tool.setuptools.packages.find]
+include = ["qs_strategy*"]
+exclude = ["__pycache__*", "*.egg-info*"]

@@ -11,13 +11,13 @@ import pytest
 import numpy as np
 import pandas as pd
 
-from domain.quantlib.portfolio import (
+from qs_quantlib.portfolio import (
     MarkowitzOptimizer,
     RiskParityOptimizer,
     BlackLittermanOptimizer,
     EfficientFrontierCalculator,
 )
-from domain.quantlib.exceptions import (
+from qs_quantlib.exceptions import (
     DataValidationError,
     InsufficientDataError,
     ConvergenceError

@@ -86,28 +86,32 @@ class _FakeFacade:
         self.calls.append(kwargs)
         return self.ok
 
+    def send_watch_receipt(self, **kwargs):
+        self.calls.append(kwargs)
+        return self.ok
+
 
 def test_send_watch_alert_uses_facade_and_raises_on_failure(monkeypatch):
-    from application.services.watch_engine import watch_channels
+    from qs_watch.application.services.watch_engine import watch_channels
     good = _FakeFacade(True)
-    monkeypatch.setattr("application.notification.get_notification_facade", lambda: good)
+    monkeypatch.setattr("qs_notification.application.get_notification_facade", lambda: good)
     assert watch_channels.send_watch_alert("【盯盘引擎】心跳丢失 | 已过期 600s") is True
     assert good.calls[0]["urgency"] == "high"
     assert good.calls[0]["title"] == "【盯盘引擎】心跳丢失"
     assert "600s" in good.calls[0]["content"]
 
     bad = _FakeFacade(False)
-    monkeypatch.setattr("application.notification.get_notification_facade", lambda: bad)
+    monkeypatch.setattr("qs_notification.application.get_notification_facade", lambda: bad)
     import pytest
     with pytest.raises(RuntimeError):
         watch_channels.send_watch_alert("x | y")
 
 
 def test_send_watch_receipt_channel_drives_urgency_and_raises(monkeypatch):
-    from application.services.watch_engine import watch_channels
+    from qs_watch.application.services.watch_engine import watch_channels
     import pytest
     good = _FakeFacade(True)
-    monkeypatch.setattr("application.notification.get_notification_facade", lambda: good)
+    monkeypatch.setattr("qs_notification.application.get_notification_facade", lambda: good)
     watch_channels.send_watch_receipt({"kind": "timeout", "channel": "alerts",
                                        "message": "[超时] 待办#1"})
     assert good.calls[0]["urgency"] == "high"
@@ -116,6 +120,6 @@ def test_send_watch_receipt_channel_drives_urgency_and_raises(monkeypatch):
     assert good.calls[1]["urgency"] == "normal"
 
     bad = _FakeFacade(False)
-    monkeypatch.setattr("application.notification.get_notification_facade", lambda: bad)
+    monkeypatch.setattr("qs_notification.application.get_notification_facade", lambda: bad)
     with pytest.raises(RuntimeError):
         watch_channels.send_watch_receipt({"kind": "result", "channel": "reports"})

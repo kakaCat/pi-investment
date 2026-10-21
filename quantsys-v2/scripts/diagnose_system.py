@@ -37,12 +37,12 @@ for key in ['QUANT_DATABASE_URL', 'DATABASE_URL', 'POSTGRES_DSN', 'PGDATABASE']:
 # 2. ORM初始化检查
 print("\n2️⃣ ORM初始化检查:")
 try:
-    from infrastructure.persistence.orm.config import get_engine, is_initialized
+    from qs_kernel.infrastructure.persistence.orm.config import get_engine, is_initialized
     print(f"   ORM已初始化: {is_initialized()}")
     
     if not is_initialized():
         print("   尝试初始化ORM...")
-        from infrastructure.persistence.orm.config import init_orm
+        from qs_kernel.infrastructure.persistence.orm.config import init_orm
         init_orm()
         print(f"   ✅ ORM初始化成功")
     

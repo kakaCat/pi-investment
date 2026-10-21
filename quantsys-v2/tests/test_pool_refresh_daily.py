@@ -2,7 +2,7 @@
 from datetime import date
 from unittest.mock import patch, MagicMock
 
-from application.services.scheduler_tasks import (
+from qs_ops.application.services.scheduler_tasks import (
     handle_pool_refresh_daily,
     _is_pool_refresh_due,
 )
@@ -42,7 +42,7 @@ def test_is_refresh_due_weekly():
         _pool(1, interval='weekly', last=None), date(2026, 7, 24)) is True
 
 
-@patch('application.services.agent_notification_service.agent_service')
+@patch('qs_agenthub.application.services.agent_notification_service.agent_service')
 def test_refresh_due_dynamic_pools_and_notify(mock_agent):
     svc = _make_service(
         pools=[_pool(1), _pool(2, ptype='static')],
@@ -62,7 +62,7 @@ def test_refresh_due_dynamic_pools_and_notify(mock_agent):
     assert data['pools_changed'][0]['removed'] == ['A']
 
 
-@patch('application.services.agent_notification_service.agent_service')
+@patch('qs_agenthub.application.services.agent_notification_service.agent_service')
 def test_no_change_no_notify(mock_agent):
     svc = _make_service(
         pools=[_pool(1)],
@@ -75,7 +75,7 @@ def test_no_change_no_notify(mock_agent):
     mock_agent.notify_agent.assert_not_called()
 
 
-@patch('application.services.agent_notification_service.agent_service')
+@patch('qs_agenthub.application.services.agent_notification_service.agent_service')
 def test_refresh_failure_isolated(mock_agent):
     """单个池刷新失败不影响其他池"""
     svc = _make_service(

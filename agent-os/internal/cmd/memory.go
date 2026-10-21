@@ -155,14 +155,7 @@ func init() {
 
 func getMemoryService() (domain.MemoryService, error) {
 	cfg := config.Get()
-	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
-		cfg.Database.Host,
-		cfg.Database.Port,
-		cfg.Database.User,
-		cfg.Database.Password,
-		cfg.Database.DBName,
-		cfg.Database.SSLMode,
-	)
+	connStr := buildPostgresConnStr(cfg.Database)
 
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
@@ -185,14 +178,7 @@ func getNamespaceID(nameOrID string) (uuid.UUID, error) {
 
 	// Otherwise, look up by name
 	cfg := config.Get()
-	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
-		cfg.Database.Host,
-		cfg.Database.Port,
-		cfg.Database.User,
-		cfg.Database.Password,
-		cfg.Database.DBName,
-		cfg.Database.SSLMode,
-	)
+	connStr := buildPostgresConnStr(cfg.Database)
 
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {

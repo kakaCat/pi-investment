@@ -45,7 +45,7 @@ def test_create_and_search_roundtrip(client, sample_payload):
     assert any(i["id"] == entry_id for i in items)
 
     # 清理
-    from infrastructure.persistence.orm import get_session
+    from qs_kernel.infrastructure.persistence.orm import get_session
     from sqlalchemy import text
     session = get_session()
     session.execute(text("DELETE FROM quant.memory_entries WHERE id = :id"), {"id": entry_id})
@@ -86,7 +86,7 @@ def test_deprecate_and_validate_promote(client, sample_payload):
         resp = client.post("/api/memory/999999999/deprecate")
         assert resp.status_code == 400
     finally:
-        from infrastructure.persistence.orm import get_session
+        from qs_kernel.infrastructure.persistence.orm import get_session
         from sqlalchemy import text
         session = get_session()
         session.execute(text("DELETE FROM quant.memory_entries WHERE id = :id"), {"id": entry_id})
@@ -116,7 +116,7 @@ def test_search_multi_status_filter(client, sample_payload):
         assert "test_multi_status_testing" in got
         assert "test_multi_status_deprecated" not in got
     finally:
-        from infrastructure.persistence.orm import get_session
+        from qs_kernel.infrastructure.persistence.orm import get_session
         from sqlalchemy import text
         session = get_session()
         session.execute(

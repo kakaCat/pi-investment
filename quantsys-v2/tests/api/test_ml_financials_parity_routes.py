@@ -10,7 +10,7 @@ agent 的 model_list / data_fetch_financial 工具 404。
 from unittest.mock import MagicMock, patch
 
 from adapters.inbound.fastapi_app.routes import ml_async, financials_async
-from adapters.outbound.datasources import get_data_provider_manager
+from qs_market_data.adapters.outbound.datasources import get_data_provider_manager
 from adapters.shared.services import get_stock_repo
 from adapters.shared import ml_helpers
 

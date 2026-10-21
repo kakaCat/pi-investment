@@ -56,7 +56,7 @@ OUT = ROOT / "config" / "core_plan.json"
 # DB 访问：统一走 engine（B7，2026-09-13 w-a9ec14d7）
 # --------------------------------------------------------------------------- #
 def _engine():
-    from infrastructure.persistence.database.engine import get_engine
+    from qs_kernel.infrastructure.persistence.database.engine import get_engine
     return get_engine()
 
 
@@ -452,7 +452,7 @@ def risk_lens(exposure_by_symbol: dict, total_value: float, start: str = "2024-0
             # 违反 CLAUDE.md「NEVER directly import external data libraries」。
             # 改走唯一出口 DataProviderManager，姿势与既有先例
             # `market_perception_service._fetch_index_history()` 一致。
-            from adapters.outbound.datasources.manager import get_data_provider_manager
+            from qs_market_data.adapters.outbound.datasources.manager import get_data_provider_manager
 
             result = get_data_provider_manager().get_index_daily("sh000300")
             if not result.get("success") or not result.get("data"):
@@ -1232,7 +1232,7 @@ class CorePlanGenerateJob:
         return 600
 
     async def execute(self, params=None):
-        from application.jobs.job_protocol import JobResult, result_from_dict
+        from qs_ops.application.jobs.job_protocol import JobResult, result_from_dict
         import asyncio
         p = params or {}
         try:

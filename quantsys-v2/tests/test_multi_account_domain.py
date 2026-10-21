@@ -78,7 +78,7 @@ class TestMigration:
         run_migration()   # 第二次不报错即幂等
 
         from sqlalchemy import inspect
-        from infrastructure.persistence.database.engine import get_engine
+        from qs_kernel.infrastructure.persistence.database.engine import get_engine
         insp = inspect(get_engine())
         acc_cols = {c['name'] for c in insp.get_columns('simulation_account', schema='quant')}
         assert 'cash_available' in acc_cols and 'cash' not in acc_cols
@@ -172,7 +172,7 @@ class TestRepository:
         normalize_action 大写契约不匹配 → 当日买入量恒计为 0 → 当日买入的股数
         在结转后被错误放行为可卖（T+1 形同虚设）。本测试锁死：当日结算不得放行
         当日买入。"""
-        from application.services.account_trading_service import AccountTradingService
+        from qs_trading.application.services.account_trading_service import AccountTradingService
         repo.create_account('test_acc_a', initial_capital=100000)
         trading = AccountTradingService(repo=repo)
         trading.execute_trade('test_acc_a', 'buy', '600519', shares=100,
@@ -188,7 +188,7 @@ class TestAccountTradingService:
 
     @pytest.fixture()
     def trading(self, repo):
-        from application.services.account_trading_service import AccountTradingService
+        from qs_trading.application.services.account_trading_service import AccountTradingService
         return AccountTradingService(repo=repo)
 
     def test_buy_success_full_chain(self, repo, trading):
@@ -211,7 +211,7 @@ class TestAccountTradingService:
         repo.create_account('test_acc_a', initial_capital=100000)
         trading.execute_trade('test_acc_a', 'buy', '600519', shares=100,
                               reason='测试买入：技术面突破+放量', price=10.0)
-        from application.services.account_trading_service import TradingError
+        from qs_trading.application.services.account_trading_service import TradingError
         with pytest.raises(TradingError) as exc:
             trading.execute_trade('test_acc_a', 'sell', '600519', shares=100,
                                   reason='测试卖出：当日卖出应被T+1拦截', price=11.0)
@@ -222,7 +222,7 @@ class TestAccountTradingService:
         repo.create_account('test_acc_a', initial_capital=100000)
         trading.execute_trade('test_acc_a', 'buy', '600519', shares=100,
                               reason='测试买入：技术面突破+放量', price=10.0)
-        from application.services.account_trading_service import TradingError
+        from qs_trading.application.services.account_trading_service import TradingError
         with pytest.raises(TradingError) as exc:
             trading.execute_trade('test_acc_a', 'sell', '600519', shares=100,
                                   reason='测试卖出：当日卖出应被T+1拦截', price=11.0)
@@ -237,7 +237,7 @@ class TestAccountTradingService:
         repo.settle_t1('test_acc_a', today=date(2099, 1, 1))  # 模拟次日结转
         trading.execute_trade('test_acc_a', 'buy', '600519', shares=100,
                               reason='测试买入：次日加仓部分不可卖', price=10.0)
-        from application.services.account_trading_service import TradingError
+        from qs_trading.application.services.account_trading_service import TradingError
         with pytest.raises(TradingError) as exc:
             trading.execute_trade('test_acc_a', 'sell', '600519', shares=200,
                                   reason='测试卖出：超出可卖数量应被拦截', price=11.0)
@@ -246,7 +246,7 @@ class TestAccountTradingService:
     def test_non_t1_error_has_no_details(self, repo, trading):
         """向后兼容：非 T+1 的 TradingError details 为 None"""
         repo.create_account('test_acc_a', initial_capital=1000)
-        from application.services.account_trading_service import TradingError
+        from qs_trading.application.services.account_trading_service import TradingError
         with pytest.raises(TradingError) as exc:
             trading.execute_trade('test_acc_a', 'buy', '600519', shares=1000,
                                   reason='测试买入：资金不足应被拒绝', price=10.0)
@@ -267,7 +267,7 @@ class TestAccountTradingService:
 
     def test_buy_insufficient_cash(self, repo, trading):
         repo.create_account('test_acc_a', initial_capital=1000)
-        from application.services.account_trading_service import TradingError
+        from qs_trading.application.services.account_trading_service import TradingError
         with pytest.raises(TradingError) as exc:
             trading.execute_trade('test_acc_a', 'buy', '600519', shares=1000,
                                   reason='测试买入：资金不足应被拒绝', price=10.0)
@@ -276,7 +276,7 @@ class TestAccountTradingService:
     def test_archived_account_rejected(self, repo, trading):
         repo.create_account('test_acc_a', initial_capital=100000)
         repo.archive_account('test_acc_a')
-        from application.services.account_trading_service import TradingError
+        from qs_trading.application.services.account_trading_service import TradingError
         with pytest.raises(TradingError) as exc:
             trading.execute_trade('test_acc_a', 'buy', '600519', shares=100,
                                   reason='测试买入：归档账户应被拒绝', price=10.0)
@@ -284,7 +284,7 @@ class TestAccountTradingService:
 
     def test_reason_required(self, repo, trading):
         repo.create_account('test_acc_a', initial_capital=100000)
-        from application.services.account_trading_service import TradingError
+        from qs_trading.application.services.account_trading_service import TradingError
         with pytest.raises(TradingError) as exc:
             trading.execute_trade('test_acc_a', 'buy', '600519', shares=100,
                                   reason='太短', price=10.0)
@@ -292,7 +292,7 @@ class TestAccountTradingService:
 
     def test_single_position_risk_limit(self, repo, trading):
         repo.create_account('test_acc_a', initial_capital=100000)
-        from application.services.account_trading_service import TradingError
+        from qs_trading.application.services.account_trading_service import TradingError
         with pytest.raises(TradingError) as exc:
             # 买入 5 万，超过总资产 30%
             trading.execute_trade('test_acc_a', 'buy', '600519', shares=5000,

@@ -61,7 +61,7 @@ def _engine():
         or os.environ.get('POSTGRES_DSN')
     if not dsn:
         try:
-            from infrastructure.persistence.database.engine import _resolve_db_dsn
+            from qs_kernel.infrastructure.persistence.database.engine import _resolve_db_dsn
 
             dsn = _resolve_db_dsn()
         except Exception:  # noqa: BLE001 —— 兼容层无配置属预期

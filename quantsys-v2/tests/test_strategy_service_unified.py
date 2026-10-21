@@ -78,7 +78,7 @@ def test_load_model_uses_instance_paths(tmp_path):
 def test_create_trader_uses_strategy_config():
     """_create_trader 必须把账户/因子计算器注入构造函数，且风控/调仓参数真正生效"""
     from types import SimpleNamespace
-    from application.services.strategy_service import StrategyService
+    from qs_strategy.application.services.strategy_service import StrategyService
 
     service = StrategyService.__new__(StrategyService)
     service._configs_cache = {}
@@ -89,7 +89,7 @@ def test_create_trader_uses_strategy_config():
     mock_trader.config = {'strategy': {'rebalance_days': 5}}
     mock_trader.risk_controller = SimpleNamespace(single_stop_loss=-0.10)
 
-    with patch('application.services.strategy_service.SimulationTrader',
+    with patch('qs_strategy.application.services.strategy_service.SimulationTrader',
                return_value=mock_trader) as MockTrader:
         config = service.get_config('v14')
         trader = service._create_trader(config)
@@ -111,7 +111,7 @@ def test_create_trader_uses_strategy_config():
 
 def test_manual_rebalance_passes_current_date():
     """manual_rebalance 必须传 current_date（回归：此前调用必 TypeError）"""
-    from application.services.strategy_service import StrategyService
+    from qs_strategy.application.services.strategy_service import StrategyService
 
     service = StrategyService.__new__(StrategyService)
     service._configs_cache = {}

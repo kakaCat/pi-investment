@@ -5,11 +5,11 @@ Market Style ORM Repository - 市场风格仓储
   - 原 stub 未实现抽象方法 get_market_style，无法实例化
   - 实际表 quant.market_style_state
 """
-from infrastructure.persistence.orm import BaseORMRepository
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
 from sqlalchemy import Column, Integer, String, Float, Date, DateTime, JSON
 from sqlalchemy.exc import SQLAlchemyError
-from infrastructure.persistence.orm.base import Base
-from domain.ports import IMarketStyleRepository
+from qs_kernel.infrastructure.persistence.orm.base import Base
+from qs_kernel.domain.ports import IMarketStyleRepository
 from typing import List, Optional, Dict, Any
 from datetime import datetime, date
 import structlog

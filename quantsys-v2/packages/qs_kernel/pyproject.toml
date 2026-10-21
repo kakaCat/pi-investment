@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qs-kernel"
+version = "0.1.0"
+description = "PI Investment 主线胶水包 - config/logging/events/ports/共用事件源/共享域原语/base_service/persistence 连接与 ORM 基座（S11 · Slice A + B-1）"
+requires-python = ">=3.10"
+dependencies = [
+    "polars",
+    "pyyaml",
+    "structlog",
+    "sqlalchemy",
+    "python-dotenv",
+]
+
+[tool.setuptools.packages.find]
+include = ["qs_kernel*"]
+exclude = ["__pycache__*", "*.egg-info*"]

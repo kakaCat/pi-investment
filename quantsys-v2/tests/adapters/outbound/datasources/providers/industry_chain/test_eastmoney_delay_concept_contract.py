@@ -21,8 +21,8 @@
 """
 import pytest
 
-from adapters.outbound.datasources.providers.industry_chain import eastmoney_delay_concept as mod
-from adapters.outbound.datasources.providers.industry_chain.eastmoney_delay_concept import (
+from qs_market_data.adapters.outbound.datasources.providers.industry_chain import eastmoney_delay_concept as mod
+from qs_market_data.adapters.outbound.datasources.providers.industry_chain.eastmoney_delay_concept import (
     EastmoneyDelayConceptProvider,
 )
 

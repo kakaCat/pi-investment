@@ -3,7 +3,7 @@
 """
 import pytest
 from unittest.mock import Mock, patch
-from application.services.strategy_optimizer import StrategyOptimizer
+from qs_strategy.application.services.strategy_optimizer import StrategyOptimizer
 
 
 class TestStrategyOptimizer:

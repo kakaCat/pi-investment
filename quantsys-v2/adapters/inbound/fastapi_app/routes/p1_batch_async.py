@@ -152,7 +152,7 @@ async def get_stock_sentiment(symbol: str):
     未覆盖的标的显式返回 empty:true（而非 null + success:true 的假成功）。
     """
     try:
-        from adapters.outbound.datasources import get_data_provider_manager
+        from qs_market_data.adapters.outbound.datasources import get_data_provider_manager
 
         result = get_data_provider_manager().get_stock_comment(symbol)
         # 2026-09-14（独立审查 M2/M5 修复）：
@@ -307,7 +307,7 @@ async def get_quality_report(
     """
     try:
         from adapters.outbound.repositories.p2_async_repositories import DataQualityAsyncRepository
-        from infrastructure.persistence.orm.async_config import get_async_session_context
+        from qs_kernel.infrastructure.persistence.orm.async_config import get_async_session_context
 
         async with get_async_session_context() as session:
             repo = DataQualityAsyncRepository(session)

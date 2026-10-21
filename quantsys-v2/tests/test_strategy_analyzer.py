@@ -1,5 +1,5 @@
 import pytest
-from application.services.strategy_analyzer import StrategyAnalyzer
+from qs_strategy.application.services.strategy_analyzer import StrategyAnalyzer
 
 
 class TestStrategyAnalyzer:

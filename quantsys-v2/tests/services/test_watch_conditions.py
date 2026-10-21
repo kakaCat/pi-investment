@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from application.services.watch_engine.conditions import (
+from qs_watch.application.services.watch_engine.conditions import (
     EvalContext, evaluate, validate_condition,
 )
 

@@ -7,9 +7,9 @@ SimulationAccountRepository - 适配 SimulationORMRepository 到 IAccountReposit
 from typing import Optional, List
 import structlog
 
-from domain.accounts.models.account import Account, AccountStatus
-from domain.accounts.models.balance import Balance
-from domain.accounts.ports.IAccountRepository import IAccountRepository
+from qs_trading.domain.accounts.models.account import Account, AccountStatus
+from qs_trading.domain.accounts.models.balance import Balance
+from qs_trading.domain.accounts.ports.IAccountRepository import IAccountRepository
 from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
 
 logger = structlog.get_logger(__name__)

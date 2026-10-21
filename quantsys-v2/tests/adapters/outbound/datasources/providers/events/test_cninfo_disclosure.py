@@ -19,8 +19,8 @@
 """
 import pytest
 
-from adapters.outbound.datasources.providers.events import cninfo_disclosure as mod
-from adapters.outbound.datasources.providers.events.cninfo_disclosure import (
+from qs_market_data.adapters.outbound.datasources.providers.events import cninfo_disclosure as mod
+from qs_market_data.adapters.outbound.datasources.providers.events.cninfo_disclosure import (
     _MAX_SYMBOLS, CninfoDisclosureProvider, _ms_to_date, _strip_tags,
 )
 

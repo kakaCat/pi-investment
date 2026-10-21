@@ -86,7 +86,7 @@ def scan_and_create(payload: Optional[Dict[str, Any]] = Body(None)):
 @router.post('/api/pools/scan-all')
 @handle_api_error
 def scan_all_pools(payload: Optional[Dict[str, Any]] = Body(None)):
-    from application.services.pool_scanner_service import pool_scanner_service
+    from qs_sourcing.application.services.pool_scanner_service import pool_scanner_service
     data = payload or {}
     result = pool_scanner_service.scan_all_pools(
         strategy_ids=data.get('strategy_ids'), min_score=data.get('min_score', 70))
@@ -126,7 +126,7 @@ def get_scan_status():
 @router.post('/api/pools/scan/schedule')
 @handle_api_error
 def manage_scan_schedule(payload: Optional[Dict[str, Any]] = Body(None)):
-    from application.services.pool_scan_scheduler import pool_scan_scheduler
+    from qs_sourcing.application.services.pool_scan_scheduler import pool_scan_scheduler
     data = payload or {}
     action = data.get('action', 'start')
     if action == 'start':
@@ -339,7 +339,7 @@ def validate_pool(pool_id: int, payload: Optional[Dict[str, Any]] = Body(None)):
 
 @router.post('/api/pools/{pool_id}/scan-signals')
 def scan_pool_signals(pool_id: int, payload: Optional[Dict[str, Any]] = Body(None)):
-    from application.services.pool_signal_scanner import PoolSignalScanner
+    from qs_sourcing.application.services.pool_signal_scanner import PoolSignalScanner
     from adapters.outbound.repositories import KlineORMRepository, StrategyORMRepository
     data = payload or {}
     strategy_id = data.get('strategy_id') or data.get('strategyId')
@@ -369,7 +369,7 @@ def scan_pool_signals(pool_id: int, payload: Optional[Dict[str, Any]] = Body(Non
 @router.post('/api/pools/{pool_id}/scan')
 @handle_api_error
 def scan_pool(pool_id: int, payload: Optional[Dict[str, Any]] = Body(None)):
-    from application.services.pool_scanner_service import pool_scanner_service
+    from qs_sourcing.application.services.pool_scanner_service import pool_scanner_service
     data = payload or {}
     result = pool_scanner_service.scan_pool(
         pool_id=pool_id, strategy_ids=data.get('strategy_ids'), min_score=data.get('min_score', 70))

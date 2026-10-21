@@ -1,12 +1,12 @@
 """策略ORM Repository - 快速迁移版本"""
 from typing import List, Dict, Optional, Any
-from infrastructure.persistence.orm import BaseORMRepository, get_session
+from qs_kernel.infrastructure.persistence.orm import BaseORMRepository, get_session
 from sqlalchemy import (
     Column, Integer, String, Float, Date, Text, BigInteger, JSON, Boolean, DateTime, func,
     bindparam, cast, delete as sa_delete, literal_column, select, update as sa_update,
 )
 from sqlalchemy.dialects.postgresql import JSONB
-from infrastructure.persistence.orm.base import Base
+from qs_kernel.infrastructure.persistence.orm.base import Base
 from infrastructure.persistence.orm.models.strategy_validation import StrategyValidationReport
 import structlog
 
@@ -63,7 +63,7 @@ class StrategyConfig(Base):
     updated_at = Column(DateTime)
     last_executed_at = Column(DateTime)  # 最后执行时间
 
-from domain.ports import IStrategyRepository
+from qs_kernel.domain.ports import IStrategyRepository
 
 class StrategyORMRepository(BaseORMRepository[Strategy], IStrategyRepository):
     model = Strategy
@@ -582,14 +582,14 @@ class StrategyORMRepository(BaseORMRepository[Strategy], IStrategyRepository):
             strategy_id: 策略 ID
             performance_status: passing / underperform / failing / unmeasured
             evidence: 判定证据（年化/夏普/回撤/基准/来源/窗口/规则），由
-                      application.services.strategy_status.performance_evidence() 生成
+                      qs_strategy.application.services.strategy_status.performance_evidence() 生成
 
         Returns:
             dict: {'strategy_id', 'performance_status', 'performance_evidence'}；策略不存在返回 None
         Raises:
             ValueError: 状态非法
         """
-        from application.services.strategy_status import PERFORMANCE_STATUSES
+        from qs_strategy.application.services.strategy_status import PERFORMANCE_STATUSES
         if performance_status not in PERFORMANCE_STATUSES:
             raise ValueError(
                 f"performance_status 必须是 {', '.join(PERFORMANCE_STATUSES)} 之一，收到: {performance_status}"

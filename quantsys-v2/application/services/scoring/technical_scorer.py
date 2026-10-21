@@ -12,7 +12,7 @@
 from typing import Dict, Any, Optional
 import logging
 from .base_scorer import BaseScorer
-from infrastructure.config.constants.scoring.scorer_params import (
+from qs_kernel.infrastructure.config.constants.scoring.scorer_params import (
     TechnicalScorerConfig,
     DEFAULT_TECHNICAL_SCORER_CONFIG,
 )
