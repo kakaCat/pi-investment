@@ -23,28 +23,86 @@ from domain.industry_chain.ports.IIndustryChainProvider import IIndustryChainPro
 
 logger = logging.getLogger(__name__)
 
-# 默认 seed 目录：repo_root/domain/industry_chain/seed
-# 本文件位置随包化变动过（曾 <repo>/adapters/outbound/datasources/providers/industry_chain/），
-# 固定上溯层数已废弃；改为自祖先目录向上找 <root>/domain/industry_chain/seed 标记。
+# 默认 seed 目录：**按 seed 目录本身定位**，不再猜 repo_root。
+#
+# 历史与故障（2026-10-21 定位，investor/w-36c3225e）：
+#   本文件曾用「自祖先目录向上找 <root>/domain/industry_chain/seed 标记」推断仓库根，
+#   再拼 `<root>/domain/industry_chain/seed`。2026-09-11 抽离 qs-intel 二方包
+#   （commit 898039f23）把 seed 目录搬到
+#   `packages/qs_intel/qs_intel/domain/industry_chain/seed`，
+#   但本文件的查找规则没跟着改 ⇒ 解析到 `packages/domain/industry_chain/seed`（不存在）。
+#   后果：策展源**一直**读不到任何链（`available()` 返回空列表），
+#   chain_list 只能靠 DB 兜底显示 8 条历史链，chain_scan 一律 502
+#   「产业链拓扑取数失败（人工策展为唯一权威源且不可降级）」。
+#   该故障是**静默**的：既不报错也不告警，只是"策展库中不存在产业链 'xxx'（可用: ）"，
+#   且 DB 兜底掩盖了它（清单看起来是正常的 8 条链）。
+#
+# 修法：**按已知布局枚举候选路径**，逐个探测，第一个存在的即用。
+#   ⚠️ 关键结构事实：provider 代码在 **qs_market_data** 包，而 seed 在 **qs_intel** 包
+#     （2026-09-11 抽离 qs-intel 二方包 commit 898039f23 后的布局）——
+#     **两者是不同包，"自本文件向上找"在结构上永远不可能命中 qs_intel 里的 seed**。
+#     这正是原实现失效且静默的根因：它假设 seed 与 provider 同在一条祖先链上。
+#   候选布局（按优先级）：
+#     0) 环境变量 QUANTSYS_INDUSTRY_CHAIN_SEED_DIR（测试/多部署用）
+#     1) <repo>/packages/qs_intel/qs_intel/domain/industry_chain/seed   ← 现役
+#     2) <repo>/domain/industry_chain/seed                             ← 旧布局
+#   找不到时返回 None（**不猜、不兜底成假路径**）——由调用方显式失败，
+#   避免再次"指向一个不存在的目录 ⇒ 可用链列表为空"的静默失败。
 # 可用环境变量 QUANTSYS_INDUSTRY_CHAIN_SEED_DIR 覆盖（测试/多部署用）。
-def _find_repo_root() -> str:
-    _d = os.path.dirname(os.path.abspath(__file__))
+def _find_seed_dir() -> Optional[str]:
+    """按已知布局枚举 seed 目录；找不到返回 None（不返回假路径）"""
+    override = os.environ.get('QUANTSYS_INDUSTRY_CHAIN_SEED_DIR')
+    if override:
+        return override if os.path.isdir(override) else None
+
+    # 找 repo 根：**按标记定位**（不用固定上溯层数——包一重构层数就变，
+    # 原实现的 7 层假设正是与实际 8 层差一层而失效的原因之一）。
+    # 标记：含 packages/qs_intel 的目录（现役布局）或含 domain/industry_chain 的目录（旧布局）。
+    here = os.path.dirname(os.path.abspath(__file__))
+    repo = None
+    _d = here
     while True:
-        if os.path.isdir(os.path.join(_d, 'domain', 'industry_chain', 'seed')):
-            return _d
+        if os.path.isdir(os.path.join(_d, 'packages', 'qs_intel')):
+            repo = _d
+            break
+        if os.path.isdir(os.path.join(_d, 'domain', 'industry_chain')):
+            repo = _d
+            break
         _parent = os.path.dirname(_d)
         if _parent == _d:
-            # 兜底：找不到标记时保持旧行为的上溯 7 层（包化后的理论深度）
-            return os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                                '..', '..', '..', '..', '..', '..', '..'))
+            break
+        _d = _parent
+
+    candidates = []
+    if repo:
+        candidates.append(os.path.join(repo, 'packages', 'qs_intel', 'qs_intel',
+                                       'domain', 'industry_chain', 'seed'))   # 布局 1（现役）
+        candidates.append(os.path.join(repo, 'domain', 'industry_chain', 'seed'))  # 布局 2（旧）
+    for candidate in candidates:
+        if os.path.isdir(candidate):
+            return candidate
+    # 兜底：向上逐级找 industry_chain/seed（兼容未来把 seed 与 provider 放回同链的布局）
+    _d = here
+    while True:
+        for pattern in (('domain', 'industry_chain', 'seed'), ('industry_chain', 'seed')):
+            candidate = os.path.join(_d, *pattern)
+            if os.path.isdir(candidate):
+                return candidate
+        _parent = os.path.dirname(_d)
+        if _parent == _d:
+            return None
         _d = _parent
 
 
-_REPO_ROOT = _find_repo_root()
-_DEFAULT_SEED_DIR = os.environ.get(
-    'QUANTSYS_INDUSTRY_CHAIN_SEED_DIR',
-    os.path.join(_REPO_ROOT, 'domain', 'industry_chain', 'seed'),
-)
+_SEED_DIR = _find_seed_dir()
+_DEFAULT_SEED_DIR = _SEED_DIR or ''
+if not _SEED_DIR:
+    # 显式告警：这条以前是静默失败（解析到假路径 ⇒ 可用链为空）
+    logger.error(
+        '产业链策展 seed 目录未找到（已查找 <ancestor>/domain/industry_chain/seed 与 '
+        '<ancestor>/industry_chain/seed）：策展源将不可用，chain_list 只能走 DB 兜底、'
+        'chain_scan 会 502。可用环境变量 QUANTSYS_INDUSTRY_CHAIN_SEED_DIR 指定。'
+    )
 
 
 class CuratedChainProvider(IIndustryChainProvider):
@@ -63,7 +121,8 @@ class CuratedChainProvider(IIndustryChainProvider):
     # ------------------------------------------------------------------ seed
 
     def _seed_files(self) -> List[str]:
-        if not os.path.isdir(self.seed_dir):
+        # seed_dir 为 ''（未找到目录）时 isdir('') 返回 False ⇒ 走空列表分支，不抛异常
+        if not self.seed_dir or not os.path.isdir(self.seed_dir):
             return []
         return sorted(
             os.path.join(self.seed_dir, f)
