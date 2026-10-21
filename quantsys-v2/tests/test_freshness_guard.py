@@ -12,7 +12,11 @@
 """
 import pytest
 
-import adapters.inbound.fastapi_app.daily_jobs_bootstrap as m
+# 2026-10-21 僵尸批次4：bootstrap→daily_jobs 包拆分（c4fc27a41）后，_job_freshness_guard
+# 本体已迁 daily_jobs/pipeline.py——其函数体 globals 在 pipeline 模块，patch bootstrap
+# 命名空间（旧行为）不再命中桩，值为真数据（3F：fresh 误判 stale / job_failed 错 / 不告警）。
+# 打桩点随本体迁 pipeline，断言零改。
+import adapters.inbound.fastapi_app.daily_jobs.pipeline as m
 
 
 # 2026-09-14（w-32314d00，REQ-24e15d B4-c4）：原来的 _FakeEngine 打桩的是

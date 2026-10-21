@@ -15,7 +15,10 @@ import structlog
 
 # 失败判定口径唯一来源（含嵌套下钻）：与 APScheduler 路径共用，避免两套标准
 from infrastructure.scheduler.job_executor import find_result_failure
-from adapters.inbound.fastapi_app.daily_jobs.alerting import _job_failure_watch, _send_feishu  # noqa: F401
+from adapters.inbound.fastapi_app.daily_jobs.alerting import (
+    _job_failure_watch, _send_feishu, _summarize_result)  # noqa: F401
+# 2026-10-21 僵尸批次4：_summarize_result 一并补引——桩面还原批次把它当作会话起点的
+# 既存名字；bootstrap 拆分时 pipeline 漏引此项，测试经 pipeline 寻名即 AttributeError。
 from adapters.inbound.fastapi_app.daily_jobs.defs import logger  # noqa: F401
 # 2026-10-21 反向越层收口：权威定义迁 qs_ops/domain/trading_days.py，此处保别名
 from qs_ops.domain.trading_days import last_trading_day as _last_trading_day
