@@ -148,7 +148,7 @@ class WatchNotifier:
     def notify(self, rule, condition: dict, quote, result, escalation_reason: str = None,
                disposition: str = None, disposition_reason: str = None,
                dup_of: int = None, action_amount_yuan: float = None, level: str = None,
-               merged_from_rule: int = None):
+               merged_from_rule: int = None, exec_directive=None):
         """触发通知
         
         Args:
@@ -157,6 +157,10 @@ class WatchNotifier:
             quote: 实时行情
             result: 条件评估结果
             escalation_reason: 升级原因（如果是 L1→L2 自动升级）
+            exec_directive: P0 执行指令（`exec_directive.ExecDirective`；由
+                `DeliverStage` **唯一构造**，与待办读同一个对象）——非空时覆盖
+                通知的「下一步」/结构化动作块，并把三态处置并入预案段。
+                缺省 None = 行为与改造前完全一致（不许改坏旧渲染）。
         
         Returns:
             bool: 是否成功送达
@@ -190,7 +194,7 @@ class WatchNotifier:
             payload0 = self._build_payload(rule, condition, quote, result, escalation_reason,
                                            action_amount_yuan=action_amount_yuan, level=level,
                                            merged_from_rule=merged_from_rule)
-            ok = self._deliver_payload(rule, payload0)
+            ok = self._deliver_payload(rule, payload0, exec_directive=exec_directive)
             try:
                 self.trigger_repo.mark_notified(prev.id, ok)
                 prev.notified = ok
@@ -214,7 +218,7 @@ class WatchNotifier:
             escalation_reason=escalation_reason,
             merged_from_rule=merged_from_rule,
         )
-        notified = self._deliver_payload(rule, payload)
+        notified = self._deliver_payload(rule, payload, exec_directive=exec_directive)
 
         # 4. 回写实际发送结果（notified = 真实送达与否，观测口径的事实源）
         if trigger is not None:
@@ -257,9 +261,25 @@ class WatchNotifier:
             return None
         return prev
 
-    def _deliver_payload(self, rule, payload) -> bool:
-        """经 NotificationFacade 发送，返回是否送达；任何异常都不抛出（如实 False）。"""
+    def _deliver_payload(self, rule, payload, exec_directive=None) -> bool:
+        """经 NotificationFacade 发送，返回是否送达；任何异常都不抛出（如实 False）。
+
+        P0 执行指令（RFC 017 §2.1.2，卡 `exec-directive-card`）：`exec_directive`
+        非空时把指令**并入通知正文的三个既有落点**，不改 facade 契约、不改模板：
+          · `next_action_hint` → 级别模板 P0 卡的「下一步」（`_action_text` 最高优先）；
+          · `action_params`    → MSG_V2 四段式的「建议动作」块（结构化买卖/数量/参考价）；
+          · `context`          → 「预案」段追加三态处置（执行/不执行/超时）的收敛口径。
+        指令与待办是**同一个对象**（构造点在 DeliverStage），故这里只渲染、不再构造。
+        """
         try:
+            next_action_hint = payload.next_action_hint
+            action_params = payload.action_params
+            context = payload.context
+            if exec_directive is not None:
+                next_action_hint = exec_directive.card_action_text()
+                # 不可执行时不拿残缺指令顶替规则自己的结构化指引
+                action_params = exec_directive.action_params() or action_params
+                context = exec_directive.card_context(payload.context)
             # 构建 NotificationFacade 参数
             facade_result = self.notification_facade.send_watch_triggered(
                 symbol=payload.symbol,
@@ -267,7 +287,7 @@ class WatchNotifier:
                 price=payload.price,
                 condition=payload.condition,
                 message=payload.message,
-                context=payload.context,
+                context=context,
                 notify_mode='agent' if payload.trigger_level == 'L2' else 'direct',
                 change_pct=payload.change_pct,
                 pnl_pct=payload.pnl_pct,
@@ -277,7 +297,7 @@ class WatchNotifier:
                 decision_audit_id=payload.decision_audit_id,
                 intent=payload.intent,
                 lifecycle_stage=payload.lifecycle_stage,
-                next_action_hint=payload.next_action_hint,
+                next_action_hint=next_action_hint,
                 account=payload.account,
                 scope=payload.scope,
                 action_amount_yuan=payload.action_amount_yuan,
@@ -287,8 +307,9 @@ class WatchNotifier:
                 level=payload.level,
                 # REQ-ad0a FR-10：规则号随通知下发（模板显示真实号；缺失=None=手工）
                 rule_id=getattr(rule, 'id', None),
-                # REQ-261016155500-4f2a：结构化操作指引随通知下发（建议动作块数据源）
-                action_params=payload.action_params,
+                # REQ-261016155500-4f2a：结构化操作指引随通知下发（建议动作块数据源）；
+                # P0 执行指令存在时以指令（数量/参考价来自持仓真值）为准
+                action_params=action_params,
                 # REQ-261016155500-4f2a wt:engine:2：dedup 合并展示标注
                 merged_from_rule=payload.merged_from_rule,
             )

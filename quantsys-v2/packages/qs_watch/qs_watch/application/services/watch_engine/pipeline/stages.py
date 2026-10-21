@@ -28,10 +28,16 @@ from typing import Optional
 import structlog
 
 from qs_watch.application.services.watch_engine.conditions import freshness_of
+from qs_watch.application.services.watch_engine.exec_directive import (
+    ExecAction, ExecDirective, action_for_intent, build_exec_directive,
+    read_position_facts,
+)
 from qs_watch.domain.watch.services import noise_policy
 from qs_watch.domain.watch.services.disposition import (
     DISPOSITION_AUTO_OBSERVED, normalize_symbol,
 )
+from qs_watch.domain.watch.services.level_resolver import MARKET_SCOPES
+from qs_watch.domain.watch.services.rule_guard import effective_account
 
 from .constants import DAILY_CAP_REASON, SUPPRESSED_TRIGGER_REASON
 from .context import TriggerContext
@@ -310,8 +316,76 @@ class DedupStage:
         return StageResult.done(str(ctx.disposition))
 
 
+def _condition_text(cond) -> Optional[str]:
+    """条件 → evidence 里的一句话判据（如 `price_break below 26.88`）。"""
+    data = cond if isinstance(cond, dict) else {}
+    ctype = str(data.get('type') or '').strip()
+    params = data.get('params') if isinstance(data.get('params'), dict) else {}
+    bits = [ctype] if ctype else []
+    if params.get('direction'):
+        bits.append(str(params['direction']))
+    if params.get('price') is not None:
+        bits.append(str(params['price']))
+    return ' '.join(bits) or None
+
+
+def build_p0_exec_directive(ctx: TriggerContext) -> Optional[ExecDirective]:
+    """#11 内的唯一构造点：P0 执行指令（RFC 017 §2.1.2，卡 `exec-directive-card`）。
+
+    为什么在 DeliverStage 里构造：指令卡是**通知与待办共用的一份事实**——
+    在通知前构造一次，随后同一对象既进通知渲染（`notify(exec_directive=...)`），
+    也挂在 trigger 上供 #13 待办取用（`todo.exec_directive`）。绝不二次构造。
+
+    适用面：只对**退出类意图**（止损/止盈/减仓）构造——其余意图 `action='none'`，
+    不是指令卡，不该覆盖 P0 卡原有的操作指引。市场/板块级规则同样不构造：它们的
+    「标的」是市场快照伪标的，没有个股持仓语义（否则会把「市场级告警」误渲染成
+    「这笔持仓该卖」）。
+
+    唯一的 I/O：持仓真值读取（`read_position_facts`）。读失败 fail-open →
+    `executable=True` + `evidence['position_read']='degraded'`（绝不默认没持仓）。
+    任何异常都不打挂通知主路径（指令是增益，通知才是义务）。
+    """
+    if getattr(ctx.rule, 'scope', None) in MARKET_SCOPES:
+        return None
+    if action_for_intent(_intent_of(ctx.rule)) is ExecAction.NONE:
+        return None
+    try:
+        intent = _intent_of(ctx.rule)
+        account = effective_account(ctx.rule)
+        position, read_state = read_position_facts(account, getattr(ctx.rule, 'symbol', None))
+        return build_exec_directive(
+            rule=ctx.rule,
+            level=ctx.notify_level,
+            now=ctx.now,
+            intent=intent,
+            trigger_price=getattr(ctx.quote, 'price', None),
+            account=account,
+            position=position,
+            position_read=read_state,
+            condition=_condition_text(ctx.cond),
+            distance_ratio=getattr(ctx.result, 'distance_ratio', None),
+        )
+    except Exception as e:  # noqa: BLE001 - 指令构造失败不阻断通知
+        logger.warning('执行指令构造失败（照常通知）',
+                       rule_id=getattr(ctx.rule, 'id', None), error=str(e))
+        return None
+
+
+def _intent_of(rule) -> str:
+    """规则意图推导（与分级/处置/待办同源；失败降级空串）。"""
+    try:
+        from qs_watch.domain.watch.services.disposition import intent_of
+        return str(intent_of(rule) or '')
+    except Exception:  # noqa: BLE001
+        return str(getattr(rule, 'intent', '') or '')
+
+
 class DeliverStage:
-    """#11 通知或观察聚合缓冲：唯一出口（发送失败不闩锁，下 tick 补发）。"""
+    """#11 通知或观察聚合缓冲：唯一出口（发送失败不闩锁，下 tick 补发）。
+
+    P0 执行指令卡（RFC 017 §2.1.2）在这里构造并交给 notifier——不新增阶段，
+    15 阶段顺序不变。
+    """
 
     name = 'deliver'
 
@@ -340,6 +414,16 @@ class DeliverStage:
             # escalated/pending 等需动作类照旧即时单发。
             ctx.buffered = (engine.observe_agg is not None
                             and engine.observe_agg.should_buffer(rule, ctx.disposition))
+            # P0 执行指令卡（RFC 017 §2.1.2，卡 `exec-directive-card`）：**唯一构造点**。
+            # 构造一次 → 喂通知（本阶段）→ 同一对象挂 trigger → #13 待办直接取用。
+            # 不新增阶段：15 阶段顺序/数量都不变（注册表 DEFAULT_STAGES 未改）。
+            # 聚合缓冲路径（observe 类）没有执行指令，不必白读一次持仓。
+            exec_directive = None
+            if (not ctx.buffered
+                    and str(ctx.notify_level or '').strip().upper() == 'P0'):
+                exec_directive = build_p0_exec_directive(ctx)
+            if exec_directive is not None:
+                notify_kwargs['exec_directive'] = exec_directive
             if ctx.buffered:
                 buffer_reason = ((ctx.disposition_reason or '')
                                  + '；已进 15 分钟聚合缓冲（合屏发送）')
@@ -376,6 +460,17 @@ class DeliverStage:
             logger.error('通知发送失败', rule_id=rule.id, cond=ctx.cond, error=str(e))
             return StageResult.stop('notify_failed')
         ctx.trigger = trigger
+        if exec_directive is not None and trigger is not None:
+            # trigger_id 只能在落库后回填（构造时这条触发还不存在）。回填后**同一对象**
+            # 留在 trigger 上：待办阶段与事件记录读的都是它——通知与待办同源，
+            # 不出现第二份口径（也不二次构造）。
+            # 挂载失败只记日志：指令是增益，不许因审计字段把 tick 打挂。
+            try:
+                setattr(trigger, 'exec_directive',
+                        exec_directive.with_ids(trigger_id=getattr(trigger, 'id', None)))
+            except Exception as e:  # noqa: BLE001
+                logger.warning('执行指令挂载触发失败（tick 继续）',
+                               rule_id=rule.id, error=str(e))
         if ctx.buffered:
             return StageResult.done('buffered')
         return StageResult.done(
@@ -398,7 +493,12 @@ class DailyEmitCountStage:
 
 
 class TodoStage:
-    """#13 落待办：闭环唯一载体（触发 → L1→L2→L3 晋升 + 到期巡检 + 回执）。"""
+    """#13 落待办：闭环唯一载体（触发 → L1→L2→L3 晋升 + 到期巡检 + 回执）。
+
+    P0 执行指令（`exec_directive`）不在这里构造——#11 已构造并挂在 trigger 上；
+    本阶段只是把**同一对象**挂到待办上（补 todo_id），所以「通知说的话」与
+    「待办要的事」永远一致（卡 `exec-directive-card` 的同源要求）。
+    """
 
     name = 'todo'
 
@@ -407,11 +507,31 @@ class TodoStage:
             # 聚合缓冲的触发不建待办（2026-10-19）：无判据 observe 属「记录不打扰」，
             # 且聚合卡最长 15 分钟后才到用户——待办 SLA 时钟不应早于用户可见。
             return StageResult.done('skipped_buffered')
+        directive = (getattr(ctx.trigger, 'exec_directive', None)
+                     if ctx.trigger is not None else None)
+        todo = None
         try:
-            ctx.engine._create_watch_todo(
+            todo = ctx.engine._create_watch_todo(
                 ctx.rule, ctx.now, ctx.disposition, ctx.trigger, ctx.notify_level)
         except Exception as e:  # noqa: BLE001 - 双保险：helper 已自吞异常，tick 不许被打挂
             logger.error('建待办异常（tick 继续）', rule_id=ctx.rule.id, error=str(e))
+        if directive is not None and todo is not None:
+            # 同源：这里只回填 todo_id 并挂到待办上，绝不重新构造指令（第二份口径）。
+            # 挂载失败只记日志（指令是增益，不许把 tick 打挂）。
+            try:
+                directive = directive.with_ids(todo_id=getattr(todo, 'id', None))
+                setattr(todo, 'exec_directive', directive)
+                if ctx.trigger is not None:
+                    setattr(ctx.trigger, 'exec_directive', directive)
+            except Exception as e:  # noqa: BLE001
+                logger.warning('执行指令挂载待办失败（tick 继续）',
+                               rule_id=getattr(ctx.rule, 'id', None), error=str(e))
+                return None
+            logger.info('执行指令已挂待办（通知/待办同源）',
+                        rule_id=getattr(ctx.rule, 'id', None),
+                        trigger_id=directive.trigger_id, todo_id=directive.todo_id,
+                        action=directive.action.value,
+                        executable=directive.executable)
         return None
 
 
@@ -479,5 +599,12 @@ class FinalizeStage:
         if ctx.env_exempt_reason:
             ctx.events[-1]['env_gate_exempt'] = True
             ctx.events[-1]['env_gate_exempt_reason'] = ctx.env_exempt_reason
+        # 执行指令留痕（RFC 017 §2.1.2 / 卡 exec-directive-card）：事件里带 structured
+        # payload（动作 + 三态处置动作项 + 溯源 id），供复盘/后续统计直接消费，
+        # 不再从通知文案反解。
+        directive = (getattr(ctx.trigger, 'exec_directive', None)
+                     if ctx.trigger is not None else None)
+        if directive is not None:
+            ctx.events[-1]['exec_directive'] = directive.to_dict()
         return None
 
