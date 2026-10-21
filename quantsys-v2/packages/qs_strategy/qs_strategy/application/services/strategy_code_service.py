@@ -28,7 +28,7 @@ from domain.backtest.engine.code_validator import CodeValidator
 from domain.backtest.engine.param_parser import ParamParser
 from infrastructure.quantlib.core.config import CHART_KLINE_LIMIT, CHART_KLINE_MAX_LIMIT
 from domain.risk.attribution import RiskAttributionCalculator
-from domain.trading.services.market_session_policy import AFTERNOON_START, MORNING_END
+from qs_trading.domain.trading.services.market_session_policy import AFTERNOON_START, MORNING_END
 
 # 午休边界的字符串形式（分钟线聚合的跨时段分组判据用；口径唯一在 MarketSessionPolicy）
 _MORNING_END_HHMMSS = MORNING_END.strftime('%H:%M:%S')        # '11:30:00'

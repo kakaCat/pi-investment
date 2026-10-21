@@ -44,7 +44,7 @@ def _model_freshness_alerts() -> Dict[str, Any]:
     """
     try:
         from adapters.shared.ml_helpers import _get_model_repo, _resolve_latest_version
-        from application.services.scheduler_tasks import _model_age_days
+        from qs_ops.application.services.scheduler_tasks_training_guard import _model_age_days
 
         if not _resolve_latest_version('lightgbm'):
             return {'alerts': ['无可用 lightgbm 模型'], 'fatal': True}
@@ -108,7 +108,7 @@ class ModelTrainDailyJob(Job):
 
     async def execute(self, params: Dict[str, Any]) -> JobResult:
         try:
-            from application.services.scheduler_tasks import handle_model_train_auto
+            from qs_ops.application.services.scheduler_tasks_models import handle_model_train_auto
             result = await asyncio.to_thread(handle_model_train_auto, params or {})
             status = result.get('status')
 

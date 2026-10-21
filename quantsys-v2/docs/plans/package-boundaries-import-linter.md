@@ -578,3 +578,29 @@ flowchart TB
   正反序、sourcing→strategy、trading→market_data）全绿无环；相邻测试面
   notifications×4 + sector_rotation + orchestrator_signals + signal_execution×3 +
   data_completeness + market_session + trade_guard **94 passed**
+
+## 2026-10-21 · 阶段2 批9：qs_ops/qs_strategy 可正典化边 ×11 收编
+
+- **qs_ops 自家域自引 shim ×7**（应走包内 canonical 而非 shell alias 路径）：
+  signal_jobs:159 `handle_signal_execution_daily`、trading_jobs:241 `handle_pool_refresh_daily`
+  → `qs_ops.application.services.scheduler_tasks_signals`；model_jobs:47 `_model_age_days`
+  → `scheduler_tasks_training_guard`；model_jobs:111 `handle_model_train_auto`
+  → `scheduler_tasks_models`；trading_jobs:50/78 `v13/v14_daily_check`
+  → 本包 `qs_ops.infrastructure.jobs.strategy_trading_job`
+- **qs_ops 财务 adapter ×2**：scheduler.py:1235 / financial_statement_update_job.py:51
+  → `qs_market_data.application.services.financial_data_service_adapter`
+  （ops→market_data 属顶点装配者允许边；注释本就写明"adapter 已迁至 qs_market_data"）
+- **qs_strategy ×3**：strategy_lifecycle_service:22 自引 `strategy_evaluation_service`
+  → 本包 canonical；strategy_code_service:31 `market_session_policy` →
+  `qs_trading.domain.trading.services`（口径唯一在 MarketSessionPolicy；**新方向边
+  strategy→trading，显式化并登记**）；strategy_rotation_engine:28 `agent_notification_service`
+  → `qs_agenthub`（新方向边 strategy→agenthub，与批8 notification_factory 同族）
+- 验证：py_compile ×8 ✓；冒烟 4 组（handlers 逐个导入 / jobs 模块体 / strategy→trading
+  域正反向同载 / rotation+lifecycle+agenthub）全绿；相邻测试面 16 文件 **116 passed**
+- ⚠️ **A/B stash 对照实锤 11 失败预存**（与 HEAD 同名同数：watch_t12×2 /
+  financial_indicators_contract×2 / response_utils×3 / strategy_code_service×3 /
+  technical_indicators×1，报错形态"K线数据不足，至少需要20条，实际15条"/ MACD NaN）——
+  非本批引入；疑似测试数据构造不足或 mock 语义漂移，属僵尸清理彼卡处理，本批不动
+- 暂留登记（无 canonical 包家，S11 kernel 候选）：`chan_scan_service`×2、
+  `ml_pipeline.feature_engineering/predictor/trainer/artifacts`×4、
+  `daily_orchestrator`×2、`circuit_breaker_alert_service`×1

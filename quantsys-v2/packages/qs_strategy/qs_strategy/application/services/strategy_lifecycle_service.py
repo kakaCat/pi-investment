@@ -19,7 +19,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from application.services import strategy_evaluation_service as ev
+from qs_strategy.application.services import strategy_evaluation_service as ev
 
 logger = logging.getLogger(__name__)
 

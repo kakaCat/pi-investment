@@ -1232,7 +1232,7 @@ class SchedulerService:
         logger.info("Executing financial_data_update command")
         
         try:
-            from application.services.financial_data_service_adapter import FinancialDataServiceAdapter as FinancialDataService
+            from qs_market_data.application.services.financial_data_service_adapter import FinancialDataServiceAdapter as FinancialDataService
 
             # 2026-10-20 修复（w-5d46d252）：①domain.repositories.orm 包已删除；
             # ②adapter 已迁至 qs_market_data 且构造无参（内部走 provider manager），

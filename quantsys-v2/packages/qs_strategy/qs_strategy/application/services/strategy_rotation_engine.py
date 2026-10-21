@@ -25,7 +25,7 @@ from datetime import datetime, date, timedelta
 
 from qs_intel.application.services.market_style_detector import MarketStyleDetector
 from qs_strategy.application.services.strategy_weight_adjuster import StrategyWeightAdjuster
-from application.services.agent_notification_service import agent_service
+from qs_agenthub.application.services.agent_notification_service import agent_service
 
 logger = structlog.get_logger(__name__)
 

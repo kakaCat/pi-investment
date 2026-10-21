@@ -47,7 +47,7 @@ class V13DailyCheckJob(Job):
 
     async def execute(self, params: Dict[str, Any]) -> JobResult:
         try:
-            from infrastructure.jobs.strategy_trading_job import v13_daily_check
+            from qs_ops.infrastructure.jobs.strategy_trading_job import v13_daily_check
             result = v13_daily_check(**params)
             return _ok_or_fail(self.name, "V13 每日检查完成", result)
         except Exception as e:
@@ -75,7 +75,7 @@ class V14DailyCheckJob(Job):
 
     async def execute(self, params: Dict[str, Any]) -> JobResult:
         try:
-            from infrastructure.jobs.strategy_trading_job import v14_daily_check
+            from qs_ops.infrastructure.jobs.strategy_trading_job import v14_daily_check
             result = v14_daily_check(**params)
             return _ok_or_fail(self.name, "V14 每日检查完成", result)
         except Exception as e:
@@ -238,7 +238,7 @@ class PoolRefreshDailyJob(Job):
 
     async def execute(self, params: Dict[str, Any]) -> JobResult:
         try:
-            from application.services.scheduler_tasks import handle_pool_refresh_daily
+            from qs_ops.application.services.scheduler_tasks_signals import handle_pool_refresh_daily
             result = await asyncio.to_thread(handle_pool_refresh_daily, params or {})
             status = result.get('status')
             if status == 'failed':

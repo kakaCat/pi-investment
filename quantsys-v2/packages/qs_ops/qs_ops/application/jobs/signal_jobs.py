@@ -156,7 +156,7 @@ class SignalExecutionDailyJob(Job):
             # 2026-10-20 重绑（用户裁定：量化虚拟交易独立于 Agent 主链路）：
             # 该 handler 现执行真实闭环——收集当日 pending 信号 → 风控 →
             # PaperTradingEngine(rotation_main) 成交 → 状态回写。
-            from application.services.scheduler_tasks import handle_signal_execution_daily
+            from qs_ops.application.services.scheduler_tasks_signals import handle_signal_execution_daily
             result = handle_signal_execution_daily(params)
             return JobResult.ok(
                 self.name,
