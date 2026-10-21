@@ -567,6 +567,12 @@ function errRowHtml(e: ErrorEvent, i: number): string {
   const occ = Number(e.occurrenceCount) || 1
   const rawLine = String(e.line ?? e.msg ?? '').replace(/\n/g, ' ')
   const asg = e.status === 'processing' && e.assignee ? '<span class="asg" title="认领窗口">👤 ' + esc(e.assignee) + '</span>' : ''
+  // P2 僵尸标记（2026-10-21, w-6224baac）：处理中但无责任人 = 状态推进时漏写 assignee，
+  // 既没人在管也没出口（实证 a6780ec3 ×1124 卡 40 天）。P0 起该形态可直接认领；
+  // P1 巡检会在静默超 2h 后自动回落 open。这里标红让人眼能看见，不靠翻库。
+  const zombie = st === 'processing' && !e.assignee
+    ? '<span class="zombie" title="僵尸处理中：状态=处理中但无责任人。可点「认领」接手（P0 转移边）；超过 2 小时无人认领将由 P1 巡检自动回落为待处理">⚠ 僵尸(无责任人)</span>'
+    : ''
   // P1（2026-09-10）：已解决/已忽略行展示处置结论（resolution_note），悬停看全文
   const note = (st === 'resolved' || st === 'ignored') && e.resolutionNote
     ? '<span class="note" title="' + esc(e.resolutionNote) + '">📝 ' + esc(trunc(String(e.resolutionNote).replace(/\n/g, ' '), 60)) + '</span>'
@@ -584,7 +590,11 @@ function errRowHtml(e: ErrorEvent, i: number): string {
       '<button type="button" class="dsh-exec-evact"' + idAttr + ' data-evact="resolve" title="标记已解决">解决</button>' +
       '<button type="button" class="dsh-exec-evact"' + idAttr + ' data-evact="ignore" title="标记已忽略（不处置）">忽略</button>'
   } else if (st === 'processing') {
-    btns = '<button type="button" class="dsh-exec-evact"' + idAttr + ' data-evact="resolve" title="已处置完成，标记解决">解决</button>' +
+    // 僵尸（无责任人）补一个认领入口——P0 起后端允许 processing∧无 assignee claim
+    btns = (zombie !== ''
+      ? '<button type="button" class="dsh-exec-evact dsh-exec-claim"' + idAttr + ' data-evact="claim" title="僵尸回收：认领该处理中事件（assignee=本窗口，P0 转移边）">认领</button>'
+      : '') +
+      '<button type="button" class="dsh-exec-evact"' + idAttr + ' data-evact="resolve" title="已处置完成，标记解决">解决</button>' +
       '<button type="button" class="dsh-exec-evact"' + idAttr + ' data-evact="ignore" title="标记已忽略（不处置）">忽略</button>'
   } else {
     btns = '<button type="button" class="dsh-exec-evact"' + idAttr + ' data-evact="reopen" title="重新打开为待处理">复开</button>'
@@ -595,7 +605,7 @@ function errRowHtml(e: ErrorEvent, i: number): string {
     '<time title="最近出现 ' + esc(String(e.lastSeenAt ?? e.timestamp ?? '')) + '">' + esc(shortDT(e.timestamp ?? e.lastSeenAt)) + '</time>' +
     (occ > 1 ? '<span class="occ" title="同指纹累计出现 ' + occ + ' 次（去重合并）">×' + occ + '</span>' : '') +
     '<span class="line" title="' + esc(rawLine.slice(0, 500)) + '">' + esc(trunc(rawLine, 120)) + '</span>' +
-    asg + note +
+    zombie + asg + note +
     '<span class="op">' + btns + '</span></li>'
 }
 function errPagerHtml(page: number, pages: number, total: number): string {

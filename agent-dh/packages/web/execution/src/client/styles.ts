@@ -303,6 +303,10 @@ html[data-dsh-exec-active] .dsh-exec-view { display: flex; flex-direction: colum
 .dsh-exec-errs li .evid.none { cursor:default; color:#c0c4cc; }
 .dsh-exec-errs li .occ { flex:none; color:#f56c6c; font-size:10.5px; font-weight:700; font-variant-numeric:tabular-nums; }
 .dsh-exec-errs li .asg { flex:none; color:#9254de; font-size:10.5px; background:#f5f0ff; border-radius:3px; padding:0 5px; white-space:nowrap; }
+/* P2 僵尸标记（2026-10-21, w-6224baac）：处理中但无责任人——红底警示 + 认领按钮 */
+.dsh-exec-errs li .zombie { flex:none; color:#c45656; font-size:10.5px; font-weight:600; background:#fef0f0; border:1px solid #fbc4c4; border-radius:3px; padding:0 5px; white-space:nowrap; cursor:help; }
+.dsh-exec-errs li .dsh-exec-claim { color:#c45656; border-color:#fbc4c4; }
+.dsh-exec-errs li .dsh-exec-claim:hover { color:#fff; background:#f56c6c; border-color:#f56c6c; }
 .dsh-exec-errs li .note { flex:none; color:#3f7f3f; font-size:10.5px; background:#f0f9eb; border-radius:3px; padding:0 5px; white-space:nowrap; max-width:260px; overflow:hidden; text-overflow:ellipsis; cursor:help; }
 .dsh-exec-errs li .op { margin-left:auto; display:inline-flex; gap:6px; align-items:center; flex:none; }
 .dsh-exec-errs li .op .dsh-exec-solve { margin-left:0; }
