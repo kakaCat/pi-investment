@@ -194,7 +194,9 @@ def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
         test_acc = results.get("test_accuracy", 0)
         logger.info(f"训练完成: train_acc={train_acc:.4f}, test_acc={test_acc:.4f}")
         
-        # 7. 保存模型
+        # 7. 保存模型 + scaler（2026-10-19 修复：scaler 此前只 fit 不落盘，
+        #    /api/ml/predict 因找不到 {model_type}_{version}_scaler.pkl 而落入
+        #    legacy K线特征路径，特征与 DB 因子训练空间错配 → 预测不可信）
         version = datetime.now().strftime("%Y%m%d_%H%M%S")
         try:
             model_path = trainer.save_model(version=version)
@@ -203,6 +205,11 @@ def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
         except Exception as e:
             logger.warning(f"模型文件保存失败: {e}")
             model_path = version  # 兜底：避免下方 create 引用未定义变量
+        try:
+            from application.services.ml_pipeline.artifacts import save_scaler
+            save_scaler(scaler, model_type, version, trainer.model_dir)
+        except Exception as e:
+            logger.warning(f"scaler 保存失败（预测将退化到 legacy 特征路径）: {e}")
         logger.info(f"模型已保存: {version}")
         
         # 7. 保存训练记录到DB（用 MlModelORMRepository.save_model 真实 upsert；

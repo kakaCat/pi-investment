@@ -146,6 +146,11 @@ def ml_train(payload: Optional[Dict[str, Any]] = Body(None)):
     model_path = str(MODEL_DIR / f"{model_type}_{version}.pkl")
     try:
         trainer.save_model(version=version)
+        # 2026-10-19 修复：scaler 必须随模型落盘，否则 /api/ml/predict 找不到
+        # {model_type}_{version}_scaler.pkl 会落入 legacy K线特征路径，
+        # 特征与 DB 因子训练空间错配（S1 复发形态）
+        from application.services.ml_pipeline.artifacts import save_scaler
+        save_scaler(scaler, model_type, version, trainer.model_dir)
     except Exception as e:
         logger.warning("Model file save skipped: %s", e)
 
@@ -269,7 +274,8 @@ def ml_predict(payload: Optional[Dict[str, Any]] = Body(None)):
             pass
 
     model_features = list(predictor.feature_names or [])
-    scaler_path = predictor.model_dir / f"{model_type}_{version}_scaler.pkl"
+    from application.services.ml_pipeline.artifacts import scaler_path as _scaler_path
+    scaler_path = _scaler_path(model_type, version, predictor.model_dir)
 
     if model_features and scaler_path.exists():
         # ── DB 因子路径（RFC003-P3，2026-08-20）──────────────────────────

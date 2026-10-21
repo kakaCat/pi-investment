@@ -44,11 +44,13 @@ class SimulationAccountRepository(IAccountRepository):
         if not orm_account:
             return None
         
+        # 2026-10-20 修复：Balance.total_value 自 2026-09-01 起是计算属性
+        # （= available + frozen + position_value），构造器不接受该 kwarg——
+        # 本方法此前必然 TypeError（get_balance 全线不可用）
         return Balance(
             account_name=orm_account.account_name,
             available_cash=float(orm_account.cash_available or 0),
             frozen_cash=float(orm_account.cash_frozen or 0),
-            total_value=float(orm_account.total_value or 0),
             position_value=float(orm_account.position_value or 0),
             peak_value=float(orm_account.peak_value or 0),
             cumulative_return=float(orm_account.cumulative_return or 0),

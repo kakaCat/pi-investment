@@ -1040,11 +1040,14 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
 
             if write_flow:
                 fees = float(commission or 0) + float(stamp_duty or 0) + float(transfer_fee or 0)
+                # 2026-10-20 修复：流水净额优先采用权威总额（total_cost/total_revenue），
+                # 不再用 amount±fees 重算——broker 侧 amount/commission/total_cost 分别
+                # 做分位四舍五入，重算会产生 ≤0.01 的逐笔漂移（rotation_main 实测 +0.01）
                 if action.lower() == 'buy':
-                    net = -(float(amount) + fees)
+                    net = -(float(total_cost) if total_cost is not None else (float(amount) + fees))
                     flow_type = 'buy_debit'
                 else:
-                    net = float(amount) - fees
+                    net = float(total_revenue) if total_revenue is not None else (float(amount) - fees)
                     flow_type = 'sell_credit'
                 last = self.get_last_flow_balance(account_name)
                 if last is None:

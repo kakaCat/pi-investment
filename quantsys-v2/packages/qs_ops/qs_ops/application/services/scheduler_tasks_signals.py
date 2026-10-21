@@ -178,48 +178,45 @@ def handle_pool_refresh_daily(
 
 
 def handle_signal_execution_daily(params: Dict[str, Any] = None) -> Dict[str, Any]:
-    """每日信号汇总推送（兜底重推）
+    """每日信号执行——独立量化虚拟交易闭环（rotation_main 账户）。
 
-    2026-07-24 盈利闭环改造：v2 不再自动下单。本任务只把当日 pending
-    信号再次推送给 Agent（orchestrator MARKET_OPEN 推送的兜底），
-    Agent 侧按信号 ID 判重，重复推送不会重复交易。
+    2026-10-20 重绑（用户裁定：量化虚拟交易不走「信号→推送 Agent→agent_virtual」
+    主链路，是独立闭环）：原实现是"兜底推送 Agent"（07:30 跑，实测天天
+    signals_pending=0——调度线程长事务快照看不到早盘 06:52 新提交的信号），
+    真实执行器 SignalExecutionScheduler 只被测试调用，导致近 90 天 962 条信号
+    全部停在 pending、rotation_main 从未成交。现改为收盘后（15:40）真实执行：
+    收集当日 pending → 风控 → 模拟引擎成交 → 状态回写（executed/approved/
+    rejected）→ signal_executions 日志。
     """
     params = params or {}
 
+    # 防调度线程长事务快照读到旧数据（2026-10-19 07:30 signals_pending=0 的
+    # 成因即此——同 model_train 的 _release_thread_session 处置）
+    from qs_ops.application.services.scheduler_tasks_training_guard import _release_thread_session
+    _release_thread_session()
+
     from qs_sourcing.application.services.signal_execution_scheduler import SignalExecutionScheduler
 
-    logger.info("Starting daily signal summary push (fallback)")
+    logger.info("Starting daily signal execution (independent paper-trading loop)")
 
     try:
         scheduler = SignalExecutionScheduler()
-        signals = scheduler._collect_signals(date.today().strftime('%Y-%m-%d'))
-
-        pushed = False
-        if signals and not params.get('skip_notify'):
-            from application.services.agent_notification_service import agent_service
-            result = agent_service.notify_agent_detailed('signals_ready', {
-                'trade_date': date.today().isoformat(),
-                'signal_count': len(signals),
-                'signals': signals[:20],
-                'account': 'agent_virtual',
-                'source': 'signal_execution_daily_fallback',
-            })
-            # timeout 视为已送达（agent 正在处理），不重推
-            pushed = result in ('ok', 'timeout')
+        result = scheduler.execute_pending_signals()
 
         return {
             "action": "signal_execution_daily",
-            "status": "success",
-            "signals_pending": len(signals),
-            "pushed": pushed,
+            "status": "success" if result.get('success') else "failed",
+            **{k: v for k, v in result.items() if k != 'success'},
             "timestamp": datetime.now().isoformat()
         }
     except Exception as e:
-        logger.error(f"Signal summary push failed: {e}")
+        logger.error(f"Signal execution failed: {e}")
         return {
             "action": "signal_execution_daily",
             "status": "failed",
             "error": str(e)
         }
+    finally:
+        _release_thread_session()
 
 

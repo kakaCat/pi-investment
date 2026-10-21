@@ -19,7 +19,10 @@ router = APIRouter(tags=["Report - 报告"])
 def get_daily_report(date: Optional[str] = Query(None)):
     """获取每日报告"""
     try:
-        risk_summary = risk_repo.get_risk_metrics() or {}
+        # 2026-10-20 修复：get_risk_metrics() 无参必抛 ValueError（需 symbol 或
+        # metric_date 至少其一）→ 本路由此前必 500。日报语义 = 最近一天整体
+        # 风险摘要，改走专用方法。
+        risk_summary = risk_repo.get_latest_risk_metrics_overall() or {}
         signals = signal_repo.get_latest_signals(limit=10)
         return sanitize_for_json({
             'date': date or risk_summary.get('metric_date'),

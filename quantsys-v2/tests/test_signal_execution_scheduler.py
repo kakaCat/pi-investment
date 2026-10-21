@@ -271,8 +271,9 @@ class TestSignalExecutionScheduler:
         # 验证订单创建未被调用
         mock_paper_engine.execute_signals.assert_not_called()
 
-        # 验证信号状态更新为rejected
-        update_calls = mock_signal_repo.update_signal.call_args_list
+        # 验证信号状态更新为rejected（2026-10-20：状态回写改走专门的
+        # update_signal_status(id, status, reject_reason=...)）
+        update_calls = mock_signal_repo.update_signal_status.call_args_list
         assert any('rejected' in str(call) for call in update_calls)
 
     def test_execute_daily_signals_no_strategies(

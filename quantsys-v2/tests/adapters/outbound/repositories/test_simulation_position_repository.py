@@ -26,8 +26,8 @@ class TestSimulationPositionRepository:
         orm_position.avg_cost = 10.0
         orm_position.current_price = 12.0
         orm_position.market_value = 1200.0
-        orm_position.unrealized_pnl = 200.0
-        orm_position.unrealized_pnl_rate = 0.2
+        orm_position.profit_total = 200.0
+        orm_position.profit_total_rate = 0.2
         orm_position.created_at = None
         orm_position.updated_at = None
         mock_sim_repo.get_position.return_value = orm_position
@@ -62,8 +62,8 @@ class TestSimulationPositionRepository:
         orm_position1.avg_cost = 10.0
         orm_position1.current_price = 12.0
         orm_position1.market_value = 1200.0
-        orm_position1.unrealized_pnl = 200.0
-        orm_position1.unrealized_pnl_rate = 0.2
+        orm_position1.profit_total = 200.0
+        orm_position1.profit_total_rate = 0.2
         orm_position1.created_at = None
         orm_position1.updated_at = None
         
@@ -75,8 +75,8 @@ class TestSimulationPositionRepository:
         orm_position2.avg_cost = 15.0
         orm_position2.current_price = 16.0
         orm_position2.market_value = 3200.0
-        orm_position2.unrealized_pnl = 200.0
-        orm_position2.unrealized_pnl_rate = 0.067
+        orm_position2.profit_total = 200.0
+        orm_position2.profit_total_rate = 0.067
         orm_position2.created_at = None
         orm_position2.updated_at = None
         

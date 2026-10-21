@@ -336,6 +336,25 @@ class RiskORMRepository(BaseORMRepository[RiskMetric], IRiskRepository):
         metric = query.order_by(RiskMetric.metric_date.desc()).first()
         return _risk_metric_to_dict(metric) if metric else None
 
+    def get_latest_risk_metrics_overall(self) -> Optional[Dict]:
+        """最新 metric_date 的单条风险指标（不限 symbol，日报汇总用）
+
+        2026-10-20 新增：GET /api/report/daily 原直调 get_risk_metrics()（无参）
+        必抛 ValueError → 路由 500。日报要的是"最近一天的整体风险摘要"，
+        语义与按 symbol/date 的点查不同，故单设本方法。
+        """
+        try:
+            row = (
+                self.session.query(RiskMetric)
+                .order_by(RiskMetric.metric_date.desc(), RiskMetric.id.desc())
+                .first()
+            )
+            return _risk_metric_to_dict(row) if row else None
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error getting latest risk metrics overall: {e}")
+            return None
+
     def get_risk_history(
         self,
         symbol: str = None,

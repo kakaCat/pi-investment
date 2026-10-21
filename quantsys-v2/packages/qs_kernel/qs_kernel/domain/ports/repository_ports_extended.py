@@ -125,6 +125,11 @@ class ITraceabilityRepository(ABC):
     def log_operation(self, operation: Dict[str, Any]) -> int:
         pass
 
+    @abstractmethod
+    def save_ml_prediction(self, record: Dict[str, Any]) -> int:
+        """记录一条 ML 预测留痕（quant.ml_predictions），返回记录ID（失败 -1）"""
+        pass
+
 class IAgentIntelligenceRepository(ABC):
     """智能体决策仓储接口"""
     @abstractmethod

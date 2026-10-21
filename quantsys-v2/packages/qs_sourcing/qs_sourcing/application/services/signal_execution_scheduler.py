@@ -27,6 +27,72 @@ from qs_kernel.domain.ports import IPortfolioRepository, IStockRepository, IKlin
 logger = structlog.get_logger(__name__)
 
 
+class SimulationHoldingsProvider:
+    """模拟账户持仓口径（供 RiskCheckService 检查指定 simulation 账户）
+
+    2026-10-20 新增：独立量化闭环的风控必须查 rotation_main 自己的持仓/成交，
+    而非实盘组合（portfolio_repo）——否则该账户持仓的卖出信号会被「无持仓」
+    误拒，买入资金/集中度也按错的账户余额计算。
+    """
+
+    def __init__(self, account_name: str):
+        self.account_name = account_name
+
+    def _repo(self):
+        from adapters.outbound.repositories import SimulationORMRepository
+        return SimulationORMRepository()
+
+    def get_holding(self, symbol: str):
+        """与 IPortfolioRepository.get_holding 同形：{'quantity': 可卖股数(T+1)}"""
+        try:
+            p = self._repo().get_position(self.account_name, symbol)
+            if p is None or (p.shares_total or 0) <= 0:
+                return None
+            return {'symbol': symbol, 'quantity': int(p.shares_available or 0)}
+        except Exception as e:
+            logger.warning(f"sim holdings get_holding 失败: {symbol}: {e}")
+            return None
+
+    def get_all_holdings(self):
+        try:
+            return [
+                {'symbol': p.symbol, 'quantity': int(p.shares_available or 0)}
+                for p in self._repo().get_all_positions(self.account_name)
+                if (p.shares_total or 0) > 0
+            ]
+        except Exception as e:
+            logger.warning(f"sim holdings get_all_holdings 失败: {e}")
+            return []
+
+    def get_trades_by_date_and_symbol(self, day: str, symbol: str):
+        """供每日交易次数限制检查（同账户当日该标的的成交笔数）"""
+        try:
+            trades = self._repo().get_trades_by_account(
+                account_name=self.account_name, start_date=day, end_date=day)
+            return [t for t in trades if getattr(t, 'symbol', None) == symbol]
+        except Exception as e:
+            logger.warning(f"sim holdings trades 查询失败: {symbol}: {e}")
+            return []
+
+
+def make_sim_account_provider(account_name: str):
+    """账户口径 provider：{'cash', 'total_assets'} 取自 simulation_account"""
+    def _get():
+        try:
+            from adapters.outbound.repositories import SimulationORMRepository
+            acct = SimulationORMRepository().get_account(account_name)
+            if acct is None:
+                return None
+            return {
+                'cash': float(acct.cash_available or 0),
+                'total_assets': float(acct.total_value or 0),
+            }
+        except Exception as e:
+            logger.warning(f"sim account provider 失败: {e}")
+            return None
+    return _get
+
+
 class SignalExecutionScheduler:
     """信号执行调度器
 
@@ -72,10 +138,15 @@ class SignalExecutionScheduler:
         self.strategy_service = strategy_service or StrategyCodeService()
 
         # risk_service 依赖 repo，需要特殊处理
+        # 2026-10-20：缺省按 rotation_main 自己的账本做风控（独立量化闭环），
+        # 不再误用实盘组合/实盘账户余额——否则本账户持仓的卖单被「无持仓」误拒。
         if risk_service:
             self.risk_service = risk_service
         else:
-            self.risk_service = RiskCheckService()
+            self.risk_service = RiskCheckService(
+                account_provider=make_sim_account_provider('rotation_main'),
+                holdings_provider=SimulationHoldingsProvider('rotation_main'),
+            )
 
         # 懒加载：只有真正下单的路径（_batch_create_orders）才创建引擎。
         # 2026-07-24 盈利闭环改造：orchestrator 只收集信号不下单，
@@ -124,8 +195,8 @@ class SignalExecutionScheduler:
             # Step 4: 为通过的信号创建订单
             orders_created = self._batch_create_orders(approved_signals)
 
-            # Step 5: 更新信号状态
-            self._update_signal_status(approved_signals, rejected_signals)
+            # Step 5: 更新信号状态（实际成交的标 executed，其余通过的标 approved）
+            self._update_signal_status(approved_signals, rejected_signals, executed_ids=orders_created)
 
             # 计算执行时长
             end_time = datetime.now()
@@ -348,6 +419,15 @@ class SignalExecutionScheduler:
 
         for signal in signals:
             try:
+                # 2026-10-20：信号生成侧（handle_signal_generate）不带
+                # risk_management.stop_loss，而风控缺省 require_stop_loss=True →
+                # 所有 BUY 必被「缺少止损设置」误拒。缺省时注入与引擎缺省一致的
+                # -8% 止损（引擎成交后另有日频 check_stop_loss 兜底，口径一致）。
+                if str(signal.get('action', '')).upper() == 'BUY':
+                    rm = signal.get('risk_management') or {}
+                    if not rm.get('stop_loss'):
+                        signal['risk_management'] = {**rm, 'stop_loss': {'percent': 8}}
+
                 # 执行风控检查
                 check_result = self.risk_service.check_signal(signal)
 
@@ -394,29 +474,22 @@ class SignalExecutionScheduler:
             try:
                 # 获取最新价格
                 latest_kline = self.kline_repo.get_latest_daily_kline(signal['symbol'])
-                # 2026-10-21（w-5d46d252）：契约返回单行 Polars DataFrame（非 dict），
-                # 旧的 `if not kline` 对 DataFrame 抛 truth value ambiguous（600760 实锤），
-                # kline['close'] 是 Series 而非标量——统一先转 dict 行再取值。
-                if latest_kline is None:
+                if not latest_kline:
                     logger.warning(f"无法获取股票价格: {signal['symbol']}")
                     continue
 
-                if hasattr(latest_kline, 'to_dicts'):   # Polars DataFrame（单行）
-                    _rows = latest_kline.to_dicts()
-                    close_price = float(_rows[0]['close']) if _rows else None
-                else:                                    # dict / 兼容旧形状
-                    close_price = float(latest_kline['close'])
-                if close_price is None:
-                    logger.warning(f"无法获取股票价格: {signal['symbol']}")
-                    continue
+                close_price = float(latest_kline['close'])
 
                 # 转换为 PaperTradingEngine 信号格式
+                # 2026-10-20 修复：confidence 在 DB 是 NULL 时
+                # signal.get('confidence', 0.8) 返回 None → float(None) 必抛，
+                # 全量信号转换失败 → 引擎一单不收 → orders_created 静默为 0
                 trade_signal = TradeSignal(
                     symbol=signal['symbol'],
                     action=signal['action'],
                     strategy_id=int(signal.get('strategy_id', 0)) if signal.get('strategy_id') else None,
                     strategy_name=signal.get('reason', 'strategy'),
-                    strength=float(signal.get('confidence', 0.8)),
+                    strength=float(signal.get('confidence') or 0.8),
                     price=close_price,
                     signal_id=str(signal.get('id', '')),
                     reason=signal.get('reason', ''),
@@ -428,6 +501,13 @@ class SignalExecutionScheduler:
                 continue
 
         executed_signal_ids: List[int] = []
+
+        # 全部转换失败是链路事故（典型：字段契约漂移），必须显式报错而非静默 0 单
+        if approved_signals and not trade_signals:
+            logger.error(
+                f"信号转换全部失败: approved={len(approved_signals)} 但 0 条进入引擎，"
+                "检查信号字段契约（confidence/action/price）"
+            )
 
         # 通过模拟交易引擎执行（唯一的落库路径：simulation_* 表）
         if trade_signals:
@@ -471,42 +551,156 @@ class SignalExecutionScheduler:
                 pass
         return prices
 
+    def execute_pending_signals(self, execution_date: Optional[str] = None) -> Dict[str, Any]:
+        """独立量化虚拟交易闭环（不跑策略、不依赖 Agent）：
+
+        收集当日 pending 信号 → 批量风控 → PaperTradingEngine（rotation_main）执行
+        → 状态回写（成交=executed / 通过未成交=approved / 拒绝=rejected）→ 执行日志。
+
+        信号生成由 orchestrator 盘前 phase（handle_signal_generate）负责；
+        本方法只做"信号 → 成交"段，供收盘后调度（15:40）调用。
+
+        2026-10-20 新增：此前生产唯一接线是 handle_signal_execution_daily 的
+        "兜底推送 Agent"（07:30 跑、当日信号尚未生成完，实测天天 signals_pending=0），
+        真实执行器只被测试调用 → 962 条信号全部停在 pending、rotation_main 从未成交。
+        """
+        execution_date = execution_date or date.today().strftime('%Y-%m-%d')
+        start_time = datetime.now()
+
+        log_id = self.log_repo.create_execution_log({
+            'execution_date': execution_date,
+            'start_time': start_time.strftime('%Y-%m-%d %H:%M:%S'),
+            'status': 'running'
+        })
+
+        try:
+            # Step 0: 日频止损/止盈（收盘口径）。rotation_main 是 strategy 账户，
+            # 盘中监控（intraday_monitor）按口径不管 strategy/legacy 账户，
+            # 本闭环必须自我保护：先止损再执行新信号（释放现金、腾出仓位预算）
+            stop_loss_results = []
+            try:
+                held = self.paper_engine.get_current_positions()
+                if held:
+                    held_prices = self._get_current_prices([p['symbol'] for p in held])
+                    if held_prices:
+                        stop_loss_results = self.paper_engine.check_stop_loss(held_prices)
+                        triggered = sum(1 for r in stop_loss_results if r.success)
+                        if triggered:
+                            logger.info(f"日频止损/止盈触发 {triggered} 笔")
+            except Exception as e:
+                logger.error(f"日频止损检查失败（不阻断信号执行）: {e}")
+
+            pending_signals = self._collect_signals(execution_date)
+            approved_signals, rejected_signals = self._batch_risk_check(pending_signals)
+            executed_ids = self._batch_create_orders(approved_signals)
+            self._update_signal_status(approved_signals, rejected_signals, executed_ids=executed_ids)
+
+            end_time = datetime.now()
+            duration_ms = int((end_time - start_time).total_seconds() * 1000)
+
+            self.log_repo.update_execution_log(log_id, {
+                'end_time': end_time.strftime('%Y-%m-%d %H:%M:%S'),
+                'duration_ms': duration_ms,
+                'strategies_run': 0,
+                'signals_generated': 0,
+                'signals_approved': len(approved_signals),
+                'signals_rejected': len(rejected_signals),
+                'orders_created': len(executed_ids),
+                'errors_count': 0,
+                'status': 'completed',
+                'execution_details': {
+                    'mode': 'execute_pending_only',
+                    'stop_loss_triggered': sum(1 for r in stop_loss_results if r.success),
+                    'risk_check_summary': {
+                        'total_checked': len(pending_signals),
+                        'approved': len(approved_signals),
+                        'rejected': len(rejected_signals),
+                        'rejection_reasons': self._summarize_rejections(rejected_signals)
+                    },
+                    'orders_summary': {
+                        'total_created': len(executed_ids),
+                        'executed_signal_ids': executed_ids
+                    }
+                }
+            })
+
+            result = {
+                'success': True,
+                'execution_date': execution_date,
+                'duration_ms': duration_ms,
+                'signals_pending': len(pending_signals),
+                'signals_approved': len(approved_signals),
+                'signals_rejected': len(rejected_signals),
+                'orders_created': len(executed_ids),
+                'stop_loss_triggered': sum(1 for r in stop_loss_results if r.success),
+                'log_id': log_id
+            }
+            logger.info(f"待执行信号闭环完成: {result}")
+            return result
+
+        except Exception as e:
+            logger.error(f"待执行信号闭环失败: {str(e)}", exc_info=True)
+            end_time = datetime.now()
+            duration_ms = int((end_time - start_time).total_seconds() * 1000)
+            self.log_repo.update_execution_log(log_id, {
+                'end_time': end_time.strftime('%Y-%m-%d %H:%M:%S'),
+                'duration_ms': duration_ms,
+                'status': 'failed',
+                'error_message': str(e),
+                'errors_count': 1
+            })
+            return {
+                'success': False,
+                'execution_date': execution_date,
+                'error': str(e),
+                'log_id': log_id
+            }
+
     def _update_signal_status(
         self,
         approved_signals: List[Dict],
-        rejected_signals: List[Dict]
+        rejected_signals: List[Dict],
+        executed_ids: Optional[List[int]] = None,
     ):
         """
         更新信号状态
 
         Args:
-            approved_signals: 通过的信号列表
+            approved_signals: 通过风控的信号列表
             rejected_signals: 拒绝的信号列表
+            executed_ids: 实际成交的信号 ID（2026-10-20 新增）：命中 → 'executed'，
+                其余通过的 → 'approved'（通过但未成交，如余额不足/引擎拒单）
         """
         logger.info("Step 5: 更新信号状态")
 
-        # 更新通过的信号为 approved
+        executed_set = {int(i) for i in (executed_ids or [])}
+
         for signal in approved_signals:
+            sid = signal['id']
+            new_status = 'executed' if int(sid) in executed_set else 'approved'
             try:
-                self.signal_repo.update_signal(signal['id'], {
-                    'status': 'approved',
-                    'updated_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                })
+                # 2026-10-20 修复：改用 SignalORMRepository.update_signal_status
+                # （专门方法，带 commit）；原调用 update_signal(id, dict) 与真实
+                # 签名 update_signal(id, **kwargs) 不匹配，必然 TypeError——
+                # 状态回写从未生效（本闭环此前零生产接线的又一实证）
+                self.signal_repo.update_signal_status(sid, new_status)
             except Exception as e:
-                logger.error(f"更新信号状态失败: {signal['id']} - {str(e)}")
+                logger.error(f"更新信号状态失败: {sid} - {str(e)}")
 
         # 更新拒绝的信号为 rejected
         for signal in rejected_signals:
             try:
-                self.signal_repo.update_signal(signal['id'], {
-                    'status': 'rejected',
-                    'reject_reason': signal.get('reject_reason', '未知原因'),
-                    'updated_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                })
+                self.signal_repo.update_signal_status(
+                    signal['id'], 'rejected',
+                    reject_reason=signal.get('reject_reason', '未知原因'),
+                )
             except Exception as e:
                 logger.error(f"更新信号状态失败: {signal['id']} - {str(e)}")
 
-        logger.info(f"信号状态更新完成: 通过={len(approved_signals)}, 拒绝={len(rejected_signals)}")
+        logger.info(
+            f"信号状态更新完成: 成交={len(executed_set)}, "
+            f"通过={len(approved_signals)}, 拒绝={len(rejected_signals)}"
+        )
 
     def _get_stock_pool(self, symbols: List[str] = None) -> List[str]:
         """

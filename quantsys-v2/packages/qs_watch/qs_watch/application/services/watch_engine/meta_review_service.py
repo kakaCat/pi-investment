@@ -137,6 +137,18 @@ class WatchMetaReviewService:
                                "intent": intent, "reason": reason})
             except Exception as e:
                 logger.error("元触发落库失败", rule_id=rule.id, error=str(e))
+                # 2026-10-21（w-5d46d252）：落库失败（截断/约束冲突）后事务已处于
+                # aborted 状态，不回滚会连锁污染同 session 的后续查询——实测
+                # InFailedSqlTransaction x62（meta_review 每分钟 tick，一次失败写
+                # 让整轮及后续轮全部报 aborted）。失败即回滚，保持 session 健康。
+                try:
+                    rb = getattr(self.trigger_repo, "_safe_rollback", None)
+                    if not callable(rb):
+                        rb = getattr(self.rule_repo, "_safe_rollback", None)
+                    if callable(rb):
+                        rb()
+                except Exception:  # noqa: BLE001 - 回滚失败不覆盖原错误
+                    pass
 
         if raised:
             logger.info("元触发复核项已生成", count=len(raised))

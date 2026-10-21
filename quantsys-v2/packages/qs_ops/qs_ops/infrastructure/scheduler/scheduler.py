@@ -942,74 +942,24 @@ class SchedulerService:
             date: (optional) 信号日期，默认今天
             lookback_days: (optional) 扫描回溯天数，默认 60
         """
-        from datetime import date as date_type
+        # 2026-10-20：委托 SignalGenerateJob 唯一实现（宇宙并入 rotation_main 持仓、
+        # SELL 只对有持仓标的落库的降噪口径），消除本方法与 signal_jobs.py 的
+        # 逻辑双份——此前 webhook 通道（agent-os signal_generate_buy）绕过了
+        # SignalGenerateJob 的降噪规则，单日灌入 62 条无持仓 SELL 噪声。
+        import asyncio
+        from qs_ops.application.jobs.signal_jobs import SignalGenerateJob
 
-        strategy_ids = params.get("strategy_ids") or self.DEFAULT_SIGNAL_STRATEGY_IDS
-        signal_date = params.get("date", date_type.today().isoformat())
-        lookback_days = params.get("lookback_days", 60)
-
-        repo = HeatmapRepository()
-        universe = repo.get_pool_members_now() | repo.get_current_holding_symbols()
-        # 统一去交易所后缀：stocks/signals 用裸代码（signals.symbol 有 FK 到
-        # stocks.symbol，带后缀会 ForeignKeyViolation），Kline repo 自会规范化
-        symbols = sorted({s.split('.')[0] for s in universe})
-
-        if not symbols:
-            return {
-                "action": "signal_generate",
-                "status": "success",
-                "date": signal_date,
-                "universe_size": 0,
-                "signals_found": 0,
-                "signals_saved": 0,
-                "duplicates": 0,
-                "strategy_errors": [],
-                "note": "宇宙为空（无非空池成员且无持仓）",
-            }
-
-        names = {s: m['name'] for s, m in repo.get_stocks_meta(symbols).items()}
-        scanner = PoolSignalScanner(KlineORMRepository(), StrategyORMRepository())
-        sig_repo = SignalORMRepository()
-
-        found = saved = duplicates = 0
-        strategy_errors = []
-        for sid in strategy_ids:
-            try:
-                result = scanner.scan_pool_signals(
-                    symbols=symbols, strategy_id=sid, lookback_days=lookback_days)
-                for sig in result.get('buy_signals', []) + result.get('sell_signals', []):
-                    found += 1
-                    signal_id = sig_repo.create_signal({
-                        'signal_date': signal_date,
-                        'symbol': sig['symbol'],
-                        'name': names.get(sig['symbol'], ''),
-                        'action': sig['signal'].upper(),  # signals 表大写契约（08-13 统一）
-                        'strategy_id': str(sid),
-                        'price': sig.get('current_price'),
-                        'reason': '; '.join(sig.get('reasons', [])),
-                        'indicators': sig.get('indicators'),
-                        'status': 'pending',
-                    })
-                    if signal_id > 0:
-                        saved += 1
-                    else:
-                        duplicates += 1
-            except Exception as e:
-                logger.warning(f"signal_generate: strategy {sid} 扫描失败: {e}")
-                strategy_errors.append(f"{sid}: {e}")
-
-        # 假成功防护：有宇宙但一个策略都没跑成且零落库 → 显式 failed
-        status = 'failed' if strategy_errors and len(strategy_errors) == len(strategy_ids) and saved == 0 else 'success'
+        result = asyncio.run(SignalGenerateJob().execute(params or {}))
+        details = result.details or {}
+        # JobResult.ok(..., details={...}) 会把 details 再包一层 {'details': {...}}，解平
+        if set(details.keys()) == {'details'} and isinstance(details['details'], dict):
+            details = details['details']
         return {
             "action": "signal_generate",
-            "status": status,
-            "date": signal_date,
-            "universe_size": len(symbols),
-            "strategies": strategy_ids,
-            "signals_found": found,
-            "signals_saved": saved,
-            "duplicates": duplicates,
-            "strategy_errors": strategy_errors,
+            "status": "success" if result.success else "failed",
+            "date": (params or {}).get("date"),
+            **details,
+            "error": result.error,
         }
 
     def _handle_report_daily(self, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -1283,13 +1233,11 @@ class SchedulerService:
         
         try:
             from application.services.financial_data_service_adapter import FinancialDataServiceAdapter as FinancialDataService
-            from domain.repositories.orm.financial_orm_repository import FinancialORMRepository
-            from domain.repositories.orm.kline_orm_repository import KlineORMRepository
-            
-            financial_service = FinancialDataService(
-                financial_repo=FinancialORMRepository(),
-                kline_repo=KlineORMRepository()
-            )
+
+            # 2026-10-20 修复（w-5d46d252）：①domain.repositories.orm 包已删除；
+            # ②adapter 已迁至 qs_market_data 且构造无参（内部走 provider manager），
+            # 旧的 financial_repo=/kline_repo= 关键字会 TypeError
+            financial_service = FinancialDataService()
             market = params.get("market", "A")
             symbols = params.get("symbols", [])
             

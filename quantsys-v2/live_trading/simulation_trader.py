@@ -869,6 +869,40 @@ class SimulationTrader:
         self.rebalance(today)
         return {'executed': True, 'action': 'rebalance'}
 
+    def _record_sell_trade(self, symbol: str, shares: int, price: float, trade: dict, date) -> None:
+        """统一写卖出成交记录（含 realized_pnl 已实现盈亏）。
+
+        2026-10-20 修复：本类 5 个卖出写库点此前都不写 realized_pnl /
+        realized_pnl_rate，v13/v14 账户的盈亏归因完全缺失（全仓 SELL 记录
+        realized_pnl 均为 NULL）。盈亏从持仓均价（self.portfolio[symbol]
+        ['avg_price']）计算，必须在卖出修改持仓**之前**调用。
+        """
+        avg_cost = float(self.portfolio.get(symbol, {}).get('avg_price', 0) or 0)
+        commission = trade.get('commission', 0)
+        stamp_duty = trade.get('stamp_duty', 0)
+        filled_price = trade['filled_price']
+        if avg_cost > 0:
+            realized_pnl = (filled_price - avg_cost) * shares - commission - stamp_duty
+            realized_pnl_rate = (filled_price - avg_cost) / avg_cost
+        else:
+            realized_pnl = None
+            realized_pnl_rate = None
+        self.repo.add_trade(
+            account_name=self.account_name,
+            symbol=symbol,
+            action='SELL',
+            shares=shares,
+            price=price,
+            filled_price=filled_price,
+            amount=trade['amount'],
+            commission=commission,
+            stamp_duty=stamp_duty,
+            total_revenue=trade['total_revenue'],
+            realized_pnl=realized_pnl,
+            realized_pnl_rate=realized_pnl_rate,
+            trade_date=date,
+        )
+
     def rebalance(self, current_date):
         """执行调仓"""
         logger.info("\n" + "="*60)
@@ -1049,20 +1083,8 @@ class SimulationTrader:
                 trade = self.broker.sell(symbol, shares, price)
                 self.cash += trade['total_revenue']
 
-                # 保存交易记录到数据库
-                self.repo.add_trade(
-                    account_name=self.account_name,
-                    symbol=symbol,
-                    action='SELL',
-                    shares=shares,
-                    price=price,
-                    filled_price=trade['filled_price'],
-                    amount=trade['amount'],
-                    commission=trade['commission'],
-                    stamp_duty=trade.get('stamp_duty', 0),
-                    total_revenue=trade['total_revenue'],
-                    trade_date=date
-                )
+                # 保存交易记录到数据库（含 realized_pnl，统一走 _record_sell_trade）
+                self._record_sell_trade(symbol, shares, price, trade, date)
 
                 # 删除持仓
                 del self.portfolio[symbol]
@@ -1154,20 +1176,8 @@ class SimulationTrader:
                 trade = self.broker.sell(symbol, sell_shares, price)
                 self.cash += trade['total_revenue']
 
-                # 保存交易记录
-                self.repo.add_trade(
-                    account_name=self.account_name,
-                    symbol=symbol,
-                    action='SELL',
-                    shares=sell_shares,
-                    price=price,
-                    filled_price=trade['filled_price'],
-                    amount=trade['amount'],
-                    commission=trade['commission'],
-                    stamp_duty=trade.get('stamp_duty', 0),
-                    total_revenue=trade['total_revenue'],
-                    trade_date=date
-                )
+                # 保存交易记录（含 realized_pnl，统一走 _record_sell_trade）
+                self._record_sell_trade(symbol, sell_shares, price, trade, date)
 
                 # 更新持仓
                 self.portfolio[symbol]['shares'] = current_shares - sell_shares
@@ -1239,20 +1249,8 @@ class SimulationTrader:
             trade = self.broker.sell(symbol, shares, price)
             self.cash += trade['total_revenue']
 
-            # 保存交易记录
-            self.repo.add_trade(
-                    account_name=self.account_name,
-                symbol=symbol,
-                action='SELL',
-                shares=shares,
-                price=price,
-                filled_price=trade['filled_price'],
-                amount=trade['amount'],
-                commission=trade['commission'],
-                stamp_duty=trade.get('stamp_duty', 0),
-                total_revenue=trade['total_revenue'],
-                trade_date=date
-            )
+            # 保存交易记录（含 realized_pnl，统一走 _record_sell_trade）
+            self._record_sell_trade(symbol, shares, price, trade, date)
 
             # 删除持仓
             del self.portfolio[symbol]
@@ -1302,20 +1300,8 @@ class SimulationTrader:
                 trade = self.broker.sell(symbol, shares, price)
                 self.cash += trade['total_revenue']
 
-                # 保存交易记录到数据库
-                self.repo.add_trade(
-                    account_name=self.account_name,
-                    symbol=symbol,
-                    action='SELL',
-                    shares=shares,
-                    price=price,
-                    filled_price=trade['filled_price'],
-                    amount=trade['amount'],
-                    commission=trade['commission'],
-                    stamp_duty=trade.get('stamp_duty', 0),
-                    total_revenue=trade['total_revenue'],
-                    trade_date=date
-                )
+                # 保存交易记录到数据库（含 realized_pnl，统一走 _record_sell_trade）
+                self._record_sell_trade(symbol, shares, price, trade, date)
 
                 # 删除持仓
                 del self.portfolio[symbol]
@@ -1394,20 +1380,8 @@ class SimulationTrader:
                 trade = self.broker.sell(symbol, abs(delta_shares), price)
                 self.cash += trade['total_revenue']
 
-                # 保存交易记录
-                self.repo.add_trade(
-                    account_name=self.account_name,
-                    symbol=symbol,
-                    action='SELL',
-                    shares=abs(delta_shares),
-                    price=price,
-                    filled_price=trade['filled_price'],
-                    amount=trade['amount'],
-                    commission=trade['commission'],
-                    stamp_duty=trade.get('stamp_duty', 0),
-                    total_revenue=trade['total_revenue'],
-                    trade_date=date
-                )
+                # 保存交易记录（含 realized_pnl，统一走 _record_sell_trade）
+                self._record_sell_trade(symbol, abs(delta_shares), price, trade, date)
 
                 self.portfolio[symbol]['shares'] -= abs(delta_shares)
 

@@ -39,10 +39,8 @@ def main():
     results = trainer.train(X, y, test_size=test_size, params={})
     trainer.save_model(version=version)
 
-    import pickle
-    scaler_path = trainer.model_dir / f"{model_type}_{version}_scaler.pkl"
-    with open(scaler_path, "wb") as f:
-        pickle.dump(scaler, f)
+    from application.services.ml_pipeline.artifacts import save_scaler
+    save_scaler(scaler, model_type, version, trainer.model_dir)
 
     def _to_native(val):
         import numpy as _np

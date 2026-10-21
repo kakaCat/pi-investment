@@ -41,6 +41,20 @@ class SignalGenerateJob(Job):
 
             repo = HeatmapRepository()
             universe = repo.get_pool_members_now() | repo.get_current_holding_symbols()
+
+            # 2026-10-20：扫描宇宙并入独立量化闭环账户（rotation_main）的持仓——
+            # 原宇宙只含池成员 ∪ 实盘组合持仓，rotation_main 买入的标的永远扫不出
+            # SELL 信号，持仓只能靠止损线退出（退出路径盲区）
+            try:
+                from adapters.outbound.repositories import SimulationORMRepository
+                sim_repo = SimulationORMRepository()
+                universe |= {
+                    p.symbol for p in sim_repo.get_all_positions('rotation_main')
+                    if (p.shares_total or 0) > 0
+                }
+            except Exception as e:
+                logger.warning(f"signal_generate: 并入 rotation_main 持仓失败: {e}")
+
             symbols = sorted({s.split('.')[0] for s in universe})
 
             if not symbols:
@@ -54,7 +68,25 @@ class SignalGenerateJob(Job):
             scanner = PoolSignalScanner(KlineORMRepository(), StrategyORMRepository())
             sig_repo = SignalORMRepository()
 
-            found = saved = duplicates = 0
+            # 2026-10-20 信号降噪：SELL 信号只对有持仓的标的落库。
+            # 实测 2026-10-19：60 条信号里 48 条 SELL 因「无持仓」被风控拒
+            # （池子里不持有的票也出卖出信号），纯噪声且淹没执行日志。
+            # 持仓口径 = 实盘组合 ∪ 全部 active 模拟账户。
+            held_symbols = set(repo.get_current_holding_symbols())
+            _holdings_query_ok = True
+            try:
+                from adapters.outbound.repositories import SimulationORMRepository
+                _sim = SimulationORMRepository()
+                for acct in _sim.list_accounts(status='active'):
+                    for p in _sim.get_all_positions(acct.account_name):
+                        if (p.shares_total or 0) > 0:
+                            held_symbols.add(p.symbol)
+            except Exception as e:
+                logger.warning(f"signal_generate: 汇总模拟持仓失败（SELL 不降噪）: {e}")
+                _holdings_query_ok = False  # 查询失败时不降噪，保持原行为
+            held_symbols = {s.split('.')[0] for s in held_symbols}
+
+            found = saved = duplicates = sell_filtered = 0
             strategy_errors = []
             for sid in strategy_ids:
                 try:
@@ -62,6 +94,12 @@ class SignalGenerateJob(Job):
                         symbols=symbols, strategy_id=sid, lookback_days=lookback_days)
                     for sig in result.get('buy_signals', []) + result.get('sell_signals', []):
                         found += 1
+                        # SELL 降噪：无任何账户持有 → 不落库
+                        # （注意与"查询失败"区分：真的零持仓时应滤掉全部 SELL）
+                        if (sig['signal'].upper() == 'SELL' and _holdings_query_ok
+                                and sig['symbol'].split('.')[0] not in held_symbols):
+                            sell_filtered += 1
+                            continue
                         signal_id = sig_repo.create_signal({
                             'signal_date': signal_date,
                             'symbol': sig['symbol'],
@@ -83,12 +121,13 @@ class SignalGenerateJob(Job):
 
             return JobResult.ok(
                 self.name,
-                message=f"信号生成完成: {saved} saved, {duplicates} duplicates",
+                message=f"信号生成完成: {saved} saved, {duplicates} duplicates, {sell_filtered} unheld-sell filtered",
                 details={
                     "universe_size": len(symbols),
                     "signals_found": found,
                     "signals_saved": saved,
                     "duplicates": duplicates,
+                    "sell_filtered_unheld": sell_filtered,
                     "strategy_errors": strategy_errors,
                 }
             )
@@ -113,15 +152,15 @@ class SignalExecutionDailyJob(Job):
 
     async def execute(self, params: Dict[str, Any]) -> JobResult:
         try:
-            # 242 修复（2026-09-02）：rebind 到真实实现——v2 盈利闭环改造后
-            # 本任务不再自动下单，职责=当日 pending 信号兜底推送 Agent。
-            # 原空壳 infrastructure.scheduler.signal_execution_job（策略全跳过、
-            # orders=0 的 TODO）已废弃，避免"声明了但没干活"的半通状态。
+            # 242 修复（2026-09-02）：rebind 到 handle_signal_execution_daily。
+            # 2026-10-20 重绑（用户裁定：量化虚拟交易独立于 Agent 主链路）：
+            # 该 handler 现执行真实闭环——收集当日 pending 信号 → 风控 →
+            # PaperTradingEngine(rotation_main) 成交 → 状态回写。
             from application.services.scheduler_tasks import handle_signal_execution_daily
             result = handle_signal_execution_daily(params)
             return JobResult.ok(
                 self.name,
-                message="信号执行（兜底推送）完成",
+                message="信号执行（独立量化闭环）完成",
                 details=result
             )
         except Exception as e:

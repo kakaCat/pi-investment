@@ -194,7 +194,9 @@ class BaostockKlineProvider(KlineProvider):
         if symbol.startswith(('00', '30', '12', '15', '39')):
             return f'sz.{symbol}'
         if symbol.startswith(('4', '8', '92')):
-            return f'bj.{symbol}'
+            # 北交所：baostock 不支持 bj. 前缀（必报"股票代码未标识sh或sz"，920006 实测
+            # 日刷 616 次）——返回 None 跳过本源，交由其他 provider（东财/腾讯）接手。
+            return None
         return None
 
     _LOGIN_ATTEMPTS = 3

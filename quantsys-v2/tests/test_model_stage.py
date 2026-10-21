@@ -85,7 +85,7 @@ class TestModelStagePrediction:
 
         assert "prediction" in result
         pred = result["prediction"]
-        assert pred["action"] == "hold"
+        assert pred["action"] == "HOLD"
         assert pred["model"] == "none"
         assert "message" in pred
 

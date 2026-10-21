@@ -35,6 +35,8 @@ class RiskCheckService:
         stock_repo: Optional[IStockRepository] = None,
         kline_repo: Optional[IKlineRepository] = None,
         risk_repo: Optional[IRiskRepository] = None,
+        account_provider=None,
+        holdings_provider=None,
     ):
         """初始化服务
 
@@ -45,11 +47,20 @@ class RiskCheckService:
             stock_repo: StockRepository（可选）
             kline_repo: KlineRepository（可选）
             risk_repo: RiskRepository（可选）
+            account_provider: 可选 callable() -> dict（账户口径覆盖，返回
+                {'cash': float, 'total_assets': float}）。缺省 = risk_repo
+                .get_latest_balance()（实盘账户余额）。
+            holdings_provider: 可选对象（持仓口径覆盖，需有 get_holding(symbol)
+                / get_all_holdings()）。缺省 = portfolio_repo（实盘组合）。
+                2026-10-20：独立量化闭环（rotation_main）必须按自己的账本做
+                风控——否则它持有的股票卖单会被「无持仓」误拒（查的是实盘组合）。
         """
         self.portfolio_repo = portfolio_repo or ServiceFactory.get_portfolio_repository()
         self.stock_repo = stock_repo or ServiceFactory.get_stock_repository()
         self.kline_repo = kline_repo or ServiceFactory.get_kline_repository()
         self.risk_repo = risk_repo or ServiceFactory.get_risk_repository()
+        self._account_provider = account_provider
+        self._holdings_provider = holdings_provider
         self.config_repo = config_repo
         if self.config_repo:
             self.config = self.config_repo.get_config(config_name)
@@ -59,6 +70,27 @@ class RiskCheckService:
         if not self.config:
             logger.warning(f"风控配置不存在: {config_name}, 使用默认值")
             self.config = self._get_default_config()
+
+    # ---------- 账户/持仓口径（可被 account_provider/holdings_provider 覆盖） ----------
+
+    def _get_account(self) -> Optional[Dict[str, Any]]:
+        if self._account_provider is not None:
+            return self._account_provider()
+        return self.risk_repo.get_latest_balance()
+
+    def _get_holding(self, symbol: str):
+        src = self._holdings_provider or self.portfolio_repo
+        return src.get_holding(symbol)
+
+    def _get_all_holdings(self):
+        src = self._holdings_provider or self.portfolio_repo
+        return src.get_all_holdings()
+
+    def _get_trades_today(self, today: str, symbol: str):
+        src = self._holdings_provider
+        if src is not None and hasattr(src, 'get_trades_by_date_and_symbol'):
+            return src.get_trades_by_date_and_symbol(today, symbol)
+        return self.portfolio_repo.get_trades_by_date_and_symbol(today, symbol)
 
     def check_signal(self, signal: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -96,7 +128,7 @@ class RiskCheckService:
             current_price = float(latest_kline['close'][0])
 
             # 获取账户信息
-            account = self.risk_repo.get_latest_balance()
+            account = self._get_account()
             if not account:
                 return self._fail_result('无法获取账户信息')
 
@@ -213,7 +245,7 @@ class RiskCheckService:
         symbol = signal['symbol']
         quantity = signal.get('quantity', 100)
 
-        holding = self.portfolio_repo.get_holding(symbol)
+        holding = self._get_holding(symbol)
         if not holding:
             return {
                 'check_name': 'holding_check',
@@ -271,7 +303,7 @@ class RiskCheckService:
         signal: Dict
     ) -> Dict:
         """检查单只股票仓位集中度"""
-        holding = self.portfolio_repo.get_holding(symbol)
+        holding = self._get_holding(symbol)
         current_position_value = 0
 
         if holding:
@@ -320,14 +352,24 @@ class RiskCheckService:
                 'warning': '无法获取行业信息，跳过行业集中度检查'
             }
 
-        sector = stock.get('industry', 'Unknown')
+        # 2026-10-20 修复：get_by_symbol 返回 Stock ORM 实体（属性访问），
+        # 原写法 stock.get('industry') 必然 AttributeError → 所有 BUY 信号
+        # 被「检查异常」误拒（信号执行闭环零接线期间从未暴露）
+        def _industry_of(s):
+            if s is None:
+                return None
+            if isinstance(s, dict):
+                return s.get('industry')
+            return getattr(s, 'industry', None)
 
-        holdings = self.portfolio_repo.get_all_holdings()
+        sector = _industry_of(stock) or 'Unknown'
+
+        holdings = self._get_all_holdings()
 
         sector_value = 0
         for h in holdings:
             h_stock = self.stock_repo.get_by_symbol(h['symbol'])
-            if h_stock and h_stock.get('industry') == sector:
+            if h_stock and _industry_of(h_stock) == sector:
                 h_kline = self.kline_repo.get_latest_daily_kline(h['symbol'])
                 if h_kline is not None and not h_kline.is_empty():
                     h_price = float(h_kline['close'][0])
@@ -365,7 +407,7 @@ class RiskCheckService:
         """
         today = date.today()
 
-        trades_today = self.portfolio_repo.get_trades_by_date_and_symbol(today, symbol)
+        trades_today = self._get_trades_today(today, symbol)
 
         trade_count = len(trades_today)
         max_trades = int(self.config['max_single_stock_trades'])
@@ -487,7 +529,7 @@ class RiskCheckService:
             return int(signal['quantity'])
 
         symbol = signal['symbol']
-        holding = self.portfolio_repo.get_holding(symbol)
+        holding = self._get_holding(symbol)
 
         if holding:
             return int(holding.get('quantity', 0))
