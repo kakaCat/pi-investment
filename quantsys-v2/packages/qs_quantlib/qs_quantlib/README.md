@@ -560,7 +560,7 @@ from adapters.outbound.datasources.providers.quantlib import get_factor_adapter
 - [风险领域](../risk/README.md) - 风险管理
 - [因子领域](../factors/README.md) - 因子计算与分析
 - [重构完成报告](../../docs/work-logs/2026-08/quantlib-refactoring-complete.md)
-- [重构计划](../../docs/quantlib-refactoring-plan-2026-08.md)
+- 重构计划（历史文档，已随 docs 清理移除，见 git 历史 `docs/quantlib-refactoring-plan-2026-08.md`）
 
 ---
 

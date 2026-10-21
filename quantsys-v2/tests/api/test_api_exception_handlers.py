@@ -6,7 +6,7 @@
 - 外部服务/数据库错误不向客户端泄露内部细节
 - 全局兜底处理器不返回 detail 字段（生产不暴露内部错误）
 
-参考: docs/reports/phase1-completion-report.md
+参考: （历史归档，见 git 历史 docs/reports/phase1-completion-report.md）
 """
 import pytest
 from fastapi.exceptions import RequestValidationError

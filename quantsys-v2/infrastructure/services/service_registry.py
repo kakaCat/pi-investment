@@ -108,7 +108,7 @@ def _register_services_hardcoded():
     raise RuntimeError(
         "Hardcoded service registration is DEPRECATED as of P2-3.\n"
         "Please use config-driven registration (config/services.yaml) instead.\n"
-        "See docs/P2-3-production-validation-final-summary.md for migration guide."
+        "See docs/archive/cleanup-2026-10/P2-3-integration-progress.md for migration guide."
     )
 
     # Stock Pool Repository
