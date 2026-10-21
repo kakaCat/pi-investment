@@ -303,6 +303,17 @@ forbidden_modules =
 - **`test_enhanced_service_factory` 预存 2F**：单一根因＝root conftest `_make_safe` 吞 ValueError——① `test_resolve_unregistered` DID NOT RAISE；② `test_circular` 内层重入 resolve 的 `ValueError` 被吞成 MagicMock，`_create_instance` 以 MagicMock 作位置依赖构造裸类 → `TypeError: ServiceB() takes no arguments`（$`_create_instance` 为 `implementation_type(*resolved_deps)` 位置注入，ESF 源码 175-200 实证）。修复：conftest 把原始 resolve 存回模块（`_esf._ORIGINAL_ESF_RESOLVE` / `_sf._ORIGINAL_SF_RESOLVE`），两个用例经 monkeypatch 临时还原真契约检验 DI 本体（autouse `reset_factory` 已保证注册面隔离），`_make_safe` 防御层语义不变。2P。
 至此僵尸测试卡「heat 图簇 22 项 + 其余簇 4 项」**26 项全部转绿**；唯二不归本卡：`test_orm_db_drift`（并行会话缺 migration）与 qs_ops 冻结例（trading_day_guard.py 并行占用）。
 
+**【S11 反向越层·修复设计定稿 2026-10-21】（评审稿，未实施）**
+- **名义两例现况**：① qs_watch→`adapters.inbound.fastapi_app.watch_sla_job`：凌晨 watch 批已随 sla_job 源码迁入 qs_watch 而消除 import 边，余 2 处注释引用（`receipt_service.py:359`、`watch_loop_wiring.py:3` docstring）经验证为概念性描述（壳文件 `watch_sla_job.py` 仍存在），非 import 边，不改；② qs_ops→`adapters.inbound.fastapi_app.daily_jobs_bootstrap`：**仍活**——`qs_ops/application/services/scheduler_tasks_data.py:67` 跨层引 app 壳**私有 helper `_last_trading_day`**。修法（最小）：把 `_last_trading_day` 下移至 qs_ops 域内（建议 `qs_ops/.../domain` 或独立日期 util），`daily_jobs_bootstrap` 反向改引 qs_ops（壳引包 = 合规方向），qs_ops 30 天观察期内旧路径零新增。
+- **新发现主面（出向）**：qs_watch 业务包直引 `adapters.outbound.repositories.*` **11 文件 23 处**（清单 grep 已存档本节上方），模式统一为「方法内惰性 import + 现场 new」；kernel 端口库（27 个抽象）**无 watch 族端口**、`config/services.yaml` **无 watch 仓储注册**——即越层同时伴随契约面全空。
+- **修复设计（两阶段）**：
+  - **阶段 1 · 解析面收口（最小切口）**：qs_watch 建唯一突破点模块 `_repo_resolver.py`（内放 8 个仓储类的惰性 accessor，体 = `ServiceFactory.resolve(仓储键)`，**保持 per-use 实例语义**，与现状「现场 new」等价——DI 注册须用 TRANSIENT 生命周期，禁 SINGLETON 缓存会话绑定仓储）；`config/services.yaml` 补 8 条注册（全限定模块路径——heat 簇已证短路径静默失败）；23 处调用点机械换行（`WatchRuleRepository(` → `resolve_watch_rule_repo(`，site 不减、行为不变）。
+  - **阶段 2 · 端口语义化**：在 `qs_kernel/domain/ports/repository_ports_extended.py` 补 watch 族端口（ISignalRepository 同族风格，方法的真实使用面定义，不全镜像 impl），accessor 改端口键，QS_NOTE 登记两阶段差异。**禁止**把 Ye 转成构造注入大手术——engine/factory 内部重排属另一卡体量。
+- **风险登记**：① lifecycle 错配 = 会话穿越（阶段 1 最大坑，须以「同一请求内 fetch→commit→再 query」用例验证）；② resolve 失败在测试里会被 conftest `_make_safe` 吞成 MagicMock（批次 3 已真值守门，须跑裸验证）；③ `_make_safe` 的 `_ORIGINAL_ESF_RESOLVE` 恰为阶段 2 端口测试所需（复用批次 3 建立的模式）。
+- **验收口径**：`grep -rn 'from adapters' packages/qs_watch/qs_watch packages/qs_ops/qs_ops --include='*.py'` 归零；qs_watch 55 文件 member 测试基线 equal 或 better；`/api/health` 200 + WatchEngine 触发日志（重启后）。
+- **qs_ops 边落地（同日实施）**：新建 `qs_ops/qs_ops/domain/trading_days.py`（纯 stdlib `last_trading_day`，权定义自 `daily_jobs/pipeline.py:237` 迁入）；pipeline 顶部保别名 `from qs_ops.domain.trading_days import last_trading_day as _last_trading_day`（`daily_jobs/__init__`→bootstrap 再转发链零改动，tools/health_probe 与 `tests/test_daily_jobs_bootstrap.py` 口径不变）；`scheduler_tasks_data.py:67` 换引源——**qs_ops→adapters.inbound 直引归零**（grep 判据复核，两包 inbound 边全空）。
+- **预存污染定案（非本批）**：`tests/test_freshness_guard.py` 3F（fresh 误判 stale / job_failed 路径错 / stale 不告警）——A/B 铁证（stash 本批改动后基线 HEAD 同配置同签名 3F/1P）→ 根因 = bootstrap→daily_jobs 包拆分（`c4fc27a41`「拆两个文件级上帝」）把 `_job_freshness_guard`/`_kline_coverage` 本体搬进 `daily_jobs/pipeline.py`，测试仍 monkeypatch **bootstrap 命名空间**（`m = daily_jobs_bootstrap`），而函数体 globals 已在 pipeline 模块——桩面脱钩，值为真数据。修法（另行）：测试 patch 目标改 `daily_jobs.pipeline` 或恢复 bootstrap 直定义；属僵尸卡「其余」同族（桩面漂移），vals 判据 `KLINE_COVERAGE_FRESH_THRESHOLD=0.98` 未变（FRESH_COV 0.9964 过阈，排除阈值校准因素）。同提交批次 `test_daily_jobs_bootstrap.py`（含 _last_trading_day 边界 4 例）**全绿**——迁移值不变性实证。
+
 ### 12.1 业务运行视图（数据怎么流）
 
 ```mermaid

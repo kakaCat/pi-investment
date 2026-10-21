@@ -17,6 +17,8 @@ import structlog
 from infrastructure.scheduler.job_executor import find_result_failure
 from adapters.inbound.fastapi_app.daily_jobs.alerting import _job_failure_watch, _send_feishu  # noqa: F401
 from adapters.inbound.fastapi_app.daily_jobs.defs import logger  # noqa: F401
+# 2026-10-21 反向越层收口：权威定义迁 qs_ops/domain/trading_days.py，此处保别名
+from qs_ops.domain.trading_days import last_trading_day as _last_trading_day
 
 KLINE_COVERAGE_FRESH_THRESHOLD = 0.98
 
@@ -234,14 +236,5 @@ def _job_freshness_guard() -> Dict[str, Any]:
             'factor_latest': str(factor_latest)}
 
 
-def _last_trading_day(ref: datetime) -> str:
-    """最近一个应为交易日的日期（周末排除法；节假日由告警人工复核）"""
-    d = ref.date()
-    # 收盘前（15:30 前）看前一工作日；收盘后看今天
-    if ref.time() < dtime(15, 30) or d.weekday() >= 5:
-        d = d - timedelta(days=1)
-    while d.weekday() >= 5:
-        d = d - timedelta(days=1)
-    return d.strftime('%Y-%m-%d')
 
 
