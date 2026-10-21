@@ -5,6 +5,7 @@
 """
 import json
 import os
+import re
 import threading
 import time
 from dataclasses import dataclass
@@ -25,6 +26,43 @@ _EVENT_TYPE_LABELS = {
     'policy': '📜 政策事件', 'other': '📌 其他',
 }
 
+#: 预案日期的**标签前缀**——只有带这些标签的日期才被当作预案日期。
+#:
+#: 2026-10-21 修复（误伤事故）：原实现用宽松正则从 context 散文里抓任意
+#: 「M/D」或「YYYY-MM-DD」当作预案日期。R-022 分批止盈文案「卖出 1/3 锁定利润」
+#: 被读成「1月3日」（已过去 291 天）⇒ 规则判 OUTDATED ⇒ 当天 16:30:15 自动禁用。
+#: **全库 80 条规则带同款雷**（35 account=null / 35 agent_brain / 5 agent_virtual /
+#: 5 user_main_simulation）；已实测 #269（600000 止盈）、#295（601600 止盈）被误禁用。
+#:
+#: 修复口径：**只认显式标注的日期**，不再从自由文本推断。散文里的裸数字
+#: （"1/3"、"10/20 跌破8.40" 等）一律不解释为日期。
+_PREPLAN_DATE_LABEL_PATTERN = re.compile(
+    r'(?:预案日期|有效期至|有效期|截止日期|到期日|失效日期)\s*[:：]\s*'
+    r'(\d{4})-(\d{1,2})-(\d{1,2})'
+)
+
+
+def find_labelled_preplan_date(context: Optional[str]) -> Optional[datetime]:
+    """从 context 中找出**带标签**的预案日期；没有则返回 None。
+
+    纯函数（不碰 DB、不看当前时间），便于单测与复用。
+
+    Args:
+        context: 规则 context 自由文本。
+
+    Returns:
+        第一个带标签的日期（datetime），无标签日期时返回 None。
+    """
+    if not context:
+        return None
+    for match in _PREPLAN_DATE_LABEL_PATTERN.findall(context):
+        try:
+            year, month, day = int(match[0]), int(match[1]), int(match[2])
+            return datetime(year, month, day)
+        except (ValueError, IndexError):
+            continue
+    return None
+
 def _job_watch_rule_health() -> Dict[str, Any]:
     """规则健康检查：每天收盘后评估所有启用规则的健康度
     
@@ -39,8 +77,7 @@ def _job_watch_rule_health() -> Dict[str, Any]:
     飞书通知：健康度报告
     """
     import json
-    import re
-    
+
     # 取数收口到仓储（2026-09-14，w-32314d00，REQ-24e15d B4-c4）：
     # 原先整段跑在一个 with engine.begin() as conn 里，用裸 SQL 读 watch_rules、
     # 逐条查 daily_klines 最新收盘、查 watch_triggers 最近触发，并就地 UPDATE 禁用。
@@ -102,32 +139,25 @@ def _job_watch_rule_health() -> Dict[str, Any]:
                             reason = f'价格偏差{deviation:.1f}%（当前{current_price} vs 设定{trigger_price}）'
                     
                 # 3. 检查预案日期（如果还没被标记为 STALE）
+                #
+                # 2026-10-21 修复（误伤事故）：原实现用宽松正则从 context **散文**里
+                # 抓任意「M/D」或「YYYY-MM-DD」当作预案日期。R-022 分批止盈的文案
+                # 「卖出 1/3 锁定利润」被读成「1月3日」（已过去 291 天）⇒ 规则判
+                # OUTDATED ⇒ 当天 16:30:15 自动禁用。**全库 80 条规则带同款雷**
+                # （35 account=null / 35 agent_brain / 5 agent_virtual /
+                #   5 user_main_simulation），已实测 #269（600000 止盈）、
+                #   #295（601600 止盈）因此被误禁用。
+                #
+                # 修复口径（见 find_labelled_preplan_date 的 docstring）：**只认显式
+                # 标注的日期**，不再从自由文本推断——① 结构化 expires_at（第 1 步已判
+                # EXPIRED）② context 中带「预案日期：」等标签前缀的日期。
                 if status == 'HEALTHY' and context:
-                    date_patterns = [
-                        r'(\d{1,2})/(\d{1,2})',
-                        r'(\d{4})-(\d{2})-(\d{2})',
-                    ]
-                    for pattern in date_patterns:
-                        matches = re.findall(pattern, context)
-                        for match in matches:
-                            try:
-                                if len(match) == 2:
-                                    month, day = int(match[0]), int(match[1])
-                                    year = datetime.now().year
-                                    date_obj = datetime(year, month, day)
-                                else:
-                                    year, month, day = int(match[0]), int(match[1]), int(match[2])
-                                    date_obj = datetime(year, month, day)
-                                    
-                                days_diff = (datetime.now() - date_obj).days
-                                if days_diff > 7:
-                                    status = 'OUTDATED'
-                                    reason = f'预案日期已过期（{date_obj.strftime("%m/%d")}，已过去{days_diff}天）'
-                                    break
-                            except (ValueError, IndexError):
-                                continue
-                        if status == 'OUTDATED':
-                            break
+                    date_obj = find_labelled_preplan_date(context)
+                    if date_obj is not None:
+                        days_diff = (datetime.now() - date_obj).days
+                        if days_diff > 7:
+                            status = 'OUTDATED'
+                            reason = f'预案日期已过期（{date_obj.strftime("%Y-%m-%d")}，已过去{days_diff}天）'
                     
                 # 4. 检查触发活跃度（如果还没被标记）
                 if status == 'HEALTHY':
