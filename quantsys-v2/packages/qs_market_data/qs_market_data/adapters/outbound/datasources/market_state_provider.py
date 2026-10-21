@@ -65,7 +65,7 @@ class MarketStateProvider:
         self._cache: Optional[tuple] = None   # (ts, MarketState)
 
     def get_state(self, force: bool = False):
-        from domain.watch.models import MarketState
+        from qs_watch.domain.watch.models import MarketState
         now = time.time()
         if (not force) and self._cache and (now - self._cache[0]) < self.cache_ttl_sec:
             return self._cache[1]
@@ -102,10 +102,10 @@ class MarketStateProvider:
         # （market_sentiment_service）——因此这里取仓储不构成新的反向依赖。
         # 取仓储的 strict 变体（失败回滚并上抛）：下面 except 要把 index_daily 记进
         # degraded；仓储若吞异常，降级信号会静默消失。
-        from adapters.outbound.repositories.kline_repository import KlineORMRepository
+        from infrastructure.services.service_factory import ServiceFactory
         out: Dict[str, Dict[str, Any]] = {}
         try:
-            repo = KlineORMRepository()
+            repo = ServiceFactory.get_kline_repository()
             for code in self.index_codes:
                 rows = repo.get_latest_index_quotes(code, 2)
                 if not rows:
@@ -128,7 +128,7 @@ class MarketStateProvider:
         """情绪/量能/涨跌家数 —— 键名按 MarketSentimentService 真实返回结构，
         不按路由层的 camelCase 猜（2026-09-11 教训：猜结构必错）。"""
         try:
-            from application.services.market_sentiment_service import MarketSentimentService
+            from qs_intel.application.services.market_sentiment_service import MarketSentimentService
             d = MarketSentimentService().analyze_market_sentiment() or {}
             ind = d.get("indicators") or {}
             ad = ind.get("advance_decline")

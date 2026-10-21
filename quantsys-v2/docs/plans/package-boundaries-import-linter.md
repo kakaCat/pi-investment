@@ -624,3 +624,24 @@ flowchart TB
   simulation×4（agenthub:572/trading:262/sourcing:42,82）、portfolio_circuit_breaker×1、
   strategy_performance×1、market_style×1、market_perception 多符号×1、
   retail_panic sentiment+fund_flow×2
+
+## 2026-10-21 · 阶段2 批11：qs_market_data 边分诊（ship×3 / 拒×1 / 暂留批）
+
+- 43 边分类：8 service_factory（合法 DI）+ 8 domain.factors/library ×9（kernel 暂留列）+
+  5 industry_chain.ports + 2 domain.exceptions + 1 domain.trading.ports（白名单暂留）+
+  14 仓储边（无 canonical 属仓储归属阶段）+ 3 业务向边（本批处理）
+- **ship：market_state_provider ×3**（冒烟含 intel/watch 双序环检测 ✓、相邻测试面
+  118 passed 与 HEAD 一致）：
+  ① :68 `MarketState` → `qs_watch.domain.watch.models`（**方向例外 market_data→watch 登记**，
+     双身份收敛显式化）；② :105/108 kline 直构 → `ServiceFactory.get_kline_repository()`
+     （provider 测试面无 patch 依赖，验证过）；③ :131 `MarketSentimentService` →
+     `qs_intel.application.services`（**方向例外 market_data→intel 登记**，双序加载无环）
+- **拒收：market_data_service:777 指数 DB-first 路径**——测试实锤 getter 改写会破坏
+  test_index_history_db_first：`patch_repo` fixture monkeypatch 模块级
+  `KlineORMRepository`，调用时直构可命中 patch，而 getter 是 lru_cache 单例绕过 patch
+  （A/B：HEAD 118 passed vs 我的现场 3 failed，我引入、非预存）。已回退该边并登记：
+  暂留直构，getter 收口须待仓储归属阶段连测试改造一起做
+- 暂留：fund_flow_source:87（及 sector_snapshot×3/minute_kline×3/industry_chain×2/
+  event×2/trading_status×1 裸引×1，同属仓储归属阶段）
+- **方法论沉淀**：直构→getter 改写前必须先 grep 测试面的 patch 目标——patch 模块级
+  仓储类且走调用时直构的路径，lru_cache 单例化会静默绕过（本批 index_history 三测实测）
