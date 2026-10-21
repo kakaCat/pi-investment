@@ -83,6 +83,21 @@ class ServiceFactory:
         return EnhancedServiceFactory.resolve(service_type)
 
     @classmethod
+    def initialize(cls) -> None:
+        """显式引导 EnhancedServiceFactory（内部注册层的唯一公开引导面）。
+
+        供需要"提前全量就绪"的场景使用（脚本 one-off / 启动路径 / job 的 run()），
+        调用方**不再直连** `service_registry.register_all_services`（内部层）。
+
+        语义（2026-10-21 · S11-B-2 批次 1）:
+        - 幂等：已初始化即空操作；`resolve` 本身不做自动注册（见其 docstring），
+          具名 getter 的回退路径（`_try_get_from_enhanced`）内部已自带引导。
+        - 失败仅 warning 不炸进程：引导失败后可再次调用重试
+          （`_enhanced_factory_initialized` 只在成功时置 True）。
+        """
+        _ensure_enhanced_factory()
+
+    @classmethod
     @lru_cache(maxsize=1)
     def get_strategy_code_service(cls):
         """获取StrategyCodeService实例

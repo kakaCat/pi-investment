@@ -263,8 +263,9 @@ class EquitySnapshotJob:
 
     def run(self, target_date: Optional[date] = None) -> Dict[str, Any]:
         """同步执行（供 job 与测试调用）。返回 {skipped_reason|result}。"""
-        from infrastructure.services.service_registry import register_all_services
-        register_all_services()
+        # S11-B-2 批次 1 (2026-10-21): DI 引导收编入口，不再直连内部 service_registry
+        from infrastructure.services.service_factory import ServiceFactory
+        ServiceFactory.initialize()
         target = target_date or date.today()
         if not self._has_bar(target):
             return {"skipped": True, "target_date": target.isoformat(),

@@ -496,8 +496,8 @@ Technical infrastructure and cross-cutting concerns:
 | 层 | 文件 | 职责 | 现状 |
 |---|---|---|---|
 | **入口** | `service_factory.py` | 调用方唯一入口（72 文件在用） | ✅ 权威 |
-| 内部层 | `enhanced_service_factory.py` | 端口→实现绑定与生命周期（`resolve`/`register`） | 仍有 34 个生产文件直接引用 → **待分批迁到入口** |
-| 内部层 | `service_registry.py` | `create_*` 工厂函数 + `register_all_services()` 注册 | 仍有 9 个生产文件直接引用 → **同上** |
+| 内部层 | `enhanced_service_factory.py` | 端口→实现绑定与生命周期（`resolve`/`register`） | 2026-10-21 复测（S11-B-2 批次 1）：生产直引面仅剩工具脚本，已收编入口（scripts/verify_p2_3_integration.py 自检器保留直接探查豁免） |
+| 内部层 | `service_registry.py` | `create_*` 工厂函数 + `register_all_services()` 注册 | 同上（S11-B-2 批次 1 收编：引导统一走 ServiceFactory.initialize()） |
 | ~~第四套~~ | ~~`infrastructure/di/`~~ | 死件（生产零引用，只有 2 个测试用） | **已删除**（连幽灵依赖 `dependency-injector` 一并移除） |
 
 > **端口归属裁决（2026-10-02 · 同一卡）**：除 `domain/ports/`（集中式端口库）外，
