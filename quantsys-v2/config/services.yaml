@@ -24,6 +24,13 @@ repositories:
     lifecycle: singleton
     description: '热力图聚合仓储'
 
+  # ── 2026-10-21 阶段2 批2：qs_trading 时钟出向（market_session_service 默认时钟）──
+  market_clock:
+    interface: qs_trading.domain.trading.ports.IMarketClock.IMarketClock
+    implementation: adapters.outbound.clock.beijing_clock.BeijingClock
+    lifecycle: transient
+    description: '市况时钟（北京时间默认实现）'
+
   # ── 2026-10-21 反向越层阶段1：watch 族出向（qs_watch 经 _repo_resolver 消费）──
   watch_rule:
     interface: qs_watch.domain.watch.ports.IWatchRuleRepository

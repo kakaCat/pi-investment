@@ -11,7 +11,7 @@ from typing import List, Dict, Optional
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
-from adapters.outbound.datasources.providers.quantlib.factor_calculator_adapter import get_factor_adapter
+from qs_market_data.adapters.outbound.datasources.providers.quantlib.factor_calculator_adapter import get_factor_adapter
 # 使用领域层的评分器（DDD 架构）
 from domain.scoring.services import TechnicalScorer, FundamentalScorer
 from application.services.scoring.capital_scorer import CapitalScorer

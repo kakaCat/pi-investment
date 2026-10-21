@@ -31,8 +31,8 @@ class MarketSessionService:
 
     def __init__(self, clock: Optional[IMarketClock] = None):
         if clock is None:
-            from adapters.outbound.clock.beijing_clock import BeijingClock  # DI：局部导入具体实现
-            clock = BeijingClock()
+            from adapters.outbound.clock.beijing_clock import BeijingClock
+            clock = BeijingClock()  # DI：局部导入具体实现（2026-10-21 复核：resolve 契约不自动注册，默认时钟留懒导入；DI 注入口见 services.yaml market_clock 条目）
         self._clock = clock
         self._policy = MarketSessionPolicy()
 

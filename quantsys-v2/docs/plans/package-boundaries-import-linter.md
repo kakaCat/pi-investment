@@ -474,3 +474,18 @@ flowchart TB
      本体仍在 shell（非 shim），迁移须先落 kernel，另行开卡；
   ② `qs_market_data` 自身 manager.py ×2 处 `adapters.shared.*`（同上 S11 项）；
   ③ `qs_intel` factor_calculator_adapter ×1、`qs_trading` BeijingClock ×1（懒加载 DI 局部实现）。
+
+## 2026-10-21 · 阶段2 批2：qs_intel 出向收口 + BeijingClock 定案
+
+- `qs_intel` opportunity_scoring_service：factor_calculator_adapter import 从 shell shim 路径
+  换 canonical `qs_market_data.adapapters...`（笔误自查：实际为 qs_market_data.adapters.outbound.
+  datasources.providers.quantlib.factor_calculator_adapter）；scoring 相关测试 **51 passed**
+- **BeijingClock 裁定**：qs_trading market_session_service 默认时钟的惰性导入**保持不动**——
+  复核发现 `ServiceFactory.resolve` 的对外契约明确**不做自动注册**（docstring 明示：顺手
+  注册会改变全局状态、3 个用例曾由过变败）。默认值留懒导入即 sanctioned DI 模式；
+  DI 注入口已补 `services.yaml` 的 `market_clock` 条目（接口
+  qs_trading.domain.trading.ports.IMarketClock.IMarketClock / 实现 BeijingClock / transient），
+  供组合根显式注入
+- market_session 相关测试 **25 passed**（含注入时钟/日期字符串边界）
+- 教训：resolve 不自动注册是**被守住的契约**（与阶段1 实现记忆相反——main.py 的 initialize
+  接线因此是必要前置而非可选项）；qs_watch 经 _repo_resolver 的调用面必须保证宿主进程已 initialize

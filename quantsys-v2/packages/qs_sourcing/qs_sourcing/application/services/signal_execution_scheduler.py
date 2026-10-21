@@ -473,12 +473,16 @@ class SignalExecutionScheduler:
         for signal in approved_signals:
             try:
                 # 获取最新价格
+                # 2026-10-21 修复：get_latest_daily_kline 返回 polars DataFrame，
+                # `if not latest_kline` 必抛 "truth value of a DataFrame is ambiguous"
+                # → 每条信号都在转换处炸掉、被 except 吞掉 → 引擎永远 0 单
+                # （昨日/今日 3 条 approved SELL 未成交的真因，T+1 只是表象）
                 latest_kline = self.kline_repo.get_latest_daily_kline(signal['symbol'])
-                if not latest_kline:
+                if latest_kline is None or latest_kline.is_empty():
                     logger.warning(f"无法获取股票价格: {signal['symbol']}")
                     continue
 
-                close_price = float(latest_kline['close'])
+                close_price = float(latest_kline['close'][0])
 
                 # 转换为 PaperTradingEngine 信号格式
                 # 2026-10-20 修复：confidence 在 DB 是 NULL 时
@@ -545,8 +549,10 @@ class SignalExecutionScheduler:
         for symbol in symbols:
             try:
                 kline = self.kline_repo.get_latest_daily_kline(symbol)
-                if kline:
-                    prices[symbol] = float(kline['close'])
+                # 2026-10-21 修复：polars DataFrame 不可判真（必抛 TypeError 被
+                # 下方 except 吞掉 → 价格表静默全空，引擎只能靠 signal.price 兜底）
+                if kline is not None and not kline.is_empty():
+                    prices[symbol] = float(kline['close'][0])
             except Exception:
                 pass
         return prices

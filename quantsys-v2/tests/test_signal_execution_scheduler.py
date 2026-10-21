@@ -58,7 +58,8 @@ class TestSignalExecutionScheduler:
     def mock_kline_repo(self):
         """Mock K线仓库"""
         mock = MagicMock()
-        mock.get_latest_daily_kline.return_value = {'close': 1680.0}
+        import polars as pl
+        mock.get_latest_daily_kline.return_value = pl.DataFrame({'close': [1680.0]})
         yield mock
 
     @pytest.fixture
@@ -146,9 +147,8 @@ class TestSignalExecutionScheduler:
         }
 
         # Mock K线数据
-        mock_kline_repo.get_latest_daily_kline.return_value = {
-            'close': 1680.0
-        }
+        import polars as pl
+        mock_kline_repo.get_latest_daily_kline.return_value = pl.DataFrame({'close': [1680.0]})
 
         # Mock股票信息
         mock_stock_repo.get_by_symbol.return_value = {
