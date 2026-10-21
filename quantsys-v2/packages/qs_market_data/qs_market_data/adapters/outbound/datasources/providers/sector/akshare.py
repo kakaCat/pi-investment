@@ -130,8 +130,103 @@ class AkshareSectorProvider(MarketProvider):
 
     # ── 板块成分（本 provider 不实现，返回 None 交给 failover） ──
 
+    #: canonical 板块 → 新浪行业（新浪只有 49 个粗分类，粒度**粗于**东财行业）。
+    #: 命中即 coarse=True：消费方可据此决定是否降低权重/仅记录不打扰。
+    COARSE_SECTOR_MAP = {
+        '半导体': '电子器件',
+        'AI': '电子信息',
+        '新能源': '发电设备',
+        '医药': '生物制药',
+        '房地产': '房地产',
+        '银行': '金融行业',
+        '券商': '金融行业',
+        '军工': '飞机制造',
+        '消费': '食品行业',
+        '农业': '农林牧渔',
+        '资源': '有色金属',
+        '基建': '建筑建材',
+    }
+
     def get_sector_stocks(self, sector: str) -> Optional[MarketData]:
-        return None
+        """板块成分（failover 通道，2026-10-21 由桩改为真实实现）。
+
+        通道：新浪行业（`stock_sector_spot` → label → `stock_sector_detail`），
+        与东财主源完全独立。粒度粗（49 个旧式行业），命中 `COARSE_SECTOR_MAP` 时
+        data['coarse']=True，调用方可据此降权。
+
+        失败语义：网络异常上抛（manager 计故障/熔断）；板块不存在返回
+        found=False（有效响应，缓存层只缓存 found 且非空的结果）。
+        """
+        import asyncio  # noqa: F401  （保持导入面稳定，避免 lint 误判）
+
+        name = str(sector or '').strip()
+        if not name:
+            return None
+
+        board, coarse = self._resolve_sina_board(name)
+        if board is None:
+            return MarketData(
+                data_type='sector_stocks',
+                data={'sector': name, 'found': False, 'sector_code': None,
+                      'stocks': [], 'coarse': False},
+                source=self.name,
+                timestamp=datetime.now().isoformat(),
+            )
+
+        import akshare as ak
+
+        label = board['label']
+        df = ak.stock_sector_detail(sector=label)
+        if df is None or df.empty:
+            return None
+
+        stocks = []
+        for _, row in df.iterrows():
+            code = str(row.get('code') or '').strip()
+            if not code:
+                continue
+            stocks.append({
+                'symbol': code,
+                'name': str(row.get('name') or '').strip(),
+                'pe': self._safe_float(row.get('per')),
+                # 新浪 mktcap 单位是万元，统一换算成元（与东财口径一致）
+                'market_cap': self._safe_float(row.get('mktcap')) * 10000,
+            })
+
+        return MarketData(
+            data_type='sector_stocks',
+            data={
+                'sector': name,
+                'found': bool(stocks),
+                'sector_code': label,
+                'stocks': stocks,
+                'count': len(stocks),
+                'coarse': coarse,
+            },
+            source=self.name,
+            timestamp=datetime.now().isoformat(),
+        )
+
+    def _resolve_sina_board(self, name: str):
+        """板块名 → 新浪行业行（含 label）；返回 (row_dict|None, coarse: bool)。"""
+        label = None
+        df = None
+        try:
+            import akshare as ak
+
+            df = ak.stock_sector_spot(indicator='新浪行业')
+        except Exception:  # noqa: BLE001 - 取板块表失败 → 交给上层按网络故障处理
+            raise
+        if df is None or df.empty:
+            return None, False
+        boards = {str(x).strip(): str(b).strip()
+                  for x, b in zip(df.get('板块', []), df.get('label', []))}
+        if name in boards:                       # 精确名优先（如直接传「金融行业」）
+            return {'板块': name, 'label': boards[name]}, False
+        mapped = self.COARSE_SECTOR_MAP.get(name)
+        if mapped and mapped in boards:
+            return {'板块': mapped, 'label': boards[mapped]}, True
+        return None, False
 
     @staticmethod
     def _safe_float(value, default: float = 0.0) -> float:

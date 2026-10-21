@@ -770,3 +770,66 @@ def test_confirm_query_failure_is_reported_not_raised():
 
     assert out['confirm']['skipped'] is True
     assert 'news source down' in out['confirm']['reason']
+
+
+# ── 板块成分三级兜底（2026-10-21：东财断连时不能整段失明）─────────────
+class _FlakySectorSource(_SectorSource):
+    """按板块名失败/成功的假端口：用于验证 canonical 回退。"""
+
+    def __init__(self, members, *, fail_boards=()):
+        super().__init__(members)
+        self.fail_boards = set(fail_boards or ())
+        self.calls = []
+
+    def get_members(self, board):
+        self.calls.append(board)
+        if board in self.fail_boards:
+            raise RuntimeError('eastmoney down')
+        return list(self.members.get(board, []))
+
+
+def test_members_falls_back_to_canonical_when_board_fetch_fails():
+    from qs_watch.application.services.watch_engine.policy_watch_service import (
+        SectorConstituentIndex,
+    )
+
+    source = _FlakySectorSource(
+        {'参股券商': [{'symbol': '600030'}], '券商': [{'symbol': '600030'}, {'symbol': '600837'}]},
+        fail_boards={'参股券商'},
+    )
+    source.boards = ['参股券商']    # 只解析出这一块行情板块，且它取数失败
+    idx = SectorConstituentIndex(sector_source=source)
+    out = idx.members_for('券商')
+
+    assert out['mapping_missing'] is False
+    assert out.get('coarse') is True
+    assert '600837' in out['symbols']
+    assert '券商' in source.calls, '行情板块失败后应回退 canonical 板块'
+
+
+def test_members_falls_back_when_boards_unresolvable():
+    from qs_watch.application.services.watch_engine.policy_watch_service import (
+        SectorConstituentIndex,
+    )
+
+    source = _FlakySectorSource({'券商': [{'symbol': '600030'}]})
+    source.boards = []          # 行情板块列表里认不出任何相关板块
+    idx = SectorConstituentIndex(sector_source=source)
+    out = idx.members_for('券商')
+
+    assert out['mapping_missing'] is False and out.get('coarse') is True
+    assert out['symbols'] == {'600030'}
+
+
+def test_members_mapping_missing_when_both_fail():
+    from qs_watch.application.services.watch_engine.policy_watch_service import (
+        SectorConstituentIndex,
+    )
+
+    source = _FlakySectorSource({}, fail_boards={'参股券商', '券商'})
+    source.boards = ['参股券商']
+    idx = SectorConstituentIndex(sector_source=source)
+    out = idx.members_for('券商')
+
+    assert out['mapping_missing'] is True
+    assert '券商' in out['reason'] or '参股券商' in out['reason']

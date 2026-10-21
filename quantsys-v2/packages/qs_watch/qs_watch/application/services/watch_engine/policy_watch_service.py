@@ -283,6 +283,13 @@ class SectorConstituentIndex:
             return out
         boards = self.boards_for(canonical)
         if not boards:
+            # 兜底（2026-10-21）：行情板块认不出时，直接用 canonical 名向数据层要成分
+            # ——数据层的板块成分已有「东财主源 → 新浪粗口径 → 持久化快照」三级兜底。
+            fallback = self._members_of(canonical)
+            if fallback:
+                out.update(boards=[canonical], symbols=set(fallback), coarse=True,
+                           reason='板块名未匹配行情板块，回退 canonical 成分（粗口径）')
+                return out
             out.update(mapping_missing=True,
                        reason='板块映射缺失：「%s」在行情板块里认不出（fail-open，不据此判无关）'
                               % canonical)
@@ -297,6 +304,13 @@ class SectorConstituentIndex:
             symbols.update(rows)
         out['symbols'] = symbols
         if not symbols:
+            # 兜底（2026-10-21）：行情板块成分全部失败时，用 canonical 名再要一次
+            # （走数据层的三级兜底：东财 → 新浪粗口径 → 持久化快照）。
+            fallback = self._members_of(canonical)
+            if fallback:
+                out.update(symbols=set(fallback), coarse=True,
+                           reason='行情板块成分取数失败，回退 canonical 成分（粗口径）')
+                return out
             out.update(mapping_missing=True,
                        reason='板块成分取数失败（%s），fail-open 不据此判无关'
                               % ('、'.join(out['missing_boards']) or canonical))

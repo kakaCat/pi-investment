@@ -8,6 +8,9 @@ from qs_kernel.domain.ports.datasource_ports import IDataProviderManager
 from qs_kernel.domain.models.market_data import QuoteData, FinancialData, DividendData, MarketData, StockData
 
 from qs_market_data.adapters.outbound.datasources.circuit_breaker import CircuitBreaker
+from qs_market_data.adapters.outbound.datasources.sector_constituent_cache import (
+    get_sector_constituent_cache,
+)
 from qs_market_data.adapters.outbound.datasources.providers.quote.sina import SinaQuoteProvider
 from qs_market_data.adapters.outbound.datasources.providers.quote.eastmoney import EastmoneyQuoteProvider
 from qs_market_data.adapters.outbound.datasources.providers.quote.akshare import AkshareQuoteProvider
@@ -893,7 +896,51 @@ class DataProviderManager(IDataProviderManager):
             Result dict with success, data (MarketData.data: found/sector_code/stocks),
             source fields. data['found']=False 表示板块不存在（有效响应，非网络错误）。
         """
-        return self._try_providers(self.sector_providers, 'get_sector_stocks', sector)
+        result = self._try_providers(self.sector_providers, 'get_sector_stocks', sector)
+
+        # 持久化快照兜底（2026-10-21）：成分股低频变化，主源断连时用上次成功快照，
+        # 并如实标注 degraded='cache' + age_sec——不把「昨天的成分」伪装成实时数据。
+        cache = get_sector_constituent_cache()
+        try:
+            payload = getattr(result.get('data'), 'data', None)
+        except Exception:  # noqa: BLE001
+            payload = None
+        if result.get('success'):
+            if isinstance(payload, dict) and payload.get('found') \
+                    and payload.get('stocks'):
+                cache.put(sector, payload['stocks'], source=str(result.get('source') or ''))
+            return result
+
+        hit = cache.get(sector)
+        if hit is not None:
+            logger.warning(
+                '板块成分主源失败，使用持久化快照兜底 sector=%s cached_source=%s '
+                'age_sec=%s error=%s',
+                sector, hit.get('source'), hit.get('age_sec'),
+                str(result.get('error'))[:120])
+            return {
+                'success': True,
+                'data': MarketData(
+                    data_type='sector_stocks',
+                    data={
+                        'sector': sector,
+                        'found': True,
+                        'sector_code': None,
+                        'stocks': hit['stocks'],
+                        'count': len(hit['stocks']),
+                    },
+                    source='cache:%s' % (hit.get('source') or 'unknown'),
+                    timestamp=_datetime.now().isoformat(),
+                ),
+                'source': 'cache:%s' % (hit.get('source') or 'unknown'),
+                'attempted_sources': result.get('attempted_sources') or [],
+                'provider_errors': result.get('provider_errors') or {},
+                'degraded': 'cache',
+                'stale_age_sec': hit.get('age_sec'),
+                'cached_at': hit.get('saved_at'),
+                'empty': False,
+            }
+        return result
 
     def get_sector_list(self) -> dict:
         """Get sector/industry list (行业板块 + 概念板块列表)
