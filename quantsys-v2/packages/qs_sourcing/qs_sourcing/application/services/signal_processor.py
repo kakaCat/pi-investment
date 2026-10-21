@@ -8,7 +8,7 @@ import time
 from typing import Dict, Any
 
 from qs_sourcing.application.services.signal_monitoring import signal_monitor
-from application.services.strategy_circuit_breaker import StrategyCircuitBreaker
+from qs_strategy.application.services.strategy_circuit_breaker import StrategyCircuitBreaker
 
 logger = structlog.get_logger(__name__)
 

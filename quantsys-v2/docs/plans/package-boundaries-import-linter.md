@@ -671,3 +671,33 @@ flowchart TB
   symbols_count=0 与本批无关）；预存失败集累计：批7×3、批9×11、批10×2、批12×1
 - 暂留（getter 未覆盖 + patch 敏感）：jobs 层 kline×15/stock×7/simulation×5/scheduler×3/
   heatmap×2/kline_quality×2/financial×2 及杂类——待仓储归属阶段连测试改造一起收
+
+## 2026-10-21 · 阶段2 批13：qs_sourcing shell 服务边 ×4 换 canonical
+
+- **ships**：① signal_execution_scheduler.py:22 RiskCheckService →
+  `qs_trading.application.services.risk_check_service`（顶层；②同文件:23
+  paper_trading_engine 无 canonical 包家暂留）② pool_health_tracker.py:10
+  EnhancedRiskAssessor → `qs_trading...enhanced_risk_assessor`（顶层）
+  ③ realtime_signal_service.py:133（惰性）StrategyExecutionService →
+  `qs_strategy...strategy_execution_service` ④ signal_processor.py:11
+  StrategyCircuitBreaker → `qs_strategy...strategy_circuit_breaker`（顶层）
+- patch 安全性先行核查：test_signal_processor.py:14 / test_signal_execution_scheduler.py:33
+  patch 均为导入方模块命名空间属性（sys.modules 别名同对象），canonical 换路径后属性仍在
+- 验证：py_compile ×4 ✓；双序加载冒烟 ✓（正序 sourcing×4 / 反序 trading+strategy 先载，
+  RiskCheckService 单身份 `qs_trading...risk_check_service`）；相邻测试 8 文件
+  56 passed + 1 failed + 6 errors——**A/B stash 实锤全部预存**（HEAD 失败集合逐条一致，
+  test_backward_compatibility legacy 信号用例 ×1 + test_strategy_execution_service
+  fixture/收集错误 ×6）；预存失败累计：批7×3、批9×11、批10×2、批12×1、批13×7
+- 三包分诊登记（本批普查后暂留/合法）：
+  · qs_agenthub 19 边：service_factory×10 合法；session_repository×3 +
+    simulation_repository×1 + orm.models.simulation×1 待仓储归属；business_metrics×2
+    kernel 面；benchmark_comparison×2 无 canonical 包家暂留
+  · qs_sourcing 剩余：service_factory×10 合法；orm.models×5+action_norm×1+
+    position_sizing×1 kernel；simulation bare×2（批10 已登记）；paper_trading_engine
+    ×1 无包家暂留
+  · qs_intel 21 边：service_factory×10 合法；business_metrics 无——repositories
+    bare×2 + market_style×1 + fund_flow×1 待仓储归属；cache_service×1+
+    industry_data_adapter×1+domain.scoring×1 kernel；scoring 七件
+    （weight_calculator/stock_profile_classifier/regime_signal_provider/
+    degradation_tracker/data_quality_gate/cycle_position_scorer/capital_scorer）
+    无 canonical 包家暂留（kernel/S11 候选）
