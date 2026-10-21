@@ -12,18 +12,23 @@ from typing import Any, Callable, Dict, List, Optional, Set
 import structlog
 
 from qs_watch.application.services.watch_engine.conditions import (
-    DEFAULT_DAILY_EMIT_CAP, EvalContext, evaluate,
-    freshness_of,
+    EvalContext, evaluate,
 )
 from qs_watch.application.services.watch_engine.market_watch_service import MARKET_SCOPES
 from qs_watch.application.services.watch_engine.rule_evaluator import RuleEvaluator
 from qs_watch.application.services.watch_engine.staged_break_manager import (
     OUTCOME_CONFIRMED, OUTCOME_EXPIRED, StagedBreakManager,
 )
+from qs_watch.application.services.watch_engine.pipeline import (
+    PIPELINE, PipelineResult, TriggerContext,
+)
+from qs_watch.application.services.watch_engine.pipeline.constants import (
+    DAILY_CAP_REASON, SUPPRESSED_TRIGGER_REASON,
+)
 from qs_watch.application.services.watch_engine.state_manager import StateManager
 from qs_watch.application.services.watch_engine.trigger_judge import TriggerJudge
 from qs_watch.domain.watch.services.disposition import (
-    DEDUP_WINDOW_SEC, DISPOSITION_AUTO_OBSERVED, normalize_symbol,
+    CONSTITUTIONAL_INTENTS, DEDUP_WINDOW_SEC, DISPOSITION_AUTO_OBSERVED, intent_of,
 )
 from qs_watch.domain.watch.services import noise_policy
 from qs_watch.application.services.watch_engine.deduplication_manager import DeduplicationManager
@@ -50,15 +55,9 @@ def _runtime_persist_enabled() -> bool:
         '1', 'true', 'yes', 'on')
 
 
-#: 抑噪期触发的归档理由（REQ-c9f899 R6 / t8）：与 NoiseSelfHealService 已经建出的
-#: 「修规则」待办呼应——告诉读者这条触发为什么不推送、去哪里看它的处置。
-SUPPRESSED_TRIGGER_REASON = '规则处于抑噪期（反复触发），已改造为修规则待办'
-
-#: 每日通知上限归档文案（REQ-261016155500-4f2a wt:engine:1）：每规则每条件每日
-#: ≤ DEFAULT_DAILY_EMIT_CAP 次通知，超限只归档不打扰（与抑噪同通道，reason 区分）。
-#: 直接内插常量（曾用 %d 占位忘记格式化，数字会原样落库——2026-10-16 审核修正）。
-DAILY_CAP_REASON = ('当日通知次数已达上限（每规则每条件每日 '
-                    f'{DEFAULT_DAILY_EMIT_CAP} 次），仅归档不推送')
+# 归档理由文案（抑噪 / 日上限）随流水线阶段下沉到 `pipeline/constants.py`
+# （阶段模块反向 import engine 会成环）。此处 re-export，既有
+# `from ...engine import DAILY_CAP_REASON` 的调用方零改动。
 
 #: 两段式伏击「触及未确认」的归档理由（2026-10-19 P1）：观察窗到期确认未成立，
 #: 落一条 suppressed 样本供复盘（盘感样本的事实源），不通知、不占日配额。
@@ -74,6 +73,210 @@ CONFIRM_VERIFY_FAILED_REASON = '假信号：确认核验未通过，仅归档样
 #: 判定只认规则声明的动作类型与结构化锚点（见 `_env_gate_exemption`），
 #: 绝不匹配消息文案；具体锚点接在括号里，事件与日志可回溯。
 ENV_GATE_EXEMPT_REASON = '止损/保护线豁免：环境闸放行，照常通知'
+
+# ── 规则级盯盘频率（RFC 017 §2.3，`per-rule-interval` 卡）──────────────────
+
+#: 规则级频率的引擎侧下限（秒）：保护行情源。仓储只拒绝无法解释的值（<1/负数/布尔），
+#: 因此 1–4s 是**可落库但不可执行**的配置——引擎按 5s 执行并 warn（不静默失真）。
+RULE_INTERVAL_FLOOR_SEC = 5
+
+
+def _rule_interval_sec(rule) -> Optional[int]:
+    """规则的 `interval_sec` 读口径（fail-open）：正整数秒 / None（跟随全局档）。
+
+    语义与仓储 `rule_interval_sec` / `normalize_interval_sec` 一致：NULL、缺列
+    （旧库未迁移）、非法值一律 → None。**引擎不 import 仓储**：`qs_watch` 是 L1
+    包，仓储属 L0 适配层，反向依赖会破坏包边界（`packages/qs_watch/CLAUDE.md`）；
+    故此处只读属性、按同一口径归一，两处口径由 `test_watch_per_rule_interval.py`
+    与仓储测试共同钉住。
+    """
+    try:
+        raw = getattr(rule, 'interval_sec', None)
+    except Exception:  # noqa: BLE001 - 分离态/过期对象/缺列懒加载失败都按未设置处理
+        return None
+    if raw is None or isinstance(raw, bool):
+        return None
+    try:
+        seconds = int(raw)
+    except (TypeError, ValueError):
+        return None
+    return seconds if seconds >= 1 else None
+
+
+# ── 持仓状态门（RFC 017 §2.2，`position-state-branch` 卡）────────────────────
+#
+# 为什么在 tick 层而不是 `_process_condition` 的流水线：状态门回答「这条规则这
+# 一拍要不要判」，结论必须在**取价之前**就有——放进流水线意味着先取价、先算条
+# 件、再丢弃结果，与「未到期不取价」（RFC §2.3）是同一条纪律。位置：活性过滤之
+# 后、到期门之前（RFC 017 §2.2 的实施裁定）；pipeline 仍是 15 阶段，不增第 16 个。
+#
+# 分支表（`t_trade` 按订正归 holding 分支）：
+#
+#   | position_state | entry / add_position | t_trade / exit_* | 观察类 |
+#   |----------------|----------------------|------------------|--------|
+#   | 'none'         | 求值                 | 跳过             | 求值   |
+#   | 'holding'      | 跳过                 | 求值             | 求值   |
+#   | None（未知）   | 求值                 | 求值             | 求值   |
+#
+# 两条硬口径（改这里之前先读 RFC 017 §2.2 / §4.6）：
+#   1. **None 不是 'none'**：NULL/缺列/非法值 → 状态不可知 → 一律求值（旧库与
+#      存量规则行为等价）；
+#   2. **宪法级止损永不因状态跳过**：`exit_stop` 对上 'none'（状态滞后）照常求值
+#      ——「已买入但状态还没翻转」时静默跳过止损 = 资损风险；宁可多喊一次。
+
+#: 状态值（与仓储 `normalize_position_state` 同一值域；这里不重复实现归一）。
+POSITION_STATE_NONE = 'none'
+POSITION_STATE_HOLDING = 'holding'
+
+#: 意图族：entry 族只在「确认空仓」时求值（持仓时跳过——已有仓位不再喊建仓/加仓）。
+POSITION_STATE_ENTRY_INTENTS = ('entry', 'add_position')
+
+#: 意图族：exit 族只在「确认持仓」时求值（空仓跳过）。
+#: `t_trade` 归持仓分支：A股 T+1 下没有底仓无法做 T（RFC 017 §2.2 的订正）。
+POSITION_STATE_EXIT_INTENTS = ('t_trade', 'exit_stop', 'exit_take_profit', 'exit_reduce')
+
+#: 意图族标签（日志/事件用）。
+POSITION_FAMILY_ENTRY = 'entry'
+POSITION_FAMILY_EXIT = 'exit'
+POSITION_FAMILY_OBSERVE = 'observe'
+
+#: 跳过原因（日志可观测；也是「本拍为什么没判这条规则」的唯一答案）。
+POSITION_STATE_SKIP_ENTRY_HELD = 'position_state_entry_skipped_holding'
+POSITION_STATE_SKIP_EXIT_FLAT = 'position_state_exit_skipped_flat'
+
+#: 不一致事件 kind（tick 事件流里与 trigger 事件区分，不伪装成一次触发）。
+STATE_MISMATCH_EVENT = 'state_mismatch'
+
+#: `state_mismatch` 事件的原因码（不一致但 fail-open 的两类）。
+MISMATCH_UNREADABLE = 'position_state_unreadable'
+MISMATCH_STOP_WITHOUT_HOLDING = 'constitutional_exit_without_holding'
+
+#: `getattr` 未取到属性（缺列/旧部署）与读取抛异常 的两种哨兵。
+_ATTR_MISSING = object()
+_ATTR_READ_ERROR = object()
+
+#: 读口径缓存（延迟 import 仓储 `rule_position_state`；见 `_load_position_state_reader`）。
+_READER_UNSET = object()
+_POSITION_STATE_READER = _READER_UNSET
+
+
+def position_state_family(intent) -> str:
+    """意图 → 持仓分支族（entry / exit / observe）。
+
+    只做**归类**，不做意图推导：intent 必须来自 `disposition.intent_of(rule)`
+    （与处置/分级同源），否则「声明 buy 却没写 intent」的规则会绕过分支
+    （rule_guard 修过的同一个坑）。未知意图一律 observe = 照常求值。
+    """
+    text = str(intent or '').strip()
+    if text in POSITION_STATE_ENTRY_INTENTS:
+        return POSITION_FAMILY_ENTRY
+    if text in POSITION_STATE_EXIT_INTENTS:
+        return POSITION_FAMILY_EXIT
+    return POSITION_FAMILY_OBSERVE
+
+
+def _load_position_state_reader():
+    """延迟加载仓储读口径 `rule_position_state()`（L1 引擎不反向常驻 import L0）。
+
+    失败只记一次 error 并缓存 None：读不到口径 = 状态不可知 → 全部规则照常求值
+    （fail-open），绝不因为没读到状态就静默不判（RFC 017 §4.6）。
+    """
+    global _POSITION_STATE_READER
+    if _POSITION_STATE_READER is not _READER_UNSET:
+        return _POSITION_STATE_READER
+    try:
+        from adapters.outbound.repositories.watch_rule_repository import (
+            rule_position_state,
+        )
+    except Exception as e:  # noqa: BLE001 - 旧部署/缺依赖：读不到就按不可知
+        logger.error('持仓状态读口径不可用（全部规则按状态不可知 fail-open）',
+                     error=str(e))
+        _POSITION_STATE_READER = None
+        return None
+    _POSITION_STATE_READER = rule_position_state
+    return _POSITION_STATE_READER
+
+
+def read_rule_position_state(rule) -> Optional[str]:
+    """规则持仓状态读口径：`'none'` / `'holding'` / `None`（**不可知**）。
+
+    **必须**走仓储 `rule_position_state()`：NULL、缺列、非法值 → None 的归一
+    只有那一处实现，引擎侧绝不自己写第二套（口径漂移就是漏判止损的入口）。
+    读口径本身不可用（import 失败）时同样返回 None —— 未知一律 fail-open。
+    """
+    reader = _load_position_state_reader()
+    if reader is None:
+        return None
+    try:
+        return reader(rule)
+    except Exception as e:  # noqa: BLE001 - 读失败 = 不可知（不是"确认空仓"）
+        logger.error('持仓状态读取异常（按状态不可知 fail-open）',
+                     rule_id=getattr(rule, 'id', None), error=str(e))
+        return None
+
+
+def _declared_position_state(rule):
+    """规则上**原始声明**的 position_state（只用于识别"声明了但读不懂"）。
+
+    与读口径分开：缺列/未迁移返回 `_ATTR_MISSING`（旧行为，静默 fail-open），
+    读取抛异常返回 `_ATTR_READ_ERROR`（异常，须留痕）；其余原样返回。
+    """
+    try:
+        return getattr(rule, 'position_state', _ATTR_MISSING)
+    except Exception:  # noqa: BLE001 - 分离态/懒加载失败：读不到就按异常处理
+        return _ATTR_READ_ERROR
+
+
+def _state_mismatch_payload(rule, state, intent, family, reason, declared) -> dict:
+    """不一致事件载荷（warn 日志与 `state_mismatch` 事件共用同一份事实）。"""
+    return {
+        'kind': STATE_MISMATCH_EVENT,
+        'rule_id': getattr(rule, 'id', None),
+        'symbol': getattr(rule, 'symbol', None),
+        'intent': intent,
+        'intent_family': family,
+        'position_state': state,
+        'declared_position_state': (
+            None if declared is _ATTR_MISSING or declared is _ATTR_READ_ERROR
+            else repr(declared)),
+        'reason': reason,
+        'fail_open': True,   # 语义：本条仍照常求值（不是 suppression）
+    }
+
+
+def position_state_verdict(rule):
+    """状态门判定：返回 `(skip_reason, mismatch)`。
+
+    `skip_reason` 非空 = 本拍不判这条规则（entry 族在持仓 / exit 族在确认空仓）；
+    `mismatch` 非空 = 状态与意图不一致但 **fail-open 照常求值**，由 tick 在真的
+    记录一次触发时落 `state_mismatch` 事件——不触发就不刷事件，否则一条空仓止损
+    规则每拍刷一条不一致，真实异常会被淹掉。
+
+    市场级规则（scope ∈ MARKET_SCOPES）不在此门管辖：它们的"标的"是市场快照
+    伪标的（指数/板块/情绪），没有个股持仓语义。
+    """
+    if getattr(rule, 'scope', None) in MARKET_SCOPES:
+        return None, None
+    intent = intent_of(rule)          # 与处置/分级同源，不新造推导
+    family = position_state_family(intent)
+    state = read_rule_position_state(rule)
+    if state is None:
+        declared = _declared_position_state(rule)
+        if declared is not _ATTR_MISSING and declared is not None:
+            # 声明了非空值却读不出：非法值/读取异常 —— 旧规则缺列是 _ATTR_MISSING。
+            return None, _state_mismatch_payload(
+                rule, state, intent, family, MISMATCH_UNREADABLE, declared)
+        return None, None             # 不可知 → fail-open，不见怪
+    if intent in CONSTITUTIONAL_INTENTS and state != POSITION_STATE_HOLDING:
+        # 宪法级止损对上「确认空仓」：可能是状态滞后 → 不跳过，留痕后照常求值。
+        return None, _state_mismatch_payload(
+            rule, state, intent, family, MISMATCH_STOP_WITHOUT_HOLDING,
+            _declared_position_state(rule))
+    if family == POSITION_FAMILY_ENTRY and state == POSITION_STATE_HOLDING:
+        return POSITION_STATE_SKIP_ENTRY_HELD, None
+    if family == POSITION_FAMILY_EXIT and state == POSITION_STATE_NONE:
+        return POSITION_STATE_SKIP_EXIT_FLAT, None
+    return None, None
 
 
 def _build_runtime_store():
@@ -249,6 +452,19 @@ class WatchEngine:
         self._sidecar_thread: Optional[threading.Thread] = None
         # A2：上一轮 tick 耗时（毫秒），供 get_metrics 观测
         self._last_tick_ms: Optional[int] = None
+        # 规则级频率（RFC 017 §2.3）：调度缓存（last_eval_at / next_due_at）由
+        # StateManager.schedule 持有（状态与观测同源）；这里只存每拍的观测量。
+        # deferred_rules = 本拍被到期门挡下的规则数；floor_warned = 已 warn 过的
+        # 「interval_sec 低于 5s 下限」规则（同一条规则只提醒一次，不刷屏）。
+        self._last_deferred_rules = 0
+        self._interval_floor_warned: Set[int] = set()
+        # 持仓状态门观测量（RFC 017 §2.2）：本拍被状态门跳过的规则数（按 reason）
+        # + 累计落过的不一致事件数；get_metrics 能直接看出「门挡了多少、为什么」。
+        self._last_state_skips = {
+            POSITION_STATE_SKIP_ENTRY_HELD: 0,
+            POSITION_STATE_SKIP_EXIT_FLAT: 0,
+        }
+        self._state_mismatch_count = 0
         # （原此处重复声明 _avg_volume_cache，已随 P1 清理；
         #   触发事件日志与跨天日期已移入 StateManager）
         self.fast_mode = False
@@ -294,6 +510,16 @@ class WatchEngine:
             'fast_interval': self.fast_interval,
             # A2：上一轮 tick 耗时（毫秒）——慢 tick 此前完全不可见
             'last_tick_ms': self._last_tick_ms,
+            # 规则级频率可观测（RFC 017 §2.3）：本拍被到期门挡下的规则数 +
+            # 每条设了 interval_sec 的规则「离下一拍还有几秒」——排障时能一眼
+            # 看出「哪些规则被频率门挡住/还有多久轮到它」。
+            'rule_deferred': self._last_deferred_rules,
+            # 持仓状态门可观测（RFC 017 §2.2）：本拍跳过计数（按 reason）+ 累计
+            # 落过的不一致事件数——排障时一眼看出「门挡了多少、为什么挡」。
+            'position_state_skipped': dict(self._last_state_skips),
+            'position_state_mismatch': self._state_mismatch_count,
+            'rule_next_due_in_sec': self.seconds_until_next_due(),
+            'rule_schedule': self.state.schedule.view(self.now_fn()),
             'sidecar_running': bool(self._sidecar_thread and self._sidecar_thread.is_alive()),
             # 心跳可观测（REQ-c9f899 t10）：外部排障时先看这三项——
             # last_at 为空 = 从未写出心跳（未启用或写失败）；failures>0 = 存活信号在丢。
@@ -302,6 +528,111 @@ class WatchEngine:
                                   if self._last_heartbeat_at else None),
             'heartbeat_failures': self._heartbeat_failures,
         }
+
+    # ── 规则级频率（RFC 017 §2.3）──────────────────────────
+    #
+    # 调度口径（逐条对应 RFC §2.3，`per-rule-interval` 卡的验收面）：
+    #   · 每规则记 last_eval_at（StateManager.schedule，**进程内存**）；
+    #   · interval_sec 已设 → next_due_at = last_eval_at + max(5s, interval_sec)，
+    #     未到期本拍不取价、不评估、不动闩锁/冷却；
+    #   · interval_sec 为 NULL/缺列/非法 → **跟随全局档**：循环本身已按 base/fast
+    #     节拍跑，故逐拍求值 = 改造前行为（存量规则节奏一秒都不改）；
+    #   · 临期提速：本拍观察到 distance_ratio <= buffer_ratio → 下一拍
+    #     effective = min(interval_sec, fast_interval)，即最多 fast_interval 秒；
+    #   · 下限 5s：引擎侧 clamp（写入 1–4s 的规则按 5s 执行并 warn 一次）；
+    #   · 重启恢复：调度缓存为空 = 首拍全部到期（早一拍，不会重复触发——
+    #     闩锁/冷却/去重窗仍由运行态 store 恢复）。
+
+    def _configured_interval(self, rule) -> Optional[int]:
+        """该规则声明的 interval_sec（已按 5s 下限 clamp）；None = 跟随全局档。
+
+        低于下限只 warn 一次（每条规则一次）：静默按原值执行会让「写 3s 却每 5s
+        才判」变成一个无人知晓的失真；按 5s 执行又不解释则是另一个。
+        """
+        raw = _rule_interval_sec(rule)
+        if raw is None:
+            return None
+        rule_id = getattr(rule, 'id', None)
+        if raw < RULE_INTERVAL_FLOOR_SEC:
+            if rule_id not in self._interval_floor_warned:
+                self._interval_floor_warned.add(rule_id)
+                logger.warning('规则 interval_sec 低于引擎下限，按 %ds 执行',
+                               rule_id=rule_id, interval_sec=raw,
+                               floor_sec=RULE_INTERVAL_FLOOR_SEC)
+            return RULE_INTERVAL_FLOOR_SEC
+        return raw
+
+    def effective_rule_interval(self, rule) -> Optional[float]:
+        """该规则下一拍的调度间隔（秒）；None = 跟随全局档（逐拍求值）。"""
+        configured = self._configured_interval(rule)
+        if configured is None:
+            return None
+        interval = float(configured)
+        if self.state.schedule.is_near(getattr(rule, 'id', None)):
+            # 临期提速（RFC §2.3）：最多 fast_interval；下限仍由 5s 保护兜住。
+            interval = min(interval, float(self.fast_interval))
+        return max(float(RULE_INTERVAL_FLOOR_SEC), interval)
+
+    def rule_next_due_at(self, rule) -> Optional[datetime]:
+        """下一拍到期时刻；None = 立即到期（无规则级频率，或从未求值过）。
+
+        「从未求值过 → 到期」是重启恢复的口径：新进程调度缓存为空，全部规则
+        首拍求值一次，不会因为上一代进程的 last_eval_at 失忆而漏拍。
+        """
+        interval = self.effective_rule_interval(rule)
+        if interval is None:
+            return None
+        last = self.state.schedule.last_eval_at.get(getattr(rule, 'id', None))
+        if last is None:
+            return None
+        return last + timedelta(seconds=interval)
+
+    def _rule_is_due(self, rule, now: datetime) -> bool:
+        """到期门：未设 interval_sec 一律到期（跟随循环档），否则看 next_due_at。"""
+        due = self.rule_next_due_at(rule)
+        return due is None or now >= due
+
+    def seconds_until_next_due(self, now: Optional[datetime] = None) -> Optional[float]:
+        """最早到期的剩余秒数（None = 没有规则级闹钟）；供 get_metrics 与 sleep。"""
+        return self.state.schedule.next_due_in(now if now is not None else self.now_fn())
+
+    def next_sleep_interval(self, band_sec: float, elapsed_sec: float = 0.0,
+                            now: Optional[datetime] = None) -> float:
+        """主循环下一拍的睡眠秒数：clamp(min(档位间隔, 最早到期剩余), 1, 档位间隔)。
+
+        为什么必须看最早到期：主循环固定睡 60s 时，interval_sec=30 的规则
+        永远等不到第二拍（每拍都会因未到期被跳过）——规则级频率形同虚设。
+        """
+        band = max(1.0, float(band_sec) - max(0.0, float(elapsed_sec)))
+        remaining = self.seconds_until_next_due(now)
+        if remaining is None:
+            return band
+        return max(1.0, min(band, remaining))
+
+    def _refresh_rule_schedule(self, active_rules) -> None:
+        """tick 末尾刷新调度观察：下一拍到期时刻 + 已删除/停用规则的缓存裁剪。
+
+        对**全部在役规则**重算（不只本拍到期的）：PATCH 改小 interval_sec 后，
+        下一拍的 sleep 必须按新间隔算——只刷新到期规则会让变更最多晚一个旧间隔
+        才生效（`next_sleep_interval` 读的就是这份 next_due_at）。
+
+        只给**设了 interval_sec 的规则**记 next_due_at：NULL = 跟随循环档，
+        由循环节拍本身兜住，不需要规则级闹钟（也不会因闹钟把循环挑快/挑慢）。
+        """
+        schedule = self.state.schedule
+        schedule.retain({getattr(r, 'id', None) for r in active_rules})
+        for rule in active_rules:
+            rule_id = getattr(rule, 'id', None)
+            interval = self.effective_rule_interval(rule)
+            if interval is None:
+                schedule.set_next_due(rule_id, None)
+                continue
+            last = schedule.last_eval_at.get(rule_id)
+            schedule.set_next_due(
+                rule_id,
+                last + timedelta(seconds=interval) if last is not None else None,
+                int(interval),
+            )
 
     # ── 心跳 ────────────────────────────────────────────────
 
@@ -541,8 +872,10 @@ class WatchEngine:
                 # 整体漂移（此前固定 sleep，tick 卡 5 分钟节拍就漂移 5 分钟）。
                 elapsed = time_module.monotonic() - tick_started
                 self._last_tick_ms = int(elapsed * 1000)
-                interval = max(1.0, (self.fast_interval if self.fast_mode
-                                     else self.base_interval) - elapsed)
+                # 规则级频率（RFC 017 §2.3）：sleep 还要看「最早到期」——固定睡
+                # 档位间隔时，interval_sec 小于档位的规则永远等不到第二拍。
+                band = (self.fast_interval if self.fast_mode else self.base_interval)
+                interval = self.next_sleep_interval(band, elapsed)
             else:
                 interval = 60  # 非交易时段低频心跳
             time_module.sleep(interval)
@@ -595,15 +928,62 @@ class WatchEngine:
                 continue
             active_rules.append(rule)
 
+        # ── 持仓状态门（RFC 017 §2.2，`position-state-branch` 卡）──────────
+        # 位置：活性过滤之后、到期门之前（规则级过滤）。被跳过的规则本拍**不取价、
+        # 不评估、不动闩锁/冷却、也不推进到期时钟**——没有求值就不算一拍（否则下
+        # 一拍会误判「已评估过」，把状态翻转后的首拍推迟一个 interval）。
+        # 状态不可知（None）与「不一致但 fail-open」的规则照常进到期门。
+        position_rules = []
+        pending_mismatches: Dict[Any, dict] = {}
+        state_skips = {
+            POSITION_STATE_SKIP_ENTRY_HELD: 0,
+            POSITION_STATE_SKIP_EXIT_FLAT: 0,
+        }
+        for rule in active_rules:
+            skip_reason, mismatch = position_state_verdict(rule)
+            if mismatch is not None:
+                pending_mismatches[rule.id] = mismatch
+            if skip_reason:
+                state_skips[skip_reason] += 1
+                logger.debug('持仓状态门跳过规则', rule_id=rule.id,
+                             symbol=rule.symbol, reason=skip_reason)
+                continue
+            position_rules.append(rule)
+        self._last_state_skips = state_skips
+
+        # ── 到期门（RFC 017 §2.3，`per-rule-interval` 卡）────────────────
+        # interval_sec 未到期的规则本拍**不取价、不评估、不动闩锁/冷却**（RFC §2.3）。
+        # 规则 CRUD 写入后无需热重载：tick 每拍 `rule_repo.list_enabled()` 重载 →
+        # 下一拍按新 interval 重算到期（`rule_next_due_at` 用 last_eval_at + 当前配置）。
+        # interval_sec 为 NULL 的规则不设规则级门：它跟随全局档，而循环本身就是
+        # base/fast 节拍——逐拍求值 = 改造前的行为，存量规则节奏一秒都不改。
+        # 为什么 NULL 不做「按档位间隔」的硬门：循环为更短 interval 的规则而早醒时，
+        # 把存量规则挡在门外只会让它**推迟**判定（止损漏判风险）；宁可多判一次。
+        due_rules = []
+        deferred = 0
+        for rule in position_rules:
+            if self._rule_is_due(rule, now):
+                due_rules.append(rule)
+                # 一拍 = 一次求值尝试：即便随后取价失败也记这一拍，否则失败标的
+                # 会被每个 tick 重试（行情源压力），且 next_due_at 永远停在过去
+                # → 主循环 sleep 退化成 1s 空转。
+                self.state.schedule.mark_evaluated(rule.id, now)
+                self.state.schedule.mark_near(rule.id, False)   # 本拍重新判定临期
+            else:
+                deferred += 1
+        self._last_deferred_rules = deferred
+
         # A1（2026-10-19）：同 tick 同 symbol 只取一次价——此前同标的 N 条规则每 tick
         # 发 N 次行情请求，规则多时 tick 时长线性膨胀。按 symbol 去重取价后逐规则
         # 共享同一 quote（价格点天然一致）。
         # 价格历史也按 symbol 推一次：同 tick 同 symbol 重复推点会产生同 ts 重复行，
         # 批量 upsert 的 ON CONFLICT 直接抛 CardinalityViolation（2026-10-16 实测
         # watch_price_history 0 行、冷却/去重每 tick 全丢）。
+        # 到期门之后取价（RFC §2.3）：某 symbol 的规则**全部**未到期 → 本 tick 不取该
+        # symbol；只要还有一条到期，就取一次价给到期的规则共享——合并取价不被破坏。
         quotes: Dict[str, Any] = {}
         quote_error_symbols: Set[str] = set()
-        for symbol in dict.fromkeys(r.symbol for r in active_rules):   # 保序去重
+        for symbol in dict.fromkeys(r.symbol for r in due_rules):   # 保序去重
             try:
                 quotes[symbol] = self.quote_service.get_realtime_quote(symbol)
             except Exception as e:
@@ -615,7 +995,7 @@ class WatchEngine:
             if quote is not None:
                 self._push_history(symbol, now, float(quote.price))
 
-        for rule in active_rules:
+        for rule in due_rules:
             if rule.symbol in quote_error_symbols:
                 continue   # 异常已记日志（上方取价循环）
             quote = quotes.get(rule.symbol)
@@ -626,6 +1006,8 @@ class WatchEngine:
             if self.state.quote_fail_days.get(rule.symbol):
                 self.state.quote_fail_days[rule.symbol] = 0
             ctx = self._build_ctx(rule, now)
+            near = False   # 本拍是否观察到临近阈值（决定下一拍是否提速）
+            events_before = len(events)   # 状态不一致只在真的记录触发时落事件
 
             for idx, cond in enumerate(rule.conditions):
                 # 两段式伏击（2026-10-19 P1）：staged_break 不走无状态 evaluate——
@@ -642,6 +1024,7 @@ class WatchEngine:
                     if (result is not None and result.distance_ratio is not None
                             and result.distance_ratio <= self.buffer_ratio):
                         fast = True
+                        near = True
                     if outcome == OUTCOME_CONFIRMED:
                         # 确认核验（2026-10-20，机会闭环 M2）：形态确认成立后先过
                         # 利空/流动性/共振三道核验，全过才进触发流水线；失败归档
@@ -661,8 +1044,30 @@ class WatchEngine:
                     continue
                 if result.distance_ratio is not None and result.distance_ratio <= self.buffer_ratio:
                     fast = True
+                    near = True
                 self._process_condition(rule, idx, cond, quote, result, now, events,
                                         env_gate=env_gate)
+            # 持仓状态不一致（RFC 017 §2.2）：只有本拍真的记录了一次触发事件才落
+            # `state_mismatch`——被闩锁/陈旧驻留/抑噪挡下的拍不产生事件，否则一条
+            # 空仓止损规则每拍刷一条，把真实异常淹掉（与事件流既有语义一致）。
+            mismatch = pending_mismatches.get(rule.id)
+            if mismatch is not None and len(events) > events_before:
+                logger.warning('持仓状态与意图不一致（fail-open 照常求值）',
+                               rule_id=rule.id, symbol=rule.symbol,
+                               intent=mismatch.get('intent'),
+                               intent_family=mismatch.get('intent_family'),
+                               position_state=mismatch.get('position_state'),
+                               declared_position_state=mismatch.get(
+                                   'declared_position_state'),
+                               reason=mismatch.get('reason'))
+                self._state_mismatch_count += 1
+                events.append(dict(mismatch))
+            # 临期提速（RFC 017 §2.3）：本拍有任一条件临近阈值 → 这条规则下一拍
+            # 提速到 min(interval_sec, fast_interval)；没临近就回到声明频率。
+            self.state.schedule.mark_near(rule.id, near)
+
+        # 调度观察刷新（到期门的事实源）：下一拍到期时刻 + 已删除规则缓存裁剪
+        self._refresh_rule_schedule(active_rules)
 
         # 去重窗裁剪：清掉已过期的键，避免长跑进程内的无界增长（委托 StateManager）
         self.state.prune_dedup(now)
@@ -843,13 +1248,21 @@ class WatchEngine:
 
     def _process_condition(self, rule, idx: int, cond: dict, quote, result,
                            now, events, env_gate: Optional[tuple] = None,
-                           verify_confirm: bool = False) -> None:
+                           verify_confirm: bool = False) -> PipelineResult:
         """单条条件的「评估后」流水线（个股与市场级共用，2026-10-19 提取）。
 
-        覆盖：闩锁/冷却/迟滞 → 陈旧驻留 → 全局环境闸（个股）→ 确认核验（仅
-        staged_break 确认）→ 日上限（宪法豁免）→ 抑噪 → 升级 → 处置五门 →
-        per-rule market_gate（加严项）→ 去重/重叠治理 → 通知或聚合缓冲 →
-        日通知计数 → 待办 → 介入记账 → 止损使命退役 → 闩锁回退 → 事件记录。
+        15 步已拆成有序阶段，注册表在
+        `watch_engine/pipeline/registry.py`（`DEFAULT_STAGES`，唯一装配点）；
+        本方法只构造 TriggerContext 并跑链，**不认识任何具体阶段**——加/删/
+        调阶段只改注册表，tick 骨架不动。维护指南：
+        `quantsys-v2/docs/guides/watch-pipeline-stages.md`。
+
+        阶段顺序（与改造前逐句等价）：
+          闩锁/冷却/迟滞 → 陈旧驻留 → 全局环境闸（个股）→ 确认核验（仅
+          staged_break 确认）→ 日上限（宪法豁免）→ 抑噪 → 升级 → 处置五门 →
+          per-rule market_gate（加严项）→ 去重/重叠治理 → 通知或聚合缓冲 →
+          日通知计数 → 待办 → 送达后结算（去重标记/介入记账/止损使命退役）→
+          闩锁回退 + 事件记录。
 
         env_gate：tick 前置算出的 (blocked, reason)，**只对个股传入**（市场级
         规则本就是环境本身的信号）；None = 不做全局环境拦截。
@@ -858,356 +1271,17 @@ class WatchEngine:
         三道核验（失败只归档假信号样本、直接返回）。放在陈旧驻留/环境闸之后：
         那两者不是市场事件（规则失真 / 环境日），不该触发核验外呼。
 
-        为什么提取：市场级规则（P6）此前走「半条流水线」（notified=False 写死、
-        闩锁纯内存、不占预算、不建待办）——评估器不同（MarketRuleEvaluator 吃
-        市场快照），但评估之后的路**完全相同**。market scan 把评估结果连同
-        quote 轻量投影（price=指标值）喂进本方法，两条数据通道共用一条处置链。
-        返回 None；产出的事件追加进 events（tick 的返回载体）。
+        为什么提取：市场级规则（P6）此前走「半条流水线」——评估器不同
+        （MarketRuleEvaluator 吃市场快照），但评估之后的路**完全相同**。
+
+        返回 PipelineResult（含 trace，供排障/测试断言路径）；副作用（通知/
+        归档/落库/闩锁）与改造前一致，调用方忽略返回值即为旧行为。
         """
-        # 三段判定（闩锁/冷却/迟滞带）委托 TriggerJudge：未触发→迟滞带内保持
-        # 闩锁、带外重新武装；持续成立→不重复；冷却内→跳过。
-        # value=result.value：price_break 的迟滞带按现价判定（combined/velocity
-        # 等非价格条件 value 语义不同或为空 → within_hysteresis_band 直接放行）。
-        if not self.judge.should_emit(rule.id, idx, result.triggered, cond, now,
-                                      value=result.value):
-            return
-
-        # ── 陈旧驻留判定（2026-10-19 用户裁定）─────────────────────
-        # 昨收已在触发侧 = 非今日新穿越（零信息增量）：它不是市场事件，
-        # 是规则失真信号。不发消息不进缓冲，闩锁锁住（今日不再报），
-        # 每规则每日落一条「阈值失真」治理项进 agent 摘要队列。
-        if freshness_of(cond, getattr(quote, 'prev_close', None)) is False:
-            self._handle_stale_residency(rule, idx, cond, quote, result, now)
-            return
-
-        # ── 全局环境闸（2026-10-20，个股信号总闸）──────────────────────
-        # 环境不达标（指数暴跌/过热、板块无主线、资金氛围偏冷）→ **全部只记录
-        # 不动作**：落一条 suppressed=true 归档 + 日志，不发通知、不进摘要队列、
-        # 不建待办、不升级、不做介入记账。
-        # 不占配额（不 bump_daily_emit）：本次没有发生通知，用「次数达上限」记
-        # 账会白白吃掉当天额度；闩锁/冷却照常置上（电平保持不每 tick 复读）。
-        # 位置在日上限/抑噪之前：环境日根本没通知，用「达上限」解释会误导；
-        # 陈旧驻留更前（那是规则失真治理，不是市场事件，环境日仍应留痕）。
-        #
-        # 止损/保护线豁免（用户 2026-10-20 裁定）：环境日 exit_stop/保护线类信号
-        # **照常通知**（止损被吞 = 资损风险）；其余个股信号仍只归档。豁免只跳过
-        # **这一道全局环境闸**，后面的抑噪/升级/处置/per-rule market_gate/去重
-        # 全部照旧——叠加语义不变（规则自己的 market_gate 仍可加严拦截）。
-        env_exempt_reason = ''
-        if env_gate and env_gate[0]:
-            exempt, env_exempt_reason = self._env_gate_exemption(rule, cond)
-            if exempt:
-                logger.info('环境闸豁免（照常通知）', rule_id=rule.id,
-                            symbol=rule.symbol, reason=env_exempt_reason)
-            else:
-                env_exempt_reason = ''
-                env_reason = env_gate[1]
-                archived = self._archive_environment_trigger(
-                    rule, cond, quote, result, env_reason)
-                if archived is None:
-                    # 归档失败：不闩锁，下 tick 重试（at-least-once，同市场门口径）
-                    logger.error('环境闸归档失败（不闩锁，下 tick 重试）',
-                                 rule_id=rule.id, symbol=rule.symbol,
-                                 reason=env_reason)
-                    return
-                self.judge.mark_emitted(rule.id, idx, now, rule.symbol)
-                events.append({'rule_id': rule.id, 'symbol': rule.symbol,
-                               'condition': cond, 'price': float(quote.price),
-                               'message': result.message,
-                               'disposition': DISPOSITION_AUTO_OBSERVED,
-                               'disposition_reason': env_reason,
-                               'dup_of': None, 'merged_from_rule': None,
-                               'trigger_id': getattr(archived, 'id', None),
-                               'trigger_level': self._get_trigger_level(rule),
-                               'suppressed': True,
-                               'notified': False})
-                logger.info('环境闸拦截（只记录不动作）', rule_id=rule.id,
-                            symbol=rule.symbol, reason=env_reason,
-                            trigger_id=getattr(archived, 'id', None))
-                return
-
-        # ── 确认核验（2026-10-20，机会闭环 M2，仅 staged_break 确认）────────
-        # 三道核验（利空/流动性/共振）全过才继续；失败只归档假信号样本并返回，
-        # 不通知、不进摘要队列、不建待办、不占日通知配额。
-        # 为什么在日上限/抑噪之前：核验回答的是「这条信号是不是真的」，是比
-        # 「今天还能发几条」更根本的问题；先判真伪，再谈投送节流。
-        if verify_confirm and not self._confirm_verify(
-                rule, cond, quote, result, now, events):
-            return
-
-        # ── 每日通知上限短路（REQ-261016155500-4f2a wt:engine:1）──────────
-        # 每规则每条件每日 ≤ DEFAULT_DAILY_EMIT_CAP 次通知：超限不通知、不建待办、
-        # 不进摘要队列，只落一条 suppressed=true 归档（与抑噪同通道，reason 区分）。
-        # 宪法豁免（2026-10-19）：exit_stop 等宪法级意图不适用日上限——与 dedup
-        # 守卫同源裁定（止损被吞 = 资损风险）。注意本判定在升级检查之前，故
-        # 「L1 升级成 L2」的触发仍受上限约束，只有规则意图本身宪法级才豁免。
-        if (self.judge.daily_emit_exceeded(rule.id, idx, now)
-                and not self._is_constitutional(rule)):
-            capped = self._record_suppressed_trigger(
-                rule, cond, quote, result, reason=DAILY_CAP_REASON)
-            self.judge.mark_emitted(rule.id, idx, now, rule.symbol)
-            events.append({'rule_id': rule.id, 'symbol': rule.symbol,
-                           'condition': cond, 'price': float(quote.price),
-                           'message': result.message,
-                           'disposition': DISPOSITION_AUTO_OBSERVED,
-                           'disposition_reason': DAILY_CAP_REASON,
-                           'dup_of': None,
-                           'trigger_id': getattr(capped, 'id', None),
-                           'trigger_level': self._get_trigger_level(rule),
-                           'suppressed': True,
-                           'notified': False})
-            logger.info('日上限触发已归档（不推送/不进队列）', rule_id=rule.id,
-                        symbol=rule.symbol,
-                        trigger_id=getattr(capped, 'id', None))
-            return
-
-        # ── 抑噪期短路（REQ-c9f899 R6 / t8）──────────────────────────
-        # 该规则反复触发、已被 NoiseSelfHealService 置抑噪态（noise_state +
-        # suppress_until）：本次触发不升级、**不进摘要队列、不建待办**
-        # （修规则待办已由自愈 scan 建好），只落一条 suppressed=true 的归档触发
-        # 供聚合与复盘；到点自动恢复原级别。判据复用 noise_policy.is_suppressed
-        # 单一事实源（与自愈服务同源，不新造第二份口径）。
-        if noise_policy.is_suppressed(getattr(rule, 'noise_state', None),
-                                      getattr(rule, 'suppress_until', None), now):
-            # 归档节流（P1-6，2026-10-19）：抑噪期每日每规则只留一条 suppressed
-            # 样本（账不丢、可复盘），后续触发只闩锁/冷却不再落库——否则会按
-            # 冷却周期灌归档表，且这些行会喂大自愈的噪音统计（自反馈）。
-            if rule.id in self.state.suppressed_reported:
-                suppressed_trigger = None
-            else:
-                self.state.suppressed_reported.add(rule.id)
-                suppressed_trigger = self._record_suppressed_trigger(rule, cond, quote, result)
-            self.judge.mark_emitted(rule.id, idx, now, rule.symbol)
-            events.append({'rule_id': rule.id, 'symbol': rule.symbol,
-                           'condition': cond, 'price': float(quote.price),
-                           'message': result.message,
-                           'disposition': DISPOSITION_AUTO_OBSERVED,
-                           'disposition_reason': SUPPRESSED_TRIGGER_REASON,
-                           'dup_of': None,
-                           'trigger_id': getattr(suppressed_trigger, 'id', None),
-                           'trigger_level': self._get_trigger_level(rule),
-                           'suppressed': True,
-                           'notified': False})
-            logger.info('抑噪期触发已归档（不推送/不进队列）', rule_id=rule.id,
-                        symbol=rule.symbol,
-                        trigger_id=getattr(suppressed_trigger, 'id', None))
-            return
-        
-        # 升级检查：L0/L1 触发满足条件时自动升级为 L2（委托 EscalationCoordinator）
-        escalation_reason = self.escalation.check(rule, cond, quote, result, now)
-        trigger_level = self._get_trigger_level(rule)
-        
-        # ── 处置决策（REQ-f08def）─────────────────────────────
-        # 机械优先：去重合并 / observe 类归档当场收敛（零 LLM），
-        # 只有 L2 或升级触发才进 agent 摘要队列（用户硬约束：token 成本）。
-        # escalation_reason 带进处置结论（2026-09-14）：此前 decide() 只收到
-        # escalated 布尔，固定回一句「升级策略命中（L1→L2）」，使「哪条升级
-        # 路径命中」在库里不可考（核查时曾被此误导）。
-        disposition, disposition_reason = self.disposition.decide(
-            rule, cond, quote, escalated=bool(escalation_reason),
-            escalation_reason=escalation_reason)
-        # 去重：同标的同向窗内合并；跨规则重叠另转治理（每对每天一次）。
-        # 守卫（REQ-261016155500-4f2a wt:engine:2）：dedup 命中**不再无条件**改判
-        # deduped——escalated/exit_stop 是宪法级消息（止损被吞 = 资损风险），
-        # 只合并展示（标注先响规则）照发不误；其余处置维持合并不通知。
-        # ── 市场环境复合门（2026-10-20，流程图 H 节点「二次校验市场环境」）────
-        # 个股信号成立后查大盘：环境异常（如暴跌）则「只记录不动作」——伏击单不在
-        # 系统性风险日接飞刀。规则侧开关：action_params.market_gate。
-        # 这是**per-rule 加严项**：全局环境闸已在 tick 前置拦截并 return（走不到
-        # 这里）；本门只在「环境闸放行/缺数据 fail-open」时按规则自己的阈值加严。
-        # 拦截=归档一条触发（notified=False）+ 闩锁/冷却/日计数照常，直接 return。
-        ap = getattr(rule, 'action_params', None)
-        gate = ap.get('market_gate') if isinstance(ap, dict) else None
-        if gate and disposition in ('pending', 'escalated'):
-            blocked, gate_why = self._check_market_gate(gate, now)
-            if blocked:
-                try:
-                    gated_trigger = self.notifier.record_only(
-                        rule, cond, quote, result, disposition=DISPOSITION_AUTO_OBSERVED,
-                        disposition_reason=gate_why)
-                except Exception as e:
-                    logger.error('市场门归档失败（不闩锁，下 tick 重试）',
-                                 rule_id=rule.id, error=str(e))
-                    return
-                self.judge.bump_daily_emit(rule.id, idx, now)
-                self.judge.mark_emitted(rule.id, idx, now, rule.symbol)
-                self.dedup.mark_notified(rule, cond, now,
-                                         getattr(gated_trigger, 'id', 0) or 0)
-                events.append({'rule_id': rule.id, 'symbol': rule.symbol,
-                               'condition': cond, 'price': float(quote.price),
-                               'message': result.message,
-                               'disposition': DISPOSITION_AUTO_OBSERVED,
-                               'disposition_reason': gate_why,
-                               'dup_of': None, 'merged_from_rule': None,
-                               'trigger_id': getattr(gated_trigger, 'id', None),
-                               'trigger_level': self._get_trigger_level(rule),
-                               'notified': False})
-                # 豁免溯源（2026-10-20）：全局闸已豁免、但规则自己的 market_gate
-                # 更严 → 仍只归档。事件如实记录「为什么能走到二次校验」。
-                if env_exempt_reason:
-                    events[-1]['env_gate_exempt'] = True
-                    events[-1]['env_gate_exempt_reason'] = env_exempt_reason
-                logger.info('市场门拦截（只记录不动作）', rule_id=rule.id,
-                            symbol=rule.symbol, reason=gate_why)
-                return
-
-        outcome = self.dedup.check(rule, cond, now)
-        dup_of = None
-        merged_from_rule = None
-        if outcome.is_duplicate:
-            if disposition in ('pending', 'auto_observed', 'ignored', 'expired'):
-                disposition = 'deduped'
-                disposition_reason = self.dedup.reason_text(outcome)
-                dup_of = outcome.dup_of
-            else:
-                merged_from_rule = outcome.prev_rule_id
-                disposition_reason = (
-                    (disposition_reason + '；') if disposition_reason else ''
-                ) + '与规则#%s 同事件（%ds 窗内），已合并展示但不吞消息' % (
-                    outcome.prev_rule_id, self.dedup_window_sec)
-            if outcome.overlap_pair:
-                reason = self.dedup.overlap_reason(outcome.overlap_pair, outcome.key)
-                try:
-                    self.notifier.record_governance(
-                        rule, reason,
-                        {'overlap_with_rule': outcome.overlap_pair[0],
-                         'key': list(outcome.key)})
-                    logger.info('规则重叠已转治理',
-                                rules=list(outcome.overlap_pair),
-                                key=list(outcome.key))
-                except Exception as e:
-                    logger.error('规则重叠治理项记录失败', error=str(e))
-
-        try:
-            # 金额门取数复用一次（与级别判定的"是否持仓"输入同源，避免重复查库）
-            action_amount = self._position_value(rule)
-            # 按级别渲染（t12 §6-项1）：仅闭环开启（todo_service 注入）时给级别；
-            # 否则 None → 通知保持旧渲染（默认行为与改造前一致）。
-            notify_level = self._notify_level(rule, disposition,
-                                              has_position=bool(action_amount))
-            notify_kwargs = dict(
-                escalation_reason=escalation_reason,
-                disposition=disposition,
-                disposition_reason=disposition_reason,
-                dup_of=dup_of,
-                action_amount_yuan=action_amount,
-                merged_from_rule=merged_from_rule,
-            )
-            if notify_level:
-                notify_kwargs['level'] = notify_level
-            # 观察聚合路由（REQ-261016155500-4f2a wt:validate:1）：无判据 observe
-            # 触发不进即时通道，落库后入 15 分钟聚合缓冲（卡内逐条可溯源）；
-            # 有判据 observe 与 escalated/pending 等需动作类照旧即时单发。
-            buffered = (self.observe_agg is not None
-                        and self.observe_agg.should_buffer(rule, disposition))
-            if buffered:
-                buffer_reason = ((disposition_reason or '')
-                                 + '；已进 15 分钟聚合缓冲（合屏发送）')
-                trigger = self.notifier.record_only(
-                    rule, cond, quote, result, disposition=disposition,
-                    disposition_reason=buffer_reason)
-                disposition_reason = buffer_reason
-                from qs_watch.domain.watch.services.watch_message import (
-                    relation_of, resolve_action,
-                )
-                self.observe_agg.add(
-                    getattr(rule, 'linked_account', None) or getattr(rule, 'account', None),
-                    rule.symbol,
-                    {'rule_id': rule.id,
-                     'trigger_id': getattr(trigger, 'id', None),
-                     'message': result.message,
-                     'price': float(quote.price),
-                     'name': getattr(quote, 'name', None),
-                     'at': now.isoformat()},
-                    now, float(quote.price),
-                    action_text=resolve_action(
-                        action_params=getattr(rule, 'action_params', None),
-                        next_action_hint=getattr(rule, 'next_action_hint', None),
-                        intent=getattr(rule, 'intent', None),
-                        rule_id=rule.id).text,
-                    relation_text=relation_of(
-                        rule,
-                        self._pnl_of(rule, quote)))
-            else:
-                trigger = self.notifier.notify(rule, cond, quote, result, **notify_kwargs)
-        except Exception as e:
-            # 不闩锁、不记 _last_triggered，下个 tick 重试（at-least-once）
-            logger.error('通知发送失败', rule_id=rule.id, cond=cond, error=str(e))
-            return
-        # 送达成功才算一次「日通知」（上限计数的事实源）：notifier 内部吞发送
-        # 异常并以 trigger.notified 反映结果，失败不计数、行为与改前一致。
-        # 聚合缓冲也计入日上限（2026-10-19）：缓冲路径 trigger.notified 恒 False
-        # （设计上不单发），此前 observe 聚合通道完全不受日上限约束——恰是噪音
-        # 最大的通道。入缓冲即计一次（用户会在聚合卡里看到它）。
-        if buffered or trigger is None or getattr(trigger, 'notified', False):
-            self.judge.bump_daily_emit(rule.id, idx, now)
-        # ── 落待办（REQ-c9f899 t12）：闭环唯一载体 ────────────────────────
-        # 触发 → 待办是「L1→L2→L3 晋升 + 到期巡检 + 三段回执」的载体；没有它闭环空转。
-        # 位置说明（对父指令的 1 处偏差，已在汇报声明）：待办需要 trigger_id 做溯源与
-        # 幂等（同一触发最多一条待办）+ 回填 watch_triggers.todo_id，而 trigger_id 只在
-        # notifier.notify 落完触发记录后才存在，故创建紧跟在 notify 返回之后（不是之前）。
-        # 失败只记日志，绝不打断通知/记账/闩锁（tick 的 at-least-once 靠后续触发重试）。
-        # 聚合缓冲的触发不建待办（2026-10-19）：无判据 observe 属「记录不打扰」，
-        # 且聚合卡最长 15 分钟后才到用户——待办 SLA 时钟不应早于用户可见。
-        if not buffered:
-            try:
-                self._create_watch_todo(rule, now, disposition, trigger, notify_level)
-            except Exception as e:  # 双保险：helper 已自吞异常，tick 不许被打挂
-                logger.error('建待办异常（tick 继续）', rule_id=rule.id, error=str(e))
-        if disposition != 'deduped':
-            self.dedup.mark_notified(rule, cond, now,
-                                     getattr(trigger, 'id', 0) or 0)
-        if disposition == 'escalated':
-            # 增量门 + 预算记账：escalated = 进 agent 摘要队列 = 一次潜在介入
-            norm = normalize_symbol(rule.symbol)
-            intent = str(getattr(rule, 'intent', '') or '') or                         str((rule.action_hint or {}).get('action_on_trigger', '') if isinstance(getattr(rule, 'action_hint', None), dict) else '')
-            self.state.last_intervention[(norm, intent or 'unknown')] = now
-            self.state.interventions_today += 1
-            if self.ledger is not None:
-                self.ledger.record(
-                    symbol=rule.symbol, intent=(intent or None), rule_id=rule.id,
-                    trigger_kind='price', outcome='escalated',
-                    trigger_ids=[getattr(trigger, 'id', None)],
-                )
-        # ── 止损使命完成自动退役（2026-10-19 用户裁定：过期的由引擎处理）─
-        # exit_stop 触发即消费：这条止损线已被穿越，无论用户是否执行卖出，
-        # 原阈值都已失效（再挂只会变成陈旧驻留噪音）。引擎直接退役规则并
-        # 落治理注记——未平仓的新风控线由 agent 起草、用户确认后重建。
-        self._maybe_retire_executed_stop(rule, disposition, now)
-        self.judge.mark_emitted(rule.id, idx, now, rule.symbol)
-        # 未送达不闩锁（REQ-261016155500-4f2a wt:engine:2）：notifier 先落库后
-        # 发送，失败时 trigger.notified=False——回退闩锁/冷却（保留事件日志），
-        # 下个 tick 重判再走 notify 的补发短路（同一 trigger 行重发，不新建不双发）。
-        if (not buffered and trigger is not None
-                and not getattr(trigger, 'notified', False)):
-            # ⚠️ 聚合缓冲路径（buffered=True）的 trigger.notified 恒为 False
-            # （设计上就不单发），绝不可走这里——否则闩锁/冷却每发即毁，
-            # 规则每 60s dedup 窗口到期就复读（2026-10-19 实测规则 #239
-            # 6 分钟触发 25 次的根因）。
-            self.state.latched.discard((rule.id, idx))
-            self.state.last_triggered.pop((rule.id, idx), None)
-        # 可观测性（2026-09-11，w-aebfddcd E2E 发现）：事件必须带**处置结论**，
-        # 否则调用方无法区分"命中并通知"与"命中但被去重/被预算压掉"，只能回查库。
-        # disposition 即答案：escalated/pending=进队列并推送；deduped=只归档不打扰；
-        # auto_observed/ignored/expired=记录但不打扰。
-        # notified 口径（REQ-261016155500-4f2a wt:engine:2）：与 notifier 真实发送
-        # 结果一致（trigger.notified）——此前 auto_observed 实际已推送却记 False，
-        # 观测口径撒谎会误导排障。
-        events.append({'rule_id': rule.id, 'symbol': rule.symbol,
-                       'condition': cond, 'price': float(quote.price),
-                       'message': result.message,
-                       'disposition': disposition,
-                       'disposition_reason': disposition_reason,
-                       'dup_of': dup_of,
-                       'merged_from_rule': merged_from_rule,
-                       'trigger_id': getattr(trigger, 'id', None),
-                       'trigger_level': trigger_level,
-                       'notified': bool(getattr(trigger, 'notified', False))})
-        # 豁免溯源（2026-10-20）：止损/保护线信号是在环境闸拦截日被放行的——
-        # 事件必须带得出「为什么它没被拦」，否则复盘无法区分正常日与豁免日。
-        if env_exempt_reason:
-            events[-1]['env_gate_exempt'] = True
-            events[-1]['env_gate_exempt_reason'] = env_exempt_reason
+        ctx = TriggerContext(
+            engine=self, rule=rule, idx=idx, cond=cond, quote=quote,
+            result=result, now=now, events=events, env_gate=env_gate,
+            verify_confirm=verify_confirm)
+        return PIPELINE.run(ctx)
 
     # ── 内部 ────────────────────────────────────────────────
 

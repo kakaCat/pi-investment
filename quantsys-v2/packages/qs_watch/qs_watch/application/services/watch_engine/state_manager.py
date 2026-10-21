@@ -51,6 +51,103 @@ class TriggerRecord:
     triggered_at: datetime
 
 
+@dataclass
+class RuleSchedule:
+    """规则级盯盘频率的调度缓存（RFC 017 §2.3，`per-rule-interval` 卡）。
+
+    只记「每条规则最近一次求值时刻」与由它推出的下一拍到期时间，供引擎的
+    到期门（未到期不取价、不评估）与主循环的 sleep（取最早到期）使用。
+
+    **为什么是纯进程内存、不落库**：RFC 017 §2.3 的订正——`watch_runtime_state`
+    的主键是 `(rule_id, cond_idx)`，装不下规则级到期时间；为一份"可丢的调度
+    缓存"加迁移不划算。重启后本容器为空 = 全部规则**首拍求值一次**（早一拍，
+    不会重复触发：闩锁/冷却/去重窗仍由运行态 store 恢复）。
+
+    **为什么放在 StateManager 而不是引擎散字段**：引擎运行时状态已收敛到本容器
+    （2026-09-14 P1），`snapshot()` 是线上排障的唯一入口；调度缓存属同一类
+    "可丢的运行态"，且 RFC §2.3 要求 `last_eval_at / next_due_in` 能被
+    `get_metrics` 看见——放在这里，观测与状态同源。
+
+    与 `position_state` 分支同一纪律：**未知/缺失一律 fail-open**——
+    没有记录 = 到期（绝不因为"没记过"而静默不评估）。
+    """
+    #: rule_id -> 最近一次求值时刻（本拍已取价并进入评估，或取价尝试失败）
+    last_eval_at: Dict[int, datetime] = field(default_factory=dict)
+    #: rule_id -> 下一拍到期时刻（仅设了 interval_sec 的规则；NULL 跟随循环档）
+    next_due_at: Dict[int, datetime] = field(default_factory=dict)
+    #: rule_id -> 生效的规则级频率（秒，已按引擎口径 clamp；观测用）
+    intervals: Dict[int, int] = field(default_factory=dict)
+    #: 本拍观察到临近阈值（distance_ratio <= buffer_ratio）→ 下一拍提速的规则
+    near: Set[int] = field(default_factory=set)
+
+    def mark_evaluated(self, rule_id: int, now: datetime) -> None:
+        """记「该规则本拍已消费一次」——即便随后取价失败也算一拍。
+
+        为什么失败也算：失败标的若不计拍，会被每个 tick 重试（行情源压力），
+        且 `next_due_at` 永远停在过去 → 主循环 sleep 退化成 1s 空转。
+        """
+        if rule_id is None:
+            return
+        self.last_eval_at[rule_id] = now
+
+    def mark_near(self, rule_id: int, near: bool) -> None:
+        """记/清「该规则本拍临近阈值」。每拍重判：不临近就回到原频率。"""
+        if rule_id is None:
+            return
+        if near:
+            self.near.add(rule_id)
+        else:
+            self.near.discard(rule_id)
+
+    def is_near(self, rule_id: int) -> bool:
+        return rule_id in self.near
+
+    def set_next_due(self, rule_id: int, due_at: Optional[datetime],
+                     interval_sec: Optional[int] = None) -> None:
+        """记该规则的下一拍到期时刻（None = 不设规则级闹钟）。"""
+        if rule_id is None:
+            return
+        if due_at is None:
+            self.next_due_at.pop(rule_id, None)
+        else:
+            self.next_due_at[rule_id] = due_at
+        if interval_sec is None:
+            self.intervals.pop(rule_id, None)
+        else:
+            self.intervals[rule_id] = int(interval_sec)
+
+    def next_due_in(self, now: datetime) -> Optional[float]:
+        """最早到期的剩余秒数（可为负 = 已过期）；没有规则级闹钟 → None。"""
+        if not self.next_due_at:
+            return None
+        return min((due - now).total_seconds() for due in self.next_due_at.values())
+
+    def retain(self, active_rule_ids) -> None:
+        """只保留仍在役的规则（删除/停用/过期规则的缓存不无限增长）。"""
+        active = {rid for rid in (active_rule_ids or ()) if rid is not None}
+        self.last_eval_at = {k: v for k, v in self.last_eval_at.items() if k in active}
+        self.next_due_at = {k: v for k, v in self.next_due_at.items() if k in active}
+        self.intervals = {k: v for k, v in self.intervals.items() if k in active}
+        self.near = {k for k in self.near if k in active}
+
+    def view(self, now: datetime) -> List[Dict[str, Any]]:
+        """每规则调度观察（`get_metrics` 用；只含设了 interval_sec 的规则）。
+
+        含 `last_eval_at` 与 `next_due_in_sec`（RFC §2.3 可观察性）：
+        排障时能分清「一直没轮到」与「轮到了但被闩锁/冷却挡住」。
+        """
+        return [
+            {
+                'rule_id': rule_id,
+                'interval_sec': self.intervals.get(rule_id),
+                'last_eval_at': (self.last_eval_at[rule_id].isoformat()
+                                 if rule_id in self.last_eval_at else None),
+                'next_due_in_sec': round(max(0.0, (due - now).total_seconds()), 1),
+            }
+            for rule_id, due in sorted(self.next_due_at.items())
+        ]
+
+
 class StateManager:
     """盯盘引擎的触发/去重/介入状态。
 
@@ -98,6 +195,9 @@ class StateManager:
         self.daily_emit_counts: Dict[Tuple[int, int], Tuple[Any, int]] = {}
         # 当前状态所属日期（跨天重置判定）
         self.current_date: Optional[date] = None
+        # 规则级频率的调度缓存（RFC 017 §2.3）：纯进程内存，重启即空 → 首拍全部求值。
+        # 与闩锁/冷却不同，它**不参与持久化**（可丢；见 RuleSchedule docstring）。
+        self.schedule = RuleSchedule()
 
         # 事件日志保留窗口：需 ≥ 两个统计窗口（频率 10min / 共振 60s）的最大值
         self.event_retention_min = event_retention_min
@@ -201,6 +301,9 @@ class StateManager:
         if active_rule_ids is not None:
             self.last_triggered = {k: v for k, v in self.last_triggered.items()
                                    if k[0] in active_rule_ids}
+            # 调度缓存同样只保留在役规则（跨天**不清** last_eval_at：规则级频率跨天连续，
+            # 清掉等于次日开盘所有规则都"立刻到期"，与"跨天重置闩锁/计数"无关）。
+            self.schedule.retain(active_rule_ids)
         if active_symbols is not None:
             self.history = {s: b for s, b in self.history.items()
                             if s in active_symbols}
@@ -611,4 +714,9 @@ class StateManager:
             'persist_pending_events': len(self._pending_events),
             'persist_dedup_tracked': len(self._persisted_dedup),
             'persist_history_tracked': len(self._persisted_history_ts),
+            # 规则级频率（RFC 017 §2.3）可观测：被调度器跟踪的规则数 / 临期提速数 /
+            # 有规则级闹钟的规则数——排障时一眼看出「哪些规则被频率门挡住」。
+            'rule_schedule_tracked': len(self.schedule.last_eval_at),
+            'rule_schedule_near': len(self.schedule.near),
+            'rule_schedule_next_due': len(self.schedule.next_due_at),
         }

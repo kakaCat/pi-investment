@@ -127,6 +127,12 @@ def create_rule(payload: Dict[str, Any] = Body(default_factory=dict)):
             intent=data.get('intent'),
             action_hint=data.get('action_hint'),
             action_params=data.get('action_params'),
+            # RFC 017（2026-10-21，per-rule-interval 卡）：创建即带持仓状态与规则级频率。
+            # 两者都是 additive：不给 → 不动 DB 默认（position_state='none' 由服务端默认
+            # 兜住、interval_sec 保持 NULL 跟随全局档），存量创建路径行为不变。
+            # 非法值由仓储归一抛 ValueError → 上面的 400 分支（不让坏值落库后变成抽奖）。
+            position_state=data.get('position_state'),
+            interval_sec=data.get('interval_sec'),
         )
     except ValueError as e:
         # 领域守卫拒绝（没有账户不能进入买卖 / 策略账户不接受盯盘规则）→ 400 而非 500：

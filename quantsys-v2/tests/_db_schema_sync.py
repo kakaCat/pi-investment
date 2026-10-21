@@ -11,10 +11,12 @@ fixture 调用（见 conftest 的 `_bootstrap_test_db_schema` / `db_schema_synce
 
 ## 机制（两条腿，互为兜底）
 
-1. **迁移文件为准**：发现 REQ-c9f899 的迁移模块（`20260918*watch*.py`），逐条执行其
-   声明的 `TABLES`（CREATE TABLE IF NOT EXISTS）/ `COLUMNS`（ALTER TABLE ADD COLUMN
-   IF NOT EXISTS）/ `INDEXES`（CREATE INDEX IF NOT EXISTS）。迁移是生产 DDL 的单一
-   事实源，测试库结构与之一致才谈得上"可复现"。
+1. **迁移文件为准**：发现盯盘迁移模块（`20260918*` / `20261019*` / `20261021*` watch），
+   逐条执行其声明的 `TABLES`（CREATE TABLE IF NOT EXISTS）/ `COLUMNS`（ALTER TABLE
+   ADD COLUMN IF NOT EXISTS）/ `INDEXES`（CREATE INDEX IF NOT EXISTS）；函数式迁移
+   （只声明 `ensure_columns(conn, schema, apply=)`，如 RFC 017 的
+   `20261021_watch_rules_position_interval.py`）则调用它自己的幂等建列入口（含列注释）。
+   迁移是生产 DDL 的**单一事实源**，测试库结构与之一致才谈得上"可复现"。
 2. **ORM 元数据兜底**：对盯盘表执行 `Base.metadata.create_all(checkfirst=True)`，
    覆盖"ORM 声明了、迁移未建"的新表（当前为去重窗/事件窗/价格历史三张轻量表）。
 
@@ -35,8 +37,11 @@ from typing import Any, Dict, List
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MIGRATIONS_DIR = REPO_ROOT / 'infrastructure' / 'persistence' / 'migrations'
 #: 盯盘迁移文件命名（t1：20260918_watch_todo_loop.py；t3：20260918b_watch_runtime_complete.py；
-#: 2026-10-19 起含去重键加账户维度的 20261019_watch_runtime_dedup_account.py）
-MIGRATION_GLOBS = ('20260918*watch*.py', '20261019*watch*.py')
+#: 2026-10-19 起含去重键加账户维度的 20261019_watch_runtime_dedup_account.py；
+#: 2026-10-21 起含 RFC 017 的 position_state/interval_sec 加列迁移
+#: 20261021_watch_rules_position_interval.py）
+MIGRATION_GLOBS = ('20260918*watch*.py', '20261019*watch*.py',
+                   '20261021*watch*.py')
 
 #: 基础盯盘表（更早的迁移建立；t1 的 watch_todos 有 FK 指向 watch_triggers）。
 #: 在完全空的测试库上先建这两张，迁移的 FK 才立得住——使同步不依赖"别的测试恰好建过表"。
@@ -54,6 +59,10 @@ REQUIRED_COLUMNS = (
     ('watch_triggers', 'suppressed'),
     ('watch_rules', 'noise_state'), ('watch_rules', 'suppress_until'),
     ('watch_rules', 'self_heal_count'), ('watch_rules', 'last_repair_at'),
+    # RFC 017（2026-10-21）：持仓状态显式化 + 规则级盯盘频率。两列由
+    # 20261021_watch_rules_position_interval.py 添加；没有它们，仓储/引擎/路由
+    # 的新字段路径在干净 checkout 的 quant_test 上会 UndefinedColumn。
+    ('watch_rules', 'position_state'), ('watch_rules', 'interval_sec'),
     ('watch_runtime_meta', 'digest_shadow_since'),
     ('watch_runtime_dedup', 'account'),
     ('watch_digest_state', 'wake_marks'),
@@ -160,6 +169,15 @@ def sync_test_schema(engine=None) -> Dict[str, Any]:
             # 幂等杂项 DDL（如主键重建；20261019 起）：迁移模块自证幂等，逐条原样执行
             for ddl in (getattr(module, 'IDEMPOTENT_DDL', None) or []):
                 conn.exec_driver_sql(ddl)
+            # 函数式迁移（声明 `ensure_columns` 而非模块级 COLUMNS 的，如 20261021 的
+            # position_state/interval_sec）：调它自己的幂等建列入口——迁移是 DDL 的
+            # 单一事实源，同步侧不复制列类型，也不漏掉列注释（COMMENT）。
+            ensure_columns = getattr(module, 'ensure_columns', None)
+            if callable(ensure_columns) and _table_exists(conn, 'watch_rules'):
+                for result in ensure_columns(conn, _SCHEMA, apply=True):
+                    if result.get('status') == 'added':
+                        report['columns_added'].append(
+                            'watch_rules.%s' % result.get('column'))
 
         # ORM 元数据兜底：ORM 声明但迁移未显式 CREATE 的盯盘表（checkfirst 幂等）
         watch_tables = [t for t in Base.metadata.tables.values() if t.name in REQUIRED_TABLES]
