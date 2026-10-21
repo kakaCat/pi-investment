@@ -312,6 +312,18 @@ forbidden_modules =
 - **风险登记**：① lifecycle 错配 = 会话穿越（阶段 1 最大坑，须以「同一请求内 fetch→commit→再 query」用例验证）；② resolve 失败在测试里会被 conftest `_make_safe` 吞成 MagicMock（批次 3 已真值守门，须跑裸验证）；③ `_make_safe` 的 `_ORIGINAL_ESF_RESOLVE` 恰为阶段 2 端口测试所需（复用批次 3 建立的模式）。
 - **验收口径**：`grep -rn 'from adapters' packages/qs_watch/qs_watch packages/qs_ops/qs_ops --include='*.py'` 归零；qs_watch 55 文件 member 测试基线 equal 或 better；`/api/health` 200 + WatchEngine 触发日志（重启后）。
 - **qs_ops 边落地（同日实施）**：新建 `qs_ops/qs_ops/domain/trading_days.py`（纯 stdlib `last_trading_day`，权定义自 `daily_jobs/pipeline.py:237` 迁入）；pipeline 顶部保别名 `from qs_ops.domain.trading_days import last_trading_day as _last_trading_day`（`daily_jobs/__init__`→bootstrap 再转发链零改动，tools/health_probe 与 `tests/test_daily_jobs_bootstrap.py` 口径不变）；`scheduler_tasks_data.py:67` 换引源——**qs_ops→adapters.inbound 直引归零**（grep 判据复核，两包 inbound 边全空）。
+**【S11 L1 shim 退役门控基线 2026-10-21（~11-17 复核执行）】**grep 口径：精确模块点分前缀，排除 venv/__pycache__/worktrees；docstring 命中经行级复核排除。
+- **kernel 7 L1 shim 面（`domain/{ports,events,models,common}`、`infrastructure/{logging,events}`、`application/services/base_service`）：全零引用＝已死件**，Gate 日可直接删（无迁移前置）。
+- **S 切片 shim 残留分类（退役前置迁移清单）**：
+| 旧路径 | 存活 | 分类与退役改法 |
+|---|---|---|
+| `application.services.scheduler_tasks` | 4 文件 6 处 | **qs_ops 包内自指 shim ×4 处代码**（signal_jobs:120 / trading_jobs:241 / model_jobs:47,111 引 `handle_*`/`_model_age_days`）+ 注释 ×2——改 `from qs_ops.application.services.scheduler_tasks import ...`；壳侧 `daily_jobs/pipeline.py:119`（handle_factor_compute）同改包路径 |
+| `application.services.agent_os`（hub 系） | 5 文件 | 壳内残留：tools×4（register_jobs_to_agent_os / validate_wp15 / register_model_train_task / monitor_scheduler）+ `main.py`——改 qs_agenthub 路径 |
+| `application.services.data_service` | 2 文件 | DI 内部层 `service_factory:827` 改 qs_market_data；docs/examples 样例随 Gate 顺手 |
+| `application.services.stock_pool*` | 4 文件 | DI 内部层 `service_factory:141,518` + `service_registry:266` 改 qs_sourcing；tests ×2 随 Gate |
+| `adapters.outbound.datasources` | 22 文件 | **包内真越层仅 4**：qs_ops jobs×3 + qs_intel opportunity_scoring×1 → 改 `qs_market_data.adapters.outbound.datasources` 直引；壳旧域 `domain/backtest`×3 与 application/infrastructure×4、tools/scripts/live_trading/examples×~10 属壳内/运维件，Gate 按归属改 |
+| `domain.quantlib` / `domain.notification` / competition / strategy_service / trade_service / watch_engine 各 | 0（quantlib 唯一命中为包内 docstring） | 已净 |
+- **Gate 日 checklist（~11-17）**：①上表残留 ~15 处代码迁移入库；②删 kernel 7 shim 文件 + S 切片 shim（CLAUDE.md「30 天观察期后删除」段同步撤）；③裸跑 import 边界检查（`tools/detect_direct_imports.py` 既有工具）+ member 测试批；④launchctl kickstart（退役须服务重启载入，非热更）。复查判据：全仓 `from domain.|from application.services.(被 shim 模块)` grep 归零。
 - **预存污染定案（非本批）**：`tests/test_freshness_guard.py` 3F（fresh 误判 stale / job_failed 路径错 / stale 不告警）——A/B 铁证（stash 本批改动后基线 HEAD 同配置同签名 3F/1P）→ 根因 = bootstrap→daily_jobs 包拆分（`c4fc27a41`「拆两个文件级上帝」）把 `_job_freshness_guard`/`_kline_coverage` 本体搬进 `daily_jobs/pipeline.py`，测试仍 monkeypatch **bootstrap 命名空间**（`m = daily_jobs_bootstrap`），而函数体 globals 已在 pipeline 模块——桩面脱钩，值为真数据。修法（另行）：测试 patch 目标改 `daily_jobs.pipeline` 或恢复 bootstrap 直定义；属僵尸卡「其余」同族（桩面漂移），vals 判据 `KLINE_COVERAGE_FRESH_THRESHOLD=0.98` 未变（FRESH_COV 0.9964 过阈，排除阈值校准因素）。同提交批次 `test_daily_jobs_bootstrap.py`（含 _last_trading_day 边界 4 例）**全绿**——迁移值不变性实证。
 
 ### 12.1 业务运行视图（数据怎么流）
