@@ -38,7 +38,7 @@ grep -A 2 "workflow-ptc" .dsh-data/profiles/agent-dh/cordis.patch.yml
 # 4. 等待服务启动完成（约30秒）
 
 # 5. 验证（在浏览器或 curl）
-curl -s http://localhost:13080/api/plugins | python3 -m json.tool | grep -A 5 workflow-ptc
+# 0.2.1 起 /api/plugins 已不存在；在 Web UI「插件」页搜索 workflow-ptc，或查启动日志。
 
 # 或在 Agent 会话中检查：
 # reqboard_status()
@@ -48,13 +48,13 @@ curl -s http://localhost:13080/api/plugins | python3 -m json.tool | grep -A 5 wo
 ### 方案 B：检查 Agent Preset 覆盖
 
 ```bash
-# Agent preset 可能覆盖了配置
-# 检查 investment preset
-cat .dsh-data/.agent-presets/investment/cordis.patch.yml 2>/dev/null
-cat config/agent-presets/investment/cordis.patch.yml 2>/dev/null
+# 0.2.1 起 preset 是 profile patch 里的一条 `preset-investment` 行（config.plugins 内联组合），
+# 不再有 .agent-presets/<id>/ 目录。
+grep -n -A6 "preset-investment" config/cordis.yml
+grep -n -A6 "preset-investment" .dsh-data/profiles/agent-dh/cordis.patch.yml
 
-# 如果 preset 中也有 workflow-ptc 且 disabled: true
-# 需要在 preset 中也改为 false
+# investment preset 本身不含 delegation 组（也就没有 workflow-ptc 子行）；
+# 引擎由宿主层 `- id: workflow-ptc / disabled: false` 覆盖提供，二者不冲突。
 ```
 
 ### 方案 C：临时降级方案（workflow 无法修复时）

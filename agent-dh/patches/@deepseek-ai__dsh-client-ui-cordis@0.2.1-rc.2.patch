@@ -1,8 +1,8 @@
 diff --git a/lib/client.js b/lib/client.js
-index e4d46c4930f8a2d6c1be79913635ebde6a74b02e..28a4ce6ac846f2859089631dd33f77f39f328aae 100644
+index 6a1b5df19d2a411d498e448ac76938b21eb8758e..ccc92720e939700685219e933630681ca77370ce 100644
 --- a/lib/client.js
 +++ b/lib/client.js
-@@ -1307,6 +1307,13 @@ window.__ModuleLoader__.load({
+@@ -1380,6 +1380,13 @@ window.__ModuleLoader__.load({
  				}
  			};
  			const inventory = createCordisInventory(port, (error) => {

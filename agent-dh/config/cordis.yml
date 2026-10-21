@@ -2,14 +2,114 @@
 # 投资分析 Agent 配置 —— 加载 PI Investment 插件
 
 # ========== Agent Preset ==========
-# 2026-09-12: 启用 agent-presets 并指向自建 investment preset。
-# 内置 standard 组含 delegation（subagent/workflow/ralph），会因 host 层缺少
-# modelSelectionSettings 而整体挂载失败；investment preset 是 standard 去掉
-# delegation 组的副本（config/agent-presets/investment/，start.sh 会拷入 DSH_HOME）。
-- id: agent-presets
+# 0.2.1 起 preset 不再是 $DSH_HOME/.agent-presets/<id>/agent.cordis.yml 目录扫描，
+# 而是一条 @deepseek-ai/dsh-agent-preset 插件行（config.plugins 内联组合）。
+# investment = 0.2.1 内置 standard 去掉 delegation 组（无 subagent/workflow/ralph）。
+- id: agent-preset-registry
   disabled: false
   config:
     default: investment
+
+- insert:
+    - id: preset-investment
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: investment
+        name: 投资模式
+        description: 投资分析 Agent 预设——standard 工具集去除 delegation 组（无 subagent/workflow/ralph），保留 host 层投资插件。
+        order: 2
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: You are a coding agent powered by the {{model}} model.
+          - id: agent-instructions
+            name: '@deepseek-ai/dsh-agent-instructions'
+            config:
+              maxBytes: 65536
+          - id: time-context
+            name: '@deepseek-ai/dsh-time-context'
+          - id: tool-bash
+            name: '@deepseek-ai/dsh-tool-bash'
+            disabled: !!js process.platform === 'win32'
+          - id: tool-pwsh
+            name: '@deepseek-ai/dsh-tool-pwsh'
+            disabled: !!js process.platform !== 'win32'
+          - id: tool-fs
+            name: '@deepseek-ai/dsh-tool-fs'
+          - id: tool-fs-search
+            name: '@deepseek-ai/dsh-tool-fs-search'
+            config:
+              sampleOverCapGlobResults: false
+          - id: tool-jobs
+            name: '@deepseek-ai/dsh-tool-jobs'
+          - id: tool-schedule
+            name: '@deepseek-ai/dsh-tool-schedule'
+          - id: skill-filesystem
+            name: '@deepseek-ai/dsh-skill-filesystem'
+          - id: tool-skill
+            name: '@deepseek-ai/dsh-tool-skill'
+          - id: command-goal
+            name: '@deepseek-ai/dsh-command-goal'
+          - id: tool-goal
+            name: '@deepseek-ai/dsh-tool-goal'
+          - id: planning
+            name: cordis:group
+            group: true
+            isolate:
+              planMode: true
+            config:
+              - id: plan-mode
+                name: '@deepseek-ai/dsh-plan-mode'
+                config:
+                  section: |
+                    You are in plan mode. Stay in plan mode until the user approves your plan through exit_plan_mode or switches the session mode. Imperative language to implement changes means plan the implementation, not execute it. A user's conversational agreement — including an answer confirming something you asked — approves nothing and does not end plan mode; fold the confirmed decision into the plan and submit it through exit_plan_mode.
+
+                    Explore first. Use non-mutating reads, searches, static analysis, and checks to ground the plan in the actual repository. Do not edit or write files, change configuration, run formatters or code generation that rewrites tracked files, commit, or otherwise carry out the plan. Prefer existing functions and patterns over new machinery.
+
+                    The tool catalog stays the same across modes for request-cache stability. These plan-mode rules override any later tool description or guidance that suggests using mutation tools; those tools remain listed to keep the tool catalog unchanged. Do not use todo_write to track this planning phase: it tracks implementation after an approved plan, while the plan itself belongs in exit_plan_mode.
+
+                    Resolve discoverable facts by inspection. Use ask_user_question only for user-owned choices or material ambiguity that inspection cannot answer. Do not ask the user where code lives or how current behavior works when you can find out.
+
+                    Make the plan decision-complete: state the goal and success criteria; group implementation changes by subsystem; identify public API, schema, and data-flow changes; cover edge cases, failure modes, tests, acceptance criteria, and explicit assumptions. Keep it concise enough to review but detailed enough that another engineer can implement it without making design decisions.
+
+                    When ready, call exit_plan_mode with the complete plan markdown, starting with a # title. Make exit_plan_mode the only and final tool call in that assistant response: it presents the plan for approval, and implementation begins only in a later step after approval. Do not paste the final plan as a plain reply or ask "should I proceed?" through prose or ask_user_question. If review rejects it, incorporate the feedback and present again. If the review channel is unavailable or aborted, stay in plan mode and ask the user to switch modes manually; do not proceed with implementation.
+          - id: compaction
+            name: cordis:group
+            group: true
+            isolate:
+              compaction: true
+              toolResultPruner: true
+            config:
+              - id: compaction-basic
+                name: '@deepseek-ai/dsh-compaction-basic'
+              - id: command-compact
+                name: '@deepseek-ai/dsh-command-compact'
+              - id: tool-result-pruner
+                name: '@deepseek-ai/dsh-compaction-tool-result-pruner'
+                config:
+                  thresholdChars: 8192
+                  headChars: 4096
+                  tailChars: 1024
+          - id: tool-ask-user
+            name: '@deepseek-ai/dsh-tool-ask-user'
+          - id: tool-todo
+            name: '@deepseek-ai/dsh-tool-todo'
+            config:
+              allowParallelInProgress: true
+          - id: tool-web
+            name: '@deepseek-ai/dsh-tool-web'
+            config:
+              fetch: true
+              searchTimeoutMs: 60000
+          - id: present
+            name: '@deepseek-ai/dsh-tool-present'
+          - id: tool-plugin-manager
+            name: '@deepseek-ai/dsh-plugin-manager/tools'
+            disabled: true
+          - id: tool-plugin-market
+            name: '@deepseek-ai/dsh-plugin-market/tools'
+            disabled: true
 
 # ========== 设置文档：唯一一份 ==========
 # 不再配 config.path —— 让 `@deepseek-ai/dsh-settings-file` 用它的缺省解析
@@ -24,62 +124,13 @@
 # 结论：这类"插件按 $DSH_HOME/<名> 取数的单文件状态"一律不要用链接去凑
 # （dsh-reqboard.json / .credentials.yaml / pet.json 同病，见 scripts/start.sh 的合并说明）。
 
-# ========== 禁用有 bug 的插件 ==========
-# DSH 0.1.1-rc.2 版本中 tool-subagent-report 和 api-gateway 插件有 API 不兼容问题
-- id: tool-subagent-report
-  disabled: true
-- id: api-gateway
-  disabled: true
-
-# DSH 0.1.2-alpha.5 版本中 subagent 和 session-controller 插件有导出缺失问题
-# 2026-09-08: 0.1.2-rc.1 版本已修复，重新启用 session-controller
-# 2026-09-12: 必须启用 model-selection-settings（host 层服务），否则 agent-presets
-#             加载 delegation 组时会失败（即使 tool 本身被禁用，preset 仍需 host 依赖存在）
+# ========== 框架行覆盖（0.2.1 清理） ==========
+# 0.1.x 时代用来禁用 bug 插件、关 delegation 组、屏蔽第三方 web-ui-* 的覆盖行，
+# 在 0.2.1 里大多已不存在（delegation 组不在 investment preset 内；tool-subagent-report /
+# api-gateway / web-ui-* / tool-str-replace-editor / agent-team 系列都未被本 profile 挂载）。
+# 只保留确实存在的框架行覆盖。
 - id: subagent-model-selection-settings
   disabled: false
-# - id: session-controller
-#   disabled: true
-
-# 2026-09-08: 禁用整个 delegation 组 + 组内每个子项
-- id: delegation
-  disabled: true
-- id: tool-subagent-control
-  disabled: true
-- id: tool-subagent-list-agents
-  disabled: true
-- id: tool-subagent
-  disabled: true
-- id: tool-subagent-fork
-  disabled: true
-- id: tool-workflow
-  disabled: true
-- id: tool-ralph
-  disabled: true
-
-# DSH 0.1.2-rc.1 版本中 @linxin666/* 和第三方 UI 插件与 dsh-settings API 不兼容
-# 错误：The requested module '@deepseek-ai/dsh-settings' does not provide an export named 'settingsNamespace'
-- id: web-ui-settings
-  disabled: true
-- id: web-ui-market
-  disabled: true
-- id: web-ui-task-board
-  disabled: true
-- id: web-ui-remote-web-ui
-  disabled: true
-- id: web-ui-pet
-  disabled: true
-- id: web-ui-ssh
-  disabled: true
-- id: web-ui-describe-image
-  disabled: true
-- id: web-ui-desktop-launcher
-  disabled: true
-- id: web-ui-doctor
-  disabled: true
-- id: web-ui-skin-center
-  disabled: true
-- id: web-ui-better-sidebar
-  disabled: true
 
 # ========== 重新启用核心工具 ==========
 # dsh-web-app 默认禁用这些工具（移到 agent-presets 管理），investment profile 直接启用
@@ -92,8 +143,6 @@
 - id: tool-fs
   disabled: false
 - id: tool-fs-search
-  disabled: false
-- id: tool-str-replace-editor
   disabled: false
 - id: tool-skill
   disabled: false
@@ -161,7 +210,7 @@
 
 # ========== LLM 配置 ==========
 - id: llm-deepseek
-  name: '@deepseek-ai/dsh-llm-deepseek'
+  # 0.2.1：该行真身已改为 @deepseek-ai/dsh-llm-deepseek-api-key；只按 id 覆盖，不写 name。
   config:
     models:
       - id: deepseek-v4-flash
@@ -186,26 +235,7 @@
         provider: deepseek-official
         model: deepseek-v4-flash
         cwd: !!js process.cwd()
-# ========== Agent Teams 关闭（2026-09-27 用户裁定） ==========
-# 用户要求关闭 Agent Teams。生效后 pmboard 实施链的子卡执行走 workflow 兜底路径
-# （packages/web/dsh-pmboard/src/application/use-cases/ExecuteTask.ts:218 分支），
-# 不再 spawn 持久 Worker（无 reqboard-<父卡id> teammate、无 team_report_missing 白干）。
-# 三行一起关（缺一不可）：
-#   agent-team       = TeamService 服务本体（关掉后 AgentTeamsAdapter.available()=false）
-#   tool-agent-team  = 模型侧工具（spawn_teammate / send_message / team_task_*），服务没了必空悬
-#   ui-agent-team    = 看板团队面板
-# 恢复：把 disabled 改回 false（或整段删除 = 回落 bundle 原值 = 开启）。
-# 原「实施链 Worker 名额」覆盖（maxMembers: 16，防第 8 条父卡 TEAM_MEMBER_LIMIT 撞墙）
-# 随本段停用，值保留在下面，恢复 Agent Teams 时一并生效。
-- id: agent-team
-  disabled: true
-  config:
-    maxMembers: 16
-    maxTasks: 256
-    maxPendingMessagesPerMember: 64
-    maxMessageBytes: 65536
-    disposalTimeoutMs: 5000
-- id: tool-agent-team
-  disabled: true
-- id: ui-agent-team
-  disabled: true
+# ========== Agent Teams ==========
+# 0.2.1 的 agent-dh profile 不挂载 experimental agent-team（bundle 清单里没有），
+# 因此不再需要 agent-team / tool-agent-team / ui-agent-team 的关闭覆盖。
+# 若将来启用：从 0.2.1 的 @deepseek-ai/dsh-experimental-agent-team 包挂行后再关。

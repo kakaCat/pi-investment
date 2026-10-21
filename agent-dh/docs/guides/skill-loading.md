@@ -65,7 +65,7 @@ ln -sfn /Users/yunpeng/pi-investment/agent-dh/skills/<skill> ~/.dsh-agent-dh/ski
 1. 技能在 catalog 里查不到 → 先确认软链存在：`ls -la ~/.dsh-agent-dh/skills/`
 2. 确认进程 DSH_HOME：`ps eww $(lsof -ti:13080 -sTCP:LISTEN) | grep -o 'DSH_HOME=[^ ]*'`
 3. 别改错 home（见第一节）；别在 profile patch 顶层注册 skill-filesystem（host 层被禁，见第二节）。
-4. 想加自定义根：改 investor 实际挂载的 preset 源（内置 preset 在 `dsh-agent-presets/presets/*/agent.cordis.yml`）——但**软链 user-dsh root 已够用且最不易碎**，默认优先。
+4. 想加自定义根：改 `config/cordis.yml` 里 `skill-filesystem` 行的 `customSkillDirs`（0.2.1 起 preset 内联，见 `preset-investment` 行）；但**软链 user-dsh root 已够用且最不易碎**，默认优先。
 
 ## 五、曾走的弯路（供复盘）
 

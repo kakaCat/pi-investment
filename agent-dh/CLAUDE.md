@@ -717,7 +717,28 @@ pnpm build
 - [QuantsysV2](../quantsys-v2/CLAUDE.md) - Backend service documentation
 - [PI Investment Root](../CLAUDE.md) - Overall system architecture
 
+## DSH 版本与升级（2026-10-17 起：0.2.1-rc.2）
+
+- **钉版本**：根 `package.json` 的依赖与 `pnpm.overrides` 全量钉 `0.2.1-rc.2`，`@deepseek-ai/cordis` 钉 `4.0.5`。
+  桌面版同期为 `0.2.1-rc.1`；升级前先看本地 deepseek-harness checkout 的最新 tag（`git tag --sort=-creatordate`）。
+- **Agent preset 变了**：0.2.1 不再扫描 `$DSH_HOME/.agent-presets/<id>/agent.cordis.yml`。preset 现在是一条
+  `@deepseek-ai/dsh-agent-preset` 插件行（`config.plugins` 内联组合），默认值由 `agent-preset-registry.config.default`
+  指定。本 profile 的 `investment` preset 定义在 `config/cordis.yml` 的 `preset-investment` 行（= 0.2.1 内置
+  standard 去掉 delegation 组）；`config/agent-presets/` 目录已删除。
+- **补丁要随版本重打**：`pnpm.patchedDependencies` 里的 3 个补丁（cordis-client-runner / client-ui-cordis /
+  ptc-runtime-node 零参绑定）绑定具体版本号。升级 DSH 后必须用 `pnpm patch <pkg>@<ver> --edit-dir /tmp/x` +
+  `pnpm patch-commit /tmp/x` 重新生成，旧版本 patch 文件不要留。
+- **apps/web 依赖**：`@deepseek-ai/dsh-client-web` 把 `@tanstack/react-virtual`（3.14.10）等外置，shell 的
+  `apps/web/package.json` 必须显式声明，否则 `vite build` 解析失败。
+- **部署顺序**：`pnpm install` → `python3 scripts/relink-profile.py` → `./scripts/restart-with-build.sh`
+  （首次应用新配置要 `--force-config`，否则活动 patch 仍是旧副本）。
+
 ## Version History
+
+- 2026-10-17: DSH 整代升级 0.1.6-alpha.2 → 0.2.1-rc.2（cordis 4.0.2 → 4.0.5）。preset 由目录扫描改为
+  `preset-investment` 内联行（默认 investment 不变）；3 个 pnpm patch 重打；apps/web 补 `@tanstack/react-virtual`；
+  config 清理 0.1.x 失效覆盖行；零参绑定守护测试改为跟随已安装版本。冒烟：启动无错、preset RPC 返回
+  investment(isDefault)、插件 208 active/0 failure、页面与投资模式按钮正常渲染；测试与升级前基线一致。
 
 - 2026-09-22: 插件 bundle 化（REQ-260922133113-ebc5）——投资插件行从用户层裸 insert 迁入三个
   业务域 bundle（`packages/bundle/bundle-stock|bundle-evolution|bundle-platform`，dsh.bundle.patch
@@ -738,9 +759,9 @@ pnpm build
 
 **Status**: ✅ Active DSH profile（项目内 profile：agent-dh，:13080）
 
-**Version**: 0.1.2
+**Version**: 0.1.3
 
-**Last Updated**: 2026-09-20
+**Last Updated**: 2026-10-17
 
 ## 自主能力系统（2026-08-20 新增）
 

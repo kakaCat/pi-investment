@@ -10,7 +10,7 @@
  * 收不到这一帧：工具调用表现为"什么都没发生"的静默失败。
  *
  * 【修复】
- * 'patches/@deepseek-ai__dsh-ptc-runtime-node@0.1.6-alpha.2.patch' 只改一行：
+ * 'patches/@deepseek-ai__dsh-ptc-runtime-node@<已安装版本>.patch' 只改一行：
  *     value: (args) => {   →   value: (args = {}) => {
  * 让零参等同于空对象。根 package.json 的 'pnpm.patchedDependencies' 负责登记该补丁。
  *
@@ -181,7 +181,10 @@ class FrameChannel {
 describe('零参绑定守护：dsh-ptc-runtime-node 补丁', () => {
   it('根 package.json 仍登记该包的 patchedDependencies', () => {
     const env = environment()
-    expect(env.patchKey).toBe(PACKAGE_NAME + '@0.1.6-alpha.2')
+    // 版本跟随已安装产物：升级 DSH 后 patch 文件名/登记键都要同步换版本，
+    // 这里以 node_modules 里实际安装的版本为准，避免每次升级都要手改断言。
+    const installed = JSON.parse(readFileSync(join(env.installedDir, 'package.json'), 'utf8')) as { version: string }
+    expect(env.patchKey).toBe(PACKAGE_NAME + '@' + installed.version)
     expect(existsSync(env.patchPath)).toBe(true)
   })
 
