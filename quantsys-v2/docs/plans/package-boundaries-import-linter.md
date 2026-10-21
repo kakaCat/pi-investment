@@ -503,3 +503,20 @@ flowchart TB
   watch_engine 四面 **103 passed**
 - 教训：切函数体时用"下一个 def"做断点会误吞夹层函数（normalize_interval_sec 被误删，
   测试 NameError 暴露，已从 git 取回原体回填）——跨 def 切段必须断言切割区间清单
+
+## 2026-10-21 · 阶段2 批4：端口方法面收紧 + fill 回调端口回归修复
+
+- **端口方法面**：6 个新端口从轻量 ABC 收紧为**按实现类签名镜像**的 abstractmethod 面
+  （消费侧普查：trigger×4 方法 / outcome×2 / pool_binding×5 / news_alert×1 /
+  sim_position×1 / name_resolver×1，全覆盖消费调用点）
+- **fill 回调端口回归修复（并行会话 `0912ffdf7` 误删）**：该提交清删了
+  paper_trading_engine 的成交回调端口整块（IFillListener/FillEvent/register/get/unregister/
+  _notify_fill/FillEvent 字段），但消费侧（fill_sync_service._default_registrar、factory.
+  _register_fill_sync_listener）与测试还在 import 注册口 → 运行时静默降级（回执链路失效）。
+  3-way 合流还原： restores 被删块（difflib delete=还原/replace=保留其修复），并保有并行
+  会话同批的 2026-10-20 风控修复（批执行限额/预扣现金/买后净值计新仓）；
+  `trade_id =` 赋值前缀亦回补（他们的 add_trade 替换掉了赋值）
+- 验证：py_compile ✓；paper_trading/fill_sync/exec_loop/opportunity/position_state/
+  paper_risk 六面 **68+101 passed**（fill_sync_service 9 失败全数转绿）
+- ⚠️ 协作纪律：并行手提交叠加期间，文件基线在会话中段平移——后续合流一律走
+  difflib 3-way（delete=还原 + replace=保留对方修复），禁整文件 revet

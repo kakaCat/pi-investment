@@ -560,28 +560,106 @@ class IWatchRuleNoiseRepository(ABC):
 
 # ═══ 2026-10-21 反向越层阶段1：以下端口为 qs_watch 出向 resolve 注册键补齐面 ═══
 # 既有 11 类端口（本文件上方 + qs_kernel）覆盖 12 个消费类；这批 6 类补足全部
-# `adapters.outbound.repositories` 直引类的键面。方法面「以消费侧调用为准」
-# （阶段1 不反射实现全量；阶段2 收紧成真实使用面签名）。
+# `adapters.outbound.repositories` 直引类的键面。
+# 2026-10-21 阶段2 批4：方法面按实现类签名镜像（消费侧调用面普查全覆盖）。
 
 class IWatchTriggerRepository(ABC):
     """盯盘触发记录仓储接口（实现：adapters.watch_rule_repository.WatchTriggerRepository）"""
 
+    @abstractmethod
+    def record(self, rule_id, symbol, condition, trigger_price,
+               detail=None, notified=False, disposition='pending',
+               disposition_reason=None, disposition_by='system',
+               dup_of=None, suppressed=False):
+        """落一条触发 + 其处置初态；返回带 id 的触发对象（disposition 由
+        domain/watch/services/disposition.decide() 决定）。"""
+        pass
+
+    @abstractmethod
+    def mark_notified(self, trigger_id: int, notified: bool) -> None:
+        """触发通知留痕翻转。"""
+        pass
+
+    @abstractmethod
+    def get_rule_trigger_stats(self) -> dict:
+        """按规则聚合触发统计。"""
+        pass
+
+    @abstractmethod
+    def list_triggers(self, symbol: Optional[str] = None, **filters):
+        """触发查询（symbol/时间窗过滤，实现侧签名为准）。"""
+        pass
+
 
 class IWatchOutcomeRepository(ABC):
-    """盯盘结果仓储接口（实现：adapters.watch_outcome_repository.WatchOutcomeRepository）"""
+    """盯盘结果（回填）仓储接口（实现：adapters.watch_outcome_repository.WatchOutcomeRepository）"""
+
+    @abstractmethod
+    def record(self, *, trigger_id: int, rule_id, symbol: str, horizon_td: int,
+               trigger_at=None, trigger_price=None, expected_direction=None,
+               check_date=None, close_price=None, pct_change=None,
+               hit=None, note=None) -> bool:
+        """幂等回填：同 (trigger_id, horizon_td) 已存在则跳过（返回 False）。"""
+        pass
+
+    @abstractmethod
+    def pending_triggers(self, horizon_td: int, due_before, since, limit: int = 500):
+        """找出「该回填还没回填」的触发（只取 since 以来，窗口有界防全表扫描）。"""
+        pass
 
 
 class IWatchPoolBindingRepository(ABC):
     """盯盘池绑定仓储接口（实现：adapters.watch_pool_binding_repository.WatchPoolBindingRepository）"""
 
+    @abstractmethod
+    def list_bindings(self, enabled: Optional[bool] = None) -> List[Dict[str, Any]]:
+        """绑定列表（enabled 过滤）。"""
+        pass
+
+    @abstractmethod
+    def get_binding(self, binding_id: int) -> Optional[Dict[str, Any]]:
+        """单条绑定；不存在返回 None。"""
+        pass
+
+    @abstractmethod
+    def create_binding(self, **fields) -> Dict[str, Any]:
+        """新建绑定。"""
+        pass
+
+    @abstractmethod
+    def update_binding(self, binding_id: int, **fields) -> Optional[Dict[str, Any]]:
+        """部分更新；返回更新后的 binding 或 None。"""
+        pass
+
+    @abstractmethod
+    def save_sync_summary(self, binding_id: int, summary: Dict[str, Any]) -> None:
+        """同步摘要留痕。"""
+        pass
+
 
 class IWatchNewsAlertRepository(ABC):
     """盯盘新闻告警留痕仓储接口（实现：adapters.watch_news_repository.NewsAlertRepository）"""
+
+    @abstractmethod
+    def record(self, symbol: str, title: str, matched_words: List[str],
+               tier: str) -> Optional[Dict[str, Any]]:
+        """一条命中留痕；返回留痕 dict 或 None。"""
+        pass
 
 
 class ISimulationPositionRepository(ABC):
     """模拟持仓仓储接口（实现：adapters.simulation_position_repository.SimulationPositionRepository）"""
 
+    @abstractmethod
+    def get_all_positions(self, account_name: str) -> List:
+        """账户全量持仓。"""
+        pass
+
 
 class IStockNameResolver(ABC):
     """标的名批量解析接口（实现：adapters.stock_name_resolver.PgStockNameResolver）"""
+
+    @abstractmethod
+    def resolve_batch(self, symbols: List[str]) -> Dict[str, Optional[str]]:
+        """批量联查 quant.stocks 名称。"""
+        pass
