@@ -52,6 +52,7 @@ from qs_market_data.adapters.outbound.datasources.providers.events.csrc_policy i
 from qs_market_data.adapters.outbound.datasources.providers.events.manual_policy_seed import ManualPolicySeedProvider
 from qs_market_data.adapters.outbound.datasources.providers.sector.eastmoney import EastmoneySectorProvider
 from qs_market_data.adapters.outbound.datasources.providers.sector.akshare import AkshareSectorProvider
+from qs_market_data.adapters.outbound.datasources.providers.sector.sina_http import SinaHttpSectorProvider
 from qs_market_data.adapters.outbound.datasources.providers.index.akshare import AkshareIndexProvider
 from qs_market_data.adapters.outbound.datasources.providers.financial.akshare import AkshareFinancialStatementProvider
 from qs_market_data.adapters.outbound.datasources.providers.financial.sina import SinaFinancialProvider
@@ -135,6 +136,10 @@ class DataProviderManager(IDataProviderManager):
         ]
         self.sector_providers = [
             EastmoneySectorProvider(),
+            # 新浪行情中心 HTTP 直连（2026-10-21）：7 套板块体系（申万一二三级/概念/
+            # 热门概念/新浪行业/地域），精度高于 akshare 的 49 个粗分类。
+            # 排在 akshare 之前：东财断连时优先用精确口径。
+            SinaHttpSectorProvider(),
             AkshareSectorProvider(),  # 备选：新浪行业 + 同花顺概念（独立通道 failover，2026-09-01）
         ]
         self.stock_providers = [
