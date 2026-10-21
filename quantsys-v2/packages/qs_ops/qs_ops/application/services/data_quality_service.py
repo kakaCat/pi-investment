@@ -57,8 +57,8 @@ class DataQualityService:
         # 2026-09-01 修复：kline_repo 缺省时自动装配（原 None 透传致 DataValidator
         # 'NoneType' object has no attribute 'get_daily_klines'，data_quality_check 任务全灭）
         if kline_repo is None:
-            from adapters.outbound.repositories.kline_repository import KlineORMRepository
-            kline_repo = KlineORMRepository()
+            from infrastructure.services.service_factory import ServiceFactory
+            kline_repo = ServiceFactory.get_kline_repository()
 
         self.kline_repo = kline_repo
         self.calendar = calendar or TradingCalendarService(self.kline_repo)

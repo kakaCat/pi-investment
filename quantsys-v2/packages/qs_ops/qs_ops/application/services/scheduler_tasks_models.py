@@ -51,8 +51,7 @@ def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
     logger.info(f"模型训练任务启动: {model_type}, symbols={symbols_limit}, force={force_train}")
     
     try:
-        from adapters.outbound.repositories.stock_repository import StockORMRepository
-        from adapters.outbound.repositories import KlineORMRepository, FactorORMRepository
+        from infrastructure.services.service_factory import ServiceFactory
         from application.services.ml_pipeline.feature_engineering import FeatureEngineer
         from application.services.ml_pipeline.predictor import MLPredictor
         from adapters.shared.ml_helpers import _get_model_repo
@@ -78,7 +77,7 @@ def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
                 return result_dict
         
         # 2. 获取股票列表
-        repo = StockORMRepository()
+        repo = ServiceFactory.get_stock_repository()
         stocks = repo.get_all(limit=symbols_limit)
         symbols = [s['symbol'] for s in stocks]
         logger.info(f"训练样本: {len(symbols)} 只股票")
@@ -91,7 +90,7 @@ def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
         klines_dict = {}
         for i, symbol in enumerate(symbols):
             try:
-                rows = KlineORMRepository().get_daily_klines(symbol, start_date, end_date)
+                rows = ServiceFactory.get_kline_repository().get_daily_klines(symbol, start_date, end_date)
                 if rows is not None and not rows.is_empty():
                     klines_dict[symbol] = [dict(r) for r in rows.to_dicts()]
                 if (i+1) % 100 == 0:
@@ -116,7 +115,7 @@ def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
         
         for i, symbol in enumerate(klines_dict.keys()):
             try:
-                factors_data = FactorORMRepository().get_factors_range(symbol, start_date, end_date)
+                factors_data = ServiceFactory.get_factor_repository().get_factors_range(symbol, start_date, end_date)
                 if factors_data is None or factors_data.is_empty():
                     continue
                 

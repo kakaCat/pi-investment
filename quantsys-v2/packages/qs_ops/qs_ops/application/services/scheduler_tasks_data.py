@@ -63,11 +63,11 @@ def handle_data_update(params: Dict[str, Any] = None) -> Dict[str, Any]:
         # 收进 KlineORMRepository.get_latest_trade_date_strict()。用 strict 变体（读失败回滚并
         # 上抛，走下面 except → status=error），而不是会吞异常的 get_latest_trade_date
         # （那会把"读失败"静默降级成"数据滞后" = stale）。
-        from adapters.outbound.repositories.kline_repository import KlineORMRepository
+        from infrastructure.services.service_factory import ServiceFactory
         # 2026-10-21 反向越层收口：改由包内定义引（原引 app 壳 daily_jobs_bootstrap
         # 私有 helper 的边已消除）。
         from qs_ops.domain.trading_days import last_trading_day as _last_trading_day
-        kline_latest = KlineORMRepository().get_latest_trade_date_strict()
+        kline_latest = ServiceFactory.get_kline_repository().get_latest_trade_date_strict()
         expected = _last_trading_day(datetime.now())
         if kline_latest and str(kline_latest) >= expected:
             return {

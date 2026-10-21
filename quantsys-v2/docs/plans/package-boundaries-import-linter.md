@@ -645,3 +645,29 @@ flowchart TB
   event×2/trading_status×1 裸引×1，同属仓储归属阶段）
 - **方法论沉淀**：直构→getter 改写前必须先 grep 测试面的 patch 目标——patch 模块级
   仓储类且走调用时直构的路径，lru_cache 单例化会静默绕过（本批 index_history 三测实测）
+
+## 2026-10-21 · 阶段2 批12：qs_ops 服务层仓储直引 ×8 收编（5 文件 14 处）
+
+- **收窄依据（批11 方法论应用）**：qs_ops 仓储边 63 条逐文件普查 + 测试面 patch 依赖普
+  查后，仅收服务层无 patch 依赖子集——`repos.StockORMRepository` 模块属性 patch
+  （test_session_release）指向 data_jobs.py、`sr.StockORMRepository`（test_non_orm_sql）
+  指向 financial_data_update_job.py、`test_chan_jobs` patch 源模块（analysis/signal_jobs
+  惰性直构全 patch 敏感）、`test_factor_compute_handler` patch scheduler.py 命名空间
+  （6 条顶层边）——**四类全部排除在收编外，留 L1 登记**
+- **ships（全部无参直构→getter，构造形态逐点核实）**：
+  ① scheduler_tasks_models.py：import 收 1（stock/kline/factor 三引→ServiceFactory）+
+     直构×3（:81 stock / :94 kline.get_daily_klines / :119 factor.get_factors_range）
+  ② scheduler_tasks_data.py：kline.get_latest_trade_date_strict（strict 语义注释保留）
+  ③ scheduler_tasks_factors.py：kline×3（:33 import+count_bars_by_symbol:42+import:95+137）
+     + factor.save_factors:165
+  ④ scheduler_tasks_strategy.py：StrategyValidationService(strategy_repo/stock_repo)
+     双参→getter 双取
+  ⑤ data_quality_service.py：kline_repo 缺省装配路（:59-61，2026-09-01 修复注释保留）
+- trading_day_guard.py:396 **跳过**（并行会话脏文件，勿动）
+- 验证：py_compile ×5 ✓；冒烟（五模块加载 + stock/kline/factor getter 同类返回
+  StockORMRepository/KlineORMRepository/FactorORMRepository + 五方法面 hasattr）✓；
+  相邻测试 6 文件 45 passed + 1 skipped
+- ⚠️ A/B stash 实锤 1 失败预存（test_compute_and_persist_via_factor_stage：HEAD 同失败，
+  symbols_count=0 与本批无关）；预存失败集累计：批7×3、批9×11、批10×2、批12×1
+- 暂留（getter 未覆盖 + patch 敏感）：jobs 层 kline×15/stock×7/simulation×5/scheduler×3/
+  heatmap×2/kline_quality×2/financial×2 及杂类——待仓储归属阶段连测试改造一起收

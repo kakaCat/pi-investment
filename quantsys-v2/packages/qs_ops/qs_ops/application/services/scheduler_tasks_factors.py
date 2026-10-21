@@ -30,7 +30,7 @@ def _filter_factor_universe(symbols, start_date: str, end_date: str):
     # 2026-09-14（REQ-24e15d B4-c5）：原为裸 SQL（stocks LEFT JOIN daily_klines 统计 bars，
     # 日期条件在 ON 子句、symbol = ANY(:syms) 绑定列表），收进
     # KlineORMRepository.count_bars_by_symbol()，口径逐字保留（见该方法 docstring）。
-    from adapters.outbound.repositories.kline_repository import KlineORMRepository
+    from infrastructure.services.service_factory import ServiceFactory
 
     dropped = {
         'delisted': 0, 'st': 0, 'non_equity': 0, 'insufficient_bars': 0,
@@ -39,7 +39,7 @@ def _filter_factor_universe(symbols, start_date: str, end_date: str):
     if not symbols:
         return [], dropped
 
-    rows = KlineORMRepository().count_bars_by_symbol(symbols, start_date, end_date)
+    rows = ServiceFactory.get_kline_repository().count_bars_by_symbol(symbols, start_date, end_date)
     known = {r['symbol']: r for r in rows}
 
     kept = []
@@ -92,7 +92,7 @@ def handle_factor_compute(params: Dict[str, Any] = None) -> Dict[str, Any]:
         from adapters.shared.fund_flow_helpers import (
             _inject_fund_flow_to_klines, _extract_fund_flow_factors,
         )
-        from adapters.outbound.repositories import KlineORMRepository, FactorORMRepository
+        from infrastructure.services.service_factory import ServiceFactory
 
         # 获取股票列表（如果没有指定）
         symbols = params.get('symbols')
@@ -134,7 +134,7 @@ def handle_factor_compute(params: Dict[str, Any] = None) -> Dict[str, Any]:
         failed = []
         for sym in symbols:
             try:
-                kline_repo = KlineORMRepository()
+                kline_repo = ServiceFactory.get_kline_repository()
                 klines_df = kline_repo.get_daily_klines(sym, start_date, end_date)
                 if klines_df is None or klines_df.is_empty():
                     failed.append(sym)
@@ -162,7 +162,7 @@ def handle_factor_compute(params: Dict[str, Any] = None) -> Dict[str, Any]:
 
                 last_row = klines[-1]
                 latest_date = last_row.get('trade_date') or last_row.get('date') or ''
-                FactorORMRepository().save_factors(sym, str(latest_date), factors)
+                ServiceFactory.get_factor_repository().save_factors(sym, str(latest_date), factors)
                 computed += 1
             except Exception as sym_err:
                 logger.warning(f"factor compute failed for {sym}: {sym_err}")

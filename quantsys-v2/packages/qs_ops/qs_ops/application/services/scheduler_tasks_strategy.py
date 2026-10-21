@@ -23,12 +23,11 @@ def handle_strategy_validate_daily(params: Dict[str, Any] = None) -> Dict[str, A
 
     try:
         from qs_strategy.application.services.strategy_validation_service import StrategyValidationService
-        from adapters.outbound.repositories.strategy_repository import StrategyORMRepository
-        from adapters.outbound.repositories.stock_repository import StockORMRepository
+        from infrastructure.services.service_factory import ServiceFactory
 
         service = StrategyValidationService(
-            strategy_repo=StrategyORMRepository(),
-            stock_repo=StockORMRepository(),
+            strategy_repo=ServiceFactory.get_strategy_repository(),
+            stock_repo=ServiceFactory.get_stock_repository(),
         )
         result = service.validate_from_recent_backtests(
             lookback_days=int(params.get('lookback_days', 30)),
