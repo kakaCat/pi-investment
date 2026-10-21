@@ -22,9 +22,10 @@ def _scan_pool_signals_by_name(
     Returns: 买入/卖出信号列表，每个信号附带 pool/strategy_id/signal_type。
     """
     from qs_sourcing.application.services.pool_signal_scanner import PoolSignalScanner
-    # 2026-09-03 修复（258 同类）：显式调用 getter 拿实例，裸名导入会拿到函数（services.py 显式绑定挡住惰性代理）
-    from adapters.shared.services import get_stock_pool_service
-    stock_pool_service = get_stock_pool_service()
+    # 2026-09-03 修复（258 同类）：显式调用 getter 拿实例，裸名导入会拿到函数
+    # （2026-10-21 直连 DI 唯一入口，去掉 adapters.shared.services 薄转发绕行）
+    from infrastructure.services.service_factory import ServiceFactory
+    stock_pool_service = ServiceFactory.get_stock_pool_service()
 
     strategy_ids = strategy_ids or DEFAULT_SCAN_STRATEGY_IDS
 
@@ -127,9 +128,9 @@ def handle_pool_refresh_daily(
     logger.info("Starting pool_refresh_daily task")
 
     if service is None:
-        # 2026-09-03 修复（258）：裸名导入拿到的是函数（services.py 显式绑定挡住惰性代理），须显式调用 getter 拿实例
-        from adapters.shared.services import get_stock_pool_service
-        service = get_stock_pool_service()
+        # 2026-09-03 修复（258）：须显式调用 getter 拿实例；2026-10-21 直连 DI 唯一入口
+        from infrastructure.services.service_factory import ServiceFactory
+        service = ServiceFactory.get_stock_pool_service()
 
     today = date.today()
     refreshed, skipped, failed = [], [], []

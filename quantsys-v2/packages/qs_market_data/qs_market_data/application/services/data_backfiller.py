@@ -74,8 +74,8 @@ class DataBackfiller:
 
         # 白名单命中后校验 stocks 表：存在真实股票（有上市日期）→ 按股票处理
         try:
-            from adapters.shared.services import get_stock_repo
-            stock = get_stock_repo().get_by_symbol(symbol)
+            from infrastructure.services.service_factory import ServiceFactory
+            stock = ServiceFactory.get_stock_repository().get_by_symbol(symbol)
             if stock is not None and getattr(stock, 'list_date', None) is not None:
                 return False
         except Exception as e:

@@ -143,8 +143,8 @@ class DataProviderManager(IDataProviderManager):
         # Kline providers: database first (fast), sina 为网络首选（稳定可靠，
         # 2026-09-02 验证可用），baostock 黑名单、tencent 501、eastmoney 代理故障均已失效
         self.kline_providers = []
-        from adapters.shared.services import get_kline_repo
-        self.kline_providers.append(DatabaseKlineProvider(get_kline_repo()))
+        from infrastructure.services.service_factory import ServiceFactory
+        self.kline_providers.append(DatabaseKlineProvider(ServiceFactory.get_kline_repository()))
         self.kline_providers.append(SinaKlineProvider())
         self.kline_providers.append(BaostockKlineProvider())  # 黑名单，但保留作为备选
         self.kline_providers.append(TencentKlineProvider())   # 501 错误，保留作为备选

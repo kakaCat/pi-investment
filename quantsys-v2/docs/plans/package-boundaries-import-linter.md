@@ -542,3 +542,17 @@ flowchart TB
 - 「暂留 L1 引用」边界说明段落随改随删——qs_watch 包内 `adapters.*` 直引 **grep 归零**
 - 验证：py_compile ✓；fill_sync_service / fill_sync_factory_wiring / watch_exec_loop_e2e /
   paper_trading_engine_risk 四面 **54 passed**
+
+## 2026-10-21 · 阶段2 批7：adapters.shared.services 薄转发绕行收编（DI 入口直连）
+
+- `adapters.shared.services` 实为 ServiceFactory 的 flask/fastapi 共享薄转发层；按 CLAUDE.md
+  「唯一入口 = ServiceFactory」裁定，包内调用它属绕行。4 个调用点 × 3 文件直连：
+  ① qs_ops scheduler_tasks_signals.py ×2（get_stock_pool_service →
+  ServiceFactory.get_stock_pool_service()）② qs_market_data manager.py
+  （get_kline_repo → get_kline_repository()）③ data_backfiller.py
+  （get_stock_repo → get_stock_repository()）；lazy import 语义不变（防环）
+- qs_ops/qs_market_data 剩余 `adapters.shared.*` 边（ml_helpers×4 / fund_flow_helpers×1 /
+  market_helpers×1）**保持不动**——helpers 无 canonical 归属（S11 kernel 各项目稳定后另行开卡）
+- 验证：py_compile ✓（3 文件）；adjacent 面 30P/2S；3F（test_provider_failover
+  TestCircuitBreaker）**A/B stash 对照实锤预存**（stash 后同样 3F/7P；mock 语义漂移
+  get_quote 被调 1 次，网络依赖型历史坏用例，属僵尸清理彼卡非本批）
