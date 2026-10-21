@@ -13,6 +13,8 @@ from typing import Dict, Any, List, Optional
 import structlog
 
 from application.services.chan_service import ChanService
+from qs_sourcing.adapters.outbound.repositories.stock_pool_repository import StockPoolORMRepository
+from qs_sourcing.adapters.outbound.repositories.signal_repository import SignalORMRepository
 
 logger = structlog.getLogger(__name__)
 
@@ -48,8 +50,11 @@ class ChanScanService:
         # 注意：依赖在模块顶部 import（非 __init__ 内 lazy import），
         # 否则测试 patch 'application.services.chan_scan_service.X' 会 AttributeError
         self._chan = chan_service or ChanService()
-        self._pool_repo = pool_repo
-        self._signal_repo = signal_repo
+        # 2026-10-21（w-5d46d252）：handler 以 ChanScanService() 无参构造，两 repo 为 None，
+        # _pool_symbols()/create_signal 必炸 NoneType——每日 10:10 chan_scan_daily 失败 36 次。
+        # None 时兜底真实 ORM 实现（显式注入路径不受影响，向后兼容）。
+        self._pool_repo = pool_repo or StockPoolORMRepository()
+        self._signal_repo = signal_repo or SignalORMRepository()
 
     @staticmethod
     def _normalize_symbol(symbol: str) -> str:

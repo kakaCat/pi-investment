@@ -394,11 +394,21 @@ class SignalExecutionScheduler:
             try:
                 # 获取最新价格
                 latest_kline = self.kline_repo.get_latest_daily_kline(signal['symbol'])
-                if not latest_kline:
+                # 2026-10-21（w-5d46d252）：契约返回单行 Polars DataFrame（非 dict），
+                # 旧的 `if not kline` 对 DataFrame 抛 truth value ambiguous（600760 实锤），
+                # kline['close'] 是 Series 而非标量——统一先转 dict 行再取值。
+                if latest_kline is None:
                     logger.warning(f"无法获取股票价格: {signal['symbol']}")
                     continue
 
-                close_price = float(latest_kline['close'])
+                if hasattr(latest_kline, 'to_dicts'):   # Polars DataFrame（单行）
+                    _rows = latest_kline.to_dicts()
+                    close_price = float(_rows[0]['close']) if _rows else None
+                else:                                    # dict / 兼容旧形状
+                    close_price = float(latest_kline['close'])
+                if close_price is None:
+                    logger.warning(f"无法获取股票价格: {signal['symbol']}")
+                    continue
 
                 # 转换为 PaperTradingEngine 信号格式
                 trade_signal = TradeSignal(

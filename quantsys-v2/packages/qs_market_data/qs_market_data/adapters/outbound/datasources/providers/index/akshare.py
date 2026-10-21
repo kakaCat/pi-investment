@@ -48,20 +48,23 @@ class AkshareIndexProvider:
         """获取单个指数的成分股代码列表（裸 6 位代码）"""
         import akshare as ak
 
-        # 中证系指数优先走官网
-        try:
-            df = ak.index_stock_cons_csindex(symbol=code)
-            if df is not None and not df.empty:
-                return [str(c).zfill(6) for c in df['成分券代码'].tolist()]
-        except Exception as e:
-            logger.warning(f"csindex 获取 {code} 失败: {type(e).__name__} {str(e)[:80]}")
+        # 2026-10-21（w-5d46d252）：399xxx=深交所指数（创业板指等），csindex 官网不提供，
+        # 每次必失败再 fallback——按前缀路由直接走 sina，消掉每日必刷的失败噪音。
+        # 000xxx=中证系，csindex 优先。
+        use_sina_first = str(code).startswith('399')
 
-        # fallback：新浪
-        try:
-            df = ak.index_stock_cons_sina(symbol=code)
-            if df is not None and not df.empty:
-                return [str(c).zfill(6) for c in df['code'].tolist()]
-        except Exception as e:
-            logger.warning(f"sina 获取 {code} 失败: {type(e).__name__} {str(e)[:80]}")
+        if use_sina_first:
+            sources = [('sina', ak.index_stock_cons_sina), ('csindex', ak.index_stock_cons_csindex)]
+        else:
+            sources = [('csindex', ak.index_stock_cons_csindex), ('sina', ak.index_stock_cons_sina)]
+
+        for name, fetch in sources:
+            try:
+                df = fetch(symbol=code)
+                if df is not None and not df.empty:
+                    col = '成分券代码' if name == 'csindex' else 'code'
+                    return [str(c).zfill(6) for c in df[col].tolist()]
+            except Exception as e:
+                logger.warning(f"{name} 获取 {code} 失败: {type(e).__name__} {str(e)[:80]}")
 
         return []

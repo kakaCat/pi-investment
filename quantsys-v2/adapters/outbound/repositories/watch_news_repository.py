@@ -23,7 +23,9 @@ class WatchNewsSource:
             get_data_provider_manager,
         )
         bare = str(symbol).split('.')[0]
-        result = get_data_provider_manager().get_stock_news(bare, limit=limit)
+        # 2026-10-21（w-5d46d252）：真实方法名是 get_news（num 参数），不是 get_stock_news——
+        # 旧调用每日刷 'DataProviderManager' object has no attribute 'get_stock_news' 71+ 次。
+        result = get_data_provider_manager().get_news(bare, num=limit)
         if not result.get('success'):
             raise RuntimeError('新闻获取失败：%s' % (result.get('error') or '未知'))
         # _try_providers 成功时 data 是**原始 MarketData 对象**（不剥壳，2026-10-20 实测）
@@ -31,16 +33,26 @@ class WatchNewsSource:
         payload = getattr(data, 'data', None) if data is not None else None
         if payload is None and isinstance(data, dict):
             payload = data
-        records = (payload or {}).get('records') or []
+        # akshare stock_news_em 返回 list of dict（中文列名），而非 {'records': [...]}
+        if isinstance(payload, list):
+            records = payload
+        elif isinstance(payload, dict):
+            records = payload.get('records') or []
+        else:
+            records = []
         out = []
         for r in records:
-            if isinstance(r, dict) and r.get('title'):
-                out.append({
-                    'title': str(r.get('title')),
-                    'time': str(r.get('time') or r.get('datetime') or ''),
-                    'source': str(r.get('source') or ''),
-                    'url': str(r.get('url') or ''),
-                })
+            if not isinstance(r, dict):
+                continue
+            title = r.get('title') or r.get('新闻标题')
+            if not title:
+                continue
+            out.append({
+                'title': str(title),
+                'time': str(r.get('time') or r.get('datetime') or r.get('发布时间') or ''),
+                'source': str(r.get('source') or r.get('文章来源') or ''),
+                'url': str(r.get('url') or r.get('新闻链接') or ''),
+            })
         return out
 
 
