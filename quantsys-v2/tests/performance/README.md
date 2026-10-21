@@ -57,4 +57,4 @@ python tests/performance/test_factor_performance_benchmark.py
 ## 相关文档
 
 - [因子库参考文档](../../docs/FACTOR_LIBRARY_REFERENCE.md)
-- [TA-Lib 增强报告](../../docs/2026-06-04-phase2-talib-enhancement-report.md)
+- TA-Lib 增强报告（历史文档已删除，见 git 历史 `docs/2026-06-04-phase2-talib-enhancement-report.md`）
