@@ -204,6 +204,19 @@ SECTOR_RESONANCE_POOL_ENV = 'WATCH_SECTOR_RESONANCE_POOL_ID'
 RESONANCE_REFRESH_START_DELAY_SEC = 5.0
 RESONANCE_REFRESH_FAIL_BACKOFF_SEC = 300.0
 
+# ── 政策盯盘扫描线程（2026-10-21 政策盯盘闭环）────────────────────────────
+#: 开关（缺省启用）：显式 false → 不起 daemon，引擎/其余旁路行为完全不变。
+POLICY_WATCH_ENABLED_ENV = 'WATCH_POLICY_WATCH_ENABLED'
+#: 扫描间隔（秒，缺省 5 分钟）；非法/过小值按默认或下限处理，不阻断装配。
+POLICY_SCAN_INTERVAL_ENV = 'WATCH_POLICY_SCAN_INTERVAL_SEC'
+DEFAULT_POLICY_SCAN_INTERVAL_SEC = 300.0
+POLICY_SCAN_MIN_INTERVAL_SEC = 30.0
+#: 启动后先等一会再扫（不抢宿主 lifespan）；扫描异常后 60s 重试（不按整轮间隔空等）。
+POLICY_SCAN_START_DELAY_SEC = 15.0
+POLICY_SCAN_FAIL_BACKOFF_SEC = 60.0
+#: 线程名（运维/用例按名字识别；不要与 watch-engine 主循环混为一谈）
+POLICY_SCAN_THREAD_NAME = 'watch-policy-scan'
+
 #: `build_confirm_verify_pipeline` 的「未显式传 news_service」哨兵：
 #: None 表示调用方明确说「消息服务不可用」，不能再偷偷重建一次。
 _AUTO = object()
@@ -474,6 +487,178 @@ def _start_sector_resonance_refresher(pipeline) -> Optional[threading.Thread]:
     thread.start()
     logger.info('候选池板块映射重建线程已启动（daemon）', interval_sec=interval)
     return thread
+
+
+# ── 政策盯盘扫描装配（2026-10-21）──────────────────────────────────────
+def _policy_watch_enabled() -> bool:
+    return os.getenv(POLICY_WATCH_ENABLED_ENV, 'true').strip().lower() in (
+        '1', 'true', 'yes', 'on')
+
+
+def _policy_scan_interval() -> float:
+    """扫描间隔（秒）：缺省 5 分钟；非法值用默认；过小值抬到下限并告警。"""
+    raw = os.getenv(POLICY_SCAN_INTERVAL_ENV)
+    if raw is None or not str(raw).strip():
+        return DEFAULT_POLICY_SCAN_INTERVAL_SEC
+    try:
+        value = float(str(raw).strip())
+    except (TypeError, ValueError):
+        logger.warning('政策盯盘扫描间隔配置非法，使用默认值',
+                       key=POLICY_SCAN_INTERVAL_ENV, value=str(raw),
+                       default=DEFAULT_POLICY_SCAN_INTERVAL_SEC)
+        return DEFAULT_POLICY_SCAN_INTERVAL_SEC
+    if value <= 0:
+        logger.warning('政策盯盘扫描间隔必须为正数，使用默认值',
+                       key=POLICY_SCAN_INTERVAL_ENV, value=value,
+                       default=DEFAULT_POLICY_SCAN_INTERVAL_SEC)
+        return DEFAULT_POLICY_SCAN_INTERVAL_SEC
+    if value < POLICY_SCAN_MIN_INTERVAL_SEC:
+        logger.warning('政策盯盘扫描间隔过小，抬到下限',
+                       key=POLICY_SCAN_INTERVAL_ENV, value=value,
+                       min=POLICY_SCAN_MIN_INTERVAL_SEC)
+        return POLICY_SCAN_MIN_INTERVAL_SEC
+    return value
+
+
+def build_policy_watch_service(news_service=_AUTO):
+    """装配政策盯盘路由服务（2026-10-21）。
+
+    · 新闻来源：`PolicyNewsSource`（全市场财经新闻，ADR-001 只走统一数据访问层）；
+    · 板块→成分：服务内 `SectorConstituentIndex`（复用 sector_resonance_service 的
+      板块适配与 `policy_lexicon` 的板块别名口径，**不维护第二份**）；
+    · 持仓：三账户（与新闻监控/持仓板块映射同一口径）；
+    · 候选池：**复用**共振核验的候选集口径（`WATCH_SECTOR_RESONANCE_POOL_ID` →
+      stock_pools 成员；未配置 → 盯盘规则标的），不另立第二个「候选池」定义；
+    · 确认核验查询：`NewsWatchService.scan_candidates`（候选池只读口径，不发卡）；
+    · 发卡：`watch_channels.send_watch_receipt`（既有 P0/P2 路由）。
+
+    返回 None = 开关关闭或装配失败（daemon 不起；引擎与其余旁路行为不变）。
+    任何装配异常都降级记日志，**绝不阻断宿主启动**。
+    """
+    if not _policy_watch_enabled():
+        logger.info('政策盯盘扫描未启用（%s=false）' % POLICY_WATCH_ENABLED_ENV)
+        return None
+
+    stage = 'import'
+    try:
+        from qs_watch.application.services.watch_engine.policy_news_source import (
+            PolicyNewsSource,
+        )
+        from qs_watch.application.services.watch_engine.policy_watch_service import (
+            PolicyWatchService,
+        )
+        from qs_watch.application.services.watch_engine.watch_channels import (
+            send_watch_receipt,
+        )
+
+        stage = 'news_source'
+        source = PolicyNewsSource()
+
+        stage = 'candidates'
+        pool_id = _sector_resonance_pool_id()
+        if pool_id is not None:
+            candidate_source = pool_member_source()
+        else:
+            candidate_source = _WatchRuleCandidateSource()
+
+        stage = 'news_service'
+        if news_service is _AUTO:
+            try:
+                news_service = _build_news_watch_service()
+            except Exception as e:  # noqa: BLE001 - 只降级「候选池确认核验」这一段
+                logger.error('政策盯盘确认核验查询装配失败（候选池命中将标注未核验，'
+                             '持仓 P0/P2 路由不受影响）', error=str(e))
+                news_service = None
+
+        stage = 'service'
+        service = PolicyWatchService(
+            news_source=source,
+            position_repo=sim_position_repo(),
+            accounts=("agent_virtual", "agent_brain", "user_main_simulation"),
+            candidate_source=candidate_source,
+            candidate_pool_id=pool_id or 0,
+            alert_repo=news_alert_repo(),
+            news_service=news_service,
+            sender=send_watch_receipt,
+        )
+    except Exception as e:  # noqa: BLE001 - 旁路装配失败降级，不阻断宿主启动
+        logger.error('政策盯盘扫描装配失败，降级为不启动（引擎照常运行）',
+                     stage=stage, error=str(e))
+        return None
+
+    logger.info('政策盯盘扫描已装配（政策新闻 → 板块 → 持仓 P0/P2 / 候选池确认核验）',
+                candidate_pool=(pool_id if pool_id is not None else 'watch_rules'),
+                interval_sec=_policy_scan_interval())
+    return service
+
+
+def start_policy_watch_scanner(engine=None, stop_event=None, service=None):
+    """起独立 daemon 扫描线程（与引擎主循环解耦，**不动 engine**）。
+
+    Args:
+        engine: 可选引擎实例——只读 `engine.news_watch_service` 复用同一份消息服务
+            （候选池确认核验查询口），不改引擎的构造/生命周期。
+        stop_event: 可选停止信号（测试用；生产靠进程退出 daemon 自动结束）。
+        service: 可选已装配服务（测试注入）。
+
+    Returns:
+        (service, thread)；开关关闭/装配失败 → (None, None)（不会抛）。
+    """
+    if service is None:
+        service = build_policy_watch_service(
+            news_service=(getattr(engine, 'news_watch_service', None)
+                          if engine is not None else _AUTO))
+    if service is None:
+        return None, None
+    interval = _policy_scan_interval()
+
+    def _stopped() -> bool:
+        return stop_event is not None and stop_event.is_set()
+
+    def _wait(seconds: float) -> None:
+        if stop_event is not None:
+            stop_event.wait(seconds)
+        else:
+            threading.Event().wait(seconds)
+
+    def _loop():
+        # 先等一会再扫：宿主启动期（lifespan 里其它 bootstrap）不抢 I/O。
+        _wait(min(POLICY_SCAN_START_DELAY_SEC, interval))
+        while not _stopped():
+            delay = interval
+            try:
+                out = service.scan()
+                if isinstance(out, Mapping) and out.get('skipped'):
+                    logger.warning('政策盯盘扫描未完成（fail-open，非「无利空」）',
+                                   reason=out.get('reason'))
+                else:
+                    detail = out if isinstance(out, Mapping) else {}
+                    logger.info(
+                        '政策盯盘扫描轮次完成',
+                        records=detail.get('records'),
+                        alerts=len(detail.get('alerts') or ()),
+                        confirm=(detail.get('confirm') or {}).get('queried'),
+                        unrelated=detail.get('unrelated'),
+                        mapping_missing=detail.get('mapping_missing'))
+            except Exception as e:  # noqa: BLE001 - 扫描异常只降级，不杀线程
+                logger.error('政策盯盘扫描异常（下轮重试）', error=str(e))
+                delay = POLICY_SCAN_FAIL_BACKOFF_SEC
+            finally:
+                # 会话收尾（与引擎主循环/共振重建线程同一约定）：后台线程每轮归还
+                # scoped session，否则连接 idle in transaction 会被 PG 强杀。
+                try:
+                    from qs_kernel.infrastructure.persistence.orm import close_session
+                    close_session()
+                except Exception:
+                    pass
+            _wait(delay)
+        logger.info('政策盯盘扫描线程已停止')
+
+    thread = threading.Thread(target=_loop, name=POLICY_SCAN_THREAD_NAME,
+                              daemon=True)
+    thread.start()
+    logger.info('政策盯盘扫描线程已启动（daemon）', interval_sec=interval)
+    return service, thread
 
 
 def build_watch_loop_services():
@@ -752,5 +937,12 @@ def start_watch_engine_in_thread() -> tuple[WatchEngine, threading.Thread]:
     # 独立 daemon，失败只降级不阻断。放在线程启动后，不抢宿主 lifespan。
     _start_sector_resonance_refresher(
         getattr(engine, 'confirm_verify_pipeline', None))
+    # 政策盯盘扫描线程（2026-10-21 政策盯盘闭环）：政策新闻 → 板块 → 持仓/候选池。
+    # 独立 daemon、与主循环解耦（**不动 engine**）；装配/启动失败只降级记日志，
+    # 绝不让宿主启动被这条旁路拖死。
+    try:
+        start_policy_watch_scanner(engine)
+    except Exception as e:  # noqa: BLE001 - 旁路启动失败不阻断宿主
+        logger.error('政策盯盘扫描线程启动失败（引擎照常运行）', error=str(e))
     logger.info('✓ WatchEngine 已在后台线程启动')
     return engine, thread
