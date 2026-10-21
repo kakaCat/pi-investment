@@ -140,7 +140,7 @@ class WatchTriggeredFormatter(FeishuFormatter):
         与 agent-os 网关路径（facade 产出的 content）**同源同骨架**——消灭"分级卡/
         旧意图卡/网关平铺"三套版式漂移；P0 保留 @所有人 首行（对齐分级模板 FR-5）。
         """
-        from domain.watch.services.watch_message import (
+        from qs_watch.domain.watch.services.watch_message import (
             FactSection, WatchMessage, resolve_action,
         )
         from qs_notification.infrastructure.formatters.watch_level_templates import (

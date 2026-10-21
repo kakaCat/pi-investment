@@ -12,7 +12,7 @@ import os
 from dataclasses import dataclass
 from typing import Optional
 
-from domain.watch.services.watch_message import WatchMessage, intent_meta
+from qs_watch.domain.watch.services.watch_message import WatchMessage, intent_meta
 
 #: 灰度开关（默认开）。关闭时 facade/formatter 保持旧渲染路径，便于对比与回滚。
 MSG_V2_ENABLED = os.environ.get('WATCH_MSG_V2', 'true').strip().lower() not in ('false', '0', 'off')

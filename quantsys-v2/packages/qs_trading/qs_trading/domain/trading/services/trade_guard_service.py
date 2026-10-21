@@ -88,7 +88,7 @@ class TradeGuardService:
         self.breaker_active_fn = breaker_active_fn
 
         if calendar is None:
-            from application.services.trading_calendar_service import TradingCalendarService
+            from qs_market_data.application.services.trading_calendar_service import TradingCalendarService
             calendar = TradingCalendarService()
         self.calendar = calendar
 

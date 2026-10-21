@@ -18,7 +18,7 @@ from datetime import datetime, date
 from qs_kernel.domain.ports import ISignalExecutionLogRepository, ISignalRepository, IStrategyRepository
 import structlog
 
-from application.services.strategy_code_service import StrategyCodeService
+from qs_strategy.application.services.strategy_code_service import StrategyCodeService
 from application.services.risk_check_service import RiskCheckService
 from application.trading.paper_trading_engine import PaperTradingEngine, Signal as TradeSignal
 from infrastructure.services.service_factory import ServiceFactory

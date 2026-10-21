@@ -104,7 +104,7 @@ class NotificationFactory:
         # REQ-c9f899 返工项 A：注入既有 AgentNotificationService 单例（wake 通道），
         # 让 L2 盯盘触发按 target_agent 真实路由（POST {url}/wake）。
         # 门面内不创建 HTTP 客户端，此处只做装配；惰性导入避免 import 期拉起重依赖。
-        from application.services.agent_notification_service import agent_service
+        from qs_agenthub.application.services.agent_notification_service import agent_service
         facade = NotificationFacade(service, agent_notification_service=agent_service)
         logger.info("通知系统创建完成")
 

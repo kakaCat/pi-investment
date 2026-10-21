@@ -212,7 +212,7 @@ class NotificationFacade:
             MSG_V2_ENABLED, render_watch_message,
         )
         if MSG_V2_ENABLED:
-            from domain.watch.services.watch_message import (
+            from qs_watch.domain.watch.services.watch_message import (
                 FactSection, WatchMessage, resolve_action,
             )
             ap = action_params if isinstance(action_params, dict) else None

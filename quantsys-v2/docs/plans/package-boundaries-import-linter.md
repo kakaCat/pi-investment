@@ -556,3 +556,25 @@ flowchart TB
 - 验证：py_compile ✓（3 文件）；adjacent 面 30P/2S；3F（test_provider_failover
   TestCircuitBreaker）**A/B stash 对照实锤预存**（stash 后同样 3F/7P；mock 语义漂移
   get_quote 被调 1 次，网络依赖型历史坏用例，属僵尸清理彼卡非本批）
+
+## 2026-10-21 · 阶段2 批8：可正典化边 ×9 收编（有包家的 shell 引用换 canonical）
+
+- 定位方法：修正普查脚本路径 bug（`packages/$pkg/qs_$pkg` 展开成 `qs_qs_*` 为不存在目录，
+  此前两轮全 0 是假象；正确为 `packages/$pkg/$pkg`）后全仓现实存量：
+  sourcing 27 / strategy 78 / trading 20 / agenthub 19 / intel 27 / notification 4 /
+  quantlib 3 / watch 4 / ops 128 / market_data 43——本批只动「有 canonical 包家」的边
+- **qs_notification ×4**（该包 CLAUDE.md 明文禁止 import domain/* application/*，
+  这批边是违反自家契约的真·残留）：agent_notification_service→qs_agenthub；watch_message ×3
+  →qs_watch（其中 renderer :15 为顶层 import——换 canonical **顺带消除 domain.watch 与
+  qs_watch.domain.watch 的双身份**，isinstance 口径收敛单身份）
+- **qs_intel ×3**：microstructure_service trading_status/status_policy →qs_trading 域；
+  sector_rotation_service →qs_strategy
+- **qs_sourcing ×3**：strategy_code_service ×2 / strategy_factory →qs_strategy
+- **qs_trading ×1**：trade_guard_service trading_calendar_service →qs_market_data
+  （trading→market_data 属白名单边）；⚠️ `market_session_service.py:19` trading_day_guard
+  **保留 L1 形态**——canonical 归属 qs_ops，而 ops CLAUDE.md 禁止业务包 import ops
+  （装配方向向下），业务包→ops 无合法路径，此边登记为方向例外
+- 验证：py_compile ×9 ✓；**双向加载冒烟 ×4 组**（notification↔watch 正反序、intel↔trading
+  正反序、sourcing→strategy、trading→market_data）全绿无环；相邻测试面
+  notifications×4 + sector_rotation + orchestrator_signals + signal_execution×3 +
+  data_completeness + market_session + trade_guard **94 passed**

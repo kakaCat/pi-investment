@@ -47,7 +47,7 @@ class PoolScannerService:
         Returns:
             扫描结果字典
         """
-        from application.services.strategy_code_service import StrategyCodeService
+        from qs_strategy.application.services.strategy_code_service import StrategyCodeService
 
         if self._pool_repo is None:
             from infrastructure.services.service_factory import ServiceFactory
@@ -149,7 +149,7 @@ class PoolScannerService:
             信号详情，如果无信号返回None
         """
         try:
-            from domain.strategies.strategy_factory import StrategyFactory
+            from qs_strategy.domain.strategies.strategy_factory import StrategyFactory
             from datetime import datetime, timedelta
 
             # 1. 获取K线数据

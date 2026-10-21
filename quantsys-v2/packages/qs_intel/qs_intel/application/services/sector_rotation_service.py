@@ -8,7 +8,7 @@
 """
 from qs_kernel.domain.ports import IKlineRepository, IStockRepository
 from typing import List, Dict, Optional
-from application.services.strategy_engine.sector_rotation import SectorRotation
+from qs_strategy.application.services.strategy_engine.sector_rotation import SectorRotation
 import structlog
 
 logger = structlog.get_logger(__name__)

@@ -16,8 +16,8 @@ from typing import Any, Dict, List, Optional
 
 import structlog
 
-from domain.trading.models.trading_status import TradingStatus
-from domain.trading.services.trading_status_policy import TradingStatusPolicy
+from qs_trading.domain.trading.models.trading_status import TradingStatus
+from qs_trading.domain.trading.services.trading_status_policy import TradingStatusPolicy
 
 logger = structlog.get_logger(__name__)
 
