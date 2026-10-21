@@ -26,7 +26,13 @@ class ChanService:
         P2-1: 推荐通过 ServiceFactory 获取实例
         """
         self.analyzer = ChanAnalyzer()
-        self.kline_repo = kline_repo  # 如果为 None，使用时会报错，调用方需要确保传入
+        # 2026-10-21（w-5d46d252）：无参构造时 kline_repo=None → _fetch_kline_data 调
+        # get_daily_klines 必炸 NoneType（每日 chan_scan 触发）。None 时兜底真实 ORM 实现
+        # （lazy import 避免 application 顶层依赖 adapters）；显式注入路径不受影响。
+        if kline_repo is None:
+            from adapters.outbound.repositories.kline_repository import KlineORMRepository
+            kline_repo = KlineORMRepository()
+        self.kline_repo = kline_repo
 
     def analyze(
         self,
