@@ -17,10 +17,12 @@
 | [REDIS_CACHE.md](REDIS_CACHE.md) | 缓存服务 |
 | [PROJECT_STATUS.md](PROJECT_STATUS.md) / [MODEL-TRAIN-TESTING-NOTES.md](MODEL-TRAIN-TESTING-NOTES.md) | 项目状态 / 模型训练备注 |
 | [strategy-validation.md](strategy-validation.md) / [simulation-account-standard.md](simulation-account-standard.md) | 策略校验 / 仿真账户标准 |
+| [degradation-integration-guide.md](degradation-integration-guide.md) | 降级透明化集成（降级/回退/缺失在 API 响应可见） |
 
 ### guides/（使用指南）
 
 - [QUICK_START.md](guides/QUICK_START.md) — **新开发者从这里开始**（环境 → 数据库 → 启动 → 测试 → 第一个功能）
+- [API-GUIDE.md](guides/API-GUIDE.md) — REST API 使用手册（5001；⚠️ 基名命中 `*-GUIDE.md` ignore 规则，已显式 `-f` 入库）
 - [BEST_PRACTICES.md](guides/BEST_PRACTICES.md) — 因子开发与策略优化
 - [data-quality.md](guides/data-quality.md) — 数据质量检查任务（参数/护栏/调度接入）
 - [LOGGING_WORKFLOW.md](guides/LOGGING_WORKFLOW.md) — 日志链路
