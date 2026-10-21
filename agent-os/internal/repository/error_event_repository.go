@@ -235,6 +235,32 @@ func validateActionNote(action, note string) error {
 	return nil
 }
 
+// claimTransitionAllowed：claim 动作的状态机转移表（2026-10-21 修复"僵尸处理中"死角，w-6224baac）。
+//
+// 死角成因：processing 原先既不能 claim（只收 open）也不能 reopen（只收终态），
+// 一旦进入 processing 而 assignee 没写上，就既无责任人也无出口，只剩 resolve/ignore
+// 这条"没修也要说修好了"的假出口——实证 error_events a6780ec3（×1124，2026-09-11 起
+// 无人处置，2026-10-21 复核时 assignee 仍为空、状态卡 processing）。
+//
+// 转移表：
+//   · open                          → 可认领（正常路径）
+//   · processing 且 assignee 为空    → 可认领（僵尸回收：无人负责即无人受损，认领即补责任人）
+//   · processing 且已有 assignee     → 拒绝（防抢单：责任人正在处理）
+//   · resolved / ignored            → 拒绝（须先 reopen 回 open）
+//
+// 独立成纯函数是为了可单测（状态 × assignee 穷举矩阵，见 error_event_state_machine_test.go）——
+// ApplyAction 本身要 DB，只测得到 happy path，正是死角漏网的原因。
+func claimTransitionAllowed(status string, assignee *string) bool {
+	switch status {
+	case string(domain.ErrorStatusOpen):
+		return true
+	case string(domain.ErrorStatusProcessing):
+		return assignee == nil || *assignee == ""
+	default:
+		return false
+	}
+}
+
 // ApplyAction 状态流转（事务内 SELECT FOR UPDATE → 状态机校验 → 更新）
 func (r *errorEventRepository) ApplyAction(ctx context.Context, id string, req domain.ErrorEventActionRequest) (*domain.ErrorEvent, string, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
@@ -255,8 +281,8 @@ func (r *errorEventRepository) ApplyAction(ctx context.Context, id string, req d
 	var msg string
 	switch req.Action {
 	case "claim":
-		if e.Status != string(domain.ErrorStatusOpen) {
-			return nil, "", fmt.Errorf("状态机不允许：当前状态 %s 不可 claim（仅 open 可认领）", e.Status)
+		if !claimTransitionAllowed(e.Status, e.Assignee) {
+			return nil, "", fmt.Errorf("状态机不允许：当前状态 %s 不可 claim（open 或「处理中但无责任人」可认领）", e.Status)
 		}
 		var actor *string
 		if req.Actor != "" {
