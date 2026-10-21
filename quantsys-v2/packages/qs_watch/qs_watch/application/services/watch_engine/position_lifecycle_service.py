@@ -6,6 +6,8 @@
   ①买入成交（该标的已有持仓）→ 等买规则**使命完成**：退役 + 横幅标注；
      并确保**存在止损规则**（宪法铁律④：持仓必须有止损盯盘），缺失则自动补挂。
   ②清仓完成（该标的已无持仓）→ 卖出规则族**收摊**：退役 + 横幅标注。
+  ③成交清仓（RFC 017 §2.1.4，卡 `fill-event-sync`）→ `retire_exit_rules` 即时收摊：
+     与 ② 同语义、同 `_retire` 实现，只是由成交回执当拍触发（不等日频扫描）。
 
 与 P7 元触发的分工：元触发管"规则健康度"（一直响/一直不响）；本服务管"规则使命"（买卖是否已完成）。
 """
@@ -14,6 +16,9 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import structlog
+
+from qs_watch.domain.watch.services.disposition import intent_of, normalize_symbol
+from qs_watch.domain.watch.services.rule_guard import effective_account
 
 logger = structlog.get_logger(__name__)
 
@@ -228,6 +233,57 @@ class PositionLifecycleService:
             except Exception as e:  # noqa: BLE001
                 logger.error("到期收摊失败", rule_id=getattr(r, "id", None), error=str(e))
         return n
+
+    def retire_exit_rules(self, account: Optional[str], symbol: Optional[str],
+                          why: str, *, now: Optional[datetime] = None) -> List[Dict[str, Any]]:
+        """成交清仓后的 exit 族**即时退役**（RFC 017 §2.1.4 第 4 条，卡 `fill-event-sync`）。
+
+        与日频 `reconcile()` 的「②已清仓收摊」同语义（都走 `_retire`：`enabled=False` +
+        `lifecycle_stage='closed'` + context banner，宪法级止损的停用守卫天然通过），
+        差别只在：
+          · **时机**：成交当拍（即时）vs 每天一次的扫描；
+          · **作用域**：只处理该 `(账户, 标的)`，不触发全账户扫描/补挂（那些是 reconcile 的活）。
+
+        账户口径与持仓联动一致（`rule_guard.effective_account`，linked_account 优先）：
+        空账户规则是观察规则，**不在成交回调的作用域内**（成交证明不了它的立场已结束）。
+
+        失败一律自吞（回执主线绝不被退役失败打挂），返回退役明细供回执留痕。
+        """
+        acct = str(account or "").strip()
+        sym = normalize_symbol(symbol)
+        retired: List[Dict[str, Any]] = []
+        if not sym or not acct:
+            return retired
+        try:
+            rules = self.rule_repo.list_rules()
+        except Exception as e:  # noqa: BLE001 - 读失败只降级，回执继续
+            logger.error("清仓退役：规则读取失败（回执继续）", symbol=sym, error=str(e))
+            return retired
+        for r in rules or []:
+            if not getattr(r, "enabled", False):
+                continue
+            if normalize_symbol(getattr(r, "symbol", "")) != sym:
+                continue
+            try:
+                intent = intent_of(r)
+            except Exception:  # noqa: BLE001 - 推导失败退回显式字段
+                intent = str(getattr(r, "intent", "") or "")
+            if not str(intent or "").startswith("exit_"):
+                continue
+            try:
+                rule_account = str(effective_account(r) or "").strip()
+            except Exception:  # noqa: BLE001
+                rule_account = str(getattr(r, "account", "") or "").strip()
+            if not rule_account or rule_account != acct:
+                continue
+            self._retire(r, why)
+            retired.append({"rule_id": getattr(r, "id", None),
+                            "symbol": getattr(r, "symbol", None),
+                            "intent": intent,
+                            "why": why})
+            logger.info("清仓即时退役卖出规则", rule_id=getattr(r, "id", None),
+                        symbol=sym, intent=intent, account=acct)
+        return retired
 
     def _retire(self, rule, why: str) -> None:
         banner = "[生命周期联动 %s] %s" % (datetime.now().strftime("%Y-%m-%d"), why)

@@ -14,7 +14,10 @@ quant.watch_rule_changes）：
 契约硬化（写库前、触碰 session 之前）：
   · reason **必填非空**——规则变更的理由是复盘与反向应用的唯一凭据，空理由必须响亮拒绝，
     而不是让列 NOT NULL 在提交时才报错（那时异常语义与调用方错误已脱节）；
-  · changed_by 必须是 agent/user/system（与迁移 20260918 的 CHECK 同集），大小写归一。
+  · changed_by 必须是 agent/user/system（与迁移 20260918 的 CHECK 同集），大小写归一；
+  · trigger_id / todo_id 若给出，必须是正整数——溯源 id 写 0/负数等于没写，拦在入库前
+    （2026-10-21 卡 rule-change-linkage：处置卡联动的审计行必须能按触发反查，
+    对应 `list_by_trigger` 与迁移 20261021_watch_rule_changes_trigger_trace 的索引）。
 """
 from datetime import datetime
 from typing import Any, List, Optional
@@ -33,6 +36,21 @@ CHANGED_BY_VALUES = ('agent', 'user', 'system')
 def _iso(value):
     """datetime → ISO 字符串（None 透传）"""
     return value.isoformat() if value is not None else None
+
+
+def _optional_id(value, name: str):
+    """溯源 id 归一：None 透传；给出的必须是正整数（0/负数/布尔一律拒绝）。"""
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        raise ValueError(f'{name} 必须是正整数：{value!r}')
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        raise ValueError(f'{name} 必须是正整数：{value!r}') from None
+    if number < 1:
+        raise ValueError(f'{name} 必须是正整数：{value!r}')
+    return number
 
 
 def change_to_dict(change: Any) -> dict:
@@ -83,11 +101,13 @@ class WatchRuleChangeRepository(BaseORMRepository[WatchRuleChange]):
         kind_value = str(change_kind or '').strip().lower()
         if not kind_value:
             raise ValueError('change_kind 必填：规则变更必须说明改了什么')
+        trigger_value = _optional_id(trigger_id, 'trigger_id')
+        todo_value = _optional_id(todo_id, 'todo_id')
 
         change = WatchRuleChange(
             rule_id=rule_id, changed_by=changed_by_value, change_kind=kind_value,
-            before=before, after=after, reason=reason_value, trigger_id=trigger_id,
-            todo_id=todo_id, decision_audit_id=decision_audit_id,
+            before=before, after=after, reason=reason_value, trigger_id=trigger_value,
+            todo_id=todo_value, decision_audit_id=decision_audit_id,
         )
         try:
             session = self.session
@@ -132,6 +152,31 @@ class WatchRuleChangeRepository(BaseORMRepository[WatchRuleChange]):
                 self.session.query(WatchRuleChange)
                 .filter(WatchRuleChange.rule_id == rule_id)
                 .order_by(WatchRuleChange.created_at.desc(), WatchRuleChange.id.desc())
+                .limit(max(1, int(limit)))
+                .all()
+            )
+        except Exception:  # noqa: BLE001
+            self._safe_rollback()
+            raise
+
+    def list_by_trigger(self, trigger_id: int, limit: int = 50) -> List[WatchRuleChange]:
+        """按**触发**取它引起的全部规则变更（2026-10-21 处置卡联动溯源）。
+
+        复盘问题：「这次触发之后，规则被谁改成了什么？」——一条触发可以先后引发
+        多条变更（例如先调阈值、后又停用），必须全部按时间正序拿到，才看得出链条。
+        与 list_by_rule 的区别：那个是「这条规则被改过几次」，这个是「这次触发改了什么」。
+
+        失败向上抛（与其它读方法同纪律）：静默空列表会把「审计库坏了」伪装成
+        「这次触发没改过规则」——那正是溯源功能最不能给的假答案。
+        """
+        trigger_value = _optional_id(trigger_id, 'trigger_id')
+        if trigger_value is None:
+            raise ValueError('trigger_id 必填：按触发溯源不接受空值（否则等于查全表）')
+        try:
+            return (
+                self.session.query(WatchRuleChange)
+                .filter(WatchRuleChange.trigger_id == trigger_value)
+                .order_by(WatchRuleChange.created_at.asc(), WatchRuleChange.id.asc())
                 .limit(max(1, int(limit)))
                 .all()
             )

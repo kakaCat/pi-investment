@@ -115,11 +115,17 @@ def _todo_wake_data(todo: Any, *, event: str,
     自带 instruction（agent-dh 的 deliverWake 会把 JSON 原样交给 agent，见
     agent-dh/packages/tools/lifecycle/src/index.ts deliverWake）；missing 字段如实缺省，
     不臆造（如名称解析未接线时不编名字）。
+
+    RFC 017 §2.1.2（卡 `exec-directive-card`）：P0 执行指令作为 **additive** 字段
+    `exec_directive` 随 wake 下发——待办由流水线 `TodoStage` 挂同一份指令对象
+    （`todo.exec_directive`），agent 不看通知卡也能拿到结构化动作。
+    **没有指令时载荷逐字不变**（非退出类 P0 / 闭环未装配 / 旧调用方）：不塞 None，
+    也不改任何既有键，回归口径是「set(keys) 相同」。
     """
     due = getattr(todo, 'due_at', None)
     due_text = due.isoformat() if hasattr(due, 'isoformat') else str(due or '')
     todo_id = getattr(todo, 'id', None)
-    return {
+    data = {
         'event': event,
         'todo_id': todo_id,
         'symbol': getattr(todo, 'symbol', None),
@@ -138,6 +144,12 @@ def _todo_wake_data(todo: Any, *, event: str,
         'message': message,
         'instruction': _CLOSE_GUIDE.replace('{todo_id}', str(todo_id)),
     }
+    # getattr 兜底：旧待办对象/ORM 行没有该属性、或闭环未装配（None）→ 不新增键
+    directive = getattr(todo, 'exec_directive', None)
+    if directive is not None:
+        data['exec_directive'] = (directive.to_dict()
+                                  if hasattr(directive, 'to_dict') else directive)
+    return data
 
 
 def _wake_deliver(event: str, data: Dict[str, Any], target_agent: Optional[str] = None) -> bool:
