@@ -202,8 +202,9 @@ WatchEngine 常驻线程**由 FastAPI `adapters/inbound/fastapi_app/main.py` 的
 > ② **DailyJobs 宿主线程**（`daily_jobs_bootstrap.py`，9 个核心数据任务，带幂等/补跑/失败告警
 >    与 `quant.inprocess_job_runs` 留痕）。
 > 库表启用任务已去重 **26 → 16**、撞点组 **4 → 0**；`apscheduler_jobs` 里的僵尸条目
-> （11 条不在册）已清理 **27 → 16**。历史 4 路并存与重复的取证见
-> `docs/requirements/REQ-261001145152-3982/design/audit-report.md` §3。
+> （11 条不在册）已清理 **27 → 16**。历史 4 路并存与重复的取证原在
+> `docs/requirements/REQ-261001145152-3982/design/audit-report.md` §3（该文件已不在仓库），
+> 该需求设计档案现见 `docs/requirements/REQ-261001145152-3982/design/`。
 > ⚠️ 通知链路**不受影响**：`AGENT_OS_NOTIFY_ENABLED` 仍为 true（agent 优先、飞书降级）。
 
 **启用集合体检（2026-10-02 · 同一需求的联调段，实测）**：打开调度后逐条核对"启用任务的 `command`
@@ -354,7 +355,7 @@ Every agent operation is persisted for learning and accountability:
 - `quant.chip_metrics` — 筹码每日摘要指标：profit_ratio（获利盘比例）/ avg_cost / 90%/70% 成本区间 / peak_price（密集峰）/ concentration（集中度）
 - 每日任务：`chip_distribution_update`（cron 30 18 * * 0-4，接 kline_update 后），job `infrastructure/jobs/chip_distribution_update_job.py`
 - 查询 API：`GET /api/analysis/chip-distribution/{symbol}`；agent 工具：`chip_analysis`
-- 计算核心：`domain/chip_distribution/`（三角分布 + 换手率衰减模型，spec: docs/superpowers/specs/2026-08-11-chip-distribution-design.md）
+- 计算核心：`domain/chip_distribution/`（三角分布 + 换手率衰减模型；原 2026-08-11 设计 spec 已不在仓库，勿引用旧路径）
 
 ### Game Theory Intelligence System (Roadmap)
 
@@ -756,8 +757,7 @@ df['sell'] = df['score'] < 0.3
    - ✅ `Repository` for database access
 
 3. **Before writing data-related code**
-   - 数据访问规范见本文件「⚠️ Data Access Rules」一节 + `docs/DATA_ACCESS_GUIDE.md`
-     （⚠️ 2026-10-01 实测：根目录**没有** `DATA_ACCESS_GUIDE.md`，历史文档已失；以本文件该节为准）
+   - 数据访问规范以本文件「⚠️ Data Access Rules」一节为唯一权威（原 `DATA_ACCESS_GUIDE.md` 已删除，勿引用旧路径）
    - Check if functionality already exists in `DataProviderManager`
    - Ask "Am I reinventing the wheel?"
 
