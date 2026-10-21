@@ -32,6 +32,24 @@ from adapters.outbound.repositories.kline_sync_repository import (
 
 logger = logging.getLogger(__name__)
 
+# 单次运行的墙钟预算（秒）。2026-10-21（w-36c3225e）实测：全市场 5277 只按
+# interval 0.3~0.8s 限速 + 每只一次同步 HTTP，实测约 1.7s/只 ⇒ 单次跑完约
+# 2.5 小时。这么长的一次占用会同时带来三个问题：
+#   ① 进程重启后从头再来（每次都白跑前面已完成的 3000+ 只）；
+#   ② 长时间占住一个 worker 线程与 DB 连接；
+#   ③ 上游一旦中途限流，本次成果全部作废。
+# 改为"跑满预算就收工、如实报部分完成"，下一轮（Agent OS 每天多次触发 /
+# 手动补跑）从陈旧度排序继续往前推——select_sync_universe 本就按陈旧度排，
+# 续跑的推进方向是对的。与 data_quality_check_job 的 DEFAULT_MAX_RUNTIME_SEC
+# （1800）取同一口径，避免两套预算常量漂移。
+DEFAULT_MAX_RUNTIME_SEC = 1800
+# 预算检查粒度：每 N 只查一次时钟。查时钟本身有开销（time.monotonic 很便宜，
+# 但取系统时间在容器里偶尔不便宜），不需要每只都查。
+# 粒度必须与"每只耗时"相称——超支窗口 = 粒度 × 单只耗时。实测全市场单只
+# 约 1.7s（含限速 sleep + 同步 HTTP + 落库），若固定按 25 只检查，超支可达
+# 42s；按 10 只检查则 ≤17s。故取 10（兼顾时钟开销与超支窗口）。
+_BUDGET_CHECK_EVERY = 10
+
 
 def update_gem_klines(**params):
     """
@@ -52,12 +70,25 @@ def update_gem_klines(**params):
               间隔 0.05s 跑约770只后被断流；连空 50 只会自适应休眠 30s）。
               interval_seconds=0 关闭（测试/小批量用）
             - pause: （已废弃别名）等价于 interval_seconds=(pause, pause)
+            - max_runtime_sec: 单次运行的墙钟预算（秒，默认 1800）。到点即
+              收工并如实报"部分完成"（budget_exhausted=True），下一轮续跑。
+              传 0 或负数表示不限时（仅调试用）。
 
     Returns:
         dict: 执行结果
     """
     scope = params.get('scope', 'all')
     batch_size = params.get('batch_size', 500)
+    max_runtime_sec = params.get('max_runtime_sec', DEFAULT_MAX_RUNTIME_SEC)
+    try:
+        # 必须用 float——int() 会把 0.3 这类小数截断成 0，而 0 的语义是
+        # "不限时"，等于把调用方给的预算静默变成了"无限制"（2026-10-21
+        # 自测时踩到：传 0.3 被读成 0，预算形同虚设）。
+        max_runtime_sec = float(max_runtime_sec)
+    except (TypeError, ValueError):
+        max_runtime_sec = float(DEFAULT_MAX_RUNTIME_SEC)
+    if max_runtime_sec <= 0:
+        max_runtime_sec = 0.0  # 0 = 不限时（调试用）
 
     logger.info("="*70)
     logger.info(f"K线数据更新任务开始 (scope={scope}, batch_size={batch_size if scope == 'batch' else 'N/A'})")
@@ -111,8 +142,23 @@ def update_gem_klines(**params):
         skipped = 0
         stale = 0  # 数据有效但未覆盖到目标日期（如 baostock 当日 EOD 未发布）
         consecutive_empty = 0
+        # 墙钟预算（2026-10-21 w-36c3225e）：全市场 5277 只实测约 1.7s/只
+        # ⇒ 单次约 2.5 小时。超预算即收工，如实报"部分完成"，
+        # 下一轮按陈旧度排序继续往前推（select_sync_universe 本就按陈旧度排）。
+        budget_exhausted = False
+        attempted = 0
+        deadline = time.monotonic() + max_runtime_sec if max_runtime_sec else None
 
         for i, (symbol, name) in enumerate(stocks, 1):
+            # 预算检查：每 N 只查一次时钟，避免在热循环里反复取时。
+            if deadline is not None and (i - 1) % _BUDGET_CHECK_EVERY == 0:
+                if time.monotonic() > deadline:
+                    budget_exhausted = True
+                    logger.warning(
+                        f"⏱ 达到墙钟预算 {max_runtime_sec}s，已处理 {i - 1}/{total} 只，"
+                        f"本次收工（部分完成），下一轮继续"
+                    )
+                    break
             # 2026-09-11 (w-23c70356) 写入侧兜底：daily_klines 只存 6 位 A 股裸码。
             # 选股 SQL 已过滤，此处兜住显式 symbols 入参（如 '600000.SH' 测试残留）——
             # 它们曾写出 1,213 行伪 K 线（含 4 只已退市代码的 2026 年"行情"）。
@@ -123,6 +169,7 @@ def update_gem_klines(**params):
             # 限速：首只之前不 sleep
             if i > 1 and interval and interval[1] > 0:
                 time.sleep(random.uniform(*interval))
+            attempted += 1
             try:
                 # 使用多数据源获取数据（自动fallback：tencent → akshare）
                 # 注意：manager.get_klines 返回 {'success', 'data', 'source'} 字典，
@@ -240,16 +287,32 @@ def update_gem_klines(**params):
             'failed': failed,
             'skipped': skipped,
             'stale': stale,
+            # 2026-10-21（w-36c3225e）：预算到点提前收工时如实标记，避免
+            # "只跑了 1/4 就报 success" 被下游当成全量完成（假成功工厂）。
+            'budget_exhausted': budget_exhausted,
+            'attempted': attempted,
+            'max_runtime_sec': max_runtime_sec,
             'amount_missing': amount_missing,
             'amount_scale_anomalies': amount_scale_anomalies[:20],
             'volume_unit_anomalies': volume_unit_anomalies[:20],
             'date_range': f"{start_date} -> {end_date}",
             'target_date': target_date,
-            'message': f'K线更新完成: 成功{success}只, 失败{failed}只, 跳过{skipped}只, 未覆盖基准日{stale}只'
+            'message': (
+                f'K线更新完成: 成功{success}只, 失败{failed}只, 跳过{skipped}只, '
+                f'未覆盖基准日{stale}只'
+                + (f'；预算到点部分完成（已处理 {attempted}/{total} 只）'
+                   if budget_exhausted else '')
+            )
         }
 
         logger.info("="*70)
-        logger.info(f"✅ K线更新完成 (scope={scope})")
+        if budget_exhausted:
+            logger.info(
+                f"⏱ K线更新部分完成 (scope={scope}, 已处理 {attempted}/{total}, "
+                f"预算 {max_runtime_sec}s) —— 下一轮续跑"
+            )
+        else:
+            logger.info(f"✅ K线更新完成 (scope={scope})")
         logger.info(f"  成功: {success}只")
         logger.info(f"  失败: {failed}只")
         logger.info(f"  跳过: {skipped}只")
