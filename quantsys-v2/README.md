@@ -25,8 +25,11 @@ source venv/bin/activate
 # 4. Install dependencies
 pip install -e .
 
-# 5. Start services
-python start_all.py
+# 5. Install 10 二方包 editable（必需）
+for p in packages/qs_*; do pip install -e "$p"; done
+
+# 6. Start FastAPI API (port 5001)
+python adapters/inbound/fastapi_app/main.py
 ```
 
 **❌ DO NOT**:
@@ -35,17 +38,17 @@ python start_all.py
 - Install packages globally
 - Create venv in project root directory (should be in quantsys-v2/)
 
-**📖 Detailed guide**: [PYTHON_ENVIRONMENT.md](PYTHON_ENVIRONMENT.md)
+**📖 Detailed guide**: [docs/guides/QUICK_START.md](docs/guides/QUICK_START.md)
 
 ---
 
 ## 🚀 Quick Start
 
-**New to the project?** Start here: [📖 Quick Start Guide](QUICK_START_GUIDE.md)
+**New to the project?** Start here: [📖 Developer Quick Start](docs/guides/QUICK_START.md)
 
-**For ML model deployment:** [📋 Deployment Plan](DEPLOYMENT_PLAN.md) | [✅ Project Handover Checklist](PROJECT_HANDOVER_CHECKLIST.md)
+**For ML model deployment (historical V6 plan, archived):** [📋 Deployment Plan](docs/archive/cleanup-2026-10/DEPLOYMENT_PLAN-V6-model-2026-06.md)
 
-**ML Training Results:** IC=0.25 (target >0.04), IR=0.48 (target >1.5) - [📊 Final Report](PROJECT_FINAL_CONCLUSION_REPORT.md)
+**ML Training Results (archive):** IC=0.25 (target >0.04), IR=0.48 (target >1.5)
 
 ## Overview
 
@@ -259,44 +262,39 @@ cp .env.example .env
 ### Start Services
 
 ```bash
-# Start all services (HTTP + WebSocket + Scheduler)
-python start_all.py
+# Start FastAPI REST API (port 5001; lifespan 承载 APScheduler/DailyJobs/WatchEngine 三条调度线程)
+python adapters/inbound/fastapi_app/main.py
 
-# Or start individually
-python api/server.py              # HTTP API (port 5001)
-python api/server_websocket.py    # WebSocket API (port 5003)
+# Start FastAPI WebSocket (port 5003)
+python adapters/inbound/fastapi_app/websocket_server.py
 
-# Initialize scheduler tasks (first time only)
-PYTHONPATH=. python scripts/init_scheduler_tasks.py
+# 生产重启（launchd 守护，崩溃自动拉起）
+launchctl kickstart -k gui/501/com.pi-investment.v2-api
 ```
 
 ### CLI Commands
 
 ```bash
 # Stock search
-python cli/main.py stock search --q 平安
+python adapters/inbound/cli/main.py stock search --q 平安
 
 # Factor calculation
-python cli/main.py factor calculate --symbol 000001.SZ
+python adapters/inbound/cli/main.py factor calculate --symbol 000001.SZ
 
 # Model training
-python cli/main.py model train --symbols 000001.SZ,600000.SH
+python adapters/inbound/cli/main.py model train --symbols 000001.SZ,600000.SH
 
 # Backtesting
-python cli/main.py backtest run --strategy momentum --start 2023-01-01
+python adapters/inbound/cli/main.py backtest run --strategy momentum --start 2023-01-01
 ```
 
 ### Data Management
 
 ```bash
-# Backfill historical data (补救缺失数据)
-PYTHONPATH=. python scripts/backfill_data.py --days 10
-
-# Backfill specific date range
-PYTHONPATH=. python scripts/backfill_data.py --start-date 2026-05-01 --end-date 2026-05-25
-
-# Test with limited stocks
-PYTHONPATH=. python scripts/backfill_data.py --days 10 --limit 10
+# K 线更新走调度任务 kline_update（收盘后自动执行，days/范围见任务行）
+# 手动补数走数据质量任务 auto_backfill —— 见 docs/guides/data-quality.md
+# 外部取数一律经 DataProviderManager（CLAUDE.md「Data Access Rules」，禁止直连 akshare）
+python tools/monitor_scheduler.py --executions 5   # 查看最近任务执行
 ```
 
 ### Scheduler Management
@@ -515,25 +513,20 @@ Get strategy weight adjustment for current market style.
 
 ### Architecture & Coding Standards
 
-- **[📖 Coding Standards](../docs/coding-standards.md)** - Complete hexagonal architecture guide
-- **[⚡ Architecture Quick Reference](../docs/ARCHITECTURE_QUICK_REFERENCE.md)** - Fast lookup for daily development
-- **[🔧 Framework Constraints](docs/FRAMEWORK_CONSTRAINTS.md)** - ORM, Session, Repository patterns
-- **[⚡ Framework Quick Reference](docs/FRAMEWORK_CONSTRAINTS_QUICK_REF.md)** - Common bugs and fixes
-- [Developer Onboarding](docs/DEVELOPER_ONBOARDING.md) - 5-minute quickstart for new developers
-- [Architecture Audit Progress](docs/architecture-audit-progress.md) - Refactoring journey
-- [ADR-001: Hexagonal Architecture](../docs/adr/001-hexagonal-architecture.md) - Architecture decision record
+- **[🔧 Framework Constraints](docs/FRAMEWORK_CONSTRAINTS.md)** - ORM, Session, Repository patterns（顶部 TL;DR → 最常见 5 坑）
+- [Developer Quick Start](docs/guides/QUICK_START.md) - 环境搭建 + 分层开发纪律（合并原 Developer Onboarding / PYTHON_ENVIRONMENT / DEVELOPER-QUICKSTART）
+- [ADR-003: Hexagonal Architecture](docs/adr/003-hexagonal-architecture.md) - Architecture decision record
 
 ### Module Documentation
 
-- [RL Module Documentation](quantlib/rl/README.md) - Base RL abstractions
-- [FinRL Documentation](quantlib/finrl/README.md) - FinRL integration guide
-- [Qlib Documentation](quantlib/qlib/README.md) - Qlib integration guide
+- [RL Module Documentation](packages/qs_quantlib/qs_quantlib/rl/README.md) - Base RL abstractions（原 quantlib/rl/，随 S7 抽离入二方包）
+- [FinRL Documentation](packages/qs_quantlib/qs_quantlib/finrl/README.md) - FinRL integration guide
+- [Qlib Documentation](packages/qs_quantlib/qs_quantlib/qlib/README.md) - Qlib integration guide
 
 ### Operations & Reports
 
-- [Data Recovery Report](docs/data-recovery-report.md) - Data backfill and scheduler setup
-- [Scheduler Analysis](docs/scheduler-analysis.md) - Scheduler root cause analysis
-- [Migration Reports](docs/superpowers/reports/) - Implementation reports
+- [Doc Center](docs/README.md) - 文档树导航（investigations / work-logs / archive 索引）
+- [Historical Reports](docs/archive/cleanup-2026-10/) - 迁移报告等过时史料归档
 - [CLAUDE.md](CLAUDE.md) - Project instructions for Claude Code
 
 ## Testing

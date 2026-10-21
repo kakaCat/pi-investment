@@ -6,6 +6,55 @@
 
 ---
 
+## TL;DR — 最常见的 5 个坑
+
+> 2026-10-21 合并了原 FRAMEWORK_CONSTRAINTS_QUICK_REF.md（已删除）——日常速查看本节，
+> 完整推理与更多模式看下文正文。
+
+### 1. Session 未关闭 → 连接池耗尽（症状 `too many clients already`）
+
+```python
+# ✅ with 自动关闭；❌ 裸 get_db_session() 会泄漏
+with get_db_session() as session:
+    result = session.query(Stock).all()
+```
+
+### 2. 写后读在同一 with 块 → 读不到数据
+
+写完必须关闭 session，再开**新 session** 读。
+
+### 3. 循环插入 → 性能极差（约 60 倍差距）
+
+```python
+session.bulk_insert_mappings(Kline, klines)
+session.commit()   # 一次 commit；❌ 循环内逐条 add+commit
+```
+
+### 4. Action 大小写不统一 → 幽灵持仓
+
+枚举值统一大写（`normalize_action(action).upper()`），写与查询两侧一致。
+
+### 5. Session 跨线程共享 → 崩溃
+
+Session 不是线程安全的；每个线程用各自的 `with get_db_session()`。
+
+**症状速查**：
+
+| 症状 | 根因 | 解决 |
+|------|------|------|
+| `too many clients` | Session 泄漏 | 用 `with get_db_session()` |
+| `DetachedInstanceError` | Session 关闭后访问关联对象 | `joinedload` 预加载 |
+| 写入后查不到 | 写后读在同一 with 块 | 新 session 读 |
+| 幽灵持仓 | action 大小写不匹配 | 统一大写 |
+| FastAPI 500 超时 | Session 池耗尽 | 用 `Depends(get_db)` |
+| 插入很慢 | 循环 commit | `bulk_insert_mappings` |
+
+**提交前清单**：session 全走 with / 写后读分离 / 批量用 bulk / 枚举大写 /
+异常后有 rollback / FastAPI 用 `Depends(get_db)` / 长任务用 `BackgroundTasks` /
+关联查询用 `joinedload`。
+
+---
+
 ## 目录
 
 1. [ORM 使用规范](#orm-使用规范)
