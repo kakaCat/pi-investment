@@ -366,8 +366,8 @@ def _resolve_universe() -> List[str]:
 
     # 1. 股票池成员
     try:
-        from adapters.outbound.repositories import StockPoolORMRepository
-        pool_repo = StockPoolORMRepository()
+        from infrastructure.services.service_factory import ServiceFactory
+        pool_repo = ServiceFactory.get_stock_pool_repository()
         for pool in pool_repo.get_all():
             symbols.extend(pool.get('symbols') or [])
     except Exception as e:
@@ -386,8 +386,8 @@ def _resolve_universe() -> List[str]:
 
     # 3. 沪深300 成分
     try:
-        from adapters.outbound.repositories import StockORMRepository
-        stock_repo = StockORMRepository()
+        from infrastructure.services.service_factory import ServiceFactory
+        stock_repo = ServiceFactory.get_stock_repository()
         symbols.extend(stock_repo.get_index_constituents([INDEX_CSI300]) or [])
     except Exception as e:
         logger.warning(f"沪深300 成分获取失败: {e}")

@@ -86,8 +86,8 @@ class VerificationJob:
         Returns:
             收益率（小数形式）
         """
-        from adapters.outbound.repositories.kline_repository import KlineORMRepository as KlineRepository
-        kline_repo = KlineRepository()
+        from infrastructure.services.service_factory import ServiceFactory
+        kline_repo = ServiceFactory.get_kline_repository()
 
         # 2026-09-13（w-32314d00，REQ-24e15d t4）：原先是"先取仓储 session 再手写裸 SQL"的半迁移写法，
         # 现改为调用仓储方法（查询收口到 kline_repository，作业层不再出现 SQL 文本）。
@@ -120,8 +120,8 @@ class VerificationJob:
         于是本方法此前**恒返回 0.0**：验证报表里的"基准收益"一直是 0，
         超额收益（策略 − 基准）被系统性高估。现改走仓储的指数口径方法。
         """
-        from adapters.outbound.repositories.kline_repository import KlineORMRepository as KlineRepository
-        kline_repo = KlineRepository()
+        from infrastructure.services.service_factory import ServiceFactory
+        kline_repo = ServiceFactory.get_kline_repository()
 
         ret = kline_repo.get_index_return('399006', start_date, end_date)
         if ret is None:

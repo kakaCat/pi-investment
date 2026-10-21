@@ -28,8 +28,8 @@ class ReportDailyJob(Job):
 
     async def execute(self, params: Dict[str, Any]) -> JobResult:
         try:
-            from adapters.outbound.repositories.stock_repository import StockORMRepository
-            stocks = StockORMRepository().list_all_active(market="A")
+            from infrastructure.services.service_factory import ServiceFactory
+            stocks = ServiceFactory.get_stock_repository().list_all_active(market="A")
             return JobResult.ok(
                 self.name,
                 message=f"每日报告生成完成: {len(stocks)} stocks",

@@ -117,8 +117,8 @@ class WeeklyReportJob:
         positions = self.repo.get_all_positions(account_name=self.ACCOUNT_NAME)
         returns = []
 
-        from adapters.outbound.repositories.kline_repository import KlineORMRepository as KlineRepository
-        kline_repo = KlineRepository()
+        from infrastructure.services.service_factory import ServiceFactory
+        kline_repo = ServiceFactory.get_kline_repository()
 
         for pos in positions:
             # 2026-09-13（w-32314d00，REQ-24e15d t4）：与 verification_job 同源写法（先取仓储 session
@@ -144,8 +144,8 @@ class WeeklyReportJob:
         daily_klines 里 399 族 0 行，导致周报"基准收益"**长期恒为 0.0**，超额收益失真。
         现改走仓储指数口径；取数为空时显式告警，不再静默把"没取到"当成"收益为 0"。
         """
-        from adapters.outbound.repositories.kline_repository import KlineORMRepository as KlineRepository
-        kline_repo = KlineRepository()
+        from infrastructure.services.service_factory import ServiceFactory
+        kline_repo = ServiceFactory.get_kline_repository()
 
         ret = kline_repo.get_index_return('399006', start_date, end_date)
         if ret is None:

@@ -62,8 +62,8 @@ class RiskCheckJob:
         start_date = account.created_at.strftime('%Y-%m-%d')
         current_date = datetime.now().strftime('%Y-%m-%d')
 
-        from adapters.outbound.repositories.kline_repository import KlineORMRepository as KlineRepository
-        kline_repo = KlineRepository()
+        from infrastructure.services.service_factory import ServiceFactory
+        kline_repo = ServiceFactory.get_kline_repository()
 
         ret = kline_repo.get_index_return('399006', start_date, current_date)
         if ret is None:
@@ -147,8 +147,8 @@ class RiskCheckJob:
 
         # 2026-09-13（w-32314d00，REQ-24e15d t4）：仓储实例提到循环外——原先每只持仓
         # 都新建一个仓储（各自一个 session），N 只持仓 = N 个 session，既是裸 SQL 也是 session 泄漏源。
-        from adapters.outbound.repositories.kline_repository import KlineORMRepository as KlineRepository
-        kline_repo = KlineRepository()
+        from infrastructure.services.service_factory import ServiceFactory
+        kline_repo = ServiceFactory.get_kline_repository()
         as_of = datetime.now().strftime('%Y-%m-%d')
 
         for pos in positions:

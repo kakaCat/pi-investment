@@ -106,8 +106,8 @@ def execute(**params) -> Dict[str, Any]:
         # 1. 查询当前最新财报数据更新时间
         # 2026-09-14（w-32314d00，REQ-24e15d B2）：裸 SQL → StockORMRepository。
         # 口径不变：只统计 roe 非空的 A 股行（roe 为空 = 该行从未被财务更新覆盖）。
-        from adapters.outbound.repositories.stock_repository import StockORMRepository
-        last_update = StockORMRepository().get_latest_financial_update_time('A')
+        from infrastructure.services.service_factory import ServiceFactory
+        last_update = ServiceFactory.get_stock_repository().get_latest_financial_update_time('A')
 
         if not last_update:
             logger.warning("无法确定最新财务数据更新时间")

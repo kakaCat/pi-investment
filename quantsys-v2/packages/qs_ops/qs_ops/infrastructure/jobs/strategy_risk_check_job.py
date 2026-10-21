@@ -31,7 +31,6 @@ from typing import Dict, List, Optional
 # 运行方式见本文件头部说明（需 `PYTHONPATH=.`）。库层不得自行改 sys.path。
 
 from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
-from adapters.outbound.repositories.kline_repository import KlineORMRepository as KlineRepository
 from qs_notification.application.notification_factory import get_notification_facade
 from qs_strategy.application.services.strategy_service import StrategyService
 from live_trading.simulation_trader import SimulationTrader
@@ -62,7 +61,8 @@ class StrategyRiskChecker:
 
         # 初始化仓库
         self.repo = SimulationORMRepository()
-        self.kline_repo = KlineRepository()
+        from infrastructure.services.service_factory import ServiceFactory
+        self.kline_repo = ServiceFactory.get_kline_repository()
 
         # 初始化通知门面
         self.notification_facade = get_notification_facade()
@@ -97,8 +97,8 @@ class StrategyRiskChecker:
         2026-09-13（w-32314d00，REQ-24e15d t4）：原来是本文件里唯一一处对 quant.stocks
         的裸 SQL（且裸 except 吞掉一切异常），现走 StockORMRepository.get_by_symbol。
         """
-        from adapters.outbound.repositories.stock_repository import StockORMRepository
-        stock = StockORMRepository().get_by_symbol(symbol)
+        from infrastructure.services.service_factory import ServiceFactory
+        stock = ServiceFactory.get_stock_repository().get_by_symbol(symbol)
         name = getattr(stock, 'name', None) if stock else None
         return name or symbol
 

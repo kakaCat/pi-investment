@@ -724,3 +724,29 @@ flowchart TB
      daily_orchestrator×2、chan_scan×2 等）
   ③ qs_ops jobs 层 patch 敏感边（模块属性 patch 依赖测试改造后才能换 getter/canonical）
   ④ 合法白名单（ServiceFactory×10/包 等已登记，无需动作）
+
+## 2026-10-21 · 阶段2 批14：qs_ops jobs 层 getter 收编 ×14 站点（9 文件）——收尾核查的细分补录
+
+- **背景**：批12 收尾核查曾把 qs_ops jobs 层仓储边整层暂留；但其 patch 敏感球谱只圈定
+  四个文件组（scheduler.py 顶层×6 / analysis+signal_jobs 惰性面 / data_jobs.py:123 /
+  financial_data_update_job.py:151）。本轮对 47 条仓储边逐文件重普查，四区之外、
+  getter 有家的子集可安全收编——收编前重跑测试面 patch 矩阵确认零依赖
+- **排除面（维持暂留）**：① patch 敏感四区原样排除；② 无 getter 实体
+  （simulation×6 / scheduler×3 / heatmap×2 / chip×1 / kline_quality×2 / financial×2 /
+  job_run×1 / market_style×1 / market_perception×1 / kline_sync×1 / fund_flow×1 /
+  agent_knowledge×1）待仓储归属阶段
+- **ships（14 站点 / 9 文件，全部惰性直构→站点级惰性 getter，保留文件原惰性风格）**：
+  · kline×9：risk_check_job:65,150 / verification_job:89,123 / weekly_report_job:120,147
+  （三文件同款两行块 replaceAll）+ market_style_update_job:92 / fund_flow_update_job:42,44
+  / strategy_risk_check_job:34 顶层别名删 + :65 直构→getter
+  · stock×3：strategy_risk_check_job:100 / report_jobs:31 / financial_timeliness_check_job:109
+  · stock_pool×1：financial_statement_update_job:369（同文件 :389 stock 亦收，
+    :151   子模块 patch 对包属性导入本就无效，无行为变化）
+- patch 排查证据：test_chan_jobs.py:33/:55 的 kline_repository 模块级 patch 只驱动
+  已排除的 analysis/signal_jobs；13 个引用测试文件中其余 setattr 均打在无 getter 实体
+  （FinancialORMRepository / FundFlowORMRepository）或排除区（data_jobs StockORMRepository）
+- 验证：py_compile ×9 ✓；冒烟（getter 类单身份 KlineORMRepository/StockORMRepository/
+  StockPoolRepository + 9 方法面 + 9 模块加载）✓；残余直构复检 6 文件 0 命中 ✓；
+  相邻测试 13 文件 93 passed + 1 failed——该失败=批12 A/B 实锤登记的同一条预存用例
+  （test_compute_and_persist_via_factor_stage），**零新增失败**
+- ⚠️ trading_day_guard.py:396 仍排除（并行会话脏文件）

@@ -89,8 +89,8 @@ def _resolve_trade_date(params: Dict[str, Any]) -> str:
     except Exception as e:
         logger.warning(f"读取 regime/sentiment 交易日锚失败, 降级: {e}")
     try:
-        from adapters.outbound.repositories.kline_repository import KlineORMRepository
-        kline_latest = KlineORMRepository().get_latest_trade_date()
+        from infrastructure.services.service_factory import ServiceFactory
+        kline_latest = ServiceFactory.get_kline_repository().get_latest_trade_date()
         if kline_latest == today:
             kline_has_today = True
     except Exception as e:
