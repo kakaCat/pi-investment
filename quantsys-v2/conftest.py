@@ -53,7 +53,24 @@ except Exception:
     pass  # If import fails, tests that need real services will still work
 
 
+def _bootstrap_service_factory():
+    """2026-10-21（S11 僵尸测试批次 2）：测试环境的 DI **真初始化**。
+
+    仅靠下方 `_make_safe` 吞 ValueError 塞 MagicMock 会让"注册面缺口"伪装成
+    "未注册"：heat 图 9F（combine() 收到 MagicMock）即因 IHeatmapRepository
+    从未注册 + 幻肢兜底。此处先真注册（ services.yaml 已补 heatmap 条目），
+    resolve 命中真实现；`_make_safe` 降级为未注册端口的纯防御层。
+    """
+    try:
+        from infrastructure.services.service_factory import ServiceFactory
+        ServiceFactory.initialize()
+    except Exception as e:
+        import logging
+        logging.getLogger("conftest").warning("ServiceFactory bootstrap failed: %s", e)
+
+
 def pytest_configure(config):
+    _bootstrap_service_factory()
     """Load test environment variables before running tests."""
     # Get the project root directory
     project_root = Path(__file__).parent

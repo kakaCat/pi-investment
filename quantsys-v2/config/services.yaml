@@ -16,6 +16,14 @@ repositories:
     lifecycle: singleton
     description: 'K线数据仓库'
 
+  # 热力图聚合仓储（2026-10-21 S11 僵尸测试批次2：生产 DI 收口——该端口此前从未注册，
+  # 测试靠根 conftest _make_safe 幻肢吞 ValueError 塞 MagicMock，9F 根因）
+  heatmap:
+    interface: qs_kernel.domain.ports.IHeatmapRepository
+    implementation: adapters.outbound.repositories.heatmap_repository.HeatmapRepository
+    lifecycle: singleton
+    description: '热力图聚合仓储'
+
   # 交易信号相关
   signal:
     interface: qs_kernel.domain.ports.ISignalRepository
