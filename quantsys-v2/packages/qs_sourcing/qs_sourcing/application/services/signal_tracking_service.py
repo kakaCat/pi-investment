@@ -100,10 +100,10 @@ class SignalTrackingService:
             {"success": True, "updated": 15, "details": {...}}
         """
         from qs_sourcing.adapters.outbound.repositories.signal_tracking_repository import SignalTrackingRepository
-        from adapters.outbound.repositories.kline_repository import KlineORMRepository
-        
+        from infrastructure.services.service_factory import ServiceFactory
+
         repo = SignalTrackingRepository(self.db)
-        kline_repo = KlineORMRepository()
+        kline_repo = ServiceFactory.get_kline_repository()
         
         # 获取待更新的信号
         if signal_date:

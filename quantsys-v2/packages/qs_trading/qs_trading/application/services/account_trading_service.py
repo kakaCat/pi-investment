@@ -683,10 +683,8 @@ class AccountTradingService:
         except (TypeError, ValueError):
             return str(strategy_id) if strategy_id else None
         try:
-            from adapters.outbound.repositories.strategy_repository import (
-                StrategyORMRepository,
-            )
-            row = StrategyORMRepository().get_by_id(sid)
+            from infrastructure.services.service_factory import ServiceFactory
+            row = ServiceFactory.get_strategy_repository().get_by_id(sid)
             return (row or {}).get('strategy_name') or str(strategy_id)
         except Exception:  # noqa: BLE001
             return str(strategy_id)

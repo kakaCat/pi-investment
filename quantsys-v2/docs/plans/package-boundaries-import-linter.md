@@ -604,3 +604,23 @@ flowchart TB
 - 暂留登记（无 canonical 包家，S11 kernel 候选）：`chan_scan_service`×2、
   `ml_pipeline.feature_engineering/predictor/trainer/artifacts`×4、
   `daily_orchestrator`×2、`circuit_breaker_alert_service`×1
+
+## 2026-10-21 · 阶段2 批10：包→L1 仓储直引 ×3 收编（有 ServiceFactory 具名 getter 的边）
+
+- 普查：qs_agenthub/qs_trading/qs_intel/qs_sourcing 对 `adapters.outbound.repositories`
+  直引共 16 条；ServiceFactory 具名 getter 存量盘点（get_stock/stock_pool/strategy/kline/
+  signal/signal_execution_log/portfolio/risk/factor/ml_model×2）后，**只有 3 条有现成收口面**
+- **qs_intel battlefield_assessor:227/230**、**qs_sourcing signal_tracking_service:103/106**：
+  `KlineORMRepository()` 直构 → `ServiceFactory.get_kline_repository()`
+  （getter legacy 回退返回同类实例，qs_trading 三处生产先例同款用法）
+- **qs_trading account_trading_service:686**：`StrategyORMRepository().get_by_id` 直构
+  → `ServiceFactory.get_strategy_repository()`（同类 legacy 回退，get_by_id 面在）
+- 验证：py_compile ×3 ✓；冒烟（三模块加载 + getter 返回类型 KlineORMRepository/
+  StrategyORMRepository + get_by_id 有面）✓；相邻测试面 7 文件 **56 passed**
+- ⚠️ A/B stash 对照实锤 2 失败预存（test_signal_tracking_connection ×2：
+  `_Cursor object is not iterable` mock 语义漂移，与本批无关——signal_tracking_repository
+  面未动）；预存失败集累计登记：批7×3、批9×11、批10×2
+- **暂留（无 getter 无 canonical，待仓储归属阶段）**：session×3（agenthub）、
+  simulation×4（agenthub:572/trading:262/sourcing:42,82）、portfolio_circuit_breaker×1、
+  strategy_performance×1、market_style×1、market_perception 多符号×1、
+  retail_panic sentiment+fund_flow×2

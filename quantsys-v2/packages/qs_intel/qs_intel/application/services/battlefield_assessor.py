@@ -224,10 +224,10 @@ class BattlefieldAssessor:
         
         M2-3 修复：增强降级算法，提升区分度
         """
-        from adapters.outbound.repositories.kline_repository import KlineORMRepository
-        
+        from infrastructure.services.service_factory import ServiceFactory
+
         stock_scores = []
-        kline_repo = KlineORMRepository()
+        kline_repo = ServiceFactory.get_kline_repository()
         end_date = datetime.now().strftime('%Y-%m-%d')
         start_date = (datetime.now() - timedelta(days=10)).strftime('%Y-%m-%d')
         
