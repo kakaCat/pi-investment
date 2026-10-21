@@ -586,27 +586,26 @@ _FILL_SYNC_SERVICE: Optional[FillSyncService] = None
 def build_fill_sync_service(**overrides: Any) -> FillSyncService:
     """按生产装配构造服务（仓储懒建，不在 import 期连库）。
 
-    「暂留 L1 引用」的 watch 系仓储 + 持仓仓储在本包边界说明里已登记
-    （`packages/qs_watch/CLAUDE.md`「依赖边界」），与 `exec_directive` 的持仓读口同源。
+    仓储经 DI 组合根（`_repo_resolver` 单点）装配；待办服务走
+    `watch_loop_wiring.build_todo_service`（含 owner agent 派单），与生产装配同源。
     """
-    from adapters.outbound.repositories.simulation_position_repository import (
-        SimulationPositionRepository,
+    from qs_watch.application.services.watch_engine._repo_resolver import (
+        sim_position_repo,
+        watch_rule_repo,
+        watch_trigger_repo,
     )
-    from adapters.outbound.repositories.watch_rule_repository import (
-        WatchRuleRepository,
-        WatchTriggerRepository,
+    from qs_watch.application.services.watch_engine.watch_loop_wiring import (
+        build_todo_service,
     )
-    from adapters.outbound.repositories.watch_todo_repository import WatchTodoRepository
-    from qs_watch.application.services.watch_engine.todo_service import TodoService
 
-    rule_repo = overrides.pop('rule_repo', None) or WatchRuleRepository()
-    position_repo = overrides.pop('position_repo', None) or SimulationPositionRepository()
+    rule_repo = overrides.pop('rule_repo', None) or watch_rule_repo()
+    position_repo = overrides.pop('position_repo', None) or sim_position_repo()
     lifecycle = overrides.pop('lifecycle', None) or PositionLifecycleService(
         rule_repo=rule_repo, position_repo=position_repo)
     return FillSyncService(
         rule_repo=rule_repo,
-        todo_service=overrides.pop('todo_service', None) or TodoService(WatchTodoRepository()),
-        trigger_repo=overrides.pop('trigger_repo', None) or WatchTriggerRepository(),
+        todo_service=overrides.pop('todo_service', None) or build_todo_service(),
+        trigger_repo=overrides.pop('trigger_repo', None) or watch_trigger_repo(),
         position_repo=position_repo,
         lifecycle=lifecycle,
         **overrides,

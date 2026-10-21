@@ -532,3 +532,13 @@ flowchart TB
   ⚠️ 教训：该迁移家族 `_engine()` 兜底 DSN 是硬编码 quant_investment **不读 PGDATABASE**——
   对测试库跑必须用 `--dsn`，裸跑实为生产库 no-op
 - 至此 2026-10-20 重启后风险面 21F 的「真问题」件清零（其余为历史坏用例/环境件，属僵尸清理彼卡）
+
+## 2026-10-21 · 阶段2 批6：qs_watch adapters 出向边清零（L1 直引→DI 组合根收编完成）
+
+- `fill_sync_service.build_fill_sync_service` 的 3 路 L1 直引
+  （simulation_position_repository / watch_rule_repository×2 / watch_todo_repository +
+  TodoService 裸构造）换 `_repo_resolver` 单点 + `watch_loop_wiring.build_todo_service()`
+  （与生产装配同源，含 owner agent 派单语义；测试全走 overrides 注入 fake，默认路径不触碰）
+- 「暂留 L1 引用」边界说明段落随改随删——qs_watch 包内 `adapters.*` 直引 **grep 归零**
+- 验证：py_compile ✓；fill_sync_service / fill_sync_factory_wiring / watch_exec_loop_e2e /
+  paper_trading_engine_risk 四面 **54 passed**
