@@ -720,7 +720,7 @@ pnpm build
 ## DSH 版本与升级（2026-10-17 起：0.2.1-rc.2）
 
 - **钉版本**：根 `package.json` 的依赖与 `pnpm.overrides` 全量钉 `0.2.1-rc.2`，`@deepseek-ai/cordis` 钉 `4.0.5`。
-  桌面版同期为 `0.2.1-rc.1`；升级前先看本地 deepseek-harness checkout 的最新 tag（`git tag --sort=-creatordate`）。
+  桌面版同期为 `0.2.1-rc.2`；升级前先看本地 deepseek-harness checkout 的最新 tag（`git tag --sort=-creatordate`）。
 - **Agent preset 变了**：0.2.1 不再扫描 `$DSH_HOME/.agent-presets/<id>/agent.cordis.yml`。preset 现在是一条
   `@deepseek-ai/dsh-agent-preset` 插件行（`config.plugins` 内联组合），默认值由 `agent-preset-registry.config.default`
   指定。本 profile 的 `investment` preset 定义在 `config/cordis.yml` 的 `preset-investment` 行（= 0.2.1 内置
@@ -739,6 +739,8 @@ pnpm build
   `preset-investment` 内联行（默认 investment 不变）；3 个 pnpm patch 重打；apps/web 补 `@tanstack/react-virtual`；
   config 清理 0.1.x 失效覆盖行；零参绑定守护测试改为跟随已安装版本。冒烟：启动无错、preset RPC 返回
   investment(isDefault)、插件 208 active/0 failure、页面与投资模式按钮正常渲染；测试与升级前基线一致。
+  2026-10-21 正式合并：模型目录改名（deepseek-v4-flash → deepseek-flash）已修，端到端 E2E 通过（会话创建/投资模式挂载/
+  163 工具注册/LLM 回复/UI 零报错）。
 
 - 2026-09-22: 插件 bundle 化（REQ-260922133113-ebc5）——投资插件行从用户层裸 insert 迁入三个
   业务域 bundle（`packages/bundle/bundle-stock|bundle-evolution|bundle-platform`，dsh.bundle.patch
