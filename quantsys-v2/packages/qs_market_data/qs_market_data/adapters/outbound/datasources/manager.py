@@ -1014,6 +1014,15 @@ class DataProviderManager(IDataProviderManager):
         """全市场财经新闻（区别于 get_news 的个股新闻）"""
         return self._try_providers(self.market_providers, 'get_market_news')
 
+    def get_policy_news(self, limit: int = 50) -> dict:
+        """政策/宏观快讯（2026-10-21）。
+
+        与 get_market_news 的口径差异是**实测结论**：symbol 空口径的「全市场新闻」
+        实际返回个股/盘面快讯（资金流、个股公告），政策浓度极低。政策盯盘需要
+        财联社电报这类政策源，故单列一个方法（适配器不支持时自动跳过）。
+        """
+        return self._try_providers(self.market_providers, 'get_policy_news', limit)
+
     def get_index_daily(self, symbol: str) -> dict:
         """指数历史日K（symbol 如 sh000300）"""
         return self._try_providers(self.market_providers, 'get_index_daily', symbol)

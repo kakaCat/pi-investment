@@ -182,6 +182,7 @@ class PolicyNewsSource:
             'reason': '',
             'provider': '',
             'attempted_sources': [],
+            'channel': 'policy',
             'fetched_at': datetime.now().isoformat(),
         }
 
@@ -191,11 +192,26 @@ class PolicyNewsSource:
             return self._skipped(out, '数据源不可用：%s: %s'
                                  % (type(exc).__name__, exc))
 
-        try:
-            result = manager.get_market_news()
-        except Exception as exc:   # noqa: BLE001 - fail-open：取数异常不炸扫盘
-            return self._skipped(out, '取数异常：%s: %s'
-                                 % (type(exc).__name__, exc))
+        # 政策口径优先（2026-10-21 实测修正）：全市场新闻源实际是个股/盘面快讯，
+        # 政策浓度极低；数据引擎为此新增 get_policy_news（财联社电报优先）。
+        # 政策方法不存在（旧数据引擎）或硬失败时才退全市场口径——健康但为空**不退**，
+        # 否则会把盘面快讯灌进政策扫描（那是噪音，不是降级）。
+        channel = 'policy'
+        result = None
+        fetch = getattr(manager, 'get_policy_news', None)
+        if callable(fetch):
+            try:
+                result = fetch(self._limit)
+            except Exception:   # noqa: BLE001 - 政策源异常 → 退全市场口径再判
+                result = None
+        if not (isinstance(result, dict) and result.get('success')):
+            channel = 'market'
+            try:
+                result = manager.get_market_news()
+            except Exception as exc:   # noqa: BLE001 - fail-open：取数异常不炸扫盘
+                return self._skipped(out, '取数异常：%s: %s'
+                                     % (type(exc).__name__, exc))
+        out['channel'] = channel
 
         if not isinstance(result, dict):
             return self._skipped(out, '返回非 dict（%s）'

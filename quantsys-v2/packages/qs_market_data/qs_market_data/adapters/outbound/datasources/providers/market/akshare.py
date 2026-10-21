@@ -432,6 +432,89 @@ class AkshareMarketProvider(MarketProvider):
             logger.warning(f"{self.name} get_market_news failed: {e}")
             return None
 
+    def get_policy_news(self, limit: int = 50) -> Optional[MarketData]:
+        """政策/宏观快讯（2026-10-21 新增，政策盯盘口径）。
+
+        为什么与 get_market_news 分开：实测 symbol 空口径的「全市场新闻」
+        （stock_news_em 无参版）返回的是个股/盘面快讯（资金流、个股公告），
+        政策浓度极低——政策扫描拉十轮也可能零命中。政策口径改用：
+          首选 财联社电报 ak.stock_info_global_cls(symbol='全部')
+          兜底 东财全球财经快讯 ak.stock_info_global_em()
+
+        失败语义：两源都抛异常返回 None（manager 计故障并降级/熔断）；
+        源健康但无数据返回「空 records」（健康空）。**不把故障伪装成无政策消息**。
+        """
+        try:
+            limit = max(1, min(int(limit or 50), 200))
+        except (TypeError, ValueError):
+            limit = 50
+
+        records: list[dict] = []
+        errors: list[str] = []
+
+        try:
+            import akshare as ak
+
+            df = ak.stock_info_global_cls(symbol='全部')
+            if df is not None and not df.empty:
+                for _, row in df.iterrows():
+                    title = str(row.get('标题') or '').strip()
+                    if not title:
+                        continue
+                    date = str(row.get('发布日期') or '').strip()
+                    clock = str(row.get('发布时间') or '').strip()
+                    records.append({
+                        'title': title,
+                        'time': ' '.join(x for x in (date, clock) if x),
+                        'source': '财联社电报',
+                        'url': '',
+                    })
+        except Exception as e:  # noqa: BLE001 - 首源失败退备源
+            errors.append('财联社电报: %s: %s' % (type(e).__name__, e))
+            logger.warning(f'{self.name} get_policy_news cls failed: {e}')
+
+        if not records:
+            try:
+                import akshare as ak
+
+                df = ak.stock_info_global_em()
+                if df is not None and not df.empty:
+                    for _, row in df.iterrows():
+                        title = str(row.get('标题') or '').strip()
+                        if not title:
+                            continue
+                        records.append({
+                            'title': title,
+                            'time': str(row.get('发布时间') or '').strip(),
+                            'source': '东财全球快讯',
+                            'url': str(row.get('链接') or '').strip(),
+                        })
+            except Exception as e:  # noqa: BLE001 - 备源失败同样留痕
+                errors.append('东财全球快讯: %s: %s' % (type(e).__name__, e))
+                logger.warning(f'{self.name} get_policy_news em failed: {e}')
+
+        # 去重（标题）+ 截断：两源可能报同一事件
+        seen: set = set()
+        out: list[dict] = []
+        for rec in records:
+            title = rec['title']
+            if title in seen:
+                continue
+            seen.add(title)
+            out.append(rec)
+            if len(out) >= limit:
+                break
+
+        if not out and len(errors) >= 2:
+            return None
+
+        return MarketData(
+            data_type='policy_news',
+            data={'records': out, 'total': len(out)},
+            source=self.name,
+            timestamp=datetime.now().isoformat(),
+        )
+
     def get_index_daily(self, symbol: str) -> Optional[MarketData]:
         """指数历史日K（stock_zh_index_daily，如 sh000300）
 

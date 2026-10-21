@@ -298,3 +298,64 @@ def test_module_never_imports_akshare_directly():
             imported.add(node.module.split('.')[0])
     assert 'akshare' not in imported
     assert 'tushare' not in imported
+
+
+# ── 政策口径（2026-10-21 实测修正：全市场新闻是个股/盘面快讯，政策浓度极低）──
+class _PolicyManager(_Manager):
+    """假 manager：额外实现 get_policy_news（新数据引擎口径）。"""
+
+    def __init__(self, policy=None, policy_error=None, **kwargs):
+        super().__init__(**kwargs)
+        self._policy = policy
+        self._policy_error = policy_error
+        self.policy_calls = []
+
+    def get_policy_news(self, limit=50):
+        self.policy_calls.append(limit)
+        if self._policy_error is not None:
+            raise self._policy_error
+        return self._policy
+
+
+def test_fetch_prefers_policy_channel_and_skips_market():
+    manager = _PolicyManager(
+        policy=_result([{'title': '证监会：稳步推进注册制改革', 'time': '2026-10-21 09:00',
+                         'source': '财联社电报', 'url': ''}]),
+        result=_result([{'title': '盘面快讯', 'time': '', 'source': 'x', 'url': ''}]),
+    )
+    out = PolicyNewsSource(manager=manager, limit=10).fetch()
+    assert out['channel'] == 'policy'
+    assert out['records'][0]['title'].startswith('证监会')
+    assert manager.policy_calls, '应调用政策方法'
+    assert manager.calls == [], '政策成功时不得回落全市场口径'
+
+
+def test_policy_hard_failure_falls_back_to_market():
+    manager = _PolicyManager(
+        policy=_result(None, success=False, error='akshare down'),
+        result=_result([{'title': '盘面快讯', 'time': '', 'source': 'x', 'url': ''}]),
+    )
+    out = PolicyNewsSource(manager=manager, limit=10).fetch()
+    assert out['channel'] == 'market'
+    assert out['records'][0]['title'] == '盘面快讯'
+
+
+def test_policy_healthy_empty_does_not_fall_back():
+    """健康但为空 = 真的没有政策消息；回落全市场会把盘面快讯灌进来（噪音）。"""
+    manager = _PolicyManager(
+        policy=_result([]),
+        result=_result([{'title': '盘面快讯', 'time': '', 'source': 'x', 'url': ''}]),
+    )
+    out = PolicyNewsSource(manager=manager, limit=10).fetch()
+    assert out['channel'] == 'policy'
+    assert out['records'] == [] and out['empty'] is True and out['skipped'] is False
+    assert manager.calls == []
+
+
+def test_policy_exception_falls_back_to_market():
+    manager = _PolicyManager(
+        policy_error=RuntimeError('boom'),
+        result=_result([{'title': '盘面快讯', 'time': '', 'source': 'x', 'url': ''}]),
+    )
+    out = PolicyNewsSource(manager=manager, limit=10).fetch()
+    assert out['channel'] == 'market' and out['records'][0]['title'] == '盘面快讯'
