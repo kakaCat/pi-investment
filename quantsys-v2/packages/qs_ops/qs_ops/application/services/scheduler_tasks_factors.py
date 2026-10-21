@@ -132,17 +132,26 @@ def handle_factor_compute(params: Dict[str, Any] = None) -> Dict[str, Any]:
 
         computed = 0
         failed = []
-        for sym in symbols:
+
+        # 2026-10-21 并行化（evening_pipeline 实测 10-12 小时/晚，~9.6s/只 × 5000 只
+        # 全串行）：K线拉取与因子落库是 I/O、FactorStage 计算的 numpy 段会释放 GIL，
+        # 线程池可显著压缩时长（ml_async 训练数据加载已有同款 ThreadPoolExecutor 先例）。
+        # 每个任务结束归还线程会话（scoped_session 线程本地，不归还占住连接——
+        # 同 model_train 的 _release_thread_session 处置）。
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        from qs_ops.application.services.scheduler_tasks_training_guard import _release_thread_session
+        workers = int(params.get('workers', 8))
+
+        def _compute_one(sym: str):
             try:
                 kline_repo = ServiceFactory.get_kline_repository()
                 klines_df = kline_repo.get_daily_klines(sym, start_date, end_date)
                 if klines_df is None or klines_df.is_empty():
-                    failed.append(sym)
-                    continue
+                    return sym, False
 
                 klines = klines_df.to_dicts()
                 klines = _inject_fund_flow_to_klines(klines, sym)
-                
+
                 stage = FactorStage(name='factors', factor_names=requested)
                 stage_input = {'symbol': sym, 'klines': klines}
                 if requested:
@@ -150,23 +159,37 @@ def handle_factor_compute(params: Dict[str, Any] = None) -> Dict[str, Any]:
 
                 result = stage.process(stage_input)
                 factors = result.get('factors', {})
-                
+
                 all_requested = requested or stage.DEFAULT_TECHNICAL_FACTORS
                 computed_names = set(factors.keys())
                 missing = set(all_requested) - computed_names
                 if missing and len(klines) < 250:
                     logger.warning(f"{sym}: {len(missing)} factors dropped (insufficient data {len(klines)}<250): {sorted(missing)}")
-                
+
                 fund_factors = _extract_fund_flow_factors(klines)
                 factors.update(fund_factors)
 
                 last_row = klines[-1]
                 latest_date = last_row.get('trade_date') or last_row.get('date') or ''
                 ServiceFactory.get_factor_repository().save_factors(sym, str(latest_date), factors)
-                computed += 1
+                return sym, True
             except Exception as sym_err:
                 logger.warning(f"factor compute failed for {sym}: {sym_err}")
-                failed.append(sym)
+                return sym, False
+            finally:
+                _release_thread_session()
+
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            futures = {executor.submit(_compute_one, sym): sym for sym in symbols}
+            for i, future in enumerate(as_completed(futures)):
+                sym, ok = future.result()
+                if ok:
+                    computed += 1
+                else:
+                    failed.append(sym)
+                if (i + 1) % 200 == 0:
+                    logger.info(f"factor compute progress: {i + 1}/{len(symbols)} "
+                                f"(computed={computed}, failed={len(failed)})")
 
         return {
             "action": "factor_compute",
