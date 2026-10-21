@@ -520,3 +520,15 @@ flowchart TB
   paper_risk 六面 **68+101 passed**（fill_sync_service 9 失败全数转绿）
 - ⚠️ 协作纪律：并行手提交叠加期间，文件基线在会话中段平移——后续合流一律走
   difflib 3-way（delete=还原 + replace=保留对方修复），禁整文件 revet
+
+## 2026-10-21 · 阶段2 批5：sim_pending_orders.submitted_by 迁移补齐（风险面 21F 遗留收口）
+
+- `tests/test_orm_db_drift.py` 唯一残留 F（原判「并行会话 simulation 批缺失 migration，待其收敛」——
+  其批已落地提交而迁移仍未到位）→ 补
+  `infrastructure/persistence/migrations/20261021_simulation_pending_orders_submitted_by.py`
+  （ADD COLUMN IF NOT EXISTS + COMMENT，幂等，NULL=无下单窗口信息）；
+  生产库四表本已具备该列，仅测试库 `simulation_pending_orders` 缺
+- 验证：`--dsn` 显式指 quant_test --apply 成功；drift + enhanced_service_factory **20 passed**。
+  ⚠️ 教训：该迁移家族 `_engine()` 兜底 DSN 是硬编码 quant_investment **不读 PGDATABASE**——
+  对测试库跑必须用 `--dsn`，裸跑实为生产库 no-op
+- 至此 2026-10-20 重启后风险面 21F 的「真问题」件清零（其余为历史坏用例/环境件，属僵尸清理彼卡）
