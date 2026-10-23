@@ -75,7 +75,12 @@ class SignalExecutionORMRepository(BaseORMRepository[SignalExecution], ISignalEx
 
         Returns:
             SignalExecution列表
+
+        Raises:
+            ValueError: status 非法
         """
+        if status is not None and status not in self.STATUSES:
+            raise ValueError(f"Invalid status: {status}（合法值: {self.STATUSES}）")
         try:
             query = self.session.query(SignalExecution).filter(
                 SignalExecution.execution_date == execution_date
@@ -132,7 +137,12 @@ class SignalExecutionORMRepository(BaseORMRepository[SignalExecution], ISignalEx
             logger.error(f"Error getting pending executions: {e}")
             return []
 
-    def get_all_executions(self, limit: int = 200, offset: int = 0) -> List[SignalExecution]:
+    def get_all_executions(
+        self,
+        limit: int = 200,
+        offset: int = 0,
+        status: Optional[str] = None
+    ) -> List[SignalExecution]:
         """获取所有执行记录（兼容方法名）
 
         Args:
@@ -143,9 +153,17 @@ class SignalExecutionORMRepository(BaseORMRepository[SignalExecution], ISignalEx
 
         Returns:
             SignalExecution列表
+
+        Raises:
+            ValueError: status 非法
         """
+        if status is not None and status not in self.STATUSES:
+            raise ValueError(f"Invalid status: {status}（合法值: {self.STATUSES}）")
         try:
-            return self.session.query(SignalExecution).order_by(
+            query = self.session.query(SignalExecution)
+            if status is not None:
+                query = query.filter(SignalExecution.status == status)
+            return query.order_by(
                 SignalExecution.created_at.desc()
             ).offset(max(0, int(offset or 0))).limit(limit).all()
         except Exception as e:
@@ -176,7 +194,28 @@ class SignalExecutionORMRepository(BaseORMRepository[SignalExecution], ISignalEx
 
         Returns:
             创建的SignalExecution对象
+
+        Raises:
+            ValueError: signal_id/日期/价格/数量/状态非法（2026-10-23 补：
+                此前非法入参直接落库或异常被吞成 None，与"DB 错误"无法区分）
         """
+        if not signal_id:
+            raise ValueError("缺少必需参数: signal_id")
+        if not execution_date:
+            raise ValueError("缺少必需参数: execution_date")
+        if execution_price is None:
+            raise ValueError("缺少必需参数: execution_price")
+        if quantity is None:
+            raise ValueError("缺少必需参数: quantity")
+        from qs_sourcing.adapters.outbound.repositories.signal_repository import (
+            _validate_date as _vd)  # 与信号仓储同口径（Invalid date format）
+        _vd(execution_date)
+        if float(execution_price) <= 0:
+            raise ValueError(f"execution_price 必须为正数: {execution_price!r}")
+        if int(quantity) <= 0:
+            raise ValueError(f"quantity 必须为正整数: {quantity!r}")
+        if status not in self.STATUSES:
+            raise ValueError(f"Invalid status: {status}（合法值: {self.STATUSES}）")
         try:
             execution = SignalExecution(
                 signal_id=signal_id,
@@ -255,7 +294,7 @@ class SignalExecutionORMRepository(BaseORMRepository[SignalExecution], ISignalEx
         execution_id: int,
         close_date: str,
         close_price: float,
-        pnl: float
+        pnl: Optional[float] = None
     ) -> bool:
         """平仓执行记录
 
@@ -263,15 +302,27 @@ class SignalExecutionORMRepository(BaseORMRepository[SignalExecution], ISignalEx
             execution_id: 执行记录ID
             close_date: 平仓日期
             close_price: 平仓价格
-            pnl: 盈亏
+            pnl: 盈亏（缺省时按 (平仓价-执行价)×数量 推导，2026-10-23 补）
 
         Returns:
             成功返回True
+
+        Raises:
+            ValueError: 平仓日期格式非法
         """
+        from qs_sourcing.adapters.outbound.repositories.signal_repository import (
+            _validate_date as _vd)
+        _vd(close_date)
         try:
             execution = self.get_by_id(execution_id)
             if not execution:
                 return False
+
+            if pnl is None:
+                try:
+                    pnl = (float(close_price) - float(execution.execution_price)) * int(execution.quantity)
+                except (TypeError, ValueError):
+                    pnl = 0.0
 
             execution.close_date = close_date
             execution.close_price = close_price
@@ -385,6 +436,11 @@ class SignalExecutionORMRepository(BaseORMRepository[SignalExecution], ISignalEx
             winning = [e for e in closed if e.pnl > 0]
             losing = [e for e in closed if e.pnl <= 0]
 
+            # 2026-10-23：补别名键（total/executed/pending/cancelled/expired/
+            # winning/losing/avg_pnl）——路由对 dict 原样透传，看板/报表按
+            # 这套更直观的键消费；旧键保留向后兼容
+            from collections import Counter as _Counter
+            status_counts = _Counter(e.status for e in executions)
             return {
                 'total_executions': len(executions),
                 'closed_executions': len(closed),
@@ -393,6 +449,15 @@ class SignalExecutionORMRepository(BaseORMRepository[SignalExecution], ISignalEx
                 'win_rate': len(winning) / len(closed) if closed else 0.0,
                 'avg_win': sum(e.pnl for e in winning) / len(winning) if winning else 0.0,
                 'avg_loss': sum(e.pnl for e in losing) / len(losing) if losing else 0.0,
+                # 别名键
+                'total': len(executions),
+                'executed': status_counts.get('executed', 0),
+                'pending': status_counts.get('pending', 0),
+                'cancelled': status_counts.get('cancelled', 0),
+                'expired': status_counts.get('expired', 0),
+                'winning': len(winning),
+                'losing': len(losing),
+                'avg_pnl': (float(total_pnl) / len(closed)) if closed else 0.0,
             }
 
         except Exception as e:

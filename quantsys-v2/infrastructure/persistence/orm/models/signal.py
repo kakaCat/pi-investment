@@ -160,13 +160,23 @@ class SignalExecution(Base):
 
     对应数据库表：quant.signal_executions
     主键：id
+
+    2026-10-23 重建（模型与真实表脱节）：原模型只有 id/signal_id/executed_at/
+    execution_price/execution_amount/execution_volume/status/error_message，
+    缺 execution_date / quantity（两者在表里都是 NOT NULL）/ commission / pnl /
+    close_date / close_price / created_at / updated_at。后果全部静默：
+      - create_execution(execution_date=..., quantity=...) 构造即 TypeError，
+        被仓储 except 吞成 None → **执行记录永远建不出来**；
+      - get_all_executions  ORDER BY created_at → AttributeError → 恒返回 []；
+      - close_execution 写 close_date/pnl → AttributeError → 恒 False；
+      - get_execution_stats 过滤 execution_date → AttributeError → 恒 {}。
+    （同 risk_repository 里记录过的 RiskMetric EAV 错建事故，属同类）
     """
     __tablename__ = 'signal_executions'
     __table_args__ = (
-        # 索引
-        Index('idx_signal_executions_signal_id', 'signal_id'),
-        Index('idx_signal_executions_executed_at', 'executed_at'),
-        Index('idx_signal_executions_status', 'status'),
+        # 索引（与库内实际索引对齐：signal_id + execution_date DESC）
+        Index('idx_quant_signal_executions_signal_id', 'signal_id'),
+        Index('idx_quant_signal_executions_execution_date_desc', 'execution_date'),
         # Schema
         {'schema': 'quant'}
     )
@@ -182,23 +192,37 @@ class SignalExecution(Base):
         comment='信号ID'
     )
 
-    # 执行信息
-    executed_at = Column(
-        DateTime(timezone=True),
-        nullable=False,
-        default=datetime.utcnow,
-        comment='执行时间'
-    )
-    execution_price = Column(Float, comment='执行价格')
-    execution_amount = Column(Float, comment='执行数量')
-    execution_volume = Column(Float, comment='执行金额')
+    # 执行信息（真实表 NOT NULL 列）
+    execution_date = Column(Date, nullable=False, comment='执行日期')
+    execution_price = Column(Float, nullable=False, comment='执行价格')
+    quantity = Column(Integer, nullable=False, comment='成交数量')
+    commission = Column(Float, default=0.0, comment='佣金')
 
     # 状态
     status = Column(
         String(20),
         default='pending',
-        comment='执行状态(pending/success/failed)'
+        comment='执行状态(pending/executed/cancelled/expired)'
     )
+
+    # 平仓结果
+    pnl = Column(Float, comment='已实现盈亏')
+    close_date = Column(Date, comment='平仓日期')
+    close_price = Column(Float, comment='平仓价格')
+
+    # 审计时间
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, comment='创建时间')
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        comment='更新时间'
+    )
+
+    # 历史/兼容列（表内存在，非必填）
+    executed_at = Column(DateTime, nullable=True, comment='执行时间（兼容列）')
+    execution_amount = Column(Float, comment='执行数量（兼容列，语义同 quantity）')
+    execution_volume = Column(Float, comment='执行金额（兼容列）')
     error_message = Column(Text, comment='错误信息')
 
     # 关系映射
@@ -215,10 +239,18 @@ class SignalExecution(Base):
         return {
             'id': self.id,
             'signal_id': self.signal_id,
-            'executed_at': self.executed_at.isoformat() if self.executed_at else None,
+            'execution_date': self.execution_date.isoformat() if self.execution_date else None,
             'execution_price': self.execution_price,
+            'quantity': self.quantity,
+            'commission': self.commission,
+            'status': self.status,
+            'pnl': self.pnl,
+            'close_date': self.close_date.isoformat() if self.close_date else None,
+            'close_price': self.close_price,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'executed_at': self.executed_at.isoformat() if self.executed_at else None,
             'execution_amount': self.execution_amount,
             'execution_volume': self.execution_volume,
-            'status': self.status,
             'error_message': self.error_message,
         }

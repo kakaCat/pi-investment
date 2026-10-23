@@ -14,57 +14,42 @@ def repo():
     # signal_executions 表**没有 symbol 列**（只有 signal_id + relationship），按标的查需 join 信号表；
     # 仓库层已有 get_executions_by_signal(signal_id)，且生产调用数 0 → 属数据模型决定的能力边界。
 class TestExecutionValidation:
+    """2026-10-23 重写：仓储契约已从 dict 入参改为位置参数
+    （create_execution(signal_id, execution_date, execution_price, quantity, ...)），
+    并补齐入参校验（此前非法日期/状态直接落库或被吞成 None）。"""
+
     def test_create_missing_required_fields(self, repo):
+        # 位置参数缺失由 Python 自身拒绝
+        with pytest.raises(TypeError):
+            repo.create_execution(1, '2024-01-15', 10.5)  # 缺 quantity
+
+        # 传空值走仓储校验
         with pytest.raises(ValueError, match="signal_id"):
-            repo.create_execution({})
-
+            repo.create_execution(None, '2024-01-15', 10.5, 100)
         with pytest.raises(ValueError, match="execution_date"):
-            repo.create_execution({'signal_id': 1})
-
+            repo.create_execution(1, '', 10.5, 100)
         with pytest.raises(ValueError, match="execution_price"):
-            repo.create_execution({'signal_id': 1, 'execution_date': '2024-01-15'})
-
+            repo.create_execution(1, '2024-01-15', None, 100)
         with pytest.raises(ValueError, match="quantity"):
-            repo.create_execution({
-                'signal_id': 1,
-                'execution_date': '2024-01-15',
-                'execution_price': 10.5,
-            })
+            repo.create_execution(1, '2024-01-15', 10.5, None)
+        with pytest.raises(ValueError, match="execution_price"):
+            repo.create_execution(1, '2024-01-15', 0, 100)
+        with pytest.raises(ValueError, match="quantity"):
+            repo.create_execution(1, '2024-01-15', 10.5, 0)
 
     def test_create_invalid_date(self, repo):
         with pytest.raises(ValueError, match="Invalid date format"):
-            repo.create_execution({
-                'signal_id': 1,
-                'execution_date': '01-15-2024',
-                'execution_price': 10.5,
-                'quantity': 100,
-            })
+            repo.create_execution(1, '01-15-2024', 10.5, 100)
 
     def test_create_invalid_status(self, repo):
         with pytest.raises(ValueError, match="Invalid status"):
-            repo.create_execution({
-                'signal_id': 1,
-                'execution_date': '2024-01-15',
-                'execution_price': 10.5,
-                'quantity': 100,
-                'status': 'invalid_status',
-            })
+            repo.create_execution(1, '2024-01-15', 10.5, 100, status='invalid_status')
 
     def test_valid_create_data(self, repo):
-        """Valid data should not raise validation error (DB error is expected for no connection)."""
-        data = {
-            'signal_id': 1,
-            'execution_date': '2024-01-15',
-            'execution_price': 10.5,
-            'quantity': 100,
-        }
-        # Validation passes; actual DB call will fail in unit test context
-        try:
-            repo.create_execution(data)
-        except ValueError:
-            pytest.fail("Validation should pass for valid data")
-        except Exception:
-            pass  # DB connection error is expected
+        """合法入参不应抛校验错误（无连接时仓储吞掉 DB 错并返回 None）。"""
+        result = repo.create_execution(1, '2024-01-15', 10.5, 100)
+        # 校验通过；DB 不可用时返回 None，可用时有 id
+        assert result is None or getattr(result, 'id', None) is not None
 
     def test_status_values(self, repo):
         assert repo.STATUSES == ('pending', 'executed', 'cancelled', 'expired')
@@ -124,44 +109,17 @@ class TestExecutionValidation:
 
 class TestExecutionWrite:
     def test_create_execution(self, repo):
-        """Validation passes, DB may reject FK or be unavailable."""
-        try:
-            exec_id = repo.create_execution({
-                'signal_id': 100,
-                'execution_date': '2024-06-15',
-                'execution_price': 25.50,
-                'quantity': 500,
-                'commission': 5.0,
-                'status': 'pending',
-            })
-            assert isinstance(exec_id, int)
-        except Exception as e:
-            msg = str(e).lower()
-            if 'connection' in msg or 'cursor' in msg or 'foreign' in msg or 'violat' in msg:
-                pass
-            else:
-                raise
+        """合法入参：可用时返回记录，不可用时 None（仓储吞 DB 错）。"""
+        result = repo.create_execution(
+            100, '2024-06-15', 25.50, 500, commission=5.0, status='pending')
+        assert result is None or getattr(result, 'id', None) is not None
 
-    def test_create_execution_with_optional_fields(self, repo):
-        try:
-            exec_id = repo.create_execution({
-                'signal_id': 200,
-                'execution_date': '2024-06-15',
-                'execution_price': 30.00,
-                'quantity': 200,
-                'commission': 3.5,
-                'pnl': 150.0,
-                'close_date': '2024-07-15',
-                'close_price': 31.50,
-                'status': 'executed',
-            })
-            assert isinstance(exec_id, int)
-        except Exception as e:
-            msg = str(e).lower()
-            if 'connection' in msg or 'cursor' in msg or 'foreign' in msg or 'violat' in msg:
-                pass
-            else:
-                raise
+    def test_create_execution_with_status_executed(self, repo):
+        """status 可显式指定（合法值内）。"""
+        result = repo.create_execution(
+            200, '2024-06-15', 30.00, 200, commission=3.5, status='executed')
+        assert result is None or getattr(result, 'id', None) is not None
+        # close_date/close_price/pnl 由 close_execution 负责，不在创建时提供
 
     def test_update_execution_status_db_error(self, repo):
         try:

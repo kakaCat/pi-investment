@@ -61,7 +61,11 @@ class SignalGenerateJob(Job):
                 return JobResult.ok(
                     self.name,
                     message="宇宙为空（无非空池成员且无持仓）",
-                    details={"universe_size": 0, "signals_found": 0}
+                    details={
+                        "universe_size": 0, "signals_found": 0,
+                        "signals_saved": 0, "duplicates": 0,
+                        "sell_filtered_unheld": 0, "strategy_errors": [],
+                    }
                 )
 
             names = {s: m['name'] for s, m in repo.get_stocks_meta(symbols).items()}
@@ -119,17 +123,28 @@ class SignalGenerateJob(Job):
                     logger.warning(f"signal_generate: strategy {sid} failed: {e}")
                     strategy_errors.append(f"{sid}: {e}")
 
+            details = {
+                "universe_size": len(symbols),
+                "signals_found": found,
+                "signals_saved": saved,
+                "duplicates": duplicates,
+                "sell_filtered_unheld": sell_filtered,
+                "strategy_errors": strategy_errors,
+            }
+            # 假成功防护（2026-10-23 从被委托的 SchedulerService 实现迁回）：
+            # 宇宙非空但**所有策略都失败且零落库**时必须显式 failed，否则漏报
+            if strategy_errors and len(strategy_errors) == len(strategy_ids) and saved == 0:
+                return JobResult(
+                    success=False,
+                    action=self.name,
+                    message=f"信号生成失败: 全部 {len(strategy_ids)} 个策略报错且零落库",
+                    details={"details": details},
+                    error='; '.join(strategy_errors),
+                )
             return JobResult.ok(
                 self.name,
                 message=f"信号生成完成: {saved} saved, {duplicates} duplicates, {sell_filtered} unheld-sell filtered",
-                details={
-                    "universe_size": len(symbols),
-                    "signals_found": found,
-                    "signals_saved": saved,
-                    "duplicates": duplicates,
-                    "sell_filtered_unheld": sell_filtered,
-                    "strategy_errors": strategy_errors,
-                }
+                details=details,
             )
         except Exception as e:
             return JobResult.fail(self.name, str(e))

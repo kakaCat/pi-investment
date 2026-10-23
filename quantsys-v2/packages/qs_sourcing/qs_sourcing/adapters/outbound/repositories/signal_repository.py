@@ -30,6 +30,31 @@ logger = structlog.get_logger(__name__)
 
 __all__ = ['SignalORMRepository']
 
+# ── 入参校验（2026-10-23 补：契约测试要求非法日期/代码显式拒绝，而非静默返回空/0） ──
+import re as _re
+
+_DATE_PATTERN = _re.compile(r'^\d{4}-\d{2}-\d{2}$')
+_SYMBOL_PATTERN = _re.compile(r'^\d{6}(\.(SH|SZ|HK|BJ))?$')
+
+
+def _validate_date(date_str: Any) -> None:
+    """校验日期字符串（YYYY-MM-DD），非法抛 ValueError"""
+    from datetime import datetime as _dt
+    if isinstance(date_str, date) and not isinstance(date_str, datetime):
+        return
+    if not isinstance(date_str, str) or not _DATE_PATTERN.match(date_str):
+        raise ValueError(f"Invalid date format: {date_str!r}（期望 YYYY-MM-DD）")
+    try:
+        _dt.strptime(date_str, '%Y-%m-%d')
+    except ValueError:
+        raise ValueError(f"Invalid date format: {date_str!r}（期望 YYYY-MM-DD）")
+
+
+def _validate_symbol(symbol: Any) -> None:
+    """校验股票代码（6 位数字，可带 .SH/.SZ/.HK/.BJ 后缀），非法抛 ValueError"""
+    if not isinstance(symbol, str) or not _SYMBOL_PATTERN.match(symbol):
+        raise ValueError(f"股票代码格式非法: {symbol!r}（期望 6 位数字，可带交易所后缀）")
+
 
 class SignalORMRepository(BaseORMRepository[Signal], ISignalRepository):
     """交易信号ORM Repository
@@ -103,7 +128,19 @@ class SignalORMRepository(BaseORMRepository[Signal], ISignalRepository):
 
         Returns:
             信号ID；冲突或失败返回 0
+
+        Raises:
+            ValueError: 缺少必需字段 / 日期或代码格式非法（2026-10-23：
+                此前这些情况被 except 吞掉返回 0，与"唯一键重复"的 0 无法区分）
         """
+        # 入参校验先于 try（校验失败要显式抛出，不能被 except 吞成 0）
+        required = ('signal_date', 'symbol', 'action', 'strategy_id')
+        missing = [k for k in required if not signal_data.get(k)]
+        if missing:
+            raise ValueError(f"缺少必需字段: {', '.join(missing)}")
+        _validate_date(signal_data['signal_date'])
+        _validate_symbol(signal_data['symbol'])
+
         try:
             action = signal_data.get('action')
             action_type = signal_data.get('action_type')
@@ -194,7 +231,11 @@ class SignalORMRepository(BaseORMRepository[Signal], ISignalRepository):
 
         Returns:
             Signal对象列表
+
+        Raises:
+            ValueError: 日期格式非法
         """
+        _validate_date(signal_date)
         try:
             query = self.session.query(Signal).filter(
                 Signal.signal_date == signal_date
@@ -274,7 +315,13 @@ class SignalORMRepository(BaseORMRepository[Signal], ISignalRepository):
 
         Returns:
             Signal对象列表
+
+        Raises:
+            ValueError: 股票代码或日期格式非法
         """
+        _validate_symbol(symbol)
+        _validate_date(start_date)
+        _validate_date(end_date)
         try:
             query = self.session.query(Signal).filter(
                 Signal.symbol == symbol,
@@ -593,11 +640,9 @@ class SignalORMRepository(BaseORMRepository[Signal], ISignalRepository):
         口径：action 在库里是**大写契约**（BUY/SELL/HOLD），对外统计统一转小写键；
         by_strategy 用 strategy_id；avg_confidence 为置信度算术平均（无置信度则 0.0）。
         """
-        for _d in (start_date, end_date):
-            try:
-                datetime.strptime(str(_d), '%Y-%m-%d')
-            except (TypeError, ValueError) as exc:
-                raise ValueError("日期必须为 YYYY-MM-DD 格式，收到：%r" % (_d,)) from exc
+        # 2026-10-23：统一走 _validate_date（消息口径与其他方法一致：Invalid date format）
+        _validate_date(start_date)
+        _validate_date(end_date)
         try:
             signals = self.get_signals_by_date_range(start_date, end_date)
         except Exception as e:            # noqa: BLE001
