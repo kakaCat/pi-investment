@@ -39,10 +39,10 @@ def test_generate_report():
     }
 
     params = {
-        'strategyName': 'ma_cross',
+        'strategy_name': 'ma_cross',
         'symbol': '000001.SZ',
-        'startDate': '2024-01-01',
-        'endDate': '2024-12-31'
+        'start_date': '2024-01-01',
+        'end_date': '2024-12-31'
     }
 
     report_path = generator.generate(analysis, diagnosis, params)
@@ -96,10 +96,10 @@ def test_generate_report_with_empty_diagnosis_lists():
     }
 
     params = {
-        'strategyName': 'test_strategy',
+        'strategy_name': 'test_strategy',
         'symbol': '600000.SH',
-        'startDate': '2024-01-01',
-        'endDate': '2024-12-31'
+        'start_date': '2024-01-01',
+        'end_date': '2024-12-31'
     }
 
     report_path = generator.generate(analysis, diagnosis, params)
@@ -149,10 +149,10 @@ def test_generate_report_with_invalid_rating():
     }
 
     params = {
-        'strategyName': 'test_strategy',
+        'strategy_name': 'test_strategy',
         'symbol': '600000.SH',
-        'startDate': '2024-01-01',
-        'endDate': '2024-12-31'
+        'start_date': '2024-01-01',
+        'end_date': '2024-12-31'
     }
 
     report_path = generator.generate(analysis, diagnosis, params)
@@ -201,10 +201,10 @@ def test_generate_report_with_special_characters_in_filename():
     }
 
     params = {
-        'strategyName': 'test/strategy:with*special?chars',
+        'strategy_name': 'test/strategy:with*special?chars',
         'symbol': '600000.SH',
-        'startDate': '2024-01-01',
-        'endDate': '2024-12-31'
+        'start_date': '2024-01-01',
+        'end_date': '2024-12-31'
     }
 
     report_path = generator.generate(analysis, diagnosis, params)
@@ -261,10 +261,10 @@ def test_generate_report_no_overwrite_same_day():
     }
 
     params = {
-        'strategyName': 'test_strategy',
+        'strategy_name': 'test_strategy',
         'symbol': '600000.SH',
-        'startDate': '2024-01-01',
-        'endDate': '2024-12-31'
+        'start_date': '2024-01-01',
+        'end_date': '2024-12-31'
     }
 
     # 生成第一个报告
@@ -299,7 +299,7 @@ def test_generate_report_missing_required_keys():
         generator.generate(
             {'benchmark': {}, 'ratings': {}},
             {'conclusion': '', 'strengths': [], 'weaknesses': [], 'suggestions': []},
-            {'strategyName': 'test', 'symbol': '600000.SH', 'startDate': '2024-01-01', 'endDate': '2024-12-31'}
+            {'strategy_name': 'test', 'symbol': '600000.SH', 'start_date': '2024-01-01', 'end_date': '2024-12-31'}
         )
 
     # 缺少 params.strategyName
@@ -307,7 +307,7 @@ def test_generate_report_missing_required_keys():
         generator.generate(
             {'metrics': {}, 'benchmark': {}, 'ratings': {}},
             {'conclusion': '', 'strengths': [], 'weaknesses': [], 'suggestions': []},
-            {'symbol': '600000.SH', 'startDate': '2024-01-01', 'endDate': '2024-12-31'}
+            {'symbol': '600000.SH', 'start_date': '2024-01-01', 'end_date': '2024-12-31'}
         )
 
 
@@ -350,10 +350,10 @@ def test_generate_report_write_permission_error(tmp_path):
     }
 
     params = {
-        'strategyName': 'test_strategy',
+        'strategy_name': 'test_strategy',
         'symbol': '600000.SH',
-        'startDate': '2024-01-01',
-        'endDate': '2024-12-31'
+        'start_date': '2024-01-01',
+        'end_date': '2024-12-31'
     }
 
     with pytest.raises(ReportGenerationError, match="Failed to write report"):

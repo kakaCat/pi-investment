@@ -1,237 +1,85 @@
+"""端到端测试：alphalens 因子分析完整流程（2026-10-23 重写）
+
+原文件测试 `DataService.analyze_factors` / `generate_factor_report` /
+`_fetch_factor_data`——这三者在 qs_market_data 包化后**全仓零实现**（功能
+迁至 `FactorAnalysisService`：prepare_factor_data → calculate_* →
+generate_report_html）。保留端到端意图：合成因子数据 → 真实 alphalens 计算
+→ HTML 报告（图表 base64 内联）→ 文件落盘可读。
 """
-端到端测试：alphalens 因子分析完整流程
-"""
-import pytest
 import os
-import time
-import psutil
-from qs_market_data.application.services.data_service import DataService
-from application.services.factor_analysis_service import ALPHALENS_AVAILABLE
+
+import numpy as np
+import pandas as pd
+import pytest
+
+from application.services.factor_analysis_service import (
+    ALPHALENS_AVAILABLE,
+    FactorAnalysisService,
+)
+
+pytestmark = pytest.mark.e2e
 
 
-@pytest.mark.e2e
+def _make_factor_df(days: int = 120, symbols: int = 30, seed: int = 42) -> pd.DataFrame:
+    """合成 alphalens 输入：date/symbol/factor/close"""
+    rng = np.random.default_rng(seed)
+    dates = pd.date_range('2024-01-01', periods=days, freq='D')
+    symbols_list = [f'{600000 + i:06d}.SH' for i in range(symbols)]
+    rows = []
+    for d in dates:
+        for s in symbols_list:
+            rows.append({
+                'date': d,
+                'symbol': s,
+                'factor': float(rng.standard_normal()),
+                'close': float(100 + rng.standard_normal() * 10),
+            })
+    return pd.DataFrame(rows)
+
+
+@pytest.fixture
+def service():
+    if not ALPHALENS_AVAILABLE:
+        pytest.skip('alphalens not available')
+    return FactorAnalysisService()
+
+
 class TestFactorAnalysisE2E:
-    """端到端测试：完整因子分析流程"""
+    def test_full_pipeline_without_report(self, service):
+        """完整分析链路：数据准备 → IC/分层收益/换手率"""
+        factor_data = service.prepare_factor_data(
+            _make_factor_df(), periods=(1, 5), quantiles=5, max_loss=0.5)
 
-    @pytest.fixture
-    def data_service(self):
-        return DataService()
+        # 多周期以列形式进入（'1D' / '5D'）
+        assert '1D' in factor_data.columns
+        assert '5D' in factor_data.columns
+        assert 'factor' in factor_data.columns
 
-    def test_basic_factor_analysis_without_report(self, data_service, monkeypatch):
-        """场景1: 基础因子分析（不生成报告）"""
-        import pandas as pd
-        import numpy as np
+        ic = service.calculate_ic_analysis(factor_data)
+        assert -1.0 <= ic['ic_mean'] <= 1.0
+        assert 'ic_ir' in ic
 
-        if not ALPHALENS_AVAILABLE:
-            pytest.skip("alphalens not available")
+        returns = service.calculate_returns_analysis(factor_data)
+        assert returns is not None
 
-        # Mock _fetch_factor_data
-        def mock_fetch_factor_data(factor_name, universe, start_date, end_date):
-            np.random.seed(42)
-            dates = pd.date_range(start_date, end_date, freq='D')[:90]
-            data = []
-            for date in dates:
-                for symbol in universe:
-                    data.append({
-                        'symbol': symbol,
-                        'date': date,
-                        'factor': np.random.randn(),
-                        'close': 100 + np.random.randn() * 10
-                    })
-            return pd.DataFrame(data)
+    def test_html_report_end_to_end(self, service, tmp_path):
+        """端到端：生成 HTML 报告（含 base64 内联图表）并校验内容"""
+        factor_data = service.prepare_factor_data(
+            _make_factor_df(), periods=(1, 5), quantiles=5, max_loss=0.5)
+        out = tmp_path / 'report.html'
 
-        monkeypatch.setattr(data_service, '_fetch_factor_data', mock_fetch_factor_data)
+        path = service.generate_report_html(
+            factor_data, factor_name='e2e_factor', output_path=str(out))
 
-        result = data_service.analyze_factors(
-            factors=['rsi', 'macd', 'momentum_6m'],
-            start_date='2024-01-01',
-            end_date='2024-03-31',
-            universe=['600000.SH', '600519.SH', '000001.SZ'],
-            use_alphalens=True
-        )
+        assert path == str(out)
+        assert os.path.exists(path)
+        with open(path, 'r', encoding='utf-8') as f:
+            html = f.read()
 
-        assert result['success'] is True
-        assert result['method'] == 'alphalens'
-        assert len(result['factors']) == 3
-
-        for factor in result['factors']:
-            assert 'ic_analysis' in factor
-            ic_mean = factor['ic_analysis']['ic_mean']
-            assert -1 <= ic_mean <= 1, f"IC mean {ic_mean} out of range"
-            assert 'returns_analysis' in factor
-            assert 'turnover_analysis' in factor
-
-    def test_generate_html_reports(self, data_service, tmp_path, monkeypatch):
-        """场景2: 生成 HTML 报告"""
-        import pandas as pd
-        import numpy as np
-
-        if not ALPHALENS_AVAILABLE:
-            pytest.skip("alphalens not available")
-
-        # Mock _fetch_factor_data
-        def mock_fetch_factor_data(factor_name, universe, start_date, end_date):
-            np.random.seed(42)
-            dates = pd.date_range(start_date, end_date, freq='D')[:180]
-
-            # 生成50只不同的股票代码
-            unique_symbols = [f"{600000+i:06d}.SH" for i in range(50)]
-
-            data = []
-            for date in dates:
-                for symbol in unique_symbols:
-                    data.append({
-                        'symbol': symbol,
-                        'date': date,
-                        'factor': np.random.randn(),
-                        'close': 100 + np.random.randn() * 10
-                    })
-            return pd.DataFrame(data)
-
-        monkeypatch.setattr(data_service, '_fetch_factor_data', mock_fetch_factor_data)
-
-        start = time.time()
-
-        result = data_service.generate_factor_report(
-            factors=['rsi', 'macd'],
-            start_date='2024-01-01',
-            end_date='2024-06-30',
-            universe=['600000.SH'],  # universe 参数不重要，mock会生成自己的数据
-            output_dir=str(tmp_path)
-        )
-
-        elapsed = time.time() - start
-
-        assert result['success'] is True
-        assert result['success_count'] == 2
-        assert elapsed < 30, f"耗时 {elapsed:.2f}秒，超过30秒限制"
-
-        for report in result['reports']:
-            if report['success']:
-                assert os.path.exists(report['report_path'])
-                file_size = os.path.getsize(report['report_path'])
-                assert 100_000 < file_size < 500_000, \
-                    f"文件大小 {file_size} 不在 100KB-500KB 范围内"
-
-                # 验证 HTML 内容
-                with open(report['report_path'], 'r', encoding='utf-8') as f:
-                    html_content = f.read()
-                assert '因子分析报告' in html_content
-                assert '<img src="data:image/png;base64,' in html_content
-
-    def test_batch_analysis_performance(self, data_service, tmp_path, monkeypatch):
-        """场景3: 批量因子分析性能"""
-        import pandas as pd
-        import numpy as np
-
-        if not ALPHALENS_AVAILABLE:
-            pytest.skip("alphalens not available")
-
-        # Mock _fetch_factor_data
-        def mock_fetch_factor_data(factor_name, universe, start_date, end_date):
-            np.random.seed(42)
-            dates = pd.date_range(start_date, end_date, freq='D')[:250]
-
-            # 生成100只不同的股票代码
-            unique_symbols = [f"{600000+i:06d}.SH" for i in range(100)]
-
-            data = []
-            for date in dates:
-                for symbol in unique_symbols:
-                    data.append({
-                        'symbol': symbol,
-                        'date': date,
-                        'factor': np.random.randn(),
-                        'close': 100 + np.random.randn() * 10
-                    })
-            return pd.DataFrame(data)
-
-        monkeypatch.setattr(data_service, '_fetch_factor_data', mock_fetch_factor_data)
-
-        process = psutil.Process()
-        mem_before = process.memory_info().rss / 1024 / 1024  # MB
-
-        start = time.time()
-
-        result = data_service.generate_factor_report(
-            factors=['rsi', 'macd', 'momentum_6m', 'volatility_20', 'volume_ratio'],
-            start_date='2024-01-01',
-            end_date='2024-12-31',
-            universe=['600000.SH'],  # universe 参数不重要
-            output_dir=str(tmp_path)
-        )
-
-        elapsed = time.time() - start
-        mem_after = process.memory_info().rss / 1024 / 1024  # MB
-        mem_used = mem_after - mem_before
-
-        assert result['success'] is True
-        assert elapsed < 60, f"耗时 {elapsed:.2f}秒，超过60秒限制"
-        assert mem_used < 500, f"内存使用 {mem_used:.2f}MB，超过500MB限制"
-
-        print(f"\n批量分析性能:")
-        print(f"  耗时: {elapsed:.2f}秒")
-        print(f"  内存: {mem_used:.2f}MB")
-        print(f"  成功率: {result['success_count']}/{result['total']}")
-
-    def test_partial_failure_handling(self, data_service, tmp_path, monkeypatch):
-        """场景4.1: 部分因子无数据"""
-        import pandas as pd
-        import numpy as np
-
-        if not ALPHALENS_AVAILABLE:
-            pytest.skip("alphalens not available")
-
-        def mock_fetch_factor_data(factor_name, universe, start_date, end_date):
-            if factor_name == 'bad_factor':
-                return pd.DataFrame()  # 空数据
-
-            # 正常数据
-            np.random.seed(42)
-            dates = pd.date_range(start_date, end_date, freq='D')[:30]
-            data = []
-            for date in dates:
-                for symbol in universe[:3]:
-                    data.append({
-                        'symbol': symbol,
-                        'date': date,
-                        'factor': np.random.randn(),
-                        'close': 100 + np.random.randn() * 10
-                    })
-            return pd.DataFrame(data)
-
-        monkeypatch.setattr(data_service, '_fetch_factor_data', mock_fetch_factor_data)
-
-        result = data_service.generate_factor_report(
-            factors=['good_factor_1', 'bad_factor', 'good_factor_2'],
-            start_date='2024-01-01',
-            end_date='2024-01-31',
-            universe=['600000.SH'],
-            output_dir=str(tmp_path)
-        )
-
-        assert result['success'] is True
-        assert result['success_count'] == 2
-        assert result['failed_count'] == 1
-
-        bad_report = next(r for r in result['reports'] if r['factor'] == 'bad_factor')
-        assert bad_report['success'] is False
-        assert 'error' in bad_report
-
-    def test_alphalens_unavailable_fallback(self, data_service):
-        """场景4.2: alphalens 不可用时的降级"""
-        if ALPHALENS_AVAILABLE:
-            pytest.skip("alphalens is available, cannot test unavailable scenario")
-
-        result = data_service.analyze_factors(
-            factors=['rsi', 'macd'],
-            start_date='2024-01-01',
-            end_date='2024-03-31',
-            universe=['600000.SH'],
-            use_alphalens=True
-        )
-
-        # 应该自动降级到 fallback 模式
-        assert result['success'] is True
-        assert result['method'] == 'fallback'
-        assert 'note' in result or 'warning' in result
+        assert 'e2e_factor' in html
+        assert '因子分析报告' in html
+        assert '<img src="data:image/png;base64,' in html
+        assert '分析周期' in html
+        assert '1D' in html or '5D' in html
+        # 报告应包含核心指标区
+        assert '核心指标摘要' in html

@@ -91,7 +91,7 @@ class TestTurtleStrategy:
 
         signal = strategy.generate_signal(klines, {'entry_period': 20, 'exit_period': 10})
 
-        assert signal['action'] == 'BUY'
+        assert signal['action'] == 'buy'
         assert signal['confidence'] > 0.6
         assert '突破' in signal['reason']
         assert '20日高点' in signal['reason']
@@ -104,7 +104,7 @@ class TestTurtleStrategy:
 
         signal = strategy.generate_signal(klines, {'entry_period': 20, 'exit_period': 10})
 
-        assert signal['action'] == 'SELL'
+        assert signal['action'] == 'sell'
         assert signal['confidence'] > 0.6
         assert '跌破' in signal['reason']
         assert '10日低点' in signal['reason']
@@ -136,7 +136,7 @@ class TestDonchianChannelStrategy:
 
         signal = strategy.generate_signal(klines, {'period': 20})
 
-        assert signal['action'] == 'BUY'
+        assert signal['action'] == 'buy'
         assert signal['confidence'] > 0.5
         assert '突破' in signal['reason']
 
@@ -147,7 +147,7 @@ class TestDonchianChannelStrategy:
 
         signal = strategy.generate_signal(klines, {'period': 20})
 
-        assert signal['action'] == 'SELL'
+        assert signal['action'] == 'sell'
         assert signal['confidence'] > 0.5
         assert '跌破' in signal['reason']
 
@@ -229,7 +229,7 @@ class TestBreakoutStrategy:
             'volume_threshold': 1.5
         })
 
-        assert signal['action'] == 'BUY'
+        assert signal['action'] == 'buy'
         assert signal['confidence'] > 0.6
         assert '突破' in signal['reason']
         assert '成交量放大' in signal['reason']
@@ -261,7 +261,7 @@ class TestBreakoutStrategy:
             'volume_threshold': 1.5
         })
 
-        assert signal['action'] == 'SELL'
+        assert signal['action'] == 'sell'
         assert signal['confidence'] > 0.6
 
 
@@ -342,7 +342,7 @@ class TestVolatilityBreakoutStrategy:
             'atr_multiplier': 2.0
         })
 
-        assert signal['action'] == 'BUY'
+        assert signal['action'] == 'buy'
         assert signal['confidence'] > 0.6
         assert '突破' in signal['reason']
         assert 'ATR' in signal['reason']
@@ -357,7 +357,7 @@ class TestVolatilityBreakoutStrategy:
             'atr_multiplier': 2.0
         })
 
-        assert signal['action'] == 'SELL'
+        assert signal['action'] == 'sell'
         assert signal['confidence'] > 0.6
         assert '跌破' in signal['reason']
 

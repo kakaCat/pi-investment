@@ -703,6 +703,9 @@ class FactorAnalysisService:
 
     def _fig_to_base64(self, fig) -> str:
         """将 matplotlib 图表转换为 base64 字符串"""
+        # 2026-10-23 修复：base64 只在另一个方法内局部 import，本方法裸用
+        # base64.b64encode → NameError（图表 HTML 报告必崩）
+        import base64
         buffer = BytesIO()
         fig.savefig(buffer, format='png', dpi=100, bbox_inches='tight')
         buffer.seek(0)
@@ -720,6 +723,16 @@ class FactorAnalysisService:
         from datetime import datetime
 
         # 计算摘要统计
+        # 2026-10-23：报告头显式标注分析周期（持有期来自 alphalens 多级索引 level 0；
+        # 原报告不写周期，多周期对比时无法区分）
+        try:
+            import re as _re
+            _period_cols = [c for c in factor_data.columns
+                            if isinstance(c, str) and _re.fullmatch(r'\d+D', c)]
+            period_label = (' / '.join(sorted(_period_cols, key=lambda x: int(x[:-1])))
+                            or 'N/A')
+        except Exception:
+            period_label = 'N/A'
         ic_result = self.calculate_ic_analysis(factor_data)
         returns_result = self.calculate_returns_analysis(factor_data)
         turnover_result = self.calculate_turnover_analysis(factor_data)
@@ -805,6 +818,7 @@ class FactorAnalysisService:
         <h1>📊 {factor_name} 因子分析报告</h1>
         <p>生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
         <p>数据点数: {len(factor_data):,}</p>
+        <p>分析周期: {period_label}</p>
 
         <h2>📈 核心指标摘要</h2>
         <div class="summary">

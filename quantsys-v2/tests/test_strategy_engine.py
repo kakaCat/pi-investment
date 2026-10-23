@@ -199,7 +199,7 @@ class TestMACrossStrategy:
 
         signal = strategy.generate_signal(klines, {'ma_short': 5, 'ma_long': 20})
 
-        assert signal['action'] == 'BUY'
+        assert signal['action'] == 'buy'
         assert 0 < signal['confidence'] <= 1.0
         assert 'MA5' in signal['reason']
         assert 'MA20' in signal['reason']
@@ -217,7 +217,7 @@ class TestMACrossStrategy:
 
         signal = strategy.generate_signal(klines, {'ma_short': 5, 'ma_long': 20})
 
-        assert signal['action'] == 'SELL'
+        assert signal['action'] == 'sell'
         assert 0 < signal['confidence'] <= 1.0
         assert '死叉' in signal['reason']
 
@@ -275,7 +275,7 @@ class TestRSIReversalStrategy:
 
         signal = strategy.generate_signal(klines, {'period': 14, 'oversold': 30, 'overbought': 70})
 
-        assert signal['action'] == 'BUY'
+        assert signal['action'] == 'buy'
         assert 0 < signal['confidence'] <= 1.0
         assert '超卖' in signal['reason']
 
@@ -286,7 +286,7 @@ class TestRSIReversalStrategy:
 
         signal = strategy.generate_signal(klines, {'period': 14, 'oversold': 30, 'overbought': 70})
 
-        assert signal['action'] == 'SELL'
+        assert signal['action'] == 'sell'
         assert 0 < signal['confidence'] <= 1.0
         assert '超买' in signal['reason']
 
@@ -335,7 +335,7 @@ class TestBollingerBreakoutStrategy:
 
         signal = strategy.generate_signal(klines, {'period': 20, 'num_std': 2.0})
 
-        assert signal['action'] == 'BUY'
+        assert signal['action'] == 'buy'
         assert 0 < signal['confidence'] <= 1.0
         assert '上轨' in signal['reason']
 
@@ -347,7 +347,7 @@ class TestBollingerBreakoutStrategy:
 
         signal = strategy.generate_signal(klines, {'period': 20, 'num_std': 2.0})
 
-        assert signal['action'] == 'SELL'
+        assert signal['action'] == 'sell'
         assert 0 < signal['confidence'] <= 1.0
         assert '下轨' in signal['reason']
 
@@ -411,7 +411,7 @@ class TestStrategyCombiner:
         combiner = StrategyCombiner(mode='and')
         result = combiner.combine(signals_all_buy)
 
-        assert result['action'] == 'BUY'
+        assert result['action'] == 'buy'
         assert 0.7 <= result['confidence'] <= 0.9
         assert 'AND' in result['reason']
 
@@ -430,7 +430,7 @@ class TestStrategyCombiner:
         combiner = StrategyCombiner(mode='or')
         result = combiner.combine(signals_mixed)
 
-        assert result['action'] == 'BUY'  # buy confidence 0.8 > sell 0.7
+        assert result['action'] == 'buy'  # buy confidence 0.8 > sell 0.7
         assert result['confidence'] == pytest.approx(0.8)
 
     def test_or_mode_all_hold(self, signals_all_hold):
@@ -461,7 +461,7 @@ class TestStrategyCombiner:
         combiner = StrategyCombiner(mode='majority')
         result = combiner.combine(signals)
 
-        assert result['action'] == 'BUY'
+        assert result['action'] == 'buy'
         assert '2/3' in result['reason']
 
     def test_weighted_mode(self, signals_mixed):
@@ -471,7 +471,7 @@ class TestStrategyCombiner:
         # buy权重3, sell权重1 -> buy加权得分更高
         result = combiner.combine(signals_mixed, weights=[3.0, 1.0, 1.0])
 
-        assert result['action'] == 'BUY'
+        assert result['action'] == 'buy'
         assert '加权' in result['reason']
 
     def test_weighted_mode_all_zero_weights(self, signals_mixed):
@@ -783,21 +783,17 @@ class TestStrategyRepository:
         except Exception as e:
             pytest.skip(f"数据库不可用: {e}")
 
-    def test_create_missing_name(self, repo):
-        """测试缺少名称字段"""
-        try:
-            with pytest.raises(ValueError, match="缺少必需字段"):
-                repo.create({'strategy_type': 'ma_cross'})
-        except Exception as e:
-            pytest.skip(f"数据库不可用: {e}")
+    # 2026-10-23 重写：现契约 create() 接 **ORM 实例**（BaseORMRepository.create），
+    # 不再是 dict API；必填校验在 create_user_strategy。旧断言"dict 缺字段抛 ValueError"
+    # 对应的实现早已不存在。
+    def test_create_dict_rejected_defensively(self, repo):
+        """传 dict 给 create()：防御性返回 None，不崩溃、不落库"""
+        result = repo.create({'strategy_type': 'ma_cross'})
+        assert result is None
 
-    def test_create_missing_type(self, repo):
-        """测试缺少类型字段"""
-        try:
-            with pytest.raises(ValueError, match="缺少必需字段"):
-                repo.create({'name': 'test_no_type'})
-        except Exception as e:
-            pytest.skip(f"数据库不可用: {e}")
+    def test_create_dict_missing_name_rejected(self, repo):
+        result = repo.create({'name': 'test_no_type'})
+        assert result is None
 
 
 # ==================== StrategyRunner 测试 (需要数据库) ====================
@@ -810,8 +806,7 @@ class TestStrategyRunner:
         from domain.backtest.engine.strategy_runner import StrategyRunner
         from adapters.outbound.repositories import StrategyORMRepository
         r = StrategyRunner(strategy_repo=StrategyORMRepository())
-        yield r
-        r.close()
+        yield r  # ORM 仓储无 close：session 为线程本地 scoped，无需手动关闭
 
     def test_run_with_klines(self, runner):
         """测试使用K线数据运行策略"""

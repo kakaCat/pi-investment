@@ -61,7 +61,11 @@ class StrategyCombiner:
                 'reason': '无策略信号输入'
             }
 
-        actions = [s['action'] for s in signals]
+        # 2026-10-23：入口统一归一为小写。修复两个真 bug：
+        # ① _combine_weighted 用 action_scores['buy'|'sell'|'hold'] 索引，
+        #    大写输入必然 KeyError: 'BUY'；
+        # ② majority 把 'BUY' 与 'buy' 当成两票，混合大小写时投票结果被拆散。
+        actions = [str(s.get('action') or 'hold').strip().lower() for s in signals]
         confidences = [s['confidence'] for s in signals]
         reasons = [s.get('reason', '') for s in signals]
 
