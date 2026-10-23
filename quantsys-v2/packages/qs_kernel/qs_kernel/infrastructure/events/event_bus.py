@@ -32,6 +32,32 @@ class EventBus:
         self._worker = threading.Thread(target=self._process_loop, daemon=True)
         self._worker.start()
 
+    def _dispatch(self, event_type: str, data: Dict[str, Any]):
+        """记录历史并分发到订阅者（同步执行，异常隔离）。
+
+        2026-10-23 抽出：worker 线程与 publish_sync 共用同一分发逻辑。
+        """
+        event = {
+            "type": event_type,
+            "data": data,
+            "timestamp": datetime.now().isoformat()
+        }
+        self.event_history.append(event)
+
+        logger.debug(f"处理事件: {event_type}")
+
+        with self._lock:
+            handlers = list(self.subscribers.get(event_type, []))
+
+        for handler in handlers:
+            try:
+                if asyncio.iscoroutinefunction(handler):
+                    logger.warning(f"跳过异步处理器(同步模式): {handler.__name__}")
+                else:
+                    handler(data)
+            except Exception as e:
+                logger.error(f"事件处理器错误: {handler.__name__}, {e}", exc_info=True)
+
     def _process_loop(self):
         """后台工作线程：持续从队列取出事件并处理"""
         while self._running:
@@ -39,27 +65,7 @@ class EventBus:
                 event_type, data = self._queue.get(timeout=1.0)
             except queue.Empty:
                 continue
-
-            event = {
-                "type": event_type,
-                "data": data,
-                "timestamp": datetime.now().isoformat()
-            }
-            self.event_history.append(event)
-
-            logger.debug(f"处理事件: {event_type}")
-
-            with self._lock:
-                handlers = list(self.subscribers.get(event_type, []))
-
-            for handler in handlers:
-                try:
-                    if asyncio.iscoroutinefunction(handler):
-                        logger.warning(f"跳过异步处理器(同步模式): {handler.__name__}")
-                    else:
-                        handler(data)
-                except Exception as e:
-                    logger.error(f"事件处理器错误: {handler.__name__}, {e}", exc_info=True)
+            self._dispatch(event_type, data)
 
     def subscribe(self, event_type: str, handler: Callable):
         """
@@ -105,8 +111,14 @@ class EventBus:
             logger.error(f"事件队列已满，丢弃事件: {event_type}")
 
     def publish_sync(self, event_type: str, data: Dict[str, Any]):
-        """publish 的别名，保持向后兼容"""
-        self.publish(event_type, data)
+        """同步发布：**立即**分发到订阅者并写入历史。
+
+        2026-10-23 修复：原实现是 publish() 的别名（仅入队，由 worker 线程
+        毫秒级异步分发），与 "sync" 语义不符——调用方在 publish_sync 返回后
+        读不到已处理结果（7 个基础用例全红）。全仓零生产调用方，改语义安全。
+        需要非阻塞语义请用 publish()。
+        """
+        self._dispatch(event_type, data)
 
     async def publish_async(self, event_type: str, data: Dict[str, Any]):
         """异步发布事件（非阻塞）"""
