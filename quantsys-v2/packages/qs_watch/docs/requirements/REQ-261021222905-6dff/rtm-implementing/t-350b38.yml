@@ -1,0 +1,36 @@
+task:
+  id: t-350b38
+  title: 实现五表 ORM 与 TradingPlanRepository
+  status: done
+  implements: infrastructure/persistence/orm/models/trading_plan.py 声明五表 ORM；adapters/outbound/repositories/trading_plan_repository.py 实现五表读写（create_plan/record_reflection 等 S-10 方法），含缺列预检降级（沿用 watch_rules 的 information_schema 预检模式）。
+  serves:
+    - FR-1
+  depends_on:
+    - t-180c05
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261021222905-6dff
+    TASK_ID: t-350b38
+    TASK_TITLE: 实现五表 ORM 与 TradingPlanRepository
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-21T16:09:51.537Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261021222905-6dff
+  generated_at: 2026-10-21T16:09:36.062Z
+  version: 6
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-21T16:09:51.537Z

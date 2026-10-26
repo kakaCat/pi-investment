@@ -12,6 +12,7 @@ from adapters.outbound.repositories.watch_rule_repository import WatchRuleReposi
 from adapters.outbound.repositories.watch_todo_repository import (
     CASCADE_AUDIT_MARKER,
     WatchTodoRepository,
+    todo_to_dict,
 )
 
 _PAST = datetime.now(timezone.utc) - timedelta(hours=1)
@@ -41,9 +42,9 @@ class TestWatchTodoCascadeAndOverdueFilter:
         return rule
 
     def _make_todo(self, rule_id=None, symbol='600519.SH', action_kind=None,
-                   due_at=_PAST):
+                   due_at=_PAST, account=None):
         todo = self.todo_repo.create(
-            symbol, rule_id=rule_id, level='P2', flow_state='L1',
+            symbol, rule_id=rule_id, account=account, level='P2', flow_state='L1',
             owner_kind='agent', owner_ref='agent-test', autonomy='remind_only',
             sla_seconds=1800, due_at=due_at, action_kind=action_kind)
         self._todo_ids.append(todo.id)
@@ -111,6 +112,12 @@ class TestWatchTodoCascadeAndOverdueFilter:
         assert t_orphan.id not in ids
         assert t_free.id in ids  # 不挂规则的待办照常可见
 
+    def test_count_pending_filters_account(self):
+        self._make_todo(account='count-pending-a')
+        self._make_todo(account='count-pending-b')
+        assert self.todo_repo.count_pending(account='count-pending-a') == 1
+        assert self.todo_repo.count_pending() >= 2
+
     # ── update_fields 停用级联（收口在规则仓储）─────────────
 
     def test_disable_rule_cascades_close(self):
@@ -158,3 +165,48 @@ class TestWatchTodoCascadeAndOverdueFilter:
                     decision_audit_id=None)
             .execution_options(synchronize_session=False))
         session.commit()
+
+
+@pytest.mark.integration
+class TestWatchTodoEvidence:
+    """evidence 列（REQ-261021194640-69b8 FR-3）：写入、读回、序列化三处一致。
+
+    先决：`quant_test` 已执行 20261021_watch_todos_evidence.py。
+    缺列环境不在本类覆盖（那是仓储 fail-open 分支，由单测替身覆盖）。
+    """
+
+    def setup_method(self):
+        self.todo_repo = WatchTodoRepository()
+        self._todo_ids = []
+
+    def teardown_method(self):
+        for tid in self._todo_ids:
+            self.todo_repo.delete_by_id(tid)
+
+    def _make(self, evidence=None):
+        todo = self.todo_repo.create(
+            '600519.SH', level='P1', flow_state='L3', owner_kind='agent',
+            owner_ref='agent-test', autonomy='autonomous', sla_seconds=1800,
+            due_at=datetime.now(timezone.utc) + timedelta(minutes=30),
+            action_kind='rule_change', evidence=evidence)
+        self._todo_ids.append(todo.id)
+        return todo
+
+    def test_evidence_roundtrip_and_projection(self):
+        evidence = {
+            'source': 'news',
+            'tier': 'critical',
+            'alert_id': 42,
+            'titles': ['某公司被立案调查'],
+            'words': ['立案'],
+        }
+        todo = self._make(evidence)
+
+        got = self.todo_repo.get(todo.id)
+        assert got.evidence == evidence
+        assert todo_to_dict(got)['evidence'] == evidence
+
+    def test_create_without_evidence_is_null(self):
+        todo = self._make()
+        assert self.todo_repo.get(todo.id).evidence is None
+        assert todo_to_dict(self.todo_repo.get(todo.id))['evidence'] is None

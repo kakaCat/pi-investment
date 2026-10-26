@@ -166,23 +166,27 @@ def _scan_and_clean(now: float) -> Dict[str, int]:
         session_ref = info['session']
         session = session_ref() if session_ref else None
 
-        logger.error(
-            "session_leak_detected",
-            session_id=session_id,
-            age_seconds=int(age),
-            thread_id=info['thread_id'],
-            thread_name=info['thread_name'],
-            origin=info.get('origin', 'unknown'),  # 创建点（函数@文件:行号）
-            traceback=info['traceback'][:2000]  # 已剔除引导帧，放宽预算
-        )
-
+        # 先清理、再按清理结果定级（2026-10-21，看板事件 a6780ec3 / 3267a4ad）：
+        # 本 guard 的职责是"发现闲置事务 → 止血"。清理成功说明问题**已被处置**
+        # （事务终止、连接归还），不是未处理的故障；此时若仍打 error 级，
+        # worker 会把它收成 error_event 反复入库（实测累计 1139 次），错误看板被
+        # "已自愈"的噪声占满，真正的待处理问题反而被淹没。
+        # 定级口径改为：清理成功 → warning（保留可观测，不进错误台账）；
+        # 清理失败（连接已被 PG 强杀等）→ error，进台账等人处理。
         if session is not None:
             try:
                 if session.is_active:
                     session.rollback()
                 session.close()
                 cleaned += 1
-                logger.info("leaked_session_cleaned", session_id=session_id)
+                logger.warning(
+                    "session_leak_reclaimed",
+                    session_id=session_id,
+                    age_seconds=int(age),
+                    thread_name=info.get('thread_name'),
+                    origin=info.get('origin', 'unknown'),
+                    note="闲置事务已止血（连接已归还）；非未处理故障",
+                )
             except Exception as e:
                 # idle-in-transaction timeout 是预期的（PostgreSQL 已关闭连接）
                 error_msg = str(e)
@@ -195,10 +199,26 @@ def _scan_and_clean(now: float) -> Dict[str, int]:
                 else:
                     failed += 1
                     logger.error(
-                        "failed_to_clean_leaked_session",
+                        "session_leak_detected",
                         session_id=session_id,
-                        error=error_msg
+                        age_seconds=int(age),
+                        thread_id=info['thread_id'],
+                        thread_name=info['thread_name'],
+                        origin=info.get('origin', 'unknown'),  # 创建点（函数@文件:行号）
+                        traceback=info['traceback'][:2000],  # 已剔除引导帧，放宽预算
+                        cleanup_error=error_msg,
                     )
+        else:
+            # Session 对象已被 GC（弱引用已死）却仍在注册表里：无法执行清理，
+            # 但也不构成连接占用——按可观测事件记 warning，不进错误台账。
+            logger.warning(
+                "session_leak_reclaimed",
+                session_id=session_id,
+                age_seconds=int(age),
+                thread_name=info.get('thread_name'),
+                origin=info.get('origin', 'unknown'),
+                note="Session 已被 GC，无需清理",
+            )
 
         with _registry_lock:
             _session_registry.pop(session_id, None)

@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qs-plan"
+version = "0.1.0"
+description = "PI Investment 交易计划与反思闭环包 - 计划实体/状态机/幂等编译器/成交归因/反思材料包"
+requires-python = ">=3.10"
+dependencies = [
+    "structlog",
+    # 兄弟二方包（方案卡 docs/plans/package-boundaries-import-linter.md · 依赖单向）：
+    # 本包 import 它们就必须声明——否则离开本工作区 editable 环境即坏。
+    # qs_plan 是首个「跨包编排型」包：读 watch/trading/sourcing/market_data，写 watch 规则。
+    "qs-kernel",
+    "qs-market-data",
+    "qs-sourcing",
+    "qs-trading",
+    "qs-watch",
+]
+
+[tool.setuptools.packages.find]
+include = ["qs_plan*"]
+exclude = ["__pycache__*", "*.egg-info*"]

@@ -65,6 +65,14 @@ _ALERT_COOLDOWN_SECONDS = 30 * 60
 _ALERT_MAX_PER_DAY = 2
 _degraded_alert_state: Dict[Tuple[str, str], Dict[str, Any]] = {}
 
+# 需要"出声"的降级来源（loud 留痕 + 主动外发告警）。
+# 2026-10-21 事故复盘：盘中启发式（intraday-recent-market）**不是故障**——
+# 日K 17:40 才更新，每个交易日 17:40 前"今天"的判定必然走该启发式且 degraded=True；
+# 且该分支 is_trading_day=True（工作照常执行），与"保守判非交易日、工作被跳过"
+# （compute-error / unavailable）语义**相反**。对它 loud/告警 = 每个交易日误报一次，
+# 既刷噪音又消耗告警可信度（当日告警正文自相矛盾："工作会被跳过" vs "is_trading_day=True"）。
+_DEGRADE_ACTIONABLE_SOURCES = frozenset({SOURCE_COMPUTE_ERROR, SOURCE_UNAVAILABLE})
+
 # 外发通道（依赖注入，默认 None = 不主动外发）。
 # 守卫是热路径模块，不自己 import 通知栈：由应用启动时注入
 # （adapters/inbound/fastapi_app/main.py → install_degraded_alert_notifier）。
@@ -282,6 +290,11 @@ class TradingDayGuard:
 
     @classmethod
     def _log_degraded_loud(cls, verdict: 'TradingDayVerdict') -> None:
+        # 盘中启发式（intraday-recent-market）是设计的正常路径：degraded 仅表示
+        # "结论来自启发式而非当日K线"，工作照常执行（is_trading_day=True），
+        # 不属于 09-14 那类"降级→工作被静默跳过"的事故形态 → 不留 loud 痕迹。
+        if verdict.source not in _DEGRADE_ACTIONABLE_SOURCES:
+            return
         key = (verdict.day.isoformat(), verdict.source)
         if key in _DEGRADED_LOUD_KEY:
             return
@@ -305,6 +318,9 @@ class TradingDayGuard:
         sink = _degraded_alert_sink
         if sink is None:
             return
+        # 同 _log_degraded_loud：盘中启发式不是故障，不消耗告警配额。
+        if verdict.source not in _DEGRADE_ACTIONABLE_SOURCES:
+            return
         key = (verdict.day.isoformat(), verdict.source)
         state = _degraded_alert_state.get(key)
         now = _now_seconds()
@@ -319,16 +335,23 @@ class TradingDayGuard:
         else:
             return
 
+        # 影响措辞按实际判定结果生成（2026-10-21 复盘：旧版硬编码"保守视为非交易日、
+        # 工作会被跳过"，在 is_trading_day=True 的降级分支下自相矛盾）：
+        if verdict.is_trading_day:
+            impact = ('判定仍为交易日（启发式），依赖它的工作今天照常执行；'
+                      '但结论不来自当日K线，请核对近期行情是否断供。')
+        else:
+            impact = ('已保守视为非交易日，依赖它的工作今天会被跳过'
+                      '（盘前撮合 / T1 结算 / 盯盘轮转）。'
+                      '这与 2026-09-14 那次"全天不动"同类，请尽快确认。')
         content = (
-            '交易日判定已降级为「保守视为非交易日」，依赖它的工作今天会被跳过'
-            '（盘前撮合 / T1 结算 / 盯盘轮转）。这与 2026-09-14 那次"或与全天不动"同类，'
-            '请尽快确认。\n\n'
+            '交易日判定已降级：%s\n\n'
             '日期: %s\n'
             '来源: %s\n'
             '原因: %s\n'
             '判定结果: is_trading_day=%s / degraded=%s\n\n'
             '处置建议: 来源为 compute-error 时优先查代码/入参；为 unavailable 时先查数据库与行情源连通性。'
-            % (verdict.day.isoformat(), verdict.source, verdict.reason,
+            % (impact, verdict.day.isoformat(), verdict.source, verdict.reason,
                verdict.is_trading_day, verdict.degraded)
         )
         try:

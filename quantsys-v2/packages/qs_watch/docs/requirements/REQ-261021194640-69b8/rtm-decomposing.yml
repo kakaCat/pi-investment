@@ -1,0 +1,4323 @@
+metadata:
+  stage: decomposing
+  requirement_id: REQ-261021194640-69b8
+  generated_at: 2026-10-21T12:08:54.014Z
+  version: 138
+  generated_by: dsh-pmboard
+  rtm_version: "2.0"
+  last_updated: 2026-10-21T12:55:08.239Z
+inputs:
+  requirements:
+    - id: FR-1
+      title: 卖出成交后收敛盯盘待办与退出规则
+      source: requirement.md
+      line: 273
+    - id: FR-2
+      title: 买入成交后持仓状态秒级转持有
+      source: requirement.md
+      line: 276
+    - id: FR-3
+      title: 消息 critical 命中持仓 → P1 待办 + 唤醒 agent
+      source: requirement.md
+      line: 279
+    - id: FR-4
+      title: 盘后消息可扫
+      source: requirement.md
+      line: 282
+    - id: FR-5
+      title: 不执行 → 改规则联动
+      source: requirement.md
+      line: 285
+    - id: FR-6
+      title: 执行期限与超时收敛
+      source: requirement.md
+      line: 288
+    - id: FR-7
+      title: 闭环统计可读
+      source: requirement.md
+      line: 291
+    - id: FR-8
+      title: 自动补挂规则带持仓状态
+      source: requirement.md
+      line: 294
+  design_sections:
+    - ref: design/architecture.md#摘要
+      title: 摘要
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/architecture.md
+      section: 摘要
+    - ref: design/architecture.md#背景与问题
+      title: 背景与问题
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/architecture.md
+      section: 背景与问题
+    - ref: design/architecture.md#需求来源
+      title: 需求来源
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/architecture.md
+      section: 需求来源
+    - ref: design/architecture.md#现状与代价
+      title: 现状与代价
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/architecture.md
+      section: 现状与代价
+    - ref: design/architecture.md#为什么是现在
+      title: 为什么是现在
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/architecture.md
+      section: 为什么是现在
+    - ref: design/architecture.md#目标与非目标
+      title: 目标与非目标
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/architecture.md
+      section: 目标与非目标
+    - ref: design/architecture.md#目标
+      title: 目标
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/architecture.md
+      section: 目标
+    - ref: design/architecture.md#非目标
+      title: 非目标
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/architecture.md
+      section: 非目标
+    - ref: design/architecture.md#方案总览
+      title: 方案总览
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-5
+        - FR-6
+      file: design/architecture.md
+      section: 方案总览
+    - ref: design/architecture.md#架构与依赖
+      title: 架构与依赖
+      serves:
+        - FR-1
+        - FR-3
+      file: design/architecture.md
+      section: 架构与依赖
+    - ref: design/architecture.md#模块划分与文件结构
+      title: 模块划分与文件结构
+      serves:
+        - FR-1
+        - FR-3
+      file: design/architecture.md
+      section: 模块划分与文件结构
+    - ref: design/architecture.md#依赖方向
+      title: 依赖方向
+      serves:
+        - FR-1
+        - FR-3
+      file: design/architecture.md
+      section: 依赖方向
+    - ref: design/architecture.md#外部依赖与降级
+      title: 外部依赖与降级
+      serves:
+        - FR-1
+        - FR-3
+      file: design/architecture.md
+      section: 外部依赖与降级
+    - ref: design/architecture.md#数据模型
+      title: 数据模型
+      serves:
+        - FR-3
+      file: design/architecture.md
+      section: 数据模型
+    - ref: design/architecture.md#接口设计
+      title: 接口设计
+      serves:
+        - FR-1
+        - FR-3
+        - FR-5
+        - FR-6
+        - FR-7
+      file: design/architecture.md
+      section: 接口设计
+    - ref: design/architecture.md#IF-1-成交回调端口
+      title: IF-1 成交回调端口
+      serves:
+        - FR-1
+        - FR-3
+        - FR-5
+        - FR-6
+        - FR-7
+      file: design/architecture.md
+      section: IF-1-成交回调端口
+    - ref: design/architecture.md#IF-3-待办关闭扩展
+      title: IF-3 待办关闭（扩展）
+      serves:
+        - FR-1
+        - FR-3
+        - FR-5
+        - FR-6
+        - FR-7
+      file: design/architecture.md
+      section: IF-3-待办关闭扩展
+    - ref: design/architecture.md#IF-4-执行闭环统计
+      title: IF-4 执行闭环统计
+      serves:
+        - FR-1
+        - FR-3
+        - FR-5
+        - FR-6
+        - FR-7
+      file: design/architecture.md
+      section: IF-4-执行闭环统计
+    - ref: design/architecture.md#备选方案
+      title: 备选方案
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/architecture.md
+      section: 备选方案
+    - ref: design/architecture.md#四风险与证据
+      title: 四风险与证据
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/architecture.md
+      section: 四风险与证据
+    - ref: design/architecture.md#失败模式与回滚
+      title: 失败模式与回滚
+      serves:
+        - FR-1
+        - FR-3
+        - FR-6
+      file: design/architecture.md
+      section: 失败模式与回滚
+    - ref: design/architecture.md#跨关注点
+      title: 跨关注点
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/architecture.md
+      section: 跨关注点
+    - ref: design/architecture.md#交付拆分与里程碑
+      title: 交付拆分与里程碑
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/architecture.md
+      section: 交付拆分与里程碑
+    - ref: design/architecture.md#需求追溯
+      title: 需求追溯
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/architecture.md
+      section: 需求追溯
+    - ref: design/architecture.md#常见问题
+      title: 常见问题
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/architecture.md
+      section: 常见问题
+    - ref: design/architecture.md#开放问题
+      title: 开放问题
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/architecture.md
+      section: 开放问题
+    - ref: design/architecture.md#附录
+      title: 附录
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/architecture.md
+      section: 附录
+    - ref: design/backend.md#摘要
+      title: 摘要
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/backend.md
+      section: 摘要
+    - ref: design/backend.md#背景与问题
+      title: 背景与问题
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/backend.md
+      section: 背景与问题
+    - ref: design/backend.md#需求来源
+      title: 需求来源
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/backend.md
+      section: 需求来源
+    - ref: design/backend.md#现状与代价
+      title: 现状与代价
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/backend.md
+      section: 现状与代价
+    - ref: design/backend.md#为什么是现在
+      title: 为什么是现在
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/backend.md
+      section: 为什么是现在
+    - ref: design/backend.md#目标与非目标
+      title: 目标与非目标
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/backend.md
+      section: 目标与非目标
+    - ref: design/backend.md#目标
+      title: 目标
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/backend.md
+      section: 目标
+    - ref: design/backend.md#非目标
+      title: 非目标
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/backend.md
+      section: 非目标
+    - ref: design/backend.md#方案总览
+      title: 方案总览
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/backend.md
+      section: 方案总览
+    - ref: design/backend.md#成交回写时序FR-1FR-2
+      title: 成交回写时序（FR-1、FR-2）
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/backend.md
+      section: 成交回写时序FR-1FR-2
+    - ref: design/backend.md#待办关闭时序FR-5
+      title: 待办关闭时序（FR-5）
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/backend.md
+      section: 待办关闭时序FR-5
+    - ref: design/backend.md#消息投递与超时时序FR-3FR-4FR-6
+      title: 消息投递与超时时序（FR-3、FR-4、FR-6）
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/backend.md
+      section: 消息投递与超时时序FR-3FR-4FR-6
+    - ref: design/backend.md#架构与依赖
+      title: 架构与依赖
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/backend.md
+      section: 架构与依赖
+    - ref: design/backend.md#模块划分
+      title: 模块划分
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/backend.md
+      section: 模块划分
+    - ref: design/backend.md#文件结构
+      title: 文件结构
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/backend.md
+      section: 文件结构
+    - ref: design/backend.md#依赖方向
+      title: 依赖方向
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/backend.md
+      section: 依赖方向
+    - ref: design/backend.md#外部依赖与降级
+      title: 外部依赖与降级
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/backend.md
+      section: 外部依赖与降级
+    - ref: design/backend.md#数据模型
+      title: 数据模型
+      serves:
+        - FR-3
+        - FR-6
+        - FR-7
+      file: design/backend.md
+      section: 数据模型
+    - ref: design/backend.md#接口设计
+      title: 接口设计
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-5
+        - FR-6
+        - FR-7
+      file: design/backend.md
+      section: 接口设计
+    - ref: design/backend.md#接口实现落点
+      title: 接口实现落点
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-5
+        - FR-6
+        - FR-7
+      file: design/backend.md
+      section: 接口实现落点
+    - ref: design/backend.md#IF-1-成交回调协议
+      title: IF-1 成交回调协议
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-5
+        - FR-6
+        - FR-7
+      file: design/backend.md
+      section: IF-1-成交回调协议
+    - ref: design/backend.md#IF-2-成交通知函数
+      title: IF-2 成交通知函数
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-5
+        - FR-6
+        - FR-7
+      file: design/backend.md
+      section: IF-2-成交通知函数
+    - ref: design/backend.md#IF-3-待办关闭扩展
+      title: IF-3 待办关闭（扩展）
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-5
+        - FR-6
+        - FR-7
+      file: design/backend.md
+      section: IF-3-待办关闭扩展
+    - ref: design/backend.md#IF-4-执行闭环统计
+      title: IF-4 执行闭环统计
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-5
+        - FR-6
+        - FR-7
+      file: design/backend.md
+      section: IF-4-执行闭环统计
+    - ref: design/backend.md#IF-5-消息待办桥
+      title: IF-5 消息→待办桥
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-5
+        - FR-6
+        - FR-7
+      file: design/backend.md
+      section: IF-5-消息待办桥
+    - ref: design/backend.md#备选方案
+      title: 备选方案
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/backend.md
+      section: 备选方案
+    - ref: design/backend.md#四风险与证据
+      title: 四风险与证据
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/backend.md
+      section: 四风险与证据
+    - ref: design/backend.md#失败模式与回滚
+      title: 失败模式与回滚
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/backend.md
+      section: 失败模式与回滚
+    - ref: design/backend.md#错误处理策略
+      title: 错误处理策略
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/backend.md
+      section: 错误处理策略
+    - ref: design/backend.md#开关与降级
+      title: 开关与降级
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/backend.md
+      section: 开关与降级
+    - ref: design/backend.md#回滚演练与不可逆动作
+      title: 回滚演练与不可逆动作
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/backend.md
+      section: 回滚演练与不可逆动作
+    - ref: design/backend.md#跨关注点
+      title: 跨关注点
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/backend.md
+      section: 跨关注点
+    - ref: design/backend.md#性能与并发注意点
+      title: 性能与并发注意点
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/backend.md
+      section: 性能与并发注意点
+    - ref: design/backend.md#交付拆分与里程碑
+      title: 交付拆分与里程碑
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/backend.md
+      section: 交付拆分与里程碑
+    - ref: design/backend.md#需求追溯
+      title: 需求追溯
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/backend.md
+      section: 需求追溯
+    - ref: design/backend.md#常见问题
+      title: 常见问题
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/backend.md
+      section: 常见问题
+    - ref: design/backend.md#开放问题
+      title: 开放问题
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/backend.md
+      section: 开放问题
+    - ref: design/backend.md#附录
+      title: 附录
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/backend.md
+      section: 附录
+    - ref: design/data-model.md#摘要
+      title: 摘要
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/data-model.md
+      section: 摘要
+    - ref: design/data-model.md#背景与问题
+      title: 背景与问题
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/data-model.md
+      section: 背景与问题
+    - ref: design/data-model.md#需求来源
+      title: 需求来源
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/data-model.md
+      section: 需求来源
+    - ref: design/data-model.md#现状与代价
+      title: 现状与代价
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/data-model.md
+      section: 现状与代价
+    - ref: design/data-model.md#为什么是现在
+      title: 为什么是现在
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/data-model.md
+      section: 为什么是现在
+    - ref: design/data-model.md#目标与非目标
+      title: 目标与非目标
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/data-model.md
+      section: 目标与非目标
+    - ref: design/data-model.md#目标
+      title: 目标
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/data-model.md
+      section: 目标
+    - ref: design/data-model.md#非目标
+      title: 非目标
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/data-model.md
+      section: 非目标
+    - ref: design/data-model.md#方案总览
+      title: 方案总览
+      serves:
+        - FR-3
+        - FR-7
+      file: design/data-model.md
+      section: 方案总览
+    - ref: design/data-model.md#架构与依赖
+      title: 架构与依赖
+      serves:
+        - FR-3
+        - FR-7
+      file: design/data-model.md
+      section: 架构与依赖
+    - ref: design/data-model.md#数据模型
+      title: 数据模型
+      serves:
+        - FR-3
+        - FR-7
+      file: design/data-model.md
+      section: 数据模型
+    - ref: design/data-model.md#实体与字段
+      title: 实体与字段
+      serves:
+        - FR-3
+        - FR-7
+      file: design/data-model.md
+      section: 实体与字段
+    - ref: design/data-model.md#约束与不变量
+      title: 约束与不变量
+      serves:
+        - FR-3
+        - FR-7
+      file: design/data-model.md
+      section: 约束与不变量
+    - ref: design/data-model.md#迁移与回填
+      title: 迁移与回填
+      serves:
+        - FR-3
+        - FR-7
+      file: design/data-model.md
+      section: 迁移与回填
+    - ref: design/data-model.md#生命周期
+      title: 生命周期
+      serves:
+        - FR-3
+        - FR-7
+      file: design/data-model.md
+      section: 生命周期
+    - ref: design/data-model.md#接口设计
+      title: 接口设计
+      serves:
+        - FR-3
+      file: design/data-model.md
+      section: 接口设计
+    - ref: design/data-model.md#IF-7-证据字段契约
+      title: IF-7 证据字段契约
+      serves:
+        - FR-3
+      file: design/data-model.md
+      section: IF-7-证据字段契约
+    - ref: design/data-model.md#IF-8-迁移脚本
+      title: IF-8 迁移脚本
+      serves:
+        - FR-3
+      file: design/data-model.md
+      section: IF-8-迁移脚本
+    - ref: design/data-model.md#备选方案
+      title: 备选方案
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/data-model.md
+      section: 备选方案
+    - ref: design/data-model.md#四风险与证据
+      title: 四风险与证据
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/data-model.md
+      section: 四风险与证据
+    - ref: design/data-model.md#失败模式与回滚
+      title: 失败模式与回滚
+      serves:
+        - FR-3
+      file: design/data-model.md
+      section: 失败模式与回滚
+    - ref: design/data-model.md#跨关注点
+      title: 跨关注点
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/data-model.md
+      section: 跨关注点
+    - ref: design/data-model.md#交付拆分与里程碑
+      title: 交付拆分与里程碑
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/data-model.md
+      section: 交付拆分与里程碑
+    - ref: design/data-model.md#需求追溯
+      title: 需求追溯
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/data-model.md
+      section: 需求追溯
+    - ref: design/data-model.md#常见问题
+      title: 常见问题
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/data-model.md
+      section: 常见问题
+    - ref: design/data-model.md#开放问题
+      title: 开放问题
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/data-model.md
+      section: 开放问题
+    - ref: design/data-model.md#附录
+      title: 附录
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/data-model.md
+      section: 附录
+    - ref: design/interfaces.md#摘要
+      title: 摘要
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/interfaces.md
+      section: 摘要
+    - ref: design/interfaces.md#背景与问题
+      title: 背景与问题
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/interfaces.md
+      section: 背景与问题
+    - ref: design/interfaces.md#需求来源
+      title: 需求来源
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/interfaces.md
+      section: 需求来源
+    - ref: design/interfaces.md#现状与代价
+      title: 现状与代价
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/interfaces.md
+      section: 现状与代价
+    - ref: design/interfaces.md#为什么是现在
+      title: 为什么是现在
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/interfaces.md
+      section: 为什么是现在
+    - ref: design/interfaces.md#目标与非目标
+      title: 目标与非目标
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/interfaces.md
+      section: 目标与非目标
+    - ref: design/interfaces.md#目标
+      title: 目标
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/interfaces.md
+      section: 目标
+    - ref: design/interfaces.md#非目标
+      title: 非目标
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/interfaces.md
+      section: 非目标
+    - ref: design/interfaces.md#方案总览
+      title: 方案总览
+      serves:
+        - FR-1
+        - FR-3
+        - FR-5
+        - FR-7
+      file: design/interfaces.md
+      section: 方案总览
+    - ref: design/interfaces.md#架构与依赖
+      title: 架构与依赖
+      serves:
+        - FR-1
+        - FR-3
+      file: design/interfaces.md
+      section: 架构与依赖
+    - ref: design/interfaces.md#数据模型
+      title: 数据模型
+      serves:
+        - FR-3
+      file: design/interfaces.md
+      section: 数据模型
+    - ref: design/interfaces.md#接口设计
+      title: 接口设计
+      serves:
+        - FR-1
+        - FR-3
+        - FR-5
+        - FR-7
+      file: design/interfaces.md
+      section: 接口设计
+    - ref: design/interfaces.md#接口清单
+      title: 接口清单
+      serves:
+        - FR-1
+        - FR-3
+        - FR-5
+        - FR-7
+      file: design/interfaces.md
+      section: 接口清单
+    - ref: design/interfaces.md#IF-1-成交回调协议
+      title: IF-1 成交回调协议
+      serves:
+        - FR-1
+        - FR-3
+        - FR-5
+        - FR-7
+      file: design/interfaces.md
+      section: IF-1-成交回调协议
+    - ref: design/interfaces.md#IF-2-成交通知函数
+      title: IF-2 成交通知函数
+      serves:
+        - FR-1
+        - FR-3
+        - FR-5
+        - FR-7
+      file: design/interfaces.md
+      section: IF-2-成交通知函数
+    - ref: design/interfaces.md#IF-3-待办关闭扩展
+      title: IF-3 待办关闭（扩展）
+      serves:
+        - FR-1
+        - FR-3
+        - FR-5
+        - FR-7
+      file: design/interfaces.md
+      section: IF-3-待办关闭扩展
+    - ref: design/interfaces.md#IF-4-执行闭环统计
+      title: IF-4 执行闭环统计
+      serves:
+        - FR-1
+        - FR-3
+        - FR-5
+        - FR-7
+      file: design/interfaces.md
+      section: IF-4-执行闭环统计
+    - ref: design/interfaces.md#IF-5-消息待办桥
+      title: IF-5 消息→待办桥
+      serves:
+        - FR-1
+        - FR-3
+        - FR-5
+        - FR-7
+      file: design/interfaces.md
+      section: IF-5-消息待办桥
+    - ref: design/interfaces.md#备选方案
+      title: 备选方案
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/interfaces.md
+      section: 备选方案
+    - ref: design/interfaces.md#四风险与证据
+      title: 四风险与证据
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/interfaces.md
+      section: 四风险与证据
+    - ref: design/interfaces.md#失败模式与回滚
+      title: 失败模式与回滚
+      serves:
+        - FR-1
+        - FR-3
+        - FR-5
+      file: design/interfaces.md
+      section: 失败模式与回滚
+    - ref: design/interfaces.md#跨关注点
+      title: 跨关注点
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/interfaces.md
+      section: 跨关注点
+    - ref: design/interfaces.md#交付拆分与里程碑
+      title: 交付拆分与里程碑
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/interfaces.md
+      section: 交付拆分与里程碑
+    - ref: design/interfaces.md#需求追溯
+      title: 需求追溯
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/interfaces.md
+      section: 需求追溯
+    - ref: design/interfaces.md#常见问题
+      title: 常见问题
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/interfaces.md
+      section: 常见问题
+    - ref: design/interfaces.md#开放问题
+      title: 开放问题
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/interfaces.md
+      section: 开放问题
+    - ref: design/interfaces.md#附录
+      title: 附录
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/interfaces.md
+      section: 附录
+    - ref: design/use-cases.md#摘要
+      title: 摘要
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/use-cases.md
+      section: 摘要
+    - ref: design/use-cases.md#背景与问题
+      title: 背景与问题
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/use-cases.md
+      section: 背景与问题
+    - ref: design/use-cases.md#需求来源
+      title: 需求来源
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/use-cases.md
+      section: 需求来源
+    - ref: design/use-cases.md#现状与代价
+      title: 现状与代价
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/use-cases.md
+      section: 现状与代价
+    - ref: design/use-cases.md#为什么是现在
+      title: 为什么是现在
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/use-cases.md
+      section: 为什么是现在
+    - ref: design/use-cases.md#目标与非目标
+      title: 目标与非目标
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/use-cases.md
+      section: 目标与非目标
+    - ref: design/use-cases.md#目标
+      title: 目标
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/use-cases.md
+      section: 目标
+    - ref: design/use-cases.md#非目标
+      title: 非目标
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/use-cases.md
+      section: 非目标
+    - ref: design/use-cases.md#方案总览
+      title: 方案总览
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/use-cases.md
+      section: 方案总览
+    - ref: design/use-cases.md#关键概念
+      title: 关键概念
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/use-cases.md
+      section: 关键概念
+    - ref: design/use-cases.md#UC-1-agent-收到-P0-止损-执行卖出-系统收敛FR-1
+      title: UC-1 agent 收到 P0 止损 → 执行卖出 → 系统收敛（FR-1）
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/use-cases.md
+      section: UC-1-agent-收到-P0-止损-执行卖出-系统收敛FR-1
+    - ref: design/use-cases.md#UC-2-agent-买入-状态转持有-不再重复喊建仓FR-2联动-FR-8
+      title: UC-2 agent 买入 → 状态转持有 → 不再重复喊建仓（FR-2，联动 FR-8）
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/use-cases.md
+      section: UC-2-agent-买入-状态转持有-不再重复喊建仓FR-2联动-FR-8
+    - ref: design/use-cases.md#UC-3-盘后-critical-公告-P1-待办-agent-判断提前离场FR-3FR-4
+      title: UC-3 盘后 critical 公告 → P1 待办 → agent 判断提前离场（FR-3、FR-4）
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/use-cases.md
+      section: UC-3-盘后-critical-公告-P1-待办-agent-判断提前离场FR-3FR-4
+    - ref: design/use-cases.md#UC-4-agent-决定不执行-关闭待办-规则变更-审计FR-5
+      title: UC-4 agent 决定不执行 → 关闭待办 → 规则变更 + 审计（FR-5）
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/use-cases.md
+      section: UC-4-agent-决定不执行-关闭待办-规则变更-审计FR-5
+    - ref: design/use-cases.md#UC-5-期限到未处理-超时回执-L3-催办FR-6
+      title: UC-5 期限到未处理 → 超时回执 → L3 催办（FR-6）
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/use-cases.md
+      section: UC-5-期限到未处理-超时回执-L3-催办FR-6
+    - ref: design/use-cases.md#架构与依赖
+      title: 架构与依赖
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/use-cases.md
+      section: 架构与依赖
+    - ref: design/use-cases.md#参与者与职责
+      title: 参与者与职责
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/use-cases.md
+      section: 参与者与职责
+    - ref: design/use-cases.md#角色-场景-矩阵
+      title: 角色 × 场景 矩阵
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/use-cases.md
+      section: 角色-场景-矩阵
+    - ref: design/use-cases.md#依赖与不可用时的旅程退化
+      title: 依赖与不可用时的旅程退化
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/use-cases.md
+      section: 依赖与不可用时的旅程退化
+    - ref: design/use-cases.md#数据模型
+      title: 数据模型
+      serves:
+        - FR-5
+        - FR-6
+      file: design/use-cases.md
+      section: 数据模型
+    - ref: design/use-cases.md#待办状态迁移表
+      title: 待办状态迁移表
+      serves:
+        - FR-5
+        - FR-6
+      file: design/use-cases.md
+      section: 待办状态迁移表
+    - ref: design/use-cases.md#旅程里可见的数据
+      title: 旅程里可见的数据
+      serves:
+        - FR-5
+        - FR-6
+      file: design/use-cases.md
+      section: 旅程里可见的数据
+    - ref: design/use-cases.md#不变量
+      title: 不变量
+      serves:
+        - FR-5
+        - FR-6
+      file: design/use-cases.md
+      section: 不变量
+    - ref: design/use-cases.md#接口设计
+      title: 接口设计
+      serves:
+        - FR-3
+        - FR-5
+        - FR-7
+      file: design/use-cases.md
+      section: 接口设计
+    - ref: design/use-cases.md#IF-3-待办关闭扩展
+      title: IF-3 待办关闭（扩展）
+      serves:
+        - FR-3
+        - FR-5
+        - FR-7
+      file: design/use-cases.md
+      section: IF-3-待办关闭扩展
+    - ref: design/use-cases.md#IF-4-执行闭环统计
+      title: IF-4 执行闭环统计
+      serves:
+        - FR-3
+        - FR-5
+        - FR-7
+      file: design/use-cases.md
+      section: IF-4-执行闭环统计
+    - ref: design/use-cases.md#IF-5-消息待办桥
+      title: IF-5 消息待办桥
+      serves:
+        - FR-3
+        - FR-5
+        - FR-7
+      file: design/use-cases.md
+      section: IF-5-消息待办桥
+    - ref: design/use-cases.md#备选方案
+      title: 备选方案
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/use-cases.md
+      section: 备选方案
+    - ref: design/use-cases.md#四风险与证据
+      title: 四风险与证据
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/use-cases.md
+      section: 四风险与证据
+    - ref: design/use-cases.md#失败模式与回滚
+      title: 失败模式与回滚
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/use-cases.md
+      section: 失败模式与回滚
+    - ref: design/use-cases.md#跨关注点
+      title: 跨关注点
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/use-cases.md
+      section: 跨关注点
+    - ref: design/use-cases.md#交付拆分与里程碑
+      title: 交付拆分与里程碑
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/use-cases.md
+      section: 交付拆分与里程碑
+    - ref: design/use-cases.md#需求追溯
+      title: 需求追溯
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/use-cases.md
+      section: 需求追溯
+    - ref: design/use-cases.md#常见问题
+      title: 常见问题
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/use-cases.md
+      section: 常见问题
+    - ref: design/use-cases.md#开放问题
+      title: 开放问题
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/use-cases.md
+      section: 开放问题
+    - ref: design/use-cases.md#附录
+      title: 附录
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/use-cases.md
+      section: 附录
+outputs:
+  tasks:
+    - id: t-c6c5d2
+      title: 建交易包中立成交端口并保留旧路径转发
+      implements: 新建 packages/qs_trading/qs_trading/application/ports/fill_listener.py：FillEvent 数据类、IFillListener 协议、register/get/unregister、notify_fill（自吞异常、未注册返回 False）。改 application/trading/paper_trading_engine.py 保留同名导出并转发，_notify_fill 改调 notify_fill。验证 import 与行为等价。
+      serves:
+        - FR-1
+        - FR-2
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-0846ee
+      title: 待办证据列与部分索引
+      implements: 新建 infrastructure/persistence/migrations/20261021_watch_todos_evidence.py（默认 dry-run，--apply 写库，--dsn 可指定）；infrastructure/persistence/orm/models/watch_todo.py 加 evidence 可空列映射；adapters/outbound/repositories/watch_todo_repository.py 的 create/读投影与缺列预检。
+      serves:
+        - FR-3
+        - FR-7
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-c18a41
+      title: 补挂止损/止盈写持仓状态
+      implements: packages/qs_watch/qs_watch/application/services/watch_engine/position_lifecycle_service.py 的 _create_stop_loss/_create_take_profit 调 create_rule 时传 position_state='holding'；在 tests/application/test_watch_position_lifecycle.py 补断言。
+      serves:
+        - FR-8
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-e95a2a
+      title: 关闭待办接规则变更联动
+      implements: adapters/inbound/fastapi_app/routes/watch_todo_async.py 透传 additive rule_change；packages/qs_watch/.../todo_service.py 在 close 成功后调 RuleChangeLinkage.apply（trigger_id 必填、事务、失败回滚）；新增 tests/application/test_watch_todo_close_rule_change.py。
+      serves:
+        - FR-5
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-e29f67
+      title: 执行期限巡检与时区归一
+      implements: packages/qs_watch/.../sla_job.py 增加执行期限判定：P0/exit_stop 待办按 created_at+WATCH_EXEC_SLA_MIN 判超时，时区统一归一后比较，回执同期限周期只发一次且不写 expired；tests/application/test_sla_job.py 补时区矩阵与幂等用例。
+      serves:
+        - FR-6
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-a5fa64
+      title: 真实成交落库后发事件
+      implements: packages/qs_trading/qs_trading/application/services/account_trading_service.py 的 execute_trade 在成交 commit 后构建 FillEvent（trade_id/account/symbol/action/shares/price/filled_at/source='agent_trade'）并调 notify_fill，外层 try/except 只记日志；新增 tests/application/test_account_trade_fill_callback.py。
+      serves:
+        - FR-1
+        - FR-2
+      depends_on:
+        - t-c6c5d2
+      phase: implement
+      side: backend
+    - id: t-27e8c7
+      title: 消息→P1 待办桥（critical 建单 + 唤醒）
+      implements: 新建 packages/qs_watch/qs_watch/application/services/watch_engine/news_todo_bridge.py：dispatch(alerts) 仅对 critical 建 P1 待办（action_kind='rule_change'、evidence 记来源/标题/命中词/告警 id），按账户路由 owner 并唤醒；同标的未收敛待办窗口内去重；方法不抛错。新增 tests/application/test_news_todo_bridge.py。
+      serves:
+        - FR-3
+      depends_on:
+        - t-0846ee
+      phase: implement
+      side: backend
+    - id: t-b8d5ae
+      title: 执行闭环统计端点
+      implements: adapters/inbound/fastapi_app/routes/watch_async.py 新增 GET /api/watch/exec/stats（since/until 可选）；adapters/outbound/repositories/watch_todo_repository.py 增加聚合查询（三态计数 + 从 trigger detail.exec 取时延算 p50/p95，排除治理类）；新增 tests/api/test_watch_exec_stats.py。
+      serves:
+        - FR-7
+      depends_on:
+        - t-a5fa64
+      phase: implement
+      side: backend
+    - id: t-88d4da
+      title: 新闻与政策扫描接入消息桥
+      implements: packages/qs_watch/.../news_watch_service.py 与 policy_watch_service.py 增加可空 bridge 注入；critical 命中持仓标的/持仓板块时调 dispatch，未注入保持只发卡；账户与板块映射在服务内解析；补 tests/application/test_news_watch_service.py、test_policy_watch_service.py 断言。
+      serves:
+        - FR-3
+      depends_on:
+        - t-27e8c7
+      phase: implement
+      side: backend
+    - id: t-3ef50b
+      title: sidecar 拆盘中/盘后，盘后消息可扫
+      implements: packages/qs_watch/.../engine.py 把 _run_sidecar 拆成盘中段与盘后段：消息扫描在交易日 08:00–22:00 可跑，其余日频任务维持当日一次；收盘日报在盘后段触发；新增 tests/application/test_watch_sidecar_window.py。
+      serves:
+        - FR-4
+      depends_on:
+        - t-27e8c7
+      phase: implement
+      side: backend
+    - id: t-2ff7ca
+      title: 成交收敛端到端场景
+      implements: 新增 tests/scenarios/test_watch_fill_converge.py：用组合根装配 + 假件，覆盖清仓四收敛、买入转持有、部分成交不收敛、重复成交幂等、持仓读失败 fail-closed；必要时只改测试，不改生产代码。
+      serves:
+        - FR-1
+        - FR-2
+      depends_on:
+        - t-a5fa64
+      phase: test
+      side: backend
+    - id: t-e416b7
+      title: 组合根装配与降级开关
+      implements: packages/qs_watch/.../factory.py 装配消息桥、规则联动与成交监听；全部可空降级（未注入=旧行为），装配异常只记日志不阻断引擎启动；补 tests/application/test_fill_sync_factory_wiring.py、test_watch_factory_news_bridge.py。
+      serves:
+        - FR-1
+        - FR-3
+        - FR-5
+        - FR-6
+      depends_on:
+        - t-a5fa64
+        - t-27e8c7
+        - t-e95a2a
+        - t-e29f67
+      phase: implement
+      side: backend
+    - id: t-f9a9b3
+      title: 回归与生产只读核查
+      implements: 在仓库根跑 watch/fill/todo/trading 相关回归并记录结果；用三条只读 SQL 核查生产证据（成交回写明细、盘后扫描轮次、统计与台账对账），结果写入交付说明。
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      depends_on:
+        - t-c18a41
+        - t-b8d5ae
+        - t-88d4da
+        - t-3ef50b
+        - t-2ff7ca
+        - t-e416b7
+      phase: test
+      side: backend
+    - id: t-1c3597
+      title: 建交易包中立成交端口并保留旧路径转发·研发
+      implements: |-
+        新建 packages/qs_trading/qs_trading/application/ports/fill_listener.py：FillEvent 数据类、IFillListener 协议、register/get/unregister、notify_fill（自吞异常、未注册返回 False）。改 application/trading/paper_trading_engine.py 保留同名导出并转发，_notify_fill 改调 notify_fill。验证 import 与行为等价。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-f2474a
+      title: 建交易包中立成交端口并保留旧路径转发·联调
+      implements: |-
+        新建 packages/qs_trading/qs_trading/application/ports/fill_listener.py：FillEvent 数据类、IFillListener 协议、register/get/unregister、notify_fill（自吞异常、未注册返回 False）。改 application/trading/paper_trading_engine.py 保留同名导出并转发，_notify_fill 改调 notify_fill。验证 import 与行为等价。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run tests/` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-1c3597
+      phase: implement
+      side: backend
+    - id: t-e1eb49
+      title: 建交易包中立成交端口并保留旧路径转发·复核
+      implements: |-
+        新建 packages/qs_trading/qs_trading/application/ports/fill_listener.py：FillEvent 数据类、IFillListener 协议、register/get/unregister、notify_fill（自吞异常、未注册返回 False）。改 application/trading/paper_trading_engine.py 保留同名导出并转发，_notify_fill 改调 notify_fill。验证 import 与行为等价。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/REQ-261021194640-69b8/design/` 逐条核对；`npx vitest run tests/` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-f2474a
+      phase: implement
+      side: backend
+    - id: t-7e4e44
+      title: 建交易包中立成交端口并保留旧路径转发·测试
+      implements: |-
+        新建 packages/qs_trading/qs_trading/application/ports/fill_listener.py：FillEvent 数据类、IFillListener 协议、register/get/unregister、notify_fill（自吞异常、未注册返回 False）。改 application/trading/paper_trading_engine.py 保留同名导出并转发，_notify_fill 改调 notify_fill。验证 import 与行为等价。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-e1eb49
+      phase: implement
+      side: backend
+    - id: t-947421
+      title: 待办证据列与部分索引·研发
+      implements: |-
+        新建 infrastructure/persistence/migrations/20261021_watch_todos_evidence.py（默认 dry-run，--apply 写库，--dsn 可指定）；infrastructure/persistence/orm/models/watch_todo.py 加 evidence 可空列映射；adapters/outbound/repositories/watch_todo_repository.py 的 create/读投影与缺列预检。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-902bf1
+      title: 待办证据列与部分索引·联调
+      implements: |-
+        新建 infrastructure/persistence/migrations/20261021_watch_todos_evidence.py（默认 dry-run，--apply 写库，--dsn 可指定）；infrastructure/persistence/orm/models/watch_todo.py 加 evidence 可空列映射；adapters/outbound/repositories/watch_todo_repository.py 的 create/读投影与缺列预检。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run tests/` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-947421
+      phase: implement
+      side: backend
+    - id: t-c1ce88
+      title: 待办证据列与部分索引·复核
+      implements: |-
+        新建 infrastructure/persistence/migrations/20261021_watch_todos_evidence.py（默认 dry-run，--apply 写库，--dsn 可指定）；infrastructure/persistence/orm/models/watch_todo.py 加 evidence 可空列映射；adapters/outbound/repositories/watch_todo_repository.py 的 create/读投影与缺列预检。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/REQ-261021194640-69b8/design/` 逐条核对；`npx vitest run tests/` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-902bf1
+      phase: implement
+      side: backend
+    - id: t-2932b9
+      title: 待办证据列与部分索引·测试
+      implements: |-
+        新建 infrastructure/persistence/migrations/20261021_watch_todos_evidence.py（默认 dry-run，--apply 写库，--dsn 可指定）；infrastructure/persistence/orm/models/watch_todo.py 加 evidence 可空列映射；adapters/outbound/repositories/watch_todo_repository.py 的 create/读投影与缺列预检。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-c1ce88
+      phase: implement
+      side: backend
+    - id: t-552104
+      title: 补挂止损/止盈写持仓状态·研发
+      implements: |-
+        packages/qs_watch/qs_watch/application/services/watch_engine/position_lifecycle_service.py 的 _create_stop_loss/_create_take_profit 调 create_rule 时传 position_state='holding'；在 tests/application/test_watch_position_lifecycle.py 补断言。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-c41448
+      title: 补挂止损/止盈写持仓状态·联调
+      implements: |-
+        packages/qs_watch/qs_watch/application/services/watch_engine/position_lifecycle_service.py 的 _create_stop_loss/_create_take_profit 调 create_rule 时传 position_state='holding'；在 tests/application/test_watch_position_lifecycle.py 补断言。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run tests/` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-552104
+      phase: implement
+      side: backend
+    - id: t-ec9d80
+      title: 补挂止损/止盈写持仓状态·复核
+      implements: |-
+        packages/qs_watch/qs_watch/application/services/watch_engine/position_lifecycle_service.py 的 _create_stop_loss/_create_take_profit 调 create_rule 时传 position_state='holding'；在 tests/application/test_watch_position_lifecycle.py 补断言。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/REQ-261021194640-69b8/design/` 逐条核对；`npx vitest run tests/` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-c41448
+      phase: implement
+      side: backend
+    - id: t-66833a
+      title: 补挂止损/止盈写持仓状态·测试
+      implements: |-
+        packages/qs_watch/qs_watch/application/services/watch_engine/position_lifecycle_service.py 的 _create_stop_loss/_create_take_profit 调 create_rule 时传 position_state='holding'；在 tests/application/test_watch_position_lifecycle.py 补断言。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-ec9d80
+      phase: implement
+      side: backend
+    - id: t-da557b
+      title: 关闭待办接规则变更联动·研发
+      implements: |-
+        adapters/inbound/fastapi_app/routes/watch_todo_async.py 透传 additive rule_change；packages/qs_watch/.../todo_service.py 在 close 成功后调 RuleChangeLinkage.apply（trigger_id 必填、事务、失败回滚）；新增 tests/application/test_watch_todo_close_rule_change.py。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-46c354
+      title: 关闭待办接规则变更联动·联调
+      implements: |-
+        adapters/inbound/fastapi_app/routes/watch_todo_async.py 透传 additive rule_change；packages/qs_watch/.../todo_service.py 在 close 成功后调 RuleChangeLinkage.apply（trigger_id 必填、事务、失败回滚）；新增 tests/application/test_watch_todo_close_rule_change.py。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run tests/` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-da557b
+      phase: implement
+      side: backend
+    - id: t-91a8b2
+      title: 关闭待办接规则变更联动·复核
+      implements: |-
+        adapters/inbound/fastapi_app/routes/watch_todo_async.py 透传 additive rule_change；packages/qs_watch/.../todo_service.py 在 close 成功后调 RuleChangeLinkage.apply（trigger_id 必填、事务、失败回滚）；新增 tests/application/test_watch_todo_close_rule_change.py。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/REQ-261021194640-69b8/design/` 逐条核对；`npx vitest run tests/` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-46c354
+      phase: implement
+      side: backend
+    - id: t-eb06ad
+      title: 关闭待办接规则变更联动·测试
+      implements: |-
+        adapters/inbound/fastapi_app/routes/watch_todo_async.py 透传 additive rule_change；packages/qs_watch/.../todo_service.py 在 close 成功后调 RuleChangeLinkage.apply（trigger_id 必填、事务、失败回滚）；新增 tests/application/test_watch_todo_close_rule_change.py。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-91a8b2
+      phase: implement
+      side: backend
+    - id: t-c573f5
+      title: 执行期限巡检与时区归一·研发
+      implements: |-
+        packages/qs_watch/.../sla_job.py 增加执行期限判定：P0/exit_stop 待办按 created_at+WATCH_EXEC_SLA_MIN 判超时，时区统一归一后比较，回执同期限周期只发一次且不写 expired；tests/application/test_sla_job.py 补时区矩阵与幂等用例。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-a8d1da
+      title: 执行期限巡检与时区归一·联调
+      implements: |-
+        packages/qs_watch/.../sla_job.py 增加执行期限判定：P0/exit_stop 待办按 created_at+WATCH_EXEC_SLA_MIN 判超时，时区统一归一后比较，回执同期限周期只发一次且不写 expired；tests/application/test_sla_job.py 补时区矩阵与幂等用例。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run tests/` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-c573f5
+      phase: implement
+      side: backend
+    - id: t-7d1677
+      title: 执行期限巡检与时区归一·复核
+      implements: |-
+        packages/qs_watch/.../sla_job.py 增加执行期限判定：P0/exit_stop 待办按 created_at+WATCH_EXEC_SLA_MIN 判超时，时区统一归一后比较，回执同期限周期只发一次且不写 expired；tests/application/test_sla_job.py 补时区矩阵与幂等用例。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/REQ-261021194640-69b8/design/` 逐条核对；`npx vitest run tests/` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-a8d1da
+      phase: implement
+      side: backend
+    - id: t-627a70
+      title: 执行期限巡检与时区归一·测试
+      implements: |-
+        packages/qs_watch/.../sla_job.py 增加执行期限判定：P0/exit_stop 待办按 created_at+WATCH_EXEC_SLA_MIN 判超时，时区统一归一后比较，回执同期限周期只发一次且不写 expired；tests/application/test_sla_job.py 补时区矩阵与幂等用例。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-7d1677
+      phase: implement
+      side: backend
+task_coverage:
+  - task_id: t-c6c5d2
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-0846ee
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-c18a41
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-e95a2a
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-e29f67
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-a5fa64
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-27e8c7
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-b8d5ae
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-88d4da
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-3ef50b
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-2ff7ca
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-e416b7
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-f9a9b3
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-1c3597
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-f2474a
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-e1eb49
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-7e4e44
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-947421
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-902bf1
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-c1ce88
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-2932b9
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-552104
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-c41448
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-ec9d80
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-66833a
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-da557b
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-46c354
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-91a8b2
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-eb06ad
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-c573f5
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-a8d1da
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-7d1677
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-627a70
+    covers_prototypes: []
+    covers_decisions: []
+traceability:
+  design_to_tasks:
+    design/architecture.md#摘要:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/architecture.md#背景与问题:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/architecture.md#需求来源:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/architecture.md#现状与代价:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/architecture.md#为什么是现在:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/architecture.md#目标与非目标:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/architecture.md#目标:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/architecture.md#非目标:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/architecture.md#方案总览:
+      - t-c6c5d2
+      - t-0846ee
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-88d4da
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/architecture.md#架构与依赖:
+      - t-c6c5d2
+      - t-0846ee
+      - t-a5fa64
+      - t-27e8c7
+      - t-88d4da
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/architecture.md#模块划分与文件结构:
+      - t-c6c5d2
+      - t-0846ee
+      - t-a5fa64
+      - t-27e8c7
+      - t-88d4da
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/architecture.md#依赖方向:
+      - t-c6c5d2
+      - t-0846ee
+      - t-a5fa64
+      - t-27e8c7
+      - t-88d4da
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/architecture.md#外部依赖与降级:
+      - t-c6c5d2
+      - t-0846ee
+      - t-a5fa64
+      - t-27e8c7
+      - t-88d4da
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/architecture.md#数据模型:
+      - t-0846ee
+      - t-27e8c7
+      - t-88d4da
+      - t-e416b7
+      - t-f9a9b3
+    design/architecture.md#接口设计:
+      - t-c6c5d2
+      - t-0846ee
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/architecture.md#IF-1-成交回调端口:
+      - t-c6c5d2
+      - t-0846ee
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/architecture.md#IF-3-待办关闭扩展:
+      - t-c6c5d2
+      - t-0846ee
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/architecture.md#IF-4-执行闭环统计:
+      - t-c6c5d2
+      - t-0846ee
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/architecture.md#备选方案:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/architecture.md#四风险与证据:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/architecture.md#失败模式与回滚:
+      - t-c6c5d2
+      - t-0846ee
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-88d4da
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/architecture.md#跨关注点:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/architecture.md#交付拆分与里程碑:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/architecture.md#需求追溯:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/architecture.md#常见问题:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/architecture.md#开放问题:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/architecture.md#附录:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/backend.md#摘要:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/backend.md#背景与问题:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/backend.md#需求来源:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/backend.md#现状与代价:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/backend.md#为什么是现在:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/backend.md#目标与非目标:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/backend.md#目标:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/backend.md#非目标:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/backend.md#方案总览:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/backend.md#成交回写时序FR-1FR-2:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/backend.md#待办关闭时序FR-5:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/backend.md#消息投递与超时时序FR-3FR-4FR-6:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/backend.md#架构与依赖:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/backend.md#模块划分:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/backend.md#文件结构:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/backend.md#依赖方向:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/backend.md#外部依赖与降级:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/backend.md#数据模型:
+      - t-0846ee
+      - t-e29f67
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-e416b7
+      - t-f9a9b3
+    design/backend.md#接口设计:
+      - t-c6c5d2
+      - t-0846ee
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/backend.md#接口实现落点:
+      - t-c6c5d2
+      - t-0846ee
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/backend.md#IF-1-成交回调协议:
+      - t-c6c5d2
+      - t-0846ee
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/backend.md#IF-2-成交通知函数:
+      - t-c6c5d2
+      - t-0846ee
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/backend.md#IF-3-待办关闭扩展:
+      - t-c6c5d2
+      - t-0846ee
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/backend.md#IF-4-执行闭环统计:
+      - t-c6c5d2
+      - t-0846ee
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/backend.md#IF-5-消息待办桥:
+      - t-c6c5d2
+      - t-0846ee
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/backend.md#备选方案:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/backend.md#四风险与证据:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/backend.md#失败模式与回滚:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/backend.md#错误处理策略:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/backend.md#开关与降级:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/backend.md#回滚演练与不可逆动作:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/backend.md#跨关注点:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/backend.md#性能与并发注意点:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/backend.md#交付拆分与里程碑:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/backend.md#需求追溯:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/backend.md#常见问题:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/backend.md#开放问题:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/backend.md#附录:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/data-model.md#摘要:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/data-model.md#背景与问题:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/data-model.md#需求来源:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/data-model.md#现状与代价:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/data-model.md#为什么是现在:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/data-model.md#目标与非目标:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/data-model.md#目标:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/data-model.md#非目标:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/data-model.md#方案总览:
+      - t-0846ee
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-e416b7
+      - t-f9a9b3
+    design/data-model.md#架构与依赖:
+      - t-0846ee
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-e416b7
+      - t-f9a9b3
+    design/data-model.md#数据模型:
+      - t-0846ee
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-e416b7
+      - t-f9a9b3
+    design/data-model.md#实体与字段:
+      - t-0846ee
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-e416b7
+      - t-f9a9b3
+    design/data-model.md#约束与不变量:
+      - t-0846ee
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-e416b7
+      - t-f9a9b3
+    design/data-model.md#迁移与回填:
+      - t-0846ee
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-e416b7
+      - t-f9a9b3
+    design/data-model.md#生命周期:
+      - t-0846ee
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-e416b7
+      - t-f9a9b3
+    design/data-model.md#接口设计:
+      - t-0846ee
+      - t-27e8c7
+      - t-88d4da
+      - t-e416b7
+      - t-f9a9b3
+    design/data-model.md#IF-7-证据字段契约:
+      - t-0846ee
+      - t-27e8c7
+      - t-88d4da
+      - t-e416b7
+      - t-f9a9b3
+    design/data-model.md#IF-8-迁移脚本:
+      - t-0846ee
+      - t-27e8c7
+      - t-88d4da
+      - t-e416b7
+      - t-f9a9b3
+    design/data-model.md#备选方案:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/data-model.md#四风险与证据:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/data-model.md#失败模式与回滚:
+      - t-0846ee
+      - t-27e8c7
+      - t-88d4da
+      - t-e416b7
+      - t-f9a9b3
+    design/data-model.md#跨关注点:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/data-model.md#交付拆分与里程碑:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/data-model.md#需求追溯:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/data-model.md#常见问题:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/data-model.md#开放问题:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/data-model.md#附录:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/interfaces.md#摘要:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/interfaces.md#背景与问题:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/interfaces.md#需求来源:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/interfaces.md#现状与代价:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/interfaces.md#为什么是现在:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/interfaces.md#目标与非目标:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/interfaces.md#目标:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/interfaces.md#非目标:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/interfaces.md#方案总览:
+      - t-c6c5d2
+      - t-0846ee
+      - t-e95a2a
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/interfaces.md#架构与依赖:
+      - t-c6c5d2
+      - t-0846ee
+      - t-a5fa64
+      - t-27e8c7
+      - t-88d4da
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/interfaces.md#数据模型:
+      - t-0846ee
+      - t-27e8c7
+      - t-88d4da
+      - t-e416b7
+      - t-f9a9b3
+    design/interfaces.md#接口设计:
+      - t-c6c5d2
+      - t-0846ee
+      - t-e95a2a
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/interfaces.md#接口清单:
+      - t-c6c5d2
+      - t-0846ee
+      - t-e95a2a
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/interfaces.md#IF-1-成交回调协议:
+      - t-c6c5d2
+      - t-0846ee
+      - t-e95a2a
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/interfaces.md#IF-2-成交通知函数:
+      - t-c6c5d2
+      - t-0846ee
+      - t-e95a2a
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/interfaces.md#IF-3-待办关闭扩展:
+      - t-c6c5d2
+      - t-0846ee
+      - t-e95a2a
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/interfaces.md#IF-4-执行闭环统计:
+      - t-c6c5d2
+      - t-0846ee
+      - t-e95a2a
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/interfaces.md#IF-5-消息待办桥:
+      - t-c6c5d2
+      - t-0846ee
+      - t-e95a2a
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/interfaces.md#备选方案:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/interfaces.md#四风险与证据:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/interfaces.md#失败模式与回滚:
+      - t-c6c5d2
+      - t-0846ee
+      - t-e95a2a
+      - t-a5fa64
+      - t-27e8c7
+      - t-88d4da
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/interfaces.md#跨关注点:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/interfaces.md#交付拆分与里程碑:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/interfaces.md#需求追溯:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/interfaces.md#常见问题:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/interfaces.md#开放问题:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/interfaces.md#附录:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/use-cases.md#摘要:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/use-cases.md#背景与问题:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/use-cases.md#需求来源:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/use-cases.md#现状与代价:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/use-cases.md#为什么是现在:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/use-cases.md#目标与非目标:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/use-cases.md#目标:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/use-cases.md#非目标:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/use-cases.md#方案总览:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/use-cases.md#关键概念:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/use-cases.md#UC-1-agent-收到-P0-止损-执行卖出-系统收敛FR-1:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/use-cases.md#UC-2-agent-买入-状态转持有-不再重复喊建仓FR-2联动-FR-8:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/use-cases.md#UC-3-盘后-critical-公告-P1-待办-agent-判断提前离场FR-3FR-4:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/use-cases.md#UC-4-agent-决定不执行-关闭待办-规则变更-审计FR-5:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/use-cases.md#UC-5-期限到未处理-超时回执-L3-催办FR-6:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/use-cases.md#架构与依赖:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/use-cases.md#参与者与职责:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/use-cases.md#角色-场景-矩阵:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/use-cases.md#依赖与不可用时的旅程退化:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/use-cases.md#数据模型:
+      - t-e95a2a
+      - t-e29f67
+      - t-e416b7
+      - t-f9a9b3
+    design/use-cases.md#待办状态迁移表:
+      - t-e95a2a
+      - t-e29f67
+      - t-e416b7
+      - t-f9a9b3
+    design/use-cases.md#旅程里可见的数据:
+      - t-e95a2a
+      - t-e29f67
+      - t-e416b7
+      - t-f9a9b3
+    design/use-cases.md#不变量:
+      - t-e95a2a
+      - t-e29f67
+      - t-e416b7
+      - t-f9a9b3
+    design/use-cases.md#接口设计:
+      - t-0846ee
+      - t-e95a2a
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-e416b7
+      - t-f9a9b3
+    design/use-cases.md#IF-3-待办关闭扩展:
+      - t-0846ee
+      - t-e95a2a
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-e416b7
+      - t-f9a9b3
+    design/use-cases.md#IF-4-执行闭环统计:
+      - t-0846ee
+      - t-e95a2a
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-e416b7
+      - t-f9a9b3
+    design/use-cases.md#IF-5-消息待办桥:
+      - t-0846ee
+      - t-e95a2a
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-e416b7
+      - t-f9a9b3
+    design/use-cases.md#备选方案:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/use-cases.md#四风险与证据:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/use-cases.md#失败模式与回滚:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/use-cases.md#跨关注点:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/use-cases.md#交付拆分与里程碑:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/use-cases.md#需求追溯:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/use-cases.md#常见问题:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/use-cases.md#开放问题:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    design/use-cases.md#附录:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+  fr_to_tasks:
+    FR-1:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    FR-2:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    FR-3:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    FR-4:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    FR-5:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    FR-6:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    FR-7:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+    FR-8:
+      - t-c6c5d2
+      - t-0846ee
+      - t-c18a41
+      - t-e95a2a
+      - t-e29f67
+      - t-a5fa64
+      - t-27e8c7
+      - t-b8d5ae
+      - t-88d4da
+      - t-3ef50b
+      - t-2ff7ca
+      - t-e416b7
+      - t-f9a9b3
+coverage:
+  implementation:
+    total: 155
+    covered: 155
+    uncovered: []
+    rate: 100
+    total_designs: 155
+    covered_designs: 155

@@ -162,7 +162,7 @@ async function fetchWithRetry(
  */
 const V2_ROUTES: Record<
   string,
-  { path: string; method: "GET" | "POST" | "PUT" | "DELETE"; paramMap?: Record<string, string> }
+  { path: string; method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"; paramMap?: Record<string, string> }
 > = {
   // ── stock ──
   "stock.list":      { path: "/api/stocks/list",          method: "GET" },
@@ -456,6 +456,23 @@ const V2_ROUTES: Record<
   "signal.test_verify":  { path: "/api/signal-test/verify",         method: "POST" },
   "signal.test_stats":   { path: "/api/signal-test/stats",          method: "GET" },
 
+  // ── trading plan (REQ-261021222905-6dff · IF-1~IF-16) ──
+  "plan.today":        { path: "/api/plans/today",              method: "GET" },
+  "plan.list":         { path: "/api/plans",                    method: "GET" },
+  "plan.get":          { path: "/api/plans/{plan_id}",          method: "GET" },
+  "plan.create":       { path: "/api/plans",                    method: "POST" },
+  "plan.patch":        { path: "/api/plans/{plan_id}",          method: "PATCH" },
+  "plan.apply":        { path: "/api/plans/{plan_id}/apply",    method: "POST" },
+  "plan.activate":     { path: "/api/plans/{plan_id}/activate", method: "POST" },
+  "plan.pause":        { path: "/api/plans/{plan_id}/pause",    method: "POST" },
+  "plan.resume":       { path: "/api/plans/{plan_id}/resume",   method: "POST" },
+  "plan.close":        { path: "/api/plans/{plan_id}/close",    method: "POST" },
+  "plan.preview":      { path: "/api/plans/{plan_id}/compile-preview", method: "GET" },
+  "plan.stats":        { path: "/api/plans/{plan_id}/stats",    method: "GET" },
+  "plan.reflect":      { path: "/api/plans/{plan_id}/reflections", method: "POST" },
+  "plan.reflections":  { path: "/api/plans/{plan_id}/reflections", method: "GET" },
+  "plan.blocked_stats": { path: "/api/watch/outcomes/blocked-stats", method: "GET" },
+
   // ── watch (实时盯盘) ──
   "watch.rules.list":    { path: "/api/watch/rules",              method: "GET" },
   "watch.rules.create":  { path: "/api/watch/rules",              method: "POST" },
@@ -650,7 +667,7 @@ export async function runQuantV2<T = unknown>(
 // ─── 内部辅助 ────────────────────────────────────────────
 
 function buildRequest(
-  route: { path: string; method: "GET" | "POST" | "PUT" | "DELETE"; paramMap?: Record<string, string> },
+  route: { path: string; method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"; paramMap?: Record<string, string> },
   params: Record<string, unknown>,
 ): { url: string; body: Record<string, unknown> | null } {
   let path = route.path;

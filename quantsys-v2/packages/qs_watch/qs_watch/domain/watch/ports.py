@@ -37,8 +37,18 @@ class IWatchRuleRepository(ABC):
     def create_rule(self, symbol, conditions, context=None, cost_price=None,
                     active_window=None, expires_at=None, created_by='agent',
                     account=None, linked_account=None,
-                    intent=None, action_hint=None, action_params=None) -> Any:
+                    intent=None, action_hint=None, action_params=None,
+                    position_state=None, interval_sec=None, plan_id=None,
+                    invalidation_threshold_pct=None, watch_tier=None) -> Any:
         """创建规则（仓储层跑 rule_guard 铁律：交易类意图必须有账户归属）。"""
+        pass
+
+    @abstractmethod
+    def list_by_state(self, state: str) -> List[Any]:
+        """按生命周期三态列规则（active=在盯盘 / invalid / archived）。
+
+        盯盘 V2 定时任务的主输入：开盘任务读全部 active；档位任务再按 watch_tier 过滤。
+        """
         pass
 
     @abstractmethod
@@ -231,6 +241,17 @@ class WatchTodoMissingNextCondition(WatchTodoError):
     code = 'watch_todo_missing_next_condition'
 
 
+class WatchTodoRuleChangeFailed(WatchTodoError):
+    """「不执行 → 改规则」联动失败（422 watch_todo_rule_change_failed）
+
+    覆盖：动作项非法（未知 change_kind / 缺 params / 缺 reason）、缺触发溯源、
+    规则不存在、宪法级规则无理由停用，以及规则联动未装配却收到结构化动作。
+    触发本错时**待办尚未收敛**（联动先于 close 执行）——调用方修好入参后可原样重试，
+    不会出现「待办已关、规则没改」的半成品。
+    """
+    code = 'watch_todo_rule_change_failed'
+
+
 class WatchTodoOutOfScope(WatchTodoError):
     """策略账户盯盘不介入（out_of_scope）——不得建待办
 
@@ -282,8 +303,13 @@ class IWatchTodoRepository(ABC):
                level: str, flow_state: str = 'L1', owner_kind: Optional[str] = None,
                owner_ref: Optional[str] = None, autonomy: Optional[str] = None,
                sla_seconds: int, due_at: datetime,
-               action_kind: Optional[str] = None) -> Any:
-        """落一条待办；返回落库后的记录。失败抛错。"""
+               action_kind: Optional[str] = None,
+               evidence: Optional[Dict[str, Any]] = None) -> Any:
+        """落一条待办；返回落库后的记录。失败抛错。
+
+        `evidence`（REQ-261021194640-69b8 FR-3）：消息待办的只读证据（来源/标题/
+        命中词/告警 id）。可空；缺列实现按 fail-open 忽略该字段，不阻断建单。
+        """
         pass
 
     @abstractmethod

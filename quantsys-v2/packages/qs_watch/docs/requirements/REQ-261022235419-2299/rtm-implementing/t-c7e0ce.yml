@@ -1,0 +1,39 @@
+task:
+  id: t-c7e0ce
+  title: 数据迁移：trigger_channel/process_state/cycle_count + engine 标记·研发
+  status: done
+  implements: |-
+    新建迁移文件 20261023_watch_rules_v2_routing.py（沿用 20261022 模板）：ADD COLUMN IF NOT EXISTS trigger_channel/process_state/cycle_count + engine 标记 + CHECK + 注释 + 存量回填。步骤：写迁移→dry-run→双库 --apply→psql 验证。验证：三列存在、默认值 agent/pending/0。
+
+    [子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要
+  serves: []
+  depends_on: []
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261022235419-2299
+    TASK_ID: t-c7e0ce
+    TASK_TITLE: 数据迁移：trigger_channel/process_state/cycle_count + engine 标记·研发
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      started_at: 2026-10-23T03:53:59.644Z
+      completed_at: 2026-10-23T03:54:12.308Z
+    - phase: test
+      status: done
+      completed_at: 2026-10-23T03:46:58.738Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261022235419-2299
+  generated_at: 2026-10-23T03:45:40.076Z
+  version: 5
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-23T03:54:12.308Z

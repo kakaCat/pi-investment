@@ -1,0 +1,242 @@
+metadata:
+  stage: accepting
+  requirement_id: REQ-261021194640-69b8
+  generated_at: 2026-10-21T12:55:20.891Z
+  version: 3
+  generated_by: dsh-pmboard
+  last_updated: 2026-10-21T12:55:27.489Z
+inputs:
+  tasks:
+    - id: t-c6c5d2
+      title: 建交易包中立成交端口并保留旧路径转发
+      status: done
+    - id: t-0846ee
+      title: 待办证据列与部分索引
+      status: done
+    - id: t-c18a41
+      title: 补挂止损/止盈写持仓状态
+      status: done
+    - id: t-e95a2a
+      title: 关闭待办接规则变更联动
+      status: done
+    - id: t-e29f67
+      title: 执行期限巡检与时区归一
+      status: done
+    - id: t-a5fa64
+      title: 真实成交落库后发事件
+      status: done
+    - id: t-27e8c7
+      title: 消息→P1 待办桥（critical 建单 + 唤醒）
+      status: done
+    - id: t-b8d5ae
+      title: 执行闭环统计端点
+      status: done
+    - id: t-88d4da
+      title: 新闻与政策扫描接入消息桥
+      status: done
+    - id: t-3ef50b
+      title: sidecar 拆盘中/盘后，盘后消息可扫
+      status: done
+    - id: t-2ff7ca
+      title: 成交收敛端到端场景
+      status: done
+    - id: t-e416b7
+      title: 组合根装配与降级开关
+      status: done
+    - id: t-f9a9b3
+      title: 回归与生产只读核查
+      status: done
+    - id: t-1c3597
+      title: 建交易包中立成交端口并保留旧路径转发·研发
+      status: done
+    - id: t-f2474a
+      title: 建交易包中立成交端口并保留旧路径转发·联调
+      status: done
+    - id: t-e1eb49
+      title: 建交易包中立成交端口并保留旧路径转发·复核
+      status: done
+    - id: t-7e4e44
+      title: 建交易包中立成交端口并保留旧路径转发·测试
+      status: done
+    - id: t-947421
+      title: 待办证据列与部分索引·研发
+      status: done
+    - id: t-902bf1
+      title: 待办证据列与部分索引·联调
+      status: done
+    - id: t-c1ce88
+      title: 待办证据列与部分索引·复核
+      status: done
+    - id: t-2932b9
+      title: 待办证据列与部分索引·测试
+      status: done
+    - id: t-552104
+      title: 补挂止损/止盈写持仓状态·研发
+      status: done
+    - id: t-c41448
+      title: 补挂止损/止盈写持仓状态·联调
+      status: done
+    - id: t-ec9d80
+      title: 补挂止损/止盈写持仓状态·复核
+      status: done
+    - id: t-66833a
+      title: 补挂止损/止盈写持仓状态·测试
+      status: done
+    - id: t-da557b
+      title: 关闭待办接规则变更联动·研发
+      status: done
+    - id: t-46c354
+      title: 关闭待办接规则变更联动·联调
+      status: done
+    - id: t-91a8b2
+      title: 关闭待办接规则变更联动·复核
+      status: done
+    - id: t-eb06ad
+      title: 关闭待办接规则变更联动·测试
+      status: done
+    - id: t-c573f5
+      title: 执行期限巡检与时区归一·研发
+      status: done
+    - id: t-a8d1da
+      title: 执行期限巡检与时区归一·联调
+      status: done
+    - id: t-7d1677
+      title: 执行期限巡检与时区归一·复核
+      status: done
+    - id: t-627a70
+      title: 执行期限巡检与时区归一·测试
+      status: done
+outputs:
+  test_cases:
+    - id: TC-1
+      title: 测试覆盖的任务卡
+      covers:
+        - t-c6c5d2
+        - t-0846ee
+        - t-c18a41
+        - t-e95a2a
+        - t-e29f67
+        - t-a5fa64
+        - t-27e8c7
+        - t-b8d5ae
+        - t-88d4da
+        - t-3ef50b
+        - t-2ff7ca
+        - t-e416b7
+        - t-f9a9b3
+        - t-1c3597
+        - t-f2474a
+        - t-e1eb49
+        - t-7e4e44
+        - t-947421
+        - t-902bf1
+        - t-c1ce88
+        - t-2932b9
+        - t-552104
+        - t-c41448
+        - t-ec9d80
+        - t-66833a
+        - t-da557b
+        - t-46c354
+        - t-91a8b2
+        - t-eb06ad
+        - t-c573f5
+        - t-a8d1da
+        - t-7d1677
+        - t-627a70
+      validates: []
+      source: tests/test-evidence.md
+traceability:
+  task_to_tests:
+    t-c6c5d2:
+      - TC-1
+    t-0846ee:
+      - TC-1
+    t-c18a41:
+      - TC-1
+    t-e95a2a:
+      - TC-1
+    t-e29f67:
+      - TC-1
+    t-a5fa64:
+      - TC-1
+    t-27e8c7:
+      - TC-1
+    t-b8d5ae:
+      - TC-1
+    t-88d4da:
+      - TC-1
+    t-3ef50b:
+      - TC-1
+    t-2ff7ca:
+      - TC-1
+    t-e416b7:
+      - TC-1
+    t-f9a9b3:
+      - TC-1
+    t-1c3597:
+      - TC-1
+    t-f2474a:
+      - TC-1
+    t-e1eb49:
+      - TC-1
+    t-7e4e44:
+      - TC-1
+    t-947421:
+      - TC-1
+    t-902bf1:
+      - TC-1
+    t-c1ce88:
+      - TC-1
+    t-2932b9:
+      - TC-1
+    t-552104:
+      - TC-1
+    t-c41448:
+      - TC-1
+    t-ec9d80:
+      - TC-1
+    t-66833a:
+      - TC-1
+    t-da557b:
+      - TC-1
+    t-46c354:
+      - TC-1
+    t-91a8b2:
+      - TC-1
+    t-eb06ad:
+      - TC-1
+    t-c573f5:
+      - TC-1
+    t-a8d1da:
+      - TC-1
+    t-7d1677:
+      - TC-1
+    t-627a70:
+      - TC-1
+  fr_to_tests:
+    FR-1:
+      - TC-1
+    FR-2:
+      - TC-1
+    FR-3:
+      - TC-1
+    FR-4:
+      - TC-1
+    FR-5:
+      - TC-1
+    FR-6:
+      - TC-1
+    FR-7:
+      - TC-1
+    FR-8:
+      - TC-1
+coverage:
+  testing:
+    total: 33
+    covered: 33
+    uncovered: []
+    rate: 100
+    total_tasks: 33
+    tested_tasks: 33
+    untested: []

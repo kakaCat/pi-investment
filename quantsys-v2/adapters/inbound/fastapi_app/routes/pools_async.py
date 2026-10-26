@@ -74,7 +74,8 @@ def scan_and_create(payload: Optional[Dict[str, Any]] = Body(None)):
         pool = svc.create_from_scan(
             name=name, pool_type=pool_type, scan_params=_convert_filter_keys(filter_params),
             refresh_interval=data.get('refreshInterval') or data.get('refresh_interval'),
-            description=data.get('description'))
+            description=data.get('description'),
+            category=data.get('category'))
         return error_response({'success': True, 'data': pool}, 201)
     except ValueError as e:
         return error_response({'success': False, 'error': str(e)}, 400)
@@ -164,7 +165,8 @@ def create_pool(payload: Optional[Dict[str, Any]] = Body(None)):
             name=name, pool_type=pool_type, symbols=data.get('symbols'),
             filter_template=_convert_filter_keys(filter_template_raw),
             refresh_interval=data.get('refreshInterval') or data.get('refresh_interval'),
-            description=data.get('description'))
+            description=data.get('description'),
+            category=data.get('category'))
         return error_response({'success': True, 'data': pool}, 201)
     except ValueError as e:
         return error_response({'success': False, 'error': str(e)}, 400)
@@ -202,7 +204,8 @@ def update_pool(pool_id: int, payload: Optional[Dict[str, Any]] = Body(None)):
     data = payload or {}
     try:
         pool = svc.update_pool(pool_id, name=data.get('name'), symbols=data.get('symbols'),
-                               description=data.get('description'))
+                               description=data.get('description'),
+                               category=data.get('category'))
         return {'success': True, 'data': pool}
     except ValueError as e:
         return error_response({'success': False, 'error': str(e)}, 404)

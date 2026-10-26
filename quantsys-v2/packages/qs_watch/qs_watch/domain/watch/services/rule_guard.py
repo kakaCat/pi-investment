@@ -93,6 +93,17 @@ class ConstitutionalRuleSilentDisable(ValueError):
     """
 
 
+def _field(rule, name, default=None):
+    """规则字段读取：同时支持 ORM 对象与 dict 投影（仓储两条轨都在用）。
+
+    守卫此前只认 getattr：对 dict 规则会恒取默认值——「已停用」判成「启用中」、
+    宪法级 intent 判成空，闸门形同虚设。统一成一个取值口，两种形状同判据。
+    """
+    if isinstance(rule, dict):
+        return rule.get(name, default)
+    return getattr(rule, name, default)
+
+
 def guard_disable_rule(rule, payload) -> None:
     """停用守卫：宪法级意图（exit_stop）的规则，enabled True→False 必须随附理由。
 
@@ -104,9 +115,9 @@ def guard_disable_rule(rule, payload) -> None:
     data = dict(payload or {})
     if data.get('enabled') is not False:
         return
-    if getattr(rule, 'enabled', True) is not True:
+    if _field(rule, 'enabled', True) is not True:
         return                                        # 本就停用（幂等重放）放行
-    if (getattr(rule, 'intent', None) or '') not in CONSTITUTIONAL_INTENTS:
+    if (_field(rule, 'intent', None) or '') not in CONSTITUTIONAL_INTENTS:
         return
     has_reason = bool(data.get('ops_notes')) or bool(data.get('context'))
     if has_reason:
@@ -114,4 +125,37 @@ def guard_disable_rule(rule, payload) -> None:
     raise ConstitutionalRuleSilentDisable(
         '止损规则（宪法铁律）不允许无理由停用：rule_id=%s symbol=%s。'
         '请在本次更新中随附 ops_notes 或 context 说明理由（谁、为什么、替代保护是什么）。'
-        % (getattr(rule, 'id', None), getattr(rule, 'symbol', None)))
+        % (_field(rule, 'id'), _field(rule, 'symbol')))
+
+
+# ── 处置卡「不执行」→ 改规则的动作守卫（2026-10-21 · 卡 rule-change-linkage）────
+#: 可落地的四类规则动作（与 application/watch_engine/disposition_engine.RuleChangeAction 同值；
+#: 本模块不 import 应用层枚举——domain 不依赖 application，字符串是唯一跨层契约）。
+DISPOSITION_ACTIONS = ('adjust_threshold', 'postpone', 'disable', 'retire')
+
+#: 会把规则关掉（enabled=False）的两类动作：宪法级止损规则做它们必须随附理由
+DISPOSITION_DISABLING_ACTIONS = ('disable', 'retire')
+
+
+def guard_disposition_action(rule, action, *, reason=None) -> None:
+    """处置卡动作落地前守卫：动作白名单 + 宪法级止损的停用/退役必须随附理由。
+
+    为什么在应用层写库**之前**再拦一次（仓储层已有 `guard_disable_rule` 卡口）：
+      · 联动会先算出要写的字段再调 `update_fields`，守卫前置可以「一行都不写」就拒绝，
+        而不是写完发现理由缺失、留下半条变更（审计与规则状态不一致）；
+      · 拒绝原因必须是**领域异常**（ConstitutionalRuleSilentDisable），调用方能据此
+        让 agent 补理由重试，而不是当成普通参数错误吞掉。
+
+    非关停类动作不触碰 enabled，与停用铁律无关（阈值/延期照常放行）。
+    """
+    action_value = str(getattr(action, 'value', action) or '').strip().lower()
+    if action_value not in DISPOSITION_ACTIONS:
+        raise ValueError(
+            '未知的处置卡规则动作：%r（允许 %s）'
+            % (action, ' / '.join(DISPOSITION_ACTIONS)))
+    if action_value not in DISPOSITION_DISABLING_ACTIONS:
+        return
+    reason_text = str(reason or '').strip()
+    # 与仓储层同一判据、同一异常：理由载体用 context（本次更新不写 context，
+    # 只作为守卫输入），裸 enabled=false 且无理由 → 宪法级规则被拒。
+    guard_disable_rule(rule, {'enabled': False, 'context': reason_text or None})

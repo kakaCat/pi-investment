@@ -48,8 +48,8 @@ export class PoolManageTool extends BaseTool<PoolManageParams, any> {
       if (!args.reason) return { success: false, issue: 'delete 属不可逆破坏性操作，必须提供 reason 说明为何删除（并应同步 decision_audit 留痕）' };
     } else if (NEED_POOL_ID.has(a)) {
       if (!args.pool_id) return { success: false, issue: `${a} 需要 pool_id` };
-      if (a === 'update' && !args.name && !args.description && !args.symbols) {
-        return { success: false, issue: 'update 至少提供 name/description/symbols 之一' };
+      if (a === 'update' && !args.name && !args.description && !args.symbols && args.category === undefined) {
+        return { success: false, issue: 'update 至少提供 name/description/symbols/category 之一' };
       }
       if (NEED_SYMBOLS.has(a) && (!args.symbols || args.symbols.length === 0)) {
         return { success: false, issue: `${a} 需要非空 symbols 数组` };
@@ -69,6 +69,7 @@ export class PoolManageTool extends BaseTool<PoolManageParams, any> {
         const pool = await this.qv2.createPool({
           name: args.name!,
           pool_type: args.pool_type!,
+          category: args.category,
           description: args.description,
           symbols: isDynamic ? undefined : args.symbols,
           filter_template: isDynamic ? args.filter_template : undefined,
@@ -83,6 +84,7 @@ export class PoolManageTool extends BaseTool<PoolManageParams, any> {
           filter_template: args.filter_template!,
           refresh_interval: args.refresh_interval,
           description: args.description,
+          category: args.category,
         });
         return { action: a, pool_id: pool.id, ...pool };
       }
@@ -91,6 +93,7 @@ export class PoolManageTool extends BaseTool<PoolManageParams, any> {
         if (args.name !== undefined) updates.name = args.name;
         if (args.description !== undefined) updates.description = args.description;
         if (args.symbols !== undefined) updates.symbols = args.symbols;
+        if (args.category !== undefined) updates.category = args.category;
         const pool = await this.qv2.updatePool(args.pool_id!, updates as any);
         return { action: a, pool_id: pool.id, ...pool };
       }

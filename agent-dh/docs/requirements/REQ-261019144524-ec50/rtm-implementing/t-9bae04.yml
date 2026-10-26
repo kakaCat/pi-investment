@@ -1,0 +1,41 @@
+task:
+  id: t-9bae04
+  title: 经验库噪声处置方案（unknown-symbol 记录清单与建议）
+  status: done
+  implements: ①memory_search/experience_stats 按来源聚类；②抽样读记录内容判断价值；③处置方案落文档
+  serves: []
+  depends_on: []
+  phase: analysis
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261019144524-ec50
+    TASK_ID: t-9bae04
+    TASK_TITLE: 经验库噪声处置方案（unknown-symbol 记录清单与建议）
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: analysis
+  workflow_total: 4
+  workflow_done: 4
+  workflow:
+    - phase: analysis
+      status: done
+      completed_at: 2026-10-19T16:39:28.687Z
+    - phase: implement
+      status: done
+      completed_at: 2026-10-19T16:39:36.703Z
+    - phase: test
+      status: done
+      completed_at: 2026-10-19T16:39:36.703Z
+    - phase: commit
+      status: done
+      completed_at: 2026-10-19T16:39:36.703Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261019144524-ec50
+  generated_at: 2026-10-19T16:39:28.686Z
+  version: 3
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 4
+  last_updated: 2026-10-19T16:39:36.703Z

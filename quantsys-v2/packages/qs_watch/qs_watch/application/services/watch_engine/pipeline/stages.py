@@ -34,7 +34,8 @@ from qs_watch.application.services.watch_engine.exec_directive import (
 )
 from qs_watch.domain.watch.services import noise_policy
 from qs_watch.domain.watch.services.disposition import (
-    DISPOSITION_AUTO_OBSERVED, normalize_symbol,
+    DISPOSITION_AUTO_OBSERVED, DISPOSITION_ESCALATED, DISPOSITION_FILTERED,
+    DISPOSITION_PENDING, normalize_symbol,
 )
 from qs_watch.domain.watch.services.level_resolver import MARKET_SCOPES
 from qs_watch.domain.watch.services.rule_guard import effective_account
@@ -213,7 +214,11 @@ class EscalationStage:
 
 
 class DispositionStage:
-    """#8 处置决策：机械优先（去重合并 / observe 归档当场收敛），零 LLM。"""
+    """#8 处置决策：机械优先（去重合并 / observe 归档 / hold 过滤当场收敛），零 LLM。
+
+    持有类（2026-10-22）：decide 判出 filtered 时在此落库收敛——闩锁（防下 tick
+    复读）+ record_only（审计留痕）+ stop（不进通知/待办/聚合缓冲）。规则保持有效。
+    """
 
     name = 'disposition'
 
@@ -224,6 +229,14 @@ class DispositionStage:
             escalation_reason=ctx.escalation_reason)
         ctx.disposition = disposition
         ctx.disposition_reason = reason
+        if disposition == DISPOSITION_FILTERED:
+            # 闩锁必须先置：否则下一 tick 重复命中同一条件（照 stale_residency 模式）。
+            ctx.engine.judge.mark_emitted(
+                ctx.rule.id, ctx.idx, ctx.now, ctx.rule.symbol)
+            ctx.trigger = ctx.engine.notifier.record_only(
+                ctx.rule, ctx.cond, ctx.quote, ctx.result,
+                disposition=disposition, disposition_reason=reason)
+            return StageResult.stop('filtered')
         return StageResult.done(str(disposition))
 
 
@@ -412,8 +425,16 @@ class DeliverStage:
             # 观察聚合路由（REQ-261016155500-4f2a wt:validate:1）：无判据 observe
             # 触发不进即时通道，落库后入 15 分钟聚合缓冲；有判据 observe 与
             # escalated/pending 等需动作类照旧即时单发。
-            ctx.buffered = (engine.observe_agg is not None
-                            and engine.observe_agg.should_buffer(rule, ctx.disposition))
+            # 确认数直通（2026-10-22）：观察类累计确认 ≥10 次后，不再等 15 分钟
+            # 聚合延迟，即时单发盯盘群。exit_stop 本就走宪法直通，与此无关。
+            _confirm_direct = (
+                (getattr(rule, 'confirm_count', 0) or 0) >= 10
+                and ctx.disposition == DISPOSITION_AUTO_OBSERVED
+                and str(getattr(rule, 'intent', '') or '') != 'exit_stop'
+            )
+            ctx.buffered = (not _confirm_direct) and (
+                engine.observe_agg is not None
+                and engine.observe_agg.should_buffer(rule, ctx.disposition))
             # P0 执行指令卡（RFC 017 §2.1.2，卡 `exec-directive-card`）：**唯一构造点**。
             # 构造一次 → 喂通知（本阶段）→ 同一对象挂 trigger → #13 待办直接取用。
             # 不新增阶段：15 阶段顺序/数量都不变（注册表 DEFAULT_STAGES 未改）。
@@ -606,5 +627,13 @@ class FinalizeStage:
                      if ctx.trigger is not None else None)
         if directive is not None:
             ctx.events[-1]['exec_directive'] = directive.to_dict()
+        # 确认数累加（2026-10-22 确认数直通用）：真实确认类触发（非去重/过滤/
+        # 元复核）累计 +1。计数失败不阻断（直通是增益，非正确性依赖）。
+        if ctx.disposition in (DISPOSITION_AUTO_OBSERVED, DISPOSITION_ESCALATED,
+                               DISPOSITION_PENDING):
+            try:
+                engine.rule_repo.increment_confirm_count(rule.id)
+            except Exception:  # noqa: BLE001
+                pass
         return None
 

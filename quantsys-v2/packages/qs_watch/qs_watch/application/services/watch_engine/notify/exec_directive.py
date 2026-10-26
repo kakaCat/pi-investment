@@ -80,10 +80,15 @@ class NotExecutableReason(str, Enum):
 
 
 class ExecState(str, Enum):
-    """三态闭环的「态」（RFC §2.1.3：执行 / 不执行 / 超时）。"""
+    """三态闭环的「态」（RFC §2.1.3：执行 / 不执行 / 超时）。
+
+    第四态 HOLD（2026-10-22 用户裁定）：继续持有——区别于 declined（须给下次条件、
+    会继续催办），hold 是「我就要拿着」：无后续条件、不催办、待办直接关闭、规则保持有效。
+    """
 
     EXECUTED = 'executed'
     DECLINED = 'declined'
+    HOLD = 'hold'
     TIMEOUT = 'timeout'
 
 
@@ -124,6 +129,7 @@ _ACTION_LABELS: Dict[ExecAction, str] = {
 _STATE_LABELS: Dict[ExecState, str] = {
     ExecState.EXECUTED: '执行',
     ExecState.DECLINED: '不执行',
+    ExecState.HOLD: '继续持有',
     ExecState.TIMEOUT: '超时',
 }
 
@@ -144,14 +150,15 @@ class PositionFacts:
 
 @dataclass(frozen=True)
 class DispositionAction:
-    """三态处置动作项（**结构化枚举，不是自由文本**）。
+    """四态处置动作项（**结构化枚举，不是自由文本**；HOLD 为 2026-10-22 新增）。
 
-    三态的映射（RFC §2.1.3，全部落在既有 todo 枚举上）：
+    四态的映射（RFC §2.1.3 + 持有裁定，全部落在既有 todo 枚举上）：
 
     | state    | terminal | action_kind | 额外要求 |
     |----------|----------|-------------|----------|
     | executed | handled  | trade       | 决策审计 |
     | declined | ignored  | rule_change | 决策审计 + 下次条件（DB CHECK 强制） |
+    | hold     | handled  | None        | 决策审计；**不要求下次条件、不催办** |
     | timeout  | None     | None        | escalate（L3 催办；**不写 expired**） |
     """
 
@@ -175,7 +182,7 @@ class DispositionAction:
 
 
 def default_action_items() -> Tuple[DispositionAction, ...]:
-    """三态处置动作项（顺序 = 执行 / 不执行 / 超时；纯值，进程内可共享）。"""
+    """四态处置动作项（顺序 = 执行 / 不执行 / 持有 / 超时；纯值，进程内可共享）。"""
     return (
         DispositionAction(
             state=ExecState.EXECUTED,
@@ -189,6 +196,15 @@ def default_action_items() -> Tuple[DispositionAction, ...]:
             action_kind=TodoActionKind.RULE_CHANGE,
             requires_decision_audit=True,
             requires_next_condition=True,
+        ),
+        # 持有（2026-10-22）：关待办、规则有效、不催办、不要求下次条件。
+        # 与 declined 的关键区别：declined 必须给「下次条件」（DB CHECK 强制），
+        # hold 就是「拿着」，编不出也不该编一个条件来凑数。
+        DispositionAction(
+            state=ExecState.HOLD,
+            terminal=TodoTerminal.HANDLED,
+            action_kind=None,
+            requires_decision_audit=True,
         ),
         DispositionAction(
             state=ExecState.TIMEOUT,
@@ -320,11 +336,14 @@ class ExecDirective:
         return '⚠️ 执行指令不可用'
 
     def card_guide_text(self) -> str:
-        """三态处置指引（由 `action_items` 枚举派生，顺序即 action_items 顺序）。"""
-        return '三态处置：' + '；'.join(render_action_item(i) for i in self.action_items)
+        """四态处置指引（由 `action_items` 枚举派生，顺序即 action_items 顺序）。
+
+        第四态「继续持有」（2026-10-22）：关待办、规则有效、不催办、不要求下次条件。
+        """
+        return '四态处置：' + '；'.join(render_action_item(i) for i in self.action_items)
 
     def card_context(self, plan: Optional[str] = None) -> str:
-        """并入「预案」段的指令正文：原预案 + 执行闭环三态。
+        """并入「预案」段的指令正文：原预案 + 执行闭环四态。
 
         预案是规则写的（可能为空）；指令三态是引擎机械结论，必须始终可见。
         """

@@ -415,6 +415,44 @@ def test_degraded_datasource_alerts_normal_then_escalates(monkeypatch, _fake_ale
     assert len(_fake_alert_sink) == 2
 
 
+def test_intraday_heuristic_degraded_but_stays_silent(monkeypatch, _fake_alert_sink, _fake_guard_logger):
+    """2026-10-21 回归：盘中启发式（当日K线未落库 + 近期市场活跃）是**设计的正常
+    路径**——日K 17:40 才更新，每个交易日 17:40 前"今天"必然走这条分支且
+    is_trading_day=True（工作照常执行）。degraded=True 仅表示"结论来自启发式而非
+    当日K线"，与 09-14 那类"降级→保守判否→工作被静默跳过"语义**相反**。
+    对它发告警/loud 留痕 = 每个交易日误报一次，且文案自相矛盾
+    （"工作会被跳过" vs "is_trading_day=True"）。"""
+    from datetime import datetime
+
+    from application.services import trading_day_guard as mod
+
+    today = datetime.now().date()
+    mod._verdict_cache.clear()      # 防其它用例的同进程缓存污染
+    monkeypatch.setattr(
+        TradingDayGuard, '_kline_stats',
+        staticmethod(lambda day: (False, today)),   # 今天无K线，最近K线就在今天（<=7 日）
+    )
+    assert TradingDayGuard.is_trading_day(today) is True
+    assert TradingDayGuard.check(today).source == SOURCE_INTRADAY
+    assert _fake_alert_sink == [], '盘中启发式不是故障，不得外发告警'
+    assert not [c for c in _fake_guard_logger.calls
+                if c['event'] == 'trading_day_guard_degraded_verdict_consumed_as_bool'], \
+        '盘中启发式不得产生 loud 降级留痕'
+
+
+def test_alert_content_matches_actual_verdict(monkeypatch, _fake_alert_sink):
+    """告警影响措辞必须按实际判定生成（2026-10-21 复盘：旧版硬编码"保守视为非交易日、
+    工作会被跳过"，在 is_trading_day=True 的降级分支下自相矛盾）。"""
+    monkeypatch.setattr(
+        TradingDayGuard, '_kline_stats',
+        staticmethod(lambda day: (_ for _ in ()).throw(RuntimeError('db down'))),
+    )
+    assert TradingDayGuard.is_trading_day('2026-09-11') is False
+    assert len(_fake_alert_sink) == 1
+    assert '会被跳过' in _fake_alert_sink[0]['content']
+    assert '照常执行' not in _fake_alert_sink[0]['content']
+
+
 def test_alert_sink_failure_does_not_break_verdict(monkeypatch):
     """告警通道炸了也不能影响判定结果（告警是旁路，不是依赖）。"""
     from application.services import trading_day_guard as mod

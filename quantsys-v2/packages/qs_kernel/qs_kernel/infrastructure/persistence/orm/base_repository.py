@@ -80,6 +80,31 @@ class BaseORMRepository(Generic[T]):
         except Exception as rb_err:
             logger.warning(f"rollback failed for {self.model.__name__ if self.model else '?'}: {rb_err}")
 
+    def _commit_if_readonly(self):
+        """只读事务收尾（2026-10-22 连接泄漏治理，方案=数据访问层治本）。
+
+        scoped_session autobegin：任何 query() 都自动开事务，须 commit/rollback/close
+        才释放；否则连接回池后呈 "idle in transaction" 长期占锁——阻塞 DDL（10-22
+        迁移 ALTER 被卡 6 分钟）、挡 autovacuum、累积顶爆连接池（2026-08-18 事故同根）。
+        引擎 tick / orchestrator 靠 finally close_session 收尾，但 TradingDayGuard 等
+        启动/周期路径没有——这就是每次重启漏 2 个连接的机制。
+
+        本方法只在「当前 session 干净」（无未提交 ORM 写：dirty/new/deleted 全空）时
+        commit 结束只读事务；若调用方把自己嵌在写事务中间（session 有未提交写），
+        **绝不碰事务**，由调用方负责收尾。dirty/new/deleted 只反映 ORM 对象写，
+        Core 写（session.execute UPDATE）不经 ORM 对象、判不出来——本项目写走 ORM，
+        若未来引入 Core 写嵌读，须改用显式事务边界。
+        """
+        try:
+            s = self.session
+            if not s.dirty and not s.new and not s.deleted:
+                s.commit()
+        except Exception:  # noqa: BLE001 - 收尾失败不阻断读路径（下次操作重建事务态）
+            try:
+                self._safe_rollback()
+            except Exception:
+                pass
+
     def _get_cursor(self):
         """向后兼容旧 BaseRepository 的裸 cursor 接口。
 

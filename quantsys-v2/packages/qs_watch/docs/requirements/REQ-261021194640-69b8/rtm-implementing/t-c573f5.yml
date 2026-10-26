@@ -1,0 +1,35 @@
+task:
+  id: t-c573f5
+  title: 执行期限巡检与时区归一·研发
+  status: done
+  implements: |-
+    packages/qs_watch/.../sla_job.py 增加执行期限判定：P0/exit_stop 待办按 created_at+WATCH_EXEC_SLA_MIN 判超时，时区统一归一后比较，回执同期限周期只发一次且不写 expired；tests/application/test_sla_job.py 补时区矩阵与幂等用例。
+
+    [子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要
+  serves: []
+  depends_on: []
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261021194640-69b8
+    TASK_ID: t-c573f5
+    TASK_TITLE: 执行期限巡检与时区归一·研发
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-21T12:27:13.508Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261021194640-69b8
+  generated_at: 2026-10-21T12:27:11.074Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-21T12:27:14.660Z

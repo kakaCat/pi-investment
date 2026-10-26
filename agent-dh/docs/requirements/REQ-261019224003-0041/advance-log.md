@@ -1,0 +1,15 @@
+# 推进事件日志
+- 2026-10-19T17:11:36.849Z [OPEN_PARENT] parent=t-4303f4 subtask=- ok：父卡 t-4303f4 自动开工并落子卡 4 张
+- 2026-10-19T17:27:55.039Z [RUN_SUBTASK] parent=t-4303f4 subtask=t-da7cf8 failed：子卡凭证不过：改动文件不存在或 mtime 早于链出身 1792420803253。修改方法：① 确认文件路径正确（相对工作区根）；② 确保文件在 workflow 执行时被创建/修改；③ 检查文件是否被意外删除（REQBOARD_SUBTASK_GATE）
+- 2026-10-19T17:41:31.957Z [RUN_SUBTASK] parent=t-492426 subtask=t-7f41ef failed：子卡凭证不过：阶段 dev 属写入族，汇报未给出改动文件（缺少文件系统证据）。修改方法：确保 workflow 创建/修改了文件，并在返回值的 filesChanged 中列出文件路径（REQBOARD_SUBTASK_GATE）
+- 2026-10-19T17:45:03.394Z [RUN_SUBTASK] parent=t-492426 subtask=t-594aa8 ok：子卡 t-594aa8 执行完成
+- 2026-10-19T17:45:21.472Z [RUN_SUBTASK] parent=t-492426 subtask=t-235ed5 ok：子卡 t-235ed5 执行完成
+- 2026-10-19T17:45:37.534Z [RUN_SUBTASK] parent=t-492426 subtask=t-cdabde ok：子卡 t-cdabde 执行完成
+- 2026-10-19T17:45:37.695Z [FINALIZE_PARENT] parent=t-492426 subtask=- ok：父卡 t-492426 汇总子卡产出并收尾
+- 2026-10-19T17:45:54.112Z [RUN_SUBTASK] parent=t-4303f4 subtask=t-f0116e ok：子卡 t-f0116e 执行完成
+- 2026-10-19T17:46:11.818Z [RUN_SUBTASK] parent=t-4303f4 subtask=t-81114b ok：子卡 t-81114b 执行完成
+- 2026-10-19T17:46:29.428Z [RUN_SUBTASK] parent=t-4303f4 subtask=t-8042eb ok：子卡 t-8042eb 执行完成
+- 2026-10-19T17:46:29.596Z [FINALIZE_PARENT] parent=t-4303f4 subtask=- ok：父卡 t-4303f4 汇总子卡产出并收尾
+- 2026-10-19T17:46:29.730Z [OPEN_PARENT] parent=t-697ce7 subtask=- ok：父卡 t-697ce7 自动开工并落子卡 4 张
+- 2026-10-19T17:46:48.021Z [RUN_SUBTASK] parent=t-697ce7 subtask=t-a7beb7 failed：子卡凭证不过：run 产出为空（脚本未返回有效 JSON）。修改方法：在 workflow 末尾 return 一个 JSON 对象，至少包含 filesChanged 或 completed 字段（REQBOARD_SUBTASK_GATE）
+- 2026-10-20T00:36:54.738Z [RUN_SUBTASK] parent=t-697ce7 subtask=t-a7beb7 failed：子卡凭证不过：run 产出为空（脚本未返回有效 JSON）。修改方法：在 workflow 末尾 return 一个 JSON 对象，至少包含 filesChanged 或 completed 字段（REQBOARD_SUBTASK_GATE）

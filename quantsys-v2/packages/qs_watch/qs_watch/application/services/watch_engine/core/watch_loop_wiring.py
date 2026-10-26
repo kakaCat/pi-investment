@@ -66,7 +66,8 @@ def build_todo_repo() -> Any:
     return todo_repo()
 
 
-def build_todo_service(assigner: Optional[Any] = None) -> Any:
+def build_todo_service(assigner: Optional[Any] = None,
+                       rule_change_linkage: Optional[Any] = None) -> Any:
     """待办服务；缺省接上"建单即派给 owner agent"（2026-10-16 补缺环）。
 
     assigner 显式给 None 时**仍接真实派单**（生产语义）；要关派单请在测试里传假
@@ -74,7 +75,21 @@ def build_todo_service(assigner: Optional[Any] = None) -> Any:
     """
     from qs_watch.application.services.watch_engine.todo_service import TodoService
     from qs_watch.application.services.watch_engine.watch_channels import wake_todo_assignment
-    return TodoService(build_todo_repo(), assigner=assigner or wake_todo_assignment)
+    if rule_change_linkage is None:
+        try:
+            from qs_watch.application.services.watch_engine.disposition_engine import (
+                RuleChangeLinkage,
+            )
+            from qs_watch.application.services.watch_engine._repo_resolver import (
+                rule_change_repo, watch_rule_repo,
+            )
+            rule_change_linkage = RuleChangeLinkage(watch_rule_repo(), rule_change_repo())
+        except Exception as e:  # noqa: BLE001 - 联动失败降级为「不执行不改规则」
+            import structlog
+            structlog.get_logger(__name__).warning(
+                '规则变更联动装配失败（只收敛待办，不改规则）', error=str(e))
+    return TodoService(build_todo_repo(), assigner=assigner or wake_todo_assignment,
+                       rule_change_linkage=rule_change_linkage)
 
 
 def build_receipt_service() -> Any:
@@ -99,10 +114,17 @@ def build_self_heal_service(todo_service: Optional[Any] = None) -> Any:
         from qs_watch.application.services.watch_engine.watch_channels import send_watch_receipt
         return send_watch_receipt(payload)
 
+    # 标的名解析走 StockNameResolver 端口（与 notifier/SLA 巡检同一实现，单一取数口径）；
+    # 装配失败降级 None → 告知卡只显示代码（名称是渲染增益，不阻断自愈装配）。
+    try:
+        _name_resolver = build_name_resolver()
+    except Exception:  # noqa: BLE001
+        _name_resolver = None
     return NoiseSelfHealService(
         rule_noise_repo(), rule_change_repo(),
         todo_service if todo_service is not None else build_todo_service(),
-        suppress_notifier=_suppress_notify)
+        suppress_notifier=_suppress_notify,
+        name_resolver=_name_resolver)
 
 
 def build_name_resolver() -> Any:

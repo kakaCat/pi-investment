@@ -1,0 +1,181 @@
+metadata:
+  stage: accepting
+  requirement_id: REQ-261019144524-ec50
+  generated_at: 2026-10-19T17:00:24.051Z
+  version: 3
+  generated_by: dsh-pmboard
+  last_updated: 2026-10-19T17:01:08.995Z
+inputs:
+  tasks:
+    - id: t-1790d5
+      title: 诊断调度器 webhook 任务通道根因与影响面
+      status: done
+    - id: t-954eb4
+      title: 定义北极星 KPI 并改造进化周报模板
+      status: done
+    - id: t-557f90
+      title: 落地观察计分 SOP（signal_track 全级别纳入+回填核查）
+      status: done
+    - id: t-ab4c82
+      title: 策略库治理清单（TEST 残留盘点 + unmeasured 补测可行性）
+      status: done
+    - id: t-9bae04
+      title: 经验库噪声处置方案（unknown-symbol 记录清单与建议）
+      status: done
+    - id: t-38602b
+      title: 小仓位试单授权边界建议书（交用户决策，不执行）
+      status: done
+    - id: t-c5c85c
+      title: 汇总调研报告与验收材料
+      status: done
+    - id: t-531b46
+      title: 诊断调度器 webhook 任务通道根因与影响面·取数调研
+      status: done
+    - id: t-aa8733
+      title: 诊断调度器 webhook 任务通道根因与影响面·分析
+      status: done
+    - id: t-386642
+      title: 诊断调度器 webhook 任务通道根因与影响面·复核
+      status: done
+    - id: t-73356d
+      title: 修复 webhook 任务通道选择并故障注入实测·探针
+      status: done
+    - id: t-3560e9
+      title: 修复 webhook 任务通道选择并故障注入实测·复核
+      status: done
+    - id: t-d176e2
+      title: 定义北极星 KPI 并改造进化周报模板·研发
+      status: done
+    - id: t-eab3f3
+      title: 定义北极星 KPI 并改造进化周报模板·复核
+      status: done
+    - id: t-c7a81f
+      title: 落地观察计分 SOP（signal_track 全级别纳入+回填核查）·探针
+      status: done
+    - id: t-5ed45b
+      title: 落地观察计分 SOP（signal_track 全级别纳入+回填核查）·复核
+      status: done
+    - id: t-ee21d9
+      title: 策略库治理清单（TEST 残留盘点 + unmeasured 补测可行性）·取数调研
+      status: done
+    - id: t-542f40
+      title: 策略库治理清单（TEST 残留盘点 + unmeasured 补测可行性）·分析
+      status: done
+    - id: t-5c0823
+      title: 策略库治理清单（TEST 残留盘点 + unmeasured 补测可行性）·复核
+      status: done
+    - id: t-86eed7
+      title: 经验库噪声处置方案（unknown-symbol 记录清单与建议）·取数调研
+      status: done
+    - id: t-84e0f3
+      title: 经验库噪声处置方案（unknown-symbol 记录清单与建议）·分析
+      status: done
+    - id: t-2a366f
+      title: 经验库噪声处置方案（unknown-symbol 记录清单与建议）·复核
+      status: done
+    - id: t-381c5a
+      title: 小仓位试单授权边界建议书（交用户决策，不执行）·研发
+      status: done
+    - id: t-6ec327
+      title: 小仓位试单授权边界建议书（交用户决策，不执行）·复核
+      status: done
+    - id: t-9b2a59
+      title: 汇总调研报告与验收材料·复核
+      status: done
+outputs:
+  test_cases:
+    - id: TC-1
+      title: 覆盖映射（每任务 → 验证用例）
+      covers:
+        - t-1790d5
+        - t-531b46
+        - t-aa8733
+        - t-386642
+        - t-f4e050
+        - t-73356d
+        - t-3560e9
+        - t-954eb4
+        - t-d176e2
+        - t-eab3f3
+        - t-557f90
+        - t-c7a81f
+        - t-5ed45b
+        - t-ab4c82
+        - t-ee21d9
+        - t-542f40
+        - t-5c0823
+        - t-9bae04
+        - t-86eed7
+        - t-84e0f3
+        - t-2a366f
+        - t-38602b
+        - t-381c5a
+        - t-6ec327
+        - t-c5c85c
+        - t-9b2a59
+      validates: []
+      source: tests/verification-evidence.md
+traceability:
+  task_to_tests:
+    t-1790d5:
+      - TC-1
+    t-954eb4:
+      - TC-1
+    t-557f90:
+      - TC-1
+    t-ab4c82:
+      - TC-1
+    t-9bae04:
+      - TC-1
+    t-38602b:
+      - TC-1
+    t-c5c85c:
+      - TC-1
+    t-531b46:
+      - TC-1
+    t-aa8733:
+      - TC-1
+    t-386642:
+      - TC-1
+    t-73356d:
+      - TC-1
+    t-3560e9:
+      - TC-1
+    t-d176e2:
+      - TC-1
+    t-eab3f3:
+      - TC-1
+    t-c7a81f:
+      - TC-1
+    t-5ed45b:
+      - TC-1
+    t-ee21d9:
+      - TC-1
+    t-542f40:
+      - TC-1
+    t-5c0823:
+      - TC-1
+    t-86eed7:
+      - TC-1
+    t-84e0f3:
+      - TC-1
+    t-2a366f:
+      - TC-1
+    t-381c5a:
+      - TC-1
+    t-6ec327:
+      - TC-1
+    t-9b2a59:
+      - TC-1
+    t-f4e050:
+      - TC-1
+  fr_to_tests: {}
+coverage:
+  testing:
+    total: 25
+    covered: 25
+    uncovered: []
+    rate: 100
+    total_tasks: 25
+    tested_tasks: 25
+    untested: []

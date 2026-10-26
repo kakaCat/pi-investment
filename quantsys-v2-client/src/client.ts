@@ -477,11 +477,13 @@ export class QuantsysV2Client {
   /**
    * Create pool（对齐后端 POST /api/pools 契约：pool_type 必填）
    * pool_type: static（手工成员）/ dynamic（filter_template 驱动，refresh 时重算）
+   * category: 业务分类（如 板块共振），与 pool_type 正交
    * filter_template: 动态池筛选规则 {conditions:[...], top_n?, sort_by?, min_score?...}（经 validate_filter 校验）
    */
   async createPool(pool: {
     name: string;
     pool_type: string;
+    category?: string | null;
     description?: string;
     symbols?: string[];
     filter_template?: Record<string, any>;
@@ -490,6 +492,7 @@ export class QuantsysV2Client {
     const body: Record<string, any> = {
       name: pool.name,
       poolType: pool.pool_type,
+      category: pool.category,
       description: pool.description,
       symbols: pool.symbols,
       filterTemplate: pool.filter_template,
@@ -618,6 +621,7 @@ export class QuantsysV2Client {
     filter_template: Record<string, any>;
     refresh_interval?: string | null;
     description?: string;
+    category?: string | null;
   }): Promise<Pool> {
     const body: Record<string, any> = {
       name: params.name,
@@ -625,6 +629,7 @@ export class QuantsysV2Client {
       filterTemplate: params.filter_template,
       refreshInterval: params.refresh_interval ?? undefined,
       description: params.description,
+      category: params.category,
     };
     const response = await this.client.post('/api/pools/scan-and-create', body);
     return this.unwrap(response.data, 'scanAndCreatePool');
@@ -1048,6 +1053,89 @@ export class QuantsysV2Client {
     const url = qs.toString() ? `/api/core-plan?${qs.toString()}` : '/api/core-plan';
     const response = await this.client.get(url);
     return this.unwrap<CorePlanSnapshot>(response.data, 'getCorePlan');
+  }
+
+  // ==================== Trading Plan APIs (REQ-261021222905-6dff) ====================
+  // IF-1~IF-15：交易计划 CRUD/生命周期/编译预览/反思/统计。执行归 WatchEngine，
+  // 本客户端只做"计划面"调用；写操作要求 agent 带 decision_audit_id。
+
+  async listPlans(account: string = DEFAULT_AGENT_ACCOUNT, status?: string): Promise<any> {
+    const qs = new URLSearchParams({ account });
+    if (status) qs.set('status', status);
+    const response = await this.client.get(`/api/plans?${qs.toString()}`);
+    return this.unwrap<any>(response.data, 'listPlans');
+  }
+
+  async getPlan(planId: number): Promise<any> {
+    const response = await this.client.get(`/api/plans/${planId}`);
+    return this.unwrap<any>(response.data, 'getPlan');
+  }
+
+  async createPlan(payload: Record<string, any>): Promise<any> {
+    const response = await this.client.post('/api/plans', payload);
+    return this.unwrap<any>(response.data, 'createPlan');
+  }
+
+  async patchPlan(planId: number, payload: Record<string, any>): Promise<any> {
+    const response = await this.client.patch(`/api/plans/${planId}`, payload);
+    return this.unwrap<any>(response.data, 'patchPlan');
+  }
+
+  async applyPlan(planId: number, payload: Record<string, any>): Promise<any> {
+    const response = await this.client.post(`/api/plans/${planId}/apply`, payload);
+    return this.unwrap<any>(response.data, 'applyPlan');
+  }
+
+  async activatePlan(planId: number, payload: Record<string, any> = {}): Promise<any> {
+    const response = await this.client.post(`/api/plans/${planId}/activate`, payload);
+    return this.unwrap<any>(response.data, 'activatePlan');
+  }
+
+  async pausePlan(planId: number, payload: Record<string, any> = {}): Promise<any> {
+    const response = await this.client.post(`/api/plans/${planId}/pause`, payload);
+    return this.unwrap<any>(response.data, 'pausePlan');
+  }
+
+  async resumePlan(planId: number, payload: Record<string, any> = {}): Promise<any> {
+    const response = await this.client.post(`/api/plans/${planId}/resume`, payload);
+    return this.unwrap<any>(response.data, 'resumePlan');
+  }
+
+  async closePlan(planId: number, payload: Record<string, any> = {}): Promise<any> {
+    const response = await this.client.post(`/api/plans/${planId}/close`, payload);
+    return this.unwrap<any>(response.data, 'closePlan');
+  }
+
+  async compilePlanPreview(planId: number): Promise<any> {
+    const response = await this.client.get(`/api/plans/${planId}/compile-preview`);
+    return this.unwrap<any>(response.data, 'compilePlanPreview');
+  }
+
+  async plansToday(account: string = DEFAULT_AGENT_ACCOUNT): Promise<any> {
+    const qs = new URLSearchParams({ account });
+    const response = await this.client.get(`/api/plans/today?${qs.toString()}`);
+    return this.unwrap<any>(response.data, 'plansToday');
+  }
+
+  async planStats(planId: number): Promise<any> {
+    const response = await this.client.get(`/api/plans/${planId}/stats`);
+    return this.unwrap<any>(response.data, 'planStats');
+  }
+
+  async recordPlanReflection(planId: number, payload: Record<string, any>): Promise<any> {
+    const response = await this.client.post(`/api/plans/${planId}/reflections`, payload);
+    return this.unwrap<any>(response.data, 'recordPlanReflection');
+  }
+
+  async listPlanReflections(planId: number): Promise<any> {
+    const response = await this.client.get(`/api/plans/${planId}/reflections`);
+    return this.unwrap<any>(response.data, 'listPlanReflections');
+  }
+
+  async blockedSignalStats(sinceDays = 30, horizon = 5): Promise<any> {
+    const response = await this.client.get(
+      `/api/watch/outcomes/blocked-stats?since_days=${sinceDays}&horizon=${horizon}`);
+    return this.unwrap<any>(response.data, 'blockedSignalStats');
   }
 
   // ==================== Evolution APIs ====================

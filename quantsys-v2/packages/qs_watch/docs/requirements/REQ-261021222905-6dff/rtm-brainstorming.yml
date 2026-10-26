@@ -1,0 +1,113 @@
+metadata:
+  stage: brainstorming
+  requirement_id: REQ-261021222905-6dff
+  generated_at: 2026-10-21T14:39:45.319Z
+  version: 6
+  generated_by: dsh-pmboard
+  rtm_version: "2.0"
+  last_updated: 2026-10-21T16:38:27.103Z
+outputs:
+  requirements:
+    - id: FR-1
+      title: 交易计划实体与生命周期
+      source: requirement.md
+      line: 91
+    - id: FR-2
+      title: 计划编译器
+      source: requirement.md
+      line: 119
+    - id: FR-3
+      title: 今日计划聚合视图
+      source: requirement.md
+      line: 149
+    - id: FR-4
+      title: 成交归因与状态推进
+      source: requirement.md
+      line: 175
+    - id: FR-5
+      title: 定时反思
+      source: requirement.md
+      line: 202
+    - id: FR-6
+      title: 反思驱动计划修改
+      source: requirement.md
+      line: 231
+    - id: FR-7
+      title: 反思数据面补全
+      source: requirement.md
+      line: 261
+    - id: FR-8
+      title: 进化层对接
+      source: requirement.md
+      line: 284
+    - id: FR-9
+      title: core_plan 适配器
+      source: requirement.md
+      line: 306
+  prototypes: []
+  decisions:
+    - id: D-1
+      source: 「不自动下单是设计，不是机器下单，是agent下单。你这个搞错了。agent做最后判断」
+      verdict: 计划与盯盘永不自动下单；执行 = 结构化指令 → agent 终判下单 → 成交回执回写
+      serves:
+        - FR-4
+      criterion: execute_trade 成交后 FillSync 收敛待办且计划状态推进（FR-4 验收 1）
+    - id: D-2
+      source: 「我希望的是agent来做算是自我进化的一个方式，进化交易规则」
+      verdict: 规则演进的驱动力是 agent；默认自主 + 安全网（假设必填/预算/步长/熔断/回滚），人做监督兜底
+      serves:
+        - FR-6
+        - FR-8
+      criterion: 无 hypothesis/evidence 的修改提案被 400 拒（FR-6 验收 3 的纪律用例覆盖）
+    - id: D-3
+      source: 「你不一样，我们还是不要搞混，交易计划，反思，和agent进化不是一个事情」
+      verdict: 三层分离：计划（操作层）/ 反思（认知层）/ 进化（沉淀层）；反思不直接改计划，进化不碰在跑计划
+      serves:
+        - FR-5
+        - FR-6
+        - FR-8
+      criterion: 进化服务对 plans 表写调用为零（FR-8 验收 2 结构性检查）；反思落地必须走更新通道（FR-6 验收 2）
+    - id: D-4
+      source: 「交易计划修改+错过机会+盈利+亏损等信息，做反思基础，通过反思修改交易计划」
+      verdict: 反思材料包固定四输入（修改历史/错过机会/盈利/亏损）；反思是计划修改的正经入口
+      serves:
+        - FR-5
+        - FR-6
+        - FR-7
+      criterion: 材料包四段齐全才可落反思报告（FR-5 验收 1）；修改提案必须带基线与观察窗（FR-6 验收 2）
+    - id: D-5
+      source: 「交易计划里缺少反思功能，或者是一个定时器通过agent反思交易计划」
+      verdict: 反思由定时器驱动（盘后 15:30 + 周六），v2 备料、agent 作答、缺席有 overdue 兜底
+      serves:
+        - FR-5
+      criterion: 定时任务触发后 plan_reflections 新增报告（FR-5 验收 1）；超时 overdue 递增（FR-5 验收 2）
+    - id: D-6
+      source: 「要创建一个qs_plan里创建」（立项弹框 · 文件落点）
+      verdict: 计划功能落独立包 packages/qs_plan（不塞 qs_watch/qs_trading/monolith）
+      serves:
+        - FR-1
+        - FR-2
+      criterion: packages/qs_plan 存在且 import-linter 边界检查通过（依赖单向 qs_plan→watch/trading/sourcing/kernel）
+    - id: D-7
+      source: 「agent的需要做一个工具来完成调用」
+      verdict: agent 不直接调 REST；提供 trading_plan 工具（agent-dh 与 agent-ts 双端实现）封装计划全部调用
+      serves:
+        - FR-3
+        - FR-5
+        - FR-6
+      criterion: 双端工具契约测试通过：拉 today/交反思/提提案成功（TC-22）
+    - id: D-8
+      source: 「qs_plan的执行是交给WatchEngine」
+      verdict: qs_plan 不执行任何盯盘/下单；执行=WatchEngine（编译产物驱动），下单=agent 终判
+      serves:
+        - FR-2
+        - FR-4
+      criterion: 结构检查：qs_plan 包内零行情轮询、零下单调用（grep 退出码 0）
+    - id: D-9
+      source: 「投资脑 不是agent-dh吗？」「agent-ts 和 agent-dh 都需要」
+      verdict: 投资脑=agent-dh（账户 agent_brain），为计划主消费方；agent-ts（fin-agent，agent_virtual）同样需要 trading_plan 工具
+      serves:
+        - FR-3
+      criterion: 双端工具均可用（TC-22 断言两客户端各自契约）
+status:
+  artifacts: []

@@ -135,6 +135,16 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"⚠️ Failed to register core plan job: {e}")
 
+    # 交易计划反思任务（REQ-261021222905-6dff t11）：盘后 15:35 / 周六 10:00
+    try:
+        from qs_ops.application.jobs.job_registry import job_registry
+        from qs_plan.application.reflection_job import build_plan_jobs
+        for _job in build_plan_jobs():
+            job_registry.register(_job)
+        logger.info("✅ Registered: plan reflection jobs (plan_reflect_daily/weekly)")
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to register plan reflection jobs: {e}")
+
     # 策略闭环周度复核任务（2026-09-13 w-a9ec14d7：从 scripts/strategy_loop.py 上迁）
     # 上迁原因：用户裁定「脚本不能写进 v2 项目，脚本只能测试用」；
     # 本能力是策略门槛守门人（周日 20:30 复核 → 未过门槛则退役 → 落报告供 agent 读取通知）。
@@ -315,7 +325,11 @@ async def lifespan(app: FastAPI):
     # 已下线该职责；pytest 下不启动，避免测试进程拉起盯盘循环）。
     # 引擎句柄挂到 app.state，lifespan 关闭时优雅停止。
     # 2026-08-30: 添加 DISABLE_WATCH_ENGINE 环境变量开关，避免启动阻塞
-    if os.getenv('DISABLE_WATCH_ENGINE', '').lower() != 'true':
+    try:
+        from adapters.inbound.fastapi_app.watch_bootstrap import v1_enabled as _v1_enabled
+    except Exception:  # noqa: BLE001 - 导入失败按关闭处理，绝不盲目起线程
+        _v1_enabled = lambda: False
+    if _v1_enabled():
         try:
             from adapters.inbound.fastapi_app.watch_bootstrap import start_watch_engine
             handles = start_watch_engine(skip='pytest' in _sys.modules)
@@ -325,7 +339,30 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.error(f"❌ WatchEngine startup failed: {e}")
     else:
-        logger.warning("⚠️ WatchEngine disabled via DISABLE_WATCH_ENGINE")
+        # 2026-10-24：V1 判定循环下线，但旁路服务必须保留（新仓自动补止损/新闻/
+        # 走势回填/池对账/收盘日报都在 sidecar 里）。只不起 run_forever 判定循环。
+        if os.getenv('DISABLE_WATCH_ENGINE', '').lower() != 'true' and 'pytest' not in _sys.modules:
+            try:
+                from adapters.inbound.fastapi_app.watch_bootstrap import start_watch_sidecars
+                sidecar_engine = start_watch_sidecars(skip=False)
+                if sidecar_engine is not None:
+                    app.state.watch_engine = sidecar_engine
+            except Exception as e:
+                logger.error(f"❌ WatchEngine V1 sidecar startup failed: {e}")
+        else:
+            logger.warning("⚠️ WatchEngine(V1) 未启动（WATCH_V1_ENABLED=false 或 DISABLE_WATCH_ENGINE=true）")
+
+    # WatchEngineV2（REQ-261022235419-2299，2026-10-23 改定时任务）：不再起常驻循环，
+    # 改为注册 5 个 Job（watch_open_am/pm + 30s/10m/30m 档位任务），由 scheduler_tasks
+    # 的 cron 行驱动。开关关闭（WATCH_V2_ENABLED=false）时一个 Job 都不注册，V1 行为不变。
+    if os.getenv('DISABLE_WATCH_ENGINE', '').lower() != 'true' and 'pytest' not in _sys.modules:
+        try:
+            from adapters.inbound.fastapi_app.watch_bootstrap_v2 import register_watch_v2_jobs
+            _v2_jobs = register_watch_v2_jobs()
+            if _v2_jobs:
+                logger.info(f"✅ WatchEngineV2 scheduled jobs registered: {_v2_jobs}")
+        except Exception as e:
+            logger.error(f"❌ WatchEngineV2 job registration failed (V1 unaffected): {e}")
 
     # 交易日判定降级 → 主动外发告警接线（2026-09-14）：
     # orchestrator 的 tick / resume_from_breakpoint 用的是 is_trading_day() 布尔值，
@@ -414,6 +451,15 @@ async def lifespan(app: FastAPI):
             logger.info("✅ WatchEngine stopped")
         except Exception as e:
             logger.warning(f"⚠️ WatchEngine stop failed: {e}")
+
+    v2_handles = getattr(app.state, 'watch_engine_v2', None)
+    if v2_handles is not None:
+        try:
+            from adapters.inbound.fastapi_app.watch_bootstrap_v2 import stop_watch_engine_v2
+            stop_watch_engine_v2(v2_handles)
+            logger.info("✅ WatchEngineV2 stopped")
+        except Exception as e:
+            logger.warning(f"⚠️ WatchEngineV2 stop failed: {e}")
 
     orch_handles = getattr(app.state, 'orchestrator', None)
     if orch_handles is not None:
@@ -940,6 +986,15 @@ def register_routes():
     except ImportError as e:
         optional_failed.append("watch_metrics")
         logger.warning(f"⚠️ Failed to import watch_metrics_async: {e}")
+
+    # 交易计划（REQ-261021222905-6dff）：IF-1~IF-9、IF-11
+    try:
+        from adapters.inbound.fastapi_app.routes.plan_async import router as plan_router
+        app.include_router(plan_router)
+        logger.info("✅ Registered: trading plan (REQ-261021222905-6dff)")
+    except ImportError as e:
+        optional_failed.append("plan")
+        logger.warning(f"⚠️ Failed to import plan_async: {e}")
 
     # 订单/交易/投资组合（orders 域，P5 迁移）
     try:

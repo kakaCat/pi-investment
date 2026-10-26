@@ -434,7 +434,8 @@ class PolicyWatchService:
                  max_alerts_per_scan: int = DEFAULT_MAX_ALERTS_PER_SCAN,
                  max_confirm_per_scan: int = DEFAULT_MAX_CONFIRM_PER_SCAN,
                  query_memory: int = DEFAULT_QUERY_MEMORY,
-                 now_fn: Callable[[], datetime] = datetime.now):
+                 now_fn: Callable[[], datetime] = datetime.now,
+                 bridge: Any = None):
         self._news = news_source if news_source is not None else PolicyNewsSource()
         self._index = sector_index if sector_index is not None else SectorConstituentIndex()
         self._positions = position_repo
@@ -449,6 +450,8 @@ class PolicyWatchService:
         self._query_memory_cap = max(int(query_memory or 0), 1)
         self._queried: Dict[Tuple[str, str], None] = {}
         self._now = now_fn
+        # 消息 → P1 待办桥（REQ-261021194640-69b8 FR-3）。未注入 = 只发卡（旧行为）。
+        self._bridge = bridge
 
     # ── 纯解析路由（单测入口，不取数、不发卡）───────────────────
     def resolve(self, records: Sequence[Mapping[str, Any]],
@@ -763,10 +766,28 @@ class PolicyWatchService:
                 sent.append({'symbol': symbol, 'tier': tier,
                              'level': payload['level'],
                              'sectors': list(alert.get('sectors') or ())})
+                self._dispatch_bridge(symbol, tier, alert)
             else:
                 failed.append({'symbol': symbol, 'error': '发送返回 False',
                                'reason': '未送达'})
         return sent, failed, deduped, truncated
+
+    def _dispatch_bridge(self, symbol: str, tier: str,
+                         alert: Mapping[str, Any]) -> None:
+        """critical 政策命中 → 建 P1 待办并唤醒；桥未注入/失败都不影响发卡。"""
+        if self._bridge is None or _text(tier).lower() != TIER_CRITICAL:
+            return
+        try:
+            self._bridge.dispatch([{
+                'tier': 'critical',
+                'symbol': symbol,
+                'titles': [_text(alert.get('title'))],
+                'words': list(alert.get('words') or ()),
+                'sector': '、'.join(alert.get('sectors') or ()),
+                'source': 'policy',
+            }])
+        except Exception as e:  # noqa: BLE001 - 建单失败不回噬扫描/发卡
+            logger.error('政策消息待办分派失败（发卡已生效）', symbol=symbol, error=str(e))
 
     def _send(self, payload: Mapping[str, Any]) -> Any:
         sender = self._sender

@@ -1,0 +1,56 @@
+metadata:
+  stage: design
+  requirement_id: REQ-261019144524-ec50
+  generated_at: 2026-10-19T06:53:36.189Z
+  version: 3
+  generated_by: dsh-pmboard
+  last_updated: 2026-10-19T07:01:28.991Z
+inputs:
+  requirements: []
+outputs:
+  design_sections:
+    - ref: design/design.md#0
+      title: 设计输入：需求确认后新增的关键事实
+      serves: []
+      file: design/design.md
+      section: "0"
+    - ref: design/design.md#1
+      title: 设计目标与原则
+      serves: []
+      file: design/design.md
+      section: "1"
+    - ref: design/design.md#2
+      title: Spike 调研实施方案（implementing 阶段的 4 个工作包）
+      serves: []
+      file: design/design.md
+      section: "2"
+    - ref: design/design.md#3
+      title: 目标方案架构（初稿，spike 验证后细化）
+      serves: []
+      file: design/design.md
+      section: "3"
+    - ref: design/design.md#4
+      title: 需用户拍板的决策点（实施前）
+      serves: []
+      file: design/design.md
+      section: "4"
+    - ref: design/design.md#5
+      title: 分阶段路径与可证伪验收指标
+      serves: []
+      file: design/design.md
+      section: "5"
+    - ref: design/design.md#6
+      title: 风险与边界
+      serves: []
+      file: design/design.md
+      section: "6"
+traceability:
+  fr_to_design: {}
+coverage:
+  design:
+    total: 0
+    covered: 0
+    uncovered: []
+    rate: 100
+    total_frs: 0
+    covered_frs: 0

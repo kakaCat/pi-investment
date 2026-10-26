@@ -640,7 +640,7 @@ class TestWakePayloadAdditive:
         assert data['exec_directive']['qty'] == 1000
         assert data['exec_directive']['trigger_id'] == 101
         assert [i['state'] for i in data['exec_directive']['action_items']] == [
-            'executed', 'declined', 'timeout']
+            'executed', 'declined', 'hold', 'timeout']  # 四态：持有(HOLD) 2026-10-22 新增
 
     def test_dict_directive_passes_through(self):
         todo = _wake_todo()

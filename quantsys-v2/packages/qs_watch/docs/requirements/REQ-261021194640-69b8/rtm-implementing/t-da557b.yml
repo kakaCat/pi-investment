@@ -1,0 +1,37 @@
+task:
+  id: t-da557b
+  title: 关闭待办接规则变更联动·研发
+  status: done
+  implements: |-
+    adapters/inbound/fastapi_app/routes/watch_todo_async.py 透传 additive rule_change；packages/qs_watch/.../todo_service.py 在 close 成功后调 RuleChangeLinkage.apply（trigger_id 必填、事务、失败回滚）；新增 tests/application/test_watch_todo_close_rule_change.py。
+
+    [子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要
+  serves: []
+  depends_on: []
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261021194640-69b8
+    TASK_ID: t-da557b
+    TASK_TITLE: 关闭待办接规则变更联动·研发
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-21T12:25:37.656Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261021194640-69b8
+  generated_at: 2026-10-21T12:25:33.102Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-21T12:25:37.656Z

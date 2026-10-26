@@ -1,0 +1,32 @@
+task:
+  id: t-c5c85c
+  title: 汇总调研报告与验收材料
+  status: done
+  implements: ①汇总各卡产出；②逐项复核验收指标（任务成功率/KPI 落地/样本数/治理清单）；③reqboard_submit(kind=verification)
+  serves: []
+  depends_on: []
+  phase: review
+  side: doc
+  workflow_params:
+    REQ_ID: REQ-261019144524-ec50
+    TASK_ID: t-c5c85c
+    TASK_TITLE: 汇总调研报告与验收材料
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: doc
+    PHASE: review
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: review
+      status: done
+      completed_at: 2026-10-19T16:54:41.808Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261019144524-ec50
+  generated_at: 2026-10-19T16:54:41.808Z
+  version: 3
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-19T16:54:50.118Z

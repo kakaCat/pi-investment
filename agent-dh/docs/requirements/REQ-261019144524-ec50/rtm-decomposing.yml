@@ -1,0 +1,318 @@
+metadata:
+  stage: decomposing
+  requirement_id: REQ-261019144524-ec50
+  generated_at: 2026-10-19T07:10:33.128Z
+  version: 16
+  generated_by: dsh-pmboard
+  last_updated: 2026-10-19T16:54:50.134Z
+inputs:
+  requirements: []
+  design_sections:
+    - ref: design/design.md#0
+      title: 设计输入：需求确认后新增的关键事实
+      serves: []
+      file: design/design.md
+      section: "0"
+    - ref: design/design.md#1
+      title: 设计目标与原则
+      serves: []
+      file: design/design.md
+      section: "1"
+    - ref: design/design.md#2
+      title: Spike 调研实施方案（implementing 阶段的 4 个工作包）
+      serves: []
+      file: design/design.md
+      section: "2"
+    - ref: design/design.md#3
+      title: 目标方案架构（初稿，spike 验证后细化）
+      serves: []
+      file: design/design.md
+      section: "3"
+    - ref: design/design.md#4
+      title: 需用户拍板的决策点（实施前）
+      serves: []
+      file: design/design.md
+      section: "4"
+    - ref: design/design.md#5
+      title: 分阶段路径与可证伪验收指标
+      serves: []
+      file: design/design.md
+      section: "5"
+    - ref: design/design.md#6
+      title: 风险与边界
+      serves: []
+      file: design/design.md
+      section: "6"
+outputs:
+  tasks:
+    - id: t-1790d5
+      title: 诊断调度器 webhook 任务通道根因与影响面
+      implements: ①读 agent-os/internal/kernel/scheduler/executor.go 与 scheduler.go 通道选择逻辑；②用 scheduler_manage list 全量核对 command/webhook 字段；③结论写入报告
+      serves: []
+      depends_on: []
+      phase: analysis
+      side: backend
+    - id: t-f4e050
+      title: 修复 webhook 任务通道选择并故障注入实测
+      implements: ①git worktree 建独立工作线；②改 executor 通道优先级或清占位 command；③故障注入测试；④重启 Agent OS 并 trigger 验证
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-954eb4
+      title: 定义北极星 KPI 并改造进化周报模板
+      implements: ①确定各指标的数据源工具与口径；②scheduler_manage update 改写周报任务 payload；③落 KPI 定义文档
+      serves: []
+      depends_on: []
+      phase: doc
+      side: doc
+    - id: t-557f90
+      title: 落地观察计分 SOP（signal_track 全级别纳入+回填核查）
+      implements: ①确认 signal_track record/update 的现有调用点；②补 C 级信号落 track 的例程或 SOP；③核查 signal_perf_backfill_daily 覆盖度
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-ab4c82
+      title: 策略库治理清单（TEST 残留盘点 + unmeasured 补测可行性）
+      implements: ①strategy_list 全量分页拉取并分类；②抽查 evolution_run/回测接口可用性；③清单与建议落文档
+      serves: []
+      depends_on: []
+      phase: analysis
+      side: backend
+    - id: t-9bae04
+      title: 经验库噪声处置方案（unknown-symbol 记录清单与建议）
+      implements: ①memory_search/experience_stats 按来源聚类；②抽样读记录内容判断价值；③处置方案落文档
+      serves: []
+      depends_on: []
+      phase: analysis
+      side: backend
+    - id: t-38602b
+      title: 小仓位试单授权边界建议书（交用户决策，不执行）
+      implements: ①起草建议书（含风险测算：最坏情形月亏损 2500 元对账户的影响）；②落 docs 并标注待批准状态
+      serves: []
+      depends_on: []
+      phase: doc
+      side: doc
+    - id: t-c5c85c
+      title: 汇总调研报告与验收材料
+      implements: ①汇总各卡产出；②逐项复核验收指标（任务成功率/KPI 落地/样本数/治理清单）；③reqboard_submit(kind=verification)
+      serves: []
+      depends_on: []
+      phase: review
+      side: doc
+    - id: t-531b46
+      title: 诊断调度器 webhook 任务通道根因与影响面·取数调研
+      implements: |-
+        ①读 agent-os/internal/kernel/scheduler/executor.go 与 scheduler.go 通道选择逻辑；②用 scheduler_manage list 全量核对 command/webhook 字段；③结论写入报告
+
+        [子卡阶段·取数调研] 只做本阶段；验收：数据样本量与来源已标注（对齐 R-013 来源与时点口径）
+      serves: []
+      depends_on: []
+      phase: analysis
+      side: backend
+    - id: t-aa8733
+      title: 诊断调度器 webhook 任务通道根因与影响面·分析
+      implements: |-
+        ①读 agent-os/internal/kernel/scheduler/executor.go 与 scheduler.go 通道选择逻辑；②用 scheduler_manage list 全量核对 command/webhook 字段；③结论写入报告
+
+        [子卡阶段·分析] 只做本阶段；验收：结论含置信度与适用边界，并列出被证伪的假设
+      serves: []
+      depends_on:
+        - t-531b46
+      phase: analysis
+      side: backend
+    - id: t-386642
+      title: 诊断调度器 webhook 任务通道根因与影响面·复核
+      implements: |-
+        ①读 agent-os/internal/kernel/scheduler/executor.go 与 scheduler.go 通道选择逻辑；②用 scheduler_manage list 全量核对 command/webhook 字段；③结论写入报告
+
+        [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-aa8733
+      phase: analysis
+      side: backend
+    - id: t-73356d
+      title: 修复 webhook 任务通道选择并故障注入实测·探针
+      implements: |-
+        ①git worktree 建独立工作线；②改 executor 通道优先级或清占位 command；③故障注入测试；④重启 Agent OS 并 trigger 验证
+
+        [子卡阶段·探针] 只做本阶段；验收：给出一个可证伪问题的答案与证据（明确未验证边界）
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-3560e9
+      title: 修复 webhook 任务通道选择并故障注入实测·复核
+      implements: |-
+        ①git worktree 建独立工作线；②改 executor 通道优先级或清占位 command；③故障注入测试；④重启 Agent OS 并 trigger 验证
+
+        [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-73356d
+      phase: implement
+      side: backend
+    - id: t-d176e2
+      title: 定义北极星 KPI 并改造进化周报模板·研发
+      implements: |-
+        ①确定各指标的数据源工具与口径；②scheduler_manage update 改写周报任务 payload；③落 KPI 定义文档
+
+        [子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要
+      serves: []
+      depends_on: []
+      phase: doc
+      side: doc
+    - id: t-eab3f3
+      title: 定义北极星 KPI 并改造进化周报模板·复核
+      implements: |-
+        ①确定各指标的数据源工具与口径；②scheduler_manage update 改写周报任务 payload；③落 KPI 定义文档
+
+        [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-d176e2
+      phase: doc
+      side: doc
+    - id: t-c7a81f
+      title: 落地观察计分 SOP（signal_track 全级别纳入+回填核查）·探针
+      implements: |-
+        ①确认 signal_track record/update 的现有调用点；②补 C 级信号落 track 的例程或 SOP；③核查 signal_perf_backfill_daily 覆盖度
+
+        [子卡阶段·探针] 只做本阶段；验收：给出一个可证伪问题的答案与证据（明确未验证边界）
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-5ed45b
+      title: 落地观察计分 SOP（signal_track 全级别纳入+回填核查）·复核
+      implements: |-
+        ①确认 signal_track record/update 的现有调用点；②补 C 级信号落 track 的例程或 SOP；③核查 signal_perf_backfill_daily 覆盖度
+
+        [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-c7a81f
+      phase: implement
+      side: backend
+    - id: t-ee21d9
+      title: 策略库治理清单（TEST 残留盘点 + unmeasured 补测可行性）·取数调研
+      implements: |-
+        ①strategy_list 全量分页拉取并分类；②抽查 evolution_run/回测接口可用性；③清单与建议落文档
+
+        [子卡阶段·取数调研] 只做本阶段；验收：数据样本量与来源已标注（对齐 R-013 来源与时点口径）
+      serves: []
+      depends_on: []
+      phase: analysis
+      side: backend
+    - id: t-542f40
+      title: 策略库治理清单（TEST 残留盘点 + unmeasured 补测可行性）·分析
+      implements: |-
+        ①strategy_list 全量分页拉取并分类；②抽查 evolution_run/回测接口可用性；③清单与建议落文档
+
+        [子卡阶段·分析] 只做本阶段；验收：结论含置信度与适用边界，并列出被证伪的假设
+      serves: []
+      depends_on:
+        - t-ee21d9
+      phase: analysis
+      side: backend
+    - id: t-5c0823
+      title: 策略库治理清单（TEST 残留盘点 + unmeasured 补测可行性）·复核
+      implements: |-
+        ①strategy_list 全量分页拉取并分类；②抽查 evolution_run/回测接口可用性；③清单与建议落文档
+
+        [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-542f40
+      phase: analysis
+      side: backend
+    - id: t-86eed7
+      title: 经验库噪声处置方案（unknown-symbol 记录清单与建议）·取数调研
+      implements: |-
+        ①memory_search/experience_stats 按来源聚类；②抽样读记录内容判断价值；③处置方案落文档
+
+        [子卡阶段·取数调研] 只做本阶段；验收：数据样本量与来源已标注（对齐 R-013 来源与时点口径）
+      serves: []
+      depends_on: []
+      phase: analysis
+      side: backend
+    - id: t-84e0f3
+      title: 经验库噪声处置方案（unknown-symbol 记录清单与建议）·分析
+      implements: |-
+        ①memory_search/experience_stats 按来源聚类；②抽样读记录内容判断价值；③处置方案落文档
+
+        [子卡阶段·分析] 只做本阶段；验收：结论含置信度与适用边界，并列出被证伪的假设
+      serves: []
+      depends_on:
+        - t-86eed7
+      phase: analysis
+      side: backend
+    - id: t-2a366f
+      title: 经验库噪声处置方案（unknown-symbol 记录清单与建议）·复核
+      implements: |-
+        ①memory_search/experience_stats 按来源聚类；②抽样读记录内容判断价值；③处置方案落文档
+
+        [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-84e0f3
+      phase: analysis
+      side: backend
+    - id: t-381c5a
+      title: 小仓位试单授权边界建议书（交用户决策，不执行）·研发
+      implements: |-
+        ①起草建议书（含风险测算：最坏情形月亏损 2500 元对账户的影响）；②落 docs 并标注待批准状态
+
+        [子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要
+      serves: []
+      depends_on: []
+      phase: doc
+      side: doc
+    - id: t-6ec327
+      title: 小仓位试单授权边界建议书（交用户决策，不执行）·复核
+      implements: |-
+        ①起草建议书（含风险测算：最坏情形月亏损 2500 元对账户的影响）；②落 docs 并标注待批准状态
+
+        [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-381c5a
+      phase: doc
+      side: doc
+    - id: t-9b2a59
+      title: 汇总调研报告与验收材料·复核
+      implements: |-
+        ①汇总各卡产出；②逐项复核验收指标（任务成功率/KPI 落地/样本数/治理清单）；③reqboard_submit(kind=verification)
+
+        [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on: []
+      phase: review
+      side: doc
+traceability:
+  design_to_tasks:
+    design/design.md#0: []
+    design/design.md#1: []
+    design/design.md#2: []
+    design/design.md#3: []
+    design/design.md#4: []
+    design/design.md#5: []
+    design/design.md#6: []
+  fr_to_tasks: {}
+coverage:
+  implementation:
+    total: 7
+    covered: 0
+    uncovered:
+      - design/design.md#0
+      - design/design.md#1
+      - design/design.md#2
+      - design/design.md#3
+      - design/design.md#4
+      - design/design.md#5
+      - design/design.md#6
+    rate: 0
+    total_designs: 7
+    covered_designs: 0

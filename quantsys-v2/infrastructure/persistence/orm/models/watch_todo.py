@@ -62,6 +62,11 @@ class WatchTodo(Base):
     next_condition = Column(Text, nullable=True, comment='ignored 必填：下次什么条件下才动')
     action_kind = Column(String(24), nullable=True, comment='trade/rule_change/observe/none')
     decision_audit_id = Column(String(64), nullable=True, comment='I4：动作类关闭必须带决策审计 id')
+    # 待办证据（REQ-261021194640-69b8 FR-3，2026-10-21）：消息待办的来源/标题/命中词/告警 id。
+    # 可空：历史待办与价格触发待办没有消息证据；只读附注，不参与状态机。
+    # 缺列库（未执行 20261021_watch_todos_evidence.py）上写路径降级为不写证据 + 告警，不阻断建单；
+    # 读路径要求迁移先行（未迁移会响亮报错，不静默返回 None 冒充「无证据」）。
+    evidence = Column(JSONB, nullable=True, comment='待办证据（消息来源/标题/命中词/告警 id，JSON）')
     escalate_count = Column(Integer, nullable=False, server_default=text('0'), comment='晋升次数')
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())

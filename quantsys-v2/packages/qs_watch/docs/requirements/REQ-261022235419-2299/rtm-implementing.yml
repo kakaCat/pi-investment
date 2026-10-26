@@ -1,0 +1,112 @@
+metadata:
+  stage: implementing
+  requirement_id: REQ-261022235419-2299
+  generated_at: 2026-10-23T03:40:32.735Z
+  version: 29
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 19
+  last_updated: 2026-10-23T04:15:37.698Z
+inputs:
+  tasks:
+    - id: t-fe91ea
+      title: 数据迁移：trigger_channel/process_state/cycle_count + engine 标记
+      status: done
+    - id: t-b8ffa6
+      title: v2 引擎骨架：主循环 + 加载 + 统一取价前置
+      status: in_progress
+    - id: t-223590
+      title: position_engine 持仓判定
+      status: todo
+    - id: t-3fa90a
+      title: unpositioned_engine 非持仓判定
+      status: todo
+    - id: t-443fbb
+      title: 失效判定模块（全票覆盖）
+      status: todo
+    - id: t-5102cb
+      title: 触发路由 10 次循环 + 每日重置
+      status: todo
+    - id: t-33cead
+      title: notify_agent + agent_prompts
+      status: todo
+    - id: t-659001
+      title: notify_feishu + feishu_templates
+      status: todo
+    - id: t-dc9678
+      title: 宿主接入：bootstrap 分支 + registry 任务
+      status: todo
+    - id: t-e7ef23
+      title: 单测补全 + 全量回归
+      status: todo
+    - id: t-999237
+      title: 影子模式对比 + 灰度切换
+      status: todo
+    - id: t-c7e0ce
+      title: 数据迁移：trigger_channel/process_state/cycle_count + engine 标记·研发
+      status: done
+    - id: t-66005a
+      title: 数据迁移：trigger_channel/process_state/cycle_count + engine 标记·联调
+      status: done
+    - id: t-1c0316
+      title: 数据迁移：trigger_channel/process_state/cycle_count + engine 标记·复核
+      status: done
+    - id: t-a7f35a
+      title: 数据迁移：trigger_channel/process_state/cycle_count + engine 标记·测试
+      status: done
+    - id: t-30eeaf
+      title: v2 引擎骨架：主循环 + 加载 + 统一取价前置·研发
+      status: in_progress
+    - id: t-893f77
+      title: v2 引擎骨架：主循环 + 加载 + 统一取价前置·联调
+      status: todo
+    - id: t-b509e4
+      title: v2 引擎骨架：主循环 + 加载 + 统一取价前置·复核
+      status: todo
+    - id: t-4b095f
+      title: v2 引擎骨架：主循环 + 加载 + 统一取价前置·测试
+      status: todo
+status:
+  tasks_total: 19
+  tasks_done: 5
+  tasks_in_progress: 2
+  tasks_todo: 12
+tasks:
+  - id: t-fe91ea
+    status: done
+  - id: t-b8ffa6
+    status: in_progress
+  - id: t-223590
+    status: todo
+  - id: t-3fa90a
+    status: todo
+  - id: t-443fbb
+    status: todo
+  - id: t-5102cb
+    status: todo
+  - id: t-33cead
+    status: todo
+  - id: t-659001
+    status: todo
+  - id: t-dc9678
+    status: todo
+  - id: t-e7ef23
+    status: todo
+  - id: t-999237
+    status: todo
+  - id: t-c7e0ce
+    status: done
+  - id: t-66005a
+    status: done
+  - id: t-1c0316
+    status: done
+  - id: t-a7f35a
+    status: done
+  - id: t-30eeaf
+    status: in_progress
+  - id: t-893f77
+    status: todo
+  - id: t-b509e4
+    status: todo
+  - id: t-4b095f
+    status: todo

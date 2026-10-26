@@ -1,0 +1,35 @@
+task:
+  id: t-e29f67
+  title: 执行期限巡检与时区归一
+  status: done
+  implements: packages/qs_watch/.../sla_job.py 增加执行期限判定：P0/exit_stop 待办按 created_at+WATCH_EXEC_SLA_MIN 判超时，时区统一归一后比较，回执同期限周期只发一次且不写 expired；tests/application/test_sla_job.py 补时区矩阵与幂等用例。
+  serves:
+    - FR-6
+  depends_on: []
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261021194640-69b8
+    TASK_ID: t-e29f67
+    TASK_TITLE: 执行期限巡检与时区归一
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-21T12:27:50.666Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261021194640-69b8
+  generated_at: 2026-10-21T12:27:48.573Z
+  version: 3
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-21T12:27:50.666Z

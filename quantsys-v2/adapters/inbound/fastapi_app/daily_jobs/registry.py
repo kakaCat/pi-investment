@@ -18,7 +18,9 @@ from infrastructure.scheduler.job_executor import find_result_failure
 from adapters.inbound.fastapi_app.daily_jobs.defs import JobDef  # noqa: F401
 from adapters.inbound.fastapi_app.daily_jobs.pipeline import _job_chip_distribution, _job_evening_pipeline, _job_evolution_fitness, _job_financial_statements, _job_freshness_guard  # noqa: F401
 from adapters.inbound.fastapi_app.daily_jobs.pools import _job_pool_daily_refresh, _job_pool_weekly_review  # noqa: F401
-from adapters.inbound.fastapi_app.daily_jobs.health import _job_event_calendar_check, _job_watch_rule_health  # noqa: F401
+from adapters.inbound.fastapi_app.daily_jobs.health import (  # noqa: F401
+    _job_event_calendar_check, _job_invalid_escalation, _job_watch_rule_health)
+from adapters.inbound.fastapi_app.daily_jobs.v2_jobs import _job_v2_daily_cycle_reset  # noqa: F401
 
 JOBS: List[JobDef] = [
     # 错峰（2026-09-02）：20:30 是 EOD 低峰期，避开全国量化高峰
@@ -26,7 +28,18 @@ JOBS: List[JobDef] = [
     # event_calendar_check 16:45 每日（含周末，原 Agent OS cron 语义）
     # watch_rule_health 16:30 周一~五：规则健康检查（RFC 011 Phase 2）
     JobDef('watch_rule_health', dtime(16, 30), (0, 1, 2, 3, 4),
-           _job_watch_rule_health, '规则健康检查：自动禁用过期/失效规则，标记长期未触发规则（RFC 011）'),
+           _job_watch_rule_health, '规则健康检查：过期/预案过期标 invalid 进裁决，价格偏离移交实时失效判定（agent 阈值），标记长期未触发（RFC 011）'),
+    # invalid_rule_escalation 17:00 周一~五：失效规则滞留升级（2026-10-22 用户裁定）——
+    # invalid 该 agent 裁决却超 24h 未处理 → 发盯盘群请用户推进，标记 invalid_escalated_at 只提醒一次
+    # v2_daily_cycle_reset 16:35 周一~五（REQ-261022235419-2299 t9 / D-18）：
+    # V2 触发路由的跨天重置 —— **仅活跃规则** cycle_count=0、process_state='pending'
+    # （活跃 = rule_state='active' 且启用且未过期，与引擎判定集合同源；非活跃规则
+    # 不参与判定、不需要重置——2026-10-23 用户裁定），次日从「循环第 1 次（agent 先处理）」
+    # 重新开始。与 watch_rule_health 分离（只管计数/状态）。
+    JobDef('v2_daily_cycle_reset', dtime(16, 35), (0, 1, 2, 3, 4),
+           _job_v2_daily_cycle_reset, 'V2 每日循环重置：活跃规则循环计数与处理状态清零（次日首发 agent）'),
+    JobDef('invalid_rule_escalation', dtime(17, 0), (0, 1, 2, 3, 4),
+           _job_invalid_escalation, '失效规则滞留升级：agent 未裁决超24h → 发用户推进'),
     JobDef('event_calendar_check', dtime(16, 45), (0, 1, 2, 3, 4, 5, 6),
            _job_event_calendar_check, '事件日历检查：未来2日 pending 高优事件（imp>=2）飞书提醒→标记notified'),
     JobDef('freshness_guard', dtime(17, 20), (0, 1, 2, 3, 4),

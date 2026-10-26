@@ -1,0 +1,36 @@
+task:
+  id: t-558de7
+  title: 扩展 on_fill 批次退役与事件留痕
+  status: done
+  implements: 改 packages/qs_plan/qs_plan/application/plan_service.py：on_fill 新增 sold_ratio=0.0；>0 且有 reduce_plan 时调用 batch_matcher.match_reduce_batches，逐批退役对应 watch_rules（enabled=false + context 理由）并写 trading_plan_events(kind=fill, detail={batch,trade_id,qty,remaining_qty})；无匹配写 degraded_fill；同 trade_id 幂等；remaining_qty<=0 → closing→closed。FillSync/PlanProgressPort 传 sold_ratio。
+  serves:
+    - FR-2
+  depends_on:
+    - t-e481c3
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261022022657-857f
+    TASK_ID: t-558de7
+    TASK_TITLE: 扩展 on_fill 批次退役与事件留痕
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-21T18:37:36.727Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261022022657-857f
+  generated_at: 2026-10-21T18:35:54.523Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-21T18:37:36.727Z

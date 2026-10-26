@@ -1,0 +1,41 @@
+task:
+  id: t-ab4c82
+  title: 策略库治理清单（TEST 残留盘点 + unmeasured 补测可行性）
+  status: done
+  implements: ①strategy_list 全量分页拉取并分类；②抽查 evolution_run/回测接口可用性；③清单与建议落文档
+  serves: []
+  depends_on: []
+  phase: analysis
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261019144524-ec50
+    TASK_ID: t-ab4c82
+    TASK_TITLE: 策略库治理清单（TEST 残留盘点 + unmeasured 补测可行性）
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: analysis
+  workflow_total: 4
+  workflow_done: 4
+  workflow:
+    - phase: analysis
+      status: done
+      completed_at: 2026-10-19T14:40:12.074Z
+    - phase: implement
+      status: done
+      completed_at: 2026-10-19T14:40:12.074Z
+    - phase: test
+      status: done
+      completed_at: 2026-10-19T14:39:56.929Z
+    - phase: commit
+      status: done
+      completed_at: 2026-10-19T14:40:12.074Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261019144524-ec50
+  generated_at: 2026-10-19T14:39:56.928Z
+  version: 3
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 4
+  last_updated: 2026-10-19T14:40:12.075Z

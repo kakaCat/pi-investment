@@ -9,5 +9,9 @@ source ./activate-py313.sh
 # agent 提醒类任务（agent_turn 等）仍由 Agent OS 管理，待 Phase 2 迁 DSH。
 export AGENT_OS_ENABLED=false
 
+# 盯盘 V2 主判定；V1 仅保留旁路服务。写入启动脚本，避免重启后开关丢失。
+export WATCH_V1_ENABLED=false
+export WATCH_V2_ENABLED=true
+
 exec python adapters/inbound/fastapi_app/main.py
 

@@ -11,7 +11,8 @@ REQ-c9f899 R1（级别体系）/ R7（SLA）的判据落点：级别决定飞书
   · has_position      —— 该标的当前是否持仓。持仓的止盈/减仓 = 已到处置点 → P0。
   · is_constitutional —— 宪法级触发（止损/熔断/仓位超限/单笔超阈值），无条件下达。
   · action_on_trigger —— action_hint 的动作；**仅当 intent 为空时**用于归一意图，见 _effective_intent。
-  · trigger_level     —— 规则分级（规则显式声明 L2 = 买卖节点 → 必须有人拍板）。
+  · trigger_level     —— 【已退役 2026-10-22】规则分级（L2=行动层）。签名保留兼容，
+                        判定不再读取；原 L2→P1 能力零使用且可由 intent 表达。
   · scope             —— 事件范围（market/sector = 市场/板块级 → 知悉）。
   · is_governance     —— 治理项（规则体检/自愈建议 → 归档汇总）。
 
@@ -20,15 +21,13 @@ REQ-c9f899 R1（级别体系）/ R7（SLA）的判据落点：级别决定飞书
   1. is_constitutional 或 intent ∈ CONSTITUTIONAL_INTENTS      → P0（宪法级/止损：无条件下达）
   2. has_position 且 intent ∈ (exit_take_profit, exit_reduce)  → P0（持仓卖出类：已到处置点）
   3. intent ∈ (entry, add_position, t_trade)                   → P1（买卖节点：需有人拍板）
-  4. trigger_level == 'L2'                                     → P1（规则显式声明行动层）
-  5. is_governance                                             → P3（治理项：仅归档汇总）
-  6. scope ∈ (market, sector)                                  → P2（市场/板块：知悉；先于纯观察）
-  7. intent == 'trend_observe'                                 → P3（纯观察：无动作）
-  8. 其余                                                      → P2（兜底知悉）
+  4. is_governance                                             → P3（治理项：仅归档汇总）
+  5. scope ∈ (market, sector)                                  → P2（市场/板块：知悉；先于纯观察）
+  6. intent == 'trend_observe'                                 → P3（纯观察：无动作）
+  7. 其余                                                      → P2（兜底知悉）
 
 优先级冲突取**先命中**，不要凭直觉交换：
-  · trigger_level='L2' 的 trend_observe → P1（第 4 条先于第 7 条，观察也不例外须拍板）；
-  · scope=sector 的 trend_observe → P2（第 6 条先于第 7 条，板块异动属知悉而非归档）；
+  · scope=sector 的 trend_observe → P2（第 5 条先于第 6 条，板块异动属知悉而非归档）；
   · 无持仓的 exit_stop → P0（第 1 条不看持仓）；
   · 无持仓的 exit_take_profit → 不命中第 2 条，落到 P2（没有持仓就没有「已到处置点」）。
 """
@@ -106,10 +105,11 @@ def resolve_level(intent, has_position, is_constitutional: bool = False,
       · is_constitutional=True 或 intent=exit_stop → P0（不看持仓、不看其他入参）；
       · 有持仓的止盈/减仓（exit_take_profit/exit_reduce）→ P0；
       · 买卖节点（entry/add_position/t_trade）→ P1；
-      · trigger_level='L2' → P1（压过观察/治理/scope）；
       · 治理项 → P3；市场/板块 scope（含 trend_observe）→ P2；其余纯观察 → P3；兜底 P2。
 
     参数 action_on_trigger 仅用于 intent 为空的归一（见 _effective_intent），显式 intent 永远优先。
+    参数 trigger_level 已退役（2026-10-22）：保留在签名仅兼容既有调用方，判定不再读取——
+    其原 L2→P1 能力零使用（现有 L2 全为卖出类、已被第 1/2 条短路），且可由 intent 表达。
     """
     effective = _effective_intent(intent, action_on_trigger)
 
@@ -125,11 +125,10 @@ def resolve_level(intent, has_position, is_constitutional: bool = False,
     if effective in ENTRY_INTENTS:
         return P1
 
-    # 4. 规则显式声明行动层（先于观察/治理）
-    if str(trigger_level or '').strip().upper() == 'L2':
-        return P1
+    # （原「trigger_level='L2' → P1」已删除：trigger_level 2026-10-22 退役，现有 L2
+    #   全为卖出类已被第 1/2 条短路；非卖出类强制拍板可由 intent=买卖类表达。优先级前移。）
 
-    # 5. 治理项（规则维护话题）：仅归档汇总
+    # 4. 治理项（规则维护话题）：仅归档汇总
     if is_governance:
         return P3
 

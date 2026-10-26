@@ -217,7 +217,7 @@ class WatchNotifier:
             rule_id=rule.id,
             symbol=rule.symbol,
             trigger_level=payload.trigger_level,
-            notify_mode='agent' if payload.trigger_level == 'L2' else 'direct',
+            notify_mode='direct',  # trigger_level 退役（2026-10-22）：统一直发用户，agent 由 escalation 负责
             escalation_reason=escalation_reason,
             merged_from_rule=merged_from_rule,
         )
@@ -291,7 +291,7 @@ class WatchNotifier:
                 condition=payload.condition,
                 message=payload.message,
                 context=context,
-                notify_mode='agent' if payload.trigger_level == 'L2' else 'direct',
+                notify_mode='direct',  # trigger_level 退役（2026-10-22）：统一直发用户，agent 由 escalation 负责
                 change_pct=payload.change_pct,
                 pnl_pct=payload.pnl_pct,
                 trigger_level=payload.trigger_level,

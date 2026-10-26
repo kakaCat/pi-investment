@@ -1,0 +1,36 @@
+task:
+  id: t-dc17c4
+  title: 实现 PlanCompiler 幂等编译
+  status: done
+  implements: packages/qs_plan/qs_plan/application/plan_compiler.py：spec→watch_rules 的 diff 计算（create/update/retire），幂等键 (plan_id, role, symbol)；写 watch_rules 时带 plan_id/role/position_state（持仓真值）；写 trading_plan_rules 映射与 watch_rule_changes 审计（change_kind=plan_compile）；单事务，失败整批回滚。
+  serves:
+    - FR-2
+  depends_on:
+    - t-350b38
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261021222905-6dff
+    TASK_ID: t-dc17c4
+    TASK_TITLE: 实现 PlanCompiler 幂等编译
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-21T16:13:07.589Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261021222905-6dff
+  generated_at: 2026-10-21T16:11:35.201Z
+  version: 6
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-21T16:13:07.589Z

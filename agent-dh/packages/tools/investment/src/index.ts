@@ -26,6 +26,7 @@ import { createWatchResolveTool } from './tools/WatchResolveTool';
 import { createDispatchTaskTool } from './tools/DispatchTaskTool';
 import { createTradingStatusTool } from './tools/TradingStatusTool';
 import { createCorePlanTool } from './tools/CorePlanTool';
+import { createTradingPlanTool } from './tools/TradingPlanTool';
 
 // ========== Plugin Config Schema ==========
 
@@ -138,5 +139,9 @@ export default class InvestmentPlugin extends Service {
     // 19. core 建仓计划（B8，2026-09-13）：计划 + 新鲜度 + 与当前持仓的机械差额。
     // 消费端原先靠**硬编码文件路径**直读 config/core_plan.json —— 读不出"陈不陈"。
     reg(createCorePlanTool(qv2));
+
+    // 20. 交易计划（REQ-261021222905-6dff，2026-10-22）：今日计划/CRUD/两步提交/反思。
+    //    执行归 WatchEngine；本工具只做计划面调用（D-7/D-8）。
+    reg(createTradingPlanTool(qv2));
   }
 }

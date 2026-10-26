@@ -120,11 +120,13 @@ def _rule_interval_sec(rule) -> Optional[int]:
 #
 # 分支表（`t_trade` 按订正归 holding 分支）：
 #
-#   | position_state | entry / add_position | t_trade / exit_* | 观察类 |
-#   |----------------|----------------------|------------------|--------|
-#   | 'none'         | 求值                 | 跳过             | 求值   |
-#   | 'holding'      | 跳过                 | 求值             | 求值   |
-#   | None（未知）   | 求值                 | 求值             | 求值   |
+#   | position_state | entry | add_position / t_trade / exit_* | 观察类 |
+#   |----------------|-------|---------------------------------|--------|
+#   | 'none'         | 求值  | 跳过（无仓位无可加/可卖）        | 求值   |
+#   | 'holding'      | 跳过  | 求值（含增仓，2026-10-22 裁定）  | 求值   |
+#   | None（未知）   | 求值  | 求值                            | 求值   |
+#   注：add_position 原归「持仓跳过」，2026-10-22 用户裁定「持仓的看增仓」——
+#   已持仓回调加仓是合理操作，改到 holding 求值、none 跳过（空仓无仓可加）。
 #
 # 两条硬口径（改这里之前先读 RFC 017 §2.2 / §4.6）：
 #   1. **None 不是 'none'**：NULL/缺列/非法值 → 状态不可知 → 一律求值（旧库与
@@ -136,8 +138,12 @@ def _rule_interval_sec(rule) -> Optional[int]:
 POSITION_STATE_NONE = 'none'
 POSITION_STATE_HOLDING = 'holding'
 
-#: 意图族：entry 族只在「确认空仓」时求值（持仓时跳过——已有仓位不再喊建仓/加仓）。
-POSITION_STATE_ENTRY_INTENTS = ('entry', 'add_position')
+#: 意图族：entry（建仓）只在「确认空仓」时求值（持仓时跳过——已有仓位不再喊建仓）。
+POSITION_STATE_ENTRY_INTENTS = ('entry',)
+
+#: 意图族：add_position（增仓）只在「确认持仓」时求值（2026-10-22 用户裁定
+#: 「持仓的看增仓」——已持仓回调加仓是合理操作；空仓跳过，无仓可加）。
+POSITION_STATE_ADD_INTENTS = ('add_position',)
 
 #: 意图族：exit 族只在「确认持仓」时求值（空仓跳过）。
 #: `t_trade` 归持仓分支：A股 T+1 下没有底仓无法做 T（RFC 017 §2.2 的订正）。
@@ -145,11 +151,13 @@ POSITION_STATE_EXIT_INTENTS = ('t_trade', 'exit_stop', 'exit_take_profit', 'exit
 
 #: 意图族标签（日志/事件用）。
 POSITION_FAMILY_ENTRY = 'entry'
+POSITION_FAMILY_ADD = 'add'
 POSITION_FAMILY_EXIT = 'exit'
 POSITION_FAMILY_OBSERVE = 'observe'
 
 #: 跳过原因（日志可观测；也是「本拍为什么没判这条规则」的唯一答案）。
 POSITION_STATE_SKIP_ENTRY_HELD = 'position_state_entry_skipped_holding'
+POSITION_STATE_SKIP_ADD_FLAT = 'position_state_add_skipped_flat'
 POSITION_STATE_SKIP_EXIT_FLAT = 'position_state_exit_skipped_flat'
 
 #: 不一致事件 kind（tick 事件流里与 trigger 事件区分，不伪装成一次触发）。
@@ -178,6 +186,8 @@ def position_state_family(intent) -> str:
     text = str(intent or '').strip()
     if text in POSITION_STATE_ENTRY_INTENTS:
         return POSITION_FAMILY_ENTRY
+    if text in POSITION_STATE_ADD_INTENTS:
+        return POSITION_FAMILY_ADD
     if text in POSITION_STATE_EXIT_INTENTS:
         return POSITION_FAMILY_EXIT
     return POSITION_FAMILY_OBSERVE
@@ -281,6 +291,9 @@ def position_state_verdict(rule):
             _declared_position_state(rule))
     if family == POSITION_FAMILY_ENTRY and state == POSITION_STATE_HOLDING:
         return POSITION_STATE_SKIP_ENTRY_HELD, None
+    if family == POSITION_FAMILY_ADD and state == POSITION_STATE_NONE:
+        # 增仓对确认空仓无意义（无仓可加）→ 跳过；已持仓回调加仓在上方 holding 分支照常求值。
+        return POSITION_STATE_SKIP_ADD_FLAT, None
     if family == POSITION_FAMILY_EXIT and state == POSITION_STATE_NONE:
         return POSITION_STATE_SKIP_EXIT_FLAT, None
     return None, None
@@ -467,6 +480,7 @@ class WatchEngine:
         # + 累计落过的不一致事件数；get_metrics 能直接看出「门挡了多少、为什么」。
         self._last_state_skips = {
             POSITION_STATE_SKIP_ENTRY_HELD: 0,
+            POSITION_STATE_SKIP_ADD_FLAT: 0,
             POSITION_STATE_SKIP_EXIT_FLAT: 0,
         }
         self._state_mismatch_count = 0
@@ -739,8 +753,11 @@ class WatchEngine:
     def _run_sidecar(self, now) -> None:
         """摘要门 + 每日一次任务（原 run_forever 热路径块的平移，语义不变）。"""
         from qs_ops.application.services.trading_day_guard import TradingDayGuard
-        if not (TradingDayGuard.is_trading_day(now.date())
-                and self.is_trading_time(now.time())):
+        if not TradingDayGuard.is_trading_day(now.date()):
+            return
+        if not self.is_trading_time(now.time()):
+            # FR-4（2026-10-21）：盘后消息与收盘日报独立于盘中任务窗口。
+            self._run_sidecar_offhours(now)
             return
         from infrastructure.persistence.orm import close_session
         # 摘要门：队列非空 + 冷却窗 + 当日预算（状态落库，重启不清零）
@@ -835,6 +852,34 @@ class WatchEngine:
                 self._last_review_sent_date = now.date()
         except Exception as e:  # noqa: BLE001 - 日报失败不阻断 sidecar
             logger.error('收盘体检日报异常', error=str(e))
+        finally:
+            close_session()
+
+    def _run_sidecar_offhours(self, now) -> None:
+        """盘后段：消息扫描（交易日 08:00–22:00）+ 收盘日报（一日一次）。
+
+        2026-10-21（REQ-261021194640-69b8 FR-4）：此前整个 sidecar 只在盘中跑，
+        15:00 后消息扫描与服务内部 08:00–22:00 窗口永远对不上，盘后公告永不扫描。
+        本方法只做「盘后仍需跑」的两件事，其余日频任务节奏不变。
+        """
+        from infrastructure.persistence.orm import close_session
+        try:
+            if self.news_watch_service is not None:
+                ns = self.news_watch_service.scan(now)
+                if ns.get('scanned') and ns.get('reported'):
+                    logger.info('消息监控命中（盘后段）', reported=ns['reported'],
+                                details=ns.get('details'))
+        except Exception as e:
+            logger.error('消息监控异常（盘后段）', error=str(e))
+        finally:
+            close_session()
+        try:
+            if (not self.is_trading_time(now.time())
+                    and self._last_review_sent_date != now.date()):
+                self._send_daily_review(now)
+                self._last_review_sent_date = now.date()
+        except Exception as e:  # noqa: BLE001 - 日报失败不阻断盘后段
+            logger.error('收盘体检日报异常（盘后段）', error=str(e))
         finally:
             close_session()
 
@@ -950,6 +995,7 @@ class WatchEngine:
         pending_mismatches: Dict[Any, dict] = {}
         state_skips = {
             POSITION_STATE_SKIP_ENTRY_HELD: 0,
+            POSITION_STATE_SKIP_ADD_FLAT: 0,
             POSITION_STATE_SKIP_EXIT_FLAT: 0,
         }
         for rule in active_rules:
@@ -1172,6 +1218,12 @@ class WatchEngine:
         拦截语义：引擎对个股信号**只归档不动作**（见 _process_condition 的
         env_gate 分支）；reason 已是一句可直接进通知/日志的中文。
         """
+        # 环境闸拦截已按 2026-10-22 用户裁定移除：信号**直接发用户**，不由程序
+        # 写死过滤（判定 vs 决策——与失效阈值同一方向：事实归用户，决策归 agent）。
+        # 此前该闸还叠加 degraded bug（拿 51 只样本假涨跌比拦信号）与「拦了不说」。
+        # WATCH_ENV_GATE_ENABLED=true 可恢复旧拦截行为（默认关闭，可回滚）。
+        if os.environ.get('WATCH_ENV_GATE_ENABLED', '').strip().lower() not in ('1', 'true', 'yes'):
+            return False, ''
         state = self._market_state(now)
         if state is None:
             return False, ''
@@ -1857,11 +1909,15 @@ class WatchEngine:
         return None
 
     def _handle_stale_residency(self, rule, idx, cond, quote, result, now):
-        """陈旧驻留处置（2026-10-19）：闩锁 + 每日一次阈值失真治理项（不进用户群）。
+        """陈旧驻留处置（2026-10-19）+ 失效实时判定标 invalid（2026-10-22 三分支）。
 
-        闩锁必须置上：否则下一 tick 还会命中同一条件。治理项每规则每日一条
-        （state.stale_reported 去重），经 record_governance 落 meta_review
-        进 agent 摘要队列——规则失真是 agent 该修的活，不是用户该看的事。
+        闩锁必须置上：否则下一 tick 还会命中同一条件。
+        治理项每规则每日一条（state.stale_reported 去重）。
+
+        失效实时判定（2026-10-22）：价格偏离 >20% 且非宪法级止损 → 标
+        rule_state='invalid' + 投递 agent 裁决（改/删），替代原「阈值失真」治理项
+        （二者互斥：命中失效就不再报失真，避免同一规则两条治理噪音）。
+        止损线破是资损事实，永不标失效（走退役/治理，CONSTITUTIONAL_INTENTS 排除）。
         """
         self.judge.mark_emitted(rule.id, idx, now, rule.symbol)
         if rule.id in self.state.stale_reported:
@@ -1873,6 +1929,19 @@ class WatchEngine:
             dev = (price - threshold) / abs(threshold) * 100
         except (TypeError, ValueError, ZeroDivisionError):
             dev = None
+
+        # 失效实时判定：偏离超 **agent 设定的规则阈值**（必填，像止盈价/止损价一样是
+        # 规则的具体参数，2026-10-22 用户裁定——不是程序常量）+ 非宪法级 + 仍 active
+        # → 标 invalid 并投递。阈值 NULL（缺列库/异常数据）= 本拍不判失效，退回治理项。
+        inv_threshold = getattr(rule, 'invalidation_threshold_pct', None)
+        if (dev is not None and inv_threshold is not None
+                and abs(dev) > float(inv_threshold)
+                and str(getattr(rule, 'intent', '') or '') not in CONSTITUTIONAL_INTENTS
+                and str(getattr(rule, 'rule_state', 'active') or 'active') == 'active'):
+            self._mark_invalid_and_dispatch(
+                rule, dev, threshold, price, now, float(inv_threshold))
+            return
+
         reason = ('阈值失真：现价 %.2f 偏离阈值 %.2f（%+.1f%%），昨收已在触发侧'
                   '（陈旧驻留，非新穿越）→ 建议调阈值或退役此规则'
                   % (float(quote.price), threshold, dev)) if dev is not None else (
@@ -1886,6 +1955,35 @@ class WatchEngine:
                         symbol=rule.symbol)
         except Exception as e:  # noqa: BLE001 - 治理项失败不阻断 tick
             logger.error('陈旧驻留治理项记录失败', rule_id=rule.id, error=str(e))
+
+    def _mark_invalid_and_dispatch(self, rule, dev, threshold, price, now, inv_threshold):
+        """标 invalid + 投递 agent 裁决（2026-10-22 三分支落地）。
+
+        命中失效阈值（inv_threshold = agent 按规则设定的失效偏离%，必填）：规则退出
+        active（list_by_state 不再返回它，停止盘中误触发），invalid_reason/invalid_at
+        留痕，投递 agent 摘要队列请其裁决——调阈值回 active，或退役归 archived。
+        触发优先于失效的铁律由调用方保证（stale_residency 只在「昨收已在触发侧」的
+        陈旧规则上判，止损已由宪法豁免排除）。
+        """
+        reason = ('价格偏离 %.1f%%（现价 %.2f vs 阈值 %.2f，超 agent 设定失效线 %.1f%%），'
+                  '规则标失效，待 agent 裁决（调阈值回 active / 退役归 archived）'
+                  % (dev, price, threshold, inv_threshold))
+        try:
+            self.rule_repo.update_fields(
+                rule.id, rule_state='invalid',
+                invalid_reason=reason, invalid_at=now)
+        except Exception as e:  # noqa: BLE001 - 标失效失败不阻断，退回治理项
+            logger.error('标失效失败', rule_id=rule.id, error=str(e))
+            return
+        try:
+            self.notifier.record_governance(
+                rule, '[失效待裁决] ' + reason,
+                {'invalidated': True, 'deviation_pct': round(dev, 2),
+                 'actions': ['adjust_threshold', 'retire']})
+            logger.info('规则已标失效并投递 agent', rule_id=rule.id,
+                        symbol=rule.symbol, dev=round(dev, 2))
+        except Exception as e:  # noqa: BLE001 - 投递失败不阻断（规则已标 invalid）
+            logger.error('失效投递 agent 失败', rule_id=rule.id, error=str(e))
 
     def _archive_environment_trigger(self, rule, cond, quote, result, reason):
         """环境闸拦截的归档口：只落库、不发送（返回触发对象或 None）。

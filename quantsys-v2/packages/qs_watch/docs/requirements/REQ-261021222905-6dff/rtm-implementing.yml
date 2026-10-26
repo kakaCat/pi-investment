@@ -1,0 +1,102 @@
+metadata:
+  stage: implementing
+  requirement_id: REQ-261021222905-6dff
+  generated_at: 2026-10-21T16:03:08.669Z
+  version: 85
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 17
+  last_updated: 2026-10-21T16:37:17.918Z
+inputs:
+  tasks:
+    - id: t-180c05
+      title: 搭建 qs_plan 包骨架并落五表迁移
+      status: done
+    - id: t-350b38
+      title: 实现五表 ORM 与 TradingPlanRepository
+      status: done
+    - id: t-cced59
+      title: 实现计划领域模型与状态机守卫
+      status: done
+    - id: t-efb315
+      title: 实现 PlanService（CRUD/两步提交/纪律门/审计号强制）
+      status: done
+    - id: t-dc17c4
+      title: 实现 PlanCompiler 幂等编译
+      status: done
+    - id: t-4876f4
+      title: 实现计划生命周期路由与编译预览
+      status: done
+    - id: t-dee787
+      title: 实现今日计划聚合视图
+      status: done
+    - id: t-dd0616
+      title: 接通成交回执：execute_trade 发 FillEvent + FillSync 推进计划状态
+      status: done
+    - id: t-60bfe8
+      title: 实现计划统计归因与被拦信号统计
+      status: done
+    - id: t-d6b85d
+      title: 实现反思材料包组装与反思写回
+      status: done
+    - id: t-155457
+      title: 实现反思定时任务与 overdue 兜底
+      status: done
+    - id: t-fd81c5
+      title: 实现 trading_plan 工具双端（agent-dh 投资脑 + agent-ts fin-agent）
+      status: done
+    - id: t-89fa50
+      title: 接通进化层消费反思知识段
+      status: done
+    - id: t-07abf5
+      title: 实现 core_plan 批次适配器
+      status: done
+    - id: t-7f6add
+      title: 收口测试与端到端冒烟
+      status: done
+    - id: t-223879
+      title: 搭建 qs_plan 包骨架并落五表迁移·研发
+      status: done
+    - id: t-08927d
+      title: 搭建 qs_plan 包骨架并落五表迁移·复核
+      status: done
+status:
+  tasks_total: 17
+  tasks_done: 17
+  tasks_in_progress: 0
+  tasks_todo: 0
+tasks:
+  - id: t-180c05
+    status: done
+  - id: t-350b38
+    status: done
+  - id: t-cced59
+    status: done
+  - id: t-efb315
+    status: done
+  - id: t-dc17c4
+    status: done
+  - id: t-4876f4
+    status: done
+  - id: t-dee787
+    status: done
+  - id: t-dd0616
+    status: done
+  - id: t-60bfe8
+    status: done
+  - id: t-d6b85d
+    status: done
+  - id: t-155457
+    status: done
+  - id: t-fd81c5
+    status: done
+  - id: t-89fa50
+    status: done
+  - id: t-07abf5
+    status: done
+  - id: t-7f6add
+    status: done
+  - id: t-223879
+    status: done
+  - id: t-08927d
+    status: done

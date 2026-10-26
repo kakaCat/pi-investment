@@ -1,0 +1,137 @@
+metadata:
+  stage: implementing
+  requirement_id: REQ-261022022657-857f
+  generated_at: 2026-10-21T18:31:37.343Z
+  version: 70
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 24
+  last_updated: 2026-10-21T18:39:49.452Z
+inputs:
+  tasks:
+    - id: t-e12dcf
+      title: 接线反思唤醒通道（waker 注入 + 任务调用）
+      status: done
+    - id: t-e481c3
+      title: 实现减仓批次匹配纯函数
+      status: done
+    - id: t-558de7
+      title: 扩展 on_fill 批次退役与事件留痕
+      status: done
+    - id: t-a5fbed
+      title: 接线消息→P1 待办与唤醒（含 24h 去重）
+      status: done
+    - id: t-b65fd2
+      title: 扩 metrics 读数并收口回归
+      status: done
+    - id: t-eec5ea
+      title: 接线反思唤醒通道（waker 注入 + 任务调用）·研发
+      status: done
+    - id: t-887e9b
+      title: 接线反思唤醒通道（waker 注入 + 任务调用）·联调
+      status: done
+    - id: t-4b43e8
+      title: 接线反思唤醒通道（waker 注入 + 任务调用）·复核
+      status: done
+    - id: t-c0b38b
+      title: 接线反思唤醒通道（waker 注入 + 任务调用）·测试
+      status: done
+    - id: t-6d5405
+      title: 实现减仓批次匹配纯函数·研发
+      status: done
+    - id: t-4c1d31
+      title: 实现减仓批次匹配纯函数·联调
+      status: done
+    - id: t-1088bf
+      title: 实现减仓批次匹配纯函数·复核
+      status: done
+    - id: t-1b778c
+      title: 实现减仓批次匹配纯函数·测试
+      status: done
+    - id: t-a779d3
+      title: 接线消息→P1 待办与唤醒（含 24h 去重）·研发
+      status: done
+    - id: t-d2e75b
+      title: 接线消息→P1 待办与唤醒（含 24h 去重）·联调
+      status: done
+    - id: t-35badf
+      title: 接线消息→P1 待办与唤醒（含 24h 去重）·复核
+      status: done
+    - id: t-c02f99
+      title: 接线消息→P1 待办与唤醒（含 24h 去重）·测试
+      status: done
+    - id: t-ebde4d
+      title: 扩展 on_fill 批次退役与事件留痕·研发
+      status: done
+    - id: t-4d4ec2
+      title: 扩展 on_fill 批次退役与事件留痕·联调
+      status: done
+    - id: t-46d7fb
+      title: 扩展 on_fill 批次退役与事件留痕·复核
+      status: done
+    - id: t-077bfc
+      title: 扩展 on_fill 批次退役与事件留痕·测试
+      status: done
+    - id: t-e5df78
+      title: 扩 metrics 读数并收口回归·研发
+      status: done
+    - id: t-f9b1f4
+      title: 扩 metrics 读数并收口回归·复核
+      status: done
+    - id: t-08f77b
+      title: 扩 metrics 读数并收口回归·测试
+      status: done
+status:
+  tasks_total: 24
+  tasks_done: 24
+  tasks_in_progress: 0
+  tasks_todo: 0
+tasks:
+  - id: t-e12dcf
+    status: done
+  - id: t-e481c3
+    status: done
+  - id: t-558de7
+    status: done
+  - id: t-a5fbed
+    status: done
+  - id: t-b65fd2
+    status: done
+  - id: t-eec5ea
+    status: done
+  - id: t-887e9b
+    status: done
+  - id: t-4b43e8
+    status: done
+  - id: t-c0b38b
+    status: done
+  - id: t-6d5405
+    status: done
+  - id: t-4c1d31
+    status: done
+  - id: t-1088bf
+    status: done
+  - id: t-1b778c
+    status: done
+  - id: t-a779d3
+    status: done
+  - id: t-d2e75b
+    status: done
+  - id: t-35badf
+    status: done
+  - id: t-c02f99
+    status: done
+  - id: t-ebde4d
+    status: done
+  - id: t-4d4ec2
+    status: done
+  - id: t-46d7fb
+    status: done
+  - id: t-077bfc
+    status: done
+  - id: t-e5df78
+    status: done
+  - id: t-f9b1f4
+    status: done
+  - id: t-08f77b
+    status: done

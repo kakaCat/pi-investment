@@ -187,38 +187,35 @@ def _parse_field(field_str: str, min_val: int, max_val: int) -> Set[int]:
 def next_run_time(expression: str, from_time: Optional[datetime] = None) -> datetime:
     """Compute the next datetime after *from_time* that matches *expression*.
 
-    Scans minute-by-minute up to 2 years ahead.
+    Scans minute-by-minute up to 2 years ahead for 5-field cron; 6-field
+    second-level cron uses the same trigger implementation as APScheduler.
 
     Args:
-        expression: 5-field cron expression（按北京时间编写，A 股 9:30/15:00 语境）。
+        expression: 5-field or 6-field cron expression（按北京时间编写）。
         from_time: reference datetime（默认：当前北京时间）。
 
     Returns:
-        The earliest matching datetime strictly after *from_time*（北京时间，tz-aware）。
+        The earliest matching datetime strictly after *from_time*（tz-aware）。
 
     Raises:
         ValueError: if no match is found within the search window.
     """
-    schedule = parse_cron(expression)
-
-    # 2026-09-11（w-f436d4ea）时区修复：cron 按北京时间编写，且生产的真实派发器
-    # APSchedulerService 用 timezone='Asia/Shanghai'；但此处此前用 UTC 计算，
-    # 导致 scheduler_tasks.next_run_at 比北京时间晚 8 小时（显示 23:30 实为 15:30）。
-    # 统一改用 Asia/Shanghai，与真实触发对齐。
     from zoneinfo import ZoneInfo
-    _CN = ZoneInfo("Asia/Shanghai")
 
+    _CN = ZoneInfo("Asia/Shanghai")
     if from_time is None:
         from_time = datetime.now(_CN)
-
-    # 统一按北京时间解释 naive 时间
     if from_time.tzinfo is None:
         from_time = from_time.replace(tzinfo=_CN)
 
-    # Start from the next whole minute
-    current = from_time.replace(second=0, microsecond=0) + timedelta(minutes=1)
+    if len(expression.strip().split()) == 6:
+        from qs_ops.infrastructure.scheduler.cron_compat import build_cron_trigger
 
-    # Search up to 2 years ahead (~1M minutes)
+        trigger = build_cron_trigger(expression, tz='Asia/Shanghai')
+        return trigger.get_next_fire_time(None, from_time)
+
+    schedule = parse_cron(expression)
+    current = from_time.replace(second=0, microsecond=0) + timedelta(minutes=1)
     end_limit = current + timedelta(days=366 * 2)
 
     while current <= end_limit:

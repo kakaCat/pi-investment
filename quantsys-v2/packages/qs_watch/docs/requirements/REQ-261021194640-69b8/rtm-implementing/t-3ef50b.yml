@@ -1,0 +1,39 @@
+task:
+  id: t-3ef50b
+  title: sidecar 拆盘中/盘后，盘后消息可扫
+  status: done
+  implements: packages/qs_watch/.../engine.py 把 _run_sidecar 拆成盘中段与盘后段：消息扫描在交易日 08:00–22:00 可跑，其余日频任务维持当日一次；收盘日报在盘后段触发；新增 tests/application/test_watch_sidecar_window.py。
+  serves:
+    - FR-4
+  depends_on:
+    - t-27e8c7
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261021194640-69b8
+    TASK_ID: t-3ef50b
+    TASK_TITLE: sidecar 拆盘中/盘后，盘后消息可扫
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 3
+  workflow_done: 3
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-21T12:40:33.033Z
+    - phase: test
+      status: done
+      completed_at: 2026-10-21T12:40:25.304Z
+    - phase: review
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261021194640-69b8
+  generated_at: 2026-10-21T12:39:58.095Z
+  version: 9
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 3
+  last_updated: 2026-10-21T12:40:33.033Z

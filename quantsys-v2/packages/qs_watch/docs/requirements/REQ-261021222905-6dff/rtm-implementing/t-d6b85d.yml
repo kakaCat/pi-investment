@@ -1,0 +1,37 @@
+task:
+  id: t-d6b85d
+  title: 实现反思材料包组装与反思写回
+  status: done
+  implements: packages/qs_plan/qs_plan/application/reflection_pack_service.py 组装四输入材料包（计划修改历史/错过机会/盈利/亏损，段级 missing 兜底）；IF-12 反思写回（五问校验、verdict 规则、同周期 version+1）+ IF-13 列表。
+  serves:
+    - FR-5
+    - FR-7
+  depends_on:
+    - t-efb315
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261021222905-6dff
+    TASK_ID: t-d6b85d
+    TASK_TITLE: 实现反思材料包组装与反思写回
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-21T16:25:24.506Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261021222905-6dff
+  generated_at: 2026-10-21T16:22:46.062Z
+  version: 6
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-21T16:25:24.507Z

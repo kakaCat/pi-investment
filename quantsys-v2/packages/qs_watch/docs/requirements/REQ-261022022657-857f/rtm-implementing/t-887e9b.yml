@@ -1,0 +1,36 @@
+task:
+  id: t-887e9b
+  title: 接线反思唤醒通道（waker 注入 + 任务调用）·联调
+  status: done
+  implements: |-
+    改 packages/qs_plan/qs_plan/application/reflection_job.py：组包成功后调用注入的 waker(plan, pack)，False/异常 → bump_overdue 并继续；成功 → set_review_due。改 adapters/inbound/fastapi_app/main.py：build_plan_jobs(waker=...) 注入 qs_agenthub AgentNotificationService.notify_agent 包装（event=plan_reflection，data 含 plan_id/period/四段摘要，target 按 route_owner）。补 tests/plan/test_reflection_job.py 两例。开关 PLAN_REFLECTION_WAKE_ENABLED。
+
+    [子卡阶段·联调] 只做本阶段；验收：`npx vitest run tests/` → 全绿（请求样例与期望响应一致）
+  serves: []
+  depends_on:
+    - t-eec5ea
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261022022657-857f
+    TASK_ID: t-887e9b
+    TASK_TITLE: 接线反思唤醒通道（waker 注入 + 任务调用）·联调
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-21T18:34:32.929Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261022022657-857f
+  generated_at: 2026-10-21T18:34:32.928Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-21T18:34:35.882Z

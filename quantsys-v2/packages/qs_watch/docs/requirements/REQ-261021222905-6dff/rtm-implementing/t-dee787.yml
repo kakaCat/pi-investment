@@ -1,0 +1,36 @@
+task:
+  id: t-dee787
+  title: 实现今日计划聚合视图
+  status: done
+  implements: packages/qs_plan/qs_plan/application/plan_aggregator.py 组装 today 视图（激活计划/条件就绪度/环境闸 verdict/持仓差额/未决待办）+ plan_async.py IF-10 端点。
+  serves:
+    - FR-3
+  depends_on:
+    - t-efb315
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261021222905-6dff
+    TASK_ID: t-dee787
+    TASK_TITLE: 实现今日计划聚合视图
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-21T16:20:33.782Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261021222905-6dff
+  generated_at: 2026-10-21T16:19:25.901Z
+  version: 6
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-21T16:20:33.783Z

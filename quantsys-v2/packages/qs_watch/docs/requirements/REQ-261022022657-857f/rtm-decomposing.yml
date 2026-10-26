@@ -1,0 +1,1555 @@
+metadata:
+  stage: decomposing
+  requirement_id: REQ-261022022657-857f
+  generated_at: 2026-10-21T18:31:37.340Z
+  version: 70
+  generated_by: dsh-pmboard
+  rtm_version: "2.0"
+  last_updated: 2026-10-21T18:39:49.467Z
+inputs:
+  requirements:
+    - id: FR-1
+      title: 反思定时任务接入唤醒通道
+      source: requirement.md
+      line: 161
+    - id: FR-2
+      title: 减仓批次收敛
+      source: requirement.md
+      line: 179
+    - id: FR-3
+      title: 消息→离场链
+      source: requirement.md
+      line: 198
+    - id: FR-4
+      title: 回归与可观测
+      source: requirement.md
+      line: 217
+  design_sections:
+    - ref: design/architecture.md#摘要
+      title: 摘要 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/architecture.md
+      section: 摘要
+    - ref: design/architecture.md#背景与问题
+      title: 背景与问题 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/architecture.md
+      section: 背景与问题
+    - ref: design/architecture.md#目标与非目标
+      title: 目标与非目标 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/architecture.md
+      section: 目标与非目标
+    - ref: design/architecture.md#方案总览
+      title: 方案总览 `
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 方案总览
+    - ref: design/architecture.md#架构与依赖
+      title: 架构与依赖 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/architecture.md
+      section: 架构与依赖
+    - ref: design/architecture.md#数据模型
+      title: 数据模型 `
+      serves:
+        - FR-2
+        - FR-3
+      file: design/architecture.md
+      section: 数据模型
+    - ref: design/architecture.md#接口设计
+      title: 接口设计 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/architecture.md
+      section: 接口设计
+    - ref: design/architecture.md#备选方案
+      title: 备选方案 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/architecture.md
+      section: 备选方案
+    - ref: design/architecture.md#四风险与证据
+      title: 四风险与证据 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/architecture.md
+      section: 四风险与证据
+    - ref: design/architecture.md#失败模式与回滚
+      title: 失败模式与回滚 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/architecture.md
+      section: 失败模式与回滚
+    - ref: design/architecture.md#跨关注点
+      title: 跨关注点 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/architecture.md
+      section: 跨关注点
+    - ref: design/architecture.md#交付拆分与里程碑
+      title: 交付拆分与里程碑 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/architecture.md
+      section: 交付拆分与里程碑
+    - ref: design/architecture.md#需求追溯
+      title: 需求追溯 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/architecture.md
+      section: 需求追溯
+    - ref: design/architecture.md#常见问题
+      title: 常见问题 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/architecture.md
+      section: 常见问题
+    - ref: design/architecture.md#开放问题
+      title: 开放问题 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/architecture.md
+      section: 开放问题
+    - ref: design/architecture.md#附录
+      title: 附录 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/architecture.md
+      section: 附录
+    - ref: design/backend.md#摘要
+      title: 摘要 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/backend.md
+      section: 摘要
+    - ref: design/backend.md#背景与问题
+      title: 背景与问题 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/backend.md
+      section: 背景与问题
+    - ref: design/backend.md#目标与非目标
+      title: 目标与非目标 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/backend.md
+      section: 目标与非目标
+    - ref: design/backend.md#方案总览
+      title: 方案总览 `
+      serves:
+        - FR-1
+      file: design/backend.md
+      section: 方案总览
+    - ref: design/backend.md#架构与依赖
+      title: 架构与依赖 `
+      serves:
+        - FR-1
+      file: design/backend.md
+      section: 架构与依赖
+    - ref: design/backend.md#数据模型
+      title: 数据模型 `
+      serves:
+        - FR-2
+      file: design/backend.md
+      section: 数据模型
+    - ref: design/backend.md#接口设计
+      title: 接口设计 `
+      serves:
+        - FR-1
+      file: design/backend.md
+      section: 接口设计
+    - ref: design/backend.md#服务级设计
+      title: 服务级设计 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/backend.md
+      section: 服务级设计
+    - ref: design/backend.md#备选方案
+      title: 备选方案 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/backend.md
+      section: 备选方案
+    - ref: design/backend.md#四风险与证据
+      title: 四风险与证据 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/backend.md
+      section: 四风险与证据
+    - ref: design/backend.md#失败模式与回滚
+      title: 失败模式与回滚 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/backend.md
+      section: 失败模式与回滚
+    - ref: design/backend.md#跨关注点
+      title: 跨关注点 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/backend.md
+      section: 跨关注点
+    - ref: design/backend.md#交付拆分与里程碑
+      title: 交付拆分与里程碑 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/backend.md
+      section: 交付拆分与里程碑
+    - ref: design/backend.md#需求追溯
+      title: 需求追溯 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/backend.md
+      section: 需求追溯
+    - ref: design/backend.md#常见问题
+      title: 常见问题 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/backend.md
+      section: 常见问题
+    - ref: design/backend.md#开放问题
+      title: 开放问题 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/backend.md
+      section: 开放问题
+    - ref: design/backend.md#附录
+      title: 附录 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/backend.md
+      section: 附录
+    - ref: design/data-model.md#摘要
+      title: 摘要 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/data-model.md
+      section: 摘要
+    - ref: design/data-model.md#背景与问题
+      title: 背景与问题 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/data-model.md
+      section: 背景与问题
+    - ref: design/data-model.md#目标与非目标
+      title: 目标与非目标 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/data-model.md
+      section: 目标与非目标
+    - ref: design/data-model.md#方案总览
+      title: 方案总览 `
+      serves:
+        - FR-2
+      file: design/data-model.md
+      section: 方案总览
+    - ref: design/data-model.md#架构与依赖
+      title: 架构与依赖 `
+      serves:
+        - FR-2
+      file: design/data-model.md
+      section: 架构与依赖
+    - ref: design/data-model.md#数据模型
+      title: 数据模型 `
+      serves:
+        - FR-2
+        - FR-3
+      file: design/data-model.md
+      section: 数据模型
+    - ref: design/data-model.md#接口设计
+      title: 接口设计 `
+      serves:
+        - FR-2
+      file: design/data-model.md
+      section: 接口设计
+    - ref: design/data-model.md#备选方案
+      title: 备选方案 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/data-model.md
+      section: 备选方案
+    - ref: design/data-model.md#四风险与证据
+      title: 四风险与证据 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/data-model.md
+      section: 四风险与证据
+    - ref: design/data-model.md#失败模式与回滚
+      title: 失败模式与回滚 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/data-model.md
+      section: 失败模式与回滚
+    - ref: design/data-model.md#跨关注点
+      title: 跨关注点 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/data-model.md
+      section: 跨关注点
+    - ref: design/data-model.md#交付拆分与里程碑
+      title: 交付拆分与里程碑 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/data-model.md
+      section: 交付拆分与里程碑
+    - ref: design/data-model.md#需求追溯
+      title: 需求追溯 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/data-model.md
+      section: 需求追溯
+    - ref: design/data-model.md#常见问题
+      title: 常见问题 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/data-model.md
+      section: 常见问题
+    - ref: design/data-model.md#开放问题
+      title: 开放问题 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/data-model.md
+      section: 开放问题
+    - ref: design/data-model.md#附录
+      title: 附录 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/data-model.md
+      section: 附录
+    - ref: design/interfaces.md#摘要
+      title: 摘要 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/interfaces.md
+      section: 摘要
+    - ref: design/interfaces.md#背景与问题
+      title: 背景与问题 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/interfaces.md
+      section: 背景与问题
+    - ref: design/interfaces.md#目标与非目标
+      title: 目标与非目标 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/interfaces.md
+      section: 目标与非目标
+    - ref: design/interfaces.md#方案总览
+      title: 方案总览 `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: 方案总览
+    - ref: design/interfaces.md#架构与依赖
+      title: 架构与依赖 `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: 架构与依赖
+    - ref: design/interfaces.md#数据模型
+      title: 数据模型 `
+      serves:
+        - FR-2
+        - FR-3
+      file: design/interfaces.md
+      section: 数据模型
+    - ref: design/interfaces.md#接口设计
+      title: 接口设计 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/interfaces.md
+      section: 接口设计
+    - ref: design/interfaces.md#接口清单
+      title: 接口清单 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/interfaces.md
+      section: 接口清单
+    - ref: design/interfaces.md#备选方案
+      title: 备选方案 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/interfaces.md
+      section: 备选方案
+    - ref: design/interfaces.md#四风险与证据
+      title: 四风险与证据 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/interfaces.md
+      section: 四风险与证据
+    - ref: design/interfaces.md#失败模式与回滚
+      title: 失败模式与回滚 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/interfaces.md
+      section: 失败模式与回滚
+    - ref: design/interfaces.md#跨关注点
+      title: 跨关注点 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/interfaces.md
+      section: 跨关注点
+    - ref: design/interfaces.md#交付拆分与里程碑
+      title: 交付拆分与里程碑 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/interfaces.md
+      section: 交付拆分与里程碑
+    - ref: design/interfaces.md#需求追溯
+      title: 需求追溯 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/interfaces.md
+      section: 需求追溯
+    - ref: design/interfaces.md#常见问题
+      title: 常见问题 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/interfaces.md
+      section: 常见问题
+    - ref: design/interfaces.md#开放问题
+      title: 开放问题 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/interfaces.md
+      section: 开放问题
+    - ref: design/interfaces.md#附录
+      title: 附录 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/interfaces.md
+      section: 附录
+    - ref: design/use-cases.md#摘要
+      title: 摘要 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/use-cases.md
+      section: 摘要
+    - ref: design/use-cases.md#背景与问题
+      title: 背景与问题 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/use-cases.md
+      section: 背景与问题
+    - ref: design/use-cases.md#目标与非目标
+      title: 目标与非目标 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/use-cases.md
+      section: 目标与非目标
+    - ref: design/use-cases.md#方案总览
+      title: 方案总览 `
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: 方案总览
+    - ref: design/use-cases.md#架构与依赖
+      title: 架构与依赖 `
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: 架构与依赖
+    - ref: design/use-cases.md#数据模型
+      title: 数据模型 `
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: 数据模型
+    - ref: design/use-cases.md#接口设计
+      title: 接口设计 `
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: 接口设计
+    - ref: design/use-cases.md#场景总览
+      title: 场景总览 `
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: 场景总览
+    - ref: design/use-cases.md#UC-1-盘后反思
+      title: UC-1 盘后反思 `
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: UC-1-盘后反思
+    - ref: design/use-cases.md#UC-2-减仓批次
+      title: UC-2 减仓批次 `
+      serves:
+        - FR-2
+      file: design/use-cases.md
+      section: UC-2-减仓批次
+    - ref: design/use-cases.md#UC-3-消息离场
+      title: UC-3 消息离场 `
+      serves:
+        - FR-3
+      file: design/use-cases.md
+      section: UC-3-消息离场
+    - ref: design/use-cases.md#关键决策与取舍
+      title: 关键决策与取舍 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/use-cases.md
+      section: 关键决策与取舍
+    - ref: design/use-cases.md#备选方案
+      title: 备选方案 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/use-cases.md
+      section: 备选方案
+    - ref: design/use-cases.md#四风险与证据
+      title: 四风险与证据 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/use-cases.md
+      section: 四风险与证据
+    - ref: design/use-cases.md#失败模式与回滚
+      title: 失败模式与回滚 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/use-cases.md
+      section: 失败模式与回滚
+    - ref: design/use-cases.md#跨关注点
+      title: 跨关注点 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/use-cases.md
+      section: 跨关注点
+    - ref: design/use-cases.md#交付拆分与里程碑
+      title: 交付拆分与里程碑 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/use-cases.md
+      section: 交付拆分与里程碑
+    - ref: design/use-cases.md#需求追溯
+      title: 需求追溯 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/use-cases.md
+      section: 需求追溯
+    - ref: design/use-cases.md#常见问题
+      title: 常见问题 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/use-cases.md
+      section: 常见问题
+    - ref: design/use-cases.md#开放问题
+      title: 开放问题 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/use-cases.md
+      section: 开放问题
+    - ref: design/use-cases.md#附录
+      title: 附录 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/use-cases.md
+      section: 附录
+outputs:
+  tasks:
+    - id: t-e12dcf
+      title: 接线反思唤醒通道（waker 注入 + 任务调用）
+      implements: 改 packages/qs_plan/qs_plan/application/reflection_job.py：组包成功后调用注入的 waker(plan, pack)，False/异常 → bump_overdue 并继续；成功 → set_review_due。改 adapters/inbound/fastapi_app/main.py：build_plan_jobs(waker=...) 注入 qs_agenthub AgentNotificationService.notify_agent 包装（event=plan_reflection，data 含 plan_id/period/四段摘要，target 按 route_owner）。补 tests/plan/test_reflection_job.py 两例。开关 PLAN_REFLECTION_WAKE_ENABLED。
+      serves:
+        - FR-1
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-e481c3
+      title: 实现减仓批次匹配纯函数
+      implements: 新增 packages/qs_plan/qs_plan/domain/plan/batch_matcher.py：def match_reduce_batches(batches, sold_ratio) -> list[int]；按 at_pct 升序累计 sell_ratio，返回累计 ≤ sold_ratio 的下标；越界抛 ValueError；空批返回 []。新增 tests/plan/test_plan_batch_convergence.py 覆盖四档与越界。
+      serves:
+        - FR-2
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-558de7
+      title: 扩展 on_fill 批次退役与事件留痕
+      implements: 改 packages/qs_plan/qs_plan/application/plan_service.py：on_fill 新增 sold_ratio=0.0；>0 且有 reduce_plan 时调用 batch_matcher.match_reduce_batches，逐批退役对应 watch_rules（enabled=false + context 理由）并写 trading_plan_events(kind=fill, detail={batch,trade_id,qty,remaining_qty})；无匹配写 degraded_fill；同 trade_id 幂等；remaining_qty<=0 → closing→closed。FillSync/PlanProgressPort 传 sold_ratio。
+      serves:
+        - FR-2
+      depends_on:
+        - t-e481c3
+      phase: implement
+      side: backend
+    - id: t-a5fbed
+      title: 接线消息→P1 待办与唤醒（含 24h 去重）
+      implements: 新增 packages/qs_watch/qs_watch/application/services/watch_engine/news_exit_linkage.py：link_news_to_todo(...)——critical 且标的在持仓或计划 targets → TodoService.create(P1, action_kind=rule_change, evidence={source:news,news_id,title,hits,symbol,plan_id}) → wake_todo_owner；24h 去重查 evidence->>'news_id'+symbol 未闭合；out_of_scope 跳过留痕。news_watch_service 扫描尾部调用；开关 NEWS_TODO_ENABLED；新增 tests/plan/test_news_exit_linkage.py 三例。
+      serves:
+        - FR-3
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-b65fd2
+      title: 扩 metrics 读数并收口回归
+      implements: 改 adapters/inbound/fastapi_app/routes/watch_async.py：/api/watch/metrics 增 news_todos_today（watch_todos evidence.source=news 当日计数）与 reflection_woken_today（当日唤醒计数），异常返回 null；补 tests/plan/test_metrics_ext.py；跑两套件回归并在 test-evidence 记读数。
+      serves:
+        - FR-4
+      depends_on:
+        - t-e12dcf
+        - t-558de7
+        - t-a5fbed
+      phase: test
+      side: backend
+    - id: t-eec5ea
+      title: 接线反思唤醒通道（waker 注入 + 任务调用）·研发
+      implements: |-
+        改 packages/qs_plan/qs_plan/application/reflection_job.py：组包成功后调用注入的 waker(plan, pack)，False/异常 → bump_overdue 并继续；成功 → set_review_due。改 adapters/inbound/fastapi_app/main.py：build_plan_jobs(waker=...) 注入 qs_agenthub AgentNotificationService.notify_agent 包装（event=plan_reflection，data 含 plan_id/period/四段摘要，target 按 route_owner）。补 tests/plan/test_reflection_job.py 两例。开关 PLAN_REFLECTION_WAKE_ENABLED。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-887e9b
+      title: 接线反思唤醒通道（waker 注入 + 任务调用）·联调
+      implements: |-
+        改 packages/qs_plan/qs_plan/application/reflection_job.py：组包成功后调用注入的 waker(plan, pack)，False/异常 → bump_overdue 并继续；成功 → set_review_due。改 adapters/inbound/fastapi_app/main.py：build_plan_jobs(waker=...) 注入 qs_agenthub AgentNotificationService.notify_agent 包装（event=plan_reflection，data 含 plan_id/period/四段摘要，target 按 route_owner）。补 tests/plan/test_reflection_job.py 两例。开关 PLAN_REFLECTION_WAKE_ENABLED。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run tests/` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-eec5ea
+      phase: implement
+      side: backend
+    - id: t-4b43e8
+      title: 接线反思唤醒通道（waker 注入 + 任务调用）·复核
+      implements: |-
+        改 packages/qs_plan/qs_plan/application/reflection_job.py：组包成功后调用注入的 waker(plan, pack)，False/异常 → bump_overdue 并继续；成功 → set_review_due。改 adapters/inbound/fastapi_app/main.py：build_plan_jobs(waker=...) 注入 qs_agenthub AgentNotificationService.notify_agent 包装（event=plan_reflection，data 含 plan_id/period/四段摘要，target 按 route_owner）。补 tests/plan/test_reflection_job.py 两例。开关 PLAN_REFLECTION_WAKE_ENABLED。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/REQ-261022022657-857f/design/` 逐条核对；`npx vitest run tests/` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-887e9b
+      phase: implement
+      side: backend
+    - id: t-c0b38b
+      title: 接线反思唤醒通道（waker 注入 + 任务调用）·测试
+      implements: |-
+        改 packages/qs_plan/qs_plan/application/reflection_job.py：组包成功后调用注入的 waker(plan, pack)，False/异常 → bump_overdue 并继续；成功 → set_review_due。改 adapters/inbound/fastapi_app/main.py：build_plan_jobs(waker=...) 注入 qs_agenthub AgentNotificationService.notify_agent 包装（event=plan_reflection，data 含 plan_id/period/四段摘要，target 按 route_owner）。补 tests/plan/test_reflection_job.py 两例。开关 PLAN_REFLECTION_WAKE_ENABLED。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-4b43e8
+      phase: implement
+      side: backend
+    - id: t-6d5405
+      title: 实现减仓批次匹配纯函数·研发
+      implements: |-
+        新增 packages/qs_plan/qs_plan/domain/plan/batch_matcher.py：def match_reduce_batches(batches, sold_ratio) -> list[int]；按 at_pct 升序累计 sell_ratio，返回累计 ≤ sold_ratio 的下标；越界抛 ValueError；空批返回 []。新增 tests/plan/test_plan_batch_convergence.py 覆盖四档与越界。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-4c1d31
+      title: 实现减仓批次匹配纯函数·联调
+      implements: |-
+        新增 packages/qs_plan/qs_plan/domain/plan/batch_matcher.py：def match_reduce_batches(batches, sold_ratio) -> list[int]；按 at_pct 升序累计 sell_ratio，返回累计 ≤ sold_ratio 的下标；越界抛 ValueError；空批返回 []。新增 tests/plan/test_plan_batch_convergence.py 覆盖四档与越界。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run tests/` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-6d5405
+      phase: implement
+      side: backend
+    - id: t-1088bf
+      title: 实现减仓批次匹配纯函数·复核
+      implements: |-
+        新增 packages/qs_plan/qs_plan/domain/plan/batch_matcher.py：def match_reduce_batches(batches, sold_ratio) -> list[int]；按 at_pct 升序累计 sell_ratio，返回累计 ≤ sold_ratio 的下标；越界抛 ValueError；空批返回 []。新增 tests/plan/test_plan_batch_convergence.py 覆盖四档与越界。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/REQ-261022022657-857f/design/` 逐条核对；`npx vitest run tests/` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-4c1d31
+      phase: implement
+      side: backend
+    - id: t-1b778c
+      title: 实现减仓批次匹配纯函数·测试
+      implements: |-
+        新增 packages/qs_plan/qs_plan/domain/plan/batch_matcher.py：def match_reduce_batches(batches, sold_ratio) -> list[int]；按 at_pct 升序累计 sell_ratio，返回累计 ≤ sold_ratio 的下标；越界抛 ValueError；空批返回 []。新增 tests/plan/test_plan_batch_convergence.py 覆盖四档与越界。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-1088bf
+      phase: implement
+      side: backend
+    - id: t-a779d3
+      title: 接线消息→P1 待办与唤醒（含 24h 去重）·研发
+      implements: |-
+        新增 packages/qs_watch/qs_watch/application/services/watch_engine/news_exit_linkage.py：link_news_to_todo(...)——critical 且标的在持仓或计划 targets → TodoService.create(P1, action_kind=rule_change, evidence={source:news,news_id,title,hits,symbol,plan_id}) → wake_todo_owner；24h 去重查 evidence->>'news_id'+symbol 未闭合；out_of_scope 跳过留痕。news_watch_service 扫描尾部调用；开关 NEWS_TODO_ENABLED；新增 tests/plan/test_news_exit_linkage.py 三例。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-d2e75b
+      title: 接线消息→P1 待办与唤醒（含 24h 去重）·联调
+      implements: |-
+        新增 packages/qs_watch/qs_watch/application/services/watch_engine/news_exit_linkage.py：link_news_to_todo(...)——critical 且标的在持仓或计划 targets → TodoService.create(P1, action_kind=rule_change, evidence={source:news,news_id,title,hits,symbol,plan_id}) → wake_todo_owner；24h 去重查 evidence->>'news_id'+symbol 未闭合；out_of_scope 跳过留痕。news_watch_service 扫描尾部调用；开关 NEWS_TODO_ENABLED；新增 tests/plan/test_news_exit_linkage.py 三例。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run tests/` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-a779d3
+      phase: implement
+      side: backend
+    - id: t-35badf
+      title: 接线消息→P1 待办与唤醒（含 24h 去重）·复核
+      implements: |-
+        新增 packages/qs_watch/qs_watch/application/services/watch_engine/news_exit_linkage.py：link_news_to_todo(...)——critical 且标的在持仓或计划 targets → TodoService.create(P1, action_kind=rule_change, evidence={source:news,news_id,title,hits,symbol,plan_id}) → wake_todo_owner；24h 去重查 evidence->>'news_id'+symbol 未闭合；out_of_scope 跳过留痕。news_watch_service 扫描尾部调用；开关 NEWS_TODO_ENABLED；新增 tests/plan/test_news_exit_linkage.py 三例。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/REQ-261022022657-857f/design/` 逐条核对；`npx vitest run tests/` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-d2e75b
+      phase: implement
+      side: backend
+    - id: t-c02f99
+      title: 接线消息→P1 待办与唤醒（含 24h 去重）·测试
+      implements: |-
+        新增 packages/qs_watch/qs_watch/application/services/watch_engine/news_exit_linkage.py：link_news_to_todo(...)——critical 且标的在持仓或计划 targets → TodoService.create(P1, action_kind=rule_change, evidence={source:news,news_id,title,hits,symbol,plan_id}) → wake_todo_owner；24h 去重查 evidence->>'news_id'+symbol 未闭合；out_of_scope 跳过留痕。news_watch_service 扫描尾部调用；开关 NEWS_TODO_ENABLED；新增 tests/plan/test_news_exit_linkage.py 三例。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-35badf
+      phase: implement
+      side: backend
+    - id: t-ebde4d
+      title: 扩展 on_fill 批次退役与事件留痕·研发
+      implements: |-
+        改 packages/qs_plan/qs_plan/application/plan_service.py：on_fill 新增 sold_ratio=0.0；>0 且有 reduce_plan 时调用 batch_matcher.match_reduce_batches，逐批退役对应 watch_rules（enabled=false + context 理由）并写 trading_plan_events(kind=fill, detail={batch,trade_id,qty,remaining_qty})；无匹配写 degraded_fill；同 trade_id 幂等；remaining_qty<=0 → closing→closed。FillSync/PlanProgressPort 传 sold_ratio。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-e481c3
+      phase: implement
+      side: backend
+    - id: t-4d4ec2
+      title: 扩展 on_fill 批次退役与事件留痕·联调
+      implements: |-
+        改 packages/qs_plan/qs_plan/application/plan_service.py：on_fill 新增 sold_ratio=0.0；>0 且有 reduce_plan 时调用 batch_matcher.match_reduce_batches，逐批退役对应 watch_rules（enabled=false + context 理由）并写 trading_plan_events(kind=fill, detail={batch,trade_id,qty,remaining_qty})；无匹配写 degraded_fill；同 trade_id 幂等；remaining_qty<=0 → closing→closed。FillSync/PlanProgressPort 传 sold_ratio。
+
+        [子卡阶段·联调] 只做本阶段；验收：`npx vitest run tests/` → 全绿（请求样例与期望响应一致）
+      serves: []
+      depends_on:
+        - t-ebde4d
+      phase: implement
+      side: backend
+    - id: t-46d7fb
+      title: 扩展 on_fill 批次退役与事件留痕·复核
+      implements: |-
+        改 packages/qs_plan/qs_plan/application/plan_service.py：on_fill 新增 sold_ratio=0.0；>0 且有 reduce_plan 时调用 batch_matcher.match_reduce_batches，逐批退役对应 watch_rules（enabled=false + context 理由）并写 trading_plan_events(kind=fill, detail={batch,trade_id,qty,remaining_qty})；无匹配写 degraded_fill；同 trade_id 幂等；remaining_qty<=0 → closing→closed。FillSync/PlanProgressPort 传 sold_ratio。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/REQ-261022022657-857f/design/` 逐条核对；`npx vitest run tests/` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-4d4ec2
+      phase: implement
+      side: backend
+    - id: t-077bfc
+      title: 扩展 on_fill 批次退役与事件留痕·测试
+      implements: |-
+        改 packages/qs_plan/qs_plan/application/plan_service.py：on_fill 新增 sold_ratio=0.0；>0 且有 reduce_plan 时调用 batch_matcher.match_reduce_batches，逐批退役对应 watch_rules（enabled=false + context 理由）并写 trading_plan_events(kind=fill, detail={batch,trade_id,qty,remaining_qty})；无匹配写 degraded_fill；同 trade_id 幂等；remaining_qty<=0 → closing→closed。FillSync/PlanProgressPort 传 sold_ratio。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-46d7fb
+      phase: implement
+      side: backend
+    - id: t-e5df78
+      title: 扩 metrics 读数并收口回归·研发
+      implements: |-
+        改 adapters/inbound/fastapi_app/routes/watch_async.py：/api/watch/metrics 增 news_todos_today（watch_todos evidence.source=news 当日计数）与 reflection_woken_today（当日唤醒计数），异常返回 null；补 tests/plan/test_metrics_ext.py；跑两套件回归并在 test-evidence 记读数。
+
+        [子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要
+      serves: []
+      depends_on:
+        - t-e12dcf
+        - t-558de7
+        - t-a5fbed
+      phase: test
+      side: backend
+    - id: t-f9b1f4
+      title: 扩 metrics 读数并收口回归·复核
+      implements: |-
+        改 adapters/inbound/fastapi_app/routes/watch_async.py：/api/watch/metrics 增 news_todos_today（watch_todos evidence.source=news 当日计数）与 reflection_woken_today（当日唤醒计数），异常返回 null；补 tests/plan/test_metrics_ext.py；跑两套件回归并在 test-evidence 记读数。
+
+        [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/REQ-261022022657-857f/design/` 逐条核对；`npx vitest run tests/` → 全绿；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-e5df78
+      phase: test
+      side: backend
+    - id: t-08f77b
+      title: 扩 metrics 读数并收口回归·测试
+      implements: |-
+        改 adapters/inbound/fastapi_app/routes/watch_async.py：/api/watch/metrics 增 news_todos_today（watch_todos evidence.source=news 当日计数）与 reflection_woken_today（当日唤醒计数），异常返回 null；补 tests/plan/test_metrics_ext.py；跑两套件回归并在 test-evidence 记读数。
+
+        [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+      serves: []
+      depends_on:
+        - t-f9b1f4
+      phase: test
+      side: backend
+task_coverage:
+  - task_id: t-e12dcf
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-e481c3
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-558de7
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-a5fbed
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-b65fd2
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-eec5ea
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-887e9b
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-4b43e8
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-c0b38b
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-6d5405
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-4c1d31
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-1088bf
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-1b778c
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-a779d3
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-d2e75b
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-35badf
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-c02f99
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-ebde4d
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-4d4ec2
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-46d7fb
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-077bfc
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-e5df78
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-f9b1f4
+    covers_prototypes: []
+    covers_decisions: []
+  - task_id: t-08f77b
+    covers_prototypes: []
+    covers_decisions: []
+traceability:
+  design_to_tasks:
+    design/architecture.md#摘要:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/architecture.md#背景与问题:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/architecture.md#目标与非目标:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/architecture.md#方案总览:
+      - t-e12dcf
+    design/architecture.md#架构与依赖:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+    design/architecture.md#数据模型:
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+    design/architecture.md#接口设计:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+    design/architecture.md#备选方案:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/architecture.md#四风险与证据:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/architecture.md#失败模式与回滚:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/architecture.md#跨关注点:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/architecture.md#交付拆分与里程碑:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/architecture.md#需求追溯:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/architecture.md#常见问题:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/architecture.md#开放问题:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/architecture.md#附录:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/backend.md#摘要:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/backend.md#背景与问题:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/backend.md#目标与非目标:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/backend.md#方案总览:
+      - t-e12dcf
+    design/backend.md#架构与依赖:
+      - t-e12dcf
+    design/backend.md#数据模型:
+      - t-e481c3
+      - t-558de7
+    design/backend.md#接口设计:
+      - t-e12dcf
+    design/backend.md#服务级设计:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/backend.md#备选方案:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/backend.md#四风险与证据:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/backend.md#失败模式与回滚:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/backend.md#跨关注点:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/backend.md#交付拆分与里程碑:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/backend.md#需求追溯:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/backend.md#常见问题:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/backend.md#开放问题:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/backend.md#附录:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/data-model.md#摘要:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/data-model.md#背景与问题:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/data-model.md#目标与非目标:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/data-model.md#方案总览:
+      - t-e481c3
+      - t-558de7
+    design/data-model.md#架构与依赖:
+      - t-e481c3
+      - t-558de7
+    design/data-model.md#数据模型:
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+    design/data-model.md#接口设计:
+      - t-e481c3
+      - t-558de7
+    design/data-model.md#备选方案:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/data-model.md#四风险与证据:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/data-model.md#失败模式与回滚:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/data-model.md#跨关注点:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/data-model.md#交付拆分与里程碑:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/data-model.md#需求追溯:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/data-model.md#常见问题:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/data-model.md#开放问题:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/data-model.md#附录:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/interfaces.md#摘要:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/interfaces.md#背景与问题:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/interfaces.md#目标与非目标:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/interfaces.md#方案总览:
+      - t-e12dcf
+    design/interfaces.md#架构与依赖:
+      - t-e12dcf
+    design/interfaces.md#数据模型:
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+    design/interfaces.md#接口设计:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+    design/interfaces.md#接口清单:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/interfaces.md#备选方案:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/interfaces.md#四风险与证据:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/interfaces.md#失败模式与回滚:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/interfaces.md#跨关注点:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/interfaces.md#交付拆分与里程碑:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/interfaces.md#需求追溯:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/interfaces.md#常见问题:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/interfaces.md#开放问题:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/interfaces.md#附录:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/use-cases.md#摘要:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/use-cases.md#背景与问题:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/use-cases.md#目标与非目标:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/use-cases.md#方案总览:
+      - t-e12dcf
+    design/use-cases.md#架构与依赖:
+      - t-e12dcf
+    design/use-cases.md#数据模型:
+      - t-e12dcf
+    design/use-cases.md#接口设计:
+      - t-e12dcf
+    design/use-cases.md#场景总览:
+      - t-e12dcf
+    design/use-cases.md#UC-1-盘后反思:
+      - t-e12dcf
+    design/use-cases.md#UC-2-减仓批次:
+      - t-e481c3
+      - t-558de7
+    design/use-cases.md#UC-3-消息离场:
+      - t-a5fbed
+    design/use-cases.md#关键决策与取舍:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/use-cases.md#备选方案:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/use-cases.md#四风险与证据:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/use-cases.md#失败模式与回滚:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/use-cases.md#跨关注点:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/use-cases.md#交付拆分与里程碑:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/use-cases.md#需求追溯:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/use-cases.md#常见问题:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/use-cases.md#开放问题:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    design/use-cases.md#附录:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+  fr_to_tasks:
+    FR-1:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    FR-2:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    FR-3:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+    FR-4:
+      - t-e12dcf
+      - t-e481c3
+      - t-558de7
+      - t-a5fbed
+      - t-b65fd2
+coverage:
+  implementation:
+    total: 87
+    covered: 87
+    uncovered: []
+    rate: 100
+    total_designs: 87
+    covered_designs: 87

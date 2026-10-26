@@ -356,6 +356,20 @@ class EnvironmentGateService:
 
     # ── 维度三：资金氛围 ─────────────────────────────────────
     def _judge_capital(self, state: MarketState) -> GateDimensionVerdict:
+        # fail-open（2026-10-22）：sentiment 数据源自报降级时不拿残缺数据硬判。
+        # 背景：kline_update 预算耗尽 → 今日日 K 只落 51 只（应 >4000）→ 涨跌家数比
+        # 基于 51 只样本算 = 0.27 → 曾把 6 条真信号误判「资金氛围偏冷」拦掉。
+        # provider 已把 sentiment 的 degraded_dimensions 转进 state.degraded
+        # （market_state_provider.py 的 "sentiment:"+dim），这里消费它：
+        # 宁可放行，不可让样本失真的数据替用户做决定。
+        degraded = getattr(state, "degraded", None) or []
+        _sent_degraded = [str(d) for d in degraded if str(d).startswith("sentiment:")]
+        if _sent_degraded:
+            return self._skip(
+                DIM_CAPITAL,
+                "sentiment 数据源降级（%s），fail-open 放行" % "、".join(_sent_degraded),
+                missing=tuple("capital.sentiment_degraded"),
+            )
         policy = self.policy
         sentiment = self._as_float(getattr(state, "sentiment_score", None))
         if sentiment is None:

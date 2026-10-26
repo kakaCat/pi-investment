@@ -1,0 +1,36 @@
+task:
+  id: t-155457
+  title: 实现反思定时任务与 overdue 兜底
+  status: done
+  implements: qs_ops 新增调度任务 plan_reflect_daily（盘后 15:35）与 plan_reflect_weekly（周六 10:00）：扫 review_due_at 到期计划→材料包→唤醒 agent→超时计 overdue（连续 3 日告警）；带 TradingDayGuard 守卫。
+  serves:
+    - FR-5
+  depends_on:
+    - t-d6b85d
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261021222905-6dff
+    TASK_ID: t-155457
+    TASK_TITLE: 实现反思定时任务与 overdue 兜底
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-21T16:26:30.163Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261021222905-6dff
+  generated_at: 2026-10-21T16:25:26.082Z
+  version: 6
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-21T16:26:30.163Z

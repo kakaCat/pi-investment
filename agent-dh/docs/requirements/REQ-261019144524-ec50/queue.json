@@ -1,0 +1,3195 @@
+{
+  "version": 1,
+  "requirement_id": "REQ-261019144524-ec50",
+  "schemaVersion": 9,
+  "generated_at": "2026-10-19T07:10:33.220Z",
+  "tasks": [
+    {
+      "id": "t-1790d5",
+      "requirementId": "REQ-261019144524-ec50",
+      "title": "诊断调度器 webhook 任务通道根因与影响面",
+      "cardDoc": "docs/requirements/REQ-261019144524-ec50/tasks/t-1790d5.md",
+      "description": "读 agent-os executor.go（约 L140）确认 webhook 任务为何执行 command 字段；统计 57 个任务中 webhook+占位 command 的任务数；解释 /bin/true 报 no such file 的原因",
+      "phase": "analysis",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "报告落 docs/requirements/REQ-261019144524-ec50/w1-trigger-diagnosis.md，包含：①executor.go 通道选择的代码路径与行号；②根因结论一句话；③webhook+占位 command 任务清单（逐条含任务名）；④对 fork/exec /bin/true 报 no such file 的解释",
+      "implementation": "①读 agent-os/internal/kernel/scheduler/executor.go 与 scheduler.go 通道选择逻辑；②用 scheduler_manage list 全量核对 command/webhook 字段；③结论写入报告",
+      "context": "",
+      "requirementRefs": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-9c3bd3",
+          "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+          "trigger": "auto",
+          "startedAt": 1792393853700,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 221,
+              "at": 1792393853716,
+              "totals": {
+                "uncachedInputTokens": 443172,
+                "outputTokens": 23107,
+                "cacheReadTokens": 2804224,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 974,
+              "at": 1792418346183,
+              "totals": {
+                "uncachedInputTokens": 789467,
+                "outputTokens": 65231,
+                "cacheReadTokens": 15350389,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 346295,
+              "outputTokens": 42124,
+              "cacheReadTokens": 12546165,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792418346153
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792393832985,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1792393853700,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1792418346153,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "comments": [],
+      "version": 4,
+      "createdAt": 1792393832985,
+      "updatedAt": 1792418346153,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "layer": 0,
+      "claimedAt": 1792393853700,
+      "claimedBy": "system",
+      "lastReport": {
+        "at": 1792418346153,
+        "reportIndex": 2,
+        "filesChanged": [
+          "docs/requirements/REQ-261019144524-ec50/w1-trigger-diagnosis.md"
+        ],
+        "completed": [
+          "取数完成（collect 阶段）。①通道选择逻辑（agent-os/internal/kernel/scheduler/executor.go:109-115）：WebhookURL 非空→webhook 优先，否则 Command 非空→shell 执行，皆空报错；scheduler.go 无额外通道逻辑（只做服务保活+依赖检查后委托 executor）。②全量字段核对（psql quant_investment，public.tasks，2026-10-19 15:2x）：59/59 任务全部 webhook_url 非空，0 条纯 command 任务；其中 17 条同时带 command=/usr/bin/true 占位（死配置，webhook 恒优先，永不执行）；webhook_url 仅两类——32 条→:5001/internal/scheduler/webhook（quantsys-v2 内部任务）、27 条→:13080/agent-os-trigger（DSH Agent 任务）。③失败面（task_runs 近 7 天，2026-10-13~10-19）：13080 通道 76 failed/22 success（78% 失败），5001 通道 13 failed/68 success（16%）；13080 失败全部为 connection refused，时间聚集于 2026-10-18 18:00-21:00 与 2026-10-19 08:00-11:00（DSH 不可达窗口），11:33 起恢复（积压补投 delivered、随后 run 全部 success）。task_delivery_backlog 共 90 条：delivered 31 / failed 59（59 条 attempts=10 全耗尽、均为 connection refused）。初步结论：通道选择逻辑本身无缺陷（webhook 优先按设计工作）；根因方向是下游 DSH :13080 可达性（停机窗口）+ 积压补投 10 次窗口不足以覆盖多小时停机；17 条 command=/usr/bin/true 为误导性死配置。",
+          "归因：executor.go L109 webhook 优先分支自 2026-08-18 起在源码中，当前线上工作正常（今日 14:00 起 webhook 任务 success）",
+          "归因：09-03 command 误执行 = tasks 表 webhook_url 缺失的数据缺陷，09-15 批量更新 17 行修复（updated_at 分布实证）",
+          "归因：10-14~10-19 大面积 failed = DSH(13080) 停机 connection refused（task_runs 30+ 条错误清一色）",
+          "被证伪的假设：需求 §10『执行器为何不走 webhook 通道』——它走；设计阶段引用的 fork/exec /bin/true 是旧日志误读为当前故障",
+          "附带发现：UpdateTask 仅 schedule/enabled 变化才重排（scheduler.go L167）+ cron 闭包捕获快照（L321-323）= 只改 command/webhook_url 必须重启 agent-os 才生效",
+          "复核结论：交付物（docs/requirements/REQ-261019144524-ec50/w1-trigger-diagnosis.md）对任务卡「得到什么结果」四项验收要素（①通道选择代码路径与行号②根因一句话③webhook+占位command任务清单④/bin/true ENOENT解释）全部落实且经源码/DB/日志/文件系统逐项抽验属实，此层面无偏离。对设计文档存在一处有依据的偏离：设计 §0/W1 假设「Executor 错选 command 通道、需出修复 PR」，实现诊断证伪了该假设（executor.go L109 webhook 优先分支正常、2026-08-18 起即在源码；/bin/true 报错全部是 2026-09-03 旧日志、09-15 已通过修任务数据修复；近一周失败主因是 DSH 13080 停机 connection refused），因此修复 PR 失去对象、修复对象转向 DSH 存活保障与失败告警闭环——这属于 spike「验证/证伪设计假设」的预期产出，报告 §0 已显式声明修正，下游修复卡 t2 已经用户拍板取消闭环，判为合理偏离而非缺陷。另发现 4 处不影响结论的小瑕疵（见 issues）。总体判 pass。"
+        ]
+      }
+    },
+    {
+      "id": "t-f4e050",
+      "requirementId": "REQ-261019144524-ec50",
+      "title": "修复 webhook 任务通道选择并故障注入实测",
+      "cardDoc": "docs/requirements/REQ-261019144524-ec50/tasks/t-f4e050.md",
+      "description": "按 t1 结论修复通道选择逻辑（webhook 存在时优先 webhook），在独立 worktree 开发；故障注入实测（故意配错 command 验证仍走 webhook）；重启 Agent OS 后 trigger 一个进化任务验证",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "修复后用 scheduler_manage trigger evolution-distill-daily 返回成功且 Agent OS 日志包含 webhook 调用记录；故障注入用例（command=/nonexistent 的 webhook 任务）被执行器按 webhook 处理而非报错；scheduler_manage list 显示该任务上次结果为 ✅",
+      "implementation": "①git worktree 建独立工作线；②改 executor 通道优先级或清占位 command；③故障注入测试；④重启 Agent OS 并 trigger 验证",
+      "context": "",
+      "requirementRefs": [],
+      "status": "canceled",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-b4e871",
+          "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+          "trigger": "auto",
+          "startedAt": 1792400535183,
+          "outcome": "cancelled",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 434,
+              "at": 1792400535196,
+              "totals": {
+                "uncachedInputTokens": 630755,
+                "outputTokens": 37512,
+                "cacheReadTokens": 5820533,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            }
+          },
+          "endedAt": 1792416286139
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792393832985,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1792400535183,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "canceled",
+          "at": 1792416286138,
+          "by": {
+            "kind": "human"
+          },
+          "reason": "前提被 W1 诊断证伪：executor webhook 通道无 bug（executor.go L109 自 2026-08-18 正常，线上 webhook 任务已成功），无修复对象。用户 2026-10-20 弹框拍板取消（ask_user_question 答复『取消 t-f4e050（推荐）』），因看板 UI 无任务取消入口（客户端无 moveTask 调用点，实测），由 agent 按用户明确指令代为执行并在此留痕。"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-88179c",
+          "body": "[状态] → canceled：前提被 W1 诊断证伪：executor webhook 通道无 bug（executor.go L109 自 2026-08-18 正常，线上 webhook 任务已成功），无修复对象。用户 2026-10-20 弹框拍板取消（ask_user_question 答复『取消 t-f4e050（推荐）』），因看板 UI 无任务取消入口（客户端无 moveTask 调用点，实测），由 agent 按用户明确指令代为执行并在此留痕。",
+          "createdAt": 1792416286139,
+          "createdBy": {
+            "kind": "human"
+          }
+        }
+      ],
+      "version": 3,
+      "createdAt": 1792393832985,
+      "updatedAt": 1792416286138,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+      },
+      "updatedBy": {
+        "kind": "human"
+      },
+      "layer": 0
+    },
+    {
+      "id": "t-954eb4",
+      "requirementId": "REQ-261019144524-ec50",
+      "title": "定义北极星 KPI 并改造进化周报模板",
+      "cardDoc": "docs/requirements/REQ-261019144524-ec50/tasks/t-954eb4.md",
+      "description": "定义三项北极星指标：信号胜率（signal_track report）、决策超额（decision_scores 按 agent_brain 过滤）、机制健康度（进化任务成功率/经验库有结局占比/策略库 measured 占比）；改造周报模板强制回答本周 KPI 变化；含连续 4 周无改善降频规则",
+      "phase": "doc",
+      "side": "doc",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "KPI 定义文档落 docs/requirements/REQ-261019144524-ec50/w2-northstar-kpi.md；周报相关任务 payload 经 scheduler_manage update 后包含三项指标与降频规则；用 signal_track report 与 decision_scores 实调能取到指标数值",
+      "implementation": "①确定各指标的数据源工具与口径；②scheduler_manage update 改写周报任务 payload；③落 KPI 定义文档",
+      "context": "",
+      "requirementRefs": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-1e0dfd",
+          "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+          "trigger": "auto",
+          "startedAt": 1792418346308,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 974,
+              "at": 1792418346324,
+              "totals": {
+                "uncachedInputTokens": 789467,
+                "outputTokens": 65231,
+                "cacheReadTokens": 15350389,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 976,
+              "at": 1792418723136,
+              "totals": {
+                "uncachedInputTokens": 789467,
+                "outputTokens": 65231,
+                "cacheReadTokens": 15350389,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792418723108
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792393832985,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1792418346308,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1792418723108,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1792393832985,
+      "updatedAt": 1792418723108,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "layer": 0,
+      "claimedAt": 1792418346308,
+      "claimedBy": "system",
+      "lastReport": {
+        "at": 1792418723108,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-261019144524-ec50/w2-northstar-kpi.md"
+        ],
+        "completed": [
+          "完成 t-954eb4 研发子卡三项工作：①确定三项北极星 KPI 的数据源工具与口径并全部实调验证（KPI-1 信号胜率=signal_track report 按周，主指标 A+B 级 10 日胜率，基线 82 信号 A33.3%/B30.0%/C26.5%@5日；KPI-2 决策超额=decision_scores 须逐条核对 context.account 过滤本实例账户，实测 27 条全为 v13/v14 策略线回填、本账户覆盖 0 条；KPI-3 机制健康度=进化任务成功率 scheduler_manage list + 经验库有结局占比 experience_stats 30.5% + 策略库 measured 占比 0/5）；②落 KPI 定义文档 docs/requirements/REQ-261019144524-ec50/w2-northstar-kpi.md（含口径表、实测基线、连续 4 周无改善降频规则与恢复条件）；③scheduler_manage update 改写周报任务 weekly-report-m6（afe560bc-dc9b-4692-982f-1cd1a10e85d6）payload，新增「北极星 KPI 强制段」与「降频判定与执行」段，保留原技能指引/汇报要求/账户事实源段且全程不写死账户名（R-019 占位符纪律），并经后端 API 复核全文一致。",
+          "对父卡 t-954eb4「定义北极星 KPI 并改造进化周报模板」实施方案三条逐条复核，结论：无偏离。①数据源工具与口径：w2-northstar-kpi.md §1-§3 与设计文档 design.md §2 W2 完全一致——KPI-1 信号胜率=signal_track report 按周（主指标 A+B 级 10 日胜率）、KPI-2 决策超额=decision_scores 逐条核对 context.account 过滤本实例账户、KPI-3 机制健康度=进化任务成功率(scheduler_manage list)+经验库有结局占比(experience_stats)+策略库 measured 占比(strategy_list)，且各项均附 2026-10-19 实调基线。②scheduler_manage update 改写周报 payload：经后端 API（GET /api/v1/scheduler/tasks/afe560bc-dc9b-4692-982f-1cd1a10e85d6）复核线上实况，weekly-report-m6 的 payload 已含【北极星 KPI 强制段】（三 KPI 逐项取数指令+工具名+时点）与【降频判定与执行】段（连续 4 周无改善→暂停 evolution-weekly-variant/meta-learning-weekly、evolution-distill-daily cron 改 0 0 23 * * 1、保留 weekly-report-m6 与 evolution-gate-adjudicate、飞书 high 告警、n/4 计数、恢复条件），与文档 §4/§5 逐条对应；原【技能指引】【M6 周报】【汇报要求】【账户事实源】段完整保留；全文不含 agent_brain 硬编码（用 <agent:identity 段账户名> 占位符，符合 R-019）。③KPI 定义文档已落盘 docs/requirements/REQ-261019144524-ec50/w2-northstar-kpi.md，含口径表、实测基线、降频规则（连续 4 周，与 decomposition.md 批准值一致）与恢复条件。一处有意适配（非偏离）：父卡描述写「decision_scores 按 agent_brain 过滤」，实现按 R-019 改为占位符引用本实例账户，语义等价且为规则强制。本卡边界遵守：未改代码、未跑父卡终态验收命令（signal_track/decision_scores 实调取数属测试段）。"
+        ]
+      }
+    },
+    {
+      "id": "t-557f90",
+      "requirementId": "REQ-261019144524-ec50",
+      "title": "落地观察计分 SOP（signal_track 全级别纳入+回填核查）",
+      "cardDoc": "docs/requirements/REQ-261019144524-ec50/tasks/t-557f90.md",
+      "description": "把 C 级信号也纳入 signal_track record（当前只观察不落库导致样本流失）；明确 20 日回填的例程责任与核查方式；产出 SOP 文档",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "SOP 落 docs/requirements/REQ-261019144524-ec50/w3-observe-scoring-sop.md；用 signal_track record 写入一条测试信号后 report 可见该记录；signal_perf_backfill_daily 近 7 日运行在 scheduler_manage list 中显示 ✅",
+      "implementation": "①确认 signal_track record/update 的现有调用点；②补 C 级信号落 track 的例程或 SOP；③核查 signal_perf_backfill_daily 覆盖度",
+      "context": "",
+      "requirementRefs": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-ae30b8",
+          "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+          "trigger": "auto",
+          "startedAt": 1792418723250,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 976,
+              "at": 1792418723265,
+              "totals": {
+                "uncachedInputTokens": 789467,
+                "outputTokens": 65231,
+                "cacheReadTokens": 15350389,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 1163,
+              "at": 1792419692249,
+              "totals": {
+                "uncachedInputTokens": 922870,
+                "outputTokens": 77415,
+                "cacheReadTokens": 17970037,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 133403,
+              "outputTokens": 12184,
+              "cacheReadTokens": 2619648,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792419692211
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792393832985,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1792418723250,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1792419692211,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+          },
+          "reason": "父卡收尾：子卡 t-c7a81f（探针）/t-5ed45b（复核）均 done，复核判 fail 的交付缺口（SOP 文档不存在）已由本窗口补齐——w3-observe-scoring-sop.md 落盘且验收三项（SOP 文档/record→report 链路可见 ID 166/backfill 近 7 日 ✅）全部实测通过，证据见第 1 段汇报。"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-9b8569",
+          "body": "[状态] → done：父卡收尾：子卡 t-c7a81f（探针）/t-5ed45b（复核）均 done，复核判 fail 的交付缺口（SOP 文档不存在）已由本窗口补齐——w3-observe-scoring-sop.md 落盘且验收三项（SOP 文档/record→report 链路可见 ID 166/backfill 近 7 日 ✅）全部实测通过，证据见第 1 段汇报。（reqboard_task_move）",
+          "createdAt": 1792419692211,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1792393832985,
+      "updatedAt": 1792419692211,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+      },
+      "layer": 0,
+      "lastReport": {
+        "at": 1792419660408,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-261019144524-ec50/w3-observe-scoring-sop.md"
+        ],
+        "completed": [
+          "确认 signal_track record/update 现有调用点（探针+复核已坐实三处：PortfolioTradeTool.trackSignal、opportunity-funnel/deep-analysis 技能 SOP、agent 手动 manual）",
+          "补 C 级信号落 track 的成文 SOP：w3-observe-scoring-sop.md（含前提修正、记录纪律、每日/每周回填核查例程）",
+          "核查 signal_perf_backfill_daily 覆盖度：update_performance 不按 grade 过滤 A/B/C 同级回填；任务近 7 日 ✅（2026-10-16T15:45）",
+          "验收实测：record 测试信号 ID 166 后 report 当日窗口可见（2026-10-19 22:19 实调）"
+        ]
+      }
+    },
+    {
+      "id": "t-ab4c82",
+      "requirementId": "REQ-261019144524-ec50",
+      "title": "策略库治理清单（TEST 残留盘点 + unmeasured 补测可行性）",
+      "cardDoc": "docs/requirements/REQ-261019144524-ec50/tasks/t-ab4c82.md",
+      "description": "盘点 125 条策略中的 TEST-* 残留（id/创建时间/来源），给出归档禁用清单；评估 unmeasured 策略批量补测的回测链可用性（evolution_run 当前多降级）；处置动作先出清单待用户确认",
+      "phase": "analysis",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "清单落 docs/requirements/REQ-261019144524-ec50/w4-strategy-cleanup.md，包含每条 TEST 策略的 id/名称/创建时间与处置建议；包含 evolution_run 降级原因的实测结论；执行 strategy_list 复核无策略被硬删",
+      "implementation": "①strategy_list 全量分页拉取并分类；②抽查 evolution_run/回测接口可用性；③清单与建议落文档",
+      "context": "",
+      "requirementRefs": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-e1ac81",
+          "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+          "trigger": "auto",
+          "startedAt": 1792419726373,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 1171,
+              "at": 1792419726388,
+              "totals": {
+                "uncachedInputTokens": 923282,
+                "outputTokens": 78180,
+                "cacheReadTokens": 18078069,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 1233,
+              "at": 1792420812027,
+              "totals": {
+                "uncachedInputTokens": 1076959,
+                "outputTokens": 83788,
+                "cacheReadTokens": 19201141,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 153677,
+              "outputTokens": 5608,
+              "cacheReadTokens": 1123072,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792420811992
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792393832985,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1792419726373,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1792420811992,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+          },
+          "reason": "父卡收尾：3 张子卡（collect/analyze/review）全 done，复核判 fail 的唯一原因（验收路径偏离）已由本窗口修复——w4-strategy-cleanup.md 正本落盘，含现存 5 条策略全量清单、派生表残留处置建议、evolution_run 降级实测结论；strategy_list 复核无硬删。验收三项全部覆盖，证据见第 1 段汇报。"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-a8874b",
+          "body": "[状态] → done：父卡收尾：3 张子卡（collect/analyze/review）全 done，复核判 fail 的唯一原因（验收路径偏离）已由本窗口修复——w4-strategy-cleanup.md 正本落盘，含现存 5 条策略全量清单、派生表残留处置建议、evolution_run 降级实测结论；strategy_list 复核无硬删。验收三项全部覆盖，证据见第 1 段汇报。（reqboard_task_move）",
+          "createdAt": 1792420811992,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1792393832985,
+      "updatedAt": 1792420811992,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+      },
+      "layer": 0,
+      "lastReport": {
+        "at": 1792420796808,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-261019144524-ec50/w4-strategy-cleanup.md",
+          "docs/work-logs/2026-10/strategy-library-governance-inventory.md"
+        ],
+        "completed": [
+          "TEST 残留盘点：主表 0 条（09-13 已清 320 条），现存 5 条策略全量清单（id/名称/创建时间/处置建议）落 w4 §1；真正残留=派生表孤儿/悬空数据（backtest_results 540 行 + evolution 两表 106 行，均无 data_contracts 登记）落 w4 §2",
+          "unmeasured 补测可行性结论：回测通道可用；evolution_run 第 4 周 schema 硬错误复现 +「零交易」判据缺陷当日再实证（实际 -23.18% 被判无信号）；补测序建议落 w4 §4",
+          "治理断链证据：14→101→5 两次库表变动无台账（w4 §3），支撑根因假设 4",
+          "验收路径偏离修复：w4-strategy-cleanup.md 落盘为正本，work-logs 底稿标注迁移指针；strategy_list 复核现存 5 条与盘点一致、本卡零删除"
+        ]
+      }
+    },
+    {
+      "id": "t-9bae04",
+      "requirementId": "REQ-261019144524-ec50",
+      "title": "经验库噪声处置方案（unknown-symbol 记录清单与建议）",
+      "cardDoc": "docs/requirements/REQ-261019144524-ec50/tasks/t-9bae04.md",
+      "description": "盘点 experience 命名空间 155 条 unknown-symbol 记录的来源与内容形态，给出清洗/隔离/作废建议；明确今后经验写入的 symbol 必填纪律",
+      "phase": "analysis",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "报告落 docs/requirements/REQ-261019144524-ec50/w4-experience-cleanup.md，包含三类处置（保留/隔离/作废）的记录数与理由；包含今后 symbol 必填纪律条款；经验库无记录被静默删除（experience_stats total 变化可解释）",
+      "implementation": "①memory_search/experience_stats 按来源聚类；②抽样读记录内容判断价值；③处置方案落文档",
+      "context": "",
+      "requirementRefs": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-012f6e",
+          "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+          "trigger": "auto",
+          "startedAt": 1792420824781,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 1241,
+              "at": 1792420824803,
+              "totals": {
+                "uncachedInputTokens": 1077283,
+                "outputTokens": 83973,
+                "cacheReadTokens": 19326325,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 1356,
+              "at": 1792427976654,
+              "totals": {
+                "uncachedInputTokens": 1234413,
+                "outputTokens": 92619,
+                "cacheReadTokens": 21265013,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 157130,
+              "outputTokens": 8646,
+              "cacheReadTokens": 1938688,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792427976614
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792393832985,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1792420824781,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1792427976614,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+          },
+          "reason": "父卡收尾：3 张子卡速通无任何产出（lastReport 全空，17 秒/张判为假完成），本窗口独立补齐全部工作——psql 全量五桶盘点（343 条）、抽样阅读、三类处置方案与 symbol 必填纪律落 w4-experience-cleanup.md，验收三项全覆盖且全程只读零删除，证据见第 1 段汇报。"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-ec07d2",
+          "body": "[状态] → done：父卡收尾：3 张子卡速通无任何产出（lastReport 全空，17 秒/张判为假完成），本窗口独立补齐全部工作——psql 全量五桶盘点（343 条）、抽样阅读、三类处置方案与 symbol 必填纪律落 w4-experience-cleanup.md，验收三项全覆盖且全程只读零删除，证据见第 1 段汇报。（reqboard_task_move）",
+          "createdAt": 1792427976614,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1792393832985,
+      "updatedAt": 1792427976614,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+      },
+      "layer": 0,
+      "lastReport": {
+        "at": 1792427968565,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-261019144524-ec50/w4-experience-cleanup.md"
+        ],
+        "completed": [
+          "口径修正：需求「200 条中 155 条 unknown」是 experience_stats limit=200 截断样本；库内真值 343 条（psql 全量），真实标的经验仅 73 条（21.3%）",
+          "全量五分桶盘点：A 真实标的 73 / B 伪代码000000 计 8 / C 伪代码SYSTEM 计 13 / D distiller迁移JSON信封 64（全 08 月一次性）/ E 无symbol工程记录 185（09 月 175，流入已自然停止）",
+          "三类处置方案：保留 73 / 隔离 85（B+C+D，改 category 不删）/ 作废 185（E 桶 archived 标记不物理删除、作废前 10% 抽查蒸馏覆盖）；执行前提=用户裁决+pg_dump 备份+R-020 留痕",
+          "symbol 必填纪律四条：真实 6 位代码必填、禁伪代码、无标的经验禁入 experience 命名空间、周报核查 unknown 占比 >5% 告警",
+          "验收③实测：全程只读零改动，343 条无静默删除"
+        ]
+      }
+    },
+    {
+      "id": "t-38602b",
+      "requirementId": "REQ-261019144524-ec50",
+      "title": "小仓位试单授权边界建议书（交用户决策，不执行）",
+      "cardDoc": "docs/requirements/REQ-261019144524-ec50/tasks/t-38602b.md",
+      "description": "按设计 §4 建议值起草：单票 ≤2% 总资产、月度试单亏损预算 ≤0.5%、仅 A 级信号、止损纪律沿用宪法第 4 条；明确列出需要用户批准的具体授权项；本卡只出文档，不开任何仓",
+      "phase": "doc",
+      "side": "doc",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "建议书落 docs/requirements/REQ-261019144524-ec50/w3-trial-budget-proposal.md，包含单票上限/月度预算/信号级别/止损纪律四项授权边界与最坏情形测算；文末包含『未经用户批准不执行任何试单』声明；position_list 复核账户无新开仓",
+      "implementation": "①起草建议书（含风险测算：最坏情形月亏损 2500 元对账户的影响）；②落 docs 并标注待批准状态",
+      "context": "",
+      "requirementRefs": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-526273",
+          "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+          "trigger": "auto",
+          "startedAt": 1792427994088,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 1364,
+              "at": 1792427994104,
+              "totals": {
+                "uncachedInputTokens": 1234928,
+                "outputTokens": 92878,
+                "cacheReadTokens": 21403509,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 1373,
+              "at": 1792428211260,
+              "totals": {
+                "uncachedInputTokens": 1333198,
+                "outputTokens": 92963,
+                "cacheReadTokens": 21444469,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 98270,
+              "outputTokens": 85,
+              "cacheReadTokens": 40960,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792428211228
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792393832985,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1792427994088,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1792428211228,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "comments": [],
+      "version": 4,
+      "createdAt": 1792393832985,
+      "updatedAt": 1792428746636,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "layer": 0,
+      "claimedAt": 1792427994088,
+      "claimedBy": "system",
+      "lastReport": {
+        "at": 1792428746636,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-261019144524-ec50/w3-trial-budget-proposal.md"
+        ],
+        "completed": [
+          "偏离①消除：验收锚点路径 w3-trial-budget-proposal.md 已落盘（封面自含四项边界+最坏情形测算+不开仓声明，正文指向 RFC 017 正本）",
+          "偏离②留用户裁决：设计「单票≤2%≈9980元」vs 建议书「单笔≤5000+总敞口≤10000」的额度拆分差异已在封面 §3 显式声明，批准时一并拍板",
+          "不开仓纪律本窗口再复核：position_list(agent_brain) 2026-10-19 实调仍 002007/600000 两只、市值 1.54 万，无新开仓"
+        ]
+      }
+    },
+    {
+      "id": "t-c5c85c",
+      "requirementId": "REQ-261019144524-ec50",
+      "title": "汇总调研报告与验收材料",
+      "cardDoc": "docs/requirements/REQ-261019144524-ec50/tasks/t-c5c85c.md",
+      "description": "合并 t1-t7 产出为《进化闭环有效性调研报告》；对照 P1-P4 验收指标逐条给实测值；提交验收材料",
+      "phase": "review",
+      "side": "doc",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "调研报告落 docs/requirements/REQ-261019144524-ec50/report.md，包含四线结论与证据链接；对照 P1-P4 验收指标逐条给出实测值与复核命令；reqboard_submit(kind=verification) 返回成功",
+      "implementation": "①汇总各卡产出；②逐项复核验收指标（任务成功率/KPI 落地/样本数/治理清单）；③reqboard_submit(kind=verification)",
+      "context": "",
+      "requirementRefs": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-5fcfcf",
+          "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+          "trigger": "auto",
+          "startedAt": 1792428211385,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 1373,
+              "at": 1792428211403,
+              "totals": {
+                "uncachedInputTokens": 1333198,
+                "outputTokens": 92963,
+                "cacheReadTokens": 21444469,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 1432,
+              "at": 1792428890000,
+              "totals": {
+                "uncachedInputTokens": 1453650,
+                "outputTokens": 101709,
+                "cacheReadTokens": 22826613,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 120452,
+              "outputTokens": 8746,
+              "cacheReadTokens": 1382144,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792428889964
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792393832985,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1792428211385,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1792428889964,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+          },
+          "reason": "父卡收尾：子卡 t-9b2a59（复核）已 done 且其指出的缺口（report.md 不存在、P1-P4 对照未落盘）已由本窗口补齐——report.md 落盘含四线结论+证据链接+P1-P4 逐条实测值与复核命令（含诚实声明），证据见第 1 段汇报。这是需求最后一张卡。"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-bb8453",
+          "body": "[状态] → done：父卡收尾：子卡 t-9b2a59（复核）已 done 且其指出的缺口（report.md 不存在、P1-P4 对照未落盘）已由本窗口补齐——report.md 落盘含四线结论+证据链接+P1-P4 逐条实测值与复核命令（含诚实声明），证据见第 1 段汇报。这是需求最后一张卡。（reqboard_task_move）",
+          "createdAt": 1792428889964,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1792393832985,
+      "updatedAt": 1792428889964,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+      },
+      "layer": 0,
+      "lastReport": {
+        "at": 1792428881699,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-261019144524-ec50/report.md",
+          "docs/requirements/REQ-261019144524-ec50/w3-trial-budget-proposal.md"
+        ],
+        "completed": [
+          "汇总 t1-t7 产出为《进化闭环有效性调研报告》report.md：四线结论（结果层/内容层/信号源层/运行层）+ 四条根因假设逐条裁决（全部证实，两条形态修正）+ 证据链接",
+          "P1-P4 验收指标逐条给实测值与复核命令：P1 ⚠️（诊断✅成功率❌，口径已修正为 DSH 存活问题）/ P2 ✅（周报 payload 已含三 KPI+降频规则）/ P3 ⚠️（SOP✅自有样本仍 0）/ P4 ⚠️（清单✅，measured 0%、unknown 78.7% 待裁决处置）——报告 §3 含诚实声明：数值型指标未全绿属 spike 交付边界",
+          "复核卡（t-9b2a59）指出的汇总缺失已补齐；t-38602b 两处偏离已处置（w3 封面落盘+额度差异留用户裁决）",
+          "边界遵守：零交易规则改动、零新开仓、零删除记录；写操作仅周报 payload+测试信号 166"
+        ]
+      }
+    },
+    {
+      "id": "t-531b46",
+      "requirementId": "REQ-261019144524-ec50",
+      "title": "诊断调度器 webhook 任务通道根因与影响面·取数调研",
+      "description": "子卡阶段：取数调研",
+      "phase": "analysis",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "数据样本量与来源已标注（对齐 R-013 来源与时点口径）",
+      "implementation": "①读 agent-os/internal/kernel/scheduler/executor.go 与 scheduler.go 通道选择逻辑；②用 scheduler_manage list 全量核对 command/webhook 字段；③结论写入报告\n\n[子卡阶段·取数调研] 只做本阶段；验收：数据样本量与来源已标注（对齐 R-013 来源与时点口径）",
+      "context": "",
+      "parentId": "t-1790d5",
+      "stageKind": "collect",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-50b47b",
+          "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+          "trigger": "auto",
+          "startedAt": 1792393853924,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 240,
+              "at": 1792394053822,
+              "totals": {
+                "uncachedInputTokens": 527733,
+                "outputTokens": 23770,
+                "cacheReadTokens": 2967808,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 240,
+              "at": 1792394053847,
+              "totals": {
+                "uncachedInputTokens": 527733,
+                "outputTokens": 23770,
+                "cacheReadTokens": 2967808,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792394053829
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1792393853700,
+      "updatedAt": 1792394053829,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792393853700,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1792394053821,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1792394053829,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 0,
+      "claimedAt": 1792393853924,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1792394053821,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1792394053821,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "取数完成（collect 阶段）。①通道选择逻辑（agent-os/internal/kernel/scheduler/executor.go:109-115）：WebhookURL 非空→webhook 优先，否则 Command 非空→shell 执行，皆空报错；scheduler.go 无额外通道逻辑（只做服务保活+依赖检查后委托 executor）。②全量字段核对（psql quant_investment，public.tasks，2026-10-19 15:2x）：59/59 任务全部 webhook_url 非空，0 条纯 command 任务；其中 17 条同时带 command=/usr/bin/true 占位（死配置，webhook 恒优先，永不执行）；webhook_url 仅两类——32 条→:5001/internal/scheduler/webhook（quantsys-v2 内部任务）、27 条→:13080/agent-os-trigger（DSH Agent 任务）。③失败面（task_runs 近 7 天，2026-10-13~10-19）：13080 通道 76 failed/22 success（78% 失败），5001 通道 13 failed/68 success（16%）；13080 失败全部为 connection refused，时间聚集于 2026-10-18 18:00-21:00 与 2026-10-19 08:00-11:00（DSH 不可达窗口），11:33 起恢复（积压补投 delivered、随后 run 全部 success）。task_delivery_backlog 共 90 条：delivered 31 / failed 59（59 条 attempts=10 全耗尽、均为 connection refused）。初步结论：通道选择逻辑本身无缺陷（webhook 优先按设计工作）；根因方向是下游 DSH :13080 可达性（停机窗口）+ 积压补投 10 次窗口不足以覆盖多小时停机；17 条 command=/usr/bin/true 为误导性死配置。"
+        ]
+      }
+    },
+    {
+      "id": "t-aa8733",
+      "requirementId": "REQ-261019144524-ec50",
+      "title": "诊断调度器 webhook 任务通道根因与影响面·分析",
+      "description": "子卡阶段：分析",
+      "phase": "analysis",
+      "side": "backend",
+      "dependsOn": [
+        "t-531b46"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "结论含置信度与适用边界，并列出被证伪的假设",
+      "implementation": "①读 agent-os/internal/kernel/scheduler/executor.go 与 scheduler.go 通道选择逻辑；②用 scheduler_manage list 全量核对 command/webhook 字段；③结论写入报告\n\n[子卡阶段·分析] 只做本阶段；验收：结论含置信度与适用边界，并列出被证伪的假设",
+      "context": "",
+      "parentId": "t-1790d5",
+      "stageKind": "analyze",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-d7496d",
+          "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+          "trigger": "manual",
+          "startedAt": 1792400491145,
+          "outcome": "cancelled",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 419,
+              "at": 1792400491164,
+              "totals": {
+                "uncachedInputTokens": 629022,
+                "outputTokens": 36746,
+                "cacheReadTokens": 5527413,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 643,
+              "at": 1792401832018,
+              "totals": {
+                "uncachedInputTokens": 663761,
+                "outputTokens": 48388,
+                "cacheReadTokens": 10087285,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 34739,
+              "outputTokens": 11642,
+              "cacheReadTokens": 4559872,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792401832003
+        },
+        {
+          "id": "e-c77567",
+          "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+          "trigger": "manual",
+          "startedAt": 1792414287812,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 733,
+              "at": 1792414287831,
+              "totals": {
+                "uncachedInputTokens": 738681,
+                "outputTokens": 51828,
+                "cacheReadTokens": 11198069,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 973,
+              "at": 1792418106552,
+              "totals": {
+                "uncachedInputTokens": 789467,
+                "outputTokens": 65231,
+                "cacheReadTokens": 15350389,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 50786,
+              "outputTokens": 13403,
+              "cacheReadTokens": 4152320,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792418106532
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-f0c9f3",
+          "body": "[状态] → in_progress：分析阶段开工：基于 collect 阶段取数（executor.go 源码、tasks/task_runs/backlog 三表、日志时间戳、macOS 文件系统实测）做根因归因（reqboard_task_move）",
+          "createdAt": 1792400491145,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+          }
+        },
+        {
+          "id": "c-f6c182",
+          "body": "[状态] → todo：退回 todo 以让自动链按标准路径（todo→执行→自动落 lastRun/done）接管；此前手动 in_progress 与链凭证机制冲突（reqboard_task_move）",
+          "createdAt": 1792401832003,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+          }
+        },
+        {
+          "id": "c-5ea94d",
+          "body": "[状态] → in_progress：自动链派发4次静默空转（advance-log 无新 RUN_SUBTASK），分析工作已由本窗口人工完成并汇报，改走手动推进（reqboard_task_move）",
+          "createdAt": 1792414287812,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1792393853700,
+      "updatedAt": 1792418106532,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792393853700,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1792400491145,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+          },
+          "reason": "分析阶段开工：基于 collect 阶段取数（executor.go 源码、tasks/task_runs/backlog 三表、日志时间戳、macOS 文件系统实测）做根因归因"
+        },
+        {
+          "status": "todo",
+          "at": 1792401832003,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+          },
+          "reason": "退回 todo 以让自动链按标准路径（todo→执行→自动落 lastRun/done）接管；此前手动 in_progress 与链凭证机制冲突"
+        },
+        {
+          "status": "in_progress",
+          "at": 1792414287812,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+          },
+          "reason": "自动链派发4次静默空转（advance-log 无新 RUN_SUBTASK），分析工作已由本窗口人工完成并汇报，改走手动推进"
+        },
+        {
+          "status": "done",
+          "at": 1792418106532,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 1,
+      "lastReport": {
+        "at": 1792400510850,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-261019144524-ec50/w1-trigger-diagnosis.md"
+        ],
+        "completed": [
+          "归因：executor.go L109 webhook 优先分支自 2026-08-18 起在源码中，当前线上工作正常（今日 14:00 起 webhook 任务 success）",
+          "归因：09-03 command 误执行 = tasks 表 webhook_url 缺失的数据缺陷，09-15 批量更新 17 行修复（updated_at 分布实证）",
+          "归因：10-14~10-19 大面积 failed = DSH(13080) 停机 connection refused（task_runs 30+ 条错误清一色）",
+          "被证伪的假设：需求 §10『执行器为何不走 webhook 通道』——它走；设计阶段引用的 fork/exec /bin/true 是旧日志误读为当前故障",
+          "附带发现：UpdateTask 仅 schedule/enabled 变化才重排（scheduler.go L167）+ cron 闭包捕获快照（L321-323）= 只改 command/webhook_url 必须重启 agent-os 才生效"
+        ]
+      },
+      "claimedBy": "session-503df447-3664-4823-ada8-9d779312d94a",
+      "claimedAt": 1792414287812,
+      "lastRun": {
+        "at": 1792418106526,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": false
+      }
+    },
+    {
+      "id": "t-386642",
+      "requirementId": "REQ-261019144524-ec50",
+      "title": "诊断调度器 webhook 任务通道根因与影响面·复核",
+      "description": "子卡阶段：复核",
+      "phase": "analysis",
+      "side": "backend",
+      "dependsOn": [
+        "t-aa8733"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "implementation": "①读 agent-os/internal/kernel/scheduler/executor.go 与 scheduler.go 通道选择逻辑；②用 scheduler_manage list 全量核对 command/webhook 字段；③结论写入报告\n\n[子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-1790d5",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-294aa6",
+          "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+          "trigger": "auto",
+          "startedAt": 1792418106709,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 974,
+              "at": 1792418345945,
+              "totals": {
+                "uncachedInputTokens": 789467,
+                "outputTokens": 65231,
+                "cacheReadTokens": 15350389,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 974,
+              "at": 1792418346000,
+              "totals": {
+                "uncachedInputTokens": 789467,
+                "outputTokens": 65231,
+                "cacheReadTokens": 15350389,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792418345965
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1792393853700,
+      "updatedAt": 1792418345965,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792393853700,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1792418345940,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1792418345965,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 2,
+      "claimedAt": 1792418106709,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1792418345940,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1792418345940,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "复核结论：交付物（docs/requirements/REQ-261019144524-ec50/w1-trigger-diagnosis.md）对任务卡「得到什么结果」四项验收要素（①通道选择代码路径与行号②根因一句话③webhook+占位command任务清单④/bin/true ENOENT解释）全部落实且经源码/DB/日志/文件系统逐项抽验属实，此层面无偏离。对设计文档存在一处有依据的偏离：设计 §0/W1 假设「Executor 错选 command 通道、需出修复 PR」，实现诊断证伪了该假设（executor.go L109 webhook 优先分支正常、2026-08-18 起即在源码；/bin/true 报错全部是 2026-09-03 旧日志、09-15 已通过修任务数据修复；近一周失败主因是 DSH 13080 停机 connection refused），因此修复 PR 失去对象、修复对象转向 DSH 存活保障与失败告警闭环——这属于 spike「验证/证伪设计假设」的预期产出，报告 §0 已显式声明修正，下游修复卡 t2 已经用户拍板取消闭环，判为合理偏离而非缺陷。另发现 4 处不影响结论的小瑕疵（见 issues）。总体判 pass。"
+        ]
+      }
+    },
+    {
+      "id": "t-73356d",
+      "requirementId": "REQ-261019144524-ec50",
+      "title": "修复 webhook 任务通道选择并故障注入实测·探针",
+      "description": "子卡阶段：探针",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "给出一个可证伪问题的答案与证据（明确未验证边界）",
+      "implementation": "①git worktree 建独立工作线；②改 executor 通道优先级或清占位 command；③故障注入测试；④重启 Agent OS 并 trigger 验证\n\n[子卡阶段·探针] 只做本阶段；验收：给出一个可证伪问题的答案与证据（明确未验证边界）",
+      "context": "",
+      "parentId": "t-f4e050",
+      "stageKind": "probe",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-2478b3",
+          "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+          "trigger": "auto",
+          "startedAt": 1792400535388,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 470,
+              "at": 1792400924186,
+              "totals": {
+                "uncachedInputTokens": 633271,
+                "outputTokens": 38169,
+                "cacheReadTokens": 6514805,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 470,
+              "at": 1792400924219,
+              "totals": {
+                "uncachedInputTokens": 633271,
+                "outputTokens": 38169,
+                "cacheReadTokens": 6514805,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792400924194
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1792400535183,
+      "updatedAt": 1792400924194,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792400535183,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1792400924182,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1792400924194,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 0,
+      "claimedAt": 1792400535388,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1792400924182,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": false
+      }
+    },
+    {
+      "id": "t-3560e9",
+      "requirementId": "REQ-261019144524-ec50",
+      "title": "修复 webhook 任务通道选择并故障注入实测·复核",
+      "description": "子卡阶段：复核",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-73356d"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "implementation": "①git worktree 建独立工作线；②改 executor 通道优先级或清占位 command；③故障注入测试；④重启 Agent OS 并 trigger 验证\n\n[子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-f4e050",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-fce577",
+          "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+          "trigger": "auto",
+          "startedAt": 1792400924393,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 486,
+              "at": 1792401335917,
+              "totals": {
+                "uncachedInputTokens": 634259,
+                "outputTokens": 38801,
+                "cacheReadTokens": 6815861,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 486,
+              "at": 1792401335945,
+              "totals": {
+                "uncachedInputTokens": 634259,
+                "outputTokens": 38801,
+                "cacheReadTokens": 6815861,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792401335925
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1792400535183,
+      "updatedAt": 1792401335925,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792400535183,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1792401335912,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1792401335925,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 1,
+      "claimedAt": 1792400924393,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1792401335912,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1792401335912,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "父卡 t-f4e050 设计方案①②③④ 与实现逐条比对，结论：全部存在偏离，父卡验收三项均未达成。①建独立工作线：未执行——git worktree list 无本任务工作线，无新分支/提交。②改 executor 通道优先级或清占位 command：未执行——executor.go 自 8deb6bbd5 后无任何提交（git log --since=\"2 days ago\" -- agent-os/ 为空）、工作区无未提交改动；DB tasks 表仍有 17 行占位 command=/usr/bin/true（含验收指定任务 evolution-distill-daily 与 m4-circuit-breaker-live），updated_at 停在上次 09-15 批量修复。注意：上游 t-aa8733 分析已证伪\"通道选择有 bug\"（executor.go L109 webhook 优先自 08-18 起正常），不改 executor 与上游归因方向一致，但探针子卡未留任何文字说明这一偏离理由，\"清占位 command\"备选动作也未做。③故障注入测试：未执行——agent-os 无新增/修改的 *_test.go，无测试运行记录；验收指定的\"command=/nonexistent 注入用例\"不存在。④重启 Agent OS 并 trigger 验证：部分发生但归属与目标均不符——Agent OS 于今日 16:38 重启、m4-circuit-breaker-live 于 16:53 手动触发 success（发生在探针子卡 17:02 开工之前，非本卡实施产出；它客观上佐证了\"占位 command 任务按 webhook 通道执行\"）；但验收核心目标 evolution-distill-daily 今日未被 trigger，其最近一次运行为 2026-10-16 failed（connection refused），scheduler_manage list 上次结果非 ✅。另：探针子卡 t-73356d 已置 done 但未留任何报告（queue.json lastReport=null、lastRun.valueNonEmpty=false、comments 空、无文件产出），其阶段验收\"给出一个可证伪问题的答案与证据\"同样无凭证。"
+        ]
+      }
+    },
+    {
+      "id": "t-d176e2",
+      "requirementId": "REQ-261019144524-ec50",
+      "title": "定义北极星 KPI 并改造进化周报模板·研发",
+      "description": "子卡阶段：研发",
+      "phase": "doc",
+      "side": "doc",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "①docs/requirements/REQ-261019144524-ec50/w2-northstar-kpi.md 存在且含 KPI-1/2/3 三节口径与实测基线；②scheduler_manage(action=get, task_id=afe560bc-dc9b-4692-982f-1cd1a10e85d6) 返回的 payload.prompt 含「北极星 KPI 速览」「KPI-2 账户过滤」「降频判定」三段指令；③signal_track(action=report) 与 decision_scores 实调能取到数值（report 返回 byGrade 分段；decision_scores 返回 summary.meanExcessPct）。",
+      "implementation": "①确定各指标的数据源工具与口径；②scheduler_manage update 改写周报任务 payload；③落 KPI 定义文档\n\n[子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要",
+      "context": "",
+      "parentId": "t-954eb4",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-d67eb3",
+          "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+          "trigger": "auto",
+          "startedAt": 1792418346469,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 975,
+              "at": 1792418581026,
+              "totals": {
+                "uncachedInputTokens": 789467,
+                "outputTokens": 65231,
+                "cacheReadTokens": 15350389,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 975,
+              "at": 1792418581055,
+              "totals": {
+                "uncachedInputTokens": 789467,
+                "outputTokens": 65231,
+                "cacheReadTokens": 15350389,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792418581034
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1792418346308,
+      "updatedAt": 1792429205752,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792418346308,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1792418581023,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1792418581034,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 0,
+      "claimedAt": 1792418346469,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1792418581023,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1792418581023,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-261019144524-ec50/w2-northstar-kpi.md"
+        ],
+        "completed": [
+          "完成 t-954eb4 研发子卡三项工作：①确定三项北极星 KPI 的数据源工具与口径并全部实调验证（KPI-1 信号胜率=signal_track report 按周，主指标 A+B 级 10 日胜率，基线 82 信号 A33.3%/B30.0%/C26.5%@5日；KPI-2 决策超额=decision_scores 须逐条核对 context.account 过滤本实例账户，实测 27 条全为 v13/v14 策略线回填、本账户覆盖 0 条；KPI-3 机制健康度=进化任务成功率 scheduler_manage list + 经验库有结局占比 experience_stats 30.5% + 策略库 measured 占比 0/5）；②落 KPI 定义文档 docs/requirements/REQ-261019144524-ec50/w2-northstar-kpi.md（含口径表、实测基线、连续 4 周无改善降频规则与恢复条件）；③scheduler_manage update 改写周报任务 weekly-report-m6（afe560bc-dc9b-4692-982f-1cd1a10e85d6）payload，新增「北极星 KPI 强制段」与「降频判定与执行」段，保留原技能指引/汇报要求/账户事实源段且全程不写死账户名（R-019 占位符纪律），并经后端 API 复核全文一致。"
+        ]
+      }
+    },
+    {
+      "id": "t-eab3f3",
+      "requirementId": "REQ-261019144524-ec50",
+      "title": "定义北极星 KPI 并改造进化周报模板·复核",
+      "description": "子卡阶段：复核",
+      "phase": "doc",
+      "side": "doc",
+      "dependsOn": [
+        "t-d176e2"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "implementation": "①确定各指标的数据源工具与口径；②scheduler_manage update 改写周报任务 payload；③落 KPI 定义文档\n\n[子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-954eb4",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-e4f5a1",
+          "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+          "trigger": "auto",
+          "startedAt": 1792418581220,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 976,
+              "at": 1792418722894,
+              "totals": {
+                "uncachedInputTokens": 789467,
+                "outputTokens": 65231,
+                "cacheReadTokens": 15350389,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 976,
+              "at": 1792418722920,
+              "totals": {
+                "uncachedInputTokens": 789467,
+                "outputTokens": 65231,
+                "cacheReadTokens": 15350389,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792418722900
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1792418346308,
+      "updatedAt": 1792418722900,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792418346308,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1792418722891,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1792418722900,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 1,
+      "claimedAt": 1792418581220,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1792418722891,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1792418722891,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "对父卡 t-954eb4「定义北极星 KPI 并改造进化周报模板」实施方案三条逐条复核，结论：无偏离。①数据源工具与口径：w2-northstar-kpi.md §1-§3 与设计文档 design.md §2 W2 完全一致——KPI-1 信号胜率=signal_track report 按周（主指标 A+B 级 10 日胜率）、KPI-2 决策超额=decision_scores 逐条核对 context.account 过滤本实例账户、KPI-3 机制健康度=进化任务成功率(scheduler_manage list)+经验库有结局占比(experience_stats)+策略库 measured 占比(strategy_list)，且各项均附 2026-10-19 实调基线。②scheduler_manage update 改写周报 payload：经后端 API（GET /api/v1/scheduler/tasks/afe560bc-dc9b-4692-982f-1cd1a10e85d6）复核线上实况，weekly-report-m6 的 payload 已含【北极星 KPI 强制段】（三 KPI 逐项取数指令+工具名+时点）与【降频判定与执行】段（连续 4 周无改善→暂停 evolution-weekly-variant/meta-learning-weekly、evolution-distill-daily cron 改 0 0 23 * * 1、保留 weekly-report-m6 与 evolution-gate-adjudicate、飞书 high 告警、n/4 计数、恢复条件），与文档 §4/§5 逐条对应；原【技能指引】【M6 周报】【汇报要求】【账户事实源】段完整保留；全文不含 agent_brain 硬编码（用 <agent:identity 段账户名> 占位符，符合 R-019）。③KPI 定义文档已落盘 docs/requirements/REQ-261019144524-ec50/w2-northstar-kpi.md，含口径表、实测基线、降频规则（连续 4 周，与 decomposition.md 批准值一致）与恢复条件。一处有意适配（非偏离）：父卡描述写「decision_scores 按 agent_brain 过滤」，实现按 R-019 改为占位符引用本实例账户，语义等价且为规则强制。本卡边界遵守：未改代码、未跑父卡终态验收命令（signal_track/decision_scores 实调取数属测试段）。"
+        ]
+      }
+    },
+    {
+      "id": "t-c7a81f",
+      "requirementId": "REQ-261019144524-ec50",
+      "title": "落地观察计分 SOP（signal_track 全级别纳入+回填核查）·探针",
+      "description": "子卡阶段：探针",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "给出一个可证伪问题的答案与证据（明确未验证边界）",
+      "implementation": "①确认 signal_track record/update 的现有调用点；②补 C 级信号落 track 的例程或 SOP；③核查 signal_perf_backfill_daily 覆盖度\n\n[子卡阶段·探针] 只做本阶段；验收：给出一个可证伪问题的答案与证据（明确未验证边界）",
+      "context": "",
+      "parentId": "t-557f90",
+      "stageKind": "probe",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-9f5bde",
+          "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+          "trigger": "auto",
+          "startedAt": 1792418723392,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 977,
+              "at": 1792418830688,
+              "totals": {
+                "uncachedInputTokens": 789467,
+                "outputTokens": 65231,
+                "cacheReadTokens": 15350389,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 977,
+              "at": 1792418830714,
+              "totals": {
+                "uncachedInputTokens": 789467,
+                "outputTokens": 65231,
+                "cacheReadTokens": 15350389,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792418830695
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1792418723250,
+      "updatedAt": 1792418830695,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792418723250,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1792418830686,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1792418830695,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 0,
+      "claimedAt": 1792418723392,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1792418830686,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1792418830686,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "探针问题（可证伪）：「C 级信号当前是否未落 signal_track 库、且未被 signal_perf_backfill_daily 回填？」——答案：**否，父卡前提被实测证伪**。①C 级已大量落库：signal_track report 实调（2026-10-19）82 条信号中 C 级 53 条（64.6%），且 C 级 5 日胜率 26.5%、10 日胜率 33.3% 已有回填值，recentSignals 中多条 C 级 reason 明确写「只观察不交易」仍被 record（source=manual，由 agent 手动/技能 SOP 驱动落库）。②回填覆盖全级别：signal_tracking_service.update_performance 用 get_signals_after_date 取信号、**不按 grade 过滤**，故 A/B/C 同级回填；signal_perf_backfill_daily（任务 1deba5ac，cron 15:45 工作日，内部任务）✅启用、已运行 27 次、last=2026-10-16T15:45 ✅（在近 7 日内）。③record 现有调用点三处：PortfolioTradeTool.trackSignal（BUY 成交自动记录，C 级因不交易走不到此路径）、技能 SOP（opportunity-funnel/deep-analysis 明文要求 C 级落 track）、agent 例程手动调用（manual source 28 条为证）。结论：机制层面 C 级落库+回填**已闭环**，真实缺口是「靠 agent 自觉、无成文 SOP 与漏记核查例程」——这正是父卡该交付的 SOP 文档的正当性所在，但父卡描述中「当前只观察不落库导致样本流失」的前提陈述与事实不符，应修正为「已落库但依赖自觉、需 SOP 固化与核查」。"
+        ]
+      }
+    },
+    {
+      "id": "t-5ed45b",
+      "requirementId": "REQ-261019144524-ec50",
+      "title": "落地观察计分 SOP（signal_track 全级别纳入+回填核查）·复核",
+      "description": "子卡阶段：复核",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-c7a81f"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "implementation": "①确认 signal_track record/update 的现有调用点；②补 C 级信号落 track 的例程或 SOP；③核查 signal_perf_backfill_daily 覆盖度\n\n[子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-557f90",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-c4cec2",
+          "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+          "trigger": "auto",
+          "startedAt": 1792418830866,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 978,
+              "at": 1792419136842,
+              "totals": {
+                "uncachedInputTokens": 789467,
+                "outputTokens": 65231,
+                "cacheReadTokens": 15350389,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 978,
+              "at": 1792419136864,
+              "totals": {
+                "uncachedInputTokens": 789467,
+                "outputTokens": 65231,
+                "cacheReadTokens": 15350389,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792419136848
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1792418723250,
+      "updatedAt": 1792419136848,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792418723250,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1792419136840,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1792419136848,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 1,
+      "claimedAt": 1792418830866,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1792419136840,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1792419136840,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "对父卡实施方案①②③逐条复核探针阶段（t-c7a81f）产出与代码/数据事实：①确认 record/update 调用点——无偏离。探针报三处调用点，复核全部坐实：PortfolioTradeTool.trackSignal（BUY 成交自动记录，PortfolioTradeTool.ts:558，C 级因不交易走不到此路径）、opportunity-funnel SKILL:57-58（明文\"每只存活标的我 signal_track(record)，C 级也要落\"）、deep-analysis SKILL:41（定级后落库不分级）。②补 C 级落 track 例程/SOP——有偏离（交付缺口）。机制层面 C 级落库+回填已闭环（report 实调：82 信号中 C 级 53 条占 64.6%，C 级 5 日胜率 26.5%/10 日 33.3% 已有回填值，recentSignals 多条 C 级\"只观察不交易\"仍被 record），探针据此证伪父卡\"当前只观察不落库\"的前提属实；但父卡验收要求的交付物 w3-observe-scoring-sop.md 不存在（ls 确认目录仅有 w1/w2），且本子链只有 probe+review 两段、无任何阶段承接\"成文 SOP\"产出——缺口真实存在且无人兜底。③核查 signal_perf_backfill_daily 覆盖度——代码层无偏离。signal_tracking_service.py:113 update_performance 经 get_signals_after_date 取数、不按 grade 过滤（A/B/C 同级回填坐实）；signal_jobs.py SignalPerfBackfillJob（name=signal_perf_backfill_daily、lookback_days=30）已注册；探针引用的运行时状态（启用/27 次/last=2026-10-16）属 scheduler_manage 证据，复核未重跑（父卡终态验收命令，留测试段），但 report 中 5/10 日胜率非空可间接佐证回填在跑。综上：①③无偏离，②有偏离（SOP 文档交付缺口+父卡前提需修正），判 fail 提请父卡处置。"
+        ]
+      }
+    },
+    {
+      "id": "t-ee21d9",
+      "requirementId": "REQ-261019144524-ec50",
+      "title": "策略库治理清单（TEST 残留盘点 + unmeasured 补测可行性）·取数调研",
+      "description": "子卡阶段：取数调研",
+      "phase": "analysis",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "数据样本量与来源已标注（对齐 R-013 来源与时点口径）",
+      "implementation": "①strategy_list 全量分页拉取并分类；②抽查 evolution_run/回测接口可用性；③清单与建议落文档\n\n[子卡阶段·取数调研] 只做本阶段；验收：数据样本量与来源已标注（对齐 R-013 来源与时点口径）",
+      "context": "",
+      "parentId": "t-ab4c82",
+      "stageKind": "collect",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-6a676a",
+          "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+          "trigger": "auto",
+          "startedAt": 1792419726584,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 1186,
+              "at": 1792419903590,
+              "totals": {
+                "uncachedInputTokens": 1061189,
+                "outputTokens": 78653,
+                "cacheReadTokens": 18159989,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 1186,
+              "at": 1792419903618,
+              "totals": {
+                "uncachedInputTokens": 1061189,
+                "outputTokens": 78653,
+                "cacheReadTokens": 18159989,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792419903598
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1792419726373,
+      "updatedAt": 1792419903598,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792419726373,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1792419903586,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1792419903598,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 0,
+      "claimedAt": 1792419726584,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1792419903586,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1792419903586,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "collect 阶段完成（2026-10-19，来源标注对齐 R-013）：①策略库全量盘点——当前库共 22 条（user 5 + builtin 17，GET /api/strategies 分页拉全，非抽样）：TEST 残留 0 条（无 test/TEST 命名命中，此前 101 条时代的残留已随库清理消失，当前 user 策略仅剩 5 条）；业绩轴 5/5 user 策略全 unmeasured（163/178/179/193 structure=unknown、202 structure=invalid+unmeasured），builtin 17 条无业绩口径字段；②接口可用性抽查——回测接口可用且引擎功能正常（直接 POST /api/backtest/strategy 策略 202/002007 一年窗：equity 100000→82664、184 天有持仓、首持仓 2026-01-09）；两只 unmeasured 策略（163/600519 全年、178/002007 半年）回测均正常返回权益曲线但全程 positionValue=0，属真实无信号而非引擎故障；③unmeasured 补测可行，但判据禁用 totalTrades（已知缺陷当轮复现：有持仓时仍计 0），应以权益曲线变动/持仓天数为准；evolution_leaderboard(202) 显示 3 轮进化全 degraded（基线零交易判据）。"
+        ]
+      }
+    },
+    {
+      "id": "t-542f40",
+      "requirementId": "REQ-261019144524-ec50",
+      "title": "策略库治理清单（TEST 残留盘点 + unmeasured 补测可行性）·分析",
+      "description": "子卡阶段：分析",
+      "phase": "analysis",
+      "side": "backend",
+      "dependsOn": [
+        "t-ee21d9"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "结论含置信度与适用边界，并列出被证伪的假设",
+      "implementation": "①strategy_list 全量分页拉取并分类；②抽查 evolution_run/回测接口可用性；③清单与建议落文档\n\n[子卡阶段·分析] 只做本阶段；验收：结论含置信度与适用边界，并列出被证伪的假设",
+      "context": "",
+      "parentId": "t-ab4c82",
+      "stageKind": "analyze",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-cf17ba",
+          "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+          "trigger": "auto",
+          "startedAt": 1792419903792,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 1192,
+              "at": 1792420404592,
+              "totals": {
+                "uncachedInputTokens": 1061496,
+                "outputTokens": 78741,
+                "cacheReadTokens": 18270581,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 1192,
+              "at": 1792420404619,
+              "totals": {
+                "uncachedInputTokens": 1061496,
+                "outputTokens": 78741,
+                "cacheReadTokens": 18270581,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792420404599
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1792419726373,
+      "updatedAt": 1792420404599,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792419726373,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1792420404591,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1792420404599,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 1,
+      "claimedAt": 1792419903792,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1792420404591,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1792420404591,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "策略库现状与父卡预期严重不符（关键事实修正）：quant.strategy_configs 当前仅 5 条（163/178/179/193/202，全部 unmeasured），TEST 命名策略 0 条——09-13 两批清理（245 条 TEST 垃圾 + 75 条无用，89→14，git 台账 0f79691da/d9f8724bb）已把主表清干净。但 09-13 后发生两次无台账变动：14→101（10-11 记忆实证 101 条）→5（今天实测），均无 archive/备份/events 留痕；且 09-13「保留 14 条」名单中 10 条已消失、被删名单的 178/179/193 反而在位（updated_at 停在 09-13，疑似从备份 JSON 整行恢复），治理链断链。TEST 残留真正所在是派生表：quant.backtest_results 540 行属 12 个已删策略名（最新 2026-08-31）、public.evolution_runs 19/32 行悬空、quant.evolution_strategy_runs 87/91 行属已删策略 635——且均无 data_contracts 登记（R-020 盲区）。quant_test 库证伪为 pytest 基础设施（.env.test 引用、10-19 刚做过孤儿清理），不是残留。补测可行性：strategy_execute 回测通道可用（179/600519 窗口返回 94 点 equityCurve 但 0 交易）；evolution_run propose 第 4 周复现 schema 硬错误，且服务端日志同日实证判据缺陷——基线回测实际总收益 -23.18% 却被判 total_trades=0「窗口无信号」拒绝进化。补测拦路虎：回测 trades 计数缺陷会污染结论、4 条策略无默认标的、202 归 v13 线（R-019 边界）。建议顺序：先修 trades 计数与 evolution schema→定池补测→回填 performance_status。清单与建议已落 docs/work-logs/2026-10/strategy-library-governance-inventory.md。置信度：现状条数/残留分布/缺陷复现=高（工具+DB+日志三证据）；14→101→5 变动路径=中（两端点数确证、路径为推测）。边界：只管 quantsys-v2 侧；处置建议不自动执行（删数据需用户裁决+R-020 登记先行）。被证伪假设 6 条（详见文档第五节）：含「101 条待治理」「TEST 残留在主表」「quant_test 是残留」「signal_test_log 是废弃残留」「09-13 保留名单仍在位」「evolution_run 可用」。"
+        ]
+      }
+    },
+    {
+      "id": "t-5c0823",
+      "requirementId": "REQ-261019144524-ec50",
+      "title": "策略库治理清单（TEST 残留盘点 + unmeasured 补测可行性）·复核",
+      "description": "子卡阶段：复核",
+      "phase": "analysis",
+      "side": "backend",
+      "dependsOn": [
+        "t-542f40"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "implementation": "①strategy_list 全量分页拉取并分类；②抽查 evolution_run/回测接口可用性；③清单与建议落文档\n\n[子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-ab4c82",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-1c3711",
+          "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+          "trigger": "auto",
+          "startedAt": 1792420404775,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 1193,
+              "at": 1792420612118,
+              "totals": {
+                "uncachedInputTokens": 1061496,
+                "outputTokens": 78741,
+                "cacheReadTokens": 18270581,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 1193,
+              "at": 1792420612144,
+              "totals": {
+                "uncachedInputTokens": 1061496,
+                "outputTokens": 78741,
+                "cacheReadTokens": 18270581,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792420612124
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1792419726373,
+      "updatedAt": 1792420612124,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792419726373,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1792420612116,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1792420612124,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 2,
+      "claimedAt": 1792420404775,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1792420612116,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1792420612116,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "复核结论：设计三条中两条无偏离、一条有偏离。①strategy_list 全量拉取分类：无偏离——实调复核 user=5+builtin=17 与 collect 卡一致，分类落档完整。②evolution_run/回测接口抽查：无偏离——evolution_leaderboard(202) 实调复现 degraded（5 轮全降级、基线零交易判据缺陷），回测通道可用性有实测记录。③清单落文档：有偏离——父卡验收指定路径 docs/requirements/REQ-261019144524-ec50/w4-strategy-cleanup.md 不存在，实际落在 docs/work-logs/2026-10/strategy-library-governance-inventory.md（内容完整且符合仓库文档放置规范，但与验收条款字面路径不符）。DB 侧全部关键数字（configs=5、TEST=0、backtest_results 540 全孤儿、evolution_runs 32/19 悬空、evolution_strategy_runs 87 属 635）经 psql 独立复核与文档逐条吻合，数据真实性无偏离。判 fail 的唯一原因是验收路径偏离未消除（本卡边界不允许改文件，修复=复制/改验收路径，留给后续段）。"
+        ]
+      }
+    },
+    {
+      "id": "t-86eed7",
+      "requirementId": "REQ-261019144524-ec50",
+      "title": "经验库噪声处置方案（unknown-symbol 记录清单与建议）·取数调研",
+      "description": "子卡阶段：取数调研",
+      "phase": "analysis",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "数据样本量与来源已标注（对齐 R-013 来源与时点口径）",
+      "implementation": "①memory_search/experience_stats 按来源聚类；②抽样读记录内容判断价值；③处置方案落文档\n\n[子卡阶段·取数调研] 只做本阶段；验收：数据样本量与来源已标注（对齐 R-013 来源与时点口径）",
+      "context": "",
+      "parentId": "t-9bae04",
+      "stageKind": "collect",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-fc8900",
+          "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+          "trigger": "auto",
+          "startedAt": 1792420825001,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 1249,
+              "at": 1792420869273,
+              "totals": {
+                "uncachedInputTokens": 1093857,
+                "outputTokens": 84061,
+                "cacheReadTokens": 19435381,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 1249,
+              "at": 1792420869298,
+              "totals": {
+                "uncachedInputTokens": 1093857,
+                "outputTokens": 84061,
+                "cacheReadTokens": 19435381,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792420869280
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1792420824781,
+      "updatedAt": 1792420869280,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792420824781,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1792420869271,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1792420869280,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 0,
+      "claimedAt": 1792420825001,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1792420869271,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": false
+      }
+    },
+    {
+      "id": "t-84e0f3",
+      "requirementId": "REQ-261019144524-ec50",
+      "title": "经验库噪声处置方案（unknown-symbol 记录清单与建议）·分析",
+      "description": "子卡阶段：分析",
+      "phase": "analysis",
+      "side": "backend",
+      "dependsOn": [
+        "t-86eed7"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "结论含置信度与适用边界，并列出被证伪的假设",
+      "implementation": "①memory_search/experience_stats 按来源聚类；②抽样读记录内容判断价值；③处置方案落文档\n\n[子卡阶段·分析] 只做本阶段；验收：结论含置信度与适用边界，并列出被证伪的假设",
+      "context": "",
+      "parentId": "t-9bae04",
+      "stageKind": "analyze",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-927a04",
+          "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+          "trigger": "auto",
+          "startedAt": 1792420869461,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 1250,
+              "at": 1792420886195,
+              "totals": {
+                "uncachedInputTokens": 1093857,
+                "outputTokens": 84061,
+                "cacheReadTokens": 19435381,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 1250,
+              "at": 1792420886222,
+              "totals": {
+                "uncachedInputTokens": 1093857,
+                "outputTokens": 84061,
+                "cacheReadTokens": 19435381,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792420886207
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1792420824781,
+      "updatedAt": 1792420886207,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792420824781,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1792420886193,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1792420886207,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 1,
+      "claimedAt": 1792420869461,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1792420886193,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": false
+      }
+    },
+    {
+      "id": "t-2a366f",
+      "requirementId": "REQ-261019144524-ec50",
+      "title": "经验库噪声处置方案（unknown-symbol 记录清单与建议）·复核",
+      "description": "子卡阶段：复核",
+      "phase": "analysis",
+      "side": "backend",
+      "dependsOn": [
+        "t-84e0f3"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "implementation": "①memory_search/experience_stats 按来源聚类；②抽样读记录内容判断价值；③处置方案落文档\n\n[子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-9bae04",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-3445c2",
+          "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+          "trigger": "auto",
+          "startedAt": 1792420886381,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 1251,
+              "at": 1792420903851,
+              "totals": {
+                "uncachedInputTokens": 1093857,
+                "outputTokens": 84061,
+                "cacheReadTokens": 19435381,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 1251,
+              "at": 1792420903875,
+              "totals": {
+                "uncachedInputTokens": 1093857,
+                "outputTokens": 84061,
+                "cacheReadTokens": 19435381,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792420903858
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1792420824781,
+      "updatedAt": 1792420903858,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792420824781,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1792420903850,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1792420903858,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 2,
+      "claimedAt": 1792420886381,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1792420903850,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": false
+      }
+    },
+    {
+      "id": "t-381c5a",
+      "requirementId": "REQ-261019144524-ec50",
+      "title": "小仓位试单授权边界建议书（交用户决策，不执行）·研发",
+      "description": "子卡阶段：研发",
+      "phase": "doc",
+      "side": "doc",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "①docs/rfcs/017-small-position-trial-authorization.md 存在且含：四项授权边界表（单笔≤5000 元/总敞口≤10000 元/仅 A 级信号/月度亏损 2500 元熔断）、最坏情形测算（2500/499000≈0.50%）、文首「待用户批准」声明、§6 A/B/C 三档决策项；②验收锚点封面 docs/requirements/REQ-261019144524-ec50/w3-trial-budget-proposal.md 存在并指向 RFC 正本；③position_list(account_name=<本实例投资账户>) 实调持仓仍为 002007/600000 两只、无新开仓。",
+      "implementation": "①起草建议书（含风险测算：最坏情形月亏损 2500 元对账户的影响）；②落 docs 并标注待批准状态\n\n[子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要",
+      "context": "",
+      "parentId": "t-38602b",
+      "stageKind": "dev",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-4cc106",
+          "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+          "trigger": "auto",
+          "startedAt": 1792427994319,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 1372,
+              "at": 1792428113695,
+              "totals": {
+                "uncachedInputTokens": 1333198,
+                "outputTokens": 92963,
+                "cacheReadTokens": 21444469,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 1372,
+              "at": 1792428113725,
+              "totals": {
+                "uncachedInputTokens": 1333198,
+                "outputTokens": 92963,
+                "cacheReadTokens": 21444469,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792428113702
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1792427994088,
+      "updatedAt": 1792429205815,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792427994088,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1792428113692,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1792428113702,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 0,
+      "claimedAt": 1792427994319,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1792428113692,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1792428113692,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/rfcs/017-small-position-trial-authorization.md"
+        ],
+        "completed": [
+          "完成父卡两项实施方案：①起草《小仓位试单授权边界建议书》——基于 account_info 真实账户数据（agent_brain 总资产 49.90 万、现金 96.9%，2026-10-20 时点）测算最坏情形月亏损 2500 元 ≈ 总资产 0.50% 回撤，仅占 R-007 熔断线（8%≈3.99 万）的 6.3%，并给出单笔 ≤5000 元 / 总敞口 ≤1 万 / 仅 A 级信号 / 月度亏损 2500 元熔断等授权边界与不授权范围；②按文档放置规范落盘 docs/rfcs/017-small-position-trial-authorization.md，文首显著标注「待用户批准、未批准前不产生任何委托」，并给出 A 批准 / B 调整后批准 / C 不批准 三档决策项交用户裁定。"
+        ]
+      }
+    },
+    {
+      "id": "t-6ec327",
+      "requirementId": "REQ-261019144524-ec50",
+      "title": "小仓位试单授权边界建议书（交用户决策，不执行）·复核",
+      "description": "子卡阶段：复核",
+      "phase": "doc",
+      "side": "doc",
+      "dependsOn": [
+        "t-381c5a"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "implementation": "①起草建议书（含风险测算：最坏情形月亏损 2500 元对账户的影响）；②落 docs 并标注待批准状态\n\n[子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-38602b",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-c6c851",
+          "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+          "trigger": "auto",
+          "startedAt": 1792428113898,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 1373,
+              "at": 1792428211045,
+              "totals": {
+                "uncachedInputTokens": 1333198,
+                "outputTokens": 92963,
+                "cacheReadTokens": 21444469,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 1373,
+              "at": 1792428211078,
+              "totals": {
+                "uncachedInputTokens": 1333198,
+                "outputTokens": 92963,
+                "cacheReadTokens": 21444469,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792428211056
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1792427994088,
+      "updatedAt": 1792428211056,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792427994088,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1792428211041,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1792428211056,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 1,
+      "claimedAt": 1792428113898,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1792428211041,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1792428211041,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "复核对象：父卡「小仓位试单授权边界建议书」的交付物 docs/rfcs/017-small-position-trial-authorization.md，对照设计 design.md §4 建议值与任务卡验收锚点逐条比对。结论：发现 2 处偏离（均轻微、方向更保守/更规范），其余全部对齐。逐条结论：①授权边界四项（月度亏损预算 ≤2500 元≈总资产 0.5%、仅 A 级信号、止损沿用宪法第 4 条、确认链 R-001/R-008/R-005 不豁免）——无偏离，与设计 §4 一致；②最坏情形测算（2500 元占 49.90 万总资产 0.50%、占 R-007 熔断阈值 6.3%、全灭 2.5 轮推演）——无偏离，数学复核验算正确；③待批准状态标注——无偏离，文首「⏸️ 待用户批准」+ §4「未获批准前不授权任何委托」+ §6 A/B/C 三档决策项齐备；④不开仓纪律——无偏离，position_list(agent_brain) 复核持仓仍为 002007/600000 两只（市值 1.54 万），与建议书起草时点快照一致，无新开仓。偏离项一【落盘位置】：验收标准要求落 docs/requirements/REQ-261019144524-ec50/w3-trial-budget-proposal.md，实际落在 docs/rfcs/017-small-position-trial-authorization.md，需求目录下无 w3-trial-budget-proposal.md（glob 证实）——方向上与文档放置规范（提案类入 docs/rfcs/）一致但偏离验收锚点，需测试段裁定（补指引文件或修订锚点）。偏离项二【单票上限参数】：设计 §4 建议「单票 ≤2% 总资产（≈9980 元）」，实现拆为「单笔 ≤5000 元（≈1%）+ 总敞口 ≤10000 元（≈2%）」——总敞口与设计单票值一致、方向更保守，但单笔上限数值偏离设计建议值，交用户决策时应明示。"
+        ]
+      }
+    },
+    {
+      "id": "t-9b2a59",
+      "requirementId": "REQ-261019144524-ec50",
+      "title": "汇总调研报告与验收材料·复核",
+      "description": "子卡阶段：复核",
+      "phase": "review",
+      "side": "doc",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "implementation": "①汇总各卡产出；②逐项复核验收指标（任务成功率/KPI 落地/样本数/治理清单）；③reqboard_submit(kind=verification)\n\n[子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-c5c85c",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-863804",
+          "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+          "trigger": "auto",
+          "startedAt": 1792428211535,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 1374,
+              "at": 1792428450053,
+              "totals": {
+                "uncachedInputTokens": 1333198,
+                "outputTokens": 92963,
+                "cacheReadTokens": 21444469,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 1374,
+              "at": 1792428450085,
+              "totals": {
+                "uncachedInputTokens": 1333198,
+                "outputTokens": 92963,
+                "cacheReadTokens": 21444469,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792428450060
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1792428211385,
+      "updatedAt": 1792428450060,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792428211385,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1792428450051,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1792428450060,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 0,
+      "claimedAt": 1792428211535,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1792428450051,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1792428450051,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "复核对象：父卡 t-c5c85c「汇总调研报告与验收材料」（REQ-261019144524-ec50）的实施方案①②③与 t1-t7 被汇总产出，对照 design.md/decomposition.md 逐条比对。父卡侧三项结论：①汇总产出 report.md **未实现**——验收指定 docs/requirements/REQ-261019144524-ec50/report.md 不存在（ls 实证），父卡仍 in_progress，\"四线结论与证据链接\"无产物可复核；②P1-P4 验收指标逐项实测对照材料**未实现**（无任何落盘）；③reqboard_submit(kind=verification) 未发生且按本卡边界属测试段，不执行不评价。被汇总对象（t1-t7）逐条偏离结论：W1/t1 诊断=合理偏离已显式声明（设计假设 executor 通道 bug 被证伪：executor.go L109 webhook 优先正常、/bin/true 报错系 09-03 旧日志+任务数据缺陷且 09-15 已修、近一周失败实为 DSH 13080 停机 connection refused；复核卡 t-386642 判 pass）；t2 修复=偏离计划并已闭环（分解计划称其为\"唯一代码改动\"，实际前提证伪后 2026-10-20 经用户拍板取消），后果是 SP-1 真实修复对象（DSH 存活保障/多天停机超补投窗口告警闭环/17 条占位 command 防御）未在本需求立项实施，P1 验收指标（任务成功率→≥90%）失去实现支撑，验收口径必须改写否则无法通过；W2/t3=无偏离（w2-northstar-kpi.md 三 KPI 口径+降频规则与设计 §2/§5 一致，weekly-report-m6 payload 已改写并经后端复核）；W3/t4=前提修正型偏离、交付无缺口（\"C 级不落库\"前提被证伪，SOP 转为固化漏记核查，w3-observe-scoring-sop.md 已落盘）；W3/t7=2 处未消除偏离（落盘在 docs/rfcs/017-small-position-trial-authorization.md 而非验收锚点 w3-trial-budget-proposal.md；设计\"单票≤2%≈9980 元\"被拆为\"单笔≤5000+总敞口≤10000\"，方向更保守但数值偏离设计建议值）；W4/t5=内容性合理偏离+路径偏离已补齐（\"125 条含 TEST 残留\"预期被证伪：主表仅 5 条、TEST 0 条，残留在派生表孤儿数据；复核时曾缺位的 w4-strategy-cleanup.md 现已在需求目录）；W4/t6=无偏离（w4-experience-cleanup.md 落盘，保留 73/隔离 85/作废 185 三档处置与 symbol 必填纪律齐备，口径修正有 psql 343 条全量实证）。横向缺口：需求 §6 交付物 2 的\"A/B/C/D 取舍\"中方向 D（失败闭环：失败率进调度看门狗+告警）无任何任务卡承接——根因假设 4 已有两处实证（delivery backlog 59 条永久丢失无告警、reqboard 链三重观测缺口）但无处置方案产出，汇总报告须将 D 如实列为未实施遗留项。判 fail：父卡汇总产物缺失 + 3 项未消除偏离/缺口（t7 路径与参数、方向 D 无承接、P1 指标口径需改写）。"
+        ]
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "t-531b46",
+      "to": "t-aa8733"
+    },
+    {
+      "from": "t-aa8733",
+      "to": "t-386642"
+    },
+    {
+      "from": "t-73356d",
+      "to": "t-3560e9"
+    },
+    {
+      "from": "t-d176e2",
+      "to": "t-eab3f3"
+    },
+    {
+      "from": "t-c7a81f",
+      "to": "t-5ed45b"
+    },
+    {
+      "from": "t-ee21d9",
+      "to": "t-542f40"
+    },
+    {
+      "from": "t-542f40",
+      "to": "t-5c0823"
+    },
+    {
+      "from": "t-86eed7",
+      "to": "t-84e0f3"
+    },
+    {
+      "from": "t-84e0f3",
+      "to": "t-2a366f"
+    },
+    {
+      "from": "t-381c5a",
+      "to": "t-6ec327"
+    }
+  ],
+  "layers": [
+    {
+      "layer": 0,
+      "tasks": [
+        "t-1790d5",
+        "t-f4e050",
+        "t-954eb4",
+        "t-557f90",
+        "t-ab4c82",
+        "t-9bae04",
+        "t-38602b",
+        "t-c5c85c",
+        "t-531b46",
+        "t-73356d",
+        "t-d176e2",
+        "t-c7a81f",
+        "t-ee21d9",
+        "t-86eed7",
+        "t-381c5a",
+        "t-9b2a59"
+      ]
+    },
+    {
+      "layer": 1,
+      "tasks": [
+        "t-aa8733",
+        "t-3560e9",
+        "t-eab3f3",
+        "t-5ed45b",
+        "t-542f40",
+        "t-84e0f3",
+        "t-6ec327"
+      ]
+    },
+    {
+      "layer": 2,
+      "tasks": [
+        "t-386642",
+        "t-5c0823",
+        "t-2a366f"
+      ]
+    }
+  ],
+  "ready": [],
+  "updated_at": "2026-10-19T17:00:05.822Z"
+}

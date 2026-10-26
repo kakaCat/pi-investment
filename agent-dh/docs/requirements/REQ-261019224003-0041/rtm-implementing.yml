@@ -1,0 +1,112 @@
+metadata:
+  stage: implementing
+  requirement_id: REQ-261019224003-0041
+  generated_at: 2026-10-19T17:05:16.232Z
+  version: 15
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 19
+  last_updated: 2026-10-20T00:34:17.932Z
+inputs:
+  tasks:
+    - id: t-492426
+      title: 收编四包源码进 workprocess/
+      status: done
+    - id: t-697ce7
+      title: 依赖声明与构建/映射/分层清单对齐
+      status: in_progress
+    - id: t-611a43
+      title: 装载清单五条行 + profile 迁移
+      status: todo
+    - id: t-4303f4
+      title: pm 卡面新增 blockedReason/closePolicy 字段
+      status: done
+    - id: t-69e994
+      title: 投影器 + 写回适配 + 驱动接管起链
+      status: todo
+    - id: t-af00f4
+      title: goal/pm-workflow 旧名收尾
+      status: todo
+    - id: t-52f01f
+      title: 装载与全链路真机验收
+      status: todo
+    - id: t-7f41ef
+      title: 收编四包源码进 workprocess/·研发
+      status: done
+    - id: t-594aa8
+      title: 收编四包源码进 workprocess/·联调
+      status: done
+    - id: t-235ed5
+      title: 收编四包源码进 workprocess/·复核
+      status: done
+    - id: t-cdabde
+      title: 收编四包源码进 workprocess/·测试
+      status: done
+    - id: t-da7cf8
+      title: pm 卡面新增 blockedReason/closePolicy 字段·研发
+      status: done
+    - id: t-f0116e
+      title: pm 卡面新增 blockedReason/closePolicy 字段·联调
+      status: done
+    - id: t-81114b
+      title: pm 卡面新增 blockedReason/closePolicy 字段·复核
+      status: done
+    - id: t-8042eb
+      title: pm 卡面新增 blockedReason/closePolicy 字段·测试
+      status: done
+    - id: t-a7beb7
+      title: 依赖声明与构建/映射/分层清单对齐·研发
+      status: in_progress
+    - id: t-e9ed8f
+      title: 依赖声明与构建/映射/分层清单对齐·联调
+      status: todo
+    - id: t-5e0ccb
+      title: 依赖声明与构建/映射/分层清单对齐·复核
+      status: todo
+    - id: t-3f348e
+      title: 依赖声明与构建/映射/分层清单对齐·测试
+      status: todo
+status:
+  tasks_total: 19
+  tasks_done: 10
+  tasks_in_progress: 2
+  tasks_todo: 7
+tasks:
+  - id: t-492426
+    status: done
+  - id: t-697ce7
+    status: in_progress
+  - id: t-611a43
+    status: todo
+  - id: t-4303f4
+    status: done
+  - id: t-69e994
+    status: todo
+  - id: t-af00f4
+    status: todo
+  - id: t-52f01f
+    status: todo
+  - id: t-7f41ef
+    status: done
+  - id: t-594aa8
+    status: done
+  - id: t-235ed5
+    status: done
+  - id: t-cdabde
+    status: done
+  - id: t-da7cf8
+    status: done
+  - id: t-f0116e
+    status: done
+  - id: t-81114b
+    status: done
+  - id: t-8042eb
+    status: done
+  - id: t-a7beb7
+    status: in_progress
+  - id: t-e9ed8f
+    status: todo
+  - id: t-5e0ccb
+    status: todo
+  - id: t-3f348e
+    status: todo

@@ -206,9 +206,10 @@ def wake_todo_owner(todo: Any, context: Optional[Dict[str, Any]] = None) -> bool
     （与 L2 目标路由同一纪律：绝不静默丢事件），退回也不成功则返回 False 让回执如实
     记 failed。P2/P3 不退回卡片（级别策略本就是"只落台账不打扰用户"），返回 False。
 
-    context['allow_card_fallback']=False（聚合轮内）：本函数**不自行发卡**，只返回
-    False，由 flush_grouped 把这条折进本轮同一张卡——否则 agent 离线时会按条炸出
-    N 张卡（2026-10-16 生产实测：一轮 10 张）。
+    context['allow_card_fallback']=False（聚合轮内）：除再催轮外，本函数**不自行发卡**，
+    只返回 False，由 flush_grouped 把这条折进本轮同一张卡——否则 agent 离线时会按条炸出
+    N 张卡（2026-10-16 生产实测：一轮 10 张）。再催轮（force_user_card=True）即使
+    wake 已送达，也直接补发用户超时卡——wake=ok 不代表 agent 已完成关闭。
 
     agent_waker 契约（ReceiptService._wake_owner）：返回 True=sent / False=failed，
     异常向上抛由调用方记 failed。
@@ -224,6 +225,18 @@ def wake_todo_owner(todo: Any, context: Optional[Dict[str, Any]] = None) -> bool
         logger.info('待办超时已唤醒 owner agent',
                     todo_id=getattr(todo, 'id', None), owner_ref=owner_ref,
                     wake_event=WAKE_EVENT_TODO_TIMEOUT)
+        if ctx.get('force_user_card') and level in ('P0', 'P1'):
+            logger.warning('待办再催仍未关闭，已唤醒 owner 后仍补发用户超时卡',
+                           todo_id=getattr(todo, 'id', None), owner_ref=owner_ref)
+            try:
+                return send_watch_receipt({
+                    'kind': 'timeout', 'channel': ctx.get('channel') or 'risk_stop',
+                    'message': ctx.get('message') or '', 'level': level,
+                })
+            except Exception as e:  # noqa: BLE001 - 补发失败 → False，回执记 failed
+                logger.error('待办再催补发用户卡失败（回执将记 failed）',
+                             todo_id=getattr(todo, 'id', None), error=str(e))
+                return False
         return True
 
     if not ctx.get('allow_card_fallback', True):

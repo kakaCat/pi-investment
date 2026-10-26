@@ -1,0 +1,43 @@
+task:
+  id: t-aa8733
+  title: 诊断调度器 webhook 任务通道根因与影响面·分析
+  status: in_progress
+  implements: |-
+    ①读 agent-os/internal/kernel/scheduler/executor.go 与 scheduler.go 通道选择逻辑；②用 scheduler_manage list 全量核对 command/webhook 字段；③结论写入报告
+
+    [子卡阶段·分析] 只做本阶段；验收：结论含置信度与适用边界，并列出被证伪的假设
+  serves: []
+  depends_on:
+    - t-531b46
+  phase: analysis
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261019144524-ec50
+    TASK_ID: t-aa8733
+    TASK_TITLE: 诊断调度器 webhook 任务通道根因与影响面·分析
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: analysis
+  workflow_total: 4
+  workflow_done: 1
+  workflow:
+    - phase: analysis
+      status: done
+      completed_at: 2026-10-19T09:01:50.981Z
+    - phase: implement
+      status: in_progress
+      started_at: 2026-10-19T12:51:27.886Z
+    - phase: test
+      status: pending
+    - phase: commit
+      status: pending
+metadata:
+  stage: implementing
+  requirement_id: REQ-261019144524-ec50
+  generated_at: 2026-10-19T09:01:31.210Z
+  version: 5
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 4
+  last_updated: 2026-10-19T12:51:27.886Z

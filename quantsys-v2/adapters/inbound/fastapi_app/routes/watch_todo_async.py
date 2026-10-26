@@ -44,6 +44,8 @@ _STATUS_BY_CODE = {
     'watch_todo_missing_next_condition': 400,
     'watch_todo_out_of_scope': 400,
     'watch_todo_invalid_autonomy': 400,
+    # REQ-261021194640-69b8 FR-5：结构化动作非法/联动未装配/缺溯源 → 422（可修正后重试）
+    'watch_todo_rule_change_failed': 422,
 }
 
 #: 列表分页：默认 100、上限 500（interfaces.md §1.1）
@@ -132,6 +134,9 @@ def close_todo(todo_id: int, payload: Dict[str, Any] = Body(default_factory=dict
     data = payload or {}
     try:
         svc = _service()
+        # REQ-261021194640-69b8（FR-5）：可选结构化规则变更（仅 terminal=ignored 生效）。
+        # 不传=旧行为；传了但联动失败由 TodoService 抛 422，待办保持未收敛。
+        rule_change = data.get('rule_change')
         # REQ-ad0a t5（FR-14）：收敛成功即发处置结论回执（结论/原因/后续意见三要素卡）。
         # 老 fake 服务（无 close_and_receipt）退化为纯 close，receipt=None——兼容既有测试桩。
         close_fn = getattr(svc, 'close_and_receipt', None)
@@ -144,6 +149,7 @@ def close_todo(todo_id: int, payload: Dict[str, Any] = Body(default_factory=dict
                 action_kind=data.get('action_kind'),
                 decision_audit_id=data.get('decision_audit_id'),
                 closed_by=data.get('closed_by'),
+                rule_change=rule_change,
             )
         else:
             todo = svc.close(
@@ -154,6 +160,7 @@ def close_todo(todo_id: int, payload: Dict[str, Any] = Body(default_factory=dict
                 action_kind=data.get('action_kind'),
                 decision_audit_id=data.get('decision_audit_id'),
                 closed_by=data.get('closed_by'),
+                rule_change=rule_change,
             )
             receipt_outcome = None
     except WatchTodoError as e:
@@ -164,4 +171,9 @@ def close_todo(todo_id: int, payload: Dict[str, Any] = Body(default_factory=dict
     # interfaces §1.1 的响应为 { todo, receipt }：receipt 为 ReceiptService.result 的
     # 结构化 outcome（kind/sent/delivery_status/digest/message…）；回执异常时 None
     # （收敛本身已生效，日志响亮留痕），不伪造空回执。
-    return {'success': True, 'data': {'todo': todo_to_dict(todo), 'receipt': receipt_outcome}}
+    return {'success': True, 'data': {
+        'todo': todo_to_dict(todo),
+        'receipt': receipt_outcome,
+        # FR-5：不传 rule_change 时为 None；传了且成功时为 {change_kind, applied, ...}
+        'rule_change': getattr(todo, 'rule_change_summary', None),
+    }}

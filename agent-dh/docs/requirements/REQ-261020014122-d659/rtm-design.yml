@@ -1,0 +1,265 @@
+metadata:
+  stage: design
+  requirement_id: REQ-261020014122-d659
+  generated_at: 2026-10-20T00:26:10.815Z
+  version: 5
+  generated_by: dsh-pmboard
+  last_updated: 2026-10-20T00:39:26.930Z
+inputs:
+  requirements: []
+outputs:
+  design_sections:
+    - ref: design/architecture.md#目标与总体方案
+      title: 目标与总体方案 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/architecture.md
+      section: 目标与总体方案
+    - ref: design/architecture.md#模块改动地图
+      title: 模块改动地图 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/architecture.md
+      section: 模块改动地图
+    - ref: design/architecture.md#数据结构变更
+      title: 数据结构变更 `
+      serves:
+        - FR-2
+      file: design/architecture.md
+      section: 数据结构变更
+    - ref: design/architecture.md#风险与对策
+      title: 风险与对策 `
+      serves:
+        - FR-1
+        - FR-3
+        - FR-4
+      file: design/architecture.md
+      section: 风险与对策
+    - ref: design/data-model.md#字段变更清单
+      title: 字段变更清单 `
+      serves:
+        - FR-2
+      file: design/data-model.md
+      section: 字段变更清单
+    - ref: design/data-model.md#metrics-dictrunbacktestfromsignals-返回值JSON-透传
+      title: "`metrics` dict（run_backtest_from_signals 返回值，JSON 透传）"
+      serves: []
+      file: design/data-model.md
+      section: metrics-dictrunbacktestfromsignals-返回值JSON-透传
+    - ref: design/data-model.md#trades-traderecords-元素
+      title: "`trades[]` / `trade_records[]` 元素"
+      serves: []
+      file: design/data-model.md
+      section: trades-traderecords-元素
+    - ref: design/data-model.md#口径变更声明
+      title: 口径变更声明 `
+      serves:
+        - FR-1
+        - FR-2
+      file: design/data-model.md
+      section: 口径变更声明
+    - ref: design/data-model.md#迁移与回滚
+      title: 迁移与回滚 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/data-model.md
+      section: 迁移与回滚
+    - ref: design/design.md#1
+      title: 架构与改动面
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/design.md
+      section: "1"
+    - ref: design/design.md#2
+      title: 接口与数据契约
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/design.md
+      section: "2"
+    - ref: design/design.md#2.1
+      title: 回测 metrics 新增字段（FR-2）
+      serves: []
+      file: design/design.md
+      section: "2.1"
+    - ref: design/design.md#2.2
+      title: 强制平仓计账口径（FR-1）
+      serves: []
+      file: design/design.md
+      section: "2.2"
+    - ref: design/design.md#2.3
+      title: evolution_run 工具降级形状（FR-3）
+      serves: []
+      file: design/design.md
+      section: "2.3"
+    - ref: design/design.md#3
+      title: 数据层与迁移/回滚
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/design.md
+      section: "3"
+    - ref: design/design.md#4
+      title: 测试策略（故障注入实测）
+      serves:
+        - FR-4
+        - FR-5
+      file: design/design.md
+      section: "4"
+    - ref: design/design.md#4.1
+      title: 后端 pytest：`quantsys-v2/tests/test_backtest_forced_close.py`（新建）
+      serves: []
+      file: design/design.md
+      section: "4.1"
+    - ref: design/design.md#4.2
+      title: 工具侧 vitest：`agent-dh/apps/web/tests/evolution-qv2-contract.test.ts`（改）
+      serves: []
+      file: design/design.md
+      section: "4.2"
+    - ref: design/design.md#4.3
+      title: 实证回归（FR-5，验收时人工/agent 实调）
+      serves: []
+      file: design/design.md
+      section: "4.3"
+    - ref: design/design.md#4.4
+      title: 验收命令汇总
+      serves: []
+      file: design/design.md
+      section: "4.4"
+    - ref: design/design.md#5
+      title: 风险与对策
+      serves:
+        - FR-1
+        - FR-3
+        - FR-4
+      file: design/design.md
+      section: "5"
+    - ref: design/design.md#6
+      title: 不做什么（与需求 §5 对齐）
+      serves:
+        - FR-1
+        - FR-3
+      file: design/design.md
+      section: "6"
+    - ref: design/interfaces.md#修改的接口
+      title: 修改的接口 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/interfaces.md
+      section: 修改的接口
+    - ref: design/interfaces.md#runbacktestfromsignalsqv2-内部服务方法
+      title: run_backtest_from_signals（qv2 内部服务方法）`
+      serves:
+        - FR-1
+        - FR-2
+      file: design/interfaces.md
+      section: runbacktestfromsignalsqv2-内部服务方法
+    - ref: design/interfaces.md#evolutionrunagent-dh-工具
+      title: evolution_run（agent-dh 工具）`
+      serves:
+        - FR-3
+      file: design/interfaces.md
+      section: evolutionrunagent-dh-工具
+    - ref: design/use-cases.md#场景总览
+      title: 场景总览 <!--
+      serves:
+        - FR-1
+        - FR-3
+      file: design/use-cases.md
+      section: 场景总览
+    - ref: design/use-cases.md#UC-1-进化降级可读
+      title: UC-1 进化降级可读 <!--
+      serves:
+        - FR-3
+        - FR-5
+      file: design/use-cases.md
+      section: UC-1-进化降级可读
+    - ref: design/use-cases.md#UC-2-回测判据正确
+      title: UC-2 回测判据正确 <!--
+      serves:
+        - FR-1
+        - FR-2
+        - FR-5
+      file: design/use-cases.md
+      section: UC-2-回测判据正确
+    - ref: design/use-cases.md#UC-3-人工验收复跑
+      title: UC-3 人工验收复跑 <!--
+      serves:
+        - FR-4
+        - FR-5
+      file: design/use-cases.md
+      section: UC-3-人工验收复跑
+traceability:
+  fr_to_design:
+    FR-1:
+      - design/architecture.md#目标与总体方案
+      - design/architecture.md#模块改动地图
+      - design/architecture.md#风险与对策
+      - design/data-model.md#口径变更声明
+      - design/data-model.md#迁移与回滚
+      - design/design.md#1
+      - design/design.md#2
+      - design/design.md#3
+      - design/design.md#5
+      - design/design.md#6
+      - design/interfaces.md#修改的接口
+      - design/interfaces.md#runbacktestfromsignalsqv2-内部服务方法
+      - design/use-cases.md#场景总览
+      - design/use-cases.md#UC-2-回测判据正确
+    FR-2:
+      - design/architecture.md#目标与总体方案
+      - design/architecture.md#模块改动地图
+      - design/architecture.md#数据结构变更
+      - design/data-model.md#字段变更清单
+      - design/data-model.md#口径变更声明
+      - design/data-model.md#迁移与回滚
+      - design/design.md#1
+      - design/design.md#2
+      - design/design.md#3
+      - design/interfaces.md#修改的接口
+      - design/interfaces.md#runbacktestfromsignalsqv2-内部服务方法
+      - design/use-cases.md#UC-2-回测判据正确
+    FR-3:
+      - design/architecture.md#目标与总体方案
+      - design/architecture.md#模块改动地图
+      - design/architecture.md#风险与对策
+      - design/data-model.md#迁移与回滚
+      - design/design.md#1
+      - design/design.md#2
+      - design/design.md#3
+      - design/design.md#5
+      - design/design.md#6
+      - design/interfaces.md#修改的接口
+      - design/interfaces.md#evolutionrunagent-dh-工具
+      - design/use-cases.md#场景总览
+      - design/use-cases.md#UC-1-进化降级可读
+    FR-4:
+      - design/architecture.md#风险与对策
+      - design/design.md#4
+      - design/design.md#5
+      - design/use-cases.md#UC-3-人工验收复跑
+    FR-5:
+      - design/design.md#4
+      - design/use-cases.md#UC-1-进化降级可读
+      - design/use-cases.md#UC-2-回测判据正确
+      - design/use-cases.md#UC-3-人工验收复跑
+coverage:
+  design:
+    total: 0
+    covered: 0
+    uncovered: []
+    rate: 100
+    total_frs: 0
+    covered_frs: 0

@@ -275,7 +275,10 @@ class StrategyService:
         initial_value = trader._calculate_total_value_from_portfolio()
 
         # 执行每日检查（返回结构化结果，区分 executed / skipped）
-        check = trader.run_daily_check()
+        check = trader.run_daily_check(
+            enable_stop_loss=kwargs.get('enable_stop_loss', True),
+            enable_rebalance=kwargs.get('enable_rebalance', True),
+        )
 
         # 记录最终状态
         final_value = trader._calculate_total_value_from_portfolio()

@@ -69,6 +69,19 @@ class JobRegistry:
         except Exception as e:
             logger.exception(f"Job {name} failed with exception")
             return JobResult.fail(name, str(e))
+        finally:
+            # 会话收尾（2026-10-21，看板事件 a6780ec3 / 3267a4ad）：
+            # 本方法是**所有后台作业的统一出口**（job 在线程池里跑）。作业内部
+            # 走仓储取数会开 scoped session 并起事务，若不归还：
+            #   ① 连接长期 idle in transaction，挡住 autovacuum、持旧快照；
+            #   ② 约 300s 后被 PG 强杀 → session_guard 判为 session_leak_detected
+            #      （实测累计 1139 次，其中 22:07 一次来自 ThreadPoolExecutor-0_1）。
+            # close_session() 按线程归还 scoped session，只影响本作业线程。
+            try:
+                from qs_kernel.infrastructure.persistence.orm import close_session
+                close_session()
+            except Exception:
+                pass
 
 
 # 全局单例

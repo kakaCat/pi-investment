@@ -25,7 +25,7 @@ architecture.md §4：「**唯一收敛权威 = WatchSlaJob**（机械、可测�
 未接线时回执走 log-only（delivery_status=log_only），不许假装已发。
 """
 import os
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional
 
 import structlog
@@ -64,6 +64,45 @@ def _auto_expire_days() -> float:
         return max(1.0, float(os.getenv('WATCH_TODO_AUTO_EXPIRE_DAYS', '3')))
     except (TypeError, ValueError):
         return 3.0
+
+
+#: 执行期限（分钟）：P0 执行待办从创建到「必须收敛」的窗口（REQ-261021194640-69b8 FR-6）。
+#: 与 due_at（提醒 SLA，P0=300s）是两个时钟：due_at 管「先别漏提醒」，
+#: 执行期限管「agent 到底做没做」，到期才催办、且同一周期只催一次。
+EXEC_SLA_ENV = 'WATCH_EXEC_SLA_MIN'
+DEFAULT_EXEC_SLA_MIN = 30
+
+
+def _exec_sla_minutes() -> float:
+    try:
+        return max(1.0, float(os.getenv(EXEC_SLA_ENV, str(DEFAULT_EXEC_SLA_MIN))))
+    except (TypeError, ValueError):
+        return float(DEFAULT_EXEC_SLA_MIN)
+
+
+def _naive_utc(value):
+    """统一到 naive-UTC 再比较：库内 aware、测试 naive、历史裸时间三类都能相减。"""
+    if value is None:
+        return None
+    if getattr(value, 'tzinfo', None) is not None:
+        return value.astimezone(timezone.utc).replace(tzinfo=None)
+    return value
+
+
+def _is_exec_todo(todo) -> bool:
+    """执行类待办：P0 且动作是交易（止损指令卡对应物）。"""
+    level = str(getattr(todo, 'level', '') or '').strip().upper()
+    action = str(getattr(todo, 'action_kind', '') or '').strip().lower()
+    return level == 'P0' and action == 'trade'
+
+
+def _exec_deadline_at(todo, minutes: Optional[float] = None):
+    """执行期限 = created_at + WATCH_EXEC_SLA_MIN；created_at 缺失返回 None（不臆造）。"""
+    created = _naive_utc(getattr(todo, 'created_at', None))
+    if created is None:
+        return None
+    return created + timedelta(minutes=float(
+        minutes if minutes is not None else _exec_sla_minutes()))
 
 
 def _default_todo_repo():
@@ -118,6 +157,7 @@ class WatchSlaJob:
             'group_cards': 0,      # 聚合卡**实发张数**（agent 私有唤醒占满一轮时可为 0）
             'reminds': 0,          # 2026-10-20：L3 再催轮数（首催不计）
             'expired': 0,          # 2026-10-20：超期未处置自动归档条数
+            'exec_waiting': 0,     # FR-6：执行类待办未到执行期限、暂不催办的条数
         }
 
         try:
@@ -160,11 +200,6 @@ class WatchSlaJob:
                                            for v in flush.values())
                 # 聚合卡送达 → 按条数补记 alerts（grouped 回执在入组时 sent=False）
                 stats['alerts'] += sum(v['count'] for v in flush.values() if v.get('sent'))
-                # result 聚合兜底 flush（2026-10-19）：窗口内批量处置合成一张卡；
-                # 发送失败不抛（receipt_service 内自吞并记 failed，下轮重试）
-                rflush = self._receipts.flush_result_buffer()
-                stats['alerts'] += rflush.get('count', 0) if rflush.get('sent') else 0
-                stats['group_cards'] += 1 if rflush.get('sent') else 0
             except Exception as e:  # noqa: BLE001 - 收尾失败记错不抛（仓储失败会向上抛到此处）
                 stats['errors'] += 1
                 logger.error('聚合回执收尾失败（记错不中断）', error=str(e))
@@ -193,6 +228,16 @@ class WatchSlaJob:
         elif state == 'L2':
             self._promote(todo, 'L3', now, stats, names)
         elif state == 'L3':
+            # FR-6：P0 执行待办按「创建 + 执行期限」判超时，不按提醒 due_at 判——
+            # 否则止损卡刚发出 5 分钟就先被催一次，30 分钟执行期限形同虚设。
+            if _is_exec_todo(todo):
+                deadline = _exec_deadline_at(todo)
+                if deadline is not None and _naive_utc(now) < deadline:
+                    stats['exec_waiting'] += 1
+                    logger.info('执行待办未到执行期限，暂不催办',
+                                todo_id=getattr(todo, 'id', None),
+                                deadline_at=deadline.isoformat())
+                    return
             self._escalate_to_user(todo, now, stats, names)
         else:
             # 未知状态不臆造晋升（也不静默当"已收敛"）：计入 skipped 并留日志
@@ -311,7 +356,7 @@ class WatchSlaJob:
         if overdue_sec < interval * current:
             return
         outcome = self._receipts.timeout(todo, name=name, deliver=True,
-                                         remind_round=current)
+                                         remind_round=current, force_user_card=True)
         if outcome.get('issued'):
             stats['timeout'] += 1
             stats['reminds'] = stats.get('reminds', 0) + 1

@@ -1,5 +1,5 @@
 """WatchEngine 盯盘规则/触发记录 ORM Repository"""
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Optional
 
 import structlog
@@ -33,7 +33,32 @@ from qs_watch.domain.watch.services.position_state_policy import (  # noqa: F401
 POSITION_STATES = (POSITION_STATE_NONE, POSITION_STATE_HOLDING)
 
 #: 迁移 20261021_watch_rules_position_interval.py 新增的两列。
-NEW_RULE_COLUMNS = ('position_state', 'interval_sec')
+#: 2026-10-22 三分支落地新增列：rule_state/invalid_reason/invalid_at/confirm_count。
+#: 缺列库（未跑迁移的 *_test）fail-open：INSERT 不带默认值、UPDATE 忽略这些字段。
+NEW_RULE_COLUMNS = ('plan_id', 'position_state', 'interval_sec', 'watch_tier',
+                    'rule_state', 'invalid_reason', 'invalid_at', 'confirm_count',
+                    'invalidation_threshold_pct', 'invalid_escalated_at',
+                    'trigger_channel', 'process_state', 'cycle_count', 'engine')
+
+#: 失效偏离阈值全局默认（%，2026-10-22）：agent 创建规则未显式设定时的兜底值。
+#: **必填语义**（用户裁定）：invalidation_threshold_pct 像止盈价/止损价一样是规则的
+#: 具体参数，规则上始终落具体数值（此默认或 agent 覆盖），程序不面对 NULL、更不写死。
+DEFAULT_INVALIDATION_THRESHOLD_PCT = 20.0
+
+
+def normalize_invalidation_threshold(value):
+    """失效偏离阈值归一（创建用）：None → 全局默认；正数 → float；否则 ValueError。
+
+    与 position_state/interval_sec 同一模式：坏值在仓储层抛 ValueError，
+    路由层 catch 后回 400（不让坏值落库后变成抽奖）。
+    """
+    if value is None:
+        return DEFAULT_INVALIDATION_THRESHOLD_PCT
+    v = float(value)
+    if v <= 0:
+        raise ValueError(
+            'invalidation_threshold_pct 必须为正数（%%）， got %r' % (value,))
+    return v
 
 #: 列预检的缓存（key = engine url）。列一旦落库不会消失，缓存 True 安全；
 #: 迁移在运行中落地时调 reset_watch_rules_column_cache() 或重启进程即可。
@@ -69,6 +94,23 @@ def normalize_interval_sec(value) -> Optional[int]:
     if seconds < 1:
         raise ValueError('interval_sec 必须 >= 1 秒，或给 None 表示跟随全局档')
     return seconds
+
+
+def normalize_watch_tier(value) -> int:
+    """档位归一：只认 30 / 600 / 1800 秒（盯盘 V2 定时任务三档）。
+
+    非法值直接 ValueError（与 interval_sec/position_state 同一模式：坏值在仓储层拒绝，
+    路由层 catch 后回 400，不让它落库后变成"抽奖"）。
+    """
+    if isinstance(value, bool) or value is None:
+        raise ValueError('watch_tier 必填且只能是 30 / 600 / 1800，got %r' % (value,))
+    try:
+        tier = int(value)
+    except (TypeError, ValueError):
+        raise ValueError('watch_tier 只能是整数秒（30/600/1800），got %r' % (value,))
+    if tier not in (30, 600, 1800):
+        raise ValueError('watch_tier 只能是 30 / 600 / 1800 秒，got %r' % (value,))
+    return tier
 
 
 def rule_interval_sec(rule) -> Optional[int]:
@@ -170,6 +212,36 @@ class WatchRule(Base):
     # 实测第一版（无 server_default）就是这么把 6 个既有仓储测试打红的。
     position_state = Column(String(16), server_default=text("'none'"))
     interval_sec = Column(Integer, server_default=text('NULL'))
+    # ── 盯盘 V2 定时任务档位（2026-10-23）────────────────────────────────
+    # 30 / 600 / 1800 秒：由开盘任务与各档位任务按"现价与触发价的距离"重算并回写。
+    # server_default 让缺列库（未跑迁移的 *_test）的 INSERT 不带该列（同 position_state）。
+    watch_tier = Column(Integer, server_default=text('30'))
+    # RFC 017 后续（REQ-261021222905-6dff t6）：托管归属。
+    # NULL = 非托管（既有规则行为零变化）；计划编译器写入后该规则由计划唯一托管。
+    plan_id = Column(Integer, server_default=text('NULL'))
+
+    # ── 规则生命周期三态 + 确认直通（2026-10-22，迁移 20261022_watch_rules_state）
+    # server_default 让缺列库（未跑迁移的 *_test）的 INSERT 不带这些列，
+    # 与 position_state 同一理由（本文件 168-170 行注释）。
+    rule_state = Column(String(16), server_default=text("'active'"))
+    invalid_reason = Column(Text, server_default=text('NULL'))
+    invalid_at = Column(DateTime, server_default=text('NULL'))
+    confirm_count = Column(Integer, server_default=text('0'))
+    # 失效偏离阈值（agent 按规则设定，正数）——必填，像止盈价/止损价一样是规则的
+    # 具体参数（2026-10-22 用户裁定）。server_default NULL = 缺列库 fail-open。
+    invalidation_threshold_pct = Column(Numeric(6, 2), server_default=text('NULL'))
+    # 滞留升级标记：invalid 超龄未裁决时提醒用户后置时间（NULL=未提醒，每个规则只提醒一次）
+    invalid_escalated_at = Column(DateTime, server_default=text('NULL'))
+
+    # ── V2 触发路由（REQ-261022235419-2299 t1/t9）─────────────────────────
+    # 是否触发 agent（D-15）：agent=发 agent 判断 / direct=直发。每日重置不清此列。
+    trigger_channel = Column(String(16), server_default=text("'agent'"))
+    # agent 处理状态（D-14）：pending=待处理 / processed=已处理；每日收盘重置回 pending
+    process_state = Column(String(16), server_default=text("'pending'"))
+    # 10 次循环计数 0..9（D-16/19 per-rule）：第 10 次直通群后归零
+    cycle_count = Column(Integer, server_default=text('0'))
+    # 触发落库来源标记（backend.md）：v1 / v2 —— 影子期双写对账按此区分
+    engine = Column(String(8), server_default=text("'v1'"))
 
 
 class WatchTrigger(Base):
@@ -201,6 +273,10 @@ class WatchTrigger(Base):
     # 触发 → 待办的溯源回填（REQ-c9f899 t12）：列由 t1 迁移 20260918 添加
     # （watch_triggers.todo_id INTEGER），t12 接线后由 WatchTriggerRepository.set_todo_id 写入。
     todo_id = Column(Integer)
+    # 触发来源引擎（REQ-261022235419-2299）：v1 / v2。列由迁移 20261023_watch_rules_v2_routing
+    # 添加，但 ORM 此前未映射 → V2 归档只能把 engine 塞进 detail JSON，DB 列恒为默认 'v1'，
+    # compare_v1_v2.py 因此永远看不到 V2。2026-10-24 补映射。
+    engine = Column(String(8), server_default=text("'v1'"))
 
 
 def rule_to_dict(rule: WatchRule) -> dict:
@@ -238,6 +314,19 @@ def rule_to_dict(rule: WatchRule) -> dict:
         # 旧行为，不要把它当成 'none'（那会误判"确认无持仓"）。
         'position_state': rule_position_state(rule),
         'interval_sec': rule_interval_sec(rule),
+        # 盯盘 V2 定时任务档位（30/600/1800 秒）；缺列/脏值 → None（消费方按默认档处理）
+        'watch_tier': getattr(rule, 'watch_tier', None),
+        'plan_id': getattr(rule, 'plan_id', None),
+        # ── 规则生命周期三态 + 确认直通（2026-10-22）──
+        # rule_state: active=在盯盘 / invalid=失效待裁决 / archived=过滤丢弃
+        'rule_state': getattr(rule, 'rule_state', 'active'),
+        'invalid_reason': getattr(rule, 'invalid_reason', None),
+        'invalid_at': rule.invalid_at.isoformat() if getattr(rule, 'invalid_at', None) else None,
+        'confirm_count': getattr(rule, 'confirm_count', 0) or 0,
+        # 失效偏离阈值（agent 设定，必填）：像止盈价/止损价一样是规则的具体参数
+        'invalidation_threshold_pct': (float(rule.invalidation_threshold_pct)
+                                       if getattr(rule, 'invalidation_threshold_pct', None) is not None else None),
+        'invalid_escalated_at': rule.invalid_escalated_at.isoformat() if getattr(rule, 'invalid_escalated_at', None) else None,
         'last_reviewed_at': rule.last_reviewed_at.isoformat() if getattr(rule, 'last_reviewed_at', None) else None,
         'review_interval_days': getattr(rule, 'review_interval_days', None),
         'review_due_at': rule.review_due_at.isoformat() if getattr(rule, 'review_due_at', None) else None,
@@ -417,7 +506,8 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
                     active_window=None, expires_at=None, created_by='agent',
                     account=None, linked_account=None,
                     intent=None, action_hint=None, action_params=None,
-                    position_state=None, interval_sec=None) -> WatchRule:
+                    position_state=None, interval_sec=None, plan_id=None,
+                    invalidation_threshold_pct=None, watch_tier=None) -> WatchRule:
         # 铁律下沉（2026-09-11，w-aebfddcd）：没有账户的规则不能进入买卖——在**仓储层**拦，
         # 这样任何创建路径（API / 内部服务 / 定时任务）都绕不过去。观察类规则放行。
         from qs_watch.domain.watch.services.rule_guard import guard_new_rule
@@ -431,7 +521,15 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
                 new_fields['position_state'] = normalize_position_state(position_state)
             if interval_sec is not None:
                 new_fields['interval_sec'] = normalize_interval_sec(interval_sec)
-        elif position_state is not None or interval_sec is not None:
+            if plan_id is not None:
+                new_fields['plan_id'] = int(plan_id)
+            if watch_tier is not None:
+                new_fields['watch_tier'] = normalize_watch_tier(watch_tier)
+            # 失效阈值必填（2026-10-22 用户裁定）：像止盈价/止损价一样是规则的具体参数。
+            # None → 全局默认兜住（规则上始终有具体值，程序不面对 NULL）。
+            new_fields['invalidation_threshold_pct'] = normalize_invalidation_threshold(
+                invalidation_threshold_pct)
+        elif position_state is not None or interval_sec is not None or plan_id is not None:
             logger.warning('watch_rules 缺新列，创建时忽略 position_state/interval_sec（fail-open 旧行为）',
                            symbol=symbol)
         # 账户归一：account 与 linked_account 是同一语义的两个字段，
@@ -453,26 +551,91 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
         )
         return self._create_rule_row(rule)
 
+    def list_by_plan(self, plan_id: int, include_disabled: bool = False) -> List[WatchRule]:
+        """计划托管的规则（缺列库 → 空列表，fail-open）。"""
+        if not self._new_columns_available():
+            return []
+        q = self.session.query(WatchRule).filter(WatchRule.plan_id == plan_id)
+        if not include_disabled:
+            q = q.filter(WatchRule.enabled.is_(True))
+        try:
+            return q.all()
+        finally:
+            pass
+
+    def set_plan_id(self, rule_id: int, plan_id: Optional[int]) -> bool:
+        """写托管归属（None = 解除托管）。缺列库返回 False（不炸）。"""
+        if not self._new_columns_available():
+            return False
+        return self.update_fields(rule_id, plan_id=plan_id)
+
     def list_enabled(self) -> List[WatchRule]:
-        """启用的规则（排除已过期）"""
-        rows = (
-            self._rule_query()
-            .filter(WatchRule.enabled.is_(True))
-            .filter((WatchRule.expires_at.is_(None)) | (WatchRule.expires_at > datetime.now()))
-            .all()
+        """启用的规则（排除已过期）
+
+        2026-10-22 起语义等价 list_by_state('active')：三分支状态机落地后，
+        "在盯盘里" = enabled 且 rule_state=active 且未过期。保留本方法名
+        兼容既有调用方，内部转调 list_by_state。
+        """
+        return self.list_by_state('active')
+
+    # ── 「活跃」口径（唯一权威，2026-10-23 用户裁定）───────────────────────
+    # 活跃 = 引擎每拍真正参与判定的规则：rule_state='active' + 启用 + 未过期。
+    # 加载（list_by_state）与每日循环重置（reset_active_cycles）必须同一口径，
+    # 否则会出现「重置了不参与判定的规则」或「参与判定的规则没被重置」两种偏差。
+    @staticmethod
+    def _active_conditions():
+        return (
+            WatchRule.rule_state == 'active',
+            WatchRule.enabled.is_(True),
+            or_(WatchRule.expires_at.is_(None), WatchRule.expires_at > datetime.now()),
         )
-        return [self._apply_legacy_defaults(r) for r in rows]
+
+    def list_by_state(self, state: str) -> List[WatchRule]:
+        """按生命周期状态取规则（三分支：active/invalid/archived）。
+
+        active = 在盯盘里（参与判定）；invalid = 失效待裁决（不进判定，投递 agent）；
+        archived = 过滤丢弃（不占资源）。仅 active 额外排除已过期（expires_at）——
+        与 _active_conditions 同一口径。
+        """
+        q = self._rule_query().filter(WatchRule.rule_state == state)
+        if state == 'active':
+            for cond in self._active_conditions():
+                q = q.filter(cond)
+        return [self._apply_legacy_defaults(r) for r in q.all()]
+
+    def list_stale_invalid(self, older_than_hours: float = 24) -> List[WatchRule]:
+        """滞留失效规则：invalid + invalid_at 超 older_than_hours + 未提醒过用户。
+
+        升级提醒用（2026-10-22 用户裁定）：失效规则该由 agent 裁决（改/删），agent 超龄
+        未处理 → 标记并发给用户推进。invalid_escalated_at IS NULL = 还没提醒过
+        （每个规则只提醒一次，提醒后由升级逻辑置时间，避免天天刷同一条）。
+        """
+        if not self._new_columns_available():
+            return []
+        cutoff = datetime.now() - timedelta(hours=older_than_hours)
+        q = (self._rule_query()
+             .filter(WatchRule.rule_state == 'invalid')
+             .filter(WatchRule.invalid_at.isnot(None))
+             .filter(WatchRule.invalid_at < cutoff)
+             .filter(WatchRule.invalid_escalated_at.is_(None)))
+        result = [self._apply_legacy_defaults(r) for r in q.all()]
+        self._commit_if_readonly()   # 只读事务收尾（2026-10-22 泄漏治理，同其他读方法）
+        return result
 
     def list_rules(self, symbol: Optional[str] = None,
                    enabled: Optional[bool] = None,
-                   account: Optional[str] = None) -> List[WatchRule]:
+                   account: Optional[str] = None,
+                   rule_state: Optional[str] = None) -> List[WatchRule]:
         """account=某账户时返回「该账户归属 + 通用观察(account IS NULL)」——
-        看板按账户展示盯盘需要两组都可见；不传则返回全部。"""
+        看板按账户展示盯盘需要两组都可见；不传则返回全部。
+        rule_state=active/invalid/archived 按生命周期三态过滤（2026-10-22）。"""
         q = self._rule_query()
         if symbol:
             q = q.filter(WatchRule.symbol == symbol)
         if enabled is not None:
             q = q.filter(WatchRule.enabled.is_(enabled))
+        if rule_state:
+            q = q.filter(WatchRule.rule_state == rule_state)
         if account:
             q = q.filter(or_(WatchRule.account == account, WatchRule.account.is_(None)))
         return [self._apply_legacy_defaults(r) for r in q.order_by(WatchRule.id.desc()).all()]
@@ -487,6 +650,88 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
     def set_interval_sec(self, rule_id: int, interval_sec) -> Optional[WatchRule]:
         """写规则级频率（RFC 017 §2.3）。None = 恢复跟随全局档。"""
         return self.update_fields(rule_id, interval_sec=normalize_interval_sec(interval_sec))
+
+    def increment_confirm_count(self, rule_id: int) -> None:
+        """确认触发计数 +1（2026-10-22 确认数直通用）。
+
+        原子 UPDATE，不走 update_fields（guard 不适用：纯计数 +1 不改语义）。
+        缺列库（未跑迁移的 *_test）静默跳过——直通判定读不到 confirm_count 时
+        恒为 0，行为退化为改造前（不直通），不炸。
+        """
+        try:
+            from sqlalchemy import update as sa_update
+            self.session.execute(
+                sa_update(WatchRule)
+                .where(WatchRule.id == rule_id)
+                .values(confirm_count=WatchRule.confirm_count + 1))
+            self.session.commit()
+        except Exception as e:  # noqa: BLE001 - 计数失败不阻断判定（直通是增益）
+            logger.debug('confirm_count 累加失败', rule_id=rule_id, error=str(e))
+            try:
+                self.session.rollback()
+            except Exception:
+                pass
+
+    # ── V2 触发路由计数（REQ-261022235419-2299 t9 / v2/router.py 的 store 契约）──
+
+    def get_cycle_count(self, rule_id) -> int:
+        """读规则当前循环计数（0..9）；缺列/异常返回 0（按新循环首发处理）。"""
+        try:
+            row = (self.session.query(WatchRule.cycle_count)
+                   .filter(WatchRule.id == rule_id).first())
+            return int(row[0] or 0) if row else 0
+        except Exception as e:  # noqa: BLE001 - 缺列库 fail-open
+            logger.debug('cycle_count 读取失败', rule_id=rule_id, error=str(e))
+            return 0
+
+    def set_cycle_count(self, rule_id, count: int) -> None:
+        """写规则循环计数（原子 UPDATE；缺列库静默跳过）。"""
+        try:
+            from sqlalchemy import update as sa_update
+            self.session.execute(
+                sa_update(WatchRule)
+                .where(WatchRule.id == rule_id)
+                .values(cycle_count=int(count)))
+            self.session.commit()
+        except Exception as e:  # noqa: BLE001 - 计数失败不阻断投递
+            logger.debug('cycle_count 写入失败', rule_id=rule_id, error=str(e))
+            try:
+                self.session.rollback()
+            except Exception:
+                pass
+
+    def reset_active_cycles(self) -> int:
+        """每日收盘重置：**仅活跃规则** cycle_count=0、process_state='pending'。
+
+        活跃口径 = _active_conditions（与引擎每拍加载集合同源）：rule_state='active'
+        且启用且未过期。非活跃规则（invalid / archived / 停用 / 过期）不进判定集合，
+        重置它们没有意义，反而会把「失效待裁决」等状态一起抹掉
+        （2026-10-23 用户裁定：活跃的才重置，非活跃的不需要重置）。
+
+        返回受影响行数（缺列库返回 0，不炸）。
+        """
+        stmt = sa_update(WatchRule).values(cycle_count=0, process_state='pending')
+        for cond in self._active_conditions():
+            stmt = stmt.where(cond)
+        try:
+            result = self.session.execute(stmt)
+            self.session.commit()
+            return int(result.rowcount or 0)
+        except Exception as e:  # noqa: BLE001 - 重置失败记日志继续
+            logger.warning('每日循环重置失败（V2 路由退化为持续计数）', error=str(e))
+            try:
+                self.session.rollback()
+            except Exception:
+                pass
+            return 0
+
+    def reset_all_cycles(self) -> int:
+        """兼容别名：语义**已收窄为活跃规则**（见 reset_active_cycles）。
+
+        名字保留是给 v2/router.py 的 store 契约与既有内存实现（tests/v2）用；
+        新代码请用 reset_active_cycles —— 叫 all 却只动活跃集会误导。
+        """
+        return self.reset_active_cycles()
 
     def update_fields(self, rule_id: int, **fields) -> Optional[WatchRule]:
         rule = self.get_by_id(rule_id)
@@ -520,6 +765,8 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
             fields['position_state'] = normalize_position_state(fields['position_state'])
         if 'interval_sec' in fields:
             fields['interval_sec'] = normalize_interval_sec(fields['interval_sec'])
+        if 'watch_tier' in fields:
+            fields['watch_tier'] = normalize_watch_tier(fields['watch_tier'])
 
         allowed = {'symbol', 'enabled', 'conditions', 'context',
                    'cost_price', 'active_window', 'expires_at', 'account',
@@ -534,7 +781,15 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
                    # REQ-261016155500-4f2a：结构化操作指引与机器注记可写
                    'action_params', 'ops_notes',
                    # RFC 017（2026-10-21）：持仓状态与规则级频率经既有规则 CRUD 调整
-                   'position_state', 'interval_sec'}
+                   'position_state', 'interval_sec',
+                   # 2026-10-23：盯盘 V2 档位（30/600/1800 秒）可人工钉死；
+                   # 不钉死时由开盘任务与各档位任务按距离自动回写
+                   'watch_tier',
+                   # REQ-261021222905-6dff（2026-10-22）：计划托管归属
+                   'plan_id',
+                   # 2026-10-22 三分支：失效标记可写（引擎标 invalid / agent 裁决回写）
+                   'rule_state', 'invalid_reason', 'invalid_at',
+                   'invalidation_threshold_pct', 'invalid_escalated_at'}
         if available:
             for key, value in fields.items():
                 if key in allowed:
@@ -611,7 +866,7 @@ class WatchTriggerRepository(BaseORMRepository[WatchTrigger]):
     def record(self, rule_id, symbol, condition, trigger_price,
                detail=None, notified=False, disposition='pending',
                disposition_reason=None, disposition_by='system',
-               dup_of=None, suppressed=False) -> WatchTrigger:
+               dup_of=None, suppressed=False, engine='v1') -> WatchTrigger:
         """落一条触发 + 其处置初态（REQ-f08def）。
 
         disposition 由 domain/watch/services/disposition.decide() 决定：
@@ -620,6 +875,10 @@ class WatchTriggerRepository(BaseORMRepository[WatchTrigger]):
         suppressed（REQ-c9f899 R6 / t8）：规则处于抑噪期时置 true，表示该触发只进
         P3 聚合与复盘、不推送不进摘要队列。默认 False —— 既有调用方语义不变
         （新增 keyword 参数，位置参数顺序未动）。
+
+        engine（REQ-261022235419-2299）：触发来源引擎 'v1'/'v2'，影子期与切换后
+        都靠这一列对账（scripts/compare_v1_v2.py 只认该列）。默认 'v1'，V1 调用方
+        无需改动。
         """
         trigger = WatchTrigger(
             rule_id=rule_id, symbol=symbol, condition=condition,
@@ -630,6 +889,7 @@ class WatchTriggerRepository(BaseORMRepository[WatchTrigger]):
             disposition_at=datetime.now() if disposition not in ('pending', 'escalated') else None,
             dup_of=dup_of,
             suppressed=bool(suppressed),
+            engine=str(engine or 'v1'),
         )
         return self.create(trigger)
 

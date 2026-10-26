@@ -1,0 +1,182 @@
+metadata:
+  stage: implementing
+  requirement_id: REQ-261021194640-69b8
+  generated_at: 2026-10-21T12:08:54.018Z
+  version: 138
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 33
+  last_updated: 2026-10-21T12:55:08.202Z
+inputs:
+  tasks:
+    - id: t-c6c5d2
+      title: 建交易包中立成交端口并保留旧路径转发
+      status: done
+    - id: t-0846ee
+      title: 待办证据列与部分索引
+      status: done
+    - id: t-c18a41
+      title: 补挂止损/止盈写持仓状态
+      status: done
+    - id: t-e95a2a
+      title: 关闭待办接规则变更联动
+      status: done
+    - id: t-e29f67
+      title: 执行期限巡检与时区归一
+      status: done
+    - id: t-a5fa64
+      title: 真实成交落库后发事件
+      status: done
+    - id: t-27e8c7
+      title: 消息→P1 待办桥（critical 建单 + 唤醒）
+      status: done
+    - id: t-b8d5ae
+      title: 执行闭环统计端点
+      status: done
+    - id: t-88d4da
+      title: 新闻与政策扫描接入消息桥
+      status: done
+    - id: t-3ef50b
+      title: sidecar 拆盘中/盘后，盘后消息可扫
+      status: done
+    - id: t-2ff7ca
+      title: 成交收敛端到端场景
+      status: done
+    - id: t-e416b7
+      title: 组合根装配与降级开关
+      status: done
+    - id: t-f9a9b3
+      title: 回归与生产只读核查
+      status: done
+    - id: t-1c3597
+      title: 建交易包中立成交端口并保留旧路径转发·研发
+      status: done
+    - id: t-f2474a
+      title: 建交易包中立成交端口并保留旧路径转发·联调
+      status: done
+    - id: t-e1eb49
+      title: 建交易包中立成交端口并保留旧路径转发·复核
+      status: done
+    - id: t-7e4e44
+      title: 建交易包中立成交端口并保留旧路径转发·测试
+      status: done
+    - id: t-947421
+      title: 待办证据列与部分索引·研发
+      status: done
+    - id: t-902bf1
+      title: 待办证据列与部分索引·联调
+      status: done
+    - id: t-c1ce88
+      title: 待办证据列与部分索引·复核
+      status: done
+    - id: t-2932b9
+      title: 待办证据列与部分索引·测试
+      status: done
+    - id: t-552104
+      title: 补挂止损/止盈写持仓状态·研发
+      status: done
+    - id: t-c41448
+      title: 补挂止损/止盈写持仓状态·联调
+      status: done
+    - id: t-ec9d80
+      title: 补挂止损/止盈写持仓状态·复核
+      status: done
+    - id: t-66833a
+      title: 补挂止损/止盈写持仓状态·测试
+      status: done
+    - id: t-da557b
+      title: 关闭待办接规则变更联动·研发
+      status: done
+    - id: t-46c354
+      title: 关闭待办接规则变更联动·联调
+      status: done
+    - id: t-91a8b2
+      title: 关闭待办接规则变更联动·复核
+      status: done
+    - id: t-eb06ad
+      title: 关闭待办接规则变更联动·测试
+      status: done
+    - id: t-c573f5
+      title: 执行期限巡检与时区归一·研发
+      status: done
+    - id: t-a8d1da
+      title: 执行期限巡检与时区归一·联调
+      status: done
+    - id: t-7d1677
+      title: 执行期限巡检与时区归一·复核
+      status: done
+    - id: t-627a70
+      title: 执行期限巡检与时区归一·测试
+      status: done
+status:
+  tasks_total: 33
+  tasks_done: 33
+  tasks_in_progress: 0
+  tasks_todo: 0
+tasks:
+  - id: t-c6c5d2
+    status: done
+  - id: t-0846ee
+    status: done
+  - id: t-c18a41
+    status: done
+  - id: t-e95a2a
+    status: done
+  - id: t-e29f67
+    status: done
+  - id: t-a5fa64
+    status: done
+  - id: t-27e8c7
+    status: done
+  - id: t-b8d5ae
+    status: done
+  - id: t-88d4da
+    status: done
+  - id: t-3ef50b
+    status: done
+  - id: t-2ff7ca
+    status: done
+  - id: t-e416b7
+    status: done
+  - id: t-f9a9b3
+    status: done
+  - id: t-1c3597
+    status: done
+  - id: t-f2474a
+    status: done
+  - id: t-e1eb49
+    status: done
+  - id: t-7e4e44
+    status: done
+  - id: t-947421
+    status: done
+  - id: t-902bf1
+    status: done
+  - id: t-c1ce88
+    status: done
+  - id: t-2932b9
+    status: done
+  - id: t-552104
+    status: done
+  - id: t-c41448
+    status: done
+  - id: t-ec9d80
+    status: done
+  - id: t-66833a
+    status: done
+  - id: t-da557b
+    status: done
+  - id: t-46c354
+    status: done
+  - id: t-91a8b2
+    status: done
+  - id: t-eb06ad
+    status: done
+  - id: t-c573f5
+    status: done
+  - id: t-a8d1da
+    status: done
+  - id: t-7d1677
+    status: done
+  - id: t-627a70
+    status: done

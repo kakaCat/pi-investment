@@ -1,0 +1,39 @@
+task:
+  id: t-2ff7ca
+  title: 成交收敛端到端场景
+  status: done
+  implements: 新增 tests/scenarios/test_watch_fill_converge.py：用组合根装配 + 假件，覆盖清仓四收敛、买入转持有、部分成交不收敛、重复成交幂等、持仓读失败 fail-closed；必要时只改测试，不改生产代码。
+  serves:
+    - FR-1
+    - FR-2
+  depends_on:
+    - t-a5fa64
+  phase: test
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261021194640-69b8
+    TASK_ID: t-2ff7ca
+    TASK_TITLE: 成交收敛端到端场景
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: test
+  workflow_total: 3
+  workflow_done: 3
+  workflow:
+    - phase: test
+      status: done
+      completed_at: 2026-10-21T12:37:23.360Z
+    - phase: implement
+      status: done
+    - phase: review
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261021194640-69b8
+  generated_at: 2026-10-21T12:37:00.109Z
+  version: 9
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 3
+  last_updated: 2026-10-21T12:37:29.830Z

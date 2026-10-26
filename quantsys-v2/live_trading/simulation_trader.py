@@ -818,8 +818,12 @@ class SimulationTrader:
 
         return self._is_rebalance_due(current_date)
 
-    def run_daily_check(self):
+    def run_daily_check(self, enable_stop_loss: bool = True, enable_rebalance: bool = True):
         """每日检查（手动调用）
+
+        Args:
+            enable_stop_loss: 是否检查并执行单股止损
+            enable_rebalance: 是否执行到期调仓
 
         Returns:
             dict: 执行结果（2026-08-12 起返回结构化结果，让调度层能区分
@@ -845,7 +849,7 @@ class SimulationTrader:
         action = 'hold'
 
         # 1. 检查单股止损
-        if self.portfolio:
+        if enable_stop_loss and self.portfolio:
             prices = self._get_current_prices(list(self.portfolio.keys()), today)
             stop_loss_symbols = self.risk_controller.check_single_stock_stop_loss(
                 self.portfolio, prices
@@ -856,6 +860,10 @@ class SimulationTrader:
                 self._execute_stop_loss(stop_loss_symbols, prices, today)
                 self._save_account_to_db()
                 action = 'stop_loss'
+
+        if not enable_rebalance:
+            logger.info("调仓已禁用，每日检查结束")
+            return {'executed': True, 'action': action}
 
         # 2. 检查是否需要调仓
         if not self._is_rebalance_due(today):

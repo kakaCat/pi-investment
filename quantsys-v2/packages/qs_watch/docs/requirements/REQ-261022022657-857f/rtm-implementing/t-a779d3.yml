@@ -1,0 +1,38 @@
+task:
+  id: t-a779d3
+  title: 接线消息→P1 待办与唤醒（含 24h 去重）·研发
+  status: done
+  implements: |-
+    新增 packages/qs_watch/qs_watch/application/services/watch_engine/news_exit_linkage.py：link_news_to_todo(...)——critical 且标的在持仓或计划 targets → TodoService.create(P1, action_kind=rule_change, evidence={source:news,news_id,title,hits,symbol,plan_id}) → wake_todo_owner；24h 去重查 evidence->>'news_id'+symbol 未闭合；out_of_scope 跳过留痕。news_watch_service 扫描尾部调用；开关 NEWS_TODO_ENABLED；新增 tests/plan/test_news_exit_linkage.py 三例。
+
+    [子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要
+  serves: []
+  depends_on: []
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261022022657-857f
+    TASK_ID: t-a779d3
+    TASK_TITLE: 接线消息→P1 待办与唤醒（含 24h 去重）·研发
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      started_at: 2026-10-21T18:36:19.847Z
+      completed_at: 2026-10-21T18:36:22.813Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261022022657-857f
+  generated_at: 2026-10-21T18:36:18.344Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-21T18:36:22.813Z

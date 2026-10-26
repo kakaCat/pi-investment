@@ -67,7 +67,9 @@ class ChipRepository(BaseORMRepository[ChipState]):
                 stmt = stmt.where(DailyKline.trade_date > after_date)
             stmt = stmt.order_by(DailyKline.trade_date)
             rows = self.session.execute(stmt).mappings().all()
-            return [dict(r) for r in rows]
+            result = [dict(r) for r in rows]
+            self._commit_if_readonly()  # 连接泄漏治理（2026-10-22）
+            return result
         except Exception as e:
             self._safe_rollback()
             logger.error(f"chip get_klines error: {e}")
@@ -236,7 +238,9 @@ class ChipRepository(BaseORMRepository[ChipState]):
                 ))
             )
             rows = self.session.execute(stmt).mappings().all()
-            return [dict(r) for r in rows]
+            result = [dict(r) for r in rows]
+            self._commit_if_readonly()  # 连接泄漏治理（2026-10-22）
+            return result
         except Exception as e:
             self._safe_rollback()
             logger.error(f"chip get_symbols_with_pending error: {e}")

@@ -25,15 +25,15 @@ class EscalationCoordinator:
         self.checker = escalation_checker or EscalationChecker()
 
     def check(self, rule, cond, quote, result, now) -> Optional[str]:
-        """返回 escalation_reason（无则 None）。仅 L0/L1 规则会检查。
+        """返回 escalation_reason（无则 None）。
 
         2026-09-18（REQ-c9f899 t7）：不再收集「频率/共振」计数——那两条路径已删除
         （反复触发改由规则自愈 R6 处置）。触发计数仍由 StateManager 维护，供自愈消费。
-        """
-        level = self._get_trigger_level(rule)
-        if level not in ('L0', 'L1'):
-            return None
 
+        2026-10-22（trigger_level 退役）：原「仅 L0/L1 规则才检查升级」的门槛删除——
+        trigger_level 整体退役后，所有规则统一走升级检查（EscalationChecker 内部按
+        escalation_policy 判定，与 trigger_level 无关）。
+        """
         quote_data = QuoteData(
             symbol=rule.symbol,
             price=float(quote.price),
@@ -50,16 +50,10 @@ class EscalationCoordinator:
         )
 
     def _get_trigger_level(self, rule) -> str:
-        """获取规则的触发层级（L0/L1/L2）"""
-        action_hint = getattr(rule, 'action_hint', None)
-        if not action_hint:
-            return 'L1'  # 默认 L1
-        
-        try:
-            if isinstance(action_hint, str):
-                ah = json.loads(action_hint)
-            else:
-                ah = action_hint
-            return ah.get('trigger_level', 'L1')
-        except Exception:
-            return 'L1'
+        """规则的 trigger_level（L0/L1/L2）——【已退役 2026-10-22】。
+
+        不再有行为分支消费它（decide/resolve_level/escalation 门槛均已删除），
+        仅 stages 事件流保留该字段做记录。统一返回 'L1'（原默认值），调用方
+        后续可逐步去掉这个字段。
+        """
+        return 'L1'

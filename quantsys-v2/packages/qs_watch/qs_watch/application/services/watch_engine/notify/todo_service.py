@@ -26,6 +26,7 @@
 3) **claim 只在未终态时生效**：与仓储的 WHERE terminal IS NULL 双保险；仓储返回 None
    （并发被抢先收敛）时抛 WatchTodoAlreadyClosed，绝不静默成功。
 """
+from types import SimpleNamespace
 from typing import Any, List, Optional
 
 import structlog
@@ -37,12 +38,14 @@ from qs_watch.domain.watch.ports import (
     TODO_TERMINALS,
     IWatchTodoRepository,
     WatchTodoAlreadyClosed,
+    WatchTodoError,
     WatchTodoInvalidAutonomy,
     WatchTodoInvalidTerminal,
     WatchTodoMissingAudit,
     WatchTodoMissingNextCondition,
     WatchTodoNotFound,
     WatchTodoOutOfScope,
+    WatchTodoRuleChangeFailed,
 )
 from qs_watch.domain.watch.services.level_resolver import P0, P1
 from qs_watch.domain.watch.services.owner_router import route_owner
@@ -58,7 +61,7 @@ class TodoService:
 
     def __init__(self, repo: IWatchTodoRepository, policy: Any = None, *,
                  receipt_service: Any = None, name_resolver: Any = None,
-                 assigner: Any = None):
+                 assigner: Any = None, rule_change_linkage: Any = None):
         self._repo = repo
         #: WatchDeliveryPolicy（可注入，缺省由 route_owner 用默认策略）——不缓存账户映射内容
         self._policy = policy
@@ -70,13 +73,17 @@ class TodoService:
         # 待办派单（可选，2026-10-16）：assigner(todo) -> bool。未注入 = 行为与改前一致
         # （只落库，不发通知——正是"工单没人接"的病根，见 _dispatch_assignment）。
         self._assigner = assigner
+        # 「不执行 → 改规则」联动（可选，REQ-261021194640-69b8 FR-5）：
+        # 未注入 = 收到 rule_change 时显式拒绝（不静默丢动作）；普通 close 不受影响。
+        self._rule_change_linkage = rule_change_linkage
 
     # ── 创建 ────────────────────────────────────────────────
 
     def create(self, symbol: str, *, level: str, sla_seconds: int, due_at: Any,
                account: Optional[str] = None, rule_id: Optional[int] = None,
                trigger_id: Optional[int] = None, flow_state: Optional[str] = None,
-               action_kind: Optional[str] = None) -> Any:
+               action_kind: Optional[str] = None,
+               evidence: Optional[dict] = None) -> Any:
         """落一条待办：账户 → 归属路由（out_of_scope 拒绝），并派生 flow_state
 
         flow_state 缺省按级别派生（architecture §4）：P0/P1 → L3（直达 agent），
@@ -93,12 +100,16 @@ class TodoService:
         autonomy = self._allowed_autonomy(route.autonomy)
         state = self._resolve_flow_state(flow_state, level)
 
-        todo = self._repo.create(
+        fields = dict(
             symbol=symbol, rule_id=rule_id, trigger_id=trigger_id, account=account,
             level=level, flow_state=state, owner_kind=route.owner_kind,
             owner_ref=route.owner_ref, autonomy=autonomy, sla_seconds=sla_seconds,
             due_at=due_at, action_kind=action_kind,
         )
+        # 证据是 additive 附注：只在有值时传，旧仓储实现/测试替身不受影响
+        if evidence is not None:
+            fields['evidence'] = evidence
+        todo = self._repo.create(**fields)
         if todo is None:
             # 仓储契约是"失败抛错"；返回 None 说明实现坏了——不得当成创建成功
             raise RuntimeError('待办创建失败：仓储返回 None（契约要求失败抛错）')
@@ -154,11 +165,15 @@ class TodoService:
     def close(self, todo_id: int, terminal: str, *, close_reason: Optional[str] = None,
               next_condition: Optional[str] = None, action_kind: Optional[str] = None,
               decision_audit_id: Optional[str] = None, closed_by: Optional[str] = None,
-              now: Any = None) -> Any:
+              rule_change: Optional[dict] = None, now: Any = None) -> Any:
         """收敛待办（终态校验见模块 docstring 的四条规则）。
 
-        校验顺序：枚举 → ignored 的 NEXT → 存在性 → 已终态 → L3 动作审计。
-        （先校输入再查库：请求解析错误是调用方问题，与库内状态无关。）
+        校验顺序：枚举 → ignored 的 NEXT → 存在性 → 已终态 → L3 动作审计
+        → （可选）规则变更联动 → 落库收敛。
+
+        `rule_change`（additive，REQ-261021194640-69b8 FR-5）：仅 `terminal=ignored`
+        时生效，形如 `{change_kind, params, reason}`；**先落地规则与审计、后收敛待办**，
+        因此联动失败时待办仍是未收敛状态（不留「待办已关、规则没改」的半成品）。
         """
         terminal_value = str(terminal or '').strip().lower()
         if terminal_value not in TODO_TERMINALS:
@@ -184,15 +199,71 @@ class TodoService:
             raise WatchTodoMissingAudit(
                 f'L3 待办以 {action} 关闭必须带 decision_audit_id（I4：动作必须可核验）')
 
+        # 先落地规则变更（若有），再收敛待办：联动失败时待办保持未收敛，可修好重试。
+        rule_change_summary = None
+        if rule_change is not None:
+            if terminal_value != 'ignored':
+                raise WatchTodoRuleChangeFailed(
+                    'rule_change 仅在 terminal=ignored 时生效（执行档请走成交回写）')
+            rule_change_summary = self._apply_rule_change(
+                current, rule_change, decision_audit_id=audit_id,
+                closed_by=closed_by, now=now)
+
         closed = self._repo.close(
             todo_id, terminal_value, close_reason=close_reason, next_condition=next_value,
             action_kind=action, decision_audit_id=audit_id, closed_by=closed_by, now=now,
         )
         if closed is None:
             raise WatchTodoAlreadyClosed(f'待办 {todo_id} 已在关闭前收敛，关闭未生效')
+        if rule_change_summary is not None:
+            try:
+                setattr(closed, 'rule_change_summary', rule_change_summary)
+            except Exception:  # noqa: BLE001 - 摘要只是响应增益，不拖垮收敛
+                pass
         logger.info('盯盘待办已收敛', todo_id=todo_id, terminal=terminal_value,
-                    action_kind=action, decision_audit_id=audit_id, closed_by=closed_by)
+                    action_kind=action, decision_audit_id=audit_id, closed_by=closed_by,
+                    rule_change=(rule_change_summary or {}).get('change_kind'))
         return closed
+
+    def _apply_rule_change(self, todo: Any, rule_change: Any, *,
+                           decision_audit_id: Optional[str],
+                           closed_by: Optional[str], now: Any) -> dict:
+        """把结构化动作落成规则变更 + 审计（复用 `RuleChangeLinkage`，不另造写入口）。"""
+        if self._rule_change_linkage is None:
+            raise WatchTodoRuleChangeFailed(
+                '规则变更联动未装配：收到 rule_change 但无执行者（拒绝静默丢动作）')
+        if not isinstance(rule_change, dict):
+            raise WatchTodoRuleChangeFailed('rule_change 必须是对象')
+        change_kind = str(rule_change.get('change_kind') or '').strip()
+        reason = str(rule_change.get('reason') or '').strip()
+        if not change_kind or not reason:
+            raise WatchTodoRuleChangeFailed('rule_change 必须给 change_kind 与 reason')
+        trigger_id = getattr(todo, 'trigger_id', None)
+        if trigger_id is None:
+            raise WatchTodoRuleChangeFailed(
+                '待办缺 trigger_id：规则变更无法溯源，拒绝落地（不写无源审计）')
+        directive = SimpleNamespace(
+            rule_id=getattr(todo, 'rule_id', None),
+            trigger_id=trigger_id,
+            todo_id=getattr(todo, 'id', None),
+        )
+        try:
+            outcome = self._rule_change_linkage.apply_for_decline(
+                directive, change_kind, reason=reason,
+                params=rule_change.get('params'),
+                decision_audit_id=decision_audit_id,
+                changed_by=(closed_by or 'agent'), now=now)
+        except WatchTodoError:
+            raise
+        except Exception as e:  # noqa: BLE001 - 领域校验错误映射成 422，不冒 500
+            raise WatchTodoRuleChangeFailed('规则变更失败：%s' % e) from e
+        return {
+            'change_kind': change_kind,
+            'applied': True,
+            'rule_id': getattr(todo, 'rule_id', None),
+            'trigger_id': trigger_id,
+            'outcome': getattr(outcome, 'to_dict', lambda: None)() or None,
+        }
 
     def close_and_receipt(self, todo_id: int, terminal: str, *,
                           close_reason: Optional[str] = None,
@@ -200,6 +271,7 @@ class TodoService:
                           action_kind: Optional[str] = None,
                           decision_audit_id: Optional[str] = None,
                           closed_by: Optional[str] = None,
+                          rule_change: Optional[dict] = None,
                           now: Any = None) -> Any:
         """收敛 + 处置结论回执（REQ-260924104605-ad0a t5，FR-14）。
 
@@ -213,7 +285,7 @@ class TodoService:
         closed = self.close(todo_id, terminal, close_reason=close_reason,
                             next_condition=next_condition, action_kind=action_kind,
                             decision_audit_id=decision_audit_id, closed_by=closed_by,
-                            now=now)
+                            rule_change=rule_change, now=now)
         if self._receipt_service is None:
             return closed, None
         try:

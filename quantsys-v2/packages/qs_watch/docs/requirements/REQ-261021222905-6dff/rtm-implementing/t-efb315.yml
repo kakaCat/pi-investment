@@ -1,0 +1,37 @@
+task:
+  id: t-efb315
+  title: 实现 PlanService（CRUD/两步提交/纪律门/审计号强制）
+  status: done
+  implements: packages/qs_plan/qs_plan/application/plan_service.py：创建/查询/暂停恢复/关闭（有持仓必须给 close_disposition）；PATCH 暂存 draft_spec + 编译预览；apply 版本 CAS（expected_version）+ 纪律门（观察窗锁定、防反复横跳、agent 修改必须 decision_audit_id）+ 单事务写版本行/事件行。
+  serves:
+    - FR-1
+    - FR-6
+  depends_on:
+    - t-cced59
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261021222905-6dff
+    TASK_ID: t-efb315
+    TASK_TITLE: 实现 PlanService（CRUD/两步提交/纪律门/审计号强制）
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-21T16:11:58.393Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261021222905-6dff
+  generated_at: 2026-10-21T16:10:53.846Z
+  version: 6
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-21T16:11:58.394Z

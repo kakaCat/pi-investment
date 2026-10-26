@@ -87,9 +87,9 @@ def test_close_handled_sends_three_element_card():
     todo, outcome = svc.close_and_receipt(
         32, 'handled', close_reason='已按预案处置', action_kind='observe')
 
-    # 2026-10-19 投递层聚合：outcome.sent=False（缓冲中），flush 后单卡发出
-    assert outcome is not None and outcome['kind'] == 'result' and outcome['grouped']
-    receipt.flush_result_buffer()
+    # 2026-10-26 即时投递：close 同一调用内发送，不再依赖跨请求内存缓冲
+    assert outcome is not None and outcome['kind'] == 'result' and outcome['sent'] is True
+    assert outcome['delivery_status'] == 'sent'
     assert len(sent) == 1
     card = sent[0]['message']
     assert '结论：已处置（不动）' in card                    # 要素一：结论（终态+动作）
@@ -106,7 +106,6 @@ def test_result_receipt_channel_label_is_real_route():
     svc, receipt = _service([_todo(41)], sent)
     todo, outcome = svc.close_and_receipt(41, 'handled', close_reason='核对无误')
     assert outcome['channel'] == 'watch_symbol'
-    receipt.flush_result_buffer()
     assert sent[0]['channel'] == 'watch_symbol'
 
 
@@ -117,7 +116,6 @@ def test_close_ignored_card_contains_next_condition_verbatim():
         32, 'ignored', close_reason='破位放弃',
         next_condition='价格重新站回 20 日线')
 
-    receipt.flush_result_buffer()
     card = sent[0]['message']
     assert '结论：忽略（不动）' in card
     assert '后续意见：NEXT 价格重新站回 20 日线' in card     # NEXT 条件原文
@@ -128,7 +126,6 @@ def test_close_trade_action_shown_in_conclusion():
     svc, receipt = _service([_todo()], sent, names={'601888': '中国中免'})
     svc.close_and_receipt(32, 'handled', close_reason='触发止损',
                           action_kind='trade', decision_audit_id='DA-1')
-    receipt.flush_result_buffer()
     assert '结论：已处置（已执行交易）' in sent[0]['message']
 
 
@@ -137,7 +134,6 @@ def test_duplicate_close_raises_and_never_resends():
     sent = []
     svc, receipt = _service([_todo()], sent, names={'601888': '中国中免'})
     svc.close_and_receipt(32, 'handled', close_reason='已按预案处置')
-    receipt.flush_result_buffer()
     assert len(sent) == 1
 
     with pytest.raises(WatchTodoAlreadyClosed):            # 重复 close → 409
@@ -168,7 +164,6 @@ def test_name_missing_marks_name_missing():
     sent = []
     svc, receipt = _service([_todo()], sent, names={'601888': None})
     svc.close_and_receipt(32, 'handled', close_reason='已处置')
-    receipt.flush_result_buffer()
     assert '601888（名称缺失）' in sent[0]['message']        # R-013 不臆造
 
 

@@ -362,7 +362,11 @@ def _engine(rules, quotes, notifier, *, state=None, pipeline=None, todo=None):
 # E1. 全局环境闸：归档 vs 通知（含止损豁免后的最终语义）
 # ══════════════════════════════════════════════════════════════
 
-def test_E1_blocked_environment_archives_observe_but_notifies_protection_stop():
+def test_E1_blocked_environment_archives_observe_but_notifies_protection_stop(monkeypatch):
+
+    # 环境闸拦截已默认关闭（2026-10-22 用户裁定：信号直接发用户）。本用例测的是
+    # 「闸开启时」的拦截路径，故显式打开开关（闸代码保留可回滚）。
+    monkeypatch.setenv('WATCH_ENV_GATE_ENABLED', 'true')
     """环境日同 tick 两条信号：持仓保护线照常通知，观察类只归档。
 
     证伪点：
@@ -422,7 +426,11 @@ def test_E1_blocked_environment_archives_observe_but_notifies_protection_stop():
     assert [item['symbol'] for item in todo.created] == ['600519.SH']
 
 
-def test_E1_stop_intent_without_protection_anchor_still_archived():
+def test_E1_stop_intent_without_protection_anchor_still_archived(monkeypatch):
+
+    # 环境闸拦截已默认关闭（2026-10-22 用户裁定：信号直接发用户）。本用例测的是
+    # 「闸开启时」的拦截路径，故显式打开开关（闸代码保留可回滚）。
+    monkeypatch.setenv('WATCH_ENV_GATE_ENABLED', 'true')
     """最终语义边界：exit_stop 意图 + 无保护线锚点（上破提醒）仍只归档。
 
     豁免判据是「动作类型 + 结构化锚点」，不是「intent 写着 exit_stop」。
@@ -447,7 +455,11 @@ def test_E1_stop_intent_without_protection_anchor_still_archived():
     assert engine.rule_repo.updates == []
 
 
-def test_E1_exempt_stop_still_blocked_by_its_own_stricter_market_gate():
+def test_E1_exempt_stop_still_blocked_by_its_own_stricter_market_gate(monkeypatch):
+
+    # 环境闸拦截已默认关闭（2026-10-22 用户裁定：信号直接发用户）。本用例测的是
+    # 「闸开启时」的拦截路径，故显式打开开关（闸代码保留可回滚）。
+    monkeypatch.setenv('WATCH_ENV_GATE_ENABLED', 'true')
     """豁免只跳过全局环境闸：规则自己的 per-rule market_gate 仍可加严拦截。
 
     证伪点：若豁免被实现成「直接 return 放行」，这里会误发通知；

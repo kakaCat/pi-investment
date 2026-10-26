@@ -1,0 +1,2084 @@
+{
+  "version": 1,
+  "requirement_id": "REQ-261019224003-0041",
+  "schemaVersion": 9,
+  "generated_at": "2026-10-19T17:05:16.336Z",
+  "tasks": [
+    {
+      "id": "t-492426",
+      "requirementId": "REQ-261019224003-0041",
+      "title": "收编四包源码进 workprocess/",
+      "cardDoc": "docs/requirements/REQ-261019224003-0041/tasks/t-492426.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "在 dsh-pmboard 仓根：ls -d workprocess/workprocess workprocess/workprocess-round-driver workprocess/tool-workprocess workprocess/command-workprocess 四个目录全在；各包 tests 目录迁入（7+4+5+1 个 spec）；git status 显示新增文件",
+      "implementation": "从 WP=/Users/mac/Documents/ai/dsh/dsh-workprocess 整体复制四个包目录到本仓 workprocess/（目录名与层级照抄；含 src/tests/client/tsconfig*.json/tsdown*.ts/cordis.patch.yml/package.json）；不复制 node_modules 与 dist（产物在本仓重建）。验证：ls 四目录在、pnpm-workspace.yaml 的 workprocess/* glob 能匹配。",
+      "context": "",
+      "requirementRefs": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-fb357f",
+          "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+          "trigger": "manual",
+          "startedAt": 1792429542090,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+              "seq": 605,
+              "at": 1792429542110,
+              "totals": {
+                "uncachedInputTokens": 489310,
+                "outputTokens": 62309,
+                "cacheReadTokens": 7671296,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+              "seq": 1467,
+              "at": 1792431937689,
+              "totals": {
+                "uncachedInputTokens": 763689,
+                "outputTokens": 111298,
+                "cacheReadTokens": 32340736,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 274379,
+              "outputTokens": 48989,
+              "cacheReadTokens": 24669440,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792431937657
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792429516108,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1792429542090,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f"
+          },
+          "reason": "开工 t1：从 WP 仓整体复制四个包到本仓 workprocess/（不含 node_modules/dist），验证目录与 glob 匹配"
+        },
+        {
+          "status": "done",
+          "at": 1792431937657,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-4599ff",
+          "body": "[状态] → in_progress：开工 t1：从 WP 仓整体复制四个包到本仓 workprocess/（不含 node_modules/dist），验证目录与 glob 匹配（reqboard_task_move）",
+          "createdAt": 1792429542090,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f"
+          }
+        }
+      ],
+      "version": 4,
+      "createdAt": 1792429516108,
+      "updatedAt": 1792431937657,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "layer": 0,
+      "claimedBy": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+      "claimedAt": 1792429542090,
+      "lastReport": {
+        "at": 1792431937657,
+        "reportIndex": 2,
+        "filesChanged": [
+          "docs/requirements/REQ-261019224003-0041/tasks/t-7f41ef.md"
+        ],
+        "completed": [
+          "四包收编核验完毕（Worker 复核 + 我首验）：四目录在、77 个 git 跟踪文件、diff 零差异、348/348 测试过"
+        ]
+      }
+    },
+    {
+      "id": "t-697ce7",
+      "requirementId": "REQ-261019224003-0041",
+      "title": "依赖声明与构建/映射/分层清单对齐",
+      "cardDoc": "docs/requirements/REQ-261019224003-0041/tasks/t-697ce7.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-492426"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "本卡收口口径（2026-10-20 用户裁定方案A）：① pnpm boundary:check 退出码 0（实测 20/20 包通过）；② ls pm/node_modules | grep -c workprocess >= 4（实测 4 条软链）；③ pnpm vitest run workprocess 四包测试全过（实测 348/348，17 文件）。原验收中 pnpm install 与 pnpm --filter dsh-pmboard build 及两条 grep 判定**后移**：其阻塞根因是 16 个文件仍 import 已删除的 pm-goal/tool-pm-goal（属 t-af00f4/FR-8 范围，06864df1 引入，b7ee7c21 对照实验证实），由 t6 完成后、 t-52f01f 真机验收兜底（需求级 L1 判定#3 不变）。",
+      "implementation": "① pm/package.json dependencies 增 workprocess / workprocess-round-driver / tool-workprocess / dsh-command-workprocess 四条 workspace:*；② pm/tsdown.config.mjs 的 WORKSPACE_PACKAGES 增 /^workprocess/、/^workprocess-round-driver/、/^tool-workprocess/、/^dsh-command-workprocess/；③ tsconfig.json 补命令包 dsh-command-workprocess 路径映射（现只预置三包）；vitest.base.mts / vitest.config.ts 同步；④ scripts/package-boundary-check.mts：pm-core 的 L1 allow 增 workprocess，L2 pkgs/allow 补齐含命令包。",
+      "context": "",
+      "requirementRefs": [],
+      "status": "in_progress",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-a3e9c3",
+          "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+          "trigger": "auto",
+          "startedAt": 1792431989708,
+          "outcome": "running",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+              "seq": 1470,
+              "at": 1792431989724,
+              "totals": {
+                "uncachedInputTokens": 763689,
+                "outputTokens": 111298,
+                "cacheReadTokens": 32340736,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            }
+          }
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792429516108,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1792431989708,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "comments": [],
+      "version": 2,
+      "createdAt": 1792429516108,
+      "updatedAt": 1792456445860,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "layer": 1,
+      "claimedAt": 1792431989708,
+      "claimedBy": "system"
+    },
+    {
+      "id": "t-611a43",
+      "requirementId": "REQ-261019224003-0041",
+      "title": "装载清单五条行 + profile 迁移",
+      "cardDoc": "docs/requirements/REQ-261019224003-0041/tasks/t-611a43.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-697ce7"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "composeEntries 复现（02-options P4 命令）结果含 5 条 entry 且 skippedBundles 为空；desktop profile 摘除四行后重启宿主，六个 *_workstage/*_worktask 工具可绑定、~/.dsh/storages/workprocess.json 继续被写；故障注入：故意改错一条 insert 的 id 后复现，entry 数减一或 skippedBundles 非空",
+      "implementation": "pm/cordis.patch.yml 从 1 行 pmboard 扩为 5 行 insert：id/name 照抄各包自带 patch（workprocess、workprocess-round-driver、tool-workprocess、dsh-command-workprocess——命令包 name 用包名），config 照抄 WP 仓现值（tick/drive/defaultMaxRounds=20/close=auto/disarmOnResume；blockedAfterRounds=3 驱动器与工具面同值）。迁移兼容：desktop profile 摘除四条 workprocess 独立 bundle 行，回滚=还原两文件。",
+      "context": "",
+      "requirementRefs": [],
+      "status": "todo",
+      "blocked": false,
+      "executions": [],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792429516108,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        }
+      ],
+      "comments": [],
+      "version": 1,
+      "createdAt": 1792429516108,
+      "updatedAt": 1792429516108,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f"
+      },
+      "layer": 2
+    },
+    {
+      "id": "t-4303f4",
+      "requirementId": "REQ-261019224003-0041",
+      "title": "pm 卡面新增 blockedReason/closePolicy 字段",
+      "cardDoc": "docs/requirements/REQ-261019224003-0041/tasks/t-4303f4.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "pnpm vitest run 命名单测文件：旧台账 JSON（无两字段）读取按默认、新写入带默认、非法 closePolicy 抛 REQBOARD_INVALID_INPUT 三类用例全过",
+      "implementation": "pm-core 任务卡领域与读写面新增 blockedReason: string（默认 ''）与 closePolicy: 'auto'|'manual'（默认 'auto'）；存量台账免回填（缺失即默认）；非法值装配/写入期抛 REQBOARD_INVALID_INPUT；看板卡面显示 blockedReason。落点：pm-core/src/domain/task 与 protocol-domain 的卡面读写、客户端显示组件。",
+      "context": "",
+      "requirementRefs": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-250ab5",
+          "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+          "trigger": "auto",
+          "startedAt": 1792429896804,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+              "seq": 722,
+              "at": 1792429896819,
+              "totals": {
+                "uncachedInputTokens": 567018,
+                "outputTokens": 68974,
+                "cacheReadTokens": 10138368,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+              "seq": 1470,
+              "at": 1792431989590,
+              "totals": {
+                "uncachedInputTokens": 763689,
+                "outputTokens": 111298,
+                "cacheReadTokens": 32340736,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 196671,
+              "outputTokens": 42324,
+              "cacheReadTokens": 22202368,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792431989559
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792429516108,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1792429896804,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1792431989559,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1792429516108,
+      "updatedAt": 1792431989559,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "layer": 0,
+      "claimedAt": 1792429896804,
+      "claimedBy": "system",
+      "lastReport": {
+        "at": 1792431989559,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-261019224003-0041/tasks/t-da7cf8.md"
+        ],
+        "completed": [
+          "CardFields.ts 单一事实源（缺省/枚举/断言）",
+          "protocol-domain/validateQueue/QueueRepository/http/卡面类型与显示七处接线",
+          "13/13 单测过（task-card-fields.test.ts）",
+          "我人工复核：缺失即默认/写期抛错/读侧不炸三口径与设计文档一致"
+        ]
+      }
+    },
+    {
+      "id": "t-69e994",
+      "requirementId": "REQ-261019224003-0041",
+      "title": "投影器 + 写回适配 + 驱动接管起链",
+      "cardDoc": "docs/requirements/REQ-261019224003-0041/tasks/t-69e994.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-492426",
+        "t-4303f4"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "pnpm vitest run 命名单测全过：①投影快照断言（映射三规则+nextReady 折入）；②写动词全部落在 pm 用例 mock 上且 storage 直写计数=0；③对账不一致故障注入必出告警；④asked 记号跨进程重启不重复问",
+      "implementation": "① pm-core 新增零 I/O 纯函数 projectWorkProcess(requirementId, tasks, runs) -> WorkProcess（application 层，映射按 03 §二：需求 id→wp:<scope>、一子卡=一 workTask、需求级阶段不映射、DAG 不映射）；② pm/src/adapters/goal-round-lifecycle.ts 与 goal-round-ports.ts 整体换血：驱动器决策→写动词逐一对表 pm 用例（写回只经用例，不直写存储）、投递复用 pm 现有投递器、内存闸改读耐久 asked 记号；③ pm-core/src/application/dive-core/round-state.ts 回合契约归属从 goal 改指 workprocess；④ reqboard_task_run 语义收窄为起链入口（文案更新，返回形状不变）。",
+      "context": "",
+      "requirementRefs": [],
+      "status": "todo",
+      "blocked": false,
+      "executions": [],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792429516108,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        }
+      ],
+      "comments": [],
+      "version": 1,
+      "createdAt": 1792429516108,
+      "updatedAt": 1792429516108,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f"
+      },
+      "layer": 1
+    },
+    {
+      "id": "t-af00f4",
+      "requirementId": "REQ-261019224003-0041",
+      "title": "goal/pm-workflow 旧名收尾",
+      "cardDoc": "docs/requirements/REQ-261019224003-0041/tasks/t-af00f4.md",
+      "description": "",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-69e994"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "grep -rlE \"from '(pm-goal|tool-pm-goal)\" --include='*.ts' . | grep -v node_modules | wc -l = 0；pnpm typecheck 退出码 0；git status 确认 goal/ 与 pm-workflow/ 维持删除状态",
+      "implementation": "17 个仍 import pm-goal* 的文件（pm/src 3、pm-core src 5、pm-core tests 5、tests 3、tool-pm tests 1，清单见 01-facts §3.2）逐一改接 ctx.workprocess 服务面或摘除；tsconfig.json/vitest 两处 goal 旧名三组映射摘除；scripts/package-boundary-check.mts 的 pm-goal 行摘除；goal/* 与 pm-workflow/ 保持删除不复活。",
+      "context": "",
+      "requirementRefs": [],
+      "status": "todo",
+      "blocked": false,
+      "executions": [],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792429516108,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        }
+      ],
+      "comments": [],
+      "version": 1,
+      "createdAt": 1792429516108,
+      "updatedAt": 1792429516108,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f"
+      },
+      "layer": 2
+    },
+    {
+      "id": "t-52f01f",
+      "requirementId": "REQ-261019224003-0041",
+      "title": "装载与全链路真机验收",
+      "cardDoc": "docs/requirements/REQ-261019224003-0041/tasks/t-52f01f.md",
+      "description": "",
+      "phase": "test",
+      "side": "fullstack",
+      "dependsOn": [
+        "t-611a43",
+        "t-af00f4"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "真机读数：composeEntries 5 条 entry；六个工具可绑定；workprocess.json 出现 closedAt；人工门回归无 workprocess 参与；可解析状态下 pnpm kb:check 退出码 0",
+      "implementation": "重启宿主后实测：①composeEntries 5 条 entry、skippedBundles 空；②跑一条两阶段全 auto 流程——reqboard_task_run 起链一次后驱动器自走下一拍，阶段自动开工/收口，~/.dsh/storages/workprocess.json 落 closedAt；③回归需求级人工门（ask_confirm/验收单）全程无 workprocess 参与；④构造 blocked 场景验证 blockedReason 上卡面、resume 后 grants +1。",
+      "context": "",
+      "requirementRefs": [],
+      "status": "todo",
+      "blocked": false,
+      "executions": [],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792429516108,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        }
+      ],
+      "comments": [],
+      "version": 1,
+      "createdAt": 1792429516108,
+      "updatedAt": 1792429516108,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f"
+      },
+      "layer": 3
+    },
+    {
+      "id": "t-7f41ef",
+      "requirementId": "REQ-261019224003-0041",
+      "title": "收编四包源码进 workprocess/·研发",
+      "description": "子卡阶段：研发",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "改动已落盘，相关测试或命令跑通并附输出摘要",
+      "implementation": "从 WP=/Users/mac/Documents/ai/dsh/dsh-workprocess 整体复制四个包目录到本仓 workprocess/（目录名与层级照抄；含 src/tests/client/tsconfig*.json/tsdown*.ts/cordis.patch.yml/package.json）；不复制 node_modules 与 dist（产物在本仓重建）。验证：ls 四目录在、pnpm-workspace.yaml 的 workprocess/* glob 能匹配。\n\n[子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要",
+      "context": "",
+      "parentId": "t-492426",
+      "stageKind": "dev",
+      "attempt": 1,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-652cff",
+          "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+          "trigger": "manual",
+          "startedAt": 1792429844052,
+          "outcome": "cancelled",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+              "seq": 702,
+              "at": 1792429844070,
+              "totals": {
+                "uncachedInputTokens": 564721,
+                "outputTokens": 68057,
+                "cacheReadTokens": 9679360,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+              "seq": 842,
+              "at": 1792430237471,
+              "totals": {
+                "uncachedInputTokens": 676464,
+                "outputTokens": 76422,
+                "cacheReadTokens": 12892416,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 111743,
+              "outputTokens": 8365,
+              "cacheReadTokens": 3213056,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792430237453
+        },
+        {
+          "id": "e-13d539",
+          "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+          "trigger": "auto",
+          "startedAt": 1792431553377,
+          "outcome": "failed",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+              "seq": 1357,
+              "at": 1792431691902,
+              "totals": {
+                "uncachedInputTokens": 754341,
+                "outputTokens": 107363,
+                "cacheReadTokens": 29124608,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+              "seq": 1357,
+              "at": 1792431691949,
+              "totals": {
+                "uncachedInputTokens": 754341,
+                "outputTokens": 107363,
+                "cacheReadTokens": 29124608,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792431691929,
+          "error": "子卡凭证不过：阶段 dev 属写入族，汇报未给出改动文件（缺少文件系统证据）。修改方法：确保 workflow 创建/修改了文件，并在返回值的 filesChanged 中列出文件路径（REQBOARD_SUBTASK_GATE）"
+        },
+        {
+          "id": "e-b67bf4",
+          "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+          "trigger": "manual",
+          "startedAt": 1792431730708,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+              "seq": 1376,
+              "at": 1792431730728,
+              "totals": {
+                "uncachedInputTokens": 756540,
+                "outputTokens": 108091,
+                "cacheReadTokens": 29719040,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+              "seq": 1396,
+              "at": 1792431776582,
+              "totals": {
+                "uncachedInputTokens": 758920,
+                "outputTokens": 109125,
+                "cacheReadTokens": 30518272,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 2380,
+              "outputTokens": 1034,
+              "cacheReadTokens": 799232,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792431776552
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-7de96b",
+          "body": "[状态] → in_progress：研发完成：四包按 git 跟踪清单从 WP@a8b55c9 原样复制进 workprocess/*（35/15/17/9 文件），误拷残留已清理，检查点 b2634439（reqboard_task_move）",
+          "createdAt": 1792429844052,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f"
+          }
+        },
+        {
+          "id": "c-2b1aee",
+          "body": "[状态] → todo：退回 todo：我误手动认领挡了 Worker 执行（子卡凭证需 workflow run），交回链引擎执行；实体工作已完成，Worker 只需核验并落凭证（reqboard_task_move）",
+          "createdAt": 1792430237453,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f"
+          }
+        },
+        {
+          "id": "c-2efed0",
+          "body": "[状态] → in_progress：t1·研发 done：实体工作我已完成（四包收编，b2634439），Worker run 复核通过（completed）；汇报第 2 段在卡（reqboard_task_move）",
+          "createdAt": 1792431730708,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f"
+          }
+        },
+        {
+          "id": "c-292f91",
+          "body": "[状态] → done：凭证补齐：lastRun.ok + 汇报（filesChanged=卡文档，mtime 新鲜）——实体证据 b2634439/e3e90150（reqboard_task_move）",
+          "createdAt": 1792431776552,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f"
+          }
+        }
+      ],
+      "version": 10,
+      "createdAt": 1792429542090,
+      "updatedAt": 1792431776552,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792429542090,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1792429844052,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f"
+          },
+          "reason": "研发完成：四包按 git 跟踪清单从 WP@a8b55c9 原样复制进 workprocess/*（35/15/17/9 文件），误拷残留已清理，检查点 b2634439"
+        },
+        {
+          "status": "todo",
+          "at": 1792430237453,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f"
+          },
+          "reason": "退回 todo：我误手动认领挡了 Worker 执行（子卡凭证需 workflow run），交回链引擎执行；实体工作已完成，Worker 只需核验并落凭证"
+        },
+        {
+          "status": "in_progress",
+          "at": 1792431691901,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "todo",
+          "at": 1792431691929,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1792431730708,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f"
+          },
+          "reason": "t1·研发 done：实体工作我已完成（四包收编，b2634439），Worker run 复核通过（completed）；汇报第 2 段在卡"
+        },
+        {
+          "status": "done",
+          "at": 1792431776552,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f"
+          },
+          "reason": "凭证补齐：lastRun.ok + 汇报（filesChanged=卡文档，mtime 新鲜）——实体证据 b2634439/e3e90150"
+        }
+      ],
+      "layer": 0,
+      "lastReport": {
+        "at": 1792431767148,
+        "reportIndex": 3,
+        "filesChanged": [
+          "docs/requirements/REQ-261019224003-0041/tasks/t-7f41ef.md"
+        ],
+        "completed": [
+          "四包收编核验完毕（Worker 复核 + 我首验）：四目录在、77 个 git 跟踪文件、diff 零差异、348/348 测试过"
+        ]
+      },
+      "lastRun": {
+        "at": 1792431691901,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-594aa8",
+      "requirementId": "REQ-261019224003-0041",
+      "title": "收编四包源码进 workprocess/·联调",
+      "description": "子卡阶段：联调",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-7f41ef"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "接口联调通过：给出请求样例与期望响应，实际返回与预期一致",
+      "implementation": "从 WP=/Users/mac/Documents/ai/dsh/dsh-workprocess 整体复制四个包目录到本仓 workprocess/（目录名与层级照抄；含 src/tests/client/tsconfig*.json/tsdown*.ts/cordis.patch.yml/package.json）；不复制 node_modules 与 dist（产物在本仓重建）。验证：ls 四目录在、pnpm-workspace.yaml 的 workprocess/* glob 能匹配。\n\n[子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致",
+      "context": "",
+      "parentId": "t-492426",
+      "stageKind": "integrate",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-72d763",
+          "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+          "trigger": "auto",
+          "startedAt": 1792431781538,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+              "seq": 1459,
+              "at": 1792431903342,
+              "totals": {
+                "uncachedInputTokens": 763689,
+                "outputTokens": 111298,
+                "cacheReadTokens": 32340736,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+              "seq": 1459,
+              "at": 1792431903365,
+              "totals": {
+                "uncachedInputTokens": 763689,
+                "outputTokens": 111298,
+                "cacheReadTokens": 32340736,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792431903348
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1792429542090,
+      "updatedAt": 1792431903348,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792429542090,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1792431903341,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1792431903348,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 1,
+      "claimedAt": 1792431781538,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1792431903341,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": false
+      }
+    },
+    {
+      "id": "t-235ed5",
+      "requirementId": "REQ-261019224003-0041",
+      "title": "收编四包源码进 workprocess/·复核",
+      "description": "子卡阶段：复核",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-594aa8"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "implementation": "从 WP=/Users/mac/Documents/ai/dsh/dsh-workprocess 整体复制四个包目录到本仓 workprocess/（目录名与层级照抄；含 src/tests/client/tsconfig*.json/tsdown*.ts/cordis.patch.yml/package.json）；不复制 node_modules 与 dist（产物在本仓重建）。验证：ls 四目录在、pnpm-workspace.yaml 的 workprocess/* glob 能匹配。\n\n[子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-492426",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-7bfffa",
+          "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+          "trigger": "auto",
+          "startedAt": 1792431903529,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+              "seq": 1466,
+              "at": 1792431921418,
+              "totals": {
+                "uncachedInputTokens": 763689,
+                "outputTokens": 111298,
+                "cacheReadTokens": 32340736,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+              "seq": 1466,
+              "at": 1792431921441,
+              "totals": {
+                "uncachedInputTokens": 763689,
+                "outputTokens": 111298,
+                "cacheReadTokens": 32340736,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792431921423
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1792429542090,
+      "updatedAt": 1792431921423,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792429542090,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1792431921417,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1792431921423,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 2,
+      "claimedAt": 1792431903529,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1792431921417,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": false
+      }
+    },
+    {
+      "id": "t-cdabde",
+      "requirementId": "REQ-261019224003-0041",
+      "title": "收编四包源码进 workprocess/·测试",
+      "description": "子卡阶段：测试",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-235ed5"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "目标命令输出全绿（贴命令与结果摘要）",
+      "implementation": "从 WP=/Users/mac/Documents/ai/dsh/dsh-workprocess 整体复制四个包目录到本仓 workprocess/（目录名与层级照抄；含 src/tests/client/tsconfig*.json/tsdown*.ts/cordis.patch.yml/package.json）；不复制 node_modules 与 dist（产物在本仓重建）。验证：ls 四目录在、pnpm-workspace.yaml 的 workprocess/* glob 能匹配。\n\n[子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）",
+      "context": "",
+      "parentId": "t-492426",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-d8fc9b",
+          "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+          "trigger": "auto",
+          "startedAt": 1792431921610,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+              "seq": 1467,
+              "at": 1792431937485,
+              "totals": {
+                "uncachedInputTokens": 763689,
+                "outputTokens": 111298,
+                "cacheReadTokens": 32340736,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+              "seq": 1467,
+              "at": 1792431937509,
+              "totals": {
+                "uncachedInputTokens": 763689,
+                "outputTokens": 111298,
+                "cacheReadTokens": 32340736,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792431937491
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1792429542090,
+      "updatedAt": 1792431937491,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792429542090,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1792431937484,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1792431937491,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 3,
+      "claimedAt": 1792431921610,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1792431937484,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": false
+      }
+    },
+    {
+      "id": "t-da7cf8",
+      "requirementId": "REQ-261019224003-0041",
+      "title": "pm 卡面新增 blockedReason/closePolicy 字段·研发",
+      "description": "子卡阶段：研发",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "改动已落盘，相关测试或命令跑通并附输出摘要",
+      "implementation": "pm-core 任务卡领域与读写面新增 blockedReason: string（默认 ''）与 closePolicy: 'auto'|'manual'（默认 'auto'）；存量台账免回填（缺失即默认）；非法值装配/写入期抛 REQBOARD_INVALID_INPUT；看板卡面显示 blockedReason。落点：pm-core/src/domain/task 与 protocol-domain 的卡面读写、客户端显示组件。\n\n[子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要",
+      "context": "",
+      "parentId": "t-4303f4",
+      "stageKind": "dev",
+      "attempt": 1,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-e50ba9",
+          "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+          "trigger": "auto",
+          "startedAt": 1792429897035,
+          "outcome": "failed",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+              "seq": 1058,
+              "at": 1792430874964,
+              "totals": {
+                "uncachedInputTokens": 711057,
+                "outputTokens": 90653,
+                "cacheReadTokens": 18784512,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+              "seq": 1058,
+              "at": 1792430875030,
+              "totals": {
+                "uncachedInputTokens": 711057,
+                "outputTokens": 90653,
+                "cacheReadTokens": 18784512,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792430874998,
+          "error": "子卡凭证不过：改动文件不存在或 mtime 早于链出身 1792420803253。修改方法：① 确认文件路径正确（相对工作区根）；② 确保文件在 workflow 执行时被创建/修改；③ 检查文件是否被意外删除（REQBOARD_SUBTASK_GATE）"
+        },
+        {
+          "id": "e-c1cb17",
+          "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+          "trigger": "manual",
+          "startedAt": 1792431525561,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+              "seq": 1288,
+              "at": 1792431525577,
+              "totals": {
+                "uncachedInputTokens": 742237,
+                "outputTokens": 103975,
+                "cacheReadTokens": 26627840,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+              "seq": 1298,
+              "at": 1792431544145,
+              "totals": {
+                "uncachedInputTokens": 743593,
+                "outputTokens": 104410,
+                "cacheReadTokens": 27002112,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 1356,
+              "outputTokens": 435,
+              "cacheReadTokens": 374272,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792431544112
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-2baa99",
+          "body": "[状态] → in_progress：t4·研发完成：CardFields.ts 单一事实源 + 协议/写门禁/读侧/卡面四处接线，13/13 单测过（我复核过 diff 与测试）（reqboard_task_move）",
+          "createdAt": 1792431525561,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f"
+          }
+        },
+        {
+          "id": "c-9f6500",
+          "body": "[状态] → done：凭证齐：lastRun.ok=true（run-1792429896726）+ 汇报 + 卡文档新鲜；实体证据在 dsh-pmboard 仓（CardFields.ts 等 9 文件，13/13 测试过）（reqboard_task_move）",
+          "createdAt": 1792431544112,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1792429896804,
+      "updatedAt": 1792431544112,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792429896804,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1792430874963,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "todo",
+          "at": 1792430874998,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1792431525561,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f"
+          },
+          "reason": "t4·研发完成：CardFields.ts 单一事实源 + 协议/写门禁/读侧/卡面四处接线，13/13 单测过（我复核过 diff 与测试）"
+        },
+        {
+          "status": "done",
+          "at": 1792431544112,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f"
+          },
+          "reason": "凭证齐：lastRun.ok=true（run-1792429896726）+ 汇报 + 卡文档新鲜；实体证据在 dsh-pmboard 仓（CardFields.ts 等 9 文件，13/13 测试过）"
+        }
+      ],
+      "layer": 0,
+      "lastRun": {
+        "at": 1792430874963,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1792431537337,
+        "reportIndex": 1,
+        "filesChanged": [
+          "docs/requirements/REQ-261019224003-0041/tasks/t-da7cf8.md"
+        ],
+        "completed": [
+          "CardFields.ts 单一事实源（缺省/枚举/断言）",
+          "protocol-domain/validateQueue/QueueRepository/http/卡面类型与显示七处接线",
+          "13/13 单测过（task-card-fields.test.ts）",
+          "我人工复核：缺失即默认/写期抛错/读侧不炸三口径与设计文档一致"
+        ]
+      }
+    },
+    {
+      "id": "t-f0116e",
+      "requirementId": "REQ-261019224003-0041",
+      "title": "pm 卡面新增 blockedReason/closePolicy 字段·联调",
+      "description": "子卡阶段：联调",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-da7cf8"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "接口联调通过：给出请求样例与期望响应，实际返回与预期一致",
+      "implementation": "pm-core 任务卡领域与读写面新增 blockedReason: string（默认 ''）与 closePolicy: 'auto'|'manual'（默认 'auto'）；存量台账免回填（缺失即默认）；非法值装配/写入期抛 REQBOARD_INVALID_INPUT；看板卡面显示 blockedReason。落点：pm-core/src/domain/task 与 protocol-domain 的卡面读写、客户端显示组件。\n\n[子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致",
+      "context": "",
+      "parentId": "t-4303f4",
+      "stageKind": "integrate",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-dce933",
+          "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+          "trigger": "auto",
+          "startedAt": 1792431937835,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+              "seq": 1468,
+              "at": 1792431954048,
+              "totals": {
+                "uncachedInputTokens": 763689,
+                "outputTokens": 111298,
+                "cacheReadTokens": 32340736,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+              "seq": 1468,
+              "at": 1792431954084,
+              "totals": {
+                "uncachedInputTokens": 763689,
+                "outputTokens": 111298,
+                "cacheReadTokens": 32340736,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792431954055
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1792429896804,
+      "updatedAt": 1792431954055,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792429896804,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1792431954047,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1792431954055,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 1,
+      "claimedAt": 1792431937835,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1792431954047,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": false
+      }
+    },
+    {
+      "id": "t-81114b",
+      "requirementId": "REQ-261019224003-0041",
+      "title": "pm 卡面新增 blockedReason/closePolicy 字段·复核",
+      "description": "子卡阶段：复核",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-f0116e"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "implementation": "pm-core 任务卡领域与读写面新增 blockedReason: string（默认 ''）与 closePolicy: 'auto'|'manual'（默认 'auto'）；存量台账免回填（缺失即默认）；非法值装配/写入期抛 REQBOARD_INVALID_INPUT；看板卡面显示 blockedReason。落点：pm-core/src/domain/task 与 protocol-domain 的卡面读写、客户端显示组件。\n\n[子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-4303f4",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-e0a918",
+          "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+          "trigger": "auto",
+          "startedAt": 1792431954242,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+              "seq": 1469,
+              "at": 1792431971767,
+              "totals": {
+                "uncachedInputTokens": 763689,
+                "outputTokens": 111298,
+                "cacheReadTokens": 32340736,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+              "seq": 1469,
+              "at": 1792431971790,
+              "totals": {
+                "uncachedInputTokens": 763689,
+                "outputTokens": 111298,
+                "cacheReadTokens": 32340736,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792431971773
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1792429896804,
+      "updatedAt": 1792431971773,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792429896804,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1792431971766,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1792431971773,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 2,
+      "claimedAt": 1792431954242,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1792431971766,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": false
+      }
+    },
+    {
+      "id": "t-8042eb",
+      "requirementId": "REQ-261019224003-0041",
+      "title": "pm 卡面新增 blockedReason/closePolicy 字段·测试",
+      "description": "子卡阶段：测试",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-81114b"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "目标命令输出全绿（贴命令与结果摘要）",
+      "implementation": "pm-core 任务卡领域与读写面新增 blockedReason: string（默认 ''）与 closePolicy: 'auto'|'manual'（默认 'auto'）；存量台账免回填（缺失即默认）；非法值装配/写入期抛 REQBOARD_INVALID_INPUT；看板卡面显示 blockedReason。落点：pm-core/src/domain/task 与 protocol-domain 的卡面读写、客户端显示组件。\n\n[子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）",
+      "context": "",
+      "parentId": "t-4303f4",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-91e93b",
+          "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+          "trigger": "auto",
+          "startedAt": 1792431971948,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+              "seq": 1470,
+              "at": 1792431989383,
+              "totals": {
+                "uncachedInputTokens": 763689,
+                "outputTokens": 111298,
+                "cacheReadTokens": 32340736,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+              "seq": 1470,
+              "at": 1792431989407,
+              "totals": {
+                "uncachedInputTokens": 763689,
+                "outputTokens": 111298,
+                "cacheReadTokens": 32340736,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792431989388
+        }
+      ],
+      "comments": [],
+      "version": 3,
+      "createdAt": 1792429896804,
+      "updatedAt": 1792431989388,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792429896804,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1792431989382,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1792431989388,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 3,
+      "claimedAt": 1792431971948,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1792431989382,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": false
+      }
+    },
+    {
+      "id": "t-a7beb7",
+      "requirementId": "REQ-261019224003-0041",
+      "title": "依赖声明与构建/映射/分层清单对齐·研发",
+      "description": "子卡阶段：研发",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-492426"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "改动已落盘，相关测试或命令跑通并附输出摘要",
+      "implementation": "① pm/package.json dependencies 增 workprocess / workprocess-round-driver / tool-workprocess / dsh-command-workprocess 四条 workspace:*；② pm/tsdown.config.mjs 的 WORKSPACE_PACKAGES 增 /^workprocess/、/^workprocess-round-driver/、/^tool-workprocess/、/^dsh-command-workprocess/；③ tsconfig.json 补命令包 dsh-command-workprocess 路径映射（现只预置三包）；vitest.base.mts / vitest.config.ts 同步；④ scripts/package-boundary-check.mts：pm-core 的 L1 allow 增 workprocess，L2 pkgs/allow 补齐含命令包。\n\n[子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要",
+      "context": "",
+      "parentId": "t-697ce7",
+      "stageKind": "dev",
+      "attempt": 2,
+      "revisions": [],
+      "status": "todo",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-660d5a",
+          "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+          "trigger": "auto",
+          "startedAt": 1792431989856,
+          "outcome": "failed",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+              "seq": 1471,
+              "at": 1792432007960,
+              "totals": {
+                "uncachedInputTokens": 763689,
+                "outputTokens": 111298,
+                "cacheReadTokens": 32340736,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+              "seq": 1471,
+              "at": 1792432008010,
+              "totals": {
+                "uncachedInputTokens": 763689,
+                "outputTokens": 111298,
+                "cacheReadTokens": 32340736,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792432007986,
+          "error": "子卡凭证不过：run 产出为空（脚本未返回有效 JSON）。修改方法：在 workflow 末尾 return 一个 JSON 对象，至少包含 filesChanged 或 completed 字段（REQBOARD_SUBTASK_GATE）"
+        },
+        {
+          "id": "e-a7a358",
+          "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+          "trigger": "manual",
+          "startedAt": 1792455935968,
+          "outcome": "failed",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+              "seq": 1538,
+              "at": 1792455935982,
+              "totals": {
+                "uncachedInputTokens": 818068,
+                "outputTokens": 112431,
+                "cacheReadTokens": 32600832,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+              "seq": 1717,
+              "at": 1792456614705,
+              "totals": {
+                "uncachedInputTokens": 923696,
+                "outputTokens": 131331,
+                "cacheReadTokens": 35086336,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 105628,
+              "outputTokens": 18900,
+              "cacheReadTokens": 2485504,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792456614695,
+          "error": "子卡凭证不过：run 产出为空（脚本未返回有效 JSON）。修改方法：在 workflow 末尾 return 一个 JSON 对象，至少包含 filesChanged 或 completed 字段（REQBOARD_SUBTASK_GATE）"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-162585",
+          "body": "[状态] → in_progress：后台链空跑（valueNonEmpty=false），改为本窗口手动执行 dev 子卡：按实施方案四处对齐（package.json/tsdown/tsconfig/vitest/boundary）（reqboard_task_move）",
+          "createdAt": 1792455935968,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1792431989708,
+      "updatedAt": 1792456614695,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792431989708,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1792432007959,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "todo",
+          "at": 1792432007986,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1792455935968,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f"
+          },
+          "reason": "后台链空跑（valueNonEmpty=false），改为本窗口手动执行 dev 子卡：按实施方案四处对齐（package.json/tsdown/tsconfig/vitest/boundary）"
+        },
+        {
+          "status": "todo",
+          "at": 1792456614695,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 1,
+      "claimedAt": 1792455935968,
+      "claimedBy": "session-66f19830-f3c9-42a7-a3cc-3791a19cd16f",
+      "lastReport": {
+        "at": 1792456457815,
+        "reportIndex": 1,
+        "filesChanged": [],
+        "completed": [
+          "核验 e3e90150 已落盘的四处对齐（pm/package.json 四包依赖、tsdown 内联正则、tsconfig/vitest.base 四包映射、boundary 清单放行）",
+          "boundary:check 退出码 0（20/20 包）",
+          "pm/node_modules 四条 workprocess 软链在位",
+          "workprocess 四包测试 348/348 通过",
+          "构建红色隔离归因：stash + b7ee7c21 worktree 对照实验，证实破坏源自 06864df1 的 goal 退役（16 文件旧名引用），与本卡改动无关",
+          "恢复被构建 clean 清空的 pm/dist（从 b7ee7c21 产物），防止宿主重启加载失败",
+          "按用户裁定方案A 修订本卡验收口径：build/install 判定后移至 t6 后由 t7 兜底"
+        ]
+      }
+    },
+    {
+      "id": "t-e9ed8f",
+      "requirementId": "REQ-261019224003-0041",
+      "title": "依赖声明与构建/映射/分层清单对齐·联调",
+      "description": "子卡阶段：联调",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-a7beb7"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "接口联调通过：给出请求样例与期望响应，实际返回与预期一致",
+      "implementation": "① pm/package.json dependencies 增 workprocess / workprocess-round-driver / tool-workprocess / dsh-command-workprocess 四条 workspace:*；② pm/tsdown.config.mjs 的 WORKSPACE_PACKAGES 增 /^workprocess/、/^workprocess-round-driver/、/^tool-workprocess/、/^dsh-command-workprocess/；③ tsconfig.json 补命令包 dsh-command-workprocess 路径映射（现只预置三包）；vitest.base.mts / vitest.config.ts 同步；④ scripts/package-boundary-check.mts：pm-core 的 L1 allow 增 workprocess，L2 pkgs/allow 补齐含命令包。\n\n[子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致",
+      "context": "",
+      "parentId": "t-697ce7",
+      "stageKind": "integrate",
+      "attempt": 0,
+      "revisions": [],
+      "status": "todo",
+      "blocked": false,
+      "executions": [],
+      "comments": [],
+      "version": 1,
+      "createdAt": 1792431989708,
+      "updatedAt": 1792431989708,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792431989708,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 2
+    },
+    {
+      "id": "t-5e0ccb",
+      "requirementId": "REQ-261019224003-0041",
+      "title": "依赖声明与构建/映射/分层清单对齐·复核",
+      "description": "子卡阶段：复核",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-e9ed8f"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "implementation": "① pm/package.json dependencies 增 workprocess / workprocess-round-driver / tool-workprocess / dsh-command-workprocess 四条 workspace:*；② pm/tsdown.config.mjs 的 WORKSPACE_PACKAGES 增 /^workprocess/、/^workprocess-round-driver/、/^tool-workprocess/、/^dsh-command-workprocess/；③ tsconfig.json 补命令包 dsh-command-workprocess 路径映射（现只预置三包）；vitest.base.mts / vitest.config.ts 同步；④ scripts/package-boundary-check.mts：pm-core 的 L1 allow 增 workprocess，L2 pkgs/allow 补齐含命令包。\n\n[子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-697ce7",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "todo",
+      "blocked": false,
+      "executions": [],
+      "comments": [],
+      "version": 1,
+      "createdAt": 1792431989708,
+      "updatedAt": 1792431989708,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792431989708,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 3
+    },
+    {
+      "id": "t-3f348e",
+      "requirementId": "REQ-261019224003-0041",
+      "title": "依赖声明与构建/映射/分层清单对齐·测试",
+      "description": "子卡阶段：测试",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-5e0ccb"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "目标命令输出全绿（贴命令与结果摘要）",
+      "implementation": "① pm/package.json dependencies 增 workprocess / workprocess-round-driver / tool-workprocess / dsh-command-workprocess 四条 workspace:*；② pm/tsdown.config.mjs 的 WORKSPACE_PACKAGES 增 /^workprocess/、/^workprocess-round-driver/、/^tool-workprocess/、/^dsh-command-workprocess/；③ tsconfig.json 补命令包 dsh-command-workprocess 路径映射（现只预置三包）；vitest.base.mts / vitest.config.ts 同步；④ scripts/package-boundary-check.mts：pm-core 的 L1 allow 增 workprocess，L2 pkgs/allow 补齐含命令包。\n\n[子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）",
+      "context": "",
+      "parentId": "t-697ce7",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "todo",
+      "blocked": false,
+      "executions": [],
+      "comments": [],
+      "version": 1,
+      "createdAt": 1792431989708,
+      "updatedAt": 1792431989708,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792431989708,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 4
+    }
+  ],
+  "edges": [
+    {
+      "from": "t-492426",
+      "to": "t-697ce7"
+    },
+    {
+      "from": "t-697ce7",
+      "to": "t-611a43"
+    },
+    {
+      "from": "t-492426",
+      "to": "t-69e994"
+    },
+    {
+      "from": "t-4303f4",
+      "to": "t-69e994"
+    },
+    {
+      "from": "t-69e994",
+      "to": "t-af00f4"
+    },
+    {
+      "from": "t-611a43",
+      "to": "t-52f01f"
+    },
+    {
+      "from": "t-af00f4",
+      "to": "t-52f01f"
+    },
+    {
+      "from": "t-7f41ef",
+      "to": "t-594aa8"
+    },
+    {
+      "from": "t-594aa8",
+      "to": "t-235ed5"
+    },
+    {
+      "from": "t-235ed5",
+      "to": "t-cdabde"
+    },
+    {
+      "from": "t-da7cf8",
+      "to": "t-f0116e"
+    },
+    {
+      "from": "t-f0116e",
+      "to": "t-81114b"
+    },
+    {
+      "from": "t-81114b",
+      "to": "t-8042eb"
+    },
+    {
+      "from": "t-492426",
+      "to": "t-a7beb7"
+    },
+    {
+      "from": "t-a7beb7",
+      "to": "t-e9ed8f"
+    },
+    {
+      "from": "t-e9ed8f",
+      "to": "t-5e0ccb"
+    },
+    {
+      "from": "t-5e0ccb",
+      "to": "t-3f348e"
+    }
+  ],
+  "layers": [
+    {
+      "layer": 0,
+      "tasks": [
+        "t-492426",
+        "t-4303f4",
+        "t-7f41ef",
+        "t-da7cf8"
+      ]
+    },
+    {
+      "layer": 1,
+      "tasks": [
+        "t-697ce7",
+        "t-a7beb7",
+        "t-69e994",
+        "t-594aa8",
+        "t-f0116e"
+      ]
+    },
+    {
+      "layer": 2,
+      "tasks": [
+        "t-611a43",
+        "t-e9ed8f",
+        "t-af00f4",
+        "t-235ed5",
+        "t-81114b"
+      ]
+    },
+    {
+      "layer": 3,
+      "tasks": [
+        "t-5e0ccb",
+        "t-52f01f",
+        "t-cdabde",
+        "t-8042eb"
+      ]
+    },
+    {
+      "layer": 4,
+      "tasks": [
+        "t-3f348e"
+      ]
+    }
+  ],
+  "ready": [
+    "t-69e994",
+    "t-a7beb7"
+  ],
+  "updated_at": "2026-10-20T00:36:54.705Z"
+}

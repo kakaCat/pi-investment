@@ -1079,6 +1079,20 @@ class DataProviderManager(IDataProviderManager):
         """指数历史日K（symbol 如 sh000300）"""
         return self._try_providers(self.market_providers, 'get_index_daily', symbol)
 
+    def get_market_breadth(self) -> dict:
+        """全市场实时涨跌家数（多源：东财主、新浪兜，自动 failover）。
+
+        2026-10-22：sentiment 盘中涨跌比的实时数据源。盘中日 K 表不全（仅几十只
+        样本），改用全市场实时快照 count（5000+ 只真实宽度）。东财主源代理不通
+        时自动切新浪源。返回的 data.data 为 breadth dict：
+          {up_count, down_count, flat_count, total, ratio, up_percentage,
+           sample_size, realtime, data_date}
+        """
+        return self._try_providers(
+            self.market_providers,
+            'get_market_breadth'
+        )
+
     def get_market_spot(self) -> dict:
         """获取全市场快照（含 PE/PB/市值等字段）
 
@@ -1267,7 +1281,7 @@ class DataProviderManager(IDataProviderManager):
             from dateutil.parser import parse as parse_date
 
             session = get_session()
-            
+
             # 确保股票元数据存在（防止外键约束错误）
             stock = session.query(Stock).filter(Stock.symbol == symbol).first()
             if not stock:
@@ -1313,6 +1327,7 @@ class DataProviderManager(IDataProviderManager):
                     low=kline.low,
                     close=kline.close,
                     volume=kline.volume,
+                    amount=kline.amount,
                     source=kline.source
                 )
                 session.add(daily)
@@ -1327,10 +1342,22 @@ class DataProviderManager(IDataProviderManager):
         except Exception as e:
             logger.error(f"Backfill klines to DB failed for {symbol}: {e}")
             try:
-                session.rollback()
+                if 'session' in locals():
+                    session.rollback()
             except Exception:
                 pass
             return False
+        finally:
+            # 会话收尾（2026-10-21，看板事件 a6780ec3 / 3267a4ad）：
+            # 本方法在后台线程（avgvol_0 / watch-* 等）被调用，原先只 commit 不
+            # 归还 scoped session → 该线程的连接长期 idle in transaction，约 300s
+            # 后被 PG 强杀，session_guard 判为 session_leak_detected。
+            # close_session() 内部对未初始化的 factory 是 no-op，无需判空。
+            try:
+                from qs_kernel.infrastructure.persistence.orm import close_session
+                close_session()
+            except Exception:
+                pass
 
     # ==================== 分钟线（RFC 015 §4.3，2026-09-11 REQ-cf627b） ====================
 

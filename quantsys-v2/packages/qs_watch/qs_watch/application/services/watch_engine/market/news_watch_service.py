@@ -87,7 +87,7 @@ class NewsWatchService:
                  accounts=DEFAULT_ACCOUNTS, sender: Optional[Callable] = None,
                  interval_sec: Optional[float] = None,
                  lexicon: Any = None, sector: Optional[str] = None,
-                 policy: bool = False):
+                 policy: bool = False, bridge: Any = None):
         self._news = news_source
         self._alerts = alert_repo
         self._positions = position_repo
@@ -98,6 +98,8 @@ class NewsWatchService:
         self._lexicon = lexicon
         self._sector = sector
         self._policy = bool(policy)
+        # 消息 → P1 待办桥（REQ-261021194640-69b8 FR-3）。未注入 = 只发卡（旧行为）。
+        self._bridge = bridge
 
     # ── 词表口径 ────────────────────────────────────────────
     def _active_lexicon(self):
@@ -151,6 +153,7 @@ class NewsWatchService:
                 reported.append({'symbol': sym, 'tier': top_tier,
                                  'count': len(new_hits),
                                  'titles': [h['item']['title'][:40] for h in new_hits]})
+                self._dispatch_bridge(sym, top_tier, new_hits)
 
         out = {'scanned': True, 'symbols': len(symbols), 'reported': len(reported),
                'details': reported, 'skipped': len(skipped), 'errors': errors,
@@ -285,6 +288,38 @@ class NewsWatchService:
                     if bare not in out:
                         out.append(bare)
         return out
+
+    def _dispatch_bridge(self, symbol: str, tier: str, hits: List[Dict[str, Any]]) -> None:
+        """critical 命中 → 建 P1 待办并唤醒；桥未注入/失败都不影响发卡。"""
+        if self._bridge is None or str(tier or '').lower() != 'critical':
+            return
+        try:
+            self._bridge.dispatch([{
+                'tier': 'critical',
+                'symbol': symbol,
+                'account': self._account_of(symbol),
+                'titles': [h['item']['title'] for h in hits],
+                'words': [w for h in hits for w in (h.get('words') or [])],
+                'source': 'news',
+            }])
+        except Exception as e:  # noqa: BLE001 - 建单失败不回噬扫描/发卡
+            logger.error('消息待办分派失败（发卡已生效）', symbol=symbol, error=str(e))
+
+    def _account_of(self, symbol: str) -> Optional[str]:
+        """持仓账户解析：同标的多账户时取第一个（归属路由口径与引擎一致）。"""
+        if self._positions is None:
+            return None
+        bare = str(symbol or '').split('.')[0]
+        for acct in self._accounts:
+            try:
+                rows = self._positions.get_all_positions(acct) or []
+            except Exception:  # noqa: BLE001
+                continue
+            for p in rows:
+                sym = getattr(p, 'symbol', None) or (p.get('symbol') if isinstance(p, dict) else '')
+                if str(sym).split('.')[0] == bare:
+                    return acct
+        return None
 
     @staticmethod
     def _fresh(item: Dict[str, Any], now: datetime) -> bool:

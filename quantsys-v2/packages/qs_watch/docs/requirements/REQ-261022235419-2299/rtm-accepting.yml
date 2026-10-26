@@ -1,0 +1,164 @@
+metadata:
+  stage: accepting
+  requirement_id: REQ-261022235419-2299
+  generated_at: 2026-10-23T04:50:34.817Z
+  version: 5
+  generated_by: dsh-pmboard
+  last_updated: 2026-10-23T04:51:00.687Z
+inputs:
+  tasks:
+    - id: t-fe91ea
+      title: 数据迁移：trigger_channel/process_state/cycle_count + engine 标记
+      status: done
+    - id: t-b8ffa6
+      title: v2 引擎骨架：主循环 + 加载 + 统一取价前置
+      status: in_progress
+    - id: t-223590
+      title: position_engine 持仓判定
+      status: todo
+    - id: t-3fa90a
+      title: unpositioned_engine 非持仓判定
+      status: todo
+    - id: t-443fbb
+      title: 失效判定模块（全票覆盖）
+      status: todo
+    - id: t-5102cb
+      title: 触发路由 10 次循环 + 每日重置
+      status: todo
+    - id: t-33cead
+      title: notify_agent + agent_prompts
+      status: todo
+    - id: t-659001
+      title: notify_feishu + feishu_templates
+      status: todo
+    - id: t-dc9678
+      title: 宿主接入：bootstrap 分支 + registry 任务
+      status: todo
+    - id: t-e7ef23
+      title: 单测补全 + 全量回归
+      status: todo
+    - id: t-999237
+      title: 影子模式对比 + 灰度切换
+      status: todo
+    - id: t-c7e0ce
+      title: 数据迁移：trigger_channel/process_state/cycle_count + engine 标记·研发
+      status: done
+    - id: t-66005a
+      title: 数据迁移：trigger_channel/process_state/cycle_count + engine 标记·联调
+      status: done
+    - id: t-1c0316
+      title: 数据迁移：trigger_channel/process_state/cycle_count + engine 标记·复核
+      status: done
+    - id: t-a7f35a
+      title: 数据迁移：trigger_channel/process_state/cycle_count + engine 标记·测试
+      status: done
+    - id: t-30eeaf
+      title: v2 引擎骨架：主循环 + 加载 + 统一取价前置·研发
+      status: in_progress
+    - id: t-893f77
+      title: v2 引擎骨架：主循环 + 加载 + 统一取价前置·联调
+      status: todo
+    - id: t-b509e4
+      title: v2 引擎骨架：主循环 + 加载 + 统一取价前置·复核
+      status: todo
+    - id: t-4b095f
+      title: v2 引擎骨架：主循环 + 加载 + 统一取价前置·测试
+      status: todo
+outputs:
+  test_cases:
+    - id: TC-1
+      title: 任务覆盖矩阵（covers 标注）
+      covers:
+        - t-fe91ea
+        - t-b8ffa6
+        - t-223590
+        - t-3fa90a
+        - t-443fbb
+        - t-5102cb
+        - t-33cead
+        - t-659001
+        - t-dc9678
+        - t-e7ef23
+        - t-999237
+        - t-c7e0ce
+        - t-66005a
+        - t-1c0316
+        - t-a7f35a
+        - t-30eeaf
+        - t-893f77
+        - t-b509e4
+        - t-4b095f
+      validates: []
+      source: tests/test-evidence.md
+traceability:
+  task_to_tests:
+    t-fe91ea:
+      - TC-1
+    t-b8ffa6:
+      - TC-1
+    t-223590:
+      - TC-1
+    t-3fa90a:
+      - TC-1
+    t-443fbb:
+      - TC-1
+    t-5102cb:
+      - TC-1
+    t-33cead:
+      - TC-1
+    t-659001:
+      - TC-1
+    t-dc9678:
+      - TC-1
+    t-e7ef23:
+      - TC-1
+    t-999237:
+      - TC-1
+    t-c7e0ce:
+      - TC-1
+    t-66005a:
+      - TC-1
+    t-1c0316:
+      - TC-1
+    t-a7f35a:
+      - TC-1
+    t-30eeaf:
+      - TC-1
+    t-893f77:
+      - TC-1
+    t-b509e4:
+      - TC-1
+    t-4b095f:
+      - TC-1
+  fr_to_tests:
+    FR-1:
+      - TC-1
+    FR-2:
+      - TC-1
+    FR-3:
+      - TC-1
+    FR-7:
+      - TC-1
+    FR-4:
+      - TC-1
+    FR-5:
+      - TC-1
+    FR-6:
+      - TC-1
+    FR-8:
+      - TC-1
+    FR-9:
+      - TC-1
+    FR-10:
+      - TC-1
+    FR-11:
+      - TC-1
+coverage:
+  testing:
+    total: 19
+    covered: 19
+    uncovered: []
+    rate: 100
+    total_tasks: 19
+    tested_tasks: 19
+    untested: []

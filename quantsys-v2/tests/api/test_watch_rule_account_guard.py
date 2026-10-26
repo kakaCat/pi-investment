@@ -26,8 +26,10 @@ def test_entry_rule_without_account_400(client):
 
 
 def test_entry_rule_with_account_ok(client):
+    # symbol 用 000005.SZ：一股票一规则校验（2026-10-22）后，000001.SZ 已被
+    # 前一个用例/历史占用，同 symbol 会触发 409 RULE_EXISTS 而非本用例要测的创建成功。
     resp = client.post('/api/watch/rules', json={
-        'symbol': '000001.SZ', 'conditions': VALID, 'intent': 'entry',
+        'symbol': '000005.SZ', 'conditions': VALID, 'intent': 'entry',
         'linked_account': 'agent_virtual'})
     assert resp.status_code == 200, resp.json()
     rule_id = resp.json()['data']['rule']['id']

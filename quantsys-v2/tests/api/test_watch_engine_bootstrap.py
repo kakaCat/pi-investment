@@ -53,3 +53,25 @@ def test_scheduler_daemon_no_longer_hosts_watch_engine():
     repo_root = Path(__file__).resolve().parents[2]
     assert not (repo_root / 'scheduler_daemon.py').exists()
     assert not (repo_root / 'application/services/unified_scheduler.py').exists()
+
+
+class TestV1Switch:
+    """2026-10-23：V1/V2 开关拆分（下周切 V2 时 V1 可单独停）。"""
+
+    def test_default_on(self, monkeypatch):
+        from adapters.inbound.fastapi_app.watch_bootstrap import v1_enabled
+        monkeypatch.delenv('DISABLE_WATCH_ENGINE', raising=False)
+        monkeypatch.delenv('WATCH_V1_ENABLED', raising=False)
+        assert v1_enabled() is True
+
+    def test_explicit_off(self, monkeypatch):
+        from adapters.inbound.fastapi_app.watch_bootstrap import v1_enabled
+        monkeypatch.setenv('DISABLE_WATCH_ENGINE', 'false')
+        monkeypatch.setenv('WATCH_V1_ENABLED', 'false')
+        assert v1_enabled() is False
+
+    def test_master_kill_still_wins(self, monkeypatch):
+        from adapters.inbound.fastapi_app.watch_bootstrap import v1_enabled
+        monkeypatch.setenv('DISABLE_WATCH_ENGINE', 'true')
+        monkeypatch.setenv('WATCH_V1_ENABLED', 'true')
+        assert v1_enabled() is False

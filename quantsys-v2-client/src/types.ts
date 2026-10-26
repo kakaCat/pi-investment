@@ -89,6 +89,8 @@ export interface Pool {
   id: number;
   name: string;
   pool_type: string;
+  /** 业务分类（板块共振/主题/策略/观察…），与 pool_type(static/dynamic) 正交 */
+  category?: string | null;
   description?: string;
   symbol_count: number;
   refresh_interval?: string | null;

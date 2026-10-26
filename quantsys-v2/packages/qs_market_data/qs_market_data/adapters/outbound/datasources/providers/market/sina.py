@@ -78,3 +78,47 @@ class SinaMarketProvider(MarketProvider):
         except Exception as e:
             logger.warning(f"{self.name} get_lhb_daily failed: {e}")
             return None
+
+    def get_market_breadth(self) -> Optional[MarketData]:
+        """全市场实时涨跌家数（新浪快照 count，2026-10-22 多源 breadth 兜底源）。
+
+        背景：sentiment 原用日 K 表算涨跌比，盘中日 K 不全（仅几十只样本）严重失真。
+        改用全市场实时快照 count——新浪源实测可用（5576 只），东财主源代理不通时
+        由本源兜底。返回 MarketData（非 dict），以满足 _try_providers 的 _is_valid
+        （要求 .source）。sample_size=total 供消费方判断样本是否足够。
+        """
+        try:
+            import akshare as ak
+            import pandas as pd
+
+            df = ak.stock_zh_a_spot()
+            if df is None or df.empty:
+                logger.warning(f"{self.name}: No market spot data")
+                return None
+
+            pct = pd.to_numeric(df['涨跌幅'], errors='coerce')
+            up = int((pct > 0).sum())
+            down = int((pct < 0).sum())
+            flat = int((pct == 0).sum())
+            total = up + down + flat
+            if total <= 0:
+                return None
+
+            return MarketData(
+                data_type='market_breadth',
+                data={
+                    'up_count': up, 'down_count': down, 'flat_count': flat,
+                    'total': total,
+                    'ratio': round(up / down, 4) if down else None,
+                    'up_percentage': round(up / total * 100, 2),
+                    'sample_size': total,            # 消费方判断样本量（应 >4000）
+                    'realtime': True,
+                    'data_date': datetime.now().strftime('%Y-%m-%d'),
+                },
+                source=self.name,
+                timestamp=datetime.now().isoformat()
+            )
+
+        except Exception as e:
+            logger.warning(f"{self.name} get_market_breadth failed: {e}")
+            return None

@@ -132,8 +132,20 @@ class MarketSentimentService:
         涨跌比 > 2: 市场强势
         涨跌比 > 1: 市场偏强
         涨跌比 < 0.5: 市场弱势
+
+        数据源（2026-10-22 多源改造）：
+          · 盘中（交易时段）→ 多源实时快照 count（东财主/新浪兜，5000+ 只真实宽度）。
+            盘中日 K 表不全（仅几十只样本），曾致 sentiment 基于 51 只算涨跌比=0.27
+            严重失真 → 环境闸误判「资金氛围偏冷」拦真信号。
+          · 盘后 → 日 K 表（等价且稳，不每次拉 10s 快照）。
         """
         try:
+            # 盘中：多源实时 breadth（样本不足或失败则诚实降级到日 K 表）
+            if self._is_intraday():
+                rt = self._realtime_breadth()
+                if rt is not None:
+                    return rt
+
             breadth = self.kline_repo.get_market_breadth()
             if not breadth:
                 return {'error': 'daily_klines 无有效涨跌数据'}
@@ -151,6 +163,57 @@ class MarketSentimentService:
         except Exception as e:
             logger.error(f"获取涨跌家数比失败: {e}")
             return {'error': str(e)}
+
+    @staticmethod
+    def _is_intraday() -> bool:
+        """是否盘中交易时段（工作日 9:30-11:30 / 13:00-15:00）。
+
+        节假日误判无害：实时快照在节假日返回最后交易日数据或失败，均会
+        经样本守卫 / 异常兜底回到日 K 表，不会产出错误信号。
+        """
+        from datetime import time as dtime
+        now = datetime.now()
+        if now.weekday() >= 5:
+            return False
+        t = now.time()
+        return (dtime(9, 30) <= t <= dtime(11, 30)) or (dtime(13, 0) <= t <= dtime(15, 0))
+
+    _REALTIME_BREADTH_CACHE: Dict = {}   # {ts, result}，盘中 60s 内复用（快照拉取 ~10s）
+
+    def _realtime_breadth(self) -> Optional[Dict]:
+        """盘中实时涨跌家数（多源：东财主 / 新浪兜，自动 failover）。
+
+        返回与日 K 口径一致的 dict（附 realtime/source）；样本 <4000 或失败返回
+        None（诚实降级，由调用方回退日 K 表）。60s 缓存避免频繁拉 10s 快照。
+        """
+        try:
+            now = datetime.now()
+            c = self._REALTIME_BREADTH_CACHE
+            if c and (now - c.get('ts', now)).total_seconds() < 60:
+                return c.get('result')
+
+            from qs_market_data.adapters.outbound.datasources.manager import (
+                get_data_provider_manager,
+            )
+            r = get_data_provider_manager().get_market_breadth()
+            result = None
+            if r.get('success'):
+                md = r.get('data')
+                b = getattr(md, 'data', None) if md is not None else None
+                if isinstance(b, dict) and (b.get('sample_size') or 0) >= 4000:
+                    result = {
+                        'data_date': b.get('data_date'),
+                        'up_count': b['up_count'], 'down_count': b['down_count'],
+                        'flat_count': b['flat_count'], 'ratio': b['ratio'],
+                        'up_percentage': b['up_percentage'],
+                        'strength': self._classify_ad_ratio(b['ratio']),
+                        'realtime': True, 'source': getattr(md, 'source', None),
+                    }
+            self._REALTIME_BREADTH_CACHE = {'ts': now, 'result': result}
+            return result
+        except Exception as e:
+            logger.warning(f"实时涨跌家数获取失败（降级日 K 表）: {e}")
+            return None
 
     def _get_volume_indicator(self) -> Dict:
         """

@@ -1,0 +1,40 @@
+task:
+  id: t-a5fa64
+  title: 真实成交落库后发事件
+  status: done
+  implements: packages/qs_trading/qs_trading/application/services/account_trading_service.py 的 execute_trade 在成交 commit 后构建 FillEvent（trade_id/account/symbol/action/shares/price/filled_at/source='agent_trade'）并调 notify_fill，外层 try/except 只记日志；新增 tests/application/test_account_trade_fill_callback.py。
+  serves:
+    - FR-1
+    - FR-2
+  depends_on:
+    - t-c6c5d2
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261021194640-69b8
+    TASK_ID: t-a5fa64
+    TASK_TITLE: 真实成交落库后发事件
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 3
+  workflow_done: 3
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-21T12:28:45.882Z
+    - phase: test
+      status: done
+      completed_at: 2026-10-21T12:28:52.960Z
+    - phase: review
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261021194640-69b8
+  generated_at: 2026-10-21T12:28:31.827Z
+  version: 10
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 3
+  last_updated: 2026-10-21T12:28:59.158Z

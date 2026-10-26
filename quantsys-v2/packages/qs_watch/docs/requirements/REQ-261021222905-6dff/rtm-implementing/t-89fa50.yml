@@ -1,0 +1,36 @@
+task:
+  id: t-89fa50
+  title: 接通进化层消费反思知识段
+  status: done
+  implements: qs_agenthub/application/services/evolution/lesson_generator.py 新增消费 plan_reflections.knowledge_updates 的入口：落 agent_knowledge（domain/confidence/evidence）；不写 plans 表（结构性只读反思）。
+  serves:
+    - FR-8
+  depends_on:
+    - t-d6b85d
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261021222905-6dff
+    TASK_ID: t-89fa50
+    TASK_TITLE: 接通进化层消费反思知识段
+    DESIGN_FILES: design/backend.md
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-21T16:27:36.041Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261021222905-6dff
+  generated_at: 2026-10-21T16:25:34.310Z
+  version: 6
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-21T16:27:36.041Z

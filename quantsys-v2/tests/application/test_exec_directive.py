@@ -331,7 +331,7 @@ class TestActionItemsAreEnums:
     def test_payload_action_items_are_enums_not_free_text(self):
         payload = _directive().to_dict()
         items = payload['action_items']
-        assert len(items) == 3
+        assert len(items) == 4  # 执行/不执行/持有/超时（HOLD 2026-10-22 新增）
         for item in items:
             assert set(item) == {'state', 'terminal', 'action_kind',
                                  'requires_decision_audit', 'requires_next_condition',
@@ -345,15 +345,25 @@ class TestActionItemsAreEnums:
             assert isinstance(item['requires_next_condition'], bool)
             assert isinstance(item['escalate'], bool)
 
-    def test_three_state_mapping_matches_rfc(self):
-        """执行→handled/trade；不执行→ignored/rule_change+下次条件；超时→无终态。"""
-        executed, declined, timeout = _directive().action_items
+    def test_four_state_mapping_matches_rfc(self):
+        """执行→handled/trade；不执行→ignored/rule_change+下次条件；持有→handled/不催办；超时→无终态。
+
+        第四态 HOLD（2026-10-22 用户裁定）：继续持有——关待办、规则有效、
+        不催办、不要求下次条件（与 declined 的关键区别）。
+        """
+        executed, declined, hold, timeout = _directive().action_items
         assert (executed.state, executed.terminal, executed.action_kind) == (
             ExecState.EXECUTED, TodoTerminal.HANDLED, TodoActionKind.TRADE)
         assert executed.requires_decision_audit is True
         assert (declined.state, declined.terminal, declined.action_kind) == (
             ExecState.DECLINED, TodoTerminal.IGNORED, TodoActionKind.RULE_CHANGE)
         assert declined.requires_next_condition is True
+        # 持有：terminal=handled 关待办；无动作；要决策审计；不要求下次条件；不催办
+        assert (hold.state, hold.terminal, hold.action_kind) == (
+            ExecState.HOLD, TodoTerminal.HANDLED, None)
+        assert hold.requires_decision_audit is True
+        assert hold.requires_next_condition is False
+        assert hold.escalate is False
         assert (timeout.state, timeout.terminal, timeout.action_kind) == (
             ExecState.TIMEOUT, None, None)
         assert timeout.escalate is True
@@ -361,14 +371,14 @@ class TestActionItemsAreEnums:
     def test_timeout_is_a_state_not_a_terminal_and_never_expired(self):
         """RFC §2.1.3 硬约定：超时不写 expired（把敞着钱的止损记成已处理）。"""
         assert 'expired' not in {t.value for t in TodoTerminal}
-        timeout = _directive().action_items[2]
+        timeout = _directive().action_items[3]
         assert timeout.terminal is None
         assert '不落终态' in render_action_item(timeout)
 
     def test_guide_text_is_derived_from_enums(self):
         d = _directive()
         guide = d.card_guide_text()
-        assert guide.startswith('三态处置：')
+        assert guide.startswith('四态处置：')
         for item in d.action_items:
             assert render_action_item(item) in guide
         assert 'handled' in guide and 'ignored' in guide and '不写 expired' in guide
@@ -377,8 +387,8 @@ class TestActionItemsAreEnums:
         d = _directive()
         ctx = d.card_context('按宪法第 4 条清仓')
         assert ctx.splitlines()[0] == '按宪法第 4 条清仓'
-        assert '三态处置：' in ctx
-        assert d.card_context(None).startswith('三态处置：')
+        assert '四态处置：' in ctx
+        assert d.card_context(None).startswith('四态处置：')
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -441,7 +451,7 @@ class TestPipelineInjection:
         assert event['exec_directive']['trigger_id'] == 101
         assert event['exec_directive']['todo_id'] == todo.id
         assert [i['state'] for i in event['exec_directive']['action_items']] == [
-            'executed', 'declined', 'timeout']
+            'executed', 'declined', 'hold', 'timeout']
 
     def test_deliver_stage_skips_directive_for_non_exit_intents(self, monkeypatch):
         """非退出类 P0（如 entry）：不构造指令（不覆盖既有指引），也不建执行卡。"""
@@ -506,7 +516,7 @@ class TestNotifierRendering:
         assert call['action_params']['quantity'] == 1000
         assert call['action_params']['reference_price'] == 28.0
         assert call['action_params']['exec_action'] == 'execute_stop_loss'
-        assert '三态处置：' in call['context']
+        assert '四态处置：' in call['context']
 
     def test_without_directive_rendering_is_unchanged(self):
         """缺省 exec_directive=None：三个落点与改造前逐字一致（硬约束）。"""

@@ -176,6 +176,49 @@ class AkshareMarketProvider(MarketProvider):
             logger.warning(f"{self.name} get_market_spot failed: {e}")
             return None
 
+    def get_market_breadth(self) -> Optional[MarketData]:
+        """全市场实时涨跌家数（东财快照 count，breadth 主源）。
+
+        2026-10-22：sentiment 盘中涨跌比改用实时快照（日 K 表盘中不全）。东财为主源，
+        代理不通 / WAF 时 _try_providers 自动降级新浪源。返回 MarketData 以满足
+        _try_providers._is_valid（要求 .source）。
+        """
+        try:
+            import akshare as ak
+            import pandas as pd
+
+            df = ak.stock_zh_a_spot_em()
+            if df is None or df.empty:
+                logger.warning(f"{self.name}: No market spot data")
+                return None
+
+            pct = pd.to_numeric(df['涨跌幅'], errors='coerce')
+            up = int((pct > 0).sum())
+            down = int((pct < 0).sum())
+            flat = int((pct == 0).sum())
+            total = up + down + flat
+            if total <= 0:
+                return None
+
+            return MarketData(
+                data_type='market_breadth',
+                data={
+                    'up_count': up, 'down_count': down, 'flat_count': flat,
+                    'total': total,
+                    'ratio': round(up / down, 4) if down else None,
+                    'up_percentage': round(up / total * 100, 2),
+                    'sample_size': total,
+                    'realtime': True,
+                    'data_date': datetime.now().strftime('%Y-%m-%d'),
+                },
+                source=self.name,
+                timestamp=datetime.now().isoformat()
+            )
+
+        except Exception as e:
+            logger.warning(f"{self.name} get_market_breadth failed: {e}")
+            return None
+
     def get_lhb_stock(self, symbol: str, date: str) -> Optional[MarketData]:
         """Get dragon-tiger list (龙虎榜) for a stock
 

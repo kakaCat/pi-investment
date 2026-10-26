@@ -4,12 +4,15 @@
 纯函数 + 配置注入；数据由调用方（引擎 tick / 复核作业）注入。
 
 判定优先级（自上而下，先命中先返回）：
+  -1. 持有类意图（hold）：触发即过滤，规则保持有效不通知（2026-10-22）
   0. 宪法豁免：止损等无条件介入，且可突破预算
   1. 预算门：当日介入预算耗尽 → 非宪法动作进日终汇总
   2. 引擎升级（escalation_policy 命中）→ 摘要队列
-  3. 规则分级 L2 → 摘要队列（L2 = 买卖节点，必须 agent 终判）
-  4. 元触发轻门：仅增量门+经济门（不适用金额门/节点门）
-  5. 价格触发五道门：意图 → 金额 → 增量 → 经济 → 节点
+  3. 元触发轻门：仅增量门+经济门（不适用金额门/节点门）
+  4. 价格触发五道门：意图 → 金额 → 增量 → 经济 → 节点
+
+（原「规则分级 L2 → 摘要队列」已删除：trigger_level 2026-10-22 退役，
+  其能力被宪法级/intent 体系覆盖，见 decide 内注释。）
 
 用户硬约束（2026-09-11）：不能所有触发都叫 agent——成本必须与利润一致。
 所以默认宁归档不介入：判据不过就落 auto_observed（零 LLM），进日终汇总。
@@ -29,6 +32,9 @@ DISPOSITION_IGNORED = 'ignored'
 DISPOSITION_EXPIRED = 'expired'
 DISPOSITION_LEGACY = 'legacy_unknown'
 DISPOSITION_META_REVIEW = 'meta_review'   # 元触发：规则需复核（频次/静默/滞留/到期）
+#: 持有类（2026-10-22）：触发即过滤——不通知、不进待办、不唤醒 agent，
+#: 规则保持有效继续盯。终态，不进 UNRESOLVED。
+DISPOSITION_FILTERED = 'filtered'
 
 UNRESOLVED = (DISPOSITION_PENDING, DISPOSITION_ESCALATED, DISPOSITION_META_REVIEW)
 
@@ -69,6 +75,12 @@ CONSTITUTIONAL_INTENTS = ('exit_stop',)     # 止损铁律：无条件介入，�
 #: ⚠️ 不作为投送判据——账户为空是**数据缺陷**，引擎照常唤醒 agent 去补归属，
 #: 绝不因为"没账户不能交易"就不叫 agent（那等于把缺陷藏起来，用户 2026-09-11 纠正）。
 TRADE_INTENTS = ('entry', 'add_position', 't_trade', 'exit_stop', 'exit_take_profit', 'exit_reduce')
+
+#: 持有类意图（2026-10-22 用户裁定）：触发即过滤——不通知、不进待办、不唤醒 agent，
+#: 规则保持有效继续盯。与 declined 的本质区别：declined 须给「下次条件」（DB CHECK
+#: 强制）且会继续催办；hold 是「我就要拿着」，无后续条件、不催办、待办直接关闭。
+#: 刻意**不进 TRADE_INTENTS**：持有不是交易，不要求账户归属。
+HOLD_INTENTS = ('hold',)
 
 
 #: 意图中文名（错误提示/消息用，避免各处重复硬编码）
@@ -165,7 +177,11 @@ def decide(rule, condition, escalated: bool = False,
     intent = _intent_of(rule)
     ah = action_hint_of(rule)
     act = str(ah.get('action_on_trigger') or '').lower()
-    level = str(ah.get('trigger_level') or '').upper()
+
+    # -1. 持有类意图（2026-10-22）：触发即过滤——比宪法豁免更优先，
+    # 用户显式声明 hold 就是「别烦我」，规则保持有效继续盯，不通知/不进待办。
+    if intent in HOLD_INTENTS:
+        return DISPOSITION_FILTERED, '持有类意图（hold）：继续持有，规则保持有效，不通知不催办'
 
     # 0. 宪法豁免：无条件介入，可突破预算
     if intent in CONSTITUTIONAL_INTENTS:
@@ -179,10 +195,9 @@ def decide(rule, condition, escalated: bool = False,
     if escalated:
         detail = f'｜原始原因：{escalation_reason}' if escalation_reason else ''
         return DISPOSITION_ESCALATED, '升级策略命中（L1→L2）→ 进 agent 摘要队列' + detail
-
-    # 3. 规则分级 L2 → 摘要队列（买卖节点必须 agent 终判）
-    if level == 'L2':
-        return DISPOSITION_ESCALATED, '规则分级 L2 行动层（买卖节点）→ 进 agent 摘要队列'
+    # 注：原「规则分级 L2 → 摘要队列」分支已删除（2026-10-22 trigger_level 退役）——
+    # L2 的全部现有使用者是卖出类，已被第 0 条宪法豁免短路；其「非卖出类强制拍板」能力
+    # 零使用且可由 intent 表达。五道门之下的优先级依次前移。
 
     # 4. 元触发轻门（不适用金额门/节点门）
     if gate.trigger_kind == 'meta':

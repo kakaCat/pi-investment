@@ -24,8 +24,8 @@ metadata:
   stage: implementing
   requirement_id: REQ-000001
   generated_at: 2026-09-28T15:17:40.983Z
-  version: 22
+  version: 26
   generated_by: dsh-pmboard
   detail_dir: rtm-implementing/
   detail_count: 1
-  last_updated: 2026-09-29T00:02:35.679Z
+  last_updated: 2026-10-21T16:22:40.111Z

@@ -1,0 +1,38 @@
+task:
+  id: t-b65fd2
+  title: 扩 metrics 读数并收口回归
+  status: done
+  implements: 改 adapters/inbound/fastapi_app/routes/watch_async.py：/api/watch/metrics 增 news_todos_today（watch_todos evidence.source=news 当日计数）与 reflection_woken_today（当日唤醒计数），异常返回 null；补 tests/plan/test_metrics_ext.py；跑两套件回归并在 test-evidence 记读数。
+  serves:
+    - FR-4
+  depends_on:
+    - t-e12dcf
+    - t-558de7
+    - t-a5fbed
+  phase: test
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261022022657-857f
+    TASK_ID: t-b65fd2
+    TASK_TITLE: 扩 metrics 读数并收口回归
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: test
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: test
+      status: done
+      completed_at: 2026-10-21T18:39:49.451Z
+    - phase: implement
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261022022657-857f
+  generated_at: 2026-10-21T18:38:47.922Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-21T18:39:49.451Z

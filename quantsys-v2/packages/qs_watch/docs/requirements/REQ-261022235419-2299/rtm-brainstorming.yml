@@ -1,0 +1,150 @@
+metadata:
+  stage: brainstorming
+  requirement_id: REQ-261022235419-2299
+  generated_at: 2026-10-22T16:02:29.286Z
+  version: 21
+  generated_by: dsh-pmboard
+  rtm_version: "2.0"
+  last_updated: 2026-10-23T03:30:15.721Z
+outputs:
+  requirements: []
+  prototypes: []
+  decisions:
+    - id: D-1
+      source: 「通知是给用户看的事实，不该由机器替用户过滤掉一类信息」（2026-09-11）
+      verdict: 信号照发不过滤
+      serves:
+        - FR-7
+      criterion: 见 FR-7、无（已拒） 判据（功能点节）
+    - id: D-2
+      source: 「这个是 agent 来判断的不应该的程序写死」（2026-10-22 对话）
+      verdict: 判定机械、决策归 agent
+      serves:
+        - FR-1
+        - FR-11
+      criterion: 贯穿全部 FR 判据
+    - id: D-3
+      source: 「盘中价格偏离>20% 这个交个agent 来输入，不是写死的」
+      verdict: 失效线 agent 必填
+      serves:
+        - FR-6
+      criterion: 见 FR-6 判据（功能点节）
+    - id: D-4
+      source: 「持仓的看止盈止损减仓增仓，未持仓看到买入范围等级，作废范围。不应该未持仓就不处理了」
+      verdict: 持仓四操作；未持仓买入+作废
+      serves:
+        - FR-4
+        - FR-5
+        - FR-6
+      criterion: 见 FR-4、FR-5、FR-6 判据（功能点节）
+    - id: D-5
+      source: 「不是查出所有盯盘的股票，然后再查股票实时数据和规则对比吗」
+      verdict: 取价前置统一取价
+      serves:
+        - FR-2
+      criterion: 见 FR-2 判据（功能点节）
+    - id: D-6
+      source: 「应该查实时持仓和盯盘匹配，然后找意图」
+      verdict: 持仓驱动：持仓为输入
+      serves:
+        - FR-3
+      criterion: 见 FR-3 判据（功能点节）
+    - id: D-7
+      source: 「每个股票只能有一个」「创建时告知已有规则，agent 确认后旧的作废」（2026-10-22 对话）
+      verdict: 一股票一规则+替换校验
+      serves:
+        - FR-1
+      criterion: 见 FR-1 判据（功能点节）；V1 已落、V2 继承
+    - id: D-8
+      source: 「让agent来处理，agent购买并再给股票盯盘规则」（2026-10-22 对话）
+      verdict: 建仓接棒归 agent（reconcile 继承）
+      serves:
+        - FR-4
+      criterion: 见 FR-4 判据（功能点节）
+    - id: D-9
+      source: 「重新一个v2版本……开始立项」（2026-10-22 对话）
+      verdict: V2 重写主流程
+      serves:
+        - FR-1
+        - FR-11
+      criterion: 贯穿全部 FR 判据
+    - id: D-10
+      source: 「盯盘还要和账户绑定，那个账户要发对应的agent让对应agent处理信息」
+      verdict: 规则绑账户，信号路由到对应 agent
+      serves:
+        - FR-9
+      criterion: 见 FR-9 判据（功能点节）
+    - id: D-11
+      source: 「信号直发用户（盯盘群）——程序不过滤；止损宪法级必达 这个不对。第一次触发都要发给agent，让agent判断（规则是否修改还是执行规则，应该那个账户购买）agent再发盯盘群里通知，后面重复发10次内agent不处理，直接发群里」
+      verdict: 首次触发→对应 agent 判断→agent 发群；重复 10 次内 agent 未处理→直通群；止损必达保留
+      serves:
+        - FR-7
+      criterion: 见 FR-7 判据（功能点节）
+    - id: D-12
+      source: 「不同类型的判定，有不同的消息模板」
+      verdict: 消息模板按判定类型区分
+      serves:
+        - FR-10
+      criterion: 见 FR-10 判据（功能点节）
+    - id: D-13
+      source: 「把发agent 和 发飞书 分开」「写清楚，发agent 和 发飞书2个文件实现」
+      verdict: 通知通道文件级分离：发 agent 一个文件（notify_agent）、发飞书盯盘群一个文件（notify_feishu）——两条通道各自独立实现，互不内嵌
+      serves:
+        - FR-7
+      criterion: 见 FR-7、FR-7 判据（功能点节）
+    - id: D-14
+      source: 「同一规则第一次agent（盯盘添加一个状态，agent处理修改这个状态）处理了后面9次不处理。所有都要发给agent」
+      verdict: 所有触发都发 agent；盯盘加处理状态，agent 处理=改状态；已处理后 9 次不重复处理；未处理累计 10 次 → 直通盯盘群
+      serves:
+        - FR-7
+      criterion: 见 FR-7、FR-7 判据（功能点节）
+    - id: D-15
+      source: 「盯盘添加一个字段是否触发agent（默认agent触发），添加一个定时任务，每天结束了，再把触发agent改成触发」+ 次日更正：「都改成agent处理，第二天还是要agent处理」
+      verdict: 规则加「是否触发agent」字段（默认触发）；每日收盘定时任务**重置处理状态**（已处理→待处理），第二天触发重新发 agent 处理——每天都走 agent，不是首日专属
+      serves:
+        - FR-11
+        - FR-10
+      criterion: 见 FR-11、FR-10 判据（功能点节）
+    - id: D-16
+      source: 「每日收盘定时任务是错的，改成agent来处理，次日还agent第一处理。10次一个循环」
+      verdict: 取消每日定时任务；改为**10次一循环**的计数：每循环第 1 次触发发 agent 处理，第 2~9 次不处理，第 10 次循环归零重来；跨天延续，次日循环第一次仍 agent 先处理
+      serves:
+        - FR-11
+        - FR-10
+      criterion: 见 FR-11、FR-10 判据（功能点节）
+    - id: D-17
+      source: 「止损永远走 agent 我这个表述不对」
+      verdict: 止损无「永远走 agent」特权：止损与其他规则一样走 10 次循环；「宪法级必达」只保不被预算/降噪/状态吞掉（该到必到），不保每次都发 agent
+      serves:
+        - FR-7
+      criterion: 见 FR-7、FR-7 判据（功能点节）
+    - id: D-18
+      source: 「改成 10 次一个循环 这个是当天的一个运行方式，每日定时任务是另外一个运行方式」
+      verdict: 两者并存：10 次循环管当天盘中节奏；每日收盘定时任务管跨天重置（清零计数/处理状态，次日从循环首发 agent 重新开始）
+      serves:
+        - FR-11
+        - FR-10
+      criterion: 见 FR-11、FR-10 判据（功能点节）
+    - id: D-19
+      source: 「同一规则10 次一个循环」
+      verdict: 循环计数按**单条规则**独立计算：同一规则 10 次一轮，不同规则各自计数互不影响
+      serves:
+        - FR-11
+        - FR-10
+      criterion: 见 FR-11、FR-10 判据（功能点节）
+    - id: D-20
+      source: 「feishu 不同判定发送不同模版，模板是一个独立的文件」「不同判定 发送agent和飞书都有不同的提示词和模板。提示词和模板是单独的2个文件」
+      verdict: 文案体系两个独立文件：飞书消息模板一个文件（feishu_templates，按判定类型）；agent 提示词一个文件（agent_prompts，按判定类型）
+      serves:
+        - FR-10
+        - FR-9
+      criterion: 见 FR-10、FR-9 判据（功能点节）
+    - id: D-21
+      source: 「持仓和非持仓方案不一样」「持仓和非持仓方案提示词和模板不一样」
+      verdict: 文案矩阵 = 持仓状态 × 判定类型：持仓四操作（增仓/止盈/止损/减仓）一套方案，非持仓（买入/观察）另一套方案；提示词与模板随之不同
+      serves:
+        - FR-10
+        - FR-9
+      criterion: 见 FR-10、FR-9 判据（功能点节）
+status:
+  artifacts: []

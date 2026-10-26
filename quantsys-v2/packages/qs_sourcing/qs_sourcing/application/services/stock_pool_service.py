@@ -142,8 +142,11 @@ class StockPoolService:
 
     def create_pool(self, name: str, pool_type: str, symbols: list = None,
                     filter_template: dict = None, refresh_interval: str = None,
-                    description: str = None) -> dict:
-        """创建股票池（静态或动态）。"""
+                    description: str = None, category: str = None) -> dict:
+        """创建股票池（静态或动态）。
+
+        category：业务分类（如 板块共振/主题/策略/观察），与 pool_type 正交；可空。
+        """
         if not self._pool_repo:
             raise RuntimeError("IStockPoolRepository not configured")
         if pool_type == 'static' and not symbols:
@@ -158,6 +161,7 @@ class StockPoolService:
             'description': description,
             'filter_template': filter_template,
             'refresh_interval': refresh_interval,
+            'category': category,
         })
 
     def get_pool(self, pool_id: int) -> dict:
@@ -209,6 +213,7 @@ class StockPoolService:
                 'id': p['id'],
                 'name': p['name'],
                 'pool_type': p['pool_type'],
+                'category': p.get('category'),
                 'description': p['description'],
                 'symbol_count': len(p.get('symbols', [])),
                 'refresh_interval': p.get('refresh_interval'),
@@ -556,7 +561,8 @@ class StockPoolService:
         return updated
 
     def create_from_scan(self, name: str, pool_type: str, scan_params: dict,
-                         refresh_interval: str = None, description: str = None) -> dict:
+                         refresh_interval: str = None, description: str = None,
+                         category: str = None) -> dict:
         """筛选建池：执行多因子扫描后自动创建池子。"""
         if not self._scoring_service:
             raise RuntimeError("OpportunityScoringService not configured")
@@ -592,4 +598,5 @@ class StockPoolService:
             filter_template=filter_template,
             refresh_interval=refresh_interval if pool_type == 'dynamic' else None,
             description=description,
+            category=category,
         )

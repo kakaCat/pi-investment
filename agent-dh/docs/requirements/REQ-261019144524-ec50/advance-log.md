@@ -1,0 +1,39 @@
+# 推进事件日志
+- 2026-10-19T07:10:53.746Z [OPEN_PARENT] parent=t-1790d5 subtask=- ok：父卡 t-1790d5 自动开工并落子卡 3 张
+- 2026-10-19T07:14:13.873Z [RUN_SUBTASK] parent=t-1790d5 subtask=t-531b46 ok：子卡 t-531b46 执行完成
+- 2026-10-19T08:38:03.178Z [RUN_SUBTASK] parent=t-1790d5 subtask=t-aa8733 failed：子卡 t-aa8733 派发缺少 agent 句柄：绑定窗口 session-503df447-3664-4823-ada8-9d779312d94a 不在线——请由该窗口调 reqboard_task_run 续跑（看板「继续」/启动恢复仅在窗口在线时可派发）
+- 2026-10-19T09:02:15.223Z [OPEN_PARENT] parent=t-f4e050 subtask=- ok：父卡 t-f4e050 自动开工并落子卡 2 张
+- 2026-10-19T09:08:44.248Z [RUN_SUBTASK] parent=t-f4e050 subtask=t-73356d ok：子卡 t-73356d 执行完成
+- 2026-10-19T09:15:35.970Z [RUN_SUBTASK] parent=t-f4e050 subtask=t-3560e9 ok：子卡 t-3560e9 执行完成
+- 2026-10-19T09:15:36.134Z [FINALIZE_PARENT] parent=t-f4e050 subtask=- failed：reqboard_task_move 未执行：done 凭证门——开工以来无干活类工具动作，且汇报声明的改动文件不存在或早于开工时间。凭证不足不能关闭（25ms 速通拦截）（REQBOARD_NO_EVIDENCE）
+- 2026-10-19T09:18:36.016Z [FINALIZE_PARENT] parent=t-f4e050 subtask=- failed：reqboard_task_move 未执行：done 凭证门——开工以来无干活类工具动作，且汇报声明的改动文件不存在或早于开工时间。凭证不足不能关闭（25ms 速通拦截）（REQBOARD_NO_EVIDENCE）
+- 2026-10-19T09:24:02.769Z [FINALIZE_PARENT] parent=t-f4e050 subtask=- failed：reqboard_task_move 未执行：done 凭证门——开工以来无干活类工具动作，且汇报声明的改动文件不存在或早于开工时间。凭证不足不能关闭（25ms 速通拦截）（REQBOARD_NO_EVIDENCE）
+- 2026-10-19T12:51:00.250Z [FINALIZE_PARENT] parent=t-f4e050 subtask=- failed：reqboard_task_move 未执行：done 凭证门——开工以来无干活类工具动作，且汇报声明的改动文件不存在或早于开工时间。凭证不足不能关闭（25ms 速通拦截）（REQBOARD_NO_EVIDENCE）
+- 2026-10-19T13:55:06.577Z [RUN_SUBTASK] parent=t-1790d5 subtask=t-aa8733 ok：子卡 t-aa8733 执行完成
+- 2026-10-19T13:59:06.026Z [RUN_SUBTASK] parent=t-1790d5 subtask=t-386642 ok：子卡 t-386642 执行完成
+- 2026-10-19T13:59:06.189Z [FINALIZE_PARENT] parent=t-1790d5 subtask=- ok：父卡 t-1790d5 汇总子卡产出并收尾
+- 2026-10-19T13:59:06.330Z [OPEN_PARENT] parent=t-954eb4 subtask=- ok：父卡 t-954eb4 自动开工并落子卡 2 张
+- 2026-10-19T14:03:01.078Z [RUN_SUBTASK] parent=t-954eb4 subtask=t-d176e2 ok：子卡 t-d176e2 执行完成
+- 2026-10-19T14:05:22.962Z [RUN_SUBTASK] parent=t-954eb4 subtask=t-eab3f3 ok：子卡 t-eab3f3 执行完成
+- 2026-10-19T14:05:23.141Z [FINALIZE_PARENT] parent=t-954eb4 subtask=- ok：父卡 t-954eb4 汇总子卡产出并收尾
+- 2026-10-19T14:05:23.272Z [OPEN_PARENT] parent=t-557f90 subtask=- ok：父卡 t-557f90 自动开工并落子卡 2 张
+- 2026-10-19T14:07:10.737Z [RUN_SUBTASK] parent=t-557f90 subtask=t-c7a81f ok：子卡 t-c7a81f 执行完成
+- 2026-10-19T14:12:16.888Z [RUN_SUBTASK] parent=t-557f90 subtask=t-5ed45b ok：子卡 t-5ed45b 执行完成
+- 2026-10-19T14:12:17.041Z [FINALIZE_PARENT] parent=t-557f90 subtask=- failed：reqboard_task_move 未执行：done 凭证门——开工以来无干活类工具动作，且汇报声明的改动文件不存在或早于开工时间。凭证不足不能关闭（25ms 速通拦截）（REQBOARD_NO_EVIDENCE）
+- 2026-10-19T14:22:06.417Z [OPEN_PARENT] parent=t-ab4c82 subtask=- ok：父卡 t-ab4c82 自动开工并落子卡 3 张
+- 2026-10-19T14:25:03.647Z [RUN_SUBTASK] parent=t-ab4c82 subtask=t-ee21d9 ok：子卡 t-ee21d9 执行完成
+- 2026-10-19T14:33:24.642Z [RUN_SUBTASK] parent=t-ab4c82 subtask=t-542f40 ok：子卡 t-542f40 执行完成
+- 2026-10-19T14:36:52.173Z [RUN_SUBTASK] parent=t-ab4c82 subtask=t-5c0823 ok：子卡 t-5c0823 执行完成
+- 2026-10-19T14:36:52.326Z [FINALIZE_PARENT] parent=t-ab4c82 subtask=- failed：reqboard_task_move 未执行：done 凭证门——开工以来无干活类工具动作，且汇报声明的改动文件不存在或早于开工时间。凭证不足不能关闭（25ms 速通拦截）（REQBOARD_NO_EVIDENCE）
+- 2026-10-19T14:40:24.831Z [OPEN_PARENT] parent=t-9bae04 subtask=- ok：父卡 t-9bae04 自动开工并落子卡 3 张
+- 2026-10-19T14:41:09.320Z [RUN_SUBTASK] parent=t-9bae04 subtask=t-86eed7 ok：子卡 t-86eed7 执行完成
+- 2026-10-19T14:41:26.246Z [RUN_SUBTASK] parent=t-9bae04 subtask=t-84e0f3 ok：子卡 t-84e0f3 执行完成
+- 2026-10-19T14:41:43.901Z [RUN_SUBTASK] parent=t-9bae04 subtask=t-2a366f ok：子卡 t-2a366f 执行完成
+- 2026-10-19T14:41:44.056Z [FINALIZE_PARENT] parent=t-9bae04 subtask=- failed：reqboard_task_move 未执行：done 凭证门——开工以来无干活类工具动作，且汇报声明的改动文件不存在或早于开工时间。凭证不足不能关闭（25ms 速通拦截）（REQBOARD_NO_EVIDENCE）
+- 2026-10-19T16:39:54.137Z [OPEN_PARENT] parent=t-38602b subtask=- ok：父卡 t-38602b 自动开工并落子卡 2 张
+- 2026-10-19T16:41:53.751Z [RUN_SUBTASK] parent=t-38602b subtask=t-381c5a ok：子卡 t-381c5a 执行完成
+- 2026-10-19T16:43:31.111Z [RUN_SUBTASK] parent=t-38602b subtask=t-6ec327 ok：子卡 t-6ec327 执行完成
+- 2026-10-19T16:43:31.276Z [FINALIZE_PARENT] parent=t-38602b subtask=- ok：父卡 t-38602b 汇总子卡产出并收尾
+- 2026-10-19T16:43:31.409Z [OPEN_PARENT] parent=t-c5c85c subtask=- ok：父卡 t-c5c85c 自动开工并落子卡 1 张
+- 2026-10-19T16:47:30.108Z [RUN_SUBTASK] parent=t-c5c85c subtask=t-9b2a59 ok：子卡 t-9b2a59 执行完成
+- 2026-10-19T16:47:30.269Z [FINALIZE_PARENT] parent=t-c5c85c subtask=- failed：reqboard_task_move 未执行：done 凭证门——开工以来无干活类工具动作，且汇报声明的改动文件不存在或早于开工时间。凭证不足不能关闭（25ms 速通拦截）（REQBOARD_NO_EVIDENCE）

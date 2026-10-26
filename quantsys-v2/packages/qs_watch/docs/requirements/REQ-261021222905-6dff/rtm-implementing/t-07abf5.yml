@@ -1,0 +1,36 @@
+task:
+  id: t-07abf5
+  title: 实现 core_plan 批次适配器
+  status: done
+  implements: packages/qs_plan/qs_plan/application/core_plan_adapter.py：读 config/core_plan.json 指定批次 → 逐标的生成 draft 计划（预算比例一致，一律 draft 不自动激活）；幂等（同批次重复调用 0 新增）；IF-15 端点。
+  serves:
+    - FR-9
+  depends_on:
+    - t-efb315
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261021222905-6dff
+    TASK_ID: t-07abf5
+    TASK_TITLE: 实现 core_plan 批次适配器
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-21T16:28:40.418Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261021222905-6dff
+  generated_at: 2026-10-21T16:25:42.536Z
+  version: 7
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-21T16:28:40.418Z

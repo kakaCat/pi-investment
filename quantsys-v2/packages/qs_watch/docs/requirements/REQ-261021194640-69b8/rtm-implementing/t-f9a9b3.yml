@@ -1,0 +1,48 @@
+task:
+  id: t-f9a9b3
+  title: 回归与生产只读核查
+  status: done
+  implements: 在仓库根跑 watch/fill/todo/trading 相关回归并记录结果；用三条只读 SQL 核查生产证据（成交回写明细、盘后扫描轮次、统计与台账对账），结果写入交付说明。
+  serves:
+    - FR-1
+    - FR-2
+    - FR-3
+    - FR-4
+    - FR-5
+    - FR-6
+    - FR-7
+    - FR-8
+  depends_on:
+    - t-c18a41
+    - t-b8d5ae
+    - t-88d4da
+    - t-3ef50b
+    - t-2ff7ca
+    - t-e416b7
+  phase: test
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261021194640-69b8
+    TASK_ID: t-f9a9b3
+    TASK_TITLE: 回归与生产只读核查
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: test
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: test
+      status: done
+      completed_at: 2026-10-21T12:53:49.660Z
+    - phase: review
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261021194640-69b8
+  generated_at: 2026-10-21T12:42:47.443Z
+  version: 10
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-21T12:55:08.200Z

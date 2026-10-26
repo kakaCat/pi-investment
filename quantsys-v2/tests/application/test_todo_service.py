@@ -60,6 +60,7 @@ class FakeTodo:
     action_kind: str = None
     decision_audit_id: str = None
     escalate_count: int = 0
+    evidence: dict = None
 
 
 class FakeTodoRepo:
@@ -72,13 +73,13 @@ class FakeTodoRepo:
 
     def create(self, symbol, *, rule_id=None, trigger_id=None, account=None, level,
                flow_state='L1', owner_kind=None, owner_ref=None, autonomy=None,
-               sla_seconds=1800, due_at=None, action_kind=None):
+               sla_seconds=1800, due_at=None, action_kind=None, evidence=None):
         self._seq += 1
         todo = FakeTodo(id=self._seq, symbol=symbol, rule_id=rule_id,
                         trigger_id=trigger_id, account=account, level=level,
                         flow_state=flow_state, owner_kind=owner_kind, owner_ref=owner_ref,
                         autonomy=autonomy, sla_seconds=sla_seconds, due_at=due_at,
-                        action_kind=action_kind)
+                        action_kind=action_kind, evidence=evidence)
         self.rows[todo.id] = todo
         self.create_calls.append(todo)
         return todo

@@ -64,16 +64,20 @@ def find_labelled_preplan_date(context: Optional[str]) -> Optional[datetime]:
     return None
 
 def _job_watch_rule_health() -> Dict[str, Any]:
-    """规则健康检查：每天收盘后评估所有启用规则的健康度
-    
-    自动禁用：
+    """规则健康检查：每天收盘后评估所有启用规则的健康度（2026-10-22 对齐三分支）。
+
+    标失效（进 agent 裁决闭环，agent 可续期回 active / 退役归 archived）：
     - EXPIRED: 已过有效期
-    - STALE: 价格偏差 >20%（位置失效）
     - OUTDATED: 预案日期已过期
-    
-    标记审查（不自动禁用）：
+
+    停用直接禁用：
+    - STALE（价格偏差）：已由「盘中实时失效判定」按 agent 设定的
+      invalidation_threshold_pct 覆盖——此处不再用写死 20% 直接 enabled=false，
+      避免和 agent 阈值打架。
+
+    标记审查（不动）：
     - INACTIVE: 30天未触发
-    
+
     飞书通知：健康度报告
     """
     import json
@@ -96,7 +100,12 @@ def _job_watch_rule_health() -> Dict[str, Any]:
     kline_repo = KlineORMRepository()
 
     reports = []
-    auto_disabled = []
+    # 2026-10-22 对齐三分支失效闭环：
+    #  · EXPIRED/OUTDATED → auto_invalidated（标 invalid 进 agent 裁决闭环，不再裸 enabled=false）
+    #  · STALE（价格偏离）→ stale_deferred（停用——盘中实时失效判定已按 agent 设定的
+    #    invalidation_threshold_pct 覆盖，此处不再用写死 20% 直接禁用，避免两套失效标准打架）
+    auto_invalidated = []
+    stale_deferred = []
     marked_inactive = []
 
     # 与原来的 FROM quant.watch_rules WHERE enabled = true 等价。
@@ -185,42 +194,56 @@ def _job_watch_rule_health() -> Dict[str, Any]:
             'reason': reason,
         })
             
-        # 自动处理
-        if status in ('EXPIRED', 'STALE', 'OUTDATED'):
-            # update_fields 的 updated_at 用 Python datetime.now()（原 SQL 用 NOW()）。
-            # 两者都是"当下"，差在进程时钟 vs 库时钟；本巡检不依赖该字段做判定。
-            rule_repo.update_fields(rule_id, enabled=False)
-            auto_disabled.append({'rule_id': rule_id, 'symbol': symbol, 'reason': reason})
+        # 自动处理（2026-10-22 对齐三分支失效闭环）
+        if status == 'STALE':
+            # 价格偏离失效已由「盘中实时失效判定」负责（按 agent 设定的
+            # invalidation_threshold_pct 标 invalid + 投递裁决）——此处不再用写死 20%
+            # 直接禁用，避免和 agent 阈值打架（agent 设 30% 时偏离 25% 不该被禁用）。
+            stale_deferred.append({'rule_id': rule_id, 'symbol': symbol, 'reason': reason})
+        elif status in ('EXPIRED', 'OUTDATED'):
+            # 时间维度失效：对齐三分支——标 invalid（agent 可裁决续期回 active /
+            # 退役归 archived），不再裸 enabled=false（那会让规则静默消失、绕过裁决闭环）。
+            rule_repo.update_fields(rule_id, rule_state='invalid',
+                                    invalid_reason=reason, invalid_at=datetime.now())
+            auto_invalidated.append({'rule_id': rule_id, 'symbol': symbol, 'reason': reason})
         elif status == 'INACTIVE':
             marked_inactive.append({'rule_id': rule_id, 'symbol': symbol, 'reason': reason})
     
     # 生成飞书通知
-    if auto_disabled or marked_inactive:
+    if auto_invalidated or stale_deferred or marked_inactive:
         lines = [f'🧹 【规则健康检查】{datetime.now().strftime("%Y-%m-%d")}', '']
-        
-        if auto_disabled:
-            lines.append('自动禁用：')
-            for d in auto_disabled:
+
+        if auto_invalidated:
+            lines.append('已标失效（待 agent 裁决续期 / 退役）：')
+            for d in auto_invalidated:
                 lines.append(f"- 规则#{d['rule_id']} {d['symbol']}：{d['reason']}")
             lines.append('')
-        
+
+        if stale_deferred:
+            lines.append(f'价格偏离 {len(stale_deferred)} 条：已由盘中实时失效判定'
+                         f'（按 agent 设定的阈值）覆盖，本巡检不再直接禁用。')
+            lines.append('')
+
         if marked_inactive:
             lines.append('待人工审查：')
             for d in marked_inactive:
                 lines.append(f"- 规则#{d['rule_id']} {d['symbol']}：{d['reason']}")
             lines.append('')
-        
+
         # 统计
         healthy_count = len([r for r in reports if r['status'] == 'HEALTHY'])
-        lines.append(f'统计：总数 {len(reports)} 条 | 健康 {healthy_count} 条 | 自动禁用 {len(auto_disabled)} 条 | 待审查 {len(marked_inactive)} 条')
-        
+        lines.append(f'统计：总数 {len(reports)} 条 | 健康 {healthy_count} 条 | '
+                     f'标失效 {len(auto_invalidated)} 条 | 偏离移交实时判定 {len(stale_deferred)} 条 | '
+                     f'待审查 {len(marked_inactive)} 条')
+
         _send_feishu('\n'.join(lines))
-    
+
     return {
         'status': 'success',
         'total': len(reports),
         'healthy': len([r for r in reports if r['status'] == 'HEALTHY']),
-        'auto_disabled': len(auto_disabled),
+        'auto_invalidated': len(auto_invalidated),
+        'stale_deferred': len(stale_deferred),
         'marked_inactive': len(marked_inactive),
         'details': reports,
     }
@@ -297,3 +320,49 @@ def _job_event_calendar_check() -> Dict[str, Any]:
             'high': len(high), 'mid': len(mid)}
 
 
+def _job_invalid_escalation() -> Dict[str, Any]:
+    """失效规则滞留升级（2026-10-22 用户裁定）。
+
+    三分支里 invalid = "agent 待裁决（改/删）"。agent 该处理却超龄（默认 24h）未处理
+    → 这些规则标记出来、发盯盘群给用户，请用户推进（改阈值回 active / 退役归 archived）。
+    提醒后写 invalid_escalated_at（每个规则只提醒一次，不天天刷同一条）。
+
+    走 send_watch_alert（用户盯盘群）而非 _send_feishu（运维群）——这是**用户要推进的
+    行动项**，不是系统运维消息（2026-10-14 分群裁定的边界）。
+    """
+    from adapters.outbound.repositories.watch_rule_repository import WatchRuleRepository
+    from qs_watch.application.services.watch_engine.watch_channels import send_watch_alert
+
+    repo = WatchRuleRepository()
+    stale = repo.list_stale_invalid(older_than_hours=24)
+    if not stale:
+        return {'stale': 0, 'escalated': 0, 'sent': False}
+
+    now = datetime.now()
+    lines = [
+        f'⏰ 【失效规则待你推进】{now.strftime("%Y-%m-%d")}',
+        f'{len(stale)} 条规则已失效超 24h，agent 未裁决。请推进（改阈值回盯盘 / 退役清理）：',
+        '',
+    ]
+    for r in stale:
+        age = now - (r.invalid_at or now)
+        age_str = f'{age.days}天{age.seconds // 3600}时' if age.days else f'{age.seconds // 3600}时'
+        lines.append(f"- 规则#{r.id} {r.symbol}：{str(r.invalid_reason or '')[:60]}（滞留 {age_str}）")
+    lines.append('')
+    lines.append('处置：PATCH /api/watch/rules/{id}，rule_state=active（调阈值续用）/ archived（退役）')
+
+    sent = False
+    try:
+        sent = bool(send_watch_alert('\n'.join(lines)))
+    except Exception as e:  # noqa: BLE001 - 发送失败不阻断标记（下轮不重复刷）
+        logger.error('失效规则滞留提醒发送失败', error=str(e))
+
+    # 标记已提醒（发送成败都标记，避免同一规则每天重复刷；只记日志不抛）
+    marked = 0
+    for r in stale:
+        try:
+            repo.update_fields(r.id, invalid_escalated_at=now)
+            marked += 1
+        except Exception as e:  # noqa: BLE001
+            logger.error('滞留标记失败', rule_id=getattr(r, 'id', None), error=str(e))
+    return {'stale': len(stale), 'escalated': marked, 'sent': sent}

@@ -19,10 +19,72 @@ def _err(message: str, status: int) -> JSONResponse:
     return JSONResponse({'success': False, 'error': message}, status_code=status)
 
 
+def _validation_err(message: str, spec: dict = None) -> JSONResponse:
+    """校验失败 400：除人读 error 消息外，带**结构化 spec**（合法值枚举）。
+
+    与 409 的 existing_rules 同一理念——agent 被拦后应能**程序化**拿到「该填什么合法值」，
+    而不是从自然语言 error 里解析。spec 按校验类型给（账户守卫 → accounts/intents；
+    条件校验 → condition_types；action_params → schema 说明）。
+    """
+    body = {'success': False, 'error': message}
+    if spec:
+        body['spec'] = spec
+    return JSONResponse(body, status_code=400)
+
+
+def _condition_schema_payload() -> dict:
+    """条件入参契约（个股级 + 市场级 + 规则级选项）的**唯一构造点**。
+
+    GET /api/watch/rules/condition-schema 与条件校验 400 的 spec **共用本函数**，
+    避免两处漂移。400 响应内联返回完整 schema——agent 被拦后当场拿到该怎么写，
+    **无需再调一次 condition-schema 工具**（省一次往返）。"""
+    from qs_watch.application.services.watch_engine.conditions import CONDITION_SCHEMA
+    from qs_watch.domain.watch.services.market_rule_evaluator import MARKET_CONDITION_SCHEMA
+    return {'symbol_level': CONDITION_SCHEMA, 'market_level': MARKET_CONDITION_SCHEMA,
+            'rule_level_options': {
+                'market_gate': {
+                    'desc': '市场环境复合门（流程图 H 节点）：信号成立后查大盘，环境异常只记录不动作',
+                    'placement': 'action_params.market_gate',
+                    'params': {
+                        'index': {'required': False, 'type': '指数代码',
+                                  'default': '000001.SH', 'example': '000001.SH'},
+                        'max_down_pct': {'required': False, 'type': 'number', 'unit': '%',
+                                         'example': -1.5,
+                                         'desc': '指数跌幅≤此值即拦截（系统性风险日不接飞刀）'},
+                        'max_up_pct': {'required': False, 'type': 'number', 'unit': '%',
+                                       'example': 3.0,
+                                       'desc': '指数涨幅≥此值即拦截（过热追高保护，可选）'},
+                    },
+                    'notes': '仅对 pending/escalated 类信号生效；取数失败 fail-open 放行',
+                },
+            }}
+
+
 def _parse_expires_at(value):
     if not value:
         return None
     return datetime.fromisoformat(value)
+
+
+@router.get('/api/watch/exec/stats')
+def exec_stats(since: Optional[str] = Query(None), until: Optional[str] = Query(None)):
+    """执行闭环统计（FR-7）：三态计数 + 处理时延 p50/p95。
+
+    只读聚合；空数据返回 0（时延为空时返回 null，不伪造 0）。
+    """
+    try:
+        since_dt = _parse_expires_at(since) if since else None
+        until_dt = _parse_expires_at(until) if until else None
+    except ValueError:
+        return _err('time_window_invalid: since/until 需 ISO 时间', 400)
+    if since_dt and until_dt and until_dt < since_dt:
+        return _err('time_window_invalid: until 早于 since', 400)
+    from adapters.outbound.repositories.watch_todo_repository import WatchTodoRepository
+    try:
+        data = WatchTodoRepository().exec_stats(since=since_dt, until=until_dt)
+    except Exception as e:  # noqa: BLE001 - 聚合失败不返回半份数字
+        return _err('watch_exec_stats_unavailable: %s' % e, 503)
+    return {'success': True, 'data': data}
 
 
 @router.get('/api/watch/outcomes/stats')
@@ -45,16 +107,20 @@ def outcome_stats(rule_id: Optional[int] = Query(None),
 
 @router.get('/api/watch/rules')
 def list_rules(symbol: Optional[str] = Query(None), enabled: Optional[str] = Query(None),
-               account: Optional[str] = Query(None),
+               account: Optional[str] = Query(None), rule_state: Optional[str] = Query(None),
                lint: Optional[str] = Query(None)):
     """account=某账户名时仅返回该账户归属 + 通用观察(account 为空)的规则
     （看板按账户展示盯盘）；不传返回全部。
+
+    rule_state=active/invalid/archived 按生命周期三态过滤（2026-10-22）：
+    active=在盯盘 / invalid=失效待裁决 / archived=过滤丢弃。
 
     lint=missing_guidance（REQ-261016155500-4f2a）：只返回四要素（action_params /
     next_action_hint / intent / action_on_trigger）全空的启用规则，并附缺项明细。"""
     rule_repo = WatchRuleRepository()
     enabled_value = None if enabled is None else enabled.lower() == 'true'
-    rules = rule_repo.list_rules(symbol=symbol, enabled=enabled_value, account=account)
+    rules = rule_repo.list_rules(symbol=symbol, enabled=enabled_value, account=account,
+                                 rule_state=rule_state)
     if lint == 'missing_guidance':
         from qs_watch.domain.watch.services.rule_lint import guidance_state, is_missing_guidance
         hits = [r for r in rules if is_missing_guidance(r)]
@@ -98,7 +164,13 @@ def create_rule(payload: Dict[str, Any] = Body(default_factory=dict)):
         for cond in conditions:
             validate_condition(cond)
     except ValueError as e:
-        return _err(str(e), 400)
+        # 400 带结构化规范：合法类型枚举 + **内联完整 condition_schema**——
+        # agent 被拦后当场拿到该怎么写，无需再调 GET condition-schema（省一次往返）。
+        from qs_watch.application.services.watch_engine.conditions import VALID_TYPES
+        return _validation_err(str(e), spec={
+            'condition_types': sorted(VALID_TYPES),
+            'condition_schema': _condition_schema_payload(),
+        })
     try:
         expires_at = _parse_expires_at(data.get('expires_at'))
     except ValueError:
@@ -111,6 +183,58 @@ def create_rule(payload: Dict[str, Any] = Body(default_factory=dict)):
             return _err(err, 400)
     try:
         rule_repo = WatchRuleRepository()
+        # 领域数据校验优先（400 先于 409）：没账户的买卖规则先被账户铁律拦，
+        # 而非先报 symbol 冲突——数据非法比业务冲突更基础。guard_new_rule 是纯函数
+        # 无副作用，create_rule 内部会再拦一次（幂等），这里的预检只为排定响应顺序。
+        from qs_watch.domain.watch.services.rule_guard import KNOWN_ACCOUNTS, guard_new_rule
+        try:
+            guard_new_rule(intent=data.get('intent'), action_hint=data.get('action_hint'),
+                           conditions=conditions,
+                           account=(data.get('linked_account') or data.get('account') or None),
+                           symbol=symbol)
+        except ValueError as e:
+            # 400 也带结构化规范：合法账户 / intent 枚举，agent 无需解析自然语言 error
+            from qs_watch.domain.watch.services.disposition import HOLD_INTENTS, TRADE_INTENTS
+            return _validation_err(str(e), spec={
+                'accounts': list(KNOWN_ACCOUNTS),
+                'intents': sorted(set(TRADE_INTENTS) | set(HOLD_INTENTS) | {'trend_observe'}),
+                'account_required_for': list(TRADE_INTENTS),   # 买卖类必须带账户
+                'account_optional_for': sorted(set(HOLD_INTENTS) | {'trend_observe'}),
+                'symbol': symbol,
+            })
+        # 失效阈值预检（400 带规范）：正数校验提前到路由层，与账户守卫同一响应结构。
+        # 内部 create_rule 的归一就不会再因阈值抛错（预检已拦），响应统一可读。
+        from adapters.outbound.repositories.watch_rule_repository import (
+            normalize_invalidation_threshold,
+        )
+        try:
+            normalize_invalidation_threshold(data.get('invalidation_threshold_pct'))
+        except (ValueError, TypeError) as e:
+            return _validation_err(str(e), spec={
+                'invalidation_threshold_pct': '正数（%），agent 按规则设定的失效偏离线；'
+                                              '不填则用全局默认 20',
+                'symbol': symbol,
+            })
+        # ── 一股票一规则校验（2026-10-22 用户裁定：创建管线守卫）──
+        # agent 给某股票建规则时，先告知已有规则及完整内容（existing_rules），
+        # 不静默覆盖。agent 看完仍要新建 → 带 force/replace=true 重提，创建成功后
+        # 旧规则自动作废（rule_state=archived）。仅约束 scope='symbol' 的个股规则。
+        force = bool(data.get('force') or data.get('replace'))
+        new_scope = data.get('scope') or 'symbol'
+        existing = []
+        if new_scope == 'symbol':
+            existing = [r for r in rule_repo.list_rules(symbol=symbol, rule_state='active')
+                        if (getattr(r, 'scope', None) or 'symbol') == 'symbol']
+        if existing and not force:
+            return JSONResponse({
+                'success': False,
+                'error': 'RULE_EXISTS',
+                'message': ('标的 %s 已有 %d 条在盯规则（内容见 existing_rules）。'
+                            '如确认替换，请带 force=true 重新提交——旧规则将自动作废'
+                            '（rule_state=archived，审计保留可回滚）。'
+                            % (symbol, len(existing))),
+                'existing_rules': [rule_to_dict(r) for r in existing],
+            }, status_code=409)
         rule = rule_repo.create_rule(
             symbol=symbol,
             conditions=conditions,
@@ -133,6 +257,12 @@ def create_rule(payload: Dict[str, Any] = Body(default_factory=dict)):
             # 非法值由仓储归一抛 ValueError → 上面的 400 分支（不让坏值落库后变成抽奖）。
             position_state=data.get('position_state'),
             interval_sec=data.get('interval_sec'),
+            # 失效阈值（2026-10-22 必填语义）：agent 按规则设定，像止盈价/止损价一样是
+            # 具体参数；不给 → 仓储层落全局默认，规则上始终有具体值。
+            invalidation_threshold_pct=data.get('invalidation_threshold_pct'),
+            # 2026-10-23：盯盘 V2 档位（30/600/1800 秒）。不给 → DB 默认 30（最快档），
+            # 随后由开盘任务按距离自动归档；给了就按给的值钉死。
+            watch_tier=data.get('watch_tier'),
         )
     except ValueError as e:
         # 领域守卫拒绝（没有账户不能进入买卖 / 策略账户不接受盯盘规则）→ 400 而非 500：
@@ -140,7 +270,19 @@ def create_rule(payload: Dict[str, Any] = Body(default_factory=dict)):
         return _err(str(e), 400)
     except Exception as e:
         return _err(f'创建失败: {e}', 500)
-    return {'success': True, 'data': {'rule': rule_to_dict(rule)}}
+    # 替换语义（force 确认后）：新建成功 → 旧规则作废（archived）。
+    # 先建新再废旧——新规则一定落库，避免「先删旧再建新」的中间窗口期该股票无规则可盯。
+    replaced_ids = []
+    for old in existing:
+        try:
+            rule_repo.update_fields(old.id, rule_state='archived')
+            replaced_ids.append(old.id)
+        except Exception:  # noqa: BLE001 - 单个作废失败不阻断（新规则已生效）
+            pass
+    out = {'rule': rule_to_dict(rule)}
+    if replaced_ids:
+        out['replaced_rule_ids'] = replaced_ids
+    return {'success': True, 'data': out}
 
 
 def _update_rule(rule_id: int, payload: Dict[str, Any]):
@@ -169,6 +311,25 @@ def _update_rule(rule_id: int, payload: Dict[str, Any]):
             return _err(err, 400)
     if 'escalation_policy' in data and not isinstance(data['escalation_policy'], dict):
         return _err('escalation_policy 必须为对象', 400)
+    # 2026-10-22 三分支：rule_state 裁决回写（agent 对失效规则的改/删裁决）
+    if 'rule_state' in data:
+        if data['rule_state'] not in ('active', 'invalid', 'archived'):
+            return _err('rule_state 必须为 active/invalid/archived 之一', 400)
+        # 裁决「回 active」（改阈值续用）→ 自动清除失效标记，失效状态解除
+        if data['rule_state'] == 'active':
+            data.setdefault('invalid_reason', None)
+            data.setdefault('invalid_at', None)
+        # 注意：裁决「退役归 archived」不改 enabled——rule_state='archived' 本身
+        # 已让规则退出一切判定（list_by_state 按 rule_state 过滤），避免触发
+        # 宪法级止损的停用守卫（guard_disable_rule）。
+    # 失效阈值更新（2026-10-22）：给了必须为正数；不给不动（保持现值）
+    if 'invalidation_threshold_pct' in data and data['invalidation_threshold_pct'] is not None:
+        try:
+            data['invalidation_threshold_pct'] = float(data['invalidation_threshold_pct'])
+            if data['invalidation_threshold_pct'] <= 0:
+                raise ValueError
+        except (TypeError, ValueError):
+            return _err('invalidation_threshold_pct 必须为正数（%）', 400)
 
     # 变更留痕（RFC 014 §4.2 非对称护栏的落地基础）：返回改动前后值，供调用方写 decision_audit。
     before_rule = rule_repo.get_by_id(rule_id)
@@ -240,27 +401,8 @@ def _limit_of(limit, default: int = 50, cap: int = 200) -> int:
 @router.get('/api/watch/rules/condition-schema')
 def get_condition_schema():
     """条件入参契约：全部条件类型的参数说明/单位/示例 + market_gate 规格。
-    单一事实源在 qs_watch 的 CONDITION_SCHEMA / MARKET_CONDITION_SCHEMA。"""
-    from qs_watch.application.services.watch_engine.conditions import CONDITION_SCHEMA
-    from qs_watch.domain.watch.services.market_rule_evaluator import MARKET_CONDITION_SCHEMA
-    return {'symbol_level': CONDITION_SCHEMA, 'market_level': MARKET_CONDITION_SCHEMA,
-            'rule_level_options': {
-                'market_gate': {
-                    'desc': '市场环境复合门（流程图 H 节点）：信号成立后查大盘，环境异常只记录不动作',
-                    'placement': 'action_params.market_gate',
-                    'params': {
-                        'index': {'required': False, 'type': '指数代码',
-                                  'default': '000001.SH', 'example': '000001.SH'},
-                        'max_down_pct': {'required': False, 'type': 'number', 'unit': '%',
-                                         'example': -1.5,
-                                         'desc': '指数跌幅≤此值即拦截（系统性风险日不接飞刀）'},
-                        'max_up_pct': {'required': False, 'type': 'number', 'unit': '%',
-                                       'example': 3.0,
-                                       'desc': '指数涨幅≥此值即拦截（过热追高保护，可选）'},
-                    },
-                    'notes': '仅对 pending/escalated 类信号生效；取数失败 fail-open 放行',
-                },
-            }}
+    唯一构造点是 _condition_schema_payload()（与条件校验 400 的 spec 共用，不漂移）。"""
+    return _condition_schema_payload()
 
 
 @router.post('/api/watch/conditions/simulate')

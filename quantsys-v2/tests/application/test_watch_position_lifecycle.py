@@ -25,12 +25,14 @@ class FakeRuleRepo:
         return None
 
     def create_rule(self, symbol, conditions, context=None, cost_price=None,
-                    active_window=None, expires_at=None, created_by="agent", account=None):
+                    active_window=None, expires_at=None, created_by="agent", account=None,
+                    position_state=None):
         r = _rule(rid=900 + len(self.created), symbol=symbol, intent=None)
         r.conditions = conditions
         r.cost_price = cost_price
         r.account = account
         r.context = context
+        r.position_state = position_state
         self.created.append(r)
         self._rules.append(r)
         return r
@@ -79,6 +81,9 @@ def test_entry_rule_preserved_after_buy_but_stop_loss_created():
     assert stop.conditions[0]["params"]["direction"] == "below"
     tp = next(r for r in rules.created if r.conditions[0]["type"] == "pnl_pct")
     assert tp.conditions[0]["params"] == {"pct": 15.0, "direction": "above"}
+    # REQ-261021194640-69b8 FR-8：补挂规则必须带 holding，否则状态门跳过 exit 族
+    assert stop.position_state == "holding", "补挂止损必须带持仓状态"
+    assert tp.position_state == "holding", "补挂止盈必须带持仓状态"
     assert rules.list_enabled()[0].enabled is True, "原等买规则必须仍然启用"
 
 
@@ -128,3 +133,23 @@ def test_entry_rule_kept_when_not_bought():
     svc = PositionLifecycleService(rules, FakePosRepo({}))
     out = svc.reconcile()
     assert out["retired"] == 0 and out["created"] == 0
+
+
+def test_autocreated_take_profit_not_skipped_by_state_gate():
+    """补挂后下一拍：exit 族 + holding → 状态门放行（不被当成「确认空仓」跳过）。
+
+    REQ-261021194640-69b8 FR-8 的验收锚点：新补挂的止盈规则若落在 none，
+    状态门会永久跳过 exit 族；本用例直接调引擎的状态门判定证明不会发生。
+    """
+    from qs_watch.application.services.watch_engine.engine import position_state_verdict
+
+    rules = FakeRuleRepo([_rule(rid=1, symbol="600150", intent="entry")])
+    svc = PositionLifecycleService(
+        rules, FakePosRepo({"600150": {"shares": 100, "avg_cost": 10.0}}))
+    svc.reconcile(datetime(2026, 9, 11, 16, 0))
+
+    tp = next(r for r in rules.created if r.conditions[0]["type"] == "pnl_pct")
+    assert tp.intent == "exit_take_profit"
+    skip_reason, mismatch = position_state_verdict(tp)
+    assert skip_reason is None, "holding 的止盈规则不得被状态门跳过"
+    assert mismatch is None

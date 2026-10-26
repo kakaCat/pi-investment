@@ -165,6 +165,8 @@ class AccountTradingService:
         submitted_by: Optional[str] = None,
         signal_id: Optional[str] = None,
         strategy_name: Optional[str] = None,
+        plan_id: Optional[int] = None,
+        plan_version: Optional[int] = None,
     ) -> Dict:
         """
         重构版交易执行（使用 TradeGuardService）
@@ -488,6 +490,14 @@ class AccountTradingService:
             logger.error("trade_transaction_failed_rollback", error=str(e), exc_info=True)
             raise TradingError(f'交易执行失败: {e}', 500)
 
+        # ---- 11a. 成交回写（REQ-261021194640-69b8 FR-1/FR-2，2026-10-21）----
+        # 事务已提交：此刻成交是既成事实，回执只是旁路增益——失败只记日志，
+        # **绝不**回滚或改写成交结果（回调契约见 ports/fill_listener）。
+        self._emit_fill_notification(
+            account_name=account_name, symbol=symbol, action=action,
+            shares=shares, price=px, trade_id=trade_id, order_id=order.id,
+            reason=reason, plan_id=plan_id, plan_version=plan_version)
+
         # ---- 11b. 盈亏闭环落库（2026-10-19，断点 C 修复）----
         # SELL 成交 → strategy_performance。写端曾随 legacy 订单栈（9-14 删除）
         # 陪葬，此处重新接线到存活路径。审计写入失败**绝不**反向影响已成交的交易。
@@ -585,6 +595,34 @@ class AccountTradingService:
             logger.info("pending_orders_matched",
                         executed=executed, failed=failed, at=now.isoformat())
         return {'executed': executed, 'failed': failed, 'details': details}
+
+    @staticmethod
+    def _emit_fill_notification(*, account_name: str, symbol: str, action: str,
+                                shares: int, price: float, trade_id: int,
+                                order_id: Optional[int] = None,
+                                decision_audit_id: Optional[str] = None,
+                                reason: Optional[str] = None,
+                                source: str = 'agent_trade',
+                                plan_id: Optional[int] = None,
+                                plan_version: Optional[int] = None) -> None:
+        """把已提交的成交投影成 FillEvent 交给盯盘（IF-2；失败只记日志）。
+
+        依赖方向：交易包只 import 自己的端口，**不感知** watch。未注册监听者时
+        notify_fill 返回 False，成交路径与改造前逐字一致。
+        """
+        try:
+            from qs_trading.application.ports.fill_listener import FillEvent, notify_fill
+            notify_fill(FillEvent(
+                account_name=account_name, symbol=symbol,
+                action=str(action or '').lower(), shares=int(shares),
+                price=float(price), trade_id=trade_id, order_id=order_id,
+                decision_audit_id=decision_audit_id, filled_at=datetime.now(),
+                source=source, reason=reason,
+                plan_id=plan_id, plan_version=plan_version))
+        except Exception as e:  # noqa: BLE001 - 成交已落库，回执失败绝不反噬
+            logger.error('fill_notify_error（成交已落库，回执失败只记日志）',
+                         account=account_name, symbol=symbol,
+                         action=action, trade_id=trade_id, error=str(e))
 
     def _record_strategy_performance(
         self, *, account_name: str, symbol: str, order, trade_id: int,

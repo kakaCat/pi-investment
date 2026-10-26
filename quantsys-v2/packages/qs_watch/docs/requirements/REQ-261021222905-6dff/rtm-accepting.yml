@@ -1,0 +1,266 @@
+metadata:
+  stage: accepting
+  requirement_id: REQ-261021222905-6dff
+  generated_at: 2026-10-21T16:38:12.260Z
+  version: 3
+  generated_by: dsh-pmboard
+  last_updated: 2026-10-21T16:38:20.474Z
+inputs:
+  tasks:
+    - id: t-180c05
+      title: 搭建 qs_plan 包骨架并落五表迁移
+      status: done
+    - id: t-350b38
+      title: 实现五表 ORM 与 TradingPlanRepository
+      status: done
+    - id: t-cced59
+      title: 实现计划领域模型与状态机守卫
+      status: done
+    - id: t-efb315
+      title: 实现 PlanService（CRUD/两步提交/纪律门/审计号强制）
+      status: done
+    - id: t-dc17c4
+      title: 实现 PlanCompiler 幂等编译
+      status: done
+    - id: t-4876f4
+      title: 实现计划生命周期路由与编译预览
+      status: done
+    - id: t-dee787
+      title: 实现今日计划聚合视图
+      status: done
+    - id: t-dd0616
+      title: 接通成交回执：execute_trade 发 FillEvent + FillSync 推进计划状态
+      status: done
+    - id: t-60bfe8
+      title: 实现计划统计归因与被拦信号统计
+      status: done
+    - id: t-d6b85d
+      title: 实现反思材料包组装与反思写回
+      status: done
+    - id: t-155457
+      title: 实现反思定时任务与 overdue 兜底
+      status: done
+    - id: t-fd81c5
+      title: 实现 trading_plan 工具双端（agent-dh 投资脑 + agent-ts fin-agent）
+      status: done
+    - id: t-89fa50
+      title: 接通进化层消费反思知识段
+      status: done
+    - id: t-07abf5
+      title: 实现 core_plan 批次适配器
+      status: done
+    - id: t-7f6add
+      title: 收口测试与端到端冒烟
+      status: done
+    - id: t-223879
+      title: 搭建 qs_plan 包骨架并落五表迁移·研发
+      status: done
+    - id: t-08927d
+      title: 搭建 qs_plan 包骨架并落五表迁移·复核
+      status: done
+outputs:
+  test_cases:
+    - id: TC-1
+      title: 1. 计划域全量
+      covers:
+        - t-180c05
+        - t-350b38
+        - t-cced59
+        - t-efb315
+        - t-dc17c4
+        - t-4876f4
+        - t-dee787
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-2
+      title: 2. 逐文件覆盖
+      covers:
+        - t-180c05
+        - t-223879
+        - t-08927d
+        - t-350b38
+        - t-cced59
+        - t-efb315
+        - t-dc17c4
+        - t-4876f4
+        - t-dee787
+        - t-dd0616
+        - t-60bfe8
+        - t-d6b85d
+        - t-155457
+        - t-fd81c5
+        - t-89fa50
+        - t-07abf5
+        - t-7f6add
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-3
+      title: 3. watch 既有套件（回归）
+      covers:
+        - t-7f6add
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-4
+      title: 4. 迁移幂等（quant_test）
+      covers:
+        - t-180c05
+        - t-155457
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-5
+      title: 5. 端到端冒烟（UC-1 / UC-2）
+      covers:
+        - t-7f6add
+        - t-4876f4
+        - t-dd0616
+        - t-d6b85d
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-6
+      title: 6. 双端工具契约（TC-22）
+      covers:
+        - t-fd81c5
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-7
+      title: 7. 结构检查
+      covers:
+        - t-89fa50
+        - t-7f6add
+      validates: []
+      source: tests/test-evidence.md
+traceability:
+  task_to_tests:
+    t-180c05:
+      - TC-1
+      - TC-2
+      - TC-4
+    t-350b38:
+      - TC-1
+      - TC-2
+    t-cced59:
+      - TC-1
+      - TC-2
+    t-efb315:
+      - TC-1
+      - TC-2
+    t-dc17c4:
+      - TC-1
+      - TC-2
+    t-4876f4:
+      - TC-1
+      - TC-2
+      - TC-5
+    t-dee787:
+      - TC-1
+      - TC-2
+    t-dd0616:
+      - TC-2
+      - TC-5
+    t-60bfe8:
+      - TC-2
+    t-d6b85d:
+      - TC-2
+      - TC-5
+    t-155457:
+      - TC-2
+      - TC-4
+    t-fd81c5:
+      - TC-2
+      - TC-6
+    t-89fa50:
+      - TC-2
+      - TC-7
+    t-07abf5:
+      - TC-2
+    t-7f6add:
+      - TC-2
+      - TC-3
+      - TC-5
+      - TC-7
+    t-223879:
+      - TC-2
+    t-08927d:
+      - TC-2
+  fr_to_tests:
+    FR-1:
+      - TC-1
+      - TC-2
+      - TC-4
+      - TC-5
+      - TC-3
+      - TC-7
+      - TC-6
+    FR-2:
+      - TC-1
+      - TC-2
+      - TC-4
+      - TC-5
+      - TC-3
+      - TC-7
+      - TC-6
+    FR-3:
+      - TC-1
+      - TC-2
+      - TC-4
+      - TC-5
+      - TC-6
+      - TC-3
+      - TC-7
+    FR-4:
+      - TC-1
+      - TC-2
+      - TC-4
+      - TC-5
+      - TC-3
+      - TC-7
+      - TC-6
+    FR-5:
+      - TC-1
+      - TC-2
+      - TC-4
+      - TC-5
+      - TC-6
+      - TC-3
+      - TC-7
+    FR-6:
+      - TC-1
+      - TC-2
+      - TC-4
+      - TC-5
+      - TC-6
+      - TC-3
+      - TC-7
+    FR-7:
+      - TC-1
+      - TC-2
+      - TC-4
+      - TC-5
+      - TC-6
+      - TC-3
+      - TC-7
+    FR-8:
+      - TC-1
+      - TC-2
+      - TC-4
+      - TC-5
+      - TC-6
+      - TC-7
+      - TC-3
+    FR-9:
+      - TC-1
+      - TC-2
+      - TC-4
+      - TC-5
+      - TC-6
+      - TC-3
+      - TC-7
+coverage:
+  testing:
+    total: 17
+    covered: 17
+    uncovered: []
+    rate: 100
+    total_tasks: 17
+    tested_tasks: 17
+    untested: []

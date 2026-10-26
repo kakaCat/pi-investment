@@ -1,0 +1,71 @@
+metadata:
+  stage: brainstorming
+  requirement_id: REQ-261021194640-69b8
+  generated_at: 2026-10-21T11:56:20.169Z
+  version: 3
+  generated_by: dsh-pmboard
+  rtm_version: "2.0"
+  last_updated: 2026-10-21T12:07:40.212Z
+outputs:
+  requirements:
+    - id: FR-1
+      title: 卖出成交后收敛盯盘待办与退出规则
+      source: requirement.md
+      line: 273
+    - id: FR-2
+      title: 买入成交后持仓状态秒级转持有
+      source: requirement.md
+      line: 276
+    - id: FR-3
+      title: 消息 critical 命中持仓 → P1 待办 + 唤醒 agent
+      source: requirement.md
+      line: 279
+    - id: FR-4
+      title: 盘后消息可扫
+      source: requirement.md
+      line: 282
+    - id: FR-5
+      title: 不执行 → 改规则联动
+      source: requirement.md
+      line: 285
+    - id: FR-6
+      title: 执行期限与超时收敛
+      source: requirement.md
+      line: 288
+    - id: FR-7
+      title: 闭环统计可读
+      source: requirement.md
+      line: 291
+    - id: FR-8
+      title: 自动补挂规则带持仓状态
+      source: requirement.md
+      line: 294
+  prototypes: []
+  decisions:
+    - id: D-1
+      source: 人：「不自动下单是设计，不是机器下单，是agent下单。你这个搞错了。agent做最后判断」
+      verdict: 下单与最终判断主体是 agent；v2 只发指令/待办/兜底，不自动下单，也不把 agent 执行计为 v2 缺失
+      serves:
+        - FR-1
+        - FR-2
+        - FR-5
+      criterion: 设计文档边界声明 + 断言用例：盯盘包零下单调用
+    - id: D-2
+      source: 人：「我们优先完成那个内容」
+      verdict: 本期只做三条接缝（成交回写/消息投递/待办闭环）；计划实体、实时资金流、减仓数量化不进本期
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-5
+        - FR-6
+      criterion: 「边界（不做什么）」与拆分计划范围逐条一致
+    - id: D-3
+      source: 人选择：「critical 命中持仓标的或持仓板块 → 建 P1 待办 + 唤醒 agent；soft 只发卡」
+      verdict: 消息投递只对 critical 建待办；soft 维持发卡
+      serves:
+        - FR-3
+        - FR-4
+      criterion: 用例：critical 路径待办 1 条、soft 路径待办 0 条
+status:
+  artifacts: []

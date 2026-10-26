@@ -1,0 +1,36 @@
+task:
+  id: t-c6c5d2
+  title: 建交易包中立成交端口并保留旧路径转发
+  status: done
+  implements: 新建 packages/qs_trading/qs_trading/application/ports/fill_listener.py：FillEvent 数据类、IFillListener 协议、register/get/unregister、notify_fill（自吞异常、未注册返回 False）。改 application/trading/paper_trading_engine.py 保留同名导出并转发，_notify_fill 改调 notify_fill。验证 import 与行为等价。
+  serves:
+    - FR-1
+    - FR-2
+  depends_on: []
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261021194640-69b8
+    TASK_ID: t-c6c5d2
+    TASK_TITLE: 建交易包中立成交端口并保留旧路径转发
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-21T12:14:31.250Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261021194640-69b8
+  generated_at: 2026-10-21T12:14:31.248Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-21T12:16:28.327Z

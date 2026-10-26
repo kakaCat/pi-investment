@@ -1,0 +1,36 @@
+task:
+  id: t-dd0616
+  title: 接通成交回执：execute_trade 发 FillEvent + FillSync 推进计划状态
+  status: done
+  implements: qs_trading/application/services/account_trading_service.py 成交落库后 emit FillEvent（带 plan_id/plan_version；发送失败只记日志不阻断成交）；qs_watch/fill_sync_service.py on_fill 收敛时经 IPlanProgressPort 回调 PlanService 推进计划状态（清仓→closed、部分成交→对应批次退役）。
+  serves:
+    - FR-4
+  depends_on:
+    - t-dc17c4
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261021222905-6dff
+    TASK_ID: t-dd0616
+    TASK_TITLE: 接通成交回执：execute_trade 发 FillEvent + FillSync 推进计划状态
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-21T16:21:38.008Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261021222905-6dff
+  generated_at: 2026-10-21T16:20:23.780Z
+  version: 7
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-21T16:21:38.008Z

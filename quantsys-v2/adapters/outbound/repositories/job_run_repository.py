@@ -53,7 +53,9 @@ class JobRunRepository(BaseORMRepository[InProcessJobRun]):
                 .limit(1)
                 .first()
             )
-            return row[0] if row else None
+            result = row[0] if row else None
+            self._commit_if_readonly()
+            return result
         except Exception as e:  # noqa: BLE001 —— 台账不可读不应阻断业务
             self._safe_rollback()
             logger.warning("读取 inprocess_job_runs 失败（%s/%s）: %s", job_id, day, e)
@@ -71,12 +73,14 @@ class JobRunRepository(BaseORMRepository[InProcessJobRun]):
         """某日的全部运行记录。"""
         day = run_date or _date.today()
         try:
-            return (
+            result = (
                 self.session.query(InProcessJobRun)
                 .filter(InProcessJobRun.run_date == day)
                 .order_by(InProcessJobRun.started_at.asc())
                 .all()
             )
+            self._commit_if_readonly()
+            return result
         except Exception as e:  # noqa: BLE001
             self._safe_rollback()
             logger.warning("列出 inprocess_job_runs(%s) 失败: %s", day, e)
@@ -95,8 +99,11 @@ class JobRunRepository(BaseORMRepository[InProcessJobRun]):
                 .first()
             )
             if not row:
+                self._commit_if_readonly()
                 return None
-            return {'status': row[0], 'started_at': row[1]}
+            result = {'status': row[0], 'started_at': row[1]}
+            self._commit_if_readonly()
+            return result
         except Exception as e:  # noqa: BLE001
             self._safe_rollback()
             logger.warning("读取 inprocess_job_runs(%s/%s) 失败: %s", job_id, run_date, e)
@@ -179,8 +186,10 @@ class JobRunRepository(BaseORMRepository[InProcessJobRun]):
                 .where(InProcessJobRun.job_id.in_(ids))
                 .order_by(InProcessJobRun.run_date.desc(), InProcessJobRun.job_id)
             ).all()
-            return [{'job_id': r[0], 'run_date': str(r[1]), 'error': (r[2] or '')[:200]}
-                    for r in rows]
+            result = [{'job_id': r[0], 'run_date': str(r[1]), 'error': (r[2] or '')[:200]}
+                      for r in rows]
+            self._commit_if_readonly()
+            return result
         except Exception as e:  # noqa: BLE001
             self._safe_rollback()
             logger.warning("巡检 inprocess_job_runs 失败记录出错: %s", e)
@@ -199,8 +208,11 @@ class JobRunRepository(BaseORMRepository[InProcessJobRun]):
                 .limit(1)
             ).first()
             if not row:
+                self._commit_if_readonly()
                 return None
-            return {'run_date': str(row[0]), 'started_at': row[1], 'error': row[2]}
+            result = {'run_date': str(row[0]), 'started_at': row[1], 'error': row[2]}
+            self._commit_if_readonly()
+            return result
         except Exception as e:  # noqa: BLE001
             self._safe_rollback()
             logger.warning("读取最近失败记录(%s)出错: %s", job_id, e)
@@ -214,7 +226,9 @@ class JobRunRepository(BaseORMRepository[InProcessJobRun]):
                 .where(InProcessJobRun.status == 'running')
                 .where(InProcessJobRun.started_at < cutoff)
             ).all()
-            return [(r[0], r[1]) for r in rows]
+            result = [(r[0], r[1]) for r in rows]
+            self._commit_if_readonly()
+            return result
         except Exception:  # noqa: BLE001
             self._safe_rollback()
             raise
@@ -257,9 +271,11 @@ class JobRunRepository(BaseORMRepository[InProcessJobRun]):
                 .where(InProcessJobRun.run_date == day)
                 .order_by(InProcessJobRun.started_at.asc())
             ).all()
-            return {r[0]: {'status': r[1], 'started_at': str(r[2]),
-                           'finished_at': str(r[3]) if r[3] else None,
-                           'error': r[4]} for r in rows}
+            result = {r[0]: {'status': r[1], 'started_at': str(r[2]),
+                             'finished_at': str(r[3]) if r[3] else None,
+                             'error': r[4]} for r in rows}
+            self._commit_if_readonly()
+            return result
         except Exception as e:  # noqa: BLE001
             self._safe_rollback()
             logger.warning("列出 inprocess_job_runs(%s) 失败: %s", day, e)

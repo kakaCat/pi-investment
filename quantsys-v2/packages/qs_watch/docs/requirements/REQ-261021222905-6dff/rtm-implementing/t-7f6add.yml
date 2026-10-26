@@ -1,0 +1,49 @@
+task:
+  id: t-7f6add
+  title: 收口测试与端到端冒烟
+  status: done
+  implements: 补齐 tests/plan/ 全部用例（TC-1~TC-22）；跑 watch 既有套件确认不新增红；按 UC-1（建计划→激活→触发→模拟成交→回执收敛）与 UC-2（盘后反思→改止损→预览→apply→规则重编译）做端到端冒烟。
+  serves:
+    - FR-1
+    - FR-2
+    - FR-3
+    - FR-4
+    - FR-5
+    - FR-6
+    - FR-7
+    - FR-8
+    - FR-9
+  depends_on:
+    - t-dee787
+    - t-60bfe8
+    - t-155457
+    - t-fd81c5
+    - t-89fa50
+    - t-07abf5
+  phase: test
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261021222905-6dff
+    TASK_ID: t-7f6add
+    TASK_TITLE: 收口测试与端到端冒烟
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: test
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: test
+      status: done
+      completed_at: 2026-10-21T16:37:17.916Z
+    - phase: implement
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261021222905-6dff
+  generated_at: 2026-10-21T16:37:10.231Z
+  version: 6
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-21T16:37:17.916Z

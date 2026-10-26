@@ -1,0 +1,43 @@
+task:
+  id: t-38602b
+  title: 小仓位试单授权边界建议书（交用户决策，不执行）
+  status: done
+  implements: ①起草建议书（含风险测算：最坏情形月亏损 2500 元对账户的影响）；②落 docs 并标注待批准状态
+  serves: []
+  depends_on: []
+  phase: doc
+  side: doc
+  workflow_params:
+    REQ_ID: REQ-261019144524-ec50
+    TASK_ID: t-38602b
+    TASK_TITLE: 小仓位试单授权边界建议书（交用户决策，不执行）
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: doc
+    PHASE: doc
+  workflow_total: 5
+  workflow_done: 5
+  workflow:
+    - phase: doc
+      status: done
+      completed_at: 2026-10-19T16:52:26.750Z
+    - phase: implement
+      status: done
+      completed_at: 2026-10-19T16:52:26.750Z
+    - phase: test
+      status: done
+      completed_at: 2026-10-19T16:52:26.750Z
+    - phase: commit
+      status: done
+      completed_at: 2026-10-19T16:52:26.750Z
+    - phase: review
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261019144524-ec50
+  generated_at: 2026-10-19T16:52:26.750Z
+  version: 2
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 5
+  last_updated: 2026-10-19T16:52:26.751Z

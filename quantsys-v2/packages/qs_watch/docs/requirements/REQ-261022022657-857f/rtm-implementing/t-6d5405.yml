@@ -1,0 +1,38 @@
+task:
+  id: t-6d5405
+  title: 实现减仓批次匹配纯函数·研发
+  status: done
+  implements: |-
+    新增 packages/qs_plan/qs_plan/domain/plan/batch_matcher.py：def match_reduce_batches(batches, sold_ratio) -> list[int]；按 at_pct 升序累计 sell_ratio，返回累计 ≤ sold_ratio 的下标；越界抛 ValueError；空批返回 []。新增 tests/plan/test_plan_batch_convergence.py 覆盖四档与越界。
+
+    [子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要
+  serves: []
+  depends_on: []
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261022022657-857f
+    TASK_ID: t-6d5405
+    TASK_TITLE: 实现减仓批次匹配纯函数·研发
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      started_at: 2026-10-21T18:34:48.290Z
+      completed_at: 2026-10-21T18:34:50.769Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261022022657-857f
+  generated_at: 2026-10-21T18:34:46.866Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-21T18:34:50.769Z

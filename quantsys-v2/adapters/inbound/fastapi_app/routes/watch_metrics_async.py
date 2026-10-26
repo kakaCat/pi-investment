@@ -66,8 +66,30 @@ def _build_suppressed(rule_noise_repo, now: datetime, degraded: list) -> Optiona
         return None
 
 
+def _default_counters(now: datetime) -> Dict[str, Any]:
+    """当日两条链路计数（FR-4）：news 待办数 / 反思唤醒数。取不到 → None。"""
+    out: Dict[str, Any] = {'news_todos_today': None, 'reflection_woken_today': None}
+    try:
+        from sqlalchemy import text
+        from qs_kernel.infrastructure.persistence.database.engine import get_engine
+        day = now.date().isoformat()
+        with get_engine().connect() as conn:
+            out['news_todos_today'] = int(conn.execute(text(
+                "SELECT count(*) FROM quant.watch_todos "
+                "WHERE (evidence->>'source') = 'news' AND created_at::date = :d"),
+                {'d': day}).scalar() or 0)
+            out['reflection_woken_today'] = int(conn.execute(text(
+                "SELECT coalesce(sum((result->>'woken')::int), 0) "
+                "FROM quant.scheduler_runs WHERE started_at::date = :d "
+                "AND task_id IN (SELECT id FROM quant.scheduler_tasks "
+                "WHERE name LIKE 'plan_reflect%')"), {'d': day}).scalar() or 0)
+    except Exception:  # noqa: BLE001 - 缺表/缺列一律按未知（null），不用 0 冒充
+        return out
+    return out
+
+
 def build_metrics(now: Optional[datetime] = None, store=None, todo_repo=None,
-                  rule_noise_repo=None) -> Dict[str, Any]:
+                  rule_noise_repo=None, counts_provider=None) -> Dict[str, Any]:
     """组装指标（纯组装函数，便于单测；取数失败如实降级，不抛错）。
 
     store/todo_repo/rule_noise_repo 均可注入：**未注入即视为未知（null）**，绝不查库
@@ -108,6 +130,11 @@ def build_metrics(now: Optional[datetime] = None, store=None, todo_repo=None,
 
     todo_fields = _build_todo_fields(todo_repo, now, degraded)
     suppressed_rules = _build_suppressed(rule_noise_repo, now, degraded)
+    try:
+        counts = (counts_provider or _default_counters)(now) or {}
+    except Exception as e:  # noqa: BLE001 - 计数是增益，失败降级为 null
+        degraded.append('plan_closure_counters_failed: %s' % e)
+        counts = {}
 
     notes = ['路由与定时巡检注册已由 t12 接线（main.py / daily_jobs_bootstrap）']
     if todo_repo is None:
@@ -131,6 +158,8 @@ def build_metrics(now: Optional[datetime] = None, store=None, todo_repo=None,
         'todos_created_today': todo_fields['created_today'],
         'todos_closed_today': todo_fields['closed_today'],
         'terminal_rate_today': todo_fields['terminal_rate_today'],
+        'news_todos_today': counts.get('news_todos_today'),
+        'reflection_woken_today': counts.get('reflection_woken_today'),
         'suppressed_rules': suppressed_rules,
         'degraded': degraded,
         'notes': notes,

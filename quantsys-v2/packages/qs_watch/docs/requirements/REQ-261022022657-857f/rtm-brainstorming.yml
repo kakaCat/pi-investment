@@ -1,0 +1,38 @@
+metadata:
+  stage: brainstorming
+  requirement_id: REQ-261022022657-857f
+  generated_at: 2026-10-21T18:28:02.425Z
+  version: 4
+  generated_by: dsh-pmboard
+  rtm_version: "2.0"
+  last_updated: 2026-10-21T18:40:28.788Z
+outputs:
+  requirements:
+    - id: FR-1
+      title: 反思定时任务接入唤醒通道
+      source: requirement.md
+      line: 161
+    - id: FR-2
+      title: 减仓批次收敛
+      source: requirement.md
+      line: 179
+    - id: FR-3
+      title: 消息→离场链
+      source: requirement.md
+      line: 198
+    - id: FR-4
+      title: 回归与可观测
+      source: requirement.md
+      line: 217
+  prototypes: []
+  decisions:
+    - id: D-1
+      source: 「同意你立项吧」
+      verdict: 按建议的三项范围立项：反思唤醒 + 减仓批次收敛 + 消息→离场
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      criterion: 三条范围各有对应 FR（FR-1/2/3）
+status:
+  artifacts: []

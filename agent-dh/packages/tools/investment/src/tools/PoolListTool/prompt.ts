@@ -5,6 +5,8 @@ export interface PoolListParams {}
 export interface PoolItem {
   id: number;
   name: string;
+  /** 业务分类（板块共振/主题/策略/观察…），与 pool_type 正交 */
+  category?: string | null;
   description: string;
   created_at: string;
   updated_at: string;
@@ -29,6 +31,7 @@ export const poolListPrompt: ToolPrompt<PoolListParams, PoolListResult> = {
         properties: {
           id: { type: 'number' },
           name: { type: 'string' },
+          category: { type: 'string', description: '业务分类（板块共振/主题/策略/观察…）' },
           description: { type: 'string' },
           created_at: { type: 'string' },
           updated_at: { type: 'string' },

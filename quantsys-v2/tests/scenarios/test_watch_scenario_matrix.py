@@ -191,7 +191,11 @@ class _EnvMarketSvc:
         self.state_provider = _EnvStateProvider(state)
 
 
-def test_B7_environment_gate_archives_instead_of_notifying():
+def test_B7_environment_gate_archives_instead_of_notifying(monkeypatch):
+
+    # 环境闸拦截已默认关闭（2026-10-22 用户裁定：信号直接发用户）。本用例测的是
+    # 「闸开启时」的拦截路径，故显式打开开关（闸代码保留可回滚）。
+    monkeypatch.setenv('WATCH_ENV_GATE_ENABLED', 'true')
     """tick 前置环境门：指数暴跌+板块无主线+资金偏冷 → 个股信号只归档。
 
     证伪点：通知出口为 0、日配额不被吃掉、归档行 suppressed=true 且带拦截原因。

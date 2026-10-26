@@ -1,20 +1,17 @@
-"""result 回执聚合（2026-10-19：批量处置一次 41 张卡的修复）
+"""result 回执即时投递（2026-10-26 修复跨请求内存缓冲丢失）。
 
 验收锚点：
-  · 稳态单条：缓冲→窗口兜底 flush 一张卡（结论不丢，延迟 ≤ 窗口+巡检周期）
-  · 批量：窗口内 3 条收敛 → 1 张卡 3 行，逐条落库
-  · 到量立即 flush（8 条上限）
-  · 幂等：同一待办同一终态重复 result → duplicate，不重复进行
-  · 巡检收尾兜底 flush_result_buffer
+  · close 收敛后同一服务调用内立即发送，不依赖外部 flush；
+  · 多次收敛各自独立发送，不进入进程内存聚合；
+  · 幂等：同一待办同一终态重复 result → duplicate，不重复发送；
+  · 通道失败如实记 failed，仓储落库失败向上抛（由 TodoService 兜底为收敛成功、回执丢失）。
 """
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 
-from qs_watch.application.services.watch_engine.receipt_service import (
-    RESULT_AGG_CAP, ReceiptService,
-)
+from qs_watch.application.services.watch_engine.receipt_service import ReceiptService
 
-NOW = datetime(2026, 10, 19, 14, 0, 0)
+NOW = datetime(2026, 10, 26, 10, 0, 0)
 DUE = NOW - timedelta(hours=1)
 
 
@@ -41,60 +38,56 @@ class _Repo:
         return self.rows[-1]
 
 
-def _svc():
+def _svc(sender=None):
     sent = []
     repo = _Repo()
-    svc = ReceiptService(repo, sender=sent.append)
+    svc = ReceiptService(repo, sender=sender if sender is not None else sent.append)
     return svc, repo, sent
 
 
-def test_batch_three_closes_one_card():
+def test_single_close_sends_immediately():
+    svc, repo, sent = _svc()
+    out = svc.result(_todo(1), terminal='ignored', close_reason='不动',
+                     next_condition='回升 10 元以上')
+    assert out['issued'] is True and out['sent'] is True
+    assert len(sent) == 1
+    assert sent[0]['kind'] == 'result'
+    assert '结论：忽略（不动）' in sent[0]['message']
+    assert 'NEXT 回升 10 元以上' in sent[0]['message']
+    assert len(repo.rows) == 1
+    assert repo.rows[0]['delivery_status'] == 'sent'
+
+
+def test_multiple_closes_send_independently():
     svc, repo, sent = _svc()
     for tid in (1, 2, 3):
         svc.result(_todo(tid), terminal='handled', close_reason='已处置')
-    assert sent == []                              # 窗口未满不自动发（投递层聚合）
-    svc.flush_result_buffer()
-    assert len(sent) == 1                          # 3 条 → 1 张卡
-    card = sent[0]
-    assert card['kind'] == 'result'
-    assert '3 项待办已收敛' in card['message']
-    assert card['message'].count('待办#') == 3     # 逐条溯源
-    assert len(repo.rows) == 3                     # 逐条落库
-    assert all(r['delivery_status'] == 'sent' for r in repo.rows)
+    assert len(sent) == 3
+    assert len({row['payload_digest'] for row in repo.rows}) == 3
 
 
-def test_cap_flushes_immediately():
-    svc, repo, sent = _svc()
-    for tid in range(1, RESULT_AGG_CAP + 1):
-        svc.result(_todo(tid), terminal='handled', close_reason='x')
-    assert len(sent) == 1                          # 到量即 flush
-    assert '8 项待办已收敛' in sent[0]['message']
-    assert svc._result_buffer == []
-
-
-def test_duplicate_close_not_buffered_twice():
+def test_duplicate_close_never_resends():
     svc, repo, sent = _svc()
     first = svc.result(_todo(1), terminal='handled')
     second = svc.result(_todo(1), terminal='handled')
     assert first['issued'] is True
-    assert second['duplicate'] is True
-    svc.flush_result_buffer()
+    assert second['duplicate'] is True and second['sent'] is False
     assert len(sent) == 1
-    assert sent[0]['message'].count('待办#') == 1  # 同一待办只出现一次
+    assert sent[0]['message'].count('待办#') == 1
 
 
-def test_empty_flush_is_noop():
-    svc, repo, sent = _svc()
-    out = svc.flush_result_buffer()
-    assert out['count'] == 0 and sent == []
+def test_sender_failure_records_failed():
+    def _boom(payload):
+        raise RuntimeError('channel down')
+
+    svc, repo, _ = _svc(sender=_boom)
+    out = svc.result(_todo(1), terminal='handled', close_reason='已处置')
+    assert out['sent'] is False and out['delivery_status'] == 'failed'
+    assert repo.rows[0]['delivery_status'] == 'failed'
 
 
-def test_single_close_delayed_until_window_flush():
-    svc, repo, sent = _svc()
-    svc.result(_todo(1), terminal='ignored', close_reason='不动',
-               next_condition='回升 10 元以上')
-    assert sent == []                              # 稳态：先入缓冲（≤90s+巡检内必达）
-    out = svc.flush_result_buffer()
-    assert out['count'] == 1 and len(sent) == 1
-    assert '1 项待办已收敛' in sent[0]['message']
-    assert 'NEXT 回升 10 元以上' in sent[0]['message']
+def test_missing_sender_is_honest_log_only():
+    svc, repo, _ = _svc(sender=None)
+    out = svc.result(_todo(1), terminal='handled')
+    assert out['sent'] is False and out['delivery_status'] == 'log_only'
+    assert repo.rows[0]['delivery_status'] == 'log_only'

@@ -155,6 +155,11 @@ def _normalize_event(event: Any) -> Optional[Dict[str, Any]]:
         'filled_at': _as_naive(_field(event, 'filled_at', None)) or datetime.now(),
         'source': str(_field(event, 'source', None) or 'unknown').strip(),
         'reason': _field(event, 'reason', None),
+        # REQ-261021222905-6dff：计划归因（None = 计划外，不影响计划状态）
+        'plan_id': (_as_int(_field(event, 'plan_id', None))
+                    if _field(event, 'plan_id', None) is not None else None),
+        'plan_version': (_as_int(_field(event, 'plan_version', None))
+                         if _field(event, 'plan_version', None) is not None else None),
     }
 
 
@@ -189,6 +194,7 @@ class FillSyncService:
         lifecycle: Any = None,
         todo_scan_limit: int = DEFAULT_TODO_SCAN_LIMIT,
         now_fn: Any = None,
+        plan_progress: Any = None,
     ):
         self.rule_repo = rule_repo
         self.todo_service = todo_service
@@ -198,6 +204,9 @@ class FillSyncService:
         self.lifecycle = lifecycle
         self.todo_scan_limit = int(todo_scan_limit or DEFAULT_TODO_SCAN_LIMIT)
         self._now = now_fn or datetime.now
+        #: REQ-261021222905-6dff：计划推进端口（None = 未装配计划层，行为不变）。
+        #: 只对携带 plan_id 的成交回调；异常自吞（回执主链不许被计划层打挂）。
+        self.plan_progress = plan_progress
 
     # ── 端口入口（IFillListener.on_fill）────────────────────────────────
 
@@ -233,6 +242,14 @@ class FillSyncService:
                          trade_id=fill['trade_id'], error=str(e))
             errors.append('sync: %s' % e)
             result['status'] = 'error'
+        if fill.get('plan_id') is not None and self.plan_progress is not None:
+            # 计划推进是回执的旁路增益：失败只记错误，不影响收敛主链
+            try:
+                result['plan_progress'] = self.plan_progress(fill)
+            except Exception as e:  # noqa: BLE001
+                logger.error('计划推进失败（成交已收敛，计划状态未推进）',
+                             plan_id=fill.get('plan_id'), error=str(e))
+                errors.append('plan_progress: %s' % e)
         result['errors'] = errors
         return result
 

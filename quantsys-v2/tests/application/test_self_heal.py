@@ -1138,3 +1138,63 @@ def test_real_db_engine_archives_suppressed_trigger_without_new_todo(watch_table
     finally:
         _db_cleanup()
 
+
+
+# ── 服务：静音告知卡标的名解析（2026-10-21）──────────────────
+
+class FakeNameResolver:
+    """StockNameResolver 替身：键 = 规范化 6 位码（与 PgStockNameResolver 同口径）"""
+
+    def __init__(self, names):
+        self.names = dict(names)
+        self.calls = []
+
+    def resolve_batch(self, symbols):
+        self.calls.append(list(symbols or []))
+        return {str(s).split('.')[0].strip(): self.names.get(str(s).split('.')[0].strip())
+                for s in (symbols or []) if str(s).split('.')[0].strip()}
+
+
+def test_mute_card_includes_resolved_stock_name():
+    """静音告知卡带公司名（300699.SZ 光威复材场景）：一轮一次批量解析，嵌在括号标签里"""
+    cards = []
+    resolver = FakeNameResolver({"600150": "中国船舶"})
+    service, rule_repo, change_repo, todo_repo = _build(
+        daily=_eight_today(1),
+        suppress_notifier=lambda payload: cards.append(payload) or True,
+        name_resolver=resolver)
+    service.scan(now=NOW)
+
+    assert len(cards) == 1
+    assert "（600150.SH 中国船舶）" in cards[0]["message"]
+    assert cards[0]["kind"] == "suppressed"
+    # 批量口径：整轮只查一次（不逐条 N+1）
+    assert len(resolver.calls) == 1
+    assert resolver.calls[0] == ["600150.SH"]
+
+
+def test_mute_card_falls_back_to_symbol_when_name_missing():
+    """解析不到名称 → 如实显示编号（R-013 不臆造），告知卡照常发出"""
+    cards = []
+    resolver = FakeNameResolver({})  # 库里没有该标的
+    service, *_ = _build(
+        daily=_eight_today(1),
+        suppress_notifier=lambda payload: cards.append(payload) or True,
+        name_resolver=resolver)
+    service.scan(now=NOW)
+
+    assert len(cards) == 1
+    assert "（600150.SH）" in cards[0]["message"]
+    assert "None" not in cards[0]["message"]
+
+
+def test_mute_card_without_resolver_unchanged():
+    """未接线 resolver（测试/降级路径）→ 行为与改前一致：只显示代码"""
+    cards = []
+    service, *_ = _build(
+        daily=_eight_today(1),
+        suppress_notifier=lambda payload: cards.append(payload) or True)
+    service.scan(now=NOW)
+
+    assert len(cards) == 1
+    assert "（600150.SH）" in cards[0]["message"]

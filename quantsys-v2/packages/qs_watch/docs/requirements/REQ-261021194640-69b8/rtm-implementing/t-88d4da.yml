@@ -1,0 +1,38 @@
+task:
+  id: t-88d4da
+  title: 新闻与政策扫描接入消息桥
+  status: done
+  implements: packages/qs_watch/.../news_watch_service.py 与 policy_watch_service.py 增加可空 bridge 注入；critical 命中持仓标的/持仓板块时调 dispatch，未注入保持只发卡；账户与板块映射在服务内解析；补 tests/application/test_news_watch_service.py、test_policy_watch_service.py 断言。
+  serves:
+    - FR-3
+  depends_on:
+    - t-27e8c7
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261021194640-69b8
+    TASK_ID: t-88d4da
+    TASK_TITLE: 新闻与政策扫描接入消息桥
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 3
+  workflow_done: 3
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-21T12:38:34.010Z
+    - phase: test
+      status: done
+    - phase: review
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261021194640-69b8
+  generated_at: 2026-10-21T12:38:06.240Z
+  version: 8
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 3
+  last_updated: 2026-10-21T12:38:34.010Z

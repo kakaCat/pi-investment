@@ -54,6 +54,8 @@ class FakeTodo:
     #: 归属（route_owner 的结果）：缺省 None = 走用户路径（与改前的所有断言一致）
     owner_kind: str = None
     owner_ref: str = None
+    #: 动作类型（FR-6 执行期限判定用：P0 + trade = 执行类待办）
+    action_kind: str = None
 
 
 class FakeTodoRepo:
@@ -609,10 +611,10 @@ def test_result_receipt_records_once_and_is_idempotent():
     first = service.result(todo, terminal='handled')
     second = service.result(todo, terminal='handled')
 
-    # 2026-10-19 投递层聚合：result 先缓冲（sent 在 flush 时发生），幂等覆盖缓冲
+    # 2026-10-26 即时投递：close 同一调用内发送；重复 result 只走幂等短路
     assert first['issued'] is True
+    assert first['sent'] is True
     assert second['issued'] is False and second['duplicate'] is True
-    service.flush_result_buffer()
     assert [r['kind'] for r in receipts.rows] == ['result']
     assert len(sent) == 1
 
@@ -624,7 +626,6 @@ def test_result_and_timeout_have_distinct_digests():
 
     service.timeout(todo)
     service.result(todo, terminal='handled')
-    service.flush_result_buffer()          # result 聚合：flush 后才落库
 
     assert len({r['payload_digest'] for r in receipts.rows}) == 2
 
@@ -641,9 +642,66 @@ def test_result_receipt_carries_full_timeline():
 
     service.result(todo, terminal='handled', close_reason='已按预案减仓',
                    action_kind='trade')
-    service.flush_result_buffer()
 
     message = sent[0]['message']
     assert '时间线：' in message
     assert '创建' in message and '认领' in message and '关闭' in message
     assert '晋升 2 次' in message
+
+
+# ── 执行期限（REQ-261021194640-69b8 FR-6）────────────────────
+
+class TestExecDeadline:
+    """P0 执行待办按「创建 + WATCH_EXEC_SLA_MIN」判超时，不按提醒 due_at 判。"""
+
+    def _exec_todo(self, created_at, **over):
+        return overdue(1, flow='L3', level='P0', action_kind='trade',
+                       created_at=created_at, **over)
+
+    def test_before_deadline_no_receipt(self):
+        todo = self._exec_todo(NOW - timedelta(minutes=29))
+        job, receipts = build_job(FakeTodoRepo([todo]))
+        stats = job.run_once(now=NOW)
+        assert stats['exec_waiting'] == 1
+        assert stats['timeout'] == 0
+        assert receipts.rows == []
+
+    def test_after_deadline_one_receipt(self):
+        todo = self._exec_todo(NOW - timedelta(minutes=31))
+        job, receipts = build_job(FakeTodoRepo([todo]))
+        stats = job.run_once(now=NOW)
+        assert stats['timeout'] == 1
+        assert [r['kind'] for r in receipts.rows] == ['timeout']
+
+    def test_repeated_tick_stays_one_receipt(self):
+        todo = self._exec_todo(NOW - timedelta(minutes=31))
+        job, receipts = build_job(FakeTodoRepo([todo]))
+        first = job.run_once(now=NOW)
+        second = job.run_once(now=NOW)
+        assert first['timeout'] == 1 and second['timeout'] == 0
+        assert len([r for r in receipts.rows if r['kind'] == 'timeout']) == 1
+
+    @pytest.mark.parametrize('created_at', [
+        NOW - timedelta(minutes=31),                        # 带时区
+        (NOW - timedelta(minutes=31)).replace(tzinfo=None),  # 裸时间
+        NOW - timedelta(days=1),                             # 跨日
+    ])
+    def test_timezone_matrix(self, created_at):
+        todo = self._exec_todo(created_at)
+        job, _receipts = build_job(FakeTodoRepo([todo]))
+        stats = job.run_once(now=NOW)
+        assert stats['errors'] == 0
+        assert stats['timeout'] == 1
+
+    def test_not_written_expired_at_deadline(self):
+        todo = self._exec_todo(NOW - timedelta(minutes=31))
+        job, _receipts = build_job(FakeTodoRepo([todo]))
+        job.run_once(now=NOW)
+        assert todo.terminal is None, '执行期限到只催办，绝不写 expired'
+
+    def test_non_exec_todo_timeout_unchanged(self):
+        todo = overdue(2, flow='L3', level='P0')  # action_kind=None：非执行类
+        job, _receipts = build_job(FakeTodoRepo([todo]))
+        stats = job.run_once(now=NOW)
+        assert stats['timeout'] == 1
+        assert stats['exec_waiting'] == 0

@@ -48,6 +48,12 @@
             </el-tag>
           </template>
         </el-table-column>
+        <el-table-column prop="category" label="业务分类" width="100">
+          <template #default="{ row }">
+            <el-tag v-if="row.category" type="warning" size="small">{{ row.category }}</el-tag>
+            <span v-else style="color: #999;">—</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="symbol_count" label="股票数" width="80" />
         <el-table-column prop="refresh_interval" label="刷新周期" width="100">
           <template #default="{ row }">

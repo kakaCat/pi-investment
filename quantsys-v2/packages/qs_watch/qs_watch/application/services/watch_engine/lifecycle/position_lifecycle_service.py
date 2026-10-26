@@ -309,13 +309,16 @@ class PositionLifecycleService:
                 context=("买入后自动补挂止损（RFC 014 v3 §2.3 安全网）：成本 %.2f × (1-%.0f%%) = %.2f。"
                          "宪法止损铁律，触发即执行，不得延后。" % (cost, pct * 100, stop_price)),
                 cost_price=cost, created_by="agent", account=pos.get("account"),
+                # REQ-261021194640-69b8 FR-8：补挂即带持仓状态，否则状态门会把
+                # exit 族当作「确认空仓」直接跳过（新持仓的止盈/减仓永久不触发）。
+                position_state="holding",
             )
             self.rule_repo.update_fields(
                 rule.id,
                 intent="exit_stop", lifecycle_stage="holding", scope="position",
                 linked_account=pos.get("account"),
                 created_from=("position_lifecycle:%s" % sym)[:80],
-                action_hint={"trigger_level": "L2", "action_on_trigger": "sell", "requires_agent": True},
+                action_hint={"action_on_trigger": "sell", "requires_agent": True},  # trigger_level 已退役(2026-10-22)
             )
             return rule.id
         except Exception as e:
@@ -340,13 +343,16 @@ class PositionLifecycleService:
                 context=("持仓自动挂止盈（2026-10-20）：成本 %.2f，盈利 +%.0f%% 提醒评估锁利。"
                          "非宪法铁律，阈值可用 WATCH_TAKE_PROFIT_PCT 调整。" % (cost, pct)),
                 cost_price=cost, created_by="agent", account=pos.get("account"),
+                # REQ-261021194640-69b8 FR-8：补挂即带持仓状态，否则状态门会把
+                # exit 族当作「确认空仓」直接跳过（新持仓的止盈/减仓永久不触发）。
+                position_state="holding",
             )
             self.rule_repo.update_fields(
                 rule.id,
                 intent="exit_take_profit", lifecycle_stage="holding", scope="position",
                 linked_account=pos.get("account"),
                 created_from=("position_lifecycle:tp:%s" % sym)[:80],
-                action_hint={"trigger_level": "L2", "action_on_trigger": "sell", "requires_agent": True},
+                action_hint={"action_on_trigger": "sell", "requires_agent": True},  # trigger_level 已退役(2026-10-22)
                 next_action_hint="盈利 +%.0f%% → 评估减半/止盈锁利（持仓成本 %.2f）" % (pct, cost),
             )
             return rule.id

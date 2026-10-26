@@ -27,6 +27,8 @@ export interface PoolManageParams {
   name?: string;
   /** static（手工维护）/ dynamic（筛选规则驱动，refresh 重算） */
   pool_type?: string;
+  /** 业务分类（如 板块共振/主题/策略/观察），与 pool_type 正交；create/scan_create 可填，update 可改 */
+  category?: string;
   /** 池描述（创建说明、战法注释） */
   description?: string;
   /** 成员代码列表：create(static)/add_members/remove_members 必填；update=整表替换 */
@@ -68,6 +70,7 @@ export const poolManagePrompt: ToolPrompt<PoolManageParams> = {
     '股票池管理（写操作）：创建/删除池、改筛选规则、批量增删成员、刷新动态池、策略校验。' +
     '股票池是"博弈战场"载体——建池=选战场（观察池/主题池/高股息池等），dynamic 池用 filter_template 规则驱动、refresh 时自动换血。' +
     '适用：把发现的候选标的落池跟踪、维护动态池规则、清理废弃池、为池建成员买点/卖点纪律。' +
+    '池子有两个正交维度：pool_type=static/dynamic（怎么维护成员），category=业务分类（如 板块共振/主题/策略/观察，标注这个池是干什么的）。' +
     '破坏性动作（delete 等）前先 pool_list/pool_battlefield 确认，操作后按决策审计规范 decision_audit 留痕。',
 
   useCases: [
@@ -79,7 +82,8 @@ export const poolManagePrompt: ToolPrompt<PoolManageParams> = {
   ],
 
   examples: [
-    { title: '建 static 观察池（主题候选落池）', params: { action: 'create', name: 'AI应用观察池', pool_type: 'static', symbols: ['300308', '002230'], description: 'AI应用落地期候选，等回踩分批建仓', reason: '主线跟踪 2026-09' } },
+    { title: '建 static 观察池（主题候选落池）', params: { action: 'create', name: 'AI应用观察池', pool_type: 'static', category: '主题', symbols: ['300308', '002230'], description: 'AI应用落地期候选，等回踩分批建仓', reason: '主线跟踪 2026-09' } },
+    { title: '建板块共振池（按业务分类标注）', params: { action: 'create', name: '板块共振股票池', pool_type: 'static', category: '板块共振', symbols: ['600150', '601989'], description: '同板块多标的同步异动，共振成立才跟踪' } },
     { title: '建 dynamic 高股息池（规则驱动）', params: { action: 'create', name: '高股息防御池', pool_type: 'dynamic', filter_template: { min_score: 60, technical: [], fundamental: ['pe_low', 'debt_ratio_low'], top_n: 20 }, refresh_interval: 'weekly', description: '股息率>3% + 低估值 + 低负债' } },
     { title: '批量增成员并带买/卖点纪律', params: { action: 'add_members', pool_id: 41, symbols: ['002472', '300124'], buy_point: 30.5, sell_point: 45, tags: ['机器人', '一梯队'], reason: 'Q3 订单验证补仓候选' } },
     { title: '扫描自动建池（RSI 超卖）', params: { action: 'scan_create', name: 'RSI超卖反弹候选池', pool_type: 'dynamic', filter_template: { conditions: [{ field: 'rsi', operator: '<', value: 30 }], top_n: 30 }, description: '技术面超卖扫描自动建池' } },
@@ -90,6 +94,7 @@ export const poolManagePrompt: ToolPrompt<PoolManageParams> = {
 
   notes: [
     'dynamic 池必须有 filter_template，否则 refresh 会失败；static 池不能 refresh（成员手工维护）',
+    'category 是业务分类（板块共振/主题/策略/观察…），不参与刷新与调度逻辑；建「板块共振池」时填 category=板块共振',
     'update 的 symbols 是整表替换；仅增删个别成员用 add_members/remove_members',
     'create/scan_create/refresh 涉及全市场打分，耗时数秒~数十秒，属正常',
     '删除不可逆：delete 前先确认池内无价值信息（历史战绩/观察结论在 memory 里另存）',
@@ -111,6 +116,10 @@ export const poolManagePrompt: ToolPrompt<PoolManageParams> = {
       type: 'string',
       description: 'static（手工维护成员）/ dynamic（filter_template 规则驱动、refresh 重算）',
       enum: ['static', 'dynamic'],
+    },
+    category: {
+      type: 'string',
+      description: '业务分类（如 板块共振/主题/策略/观察/高股息），与 pool_type 正交：pool_type 管存储形态，category 管业务归属',
     },
     description: { type: 'string', description: '池描述：创建逻辑、战法注释、验证指标等' },
     symbols: {
@@ -163,6 +172,7 @@ export const poolManagePrompt: ToolPrompt<PoolManageParams> = {
             if (r?.name) bits.push(r.name);
             if (typeof r?.symbol_count === 'number') bits.push(`成员${r.symbol_count}`);
             if (r?.pool_type) bits.push(r.pool_type);
+            if (r?.category) bits.push(`分类:${r.category}`);
             if (r?.error) bits.push(`错误:${r.error}`);
             return bits.join(' ');
           }).join('\n')

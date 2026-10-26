@@ -1,0 +1,1271 @@
+{
+  "version": 1,
+  "requirement_id": "REQ-261020014122-d659",
+  "schemaVersion": 9,
+  "generated_at": "2026-10-20T00:50:23.260Z",
+  "tasks": [
+    {
+      "id": "t-c20911",
+      "requirementId": "REQ-261020014122-d659",
+      "title": "回测窗口末强制平仓计账与口径字段",
+      "cardDoc": "docs/requirements/REQ-261020014122-d659/tasks/t-c20911.md",
+      "description": "修改 quantsys-v2/packages/qs_strategy/qs_strategy/application/services/strategy_backtest_service.py；新建 quantsys-v2/tests/test_backtest_forced_close.py",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "cd quantsys-v2 && python -m pytest tests/test_backtest_forced_close.py -v 全绿：C1 断言 total_trades==1、forced_closes==1、open_position_at_end is True、trades[0].forced_close is True、exit_price==末日收盘价；C2 断言 total_trades==0/forced_closes==0/open_position_at_end is False；C3 断言 total_trades==1、forced_closes==0、trades[0] 无 forced_close 键",
+      "implementation": "在 strategy_backtest_service.py 的 run_backtest_from_signals 主循环结束后（现 L510 权益曲线收尾之后、L512 calculate_metrics_from_trades 之前）插入强制平仓计账段：position_tiers 非空时按末日 close_price 补记 trades 条目（与 L343-363 全清分支同构 + forced_close: true，pnl=shares×(exit−avg_entry) 不计卖出费），并向 trade_records 补一条 sell 流水（forced_close: true）；不回改 cash、不动 equity_curve、不受 enable_t1_constraint 限制。metrics 增加 open_position_at_end(bool)/forced_closes(int)。同步新建 pytest 文件实现 design/test-cases.md 的 C1（故障注入：首日 buy_tier1=1/pct=0.5 无 sell）、C2（无信号回归）、C3（正常往返回归），用例直接构造 signals_df 不依赖 DB/行情源。",
+      "context": "",
+      "requirementRefs": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-7b3153",
+          "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+          "trigger": "manual",
+          "startedAt": 1792457464174,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 2162,
+              "at": 1792457464187,
+              "totals": {
+                "uncachedInputTokens": 2731507,
+                "outputTokens": 174500,
+                "cacheReadTokens": 39651701,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 2457,
+              "at": 1792459220281,
+              "totals": {
+                "uncachedInputTokens": 2855424,
+                "outputTokens": 193811,
+                "cacheReadTokens": 47274334,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 123917,
+              "outputTokens": 19311,
+              "cacheReadTokens": 7622633,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792459220244
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792457423030,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1792457464174,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+          },
+          "reason": "开工 t1：按 design/interfaces.md §2.1-2.2 契约实现强制平仓计账与 metrics 口径字段，附 pytest C1-C3"
+        },
+        {
+          "status": "done",
+          "at": 1792459220244,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-b0b44d",
+          "body": "[状态] → in_progress：开工 t1：按 design/interfaces.md §2.1-2.2 契约实现强制平仓计账与 metrics 口径字段，附 pytest C1-C3（reqboard_task_move）",
+          "createdAt": 1792457464174,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+          }
+        }
+      ],
+      "version": 3,
+      "createdAt": 1792457423030,
+      "updatedAt": 1792459220244,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "layer": 0,
+      "claimedBy": "session-503df447-3664-4823-ada8-9d779312d94a",
+      "claimedAt": 1792457464174,
+      "lastReport": {
+        "at": 1792459220244,
+        "reportIndex": 1,
+        "filesChanged": [
+          "../quantsys-v2/packages/qs_strategy/qs_strategy/application/services/strategy_backtest_service.py",
+          "../quantsys-v2/tests/test_backtest_forced_close.py"
+        ],
+        "completed": [
+          "strategy_backtest_service.py 主循环后插入强制平仓计账段（计账不动账）",
+          "metrics 新增 open_position_at_end/forced_closes，_empty_metrics 同步补键",
+          "新建 tests/test_backtest_forced_close.py 实现 C1/C2/C3，pytest 3/3 通过（链上 run-1792458210113 复核确认）",
+          "接口联调通过：POST /api/backtest/strategy（FastAPI 路由 adapters/inbound/fastapi_app/routes/backtest_async.py L390 → StrategyCodeService.backtest_strategy → qs_strategy 包内 StrategyBacktestService.run_backtest_from_signals）真实调用复现 C1「开仓未平仓」场景，实际响应与预期逐项一致。请求样例：{\"strategy_id\":202,\"symbol\":\"002007\",\"start_date\":\"2025-09-20\",\"end_date\":\"2026-09-20\",\"initial_cash\":1000000}（该组合即缺陷实证现场：修复前 totalTrades=0、equity 1000000→768184.669 仍持仓）。实际返回 success=true：totalTrades=1（修复前为 0）、openPositionAtEnd=true、forcedCloses=1；trades[0] 带 forcedClose=true，entryDate=2025-11-10/entryPrice=16.82，exitDate=2026-09-18（窗口最后交易日，与 DB daily_klines 一致）/exitPrice=12.93（与 DB 末日收盘 12.93 一致），shares=59400，pnl=-231066.0 精确等于 59400×(12.93−16.82)（不计卖出费口径 ✓）；tradeRecords 含 1 条 action=sell 且 forcedClose=true 的流水；equityCurve 241 点、末点 equity=768184.669/cash=142.669 与修复前历史实证值逐位一致，证明强制平仓只补计账、未回改 cash 与权益曲线。运行服务器（pid 24764，09:11 启动）晚于代码落地（08:52），行为证据确认新代码已生效。C2/C3 回归属测试段 pytest 覆盖范围，按本卡边界未重复执行。",
+          "复核结论：无偏离。父卡实施方案的 7 个设计要点在实现中逐条命中——①插入位置正确（主循环结束后、calculate_metrics_from_trades 之前，strategy_backtest_service.py L512-566）；②position_tiers 非空才触发（L518-520 守卫）；③trades 条目与 L343-363 全清分支同构并加 forced_close: true（L541-562，tiers 明细同构）；④pnl=shares×(exit−avg_entry) 不计卖出费（L525，与权益曲线口径一致）；⑤trade_records 补 sell 流水带 forced_close: true（L527-540）；⑥不回改 cash、不动 equity_curve、不受 T+1 限制（纯计账段，在主循环外）；⑦metrics 增加 open_position_at_end(bool)/forced_closes(int)（L575-576 正常路径 + L776-777 _empty_metrics 空路径，恒存在，与 interfaces.md 一致）。测试侧：新建 quantsys-v2/tests/test_backtest_forced_close.py 实现 C1/C2/C3，直接构造 signals_df 不依赖 DB/行情源，断言与设计 test-cases.md 逐条对应（C1 含全部 6 项断言并额外锁 pnl 口径；C2 三项；C3 含\"普通条目无 forced_close 键\"）。既有 T+1/未平仓两例按新口径同步改写断言，属口径变更声明（design.md L52）的必然配套，不算偏离。按本卡边界未改代码、未跑 pytest 终态验收命令（属测试段）。",
+          "test 阶段验收命令执行通过：在 quantsys-v2 激活 py313 venv 后运行 `python -m pytest tests/test_backtest_forced_close.py -v`，C1（故障注入·开窗未平仓：强制平仓计账、forced_close 标记、末日收盘价/日期、pnl 口径、口径字段 open_position_at_end/forced_closes）、C2（真无信号回归：total_trades=0 语义不稀释）、C3（正常往返回归：旧字段形状不变、无 forced_close 键）3 条用例全部 PASSED，退出码 0。实现位于 quantsys-v2/packages/qs_strategy/qs_strategy/application/services/strategy_backtest_service.py（L518-576 强平计账段、L776-777 metrics 口径字段），与父卡实施方案一致。本卡未改任何代码（只跑测试）。"
+        ]
+      }
+    },
+    {
+      "id": "t-bb04d8",
+      "requirementId": "REQ-261020014122-d659",
+      "title": "evolution_run 降级 null 键剔除与契约用例",
+      "cardDoc": "docs/requirements/REQ-261020014122-d659/tasks/t-bb04d8.md",
+      "description": "修改 agent-dh/packages/tools/evolution/src/tools/EvolutionRunTool/EvolutionRunTool.ts；修改 agent-dh/apps/web/tests/evolution-qv2-contract.test.ts",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "cd agent-dh && npx vitest run apps/web/tests/evolution-qv2-contract.test.ts 全绿（C4 断言 data_source==='degraded'、degraded_reason 原文保留、四键 in 判定均为 false；既有 REAL_RUN/DEGRADED_RUN 用例继续全绿）；npx vitest run apps/web/tests/plugin-schema.smoke.test.ts 全绿",
+      "implementation": "在 EvolutionRunTool.ts 的 normalizeRunResult（:26-47）现有 degraded_reason null 剔除之后，对白名单 ['best_params','best_metrics','fitness','fitness_improvement'] 做同款 null/undefined 整体剔除（不全局剔 null）。prompt.ts output schema 零改动。在 evolution-qv2-contract.test.ts 新增 C4 用例：mock 用线上 _degraded_run 真实形状（显式 bestParams/bestMetrics/fitness/fitnessImprovement: null，strategy_evolution_service.py:487-505），断言输出中四键不存在、data_source==='degraded'、degraded_reason 保留。",
+      "context": "",
+      "requirementRefs": [],
+      "status": "in_progress",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-f92ee9",
+          "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+          "trigger": "auto",
+          "startedAt": 1792458210184,
+          "outcome": "running",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 2337,
+              "at": 1792458210201,
+              "totals": {
+                "uncachedInputTokens": 2840419,
+                "outputTokens": 188712,
+                "cacheReadTokens": 43806581,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            }
+          }
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792457423030,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        },
+        {
+          "status": "in_progress",
+          "at": 1792458210184,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "comments": [],
+      "version": 2,
+      "createdAt": 1792457423030,
+      "updatedAt": 1792458210184,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "layer": 0,
+      "claimedAt": 1792458210184,
+      "claimedBy": "system"
+    },
+    {
+      "id": "t-9d70fe",
+      "requirementId": "REQ-261020014122-d659",
+      "title": "发版部署与实证回归（FR-5）",
+      "cardDoc": "docs/requirements/REQ-261020014122-d659/tasks/t-9d70fe.md",
+      "description": "t1/t2 完成后部署两侧并执行 design/test-cases.md 的 C5 实证回归",
+      "phase": "test",
+      "side": "fullstack",
+      "dependsOn": [
+        "t-c20911",
+        "t-bb04d8"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "dist 校验 grep 命中新逻辑符号；实证三步骤全过：①strategy_execute(mode=backtest, strategy_id=202, symbol=002007, 2025-09-20~2026-09-20) 返回 total_trades≥1 且含 forced_closes/open_position_at_end；②evolution_run(202, 002007, propose) 返回 success（qv2_real 或 degraded），degraded 时 degraded_reason 非空无 schema 硬错误；③evolution_leaderboard(202) 与 evolution_run 表述一致",
+      "implementation": "quantsys-v2 侧重启服务使 t1 生效；agent-dh 侧走 agent-dh/scripts/restart-with-build.sh 发版 evolution 包（dist 加载，构建后必须 grep dist 产物确认新符号存在，失败按未生效处理并报告，lessons 纪律）。然后实调三个验收锚点（FR-5）：strategy_execute(backtest,202,002007,一年窗)、evolution_run(202,002007,propose)、evolution_leaderboard(202)。实调结果记录到验收证据（命令+输出摘要）。",
+      "context": "",
+      "requirementRefs": [],
+      "status": "todo",
+      "blocked": false,
+      "executions": [],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792457423030,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        }
+      ],
+      "comments": [],
+      "version": 1,
+      "createdAt": 1792457423030,
+      "updatedAt": 1792457423030,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+      },
+      "layer": 1
+    },
+    {
+      "id": "t-ace196",
+      "requirementId": "REQ-261020014122-d659",
+      "title": "total_trades 口径变更声明落 changelog",
+      "cardDoc": "docs/requirements/REQ-261020014122-d659/tasks/t-ace196.md",
+      "description": "在 quantsys-v2 changelog（无则新建条目到既有变更记录文件）声明 total_trades 口径变更",
+      "phase": "doc",
+      "side": "doc",
+      "dependsOn": [
+        "t-c20911"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "quantsys-v2 变更记录中出现本次口径变更条目：含字段名（total_trades/open_position_at_end/forced_closes）、新旧口径定义、生效时点（验收上线日）、新旧报告不可直接比较的提示",
+      "implementation": "按 design/data-model.md §口径变更声明 的文案落 quantsys-v2 变更记录：total_trades 新口径=发生过的往返交易数（含窗口末强制平仓），旧口径=恰好平仓的交易数；变更方向只增不减；生效时点=本需求验收上线日；新旧报告不可直接比较。声明须与 t1 实际实现口径一致（先读 t1 代码再写）。",
+      "context": "",
+      "requirementRefs": [],
+      "status": "todo",
+      "blocked": false,
+      "executions": [],
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792457423030,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+          },
+          "reason": "拆分落库（reqboard_decompose）"
+        }
+      ],
+      "comments": [],
+      "version": 1,
+      "createdAt": 1792457423030,
+      "updatedAt": 1792457423030,
+      "createdBy": {
+        "kind": "agent",
+        "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+      },
+      "layer": 1
+    },
+    {
+      "id": "t-bf5696",
+      "requirementId": "REQ-261020014122-d659",
+      "title": "回测窗口末强制平仓计账与口径字段·研发",
+      "description": "子卡阶段：研发",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "改动已落盘，相关测试或命令跑通并附输出摘要",
+      "implementation": "在 strategy_backtest_service.py 的 run_backtest_from_signals 主循环结束后（现 L510 权益曲线收尾之后、L512 calculate_metrics_from_trades 之前）插入强制平仓计账段：position_tiers 非空时按末日 close_price 补记 trades 条目（与 L343-363 全清分支同构 + forced_close: true，pnl=shares×(exit−avg_entry) 不计卖出费），并向 trade_records 补一条 sell 流水（forced_close: true）；不回改 cash、不动 equity_curve、不受 enable_t1_constraint 限制。metrics 增加 open_position_at_end(bool)/forced_closes(int)。同步新建 pytest 文件实现 design/test-cases.md 的 C1（故障注入：首日 buy_tier1=1/pct=0.5 无 sell）、C2（无信号回归）、C3（正常往返回归），用例直接构造 signals_df 不依赖 DB/行情源。\n\n[子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要",
+      "context": "",
+      "parentId": "t-c20911",
+      "stageKind": "dev",
+      "attempt": 1,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-8de9f3",
+          "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+          "trigger": "auto",
+          "startedAt": 1792457962549,
+          "outcome": "failed",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 2312,
+              "at": 1792458124098,
+              "totals": {
+                "uncachedInputTokens": 2838001,
+                "outputTokens": 186959,
+                "cacheReadTokens": 43088501,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 2312,
+              "at": 1792458124152,
+              "totals": {
+                "uncachedInputTokens": 2838001,
+                "outputTokens": 186959,
+                "cacheReadTokens": 43088501,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792458124124,
+          "error": "子卡凭证不过：阶段 dev 属写入族，汇报未给出改动文件（缺少文件系统证据）。修改方法：确保 workflow 创建/修改了文件，并在返回值的 filesChanged 中列出文件路径（REQBOARD_SUBTASK_GATE）"
+        },
+        {
+          "id": "e-bfa912",
+          "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+          "trigger": "manual",
+          "startedAt": 1792458165300,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 2327,
+              "at": 1792458165321,
+              "totals": {
+                "uncachedInputTokens": 2839313,
+                "outputTokens": 187405,
+                "cacheReadTokens": 43518069,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 2373,
+              "at": 1792458544967,
+              "totals": {
+                "uncachedInputTokens": 2845455,
+                "outputTokens": 190490,
+                "cacheReadTokens": 44833141,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 6142,
+              "outputTokens": 3085,
+              "cacheReadTokens": 1315072,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792458544926
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-741869",
+          "body": "[状态] → in_progress：研发完成：强制平仓计账段+metrics 口径字段+C1-C3 用例已落码，链上 run 核验 3/3 通过（reqboard_task_move）",
+          "createdAt": 1792458165300,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+          }
+        },
+        {
+          "id": "c-32b97b",
+          "body": "[状态] → done：研发完成：实现落码，链上 run 复核 pytest 3/3 通过，汇报第 3 段以相对工作区根路径列改动文件（reqboard_task_move）",
+          "createdAt": 1792458544926,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+          }
+        }
+      ],
+      "version": 8,
+      "createdAt": 1792457464174,
+      "updatedAt": 1792458544926,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "agent",
+        "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792457464174,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1792458124097,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "todo",
+          "at": 1792458124124,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1792458165300,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+          },
+          "reason": "研发完成：强制平仓计账段+metrics 口径字段+C1-C3 用例已落码，链上 run 核验 3/3 通过"
+        },
+        {
+          "status": "done",
+          "at": 1792458544926,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+          },
+          "reason": "研发完成：实现落码，链上 run 复核 pytest 3/3 通过，汇报第 3 段以相对工作区根路径列改动文件"
+        }
+      ],
+      "layer": 0,
+      "lastReport": {
+        "at": 1792458530913,
+        "reportIndex": 3,
+        "filesChanged": [
+          "../quantsys-v2/packages/qs_strategy/qs_strategy/application/services/strategy_backtest_service.py",
+          "../quantsys-v2/tests/test_backtest_forced_close.py"
+        ],
+        "completed": [
+          "strategy_backtest_service.py 主循环后插入强制平仓计账段（计账不动账）",
+          "metrics 新增 open_position_at_end/forced_closes，_empty_metrics 同步补键",
+          "新建 tests/test_backtest_forced_close.py 实现 C1/C2/C3，pytest 3/3 通过（链上 run-1792458210113 复核确认）"
+        ]
+      },
+      "lastRun": {
+        "at": 1792458124097,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-97d4a0",
+      "requirementId": "REQ-261020014122-d659",
+      "title": "回测窗口末强制平仓计账与口径字段·联调",
+      "description": "子卡阶段：联调",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-bf5696"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "接口联调通过：给出请求样例与期望响应，实际返回与预期一致",
+      "implementation": "在 strategy_backtest_service.py 的 run_backtest_from_signals 主循环结束后（现 L510 权益曲线收尾之后、L512 calculate_metrics_from_trades 之前）插入强制平仓计账段：position_tiers 非空时按末日 close_price 补记 trades 条目（与 L343-363 全清分支同构 + forced_close: true，pnl=shares×(exit−avg_entry) 不计卖出费），并向 trade_records 补一条 sell 流水（forced_close: true）；不回改 cash、不动 equity_curve、不受 enable_t1_constraint 限制。metrics 增加 open_position_at_end(bool)/forced_closes(int)。同步新建 pytest 文件实现 design/test-cases.md 的 C1（故障注入：首日 buy_tier1=1/pct=0.5 无 sell）、C2（无信号回归）、C3（正常往返回归），用例直接构造 signals_df 不依赖 DB/行情源。\n\n[子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致",
+      "context": "",
+      "parentId": "t-c20911",
+      "stageKind": "integrate",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-f507f2",
+          "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+          "trigger": "manual",
+          "startedAt": 1792458577659,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 2378,
+              "at": 1792458577673,
+              "totals": {
+                "uncachedInputTokens": 2845840,
+                "outputTokens": 190840,
+                "cacheReadTokens": 44981877,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 2450,
+              "at": 1792458945952,
+              "totals": {
+                "uncachedInputTokens": 2855268,
+                "outputTokens": 193726,
+                "cacheReadTokens": 47117406,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 9428,
+              "outputTokens": 2886,
+              "cacheReadTokens": 2135529,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792458945929
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-e07614",
+          "body": "[状态] → in_progress：联调开工：跑既有回测服务测试回归，核对调用方影响面（reqboard_task_move）",
+          "createdAt": 1792458577659,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+          }
+        }
+      ],
+      "version": 6,
+      "createdAt": 1792457464174,
+      "updatedAt": 1792458945929,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792457464174,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1792458577659,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+          },
+          "reason": "联调开工：跑既有回测服务测试回归，核对调用方影响面"
+        },
+        {
+          "status": "done",
+          "at": 1792458945929,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 1,
+      "lastReport": {
+        "at": 1792458945921,
+        "reportIndex": 3,
+        "filesChanged": [],
+        "completed": [
+          "接口联调通过：POST /api/backtest/strategy（FastAPI 路由 adapters/inbound/fastapi_app/routes/backtest_async.py L390 → StrategyCodeService.backtest_strategy → qs_strategy 包内 StrategyBacktestService.run_backtest_from_signals）真实调用复现 C1「开仓未平仓」场景，实际响应与预期逐项一致。请求样例：{\"strategy_id\":202,\"symbol\":\"002007\",\"start_date\":\"2025-09-20\",\"end_date\":\"2026-09-20\",\"initial_cash\":1000000}（该组合即缺陷实证现场：修复前 totalTrades=0、equity 1000000→768184.669 仍持仓）。实际返回 success=true：totalTrades=1（修复前为 0）、openPositionAtEnd=true、forcedCloses=1；trades[0] 带 forcedClose=true，entryDate=2025-11-10/entryPrice=16.82，exitDate=2026-09-18（窗口最后交易日，与 DB daily_klines 一致）/exitPrice=12.93（与 DB 末日收盘 12.93 一致），shares=59400，pnl=-231066.0 精确等于 59400×(12.93−16.82)（不计卖出费口径 ✓）；tradeRecords 含 1 条 action=sell 且 forcedClose=true 的流水；equityCurve 241 点、末点 equity=768184.669/cash=142.669 与修复前历史实证值逐位一致，证明强制平仓只补计账、未回改 cash 与权益曲线。运行服务器（pid 24764，09:11 启动）晚于代码落地（08:52），行为证据确认新代码已生效。C2/C3 回归属测试段 pytest 覆盖范围，按本卡边界未重复执行。"
+        ]
+      },
+      "claimedBy": "session-503df447-3664-4823-ada8-9d779312d94a",
+      "claimedAt": 1792458577659,
+      "lastRun": {
+        "at": 1792458945921,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-b1b15e",
+      "requirementId": "REQ-261020014122-d659",
+      "title": "回测窗口末强制平仓计账与口径字段·复核",
+      "description": "子卡阶段：复核",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-97d4a0"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "implementation": "在 strategy_backtest_service.py 的 run_backtest_from_signals 主循环结束后（现 L510 权益曲线收尾之后、L512 calculate_metrics_from_trades 之前）插入强制平仓计账段：position_tiers 非空时按末日 close_price 补记 trades 条目（与 L343-363 全清分支同构 + forced_close: true，pnl=shares×(exit−avg_entry) 不计卖出费），并向 trade_records 补一条 sell 流水（forced_close: true）；不回改 cash、不动 equity_curve、不受 enable_t1_constraint 限制。metrics 增加 open_position_at_end(bool)/forced_closes(int)。同步新建 pytest 文件实现 design/test-cases.md 的 C1（故障注入：首日 buy_tier1=1/pct=0.5 无 sell）、C2（无信号回归）、C3（正常往返回归），用例直接构造 signals_df 不依赖 DB/行情源。\n\n[子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-c20911",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-cd9044",
+          "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+          "trigger": "auto",
+          "startedAt": 1792458946113,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 2451,
+              "at": 1792459111063,
+              "totals": {
+                "uncachedInputTokens": 2855268,
+                "outputTokens": 193726,
+                "cacheReadTokens": 47117406,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 2451,
+              "at": 1792459111092,
+              "totals": {
+                "uncachedInputTokens": 2855268,
+                "outputTokens": 193726,
+                "cacheReadTokens": 47117406,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792459111072
+        }
+      ],
+      "comments": [],
+      "version": 4,
+      "createdAt": 1792457464174,
+      "updatedAt": 1792459111072,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792457464174,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1792459111061,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1792459111072,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 2,
+      "lastReport": {
+        "at": 1792459111061,
+        "reportIndex": 2,
+        "filesChanged": [],
+        "completed": [
+          "复核结论：无偏离。父卡实施方案的 7 个设计要点在实现中逐条命中——①插入位置正确（主循环结束后、calculate_metrics_from_trades 之前，strategy_backtest_service.py L512-566）；②position_tiers 非空才触发（L518-520 守卫）；③trades 条目与 L343-363 全清分支同构并加 forced_close: true（L541-562，tiers 明细同构）；④pnl=shares×(exit−avg_entry) 不计卖出费（L525，与权益曲线口径一致）；⑤trade_records 补 sell 流水带 forced_close: true（L527-540）；⑥不回改 cash、不动 equity_curve、不受 T+1 限制（纯计账段，在主循环外）；⑦metrics 增加 open_position_at_end(bool)/forced_closes(int)（L575-576 正常路径 + L776-777 _empty_metrics 空路径，恒存在，与 interfaces.md 一致）。测试侧：新建 quantsys-v2/tests/test_backtest_forced_close.py 实现 C1/C2/C3，直接构造 signals_df 不依赖 DB/行情源，断言与设计 test-cases.md 逐条对应（C1 含全部 6 项断言并额外锁 pnl 口径；C2 三项；C3 含\"普通条目无 forced_close 键\"）。既有 T+1/未平仓两例按新口径同步改写断言，属口径变更声明（design.md L52）的必然配套，不算偏离。按本卡边界未改代码、未跑 pytest 终态验收命令（属测试段）。"
+        ]
+      },
+      "claimedAt": 1792458946113,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1792459111061,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-4d0c55",
+      "requirementId": "REQ-261020014122-d659",
+      "title": "回测窗口末强制平仓计账与口径字段·测试",
+      "description": "子卡阶段：测试",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-b1b15e"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "目标命令输出全绿（贴命令与结果摘要）",
+      "implementation": "在 strategy_backtest_service.py 的 run_backtest_from_signals 主循环结束后（现 L510 权益曲线收尾之后、L512 calculate_metrics_from_trades 之前）插入强制平仓计账段：position_tiers 非空时按末日 close_price 补记 trades 条目（与 L343-363 全清分支同构 + forced_close: true，pnl=shares×(exit−avg_entry) 不计卖出费），并向 trade_records 补一条 sell 流水（forced_close: true）；不回改 cash、不动 equity_curve、不受 enable_t1_constraint 限制。metrics 增加 open_position_at_end(bool)/forced_closes(int)。同步新建 pytest 文件实现 design/test-cases.md 的 C1（故障注入：首日 buy_tier1=1/pct=0.5 无 sell）、C2（无信号回归）、C3（正常往返回归），用例直接构造 signals_df 不依赖 DB/行情源。\n\n[子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）",
+      "context": "",
+      "parentId": "t-c20911",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-0c2529",
+          "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+          "trigger": "auto",
+          "startedAt": 1792459111257,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 2457,
+              "at": 1792459220059,
+              "totals": {
+                "uncachedInputTokens": 2855424,
+                "outputTokens": 193811,
+                "cacheReadTokens": 47274334,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 2457,
+              "at": 1792459220087,
+              "totals": {
+                "uncachedInputTokens": 2855424,
+                "outputTokens": 193811,
+                "cacheReadTokens": 47274334,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792459220065
+        }
+      ],
+      "comments": [],
+      "version": 4,
+      "createdAt": 1792457464174,
+      "updatedAt": 1792459220065,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792457464174,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1792459220058,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "done",
+          "at": 1792459220065,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 3,
+      "lastReport": {
+        "at": 1792459220058,
+        "reportIndex": 2,
+        "filesChanged": [],
+        "completed": [
+          "test 阶段验收命令执行通过：在 quantsys-v2 激活 py313 venv 后运行 `python -m pytest tests/test_backtest_forced_close.py -v`，C1（故障注入·开窗未平仓：强制平仓计账、forced_close 标记、末日收盘价/日期、pnl 口径、口径字段 open_position_at_end/forced_closes）、C2（真无信号回归：total_trades=0 语义不稀释）、C3（正常往返回归：旧字段形状不变、无 forced_close 键）3 条用例全部 PASSED，退出码 0。实现位于 quantsys-v2/packages/qs_strategy/qs_strategy/application/services/strategy_backtest_service.py（L518-576 强平计账段、L776-777 metrics 口径字段），与父卡实施方案一致。本卡未改任何代码（只跑测试）。"
+        ]
+      },
+      "claimedAt": 1792459111257,
+      "claimedBy": "system",
+      "lastRun": {
+        "at": 1792459220058,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      }
+    },
+    {
+      "id": "t-000287",
+      "requirementId": "REQ-261020014122-d659",
+      "title": "evolution_run 降级 null 键剔除与契约用例·研发",
+      "description": "子卡阶段：研发",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "改动已落盘，相关测试或命令跑通并附输出摘要",
+      "implementation": "在 EvolutionRunTool.ts 的 normalizeRunResult（:26-47）现有 degraded_reason null 剔除之后，对白名单 ['best_params','best_metrics','fitness','fitness_improvement'] 做同款 null/undefined 整体剔除（不全局剔 null）。prompt.ts output schema 零改动。在 evolution-qv2-contract.test.ts 新增 C4 用例：mock 用线上 _degraded_run 真实形状（显式 bestParams/bestMetrics/fitness/fitnessImprovement: null，strategy_evolution_service.py:487-505），断言输出中四键不存在、data_source==='degraded'、degraded_reason 保留。\n\n[子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要",
+      "context": "",
+      "parentId": "t-bb04d8",
+      "stageKind": "dev",
+      "attempt": 1,
+      "revisions": [],
+      "status": "done",
+      "blocked": false,
+      "executions": [
+        {
+          "id": "e-6f68b1",
+          "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+          "trigger": "auto",
+          "startedAt": 1792458593669,
+          "outcome": "failed",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 2389,
+              "at": 1792458651089,
+              "totals": {
+                "uncachedInputTokens": 2847027,
+                "outputTokens": 191017,
+                "cacheReadTokens": 45280629,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 2389,
+              "at": 1792458651134,
+              "totals": {
+                "uncachedInputTokens": 2847027,
+                "outputTokens": 191017,
+                "cacheReadTokens": 45280629,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792458651113,
+          "error": "子卡凭证不过：run 产出为空（脚本未返回有效 JSON）。修改方法：在 workflow 末尾 return 一个 JSON 对象，至少包含 filesChanged 或 completed 字段（REQBOARD_SUBTASK_GATE）"
+        },
+        {
+          "id": "e-ef262c",
+          "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+          "trigger": "manual",
+          "startedAt": 1792458743051,
+          "outcome": "succeeded",
+          "tokenUsage": {
+            "start": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 2429,
+              "at": 1792458743071,
+              "totals": {
+                "uncachedInputTokens": 2852786,
+                "outputTokens": 193031,
+                "cacheReadTokens": 46494046,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "end": {
+              "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a",
+              "seq": 2458,
+              "at": 1792459328128,
+              "totals": {
+                "uncachedInputTokens": 2855424,
+                "outputTokens": 193811,
+                "cacheReadTokens": 47274334,
+                "cacheWriteTokens": 0
+              },
+              "source": "projection"
+            },
+            "delta": {
+              "uncachedInputTokens": 2638,
+              "outputTokens": 780,
+              "cacheReadTokens": 780288,
+              "cacheWriteTokens": 0
+            }
+          },
+          "endedAt": 1792459328107
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-cf8c74",
+          "body": "[状态] → in_progress：t2 研发开工：链上 run-1792458593570 已实现 null 键白名单剔除 + C4 用例（reqboard_task_move）",
+          "createdAt": 1792458743051,
+          "createdBy": {
+            "kind": "agent",
+            "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+          }
+        }
+      ],
+      "version": 7,
+      "createdAt": 1792458210184,
+      "updatedAt": 1792459328107,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792458210184,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1792458651087,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "todo",
+          "at": 1792458651113,
+          "by": {
+            "kind": "system"
+          }
+        },
+        {
+          "status": "in_progress",
+          "at": 1792458743051,
+          "by": {
+            "kind": "agent",
+            "sessionId": "session-503df447-3664-4823-ada8-9d779312d94a"
+          },
+          "reason": "t2 研发开工：链上 run-1792458593570 已实现 null 键白名单剔除 + C4 用例"
+        },
+        {
+          "status": "done",
+          "at": 1792459328107,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 0,
+      "claimedAt": 1792458743051,
+      "claimedBy": "session-503df447-3664-4823-ada8-9d779312d94a",
+      "lastRun": {
+        "at": 1792459328097,
+        "ok": true,
+        "stopReason": "completed",
+        "valueNonEmpty": true
+      },
+      "lastReport": {
+        "at": 1792459328097,
+        "reportIndex": 2,
+        "filesChanged": [
+          "packages/tools/evolution/src/tools/EvolutionRunTool/EvolutionRunTool.ts",
+          "apps/web/tests/evolution-qv2-contract.test.ts"
+        ],
+        "completed": [
+          "完成 dev 子卡两项改动并落盘（两文件此前已含未提交改动，经 git diff 核验与本卡规格逐字一致，无需二次改动；本卡负责确认并本地验证）：① EvolutionRunTool.ts normalizeRunResult（:51-53）在 degraded_reason null 剔除之后，对白名单 ['best_params','best_metrics','fitness','fitness_improvement'] 做同款 null/undefined 整体剔除（仅剔 null 值键，不全局剔 null）；prompt.ts output schema 零改动。② evolution-qv2-contract.test.ts 新增 C4 用例（:121-154）：mock 采用线上 _degraded_run 真实形状（qs_strategy/application/services/strategy_evolution_service.py _degraded_run 显式 bestParams/bestMetrics/fitness/fitnessImprovement: null，已对照源码核验形状一致），断言输出四键不存在、data_source==='degraded'、degraded_reason 保留。"
+        ]
+      }
+    },
+    {
+      "id": "t-54b54f",
+      "requirementId": "REQ-261020014122-d659",
+      "title": "evolution_run 降级 null 键剔除与契约用例·联调",
+      "description": "子卡阶段：联调",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-000287"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "接口联调通过：给出请求样例与期望响应，实际返回与预期一致",
+      "implementation": "在 EvolutionRunTool.ts 的 normalizeRunResult（:26-47）现有 degraded_reason null 剔除之后，对白名单 ['best_params','best_metrics','fitness','fitness_improvement'] 做同款 null/undefined 整体剔除（不全局剔 null）。prompt.ts output schema 零改动。在 evolution-qv2-contract.test.ts 新增 C4 用例：mock 用线上 _degraded_run 真实形状（显式 bestParams/bestMetrics/fitness/fitnessImprovement: null，strategy_evolution_service.py:487-505），断言输出中四键不存在、data_source==='degraded'、degraded_reason 保留。\n\n[子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致",
+      "context": "",
+      "parentId": "t-bb04d8",
+      "stageKind": "integrate",
+      "attempt": 0,
+      "revisions": [],
+      "status": "todo",
+      "blocked": false,
+      "executions": [],
+      "comments": [],
+      "version": 1,
+      "createdAt": 1792458210184,
+      "updatedAt": 1792458210184,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792458210184,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 1
+    },
+    {
+      "id": "t-961268",
+      "requirementId": "REQ-261020014122-d659",
+      "title": "evolution_run 降级 null 键剔除与契约用例·复核",
+      "description": "子卡阶段：复核",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-54b54f"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "implementation": "在 EvolutionRunTool.ts 的 normalizeRunResult（:26-47）现有 degraded_reason null 剔除之后，对白名单 ['best_params','best_metrics','fitness','fitness_improvement'] 做同款 null/undefined 整体剔除（不全局剔 null）。prompt.ts output schema 零改动。在 evolution-qv2-contract.test.ts 新增 C4 用例：mock 用线上 _degraded_run 真实形状（显式 bestParams/bestMetrics/fitness/fitnessImprovement: null，strategy_evolution_service.py:487-505），断言输出中四键不存在、data_source==='degraded'、degraded_reason 保留。\n\n[子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据",
+      "context": "",
+      "parentId": "t-bb04d8",
+      "stageKind": "review",
+      "attempt": 0,
+      "revisions": [],
+      "status": "todo",
+      "blocked": false,
+      "executions": [],
+      "comments": [],
+      "version": 1,
+      "createdAt": 1792458210184,
+      "updatedAt": 1792458210184,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792458210184,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 2
+    },
+    {
+      "id": "t-57cfc7",
+      "requirementId": "REQ-261020014122-d659",
+      "title": "evolution_run 降级 null 键剔除与契约用例·测试",
+      "description": "子卡阶段：测试",
+      "phase": "implement",
+      "side": "backend",
+      "dependsOn": [
+        "t-961268"
+      ],
+      "scope": {
+        "apis": [],
+        "tables": [],
+        "files": []
+      },
+      "acceptance": "目标命令输出全绿（贴命令与结果摘要）",
+      "implementation": "在 EvolutionRunTool.ts 的 normalizeRunResult（:26-47）现有 degraded_reason null 剔除之后，对白名单 ['best_params','best_metrics','fitness','fitness_improvement'] 做同款 null/undefined 整体剔除（不全局剔 null）。prompt.ts output schema 零改动。在 evolution-qv2-contract.test.ts 新增 C4 用例：mock 用线上 _degraded_run 真实形状（显式 bestParams/bestMetrics/fitness/fitnessImprovement: null，strategy_evolution_service.py:487-505），断言输出中四键不存在、data_source==='degraded'、degraded_reason 保留。\n\n[子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）",
+      "context": "",
+      "parentId": "t-bb04d8",
+      "stageKind": "test",
+      "attempt": 0,
+      "revisions": [],
+      "status": "todo",
+      "blocked": false,
+      "executions": [],
+      "comments": [],
+      "version": 1,
+      "createdAt": 1792458210184,
+      "updatedAt": 1792458210184,
+      "createdBy": {
+        "kind": "system"
+      },
+      "updatedBy": {
+        "kind": "system"
+      },
+      "statusHistory": [
+        {
+          "status": "todo",
+          "at": 1792458210184,
+          "by": {
+            "kind": "system"
+          }
+        }
+      ],
+      "layer": 3
+    }
+  ],
+  "edges": [
+    {
+      "from": "t-c20911",
+      "to": "t-9d70fe"
+    },
+    {
+      "from": "t-bb04d8",
+      "to": "t-9d70fe"
+    },
+    {
+      "from": "t-c20911",
+      "to": "t-ace196"
+    },
+    {
+      "from": "t-bf5696",
+      "to": "t-97d4a0"
+    },
+    {
+      "from": "t-97d4a0",
+      "to": "t-b1b15e"
+    },
+    {
+      "from": "t-b1b15e",
+      "to": "t-4d0c55"
+    },
+    {
+      "from": "t-000287",
+      "to": "t-54b54f"
+    },
+    {
+      "from": "t-54b54f",
+      "to": "t-961268"
+    },
+    {
+      "from": "t-961268",
+      "to": "t-57cfc7"
+    }
+  ],
+  "layers": [
+    {
+      "layer": 0,
+      "tasks": [
+        "t-c20911",
+        "t-bb04d8",
+        "t-bf5696",
+        "t-000287"
+      ]
+    },
+    {
+      "layer": 1,
+      "tasks": [
+        "t-ace196",
+        "t-9d70fe",
+        "t-97d4a0",
+        "t-54b54f"
+      ]
+    },
+    {
+      "layer": 2,
+      "tasks": [
+        "t-b1b15e",
+        "t-961268"
+      ]
+    },
+    {
+      "layer": 3,
+      "tasks": [
+        "t-4d0c55",
+        "t-57cfc7"
+      ]
+    }
+  ],
+  "ready": [
+    "t-ace196",
+    "t-54b54f"
+  ],
+  "updated_at": "2026-10-20T01:22:08.128Z"
+}

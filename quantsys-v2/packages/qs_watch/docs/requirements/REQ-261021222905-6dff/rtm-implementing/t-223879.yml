@@ -1,0 +1,38 @@
+task:
+  id: t-223879
+  title: 搭建 qs_plan 包骨架并落五表迁移·研发
+  status: done
+  implements: |-
+    新建 packages/qs_plan（pyproject.toml + qs_plan/__init__.py + domain/application 目录）；写 infrastructure/persistence/migrations/20261105_trading_plan.py（dry-run 默认/--apply 写库），建 trading_plans / trading_plan_versions / trading_plan_rules / trading_plan_events / plan_reflections 五表 + watch_rules.plan_id + simulation_trades.plan_id/plan_version 两列（IF NOT EXISTS 幂等）。
+
+    [子卡阶段·研发] 只做本阶段；验收：`npx vitest run tests/` → 全绿；并附 `git diff --stat` 摘要
+  serves: []
+  depends_on: []
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261021222905-6dff
+    TASK_ID: t-223879
+    TASK_TITLE: 搭建 qs_plan 包骨架并落五表迁移·研发
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-21T16:08:05.769Z
+    - phase: test
+      status: done
+      completed_at: 2026-10-21T16:07:59.330Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261021222905-6dff
+  generated_at: 2026-10-21T16:07:33.831Z
+  version: 6
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-21T16:08:07.285Z

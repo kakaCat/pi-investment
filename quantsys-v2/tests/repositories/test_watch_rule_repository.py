@@ -59,6 +59,8 @@ class TestWatchRuleRepository:
         # 决策化改造的结构化操作指引与机器注记（见迁移 20261016_watch_rules_upgrade.py）。
         # 2026-10-21（RFC 017）：增 position_state / interval_sec——持仓状态显式化与
         # 规则级盯盘频率（见迁移 20261021_watch_rules_position_interval.py）。
+        # 2026-10-23：增 watch_tier——盯盘 V2 定时任务档位（30/600/1800 秒，
+        # 见迁移 20261023_watch_rules_tier.py）。
         assert set(d.keys()) == {
             'id', 'symbol', 'enabled', 'conditions', 'context', 'cost_price',
             'active_window', 'expires_at', 'created_by', 'created_at', 'updated_at',
@@ -67,7 +69,11 @@ class TestWatchRuleRepository:
             'created_from', 'next_action_hint', 'last_reviewed_at',
             'review_interval_days', 'review_due_at', 'value_ledger',
             'action_params', 'ops_notes',
-            'position_state', 'interval_sec',
+            'position_state', 'interval_sec', 'watch_tier',
+            'plan_id',
+            # 2026-10-22 三分支：生命周期状态 + 失效留痕 + 确认直通计数 + agent 设定的失效阈值
+            'rule_state', 'invalid_reason', 'invalid_at', 'confirm_count',
+            'invalidation_threshold_pct', 'invalid_escalated_at',
         }
         assert isinstance(d['cost_price'], float)
         assert d['cost_price'] == 1700.0
@@ -85,6 +91,58 @@ class TestWatchRuleRepository:
         assert active.id in enabled_ids
         assert disabled.id not in enabled_ids
         assert expired.id not in enabled_ids
+
+    # ── 每日循环重置范围（2026-10-23 用户裁定：活跃的才重置）──────────────
+
+    def _seed_cycle_state(self, rule_id, count=5, state='processed'):
+        from sqlalchemy import update as sa_update
+        self.repo.session.execute(
+            sa_update(WatchRule).where(WatchRule.id == rule_id)
+            .values(cycle_count=count, process_state=state))
+        self.repo.session.commit()
+
+    def _cycle_state(self, rule_id):
+        # 裸 SQL 读回：绕开 ORM identity map（Core UPDATE 不会让已加载对象失效）
+        row = self.repo.session.execute(
+            text('select cycle_count, process_state from quant.watch_rules '
+                 'where id = :id'), {'id': rule_id}).first()
+        return (row[0], row[1]) if row else None
+
+    def test_reset_active_cycles_only_touches_active_rules(self):
+        """2026-10-23 用户裁定：每日重置只重置**活跃规则**。
+
+        活跃 = rule_state='active' 且启用且未过期（与引擎判定集合同源）；
+        非活跃（invalid/archived/停用/过期）不进判定，重置它们没有意义，
+        还会把失效待裁决等状态一并抹掉。
+        """
+        active = self._make_rule('600001.SH')
+        disabled = self._make_rule('600002.SH')
+        self.repo.update_fields(disabled.id, enabled=False)
+        archived = self._make_rule('600003.SH')
+        self.repo.update_fields(archived.id, rule_state='archived')
+        invalid = self._make_rule('600004.SH')
+        self.repo.update_fields(invalid.id, rule_state='invalid')
+        expired = self._make_rule('600005.SH')
+        self.repo.update_fields(expired.id, expires_at=datetime.now() - timedelta(days=1))
+
+        for rule in (active, disabled, archived, invalid, expired):
+            self._seed_cycle_state(rule.id)
+
+        reset_count = self.repo.reset_active_cycles()
+
+        assert reset_count >= 1, '至少本用例创建的活跃规则被重置'
+        assert self._cycle_state(active.id) == (0, 'pending')
+        for rule in (disabled, archived, invalid, expired):
+            assert self._cycle_state(rule.id) == (5, 'processed'), (
+                f'非活跃规则 {rule.id} 不应被重置（只重置活跃规则）')
+
+    def test_reset_all_cycles_alias_is_active_only(self):
+        """旧名 reset_all_cycles 保留，但语义已收窄为活跃规则。"""
+        active = self._make_rule('600006.SH')
+        self._seed_cycle_state(active.id)
+
+        assert self.repo.reset_all_cycles() >= 1
+        assert self._cycle_state(active.id) == (0, 'pending')
 
     def test_update_fields(self):
         rule = self._make_rule()
@@ -263,3 +321,42 @@ class TestWatchRuleNewColumns:
         # 迁移在运行中落地时，清缓存即可让仓储改走新列路径
         wrr.reset_watch_rules_column_cache()
         assert self.repo._new_columns_available() is True
+
+
+class TestWatchTierColumn:
+    """2026-10-23：盯盘 V2 档位列（30/600/1800 秒）。"""
+
+    def test_normalize_watch_tier_accepts_three_values(self):
+        from adapters.outbound.repositories.watch_rule_repository import (
+            normalize_watch_tier,
+        )
+
+        assert normalize_watch_tier(30) == 30
+        assert normalize_watch_tier('600') == 600
+        assert normalize_watch_tier(1800) == 1800
+
+    def test_normalize_watch_tier_rejects_others(self):
+        import pytest
+        from adapters.outbound.repositories.watch_rule_repository import (
+            normalize_watch_tier,
+        )
+
+        for bad in (45, 0, -30, None, True, 'abc'):
+            with pytest.raises(ValueError):
+                normalize_watch_tier(bad)
+
+    def test_update_fields_writes_watch_tier(self):
+        from adapters.outbound.repositories.watch_rule_repository import (
+            WatchRuleRepository,
+        )
+
+        repo = WatchRuleRepository()
+        rule = repo.create_rule(symbol='000007.SZ', conditions=[
+            {'type': 'price_break', 'params': {'price': 10.0, 'direction': 'above'}}],
+            watch_tier=600)
+        try:
+            assert rule.watch_tier == 600
+            updated = repo.update_fields(rule.id, watch_tier=1800)
+            assert updated is not None and updated.watch_tier == 1800
+        finally:
+            repo.update_fields(rule.id, rule_state='archived')

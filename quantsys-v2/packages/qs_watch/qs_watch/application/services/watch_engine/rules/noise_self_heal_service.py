@@ -101,6 +101,7 @@ class NoiseSelfHealService:
                  todo_service: Any,
                  policy: Any = None, *,
                  suppress_notifier: Any = None,
+                 name_resolver: Any = None,
                  window_days: int = noise_policy.DEFAULT_WINDOW_DAYS,
                  suppress_hours: float = noise_policy.DEFAULT_SUPPRESS_HOURS,
                  max_triggers_per_day: int = noise_policy.DEFAULT_MAX_TRIGGERS_PER_DAY,
@@ -112,6 +113,9 @@ class NoiseSelfHealService:
         #: 静音告知卡 sender（2026-10-20）：抑噪此前完全无声——用户不知道规则已被静音。
         #: payload dict → bool；None = 不告知（测试/未接线，行为与改前一致）。
         self._suppress_notifier = suppress_notifier
+        #: StockNameResolver 端口（FR-13 同一口径，键 = 规范化 6 位码）；
+        #: None = 不解析（测试/未接线，告知卡只显示代码，与改前一致）。
+        self._name_resolver = name_resolver
         #: WatchDeliveryPolicy（可注入；缺省由 route_owner 用默认策略）——不缓存账户映射内容
         self._policy = policy
         self._window_days = int(window_days)
@@ -135,6 +139,8 @@ class NoiseSelfHealService:
         daily = self._rule_repo.daily_counts(since=since, until=current)
         suppressed: List[Dict[str, Any]] = []
         skipped: List[Dict[str, Any]] = []
+        #: 本轮抑噪成功、待发静音告知卡的规则（出循环后批量解析名称再逐张发）
+        pending_notify: List[Any] = []
 
         for rule_id in sorted(daily):
             counts = daily.get(rule_id) or {}
@@ -227,27 +233,44 @@ class NoiseSelfHealService:
             })
             logger.info('规则已抑噪并派修规则待办', rule_id=rule_id, account=account,
                         todo_id=getattr(todo, 'id', None), reason=reason)
-            self._notify_suppressed(rule, rule_id, until, reason, summary)
+            pending_notify.append((rule, rule_id, until, reason, summary))
 
+        # 静音告知卡标的名解析（FR-13 同一口径）：一轮一次批量联查（替代逐条 N+1）；
+        # 解析失败/未接线 → 全 None 降级（告知卡只显示代码），绝不阻断抑噪主流程。
+        names: Dict[str, Any] = {}
+        if pending_notify and self._name_resolver is not None:
+            try:
+                names = self._name_resolver.resolve_batch(
+                    [r.get('symbol') for r, *_ in pending_notify]) or {}
+            except Exception as e:  # noqa: BLE001 - 端口约定不抛，这里再兜一层
+                logger.error('静音告知卡标的名解析异常（降级为只显示代码）', error=str(e))
+                names = {}
+        for rule, rule_id, until, reason, summary in pending_notify:
+            self._notify_suppressed(rule, rule_id, until, reason, summary, names)
 
         return {'scanned': len(daily), 'suppressed': suppressed, 'skipped': skipped}
 
     def _notify_suppressed(self, rule: Dict[str, Any], rule_id: int, until: Any,
-                           reason: str, summary: Dict[str, Any]) -> None:
+                           reason: str, summary: Dict[str, Any],
+                           names: Optional[Dict[str, Any]] = None) -> None:
         """静音告知卡（2026-10-20）：把「规则已被静音」这件事告诉用户。
 
         背景：10-20 早盘用户反馈「都不盯盘了」——20/30 条规则被静音、用户毫无察觉。
         降噪设计没错，缺的是可见性。失败只记日志（降噪手段绝不制造新故障）。
+        2026-10-21：标的名解析走 StockNameResolver 端口（FR-13 同一批量口径），
+        解析不到如实显示编号（R-013 不臆造）。
         """
         if self._suppress_notifier is None:
             return
         try:
             symbol = rule.get('symbol') or '-'
+            name = (names or {}).get(str(symbol).split('.')[0].strip())
+            label = f'{symbol} {name}' if name else str(symbol)
             until_text = until.strftime('%m-%d %H:%M') if hasattr(until, 'strftime') else str(until)
             avg = float(summary.get('avg_per_day') or 0)
             msg = ('规则 #%s（%s）因反复触发（近 %d 天日均 %.1f 次）已自动静音至 %s。'
                    '静音期间触发只存档不推送。建议：调阈值/合并/退役该规则，或到期自动恢复。'
-                   % (rule_id, symbol, self._window_days, avg, until_text))
+                   % (rule_id, label, self._window_days, avg, until_text))
             ok = self._suppress_notifier({'kind': 'suppressed', 'message': msg, 'level': 'P1'})
             if not ok:
                 logger.warning('静音告知卡未送达', rule_id=rule_id)

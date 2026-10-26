@@ -156,7 +156,7 @@ def _build_pool_watch_service():
         watch_pool_binding_repo(), pool_member_source(), watch_rule_repo())
 
 
-def _build_news_watch_service():
+def _build_news_watch_service(bridge=None):
     """消息监控装配（2026-10-20）：新闻来源 + 已报留痕 + 持仓（盯盘适用三账户）。
 
     sender 走盯盘群回执通道；未注入时服务只留痕不发（可观测、测试友好）。
@@ -176,7 +176,7 @@ def _build_news_watch_service():
         news_source=news_source(), alert_repo=news_alert_repo(),
         position_repo=sim_position_repo(),
         accounts=("agent_virtual", "agent_brain", "user_main_simulation"),
-        sender=_sender)
+        sender=_sender, bridge=bridge)
 
 
 # ── 确认核验流水线装配（2026-10-20，机会闭环 M2）────────────────────────
@@ -520,7 +520,7 @@ def _policy_scan_interval() -> float:
     return value
 
 
-def build_policy_watch_service(news_service=_AUTO):
+def build_policy_watch_service(news_service=_AUTO, bridge=None):
     """装配政策盯盘路由服务（2026-10-21）。
 
     · 新闻来源：`PolicyNewsSource`（全市场财经新闻，ADR-001 只走统一数据访问层）；
@@ -580,6 +580,7 @@ def build_policy_watch_service(news_service=_AUTO):
             alert_repo=news_alert_repo(),
             news_service=news_service,
             sender=send_watch_receipt,
+            bridge=bridge,
         )
     except Exception as e:  # noqa: BLE001 - 旁路装配失败降级，不阻断宿主启动
         logger.error('政策盯盘扫描装配失败，降级为不启动（引擎照常运行）',
@@ -606,6 +607,7 @@ def start_policy_watch_scanner(engine=None, stop_event=None, service=None):
     """
     if service is None:
         service = build_policy_watch_service(
+            bridge=getattr(engine, 'news_todo_bridge', None),
             news_service=(getattr(engine, 'news_watch_service', None)
                           if engine is not None else _AUTO))
     if service is None:
@@ -799,11 +801,25 @@ def create_watch_engine() -> WatchEngine:
     runtime_store, todo_service, receipt_service, sla_job, self_heal_service = \
         build_watch_loop_services()
 
+    # 消息 → P1 待办桥（FR-3）：todo_service 存在才装配；失败降级为只发卡。
+    news_todo_bridge = None
+    if todo_service is not None:
+        try:
+            from qs_watch.application.services.watch_engine.news_todo_bridge import (
+                NewsTodoBridge,
+            )
+            news_todo_bridge = NewsTodoBridge(todo_service, todo_repo=todo_repo())
+        except Exception as e:  # noqa: BLE001 - 桥是增益，不阻断引擎启动
+            logger.error('消息待办桥装配失败，降级为只发卡', error=str(e))
+
     # 消息监控服务：引擎 sidecar 的持仓消息扫描与确认核验的「利空核验」共用**同一实例**
     # （同一条新闻源/留痕口径，不建两份）。装配失败只降级（扫描/利空核验不可用），
     # 不阻断引擎启动——消息面是旁路增益，不是引擎存活的必要条件。
     try:
-        _news_watch_service = _build_news_watch_service()
+        # 只在桥存在时传参：既保持 monkeypatch 无参口径兼容，也不让 None 影响旧行为
+        _news_watch_service = (
+            _build_news_watch_service(bridge=news_todo_bridge)
+            if news_todo_bridge is not None else _build_news_watch_service())
     except Exception as e:  # noqa: BLE001 - 装配失败降级为关闭
         logger.error('消息监控服务装配失败，降级为关闭（消息扫描/利空核验不可用）',
                      error=str(e))
@@ -869,6 +885,9 @@ def create_watch_engine() -> WatchEngine:
             outcome_repo=watch_outcome_repo()),
     )
 
+    # 供政策扫描线程复用同一座桥（避免各建一份、各算一套去重）
+    engine.news_todo_bridge = news_todo_bridge
+
     # 成交回执闭环接线（RFC 017 §2.1.4，2026-10-21）：trading 成交落库后回调 watch
     # 收敛执行待办（trigger handled + 规则退役 + position_state 翻转 + 时延落 detail）。
     # 组合根职责：未注册 = 回调 no-op（行为与改造前一致）；装配失败只降级记日志，
@@ -895,12 +914,23 @@ def _register_fill_sync_listener(engine, todo_service) -> None:
             trigger_repo=watch_trigger_repo(),
             position_repo=sim_position_repo(),
             lifecycle=getattr(engine, 'position_lifecycle_service', None),
+            plan_progress=_plan_progress_port(),
         )
         register_fill_listener(listener)
         logger.info('成交回执同步已装配（IFillListener → FillSyncService）')
     except Exception as e:  # noqa: BLE001 - 回执是增益链路，不阻断引擎启动
         logger.error('成交回执同步装配失败，降级为未装配（成交照常落库）',
                      error=str(e))
+
+
+def _plan_progress_port():
+    """计划推进端口（REQ-261021222905-6dff）：装配失败 = None（回执行为不变）。"""
+    try:
+        from adapters.outbound.repositories.plan_progress_port import PlanProgressPort
+        return PlanProgressPort()
+    except Exception as e:  # noqa: BLE001
+        logger.error('计划推进端口装配失败，回执不推进计划（成交照常）', error=str(e))
+        return None
 
 
 def _build_observe_aggregator():
@@ -946,3 +976,32 @@ def start_watch_engine_in_thread() -> tuple[WatchEngine, threading.Thread]:
         logger.error('政策盯盘扫描线程启动失败（引擎照常运行）', error=str(e))
     logger.info('✓ WatchEngine 已在后台线程启动')
     return engine, thread
+
+
+def start_watch_sidecars_in_thread() -> WatchEngine:
+    """只启动 V1 的**旁路服务**（不起判定循环）—— V2 接管盯盘判定时的过渡形态。
+
+    2026-10-24 用户裁定「V2 上线、V1 下线」。V1 的 tick 判定循环由 V2 定时任务取代，
+    但 V1 引擎线程同时承载这些**不可丢**的旁路服务：
+
+      - sidecar：摘要门 / 元触发复核 / 持仓生命周期联动（含新仓自动补止损）/
+        持仓板块映射 / 走势回填 / 池级盯盘对账 / 消息监控 / 收盘体检日报
+      - 心跳写线程（引擎存活信号）
+      - 板块共振快照刷新、政策盯盘扫描
+
+    这些能力 V2 尚未复制；直接把整个 V1 线程停掉会导致「新仓不再自动补止损」
+    「新闻/回填/对账静默停摆」。本函数只建引擎对象并拉起旁路线程，**不跑
+    ``run_forever``**，因此不会产生任何 V1 触发/通知（判定权已交给 V2）。
+    V2 未接管前不要单独使用本函数。
+    """
+    engine = create_watch_engine()
+    engine.spawn_heartbeat_thread()
+    engine._ensure_sidecar_thread()  # noqa: SLF001 - 同包生命周期入口
+    _start_sector_resonance_refresher(
+        getattr(engine, 'confirm_verify_pipeline', None))
+    try:
+        start_policy_watch_scanner(engine)
+    except Exception as e:  # noqa: BLE001 - 旁路启动失败不阻断宿主
+        logger.error('政策盯盘扫描线程启动失败（旁路服务照常运行）', error=str(e))
+    logger.info('✓ WatchEngine V1 旁路服务已启动（判定循环未启动，判定归 V2）')
+    return engine

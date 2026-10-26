@@ -1,0 +1,36 @@
+task:
+  id: t-60bfe8
+  title: 实现计划统计归因与被拦信号统计
+  status: done
+  implements: IF-14 计划统计（命中率按版本分组、计划内/外盈亏、执行时延 p50/p95）+ IF-16 watch 侧被拦/抑制触发走势统计（build_blocked_stats，基于既有 outcome 回填表）。
+  serves:
+    - FR-7
+  depends_on:
+    - t-dd0616
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261021222905-6dff
+    TASK_ID: t-60bfe8
+    TASK_TITLE: 实现计划统计归因与被拦信号统计
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-21T16:22:43.256Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261021222905-6dff
+  generated_at: 2026-10-21T16:21:40.317Z
+  version: 6
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-21T16:22:43.256Z

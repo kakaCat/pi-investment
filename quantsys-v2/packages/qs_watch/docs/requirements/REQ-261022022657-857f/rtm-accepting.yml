@@ -1,0 +1,217 @@
+metadata:
+  stage: accepting
+  requirement_id: REQ-261022022657-857f
+  generated_at: 2026-10-21T18:40:20.554Z
+  version: 2
+  generated_by: dsh-pmboard
+  last_updated: 2026-10-21T18:40:20.597Z
+inputs:
+  tasks:
+    - id: t-e12dcf
+      title: 接线反思唤醒通道（waker 注入 + 任务调用）
+      status: done
+    - id: t-e481c3
+      title: 实现减仓批次匹配纯函数
+      status: done
+    - id: t-558de7
+      title: 扩展 on_fill 批次退役与事件留痕
+      status: done
+    - id: t-a5fbed
+      title: 接线消息→P1 待办与唤醒（含 24h 去重）
+      status: done
+    - id: t-b65fd2
+      title: 扩 metrics 读数并收口回归
+      status: done
+    - id: t-eec5ea
+      title: 接线反思唤醒通道（waker 注入 + 任务调用）·研发
+      status: done
+    - id: t-887e9b
+      title: 接线反思唤醒通道（waker 注入 + 任务调用）·联调
+      status: done
+    - id: t-4b43e8
+      title: 接线反思唤醒通道（waker 注入 + 任务调用）·复核
+      status: done
+    - id: t-c0b38b
+      title: 接线反思唤醒通道（waker 注入 + 任务调用）·测试
+      status: done
+    - id: t-6d5405
+      title: 实现减仓批次匹配纯函数·研发
+      status: done
+    - id: t-4c1d31
+      title: 实现减仓批次匹配纯函数·联调
+      status: done
+    - id: t-1088bf
+      title: 实现减仓批次匹配纯函数·复核
+      status: done
+    - id: t-1b778c
+      title: 实现减仓批次匹配纯函数·测试
+      status: done
+    - id: t-a779d3
+      title: 接线消息→P1 待办与唤醒（含 24h 去重）·研发
+      status: done
+    - id: t-d2e75b
+      title: 接线消息→P1 待办与唤醒（含 24h 去重）·联调
+      status: done
+    - id: t-35badf
+      title: 接线消息→P1 待办与唤醒（含 24h 去重）·复核
+      status: done
+    - id: t-c02f99
+      title: 接线消息→P1 待办与唤醒（含 24h 去重）·测试
+      status: done
+    - id: t-ebde4d
+      title: 扩展 on_fill 批次退役与事件留痕·研发
+      status: done
+    - id: t-4d4ec2
+      title: 扩展 on_fill 批次退役与事件留痕·联调
+      status: done
+    - id: t-46d7fb
+      title: 扩展 on_fill 批次退役与事件留痕·复核
+      status: done
+    - id: t-077bfc
+      title: 扩展 on_fill 批次退役与事件留痕·测试
+      status: done
+    - id: t-e5df78
+      title: 扩 metrics 读数并收口回归·研发
+      status: done
+    - id: t-f9b1f4
+      title: 扩 metrics 读数并收口回归·复核
+      status: done
+    - id: t-08f77b
+      title: 扩 metrics 读数并收口回归·测试
+      status: done
+outputs:
+  test_cases:
+    - id: TC-1
+      title: TC-1
+      covers:
+        - t-e12dcf
+        - t-e481c3
+        - t-558de7
+        - t-a5fbed
+        - t-b65fd2
+        - t-eec5ea
+        - t-887e9b
+        - t-4b43e8
+        - t-c0b38b
+        - t-6d5405
+        - t-4c1d31
+        - t-1088bf
+        - t-1b778c
+        - t-ebde4d
+        - t-4d4ec2
+        - t-46d7fb
+        - t-077bfc
+        - t-a779d3
+        - t-d2e75b
+        - t-35badf
+        - t-c02f99
+        - t-e5df78
+        - t-f9b1f4
+        - t-08f77b
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-2
+      title: 2. watch 既有套件（回归）
+      covers:
+        - t-b65fd2
+        - t-08f77b
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-3
+      title: 3. 生产读数（重启后实测）
+      covers:
+        - t-b65fd2
+        - t-e5df78
+      validates: []
+      source: tests/test-evidence.md
+    - id: TC-4
+      title: 4. 三条读数样例
+      covers:
+        - t-b65fd2
+      validates: []
+      source: tests/test-evidence.md
+traceability:
+  task_to_tests:
+    t-e12dcf:
+      - TC-1
+    t-e481c3:
+      - TC-1
+    t-558de7:
+      - TC-1
+    t-a5fbed:
+      - TC-1
+    t-b65fd2:
+      - TC-1
+      - TC-2
+      - TC-3
+      - TC-4
+    t-eec5ea:
+      - TC-1
+    t-887e9b:
+      - TC-1
+    t-4b43e8:
+      - TC-1
+    t-c0b38b:
+      - TC-1
+    t-6d5405:
+      - TC-1
+    t-4c1d31:
+      - TC-1
+    t-1088bf:
+      - TC-1
+    t-1b778c:
+      - TC-1
+    t-a779d3:
+      - TC-1
+    t-d2e75b:
+      - TC-1
+    t-35badf:
+      - TC-1
+    t-c02f99:
+      - TC-1
+    t-ebde4d:
+      - TC-1
+    t-4d4ec2:
+      - TC-1
+    t-46d7fb:
+      - TC-1
+    t-077bfc:
+      - TC-1
+    t-e5df78:
+      - TC-1
+      - TC-3
+    t-f9b1f4:
+      - TC-1
+    t-08f77b:
+      - TC-1
+      - TC-2
+  fr_to_tests:
+    FR-1:
+      - TC-1
+      - TC-2
+      - TC-3
+      - TC-4
+    FR-2:
+      - TC-1
+      - TC-2
+      - TC-3
+      - TC-4
+    FR-3:
+      - TC-1
+      - TC-2
+      - TC-3
+      - TC-4
+    FR-4:
+      - TC-1
+      - TC-2
+      - TC-3
+      - TC-4
+coverage:
+  testing:
+    total: 24
+    covered: 24
+    uncovered: []
+    rate: 100
+    total_tasks: 24
+    tested_tasks: 24
+    untested: []

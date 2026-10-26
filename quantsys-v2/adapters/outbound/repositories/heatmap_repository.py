@@ -17,11 +17,13 @@ class HeatmapRepository(BaseORMRepository[DailyKline]):
 
     def get_last_trade_date_on_or_before(self, d: date) -> Optional[date]:
         """d（含）之前最近的交易日；无数据返回 None"""
-        return (
+        _ro = (
             self.session.query(func.max(DailyKline.trade_date))
             .filter(DailyKline.trade_date <= d)
             .scalar()
         )
+        self._commit_if_readonly()  # 连接泄漏治理（2026-10-22）
+        return _ro
 
     def get_trade_dates_from(self, d: date, count: int) -> list[date]:
         """从 d（含）起最多 count 个不重复交易日，升序"""
@@ -33,7 +35,9 @@ class HeatmapRepository(BaseORMRepository[DailyKline]):
             .limit(count)
             .all()
         )
-        return [r[0] for r in rows]
+        _ro = [r[0] for r in rows]
+        self._commit_if_readonly()  # 连接泄漏治理（2026-10-22）
+        return _ro
 
     def get_trade_dates_up_to(self, d: date, count: int) -> list[date]:
         """d（含）之前最近 count 个不重复交易日，升序"""
@@ -45,7 +49,9 @@ class HeatmapRepository(BaseORMRepository[DailyKline]):
             .limit(count)
             .all()
         )
-        return sorted(r[0] for r in rows)
+        _ro = sorted(r[0] for r in rows)
+        self._commit_if_readonly()  # 连接泄漏治理（2026-10-22）
+        return _ro
 
     def get_range_closes(self, symbols: list[str], d0: date, dn: date) -> dict[str, dict]:
         """[d0, dn] 区间内每只股票的最早/最晚收盘价（容忍端点缺数据）：
@@ -53,7 +59,9 @@ class HeatmapRepository(BaseORMRepository[DailyKline]):
         区间内不足 2 个交易日的由 service 层剔除。设计背景：回填稀疏期（如 2026-07 初
         仅千只有数据）严格端点配对会导致全量剔除，见 spec §4.3 修订。"""
         if not symbols:
-            return {}
+            _ro = {}
+            self._commit_if_readonly()  # 连接泄漏治理（2026-10-22）
+            return _ro
         rows = (
             self.session.query(DailyKline.symbol, DailyKline.trade_date, DailyKline.close)
             .filter(
@@ -73,35 +81,45 @@ class HeatmapRepository(BaseORMRepository[DailyKline]):
             else:
                 entry['last_date'] = trade_date
                 entry['last_close'] = close
-        return result
+        _ro = result
+        self._commit_if_readonly()  # 连接泄漏治理（2026-10-22）
+        return _ro
 
     def get_stocks_meta(self, symbols: list[str]) -> dict[str, dict]:
         """{symbol: {'name','industry','market_cap'}}（market_cap 单位与 stocks 表一致，不换算）"""
         if not symbols:
-            return {}
+            _ro = {}
+            self._commit_if_readonly()  # 连接泄漏治理（2026-10-22）
+            return _ro
         rows = (
             self.session.query(Stock.symbol, Stock.name, Stock.industry, Stock.market_cap)
             .filter(Stock.symbol.in_(symbols))
             .all()
         )
-        return {
+        _ro = {
             r.symbol: {'name': r.name, 'industry': r.industry, 'market_cap': r.market_cap}
             for r in rows
         }
+        self._commit_if_readonly()  # 连接泄漏治理（2026-10-22）
+        return _ro
 
     def get_stocks_meta_by_industries(self, industries: list[str]) -> dict[str, dict]:
         """同行业全部股票的 meta（含池外股票，供灰色背景块）"""
         if not industries:
-            return {}
+            _ro = {}
+            self._commit_if_readonly()  # 连接泄漏治理（2026-10-22）
+            return _ro
         rows = (
             self.session.query(Stock.symbol, Stock.name, Stock.industry, Stock.market_cap)
             .filter(Stock.industry.in_(industries))
             .all()
         )
-        return {
+        _ro = {
             r.symbol: {'name': r.name, 'industry': r.industry, 'market_cap': r.market_cap}
             for r in rows
         }
+        self._commit_if_readonly()  # 连接泄漏治理（2026-10-22）
+        return _ro
 
     def get_signals_between(self, start: date, end: date) -> list[dict]:
         """[start, end] 内的买/卖信号，按日期升序"""
@@ -115,10 +133,12 @@ class HeatmapRepository(BaseORMRepository[DailyKline]):
             .order_by(Signal.signal_date.asc())
             .all()
         )
-        return [
+        _ro = [
             {'symbol': r.symbol, 'action': r.action, 'signal_date': r.signal_date, 'strategy_id': r.strategy_id}
             for r in rows
         ]
+        self._commit_if_readonly()  # 连接泄漏治理（2026-10-22）
+        return _ro
 
     def get_pool_events_between(self, start: datetime, end: datetime) -> list[dict]:
         """[start, end] 内的池调入/调出事件，按时间升序"""
@@ -133,10 +153,12 @@ class HeatmapRepository(BaseORMRepository[DailyKline]):
             .order_by(PoolChangeLog.changed_at.asc())
             .all()
         )
-        return [
+        _ro = [
             {'pool_id': r.pool_id, 'action': r.action, 'symbol': r.symbol, 'changed_at': r.changed_at}
             for r in rows
         ]
+        self._commit_if_readonly()  # 连接泄漏治理（2026-10-22）
+        return _ro
 
     def get_pool_events_after(self, d: datetime) -> list[dict]:
         """d 之后的池事件，按时间倒序（用于从当前成员回放到 D 时点）"""
@@ -147,13 +169,17 @@ class HeatmapRepository(BaseORMRepository[DailyKline]):
             .order_by(PoolChangeLog.changed_at.desc())
             .all()
         )
-        return [
+        _ro = [
             {'pool_id': r.pool_id, 'action': r.action, 'symbol': r.symbol, 'changed_at': r.changed_at}
             for r in rows
         ]
+        self._commit_if_readonly()  # 连接泄漏治理（2026-10-22）
+        return _ro
 
     def get_pool_names(self) -> dict[int, str]:
-        return {p.id: p.name for p in self.session.query(StockPool.id, StockPool.name).all()}
+        _ro = {p.id: p.name for p in self.session.query(StockPool.id, StockPool.name).all()}
+        self._commit_if_readonly()  # 连接泄漏治理（2026-10-22）
+        return _ro
 
     def get_pool_members_now(self) -> set[str]:
         """当前全部动态池成员（members JSON 兼容 list[str] / list[dict] / dict 三种形态）"""
@@ -167,16 +193,20 @@ class HeatmapRepository(BaseORMRepository[DailyKline]):
                     members.add(item)
                 elif isinstance(item, dict) and item.get('symbol'):
                     members.add(item['symbol'])
-        return members
+        _ro = members
+        self._commit_if_readonly()  # 连接泄漏治理（2026-10-22）
+        return _ro
 
     def has_pool_log_before(self, d: datetime) -> bool:
         """d（含）之前是否存在任何池变更日志（spec §4.3：无则 D 时点池成员不可知 → scope 退化）"""
-        return (
+        _ro = (
             self.session.query(PoolChangeLog.id)
             .filter(PoolChangeLog.changed_at <= d)
             .first()
             is not None
         )
+        self._commit_if_readonly()  # 连接泄漏治理（2026-10-22）
+        return _ro
 
     def get_current_holding_symbols(self) -> set[str]:
         """当前持仓（quantity > 0）股票代码"""
@@ -185,4 +215,6 @@ class HeatmapRepository(BaseORMRepository[DailyKline]):
             .filter(PortfolioHolding.quantity > 0)
             .all()
         )
-        return {r[0] for r in rows}
+        _ro = {r[0] for r in rows}
+        self._commit_if_readonly()  # 连接泄漏治理（2026-10-22）
+        return _ro

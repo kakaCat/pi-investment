@@ -1,0 +1,1211 @@
+metadata:
+  stage: design
+  requirement_id: REQ-261022235419-2299
+  generated_at: 2026-10-22T17:13:24.031Z
+  version: 9
+  generated_by: dsh-pmboard
+  rtm_version: "2.0"
+  last_updated: 2026-10-23T03:30:15.742Z
+inputs:
+  requirements: []
+outputs:
+  design_sections:
+    - ref: design/architecture.md#摘要
+      title: 摘要
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-7
+      file: design/architecture.md
+      section: 摘要
+    - ref: design/architecture.md#背景与问题
+      title: 背景与问题
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+      file: design/architecture.md
+      section: 背景与问题
+    - ref: design/architecture.md#需求来源
+      title: 需求来源
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+        - FR-9
+        - FR-10
+        - FR-11
+      file: design/architecture.md
+      section: 需求来源
+    - ref: design/architecture.md#现状与代价
+      title: 现状与代价
+      serves:
+        - FR-2
+        - FR-6
+        - FR-7
+      file: design/architecture.md
+      section: 现状与代价
+    - ref: design/architecture.md#为什么是现在
+      title: 为什么是现在
+      serves:
+        - FR-2
+        - FR-6
+      file: design/architecture.md
+      section: 为什么是现在
+    - ref: design/architecture.md#目标与非目标
+      title: 目标与非目标
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-6
+        - FR-7
+      file: design/architecture.md
+      section: 目标与非目标
+    - ref: design/architecture.md#目标
+      title: 目标
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-6
+        - FR-7
+      file: design/architecture.md
+      section: 目标
+    - ref: design/architecture.md#非目标
+      title: 非目标
+      serves:
+        - FR-3
+        - FR-4
+      file: design/architecture.md
+      section: 非目标
+    - ref: design/architecture.md#方案总览
+      title: 方案总览
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/architecture.md
+      section: 方案总览
+    - ref: design/architecture.md#架构与依赖
+      title: 架构与依赖
+      serves:
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-9
+      file: design/architecture.md
+      section: 架构与依赖
+    - ref: design/architecture.md#数据模型
+      title: 数据模型
+      serves:
+        - FR-6
+        - FR-11
+      file: design/architecture.md
+      section: 数据模型
+    - ref: design/architecture.md#接口设计
+      title: 接口设计
+      serves:
+        - FR-1
+        - FR-2
+        - FR-4
+        - FR-5
+        - FR-7
+        - FR-8
+        - FR-9
+      file: design/architecture.md
+      section: 接口设计
+    - ref: design/architecture.md#IF-1-loadactiverules
+      title: IF-1 load_active_rules
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: IF-1-loadactiverules
+    - ref: design/architecture.md#IF-2-fetchquotes
+      title: IF-2 fetch_quotes
+      serves:
+        - FR-2
+      file: design/architecture.md
+      section: IF-2-fetchquotes
+    - ref: design/architecture.md#IF-3-checkinvalidation
+      title: IF-3 check_invalidation
+      serves:
+        - FR-6
+      file: design/architecture.md
+      section: IF-3-checkinvalidation
+    - ref: design/architecture.md#IF-4-positionengineevaluate
+      title: IF-4 position_engine.evaluate
+      serves:
+        - FR-4
+      file: design/architecture.md
+      section: IF-4-positionengineevaluate
+    - ref: design/architecture.md#IF-5-unpositionedengineevaluate
+      title: IF-5 unpositioned_engine.evaluate
+      serves:
+        - FR-5
+      file: design/architecture.md
+      section: IF-5-unpositionedengineevaluate
+    - ref: design/architecture.md#IF-6-routetrigger
+      title: IF-6 route_trigger
+      serves:
+        - FR-7
+      file: design/architecture.md
+      section: IF-6-routetrigger
+    - ref: design/architecture.md#IF-7-notifyagentsend-IF-8-notifyfeishusend
+      title: IF-7 notify_agent.send / IF-8 notify_feishu.send
+      serves:
+        - FR-7
+        - FR-9
+      file: design/architecture.md
+      section: IF-7-notifyagentsend-IF-8-notifyfeishusend
+    - ref: design/architecture.md#备选方案
+      title: 备选方案
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/architecture.md
+      section: 备选方案
+    - ref: design/architecture.md#四风险与证据
+      title: 四风险与证据
+      serves:
+        - FR-2
+        - FR-7
+      file: design/architecture.md
+      section: 四风险与证据
+    - ref: design/architecture.md#失败模式与回滚
+      title: 失败模式与回滚
+      serves:
+        - FR-2
+        - FR-7
+        - FR-11
+      file: design/architecture.md
+      section: 失败模式与回滚
+    - ref: design/architecture.md#跨关注点
+      title: 跨关注点
+      serves:
+        - FR-2
+        - FR-7
+      file: design/architecture.md
+      section: 跨关注点
+    - ref: design/architecture.md#交付拆分与里程碑
+      title: 交付拆分与里程碑
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+        - FR-9
+        - FR-10
+        - FR-11
+      file: design/architecture.md
+      section: 交付拆分与里程碑
+    - ref: design/architecture.md#需求追溯
+      title: 需求追溯
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+        - FR-9
+        - FR-10
+        - FR-11
+      file: design/architecture.md
+      section: 需求追溯
+    - ref: design/architecture.md#常见问题
+      title: 常见问题
+      serves:
+        - FR-7
+        - FR-11
+      file: design/architecture.md
+      section: 常见问题
+    - ref: design/architecture.md#开放问题
+      title: 开放问题
+      serves:
+        - FR-3
+        - FR-7
+      file: design/architecture.md
+      section: 开放问题
+    - ref: design/architecture.md#附录
+      title: 附录
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 附录
+    - ref: design/backend.md#摘要
+      title: 摘要
+      serves:
+        - FR-1
+        - FR-2
+      file: design/backend.md
+      section: 摘要
+    - ref: design/backend.md#背景与问题
+      title: 背景与问题
+      serves:
+        - FR-1
+        - FR-2
+      file: design/backend.md
+      section: 背景与问题
+    - ref: design/backend.md#需求来源
+      title: 需求来源
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-11
+      file: design/backend.md
+      section: 需求来源
+    - ref: design/backend.md#现状与代价
+      title: 现状与代价
+      serves:
+        - FR-2
+      file: design/backend.md
+      section: 现状与代价
+    - ref: design/backend.md#为什么是现在
+      title: 为什么是现在
+      serves:
+        - FR-1
+      file: design/backend.md
+      section: 为什么是现在
+    - ref: design/backend.md#目标与非目标
+      title: 目标与非目标
+      serves:
+        - FR-1
+        - FR-2
+      file: design/backend.md
+      section: 目标与非目标
+    - ref: design/backend.md#目标
+      title: 目标
+      serves:
+        - FR-1
+        - FR-2
+      file: design/backend.md
+      section: 目标
+    - ref: design/backend.md#非目标
+      title: 非目标
+      serves:
+        - FR-1
+      file: design/backend.md
+      section: 非目标
+    - ref: design/backend.md#方案总览
+      title: 方案总览
+      serves:
+        - FR-1
+        - FR-2
+      file: design/backend.md
+      section: 方案总览
+    - ref: design/backend.md#架构与依赖
+      title: 架构与依赖
+      serves:
+        - FR-1
+        - FR-2
+      file: design/backend.md
+      section: 架构与依赖
+    - ref: design/backend.md#旧代码黑盒复用与文件边界
+      title: 旧代码黑盒复用与文件边界
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-7
+      file: design/backend.md
+      section: 旧代码黑盒复用与文件边界
+    - ref: design/backend.md#黑盒复用清单只调接口不读实现
+      title: 黑盒复用清单（只调接口，不读实现）
+      serves:
+        - FR-1
+        - FR-2
+        - FR-7
+      file: design/backend.md
+      section: 黑盒复用清单只调接口不读实现
+    - ref: design/backend.md#独立文件边界
+      title: 独立文件边界
+      serves:
+        - FR-3
+      file: design/backend.md
+      section: 独立文件边界
+    - ref: design/backend.md#落库标记
+      title: 落库标记
+      serves:
+        - FR-7
+      file: design/backend.md
+      section: 落库标记
+    - ref: design/backend.md#数据模型
+      title: 数据模型
+      serves:
+        - FR-11
+      file: design/backend.md
+      section: 数据模型
+    - ref: design/backend.md#接口设计
+      title: 接口设计
+      serves:
+        - FR-1
+        - FR-2
+        - FR-11
+      file: design/backend.md
+      section: 接口设计
+    - ref: design/backend.md#IF-1-watchbootstrapstartwatchenginev2
+      title: IF-1 watch_bootstrap.start_watch_engine_v2
+      serves:
+        - FR-1
+      file: design/backend.md
+      section: IF-1-watchbootstrapstartwatchenginev2
+    - ref: design/backend.md#备选方案
+      title: 备选方案
+      serves:
+        - FR-1
+      file: design/backend.md
+      section: 备选方案
+    - ref: design/backend.md#四风险与证据
+      title: 四风险与证据
+      serves:
+        - FR-2
+      file: design/backend.md
+      section: 四风险与证据
+    - ref: design/backend.md#失败模式与回滚
+      title: 失败模式与回滚
+      serves:
+        - FR-1
+        - FR-2
+      file: design/backend.md
+      section: 失败模式与回滚
+    - ref: design/backend.md#跨关注点
+      title: 跨关注点
+      serves:
+        - FR-1
+        - FR-2
+      file: design/backend.md
+      section: 跨关注点
+    - ref: design/backend.md#交付拆分与里程碑
+      title: 交付拆分与里程碑
+      serves:
+        - FR-1
+        - FR-2
+      file: design/backend.md
+      section: 交付拆分与里程碑
+    - ref: design/backend.md#需求追溯
+      title: 需求追溯
+      serves:
+        - FR-1
+        - FR-2
+        - FR-11
+      file: design/backend.md
+      section: 需求追溯
+    - ref: design/backend.md#常见问题
+      title: 常见问题
+      serves:
+        - FR-1
+        - FR-2
+      file: design/backend.md
+      section: 常见问题
+    - ref: design/backend.md#开放问题
+      title: 开放问题
+      serves:
+        - FR-2
+      file: design/backend.md
+      section: 开放问题
+    - ref: design/backend.md#附录
+      title: 附录
+      serves:
+        - FR-1
+      file: design/backend.md
+      section: 附录
+    - ref: design/data-model.md#摘要
+      title: 摘要
+      serves:
+        - FR-6
+        - FR-7
+        - FR-11
+      file: design/data-model.md
+      section: 摘要
+    - ref: design/data-model.md#背景与问题
+      title: 背景与问题
+      serves:
+        - FR-7
+        - FR-11
+      file: design/data-model.md
+      section: 背景与问题
+    - ref: design/data-model.md#需求来源
+      title: 需求来源
+      serves:
+        - FR-6
+        - FR-7
+        - FR-11
+      file: design/data-model.md
+      section: 需求来源
+    - ref: design/data-model.md#现状与代价
+      title: 现状与代价
+      serves:
+        - FR-7
+      file: design/data-model.md
+      section: 现状与代价
+    - ref: design/data-model.md#为什么是现在
+      title: 为什么是现在
+      serves:
+        - FR-7
+      file: design/data-model.md
+      section: 为什么是现在
+    - ref: design/data-model.md#目标与非目标
+      title: 目标与非目标
+      serves:
+        - FR-6
+        - FR-7
+        - FR-11
+      file: design/data-model.md
+      section: 目标与非目标
+    - ref: design/data-model.md#目标
+      title: 目标
+      serves:
+        - FR-7
+        - FR-11
+      file: design/data-model.md
+      section: 目标
+    - ref: design/data-model.md#非目标
+      title: 非目标
+      serves:
+        - FR-6
+      file: design/data-model.md
+      section: 非目标
+    - ref: design/data-model.md#方案总览
+      title: 方案总览
+      serves:
+        - FR-7
+        - FR-11
+      file: design/data-model.md
+      section: 方案总览
+    - ref: design/data-model.md#架构与依赖
+      title: 架构与依赖
+      serves:
+        - FR-7
+      file: design/data-model.md
+      section: 架构与依赖
+    - ref: design/data-model.md#数据模型
+      title: 数据模型
+      serves:
+        - FR-6
+        - FR-7
+        - FR-11
+      file: design/data-model.md
+      section: 数据模型
+    - ref: design/data-model.md#接口设计
+      title: 接口设计
+      serves:
+        - FR-7
+        - FR-11
+      file: design/data-model.md
+      section: 接口设计
+    - ref: design/data-model.md#IF-1-repositoryupdatecycle
+      title: IF-1 repository.update_cycle
+      serves:
+        - FR-7
+      file: design/data-model.md
+      section: IF-1-repositoryupdatecycle
+    - ref: design/data-model.md#IF-2-repositoryresetdailycycles
+      title: IF-2 repository.reset_daily_cycles
+      serves:
+        - FR-11
+      file: design/data-model.md
+      section: IF-2-repositoryresetdailycycles
+    - ref: design/data-model.md#备选方案
+      title: 备选方案
+      serves:
+        - FR-7
+      file: design/data-model.md
+      section: 备选方案
+    - ref: design/data-model.md#四风险与证据
+      title: 四风险与证据
+      serves:
+        - FR-7
+      file: design/data-model.md
+      section: 四风险与证据
+    - ref: design/data-model.md#失败模式与回滚
+      title: 失败模式与回滚
+      serves:
+        - FR-11
+      file: design/data-model.md
+      section: 失败模式与回滚
+    - ref: design/data-model.md#跨关注点
+      title: 跨关注点
+      serves:
+        - FR-7
+        - FR-11
+      file: design/data-model.md
+      section: 跨关注点
+    - ref: design/data-model.md#交付拆分与里程碑
+      title: 交付拆分与里程碑
+      serves:
+        - FR-6
+        - FR-7
+        - FR-11
+      file: design/data-model.md
+      section: 交付拆分与里程碑
+    - ref: design/data-model.md#需求追溯
+      title: 需求追溯
+      serves:
+        - FR-6
+        - FR-7
+        - FR-8
+        - FR-11
+      file: design/data-model.md
+      section: 需求追溯
+    - ref: design/data-model.md#常见问题
+      title: 常见问题
+      serves:
+        - FR-7
+        - FR-11
+      file: design/data-model.md
+      section: 常见问题
+    - ref: design/data-model.md#开放问题
+      title: 开放问题
+      serves:
+        - FR-11
+      file: design/data-model.md
+      section: 开放问题
+    - ref: design/data-model.md#附录
+      title: 附录
+      serves:
+        - FR-6
+      file: design/data-model.md
+      section: 附录
+    - ref: design/interfaces.md#摘要
+      title: 摘要
+      serves:
+        - FR-1
+        - FR-2
+        - FR-7
+      file: design/interfaces.md
+      section: 摘要
+    - ref: design/interfaces.md#背景与问题
+      title: 背景与问题
+      serves:
+        - FR-7
+      file: design/interfaces.md
+      section: 背景与问题
+    - ref: design/interfaces.md#需求来源
+      title: 需求来源
+      serves:
+        - FR-1
+        - FR-2
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+        - FR-9
+        - FR-10
+        - FR-11
+      file: design/interfaces.md
+      section: 需求来源
+    - ref: design/interfaces.md#现状与代价
+      title: 现状与代价
+      serves:
+        - FR-7
+      file: design/interfaces.md
+      section: 现状与代价
+    - ref: design/interfaces.md#为什么是现在
+      title: 为什么是现在
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: 为什么是现在
+    - ref: design/interfaces.md#目标与非目标
+      title: 目标与非目标
+      serves:
+        - FR-7
+      file: design/interfaces.md
+      section: 目标与非目标
+    - ref: design/interfaces.md#目标
+      title: 目标
+      serves:
+        - FR-7
+        - FR-9
+        - FR-10
+      file: design/interfaces.md
+      section: 目标
+    - ref: design/interfaces.md#非目标
+      title: 非目标
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: 非目标
+    - ref: design/interfaces.md#方案总览
+      title: 方案总览
+      serves:
+        - FR-7
+      file: design/interfaces.md
+      section: 方案总览
+    - ref: design/interfaces.md#架构与依赖
+      title: 架构与依赖
+      serves:
+        - FR-7
+        - FR-9
+      file: design/interfaces.md
+      section: 架构与依赖
+    - ref: design/interfaces.md#数据模型
+      title: 数据模型
+      serves:
+        - FR-7
+      file: design/interfaces.md
+      section: 数据模型
+    - ref: design/interfaces.md#接口设计
+      title: 接口设计
+      serves:
+        - FR-1
+        - FR-2
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+        - FR-9
+        - FR-10
+        - FR-11
+      file: design/interfaces.md
+      section: 接口设计
+    - ref: design/interfaces.md#接口清单
+      title: 接口清单
+      serves:
+        - FR-1
+        - FR-2
+        - FR-7
+      file: design/interfaces.md
+      section: 接口清单
+    - ref: design/interfaces.md#IF-1-loadactiverules
+      title: IF-1 load_active_rules
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: IF-1-loadactiverules
+    - ref: design/interfaces.md#IF-6-routetrigger
+      title: IF-6 route_trigger
+      serves:
+        - FR-7
+      file: design/interfaces.md
+      section: IF-6-routetrigger
+    - ref: design/interfaces.md#备选方案
+      title: 备选方案
+      serves:
+        - FR-7
+      file: design/interfaces.md
+      section: 备选方案
+    - ref: design/interfaces.md#四风险与证据
+      title: 四风险与证据
+      serves:
+        - FR-7
+      file: design/interfaces.md
+      section: 四风险与证据
+    - ref: design/interfaces.md#失败模式与回滚
+      title: 失败模式与回滚
+      serves:
+        - FR-7
+      file: design/interfaces.md
+      section: 失败模式与回滚
+    - ref: design/interfaces.md#跨关注点
+      title: 跨关注点
+      serves:
+        - FR-7
+      file: design/interfaces.md
+      section: 跨关注点
+    - ref: design/interfaces.md#交付拆分与里程碑
+      title: 交付拆分与里程碑
+      serves:
+        - FR-1
+        - FR-2
+        - FR-7
+      file: design/interfaces.md
+      section: 交付拆分与里程碑
+    - ref: design/interfaces.md#需求追溯
+      title: 需求追溯
+      serves:
+        - FR-1
+        - FR-2
+        - FR-7
+      file: design/interfaces.md
+      section: 需求追溯
+    - ref: design/interfaces.md#常见问题
+      title: 常见问题
+      serves:
+        - FR-7
+      file: design/interfaces.md
+      section: 常见问题
+    - ref: design/interfaces.md#开放问题
+      title: 开放问题
+      serves:
+        - FR-7
+      file: design/interfaces.md
+      section: 开放问题
+    - ref: design/interfaces.md#附录
+      title: 附录
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: 附录
+    - ref: design/use-cases.md#摘要
+      title: 摘要
+      serves:
+        - FR-4
+        - FR-7
+      file: design/use-cases.md
+      section: 摘要
+    - ref: design/use-cases.md#背景与问题
+      title: 背景与问题
+      serves:
+        - FR-7
+      file: design/use-cases.md
+      section: 背景与问题
+    - ref: design/use-cases.md#需求来源
+      title: 需求来源
+      serves:
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+        - FR-9
+        - FR-10
+      file: design/use-cases.md
+      section: 需求来源
+    - ref: design/use-cases.md#现状与代价
+      title: 现状与代价
+      serves:
+        - FR-7
+      file: design/use-cases.md
+      section: 现状与代价
+    - ref: design/use-cases.md#为什么是现在
+      title: 为什么是现在
+      serves:
+        - FR-7
+      file: design/use-cases.md
+      section: 为什么是现在
+    - ref: design/use-cases.md#目标与非目标
+      title: 目标与非目标
+      serves:
+        - FR-7
+      file: design/use-cases.md
+      section: 目标与非目标
+    - ref: design/use-cases.md#目标
+      title: 目标
+      serves:
+        - FR-4
+        - FR-5
+        - FR-7
+      file: design/use-cases.md
+      section: 目标
+    - ref: design/use-cases.md#非目标
+      title: 非目标
+      serves:
+        - FR-7
+      file: design/use-cases.md
+      section: 非目标
+    - ref: design/use-cases.md#方案总览
+      title: 方案总览
+      serves:
+        - FR-7
+      file: design/use-cases.md
+      section: 方案总览
+    - ref: design/use-cases.md#架构与依赖
+      title: 架构与依赖
+      serves:
+        - FR-7
+      file: design/use-cases.md
+      section: 架构与依赖
+    - ref: design/use-cases.md#数据模型
+      title: 数据模型
+      serves:
+        - FR-6
+      file: design/use-cases.md
+      section: 数据模型
+    - ref: design/use-cases.md#接口设计
+      title: 接口设计
+      serves:
+        - FR-7
+      file: design/use-cases.md
+      section: 接口设计
+    - ref: design/use-cases.md#备选方案
+      title: 备选方案
+      serves:
+        - FR-7
+      file: design/use-cases.md
+      section: 备选方案
+    - ref: design/use-cases.md#四风险与证据
+      title: 四风险与证据
+      serves:
+        - FR-7
+      file: design/use-cases.md
+      section: 四风险与证据
+    - ref: design/use-cases.md#失败模式与回滚
+      title: 失败模式与回滚
+      serves:
+        - FR-7
+      file: design/use-cases.md
+      section: 失败模式与回滚
+    - ref: design/use-cases.md#跨关注点
+      title: 跨关注点
+      serves:
+        - FR-7
+      file: design/use-cases.md
+      section: 跨关注点
+    - ref: design/use-cases.md#交付拆分与里程碑
+      title: 交付拆分与里程碑
+      serves:
+        - FR-4
+        - FR-7
+      file: design/use-cases.md
+      section: 交付拆分与里程碑
+    - ref: design/use-cases.md#需求追溯
+      title: 需求追溯
+      serves:
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+        - FR-9
+        - FR-10
+      file: design/use-cases.md
+      section: 需求追溯
+    - ref: design/use-cases.md#常见问题
+      title: 常见问题
+      serves:
+        - FR-7
+      file: design/use-cases.md
+      section: 常见问题
+    - ref: design/use-cases.md#开放问题
+      title: 开放问题
+      serves:
+        - FR-7
+      file: design/use-cases.md
+      section: 开放问题
+    - ref: design/use-cases.md#附录
+      title: 附录
+      serves:
+        - FR-4
+      file: design/use-cases.md
+      section: 附录
+traceability:
+  fr_to_design:
+    FR-1:
+      - design/architecture.md#摘要
+      - design/architecture.md#背景与问题
+      - design/architecture.md#需求来源
+      - design/architecture.md#目标与非目标
+      - design/architecture.md#目标
+      - design/architecture.md#方案总览
+      - design/architecture.md#接口设计
+      - design/architecture.md#IF-1-loadactiverules
+      - design/architecture.md#备选方案
+      - design/architecture.md#交付拆分与里程碑
+      - design/architecture.md#需求追溯
+      - design/architecture.md#附录
+      - design/backend.md#摘要
+      - design/backend.md#背景与问题
+      - design/backend.md#需求来源
+      - design/backend.md#为什么是现在
+      - design/backend.md#目标与非目标
+      - design/backend.md#目标
+      - design/backend.md#非目标
+      - design/backend.md#方案总览
+      - design/backend.md#架构与依赖
+      - design/backend.md#旧代码黑盒复用与文件边界
+      - design/backend.md#黑盒复用清单只调接口不读实现
+      - design/backend.md#接口设计
+      - design/backend.md#IF-1-watchbootstrapstartwatchenginev2
+      - design/backend.md#备选方案
+      - design/backend.md#失败模式与回滚
+      - design/backend.md#跨关注点
+      - design/backend.md#交付拆分与里程碑
+      - design/backend.md#需求追溯
+      - design/backend.md#常见问题
+      - design/backend.md#附录
+      - design/interfaces.md#摘要
+      - design/interfaces.md#需求来源
+      - design/interfaces.md#为什么是现在
+      - design/interfaces.md#非目标
+      - design/interfaces.md#接口设计
+      - design/interfaces.md#接口清单
+      - design/interfaces.md#IF-1-loadactiverules
+      - design/interfaces.md#交付拆分与里程碑
+      - design/interfaces.md#需求追溯
+      - design/interfaces.md#附录
+    FR-2:
+      - design/architecture.md#摘要
+      - design/architecture.md#背景与问题
+      - design/architecture.md#需求来源
+      - design/architecture.md#现状与代价
+      - design/architecture.md#为什么是现在
+      - design/architecture.md#目标与非目标
+      - design/architecture.md#目标
+      - design/architecture.md#方案总览
+      - design/architecture.md#接口设计
+      - design/architecture.md#IF-2-fetchquotes
+      - design/architecture.md#备选方案
+      - design/architecture.md#四风险与证据
+      - design/architecture.md#失败模式与回滚
+      - design/architecture.md#跨关注点
+      - design/architecture.md#交付拆分与里程碑
+      - design/architecture.md#需求追溯
+      - design/backend.md#摘要
+      - design/backend.md#背景与问题
+      - design/backend.md#需求来源
+      - design/backend.md#现状与代价
+      - design/backend.md#目标与非目标
+      - design/backend.md#目标
+      - design/backend.md#方案总览
+      - design/backend.md#架构与依赖
+      - design/backend.md#旧代码黑盒复用与文件边界
+      - design/backend.md#黑盒复用清单只调接口不读实现
+      - design/backend.md#接口设计
+      - design/backend.md#四风险与证据
+      - design/backend.md#失败模式与回滚
+      - design/backend.md#跨关注点
+      - design/backend.md#交付拆分与里程碑
+      - design/backend.md#需求追溯
+      - design/backend.md#常见问题
+      - design/backend.md#开放问题
+      - design/interfaces.md#摘要
+      - design/interfaces.md#需求来源
+      - design/interfaces.md#接口设计
+      - design/interfaces.md#接口清单
+      - design/interfaces.md#交付拆分与里程碑
+      - design/interfaces.md#需求追溯
+    FR-3:
+      - design/architecture.md#摘要
+      - design/architecture.md#背景与问题
+      - design/architecture.md#需求来源
+      - design/architecture.md#目标与非目标
+      - design/architecture.md#目标
+      - design/architecture.md#非目标
+      - design/architecture.md#方案总览
+      - design/architecture.md#架构与依赖
+      - design/architecture.md#备选方案
+      - design/architecture.md#交付拆分与里程碑
+      - design/architecture.md#需求追溯
+      - design/architecture.md#开放问题
+      - design/backend.md#需求来源
+      - design/backend.md#旧代码黑盒复用与文件边界
+      - design/backend.md#独立文件边界
+    FR-7:
+      - design/architecture.md#摘要
+      - design/architecture.md#背景与问题
+      - design/architecture.md#需求来源
+      - design/architecture.md#现状与代价
+      - design/architecture.md#目标与非目标
+      - design/architecture.md#目标
+      - design/architecture.md#接口设计
+      - design/architecture.md#IF-6-routetrigger
+      - design/architecture.md#IF-7-notifyagentsend-IF-8-notifyfeishusend
+      - design/architecture.md#四风险与证据
+      - design/architecture.md#失败模式与回滚
+      - design/architecture.md#跨关注点
+      - design/architecture.md#交付拆分与里程碑
+      - design/architecture.md#需求追溯
+      - design/architecture.md#常见问题
+      - design/architecture.md#开放问题
+      - design/backend.md#需求来源
+      - design/backend.md#旧代码黑盒复用与文件边界
+      - design/backend.md#黑盒复用清单只调接口不读实现
+      - design/backend.md#落库标记
+      - design/data-model.md#摘要
+      - design/data-model.md#背景与问题
+      - design/data-model.md#需求来源
+      - design/data-model.md#现状与代价
+      - design/data-model.md#为什么是现在
+      - design/data-model.md#目标与非目标
+      - design/data-model.md#目标
+      - design/data-model.md#方案总览
+      - design/data-model.md#架构与依赖
+      - design/data-model.md#数据模型
+      - design/data-model.md#接口设计
+      - design/data-model.md#IF-1-repositoryupdatecycle
+      - design/data-model.md#备选方案
+      - design/data-model.md#四风险与证据
+      - design/data-model.md#跨关注点
+      - design/data-model.md#交付拆分与里程碑
+      - design/data-model.md#需求追溯
+      - design/data-model.md#常见问题
+      - design/interfaces.md#摘要
+      - design/interfaces.md#背景与问题
+      - design/interfaces.md#需求来源
+      - design/interfaces.md#现状与代价
+      - design/interfaces.md#目标与非目标
+      - design/interfaces.md#目标
+      - design/interfaces.md#方案总览
+      - design/interfaces.md#架构与依赖
+      - design/interfaces.md#数据模型
+      - design/interfaces.md#接口设计
+      - design/interfaces.md#接口清单
+      - design/interfaces.md#IF-6-routetrigger
+      - design/interfaces.md#备选方案
+      - design/interfaces.md#四风险与证据
+      - design/interfaces.md#失败模式与回滚
+      - design/interfaces.md#跨关注点
+      - design/interfaces.md#交付拆分与里程碑
+      - design/interfaces.md#需求追溯
+      - design/interfaces.md#常见问题
+      - design/interfaces.md#开放问题
+      - design/use-cases.md#摘要
+      - design/use-cases.md#背景与问题
+      - design/use-cases.md#需求来源
+      - design/use-cases.md#现状与代价
+      - design/use-cases.md#为什么是现在
+      - design/use-cases.md#目标与非目标
+      - design/use-cases.md#目标
+      - design/use-cases.md#非目标
+      - design/use-cases.md#方案总览
+      - design/use-cases.md#架构与依赖
+      - design/use-cases.md#接口设计
+      - design/use-cases.md#备选方案
+      - design/use-cases.md#四风险与证据
+      - design/use-cases.md#失败模式与回滚
+      - design/use-cases.md#跨关注点
+      - design/use-cases.md#交付拆分与里程碑
+      - design/use-cases.md#需求追溯
+      - design/use-cases.md#常见问题
+      - design/use-cases.md#开放问题
+    FR-4:
+      - design/architecture.md#背景与问题
+      - design/architecture.md#需求来源
+      - design/architecture.md#非目标
+      - design/architecture.md#架构与依赖
+      - design/architecture.md#接口设计
+      - design/architecture.md#IF-4-positionengineevaluate
+      - design/architecture.md#交付拆分与里程碑
+      - design/architecture.md#需求追溯
+      - design/backend.md#需求来源
+      - design/interfaces.md#需求来源
+      - design/interfaces.md#接口设计
+      - design/use-cases.md#摘要
+      - design/use-cases.md#需求来源
+      - design/use-cases.md#目标
+      - design/use-cases.md#交付拆分与里程碑
+      - design/use-cases.md#需求追溯
+      - design/use-cases.md#附录
+    FR-5:
+      - design/architecture.md#背景与问题
+      - design/architecture.md#需求来源
+      - design/architecture.md#架构与依赖
+      - design/architecture.md#接口设计
+      - design/architecture.md#IF-5-unpositionedengineevaluate
+      - design/architecture.md#交付拆分与里程碑
+      - design/architecture.md#需求追溯
+      - design/backend.md#需求来源
+      - design/interfaces.md#需求来源
+      - design/interfaces.md#接口设计
+      - design/use-cases.md#需求来源
+      - design/use-cases.md#目标
+      - design/use-cases.md#需求追溯
+    FR-6:
+      - design/architecture.md#背景与问题
+      - design/architecture.md#需求来源
+      - design/architecture.md#现状与代价
+      - design/architecture.md#为什么是现在
+      - design/architecture.md#目标与非目标
+      - design/architecture.md#目标
+      - design/architecture.md#数据模型
+      - design/architecture.md#IF-3-checkinvalidation
+      - design/architecture.md#交付拆分与里程碑
+      - design/architecture.md#需求追溯
+      - design/backend.md#需求来源
+      - design/data-model.md#摘要
+      - design/data-model.md#需求来源
+      - design/data-model.md#目标与非目标
+      - design/data-model.md#非目标
+      - design/data-model.md#数据模型
+      - design/data-model.md#交付拆分与里程碑
+      - design/data-model.md#需求追溯
+      - design/data-model.md#附录
+      - design/interfaces.md#需求来源
+      - design/interfaces.md#接口设计
+      - design/use-cases.md#需求来源
+      - design/use-cases.md#数据模型
+      - design/use-cases.md#需求追溯
+    FR-8:
+      - design/architecture.md#需求来源
+      - design/architecture.md#接口设计
+      - design/architecture.md#交付拆分与里程碑
+      - design/architecture.md#需求追溯
+      - design/data-model.md#需求追溯
+      - design/interfaces.md#需求来源
+      - design/interfaces.md#接口设计
+      - design/use-cases.md#需求来源
+      - design/use-cases.md#需求追溯
+    FR-9:
+      - design/architecture.md#需求来源
+      - design/architecture.md#架构与依赖
+      - design/architecture.md#接口设计
+      - design/architecture.md#IF-7-notifyagentsend-IF-8-notifyfeishusend
+      - design/architecture.md#交付拆分与里程碑
+      - design/architecture.md#需求追溯
+      - design/interfaces.md#需求来源
+      - design/interfaces.md#目标
+      - design/interfaces.md#架构与依赖
+      - design/interfaces.md#接口设计
+      - design/use-cases.md#需求来源
+      - design/use-cases.md#需求追溯
+    FR-10:
+      - design/architecture.md#需求来源
+      - design/architecture.md#交付拆分与里程碑
+      - design/architecture.md#需求追溯
+      - design/interfaces.md#需求来源
+      - design/interfaces.md#目标
+      - design/interfaces.md#接口设计
+      - design/use-cases.md#需求来源
+      - design/use-cases.md#需求追溯
+    FR-11:
+      - design/architecture.md#需求来源
+      - design/architecture.md#数据模型
+      - design/architecture.md#失败模式与回滚
+      - design/architecture.md#交付拆分与里程碑
+      - design/architecture.md#需求追溯
+      - design/architecture.md#常见问题
+      - design/backend.md#需求来源
+      - design/backend.md#数据模型
+      - design/backend.md#接口设计
+      - design/backend.md#需求追溯
+      - design/data-model.md#摘要
+      - design/data-model.md#背景与问题
+      - design/data-model.md#需求来源
+      - design/data-model.md#目标与非目标
+      - design/data-model.md#目标
+      - design/data-model.md#方案总览
+      - design/data-model.md#数据模型
+      - design/data-model.md#接口设计
+      - design/data-model.md#IF-2-repositoryresetdailycycles
+      - design/data-model.md#失败模式与回滚
+      - design/data-model.md#跨关注点
+      - design/data-model.md#交付拆分与里程碑
+      - design/data-model.md#需求追溯
+      - design/data-model.md#常见问题
+      - design/data-model.md#开放问题
+      - design/interfaces.md#需求来源
+      - design/interfaces.md#接口设计
+coverage:
+  design:
+    total: 0
+    covered: 0
+    uncovered: []
+    rate: 100
+    total_frs: 0
+    covered_frs: 0

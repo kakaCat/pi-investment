@@ -4,8 +4,7 @@
 将信号转化为模拟交易，管理持仓和盈亏。
 与 V13 专用 SimulationTrader 不同，本引擎支持任意策略组合。
 """
-from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
+from typing import Any, Dict, List, Optional
 from datetime import datetime, date
 from decimal import Decimal, ROUND_HALF_UP
 import structlog
@@ -14,6 +13,14 @@ from live_trading.simulation_broker import SimulationBroker
 from adapters.outbound.repositories import SimulationORMRepository
 from domain.trading.models.signal import Signal
 from domain.trading.models.trade_result import TradeResult
+from qs_trading.application.ports.fill_listener import (
+    FillEvent,
+    IFillListener,
+    get_fill_listener,
+    notify_fill,
+    register_fill_listener,
+    unregister_fill_listener,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -31,96 +38,22 @@ DEFAULT_RISK_CONFIG = {
 }
 
 
-# ── 成交回调端口（RFC 017 §2.1.4，卡 `fill-event-sync`，2026-10-21）──────────
+# ── 成交回调端口（RFC 017 §2.1.4 / REQ-261021194640-69b8 IF-1、IF-2）─────────
+#
+# 端口本体已迁到**交易包中立侧**，本文件只保留同名导出做兼容转发（旧 import 不破）：
+#   `qs_trading.application.ports.fill_listener` —— FillEvent / IFillListener /
+#   register/get/unregister / notify_fill 的唯一实现处。
 #
 # 依赖方向不可倒：`qs_watch → qs_trading` 是已声明的单向依赖，反向不存在。
-# 所以 trading 侧只提供**薄端口 + 模块级注册位**，绝不在本文件 import watch：
-#   · 端口：`IFillListener.on_fill(event)`（结构化 FillEvent，不是自由文本）；
-#   · 注册：`register_fill_listener()/get_fill_listener()`，缺省 None = no-op；
-#   · 唯一填报点：成交**落库之后**（`_notify_fill`，被 `_execute_buy/_execute_sell`
-#     各调一行）。调用包在 try/except 里，**失败只记日志，绝不影响成交落库**。
-# 消费侧（qs_watch 的 FillSyncService）由组合根主动注册；本文件不感知 watch。
-
-@runtime_checkable
-class IFillListener(Protocol):
-    """成交回调端口：成交落库后收到一条结构化事件（实现方 = qs_watch.FillSyncService）。
-
-    Contract（三条，缺一即破坏可观测性）：
-      · 不得抛错穿透回调用方——实现侧自吞并记日志（引擎还会再包一层 try/except）；
-      · 必须幂等——同一 trade_id 的重复事件不二次收敛、不二次写时延；
-      · 不产生订单/交易动作（RFC §2.4：闭环 = 指令 → agent 执行 → 成交回执）。
-    """
-
-    def on_fill(self, event: "FillEvent") -> Any:
-        ...
-
-
-@dataclass(frozen=True)
-class FillEvent:
-    """一条成交事实（RFC 017 §2.1.4 的字段表）。
-
-    `decision_audit_id` 由调用方按可核验口径给：能拿到决策审计号就传，
-    拿不到留 None（消费侧退化为 `trade:<trade_id>` 并在 detail 标 `audit_degraded`，
-    **不虚报审计**）。`source` 是成交来源（watch 指令 / IntradayMonitor / 人工 /
-    策略名……）：消费侧对**任何来源**都收敛，source 只进留痕。
-    """
-
-    account_name: str
-    symbol: str
-    action: str
-    shares: int
-    price: float
-    trade_id: Optional[int] = None
-    order_id: Optional[int] = None
-    decision_audit_id: Optional[str] = None
-    filled_at: Optional[datetime] = None
-    source: str = 'paper_trading'
-    reason: Optional[str] = None
-
-    def to_dict(self) -> Dict[str, Any]:
-        """JSON-safe 投影（供日志/留痕；消费侧也接受这个形状）。"""
-        filled_at = self.filled_at
-        return {
-            'account_name': self.account_name,
-            'symbol': self.symbol,
-            'action': self.action,
-            'shares': self.shares,
-            'price': self.price,
-            'trade_id': self.trade_id,
-            'order_id': self.order_id,
-            'decision_audit_id': self.decision_audit_id,
-            'filled_at': filled_at.isoformat() if hasattr(filled_at, 'isoformat') else filled_at,
-            'source': self.source,
-            'reason': self.reason,
-        }
-
-
-#: 模块级注册位（组合根写入；None = 未注册 = 成交路径一行也不多跑）。
-_FILL_LISTENER: Optional[IFillListener] = None
-
-
-def register_fill_listener(listener: Optional[IFillListener]) -> None:
-    """注册成交回调（组合根唯一入口；传 None = 注销）。
-
-    校验只做最小结构检查（有 on_fill 即可），不 import 任何实现方——
-    trading 与 watch 之间只靠这份协议约定耦合。
-    """
-    global _FILL_LISTENER
-    if listener is not None and not callable(getattr(listener, 'on_fill', None)):
-        raise TypeError('fill listener 必须实现 on_fill(event)（IFillListener）')
-    _FILL_LISTENER = listener
-    logger.info('fill_listener_registered',
-                listener=type(listener).__name__ if listener is not None else None)
-
-
-def get_fill_listener() -> Optional[IFillListener]:
-    """当前注册的成交回调（未注册返回 None）。"""
-    return _FILL_LISTENER
-
-
-def unregister_fill_listener() -> None:
-    """注销成交回调（测试/回滚用；等价 register_fill_listener(None)）。"""
-    register_fill_listener(None)
+# 所以 trading 侧只提供薄端口 + 模块级注册位，绝不 import watch。
+# 唯一填报点仍是成交**落库之后**（`_notify_fill`，被 `_execute_buy/_execute_sell`
+# 各调一行）：现在改调 `notify_fill`——它自吞监听者异常、未注册返回 False，
+# **失败只记日志，绝不影响成交落库**。
+#
+# 转发清单（`from application.trading.paper_trading_engine import X` 全部等价）：
+#   FillEvent · IFillListener · register_fill_listener · get_fill_listener ·
+#   unregister_fill_listener
+# 本模块不设 __all__：改造前就没有，保持模块命名空间与旧行为逐字一致。
 
 
 class PaperTradingEngine:
@@ -161,19 +94,20 @@ class PaperTradingEngine:
     def _notify_fill(self, *, signal: Signal, action: str, shares: int,
                      filled_price: float, trade_id: Optional[int],
                      order_id: Optional[int] = None) -> None:
-        """成交落库后的**单行回调**（RFC 017 §2.1.4）。
+        """成交落库后的**单行回调**（RFC 017 §2.1.4 / IF-2）。
+
+        派发本身交给中立侧端口 `notify_fill`（唯一出口）；本方法只负责
+        「把成交事实投影成 FillEvent」这一件事。
 
         纪律（逐条对应验收「回调失败不影响成交落库」）：
           · 只在 `trade_id` 非空时回调——没有落库的成交不是事实，绝不虚报；
           · 监听器缺失 = no-op（未装配时成交路径与改造前逐字一致）；
-          · 任何异常只记日志，**绝不向上抛**（成交已经提交，回执是旁路增益）；
+          · 任何异常只记日志，**绝不向上抛**（成交已经提交，回执是旁路增益）——
+            由 `notify_fill` 统一兜住，本方法不再自建 try/except；
           · 以成交来源（signal.strategy_name）作 `source`：watch 指令 / 盘中止损 /
             人工……**任何来源**的成交都同一条事实，消费侧一视同仁地收敛。
         """
         if trade_id is None:
-            return
-        listener = getattr(self, '_fill_listener', None) or get_fill_listener()
-        if listener is None:
             return
         event = FillEvent(
             account_name=self.account_name,
@@ -187,12 +121,8 @@ class PaperTradingEngine:
             source=str(getattr(signal, 'strategy_name', None) or 'paper_trading'),
             reason=getattr(signal, 'reason', None),
         )
-        try:
-            listener.on_fill(event)
-        except Exception as e:  # noqa: BLE001 - 回执失败绝不影响成交（已提交）
-            logger.error('fill_listener_callback_failed（成交已落库，回执失败只记日志）',
-                         account=self.account_name, symbol=event.symbol,
-                         action=event.action, trade_id=event.trade_id, error=str(e))
+        # 实例级监听器优先，缺省回落模块级注册位（口径与改造前一致）
+        notify_fill(event, listener=getattr(self, '_fill_listener', None))
 
     def get_account_info(self) -> Dict[str, Any]:
         account = self.repo.get_account(self.account_name)

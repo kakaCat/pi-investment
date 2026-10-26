@@ -1,0 +1,1195 @@
+metadata:
+  stage: design
+  requirement_id: REQ-261021222905-6dff
+  generated_at: 2026-10-21T14:50:42.723Z
+  version: 7
+  generated_by: dsh-pmboard
+  rtm_version: "2.0"
+  last_updated: 2026-10-21T16:38:27.114Z
+inputs:
+  requirements:
+    - id: FR-1
+      title: 交易计划实体与生命周期
+      source: requirement.md
+      line: 91
+    - id: FR-2
+      title: 计划编译器
+      source: requirement.md
+      line: 119
+    - id: FR-3
+      title: 今日计划聚合视图
+      source: requirement.md
+      line: 149
+    - id: FR-4
+      title: 成交归因与状态推进
+      source: requirement.md
+      line: 175
+    - id: FR-5
+      title: 定时反思
+      source: requirement.md
+      line: 202
+    - id: FR-6
+      title: 反思驱动计划修改
+      source: requirement.md
+      line: 231
+    - id: FR-7
+      title: 反思数据面补全
+      source: requirement.md
+      line: 261
+    - id: FR-8
+      title: 进化层对接
+      source: requirement.md
+      line: 284
+    - id: FR-9
+      title: core_plan 适配器
+      source: requirement.md
+      line: 306
+outputs:
+  design_sections:
+    - ref: design/architecture.md#摘要
+      title: 摘要 `
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 摘要
+    - ref: design/architecture.md#背景与问题
+      title: 背景与问题 `
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 背景与问题
+    - ref: design/architecture.md#需求来源
+      title: 需求来源 `
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 需求来源
+    - ref: design/architecture.md#现状与代价
+      title: 现状与代价 `
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 现状与代价
+    - ref: design/architecture.md#为什么是现在
+      title: 为什么是现在 `
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 为什么是现在
+    - ref: design/architecture.md#目标与非目标
+      title: 目标与非目标 `
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 目标与非目标
+    - ref: design/architecture.md#目标
+      title: 目标 `
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 目标
+    - ref: design/architecture.md#非目标
+      title: 非目标 `
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 非目标
+    - ref: design/architecture.md#方案总览
+      title: 方案总览 `
+      serves:
+        - FR-1
+        - FR-2
+      file: design/architecture.md
+      section: 方案总览
+    - ref: design/architecture.md#架构与依赖
+      title: 架构与依赖 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-4
+      file: design/architecture.md
+      section: 架构与依赖
+    - ref: design/architecture.md#数据模型
+      title: 数据模型 `
+      serves:
+        - FR-1
+        - FR-4
+        - FR-5
+        - FR-7
+      file: design/architecture.md
+      section: 数据模型
+    - ref: design/architecture.md#接口设计
+      title: 接口设计 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-9
+      file: design/architecture.md
+      section: 接口设计
+    - ref: design/architecture.md#IF-1-POST-apiplans
+      title: IF-1 POST /api/plans `
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: IF-1-POST-apiplans
+    - ref: design/architecture.md#IF-2-GET-apiplanstoday
+      title: IF-2 GET /api/plans/today `
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: IF-2-GET-apiplanstoday
+    - ref: design/architecture.md#IF-3-POST-apiplansidapply
+      title: IF-3 POST /api/plans/{id}/apply `
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: IF-3-POST-apiplansidapply
+    - ref: design/architecture.md#IF-4-POST-apiplansidreflections
+      title: IF-4 POST /api/plans/{id}/reflections `
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: IF-4-POST-apiplansidreflections
+    - ref: design/architecture.md#备选方案
+      title: 备选方案 `
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 备选方案
+    - ref: design/architecture.md#四风险与证据
+      title: 四风险与证据 `
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 四风险与证据
+    - ref: design/architecture.md#失败模式与回滚
+      title: 失败模式与回滚 `
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 失败模式与回滚
+    - ref: design/architecture.md#跨关注点
+      title: 跨关注点 `
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 跨关注点
+    - ref: design/architecture.md#交付拆分与里程碑
+      title: 交付拆分与里程碑 `
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 交付拆分与里程碑
+    - ref: design/architecture.md#需求追溯
+      title: 需求追溯 `
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 需求追溯
+    - ref: design/architecture.md#常见问题
+      title: 常见问题 `
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 常见问题
+    - ref: design/architecture.md#开放问题
+      title: 开放问题 `
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 开放问题
+    - ref: design/architecture.md#附录
+      title: 附录 `
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 附录
+    - ref: design/backend.md#摘要
+      title: 摘要 `
+      serves:
+        - FR-1
+      file: design/backend.md
+      section: 摘要
+    - ref: design/backend.md#背景与问题
+      title: 背景与问题 `
+      serves:
+        - FR-1
+      file: design/backend.md
+      section: 背景与问题
+    - ref: design/backend.md#需求来源
+      title: 需求来源 `
+      serves:
+        - FR-1
+      file: design/backend.md
+      section: 需求来源
+    - ref: design/backend.md#现状与代价
+      title: 现状与代价 `
+      serves:
+        - FR-1
+      file: design/backend.md
+      section: 现状与代价
+    - ref: design/backend.md#为什么是现在
+      title: 为什么是现在 `
+      serves:
+        - FR-1
+      file: design/backend.md
+      section: 为什么是现在
+    - ref: design/backend.md#目标与非目标
+      title: 目标与非目标 `
+      serves:
+        - FR-1
+      file: design/backend.md
+      section: 目标与非目标
+    - ref: design/backend.md#目标
+      title: 目标 `
+      serves:
+        - FR-1
+      file: design/backend.md
+      section: 目标
+    - ref: design/backend.md#非目标
+      title: 非目标 `
+      serves:
+        - FR-1
+      file: design/backend.md
+      section: 非目标
+    - ref: design/backend.md#方案总览
+      title: 方案总览 `
+      serves:
+        - FR-1
+      file: design/backend.md
+      section: 方案总览
+    - ref: design/backend.md#架构与依赖
+      title: 架构与依赖 `
+      serves:
+        - FR-1
+      file: design/backend.md
+      section: 架构与依赖
+    - ref: design/backend.md#数据模型
+      title: 数据模型 `
+      serves:
+        - FR-1
+      file: design/backend.md
+      section: 数据模型
+    - ref: design/backend.md#接口设计
+      title: 接口设计 `
+      serves:
+        - FR-1
+      file: design/backend.md
+      section: 接口设计
+    - ref: design/backend.md#IF-1-PlanServiceapply
+      title: IF-1 PlanService.apply `
+      serves:
+        - FR-1
+      file: design/backend.md
+      section: IF-1-PlanServiceapply
+    - ref: design/backend.md#IF-2-ReflectionPackServicebuild
+      title: IF-2 ReflectionPackService.build `
+      serves:
+        - FR-1
+      file: design/backend.md
+      section: IF-2-ReflectionPackServicebuild
+    - ref: design/backend.md#服务与接口实现
+      title: 服务与接口实现 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+        - FR-9
+      file: design/backend.md
+      section: 服务与接口实现
+    - ref: design/backend.md#数据流
+      title: 数据流 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-4
+        - FR-5
+      file: design/backend.md
+      section: 数据流
+    - ref: design/backend.md#备选方案
+      title: 备选方案 `
+      serves:
+        - FR-1
+      file: design/backend.md
+      section: 备选方案
+    - ref: design/backend.md#四风险与证据
+      title: 四风险与证据 `
+      serves:
+        - FR-1
+      file: design/backend.md
+      section: 四风险与证据
+    - ref: design/backend.md#失败模式与回滚
+      title: 失败模式与回滚 `
+      serves:
+        - FR-1
+      file: design/backend.md
+      section: 失败模式与回滚
+    - ref: design/backend.md#跨关注点
+      title: 跨关注点 `
+      serves:
+        - FR-1
+      file: design/backend.md
+      section: 跨关注点
+    - ref: design/backend.md#交付拆分与里程碑
+      title: 交付拆分与里程碑 `
+      serves:
+        - FR-1
+      file: design/backend.md
+      section: 交付拆分与里程碑
+    - ref: design/backend.md#需求追溯
+      title: 需求追溯 `
+      serves:
+        - FR-1
+      file: design/backend.md
+      section: 需求追溯
+    - ref: design/backend.md#常见问题
+      title: 常见问题 `
+      serves:
+        - FR-1
+      file: design/backend.md
+      section: 常见问题
+    - ref: design/backend.md#开放问题
+      title: 开放问题 `
+      serves:
+        - FR-1
+      file: design/backend.md
+      section: 开放问题
+    - ref: design/backend.md#附录
+      title: 附录 `
+      serves:
+        - FR-1
+      file: design/backend.md
+      section: 附录
+    - ref: design/data-model.md#摘要
+      title: 摘要 `
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: 摘要
+    - ref: design/data-model.md#背景与问题
+      title: 背景与问题 `
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: 背景与问题
+    - ref: design/data-model.md#需求来源
+      title: 需求来源 `
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: 需求来源
+    - ref: design/data-model.md#现状与代价
+      title: 现状与代价 `
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: 现状与代价
+    - ref: design/data-model.md#为什么是现在
+      title: 为什么是现在 `
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: 为什么是现在
+    - ref: design/data-model.md#目标与非目标
+      title: 目标与非目标 `
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: 目标与非目标
+    - ref: design/data-model.md#目标
+      title: 目标 `
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: 目标
+    - ref: design/data-model.md#非目标
+      title: 非目标 `
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: 非目标
+    - ref: design/data-model.md#方案总览
+      title: 方案总览 `
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: 方案总览
+    - ref: design/data-model.md#架构与依赖
+      title: 架构与依赖 `
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: 架构与依赖
+    - ref: design/data-model.md#数据模型
+      title: 数据模型 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+      file: design/data-model.md
+      section: 数据模型
+    - ref: design/data-model.md#tradingplans
+      title: trading_plans `
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: tradingplans
+    - ref: design/data-model.md#tradingplanversions
+      title: trading_plan_versions `
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: tradingplanversions
+    - ref: design/data-model.md#tradingplanrules
+      title: trading_plan_rules `
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: tradingplanrules
+    - ref: design/data-model.md#tradingplanevents
+      title: trading_plan_events `
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: tradingplanevents
+    - ref: design/data-model.md#planreflections
+      title: plan_reflections `
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: planreflections
+    - ref: design/data-model.md#既有表加列
+      title: 既有表加列 `
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: 既有表加列
+    - ref: design/data-model.md#接口设计
+      title: 接口设计 `
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: 接口设计
+    - ref: design/data-model.md#IF-1-仓储-createplanspec
+      title: IF-1 仓储 create_plan(spec) `
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: IF-1-仓储-createplanspec
+    - ref: design/data-model.md#IF-2-仓储-recordreflectionreport
+      title: IF-2 仓储 record_reflection(report) `
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: IF-2-仓储-recordreflectionreport
+    - ref: design/data-model.md#备选方案
+      title: 备选方案 `
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: 备选方案
+    - ref: design/data-model.md#四风险与证据
+      title: 四风险与证据 `
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: 四风险与证据
+    - ref: design/data-model.md#失败模式与回滚
+      title: 失败模式与回滚 `
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: 失败模式与回滚
+    - ref: design/data-model.md#跨关注点
+      title: 跨关注点 `
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: 跨关注点
+    - ref: design/data-model.md#交付拆分与里程碑
+      title: 交付拆分与里程碑 `
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: 交付拆分与里程碑
+    - ref: design/data-model.md#需求追溯
+      title: 需求追溯 `
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: 需求追溯
+    - ref: design/data-model.md#常见问题
+      title: 常见问题 `
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: 常见问题
+    - ref: design/data-model.md#开放问题
+      title: 开放问题 `
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: 开放问题
+    - ref: design/data-model.md#附录
+      title: 附录 `
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: 附录
+    - ref: design/interfaces.md#摘要
+      title: 摘要 `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: 摘要
+    - ref: design/interfaces.md#背景与问题
+      title: 背景与问题 `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: 背景与问题
+    - ref: design/interfaces.md#需求来源
+      title: 需求来源 `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: 需求来源
+    - ref: design/interfaces.md#现状与代价
+      title: 现状与代价 `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: 现状与代价
+    - ref: design/interfaces.md#为什么是现在
+      title: 为什么是现在 `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: 为什么是现在
+    - ref: design/interfaces.md#目标与非目标
+      title: 目标与非目标 `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: 目标与非目标
+    - ref: design/interfaces.md#目标
+      title: 目标 `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: 目标
+    - ref: design/interfaces.md#非目标
+      title: 非目标 `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: 非目标
+    - ref: design/interfaces.md#方案总览
+      title: 方案总览 `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: 方案总览
+    - ref: design/interfaces.md#架构与依赖
+      title: 架构与依赖 `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: 架构与依赖
+    - ref: design/interfaces.md#数据模型
+      title: 数据模型 `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: 数据模型
+    - ref: design/interfaces.md#接口设计
+      title: 接口设计 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-9
+      file: design/interfaces.md
+      section: 接口设计
+    - ref: design/interfaces.md#IF-1-POST-apiplans
+      title: IF-1 POST /api/plans `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: IF-1-POST-apiplans
+    - ref: design/interfaces.md#IF-2-GET-apiplans
+      title: IF-2 GET /api/plans `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: IF-2-GET-apiplans
+    - ref: design/interfaces.md#IF-3-GET-apiplansid
+      title: IF-3 GET /api/plans/{id} `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: IF-3-GET-apiplansid
+    - ref: design/interfaces.md#IF-4-PATCH-apiplansid
+      title: IF-4 PATCH /api/plans/{id} `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: IF-4-PATCH-apiplansid
+    - ref: design/interfaces.md#IF-5-POST-apiplansidapply
+      title: IF-5 POST /api/plans/{id}/apply `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: IF-5-POST-apiplansidapply
+    - ref: design/interfaces.md#IF-6-POST-apiplansidactivate
+      title: IF-6 POST /api/plans/{id}/activate `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: IF-6-POST-apiplansidactivate
+    - ref: design/interfaces.md#IF-7-POST-apiplansidpause
+      title: IF-7 POST /api/plans/{id}/pause `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: IF-7-POST-apiplansidpause
+    - ref: design/interfaces.md#IF-8-POST-apiplansidresume
+      title: IF-8 POST /api/plans/{id}/resume `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: IF-8-POST-apiplansidresume
+    - ref: design/interfaces.md#IF-9-POST-apiplansidclose
+      title: IF-9 POST /api/plans/{id}/close `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: IF-9-POST-apiplansidclose
+    - ref: design/interfaces.md#IF-10-GET-apiplanstoday
+      title: IF-10 GET /api/plans/today `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: IF-10-GET-apiplanstoday
+    - ref: design/interfaces.md#IF-11-GET-apiplansidcompile-preview
+      title: IF-11 GET /api/plans/{id}/compile-preview `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: IF-11-GET-apiplansidcompile-preview
+    - ref: design/interfaces.md#IF-12-POST-apiplansidreflections
+      title: IF-12 POST /api/plans/{id}/reflections `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: IF-12-POST-apiplansidreflections
+    - ref: design/interfaces.md#IF-13-GET-apiplansidreflections
+      title: IF-13 GET /api/plans/{id}/reflections `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: IF-13-GET-apiplansidreflections
+    - ref: design/interfaces.md#IF-14-GET-apiplansidstats
+      title: IF-14 GET /api/plans/{id}/stats `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: IF-14-GET-apiplansidstats
+    - ref: design/interfaces.md#IF-15-POST-apiplansfrom-core-plan
+      title: IF-15 POST /api/plans/from-core-plan `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: IF-15-POST-apiplansfrom-core-plan
+    - ref: design/interfaces.md#IF-17-tool-tradingplanagent-dh-agent-ts
+      title: "IF-17 tool: trading_plan（agent-dh + agent-ts）`"
+      serves:
+        - FR-3
+        - FR-5
+        - FR-6
+      file: design/interfaces.md
+      section: IF-17-tool-tradingplanagent-dh-agent-ts
+    - ref: design/interfaces.md#IF-16-GET-apiwatchoutcomesblocked-stats
+      title: IF-16 GET /api/watch/outcomes/blocked-stats `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: IF-16-GET-apiwatchoutcomesblocked-stats
+    - ref: design/interfaces.md#接口清单
+      title: 接口清单 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-9
+      file: design/interfaces.md
+      section: 接口清单
+    - ref: design/interfaces.md#备选方案
+      title: 备选方案 `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: 备选方案
+    - ref: design/interfaces.md#四风险与证据
+      title: 四风险与证据 `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: 四风险与证据
+    - ref: design/interfaces.md#失败模式与回滚
+      title: 失败模式与回滚 `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: 失败模式与回滚
+    - ref: design/interfaces.md#跨关注点
+      title: 跨关注点 `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: 跨关注点
+    - ref: design/interfaces.md#交付拆分与里程碑
+      title: 交付拆分与里程碑 `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: 交付拆分与里程碑
+    - ref: design/interfaces.md#需求追溯
+      title: 需求追溯 `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: 需求追溯
+    - ref: design/interfaces.md#常见问题
+      title: 常见问题 `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: 常见问题
+    - ref: design/interfaces.md#开放问题
+      title: 开放问题 `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: 开放问题
+    - ref: design/interfaces.md#附录
+      title: 附录 `
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: 附录
+    - ref: design/use-cases.md#摘要
+      title: 摘要 `
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: 摘要
+    - ref: design/use-cases.md#背景与问题
+      title: 背景与问题 `
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: 背景与问题
+    - ref: design/use-cases.md#需求来源
+      title: 需求来源 `
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: 需求来源
+    - ref: design/use-cases.md#现状与代价
+      title: 现状与代价 `
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: 现状与代价
+    - ref: design/use-cases.md#为什么是现在
+      title: 为什么是现在 `
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: 为什么是现在
+    - ref: design/use-cases.md#目标与非目标
+      title: 目标与非目标 `
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: 目标与非目标
+    - ref: design/use-cases.md#目标
+      title: 目标 `
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: 目标
+    - ref: design/use-cases.md#非目标
+      title: 非目标 `
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: 非目标
+    - ref: design/use-cases.md#方案总览
+      title: 方案总览 `
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: 方案总览
+    - ref: design/use-cases.md#架构与依赖
+      title: 架构与依赖 `
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: 架构与依赖
+    - ref: design/use-cases.md#数据模型
+      title: 数据模型 `
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: 数据模型
+    - ref: design/use-cases.md#接口设计
+      title: 接口设计 `
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: 接口设计
+    - ref: design/use-cases.md#IF-1-场景接口映射
+      title: IF-1 场景→接口映射 `
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: IF-1-场景接口映射
+    - ref: design/use-cases.md#场景总览
+      title: 场景总览 `
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: 场景总览
+    - ref: design/use-cases.md#UC-1-执行日闭环
+      title: UC-1 执行日闭环 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+      file: design/use-cases.md
+      section: UC-1-执行日闭环
+    - ref: design/use-cases.md#UC-2-反思改计划闭环
+      title: UC-2 反思改计划闭环 `
+      serves:
+        - FR-5
+        - FR-6
+      file: design/use-cases.md
+      section: UC-2-反思改计划闭环
+    - ref: design/use-cases.md#UC-3-观察窗内横跳被拒
+      title: UC-3 观察窗内横跳被拒 `
+      serves:
+        - FR-6
+      file: design/use-cases.md
+      section: UC-3-观察窗内横跳被拒
+    - ref: design/use-cases.md#UC-4-紧急通道与次日复核
+      title: UC-4 紧急通道与次日复核 `
+      serves:
+        - FR-6
+      file: design/use-cases.md
+      section: UC-4-紧急通道与次日复核
+    - ref: design/use-cases.md#UC-5-有持仓关闭计划
+      title: UC-5 有持仓关闭计划 `
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: UC-5-有持仓关闭计划
+    - ref: design/use-cases.md#UC-6-coreplan-批次适配P2
+      title: UC-6 core_plan 批次适配（P2） `
+      serves:
+        - FR-9
+      file: design/use-cases.md
+      section: UC-6-coreplan-批次适配P2
+    - ref: design/use-cases.md#关键决策与取舍
+      title: 关键决策与取舍 `
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: 关键决策与取舍
+    - ref: design/use-cases.md#备选方案
+      title: 备选方案 `
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: 备选方案
+    - ref: design/use-cases.md#四风险与证据
+      title: 四风险与证据 `
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: 四风险与证据
+    - ref: design/use-cases.md#失败模式与回滚
+      title: 失败模式与回滚 `
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: 失败模式与回滚
+    - ref: design/use-cases.md#跨关注点
+      title: 跨关注点 `
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: 跨关注点
+    - ref: design/use-cases.md#交付拆分与里程碑
+      title: 交付拆分与里程碑 `
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: 交付拆分与里程碑
+    - ref: design/use-cases.md#需求追溯
+      title: 需求追溯 `
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: 需求追溯
+    - ref: design/use-cases.md#常见问题
+      title: 常见问题 `
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: 常见问题
+    - ref: design/use-cases.md#开放问题
+      title: 开放问题 `
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: 开放问题
+    - ref: design/use-cases.md#附录
+      title: 附录 `
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: 附录
+traceability:
+  fr_to_design:
+    FR-1:
+      - design/architecture.md#摘要
+      - design/architecture.md#背景与问题
+      - design/architecture.md#需求来源
+      - design/architecture.md#现状与代价
+      - design/architecture.md#为什么是现在
+      - design/architecture.md#目标与非目标
+      - design/architecture.md#目标
+      - design/architecture.md#非目标
+      - design/architecture.md#方案总览
+      - design/architecture.md#架构与依赖
+      - design/architecture.md#数据模型
+      - design/architecture.md#接口设计
+      - design/architecture.md#IF-1-POST-apiplans
+      - design/architecture.md#IF-2-GET-apiplanstoday
+      - design/architecture.md#IF-3-POST-apiplansidapply
+      - design/architecture.md#IF-4-POST-apiplansidreflections
+      - design/architecture.md#备选方案
+      - design/architecture.md#四风险与证据
+      - design/architecture.md#失败模式与回滚
+      - design/architecture.md#跨关注点
+      - design/architecture.md#交付拆分与里程碑
+      - design/architecture.md#需求追溯
+      - design/architecture.md#常见问题
+      - design/architecture.md#开放问题
+      - design/architecture.md#附录
+      - design/backend.md#摘要
+      - design/backend.md#背景与问题
+      - design/backend.md#需求来源
+      - design/backend.md#现状与代价
+      - design/backend.md#为什么是现在
+      - design/backend.md#目标与非目标
+      - design/backend.md#目标
+      - design/backend.md#非目标
+      - design/backend.md#方案总览
+      - design/backend.md#架构与依赖
+      - design/backend.md#数据模型
+      - design/backend.md#接口设计
+      - design/backend.md#IF-1-PlanServiceapply
+      - design/backend.md#IF-2-ReflectionPackServicebuild
+      - design/backend.md#服务与接口实现
+      - design/backend.md#数据流
+      - design/backend.md#备选方案
+      - design/backend.md#四风险与证据
+      - design/backend.md#失败模式与回滚
+      - design/backend.md#跨关注点
+      - design/backend.md#交付拆分与里程碑
+      - design/backend.md#需求追溯
+      - design/backend.md#常见问题
+      - design/backend.md#开放问题
+      - design/backend.md#附录
+      - design/data-model.md#摘要
+      - design/data-model.md#背景与问题
+      - design/data-model.md#需求来源
+      - design/data-model.md#现状与代价
+      - design/data-model.md#为什么是现在
+      - design/data-model.md#目标与非目标
+      - design/data-model.md#目标
+      - design/data-model.md#非目标
+      - design/data-model.md#方案总览
+      - design/data-model.md#架构与依赖
+      - design/data-model.md#数据模型
+      - design/data-model.md#tradingplans
+      - design/data-model.md#tradingplanversions
+      - design/data-model.md#tradingplanrules
+      - design/data-model.md#tradingplanevents
+      - design/data-model.md#planreflections
+      - design/data-model.md#既有表加列
+      - design/data-model.md#接口设计
+      - design/data-model.md#IF-1-仓储-createplanspec
+      - design/data-model.md#IF-2-仓储-recordreflectionreport
+      - design/data-model.md#备选方案
+      - design/data-model.md#四风险与证据
+      - design/data-model.md#失败模式与回滚
+      - design/data-model.md#跨关注点
+      - design/data-model.md#交付拆分与里程碑
+      - design/data-model.md#需求追溯
+      - design/data-model.md#常见问题
+      - design/data-model.md#开放问题
+      - design/data-model.md#附录
+      - design/interfaces.md#摘要
+      - design/interfaces.md#背景与问题
+      - design/interfaces.md#需求来源
+      - design/interfaces.md#现状与代价
+      - design/interfaces.md#为什么是现在
+      - design/interfaces.md#目标与非目标
+      - design/interfaces.md#目标
+      - design/interfaces.md#非目标
+      - design/interfaces.md#方案总览
+      - design/interfaces.md#架构与依赖
+      - design/interfaces.md#数据模型
+      - design/interfaces.md#接口设计
+      - design/interfaces.md#IF-1-POST-apiplans
+      - design/interfaces.md#IF-2-GET-apiplans
+      - design/interfaces.md#IF-3-GET-apiplansid
+      - design/interfaces.md#IF-4-PATCH-apiplansid
+      - design/interfaces.md#IF-5-POST-apiplansidapply
+      - design/interfaces.md#IF-6-POST-apiplansidactivate
+      - design/interfaces.md#IF-7-POST-apiplansidpause
+      - design/interfaces.md#IF-8-POST-apiplansidresume
+      - design/interfaces.md#IF-9-POST-apiplansidclose
+      - design/interfaces.md#IF-10-GET-apiplanstoday
+      - design/interfaces.md#IF-11-GET-apiplansidcompile-preview
+      - design/interfaces.md#IF-12-POST-apiplansidreflections
+      - design/interfaces.md#IF-13-GET-apiplansidreflections
+      - design/interfaces.md#IF-14-GET-apiplansidstats
+      - design/interfaces.md#IF-15-POST-apiplansfrom-core-plan
+      - design/interfaces.md#IF-16-GET-apiwatchoutcomesblocked-stats
+      - design/interfaces.md#接口清单
+      - design/interfaces.md#备选方案
+      - design/interfaces.md#四风险与证据
+      - design/interfaces.md#失败模式与回滚
+      - design/interfaces.md#跨关注点
+      - design/interfaces.md#交付拆分与里程碑
+      - design/interfaces.md#需求追溯
+      - design/interfaces.md#常见问题
+      - design/interfaces.md#开放问题
+      - design/interfaces.md#附录
+      - design/use-cases.md#摘要
+      - design/use-cases.md#背景与问题
+      - design/use-cases.md#需求来源
+      - design/use-cases.md#现状与代价
+      - design/use-cases.md#为什么是现在
+      - design/use-cases.md#目标与非目标
+      - design/use-cases.md#目标
+      - design/use-cases.md#非目标
+      - design/use-cases.md#方案总览
+      - design/use-cases.md#架构与依赖
+      - design/use-cases.md#数据模型
+      - design/use-cases.md#接口设计
+      - design/use-cases.md#IF-1-场景接口映射
+      - design/use-cases.md#场景总览
+      - design/use-cases.md#UC-1-执行日闭环
+      - design/use-cases.md#UC-5-有持仓关闭计划
+      - design/use-cases.md#关键决策与取舍
+      - design/use-cases.md#备选方案
+      - design/use-cases.md#四风险与证据
+      - design/use-cases.md#失败模式与回滚
+      - design/use-cases.md#跨关注点
+      - design/use-cases.md#交付拆分与里程碑
+      - design/use-cases.md#需求追溯
+      - design/use-cases.md#常见问题
+      - design/use-cases.md#开放问题
+      - design/use-cases.md#附录
+    FR-2:
+      - design/architecture.md#方案总览
+      - design/architecture.md#架构与依赖
+      - design/architecture.md#接口设计
+      - design/backend.md#服务与接口实现
+      - design/backend.md#数据流
+      - design/data-model.md#数据模型
+      - design/interfaces.md#接口设计
+      - design/interfaces.md#接口清单
+      - design/use-cases.md#UC-1-执行日闭环
+    FR-3:
+      - design/architecture.md#接口设计
+      - design/backend.md#服务与接口实现
+      - design/interfaces.md#接口设计
+      - design/interfaces.md#IF-17-tool-tradingplanagent-dh-agent-ts
+      - design/interfaces.md#接口清单
+      - design/use-cases.md#UC-1-执行日闭环
+    FR-4:
+      - design/architecture.md#架构与依赖
+      - design/architecture.md#数据模型
+      - design/architecture.md#接口设计
+      - design/backend.md#服务与接口实现
+      - design/backend.md#数据流
+      - design/data-model.md#数据模型
+      - design/use-cases.md#UC-1-执行日闭环
+    FR-5:
+      - design/architecture.md#数据模型
+      - design/architecture.md#接口设计
+      - design/backend.md#服务与接口实现
+      - design/backend.md#数据流
+      - design/data-model.md#数据模型
+      - design/interfaces.md#接口设计
+      - design/interfaces.md#IF-17-tool-tradingplanagent-dh-agent-ts
+      - design/interfaces.md#接口清单
+      - design/use-cases.md#UC-2-反思改计划闭环
+    FR-6:
+      - design/architecture.md#接口设计
+      - design/backend.md#服务与接口实现
+      - design/data-model.md#数据模型
+      - design/interfaces.md#接口设计
+      - design/interfaces.md#IF-17-tool-tradingplanagent-dh-agent-ts
+      - design/interfaces.md#接口清单
+      - design/use-cases.md#UC-2-反思改计划闭环
+      - design/use-cases.md#UC-3-观察窗内横跳被拒
+      - design/use-cases.md#UC-4-紧急通道与次日复核
+    FR-7:
+      - design/architecture.md#数据模型
+      - design/backend.md#服务与接口实现
+      - design/data-model.md#数据模型
+      - design/interfaces.md#接口设计
+      - design/interfaces.md#接口清单
+    FR-8:
+      - design/backend.md#服务与接口实现
+    FR-9:
+      - design/architecture.md#接口设计
+      - design/backend.md#服务与接口实现
+      - design/interfaces.md#接口设计
+      - design/interfaces.md#接口清单
+      - design/use-cases.md#UC-6-coreplan-批次适配P2
+coverage:
+  design:
+    total: 9
+    covered: 9
+    uncovered: []
+    rate: 100
+    total_frs: 9
+    covered_frs: 9

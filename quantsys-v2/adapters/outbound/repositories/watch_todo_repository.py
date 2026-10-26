@@ -30,7 +30,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 import structlog
-from sqlalchemy import and_, case, func, or_, update as sa_update
+from sqlalchemy import and_, case, func, or_, text, update as sa_update
 
 from qs_kernel.infrastructure.persistence.orm.base_repository import BaseORMRepository
 from infrastructure.persistence.orm.models.watch_todo import WatchTodo
@@ -52,6 +52,15 @@ CASCADE_CLOSE_REASON = '盯盘规则已停用，此提醒单随之自动归档�
 #: 待办列表默认/上限（对齐 GET /api/watch/todos 的 limit 语义）
 DEFAULT_LIMIT = 100
 MAX_LIMIT = 500
+
+#: evidence 列预检缓存（key = engine url）。列一旦落库不会消失，缓存 True 安全；
+#: 迁移热生效需要重启进程或调 reset_evidence_column_cache()。
+_EVIDENCE_COLUMN_CACHE: Dict[str, bool] = {}
+
+
+def reset_evidence_column_cache() -> None:
+    """清空 evidence 列预检缓存（测试 / 迁移后热生效用）。"""
+    _EVIDENCE_COLUMN_CACHE.clear()
 
 def _iso(value):
     """datetime → ISO 字符串（None 透传）"""
@@ -82,6 +91,7 @@ def todo_to_dict(todo: Any) -> dict:
         'next_condition': todo.next_condition,
         'action_kind': todo.action_kind,
         'decision_audit_id': todo.decision_audit_id,
+        'evidence': getattr(todo, 'evidence', None),
         'escalate_count': todo.escalate_count,
         'claimed_at': _iso(todo.claimed_at),
         'closed_at': _iso(todo.closed_at),
@@ -96,18 +106,51 @@ class WatchTodoRepository(BaseORMRepository[WatchTodo]):
 
     # ── 写入 ────────────────────────────────────────────────
 
+    def _evidence_column_available(self) -> bool:
+        """`evidence` 列是否已就绪（进程级缓存）。
+
+        判定不了（bind 拿不到）按**可用**处理：写路径失败会响亮抛错，
+        不因一次探测失败就把证据静默丢掉；确认缺列时降级为不写证据 + 告警。
+        """
+        try:
+            key = str(self.session.get_bind().url)
+        except Exception:  # noqa: BLE001
+            return True
+        cached = _EVIDENCE_COLUMN_CACHE.get(key)
+        if cached is not None:
+            return cached
+        try:
+            row = self.session.execute(text(
+                "SELECT 1 FROM information_schema.columns "
+                "WHERE table_schema = 'quant' AND table_name = 'watch_todos' "
+                "AND column_name = 'evidence'"
+            )).first()
+            available = row is not None
+        except Exception:  # noqa: BLE001 - 探测失败不阻断建单
+            available = True
+        _EVIDENCE_COLUMN_CACHE[key] = available
+        if not available:
+            logger.warning('watch_todos 缺 evidence 列（未执行 20261021 迁移），'
+                           '本次不写证据（fail-open）')
+        return available
+
     def create(self, symbol: str, *, rule_id: Optional[int] = None,
                trigger_id: Optional[int] = None, account: Optional[str] = None,
                level: str, flow_state: str = 'L1', owner_kind: Optional[str] = None,
                owner_ref: Optional[str] = None, autonomy: Optional[str] = None,
                sla_seconds: int, due_at: datetime,
-               action_kind: Optional[str] = None) -> WatchTodo:
-        todo = WatchTodo(
+               action_kind: Optional[str] = None,
+               evidence: Optional[Dict[str, Any]] = None) -> WatchTodo:
+        fields: Dict[str, Any] = dict(
             symbol=symbol, rule_id=rule_id, trigger_id=trigger_id, account=account,
             level=level, flow_state=flow_state, owner_kind=owner_kind, owner_ref=owner_ref,
             autonomy=autonomy, sla_seconds=sla_seconds, due_at=due_at,
             action_kind=action_kind,
         )
+        # 证据是 additive 附注：缺列库不阻断建单（RFC「缺列 fail-open」口径）
+        if evidence is not None and self._evidence_column_available():
+            fields['evidence'] = evidence
+        todo = WatchTodo(**fields)
         try:
             session = self.session
             session.add(todo)
@@ -340,6 +383,18 @@ class WatchTodoRepository(BaseORMRepository[WatchTodo]):
             'terminal_rate_today': (closed_today / created_today) if created_today else None,
         }
 
+    def count_pending(self, account: Optional[str] = None) -> int:
+        """未收敛待办数；account 传值时只统计该账户（today 视图用）。"""
+        try:
+            query = (self.session.query(func.count()).select_from(WatchTodo)
+                     .filter(WatchTodo.terminal.is_(None)))
+            if account:
+                query = query.filter(WatchTodo.account == account)
+            return int(query.scalar() or 0)
+        except Exception:  # noqa: BLE001 - 失败必须响亮
+            self._safe_rollback()
+            raise
+
     def list_open_by_rule(self, rule_id: int, action_kind: Optional[str] = None,
                           trigger_id_null: bool = False) -> List[WatchTodo]:
         """某规则的未收敛待办（补全待办幂等判定用，REQ-261016155500-4f2a）。
@@ -383,6 +438,81 @@ class WatchTodoRepository(BaseORMRepository[WatchTodo]):
         except Exception:  # noqa: BLE001
             self._safe_rollback()
             raise
+
+
+    # ── 执行闭环统计（FR-7）────────────────────────────────
+
+    def exec_stats(self, *, since=None, until=None) -> dict:
+        """执行闭环三态计数 + 时延分位（只读聚合，不建第二套事实源）。
+
+        口径：分母只含执行类待办（action_kind ∈ trade/rule_change）；
+        时延取触发证据 detail.exec.latency_sec；空数据返回 0。
+        """
+        from sqlalchemy import text as sa_text
+
+        def _window(query, column):
+            if since is not None:
+                query = query.filter(column >= since)
+            if until is not None:
+                query = query.filter(column <= until)
+            return query
+
+        session = self.session
+        try:
+            executed = _window(
+                session.query(WatchTodo).filter(
+                    WatchTodo.terminal == 'handled',
+                    WatchTodo.action_kind == 'trade'), WatchTodo.updated_at).count()
+            declined = _window(
+                session.query(WatchTodo).filter(
+                    WatchTodo.terminal == 'ignored',
+                    WatchTodo.action_kind == 'rule_change'), WatchTodo.updated_at).count()
+            unresolved = _window(
+                session.query(WatchTodo).filter(
+                    WatchTodo.terminal.is_(None),
+                    WatchTodo.action_kind == 'trade'), WatchTodo.created_at).count()
+
+            timeout_sql = (
+                "SELECT count(*) FROM quant.watch_receipts r "
+                "JOIN quant.watch_todos t ON t.id = r.todo_id "
+                "WHERE r.kind = 'timeout' AND t.action_kind IN ('trade','rule_change') "
+                "AND (:since IS NULL OR r.created_at >= :since) "
+                "AND (:until IS NULL OR r.created_at <= :until)")
+            timeout = int(session.execute(
+                sa_text(timeout_sql), {'since': since, 'until': until}).scalar() or 0)
+
+            latency_sql = (
+                "SELECT (detail->'exec'->>'latency_sec')::float AS lat "
+                "FROM quant.watch_triggers "
+                "WHERE detail ? 'exec' "
+                "AND (detail->'exec'->>'latency_sec') IS NOT NULL "
+                "AND (:since IS NULL OR triggered_at >= :since) "
+                "AND (:until IS NULL OR triggered_at <= :until)")
+            values = [float(row[0]) for row in session.execute(
+                sa_text(latency_sql), {'since': since, 'until': until})
+                if row[0] is not None]
+        except Exception:  # noqa: BLE001 - 失败响亮上抛（路由转 503）
+            self._safe_rollback()
+            raise
+
+        values.sort()
+        return {
+            'executed': int(executed),
+            'declined': int(declined),
+            'unresolved': int(unresolved),
+            'timeout': timeout,
+            'latency_p50_seconds': _percentile(values, 0.50),
+            'latency_p95_seconds': _percentile(values, 0.95),
+            'latency_sample_size': len(values),
+        }
+
+
+def _percentile(values, ratio: float):
+    """最近秩法分位（样本空返回 None，不伪造 0）。"""
+    if not values:
+        return None
+    index = max(0, min(len(values) - 1, int(round(ratio * (len(values) - 1)))))
+    return round(values[index], 3)
 
 
 def _bounded_limit(limit: Any) -> int:

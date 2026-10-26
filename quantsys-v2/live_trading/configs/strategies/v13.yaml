@@ -23,7 +23,8 @@ trading:
   min_score: 0.5             # 最低预测分数
 
 risk:
-  single_stock_stop_loss: -0.15     # 单股止损线（-15%）
+  single_stock_stop_loss: -0.12     # 单股止损线（-12%）
+  trailing_stop_pct: -0.08          # 移动止损线（-8%）
   portfolio_stop_loss: -0.20        # 组合止损线（-20%）
   single_stock_weight: 0.15         # 单股权重（~15%）
   max_single_stock_weight: 0.20     # 单股最大权重

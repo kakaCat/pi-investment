@@ -1,0 +1,77 @@
+metadata:
+  stage: implementing
+  requirement_id: REQ-261020014122-d659
+  generated_at: 2026-10-20T00:50:23.165Z
+  version: 14
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 12
+  last_updated: 2026-10-20T01:12:33.458Z
+inputs:
+  tasks:
+    - id: t-c20911
+      title: 回测窗口末强制平仓计账与口径字段
+      status: in_progress
+    - id: t-bb04d8
+      title: evolution_run 降级 null 键剔除与契约用例
+      status: in_progress
+    - id: t-9d70fe
+      title: 发版部署与实证回归（FR-5）
+      status: todo
+    - id: t-ace196
+      title: total_trades 口径变更声明落 changelog
+      status: todo
+    - id: t-bf5696
+      title: 回测窗口末强制平仓计账与口径字段·研发
+      status: done
+    - id: t-97d4a0
+      title: 回测窗口末强制平仓计账与口径字段·联调
+      status: in_progress
+    - id: t-b1b15e
+      title: 回测窗口末强制平仓计账与口径字段·复核
+      status: todo
+    - id: t-4d0c55
+      title: 回测窗口末强制平仓计账与口径字段·测试
+      status: todo
+    - id: t-000287
+      title: evolution_run 降级 null 键剔除与契约用例·研发
+      status: in_progress
+    - id: t-54b54f
+      title: evolution_run 降级 null 键剔除与契约用例·联调
+      status: todo
+    - id: t-961268
+      title: evolution_run 降级 null 键剔除与契约用例·复核
+      status: todo
+    - id: t-57cfc7
+      title: evolution_run 降级 null 键剔除与契约用例·测试
+      status: todo
+status:
+  tasks_total: 12
+  tasks_done: 1
+  tasks_in_progress: 4
+  tasks_todo: 7
+tasks:
+  - id: t-c20911
+    status: in_progress
+  - id: t-bb04d8
+    status: in_progress
+  - id: t-9d70fe
+    status: todo
+  - id: t-ace196
+    status: todo
+  - id: t-bf5696
+    status: done
+  - id: t-97d4a0
+    status: in_progress
+  - id: t-b1b15e
+    status: todo
+  - id: t-4d0c55
+    status: todo
+  - id: t-000287
+    status: in_progress
+  - id: t-54b54f
+    status: todo
+  - id: t-961268
+    status: todo
+  - id: t-57cfc7
+    status: todo

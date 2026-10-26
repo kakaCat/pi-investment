@@ -1,0 +1,31 @@
+task:
+  id: t-f4e050
+  title: 修复 webhook 任务通道选择并故障注入实测
+  status: canceled
+  implements: ①git worktree 建独立工作线；②改 executor 通道优先级或清占位 command；③故障注入测试；④重启 Agent OS 并 trigger 验证
+  serves: []
+  depends_on: []
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261019144524-ec50
+    TASK_ID: t-f4e050
+    TASK_TITLE: 修复 webhook 任务通道选择并故障注入实测
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 0
+  workflow:
+    - phase: implement
+      status: pending
+metadata:
+  stage: implementing
+  requirement_id: REQ-261019144524-ec50
+  generated_at: 2026-10-19T13:24:46.286Z
+  version: 2
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-19T13:24:46.288Z

@@ -1,0 +1,44 @@
+task:
+  id: t-e416b7
+  title: 组合根装配与降级开关
+  status: done
+  implements: packages/qs_watch/.../factory.py 装配消息桥、规则联动与成交监听；全部可空降级（未注入=旧行为），装配异常只记日志不阻断引擎启动；补 tests/application/test_fill_sync_factory_wiring.py、test_watch_factory_news_bridge.py。
+  serves:
+    - FR-1
+    - FR-3
+    - FR-5
+    - FR-6
+  depends_on:
+    - t-a5fa64
+    - t-27e8c7
+    - t-e95a2a
+    - t-e29f67
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261021194640-69b8
+    TASK_ID: t-e416b7
+    TASK_TITLE: 组合根装配与降级开关
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 3
+  workflow_done: 3
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-21T12:42:41.377Z
+    - phase: test
+      status: done
+    - phase: review
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261021194640-69b8
+  generated_at: 2026-10-21T12:41:40.456Z
+  version: 8
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 3
+  last_updated: 2026-10-21T12:42:41.378Z

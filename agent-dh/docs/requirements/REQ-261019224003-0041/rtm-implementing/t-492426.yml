@@ -1,0 +1,32 @@
+task:
+  id: t-492426
+  title: 收编四包源码进 workprocess/
+  status: in_progress
+  implements: 从 WP=/Users/mac/Documents/ai/dsh/dsh-workprocess 整体复制四个包目录到本仓 workprocess/（目录名与层级照抄；含 src/tests/client/tsconfig*.json/tsdown*.ts/cordis.patch.yml/package.json）；不复制 node_modules 与 dist（产物在本仓重建）。验证：ls 四目录在、pnpm-workspace.yaml 的 workprocess/* glob 能匹配。
+  serves: []
+  depends_on: []
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261019224003-0041
+    TASK_ID: t-492426
+    TASK_TITLE: 收编四包源码进 workprocess/
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-19T17:09:29.718Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-261019224003-0041
+  generated_at: 2026-10-19T17:05:42.166Z
+  version: 3
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-10-19T17:09:29.718Z

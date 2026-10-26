@@ -2,9 +2,9 @@ metadata:
   stage: design
   requirement_id: REQ-000001
   generated_at: 2026-09-26T10:30:17.519Z
-  version: 638
+  version: 654
   generated_by: dsh-pmboard
-  last_updated: 2026-09-29T00:02:35.734Z
+  last_updated: 2026-10-21T16:22:39.923Z
 inputs:
   requirements: []
 outputs:

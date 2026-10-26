@@ -1,0 +1,11 @@
+# 推进事件日志
+- 2026-10-20T01:02:04.160Z [RUN_SUBTASK] parent=t-c20911 subtask=t-bf5696 failed：子卡凭证不过：阶段 dev 属写入族，汇报未给出改动文件（缺少文件系统证据）。修改方法：确保 workflow 创建/修改了文件，并在返回值的 filesChanged 中列出文件路径（REQBOARD_SUBTASK_GATE）
+- 2026-10-20T01:03:30.232Z [OPEN_PARENT] parent=t-bb04d8 subtask=- ok：父卡 t-bb04d8 自动开工并落子卡 4 张
+- 2026-10-20T01:07:47.604Z [RUN_SUBTASK] parent=t-bb04d8 subtask=t-000287 failed：跨卡覆盖：packages/tools/evolution/src/tools/EvolutionRunTool/EvolutionRunTool.ts 的 mtime 落在父卡 t-c20911 的子卡 t-bf5696 执行窗口内
+- 2026-10-20T01:10:51.142Z [RUN_SUBTASK] parent=t-bb04d8 subtask=t-000287 failed：子卡凭证不过：run 产出为空（脚本未返回有效 JSON）。修改方法：在 workflow 末尾 return 一个 JSON 对象，至少包含 filesChanged 或 completed 字段（REQBOARD_SUBTASK_GATE）
+- 2026-10-20T01:15:45.981Z [RUN_SUBTASK] parent=t-c20911 subtask=t-97d4a0 ok：子卡 t-97d4a0 执行完成
+- 2026-10-20T01:18:31.119Z [RUN_SUBTASK] parent=t-c20911 subtask=t-b1b15e ok：子卡 t-b1b15e 执行完成
+- 2026-10-20T01:20:20.113Z [RUN_SUBTASK] parent=t-c20911 subtask=t-4d0c55 ok：子卡 t-4d0c55 执行完成
+- 2026-10-20T01:20:20.288Z [FINALIZE_PARENT] parent=t-c20911 subtask=- ok：父卡 t-c20911 汇总子卡产出并收尾
+- 2026-10-20T01:22:08.153Z [RUN_SUBTASK] parent=t-bb04d8 subtask=t-000287 ok：子卡 t-000287 执行完成
+- 2026-10-20T01:29:59.860Z [RUN_SUBTASK] parent=t-bb04d8 subtask=t-54b54f failed：子卡 t-54b54f 派发缺少 agent 句柄：绑定窗口 session-503df447-3664-4823-ada8-9d779312d94a 不在线——请由该窗口调 reqboard_task_run 续跑（看板「继续」/启动恢复仅在窗口在线时可派发）

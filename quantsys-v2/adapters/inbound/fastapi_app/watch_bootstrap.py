@@ -8,11 +8,26 @@ FastAPI nohup 部署后 daemon 未再拉起，盯盘静默消失——规则照�
 scheduler_daemon 不再承担该职责（见 tests/api/test_watch_engine_bootstrap.py
 的契约守护测试）。
 """
+import os
 from typing import Optional, Tuple
 
 import structlog
 
 logger = structlog.get_logger(__name__)
+
+#: V1 盯盘开关（2026-10-23：与 V2 拆分）。默认 true = 保持既有行为。
+#: 下周切 V2 时置 false：V1 循环不启动，V2 的 5 个定时任务照常注册。
+_ENV_V1_ENABLED = 'WATCH_V1_ENABLED'
+
+
+def v1_enabled() -> bool:
+    """V1 常驻循环是否启动（DISABLE_WATCH_ENGINE 仍是总闸）。"""
+    if os.getenv('DISABLE_WATCH_ENGINE', '').lower() == 'true':
+        return False
+    raw = os.getenv(_ENV_V1_ENABLED)
+    if raw is None:
+        return True
+    return raw.strip().lower() not in ('0', 'false', 'no', 'off')
 
 
 def start_watch_engine(skip: bool = False) -> Optional[Tuple[object, object]]:
@@ -31,3 +46,22 @@ def start_watch_engine(skip: bool = False) -> Optional[Tuple[object, object]]:
     engine, thread = start_watch_engine_in_thread()
     logger.info('✅ WatchEngine 实时盯盘线程已启动（宿主: FastAPI 5001）')
     return engine, thread
+
+
+def start_watch_sidecars(skip: bool = False):
+    """V1 判定循环下线时保留旁路服务（2026-10-24，V2 接管判定）。
+
+    sidecar/心跳/板块映射/政策扫描仍需要跑（新仓自动补止损、新闻监控、走势回填、
+    池级对账、收盘日报）；停掉整个 V1 线程会让这些能力静默消失。判定循环
+    ``run_forever`` 不启动 —— 盯盘触发只由 V2 定时任务产生。
+
+    Returns: engine 句柄（挂 app.state 供优雅停止）；skip 时返回 None。
+    """
+    if skip:
+        return None
+    from qs_watch.application.services.watch_engine.factory import (
+        start_watch_sidecars_in_thread,
+    )
+    engine = start_watch_sidecars_in_thread()
+    logger.info('✅ WatchEngine V1 旁路服务已启动（判定循环未启动，判定归 V2）')
+    return engine

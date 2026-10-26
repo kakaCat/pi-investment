@@ -1,0 +1,38 @@
+task:
+  id: t-ec9d80
+  title: 补挂止损/止盈写持仓状态·复核
+  status: done
+  implements: |-
+    packages/qs_watch/qs_watch/application/services/watch_engine/position_lifecycle_service.py 的 _create_stop_loss/_create_take_profit 调 create_rule 时传 position_state='holding'；在 tests/application/test_watch_position_lifecycle.py 补断言。
+
+    [子卡阶段·复核] 只做本阶段；验收：对照 `docs/requirements/REQ-261021194640-69b8/design/` 逐条核对；`npx vitest run tests/` → 全绿；无偏离时显式写明「无偏离」及依据
+  serves: []
+  depends_on:
+    - t-c41448
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261021194640-69b8
+    TASK_ID: t-ec9d80
+    TASK_TITLE: 补挂止损/止盈写持仓状态·复核
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-21T12:22:21.811Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261021194640-69b8
+  generated_at: 2026-10-21T12:22:15.814Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-21T12:22:21.811Z

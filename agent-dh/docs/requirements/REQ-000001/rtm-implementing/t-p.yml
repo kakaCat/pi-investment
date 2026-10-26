@@ -1,7 +1,7 @@
 task:
   id: t-p
   title: 父卡
-  status: done
+  status: in_progress
   implements: ""
   serves: []
   depends_on: []
@@ -25,8 +25,8 @@ metadata:
   stage: implementing
   requirement_id: REQ-000001
   generated_at: 2026-09-27T03:03:55.072Z
-  version: 1977
+  version: 2053
   generated_by: dsh-pmboard
   detail_dir: rtm-implementing/
   detail_count: 1
-  last_updated: 2026-09-29T00:02:57.827Z
+  last_updated: 2026-10-21T16:22:35.396Z

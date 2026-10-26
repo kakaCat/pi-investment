@@ -1,0 +1,38 @@
+task:
+  id: t-902bf1
+  title: 待办证据列与部分索引·联调
+  status: done
+  implements: |-
+    新建 infrastructure/persistence/migrations/20261021_watch_todos_evidence.py（默认 dry-run，--apply 写库，--dsn 可指定）；infrastructure/persistence/orm/models/watch_todo.py 加 evidence 可空列映射；adapters/outbound/repositories/watch_todo_repository.py 的 create/读投影与缺列预检。
+
+    [子卡阶段·联调] 只做本阶段；验收：`npx vitest run tests/` → 全绿（请求样例与期望响应一致）
+  serves: []
+  depends_on:
+    - t-947421
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261021194640-69b8
+    TASK_ID: t-902bf1
+    TASK_TITLE: 待办证据列与部分索引·联调
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-21T12:20:13.071Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261021194640-69b8
+  generated_at: 2026-10-21T12:19:50.098Z
+  version: 4
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-21T12:20:13.071Z

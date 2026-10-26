@@ -1,0 +1,38 @@
+task:
+  id: t-fd81c5
+  title: 实现 trading_plan 工具双端（agent-dh 投资脑 + agent-ts fin-agent）
+  status: done
+  implements: agent-dh packages/tools 新增 TradingPlanTool（S-14）+ agent-ts src/infrastructure/tools 新增 trading-plan-tool（S-15）：action 枚举覆盖 IF-1~IF-15；账户取 agents.json 的 instance.account（不写死）；后端 PLAN_* 错误码原样透传；缺账户 AGENT_ACCOUNT_MISSING。
+  serves:
+    - FR-3
+    - FR-5
+    - FR-6
+  depends_on:
+    - t-4876f4
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261021222905-6dff
+    TASK_ID: t-fd81c5
+    TASK_TITLE: 实现 trading_plan 工具双端（agent-dh 投资脑 + agent-ts fin-agent）
+    DESIGN_FILES: design/architecture.md
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 2
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-10-21T16:29:44.476Z
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261021222905-6dff
+  generated_at: 2026-10-21T16:25:53.543Z
+  version: 7
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-21T16:29:44.476Z

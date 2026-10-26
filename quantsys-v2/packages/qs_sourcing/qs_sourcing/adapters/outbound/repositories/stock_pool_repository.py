@@ -44,11 +44,14 @@ class StockPool(Base):
     members = Column(JSON)
     scan_enabled = Column(Boolean, default=True)
     last_signal_scan = Column(JSON)
+    # 2026-10-23：业务分类（板块共振/主题/策略/观察…），与 pool_type(static/dynamic) 正交
+    category = Column(String(50))
 
 
-# update() 允许修改的字段（与旧实现的 allowed 集合一致）
+# update() 允许修改的字段（与旧实现的 allowed 集合一致；category 为 2026-10-23 新增）
 _UPDATABLE_FIELDS = frozenset({
     'name', 'description', 'symbols', 'members', 'filter_template', 'refresh_interval',
+    'category',
 })
 
 
@@ -156,6 +159,12 @@ class StockPoolRepository(BaseORMRepository[StockPool]):
             # 旧实现 json.dumps 后交给 psycopg2；ORM 下直接传 Python 对象
             filter_template=data.get('filter_template') or None,
             refresh_interval=data.get('refresh_interval'),
+            category=data.get('category'),
+            # created_at/updated_at 必须显式赋值：模型列无 Python 端 default 时
+            # SQLAlchemy 会按 None 显式插入 NULL，绕过 DB 的 DEFAULT now()，
+            # 导致新池 created_at 为空、列表按时间排序时落到末尾（2026-10-23 实测）。
+            created_at=func.now(),
+            updated_at=func.now(),
         )
         self.session.add(obj)
         self.session.commit()

@@ -32,12 +32,12 @@ LEVEL_TRUTH_TABLE = [
     ('exit_take_profit', True, {}, P0, '持仓止盈 = 已到处置点'),
     ('exit_reduce', True, {}, P0, '持仓减仓 = 已到处置点'),
 
-    # —— P1：买卖节点 / 规则声明 L2 ——
+    # —— P1：买卖节点 ——（原「规则声明 L2 → P1」已随 trigger_level 退役删除）
     ('entry', False, {}, P1, '建仓买入需有人拍板（与是否持仓无关）'),
     ('add_position', True, {}, P1, '加仓需有人拍板'),
     ('t_trade', False, {}, P1, '做 T 需有人拍板'),
-    ('trend_observe', False, {'trigger_level': 'L2'}, P1, '优先级冲突：L2 先于观察 → 观察也须拍板'),
-    ('', False, {'is_governance': True, 'trigger_level': 'L2'}, P1, 'L2 先于治理项'),
+    ('trend_observe', False, {'trigger_level': 'L2'}, P3, 'L2 已退役：不再影响，trend_observe → P3'),
+    ('', False, {'is_governance': True, 'trigger_level': 'L2'}, P3, 'L2 已退役：治理项 → P3'),
 
     # —— P3：治理项 / 纯观察（无 scope）——
     ('trend_observe', False, {}, P3, '纯观察仅归档'),

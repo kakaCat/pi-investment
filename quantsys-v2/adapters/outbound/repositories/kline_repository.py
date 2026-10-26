@@ -1536,9 +1536,11 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
             except ValueError:
                 return False
         try:
-            return self.session.query(DailyKline.trade_date).filter(
+            result = self.session.query(DailyKline.trade_date).filter(
                 DailyKline.trade_date == d
             ).first() is not None
+            self._commit_if_readonly()
+            return result
         except Exception as e:
             self._safe_rollback()
             logger.error(f"Error checking bar on {day}: {e}")
@@ -1688,7 +1690,9 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
         from sqlalchemy import func
         try:
             d = self.session.query(func.max(DailyKline.trade_date)).scalar()
-            return d.isoformat() if d else None
+            result = d.isoformat() if d else None
+            self._commit_if_readonly()
+            return result
         except Exception as e:
             self._safe_rollback()
             logger.error(f"Error in get_latest_trade_date: {e}")
@@ -1712,7 +1716,9 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
         """
         try:
             d = self.session.query(func.max(DailyKline.trade_date)).scalar()
-            return d.isoformat() if d else None
+            result = d.isoformat() if d else None
+            self._commit_if_readonly()
+            return result
         except Exception as e:
             self._safe_rollback()
             logger.error(f"Error in get_latest_trade_date_strict: {e}")

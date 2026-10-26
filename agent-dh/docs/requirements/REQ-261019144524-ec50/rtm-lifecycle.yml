@@ -1,0 +1,125 @@
+requirement:
+  id: REQ-261019144524-ec50
+  title: 进化闭环有效性改造：让自我进化以盈利为北极星
+  category: spike
+  created_at: 2026-10-19T06:45:24.270Z
+  source_session: session-503df447-3664-4823-ada8-9d779312d94a
+  dir: /Users/yunpeng/pi-investment/agent-dh/docs/requirements/REQ-261019144524-ec50
+lifecycle:
+  current_stage: accepting
+  stage_count: 4
+  stage_list:
+    - draft
+    - implementing
+    - accepting
+    - done
+  stages:
+    - stage: draft
+      status: completed
+      enabled: true
+      entered_at: 2026-10-19T06:45:24.270Z
+      completed_at: 2026-10-19T17:01:08.848Z
+    - stage: brainstorming
+      status: completed
+      enabled: false
+      entered_at: 2026-10-19T06:45:24.270Z
+      completed_at: 2026-10-19T17:01:08.848Z
+      artifacts:
+        - kind: requirement
+          path: docs/requirements/REQ-261019144524-ec50/requirement.md
+          confirmed_at: 2026-10-19T06:53:36.058Z
+    - stage: design
+      status: completed
+      enabled: false
+      entered_at: 2026-10-19T06:45:24.270Z
+      completed_at: 2026-10-19T17:01:08.848Z
+      artifacts:
+        - kind: design
+          path: docs/requirements/REQ-261019144524-ec50/design/design.md
+          confirmed_at: 2026-10-19T07:01:28.861Z
+    - stage: decomposing
+      status: completed
+      enabled: false
+      entered_at: 2026-10-19T06:45:24.270Z
+      completed_at: 2026-10-19T17:01:08.848Z
+      artifacts:
+        - kind: decomposition
+          path: docs/requirements/REQ-261019144524-ec50/decomposition.md
+          confirmed_at: 2026-10-19T07:10:32.985Z
+    - stage: implementing
+      status: completed
+      enabled: true
+      entered_at: 2026-10-19T06:45:24.270Z
+      completed_at: 2026-10-19T17:01:08.848Z
+      artifacts:
+        - kind: task_detail
+          path: docs/requirements/REQ-261019144524-ec50/tasks/t-1790d5.md
+        - kind: task_detail
+          path: docs/requirements/REQ-261019144524-ec50/tasks/t-f4e050.md
+        - kind: task_detail
+          path: docs/requirements/REQ-261019144524-ec50/tasks/t-954eb4.md
+        - kind: task_detail
+          path: docs/requirements/REQ-261019144524-ec50/tasks/t-557f90.md
+        - kind: task_detail
+          path: docs/requirements/REQ-261019144524-ec50/tasks/t-ab4c82.md
+        - kind: task_detail
+          path: docs/requirements/REQ-261019144524-ec50/tasks/t-9bae04.md
+        - kind: task_detail
+          path: docs/requirements/REQ-261019144524-ec50/tasks/t-38602b.md
+        - kind: task_detail
+          path: docs/requirements/REQ-261019144524-ec50/tasks/t-c5c85c.md
+        - kind: notes
+          path: docs/requirements/REQ-261019144524-ec50/advance-log.md
+        - kind: notes
+          path: docs/requirements/REQ-261019144524-ec50/queue.json
+        - kind: notes
+          path: docs/requirements/REQ-261019144524-ec50/rtm-brainstorming.yml
+        - kind: notes
+          path: docs/requirements/REQ-261019144524-ec50/rtm-decomposing.yml
+        - kind: notes
+          path: docs/requirements/REQ-261019144524-ec50/rtm-design.yml
+        - kind: notes
+          path: docs/requirements/REQ-261019144524-ec50/rtm-implementing.yml
+        - kind: notes
+          path: docs/requirements/REQ-261019144524-ec50/rtm-lifecycle.yml
+        - kind: task_output
+          path: docs/requirements/REQ-261019144524-ec50/w1-trigger-diagnosis.md
+        - kind: task_detail
+          path: docs/requirements/REQ-261019144524-ec50/tasks/t-aa8733.md
+        - kind: notes
+          path: docs/requirements/REQ-261019144524-ec50/rtm-implementing/t-1790d5.yml
+        - kind: notes
+          path: docs/requirements/REQ-261019144524-ec50/rtm-implementing/t-aa8733.yml
+        - kind: notes
+          path: docs/requirements/REQ-261019144524-ec50/rtm-implementing/t-f4e050.yml
+        - kind: task_output
+          path: docs/requirements/REQ-261019144524-ec50/w3-observe-scoring-sop.md
+        - kind: task_output
+          path: docs/requirements/REQ-261019144524-ec50/w4-strategy-cleanup.md
+        - kind: task_output
+          path: docs/work-logs/2026-10/strategy-library-governance-inventory.md
+        - kind: task_output
+          path: docs/requirements/REQ-261019144524-ec50/w4-experience-cleanup.md
+        - kind: task_output
+          path: docs/requirements/REQ-261019144524-ec50/w3-trial-budget-proposal.md
+        - kind: task_output
+          path: docs/requirements/REQ-261019144524-ec50/report.md
+    - stage: accepting
+      status: in_progress
+      enabled: true
+      entered_at: 2026-10-19T06:45:24.270Z
+      artifacts:
+        - kind: verification
+          path: docs/requirements/REQ-261019144524-ec50/verification.md
+    - stage: done
+      status: pending
+      enabled: true
+metadata:
+  stage: lifecycle
+  requirement_id: REQ-261019144524-ec50
+  generated_at: 2026-10-19T06:45:24.371Z
+  version: 9
+  generated_by: dsh-pmboard
+  rtm_version: "1.0"
+  file_path: /Users/yunpeng/pi-investment/agent-dh/docs/requirements/REQ-261019144524-ec50/rtm-lifecycle.yml
+  last_updated: 2026-10-19T17:01:08.998Z

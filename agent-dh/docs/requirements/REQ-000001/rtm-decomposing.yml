@@ -2,23 +2,16 @@ metadata:
   stage: decomposing
   requirement_id: REQ-000001
   generated_at: 2026-09-26T10:30:18.197Z
-  version: 5852
+  version: 6031
   generated_by: dsh-pmboard
-  last_updated: 2026-09-29T00:02:57.833Z
+  last_updated: 2026-10-21T16:22:48.822Z
 inputs:
   requirements: []
   design_sections: []
 outputs:
   tasks:
-    - id: t-p
-      title: 父卡
-      implements: 改 x.ts
-      serves: []
-      depends_on: []
-      phase: implement
-      side: backend
-    - id: t-s
-      title: 研发
+    - id: t-000001
+      title: 任务
       implements: 改 x.ts
       serves: []
       depends_on: []

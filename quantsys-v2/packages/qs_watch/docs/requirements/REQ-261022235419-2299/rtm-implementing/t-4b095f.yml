@@ -1,0 +1,37 @@
+task:
+  id: t-4b095f
+  title: v2 引擎骨架：主循环 + 加载 + 统一取价前置·测试
+  status: todo
+  implements: |-
+    新建 v2/engine.py（WatchEngineV2：run_forever/tick）+ 两个测试文件。tick 内 list_by_state('active')→按 symbol 去重取价（复用 quote_service）。单测断言取价输入集合==激活 symbol 集合。验证：pytest 两文件退出码 0。
+
+    [子卡阶段·测试] 只做本阶段；验收：`pnpm test` → 失败数 ≤ 开工前基线；`npx tsc --noEmit` → 错误数 ≤ 基线（贴汇总输出）
+  serves: []
+  depends_on:
+    - t-b509e4
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-261022235419-2299
+    TASK_ID: t-4b095f
+    TASK_TITLE: v2 引擎骨架：主循环 + 加载 + 统一取价前置·测试
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: pending
+    - phase: test
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-261022235419-2299
+  generated_at: 2026-10-23T04:12:51.127Z
+  version: 2
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-10-23T04:12:51.128Z

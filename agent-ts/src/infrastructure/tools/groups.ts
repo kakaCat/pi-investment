@@ -118,6 +118,7 @@ import { chanAnalyzeTool } from './analysis/chan-analyze-tool.js';
 import { chipAnalysisTool } from './analysis/chip-analysis-tool.js';
 import { watchAlertTool } from './monitor/watch-alert-tool.js';
 import { watchManageTool } from './monitor/watch-manage-tool.js';
+import { tradingPlanTool } from './trading/trading-plan-tool.js';
 import { tradeVerifyTool } from './trade/trade-verify-tool.js';
 import { dailyReportTool } from './report/daily-report-tool.js';
 import { calibrateTool } from './model/calibrate-tool.js';
@@ -224,6 +225,7 @@ export const FIN_TOOLS = [
   chipAnalysisTool,
   watchAlertTool,
   watchManageTool,
+  tradingPlanTool,
   tradeVerifyTool,
   dailyReportTool,
   calibrateTool,

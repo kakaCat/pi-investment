@@ -97,16 +97,17 @@ def convert_standard_dow(field: str) -> str:
 
 
 def validate_cron(cron_expr: str) -> None:
-    """校验 cron 表达式为标准的 **5 段**（分 时 日 月 周）。
+    """校验 cron 表达式：接受 **5 段**（分 时 日 月 周）或 **6 段**（秒 分 时 日 月 周）。
 
-    2026-09-13（w-32314d00，看板事件 435f0c0a / 26737737 / c488fdad）：
-    任务行被写成 **6 段**（Agent OS / robfig-cron 风格，首位是秒）时，写入与任务注册都成功，
-    直到 APScheduler 加载才抛 ValueError: Wrong number of fields; got 6, expected 5 ——
-    表现是「任务根本没进调度器」：scheduler_runs 里查不到任何失败，只有一行加载日志。
-    故把校验提前到写入点，并给出直指修法的错误信息。
+    5 段是历史标准（分钟粒度）；6 段是 2026-10-23 新增的秒级扩展（盯盘 30 秒任务），
+    首位为秒，其余字段语义与 5 段一致（星期仍按标准 cron 0=周日 解释）。
+
+    历史坑（2026-09-13，w-32314d00）：6 段表达式曾被直接交给 APScheduler，加载时才抛
+    "Wrong number of fields"，表现为任务静默不排期。现在 6 段不再靠"拒绝"来兜——
+    由 build_cron_trigger 显式构造 second 字段；段数其它值仍然拒绝。
 
     Raises:
-        ValueError: 段数不为 5（Agent OS 托管伪任务 managed_by_agent_* 除外）。
+        ValueError: 段数既不是 5 也不是 6（Agent OS 托管伪任务 managed_by_agent_* 除外）。
     """
     expr = str(cron_expr or '').strip()
     if not expr:
@@ -114,23 +115,29 @@ def validate_cron(cron_expr: str) -> None:
     if expr.startswith('managed_by_agent_'):
         return  # Agent OS 托管伪任务：不参与 APScheduler 排期，加载阶段按托管跳过
     fields = expr.split()
-    if len(fields) != 5:
+    if len(fields) not in (5, 6):
         raise ValueError(
-            f'cron 只接受 5 段（分 时 日 月 周），收到 {len(fields)} 段: {expr!r}'
-            '；若来自 Agent OS（6 段、首位是秒），请去掉秒位后再写入')
+            f'cron 只接受 5 段（分 时 日 月 周）或 6 段（秒 分 时 日 月 周），'
+            f'收到 {len(fields)} 段: {expr!r}')
 
 
 def build_cron_trigger(cron_expr: str, tz: str = 'Asia/Shanghai') -> CronTrigger:
-    """按标准 cron 语义构造 CronTrigger（仅翻译 DOW，其余字段原样透传）。
+    """按标准 cron 语义构造 CronTrigger（翻译 DOW；6 段时首位作为 second）。
 
-    非 5 段表达式不再「原样透传」（旧行为把 croniter 的短错误抛进加载日志，
-    极易被当成无关警告略过），改为在这里显式拒绝。
+    5 段：分 时 日 月 周
+    6 段：秒 分 时 日 月 周（2026-10-23 盯盘 30 秒任务）
     """
     validate_cron(cron_expr)
     if str(cron_expr).strip().startswith('managed_by_agent_'):
         raise ValueError(f'Agent OS 托管伪任务不应构造 APScheduler 触发器: {cron_expr!r}')
-    minute, hour, dom, month, dow = str(cron_expr).split()
-    return CronTrigger(
-        minute=minute, hour=hour, day=dom, month=month,
-        day_of_week=convert_standard_dow(dow), timezone=tz,
-    )
+    fields = str(cron_expr).split()
+    if len(fields) == 6:
+        second, minute, hour, dom, month, dow = fields
+    else:
+        second = None
+        minute, hour, dom, month, dow = fields
+    kwargs = dict(minute=minute, hour=hour, day=dom, month=month,
+                  day_of_week=convert_standard_dow(dow), timezone=tz)
+    if second is not None:
+        kwargs['second'] = second
+    return CronTrigger(**kwargs)

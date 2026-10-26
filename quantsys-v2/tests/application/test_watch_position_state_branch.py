@@ -29,7 +29,8 @@ import pytest
 from qs_watch.application.services.watch_engine import engine as engine_mod
 from qs_watch.application.services.watch_engine.engine import (
     MISMATCH_STOP_WITHOUT_HOLDING, MISMATCH_UNREADABLE,
-    POSITION_FAMILY_ENTRY, POSITION_FAMILY_EXIT, POSITION_FAMILY_OBSERVE,
+    POSITION_FAMILY_ADD, POSITION_FAMILY_ENTRY, POSITION_FAMILY_EXIT,
+    POSITION_FAMILY_OBSERVE,
     POSITION_STATE_NONE, POSITION_STATE_SKIP_ENTRY_HELD,
     POSITION_STATE_SKIP_EXIT_FLAT, STATE_MISMATCH_EVENT, WatchEngine,
     position_state_family, position_state_verdict, read_rule_position_state,
@@ -42,7 +43,8 @@ HIT = 101.0                              # 上破 100 → 条件成立
 MISS = 99.0                              # 未上破 → 不触发
 
 #: 四族 intent（与 disposition 的意图枚举同源，不新造值）。
-ENTRY_INTENTS = ('entry', 'add_position')
+ENTRY_INTENTS = ('entry',)
+ADD_INTENTS = ('add_position',)
 EXIT_INTENTS = ('t_trade', 'exit_stop', 'exit_take_profit', 'exit_reduce')
 OBSERVE_INTENTS = ('trend_observe',)
 
@@ -122,6 +124,8 @@ class TestBranchTable:
     def test_intent_family_classification(self):
         for intent in ENTRY_INTENTS:
             assert position_state_family(intent) == POSITION_FAMILY_ENTRY
+        for intent in ADD_INTENTS:
+            assert position_state_family(intent) == POSITION_FAMILY_ADD
         for intent in EXIT_INTENTS:
             assert position_state_family(intent) == POSITION_FAMILY_EXIT
         for intent in OBSERVE_INTENTS:
@@ -133,6 +137,16 @@ class TestBranchTable:
     @pytest.mark.parametrize('state,evaluated', [('none', True), ('holding', False)])
     @pytest.mark.parametrize('intent', ENTRY_INTENTS)
     def test_entry_family_only_evaluates_when_flat(self, intent, state, evaluated):
+        rule = _rule(intent, state)
+        engine, _ = _engine([rule], {SYMBOL: HIT})
+        engine.tick()
+        assert _evaluated(engine, rule) is evaluated
+
+    @pytest.mark.parametrize('state,evaluated', [('none', False), ('holding', True)])
+    @pytest.mark.parametrize('intent', ADD_INTENTS)
+    def test_add_family_only_evaluates_when_holding(self, intent, state, evaluated):
+        # 2026-10-22 用户裁定「持仓的看增仓」：add_position 已持仓求值（回调加仓），
+        # 空仓跳过（无仓可加）——原归 entry 族「持仓跳过」是误杀。
         rule = _rule(intent, state)
         engine, _ = _engine([rule], {SYMBOL: HIT})
         engine.tick()

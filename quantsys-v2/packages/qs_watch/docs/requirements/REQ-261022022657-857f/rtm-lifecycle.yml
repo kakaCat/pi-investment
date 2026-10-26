@@ -1,0 +1,66 @@
+requirement:
+  id: REQ-261022022657-857f
+  title: 交易闭环补口：反思唤醒 + 减仓批次收敛 + 消息→离场
+  category: feature
+  created_at: 2026-10-21T18:26:57.342Z
+  source_session: session-11ba604a-d626-4750-b955-7e769919277e
+  dir: /Users/yunpeng/pi-investment/quantsys-v2/packages/qs_watch/docs/requirements/REQ-261022022657-857f
+lifecycle:
+  current_stage: accepting
+  stage_count: 7
+  stage_list:
+    - draft
+    - brainstorming
+    - design
+    - decomposing
+    - implementing
+    - accepting
+    - done
+  stages:
+    - stage: draft
+      status: completed
+      enabled: true
+      entered_at: 2026-10-21T18:26:57.342Z
+      completed_at: 2026-10-21T18:40:28.758Z
+      timestamps_inferred: true
+    - stage: brainstorming
+      status: completed
+      enabled: true
+      entered_at: 2026-10-21T18:26:57.342Z
+      completed_at: 2026-10-21T18:40:28.758Z
+      timestamps_inferred: true
+    - stage: design
+      status: completed
+      enabled: true
+      entered_at: 2026-10-21T18:26:57.342Z
+      completed_at: 2026-10-21T18:40:28.758Z
+      timestamps_inferred: true
+    - stage: decomposing
+      status: completed
+      enabled: true
+      entered_at: 2026-10-21T18:26:57.342Z
+      completed_at: 2026-10-21T18:40:28.758Z
+      timestamps_inferred: true
+    - stage: implementing
+      status: completed
+      enabled: true
+      entered_at: 2026-10-21T18:26:57.342Z
+      completed_at: 2026-10-21T18:40:28.758Z
+      timestamps_inferred: true
+    - stage: accepting
+      status: in_progress
+      enabled: true
+      entered_at: 2026-10-21T18:26:57.342Z
+      timestamps_inferred: true
+    - stage: done
+      status: pending
+      enabled: true
+metadata:
+  stage: lifecycle
+  requirement_id: REQ-261022022657-857f
+  generated_at: 2026-10-21T18:26:57.384Z
+  version: 10
+  generated_by: dsh-pmboard
+  rtm_version: "1.0"
+  file_path: /Users/yunpeng/pi-investment/quantsys-v2/packages/qs_watch/docs/requirements/REQ-261022022657-857f/rtm-lifecycle.yml
+  last_updated: 2026-10-21T18:40:28.806Z

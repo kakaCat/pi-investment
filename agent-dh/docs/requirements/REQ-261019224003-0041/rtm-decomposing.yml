@@ -1,0 +1,384 @@
+metadata:
+  stage: decomposing
+  requirement_id: REQ-261019224003-0041
+  generated_at: 2026-10-19T17:05:16.231Z
+  version: 15
+  generated_by: dsh-pmboard
+  last_updated: 2026-10-20T00:34:17.939Z
+inputs:
+  requirements: []
+  design_sections:
+    - ref: design/architecture.md#1
+      title: 总体形态（
+      serves:
+        - FR-1
+        - FR-2
+      file: design/architecture.md
+      section: "1"
+    - ref: design/architecture.md#2
+      title: 运行时结构（
+      serves:
+        - FR-5
+        - FR-6
+      file: design/architecture.md
+      section: "2"
+    - ref: design/architecture.md#3
+      title: 分层与边界（
+      serves:
+        - FR-4
+      file: design/architecture.md
+      section: "3"
+    - ref: design/architecture.md#4
+      title: 与 pm 固定阶段的关系（
+      serves:
+        - FR-6
+      file: design/architecture.md
+      section: "4"
+    - ref: design/architecture.md#5
+      title: 废弃清单（
+      serves:
+        - FR-8
+      file: design/architecture.md
+      section: "5"
+    - ref: design/data-model.md#1
+      title: pm 卡面新增字段（
+      serves:
+        - FR-7
+      file: design/data-model.md
+      section: "1"
+    - ref: design/data-model.md#2
+      title: workprocess 存储域（
+      serves:
+        - FR-5
+        - FR-6
+      file: design/data-model.md
+      section: "2"
+    - ref: design/data-model.md#3
+      title: 不映射清单（防误建字段，
+      serves:
+        - FR-5
+      file: design/data-model.md
+      section: "3"
+    - ref: design/data-model.md#4
+      title: 版本兼容（
+      serves:
+        - FR-7
+      file: design/data-model.md
+      section: "4"
+    - ref: design/interfaces.md#1
+      title: 投影器（新增，pm-core）（
+      serves:
+        - FR-5
+      file: design/interfaces.md
+      section: "1"
+    - ref: design/interfaces.md#2
+      title: 写回适配（pm 组合根，
+      serves:
+        - FR-5
+        - FR-6
+      file: design/interfaces.md
+      section: "2"
+    - ref: design/interfaces.md#3
+      title: 服务面消费（
+      serves:
+        - FR-5
+        - FR-6
+      file: design/interfaces.md
+      section: "3"
+    - ref: design/interfaces.md#4
+      title: 工具面 / 命令面（
+      serves:
+        - FR-6
+      file: design/interfaces.md
+      section: "4"
+    - ref: design/interfaces.md#5
+      title: 装载接口（
+      serves:
+        - FR-2
+        - FR-3
+      file: design/interfaces.md
+      section: "5"
+    - ref: design/use-cases.md#UC-1-起链与驱动接管
+      title: UC-1 起链与驱动接管（
+      serves:
+        - FR-6
+      file: design/use-cases.md
+      section: UC-1-起链与驱动接管
+    - ref: design/use-cases.md#UC-2-子卡-blocked-与预算追加
+      title: UC-2 子卡 blocked 与预算追加（
+      serves:
+        - FR-5
+        - FR-7
+      file: design/use-cases.md
+      section: UC-2-子卡-blocked-与预算追加
+    - ref: design/use-cases.md#UC-3-DAG-顺序与投影
+      title: UC-3 DAG 顺序与投影（
+      serves:
+        - FR-5
+      file: design/use-cases.md
+      section: UC-3-DAG-顺序与投影
+    - ref: design/use-cases.md#UC-4-需求级人工门不受影响
+      title: UC-4 需求级人工门不受影响（
+      serves:
+        - FR-6
+      file: design/use-cases.md
+      section: UC-4-需求级人工门不受影响
+    - ref: design/use-cases.md#UC-5-goalpm-workflow-退役后旧引用收编
+      title: UC-5 goal/pm-workflow 退役后旧引用收编（
+      serves:
+        - FR-8
+      file: design/use-cases.md
+      section: UC-5-goalpm-workflow-退役后旧引用收编
+    - ref: design/use-cases.md#UC-6-装载形态切换
+      title: UC-6 装载形态切换（
+      serves:
+        - FR-2
+      file: design/use-cases.md
+      section: UC-6-装载形态切换
+outputs:
+  tasks:
+    - id: t-492426
+      title: 收编四包源码进 workprocess/
+      implements: 从 WP=/Users/mac/Documents/ai/dsh/dsh-workprocess 整体复制四个包目录到本仓 workprocess/（目录名与层级照抄；含 src/tests/client/tsconfig*.json/tsdown*.ts/cordis.patch.yml/package.json）；不复制 node_modules 与 dist（产物在本仓重建）。验证：ls 四目录在、pnpm-workspace.yaml 的 workprocess/* glob 能匹配。
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-697ce7
+      title: 依赖声明与构建/映射/分层清单对齐
+      implements: ① pm/package.json dependencies 增 workprocess / workprocess-round-driver / tool-workprocess / dsh-command-workprocess 四条 workspace:*；② pm/tsdown.config.mjs 的 WORKSPACE_PACKAGES 增 /^workprocess/、/^workprocess-round-driver/、/^tool-workprocess/、/^dsh-command-workprocess/；③ tsconfig.json 补命令包 dsh-command-workprocess 路径映射（现只预置三包）；vitest.base.mts / vitest.config.ts 同步；④ scripts/package-boundary-check.mts：pm-core 的 L1 allow 增 workprocess，L2 pkgs/allow 补齐含命令包。
+      serves: []
+      depends_on:
+        - t-492426
+      phase: implement
+      side: backend
+    - id: t-611a43
+      title: 装载清单五条行 + profile 迁移
+      implements: pm/cordis.patch.yml 从 1 行 pmboard 扩为 5 行 insert：id/name 照抄各包自带 patch（workprocess、workprocess-round-driver、tool-workprocess、dsh-command-workprocess——命令包 name 用包名），config 照抄 WP 仓现值（tick/drive/defaultMaxRounds=20/close=auto/disarmOnResume；blockedAfterRounds=3 驱动器与工具面同值）。迁移兼容：desktop profile 摘除四条 workprocess 独立 bundle 行，回滚=还原两文件。
+      serves: []
+      depends_on:
+        - t-697ce7
+      phase: implement
+      side: backend
+    - id: t-4303f4
+      title: pm 卡面新增 blockedReason/closePolicy 字段
+      implements: "pm-core 任务卡领域与读写面新增 blockedReason: string（默认 ''）与 closePolicy: 'auto'|'manual'（默认 'auto'）；存量台账免回填（缺失即默认）；非法值装配/写入期抛 REQBOARD_INVALID_INPUT；看板卡面显示 blockedReason。落点：pm-core/src/domain/task 与 protocol-domain 的卡面读写、客户端显示组件。"
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-69e994
+      title: 投影器 + 写回适配 + 驱动接管起链
+      implements: ① pm-core 新增零 I/O 纯函数 projectWorkProcess(requirementId, tasks, runs) -> WorkProcess（application 层，映射按 03 §二：需求 id→wp:<scope>、一子卡=一 workTask、需求级阶段不映射、DAG 不映射）；② pm/src/adapters/goal-round-lifecycle.ts 与 goal-round-ports.ts 整体换血：驱动器决策→写动词逐一对表 pm 用例（写回只经用例，不直写存储）、投递复用 pm 现有投递器、内存闸改读耐久 asked 记号；③ pm-core/src/application/dive-core/round-state.ts 回合契约归属从 goal 改指 workprocess；④ reqboard_task_run 语义收窄为起链入口（文案更新，返回形状不变）。
+      serves: []
+      depends_on:
+        - t-492426
+        - t-4303f4
+      phase: implement
+      side: backend
+    - id: t-af00f4
+      title: goal/pm-workflow 旧名收尾
+      implements: 17 个仍 import pm-goal* 的文件（pm/src 3、pm-core src 5、pm-core tests 5、tests 3、tool-pm tests 1，清单见 01-facts §3.2）逐一改接 ctx.workprocess 服务面或摘除；tsconfig.json/vitest 两处 goal 旧名三组映射摘除；scripts/package-boundary-check.mts 的 pm-goal 行摘除；goal/* 与 pm-workflow/ 保持删除不复活。
+      serves: []
+      depends_on:
+        - t-69e994
+      phase: implement
+      side: backend
+    - id: t-52f01f
+      title: 装载与全链路真机验收
+      implements: 重启宿主后实测：①composeEntries 5 条 entry、skippedBundles 空；②跑一条两阶段全 auto 流程——reqboard_task_run 起链一次后驱动器自走下一拍，阶段自动开工/收口，~/.dsh/storages/workprocess.json 落 closedAt；③回归需求级人工门（ask_confirm/验收单）全程无 workprocess 参与；④构造 blocked 场景验证 blockedReason 上卡面、resume 后 grants +1。
+      serves: []
+      depends_on:
+        - t-611a43
+        - t-af00f4
+      phase: test
+      side: fullstack
+    - id: t-7f41ef
+      title: 收编四包源码进 workprocess/·研发
+      implements: |-
+        从 WP=/Users/mac/Documents/ai/dsh/dsh-workprocess 整体复制四个包目录到本仓 workprocess/（目录名与层级照抄；含 src/tests/client/tsconfig*.json/tsdown*.ts/cordis.patch.yml/package.json）；不复制 node_modules 与 dist（产物在本仓重建）。验证：ls 四目录在、pnpm-workspace.yaml 的 workprocess/* glob 能匹配。
+
+        [子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-594aa8
+      title: 收编四包源码进 workprocess/·联调
+      implements: |-
+        从 WP=/Users/mac/Documents/ai/dsh/dsh-workprocess 整体复制四个包目录到本仓 workprocess/（目录名与层级照抄；含 src/tests/client/tsconfig*.json/tsdown*.ts/cordis.patch.yml/package.json）；不复制 node_modules 与 dist（产物在本仓重建）。验证：ls 四目录在、pnpm-workspace.yaml 的 workprocess/* glob 能匹配。
+
+        [子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致
+      serves: []
+      depends_on:
+        - t-7f41ef
+      phase: implement
+      side: backend
+    - id: t-235ed5
+      title: 收编四包源码进 workprocess/·复核
+      implements: |-
+        从 WP=/Users/mac/Documents/ai/dsh/dsh-workprocess 整体复制四个包目录到本仓 workprocess/（目录名与层级照抄；含 src/tests/client/tsconfig*.json/tsdown*.ts/cordis.patch.yml/package.json）；不复制 node_modules 与 dist（产物在本仓重建）。验证：ls 四目录在、pnpm-workspace.yaml 的 workprocess/* glob 能匹配。
+
+        [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-594aa8
+      phase: implement
+      side: backend
+    - id: t-cdabde
+      title: 收编四包源码进 workprocess/·测试
+      implements: |-
+        从 WP=/Users/mac/Documents/ai/dsh/dsh-workprocess 整体复制四个包目录到本仓 workprocess/（目录名与层级照抄；含 src/tests/client/tsconfig*.json/tsdown*.ts/cordis.patch.yml/package.json）；不复制 node_modules 与 dist（产物在本仓重建）。验证：ls 四目录在、pnpm-workspace.yaml 的 workprocess/* glob 能匹配。
+
+        [子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）
+      serves: []
+      depends_on:
+        - t-235ed5
+      phase: implement
+      side: backend
+    - id: t-da7cf8
+      title: pm 卡面新增 blockedReason/closePolicy 字段·研发
+      implements: |-
+        pm-core 任务卡领域与读写面新增 blockedReason: string（默认 ''）与 closePolicy: 'auto'|'manual'（默认 'auto'）；存量台账免回填（缺失即默认）；非法值装配/写入期抛 REQBOARD_INVALID_INPUT；看板卡面显示 blockedReason。落点：pm-core/src/domain/task 与 protocol-domain 的卡面读写、客户端显示组件。
+
+        [子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-f0116e
+      title: pm 卡面新增 blockedReason/closePolicy 字段·联调
+      implements: |-
+        pm-core 任务卡领域与读写面新增 blockedReason: string（默认 ''）与 closePolicy: 'auto'|'manual'（默认 'auto'）；存量台账免回填（缺失即默认）；非法值装配/写入期抛 REQBOARD_INVALID_INPUT；看板卡面显示 blockedReason。落点：pm-core/src/domain/task 与 protocol-domain 的卡面读写、客户端显示组件。
+
+        [子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致
+      serves: []
+      depends_on:
+        - t-da7cf8
+      phase: implement
+      side: backend
+    - id: t-81114b
+      title: pm 卡面新增 blockedReason/closePolicy 字段·复核
+      implements: |-
+        pm-core 任务卡领域与读写面新增 blockedReason: string（默认 ''）与 closePolicy: 'auto'|'manual'（默认 'auto'）；存量台账免回填（缺失即默认）；非法值装配/写入期抛 REQBOARD_INVALID_INPUT；看板卡面显示 blockedReason。落点：pm-core/src/domain/task 与 protocol-domain 的卡面读写、客户端显示组件。
+
+        [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-f0116e
+      phase: implement
+      side: backend
+    - id: t-8042eb
+      title: pm 卡面新增 blockedReason/closePolicy 字段·测试
+      implements: |-
+        pm-core 任务卡领域与读写面新增 blockedReason: string（默认 ''）与 closePolicy: 'auto'|'manual'（默认 'auto'）；存量台账免回填（缺失即默认）；非法值装配/写入期抛 REQBOARD_INVALID_INPUT；看板卡面显示 blockedReason。落点：pm-core/src/domain/task 与 protocol-domain 的卡面读写、客户端显示组件。
+
+        [子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）
+      serves: []
+      depends_on:
+        - t-81114b
+      phase: implement
+      side: backend
+    - id: t-a7beb7
+      title: 依赖声明与构建/映射/分层清单对齐·研发
+      implements: |-
+        ① pm/package.json dependencies 增 workprocess / workprocess-round-driver / tool-workprocess / dsh-command-workprocess 四条 workspace:*；② pm/tsdown.config.mjs 的 WORKSPACE_PACKAGES 增 /^workprocess/、/^workprocess-round-driver/、/^tool-workprocess/、/^dsh-command-workprocess/；③ tsconfig.json 补命令包 dsh-command-workprocess 路径映射（现只预置三包）；vitest.base.mts / vitest.config.ts 同步；④ scripts/package-boundary-check.mts：pm-core 的 L1 allow 增 workprocess，L2 pkgs/allow 补齐含命令包。
+
+        [子卡阶段·研发] 只做本阶段；验收：改动已落盘，相关测试或命令跑通并附输出摘要
+      serves: []
+      depends_on:
+        - t-492426
+      phase: implement
+      side: backend
+    - id: t-e9ed8f
+      title: 依赖声明与构建/映射/分层清单对齐·联调
+      implements: |-
+        ① pm/package.json dependencies 增 workprocess / workprocess-round-driver / tool-workprocess / dsh-command-workprocess 四条 workspace:*；② pm/tsdown.config.mjs 的 WORKSPACE_PACKAGES 增 /^workprocess/、/^workprocess-round-driver/、/^tool-workprocess/、/^dsh-command-workprocess/；③ tsconfig.json 补命令包 dsh-command-workprocess 路径映射（现只预置三包）；vitest.base.mts / vitest.config.ts 同步；④ scripts/package-boundary-check.mts：pm-core 的 L1 allow 增 workprocess，L2 pkgs/allow 补齐含命令包。
+
+        [子卡阶段·联调] 只做本阶段；验收：接口联调通过：给出请求样例与期望响应，实际返回与预期一致
+      serves: []
+      depends_on:
+        - t-a7beb7
+      phase: implement
+      side: backend
+    - id: t-5e0ccb
+      title: 依赖声明与构建/映射/分层清单对齐·复核
+      implements: |-
+        ① pm/package.json dependencies 增 workprocess / workprocess-round-driver / tool-workprocess / dsh-command-workprocess 四条 workspace:*；② pm/tsdown.config.mjs 的 WORKSPACE_PACKAGES 增 /^workprocess/、/^workprocess-round-driver/、/^tool-workprocess/、/^dsh-command-workprocess/；③ tsconfig.json 补命令包 dsh-command-workprocess 路径映射（现只预置三包）；vitest.base.mts / vitest.config.ts 同步；④ scripts/package-boundary-check.mts：pm-core 的 L1 allow 增 workprocess，L2 pkgs/allow 补齐含命令包。
+
+        [子卡阶段·复核] 只做本阶段；验收：对设计与实现的偏离逐条给出结论；无偏离时显式写明「无偏离」及依据
+      serves: []
+      depends_on:
+        - t-e9ed8f
+      phase: implement
+      side: backend
+    - id: t-3f348e
+      title: 依赖声明与构建/映射/分层清单对齐·测试
+      implements: |-
+        ① pm/package.json dependencies 增 workprocess / workprocess-round-driver / tool-workprocess / dsh-command-workprocess 四条 workspace:*；② pm/tsdown.config.mjs 的 WORKSPACE_PACKAGES 增 /^workprocess/、/^workprocess-round-driver/、/^tool-workprocess/、/^dsh-command-workprocess/；③ tsconfig.json 补命令包 dsh-command-workprocess 路径映射（现只预置三包）；vitest.base.mts / vitest.config.ts 同步；④ scripts/package-boundary-check.mts：pm-core 的 L1 allow 增 workprocess，L2 pkgs/allow 补齐含命令包。
+
+        [子卡阶段·测试] 只做本阶段；验收：目标命令输出全绿（贴命令与结果摘要）
+      serves: []
+      depends_on:
+        - t-5e0ccb
+      phase: implement
+      side: backend
+traceability:
+  design_to_tasks:
+    design/architecture.md#1: []
+    design/architecture.md#2: []
+    design/architecture.md#3: []
+    design/architecture.md#4: []
+    design/architecture.md#5: []
+    design/data-model.md#1: []
+    design/data-model.md#2: []
+    design/data-model.md#3: []
+    design/data-model.md#4: []
+    design/interfaces.md#1: []
+    design/interfaces.md#2: []
+    design/interfaces.md#3: []
+    design/interfaces.md#4: []
+    design/interfaces.md#5: []
+    design/use-cases.md#UC-1-起链与驱动接管: []
+    design/use-cases.md#UC-2-子卡-blocked-与预算追加: []
+    design/use-cases.md#UC-3-DAG-顺序与投影: []
+    design/use-cases.md#UC-4-需求级人工门不受影响: []
+    design/use-cases.md#UC-5-goalpm-workflow-退役后旧引用收编: []
+    design/use-cases.md#UC-6-装载形态切换: []
+  fr_to_tasks:
+    FR-1: []
+    FR-2: []
+    FR-5: []
+    FR-6: []
+    FR-4: []
+    FR-8: []
+    FR-7: []
+    FR-3: []
+coverage:
+  implementation:
+    total: 20
+    covered: 0
+    uncovered:
+      - design/architecture.md#1
+      - design/architecture.md#2
+      - design/architecture.md#3
+      - design/architecture.md#4
+      - design/architecture.md#5
+      - design/data-model.md#1
+      - design/data-model.md#2
+      - design/data-model.md#3
+      - design/data-model.md#4
+      - design/interfaces.md#1
+      - design/interfaces.md#2
+      - design/interfaces.md#3
+      - design/interfaces.md#4
+      - design/interfaces.md#5
+      - design/use-cases.md#UC-1-起链与驱动接管
+      - design/use-cases.md#UC-2-子卡-blocked-与预算追加
+      - design/use-cases.md#UC-3-DAG-顺序与投影
+      - design/use-cases.md#UC-4-需求级人工门不受影响
+      - design/use-cases.md#UC-5-goalpm-workflow-退役后旧引用收编
+      - design/use-cases.md#UC-6-装载形态切换
+    rate: 0
+    total_designs: 20
+    covered_designs: 0
