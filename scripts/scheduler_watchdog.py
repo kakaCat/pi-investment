@@ -175,7 +175,7 @@ def ensure_log_table(conn):
                 system      TEXT NOT NULL,          -- v2 / agent_os
                 issue_type  TEXT NOT NULL,          -- missed / zombie / offline
                 detail      TEXT,
-                action      TEXT,                   -- alerted / rerun
+                action      TEXT,                   -- alerted / rerun / covered_by_later_success
                 first_seen  TIMESTAMPTZ NOT NULL DEFAULT now(),
                 last_seen   TIMESTAMPTZ NOT NULL DEFAULT now(),
                 resolved    BOOLEAN NOT NULL DEFAULT false,
@@ -218,6 +218,40 @@ def record_issue(conn, key, system, itype, detail, action):
             (key, system, itype, detail, action),
         )
         return True  # 新问题，应告警
+
+
+def record_covered_issue(conn, issue):
+    """记录“原槽位漏跑、后续成功已覆盖”，返回 resolved / audited / unchanged。
+
+    覆盖问题从不保持 open；首次发现也保留一条已解决审计。查询不限定 resolved，
+    因此后续每 15 分钟重复扫描只更新同一行，不会再插入重复审计。
+    """
+    key = issue["key"]
+    detail = f"{issue['detail']}；原槽位曾漏跑，后续成功运行已覆盖（covered_by_later_success）"
+    action = "covered_by_later_success"
+    with conn.cursor() as cur:
+        # 若历史异常同时留下开放行与已解决行，优先闭环开放行。
+        cur.execute(
+            "SELECT id, resolved FROM quant.scheduler_watchdog_log "
+            "WHERE issue_key=%s ORDER BY resolved, id DESC LIMIT 1",
+            (key,),
+        )
+        row = cur.fetchone()
+        if row:
+            cur.execute(
+                "UPDATE quant.scheduler_watchdog_log "
+                "SET last_seen=now(), detail=%s, action=%s, resolved=true, "
+                "resolved_at=COALESCE(resolved_at, now()) WHERE id=%s",
+                (detail, action, row[0]),
+            )
+            return "unchanged" if row[1] else "resolved"
+        cur.execute(
+            "INSERT INTO quant.scheduler_watchdog_log("
+            "issue_key, system, issue_type, detail, action, resolved, resolved_at) "
+            "VALUES (%s,%s,%s,%s,%s,true,now())",
+            (key, issue["system"], issue["type"], detail, action),
+        )
+        return "audited"
 
 
 def resolve_issues(conn, still_open_keys, open_issues):
@@ -480,7 +514,20 @@ def main():
     # 3. 记录 + 去重 + 告警
     new_alerts, rerun_done = [], []
     still_open = set()
+    covered_seen, covered_audited, covered_resolved = 0, 0, []
     for it in issues:
+        # 后续成功已覆盖的原槽位不是开放问题：首次即留已解决审计，已有 open 则闭环；
+        # 必须在 still_open / record_issue / catchup 之前分流，避免永久挂 missed 或重复补跑。
+        if it["type"] == "missed" and (it.get("catchup") or {}).get("superseded"):
+            covered_seen += 1
+            outcome = record_covered_issue(conn, it)
+            open_issues.pop(it["key"], None)  # 已由专用路径闭环，不走通用“消失即恢复”。
+            if outcome == "resolved":
+                covered_resolved.append(it["key"])
+            elif outcome == "audited":
+                covered_audited += 1
+            continue
+
         still_open.add(it["key"])
         is_new = record_issue(conn, it["key"], it["system"], it["type"],
                               it["detail"], "alerted")
@@ -544,10 +591,16 @@ def main():
             f"✅ 调度看门狗：{len(resolved)} 项已恢复",
             "\n".join(f"- {k}" for k in resolved),
         )
+    if covered_resolved:
+        send_feishu(
+            f"✅ 调度看门狗：{len(covered_resolved)} 项漏跑已由后续成功覆盖",
+            "\n".join(f"- {k}（covered_by_later_success）" for k in covered_resolved),
+        )
 
     print(f"[watchdog] {now_utc.astimezone(CST):%Y-%m-%d %H:%M:%S} "
           f"v2_up={v2_up} os_up={os_up} issues={len(issues)} "
-          f"new={len(new_alerts)} resolved={len(resolved)}")
+          f"new={len(new_alerts)} resolved={len(resolved) + len(covered_resolved)} "
+          f"covered={covered_seen} covered_audit_new={covered_audited}")
     return 0
 
 
