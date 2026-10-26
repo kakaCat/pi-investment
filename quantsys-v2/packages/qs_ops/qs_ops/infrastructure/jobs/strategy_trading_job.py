@@ -121,51 +121,59 @@ def strategy_execute_all(**params):
     """
     全策略每日执行（统一任务，替代 v13_daily_check / v14_daily_check）
 
-    构建 StrategyExecutor 并对当日执行所有启用策略（V13 + V14）。
-    单一策略失败不会阻断其余策略，失败信息记录在该策略的结果条目中。
+    对当日执行所有启用策略。走 StrategyService/SimulationTrader 这条已接入
+    真实账户、模型和交易持久化的链路；单一策略失败不会阻断其余策略。
 
     Args:
         **params: 可选参数
-            - date: 交易日期（YYYY-MM-DD，默认今天）
-            - account_name: 账户名称（默认 'default'）
+            - date: 交易日期（YYYY-MM-DD，默认今天；仅记录，状态仍按数据库调仓日推进）
+            - strategies: 策略名列表（默认所有启用策略）
+            - enable_stop_loss / enable_rebalance: 每日检查开关
+            - enable_* 其它参数原样传给 strategy_daily_check
 
     Returns:
-        dict: StrategyExecutor.execute_all 的合并结果
+        dict: 合并结果
             - date: 交易日期
-            - success: 全部策略成功才为 True
-            - V13 / V14: 各策略的执行结果（或失败信息）
+            - success: 全部策略成功/跳过才为 True
+            - V13 / V14: 各策略结果键（大写版本号，失败含 error）
     """
-    from application.strategies import StrategyExecutor
-    from live_trading.simulation_trader import SimulationTrader
-    from adapters.outbound.repositories.simulation_position_repository import (
-        SimulationPositionRepository,
-    )
+    from qs_strategy.application.services.strategy_service import StrategyService
 
-    date = params.get('date')
-    account_name = params.get('account_name', 'default')
+    date = params.get('date') or datetime.now().strftime('%Y-%m-%d')
 
     logger.info(f"{'='*70}")
-    logger.info("全策略每日执行开始（StrategyExecutor.execute_all）")
+    logger.info("全策略每日执行开始（StrategyService.daily_check）")
     logger.info(f"执行时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     logger.info(f"{'='*70}")
 
     try:
-        # SimulationTrader 同时充当 engine：其 .config 字典为 executor
-        # 提供飞书通知配置（见 StrategyExecutor._create_notifier）
-        trader = SimulationTrader(account_name=account_name)
-        executor = StrategyExecutor(
-            trader=trader,
-            position_repo=SimulationPositionRepository(),
-            engine=trader,
-        )
-        result = executor.execute_all(date)
+        strategy_service = StrategyService()
+        strategies = params.get('strategies')
+        if not strategies:
+            strategies = [
+                name for name in strategy_service.list_strategies()
+                if strategy_service.get_config(name).get('strategy', {}).get('enabled', True)
+            ]
+        result = {'date': date, 'success': True}
 
-        for version, entry in sorted(result.items()):
-            if isinstance(entry, dict):
-                status = 'success' if entry.get('success', True) else 'failed'
+        for strategy_name in strategies:
+            version = str(strategy_name).upper()
+            try:
+                result[version] = strategy_daily_check(strategy_name, **params)
+                status = result[version].get('status')
+                if status == 'failed':
+                    result['success'] = False
                 logger.info(f"  {version}: {status}")
+            except Exception as exc:  # noqa: BLE001 - one strategy must not block the rest
+                logger.error(f"  {version}: failed: {exc}")
+                result[version] = {'success': False, 'error': str(exc)}
+                result['success'] = False
+
         logger.info(f"{'='*70}")
-        logger.info(f"✅ 全策略每日执行完成（overall success={result['success']}）")
+        logger.info(
+            f"{'✅' if result['success'] else '❌'} 全策略每日执行完成"
+            f"（overall success={result['success']}）"
+        )
         logger.info(f"{'='*70}")
 
         return result
@@ -179,6 +187,7 @@ def strategy_execute_all(**params):
         return {
             'success': False,
             'error': str(e),
+            'date': date,
             'timestamp': datetime.now().isoformat()
         }
 
@@ -191,7 +200,7 @@ class _PersistentSellAdapter:
 
     broker.sell 只计算成交经济（滑点/佣金/印花税），不落库；本适配器
     补齐持久化副作用，与 SimulationTrader._execute_stop_loss 保持一致：
-    现金更新 + 成交记录（add_trade）+ 持仓删除（delete_position）。
+    现金更新 + 成交记录（含 realized_pnl）+ 持仓删除 + 账户状态保存。
     """
 
     def __init__(self, trader, trade_date: str):
@@ -203,47 +212,60 @@ class _PersistentSellAdapter:
         trade = t.broker.sell(symbol, quantity, price)
         t.cash += trade['total_revenue']
 
-        t.repo.add_trade(
-            account_name=t.account_name,
-            symbol=symbol,
-            action='SELL',
-            shares=quantity,
-            price=price,
-            filled_price=trade['filled_price'],
-            amount=trade['amount'],
-            commission=trade['commission'],
-            stamp_duty=trade.get('stamp_duty', 0),
-            total_revenue=trade['total_revenue'],
-            trade_date=self._trade_date,
-            reason='intraday_risk_stop_loss',
-        )
+        t._record_sell_trade(symbol, quantity, price, trade, self._trade_date)
 
         if symbol in t.portfolio:
             del t.portfolio[symbol]
         t.repo.delete_position(t.account_name, symbol)
+        t._save_account_to_db()
 
         logger.warning(f"盘中风控止损卖出 {symbol}: {quantity}股 @ ¥{price:.2f}")
         return trade
+
+
+def _intraday_strategy_targets(params):
+    """解析盘中风控要检查的策略账户。
+
+    默认遍历所有启用策略并使用 YAML 中的 account_name；也保留显式
+    account_name/strategy_name 参数，便于单账户排障和测试。
+    """
+    from qs_strategy.application.services.strategy_service import StrategyService
+
+    service = StrategyService()
+
+    if params.get('strategy_name'):
+        return [(service.get_config(params['strategy_name']), params.get('account_name'))]
+
+    if params.get('account_name'):
+        return [(None, params['account_name'])]
+
+    targets = []
+    for name in service.list_strategies():
+        config = service.get_config(name)
+        if config.get('strategy', {}).get('enabled', True):
+            targets.append((config, None))
+    return targets
 
 
 def intraday_risk_check(**params):
     """
     盘中风控检查（每30分钟，交易时段 10:00-14:30）
 
-    构建 IntradayRiskService 并对所有持仓执行止损/移动止损规则检查，
-    触发时经由 _PersistentSellAdapter 卖出并落库（飞书告警由服务内部发送）。
+    遍历启用策略的真实账户，对所有持仓执行固定/移动止损检查。触发时
+    经由 _PersistentSellAdapter 卖出并落库（飞书告警由服务内部发送）。
 
     Args:
         **params: 可选参数
             - date: 交易日期（YYYY-MM-DD，默认今天）
-            - account_name: 账户名称（默认 'default'，与 strategy_execute_all 一致）
+            - account_name: 只检查指定账户
+            - strategy_name: 只检查指定策略配置
+            - stop_loss_pct: 覆盖固定止损阈值
+            - trailing_stop_pct: 覆盖移动止损阈值
 
     Returns:
-        dict: IntradayRiskService.check_positions 的结果
-            - date: 交易日期
-            - checked: 检查的持仓数
-            - actions: 触发的止损动作列表
-            - success: 整体是否成功
+        dict: 聚合结果
+            - date/checked/actions/success: 保持既有顶层字段
+            - accounts: 每个账户的明细结果
     """
     from application.risk import IntradayRiskService
     from live_trading.simulation_trader import SimulationTrader
@@ -252,33 +274,90 @@ def intraday_risk_check(**params):
     )
 
     date = params.get('date') or datetime.now().strftime('%Y-%m-%d')
-    account_name = params.get('account_name', 'default')
 
     logger.info(f"{'='*70}")
     logger.info("盘中风控检查开始（IntradayRiskService.check_positions）")
     logger.info(f"执行时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    logger.info(f"交易日期: {date}  账户: {account_name}")
+    logger.info(f"交易日期: {date}")
     logger.info(f"{'='*70}")
 
     try:
-        # SimulationTrader 同时充当 engine：其 .config 字典为服务提供
-        # 飞书通知配置与 risk 阈值覆盖，.account_name 决定检查的账户
-        trader = SimulationTrader(account_name=account_name)
-        service = IntradayRiskService(
-            position_repo=SimulationPositionRepository(),
-            trader=_PersistentSellAdapter(trader, date),
-            engine=trader,
-        )
-        result = service.check_positions(date)
+        aggregate = {
+            'success': True,
+            'date': date,
+            'checked': 0,
+            'quote_failures': 0,
+            'actions': [],
+            'accounts': {},
+        }
+
+        for config, explicit_account in _intraday_strategy_targets(params):
+            strategy_cfg = (config or {}).get('strategy', {})
+            risk_cfg = (config or {}).get('risk', {})
+            account_name = explicit_account or strategy_cfg.get('account_name')
+            if not account_name:
+                raise ValueError('盘中风控目标缺少 account_name')
+
+            stop_loss_pct = params.get(
+                'stop_loss_pct', risk_cfg.get('single_stock_stop_loss', -0.12))
+            trailing_stop_pct = params.get(
+                'trailing_stop_pct', risk_cfg.get('trailing_stop_pct', -0.08))
+
+            trader = SimulationTrader(account_name=account_name)
+            position_repo = SimulationPositionRepository()
+            cached_positions = {
+                p.symbol: p for p in position_repo.get_all_positions(account_name)
+            }
+
+            def observe_price(symbol, price, positions=cached_positions, repo=position_repo):
+                position = positions.get(symbol)
+                if not position:
+                    return
+                repo.upsert_position(
+                    account_name=account_name,
+                    symbol=symbol,
+                    shares_total=position.shares_total,
+                    avg_cost=position.avg_cost,
+                    shares_available=position.shares_available,
+                    current_price=price,
+                )
+
+            service = IntradayRiskService(
+                position_repo=position_repo,
+                trader=_PersistentSellAdapter(trader, date),
+                engine=trader,
+                stop_loss_pct=float(stop_loss_pct),
+                trailing_stop_pct=float(trailing_stop_pct),
+                price_provider=trader.get_price,
+                price_observer=observe_price,
+            )
+            result = service.check_positions(date)
+            aggregate['accounts'][account_name] = result
+            aggregate['checked'] += result['checked']
+            aggregate['quote_failures'] += result.get('quote_failures', 0)
+            aggregate['actions'].extend(result['actions'])
+            if not result['success']:
+                aggregate['success'] = False
+
+            logger.info(
+                "账户 %s: 检查 %d 只持仓, 行情失败 %d, 止损动作 %d, success=%s",
+                account_name,
+                result['checked'],
+                result.get('quote_failures', 0),
+                len(result['actions']),
+                result['success'],
+            )
 
         logger.info(f"{'='*70}")
         logger.info(
-            f"✅ 盘中风控检查完成: 检查 {result['checked']} 只持仓, "
-            f"触发 {len(result['actions'])} 个止损动作"
+            f"{'✅' if aggregate['success'] else '❌'} 盘中风控检查完成: "
+            f"检查 {aggregate['checked']} 只持仓, "
+            f"行情失败 {aggregate['quote_failures']} 只, "
+            f"触发 {len(aggregate['actions'])} 个止损动作"
         )
         logger.info(f"{'='*70}")
 
-        return result
+        return aggregate
 
     except Exception as e:
         logger.error(f"❌ 盘中风控检查失败: {e}")
@@ -291,6 +370,7 @@ def intraday_risk_check(**params):
             'error': str(e),
             'date': date,
             'checked': 0,
+            'quote_failures': 0,
             'actions': [],
             'timestamp': datetime.now().isoformat()
         }

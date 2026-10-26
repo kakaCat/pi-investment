@@ -34,7 +34,7 @@ export interface GenomeBenchmarkResult {
 }
 
 export const genomeBenchmarkPrompt: ToolPrompt<GenomeBenchmarkParams> = {
-  description: 'L4-B 候选健康检查：对 watching candidate（可指定段/单条/含历史）执行结构复核（花括号未知变量/超限/规则ID重复/空更新）+ 变异画像（diff 字符差、规则增删），结构不通过且在看守期的候选防御性置为 rejected（不自动回滚，note 建议 genome_rollback）。用于：登记复核、裁决前质检、历史候选画像审计。',
+  description: 'L4-B 候选健康检查：对 watching candidate（可指定段/单条/含历史）执行结构复核与变异画像。只做检查和标注；拒绝及内容复原统一由 validation_gate 完成。',
   useCases: [
     '对全部 watching 候选做结构复核，拦截格式噪声变异（g1→g18 审计发现 38% 版本为验收/测试噪声）',
     '复核指定 candidate 的健康状态，供验证门裁决引用',
@@ -44,7 +44,7 @@ export const genomeBenchmarkPrompt: ToolPrompt<GenomeBenchmarkParams> = {
     '健康检查为纯静态腿：结构校验与 genome_update 写入时 guard 同口径，此处做登记期复核留痕',
     'candidate 内容取登记时 genome 版本的 git 快照（非当前文件），事后复核不漂移',
     '空更新（与基线去空白后相同）= 噪声候选特征，标记但不自动改状态',
-    '结构复核不通过（passed=false）且 status=watching 且 reject_failed=true（默认）→ 防御性置 rejected',
+    '结构复核不通过只标注；validation_gate 会拒绝当前候选并绑定回滚，stale 候选则安全终态化',
     'health_check 缺失/复核失败 → degraded 标注（null），绝不假装已质检',
     '本工具只做静态检查与状态标注，不触发回测（策略类候选回测腿在 validation_gate）',
   ],
@@ -64,7 +64,7 @@ export const genomeBenchmarkPrompt: ToolPrompt<GenomeBenchmarkParams> = {
     } as ParameterDefinition,
     reject_failed: {
       type: 'boolean',
-      description: 'true（默认）：结构复核不通过（passed=false）的 watching 候选防御性置为 rejected；false：仅标记不拒绝',
+      description: '兼容保留参数：不改变状态；结构不通过始终只标注，由 validation_gate 统一拒绝并复原',
     } as ParameterDefinition,
   },
 

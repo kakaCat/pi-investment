@@ -35,26 +35,48 @@ class IntradayRiskService:
     testable.
     """
 
-    def __init__(self, position_repo: Any, trader: Any, engine: Any) -> None:
+    def __init__(
+        self,
+        position_repo: Any,
+        trader: Any,
+        engine: Any,
+        stop_loss_pct: Optional[float] = None,
+        trailing_stop_pct: Optional[float] = None,
+        price_provider: Any = None,
+        price_observer: Any = None,
+    ) -> None:
         """
         Args:
             position_repo: Repository exposing ``get_all_positions(account_name)``.
             trader: Execution adapter exposing ``sell(symbol, quantity, price)``.
             engine: Trading engine; when it exposes a dict ``config`` attribute,
-                the config's ``feishu`` section builds the notifier and its
-                ``risk`` section overrides the default thresholds.
+                the config's ``risk`` section supplies fallback thresholds.
+            stop_loss_pct: Explicit fixed stop-loss threshold; overrides engine config.
+            trailing_stop_pct: Explicit trailing-stop threshold; overrides engine config.
+            price_provider: Optional ``callable(symbol) -> float | None`` used before
+                cached position prices. When injected, a missing quote is a failure.
+            price_observer: Optional ``callable(symbol, price)`` invoked for every
+                successfully resolved price so callers can persist current/peak prices.
         """
         self.position_repo = position_repo
         self.trader = trader
         self.engine = engine
+        self.price_provider = price_provider
+        self.price_observer = price_observer
 
         engine_config = getattr(engine, "config", None)
         self._config: Dict[str, Any] = engine_config if isinstance(engine_config, dict) else {}
 
         risk_config = self._config.get("risk") or {}
-        self.stop_loss_pct = float(risk_config.get("stop_loss_pct", DEFAULT_STOP_LOSS_PCT))
+        self.stop_loss_pct = float(
+            stop_loss_pct
+            if stop_loss_pct is not None
+            else risk_config.get("stop_loss_pct", DEFAULT_STOP_LOSS_PCT)
+        )
         self.trailing_stop_pct = float(
-            risk_config.get("trailing_stop_pct", DEFAULT_TRAILING_STOP_PCT)
+            trailing_stop_pct
+            if trailing_stop_pct is not None
+            else risk_config.get("trailing_stop_pct", DEFAULT_TRAILING_STOP_PCT)
         )
 
         self.account_name = getattr(engine, "account_name", None) or "default"
@@ -71,18 +93,31 @@ class IntradayRiskService:
             date: Trading date (``YYYY-MM-DD``); defaults to today.
 
         Returns:
-            Summary dict with ``date``, ``checked`` count, ``actions`` taken
-            (one entry per executed stop loss), and an overall ``success`` flag.
+            Summary dict with ``date``, ``checked`` count, ``actions`` taken,
+            ``quote_failures``, and an overall ``success`` flag. Any missing
+            quote or failed/skipped sell makes ``success`` false.
         """
         date = date or datetime.now().strftime("%Y-%m-%d")
         summary: Dict[str, Any] = {
             "date": date,
+            "account_name": self.account_name,
             "checked": 0,
+            "quote_failures": 0,
+            "position_fetch_failed": False,
             "actions": [],
             "success": True,
         }
 
         positions = self._get_all_positions()
+        if positions is None:
+            summary["position_fetch_failed"] = True
+            summary["success"] = False
+            logger.error(
+                "IntradayRiskService: failed to fetch positions for %s",
+                self.account_name,
+            )
+            return summary
+
         summary["checked"] = len(positions)
 
         for position in positions:
@@ -96,9 +131,21 @@ class IntradayRiskService:
             if trigger is None:
                 continue
 
-            action = self._execute_stop_loss(position, trigger["reason"])
+            if trigger.get("error") == "quote_unavailable":
+                summary["quote_failures"] += 1
+                summary["success"] = False
+                logger.error(
+                    "IntradayRiskService: no usable quote for %s on %s",
+                    self._get(position, "symbol"),
+                    self.account_name,
+                )
+                continue
+
+            action = self._execute_stop_loss(position, trigger)
             action["trigger"] = trigger
             summary["actions"].append(action)
+            if action.get("status") != "executed":
+                summary["success"] = False
             self._send_alert(position, trigger["reason"], action)
 
         if summary["actions"]:
@@ -118,8 +165,8 @@ class IntradayRiskService:
     # ------------------------------------------------------------------
     # Position access
     # ------------------------------------------------------------------
-    def _get_all_positions(self) -> List[Any]:
-        """Fetch all open positions for the account (failures return empty)."""
+    def _get_all_positions(self) -> Optional[List[Any]]:
+        """Fetch all open positions for the account (failures return ``None``)."""
         try:
             return list(self.position_repo.get_all_positions(self.account_name) or [])
         except Exception as exc:  # noqa: BLE001 - position fetch must not crash the flow
@@ -128,7 +175,7 @@ class IntradayRiskService:
                 self.account_name,
                 exc,
             )
-            return []
+            return None
 
     # ------------------------------------------------------------------
     # Risk rules
@@ -138,14 +185,27 @@ class IntradayRiskService:
 
         Returns:
             A trigger dict (``reason``, ``rule``, ``current_price``,
-            ``return_pct``) when a rule fires, otherwise ``None``.
+            ``return_pct``) when a rule fires, an error dict when the latest
+            quote is unavailable, otherwise ``None``.
         """
         symbol = self._get(position, "symbol")
         avg_price = float(self._get(position, "avg_price", "avg_cost") or 0)
         current_price = self._current_price(position)
 
-        if not symbol or avg_price <= 0 or current_price <= 0:
+        if not symbol or avg_price <= 0:
             return None
+        if current_price is None or current_price <= 0:
+            return {"error": "quote_unavailable", "symbol": symbol}
+
+        if self.price_observer is not None:
+            try:
+                self.price_observer(symbol, current_price)
+            except Exception as exc:  # noqa: BLE001 - observation must not block risk control
+                logger.error(
+                    "IntradayRiskService: price observer failed for %s: %s",
+                    symbol,
+                    exc,
+                )
 
         # Rule 1: fixed stop loss vs average cost.
         return_pct = current_price / avg_price - 1
@@ -181,13 +241,14 @@ class IntradayRiskService:
     # ------------------------------------------------------------------
     # Execution
     # ------------------------------------------------------------------
-    def _execute_stop_loss(self, position: Any, reason: str) -> Dict[str, Any]:
+    def _execute_stop_loss(self, position: Any, trigger: Dict[str, Any]) -> Dict[str, Any]:
         """Execute a stop-loss sell order for the full position (failures captured)."""
         symbol = self._get(position, "symbol")
         quantity = int(
             self._get(position, "shares_available", "shares_total", "shares", "quantity") or 0
         )
-        price = self._current_price(position)
+        price = float(trigger.get("current_price") or 0)
+        reason = trigger["reason"]
 
         action: Dict[str, Any] = {
             "symbol": symbol,
@@ -198,13 +259,16 @@ class IntradayRiskService:
         }
 
         if quantity <= 0:
+            action["status"] = "skipped"
             action["result"] = {"status": "skipped", "reason": "no sellable shares"}
             return action
 
         try:
             action["result"] = self.trader.sell(symbol, quantity, price)
+            action["status"] = "executed"
         except Exception as exc:  # noqa: BLE001 - a failed sell must not block other positions
             logger.error("IntradayRiskService: stop-loss sell for %s failed: %s", symbol, exc)
+            action["status"] = "failed"
             action["result"] = {"status": "failed", "error": str(exc)}
 
         return action
@@ -245,17 +309,28 @@ class IntradayRiskService:
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
-    def _current_price(self, position: Any) -> float:
-        """Resolve the latest price for a position.
+    def _current_price(self, position: Any) -> Optional[float]:
+        """Resolve the latest tradable price for a position.
 
-        Preference order: the position's own ``current_price`` attribute, then
-        the engine's ``price_provider``/``get_price`` hook when available.
+        When an explicit price provider is injected it is authoritative: a
+        missing quote must fail the check rather than silently falling back to
+        stale cached prices. Without an injected provider, retain the legacy
+        engine-hook/cached-price behaviour for backwards compatibility.
         """
-        price = self._get(position, "current_price")
-        if price:
-            return float(price)
-
         symbol = self._get(position, "symbol")
+
+        if self.price_provider is not None and symbol:
+            try:
+                value = self.price_provider(symbol)
+            except Exception as exc:  # noqa: BLE001
+                logger.error(
+                    "IntradayRiskService: price_provider failed for %s: %s",
+                    symbol,
+                    exc,
+                )
+                return None
+            return float(value) if value is not None and float(value) > 0 else None
+
         for hook_name in ("get_price", "price_provider"):
             hook = getattr(self.engine, hook_name, None)
             if callable(hook) and symbol:
@@ -271,7 +346,9 @@ class IntradayRiskService:
                     continue
                 if value:
                     return float(value)
-        return 0.0
+
+        price = self._get(position, "current_price")
+        return float(price) if price else None
 
     @staticmethod
     def _get(position: Any, *names: str) -> Any:

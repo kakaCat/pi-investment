@@ -355,6 +355,28 @@ def test_l3_timeout_of_agent_owned_todo_wakes_owner_not_user():
     assert repo.rows[42].escalate_count == 1
 
 
+def test_agent_owned_remind_marks_force_user_card_even_if_wake_delivered(monkeypatch):
+    """再催轮：agent wake=ok 也必须携带 force_user_card，由 waker 补发用户超时卡。
+    wake 只证明任务被接收，不证明待办已关闭（2026-10-26 #319 回归）。"""
+    monkeypatch.setenv('WATCH_L3_REMIND_INTERVAL_SEC', '600')
+    todo = overdue(46, flow='L3', level='P1', owner_kind='agent', owner_ref='agent-dh')
+    repo = FakeTodoRepo([todo])
+    sent, wakes = [], []
+    job, receipts = build_job(
+        repo, sender=sent.append,
+        agent_waker=lambda t, ctx: wakes.append((t.id, ctx)) or True)
+
+    first = job.run_once(NOW)
+    second = job.run_once(NOW + timedelta(minutes=6))
+
+    assert first['agent_wakes'] == 1 and wakes[0][1].get('force_user_card') is not True
+    assert second['duplicates'] == 1 and second['timeout'] == 1
+    assert second['agent_wakes'] == 1
+    assert wakes[-1][1]['force_user_card'] is True
+    assert second['alerts'] == 1 and repo.rows[46].escalate_count == 2
+    assert [r['delivery_status'] for r in receipts.rows] == [DELIVERY_SENT, DELIVERY_SENT]
+
+
 def test_l3_timeout_agent_owned_p2_wakes_owner_without_user_card():
     """agent 自有 P2 超时：照常催 owner（私信），但不发用户卡（级别门只管用户路径）"""
     todo = overdue(43, flow='L3', level='P2', owner_kind='agent', owner_ref='agent-dh')

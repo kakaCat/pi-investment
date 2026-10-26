@@ -811,6 +811,7 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
                 position.shares_available = available
                 position.avg_cost = avg_cost
                 position.current_price = current_price
+                position.peak_price = max(float(position.peak_price or 0), price)
                 position.market_value = market_value
                 position.cost = cost
                 position.profit_total = profit
@@ -823,6 +824,7 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
                     shares_available=available,
                     avg_cost=avg_cost,
                     current_price=current_price,
+                    peak_price=price,
                     market_value=market_value,
                     cost=cost,
                     profit_total=profit,
@@ -929,6 +931,7 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
                 position = self.get_position(account_name, symbol)
                 if position:
                     position.current_price = price
+                    position.peak_price = max(float(position.peak_price or 0), float(price))
                     position.market_value = position.shares_total * price
                     position.profit_total = float(position.market_value) - float(position.cost or 0)
                     if float(position.cost or 0) > 0:

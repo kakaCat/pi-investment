@@ -6,7 +6,7 @@
 幂等：同规则已有未收敛的「补全待办」（action_kind='rule_change' 且 trigger_id IS NULL，
 与 meta_review 类 rule_change 待办区分）则跳过——重复调用/重复调度不产生重复待办。
 """
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import structlog
@@ -26,16 +26,8 @@ BACKFILL_ACTION_KIND = 'rule_change'
 
 
 def _p2_due(now: datetime):
-    """P2 due：当日收盘（口径与 engine._todo_due 一致：CONTINUOUS_END，退化 15:00）；
-    已过收盘退化为 now+1min，避免 due_at 落在过去被巡检立即晋升。"""
-    try:
-        from qs_trading.domain.trading.services.market_session_policy import CONTINUOUS_END as _close
-    except Exception:  # noqa: BLE001 - 常量缺失时退回最简口径
-        from datetime import time as _t
-        _close = _t(15, 0)
-    day_close = datetime.combine(now.date(), _close)
-    due = day_close if day_close > now else now + timedelta(minutes=1)
-    return due, max(1, int((due - now).total_seconds()))
+    from qs_watch.application.services.watch_engine.todo_deadline import p2_due
+    return p2_due(now)
 
 
 class GuidanceBackfillService:

@@ -24,7 +24,7 @@ function makeGate(candidate: any, currentVersion: number) {
     tools: { execute: async (req: any) => { calls.push({ name: req.name, args: req.arguments }); return { value: { success: true } }; } },
   };
   const tool: any = new ValidationGateTool(ctx, {} as any, 5);
-  tool.searchRewards = async () => ({ count: 5, avg: 0.0 });
+  tool.searchRewards = async (version: string) => ({ count: 5, avg: version === 'g30' ? 0.2 : 0.1 });
   return { tool, calls, dir };
 }
 

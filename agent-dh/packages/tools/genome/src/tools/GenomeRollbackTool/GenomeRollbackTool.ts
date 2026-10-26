@@ -1,7 +1,5 @@
 import { BaseTool, ToolResponse, ValidationResult, ErrorType } from '@pi-investment/core-tool';
 import type { ToolMetadata, ToolContext } from '@pi-investment/core-tool';
-import * as fs from 'fs';
-import * as path from 'path';
 import { execSync } from 'child_process';
 import { genomeRollbackPrompt, type GenomeRollbackParams, type GenomeRollbackResult } from './prompt';
 import type { GenomeWriteHost } from '../host';
@@ -73,19 +71,30 @@ export class GenomeRollbackTool extends BaseTool<GenomeRollbackParams, GenomeRol
   }
 
   protected async execute(params: GenomeRollbackParams, context: ToolContext): Promise<GenomeRollbackResult> {
-    const { section, to_section_version, reason } = params;
+    const { section, to_section_version, candidate_genome_version, reason } = params;
 
-    let data: GenomeMetadata = this.genomeData;
-    try {
-      data = readGenomeJson(this.genomeDir);
-    } catch { /* 回退内存数据 */ }
-
+    let data: GenomeMetadata;
     const release = await this.lockGuard.acquire();
     let snapshot: { sectionContent: string; genomeJson: GenomeMetadata } | null = null;
 
     try {
+      data = readGenomeJson(this.genomeDir);
       // 宪法层禁止回滚
       guardConstitution(section, data);
+
+      if (candidate_genome_version) {
+        const bound = (data.history || []).find(e =>
+          e.section === section && e.version === candidate_genome_version && e.stage === 'candidate'
+        );
+        if (!bound) {
+          throw new Error(`未找到 ${section}@${candidate_genome_version} 的观察中候选，拒绝绑定回滚`);
+        }
+        if (bound.section_version !== data.sections[section].version) {
+          throw new Error(
+            `候选已被后续版本取代（候选 v${bound.section_version}，当前 v${data.sections[section].version}），拒绝自动回滚`,
+          );
+        }
+      }
 
       // 确定目标版本：显式指定，否则回退到上一版本
       const targetVersion = to_section_version !== undefined
@@ -120,6 +129,16 @@ export class GenomeRollbackTool extends BaseTool<GenomeRollbackParams, GenomeRol
 
       // 更新 genome.json（回滚=新版本）
       const newGenomeData = advanceVersionForRollback(data, section, targetVersion, reason);
+      if (candidate_genome_version) {
+        const candidateIndex = newGenomeData.history!.findIndex(e =>
+          e.section === section && e.version === candidate_genome_version && e.stage === 'candidate'
+        );
+        if (candidateIndex < 0) throw new Error('回滚后候选谱系丢失，已中止并恢复原快照');
+        newGenomeData.history![candidateIndex] = {
+          ...newGenomeData.history![candidateIndex],
+          stage: 'rejected',
+        };
+      }
       writeGenomeJson(this.genomeDir, newGenomeData);
 
       // CHANGELOG

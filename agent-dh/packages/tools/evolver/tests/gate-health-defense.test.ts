@@ -41,12 +41,20 @@ describe('validation_gate / judgeCandidates health 防御腿', () => {
   beforeAll(() => {
     genomeDir = mkdtempSync(path.join(tmpdir(), 'l4b-gate-'));
     mkdirSync(path.join(genomeDir, 'sections'), { recursive: true });
+    writeFileSync(path.join(genomeDir, 'genome.json'), JSON.stringify({
+      genome_version: 'g15',
+      sections: { lessons: { version: 5 } },
+      history: [],
+    }), 'utf-8');
     // candidates.json 存在性由各用例写入；mock OS memory 零样本（裁决会走 extended/rejected 分支）
     osMemoryMock = { searchMemory: async () => ({ items: [] }) };
 
     const ctx = {
       genome: { genomeDir },
-      tools: { execute: async () => { throw new Error('不应调用 strategy_execute（health 防御在前）'); } },
+      tools: { execute: async ({ name }: any) => {
+        if (name === 'genome_rollback') return { value: { success: true } };
+        throw new Error('不应调用 strategy_execute（health 防御在前）');
+      } },
     } as any;
     tool = new ValidationGateTool(ctx, osMemoryMock as any, 5);
   });
@@ -110,14 +118,14 @@ describe('validation_gate / judgeCandidates health 防御腿', () => {
             payload: { genome_context: { genome_version: isCand ? 'g15' : 'g14' } },
             content: JSON.stringify({
               reward: isCand ? 0.2 : -0.1,
-              action: { tool: 'portfolio_trade' },
+              action: { tool: 'portfolio_trade', args: { action: 'SELL' } },
             }),
           },
           {
             payload: { genome_context: { genome_version: isCand ? 'g15' : 'g14' } },
             content: JSON.stringify({
               reward: isCand ? 0.3 : 0.1,
-              action: { tool: 'portfolio_trade' },
+              action: { tool: 'portfolio_trade', args: { action: 'SELL' } },
             }),
           },
         ],

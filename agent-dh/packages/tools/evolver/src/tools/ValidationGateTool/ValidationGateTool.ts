@@ -129,17 +129,15 @@ export class ValidationGateTool extends BaseTool<ValidationGateParams, Validatio
   // ===== 私有辅助方法 =====
 
   private get candidatesPath(): string {
-    // @ts-ignore
+    // @ts-expect-error genome 由插件注入
     return path.join(this.ctx.genome.genomeDir, 'candidates.json');
   }
 
   private readCandidates(): CandidateRecord[] {
-    try {
-      if (!fs.existsSync(this.candidatesPath)) return [];
-      return JSON.parse(fs.readFileSync(this.candidatesPath, 'utf-8'));
-    } catch {
-      return [];
-    }
+    if (!fs.existsSync(this.candidatesPath)) return [];
+    const parsed = JSON.parse(fs.readFileSync(this.candidatesPath, 'utf-8'));
+    if (!Array.isArray(parsed)) throw new Error('candidates.json 结构无效：期望数组');
+    return parsed;
   }
 
   private writeCandidates(list: CandidateRecord[]): void {
@@ -168,14 +166,11 @@ export class ValidationGateTool extends BaseTool<ValidationGateParams, Validatio
    * 读取 genome.json 的 history 数组（与 candidates.json 同目录）
    */
   private readGenomeHistory(): any[] {
-    try {
-      const p = path.join(this.ctx.genome.genomeDir, 'genome.json');
-      if (!fs.existsSync(p)) return [];
-      const data = JSON.parse(fs.readFileSync(p, 'utf-8'));
-      return Array.isArray(data.history) ? data.history : [];
-    } catch {
-      return [];
-    }
+    const p = path.join(this.ctx.genome.genomeDir, 'genome.json');
+    if (!fs.existsSync(p)) throw new Error(`genome.json 不存在：${p}`);
+    const data = JSON.parse(fs.readFileSync(p, 'utf-8'));
+    if (!Array.isArray(data.history)) throw new Error('genome.json history 结构无效：期望数组');
+    return data.history;
   }
 
   /**
@@ -215,9 +210,7 @@ export class ValidationGateTool extends BaseTool<ValidationGateParams, Validatio
 
     // C2 未登记版本：history stage=candidate 条目无 candidates.json 对应（同 section + genome_version）
     const registeredKeys = new Set(
-      candidates
-        .filter((c: any) => c.status === 'watching' || c.status === 'extended' || c.status === 'promoted')
-        .map((c: any) => `${c.section}:${c.genome_version}`)
+      candidates.map((c: any) => `${c.section}:${c.genome_version}`)
     );
     for (const h of history) {
       if (h.stage === 'candidate') {
@@ -264,33 +257,89 @@ export class ValidationGateTool extends BaseTool<ValidationGateParams, Validatio
    * 从记忆库取某基因组代数的打标经验奖励
    */
   private async searchRewards(genomeVersion: string): Promise<{ count: number; avg: number }> {
-    try {
-      const res = await this.osMemory.searchMemory({ q: `genome:${genomeVersion}`, kind: 'experience', limit: 50 });
-      const items = res?.items || [];
-      const rewards: number[] = [];
+    const res = await this.osMemory.searchMemory({ q: `genome:${genomeVersion}`, kind: 'experience', limit: 50 });
+    const items = res?.items || [];
+    const rewards: number[] = [];
 
-      for (const it of items) {
-        try {
-          const tagged = it.payload?.genome_context?.genome_version;
-          if (tagged !== genomeVersion) continue;
+    for (const it of items) {
+      try {
+        const tagged = it.payload?.genome_context?.genome_version;
+        if (tagged !== genomeVersion) continue;
 
-          const content = typeof it.content === 'string' ? JSON.parse(it.content) : it.content;
-          if (typeof content?.reward === 'number') {
-            const tool = content?.action?.tool;
-            if (tool && !['portfolio_trade', 'algo_execute'].includes(tool)) continue;
-            rewards.push(content.reward);
-          }
-        } catch {
-          // 单条解析失败跳过
+        const content = typeof it.content === 'string' ? JSON.parse(it.content) : it.content;
+        const tool = content?.action?.tool;
+        const action = String(content?.action?.args?.action ?? '').toUpperCase();
+        if (tool !== 'portfolio_trade' || action !== 'SELL') continue;
+        if (typeof content?.reward === 'number' && Number.isFinite(content.reward)) {
+          rewards.push(content.reward);
         }
+      } catch {
+        // 单条损坏记忆不参与统计；记忆查询失败则向上抛出，禁止伪装成零样本。
       }
+    }
 
+    return {
+      count: rewards.length,
+      avg: rewards.length ? rewards.reduce((a, b) => a + b, 0) / rewards.length : 0,
+    };
+  }
+
+  private async rejectCandidate(
+    c: CandidateRecord,
+    reason: string,
+    details: Record<string, any> = {},
+  ): Promise<any> {
+    const currentVersion = this.readCurrentSectionVersion(c.section);
+    if (currentVersion === null) throw new Error(`无法读取 ${c.section} 当前版本，拒绝裁决`);
+    const guard = canAutoRollback(
+      { id: c.id, section: c.section, section_version: c.section_version },
+      currentVersion,
+    );
+    if (!guard.allowed) {
+      c.status = 'rejected';
+      c.note = `${reason}；回滚守卫：${guard.reason}；候选已终态化，未改动后续内容`;
       return {
-        count: rewards.length,
-        avg: rewards.length ? rewards.reduce((a, b) => a + b, 0) / rewards.length : 0,
+        id: c.id,
+        section: c.section,
+        genome_version: c.genome_version,
+        verdict: 'rejected_no_rollback',
+        note: c.note,
+        ...details,
+        ...healthSummary(c.health_check),
       };
-    } catch {
-      return { count: 0, avg: 0 };
+    }
+
+    try {
+      await this.callTool('genome_rollback', {
+        section: c.section,
+        to_section_version: c.section_version - 1,
+        candidate_genome_version: c.genome_version,
+        reason,
+      });
+      c.status = 'rejected';
+      c.note = reason;
+      return {
+        id: c.id,
+        section: c.section,
+        genome_version: c.genome_version,
+        verdict: 'rejected',
+        rolled_back_to: c.section_version - 1,
+        note: c.note,
+        ...details,
+        ...healthSummary(c.health_check),
+      };
+    } catch (e: any) {
+      c.note = `${reason}；自动复原失败：${e.message}`;
+      return {
+        id: c.id,
+        section: c.section,
+        genome_version: c.genome_version,
+        verdict: 'reject_failed',
+        error: e.message,
+        note: c.note,
+        ...details,
+        ...healthSummary(c.health_check),
+      };
     }
   }
 
@@ -301,6 +350,7 @@ export class ValidationGateTool extends BaseTool<ValidationGateParams, Validatio
     const list = this.readCandidates();
     const now = Date.now();
     const verdicts: any[] = [];
+    const maxExtensions = 2;
 
     for (const c of list.filter(x => x.status === 'watching')) {
       const expired = now >= Date.parse(c.observe_until);
@@ -316,22 +366,16 @@ export class ValidationGateTool extends BaseTool<ValidationGateParams, Validatio
         continue;
       }
 
-      // L4-B 静态腿防御（2026-09-03）：结构复核不通过（braces/size/规则ID重复/空更新）
-      // 的候选直接拒绝，不浪费回测与观察——内容级噪声即使跑满观察期也不该转正。
-      // 注意：结构非法内容理论上已被 genome_update 的 guard 拦截，此防御针对
-      // 手写/历史遗留/绕过 guard 的候选。health_check 缺失（null，如旧候选未复核）
-      // 不拒绝，只降级标注——绝不因"没质检"假装通过或借故拒绝。
+      const currentVersion = this.readCurrentSectionVersion(c.section);
+      if (currentVersion === null) throw new Error(`无法读取 ${c.section} 当前版本，拒绝裁决`);
+      if (currentVersion !== c.section_version) {
+        verdicts.push(await this.rejectCandidate(c, '候选已被后续版本取代，零样本也不再延期'));
+        continue;
+      }
+
       if (c.health_check && !c.health_check.passed) {
-        c.status = 'rejected';
-        c.note = `L4-B 结构复核拒绝：${c.health_check.issues.map(i => i.message).join('；')}（验证门防御，未调用 rollback；若内容为候选版需 genome_rollback 复原）`;
-        verdicts.push({
-          id: c.id,
-          section: c.section,
-          genome_version: c.genome_version,
-          verdict: 'rejected',
-          ...healthSummary(c.health_check),
-          note: c.note,
-        });
+        const reason = `L4-B 结构复核拒绝：${c.health_check.issues.map(i => i.message).join('；')}`;
+        verdicts.push(await this.rejectCandidate(c, reason));
         continue;
       }
 
@@ -380,16 +424,9 @@ export class ValidationGateTool extends BaseTool<ValidationGateParams, Validatio
         c.backtest_verdict = { passed, windows: results, reason: reason || '回测达标' };
 
         if (!passed) {
-          c.status = 'rejected';
-          c.note = `回测腿拒绝：${reason}`;
-          verdicts.push({
-            id: c.id,
-            section: c.section,
-            verdict: 'rejected_by_backtest',
-            backtest_verdict: c.backtest_verdict,
-            ...healthSummary(c.health_check),
-          });
-          this.writeCandidates(list);
+          const verdict = await this.rejectCandidate(c, reason, { backtest_verdict: c.backtest_verdict });
+          if (verdict.verdict === 'rejected') verdict.verdict = 'rejected_by_backtest';
+          verdicts.push(verdict);
           continue;
         }
       }
@@ -400,14 +437,31 @@ export class ValidationGateTool extends BaseTool<ValidationGateParams, Validatio
         this.searchRewards(c.baseline_version),
       ]);
 
-      if (!force && cand.count < minSamples) {
-        c.observe_until = new Date(now + 2 * 86400000).toISOString();
-        c.note = `证据不足延期（candidate 样本 ${cand.count} < ${minSamples}）`;
+      const insufficient =
+        cand.count === 0 || base.count === 0 ||
+        (!force && (cand.count < minSamples || base.count < minSamples));
+      if (insufficient) {
+        const extensions = c.extension_count ?? 0;
+        if (!force && extensions >= maxExtensions) {
+          verdicts.push(await this.rejectCandidate(c, '双侧证据不足且已达到延期上限，停止无限延期', {
+            cand_avg: cand.avg,
+            base_avg: base.avg,
+            cand_samples: cand.count,
+            base_samples: base.count,
+          }));
+          continue;
+        }
+        if (!force) {
+          c.extension_count = extensions + 1;
+          c.observe_until = new Date(now + 2 * 86400000).toISOString();
+        }
+        c.note = `双侧证据不足（candidate ${cand.count} / baseline ${base.count}，要求各 ${force ? 1 : minSamples}），禁止转正`;
         verdicts.push({
           id: c.id,
           section: c.section,
           verdict: 'extended',
           cand_samples: cand.count,
+          base_samples: base.count,
           note: c.note,
           ...healthSummary(c.health_check),
         });
@@ -429,9 +483,8 @@ export class ValidationGateTool extends BaseTool<ValidationGateParams, Validatio
         continue;
       }
 
-      const drop = base.avg - cand.avg;
-      if (drop > 0.1) {
-        // 显著恶化 → 回滚（先过 staleness 守卫，2026-09-12，w-adb088f2）
+      if (cand.avg <= base.avg) {
+        // 未改善基线 → 回滚（先过 staleness 守卫）
         const guard = canAutoRollback(
           { id: c.id, section: c.section, section_version: c.section_version },
           this.readCurrentSectionVersion(c.section),
@@ -456,7 +509,8 @@ export class ValidationGateTool extends BaseTool<ValidationGateParams, Validatio
           await this.callTool('genome_rollback', {
             section: c.section,
             to_section_version: c.section_version - 1,
-            reason: `验证门裁决：candidate 平均奖励 ${cand.avg.toFixed(3)} 显著低于基准 ${base.avg.toFixed(3)}（样本 ${cand.count}/${base.count}）`,
+            candidate_genome_version: c.genome_version,
+            reason: `验证门裁决：candidate 平均奖励 ${cand.avg.toFixed(3)} 未优于基准 ${base.avg.toFixed(3)}（样本 ${cand.count}/${base.count}）`,
           });
           c.status = 'rejected';
           verdicts.push({

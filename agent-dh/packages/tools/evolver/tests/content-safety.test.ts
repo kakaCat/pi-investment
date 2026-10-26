@@ -29,6 +29,11 @@ function scaffold(): string {
   fs.mkdirSync(path.join(dir, 'sections'), { recursive: true });
   fs.writeFileSync(path.join(dir, 'sections', 'rules.md'), RULES, 'utf-8');
   fs.writeFileSync(path.join(dir, 'sections', 'lessons.md'), '# 经验教训\n\n- 初始条目。\n', 'utf-8');
+  fs.writeFileSync(path.join(dir, 'genome.json'), JSON.stringify({
+    genome_version: 'g98',
+    sections: { rules: { version: 16 }, lessons: { version: 1 } },
+    history: [],
+  }), 'utf-8');
   return dir;
 }
 
@@ -104,5 +109,15 @@ describe('PromptEvolverTool 集成：内容安全 fail-closed', () => {
     expect(r.data.applied_count).toBe(1);
     expect(String(gu[0].args.content)).toContain('R-016');
     expect(String(gu[0].args.content)).toContain('有效样本 < 7 时不下结论');
+    expect(gu[0].args.expected_section_version).toBe(16);
+  });
+
+  it('应用模式拒绝一次提交多个主题', async () => {
+    const dir = scaffold(); dirs.push(dir);
+    const h = makeHarness(dir, RULES + '\n' + GOOD_ADD);
+    const suggestion = { type: 'strengthen', section: 'rules', content: GOOD_ADD, reason: 't' };
+    const r: any = await h.tool.call({ suggestions: [suggestion, suggestion], dry_run: false });
+    expect(r.success).toBe(false);
+    expect(h.calls.filter(c => c.name === 'genome_update')).toHaveLength(0);
   });
 });

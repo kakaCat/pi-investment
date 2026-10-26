@@ -31,8 +31,8 @@ export interface HistoryEntry {
   author: 'agent' | 'human';
   type: 'update' | 'rollback' | 'init' | 'promote';
   force?: boolean;
-  /** RFC 008 验证门：candidate=观察版（模拟盘 A/B 中），active=正式版（默认） */
-  stage?: 'candidate' | 'active';
+  /** RFC 008 验证门：candidate=观察版，active=正式版，rejected=验证门已拒绝并复原 */
+  stage?: 'candidate' | 'active' | 'rejected';
   /** 该版本对比的基准基因组代数 */
   baseline_version?: string;
 }

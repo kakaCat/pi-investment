@@ -414,7 +414,7 @@ def v13_risk_check(**params) -> Dict:
 
     这是scheduler调用的入口函数
     """
-    auto_execute = params.get('auto_execute', False)
+    auto_execute = params.get('auto_execute', True)
     return strategy_risk_check('v13', auto_execute)
 
 

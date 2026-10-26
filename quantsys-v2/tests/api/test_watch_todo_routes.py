@@ -376,15 +376,14 @@ def test_close_200_handled(client, todo_table, make_todo):
     assert data['todo']['terminal'] == 'handled'
     assert data['todo']['closed_at'] is not None
     assert data['todo']['close_reason'] == '已按预案处置'
-    # REQ-ad0a t5（FR-14）：close 收敛即发处置结论回执，receipt 字段真实填充
-    # 2026-10-19 投递层聚合：close 后回执先入缓冲（sent=False/grouped=True），
-    # 由 SLA 巡检兜底 flush 成卡——结论仍在 outcome.message 中完整可见
+    # REQ-ad0a t5（FR-14）：close 收敛后同一请求内发送处置结论回执——
+    # 不允许再进入随请求销毁的内存缓冲（2026-10-26 #319 生产断链回归）
     receipt = data['receipt']
     assert receipt is not None and receipt['kind'] == 'result'
-    assert receipt['grouped'] is True and receipt['sent'] is False
+    assert receipt['sent'] is True and receipt['delivery_status'] == 'sent'
     assert '结论：已处置' in receipt['message']
     assert '原因：已按预案处置' in receipt['message']
-    assert len(RECEIPT_SENT) == 0             # 缓冲中，未即时发（巡检 flush 时发出）
+    assert len(RECEIPT_SENT) == 1             # close 路由真实外发一次，无需等待巡检
     fresh = _fresh(todo.id)
     assert fresh.terminal == 'handled'
     assert fresh.closed_at is not None

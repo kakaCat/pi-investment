@@ -1244,6 +1244,26 @@ class SimulationTrader:
 
         return prices
 
+    def get_price(self, symbol: str):
+        """获取单只股票实时价；行情不可用或价格非法时返回 None。
+
+        盘中风控使用本方法作为权威价格来源。这里刻意不做 K 线/成本价
+        兜底，避免把旧价当成实时价后继续触发交易。
+        """
+        from application.services.realtime_quote_service import RealtimeQuoteService
+
+        try:
+            quote = RealtimeQuoteService().get_realtime_quote(symbol)
+        except Exception as e:
+            logger.warning(f"{symbol} 实时行情获取失败: {e}")
+            return None
+
+        price = float(quote.price) if quote else 0.0
+        if price <= 0:
+            logger.warning(f"{symbol} 实时行情价格无效: {price}")
+            return None
+        return price
+
     def _execute_stop_loss(self, symbols, prices, date):
         """执行止损"""
         for symbol in symbols:

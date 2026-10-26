@@ -25,6 +25,7 @@ export interface CandidateRecord {
   observe_until: string;
   status: 'watching' | 'promoted' | 'rejected';
   note?: string;
+  extension_count?: number;
   // 2026-08-25 扩展：支持回测腿 + P4 元学习数据地基
   mutation_type?: 'prompt' | 'rule' | 'strategy_param';  // 变异类型（P4 归因用）
   strategy_id?: number;       // 策略参数类 candidate 关联的策略 ID
@@ -260,13 +261,13 @@ export function candidatesFilePath(genomeDir: string): string {
 }
 
 export function readCandidates(genomeDir: string): CandidateRecord[] {
-  try {
-    const p = candidatesFilePath(genomeDir);
-    if (!existsSync(p)) return [];
-    return JSON.parse(readFileSync(p, 'utf-8'));
-  } catch {
-    return [];
+  const p = candidatesFilePath(genomeDir);
+  if (!existsSync(p)) return [];
+  const parsed = JSON.parse(readFileSync(p, 'utf-8'));
+  if (!Array.isArray(parsed)) {
+    throw new Error(`candidates.json 结构无效：期望数组（${p}）`);
   }
+  return parsed;
 }
 
 export function writeCandidates(genomeDir: string, list: CandidateRecord[]): void {

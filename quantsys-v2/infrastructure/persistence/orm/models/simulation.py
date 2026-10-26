@@ -162,6 +162,7 @@ class SimulationPosition(Base):
 
     # 市值信息
     current_price = Column(Numeric(10, 2), comment='当前价格')
+    peak_price = Column(Numeric(10, 2), comment='持仓后历史最高价（移动止损基准）')
     market_value = Column(Numeric(15, 2), comment='市值')
     cost = Column(Numeric(15, 2), comment='成本')
 
@@ -207,6 +208,7 @@ class SimulationPosition(Base):
             'shares_available': self.shares_available,
             'avg_cost': float(self.avg_cost) if self.avg_cost else 0,
             'current_price': float(self.current_price) if self.current_price else 0,
+            'peak_price': float(self.peak_price) if getattr(self, 'peak_price', None) else 0,
             'market_value': float(self.market_value) if self.market_value else 0,
             'cost': float(self.cost) if self.cost else 0,
             'profit_total': float(self.profit_total) if self.profit_total else 0,

@@ -82,8 +82,8 @@ class TodoService:
     def create(self, symbol: str, *, level: str, sla_seconds: int, due_at: Any,
                account: Optional[str] = None, rule_id: Optional[int] = None,
                trigger_id: Optional[int] = None, flow_state: Optional[str] = None,
-               action_kind: Optional[str] = None,
-               evidence: Optional[dict] = None) -> Any:
+               action_kind: Optional[str] = None, evidence: Optional[dict] = None,
+               assign_now: bool = False) -> Any:
         """落一条待办：账户 → 归属路由（out_of_scope 拒绝），并派生 flow_state
 
         flow_state 缺省按级别派生（architecture §4）：P0/P1 → L3（直达 agent），
@@ -91,6 +91,7 @@ class TodoService:
 
         owner_kind/owner_ref/autonomy 一律取自 route_owner，**不接受调用方覆盖**——
         账户是责任归属的唯一事实源（R3/I5），调用方不该能"手动指定接收者"。
+        assign_now 仅用于没有前置通知的溯源待办（如元复核），允许带 trigger_id 也立即派单。
         """
         route = route_owner(account, self._policy)
         if route.out_of_scope:
@@ -116,24 +117,22 @@ class TodoService:
         logger.info('盯盘待办已建', todo_id=todo.id, symbol=symbol, level=level,
                     flow_state=state, account=account, owner_kind=route.owner_kind,
                     owner_ref=route.owner_ref, autonomy=autonomy)
-        self._dispatch_assignment(todo, route, trigger_id)
+        self._dispatch_assignment(todo, route, trigger_id, assign_now=assign_now)
         return todo
 
-    def _dispatch_assignment(self, todo: Any, route: Any, trigger_id: Optional[int]) -> None:
+    def _dispatch_assignment(self, todo: Any, route: Any, trigger_id: Optional[int], *,
+                             assign_now: bool = False) -> None:
         """把工单派给 owner agent（2026-10-16，补「待办 → agent」缺环）。
 
-        为什么只在"没有触发"时派：
-          · trigger_id 非空 → 该触发已由引擎的 L2 目标路由唤醒过 owner
-            （notification_facade._send_l2_via_target_agent），再派就是双唤醒；
-          · trigger_id 为空 → 规则自愈 / 元评审 / 补全指引派出的**修规则工单**，
-            此前没有任何送达 agent 的通道（生产事故：13 条 P1 工单挂 4 小时无人知）。
-        为什么只派 agent 自有的：用户账户的待办按 owner_router 归属用户，agent 无权
-        替其决策（只出建议），把它唤醒等于投错责任人。
+        普通 trigger_id 非空的触发已由引擎的 L2 目标路由唤醒过 owner，不能重复派单；
+        元复核等直接落库的触发没有前置通知，调用方须显式传 assign_now=True。
+        无 trigger_id 的自愈/补全指引工单维持建单即派。只派 agent 自有的待办；
+        用户账户仍归属用户本人，agent 无权替其决策。
 
         纪律：派单失败**绝不打挂建单**（工单已落库，超时升级仍会兜底），异常只记日志。
         未注入 assigner（缺省）= 行为与改前完全一致。
         """
-        if self._assigner is None or trigger_id is not None:
+        if self._assigner is None or (trigger_id is not None and not assign_now):
             return
         if str(getattr(route, 'owner_kind', '') or '').strip().lower() != 'agent':
             return

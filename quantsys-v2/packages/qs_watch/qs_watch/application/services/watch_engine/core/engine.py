@@ -843,8 +843,8 @@ class WatchEngine:
             logger.error('消息监控异常', error=str(e))
         finally:
             close_session()
-        # 收盘体检日报（2026-10-20）：meta_review 治理项在摘要门关闭时无人消费，
-        # 收盘把未处理项合成一张人话卡发盯盘群，一张/日。
+        # 收盘体检日报：直接派单后仍未处理的 meta_review 治理项合成一张人话卡，
+        # 发盯盘群，一张/日。
         try:
             if (not self.is_trading_time(now.time())
                     and self._last_review_sent_date != now.date()):
@@ -1496,24 +1496,14 @@ class WatchEngine:
 
     @staticmethod
     def _todo_due(level, now):
-        """级别 → (due_at, sla_seconds)。P0=now+300s / P1=now+1800s / P2=当日收盘 15:00。
-
-        P2 的收盘时刻取 MarketSessionPolicy 的 CONTINUOUS_END（单一出处，不硬编码 15:00），
-        取不到时回退 datetime.time(15, 0)。tick 仅在交易时段运行，故 15:00 通常在未来；
-        若已过（异常/补跑），due 退化为 now+1min，避免 due_at 落在过去被巡检立即晋升。
-        """
+        """级别 → (due_at, sla_seconds)。P0=now+300s / P1=now+1800s / P2=当日收盘。"""
         lv = str(level or '').strip().upper()
         if lv == 'P0':
             return now + timedelta(seconds=300), 300
         if lv == 'P1':
             return now + timedelta(seconds=1800), 1800
-        try:
-            from qs_trading.domain.trading.services.market_session_policy import CONTINUOUS_END as _close
-        except Exception:  # noqa: BLE001 - 常量缺失时退回最简口径（当日 15:00）
-            _close = time(15, 0)
-        day_close = datetime.combine(now.date(), _close)
-        due = day_close if day_close > now else now + timedelta(minutes=1)
-        return due, max(1, int((due - now).total_seconds()))
+        from qs_watch.application.services.watch_engine.todo_deadline import p2_due
+        return p2_due(now)
 
     @staticmethod
     def _todo_account(rule):

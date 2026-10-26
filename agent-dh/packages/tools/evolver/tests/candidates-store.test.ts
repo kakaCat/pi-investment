@@ -94,4 +94,13 @@ describe('evolver/candidates 登记闭环（Fix①）', () => {
     const empty = path.join(genomeDir, 'nested-nonexist');
     expect(readCandidates(empty)).toEqual([]);
   });
+
+  it('JSON 损坏或结构不是数组时 fail-closed', () => {
+    fs.writeFileSync(candidatesFilePath(genomeDir), '{broken');
+    expect(() => readCandidates(genomeDir)).toThrow();
+    expect(fs.readFileSync(candidatesFilePath(genomeDir), 'utf-8')).toBe('{broken');
+
+    fs.writeFileSync(candidatesFilePath(genomeDir), '{"status":"watching"}');
+    expect(() => readCandidates(genomeDir)).toThrow('期望数组');
+  });
 });

@@ -4,6 +4,7 @@ export interface GenomeRollbackParams {
   section: string;
   /** 目标段版本（整数；不传=回滚到上一版本） */
   to_section_version?: number;
+  candidate_genome_version?: string;
   reason: string;
 }
 
@@ -33,6 +34,11 @@ export const genomeRollbackPrompt: ToolPrompt<GenomeRollbackParams, GenomeRollba
       type: 'number',
       required: false,
       description: '目标段版本（整数；不传=回滚到上一版本）',
+    },
+    candidate_genome_version: {
+      type: 'string',
+      required: false,
+      description: '验证门拒绝的候选 genome 版本；提供后同步将该候选 history 标为 rejected',
     },
     reason: {
       type: 'string',

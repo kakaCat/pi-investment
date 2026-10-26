@@ -854,6 +854,7 @@ def create_watch_engine() -> WatchEngine:
         meta_review_service=WatchMetaReviewService(
             rule_repo=watch_rule_repo(),
             trigger_repo=watch_trigger_repo(),
+            todo_service=todo_service,
         ),
         # P5 持仓生命周期联动：规则使命跟着交易走
         pool_watch_service=_build_pool_watch_service(),

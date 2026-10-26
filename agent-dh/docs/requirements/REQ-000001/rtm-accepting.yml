@@ -2,9 +2,9 @@ metadata:
   stage: accepting
   requirement_id: REQ-000001
   generated_at: 2026-09-26T15:16:22.795Z
-  version: 658
+  version: 661
   generated_by: dsh-pmboard
-  last_updated: 2026-10-21T16:22:48.837Z
+  last_updated: 2026-10-26T04:32:54.069Z
 inputs:
   tasks:
     - id: t-000001

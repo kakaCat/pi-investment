@@ -15,7 +15,7 @@ import {
   type GenomeMetadata,
 } from '../../store';
 import { createHistoryEntry, advanceVersion } from '../../versioning';
-import { registerCandidate } from '@pi-investment/evolver';
+import { readCandidates, registerCandidate } from '@pi-investment/evolver';
 import {
   guardConstitution,
   validateVersion,
@@ -108,16 +108,20 @@ export class GenomeUpdateTool extends BaseTool<GenomeUpdateParams, GenomeUpdateR
   protected async execute(params: GenomeUpdateParams, context: ToolContext): Promise<GenomeUpdateResult> {
     const { section, content, reason, expected_section_version, stage, force } = params;
 
-    // 重新读取 genome.json（避免内存数据过期，与原始实现一致）
-    let data: GenomeMetadata = this.genomeData;
+    let data: GenomeMetadata;
+    const release = await this.lockGuard.acquire();
+    let snapshot: { sectionContent: string; genomeJson: GenomeMetadata } | null = null;
+
     try {
       data = readGenomeJson(this.genomeDir);
-    } catch { /* 读取失败时回退内存数据 */ }
+      const watching = readCandidates(this.genomeDir).find(c => c.status === 'watching');
+      if (watching) {
+        throw new Error(
+          `已有观察中候选 ${watching.id}（${watching.section}@${watching.genome_version}），` +
+          '为保持候选归因与基线稳定，本轮禁止新的 genome 更新；请先执行 validation_gate',
+        );
+      }
 
-    const release = await this.lockGuard.acquire();
-    let snapshot: { sectionContent: string; genomeJson: GenomeMetadata };
-
-    try {
       // Step 1: 快照（金丝雀/异常失败自动还原）
       const filePath = path.join(this.genomeDir, 'sections', `${section}.md`);
       snapshot = {
@@ -130,7 +134,7 @@ export class GenomeUpdateTool extends BaseTool<GenomeUpdateParams, GenomeUpdateR
       validateVersion(expected_section_version, data.sections[section].version, section);
       validateBraces(content, section);
       validateSize(content, section);
-      const ruleIds = validateAndExtractRuleIds(content, section);
+      validateAndExtractRuleIds(content, section);
       const hoursWarning = checkTradingHours(!!force);
 
       const oldVersion = data.sections[section].version;

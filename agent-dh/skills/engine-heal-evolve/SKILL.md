@@ -63,13 +63,14 @@ whenToUse: 收到 OS 定时任务唤醒（evolution-weekly-variant / evolution-g
 
 ## 第 4 步：修补执行（单主题铁律）
 
-1. **一次只改一个主题**（可归因）——禁止把"市场不好+选股差+止损松"打包成一次大改。
-2. **constitution 段禁止改动**（宪法层锁定）。
-3. 修补前 `memory_search`(namespace=experience, query=该场景) 检索历史教训（R-008），reason 注明检索结论。
-4. 新规则内容须通过 genome 校验（花括号变量、段大小、规则 ID 不重复）——`genome_update` 自带校验，force 保持 false。
-5. 用 **stage=candidate 观察版**（非直接 active），observe_days 默认 5；reason 写：规则 ID + 证据（引决策/经验 ID 或工具数字）+ 预期效果。
-6. 规则编号递增不重号（R-xxx 顺序）；教训/原则改动同样走 candidate 观察。
-7. 重大修补后 `decision_audit`(record, decision_type=genome_update) 留痕决策链。
+1. **一次只改一个主题**（可归因）——禁止把"市场不好+选股差+止损松"打包成一次大改；`prompt_evolver` 应用模式每次只接受一条建议。
+2. **全局最多一个 watching 候选**。观察期禁止其他 genome 写入，避免 genome_version 改变后旧候选再也得不到样本；有候选时先裁决，不叠加新候选。
+3. **constitution 段禁止改动**（宪法层锁定）。
+4. 修补前 `memory_search`(namespace=experience, query=该场景) 检索历史教训（R-008），reason 注明检索结论。
+5. 新规则内容须通过 genome 校验（花括号变量、段大小、规则 ID 不重复）——`genome_update` 自带校验，force 保持 false；整段更新必须携带 expected_section_version。
+6. 用 **stage=candidate 观察版**（非直接 active），observe_days 默认 5；reason 写：规则 ID + 证据（引决策/经验 ID 或工具数字）+ 预期效果。
+7. 规则编号递增不重号（R-xxx 顺序）；教训/原则改动同样走 candidate 观察。
+8. 重大修补后 `decision_audit`(record, decision_type=genome_update) 留痕决策链。
 
 ## 第 4.5 步：状态一致性核验（F1 哨兵，2026-09-06 起每轮必做）
 
@@ -85,10 +86,10 @@ whenToUse: 收到 OS 定时任务唤醒（evolution-weekly-variant / evolution-g
 
 ## 第 5 步：验证与转正（候选生命周期）
 
-- candidate 到期（observe_days 满）→ `validation_gate`（min_samples≥3，样本不足自动延期 2 天）。
-- 结构复核不过（花括号/超限/ID 重复/空更新）→ `genome_benchmark` 防御性置 rejected，按建议 `genome_rollback`（历史只增不改）。
-- 裁决通过 → `genome_promote`(section, reason)；失败 → `genome_rollback`。
-- 用 `genome_history` 确认版本号变化与谱系（candidate 未转正前不要当作已生效规则引用）。
+- candidate 到期（observe_days 满）→ `validation_gate`（min_samples≥3）。只统计 `portfolio_trade` SELL 已实现盈亏，candidate/baseline 必须各自达到样本门槛；任一侧零样本禁止转正。
+- 证据不足每次延期 2 天、最多延期 2 次；达到上限后拒绝并安全复原/终态化，禁止无限延期。`force=true` 只跳过观察期和最小样本数，不跳过零样本检查。
+- `genome_benchmark` 只做结构复核和标注，不直接改 candidate 状态。结构不过、回测失败或候选平均奖励未严格优于基线 → `validation_gate` 绑定候选执行 `genome_rollback`；stale 候选只终态化，不覆盖后续内容。
+- 裁决通过 → `genome_promote`(section, genome_version, reason)。用 `genome_history` 确认版本号与谱系（candidate 未转正前不要当作已生效规则引用）。
 - 缝隙容忍：gate 只在周日 fire，观察期周中到期的候选会多等几天——**属正常，不补任务**；紧急候选可在到期日手动 `validation_gate(force=true)`。
 
 ## 第 6 步：汇报（R-010 任务完成通知）

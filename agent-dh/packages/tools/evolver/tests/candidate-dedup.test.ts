@@ -31,6 +31,11 @@ function setupGenomeDir(): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'evolver-dedup-'));
   fs.mkdirSync(path.join(dir, 'sections'), { recursive: true });
   fs.writeFileSync(path.join(dir, 'sections', 'rules.md'), RULES, 'utf-8');
+  fs.writeFileSync(path.join(dir, 'genome.json'), JSON.stringify({
+    genome_version: 'g98',
+    sections: { rules: { version: 16 } },
+    history: [],
+  }), 'utf-8');
   return dir;
 }
 
@@ -48,6 +53,10 @@ function makeHarness(dir: string, opts: { llmText: string; registers: boolean })
       execute: async (req: any) => {
         calls.push({ name: req.name, args: req.arguments });
         if (req.name === 'genome_update') {
+          const genome = JSON.parse(fs.readFileSync(path.join(dir, 'genome.json'), 'utf-8'));
+          genome.sections[req.arguments.section].version += 1;
+          genome.genome_version = 'g99';
+          fs.writeFileSync(path.join(dir, 'genome.json'), JSON.stringify(genome), 'utf-8');
           fs.writeFileSync(
             path.join(dir, 'sections', req.arguments.section + '.md'),
             req.arguments.content,

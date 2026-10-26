@@ -38,10 +38,13 @@ class _Repo:
         return self.rows[-1]
 
 
-def _svc(sender=None):
+_UNSET = object()
+
+
+def _svc(sender=_UNSET):
     sent = []
     repo = _Repo()
-    svc = ReceiptService(repo, sender=sender if sender is not None else sent.append)
+    svc = ReceiptService(repo, sender=sent.append if sender is _UNSET else sender)
     return svc, repo, sent
 
 

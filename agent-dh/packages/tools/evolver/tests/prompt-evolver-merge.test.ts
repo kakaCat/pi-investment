@@ -39,6 +39,11 @@ function setupGenomeDir(): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'evolver-merge-'));
   fs.mkdirSync(path.join(dir, 'sections'), { recursive: true });
   fs.writeFileSync(path.join(dir, 'sections', 'rules.md'), RULES, 'utf-8');
+  fs.writeFileSync(path.join(dir, 'genome.json'), JSON.stringify({
+    genome_version: 'g98',
+    sections: { rules: { version: 15 } },
+    history: [],
+  }), 'utf-8');
   return dir;
 }
 
@@ -62,7 +67,11 @@ function makeHarness(genomeDir: string, llmText: string) {
             req.arguments.content,
             'utf-8',
           );
-          return { value: { success: true, genome_version: 'g99', new_version: 16 } };
+          const genome = JSON.parse(fs.readFileSync(path.join(genomeDir, 'genome.json'), 'utf-8'));
+          genome.sections[req.arguments.section].version += 1;
+          genome.genome_version = 'g99';
+          fs.writeFileSync(path.join(genomeDir, 'genome.json'), JSON.stringify(genome), 'utf-8');
+          return { value: { success: true, genome_version: 'g99', new_version: genome.sections[req.arguments.section].version } };
         }
         return { value: {} };
       },

@@ -64,9 +64,8 @@ export class DailyDistillTool extends BaseTool<DailyDistillParams, DailyDistillR
       min_samples: Math.max(1, Math.min(days, 30)),
     });
 
-    // 2. 提取建议（learning_analyze 输出 suggestions: string[]，需转换为 prompt_evolver 建议格式）
-    //    限 3 条：避免一次过多 LLM 改写调用导致超时
-    const rawSuggestions: string[] = (distillResult?.suggestions || []).slice(0, 3);
+    // 预览最多 3 条；应用模式一次只允许一个可归因主题。
+    const rawSuggestions: string[] = (distillResult?.suggestions || []).slice(0, autoApply ? 1 : 3);
     const suggestions = rawSuggestions.map((s: string) => ({
       type: 'strengthen',
       section: 'rules',

@@ -7,6 +7,7 @@ import type { ToolMetadata, ToolContext, ToolResponse, ValidationResult } from '
 import type { Context } from '@deepseek-ai/cordis';
 import type { OsMemoryStore } from '../../index';
 import { promptEvolverPrompt, PromptEvolverParams, PromptEvolverResult } from './prompt';
+import { readFileSync } from 'node:fs';
 import { registerCandidate, readCandidates, type CandidateRecord } from '../../candidates';
 import {
   assertNoDamage,
@@ -66,6 +67,17 @@ export class PromptEvolverTool extends BaseTool<PromptEvolverParams, PromptEvolv
         issue: 'suggestions 数组不能为空',
         received: '[]',
         expected: '至少包含一个建议',
+      };
+    }
+
+    if (params.dry_run === false && params.suggestions.length !== 1) {
+      return {
+        success: false,
+        errorType: ErrorType.INPUT_ERROR,
+        field: 'suggestions',
+        issue: '应用模式每次只能提交一个主题的一条建议',
+        received: params.suggestions.length,
+        expected: '1',
       };
     }
 
@@ -199,11 +211,13 @@ export class PromptEvolverTool extends BaseTool<PromptEvolverParams, PromptEvolv
             };
           }
           try {
+            const expectedSectionVersion = this.readSectionVersion(suggestion.section);
             const updateResult = await this.callGenomeUpdate(
               suggestion.section,
               content,
               suggestion.reason,
-              'candidate'
+              'candidate',
+              expectedSectionVersion,
             );
             // ── 登记去重（2026-09-12，w-adb088f2）──────────────────────────────
             // genome_update 自 3d850ab5（2026-09-12 21:54）起，在 stage='candidate' 时
@@ -218,7 +232,7 @@ export class PromptEvolverTool extends BaseTool<PromptEvolverParams, PromptEvolv
             if (existingCandidateId) {
               let observeUntil: string | undefined;
               try {
-                // @ts-ignore ctx.genome 由 genome 插件注入，无类型声明
+                // @ts-expect-error genome 由插件注入
                 const dir = this.ctx.genome?.genomeDir;
                 if (dir) {
                   observeUntil = readCandidates(dir).find((r) => r.id === existingCandidateId)?.observe_until;
@@ -250,7 +264,7 @@ export class PromptEvolverTool extends BaseTool<PromptEvolverParams, PromptEvolv
               const gv = String(updateResult?.genome_version || '');
               const gm = gv.match(/^g(\d+)$/);
               const baselineVersion = gm ? `g${parseInt(gm[1], 10) - 1}` : gv;
-              // @ts-ignore ctx.genome 由 genome 插件注入，无类型声明
+              // @ts-expect-error genome 由插件注入
               const genomeDir = this.ctx.genome?.genomeDir;
               if (!genomeDir) {
                 throw new Error('ctx.genome.genomeDir 不可用，无法登记 candidate');
@@ -455,7 +469,7 @@ export class PromptEvolverTool extends BaseTool<PromptEvolverParams, PromptEvolv
   private async readSection(sectionName: string): Promise<string> {
     const fs = await import('fs');
     const path = await import('path');
-    // @ts-ignore
+    // @ts-expect-error genome 由插件注入
     const genomeDir = this.ctx.genome.genomeDir;
     const filePath = path.join(genomeDir, 'sections', `${sectionName}.md`);
 
@@ -464,6 +478,17 @@ export class PromptEvolverTool extends BaseTool<PromptEvolverParams, PromptEvolv
     }
 
     return fs.readFileSync(filePath, 'utf-8');
+  }
+
+  private readSectionVersion(sectionName: string): number {
+    // @ts-expect-error genome 由插件注入
+    const genomePath = `${this.ctx.genome.genomeDir}/genome.json`;
+    const data = JSON.parse(readFileSync(genomePath, 'utf-8'));
+    const version = data?.sections?.[sectionName]?.version;
+    if (!Number.isInteger(version) || version < 1) {
+      throw new Error(`无法读取 ${sectionName} 当前段版本，拒绝无乐观锁的整段更新`);
+    }
+    return version;
   }
 
   /**
@@ -488,11 +513,19 @@ export class PromptEvolverTool extends BaseTool<PromptEvolverParams, PromptEvolv
     section: string,
     content: string,
     reason: string,
-    stage: 'active' | 'candidate' = 'active'
+    stage: 'active' | 'candidate' = 'active',
+    expectedSectionVersion?: number,
   ): Promise<any> {
     const result = await (this.ctx.tools as any).execute({
       name: 'genome_update',
-      arguments: { section, content, reason, stage, force: false },
+      arguments: {
+        section,
+        content,
+        reason,
+        stage,
+        force: false,
+        expected_section_version: expectedSectionVersion,
+      },
       signal: new AbortController().signal,
     });
     if (result?.isError) {

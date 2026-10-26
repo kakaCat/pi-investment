@@ -91,10 +91,10 @@ describe('judgeCandidates（驱动真实实现）', () => {
     expect(rb[0].args.to_section_version).toBe(16);
   });
 
-  it('未显著恶化 → 转正（带 genome_version 绑定）', async () => {
+  it('真实改善 → 转正（带 genome_version 绑定）', async () => {
     const h = makeGate({
       candidate: makeCand(),
-      candRewards: { count: 5, avg: 0.05 },
+      candRewards: { count: 5, avg: 0.15 },
       baseRewards: { count: 5, avg: 0.10 },
     });
     dirs.push(h.dir);
@@ -105,13 +105,13 @@ describe('judgeCandidates（驱动真实实现）', () => {
     expect(pr[0].args.genome_version).toBe('g30');
   });
 
-  it('结构复核不通过 → 直接拒绝且不调 rollback', async () => {
+  it('结构复核不通过 → 拒绝并回滚当前候选', async () => {
     const bad = makeCand({ health_check: { passed: false, checked_at: new Date().toISOString(), issues: [{ code: 'empty_update', message: '空更新' }], size_delta: 0, substantive: false } });
     const h = makeGate({ candidate: bad });
     dirs.push(h.dir);
     const v: any[] = await h.tool.judgeCandidates(true, 1);
     expect(v[0].verdict).toBe('rejected');
-    expect(h.calls.filter((c) => c.name === 'genome_rollback').length).toBe(0);
+    expect(h.calls.filter((c) => c.name === 'genome_rollback').length).toBe(1);
     expect(h.calls.filter((c) => c.name === 'genome_promote').length).toBe(0);
   });
 
@@ -121,6 +121,45 @@ describe('judgeCandidates（驱动真实实现）', () => {
     const v: any[] = await h.tool.judgeCandidates(true, 1);
     expect(v[0].verdict).toBe('extended');
     expect(h.calls.filter((c) => c.name === 'genome_promote').length).toBe(0);
+  });
+
+  it('baseline 零样本即使 candidate 达标也禁止转正', async () => {
+    const h = makeGate({
+      candidate: makeCand(),
+      candRewards: { count: 5, avg: 0.3 },
+      baseRewards: { count: 0, avg: 0 },
+    });
+    dirs.push(h.dir);
+    const v: any[] = await h.tool.judgeCandidates(true, 1);
+    expect(v[0].verdict).toBe('extended');
+    expect(v[0].base_samples).toBe(0);
+    expect(h.calls.filter(c => c.name === 'genome_promote')).toHaveLength(0);
+  });
+
+  it('候选未改善基线 → 拒绝并绑定回滚', async () => {
+    const h = makeGate({
+      candidate: makeCand(),
+      candRewards: { count: 5, avg: 0.1 },
+      baseRewards: { count: 5, avg: 0.1 },
+    });
+    dirs.push(h.dir);
+    const v: any[] = await h.tool.judgeCandidates(true, 1);
+    expect(v[0].verdict).toBe('rejected');
+    const rollback = h.calls.find(c => c.name === 'genome_rollback');
+    expect(rollback.args.candidate_genome_version).toBe('g30');
+    expect(h.calls.filter(c => c.name === 'genome_promote')).toHaveLength(0);
+  });
+
+  it('证据不足达到延期上限 → 拒绝而非永久延期', async () => {
+    const h = makeGate({
+      candidate: makeCand({ extension_count: 2 }),
+      candRewards: { count: 0, avg: 0 },
+      baseRewards: { count: 0, avg: 0 },
+    });
+    dirs.push(h.dir);
+    const v: any[] = await h.tool.judgeCandidates(false, 3);
+    expect(v[0].verdict).toBe('rejected');
+    expect(h.calls.filter(c => c.name === 'genome_rollback')).toHaveLength(1);
   });
 
   it('未到观察期且 force=false → watching（不做任何动作）', async () => {

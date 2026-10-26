@@ -40,11 +40,14 @@ export interface ValidationGateResult {
       | 'rejected'
       | 'extended'
       | 'rejected_by_backtest'
-      /** 判定应回滚、但被 staleness 守卫拦下（候选已被后续变更取代 / 版本不可读） */
+      | 'reject_failed'
+      | 'promote_failed'
+      /** 候选已被后续变更取代，终态化但不覆盖后续内容 */
       | 'rejected_no_rollback';
     cand_avg?: number;
     base_avg?: number;
     cand_samples?: number;
+    base_samples?: number;
     rolled_back_to?: number;
     observe_until?: string;
     note?: string;
@@ -70,21 +73,21 @@ export const validationGatePrompt: ToolPrompt<ValidationGateParams> = {
   ],
   notes: [
     '默认仅裁决观察期到期（observe_until 已过）的 candidate',
-    'candidate 期样本数 < min_samples 时自动延期 2 天',
-    'candidate 期零样本时拒绝转正（统计无效）',
-    'force=true 跳过时间与样本门槛，强制裁决所有 watching 候选',
-    '裁决通过 → genome_promote 转正；显著恶化 → genome_rollback 回滚',
+    '仅统计 portfolio_trade SELL 的已实现盈亏，candidate/baseline 必须各自达到样本门槛',
+    '任一側零样本禁止转正；证据不足最多延期 2 次，随后安全复原或终态化',
+    'force=true 跳过观察期与最小样本数，但不跳过零样本检查',
+    '仅真实改善才 genome_promote；不改善或结构/回测失败会绑定候选回滚；stale 候选不覆盖后续内容',
   ],
   relatedTools: ['genome_promote', 'genome_rollback', 'prompt_evolver', 'candidate_status'],
   parameters: {
     force: {
       type: 'boolean',
-      description: 'true：跳过时间与样本数门槛，强制裁决所有 watching 状态的 candidate；false（默认）：仅裁决观察期到期的',
+      description: 'true：跳过观察期与最小样本数，但任一側零样本仍禁止裁决；false（默认）：仅裁决观察期到期的',
     } as ParameterDefinition,
 
     min_samples: {
       type: 'number',
-      description: 'candidate 期最小样本数门槛，默认 3（少于此数会延期 2 天）',
+      description: 'candidate/baseline 各自的最小真实卖出样本数，默认 3（任一侧不足会延期，最多 2 次）',
     } as ParameterDefinition,
   },
 

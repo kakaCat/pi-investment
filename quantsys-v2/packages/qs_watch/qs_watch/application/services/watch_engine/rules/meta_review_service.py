@@ -13,8 +13,9 @@
   · ~~burst 一直响~~（2026-10-16 REQ-261016155500-4f2a wt:engine:3 **下线**）：与噪音自愈
     （noise_self_heal：单日 ≥3 次 → 抑噪 24h + 修规则待办）双头治理且阈值打架
     （5 vs 3）——"响得太频"归自愈一家管，本服务只留"不响/滞留/到期/未激活"四类。
-命中即落一条 meta_review 触发（复用 watch_triggers 流转，进未处置清单 → 会被摘要唤醒带走），
-并更新规则的 last_reviewed_at / review_due_at（保证"到期必被 agent 看一次"）。
+命中即落一条 meta_review 触发，闭环装配时同步创建 P2/rule_change 待办并直接派单；
+未装配或派单失败时仍保留在未处置清单，由摘要/日报兜底。随后更新规则的
+last_reviewed_at / review_due_at（保证"到期必被 agent 看一次"）。
 
 与「去重」的区别：去重解决"同一次跌穿不要响多次"；本服务解决"同一条规则长期不响/长期滞留"。
 与「自愈抑噪」的边界：响得太频 → 自愈（noise_self_heal）；不响/滞留/到期 → 本服务。
@@ -42,10 +43,12 @@ REVIEW_INTERVAL_DAYS = {
 
 class WatchMetaReviewService:
 
-    def __init__(self, rule_repo, trigger_repo, cfg: Optional[InterventionConfig] = None):
+    def __init__(self, rule_repo, trigger_repo, cfg: Optional[InterventionConfig] = None,
+                 todo_service=None):
         self.rule_repo = rule_repo
         self.trigger_repo = trigger_repo
         self.cfg = cfg or InterventionConfig()
+        self.todo_service = todo_service
 
     # ── 数据采集（一次查询覆盖全部规则，避免 N+1）──────────
     def _trigger_stats(self):
@@ -117,7 +120,7 @@ class WatchMetaReviewService:
 
             reason = "；".join(reasons)
             try:
-                self.trigger_repo.record(
+                trigger = self.trigger_repo.record(
                     rule_id=rule.id,
                     symbol=rule.symbol,
                     condition={"type": "meta_review",
@@ -132,9 +135,11 @@ class WatchMetaReviewService:
                     disposition_reason=reason,
                     disposition_by="system",
                 )
+                todo = self._create_todo(rule, trigger, reason, now)
                 self._mark_reviewed(rule.id, now, interval)
                 raised.append({"rule_id": rule.id, "symbol": rule.symbol,
-                               "intent": intent, "reason": reason})
+                               "intent": intent, "reason": reason,
+                               "todo_id": getattr(todo, "id", None)})
             except Exception as e:
                 logger.error("元触发落库失败", rule_id=rule.id, error=str(e))
                 # 2026-10-21（w-5d46d252）：落库失败（截断/约束冲突）后事务已处于
@@ -154,6 +159,34 @@ class WatchMetaReviewService:
             logger.info("元触发复核项已生成", count=len(raised))
         return {"scanned_rules": len(rules), "raised": len(raised),
                 "skipped_already_reviewed": skipped_reviewed, "details": raised}
+
+    def _create_todo(self, rule, trigger, reason, now):
+        trigger_id = getattr(trigger, "id", None)
+        if self.todo_service is None or trigger_id is None:
+            return None
+        try:
+            from qs_watch.application.services.watch_engine.todo_deadline import p2_due
+            from qs_watch.domain.watch.services.rule_guard import effective_account
+
+            due_at, sla_seconds = p2_due(now)
+            todo = self.todo_service.create(
+                rule.symbol, level="P2", sla_seconds=sla_seconds, due_at=due_at,
+                account=effective_account(rule), rule_id=rule.id, trigger_id=trigger_id,
+                action_kind="rule_change", assign_now=True,
+                evidence={"source": "meta_review", "reason": reason},
+            )
+        except Exception as e:  # noqa: BLE001 - 原触发保留给摘要/日报兜底
+            logger.error("元复核待办创建失败", rule_id=rule.id, trigger_id=trigger_id,
+                         error=str(e))
+            return None
+        try:
+            self.trigger_repo.set_todo_id(trigger_id, todo.id)
+        except Exception as e:  # noqa: BLE001 - 待办已建，回填失败不打断复核
+            logger.warning("元复核触发回填 todo_id 失败", rule_id=rule.id,
+                           trigger_id=trigger_id, todo_id=todo.id, error=str(e))
+        logger.info("元复核治理待办已建", rule_id=rule.id, trigger_id=trigger_id,
+                    todo_id=todo.id, owner_ref=getattr(todo, "owner_ref", None))
+        return todo
 
     def _mark_reviewed(self, rule_id: int, now, interval_days: int) -> None:
         """标记已复核（走仓储端口，不裸 SQL）——保证到期必被 agent 看一次"""

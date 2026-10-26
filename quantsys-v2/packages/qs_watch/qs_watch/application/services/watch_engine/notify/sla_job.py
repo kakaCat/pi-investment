@@ -360,6 +360,8 @@ class WatchSlaJob:
         if outcome.get('issued'):
             stats['timeout'] += 1
             stats['reminds'] = stats.get('reminds', 0) + 1
+            if outcome.get('audience') == 'agent':
+                stats['agent_wakes'] += 1
             logger.info('L3 待办再催（第 %d/%d 轮）' % (current, max_r),
                         todo_id=todo_id, overdue_hours=round(overdue_sec / 3600, 1))
             bumped = self._todo_repo.promote(todo_id, 'L3', escalate_count=current + 1,

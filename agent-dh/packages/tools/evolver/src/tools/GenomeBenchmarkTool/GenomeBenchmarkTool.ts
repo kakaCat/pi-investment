@@ -18,9 +18,7 @@ import {
   readCandidates,
   writeCandidates,
   attachHealthCheck,
-  type CandidateRecord,
 } from '../../candidates';
-import * as path from 'path';
 
 export class GenomeBenchmarkTool extends BaseTool<GenomeBenchmarkParams, GenomeBenchmarkResult> {
   protected readonly metadata: ToolMetadata = {
@@ -56,8 +54,8 @@ export class GenomeBenchmarkTool extends BaseTool<GenomeBenchmarkParams, GenomeB
   protected async execute(params: GenomeBenchmarkParams): Promise<GenomeBenchmarkResult> {
     const genomeDir = this.genomeDir;
     const includePromoted = params.include_promoted ?? false;
-    // 安全默认值显式兜底（工程教训：schema default 不一定被注入）
-    const rejectFailed = params.reject_failed !== false;
+    // benchmark 只做复核与标注；拒绝及内容复原统一由 validation_gate 完成。
+    const rejectFailed = params.reject_failed === true;
 
     const all = readCandidates(genomeDir);
 
@@ -85,7 +83,7 @@ export class GenomeBenchmarkTool extends BaseTool<GenomeBenchmarkParams, GenomeB
     const reviewed: GenomeBenchmarkResult['reviewed'] = [];
     let failCount = 0;
     let emptyCount = 0;
-    let rejectedCount = 0;
+    const rejectedCount = 0;
     let degradedCount = 0;
 
     for (const c of targets) {
@@ -113,26 +111,12 @@ export class GenomeBenchmarkTool extends BaseTool<GenomeBenchmarkParams, GenomeB
       if (!hc.passed) failCount++;
       if (hc.issues.some(i => i.code === 'empty_update')) emptyCount++;
 
-      let status = c.status;
+      const status = c.status;
       let note = c.note;
 
-      // 防御性拒绝：结构不通过（含空更新噪声）的看守候选——理论上 genome_update 的 guard
-      // 已拦截非法内容，此处是防御手写/历史遗留候选。不自动回滚（回滚是主动行为），
-      // 只改状态并提示；健康检查误判有保护：内容未过 guard 的候选本就不该在看守中。
-      if (!hc.passed && status === 'watching' && rejectFailed) {
-        const prev = c.status;
-        c.status = 'rejected';
-        note = `L4-B 结构复核拒绝：${issues.join('；')}` +
-          (note ? `（原 note: ${note}）` : '') +
-          '。建议 genome_rollback 复原 active 内容。';
-        c.note = note;
-        status = 'rejected';
-        rejectedCount++;
-        // 记录原状态便于追溯（防御性拒绝不应静默）
-        (c as any)._benchmark_prev_status = prev;
-      } else if (!hc.passed && status === 'watching') {
-        // reject_failed=false：仅标注
-        c.note = `L4-B 复核不通过（未拒绝，reject_failed=false）：${issues.join('；')}`;
+      if (!hc.passed && status === 'watching') {
+        c.note = `L4-B 复核不通过，待 validation_gate 拒绝并安全复原：${issues.join('；')}` +
+          (rejectFailed ? '（reject_failed 兼容参数不再绕过复原流程）' : '');
         note = c.note;
       }
 
@@ -176,7 +160,7 @@ export class GenomeBenchmarkTool extends BaseTool<GenomeBenchmarkParams, GenomeB
   }
 
   private get genomeDir(): string {
-    // @ts-ignore ctx.genome 由 genome 插件注入（cordis service），无类型声明
+    // @ts-expect-error ctx.genome 由 genome 插件注入（cordis service），无类型声明
     return this.ctx.genome.genomeDir;
   }
 }

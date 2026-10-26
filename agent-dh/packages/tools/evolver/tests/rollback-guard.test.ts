@@ -116,10 +116,11 @@ describe('集成：验证门遇到陈旧候选不执行破坏性回滚', () => {
   it('当前版本不可读（无 genome.json）→ fail-closed，不调 genome_rollback', async () => {
     const h = makeGate({ candidates: [CAND()], currentVersion: null });
     dirs.push(h.dir);
-    const verdicts: any[] = await h.tool.judgeCandidates(true, 1);
+    await expect(h.tool.judgeCandidates(true, 1)).rejects.toThrow('无法读取 rules 当前版本');
 
     expect(h.calls.filter((c) => c.name === 'genome_rollback').length).toBe(0);
-    expect(verdicts[0].verdict).toBe('rejected_no_rollback');
+    const saved = JSON.parse(fs.readFileSync(path.join(h.dir, 'candidates.json'), 'utf-8'));
+    expect(saved[0].status).toBe('watching');
   });
 
   it('双登记场景：第一条回滚成功后（版本推进），第二条同版本候选被守卫拦下', async () => {

@@ -6,8 +6,12 @@ import pytest
 
 def _make_trader(**kwargs):
     """在 mock 重依赖的前提下构造 SimulationTrader"""
-    with patch('live_trading.simulation_trader.DataService'), \
+    with patch(
+        'infrastructure.services.service_factory.ServiceFactory.get_kline_repository',
+        return_value=MagicMock(),
+    ), \
          patch('live_trading.simulation_trader.get_engine', return_value=MagicMock()), \
+         patch('live_trading.simulation_trader.get_notification_facade', return_value=MagicMock()), \
          patch('live_trading.simulation_trader.SimulationORMRepository') as MockRepo:
         MockRepo.return_value.get_account.return_value = None
         from live_trading.simulation_trader import SimulationTrader
@@ -216,3 +220,67 @@ def test_v14_get_latest_factors_empty_passthrough():
     calc = V14FactorCalculator()
     calc.calculate_latest_factors = MagicMock(return_value=pd.DataFrame())
     assert calc.get_latest_factors(['300162']).empty
+
+
+def test_v13_config_uses_unified_stop_loss_thresholds():
+    """v13 配置必须与优化口径一致：固定 -12%、移动 -8%"""
+    import yaml
+
+    with open('live_trading/configs/strategies/v13.yaml', encoding='utf-8') as f:
+        config = yaml.safe_load(f)
+
+    assert config['risk']['single_stock_stop_loss'] == -0.12
+    assert config['risk']['trailing_stop_pct'] == -0.08
+
+
+def test_daily_check_honours_enable_stop_loss_flag():
+    trader = _make_bare_trader({
+        '300162': {'shares': 900, 'avg_price': 13.12, 'current': 6.88},
+    })
+
+    trader.run_daily_check(enable_stop_loss=False, enable_rebalance=False)
+
+    trader._get_current_prices.assert_not_called()
+    trader._execute_stop_loss.assert_not_called()
+    trader._is_rebalance_due.assert_not_called()
+
+
+def test_daily_check_honours_enable_rebalance_flag():
+    trader = _make_bare_trader({
+        '300432': {'shares': 500, 'avg_price': 19.75, 'current': 18.50},
+    })
+    trader.rebalance = MagicMock()
+
+    result = trader.run_daily_check(enable_stop_loss=True, enable_rebalance=False)
+
+    assert result == {'executed': True, 'action': 'hold'}
+    trader._is_rebalance_due.assert_not_called()
+    trader.rebalance.assert_not_called()
+
+
+def test_strategy_service_passes_daily_check_flags():
+    from qs_strategy.application.services.strategy_service import StrategyService
+
+    service = StrategyService.__new__(StrategyService)
+    service._configs_cache = {}
+    config = {
+        'strategy': {'account_name': 'v13_simulation', 'enabled': True},
+        'initial_capital': 100000,
+    }
+    mock_trader = MagicMock()
+    mock_trader.account_name = 'v13_simulation'
+    mock_trader.portfolio = {}
+    mock_trader.cash = 90000.0
+    mock_trader._calculate_total_value_from_portfolio.return_value = 90000.0
+    mock_trader.run_daily_check.return_value = {'executed': True, 'action': 'hold'}
+
+    with patch.object(service, 'get_config', return_value=config), \
+         patch.object(service, '_create_trader', return_value=mock_trader):
+        result = service.daily_check(
+            'v13', enable_stop_loss=False, enable_rebalance=False)
+
+    assert result['status'] == 'success'
+    mock_trader.run_daily_check.assert_called_once_with(
+        enable_stop_loss=False,
+        enable_rebalance=False,
+    )

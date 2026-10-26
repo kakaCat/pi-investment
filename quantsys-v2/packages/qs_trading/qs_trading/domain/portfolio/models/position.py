@@ -12,6 +12,7 @@ class Position:
     shares_available: int = 0      # 可卖数量（T+1后）
     avg_cost: float = 0.0          # 平均成本
     current_price: float = 0.0     # 当前价格
+    peak_price: float = 0.0        # 持仓后历史最高价（移动止损基准）
     market_value: float = 0.0      # 市值
     unrealized_pnl: float = 0.0    # 浮动盈亏
     unrealized_pnl_rate: float = 0.0  # 浮动盈亏率

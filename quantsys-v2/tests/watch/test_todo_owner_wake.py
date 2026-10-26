@@ -89,7 +89,21 @@ def test_timeout_wake_delivers_to_owner_without_user_card(facade):
 
     assert [w['event'] for w in facade.wakes] == [watch_channels.WAKE_EVENT_TODO_TIMEOUT]
     assert facade.wakes[0]['data']['message'] == '待办#91 超时'
-    assert facade.cards == []                               # 送达了就不打扰用户
+    assert facade.cards == []                               # 首催送达了就不打扰用户
+
+
+def test_timeout_remind_sends_user_card_even_when_wake_delivered(facade):
+    """再催轮即使 wake=ok 也必须通知用户：收到任务不等于已完成关闭（2026-10-26 #319）。"""
+    todo = _todo(level='P1', escalate_count=1)
+
+    assert watch_channels.wake_todo_owner(
+        todo, {'kind': 'timeout', 'channel': 'risk_stop', 'message': '待办#91 再催',
+               'force_user_card': True}) is True
+
+    assert len(facade.wakes) == 1
+    assert len(facade.cards) == 1
+    assert '超时回执' in facade.cards[0]['title']
+    assert facade.cards[0]['os_channel'] == 'risk_stop'
 
 
 def test_timeout_wake_falls_back_to_group_card_for_p0_p1(facade):

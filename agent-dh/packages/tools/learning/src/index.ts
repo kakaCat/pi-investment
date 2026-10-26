@@ -284,7 +284,7 @@ export default class LearningPlugin extends Service {
    */
   private captureGenomeContext(execution?: any): { genome_version: string; rules_used: string[] } | undefined {
     try {
-      // @ts-ignore - genome 插件通过 inject 动态注入
+      // @ts-expect-error - genome 插件通过 inject 动态注入
       const genome = this.ctx.genome;
       if (!genome || !genome.genomeData) {
         return undefined;
@@ -520,7 +520,7 @@ export default class LearningPlugin extends Service {
     if (experiences.length < minSamples) {
       return {
         patterns: [],
-        suggestions: [`样本数不足 (${experiences.length} < ${minSamples})，无法进行有效分析`],
+        suggestions: [],
         sample_count: experiences.length,
       };
     }

@@ -70,14 +70,11 @@ export class GenomePromoteTool extends BaseTool<GenomePromoteParams, GenomePromo
   protected async execute(params: GenomePromoteParams, context: ToolContext): Promise<GenomePromoteResult> {
     const { section, reason, genome_version } = params;
 
-    let data: GenomeMetadata = this.genomeData;
-    try {
-      data = readGenomeJson(this.genomeDir);
-    } catch { /* 回退内存数据 */ }
-
+    let data: GenomeMetadata;
     const release = await this.lockGuard.acquire();
 
     try {
+      data = readGenomeJson(this.genomeDir);
       // 宪法层禁止转正
       guardConstitution(section, data);
 
