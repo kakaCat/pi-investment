@@ -31,11 +31,9 @@ div[data-slot="sidebar.footer.action"] {
 [data-sidebar-collapsed] [data-dsh-exec-entry] svg,
 [class*="_collapsed"] [data-dsh-exec-entry] svg { width: 16px; height: 16px; }
 
-html[data-dsh-exec-active] [data-pane="conversation"] > *:not([data-dsh-exec-view]),
-html[data-dsh-exec-active] [class*="centerCol"] > *:not([data-dsh-exec-view]),
-html[data-dsh-exec-active] .dshDesktopConversationSurface > *:not([data-dsh-exec-view]) { display: none !important; }
+/* 看板正文在右侧栏 tab 内常显（右栏自带显隐与折叠） */
 .dsh-exec-view { display: none; }
-html[data-dsh-exec-active] .dsh-exec-view { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+.dsh-exec-view { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
 .dsh-exec-board { flex: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; }
 
 /* ================= 浅色监控主题（design page2，固定色板） ================= */

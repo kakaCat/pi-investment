@@ -5,13 +5,8 @@
  * @module dashboard-execution/client/board-mount
  */
 import type { ApiResponse, BoardData } from './types.ts'
-import {
-  BOARD_VIEW_SELECTOR, PANEL_NAME, ACTIVE_ATTR, OTHER_ACTIVE_ATTRS,
-  ACTIVATE_EVENT, ENTRY_SELECTOR,
-} from './dom.ts'
 import { buildView, renderAll, renderTasks, renderErrorPage, setTaskSel, setDomSel, setTaskPage, type ViewRefs, type ErrPageView } from './view.ts'
 import { createSolveKit } from '@pi-investment/solve-kit/client'
-import { createBoardShell } from '@pi-investment/page-kit/client'
 
 const BOARD_API = '/dashboard/api/board'
 const ERROR_LIST_API = '/dashboard/api/board/error-events'
@@ -63,53 +58,21 @@ async function copyText(text: string): Promise<boolean> {
   } catch { return false }
 }
 
-export interface BoardController {
-  isActive(): boolean
-  toggle(): void
-  getSnapshot(): { boardOpen: boolean }
-  openBoard(): void
-  closeBoard(): void
-  toggleBoard(): void
-}
-
-export function createBoardController(): BoardController {
-  const ctrl: BoardController = {
-    isActive: () => false,
-    toggle: () => {},
-    getSnapshot: () => ({ boardOpen: false }),
-    openBoard: () => {},
-    closeBoard: () => {},
-    toggleBoard: () => {},
-  }
-  return ctrl
-}
-
-export function mountBoard(controller: BoardController): () => void {
+export function mountBoardView(container: HTMLElement): () => void {
   let refs: ViewRefs | undefined
   let lastBoard: BoardData | undefined
   // 错误事件独立分页状态（单源 /dashboard/api/board/error-events）；claim/resolve/reopen 不改 last_seen → 行序稳定
   let errView: ErrPageView = { events: [], total: 0, page: 1, pageSize: ERR_PAGE_SIZE, active: '', counts: { ...emptyErrCounts } }
   const errSnapCache = new Map<string, { row: Record<string, unknown>; fetchedAt: string }>()
 
-  const shell = createBoardShell({
-    prefix: 'dsh-exec',
-    panelName: PANEL_NAME,
-    activeAttr: ACTIVE_ATTR,
-    otherActiveAttrs: OTHER_ACTIVE_ATTRS,
-    pollMs: POLL_MS,
-    pauseOnHidden: true,
-    dispatchTarget: 'document',
-    listenTarget: 'document',
-    buildContainer: () => {
-      const el = document.createElement('div')
-      el.dataset.dshExecView = ''
-      el.className = 'dsh-exec-view'
-      return el
-    },
-    onMount: (container) => {
-      refs = buildView()
-      container.appendChild(refs.board)
-      const refreshBtn = container.querySelector<HTMLButtonElement>('[data-role="refresh"]')
+  // 右栏 tab 正文宿主（原中心列容器）：看板视图挂在这里，tab 关闭即卸载。
+  const viewHost = document.createElement('div')
+  viewHost.dataset.dshExecView = ''
+  viewHost.className = 'dsh-exec-view'
+  container.appendChild(viewHost)
+  refs = buildView()
+  viewHost.appendChild(refs.board)
+  const refreshBtn = viewHost.querySelector<HTMLButtonElement>('[data-role="refresh"]')
       const onRefresh = () => { void fetchBoard(); void fetchErrPage({ silent: true }) }
       refreshBtn?.addEventListener('click', onRefresh)
       // 调度任务点击委派
@@ -227,24 +190,19 @@ export function mountBoard(controller: BoardController): () => void {
         }
       }
       refs.orphanedBox.addEventListener('click', onOrphanedClick)
-      void fetchBoard(true)
-      void fetchErrPage()
-      return () => {
-        refreshBtn?.removeEventListener('click', onRefresh)
-        refs.tasksBox.removeEventListener('click', onTasksClick)
-        refs.errsBox.removeEventListener('click', onErrsClick)
-        refs.orphanedBox.removeEventListener('click', onOrphanedClick)
-      }
-    },
-    onPoll: () => { void fetchBoard(); void fetchErrPage({ silent: true }) },
-  })
+  const unmountUi = (): void => {
+    refreshBtn?.removeEventListener('click', onRefresh)
+    refs?.tasksBox.removeEventListener('click', onTasksClick)
+    refs?.errsBox.removeEventListener('click', onErrsClick)
+    refs?.orphanedBox.removeEventListener('click', onOrphanedClick)
+  }
 
-  controller.isActive = shell.isActive
-  controller.toggle = shell.toggle
-  controller.openBoard = shell.open
-  controller.closeBoard = shell.close
-  controller.toggleBoard = shell.toggle
-  controller.getSnapshot = () => ({ boardOpen: shell.isActive() })
+  // 打开 tab 即取数（首屏），随后 15s 轮询；页面不可见时跳过
+  void fetchBoard(true)
+  void fetchErrPage()
+  const pollTimer = window.setInterval(() => {
+    if (!document.hidden) { void fetchBoard(); void fetchErrPage({ silent: true }) }
+  }, POLL_MS)
 
   async function fetchBoard(initial = false): Promise<void> {
     if (fetching) return
@@ -378,12 +336,13 @@ export function mountBoard(controller: BoardController): () => void {
   },
     current: currentSession,
     resolveSnapshot: (kind, identity) => snapshotFor(kind, identity),
-    host: () => document.querySelector<HTMLElement>(BOARD_VIEW_SELECTOR) ?? undefined,
+    host: () => viewHost,
   })
 
   return () => {
-    shell.dispose()
+    window.clearInterval(pollTimer)
+    unmountUi()
     kit.close()
-    document.documentElement.removeAttribute(ACTIVE_ATTR)
+    viewHost.remove()
   }
 }

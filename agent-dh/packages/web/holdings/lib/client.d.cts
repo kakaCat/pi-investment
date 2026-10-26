@@ -11,6 +11,9 @@ type ApplyContext = {
   slots?: unknown;
   sessions?: unknown;
   workspaces?: unknown;
+  sidebarRight?: unknown;
+  sidebarRightTabs?: unknown;
+  effect?: (fn: () => unknown, label?: string) => unknown;
 };
 /** Window-scoped apply guard so HMR re-apply tears down before re-mounting. */
 declare global {

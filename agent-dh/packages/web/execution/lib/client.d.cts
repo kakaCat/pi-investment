@@ -28,6 +28,9 @@ interface SessionsFacade {
 }
 interface ApplyContext {
   slots?: SlotsService;
+  /** DSH 官方右侧栏（看板以 tab 形式打开，与会话并排） */
+  sidebarRight?: unknown;
+  sidebarRightTabs?: unknown;
   /** 「我来解决」会话候选（与左栏同源；board-mount 点击时经 __dshExecSessions 懒读） */
   sessions?: SessionsFacade;
   /** workspace 控制器（归档会话集合 archivedSessionIds 来源） */

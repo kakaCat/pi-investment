@@ -28,7 +28,11 @@
   "dsh": {
     "client": {
       "platform": "web",
-      "inject": []
+      "inject": [
+        "slots",
+        "sidebarRight",
+        "sidebarRightTabs"
+      ]
     }
   }
 }

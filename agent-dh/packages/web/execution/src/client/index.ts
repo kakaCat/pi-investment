@@ -24,13 +24,14 @@
  *
  * @module dashboard-execution/client
  */
-import { createBoardController, mountBoard } from './board-mount.ts'
+import { mountBoardView } from './board-mount.ts'
+import { injectToastStyles, registerRightTab, showToast, type RightTabHandle } from '@pi-investment/page-kit/client'
 import { ExecFooterAction, injectFooterStyles, PANEL_NAME, PANEL_LABEL, OPEN_EVENT } from './footer-action.ts'
 import { injectStyles } from './styles.ts'
 
 export const name = '@pi-investment/dashboard-execution/client'
 /** Service names this client module requires on ctx (official slot idiom). */
-export const inject: string[] = ['slots', 'sessions', 'workspaces']
+export const inject: string[] = ['slots', 'sessions', 'workspaces', 'sidebarRight', 'sidebarRightTabs']
 
 /** Minimal view of the slots service this module consumes (official shape). */
 interface SlotsService {
@@ -58,6 +59,9 @@ export interface SessionsFacade {
 }
 interface ApplyContext {
   slots?: SlotsService
+  /** DSH 官方右侧栏（看板以 tab 形式打开，与会话并排） */
+  sidebarRight?: unknown
+  sidebarRightTabs?: unknown
   /** 「我来解决」会话候选（与左栏同源；board-mount 点击时经 __dshExecSessions 懒读） */
   sessions?: SessionsFacade
   /** workspace 控制器（归档会话集合 archivedSessionIds 来源） */
@@ -86,33 +90,40 @@ export function apply(ctx: ApplyContext): void {
   try {
     injectFooterStyles()
     injectStyles()
+    injectToastStyles('dsh-exec')
 
     // Guard: a prior apply() (e.g. HMR re-apply) disposes its listeners and
     // board mount first, so re-entry never double-registers or double-mounts.
     window.__dshExecClient?.dispose()
 
-    // Execution board: controller + center-column mount (taskboard contract).
-    const controller = createBoardController()
-    const disposeBoard = mountBoard(controller)
+    // Execution board: 注册成 DSH 原生右侧栏 tab（打开时才挂载，与会话并排）。
+    const tab: RightTabHandle = registerRightTab(ctx, {
+      id: '@pi-investment/dashboard-execution',
+      kind: 'dashboard-execution',
+      title: '智能执行',
+      mount: (host) => mountBoardView(host),
+    })
 
-    // Wire the footer action click to the board controller (the seam the
-    // occupant dispatches; index.ts owns the actual behavior).
+    // 入口（侧栏底部「智能执行」按钮）派发 open-board 事件，这里映射到右栏 tab。
     const onOpen = (event: Event): void => {
       const open = (event as CustomEvent<{ open?: boolean }>).detail?.open
-      console.log('[dashboard-execution] open-board event', { open }, 'boardOpen:', controller.getSnapshot().boardOpen)
+      console.log('[dashboard-execution] open-board event', { open }, 'active:', tab.isActive())
       if (open === true) {
-        // 已开时再点=关闭（openBoard 对已开状态是幂等空转）
-        if (controller.getSnapshot().boardOpen) controller.closeBoard()
-        else controller.openBoard()
-      } else controller.toggleBoard()
+        if (!tab.open()) showToast('请先打开一个会话 —— 右侧栏需要有会话才能停靠看板', false, 'dsh-exec')
+        return
+      }
+      if (!tab.isActive() && !tab.open()) {
+        showToast('请先打开一个会话 —— 右侧栏需要有会话才能停靠看板', false, 'dsh-exec')
+        return
+      }
+      if (tab.isActive()) tab.close()
     }
     window.addEventListener(OPEN_EVENT, onOpen)
 
     window.__dshExecClient = {
       dispose: () => {
         window.removeEventListener(OPEN_EVENT, onOpen)
-        disposeBoard()
-        controller.closeBoard()
+        tab.dispose()
       },
     }
 

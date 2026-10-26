@@ -25,10 +25,11 @@
  *
  * @module dashboard-holdings/client
  */
-import { createBoardController, mountBoard } from './board-mount.js'
+import { createBoardController, mountBoardView } from './board-mount.js'
 import { mountSidebarEntry } from './sidebar-entry.js'
 import { injectStyles } from './styles.js'
 import { injectSolveStyles } from '@pi-investment/solve-kit/client'
+import { injectToastStyles, registerRightTab, showToast, type RightTabHandle } from '@pi-investment/page-kit/client'
 
 export const name = '@pi-investment/dashboard-holdings/client'
 /**
@@ -36,13 +37,16 @@ export const name = '@pi-investment/dashboard-holdings/client'
  * session candidates (2026-09-08); slots mirrors the taskboard entry idiom
  * kept by sibling pages. Board body itself stays plain DOM.
  */
-export const inject: string[] = ['slots', 'sessions', 'workspaces']
+export const inject: string[] = ['slots', 'sessions', 'workspaces', 'sidebarRight', 'sidebarRightTabs']
 
 /** apply 收到的 client ctx 极简投影（宽容读取，缺字段即降级） */
 type ApplyContext = {
   slots?: unknown
   sessions?: unknown
   workspaces?: unknown
+  sidebarRight?: unknown
+  sidebarRightTabs?: unknown
+  effect?: (fn: () => unknown, label?: string) => unknown
 }
 
 /** Window-scoped apply guard so HMR re-apply tears down before re-mounting. */
@@ -67,26 +71,39 @@ export function apply(ctx: ApplyContext): void {
     injectStyles()
     // solve 弹层/按钮/toast 样式（dsh-hld 前缀，幂等注入一次）
     injectSolveStyles('dsh-hld')
+    injectToastStyles('dsh-hld')
 
     // Guard: a prior apply() (e.g. HMR re-apply) disposes its listeners and
     // board mount first, so re-entry never double-registers or double-mounts.
     window.__dshHldClient?.dispose()
 
-    // Board body: controller + center-column mount (taskboard contract).
+    // Board body: 注册成 DSH 原生右侧栏 tab（打开时才挂载，与会话并排）。
     const controller = createBoardController()
-    const disposeBoard = mountBoard(controller)
+    const tab: RightTabHandle = registerRightTab(ctx, {
+      id: '@pi-investment/dashboard-holdings',
+      kind: 'dashboard-holdings',
+      title: '账户持仓',
+      mount: (host) => mountBoardView(controller, host),
+    })
 
-    // Top sidebar entry row toggles the board (see sidebar-entry.ts).
+    // Top sidebar entry row opens/closes the right-sidebar tab.
     const disposeEntry = mountSidebarEntry({
-      isActive: () => controller.getSnapshot().boardOpen,
-      toggle: () => controller.toggleBoard(),
+      isActive: () => tab.isActive(),
+      toggle: () => {
+        if (tab.isActive()) {
+          tab.close()
+          return
+        }
+        if (!tab.open()) {
+          showToast('请先打开一个会话 —— 右侧栏需要有会话才能停靠看板', false, 'dsh-hld')
+        }
+      },
     })
 
     window.__dshHldClient = {
       dispose: () => {
-        disposeBoard()
         disposeEntry()
-        controller.closeBoard()
+        tab.dispose()
       },
     }
   } catch (e) {

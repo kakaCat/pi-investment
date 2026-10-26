@@ -2,7 +2,7 @@
  * Genome dashboard styles — scoped under .dsh-gen-* (own namespace).
  * Injected once into <head>; re-apply guarded by CSS_TAG id.
  * Tokens: ride the shell's --dsw-* CSS variables where exposed, with neutral
- * fallbacks. Board visibility: hidden unless html[data-dsh-gen-active].
+ * fallbacks. The board renders inside a DSH right-sidebar tab (panel width, not full page).
  *
  * @module dashboard-genome/client/styles
  */
@@ -14,9 +14,9 @@ export function injectStyles(): void {
   const style = document.createElement('style')
   style.id = CSS_TAG
   style.textContent = `
-/* ===== 板容器与显隐（dsh-taskboard 契约） ===== */
+/* ===== 板容器（右侧栏 tab 正文） ===== */
 .dsh-gen-board {
-  display: none;
+  display: flex;
   flex-direction: column;
   height: 100%;
   box-sizing: border-box;
@@ -26,12 +26,7 @@ export function injectStyles(): void {
   color: var(--dsw-text-1, #1f2329);
   background: transparent;
 }
-html[data-dsh-gen-active] .dsh-gen-board { display: flex; }
-/* 三代中心列特征各配隐藏兜底（bulletin 同款：data-pane dev shell / centerCol 官方布局 / Desktop surface） */
-html[data-dsh-gen-active] [data-pane="conversation"] > *:not([data-dsh-gen-view]),
-html[data-dsh-gen-active] [class*="centerCol"] > *:not([data-dsh-gen-view]),
-html[data-dsh-gen-active] .dshDesktopConversationSurface > *:not([data-dsh-gen-view]) { display: none !important; }
-html[data-dsh-gen-active] .dsh-gen-board code {
+.dsh-gen-board code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 11px;
   background: var(--dsw-bg-2, rgba(0,0,0,0.05));
@@ -353,10 +348,9 @@ html[data-dsh-gen-active] .dsh-gen-board code {
   box-sizing: border-box;
 }
 .dsh-gen-entry:hover { background: var(--dsw-bg-2, rgba(0,0,0,0.06)); color: var(--dsw-primary, #2f6bff); }
-html[data-dsh-gen-active] .dsh-gen-entry { background: var(--dsw-primary, #2f6bff); color: #fff; }
-html[data-dsh-gen-active] [data-dsh-gen-entry] svg { stroke: #fff; }
+.dsh-gen-entry[data-active="true"] { background: color-mix(in srgb, var(--dsw-primary, #2f6bff) 14%, transparent); color: var(--dsw-primary, #2f6bff); }
+.dsh-gen-entry[data-active="true"] svg { stroke: var(--dsw-primary, #2f6bff); }
 .dsh-gen-entry svg { flex: none; stroke: var(--dsw-text-2, #4e5969); }
-html[data-dsh-gen-active] [data-dsh-gen-entry] { background: color-mix(in srgb, var(--dsw-primary, #2f6bff) 14%, transparent); }
 [data-sidebar-collapsed] .dsh-gen-entry,
 [class*="_collapsed"] .dsh-gen-entry { justify-content: center; width: 36px; margin: 4px auto; padding: 7px 0; }
 [data-sidebar-collapsed] .dsh-gen-entry .dsh-gen-entry-label,

@@ -12,7 +12,6 @@ import { pickParts, fetchPlanFor } from '../services/parts.js'
 import {
   createSolveKit, type SolveCandidate, type SolveIdentity, type SolveKit, type SolveSnapshot,
 } from '@pi-investment/solve-kit/client'
-import { createBoardShell } from '@pi-investment/page-kit/client'
 
 export interface BoardController {
   openBoard(): void
@@ -27,6 +26,9 @@ export interface BoardController {
   historyPageSwitch(page: number): void
   solveTask(btn?: HTMLElement): void
 }
+
+/** 右栏 tab 正文宿主：页面单实例，挂载时赋值、卸载时清空。 */
+let boardHost: HTMLElement | undefined
 
 export function createBoardController(): BoardController {
   let currentAccount = 'agent_brain'
@@ -92,18 +94,18 @@ export function createBoardController(): BoardController {
 
   const renderBoard = (data: HoldingsData): void => {
     lastData = data
-    const view = document.querySelector(BOARD_VIEW_SELECTOR)
+    const view = boardHost
     if (!view) {
       // 2026-09-13（w-adb088f2）：这里原来是**静默 return**——容器没挂上时，数据已经取回来了
       // 却无处渲染：控制台干净、页面空白，故障被伪装成"没有数据"（用户实测：无账户下拉、
       // 控制台无报错）。与本次会话反复修复的"静默失败把它伪装成在工作"是同一类缺陷。
       // 现改为：显式报错 + 400ms 后重试一次（容器可能比数据晚一帧挂载）。
-      console.error('[dashboard-holdings] 渲染失败：找不到看板容器 ' + BOARD_VIEW_SELECTOR
-        + '（容器由 page-kit createBoardShell 挂到中心栏；找不到时数据会全部丢失且原本不报错）')
+      console.error('[dashboard-holdings] 渲染失败：右栏看板容器尚未挂载 ' + BOARD_VIEW_SELECTOR
+        + '（容器由页面挂载层在右侧栏 tab 里创建；找不到时数据会全部丢失）')
       if (renderRetryTimer === undefined) {
         renderRetryTimer = window.setTimeout(() => {
           renderRetryTimer = undefined
-          const again = document.querySelector(BOARD_VIEW_SELECTOR)
+          const again = boardHost
           if (again) {
             console.log('[dashboard-holdings] 重试成功：容器已就绪，补渲染')
             again.innerHTML = buildView(data, watchKey, historyPage)
@@ -121,7 +123,7 @@ export function createBoardController(): BoardController {
   }
 
   const renderError = (message: string): void => {
-    const view = document.querySelector(BOARD_VIEW_SELECTOR)
+    const view = boardHost
     if (!view) return
     view.innerHTML = '<div class="dsh-hld-board"><div class="dsh-hld-wrap"><div class="dsh-hld-head"><h1 class="dsh-hld-title">持仓看板</h1></div><div class="dsh-hld-banner show">数据加载失败: ' + message + '</div></div></div>'
   }
@@ -131,7 +133,7 @@ export function createBoardController(): BoardController {
     if (k === watchKey) return
     watchKey = k
     if (!lastData) return
-    const host = document.getElementById('dsh-hld-watch')
+    const host = boardHost?.querySelector<HTMLElement>('#dsh-hld-watch') ?? null
     if (host === null) { renderBoard(lastData); return }
     const tpl = document.createElement('template')
     tpl.innerHTML = buildWatchCardHtml(lastData, watchKey)
@@ -147,7 +149,7 @@ export function createBoardController(): BoardController {
     if (next === historyPage) return
     historyPage = next
     if (!lastData) return
-    const host = document.getElementById('dsh-hld-hx')
+    const host = boardHost?.querySelector<HTMLElement>('#dsh-hld-hx') ?? null
     if (host === null) { renderBoard(lastData); return }
     const tpl = document.createElement('template')
     tpl.innerHTML = buildHistoryCard(lastData, historyPage)
@@ -233,48 +235,43 @@ export function createBoardController(): BoardController {
   }
 }
 
-export function mountBoard(controller: BoardController): () => void {
+/**
+ * Mount the holdings board into a host container (right-sidebar tab body).
+ *
+ * 打开时才挂载（tab 卸载即清理），首次挂载取一次全量数据，挂载期间 15s 轮询
+ * （页面不可见时暂停）。内联 onclick 依赖的 window 全局函数在这里绑定/解绑。
+ */
+export function mountBoardView(controller: BoardController, container: HTMLElement): () => void {
+  const host = document.createElement('div')
+  host.setAttribute('data-dsh-hld-view', '')
+  host.className = 'dsh-hld-view'
+  container.appendChild(host)
+  boardHost = host
+
   ;(window as any).__dshHldRefresh = () => controller.refresh()
   ;(window as any).__dshHldSwitchAccount = (accountName: string) => controller.switchAccount(accountName)
   ;(window as any).__dshHldWatchTab = (key: string) => controller.watchSwitch(String(key))
   ;(window as any).__dshHldHistoryPage = (page: unknown) => controller.historyPageSwitch(Number(page))
   ;(window as any).__dshHldSolveTask = (btn?: HTMLElement) => controller.solveTask(btn)
 
-  const shell = createBoardShell({
-    prefix: 'dsh-hld',
-    panelName: PANEL_NAME,
-    activeAttr: ACTIVE_ATTR,
-    otherActiveAttrs: OTHER_ACTIVE_ATTRS,
-    pollMs: 15000,
-    // 切到别的标签页/窗口时暂停轮询（兄弟页面 execution、pmboard 都是 true）
-    pauseOnHidden: true,
-    buildContainer: () => {
-      const el = document.createElement('div')
-      el.setAttribute('data-dsh-hld-view', '')
-      el.className = 'dsh-hld-view'
-      return el
-    },
-    // 挂载不取数（REQ-6cbbf7）：容器由 page-kit 在启动时就挂进中心栏（显隐只靠
-    // html[data-dsh-hld-active]），"挂载"≠"用户在看"——启动阶段发请求＝打开前加载。
-    // 首次取数交给 onOpen（fetchPlanFor('open') → 冷块不在手 → full）。
-    onMount: () => undefined,
-    onOpen: () => controller.refreshOnOpen(),
-    onPoll: () => controller.refresh(),
-  })
+  // 打开看板时取数：冷块（盯盘规则/成交明细）不在手 → full 补齐；已在手 → 只拉 hot。
+  controller.refreshOnOpen()
 
-  const ctrl = controller as any
-  ctrl.openBoard = shell.open
-  ctrl.closeBoard = shell.close
-  ctrl.toggleBoard = shell.toggle
-  ctrl.getSnapshot = () => ({ boardOpen: shell.isActive() })
+  const pollTimer = window.setInterval(() => {
+    if (!document.hidden) controller.refresh()
+  }, 15000)
+
+  console.log('[dashboard-holdings] board mounted in right sidebar tab')
 
   return () => {
-    shell.dispose()
+    window.clearInterval(pollTimer)
     delete (window as any).__dshHldRefresh
     delete (window as any).__dshHldSwitchAccount
     delete (window as any).__dshHldWatchTab
     delete (window as any).__dshHldHistoryPage
     delete (window as any).__dshHldSolveTask
+    if (boardHost === host) boardHost = undefined
+    host.remove()
     console.log('[dashboard-holdings] board unmounted')
   }
 }
