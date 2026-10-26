@@ -81,7 +81,7 @@ export class QuantsysV2RestartTool extends BaseTool<QuantsysV2RestartParams, Qua
         // 回退：kill（graceful/force）→ 端口释放验证 → spawn
         let oldPid: number | null = null;
         try {
-          const pidStr = execSync(`lsof -ti:${port} -sTCP:LISTEN`, { encoding: 'utf-8', timeout: 5000 }).trim();
+          const pidStr = execSync(`/usr/sbin/lsof -ti:${port} -sTCP:LISTEN`, { encoding: 'utf-8', timeout: 5000 }).trim();
           if (pidStr) {
             oldPid = parseInt(pidStr);
             if (force) {
@@ -92,7 +92,7 @@ export class QuantsysV2RestartTool extends BaseTool<QuantsysV2RestartParams, Qua
               for (let i = 0; i < 10; i++) {
                 execSync('sleep 1');
                 try {
-                  execSync(`lsof -ti:${port} -sTCP:LISTEN`, { timeout: 2000 });
+                  execSync(`/usr/sbin/lsof -ti:${port} -sTCP:LISTEN`, { timeout: 2000 });
                 } catch {
                   steps.push({ step: 'stop', status: 'graceful_exit', pid: oldPid, waited_sec: i + 1 });
                   break;
@@ -112,7 +112,7 @@ export class QuantsysV2RestartTool extends BaseTool<QuantsysV2RestartParams, Qua
 
         execSync('sleep 2');
         try {
-          execSync(`lsof -ti:${port} -sTCP:LISTEN`, { timeout: 2000 });
+          execSync(`/usr/sbin/lsof -ti:${port} -sTCP:LISTEN`, { timeout: 2000 });
           return { success: false, steps, error: `Port ${port} still occupied after stop` };
         } catch {
           steps.push({ step: 'verify_port', status: 'free' });
@@ -162,7 +162,7 @@ export class QuantsysV2RestartTool extends BaseTool<QuantsysV2RestartParams, Qua
     let pid: number | null = null;
     let portListening = false;
     try {
-      const pidStr = execSync(`lsof -ti:${port} -sTCP:LISTEN`, { encoding: 'utf-8', timeout: 5000 }).trim();
+      const pidStr = execSync(`/usr/sbin/lsof -ti:${port} -sTCP:LISTEN`, { encoding: 'utf-8', timeout: 5000 }).trim();
       if (pidStr) {
         pid = parseInt(pidStr);
         portListening = true;
@@ -190,7 +190,7 @@ export class QuantsysV2RestartTool extends BaseTool<QuantsysV2RestartParams, Qua
     const issues: string[] = [];
 
     try {
-      const pidStr = execSync(`lsof -ti:${port} -sTCP:LISTEN`, { encoding: 'utf-8', timeout: 3000 }).trim();
+      const pidStr = execSync(`/usr/sbin/lsof -ti:${port} -sTCP:LISTEN`, { encoding: 'utf-8', timeout: 3000 }).trim();
       if (!pidStr) {
         issues.push(`Port ${port} not listening - process failed to bind`);
       }

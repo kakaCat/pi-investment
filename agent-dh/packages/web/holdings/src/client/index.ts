@@ -83,7 +83,8 @@ export function apply(ctx: ApplyContext): void {
       id: '@pi-investment/dashboard-holdings',
       kind: 'dashboard-holdings',
       title: '账户持仓',
-      mount: (host) => mountBoardView(controller, host),
+      // isActive 供轮询守卫：tab 非激活时暂停轮询，重新激活立即补数据
+      mount: (host) => mountBoardView(controller, host, { isActive: () => tab.isActive() }),
     })
 
     // Top sidebar entry row opens/closes the right-sidebar tab.

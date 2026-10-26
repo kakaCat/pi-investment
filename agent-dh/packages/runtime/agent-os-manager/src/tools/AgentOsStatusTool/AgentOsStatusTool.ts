@@ -39,7 +39,7 @@ export class AgentOsStatusTool extends BaseTool<AgentOsStatusParams, AgentOsStat
     let pid: number | null = null;
     let portListening = false;
     try {
-      const pidStr = execSync(`lsof -ti:${port} -sTCP:LISTEN`, { encoding: 'utf-8', timeout: 5000 }).trim();
+      const pidStr = execSync(`/usr/sbin/lsof -ti:${port} -sTCP:LISTEN`, { encoding: 'utf-8', timeout: 5000 }).trim();
       if (pidStr) {
         pid = parseInt(pidStr);
         portListening = true;

@@ -12,6 +12,7 @@ import { pickParts, fetchPlanFor } from '../services/parts.js'
 import {
   createSolveKit, type SolveCandidate, type SolveIdentity, type SolveKit, type SolveSnapshot,
 } from '@pi-investment/solve-kit/client'
+import { captureHtml, setHtmlIfChanged } from '@pi-investment/page-kit/client'
 
 export interface BoardController {
   openBoard(): void
@@ -108,7 +109,7 @@ export function createBoardController(): BoardController {
           const again = boardHost
           if (again) {
             console.log('[dashboard-holdings] 重试成功：容器已就绪，补渲染')
-            again.innerHTML = buildView(data, watchKey, historyPage)
+            setHtmlIfChanged(again, buildView(data, watchKey, historyPage))
           } else {
             console.error('[dashboard-holdings] 重试仍失败：容器始终未出现 —— 看板将无法显示任何数据')
           }
@@ -116,16 +117,18 @@ export function createBoardController(): BoardController {
       }
       return
     }
-    view.innerHTML = buildView(data, watchKey, historyPage)
-    console.log('[dashboard-holdings] 已渲染：账户=' + (data.currentAccount ?? '?')
-      + '，账户数=' + (data.accounts?.length ?? 0)
-      + '，持仓行=' + (data.positions?.length ?? 0))
+    // 2026-10-26：全量重建守卫 —— 数据没变跳过 innerHTML（轮询不再抹掉滚动/交互状态）
+    if (setHtmlIfChanged(view, buildView(data, watchKey, historyPage))) {
+      console.log('[dashboard-holdings] 已渲染：账户=' + (data.currentAccount ?? '?')
+        + '，账户数=' + (data.accounts?.length ?? 0)
+        + '，持仓行=' + (data.positions?.length ?? 0))
+    }
   }
 
   const renderError = (message: string): void => {
     const view = boardHost
     if (!view) return
-    view.innerHTML = '<div class="dsh-hld-board"><div class="dsh-hld-wrap"><div class="dsh-hld-head"><h1 class="dsh-hld-title">持仓看板</h1></div><div class="dsh-hld-banner show">数据加载失败: ' + message + '</div></div></div>'
+    setHtmlIfChanged(view, '<div class="dsh-hld-board"><div class="dsh-hld-wrap"><div class="dsh-hld-head"><h1 class="dsh-hld-title">持仓看板</h1></div><div class="dsh-hld-banner show">数据加载失败: ' + message + '</div></div></div>')
   }
 
   const watchSwitch = (key: string): void => {
@@ -140,6 +143,8 @@ export function createBoardController(): BoardController {
     const node = tpl.content.firstElementChild as HTMLElement | null
     if (node === null) { renderBoard(lastData); return }
     host.replaceWith(node)
+    // 局部改 DOM 后重登记基线，避免下一轮轮询因序列化微差误判重建
+    if (boardHost) captureHtml(boardHost)
   }
 
   const historyPageSwitch = (page: number): void => {
@@ -156,6 +161,8 @@ export function createBoardController(): BoardController {
     const node = tpl.content.firstElementChild as HTMLElement | null
     if (node === null) { renderBoard(lastData); return }
     host.replaceWith(node)
+    // 局部改 DOM 后重登记基线，避免下一轮轮询因序列化微差误判重建
+    if (boardHost) captureHtml(boardHost)
   }
 
   // solve-kit
@@ -239,9 +246,14 @@ export function createBoardController(): BoardController {
  * Mount the holdings board into a host container (right-sidebar tab body).
  *
  * 打开时才挂载（tab 卸载即清理），首次挂载取一次全量数据，挂载期间 15s 轮询
- * （页面不可见时暂停）。内联 onclick 依赖的 window 全局函数在这里绑定/解绑。
+ * （页面不可见时暂停；右栏 tab 非激活时暂停，重新激活立即补一次数据）。
+ * 内联 onclick 依赖的 window 全局函数在这里绑定/解绑。
  */
-export function mountBoardView(controller: BoardController, container: HTMLElement): () => void {
+export function mountBoardView(
+  controller: BoardController,
+  container: HTMLElement,
+  opts?: { isActive?: () => boolean },
+): () => void {
   const host = document.createElement('div')
   host.setAttribute('data-dsh-hld-view', '')
   host.className = 'dsh-hld-view'
@@ -257,8 +269,19 @@ export function mountBoardView(controller: BoardController, container: HTMLEleme
   // 打开看板时取数：冷块（盯盘规则/成交明细）不在手 → full 补齐；已在手 → 只拉 hot。
   controller.refreshOnOpen()
 
+  // 2026-10-26：tab 非激活时停轮询（keepMounted 下后台不再白取数/重建）；
+  // 重新激活的当 tick 立即补数据，避免回来看见最长 15s 的旧数据。
+  let wasActive = true // mount 即首次打开，视为激活
   const pollTimer = window.setInterval(() => {
-    if (!document.hidden) controller.refresh()
+    if (document.hidden) return
+    const active = opts?.isActive ? opts.isActive() : true
+    if (!active) { wasActive = false; return }
+    if (!wasActive) {
+      wasActive = true
+      controller.refreshOnOpen()
+      return
+    }
+    controller.refresh()
   }, 15000)
 
   console.log('[dashboard-holdings] board mounted in right sidebar tab')

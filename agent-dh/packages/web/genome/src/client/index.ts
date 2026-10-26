@@ -47,7 +47,8 @@ export function apply(ctx: ApplyContext): void {
       id: TAB_ID,
       kind: TAB_KIND,
       title: '自主进化',
-      mount: (host) => mountBoardView(host),
+      // isActive 供轮询守卫：tab 非激活时暂停轮询，重新激活立即补数据
+      mount: (host) => mountBoardView(host, { isActive: () => tab.isActive() }),
     })
 
     // 入口点击语义：已激活 → 关闭该 tab；否则打开/聚焦。右栏打不开（无会话）时给可见提示。

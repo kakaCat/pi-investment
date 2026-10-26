@@ -8,7 +8,7 @@
  * @module dashboard-execution/client/view
  */
 import type { BoardData, CheckpointResult, ErrorEvent, SchedulerTask, TimelineEntry } from './types.ts'
-import { esc, fmtClock } from '@pi-investment/page-kit/client'
+import { esc, fmtClock, setHtmlIfChanged } from '@pi-investment/page-kit/client'
 import { LINE_META, LINE_ZH, classifyTask, isDualLine as isDualLineTask } from '../shared/line-classify.ts'
 function shortDT(s: unknown): string { return fmtClock(String(s), { omitDateIfToday: true }) }
 
@@ -237,7 +237,8 @@ function renderHealth(refs: ViewRefs, data: BoardData): void {
         '<b>' + esc(H_ZH[st] ?? st) + '</b></span>'
     }).join('') + '</div>'
   }
-  refs.healthBox.innerHTML = html
+  // 2026-10-26：全量重建守卫（responseTimeMs 等每轮都变，数据级 diff 不可行，按渲染结果比对）
+  setHtmlIfChanged(refs.healthBox, html)
 }
 
 function flowNode(code: string, zh: string, cps: CheckpointResult[]): string {
@@ -269,7 +270,7 @@ function renderFlow(refs: ViewRefs, data: BoardData): void {
   const band = (label: string, badge: string, mods: { code: string; zh: string }[]): string =>
     '<div class="dsh-exec-band"><div class="band-t"><span class="band-badge ' + badge + '">' + label + '</span>    <i></i></div><div class="band-nodes">' +
     mods.map((m) => flowNode(m.code, m.zh, byMod[badge + '|' + m.code] ?? [])).join('') + '</div></div>'
-  refs.flowBox.innerHTML = band('ENGINE', 'engine', ENGINE_MODS) + band('AUTONOMY', 'autonomy', AUTO_MODS)
+  setHtmlIfChanged(refs.flowBox, band('ENGINE', 'engine', ENGINE_MODS) + band('AUTONOMY', 'autonomy', AUTO_MODS))
 }
 
 function tlStatusLabel(st: string): string { return TL_ZH[st] ?? '未知' }
@@ -353,7 +354,7 @@ function renderTimeline(refs: ViewRefs, data: BoardData): void {
   // 非执行日（今日 cron 不排、亦无真实 run）行同样入列展示为灰态「非执行日」，与执行流水线 off_day 一致
   const tl = (data.timeline ?? []).slice().sort((a, b) => hmMin(a.expectedTime) - hmMin(b.expectedTime))
   const cov = coverageNote(data)
-  if (tl.length === 0) { refs.timelineBox.innerHTML = cov + '<div class="dsh-exec-empty">今日暂无计划任务</div>'; return }
+  if (tl.length === 0) { setHtmlIfChanged(refs.timelineBox, cov + '<div class="dsh-exec-empty">今日暂无计划任务</div>'); return }
   // 业务线分组：盈利引擎 + Autonomy 双线展开；账户 / 其它折叠进 <details>（用户 2026-09-08：时间轴=双线看板）
   const byL: Record<string, TimelineEntry[]> = { engine: [], autonomy: [], account: [], other: [] }
   for (const t of tl) { const k = classifyTask({ name: t.taskName, agentLine: t.agentLine }).line; (byL[k] ?? byL.other).push(t) }
@@ -366,7 +367,7 @@ function renderTimeline(refs: ViewRefs, data: BoardData): void {
       '<em>' + esc(freqNote(items)) + '</em></summary><div class="dsh-exec-tl-list">' + items.map(tlRow).join('') + '</div></details>'
   const html = grp('engine', byL.engine) + grp('autonomy', byL.autonomy) +
     fold('account', byL.account) + fold('other', byL.other)
-  refs.timelineBox.innerHTML = cov + html
+  setHtmlIfChanged(refs.timelineBox, cov + html)
 }
 
 function taskTag(t: SchedulerTask): { cls: string; label: string } {
@@ -480,7 +481,7 @@ function taskDetailHtml(t: SchedulerTask): string {
 
 export function renderTasks(refs: ViewRefs, data: BoardData): void {
   const tasks = data.tasks ?? []
-  if (tasks.length === 0) { selTaskName = null; selDom = 'all'; taskPage = 1; lastDomShown = 'all'; lastTaskShown = null; refs.tasksBox.innerHTML = '<div class="dsh-exec-empty">暂无调度任务</div>'; return }
+  if (tasks.length === 0) { selTaskName = null; selDom = 'all'; taskPage = 1; lastDomShown = 'all'; lastTaskShown = null; setHtmlIfChanged(refs.tasksBox, '<div class="dsh-exec-empty">暂无调度任务</div>'); return }
   // 业务线 tab 计数（用户 2026-09-08：调度任务按业务线分类，替代原按动作域分类）
   const lineCount: Record<string, number> = { engine: 0, autonomy: 0, account: 0, other: 0 }
   for (const t of tasks) { const k = classifyTask(t).line; lineCount[k] = (lineCount[k] ?? 0) + 1 }
@@ -535,13 +536,13 @@ export function renderTasks(refs: ViewRefs, data: BoardData): void {
   const pager = view.length > TASK_PAGE_SIZE
     ? '<div class="dsh-exec-tkpg">' + pagerHtml(taskPage, totalPages, view.length) + '</div>' : ''
   const selTask = selTaskName === null ? null : view.find((t) => String(t.name) === selTaskName)
-  refs.tasksBox.innerHTML = hint +
+  setHtmlIfChanged(refs.tasksBox, hint +
     '<div class="dsh-exec-tabs">' + tabs.join('') + '</div>' +
     '<div class="dsh-exec-tkcard"><div class="dsh-exec-tbwrap"><table class="dsh-exec-tb"><thead><tr>' +
     '<th>任务</th><th>计划时刻</th><th>状态</th><th>上次运行</th><th>今日</th><th>下次运行</th><th class="op">处理</th></tr></thead>' +
     '<tbody>' + (rows || '<tr class="empty"><td colspan="7">该分类下暂无任务</td></tr>') + '</tbody></table></div>' +
     pager + '</div>' +
-    (selTask ? '<div class="dsh-exec-tkdetail">' + taskDetailHtml(selTask) + '</div>' : '')
+    (selTask ? '<div class="dsh-exec-tkdetail">' + taskDetailHtml(selTask) + '</div>' : ''))
 }
 
 // ================= 错误事件 =================
@@ -646,20 +647,21 @@ export function renderErrorPage(refs: ViewRefs, st: ErrPageView): void {
   const pager = st.total > st.pageSize
     ? '<div class="dsh-exec-tkpg">' + errPagerHtml(st.page, pages, st.total) + '</div>' : ''
   const banner = st.error ? '<div class="dsh-exec-banner show">⚠ 错误事件加载失败：' + esc(st.error) + ' — 请检查 Agent OS :8080</div>' : ''
-  refs.errsBox.innerHTML = banner +
+  // 2026-10-26：数据没变跳过重建，轮询不再抹掉错误列表的滚动/浏览位置
+  setHtmlIfChanged(refs.errsBox, banner +
     '<div class="dsh-exec-legend dsh-exec-legend2"><span class="dsh-exec-hint">按状态点击 Tabs 过滤 · 全部历史分页浏览 · ' +
     '<i class="dot ok"></i>待处理/处理中可处置 <i class="dot bad"></i>×N=同指纹累计次数（去重合并）· 点击 <b>#ID</b> 复制完整事件 ID</span></div>' +
     '<div class="dsh-exec-tabs">' + tabs + '</div>' +
-    '<ol class="dsh-exec-errs">' + rows + emptyRow + '</ol>' + pager
+    '<ol class="dsh-exec-errs">' + rows + emptyRow + '</ol>' + pager)
 }
 function renderBlocked(refs: ViewRefs, data: BoardData): void {
   const bl = data.blockedFlows ?? []
   refs.blockSec.style.display = bl.length > 0 ? '' : 'none'
   if (bl.length === 0) return
-  refs.blockBox.innerHTML = bl.map((b) =>
+  setHtmlIfChanged(refs.blockBox, bl.map((b) =>
     '<div class="dsh-exec-block"><b>' + esc(b.checkpointName ?? b.checkpointId ?? '?') + '</b>' +
     '<span class="tag bad">' + esc(CP_ZH[String(b.status ?? '')] ?? esc(b.status ?? '')) + '</span>' +
-    (b.blocks && b.blocks.length > 0 ? '<span class="blocks">阻断: ' + esc(b.blocks.join(', ')) + '</span>' : '') + '</div>').join('')
+    (b.blocks && b.blocks.length > 0 ? '<span class="blocks">阻断: ' + esc(b.blocks.join(', ')) + '</span>' : '') + '</div>').join(''))
 }
 
 function renderOrphanedTasks(refs: ViewRefs, data: BoardData): void {
@@ -669,11 +671,11 @@ function renderOrphanedTasks(refs: ViewRefs, data: BoardData): void {
   
   // 如果没有僵尸任务，显示空状态提示
   if (orphaned.length === 0) {
-    refs.orphanedBox.innerHTML = '<div class="dsh-exec-orphaned-empty">✓ 当前无僵尸任务（数据库中的任务均已正确加载到调度器）</div>'
+    setHtmlIfChanged(refs.orphanedBox, '<div class="dsh-exec-orphaned-empty">✓ 当前无僵尸任务（数据库中的任务均已正确加载到调度器）</div>')
     return
   }
   
-  refs.orphanedBox.innerHTML = '<div class="dsh-exec-orphaned-list">' + orphaned.map(task => {
+  setHtmlIfChanged(refs.orphanedBox, '<div class="dsh-exec-orphaned-list">' + orphaned.map(task => {
     const daysSince = task.daysSinceLastRun ?? 0
     const lastRun = task.lastRunAt ? shortDT(task.lastRunAt) : '从未执行'
     const enabledTag = task.enabled ? '<span class="tag enabled">启用</span>' : '<span class="tag disabled">禁用</span>'
@@ -693,7 +695,7 @@ function renderOrphanedTasks(refs: ViewRefs, data: BoardData): void {
         </div>
       </div>
     `
-  }).join('') + '</div>'
+  }).join('') + '</div>')
 }
 
 

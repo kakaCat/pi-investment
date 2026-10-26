@@ -101,7 +101,8 @@ export function apply(ctx: ApplyContext): void {
       id: '@pi-investment/dashboard-execution',
       kind: 'dashboard-execution',
       title: '智能执行',
-      mount: (host) => mountBoardView(host),
+      // isActive 供轮询守卫：tab 非激活时暂停轮询，重新激活立即补数据
+      mount: (host) => mountBoardView(host, { isActive: () => tab.isActive() }),
     })
 
     // 入口（侧栏底部「智能执行」按钮）派发 open-board 事件，这里映射到右栏 tab。

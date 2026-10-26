@@ -12,7 +12,7 @@
  */
 
 import type { CandidateInfo, GenomeData, GenomeSectionInfo } from './types.ts'
-import { esc, fmtClock as _fmtClock, fmtDate as _fmtDate } from '@pi-investment/page-kit/client'
+import { captureHtml, esc, fmtClock as _fmtClock, fmtDate as _fmtDate, setHtmlIfChanged } from '@pi-investment/page-kit/client'
 
 export interface ViewRefs {
   root: HTMLElement
@@ -401,6 +401,8 @@ export function buildView(): ViewRefs {
       const listRoot = body.querySelector<HTMLElement>('.dsh-gen-cand-list-root')
       if (tabs !== null) tabs.outerHTML = candTabsHtml()
       if (listRoot !== null) listRoot.innerHTML = candListHtml(lastData)
+      // 局部改 DOM 后重登记基线，避免下一轮轮询因序列化微差误判重建
+      captureHtml(body)
       return
     }
     const explain = target.closest<HTMLButtonElement>('[data-explain-module]')
@@ -416,9 +418,10 @@ export function buildView(): ViewRefs {
   return { root, refreshBtn, meta, head }
 }
 
-export function renderAll(refs: ViewRefs, data: GenomeData): void {
+/** 全量重建守卫（2026-10-26）：HTML 与上次相同则跳过，返回是否实际重建。 */
+export function renderAll(refs: ViewRefs, data: GenomeData): boolean {
   lastData = data
   const body = refs.root.querySelector<HTMLElement>('.dsh-gen-body')
-  if (body === null) return
-  body.innerHTML = bodyHtml(data)
+  if (body === null) return false
+  return setHtmlIfChanged(body, bodyHtml(data))
 }

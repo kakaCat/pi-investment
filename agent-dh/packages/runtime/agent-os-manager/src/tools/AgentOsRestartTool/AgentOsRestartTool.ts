@@ -111,7 +111,7 @@ export class AgentOsRestartTool extends BaseTool<AgentOsRestartParams, AgentOsRe
     let pid: number | null = null;
     let portListening = false;
     try {
-      const pidStr = execSync(`lsof -ti:${port} -sTCP:LISTEN`, { encoding: 'utf-8', timeout: 5000 }).trim();
+      const pidStr = execSync(`/usr/sbin/lsof -ti:${port} -sTCP:LISTEN`, { encoding: 'utf-8', timeout: 5000 }).trim();
       if (pidStr) {
         pid = parseInt(pidStr);
         portListening = true;
@@ -139,7 +139,7 @@ export class AgentOsRestartTool extends BaseTool<AgentOsRestartParams, AgentOsRe
     const issues: string[] = [];
 
     try {
-      const pidStr = execSync(`lsof -ti:${port} -sTCP:LISTEN`, { encoding: 'utf-8', timeout: 3000 }).trim();
+      const pidStr = execSync(`/usr/sbin/lsof -ti:${port} -sTCP:LISTEN`, { encoding: 'utf-8', timeout: 3000 }).trim();
       if (!pidStr) {
         issues.push(`Port ${port} not listening`);
       }

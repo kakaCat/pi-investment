@@ -1416,6 +1416,10 @@ importers:
         version: 2.1.9(@types/node@20.19.43)
 
   packages/web/page-kit:
+    dependencies:
+      react:
+        specifier: ^18.3.1
+        version: 18.3.1
     devDependencies:
       '@types/node':
         specifier: ^20.11.0

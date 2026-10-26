@@ -58,7 +58,7 @@ async function copyText(text: string): Promise<boolean> {
   } catch { return false }
 }
 
-export function mountBoardView(container: HTMLElement): () => void {
+export function mountBoardView(container: HTMLElement, opts?: { isActive?: () => boolean }): () => void {
   let refs: ViewRefs | undefined
   let lastBoard: BoardData | undefined
   // 错误事件独立分页状态（单源 /dashboard/api/board/error-events）；claim/resolve/reopen 不改 last_seen → 行序稳定
@@ -197,11 +197,15 @@ export function mountBoardView(container: HTMLElement): () => void {
     refs?.orphanedBox.removeEventListener('click', onOrphanedClick)
   }
 
-  // 打开 tab 即取数（首屏），随后 15s 轮询；页面不可见时跳过
+  // 打开 tab 即取数（首屏），随后 30s 轮询；页面不可见时跳过。
+  // 2026-10-26：右栏 tab 非激活时也跳过（keepMounted 下后台不再白取数/重建）；
+  // 重新激活后的第一个 tick 自然恢复取数，避免回来看见最长 30s 的旧数据。
   void fetchBoard(true)
   void fetchErrPage()
   const pollTimer = window.setInterval(() => {
-    if (!document.hidden) { void fetchBoard(); void fetchErrPage({ silent: true }) }
+    if (document.hidden) return
+    if (opts?.isActive && !opts.isActive()) return
+    void fetchBoard(); void fetchErrPage({ silent: true })
   }, POLL_MS)
 
   async function fetchBoard(initial = false): Promise<void> {
