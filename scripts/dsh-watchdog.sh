@@ -8,19 +8,31 @@
 #
 # 行为：
 #   - 探活 http://127.0.0.1:13080/（401 也算活——有 HTTP 响应即进程在听）
+#   - 端口无响应且 launchd 未注册 → bootstrap 对应 plist（不能再 kickstart 不存在的作业）
 #   - 端口无响应且 launchd 无 pid  → launchctl kickstart（不带 -k，只拉起不杀）
 #   - 端口无响应但 launchd 有 pid  → 进程卡死，kickstart -k 强制重启
-#   - 探活正常 → 静默退出
+#   - 探活正常 → 静默退出；恢复动作或复核失败 → 非零退出，禁止伪装 LastExitStatus=0
 #
 # 由 ~/Library/LaunchAgents/com.pi-investment.dsh-watchdog.plist 每 300 秒触发。
 
 set -u
 LABEL="com.pi-investment.dsh"
 PORT=13080
-LOG="/Users/yunpeng/pi-investment/logs/dsh-watchdog.log"
+LOG="${DSH_WATCHDOG_LOG:-/Users/yunpeng/pi-investment/logs/dsh-watchdog.log}"
 UID_NUM="$(id -u)"
+LAUNCHD_TARGET="gui/${UID_NUM}/${LABEL}"
+LAUNCHD_PLIST="${DSH_WATCHDOG_PLIST:-$HOME/Library/LaunchAgents/${LABEL}.plist}"
 
 log() { echo "[dsh-watchdog] $(date '+%Y-%m-%d %H:%M:%S') $*" >> "$LOG"; }
+
+# 管道会把 launchctl 的退出码藏在 while 后面；先保留输出与退出码，失败不得进入“复核成功”路径。
+run_launchctl() {
+    local output rc
+    output="$(launchctl "$@" 2>&1)"
+    rc=$?
+    [ -n "$output" ] && printf '%s\n' "$output" | while IFS= read -r line; do log "launchctl $1: $line"; done
+    return "$rc"
+}
 
 # ── 产物一致性巡检（2026-10-21 React #130 事故的第三道防线）────────────────────
 # 依赖换版本但前端 dist 没重建时，start.sh 会拒绝启动（第二道防线）。若这里仍按原逻辑
@@ -53,22 +65,41 @@ if [ "$http_code" != "000" ] && [ -n "$http_code" ]; then
     exit 0
 fi
 
-# 端口死了，查 launchd 是否认为它有 pid
-pid="$(launchctl list 2>/dev/null | awk -v l="$LABEL" '$3==l {print $1}')"
-
-if [ -z "$pid" ] || [ "$pid" = "-" ]; then
-    log "端口 ${PORT} 无响应且 launchd 无 pid → kickstart 拉起"
-    launchctl kickstart "gui/${UID_NUM}/${LABEL}" 2>&1 | while read -r line; do log "kickstart: $line"; done
+# 先区分“作业未注册”和“已注册但无 pid”。2026-10-20 起多次 recovery 失败的根因正是
+# stop.sh/bootout 已卸载作业，而旧看门狗仍 kickstart 一个 launchd 中不存在的 label。
+if ! launchctl print "$LAUNCHD_TARGET" >/dev/null 2>&1; then
+    if [ ! -f "$LAUNCHD_PLIST" ]; then
+        log "恢复失败：launchd 未注册 ${LABEL}，且 plist 不存在：${LAUNCHD_PLIST}"
+        exit 1
+    fi
+    log "端口 ${PORT} 无响应且 launchd 未注册 ${LABEL} → bootstrap ${LAUNCHD_PLIST}"
+    if ! run_launchctl bootstrap "gui/${UID_NUM}" "$LAUNCHD_PLIST"; then
+        log "恢复动作失败：bootstrap 未成功，本轮不再宣称进入复核"
+        exit 1
+    fi
 else
-    log "端口 ${PORT} 无响应但 pid=${pid} 存在（进程卡死）→ kickstart -k 强制重启"
-    launchctl kickstart -k "gui/${UID_NUM}/${LABEL}" 2>&1 | while read -r line; do log "kickstart -k: $line"; done
+    pid="$(launchctl list 2>/dev/null | awk -v l="$LABEL" '$3==l {print $1}')"
+    if [ -z "$pid" ] || [ "$pid" = "-" ]; then
+        log "端口 ${PORT} 无响应且 launchd 无 pid → kickstart 拉起"
+        if ! run_launchctl kickstart "$LAUNCHD_TARGET"; then
+            log "恢复动作失败：kickstart 未成功"
+            exit 1
+        fi
+    else
+        log "端口 ${PORT} 无响应但 pid=${pid} 存在（进程卡死）→ kickstart -k 强制重启"
+        if ! run_launchctl kickstart -k "$LAUNCHD_TARGET"; then
+            log "恢复动作失败：kickstart -k 未成功"
+            exit 1
+        fi
+    fi
 fi
 
-# 60 秒后复核一次并记录结果
+# 60 秒后复核一次并记录结果；仍失败必须非零退出，否则 launchd 会把失效看护显示成成功。
 sleep 60
 http_code2="$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "http://127.0.0.1:${PORT}/" 2>/dev/null)"
 if [ "$http_code2" != "000" ] && [ -n "$http_code2" ]; then
     log "复核：已恢复（HTTP ${http_code2}）"
-else
-    log "复核：仍未恢复（连续两次探活失败），下次运行再试"
+    exit 0
 fi
+log "复核：仍未恢复（连续两次探活失败），下次运行再试"
+exit 1

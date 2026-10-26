@@ -48,9 +48,9 @@ func New(config *types.SchedulerConfig) *Scheduler {
 		executor:       NewExecutor(config),
 		serviceManager: NewServiceManager(config.Services),
 		cron:           cron.New(cron.WithSeconds()),
-		dag:         NewDAG(),
-		config:      config,
-		cronEntries: make(map[uuid.UUID]cron.EntryID),
+		dag:            NewDAG(),
+		config:         config,
+		cronEntries:    make(map[uuid.UUID]cron.EntryID),
 	}
 }
 
@@ -81,6 +81,9 @@ func (s *Scheduler) Start(ctx context.Context) error {
 	// Start cron scheduler
 	s.cron.Start()
 	s.running = true
+	// macOS 睡眠后，robfig/cron 基于单调时钟的定时器可能继续按旧时间轴运行。
+	// 这里只检测墙钟跳变并重建未来排程；历史槽位补偿仍由外部 watchdog 单一执行。
+	s.startClockJumpMonitor(s.ctx)
 
 	logger.Info("Scheduler started",
 		"max_concurrent_tasks", s.config.MaxConcurrentTasks,
@@ -318,16 +321,7 @@ func (s *Scheduler) scheduleTask(task *types.Task) error {
 	// Check if it's a 5-field cron (standard format) and convert to 6-field
 	cronExpr = normalizeCronExpression(cronExpr)
 
-	entryID, err := s.cron.AddFunc(cronExpr, func() {
-		ctx := context.Background()
-		_, err := s.executeTask(ctx, task, types.TriggerSourceScheduler)
-		if err != nil {
-			logger.Error("Scheduled task execution failed",
-				"task_id", task.ID,
-				"task_name", task.Name,
-				"error", err)
-		}
-	})
+	entryID, err := s.cron.AddFunc(cronExpr, s.scheduledTaskCallback(task))
 
 	if err != nil {
 		return fmt.Errorf("failed to add cron job: %w", err)
@@ -342,6 +336,20 @@ func (s *Scheduler) scheduleTask(task *types.Task) error {
 		"normalized_cron", cronExpr)
 
 	return nil
+}
+
+// scheduledTaskCallback 统一正常排程与时钟恢复重建的执行入口，避免两条路径语义漂移。
+func (s *Scheduler) scheduledTaskCallback(task *types.Task) func() {
+	return func() {
+		ctx := context.Background()
+		_, err := s.executeTask(ctx, task, types.TriggerSourceScheduler)
+		if err != nil {
+			logger.Error("Scheduled task execution failed",
+				"task_id", task.ID,
+				"task_name", task.Name,
+				"error", err)
+		}
+	}
 }
 
 // normalizeCronExpression converts 5-field cron to 6-field (with seconds)
