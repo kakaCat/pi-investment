@@ -103,9 +103,18 @@ async def lifespan(app: FastAPI):
     try:
         from qs_ops.application.jobs.registry_setup import register_all_jobs
         register_all_jobs()
-        logger.info("✅ JobRegistry initialized (28 jobs registered)")
+        logger.info("✅ JobRegistry initialized")
     except Exception as e:
         logger.error(f"❌ JobRegistry initialization failed: {e}")
+
+    # DailyJobs → APScheduler（2026-10-27）：保留原业务函数，只把它们适配成
+    # JobRegistry 命令，由 quant.scheduler_tasks 驱动。注册失败必须 fail-fast——
+    # 若放行启动，已启用的排班会在运行时变成 Unknown job，数据管道静默断更。
+    from qs_ops.application.jobs.job_registry import job_registry
+    from adapters.inbound.fastapi_app.daily_jobs.apscheduler_bridge import build_daily_jobs
+    for _daily_job in build_daily_jobs():
+        job_registry.register(_daily_job)
+    logger.info("✅ Registered: migrated DailyJobs (11 APScheduler commands)")
 
     # P3 政策·个股事件源定时任务（RFC 015 §3.5，2026-09-11 REQ-cf627b）
     # 调度链路：quant.scheduler_tasks 行（command=ingest_events_daily / ingest_events_policy）
@@ -395,28 +404,29 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("⚠️ Orchestrator disabled via DISABLE_ORCHESTRATOR")
 
-    # 启动每日数据任务宿主线程（2026-09-02 起唯一宿主：K线同步/因子计算/
-    # 筹码分布/数据质量/新鲜度巡检/财报更新。原 Agent OS 调度器中这些任务
-    # 全部禁用或 /bin/true 占位，数据新鲜度无保障——实测 K线/因子更新不均。
-    # 与 WatchEngine/Orchestrator 同模式：无独立进程 = 不会静默死亡）
-    if os.getenv('DISABLE_DAILY_JOBS', '').lower() != 'true':
+    # DailyJobs 的每日排班已迁移到 APScheduler（2026-10-27）。
+    # 这里只保留盯盘影子/SLA/自愈的 60s 级执行引擎；它不是第二个每日调度器。
+    if os.getenv("DISABLE_WATCH_INTERVAL_ENGINE", "").lower() != "true":
         try:
-            from adapters.inbound.fastapi_app.daily_jobs_bootstrap import start_daily_jobs
-            jobs_handle = start_daily_jobs(skip='pytest' in _sys.modules)
-            if jobs_handle is not None:
-                app.state.daily_jobs = jobs_handle
-                logger.info("✅ DailyJobs host thread started")
+            from adapters.inbound.fastapi_app.daily_jobs_bootstrap import (
+                start_watch_interval_engine,
+            )
+
+            interval_handle = start_watch_interval_engine(skip="pytest" in _sys.modules)
+            if interval_handle is not None:
+                app.state.watch_interval_engine = interval_handle
+                logger.info("✅ Watch interval engine started")
         except Exception as e:
-            logger.error(f"❌ DailyJobs startup failed: {e}")
+            logger.error(f"❌ Watch interval engine startup failed: {e}")
     else:
-        logger.warning("⚠️ DailyJobs disabled via DISABLE_DAILY_JOBS")
+        logger.warning("⚠️ Watch interval engine disabled via DISABLE_WATCH_INTERVAL_ENGINE")
 
     # P2.3 的 YAML 配置驱动调度器已于 2026-10-02 **删除**（REQ-261001145152-3982 t-2d52a7）：
     # 它的 start() 只把 _running 置 True、**没有驱动循环**，生产代码无人调 run_job，
     # config/scheduler_jobs.yml 的 4 个任务从未真正触发——是"跑着却不干活"的第四条调度路径。
     # 按用户裁定（业务的定时任务归 v2 自己调度），v2 侧只保留：
-    #   ② APSchedulerService（读 quant.scheduler_tasks，已去重）
-    #   ③ DailyJobs 宿主线程（核心数据任务）
+    #   ② APSchedulerService（读 quant.scheduler_tasks，统一每日排班与启停）
+    #   ③ 盯盘 60s 级执行引擎（影子/SLA/自愈，不是每日调度器）
     # 连同它的 API 路由与专属 e2e 测试一并删除（P2.3 那套 YAML 配置驱动调度）。
 
     logger.info("📖 API Documentation: http://localhost:5001/docs")
@@ -469,6 +479,14 @@ async def lifespan(app: FastAPI):
             logger.info("✅ Orchestrator tick thread stopped")
         except Exception as e:
             logger.warning(f"⚠️ Orchestrator stop failed: {e}")
+
+    interval_handle = getattr(app.state, "watch_interval_engine", None)
+    if interval_handle is not None:
+        try:
+            interval_handle.set()
+            logger.info("✅ Watch interval engine stopped")
+        except Exception as e:
+            logger.warning(f"⚠️ Watch interval engine stop failed: {e}")
 
     # 关闭线程池（优雅关闭，等待任务完成）
     try:

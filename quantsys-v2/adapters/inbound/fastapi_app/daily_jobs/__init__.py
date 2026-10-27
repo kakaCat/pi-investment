@@ -67,6 +67,7 @@ from adapters.inbound.fastapi_app.daily_jobs.runtime import (  # noqa: F401
     _reap_orphan_runs,
     _jobs_loop,
     start_daily_jobs,
+    start_watch_interval_engine,
     trigger_job,
     list_today_runs,
 )
