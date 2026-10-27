@@ -92,10 +92,14 @@ class PlanReflectionJob:
 
         try:
             summary = await asyncio.to_thread(self.run, params or {})
-            return result_from_dict(summary)
+            return result_from_dict(self.name, "交易计划反思完成", summary)
         except Exception as exc:  # noqa: BLE001 - 失败必须显式
             logger.error("计划反思任务失败", error=str(exc))
-            return result_from_dict({"status": "failed", "error": str(exc)})
+            return result_from_dict(
+                self.name,
+                "交易计划反思完成",
+                {"status": "failed", "error": str(exc)},
+            )
 
     # ── 主流程 ────────────────────────────────────────────
     def run(self, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
