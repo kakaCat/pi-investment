@@ -50,7 +50,8 @@ export const accountInfoPrompt: ToolPrompt<AccountInfoParams, AccountInfoResult>
   notes: [
     '💡 只读操作，可随时调用',
     '💡 查看持仓明细用 position_list',
-    '⏱️  lastUpdated 为调用时刻实时刷新的行情时间戳；priceStale=true 表示行情拉取失败、盈亏基于旧价',
+    '⚡ 本工具读账户快照（/overview，毫秒级），不阻塞等实时行情；快照陈旧时自动触发后台刷新',
+    '⏱️  lastUpdated=快照时点；priceStale=true 表示快照价格陈旧，交易决策前先用 data_fetch_quote 核实',
   ],
 
   relatedTools: ['position_list', 'portfolio_trade'],

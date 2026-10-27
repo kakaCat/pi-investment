@@ -4,6 +4,7 @@
 import { fetchData, fetchJson, HttpError } from './http.js';
 import { ALL_PARTS, CORE_PARTS } from './parts.js';
 import { getStockName } from './name-map.js';
+import { slimWatchRules } from './watch-slim.js';
 import type {
   Account,
   AccountAutomation,
@@ -363,10 +364,12 @@ export class PortfolioAggregationService {
   }
   private async fetchWatchRules(baseURL: string, accountName: string, timeout: { timeoutMs: number }): Promise<WatchRule[]> {
     // 全量拉取（不按 account 过滤）：盯盘中心按「账户归属 tab」展示，须带出全部账户规则；
-    // 视图过滤（本账户=该账户归属 + 通用观察 account 为空）由 client 端完成（2026-09-05 盯盘 tab 化）
+    // 视图过滤（本账户=该账户归属 + 通用观察 account 为空）由 client 端完成（2026-09-05 盯盘 tab 化）。
+    // 2026-10-27（RFC 017 P2 收尾）：v2 返回 220 条/410KB，其中大部分是停用/过期规则和
+    // 调度内部字段；服务端先按客户端同口径过滤，再裁成视图最小契约（实测降到约 33KB）。
     const url = `${baseURL}/api/watch/rules`;
-    const resp = await fetchData<{ rules: WatchRule[] }>(url, timeout);
-    return resp.rules || [];
+    const resp = await fetchData<{ rules: unknown }>(url, timeout);
+    return slimWatchRules(resp.rules);
   }
 
   private async fetchSchedulerTasks(baseURL: string, timeout: { timeoutMs: number }): Promise<SchedulerTask[]> {

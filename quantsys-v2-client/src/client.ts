@@ -979,6 +979,49 @@ export class QuantsysV2Client {
   async getPortfolioSummary(accountName: string = DEFAULT_AGENT_ACCOUNT): Promise<PortfolioSummary> {
     const response = await this.client.get(`/api/simulation/accounts/${encodeURIComponent(accountName)}`);
     const data = this.unwrap<SimulationAccountStatus>(response.data, 'getPortfolioSummary');
+    return this.mapPortfolioSummary(data, accountName);
+  }
+
+  /**
+   * Get positions from the account overview snapshot (RFC 017 P2).
+   *
+   * 与 getPositions 的差异：/overview 只读 DB 快照，不同步拉外盘、不写库、不算基准，
+   * 因此毫秒级返回；priceStale / priceUpdatedAt 如实透出快照新鲜度。
+   * 适合 position_list / account_info 这类展示型工具；交易前价格确认仍用
+   * data_fetch_quote（或显式调用 requestQuoteRefresh 后重取）。
+   * 旧后端无 /overview（404）时回退实时账户接口，保持前后端可独立部署。
+   */
+  async getPositionsSnapshot(accountName: string = DEFAULT_AGENT_ACCOUNT): Promise<Position[]> {
+    const data = await this.fetchAccountSnapshot(accountName, 'getPositionsSnapshot');
+    const positions = Array.isArray(data.positions) ? data.positions : [];
+    return positions.map((p) => this.mapPosition(p, data));
+  }
+
+  /** 账户总览快照（/overview）：展示型汇总，不阻塞等实时行情。 */
+  async getPortfolioSummarySnapshot(accountName: string = DEFAULT_AGENT_ACCOUNT): Promise<PortfolioSummary> {
+    const data = await this.fetchAccountSnapshot(accountName, 'getPortfolioSummarySnapshot');
+    return this.mapPortfolioSummary(data, accountName);
+  }
+
+  /** 触发一次后台行情刷新（v2 202 + single-flight，不改变任何交易状态）。 */
+  async requestQuoteRefresh(accountName: string = DEFAULT_AGENT_ACCOUNT): Promise<void> {
+    await this.client.post(`/api/simulation/accounts/${encodeURIComponent(accountName)}/quotes/refresh`);
+  }
+
+  /** 取账户快照：优先 /overview（只读 DB），404 回退旧实时接口（兼容旧后端）。 */
+  private async fetchAccountSnapshot(accountName: string, operation: string): Promise<SimulationAccountStatus> {
+    try {
+      const response = await this.client.get(`/api/simulation/accounts/${encodeURIComponent(accountName)}/overview`);
+      return this.unwrap<SimulationAccountStatus>(response.data, operation);
+    } catch (err: any) {
+      if (err?.response?.status !== 404) throw err;
+      const response = await this.client.get(`/api/simulation/accounts/${encodeURIComponent(accountName)}`);
+      return this.unwrap<SimulationAccountStatus>(response.data, operation);
+    }
+  }
+
+  /** simulation 账户 payload → PortfolioSummary（旧实时接口与 overview 快照共用同一口径）。 */
+  private mapPortfolioSummary(data: SimulationAccountStatus, accountName: string): PortfolioSummary {
     const positions = Array.isArray(data.positions) ? data.positions : [];
     // 新接口持仓项无 cost 字段，总成本 = Σ(avg_cost × shares_total)
     const totalCost = positions.reduce((sum, p) => sum + ((Number(p.avg_cost) || 0) * (Number(p.shares_total) || 0)), 0);

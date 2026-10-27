@@ -67,22 +67,32 @@ export interface Trade {
 }
 
 export interface WatchCondition {
+  /** 条件类型，如 price_break / pnl_pct / volume_surge */
   type: string;
-  operator: string;
-  threshold: number;
+  /** 旧式字段（部分规则仍返回） */
+  operator?: string;
+  threshold?: number;
   field?: string;
+  /** 新式触发参数（价格条件）：{ price, direction } */
+  params?: { price?: number; direction?: string };
 }
 
+/** 看板用的最小盯盘规则契约（服务端 slimWatchRules 产出：只含活跃规则与视图字段）。 */
 export interface WatchRule {
   id: number;
   symbol: string;
   enabled: boolean;
   conditions: WatchCondition[];
-  context: Record<string, any>;
-  created_at: string;
-  triggered_count: number;
+  /** 监控理由（视图只读文本；服务端已截断到 400 字符） */
+  context: string | Record<string, any>;
   /** 归属账户（account_name 全名，如 agent_virtual）；null=通用观察（跨账户看板展示） */
   account?: string | null;
+  /** 过期时间（ISO）；服务端已过滤过期规则，保留字段供前端兜底 */
+  expires_at?: string | null;
+  /** @deprecated 看板不再传输；保留可选以兼容旧数据 */
+  created_at?: string;
+  /** @deprecated 看板不再传输；保留可选以兼容旧数据 */
+  triggered_count?: number;
 }
 
 /** 引擎调度任务（归一化展示形状；lastStatus 已按「内层真实执行结果」归一——
