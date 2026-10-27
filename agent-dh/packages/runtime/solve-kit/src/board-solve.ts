@@ -113,7 +113,7 @@ export function buildBoardSolveMessage(p: {
     id: randomUUID(),
     role: 'user',
     content: [{ type: 'text', text: lines.join('\n') }],
-    source: { kind: 'plugin', plugin: p.plugin },
+    source: { kind: `plugin:${p.plugin}` },
   }
 }
 

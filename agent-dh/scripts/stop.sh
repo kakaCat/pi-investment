@@ -15,6 +15,10 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+# launchd 的 PATH 未必含 /usr/sbin（macOS 上 lsof 在那里）。
+LSOF="$(command -v lsof 2>/dev/null || true)"
+[ -n "$LSOF" ] || LSOF=/usr/sbin/lsof
+
 DSH_DATA_DIR="${DSH_DATA_DIR:-$PROJECT_ROOT/.dsh-data}"
 PID_FILE="$DSH_DATA_DIR/state/server.pid"
 PORT_FILE="$DSH_DATA_DIR/state/server.port"
@@ -41,12 +45,12 @@ if launchctl print "$LAUNCHD_TARGET" >/dev/null 2>&1; then
     [ -n "$MANAGED_SCRIPT" ] && echo "stop.sh: 该作业执行的启动脚本: $MANAGED_SCRIPT"
     launchctl bootout "$LAUNCHD_TARGET" || { echo "stop.sh: bootout 失败" >&2; exit 1; }
     sleep 2
-    if lsof -ti:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
+    if "$LSOF" -ti:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
       echo "stop.sh: 作业已卸载但 :$PORT 仍有残留监听，SIGKILL"
-      lsof -ti:"$PORT" -sTCP:LISTEN | xargs kill -9 2>/dev/null || true
+      "$LSOF" -ti:"$PORT" -sTCP:LISTEN | xargs kill -9 2>/dev/null || true
       sleep 1
     fi
-    if lsof -ti:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
+    if "$LSOF" -ti:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
       echo "stop.sh: 停止失败，:$PORT 仍在监听" >&2
       exit 1
     fi
@@ -60,7 +64,7 @@ fi
 if [ -f "$PID_FILE" ]; then
   PID=$(head -1 "$PID_FILE" | tr -d '[:space:]')
   if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
-    if lsof -a -p "$PID" -i ":$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
+    if "$LSOF" -a -p "$PID" -i ":$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
       echo "stop.sh: killing agent-dh instance pid=$PID (port $PORT)"
       kill "$PID" 2>/dev/null || true
       killed=1
@@ -72,7 +76,7 @@ fi
 
 # ── 路径 2：端口兜底（只杀监听本端口的进程——注意 -sTCP:LISTEN，连接中的浏览器不算）──
 if [ "$killed" = "0" ]; then
-  PIDS=$(lsof -ti:"$PORT" -sTCP:LISTEN 2>/dev/null || true)
+  PIDS=$("$LSOF" -ti:"$PORT" -sTCP:LISTEN 2>/dev/null || true)
   if [ -n "$PIDS" ]; then
     echo "stop.sh: killing listener(s) on port $PORT: $PIDS"
     echo "$PIDS" | xargs kill 2>/dev/null || true
@@ -84,9 +88,9 @@ if [ "$killed" = "0" ]; then
   echo "stop.sh: 未发现 :$PORT 上监听的 agent-dh 实例"
 else
   sleep 2
-  if lsof -ti:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
+  if "$LSOF" -ti:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
     echo "stop.sh: 进程未退出，SIGKILL"
-    lsof -ti:"$PORT" -sTCP:LISTEN | xargs kill -9 2>/dev/null || true
+    "$LSOF" -ti:"$PORT" -sTCP:LISTEN | xargs kill -9 2>/dev/null || true
   fi
   echo "stop.sh: done"
 fi

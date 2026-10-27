@@ -15,6 +15,11 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 SELF="$SCRIPT_DIR/$(basename "$0")"
 
+# launchd 的 PATH 未必含 /usr/sbin（macOS 上 lsof 在那里）。缺了它端口预检会静默失效，
+# 表现为 DSH 自己 bind 时才报 EADDRINUSE（2026-10-27 实测：launchd 每 60s 空转一次）。
+LSOF="$(command -v lsof 2>/dev/null || true)"
+[ -n "$LSOF" ] || LSOF=/usr/sbin/lsof
+
 # ── 参数解析 ────────────────────────────────────────────────────────
 PORT=13080
 FORCE_CONFIG=0
@@ -119,7 +124,7 @@ fi
 _wait_port_free() {
   local n=0
   while [ "$n" -lt 20 ]; do
-    lsof -ti:"$PORT" -sTCP:LISTEN >/dev/null 2>&1 || return 0
+    "$LSOF" -ti:"$PORT" -sTCP:LISTEN >/dev/null 2>&1 || return 0
     n=$((n + 1))
     sleep 1
   done
@@ -127,7 +132,7 @@ _wait_port_free() {
 }
 if ! _wait_port_free; then
   # xargs（无命令）= 用 /bin/echo 回显、把换行并成空格；比 tr 少一层转义歧义
-  OCCUPIED="$(lsof -ti:"$PORT" -sTCP:LISTEN 2>/dev/null | xargs)"
+  OCCUPIED="$("$LSOF" -ti:"$PORT" -sTCP:LISTEN 2>/dev/null | xargs)"
   echo "错误: :$PORT 已被占用（pid=${OCCUPIED:-未知}），等待 20s 仍未释放。" >&2
   echo "      换端口: ./start.sh --port 1308X    或先停旧实例: ./stop.sh $PORT" >&2
   if _launchd_loaded && [ "$(_launchd_script)" != "$SELF" ]; then

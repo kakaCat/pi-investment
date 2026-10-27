@@ -111,7 +111,7 @@ export function apply(ctx: Context, config?: WebLivenessConfig): void {
           try {
             agent.followup(createUserMessage({
               content: [{ type: 'text', text }],
-              source: { kind: 'plugin', plugin: 'web-liveness' },
+              source: { kind: 'plugin:web-liveness' },
             }))
           } catch (e) {
             log.warn(`resume: followup ${id} 失败（保留下轮再投）：${String(e)}`)

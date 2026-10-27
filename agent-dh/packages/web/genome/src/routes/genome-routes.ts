@@ -193,7 +193,7 @@ export function createExplainHandler(agentsService: unknown, aggregator: GenomeA
       const target = online as { id?: unknown; followup?: (msg: unknown) => unknown }
       target.followup?.(createUserMessage({
         content: [{ type: 'text', text }],
-        source: { kind: 'plugin', plugin: 'dashboard-genome' },
+        source: { kind: 'plugin:dashboard-genome' },
       }))
       json(res, 200, {
         success: true,

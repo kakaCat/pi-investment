@@ -40,6 +40,7 @@ describe('T-1 · 回合来源与内容不变量', () => {
   it('非 dive 来源不认', () => {
     expect(isDiveRoundSource({ kind: 'user' })).toBe(false)
     expect(isDiveRoundSource({ kind: 'plugin', plugin: 'x' })).toBe(false)
+    expect(isDiveRoundSource({ kind: 'plugin:dsh-pmboard' })).toBe(false)
     expect(isDiveRoundSource(undefined)).toBe(false)
     expect(isDiveRoundSource({ kind: 'dive', requirementId: 'REQ-t', revision: 1, round: 0 })).toBe(false)
     expect(isDiveRoundSource({ kind: 'dive', requirementId: 'REQ-t', revision: 1, round: 1 })).toBe(true)
