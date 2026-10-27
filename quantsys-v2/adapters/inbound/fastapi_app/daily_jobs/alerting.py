@@ -47,18 +47,40 @@ def _send_feishu(text: str) -> bool:
 
 
 def _job_failure_watch(engine) -> List[Dict[str, Any]]:
-    """任务失败巡检：过去 3 个自然日（不含今天——今天失败仍在 2h 自动重试冷却期）仍 failed 的活跃任务
+    """任务失败巡检：过去 3 个自然日（不含今天）仍 failed 的活跃任务。
 
     补 K线/因子巡检的盲区：数据恰好未滞后但 job 本身失败（如 chip_distribution 失败但
     K线新鲜、financial_statements 周六失败周一才发现）。只查 JOBS 内活跃任务，
     已退役 job（如 morning_topup）的历史 failed 残留不告警。
+
+    2026-10-27 DailyJobs 迁移后，失败落在 scheduler_runs；过渡期同时保留
+    inprocess_job_runs 查询，避免迁移前的历史失败在报警视野里凭空消失。
     """
     # 惰性导入：registry 依赖各作业模块，模块级导入会成环
     from adapters.inbound.fastapi_app.daily_jobs.registry import JOBS
     # 取数收口到仓储（2026-09-14，w-32314d00，REQ-24e15d B4-c4）：
     # engine 参数保留（签名被 _job_freshness_guard 与既有测试按位置传参）。
     from adapters.outbound.repositories.job_run_repository import JobRunRepository
-    return JobRunRepository().list_recent_failures([j.job_id for j in JOBS], days=3)
+    from adapters.outbound.repositories.scheduler_repository import SchedulerRepository
+
+    job_ids = [j.job_id for j in JOBS]
+    old_rows = JobRunRepository().list_recent_failures(job_ids, days=3)
+    try:
+        new_rows = SchedulerRepository().list_recent_failures_by_commands(
+            job_ids, days=3
+        )
+    except Exception as e:  # noqa: BLE001 - 旧台账仍可提供降级信息
+        logger.error("scheduler failure watch failed", error=str(e))
+        new_rows = []
+
+    merged = {}
+    for row in old_rows + new_rows:
+        merged[(row['job_id'], row['run_date'])] = row
+    return sorted(
+        merged.values(),
+        key=lambda row: (row['run_date'], row['job_id']),
+        reverse=True,
+    )
 
 
 def _summarize_result(result: Any, max_len: int = 300) -> str:

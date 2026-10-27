@@ -476,6 +476,57 @@ class SchedulerRepository(ISchedulerRepository):
             self._safe_rollback()
             return {}
 
+    def list_recent_failures_by_commands(
+        self,
+        commands: List[str],
+        days: int = 3,
+    ) -> List[Dict[str, Any]]:
+        """Return recent failed scheduler runs for the given business commands.
+
+        Used by the migrated freshness guard. One row per (command, run date),
+        newest first, so a manual retry does not produce duplicate alerts.
+        """
+        if not commands:
+            return []
+        try:
+            rows = (
+                self.session.query(
+                    SchedulerTaskConfig.command,
+                    func.date(SchedulerRun.started_at),
+                    SchedulerRun.error,
+                    SchedulerRun.started_at,
+                )
+                .join(SchedulerRun, SchedulerRun.task_id == SchedulerTaskConfig.id)
+                .filter(SchedulerTaskConfig.command.in_(commands))
+                .filter(SchedulerTaskConfig.is_enabled.is_(True))
+                .filter(SchedulerRun.status == 'failed')
+                .filter(func.date(SchedulerRun.started_at) < func.current_date())
+                .filter(
+                    func.date(SchedulerRun.started_at)
+                    >= func.current_date() - days
+                )
+                .order_by(SchedulerRun.started_at.desc())
+                .all()
+            )
+            seen = set()
+            result: List[Dict[str, Any]] = []
+            for command, run_day, error, _started_at in rows:
+                key = (command, str(run_day))
+                if key in seen:
+                    continue
+                seen.add(key)
+                result.append({
+                    'job_id': command,
+                    'run_date': str(run_day),
+                    'error': (error or '')[:200],
+                })
+            self._commit_if_readonly()
+            return result
+        except Exception as e:  # noqa: BLE001
+            self._safe_rollback()
+            logger.warning("巡检 scheduler_runs 失败记录出错: %s", e)
+            return []
+
     def count_today_runs_per_task(self, task_ids: List[int], today: str) -> Dict[int, Dict[str, int]]:
         """当日触发/成功次数按任务聚合：一次 GROUP BY（RFC 017 P1）。
 

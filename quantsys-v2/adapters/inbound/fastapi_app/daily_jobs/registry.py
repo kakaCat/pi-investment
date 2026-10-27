@@ -1,7 +1,11 @@
-"""JOBS 注册表（顺序即调度顺序，改动需同步文档）
+"""业务任务目录（不再直接驱动调度）
 
 2026-10-01（REQ-261001145152-3982 t-686185）：由 daily_jobs_bootstrap.py 机械拆分而来
 （原文件 1147 行）。函数体与签名**逐字未改**；原模块保留为转发壳，既有导入路径不受影响。
+
+2026-10-27：11 个 JobDef 的 cron 已迁到 quant.scheduler_tasks，由 APScheduler +
+JobRegistry 驱动。这里的 run_at/weekdays 只作为迁移与兼容展示的目录信息；
+应用启动不再调用 DailyJobs 宿主线程。
 """
 import json
 import os

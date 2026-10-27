@@ -256,18 +256,48 @@ def _jobs_loop(stop_event: threading.Event) -> None:
         stop_event.wait(_TICK_SEC)
 
 
-def start_daily_jobs(skip: bool = False) -> Optional[threading.Event]:
-    """启动每日任务宿主线程。返回 stop_event（测试/关闭用）。"""
-    # 惰性导入：registry 依赖各作业模块，模块级导入会成环
-    from adapters.inbound.fastapi_app.daily_jobs.registry import JOBS
+def _interval_engine_loop(stop_event: threading.Event) -> None:
+    """Run only high-frequency watch patrol jobs.
+
+    DailyJobDefinitions are scheduled by APScheduler since 2026-10-27. These
+    watch patrols remain an execution-loop concern (interval triggers, default
+    off), not a second daily-job scheduler.
+    """
+    interval_last: Dict[str, float] = {}
+    interval_running: set = set()
+    while not stop_event.is_set():
+        try:
+            _dispatch_interval_jobs(time.monotonic(), interval_last, interval_running)
+        except Exception as e:  # noqa: BLE001 - one patrol failure must not stop the engine
+            logger.error("interval_job_dispatch_error", error=str(e))
+        stop_event.wait(_TICK_SEC)
+
+
+def start_watch_interval_engine(skip: bool = False) -> Optional[threading.Event]:
+    """启动仅含盯盘周期巡检的旁路引擎（不是每日任务调度器）。"""
     if skip:
         return None
     stop = threading.Event()
-    t = threading.Thread(target=_jobs_loop, args=(stop,),
-                         name='daily-jobs', daemon=True)
+    t = threading.Thread(target=_interval_engine_loop, args=(stop,),
+                         name='watch-interval-engine', daemon=True)
     t.start()
-    logger.info("✅ daily-jobs host thread started", jobs=[j.job_id for j in JOBS])
+    logger.info("✅ watch interval engine started")
     return stop
+
+
+def start_daily_jobs(skip: bool = False) -> Optional[threading.Event]:
+    """Legacy daily-jobs host — retired; APScheduler is the only scheduler.
+
+    Kept as a compatibility symbol for tests and old imports. Starting the host
+    is forbidden so a future caller cannot accidentally reintroduce a second
+    owner and double-run every job.
+    """
+    if skip:
+        return None
+    raise RuntimeError(
+        "DailyJobs host is retired (ADR-004 migration, 2026-10-27); "
+        "schedule jobs through APScheduler JobRegistry instead."
+    )
 
 
 def trigger_job(job_id: str, force: bool = False) -> Dict[str, Any]:

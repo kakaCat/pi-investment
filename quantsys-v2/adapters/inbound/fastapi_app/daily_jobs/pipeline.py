@@ -210,7 +210,7 @@ def _job_freshness_guard() -> Dict[str, Any]:
             msg += ("\n\n⚠️ 任务失败残留（数据滞后或由这些 job 失败引起）：\n"
                     + "\n".join(f"- {f['job_id']} @ {f['run_date']}"
                                  + (f"：{f['error']}" if f['error'] else "") for f in failed_jobs)
-                    + "\n框架 2h 自动重试仍失败，请人工排查")
+                    + "\nAPScheduler 不自动重试失败任务，请人工排查")
         _send_feishu(msg)
         out = {'status': 'stale', 'stale': stale, 'expected': expected,
                'alert_sent': True}
@@ -222,7 +222,7 @@ def _job_freshness_guard() -> Dict[str, Any]:
         lines = [f"- {f['job_id']} @ {f['run_date']}"
                  + (f"：{f['error']}" if f['error'] else "") for f in failed_jobs]
         _send_feishu("🚨 v2 定时任务失败残留\n" + "\n".join(lines) +
-                     "\n框架 2h 自动重试仍失败，请人工排查（/api/jobs/inprocess/status）")
+                     "\nAPScheduler 不自动重试失败任务，请人工排查（/api/jobs/inprocess/status）")
         # 2026-09-11（w-f4aa1f6a）：原写 str(kline_latest) —— 该变量自 2026-09-10 改成
         # 按标的覆盖度巡检后已不存在，导致"数据新鲜"这条分支必抛
         # NameError: name 'kline_latest' is not defined（滞后分支反而正常，故长期未被发现）。
