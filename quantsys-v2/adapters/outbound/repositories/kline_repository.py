@@ -483,6 +483,27 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
             logger.error(f"Error getting latest daily kline for {symbol}: {e}")
             return None
 
+    def get_latest_trade_date(self, symbol: str) -> Optional[str]:
+        """Return the latest local daily-bar date as YYYY-MM-DD (None if absent).
+
+        Lightweight counterpart used by the on-demand freshness gate; it avoids
+        materialising a DataFrame just to inspect one date.
+        """
+        try:
+            normalized_symbol = self._normalize_symbol(symbol)
+            latest = (
+                self.session.query(func.max(DailyKline.trade_date))
+                .filter(DailyKline.symbol == normalized_symbol)
+                .scalar()
+            )
+            if latest is None:
+                return None
+            return latest.isoformat() if hasattr(latest, "isoformat") else str(latest)[:10]
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error getting latest trade date for {symbol}: {e}")
+            return None
+
     def get_latest(self, symbol: str, limit: int = 100) -> pl.DataFrame:
         """获取最近N条日K线数据（兼容方法）
 
