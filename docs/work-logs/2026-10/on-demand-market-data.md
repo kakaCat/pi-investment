@@ -41,18 +41,25 @@
    另有 `成交额/换手率`；仓储要求 `symbol/trade_date/...`。
    原逻辑虽抓到了数据，却在 `save_daily_klines` 抛 `KeyError: 'symbol'`，缓存失败。
    修复：在懒补边界做列名归一化（中英文列均支持），并补回归测试。
+3. **最新因子快照混入历史孤儿因子**：`get_latest_factors` 是“每个因子名各自最新”，
+   会把 2026-10-27 的 RSI/MACD 与 2026-08-10 的 `ma60/volatility_20` 混在一包；
+   Agent 工具的 7 天新鲜度门因此拒绝**整包**。
+   修复：最新因子响应收敛到同一个 `factor_snapshot_date`，并显式返回该日期。
 
 ## 验证
 
-- 单测 `tests/adapters/test_on_demand_market_data.py`：**9 passed**
-  - 新鲜不抓、陈旧只抓缺口、空源降级、禁用降级、因子现算、列名归一化、方法签名冲突守卫。
+- 单测 `tests/adapters/test_on_demand_market_data.py`：**10 passed**
+  - 新鲜不抓、陈旧只抓缺口、空源降级、禁用降级、因子现算、列名归一化、方法签名冲突守卫、因子快照日期收敛。
 - 生产实测 600036（本地 K 线和因子均停在 10/26）：
   - `data_fetch_kline`：5 条 → 6 条，末根 **2026-10-27**；
   - 接口 freshness：`source=lazy_fetch, fresh=true, as_of=2026-10-27`；
   - `factor_calculate`：返回 29 个因子，`source=lazy_compute`、`factor_ref_date=2026-10-27`、`stale_factors=[]`；
   - 数据库落库：600036 K 线 max=2026-10-27；因子 max=2026-10-27。
+- 生产实测 300857（未先查 K 线，直接调用因子工具）：
+  - `data_freshness.kline.source=lazy_fetch, fetched_bars=1`；
+  - `source=lazy_compute, as_of=2026-10-27`，返回 29 个因子、`stale_factors=[]`。
 - 指数 000300 K 线仍走 index 表，未被误补进个股表。
-- 因子 GET 返回 `data_freshness`，Agent 工具可直接看到刷新来源。
+- 因子 GET 返回 `data_freshness` 与 `factor_snapshot_date`，Agent 工具可直接看到刷新来源。
 
 ## 遗留边界
 
@@ -67,3 +74,4 @@
 - `80ec716aa` 懒补服务与入口接入
 - `3625db9f4` 最新日期方法冲突修复
 - `0a0381005` 数据源列名归一化
+- `9f85bb7f1` 最新因子快照日期收敛
