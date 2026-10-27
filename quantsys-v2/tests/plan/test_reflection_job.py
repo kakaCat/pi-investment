@@ -1,5 +1,6 @@
 """反思定时任务测试（t11）：交易日守卫/到期扫描/唤醒/overdue"""
 
+import asyncio
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
@@ -188,6 +189,40 @@ class TestReflectionJob:
         out = job.run()
         assert out["status"] == "ok" and out["packed"] == 1 and out["woken"] == 0
         assert 10 in repo.due
+
+    def test_execute_wraps_run_result_as_job_result(self):
+        job = PlanReflectionJob(
+            plan_repo=FakeRepo([_plan(11)]),
+            pack_service=FakePack(),
+            waker=lambda p, pack: True,
+            now_fn=lambda: NOW,
+            trading_day_fn=lambda now: True,
+        )
+
+        result = asyncio.run(job.execute({}))
+
+        assert result.success is True
+        assert result.action == "plan_reflect_daily"
+        assert result.details["details"]["packed"] == 1
+        assert result.details["details"]["woken"] == 1
+
+    def test_execute_converts_exception_to_failed_job_result(self, monkeypatch):
+        job = PlanReflectionJob(
+            plan_repo=FakeRepo([]),
+            pack_service=FakePack(),
+            now_fn=lambda: NOW,
+            trading_day_fn=lambda now: True,
+        )
+
+        def boom(_params):
+            raise RuntimeError("reflection failed")
+
+        monkeypatch.setattr(job, "run", boom)
+        result = asyncio.run(job.execute({}))
+
+        assert result.success is False
+        assert result.action == "plan_reflect_daily"
+        assert "reflection failed" in result.error
 
 
 class TestAgentWaker:
