@@ -59,6 +59,7 @@ def _session():
 
 def list_daily_status(run_date: Optional[str] = None) -> List[Dict[str, Any]]:
     """Return today's status for migrated jobs from scheduler tables."""
+    from adapters.outbound.repositories.job_run_repository import JobRunRepository
     from adapters.outbound.repositories.scheduler_repository import SchedulerRepository
     from qs_kernel.infrastructure.persistence.orm import close_session
 
@@ -66,6 +67,7 @@ def list_daily_status(run_date: Optional[str] = None) -> List[Dict[str, Any]]:
     session = _session()
     try:
         repo = SchedulerRepository(session)
+        legacy_runs = JobRunRepository().map_by_date(day)
         tasks = [
             task for task in repo.list_tasks()
             if task.get("command") in _ORDER
@@ -83,16 +85,22 @@ def list_daily_status(run_date: Optional[str] = None) -> List[Dict[str, Any]]:
             job_id = task.get("command")
             runs = repo.list_runs(task_id=task.get("id"), limit=1, date_filter=day)
             latest = runs[0] if runs else None
+            legacy = None if latest else legacy_runs.get(job_id)
             schedule = _schedule_fields(task.get("cron_expression") or "")
             rows.append({
                 "job_id": job_id,
                 "task_id": task.get("id"),
                 "description": task.get("description"),
                 **schedule,
-                "status": latest.get("status") if latest else "not_run",
-                "started_at": _iso(latest.get("started_at")) if latest else None,
-                "finished_at": _iso(latest.get("completed_at")) if latest else None,
-                "error": latest.get("error") if latest else None,
+                "status": (latest.get("status") if latest
+                           else legacy.get("status") if legacy else "not_run"),
+                "started_at": (_iso(latest.get("started_at")) if latest
+                               else legacy.get("started_at") if legacy else None),
+                "finished_at": (_iso(latest.get("completed_at")) if latest
+                                else legacy.get("finished_at") if legacy else None),
+                "error": (latest.get("error") if latest
+                          else legacy.get("error") if legacy else None),
+                "source": "apscheduler" if latest else "inprocess_legacy" if legacy else None,
                 "backend": "apscheduler",
             })
         return rows
