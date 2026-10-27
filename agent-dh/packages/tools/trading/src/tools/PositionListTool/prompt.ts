@@ -48,7 +48,8 @@ export const positionListPrompt: ToolPrompt<PositionListParams, PositionListResu
   notes: [
     '⚠️  卖出前必须确认 shares_available（T+1限制）',
     '💡 当日买入的股份次日才可卖',
-    '⏱️  现价为调用时刻实时刷新行情（含 priceUpdatedAt 时间戳；priceStale=true 表示行情拉取失败、返回旧价，此时应先 data_fetch_quote 核实再决策）',
+    '⚡ 本工具读账户快照（/overview，毫秒级），不阻塞等实时行情；快照陈旧时自动触发后台刷新',
+    '⏱️  priceUpdatedAt=行情时点；priceStale=true 表示快照价格陈旧，交易决策前先用 data_fetch_quote 核实',
   ],
 
   relatedTools: ['account_info', 'portfolio_trade'],

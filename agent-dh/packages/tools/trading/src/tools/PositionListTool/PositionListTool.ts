@@ -65,7 +65,12 @@ export class PositionListTool extends BaseTool<PositionListParams, PositionListR
     // TODO: 处理非200响应 - 添加错误处理或降级逻辑（404/500等），参考 pe_percentile 改进方案
     // 每个工具的业务语义不同，需要根据具体场景设计降级策略
     const accountName = args.account_name || DEFAULT_AGENT_ACCOUNT;
-    const result = await this.qv2.getPositions(accountName);
+    // RFC 017 P2：读 /overview 只读快照（毫秒级），不再同步等行情刷新；
+    // 快照陈旧时异步触发后台刷新，本次结果用 priceStale/priceUpdatedAt 如实告知。
+    const result = await this.qv2.getPositionsSnapshot(accountName);
+    if (result.some((p: { priceStale?: boolean }) => p.priceStale)) {
+      void this.qv2.requestQuoteRefresh(accountName).catch(() => { /* 后台刷新失败不影响已返回的快照 */ });
+    }
     return result as unknown as PositionListResult;
   }
 
