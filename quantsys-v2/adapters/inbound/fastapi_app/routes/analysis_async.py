@@ -132,6 +132,11 @@ def compute_factors(payload: Optional[Dict[str, Any]] = Body(None)):
     symbols = data.get('symbols', [])
     requested_factors = data.get('factors', [])
     include_fundamental = data.get('include_fundamental', False)
+    _raw_auto_refresh = data.get('auto_refresh', True)
+    auto_refresh = (
+        _raw_auto_refresh.strip().lower() not in ('0', 'false', 'no', 'off')
+        if isinstance(_raw_auto_refresh, str) else bool(_raw_auto_refresh)
+    )
 
     if not include_fundamental and requested_factors:
         fundamental_names = {'fscore', 'earnings_quality'}
@@ -148,6 +153,23 @@ def compute_factors(payload: Optional[Dict[str, Any]] = Body(None)):
         end_date = datetime.now().strftime('%Y-%m-%d')
         start_date = (datetime.now() - timedelta(days=120)).strftime('%Y-%m-%d')
         from domain.backtest.stages.factor_stage import FactorStage
+
+        # 按需补数只服务单标的/小批量。大批量必须走晚间管道，禁止在请求线程里扫市场。
+        refresh_meta: Dict[str, Any] = {}
+        if auto_refresh:
+            if len(all_symbols) <= 5:
+                from adapters.shared.on_demand_market_data import ensure_daily_klines
+
+                for sym in all_symbols:
+                    refresh_meta[sym] = ensure_daily_klines(
+                        sym, start_date, end_date, kline_repo=kline_repo,
+                    )
+            else:
+                refresh_meta = {
+                    '_skipped': 'batch_limit_exceeded',
+                    '_limit': 5,
+                    '_count': len(all_symbols),
+                }
 
         results = []
         for sym in all_symbols:
@@ -177,7 +199,12 @@ def compute_factors(payload: Optional[Dict[str, Any]] = Body(None)):
                 'symbol': sym, 'date': str(latest_date),
                 'factor_count': len(factors), 'factors': factors,
             })
-        return sanitize_for_json({'success': True, 'results': results, 'count': len(results)})
+        return sanitize_for_json({
+            'success': True,
+            'results': results,
+            'count': len(results),
+            'data_freshness': refresh_meta or None,
+        })
     except Exception as e:
         return error_response({'error': str(e)}, 500)
 
@@ -283,6 +310,15 @@ def _annotate_stale_factors(symbol: str, factors: Any, max_stale_trading_days: i
 def get_stock_factors(symbol: str, date: Optional[str] = Query(None)):
     """获取股票因子分析（与 Flask analysis.py 一致）"""
     try:
+        data_freshness = None
+        if not date:
+            # Agent factor_calculate 走这个 GET：最新因子落后于已完成交易日时，
+            # 先按需补该标的最新 K 线，再从本地 K 线现算并落库。
+            from adapters.shared.on_demand_market_data import ensure_factor_freshness
+
+            data_freshness = ensure_factor_freshness(
+                symbol, kline_repo=kline_repo, factor_repo=factor_repo,
+            )
         factors = factor_repo.get_latest_factors(symbol) if not date else factor_repo.get_factors(symbol, date)
         stock_info = stock_repo.get_by_symbol(symbol)
         kline = kline_repo.get_latest_daily_kline(symbol)
@@ -322,6 +358,12 @@ def get_stock_factors(symbol: str, date: Optional[str] = Query(None)):
                 close_val = close_val.iloc[-1] if len(close_val) else None
             current_price = close_val
 
+        if not factors and not date:
+            return error_response({
+                'error': f'No factor data for {symbol}',
+                'data_freshness': data_freshness,
+            }, 404)
+
         return sanitize_for_json({
             'symbol': symbol,
             'stock_name': stock_name,
@@ -329,6 +371,7 @@ def get_stock_factors(symbol: str, date: Optional[str] = Query(None)):
             'current_price': current_price,
             'factors': factors,
             'signals_count': len(latest_signals),
+            'data_freshness': data_freshness,
             **stale_summary,
         })
     except Exception as e:

@@ -9,7 +9,7 @@ import structlog
 
 from adapters.inbound.fastapi_app.shared import (
     ds, api_response, error_response, handle_api_error, provider_payload,
-    sanitize_for_json, _read_watchlist,
+    sanitize_for_json, _read_watchlist, kline_repo,
     acquire_task, get_running_tasks_snapshot, _load_pipeline_runs, _save_pipeline_runs,
 )
 from adapters.shared.services import stock_data_service
@@ -315,6 +315,15 @@ def get_stock_klines(symbol: str, start_date: Optional[str] = Query(None),
         from utils.symbol_classifier import resolve_index_symbol
 
         _index_key = resolve_index_symbol(symbol)
+        _data_freshness = None
+        if not _index_key and period in daily_periods:
+            # 个股日线走按需补数：K 线为空或落后于已完成交易日时，单标的补抓后
+            # 再读本地；指数/分钟线不复用这套逻辑（存储表与粒度不同）。
+            from adapters.shared.on_demand_market_data import ensure_daily_klines
+
+            _data_freshness = ensure_daily_klines(
+                clean_symbol, start_date, end_date, kline_repo=kline_repo,
+            )
         if _index_key and period in daily_periods:
             klines = ds.kline.get_index_daily_klines(
                 _index_key, start_date, end_date,
@@ -353,38 +362,15 @@ def get_stock_klines(symbol: str, start_date: Optional[str] = Query(None),
             except Exception:  # noqa: BLE001 - 名称仅用于展示，查不到不阻塞主链路
                 _stock_name = None
         _meta = build_resolution_meta(symbol, _res_kind, _res_key, stock_name=_stock_name)
+        if _data_freshness is not None:
+            _meta['data_freshness'] = _data_freshness
 
         if klines is None or (hasattr(klines, 'is_empty') and klines.is_empty()) or (isinstance(klines, list) and len(klines) == 0):
-            # 数据库无数据，尝试从外部数据源拉取（M3-2 修复）
-            logger.info(f"Database has no kline data for {clean_symbol}, attempting to fetch from external sources...")
-            try:
-                from qs_market_data.adapters.outbound.datasources.multi_source_data_fetcher import MultiSourceDataFetcher
-                fetcher = MultiSourceDataFetcher()
-                
-                # 直接从外部数据源获取
-                df = fetcher.fetch_klines(clean_symbol, start_date, end_date)
-                
-                if df is not None and not df.empty:
-                    # 转换为字典列表
-                    raw_klines = df.to_dict('records')
-                    logger.info(f"Fetched {len(raw_klines)} klines from external sources for {clean_symbol}")
-                    
-                    # 保存到数据库以供后续使用
-                    try:
-                        ds.kline.save_daily_klines(raw_klines)
-                        logger.info(f"Cached {len(raw_klines)} klines to database for {clean_symbol}")
-                    except Exception as cache_error:
-                        logger.warning(f"Failed to cache klines: {cache_error}")
-                    
-                    # 直接返回
-                    return {'symbol': clean_symbol, 'count': len(raw_klines), 'klines': sanitize_for_json(raw_klines[-limit:]), **_meta}
-                
-                logger.warning(f"External sources returned no data for {clean_symbol}")
-            except Exception as fetch_error:
-                logger.error(f"External source fetch failed for {clean_symbol}: {fetch_error}", exc_info=True)
-            
-            # 外部数据源也失败，返回 404
-            return error_response({'error': f'No kline data for {symbol}'}, 404)
+            # 按需补数已在上面尝试；仍为空只可能是上游不可用/标的不存在/指数表无数据。
+            return error_response({
+                'error': f'No kline data for {symbol}',
+                'data_freshness': _data_freshness,
+            }, 404)
         if hasattr(klines, 'to_dicts'):
             klines = klines.to_dicts()
         return {'symbol': clean_symbol, 'count': len(klines), 'klines': sanitize_for_json(klines[-limit:]), **_meta}
