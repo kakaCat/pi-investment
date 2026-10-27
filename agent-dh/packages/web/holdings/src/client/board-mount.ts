@@ -61,12 +61,14 @@ export function createBoardController(): BoardController {
   const fetchAndRender = async (accountName: string, mode: 'full' | 'hot' = 'full'): Promise<void> => {
     const mySeq = ++fetchSeq
     const forAccount = accountName
+    let httpStatus = 0
     try {
       const url = '/dashboard/api/holdings?account=' + encodeURIComponent(accountName)
         + (mode === 'hot' ? '&parts=hot' : '')
       const res = await fetch(url)
+      httpStatus = res.status
       const json = await res.json()
-      if (!json.success) throw new Error(json.error || 'Unknown error')
+      if (!json.success) throw new Error('HTTP ' + res.status + ': ' + (json.error || 'Unknown error'))
       const incoming = json.data as HoldingsData
       // 2026-09-13（w-adb088f2）两处修复：
       // ① 竞态：轮询（15s，hot 约 2.5 KB 很快）与切换账户（full 约 77 KB 较慢）并发时，
@@ -84,12 +86,24 @@ export function createBoardController(): BoardController {
         return
       }
       const merged: HoldingsData = lastData !== undefined
-        ? ({ ...lastData, ...(pickParts(incoming as any, incoming.parts) as object), currentAccount: forAccount, parts: incoming.parts } as HoldingsData)
+        ? ({ ...lastData, loadNotice: undefined, ...(pickParts(incoming as any, incoming.parts) as object), currentAccount: forAccount, parts: incoming.parts } as HoldingsData)
         : ({ ...incoming, currentAccount: forAccount, parts: incoming.parts } as HoldingsData)
       renderBoard(merged)
     } catch (error) {
+      // 2026-10-27（RFC 017 P0）：错误响应与成功响应一样要做序号/跨账户校验——
+      // 否则一个慢失败的旧账户请求会用错误横幅覆盖新账户视图。
+      if (mySeq !== fetchSeq || forAccount !== currentAccount) {
+        console.log('[dashboard-holdings] 丢弃过期/跨账户的错误响应: ' + forAccount)
+        return
+      }
       console.error('[dashboard-holdings] fetch failed:', error)
-      renderError(String(error))
+      if (lastData && lastData.currentAccount === forAccount) {
+        // core 不可用（503）或网络失败：保留上次有效数据 + 陈旧横幅。旧行为是整板替换为
+        // 错误页，用户看到「持仓消失」——假空数据的另一面（RFC 017 P0 修正）。
+        renderBoard({ ...lastData, loadNotice: '数据刷新失败（HTTP ' + (httpStatus || '网络异常') + '），显示上次有效数据' })
+      } else {
+        renderError(String(error))
+      }
     }
   }
 

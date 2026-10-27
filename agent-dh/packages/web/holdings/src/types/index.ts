@@ -126,7 +126,9 @@ export interface AccountAutomation {
 }
 
 export interface HoldingsData {
-  accounts: Account[];
+  /** 账户列表。**可缺省**（RFC 017 P0）：accounts 上游失败时服务端省略该键——
+   *  空数组=真实空（不可能，列表至少含当前账户），缺键=失败（前端须保留缓存列表） */
+  accounts?: Account[];
   currentAccount: string;
   summary: PortfolioSummary;
   positions: Position[];
@@ -138,10 +140,26 @@ export interface HoldingsData {
   parts?: string[];
   /** 当前账户的自动化流程（引擎调度任务；agent/user/legacy 账户无任务时 engine=false） */
   automation?: AccountAutomation;
+  /** 2026-10-27（RFC 017 P0）：加载/降级提示（客户端写入，如「数据刷新失败，显示上次有效数据」） */
+  loadNotice?: string;
   compliance: {
     cashRatio: number; // 现金占比
     maxSingleStock: number; // 最大单股占比
     maxIndustry: number; // 最大行业占比
     maxDrawdown60d: number; // 60日最大回撤
   };
+}
+
+/** 分块级错误（RFC 017 P0：机器可读，随响应 meta 透出） */
+export interface PartError {
+  code: string;
+  message: string;
+}
+
+/** 响应级元数据（附加在 {success,data} 信封上，旧客户端忽略不受影响） */
+export interface HoldingsMeta {
+  requestId?: string;
+  asOf?: string;
+  /** 按块记录的上游错误：accounts/activity/watch/scheduler/agentOs */
+  errors?: Record<string, PartError>;
 }

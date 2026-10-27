@@ -8,12 +8,32 @@ import type {
   Account,
   AccountAutomation,
   HoldingsData,
+  HoldingsMeta,
+  PartError,
   PortfolioSummary,
   Position,
   SchedulerTask,
   Trade,
   WatchRule,
 } from '../types/index.js';
+
+/**
+ * RFC 017 P0：core（账户状态/持仓）上游不可用（2026-10-27 引入）。
+ *
+ * 背景事故（2026-10-26）：accountStatus 上游超时后，旧实现用 getDefaultSummary()
+ * 零值摘要 + 空持仓 + success=true 返回——用户看到「加载 4 秒后资产清零、持仓消失」，
+ * 而真实空仓与查询失败是两种完全不同的业务状态。现 core 失败即显式抛错，
+ * 由路由转 503、前端保留上次有效数据并提示陈旧。
+ */
+export class CoreDataUnavailableError extends Error {
+  readonly code = 'CORE_DATA_UNAVAILABLE';
+  readonly accountName: string;
+  constructor(accountName: string, cause: unknown) {
+    super(`账户核心数据不可用: ${accountName}（${cause instanceof Error ? cause.message : String(cause)}）`);
+    this.name = 'CoreDataUnavailableError';
+    this.accountName = accountName;
+  }
+}
 
 export interface AggregationOptions {
   v2BaseURL: string;
@@ -43,8 +63,20 @@ export class PortfolioAggregationService {
   /**
    * 聚合持仓数据
    * @param accountName - 账户名称，默认 agent_brain
+   * @returns data 持仓数据；meta 分块级错误与数据时点（RFC 017 P0）
+   *
+   * 失败语义（2026-10-27，RFC 017 P0，取代旧的「失败→空数组/零摘要」）：
+   *  - accountStatus 是 core：rejected 即抛 CoreDataUnavailableError（路由转 503），
+   *    绝不用零值摘要冒充成功（2026-10-26 事故：用户看到「加载 4 秒后资产清零」）；
+   *  - accounts rejected：省略响应中的 accounts 键 + meta.errors 记录——前端合并时
+   *    缺键不覆盖缓存（pickParts 只挑存在的键），账户下拉保留上次列表；
+   *  - 辅助块（成交/盯盘/调度/Agent OS）rejected：容忍为空并记入 meta.errors，
+   *    不得拖垮 core。
    */
-  async aggregate(accountName: string = 'agent_brain', opts?: { parts?: string[] }): Promise<HoldingsData> {
+  async aggregate(
+    accountName: string = 'agent_brain',
+    opts?: { parts?: string[] }
+  ): Promise<{ data: HoldingsData; meta: HoldingsMeta }> {
     const { v2BaseURL, requestTimeoutMs, agentOsBaseURL } = this.options;
     const timeout = { timeoutMs: requestTimeoutMs };
     // 2026-09-13（w-adb088f2）：按分块取数。轮询只带 hot（约 4 KB），冷块（盯盘规则 79.5 KB /
@@ -67,10 +99,33 @@ export class PortfolioAggregationService {
         this.fetchAgentOsTasks(agentOsBaseURL, timeout),
       ]);
 
-      // 提取结果，失败的用空数组/默认值
-      const accountsData = accounts.status === 'fulfilled' ? accounts.value : [];
-      const summaryData = accountStatus.status === 'fulfilled' ? accountStatus.value.summary : this.getDefaultSummary();
-      const positionsData = accountStatus.status === 'fulfilled' ? accountStatus.value.positions : [];
+      // 失败与空数据分离（RFC 017 P0）：core（accountStatus）失败即显式抛错，不用零值摘要冒充；
+      // 辅助块失败记入 meta.errors；accounts 失败省略键（见方法头注释）
+      if (accountStatus.status === 'rejected') {
+        throw new CoreDataUnavailableError(accountName, accountStatus.reason);
+      }
+      const errors: Record<string, PartError> = {};
+      const accountsFailed = accounts.status === 'rejected';
+      if (accountsFailed) {
+        errors.accounts = { code: 'UPSTREAM_UNAVAILABLE', message: String(accounts.reason) };
+      }
+      if (trades.status === 'rejected') {
+        errors.activity = { code: 'UPSTREAM_UNAVAILABLE', message: String(trades.reason) };
+      }
+      if (watchRules.status === 'rejected') {
+        errors.watch = { code: 'UPSTREAM_UNAVAILABLE', message: String(watchRules.reason) };
+      }
+      if (schedulerTasks.status === 'rejected') {
+        errors.scheduler = { code: 'UPSTREAM_UNAVAILABLE', message: String(schedulerTasks.reason) };
+      }
+      if (agentOsTasks.status === 'rejected') {
+        errors.agentOs = { code: 'UPSTREAM_UNAVAILABLE', message: String(agentOsTasks.reason) };
+      }
+
+      // 提取结果（accountStatus 已保证 fulfilled；accounts 失败时 accountsData 仅用于本地查找）
+      const accountsData = accountsFailed ? [] : accounts.value;
+      const summaryData = accountStatus.value.summary;
+      const positionsData = accountStatus.value.positions;
       const tradesData = trades.status === 'fulfilled' ? trades.value : [];
 
       // 今日成交与历史交易同源（/api/simulation/trades 全量，v2 已倒序）；拆两视图用：
@@ -92,8 +147,7 @@ export class PortfolioAggregationService {
       // 计算合规指标
       const compliance = this.calculateCompliance(summaryData, positionsData);
 
-      return {
-        accounts: accountsData,
+      const data: HoldingsData = {
         currentAccount: accountName,
         parts,
         summary: summaryData,
@@ -103,8 +157,19 @@ export class PortfolioAggregationService {
         watchRules: watchRulesData,
         automation,
         compliance,
+        // accounts 失败时**省略该键**（不返回空数组）——前端 pickParts 只合并存在的键，
+        // 缓存的账户列表得以保留；空数组会被合并进去、把下拉框清空（假空数据）。
+        ...(accountsFailed ? {} : { accounts: accountsData }),
       };
+      const meta: HoldingsMeta = {
+        asOf: new Date().toISOString(),
+        ...(Object.keys(errors).length > 0 ? { errors } : {}),
+      };
+      return { data, meta };
     } catch (error) {
+      if (error instanceof CoreDataUnavailableError) {
+        throw error;
+      }
       throw new Error(`持仓数据聚合失败: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
@@ -238,10 +303,44 @@ export class PortfolioAggregationService {
   }
 
   private async fetchSchedulerTasks(baseURL: string, timeout: { timeoutMs: number }): Promise<SchedulerTask[]> {
+    // 2026-10-27（RFC 017 P1）：优先 summary 端点（contract_version=2）——服务端已完成
+    // lastStatus 归一化（含假成功纠正）且不携带 lastRun.payload（旧端点 79 任务 13.68 MB，
+    // 其中 payload 占 99.5%，看板 4s 超时内根本吞不完）。summary 不可用（404/旧后端/超时）
+    // 时回退旧端点 + 客户端归一化，保持前后端可独立部署。
+    try {
+      const url = `${baseURL}/api/scheduler/tasks/summary?pageSize=200`;
+      const resp = await fetchJson<{ contract_version?: number; tasks?: unknown[] }>(url, timeout);
+      return (Array.isArray(resp.tasks) ? resp.tasks : []).map((t) => this.normalizeSummaryTask(t));
+    } catch {
+      // fall through → legacy
+    }
     // qv2 scheduler 端点是裸信封 {success, tasks, ...}（无 data 键）→ fetchJson 直取 .tasks
     const url = `${baseURL}/api/scheduler/tasks?pageSize=200`;
     const resp = await fetchJson<{ tasks?: unknown[] }>(url, timeout);
     return (Array.isArray(resp.tasks) ? resp.tasks : []).map((t) => this.normalizeTask(t));
+  }
+
+  /** 归一化 v2 summary 任务：lastStatus 已服务端归一化（含 lastStatusSource），直接信任；
+   *  strategy 沿用客户端 strategyOf（服务端 v2 不计算，单一事实源不复制）。 */
+  private normalizeSummaryTask(raw: unknown): SchedulerTask {
+    const t = (raw ?? {}) as Record<string, any>;
+    const name = String(t.name ?? '');
+    const command = String(t.command ?? '');
+    return {
+      id: String(t.id ?? ''),
+      name,
+      enabled: t.enabled === true,
+      scheduleExpr: String(t.scheduleExpr ?? ''),
+      command,
+      description: String(t.description ?? ''),
+      lastStatus: String(t.lastStatus ?? ''),
+      lastAt: t.lastAt ? String(t.lastAt) : null,
+      lastError: String(t.lastError ?? ''),
+      nextRunAt: t.nextRunAt ? String(t.nextRunAt) : null,
+      todayTriggered: Number(t.todayTriggered ?? 0) || 0,
+      todaySuccess: Number(t.todaySuccess ?? 0) || 0,
+      strategy: strategyOf(name, command, undefined),
+    };
   }
 
   /** 拉取 Agent OS 调度任务（agent 类账户执行者任务数据源）。

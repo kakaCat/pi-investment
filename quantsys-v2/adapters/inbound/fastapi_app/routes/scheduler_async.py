@@ -209,6 +209,93 @@ def list_scheduler_tasks(page: int = Query(1), pageSize: int = Query(12)):
                               'page': page, 'pageSize': page_size, 'pagination': pagination})
 
 
+# ============ 任务摘要（RFC 017 P1，2026-10-27） ============
+#
+# 列表/详情分层：旧 /tasks 每任务 list_runs(limit=100)（N+1：79 任务 = 79 次查询）
+# 且把完整 lastRun.payload 塞进响应（实测 79 任务 13.68 MB，其中 lastRun.payload
+# 占 99.5%，单 ingest_disclosure_calendar ~9.3 MB）——持仓看板等消费者被迫在
+# 4s 超时内吞下一个 13 MB 响应。summary 契约：
+#   · 固定 2 次集合查询（最新 run 窗口函数 + 当日 GROUP BY），查询数不随任务数增长；
+#   · 不返回 lastRun.payload/result/日志正文——内层业务状态由服务端归一化成
+#     lastStatus + lastStatusSource（与 holdings 客户端 resolveLastRun() 等价口径），
+#     完整结果仍走 /tasks/{id}/runs 详情端点；
+#   · lastError 服务端截断 2 KB；
+#   · contract_version=2 显式标记契约版本，消费方按版本信任 lastStatus。
+
+def _resolve_last_status(run: Optional[Dict[str, Any]]) -> Tuple[str, str, str]:
+    """run dict → (status, status_source, error)，与 holdings 客户端 resolveLastRun() 等价。
+
+    优先级：result.details.details（引擎双层）→ result.details（单层）→ 外层 status/error。
+    completed 归一为 success。status='' 表示从未运行；status_source ∈
+    {inner_result, scheduler, none} 供消费方判断可信度（假成功修正的落点）。
+    """
+    if not run:
+        return '', 'none', ''
+    result = run.get('result')
+    payload = result if isinstance(result, dict) else {}
+    candidates: List[Any] = []
+    details = payload.get('details')
+    if isinstance(details, dict):
+        inner_deep = details.get('details')
+        if isinstance(inner_deep, dict):
+            candidates.append(inner_deep)
+        candidates.append(details)
+    for inner in candidates:
+        st = str(inner.get('status') or '')
+        if st:
+            msg = str(inner.get('error') or inner.get('message') or '')
+            return ('success' if st == 'completed' else st), 'inner_result', msg
+    outer_status = str(run.get('status') or '')
+    outer_err = str(run.get('error') or run.get('message') or '')
+    if outer_status:
+        return ('success' if outer_status == 'completed' else outer_status), 'scheduler', outer_err
+    return '', 'none', ''
+
+
+_LAST_ERROR_MAX = 2048
+
+
+@router.get('/api/scheduler/tasks/summary')
+@handle_api_error
+def list_scheduler_tasks_summary(page: int = Query(1), pageSize: int = Query(100)):
+    from adapters.outbound.repositories.scheduler_repository import SchedulerRepository
+    page = max(1, page)
+    page_size = max(1, min(pageSize, 200))
+    offset = (page - 1) * page_size
+    tasks, total = _list_visible_tasks(page_size, offset)
+    task_ids = [int(t['id']) for t in tasks if t.get('id') is not None]
+
+    repo = SchedulerRepository()
+    latest_runs = repo.get_latest_runs_per_task(task_ids)
+    today_map = repo.count_today_runs_per_task(task_ids, datetime.now().strftime('%Y-%m-%d'))
+
+    summaries = []
+    for t in tasks:
+        tid = int(t['id'])
+        run = latest_runs.get(tid)
+        status, source, err = _resolve_last_status(run)
+        stats = today_map.get(tid, {'triggered': 0, 'success': 0})
+        params = _extract_params_dict(t.get('params'))
+        summaries.append({
+            'id': str(tid),
+            'name': t.get('name', ''),
+            'enabled': bool(t.get('is_enabled', True)),
+            'scheduleExpr': t.get('cron_expression', ''),
+            'command': t.get('command', '') or str(params.get('command', '')),
+            'description': t.get('description', '') or str(params.get('description', '')),
+            'lastStatus': status,
+            'lastStatusSource': source,
+            'lastAt': str(run.get('started_at', '')) if run else None,
+            'lastError': err[:_LAST_ERROR_MAX] if err else '',
+            'nextRunAt': str(t.get('next_run_at', '')) or None,
+            'todayTriggered': stats['triggered'],
+            'todaySuccess': stats['success'],
+        })
+    return sanitize_for_json({'success': True, 'contract_version': 2,
+                              'tasks': summaries, 'count': total,
+                              'page': page, 'pageSize': page_size})
+
+
 @router.post('/api/scheduler/tasks')
 @handle_api_error
 def create_scheduler_task(payload: Optional[Dict[str, Any]] = Body(None)):

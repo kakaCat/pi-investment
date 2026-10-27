@@ -137,8 +137,12 @@ export function buildView(data: HoldingsData, watchKey: string = 'current', hist
 
   const updated = summary.lastUpdated ? fmtClock(summary.lastUpdated) : '—'
   const todayPct = summary.totalValue ? (summary.dailyChange / (summary.totalValue - summary.dailyChange)) * 100 : 0
+  // 2026-10-27（RFC 017 P0）：降级/陈旧提示横幅（如「数据刷新失败，显示上次有效数据」），
+  // 由客户端在 core 失败但缓存可用时写入 loadNotice；成功刷新时清除。
+  const notice = String(data.loadNotice ?? '')
 
   return `<div class="dsh-hld-board">
+  ${notice ? `<div class="dsh-hld-banner show">${esc(notice)}</div>` : ''}
   <div class="dsh-hld-topbar">
     <div class="dsh-hld-title">
       <h1>账户持仓看板</h1>

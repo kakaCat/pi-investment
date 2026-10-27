@@ -38,8 +38,13 @@ def _available_accounts(repo: SimulationORMRepository):
     return [a.account_name for a in repo.list_accounts()]
 
 
+# 2026-10-27（RFC 017 P0）：以下只读路由全部为**同步 def**——FastAPI 把 def 路由放在
+# anyio 线程池执行；若声明成 async def，内部的同步 DB/外网行情调用会阻塞事件循环线程，
+# 一个慢账户请求（2026-10-26 实测 11~18s）将拖住**所有**并发请求（实测两账户请求以完全
+# 相同的 10.936s 完成 = 队头阻塞）。同步路由的 scoped_session 清理由
+# install_sync_session_cleanup() 在 worker 线程内 finally close_session() 覆盖。
 @router.get("/accounts")
-async def list_accounts(status: str = Query('active')):
+def list_accounts(status: str = Query('active')):
     """账户发现：列出账户 + 摘要"""
     try:
         repo = SimulationORMRepository()
@@ -112,7 +117,7 @@ async def manual_trade(account_name: str, payload: Dict[str, Any] = Body(...)):
 
 
 @router.get("/accounts/{account_name}/pending-orders")
-async def list_pending_orders(account_name: str,
+def list_pending_orders(account_name: str,
                               status: Optional[str] = Query('pending')):
     """挂单列表（默认只返回 pending，?status=all 返回全部）"""
     try:
@@ -126,7 +131,7 @@ async def list_pending_orders(account_name: str,
 
 
 @router.get("/accounts/{account_name}/slippage-report")
-async def slippage_report(account_name: str, days: int = Query(30, ge=1, le=365),
+def slippage_report(account_name: str, days: int = Query(30, ge=1, le=365),
                           symbol: Optional[str] = Query(None)):
     """执行质量报表：决策价 vs 成交价的滑点（2026-09-13 w-a9ec14d7，M5 闭环）
 
@@ -200,8 +205,8 @@ async def cancel_pending_order(account_name: str, order_id: int):
 
 
 @router.get("/trades")
-async def get_trades(account_name: Optional[str] = Query(None),
-                     limit: int = Query(100)):
+def get_trades(account_name: Optional[str] = Query(None),
+               limit: int = Query(100)):
     """交易记录（account_name 必填）"""
     repo = SimulationORMRepository()
     if not account_name:
@@ -231,13 +236,13 @@ async def get_trades(account_name: Optional[str] = Query(None),
 
 
 @router.get("/accounts/{account_name}/trades")
-async def get_account_trades(account_name: str, limit: int = Query(100)):
+def get_account_trades(account_name: str, limit: int = Query(100)):
     """RESTful 风格的交易记录查询（别名，与 GET /trades 功能相同）"""
-    return await get_trades(account_name=account_name, limit=limit)
+    return get_trades(account_name=account_name, limit=limit)
 
 
 @router.get("/performance")
-async def get_performance(account_name: Optional[str] = Query(None)):
+def get_performance(account_name: Optional[str] = Query(None)):
     """账户绩效（account_name 必填，优先读快照表）"""
     repo = SimulationORMRepository()
     if not account_name:
@@ -324,8 +329,8 @@ async def run_strategy(payload: Dict[str, Any] = Body(default_factory=dict)):
 
 
 @router.get("/accounts/{account_name}")
-async def get_account(account_name: str):
-    """获取账户状态和持仓"""
+def get_account(account_name: str):
+    """获取账户状态和持仓（同步 def → 线程池执行，避免同步行情/DB 调用阻塞事件循环）"""
     try:
         account = get_service().get_account_status(account_name)
         return {'success': True, 'data': account}
@@ -336,7 +341,7 @@ async def get_account(account_name: str):
 
 
 @router.get("/execution-history")
-async def get_execution_history(account_name: Optional[str] = Query(None),
+def get_execution_history(account_name: Optional[str] = Query(None),
                                 strategy_id: Optional[str] = Query(None),
                                 limit: int = Query(50)):
     """获取策略执行历史"""
