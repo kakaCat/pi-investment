@@ -987,14 +987,14 @@ Agent OS Scheduler (result tracking)
    - Delegates to existing service methods
    - Returns structured result dictionaries
 
-4. **Job Registration** (`tools/register_jobs_to_agent_os.py`；⚠️ 旧写法 `scripts/...` 不存在)
-   - Defines all 30+ job schedules and metadata
-   - Idempotent registration (skips existing jobs)
-   - Auto-runs on FastAPI startup
+4. **Legacy Job Registration（已退役）** (`tools/register_jobs_to_agent_os.py`)
+   - ADR-004 起禁止把 V2 业务任务注册到 Agent OS；公开入口会 fail fast
+   - 文件中的旧 JOBS 仅作历史对照，不是当前排班事实源
+   - 当前业务排班走 `quant.scheduler_tasks`（APScheduler）或 DailyJobs 注册表
 
-### Registered Jobs
+### Legacy Job Definitions（仅历史参考）
 
-All jobs are registered with owner `quantsys-v2`:
+以下列表记录旧 Agent OS 时代的任务定义；实际时刻以 V2 调度 API 为准：
 
 **Daily Jobs** (工作日):
 - `kline_update` - 17:40 - Update K-line data
@@ -1077,14 +1077,9 @@ curl -X POST http://127.0.0.1:8080/api/v1/scheduler/tasks/{job_id}/trigger
 
 ### Manual Job Registration
 
-If needed, manually register jobs:
-
-```bash
-cd quantsys-v2
-python tools/register_jobs_to_agent_os.py
-```
-
-Registration is idempotent and skips jobs that already exist.
+不要运行 `tools/register_jobs_to_agent_os.py`：该入口已按 ADR-004 退役并会拒绝执行。
+V2 业务任务通过 `quant.scheduler_tasks` / `POST /api/scheduler/tasks` 或 DailyJobs
+代码注册表维护；Agent OS 只保留 Agent 自身任务。
 
 ### Rollback Plan
 
