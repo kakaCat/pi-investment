@@ -22,6 +22,8 @@ export interface PositionItem {
   profitLoss: number;
   profitLossPct: number;
   profitToday: number;
+  /** 持仓期最高价（分级止盈/移动止损参考；0=未记录） */
+  peakPrice?: number;
 }
 
 export type PositionListResult = PositionItem[];
@@ -80,6 +82,7 @@ export const positionListPrompt: ToolPrompt<PositionListParams, PositionListResu
           profitLoss: { type: 'number', description: '盈亏（元）' },
           profitLossPct: { type: 'number', description: '盈亏比例（%）' },
           profitToday: { type: 'number', description: '今日盈亏（元）' },
+          peakPrice: { type: 'number', description: '持仓期最高价（元，0=未记录；用于分级止盈/移动止损参考）' },
           priceUpdatedAt: { type: 'string', description: '行情刷新时间戳（ISO），判断价格时效性' },
           priceStale: { type: 'boolean', description: '行情陈旧标记：true=行情拉取失败返回旧价' },
         },
