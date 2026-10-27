@@ -483,27 +483,6 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
             logger.error(f"Error getting latest daily kline for {symbol}: {e}")
             return None
 
-    def get_latest_trade_date(self, symbol: str) -> Optional[str]:
-        """Return the latest local daily-bar date as YYYY-MM-DD (None if absent).
-
-        Lightweight counterpart used by the on-demand freshness gate; it avoids
-        materialising a DataFrame just to inspect one date.
-        """
-        try:
-            normalized_symbol = self._normalize_symbol(symbol)
-            latest = (
-                self.session.query(func.max(DailyKline.trade_date))
-                .filter(DailyKline.symbol == normalized_symbol)
-                .scalar()
-            )
-            if latest is None:
-                return None
-            return latest.isoformat() if hasattr(latest, "isoformat") else str(latest)[:10]
-        except Exception as e:
-            self._safe_rollback()
-            logger.error(f"Error getting latest trade date for {symbol}: {e}")
-            return None
-
     def get_latest(self, symbol: str, limit: int = 100) -> pl.DataFrame:
         """获取最近N条日K线数据（兼容方法）
 
@@ -1702,21 +1681,25 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
             'oldest_stale': str(oldest) if oldest else None,
         }
 
-    def get_latest_trade_date(self) -> Optional[str]:
+    def get_latest_trade_date(self, symbol: Optional[str] = None) -> Optional[str]:
         """最新交易日（daily_klines 最大 trade_date）。
 
-        用途：M1 市场感知快照的默认交易日判定。
+        不传 symbol：全市场最新交易日，用途为 M1 市场感知快照的默认交易日判定。
+        传 symbol：该标的最新本地日线日期，供按需补数的新鲜度检查使用。
+
         Returns: 'YYYY-MM-DD' 或 None
         """
-        from sqlalchemy import func
         try:
-            d = self.session.query(func.max(DailyKline.trade_date)).scalar()
+            query = self.session.query(func.max(DailyKline.trade_date))
+            if symbol:
+                query = query.filter(DailyKline.symbol == self._normalize_symbol(symbol))
+            d = query.scalar()
             result = d.isoformat() if d else None
             self._commit_if_readonly()
             return result
         except Exception as e:
             self._safe_rollback()
-            logger.error(f"Error in get_latest_trade_date: {e}")
+            logger.error(f"Error in get_latest_trade_date({symbol!r}): {e}")
             return None
 
     def get_latest_trade_date_strict(self) -> Optional[str]:
