@@ -25,8 +25,11 @@ logger = structlog.get_logger(__name__)
 #: 默认兜底账户→agent 映射（生产从环境变量/env 配置注入覆盖）
 DEFAULT_ACCOUNT_AGENT_MAP: Dict[str, str] = {}
 
-#: 未映射账户的兜底 agent 名（不静默丢：留 warning + 投给默认 agent）
-DEFAULT_AGENT = 'agent-ts'
+#: 未映射账户的兜底 agent 名（不静默丢：留 warning + 投给默认 agent）。
+#: 必须与 WatchDeliveryPolicy.DEFAULT_AGENT 一致：2026-10-27 实测 agent-ts:3002
+#: 监听但不响应 /wake，30s 扫描每次固定等 10s 超时并判投递失败；agent-dh:13080
+#: 是当前在线的唯一 wake 端点，且是通知域的既定兜底。
+DEFAULT_AGENT = 'agent-dh'
 
 
 @dataclass
