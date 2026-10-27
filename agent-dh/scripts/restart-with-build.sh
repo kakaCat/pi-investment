@@ -49,6 +49,9 @@ LAUNCHD_LABEL="com.pi-investment.dsh"
 LAUNCHD_PLIST="$HOME/Library/LaunchAgents/$LAUNCHD_LABEL.plist"
 LAUNCHD_TARGET="gui/$(id -u)/$LAUNCHD_LABEL"
 PORT=13080
+# launchd 的 PATH 未必含 /usr/sbin（macOS 上 lsof 在那里）。
+LSOF="$(command -v lsof 2>/dev/null || true)"
+[ -n "$LSOF" ] || LSOF=/usr/sbin/lsof
 
 MODE="full"
 case "${1:-}" in
@@ -60,7 +63,7 @@ case "${1:-}" in
   *) echo "❌ 未知参数：$1（可用：--check / --build-only / --verify-only / 无参数）"; exit 2 ;;
 esac
 
-port_listening() { lsof -ti:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; }
+port_listening() { "$LSOF" -ti:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; }
 
 launchd_log_paths() {
   [ -f "$LAUNCHD_PLIST" ] || return 0
@@ -278,7 +281,7 @@ if [ "$MODE" = "full" ]; then
     echo "✓ 服务已停止（launchd 作业已卸载；异常退出时本脚本会自动拉回）"
   else
     if port_listening; then
-      lsof -ti:"$PORT" -sTCP:LISTEN | xargs kill 2>/dev/null || true
+      "$LSOF" -ti:"$PORT" -sTCP:LISTEN | xargs kill 2>/dev/null || true
       echo "✓ 服务已停止"
     else
       echo "✓ 服务未运行"
@@ -286,7 +289,7 @@ if [ "$MODE" = "full" ]; then
   fi
   for _ in $(seq 1 40); do port_listening || break; sleep 0.5; done
   if port_listening; then
-    lsof -ti:"$PORT" -sTCP:LISTEN | xargs kill -9 2>/dev/null || true
+    "$LSOF" -ti:"$PORT" -sTCP:LISTEN | xargs kill -9 2>/dev/null || true
     sleep 1
   fi
 else

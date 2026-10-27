@@ -89,7 +89,7 @@ function buildSolveMessage(b: { kind: 'task' | 'error'; title: string; lines: st
     id: randomUUID(),
     role: 'user',
     content: [{ type: 'text', text: lines.join(NL) }],
-    source: { kind: 'plugin', plugin: b.opts.plugin },
+    source: { kind: `plugin:${b.opts.plugin}` },
   }
 }
 
@@ -122,7 +122,7 @@ export function buildNudgeMessage(p: { eventId: string; title: string; attempt: 
     id: randomUUID(),
     role: 'user',
     content: [{ type: 'text', text }],
-    source: { kind: 'plugin', plugin: p.plugin },
+    source: { kind: `plugin:${p.plugin}` },
   }
 }
 

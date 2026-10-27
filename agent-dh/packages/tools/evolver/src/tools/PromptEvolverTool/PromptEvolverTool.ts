@@ -438,7 +438,7 @@ export class PromptEvolverTool extends BaseTool<PromptEvolverParams, PromptEvolv
         messages: [{
           role: 'user',
           content: [{ type: 'text', text: prompt }],
-          source: { kind: 'plugin', plugin: 'evolver' },
+          source: { kind: 'plugin:evolver' },
         }],
         signal: new AbortController().signal,
       })) {

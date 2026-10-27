@@ -22,6 +22,9 @@ PORT=13080
 PRE_KILL_DELAY="${QUICK_RESTART_PRE_KILL_DELAY:-10}"
 HEALTH_TIMEOUT="${QUICK_RESTART_HEALTH_TIMEOUT:-120}"
 REASON="${1:-（未填写）}"
+LAUNCHD_LABEL="${DSH_LAUNCHD_LABEL:-com.pi-investment.dsh}"
+LAUNCHD_PLIST="$HOME/Library/LaunchAgents/$LAUNCHD_LABEL.plist"
+LAUNCHD_TARGET="gui/$(id -u)/$LAUNCHD_LABEL"
 
 mkdir -p "$STATE_DIR"
 
@@ -47,9 +50,25 @@ if ! ( cd "$AGENT_DH" && ./scripts/stop.sh ) >> "$LOG" 2>&1; then
   exit 1
 fi
 
-# 拉起（nohup + </dev/null：调用方会话退出不能带走新进程——2026-09-17 冻进程教训）
-( cd "$AGENT_DH" && nohup ./scripts/start.sh --port "$PORT" --no-open </dev/null >> "$LOG" 2>&1 & )
-log "start.sh 已拉起（后台），开始健康检查（${HEALTH_TIMEOUT}s 上限）"
+# 拉起：**优先交回 launchd**（2026-10-27 孤儿进程事故）。
+# 直接 nohup start.sh 会生成不受 launchd 管理的进程：launchd 的 KeepAlive 认为作业已死，
+# 每 60s 启动一次并以 EADDRINUSE 失败，形成空转。stop.sh 已 bootout，这里应 bootstrap
+# 让唯一管理者重新拉起；只有 plist 不存在或 launchd 不可用时才回退直拉。
+if [ -f "$LAUNCHD_PLIST" ] && [ "${DSH_QUICK_RESTART_NO_LAUNCHD:-0}" != "1" ]; then
+  if launchctl bootstrap "gui/$(id -u)" "$LAUNCHD_PLIST" >> "$LOG" 2>&1; then
+    log "launchd bootstrap 已提交（$LAUNCHD_LABEL），开始健康检查（${HEALTH_TIMEOUT}s 上限）"
+  elif launchctl kickstart -k "$LAUNCHD_TARGET" >> "$LOG" 2>&1; then
+    log "launchd 作业已存在，kickstart -k 已提交（$LAUNCHD_LABEL），开始健康检查（${HEALTH_TIMEOUT}s 上限）"
+  else
+    log "launchd 接管失败，回退 start.sh 直拉（该进程将不受 launchd 管理）"
+    ( cd "$AGENT_DH" && nohup ./scripts/start.sh --port "$PORT" --no-open </dev/null >> "$LOG" 2>&1 & )
+    log "start.sh 已拉起（后台），开始健康检查（${HEALTH_TIMEOUT}s 上限）"
+  fi
+else
+  # 显式脱离 launchd（诊断用）：nohup + </dev/null 保证调用方会话退出不带走新进程。
+  ( cd "$AGENT_DH" && nohup ./scripts/start.sh --port "$PORT" --no-open </dev/null >> "$LOG" 2>&1 & )
+  log "start.sh 已拉起（后台，DSH_QUICK_RESTART_NO_LAUNCHD=1），开始健康检查（${HEALTH_TIMEOUT}s 上限）"
+fi
 
 deadline=$(( $(date +%s) + HEALTH_TIMEOUT ))
 while [ "$(date +%s)" -lt "$deadline" ]; do

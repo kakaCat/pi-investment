@@ -59,8 +59,8 @@ describe('buildNudgeMessage 形状纪律（REQ-9494f9 / FR-1 FR-2）', () => {
     expect(Array.isArray(m.content)).toBe(true)
     expect(m.content[0].type).toBe('text')
     expect(m.content[0].text).toContain('收单催办')
-    expect(m.source.kind).toBe('plugin')
-    expect(m.source.plugin).toBe('dashboard-execution')
+    expect(m.source.kind).toBe('plugin:dashboard-execution')
+    expect(m.source.plugin).toBeUndefined()
   })
 
   it('A2 连续两次调用 id 不相等（对治 already pending）', () => {
@@ -79,7 +79,7 @@ describe('buildNudgeMessage 形状纪律（REQ-9494f9 / FR-1 FR-2）', () => {
       inbox.push(first)
       inbox.push(second)
     }).not.toThrow()
-    expect(inbox.queueItems(first).sourceKind).toBe('plugin')
+    expect(inbox.queueItems(first).sourceKind).toBe('plugin:dashboard-execution')
   })
 
   it('A4 反例锁：字符串投递必须被同一双重身拒绝（证明 A3 不是恒真）', () => {

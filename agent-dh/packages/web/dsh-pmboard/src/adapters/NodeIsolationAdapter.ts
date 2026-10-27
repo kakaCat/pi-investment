@@ -56,7 +56,7 @@ interface SessionLike {
 export interface NodeIsolationAdapterOptions {
   /** agent 是否空闲（轮次边界）。抛错按"不空闲"处理（保守）。 */
   idle: () => boolean
-  /** 输入包消息的 plugin 来源标记（写进 message.source.plugin）。 */
+  /** 输入包消息的生产者标记（写进 message.source.kind，形如 plugin:dsh-pmboard）。 */
   plugin?: string
 }
 
@@ -114,8 +114,8 @@ export class NodeIsolationAdapter implements NodeIsolationPort {
 
   /**
    * 执行 append('user/message', 输入包) + surfaceOp replace(start..end)。
-   * 消息用结构对象构造（source.kind='plugin' + form='notice'——不是 direct human，
-   * 因此不会被 reqboard 的立项捕获 hook 当成用户消息二次触发）。
+   * 消息用结构对象构造（source.kind='plugin:dsh-pmboard' + form='notice'——不是 direct human，
+   * 因此不会被 reqboard 的立项捕获 hook 当成用户消息二次触发）。v4 会拒绝裸 kind='plugin'。
    */
   replace(input: { start: number; end: number; text: string; shadowed: readonly number[] }): number {
     const s = this.requireSession()
@@ -124,8 +124,7 @@ export class NodeIsolationAdapter implements NodeIsolationPort {
       role: 'user',
       content: [{ type: 'text', text: input.text }],
       source: {
-        kind: 'plugin',
-        plugin: this.opts.plugin ?? 'dsh-pmboard',
+        kind: `plugin:${this.opts.plugin ?? 'dsh-pmboard'}`,
         form: 'notice',
         summary: PACKAGE_NOTICE_SUMMARY,
       },

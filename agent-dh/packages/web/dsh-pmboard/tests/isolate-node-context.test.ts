@@ -347,7 +347,7 @@ describe('T28 触达能力探测失败 → D-12 降级', () => {
 // ---------------------------------------------------------------------------
 
 function sysMsg(text: string) {
-  return { id: 'sys-1', role: 'system', content: [{ type: 'text', text }], source: { kind: 'plugin', plugin: 'dsh-pmboard' } }
+  return { id: 'sys-1', role: 'system', content: [{ type: 'text', text }], source: { kind: 'plugin:dsh-pmboard' } }
 }
 function userMsg(text: string) {
   return { id: 'u-1', role: 'user', content: [{ type: 'text', text }], source: { kind: 'user' } }
