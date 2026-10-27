@@ -113,6 +113,52 @@ def _to_rows(data: Any):
     return []
 
 
+def _first(row: Dict[str, Any], *keys: str):
+    for key in keys:
+        value = row.get(key)
+        if value is not None and value != "":
+            return value
+    return None
+
+
+def _normalize_kline_rows(rows: Any, symbol: str) -> list[Dict[str, Any]]:
+    """Normalise provider rows to the repository's DailyKline dict contract.
+
+    The multi-source fetcher returns source-native columns: Sina uses
+    ``日期/开盘/最高/最低/收盘/成交量`` and akshare adds ``成交额/换手率``.
+    The repository requires ``symbol/trade_date/open/high/low/close/volume``.
+    Without this boundary guard a successful upstream fetch still fails to save
+    (observed: Sina returned data, then ``KeyError: 'symbol'``).
+    """
+    normalized = []
+    for raw in _to_rows(rows):
+        if not isinstance(raw, dict):
+            continue
+        item_symbol = str(
+            _first(raw, "symbol", "股票代码", "code") or symbol
+        ).split(".")[0]
+        trade_date = _first(raw, "trade_date", "日期", "date", "day")
+        if trade_date is None:
+            continue
+        trade_date = str(trade_date)[:10]
+        close = _first(raw, "close", "收盘", "最新价")
+        if close is None:
+            continue
+        normalized.append({
+            "symbol": item_symbol,
+            "trade_date": trade_date,
+            "open": _first(raw, "open", "开盘"),
+            "high": _first(raw, "high", "最高"),
+            "low": _first(raw, "low", "最低"),
+            "close": close,
+            "volume": _first(raw, "volume", "成交量"),
+            "amount": _first(raw, "amount", "成交额") or 0,
+            "turnover_rate": _first(raw, "turnover_rate", "换手率") or 0,
+            "source": _first(raw, "source") or "on_demand",
+        })
+    return normalized
+
+
 def _base_meta(target: date, as_of: Optional[str], *, fresh: bool, source: str,
                degraded: bool = False, reason: str = "", fetched_bars: int = 0,
                requested_start: Optional[date] = None,
@@ -233,7 +279,7 @@ def ensure_daily_klines(
             payload = fetcher.fetch_klines(
                 symbol, fetch_start.isoformat(), target_end.isoformat()
             )
-            rows = _to_rows(payload)
+            rows = _normalize_kline_rows(payload, symbol)
             fetched_rows = len(rows)
             if rows:
                 kline_repo.save_daily_klines(rows)
