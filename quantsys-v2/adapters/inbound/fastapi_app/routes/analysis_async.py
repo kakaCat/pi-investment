@@ -305,6 +305,29 @@ def _annotate_stale_factors(symbol: str, factors: Any, max_stale_trading_days: i
     return dicts, summary
 
 
+def _latest_factor_snapshot(factors):
+    """Return only the rows belonging to the newest factor date.
+
+    ``get_latest_factors`` is per-factor-name latest, so a symbol can mix
+    2026-10-27 technical factors with a 2026-08-10 orphan such as ma60. A
+    "latest snapshot" must be one coherent date; otherwise the Agent tool's
+    freshness guard rejects the whole response.
+    """
+    if not isinstance(factors, list) or not factors:
+        return factors, None
+
+    def _date_of(item):
+        value = item.get('factor_date') if isinstance(item, dict) else getattr(item, 'factor_date', None)
+        return str(value)[:10] if value else ''
+
+    dates = [_date_of(item) for item in factors]
+    valid_dates = [d for d in dates if d]
+    if not valid_dates:
+        return factors, None
+    snapshot = max(valid_dates)
+    return [item for item in factors if _date_of(item) == snapshot], snapshot
+
+
 @router.get('/api/stock/{symbol}/factors')
 @router.get('/api/stocks/{symbol}/factors')
 def get_stock_factors(symbol: str, date: Optional[str] = Query(None)):
@@ -320,6 +343,9 @@ def get_stock_factors(symbol: str, date: Optional[str] = Query(None)):
                 symbol, kline_repo=kline_repo, factor_repo=factor_repo,
             )
         factors = factor_repo.get_latest_factors(symbol) if not date else factor_repo.get_factors(symbol, date)
+        factor_snapshot_date = None
+        if not date:
+            factors, factor_snapshot_date = _latest_factor_snapshot(factors)
         stock_info = stock_repo.get_by_symbol(symbol)
         kline = kline_repo.get_latest_daily_kline(symbol)
         latest_signals = signal_repo.get_signals_by_symbol(symbol, '2024-01-01', date or '2026-12-31')
@@ -371,6 +397,7 @@ def get_stock_factors(symbol: str, date: Optional[str] = Query(None)):
             'current_price': current_price,
             'factors': factors,
             'signals_count': len(latest_signals),
+            'factor_snapshot_date': factor_snapshot_date,
             'data_freshness': data_freshness,
             **stale_summary,
         })

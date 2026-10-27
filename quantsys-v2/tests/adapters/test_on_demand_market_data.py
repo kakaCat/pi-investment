@@ -178,3 +178,18 @@ def test_factor_refresh_is_noop_when_already_fresh():
     assert meta['fresh'] is True
     assert meta['source'] == 'db_cache'
     assert calls == []
+
+
+def test_mixed_factor_dates_collapse_to_latest_snapshot():
+    from adapters.inbound.fastapi_app.routes.analysis_async import _latest_factor_snapshot
+
+    factors = [
+        {'factor_name': 'rsi14', 'factor_date': '2026-10-27'},
+        {'factor_name': 'macd', 'factor_date': '2026-10-27'},
+        {'factor_name': 'ma60', 'factor_date': '2026-08-10'},
+    ]
+
+    snapshot, factor_date = _latest_factor_snapshot(factors)
+
+    assert factor_date == '2026-10-27'
+    assert {f['factor_name'] for f in snapshot} == {'rsi14', 'macd'}
