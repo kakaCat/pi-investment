@@ -52,6 +52,22 @@ def trading_weekdays_only(monkeypatch):
     monkeypatch.setattr(lazy, '_safe_is_trading_day', lambda d: d.weekday() < 5)
 
 
+def test_normalizes_provider_native_columns():
+    rows = lazy._normalize_kline_rows([
+        {
+            '日期': '2026-10-27', '开盘': 42.0, '最高': 43.0,
+            '最低': 41.5, '收盘': 42.5, '成交量': 12345, '成交额': 999.0,
+        },
+    ], '600036')
+
+    assert rows == [{
+        'symbol': '600036', 'trade_date': '2026-10-27',
+        'open': 42.0, 'high': 43.0, 'low': 41.5, 'close': 42.5,
+        'volume': 12345, 'amount': 999.0, 'turnover_rate': 0,
+        'source': 'on_demand',
+    }]
+
+
 def test_repository_latest_trade_date_accepts_optional_symbol():
     params = inspect.signature(KlineORMRepository.get_latest_trade_date).parameters
     assert 'symbol' in params
