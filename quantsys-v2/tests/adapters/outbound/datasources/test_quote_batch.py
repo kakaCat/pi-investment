@@ -213,9 +213,13 @@ def test_投递到账户路径的是批量入口(monkeypatch):
             pass
 
     svc.logger = _L()
-    prices = svc._fetch_current_prices(['a', 'b'])
+    prices, timestamps = svc._fetch_current_prices(['a', 'b'])
     assert calls == [['a', 'b']], f'必须一次批量调用，实际 {calls}'
     assert prices == {'a': 3.0, 'b': 4.0}
+    # 契约（2026-10-27，RFC 017 P0）：返回 (prices, timestamps)；mock 未设 timestamp → 空 dict，
+    # 且不得残留在 svc 单例上（并发账户请求会互相覆盖）
+    assert timestamps == {}
+    assert getattr(svc, '_price_timestamps', None) is None
 
 
 def test_批量接口使用manager批量入口():

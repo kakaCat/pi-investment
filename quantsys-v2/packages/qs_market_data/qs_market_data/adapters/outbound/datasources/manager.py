@@ -1,5 +1,6 @@
 """Unified data provider manager with automatic failover."""
 import logging
+import time
 from datetime import date as _date, datetime as _datetime, timedelta as _timedelta
 from typing import List, Dict, Any, Optional
 
@@ -706,9 +707,21 @@ class DataProviderManager(IDataProviderManager):
                 continue
 
             attempted_sources.append(provider.name)
+            _t0 = time.monotonic()
             try:
                 got = provider.get_quotes(pending) or {}
+                # 分源耗时（RFC 017 P0 可观测性）：2026-10-26 事故中账户响应 11s+ 无法归因到
+                # 具体源（降级链只有开始/结束两条日志）；现逐源记录命中数与耗时，慢请求一进
+                # 日志即可看到是哪一源、花了多少毫秒、补了几只。
+                logger.info(
+                    "Batch quotes via %s: %d/%d symbols in %.0fms",
+                    provider.name, len(got), len(pending), (time.monotonic() - _t0) * 1000,
+                )
             except Exception as e:
+                logger.warning(
+                    "Batch quotes via %s failed after %.0fms: %s",
+                    provider.name, (time.monotonic() - _t0) * 1000, e,
+                )
                 provider_errors[provider.name] = str(e)
                 self._record_failure(provider.name)
                 continue

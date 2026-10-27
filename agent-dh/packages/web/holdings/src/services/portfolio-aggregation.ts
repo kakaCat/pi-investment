@@ -1,19 +1,39 @@
 // 持仓数据聚合服务
 // 职责：从 v2 各端点拉取数据，聚合为 HoldingsData 契约
 
-import { fetchData, fetchJson } from './http.js';
-import { ALL_PARTS } from './parts.js';
+import { fetchData, fetchJson, HttpError } from './http.js';
+import { ALL_PARTS, CORE_PARTS } from './parts.js';
 import { getStockName } from './name-map.js';
 import type {
   Account,
   AccountAutomation,
   HoldingsData,
+  HoldingsMeta,
+  PartError,
   PortfolioSummary,
   Position,
   SchedulerTask,
   Trade,
   WatchRule,
 } from '../types/index.js';
+
+/**
+ * RFC 017 P0：core（账户状态/持仓）上游不可用（2026-10-27 引入）。
+ *
+ * 背景事故（2026-10-26）：accountStatus 上游超时后，旧实现用 getDefaultSummary()
+ * 零值摘要 + 空持仓 + success=true 返回——用户看到「加载 4 秒后资产清零、持仓消失」，
+ * 而真实空仓与查询失败是两种完全不同的业务状态。现 core 失败即显式抛错，
+ * 由路由转 503、前端保留上次有效数据并提示陈旧。
+ */
+export class CoreDataUnavailableError extends Error {
+  readonly code = 'CORE_DATA_UNAVAILABLE';
+  readonly accountName: string;
+  constructor(accountName: string, cause: unknown) {
+    super(`账户核心数据不可用: ${accountName}（${cause instanceof Error ? cause.message : String(cause)}）`);
+    this.name = 'CoreDataUnavailableError';
+    this.accountName = accountName;
+  }
+}
 
 export interface AggregationOptions {
   v2BaseURL: string;
@@ -43,8 +63,20 @@ export class PortfolioAggregationService {
   /**
    * 聚合持仓数据
    * @param accountName - 账户名称，默认 agent_brain
+   * @returns data 持仓数据；meta 分块级错误与数据时点（RFC 017 P0）
+   *
+   * 失败语义（2026-10-27，RFC 017 P0，取代旧的「失败→空数组/零摘要」）：
+   *  - accountStatus 是 core：rejected 即抛 CoreDataUnavailableError（路由转 503），
+   *    绝不用零值摘要冒充成功（2026-10-26 事故：用户看到「加载 4 秒后资产清零」）；
+   *  - accounts rejected：省略响应中的 accounts 键 + meta.errors 记录——前端合并时
+   *    缺键不覆盖缓存（pickParts 只挑存在的键），账户下拉保留上次列表；
+   *  - 辅助块（成交/盯盘/调度/Agent OS）rejected：容忍为空并记入 meta.errors，
+   *    不得拖垮 core。
    */
-  async aggregate(accountName: string = 'agent_brain', opts?: { parts?: string[] }): Promise<HoldingsData> {
+  async aggregate(
+    accountName: string = 'agent_brain',
+    opts?: { parts?: string[] }
+  ): Promise<{ data: HoldingsData; meta: HoldingsMeta }> {
     const { v2BaseURL, requestTimeoutMs, agentOsBaseURL } = this.options;
     const timeout = { timeoutMs: requestTimeoutMs };
     // 2026-09-13（w-adb088f2）：按分块取数。轮询只带 hot（约 4 KB），冷块（盯盘规则 79.5 KB /
@@ -53,58 +85,101 @@ export class PortfolioAggregationService {
     const parts: string[] = opts?.parts ?? [...ALL_PARTS];
     const want = new Set(parts);
 
+    // 业务分块意图（RFC 017 P2）：只请求本次需要的上游，辅助块不再搭 core 顺风车
+    const wantCore = CORE_PARTS.some((p) => want.has(p));
+    const wantAutomation = want.has('automation');
+    const wantActivity = want.has('tradeHistory') || want.has('todayTrades');
+    const wantWatch = want.has('watchRules');
+    const needAccounts = wantCore || wantAutomation; // automation 用账户元数据做策略绑定
+
     try {
-      // 并发请求所有端点（单个失败不影响其他）；agentOsTasks 仅 agent 类账户展示用到，
-      // 失败容忍为空（8080 若不可用，agent 账户 automation 退化为不渲染块，strategy 账户不受影响）
-      const needTrades = want.has('tradeHistory') || want.has('todayTrades');
-      const needRules = want.has('watchRules');
-      const [accounts, accountStatus, trades, watchRules, schedulerTasks, agentOsTasks] = await Promise.allSettled([
-        this.fetchAccounts(v2BaseURL, timeout),
-        this.fetchAccountStatus(v2BaseURL, accountName, timeout),
-        needTrades ? coldCached('trades:' + accountName, () => this.fetchTrades(v2BaseURL, accountName, timeout)) : Promise.resolve([] as any[]),
-        needRules ? coldCached('rules:' + accountName, () => this.fetchWatchRules(v2BaseURL, accountName, timeout)) : Promise.resolve([] as any[]),
-        this.fetchSchedulerTasks(v2BaseURL, timeout),
-        this.fetchAgentOsTasks(agentOsBaseURL, timeout),
+      // 并发请求本次所需端点（单个失败不影响其他）；未请求的块以空值占位，不产生网络调用。
+      // Agent OS 仅 automation 需要（8080 不可用时该块退化，不影响 core）。
+      const [accounts, coreAccount, trades, watchRules, schedulerTasks, agentOsTasks] = await Promise.allSettled([
+        needAccounts ? this.fetchAccounts(v2BaseURL, timeout) : Promise.resolve([] as Account[]),
+        wantCore ? this.fetchCoreAccount(v2BaseURL, accountName, timeout) : Promise.resolve(null as any),
+        wantActivity ? coldCached('trades:' + accountName, () => this.fetchTrades(v2BaseURL, accountName, timeout)) : Promise.resolve([] as any[]),
+        wantWatch ? coldCached('rules:' + accountName, () => this.fetchWatchRules(v2BaseURL, accountName, timeout)) : Promise.resolve([] as any[]),
+        wantAutomation ? this.fetchSchedulerTasks(v2BaseURL, timeout) : Promise.resolve([] as any[]),
+        wantAutomation ? this.fetchAgentOsTasks(agentOsBaseURL, timeout) : Promise.resolve([] as any[]),
       ]);
 
-      // 提取结果，失败的用空数组/默认值
+      // 失败与空数据分离（RFC 017 P0）：core 失败即显式抛错，不用零值摘要冒充；
+      // 辅助块失败记入 meta.errors；accounts 失败省略键（见方法头注释）
+      if (wantCore && coreAccount.status === 'rejected') {
+        throw new CoreDataUnavailableError(accountName, coreAccount.reason);
+      }
+      const errors: Record<string, PartError> = {};
+      const accountsFailed = needAccounts && accounts.status === 'rejected';
+      if (accountsFailed) {
+        errors.accounts = { code: 'UPSTREAM_UNAVAILABLE', message: String(accounts.reason) };
+      }
+      if (wantActivity && trades.status === 'rejected') {
+        errors.activity = { code: 'UPSTREAM_UNAVAILABLE', message: String(trades.reason) };
+      }
+      if (wantWatch && watchRules.status === 'rejected') {
+        errors.watch = { code: 'UPSTREAM_UNAVAILABLE', message: String(watchRules.reason) };
+      }
+      if (wantAutomation && schedulerTasks.status === 'rejected') {
+        errors.scheduler = { code: 'UPSTREAM_UNAVAILABLE', message: String(schedulerTasks.reason) };
+      }
+      if (wantAutomation && agentOsTasks.status === 'rejected') {
+        errors.agentOs = { code: 'UPSTREAM_UNAVAILABLE', message: String(agentOsTasks.reason) };
+      }
+
+      // 提取结果（core 已保证 fulfilled；accounts 失败时 accountsData 仅用于本地查找）
       const accountsData = accounts.status === 'fulfilled' ? accounts.value : [];
-      const summaryData = accountStatus.status === 'fulfilled' ? accountStatus.value.summary : this.getDefaultSummary();
-      const positionsData = accountStatus.status === 'fulfilled' ? accountStatus.value.positions : [];
+      const core = coreAccount.status === 'fulfilled' ? coreAccount.value : null;
       const tradesData = trades.status === 'fulfilled' ? trades.value : [];
 
-      // 今日成交与历史交易同源（/api/simulation/trades 全量，v2 已倒序）；拆两视图用：
-      //   todayTrades = 当日过滤（「今日自动交易」卡）；tradeHistory = 全量（「历史交易」分页卡）
-      const tradeHistory = [...tradesData].sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')))
-      // 「今日」按本地日期口径（toISOString 是 UTC，00:00–08:00 会把当日成交错归昨日）：
-      // 优先 v2 自带的 trade_date（YYYY-MM-DD，本地），回退 created_at 前 10 位
-      const nowD = new Date()
-      const localToday = nowD.getFullYear() + '-' + String(nowD.getMonth() + 1).padStart(2, '0') + '-' + String(nowD.getDate()).padStart(2, '0')
-      const todayTrades = tradeHistory.filter((t) => (t.trade_date ?? (t.created_at ? t.created_at.slice(0, 10) : '')) === localToday)
-      const watchRulesData = watchRules.status === 'fulfilled' ? watchRules.value : [];
-      const schedulerTasksData = schedulerTasks.status === 'fulfilled' ? schedulerTasks.value : [];
-      const agentOsTasksData = agentOsTasks.status === 'fulfilled' ? agentOsTasks.value : [];
-
-      // 自动化流程：strategy 账户 ← qv2 引擎任务；agent 账户（agent_virtual/agent_brain）← Agent OS 执行者例行任务
-      const currentAccountMeta = accountsData.find((a) => a.account_name === accountName);
-      const automation = this.buildAutomation(currentAccountMeta, schedulerTasksData, agentOsTasksData, accountName);
-
-      // 计算合规指标
-      const compliance = this.calculateCompliance(summaryData, positionsData);
-
-      return {
-        accounts: accountsData,
+      const data: HoldingsData = {
         currentAccount: accountName,
         parts,
-        summary: summaryData,
-        positions: positionsData,
-        todayTrades,
-        tradeHistory,
-        watchRules: watchRulesData,
-        automation,
-        compliance,
       };
+      if (core) {
+        data.summary = core.summary;
+        data.positions = core.positions;
+        data.compliance = this.calculateCompliance(core.summary, core.positions);
+        if (core.priceAsOf !== undefined) data.priceAsOf = core.priceAsOf;
+        if (core.priceStale !== undefined) data.priceStale = core.priceStale;
+        if (core.snapshotAsOf !== undefined) data.snapshotAsOf = core.snapshotAsOf;
+      }
+      // accounts 失败时**省略该键**（不返回空数组）——前端 pickParts 只合并存在的键，
+      // 缓存的账户列表得以保留；空数组会被合并进去、把下拉框清空（假空数据）。
+      if (needAccounts && !accountsFailed) {
+        data.accounts = accountsData;
+      }
+      if (wantActivity) {
+        // 今日成交与历史交易同源（/api/simulation/trades 全量，v2 已倒序）；拆两视图用：
+        //   todayTrades = 当日过滤（「今日自动交易」卡）；tradeHistory = 全量（「历史交易」分页卡）
+        const tradeHistory = [...tradesData].sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')))
+        // 「今日」按本地日期口径（toISOString 是 UTC，00:00–08:00 会把当日成交错归昨日）：
+        // 优先 v2 自带的 trade_date（YYYY-MM-DD，本地），回退 created_at 前 10 位
+        const nowD = new Date()
+        const localToday = nowD.getFullYear() + '-' + String(nowD.getMonth() + 1).padStart(2, '0') + '-' + String(nowD.getDate()).padStart(2, '0')
+        data.todayTrades = tradeHistory.filter((t) => (t.trade_date ?? (t.created_at ? t.created_at.slice(0, 10) : '')) === localToday)
+        data.tradeHistory = tradeHistory
+      }
+      if (wantWatch) {
+        data.watchRules = watchRules.status === 'fulfilled' ? watchRules.value : [];
+      }
+      if (wantAutomation) {
+        const schedulerTasksData = schedulerTasks.status === 'fulfilled' ? schedulerTasks.value : [];
+        const agentOsTasksData = agentOsTasks.status === 'fulfilled' ? agentOsTasks.value : [];
+        // 自动化流程：strategy 账户 ← qv2 引擎任务；agent 账户 ← Agent OS 执行者例行任务
+        const currentAccountMeta = accountsData.find((a) => a.account_name === accountName);
+        data.automation = this.buildAutomation(currentAccountMeta, schedulerTasksData, agentOsTasksData, accountName);
+      }
+
+      const meta: HoldingsMeta = {
+        asOf: new Date().toISOString(),
+        ...(Object.keys(errors).length > 0 ? { errors } : {}),
+      };
+      return { data, meta };
     } catch (error) {
+      if (error instanceof CoreDataUnavailableError) {
+        throw error;
+      }
       throw new Error(`持仓数据聚合失败: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
@@ -113,6 +188,25 @@ export class PortfolioAggregationService {
     const url = `${baseURL}/api/simulation/accounts`;
     const resp = await fetchData<{ accounts: Account[] }>(url, timeout);
     return resp.accounts || [];
+  }
+
+  /** 代理 v2 行情刷新命令（RFC 017 P2）：POST /quotes/refresh → 202 + single-flight。
+   *  只触发后台刷新、不改交易状态；失败返回 ok=false 由路由转 502。 */
+  async requestQuoteRefresh(accountName: string): Promise<{ ok: boolean; status: number; body?: unknown }> {
+    const url = `${this.options.v2BaseURL}/api/simulation/accounts/${encodeURIComponent(accountName)}/quotes/refresh`;
+    try {
+      const res = await fetch(url, { method: 'POST', headers: { accept: 'application/json' } });
+      const text = await res.text();
+      let body: unknown = null;
+      try {
+        body = text ? JSON.parse(text) : null;
+      } catch {
+        body = { success: false, error: 'v2 返回非 JSON' };
+      }
+      return { ok: res.ok, status: res.status, body };
+    } catch (err) {
+      return { ok: false, status: 0, body: { success: false, error: String(err) } };
+    }
   }
 
   /** 账户状态（持仓+汇总，同一端点一次请求）。
@@ -127,6 +221,44 @@ export class PortfolioAggregationService {
   ): Promise<{ summary: PortfolioSummary; positions: Position[] }> {
     const url = `${baseURL}/api/simulation/accounts/${encodeURIComponent(accountName)}`;
     const data = await fetchData<Record<string, any>>(url, timeout);
+    return this.mapAccountPayload(data);
+  }
+
+  /** 账户快照（core 首选，RFC 017 P2）：/overview 只读 DB，不同步拉外盘。
+   *  旧后端无该端点（404）时回退旧状态接口（兼容期），保证前后端可独立部署。 */
+  private async fetchCoreAccount(
+    baseURL: string,
+    accountName: string,
+    timeout: { timeoutMs: number }
+  ): Promise<{
+    summary: PortfolioSummary
+    positions: Position[]
+    priceAsOf?: string | null
+    priceStale?: boolean
+    snapshotAsOf?: string
+  }> {
+    const url = `${baseURL}/api/simulation/accounts/${encodeURIComponent(accountName)}/overview`;
+    try {
+      const json = await fetchJson<{ data: Record<string, any>; meta?: Record<string, any> }>(url, timeout);
+      const mapped = this.mapAccountPayload(json.data ?? {});
+      const meta = json.meta ?? {};
+      return {
+        ...mapped,
+        priceAsOf: (meta.price_as_of as string | null | undefined) ?? null,
+        priceStale: typeof meta.price_stale === 'boolean' ? meta.price_stale : undefined,
+        snapshotAsOf: typeof meta.snapshot_as_of === 'string' ? meta.snapshot_as_of : undefined,
+      };
+    } catch (err) {
+      if (err instanceof HttpError && err.status === 404) {
+        const legacy = await this.fetchAccountStatus(baseURL, accountName, timeout);
+        return legacy;
+      }
+      throw err;
+    }
+  }
+
+  /** v2 账户 payload → 看板 summary/positions（旧状态与 overview 共用同一映射，口径只有一份） */
+  private mapAccountPayload(data: Record<string, any>): { summary: PortfolioSummary; positions: Position[] } {
     const rawPositions = Array.isArray(data.positions) ? data.positions : [];
 
     // snake_case → camelCase（口径同 quantsys-v2-client mapPosition）
@@ -238,10 +370,44 @@ export class PortfolioAggregationService {
   }
 
   private async fetchSchedulerTasks(baseURL: string, timeout: { timeoutMs: number }): Promise<SchedulerTask[]> {
+    // 2026-10-27（RFC 017 P1）：优先 summary 端点（contract_version=2）——服务端已完成
+    // lastStatus 归一化（含假成功纠正）且不携带 lastRun.payload（旧端点 79 任务 13.68 MB，
+    // 其中 payload 占 99.5%，看板 4s 超时内根本吞不完）。summary 不可用（404/旧后端/超时）
+    // 时回退旧端点 + 客户端归一化，保持前后端可独立部署。
+    try {
+      const url = `${baseURL}/api/scheduler/tasks/summary?pageSize=200`;
+      const resp = await fetchJson<{ contract_version?: number; tasks?: unknown[] }>(url, timeout);
+      return (Array.isArray(resp.tasks) ? resp.tasks : []).map((t) => this.normalizeSummaryTask(t));
+    } catch {
+      // fall through → legacy
+    }
     // qv2 scheduler 端点是裸信封 {success, tasks, ...}（无 data 键）→ fetchJson 直取 .tasks
     const url = `${baseURL}/api/scheduler/tasks?pageSize=200`;
     const resp = await fetchJson<{ tasks?: unknown[] }>(url, timeout);
     return (Array.isArray(resp.tasks) ? resp.tasks : []).map((t) => this.normalizeTask(t));
+  }
+
+  /** 归一化 v2 summary 任务：lastStatus 已服务端归一化（含 lastStatusSource），直接信任；
+   *  strategy 沿用客户端 strategyOf（服务端 v2 不计算，单一事实源不复制）。 */
+  private normalizeSummaryTask(raw: unknown): SchedulerTask {
+    const t = (raw ?? {}) as Record<string, any>;
+    const name = String(t.name ?? '');
+    const command = String(t.command ?? '');
+    return {
+      id: String(t.id ?? ''),
+      name,
+      enabled: t.enabled === true,
+      scheduleExpr: String(t.scheduleExpr ?? ''),
+      command,
+      description: String(t.description ?? ''),
+      lastStatus: String(t.lastStatus ?? ''),
+      lastAt: t.lastAt ? String(t.lastAt) : null,
+      lastError: String(t.lastError ?? ''),
+      nextRunAt: t.nextRunAt ? String(t.nextRunAt) : null,
+      todayTriggered: Number(t.todayTriggered ?? 0) || 0,
+      todaySuccess: Number(t.todaySuccess ?? 0) || 0,
+      strategy: strategyOf(name, command, undefined),
+    };
   }
 
   /** 拉取 Agent OS 调度任务（agent 类账户执行者任务数据源）。

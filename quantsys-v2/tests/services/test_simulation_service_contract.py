@@ -75,14 +75,14 @@ class TestGetAccountStatus:
     def test_price_stale_true_when_no_prices_fetched(self):
         svc = _make_service()
         self._setup_repo(svc, [_make_position()])
-        svc._fetch_current_prices = MagicMock(return_value={})
+        svc._fetch_current_prices = MagicMock(return_value=({}, {}))
         result = svc.get_account_status("test_account")
         assert result["price_stale"] is True
 
     def test_price_stale_false_when_prices_fetched(self):
         svc = _make_service()
         self._setup_repo(svc, [_make_position()])
-        svc._fetch_current_prices = MagicMock(return_value={"600519": 1520.0})
+        svc._fetch_current_prices = MagicMock(return_value=({"600519": 1520.0}, {}))
         result = svc.get_account_status("test_account")
         assert result["price_stale"] is False
 
@@ -91,13 +91,70 @@ class TestGetAccountStatus:
         self._setup_repo(svc, [_make_position()])
 
         def fake_fetch(symbols):
-            # 契约：_fetch_current_prices 拉价时同时记录 quote 时间戳
-            svc._price_timestamps = {"600519": "2026-07-28T09:31:00"}
-            return {"600519": 1520.0}
+            # 契约（2026-10-27，RFC 017 P0）：时间戳随返回值传递 (prices, timestamps)
+            return {"600519": 1520.0}, {"600519": "2026-07-28T09:31:00"}
 
         svc._fetch_current_prices = fake_fetch
         result = svc.get_account_status("test_account")
         assert result["positions"][0]["price_updated_at"] == "2026-07-28T09:31:00"
+
+    def test_price_timestamps_not_stored_on_self(self):
+        """契约（RFC 017 P0）：请求级状态不得留在共享单例上。
+
+        旧实现把本次拉价时间戳写入 self._price_timestamps，线程池并发下两个账户
+        请求会互相覆盖（get_account_status 已迁线程池执行，竞态窗口真实存在）。
+        """
+        svc = _make_service()
+        self._setup_repo(svc, [_make_position()])
+        svc._fetch_current_prices = lambda symbols: ({"600519": 1520.0}, {"600519": "2026-07-28T09:31:00"})
+        svc.get_account_status("test_account")
+        assert getattr(svc, "_price_timestamps", None) is None
+
+    def test_concurrent_calls_keep_timestamps_isolated(self):
+        """并发回归：两个账户同时查状态，各自的时间戳不得串。
+
+        fake_fetch 休眠放大竞态窗口；旧实现（self 字段）下本测试必然失败。
+        """
+        import threading
+        import time as time_module
+
+        svc = _make_service()
+        self._setup_repo(svc, [])
+        pos_a = _make_position()
+        pos_a.symbol = "600519"
+        pos_b = _make_position()
+        pos_b.symbol = "000858"
+        svc.repo.get_all_positions.side_effect = lambda name: [pos_a] if name == "acct_a" else [pos_b]
+
+        def fake_fetch(symbols):
+            time_module.sleep(0.05)
+            return {s: 1.0 for s in symbols}, {s: f"ts-{s}" for s in symbols}
+
+        svc._fetch_current_prices = fake_fetch
+
+        results: dict = {}
+
+        def run(name):
+            results[name] = svc.get_account_status(name)
+
+        threads = [threading.Thread(target=run, args=(n,)) for n in ("acct_a", "acct_b")]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        assert results["acct_a"]["positions"][0]["price_updated_at"] == "ts-600519"
+        assert results["acct_b"]["positions"][0]["price_updated_at"] == "ts-000858"
+
+    def test_account_status_emits_phase_timing(self, caplog):
+        """可观测性（RFC 017 P0）：分阶段耗时日志必须存在，慢请求可归因。"""
+        svc = _make_service()
+        self._setup_repo(svc, [_make_position()])
+        svc._fetch_current_prices = MagicMock(return_value=({"600519": 1520.0}, {}))
+        with caplog.at_level(logging.INFO, logger="test.simulation_service"):
+            svc.get_account_status("test_account")
+        assert any("account_status_timing" in r.message for r in caplog.records), \
+            "必须输出 account_status_timing 分阶段耗时日志（db/quote/benchmark/total）"
 
 
 class TestBenchmarkBlock:
@@ -141,3 +198,54 @@ class TestBenchmarkBlock:
         svc.repo.get_equity_snapshots.return_value = []
         result = svc.get_account_status("test_account")
         assert result["benchmark"] is None
+
+
+class TestGetAccountOverview:
+    """RFC 017 P2：overview 是纯 DB 快照——不拉行情、不写库、不计算基准。"""
+
+    def test_pure_db_snapshot_no_provider_and_no_write(self):
+        svc = _make_service()
+        TestGetAccountStatus()._setup_repo(svc, [_make_position()])
+        svc._fetch_current_prices = MagicMock(side_effect=AssertionError('overview 不得拉行情'))
+        svc._fetch_benchmark_klines = MagicMock(side_effect=AssertionError('overview 不得算基准'))
+        result = svc.get_account_overview("acct")
+        assert result["benchmark"] is None
+        assert result["positions_count"] == 1
+        assert result["positions"][0]["price_updated_at"] is not None
+        assert result["total_value"] == 100000
+        svc.repo.update_position_prices.assert_not_called()
+
+    def test_price_stale_true_when_old_snapshot_in_trading(self, monkeypatch):
+        from qs_trading.application.services.simulation_service import SimulationService
+        svc = _make_service()
+        pos = _make_position()
+        pos.updated_at = datetime.now() - timedelta(seconds=3600)
+        TestGetAccountStatus()._setup_repo(svc, [pos])
+        monkeypatch.setattr(SimulationService, '_is_trading_time', staticmethod(lambda now: True))
+        result = svc.get_account_overview("acct")
+        assert result["price_stale"] is True
+
+    def test_price_stale_false_when_fresh_snapshot(self, monkeypatch):
+        from qs_trading.application.services.simulation_service import SimulationService
+        svc = _make_service()
+        TestGetAccountStatus()._setup_repo(svc, [_make_position()])
+        monkeypatch.setattr(SimulationService, '_is_trading_time', staticmethod(lambda now: True))
+        result = svc.get_account_overview("acct")
+        assert result["price_stale"] is False
+
+    def test_empty_positions_not_stale(self):
+        svc = _make_service()
+        TestGetAccountStatus()._setup_repo(svc, [])
+        result = svc.get_account_overview("acct")
+        assert result["positions"] == []
+        assert result["price_stale"] is False
+        assert result["price_as_of"] is None
+
+    def test_unknown_account_raises(self):
+        svc = _make_service()
+        svc.repo.get_account.return_value = None
+        try:
+            svc.get_account_overview("nope")
+            assert False, '必须抛 ValueError'
+        except ValueError:
+            pass

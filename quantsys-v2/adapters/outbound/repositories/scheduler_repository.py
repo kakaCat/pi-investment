@@ -445,6 +445,68 @@ class SchedulerRepository(ISchedulerRepository):
             self._safe_rollback()
             return 0
 
+    def get_latest_runs_per_task(self, task_ids: List[int]) -> Dict[int, Dict[str, Any]]:
+        """每任务的最近一条 run：一次窗口函数查询（RFC 017 P1，2026-10-27）。
+
+        旧任务列表为取 lastRun 逐任务 list_runs(limit=100)（_task_to_summary）——
+        79 任务 = 79 次查询 + 每任务传输最多 100 条运行记录（实测大 payload 任务
+        单条 ~9MB）。summary 接口只取每任务最新一条：row_number() OVER 分区取 rn=1。
+        返回 {task_id: run_dict}；查询失败回 {}（调用方按「无运行记录」降级，不炸列表）。
+        """
+        if not task_ids:
+            return {}
+        try:
+            rn = func.row_number().over(
+                partition_by=SchedulerRun.task_id,
+                order_by=SchedulerRun.started_at.desc(),
+            )
+            subq = (
+                self.session.query(SchedulerRun, rn.label('_rn'))
+                .filter(SchedulerRun.task_id.in_(task_ids))
+                .subquery()
+            )
+            rows = (
+                self.session.query(SchedulerRun)
+                .select_entity_from(subq)
+                .filter(subq.c._rn == 1)
+                .all()
+            )
+            return {r.task_id: self._row_to_dict(r) for r in rows}
+        except Exception:
+            self._safe_rollback()
+            return {}
+
+    def count_today_runs_per_task(self, task_ids: List[int], today: str) -> Dict[int, Dict[str, int]]:
+        """当日触发/成功次数按任务聚合：一次 GROUP BY（RFC 017 P1）。
+
+        与旧 _task_to_summary 的逐任务「拉 100 条→本地按日期过滤」口径一致
+        （started_at 的日期 == today，本地 YYYY-MM-DD），但只做一次聚合查询。
+        返回 {task_id: {'triggered': n, 'success': n}}。
+        """
+        if not task_ids:
+            return {}
+        try:
+            rows = (
+                self.session.query(
+                    SchedulerRun.task_id,
+                    func.count(SchedulerRun.id).label('triggered'),
+                    func.sum(case((SchedulerRun.status == 'success', 1), else_=0)).label('success'),
+                )
+                .filter(
+                    SchedulerRun.task_id.in_(task_ids),
+                    func.date(SchedulerRun.started_at) == today,
+                )
+                .group_by(SchedulerRun.task_id)
+                .all()
+            )
+            return {
+                r.task_id: {'triggered': int(r.triggered or 0), 'success': int(r.success or 0)}
+                for r in rows
+            }
+        except Exception:
+            self._safe_rollback()
+            return {}
+
     # ── Health Check ──
 
     def recover_orphan_runs(self, note: str = "孤儿 run：进程重启遗留") -> List[int]:

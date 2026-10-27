@@ -8,7 +8,7 @@
 
 import { Context } from '@deepseek-ai/cordis';
 import { PortfolioAggregationService } from './services/portfolio-aggregation.js';
-import { createHoldingsHandler } from './routes/holdings-routes.js';
+import { createHoldingsHandler, createHoldingsRefreshHandler } from './routes/holdings-routes.js';
 import { createSolveHandler, type ActionTarget } from '@pi-investment/solve-kit';
 
 export const name = 'dashboard-holdings';
@@ -81,9 +81,15 @@ export function apply(ctx: Context, config?: PluginConfig): void {
           path: '/dashboard/api/holdings/solve',
           handler: createSolveHandler({ resolveAgent }, { panel: '持仓看板', panelFull: '账户持仓看板', plugin: 'dashboard-holdings', osBaseURL: 'http://127.0.0.1:8080' }),
         });
+        // RFC 017 P2：陈旧时前端触发后台行情刷新（代理 v2 POST /quotes/refresh，202 + single-flight）
+        webCtx.webServer.register({
+          kind: 'exact',
+          path: '/dashboard/api/holdings/refresh',
+          handler: createHoldingsRefreshHandler(aggregator),
+        });
       }, name + ': api');
 
-      logger.info('routes registered: /dashboard/api/holdings + /dashboard/api/holdings/solve (client half renders GUI)');
+      logger.info('routes registered: /dashboard/api/holdings + solve + refresh (client half renders GUI)');
     },
   );
 }

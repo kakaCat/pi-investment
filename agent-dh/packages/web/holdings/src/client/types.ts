@@ -135,19 +135,31 @@ export interface AccountAutomation {
 }
 
 export interface HoldingsData {
-  accounts: Account[];
+  /** 账户列表。**可缺省**（RFC 017 P0）：accounts 上游失败时 host 省略该键——
+   *  缺键=失败须保留缓存；空数组=真实空仓语义（列表场景恒有当前账户，故空数组不应出现）。
+   *  消费方一律 Array.isArray 守卫（view.ts 已是）。 */
+  accounts?: Account[];
   currentAccount: string;
-  summary: PortfolioSummary;
-  positions: Position[];
-  todayTrades: Trade[];
+  /** core 分块字段（RFC 017 P2）：按 parts 请求才返回，非 core 响应中缺省 */
+  summary?: PortfolioSummary;
+  positions?: Position[];
+  todayTrades?: Trade[];
   /** 历史成交全量（同源 /api/simulation/trades，倒序；供「历史交易」分页卡） */
-  tradeHistory: Trade[];
-  watchRules: WatchRule[];
+  tradeHistory?: Trade[];
+  watchRules?: WatchRule[];
   /** 本次响应实际包含的分块（见 host 侧 parts 参数） */
   parts?: string[];
   /** 当前账户的自动化流程（引擎调度任务；agent/user/legacy 账户无任务时 engine=false） */
   automation?: AccountAutomation;
-  compliance: {
+  /** 2026-10-27（RFC 017 P0）：加载/降级提示（如「数据刷新失败，显示上次有效数据」） */
+  loadNotice?: string;
+  /** 2026-10-27（RFC 017 P2）：行情快照时点（overview meta.price_as_of；R-013 如实展示） */
+  priceAsOf?: string | null;
+  /** 行情快照是否陈旧（overview meta.price_stale；仅展示口径，不用于交易判定） */
+  priceStale?: boolean;
+  /** 快照生成时点（overview meta.snapshot_as_of） */
+  snapshotAsOf?: string;
+  compliance?: {
     cashRatio: number;
     maxSingleStock: number;
     maxIndustry: number;

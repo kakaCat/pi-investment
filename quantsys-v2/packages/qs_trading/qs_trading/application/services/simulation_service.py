@@ -4,7 +4,8 @@
 提供策略执行、账户管理等业务逻辑
 """
 import logging
-from typing import Dict, List, Optional, Any
+import time
+from typing import Dict, List, Optional, Any, Tuple
 from datetime import datetime, date
 
 from qs_strategy.domain.strategies import get_registry, Signal
@@ -143,19 +144,25 @@ class SimulationService:
         Returns:
             Dict: 账户状态
         """
+        t0 = time.monotonic()
         account = self.repo.get_account(account_name)
         if not account:
             raise ValueError(f"Account '{account_name}' not found")
 
         positions = self.repo.get_all_positions(account_name)
+        t_db = time.monotonic()
 
-        # 更新持仓价格；price_stale 标记行情获取失败（陈旧价）让调用方可区分
+        # 更新持仓价格；price_stale 标记行情获取失败（陈旧价）让调用方可区分。
+        # price_timestamps 是局部变量（2026-10-27，RFC 017 P0）：早前实现把本次拉价的时间戳
+        # 保存在 self._price_timestamps 单例字段上，线程池并发下两个账户请求会互相覆盖
+        # 时间戳——请求级状态不得留在共享单例上。
         price_stale = False
+        price_timestamps: Dict[str, str] = {}
         if positions:
             self.logger.info(f"Updating prices for {len(positions)} positions")
             try:
                 symbols = [p.symbol for p in positions]
-                prices = self._fetch_current_prices(symbols)
+                prices, price_timestamps = self._fetch_current_prices(symbols)
                 if prices:
                     self.repo.update_position_prices(account_name, prices)
                     self.logger.info(f"Updated {len(prices)} position prices")
@@ -166,13 +173,15 @@ class SimulationService:
                     price_stale = len(prices) < len(set(symbols))
                 else:
                     price_stale = True
+                    price_timestamps = {}
                     self.logger.warning("No prices fetched")
             except Exception as e:
                 price_stale = True
+                price_timestamps = {}
                 self.logger.error(f"Failed to update position prices: {e}", exc_info=True)
+        t_prices = time.monotonic()
 
-        # 合并行情时间戳到持仓
-        price_timestamps = getattr(self, '_price_timestamps', {}) or {}
+        # 合并行情时间戳到持仓（只来自本次拉价的局部变量）
         position_dicts = []
         for p in positions:
             d = self._position_to_dict(p)
@@ -180,6 +189,22 @@ class SimulationService:
             if ts:
                 d['price_updated_at'] = ts
             position_dicts.append(d)
+
+        benchmark = self._benchmark_block(account_name)
+        t_bench = time.monotonic()
+
+        # 分阶段耗时（RFC 017 P0 可观测性）：2026-10-26 事故中 11s+ 的账户响应只能靠
+        # 日志区间人工推断耗时归属；现显式落 db/quote/benchmark/total，慢请求一进日志即可归因。
+        self.logger.info(
+            "account_status_timing account=%s positions=%d db_ms=%.1f quote_ms=%.1f "
+            "benchmark_ms=%.1f total_ms=%.1f price_stale=%s",
+            account_name, len(positions),
+            (t_db - t0) * 1000,
+            (t_prices - t_db) * 1000,
+            (t_bench - t_prices) * 1000,
+            (t_bench - t0) * 1000,
+            price_stale,
+        )
 
         return {
             'account_name': account_name,
@@ -196,7 +221,84 @@ class SimulationService:
             'price_stale': price_stale,
             'positions_count': len(positions),
             'positions': position_dicts,
-            'benchmark': self._benchmark_block(account_name)
+            'benchmark': benchmark
+        }
+
+    # ============ 账户概览（RFC 017 P2，2026-10-27） ============
+    # 看板 core 链路：**纯数据库快照**——不访问外部行情、不回写价格、不计算基准。
+    # 行情刷新由 QuoteRefreshService 后台完成（GET 只读，R-013 如实透出数据时点）。
+    _OVERVIEW_TRADING_STALE_SEC = 15
+    _OVERVIEW_IDLE_STALE_SEC = 86400  # 非交易时段允许最近收盘快照，超 24h 标陈旧
+
+    @staticmethod
+    def _is_trading_time(now: datetime) -> bool:
+        """A股大致交易时段（周一~周五 9:30-11:30 / 13:00-15:00；不含节假日）。
+
+        仅用于看板「价格陈旧」展示口径，不参与任何交易/风控判定——节假日期间
+        最多把收盘快照误标为陈旧，不会反向把陈旧数据标成新鲜。
+        """
+        from datetime import time as _time
+        if now.weekday() >= 5:
+            return False
+        t = now.time()
+        return (_time(9, 30) <= t <= _time(11, 30)) or (_time(13, 0) <= t <= _time(15, 0))
+
+    def get_account_overview(self, account_name: str) -> Dict:
+        """账户概览：只读 DB 快照（RFC 017 P2）。
+
+        与 get_account_status 的差异：
+          - 不同步拉实时行情（看板 core 不再等 provider，消除 11~18s 长尾）；
+          - 不写库；
+          - 随快照透出 price_as_of / price_stale，调用方如实展示新鲜度。
+        交易前价格确认仍走 data_fetch_quote / 旧账户状态接口，不读本快照下单。
+        """
+        account = self.repo.get_account(account_name)
+        if not account:
+            raise ValueError(f"Account '{account_name}' not found")
+
+        positions = self.repo.get_all_positions(account_name)
+        now = datetime.now()
+        position_dicts = []
+        price_updates = []
+        for p in positions:
+            d = self._position_to_dict(p)
+            upd = getattr(p, 'updated_at', None)
+            if upd is not None:
+                d['price_updated_at'] = upd.isoformat() if hasattr(upd, 'isoformat') else str(upd)
+                price_updates.append(upd)
+            position_dicts.append(d)
+
+        max_upd = max(price_updates) if price_updates else None
+        if max_upd is not None and getattr(max_upd, 'tzinfo', None) is not None:
+            max_upd_cmp = max_upd.astimezone().replace(tzinfo=None)
+        else:
+            max_upd_cmp = max_upd
+        age = (now - max_upd_cmp).total_seconds() if max_upd_cmp else None
+        threshold = (self._OVERVIEW_TRADING_STALE_SEC if self._is_trading_time(now)
+                     else self._OVERVIEW_IDLE_STALE_SEC)
+        price_stale = (age is None and bool(positions)) or (age is not None and age > threshold)
+        price_as_of = max_upd_cmp.isoformat() if max_upd_cmp else None
+
+        return {
+            'account_name': account_name,
+            'display_name': getattr(account, 'display_name', None),
+            'strategy_name': getattr(account, 'strategy_name', None),
+            'account_type': getattr(account, 'account_type', None),
+            'status': getattr(account, 'status', None),
+            'cash_available': float(getattr(account, 'cash_available', 0) or 0),
+            'cash_frozen': float(getattr(account, 'cash_frozen', 0) or 0),
+            'position_value': float(getattr(account, 'position_value', 0) or 0),
+            'total_value': float(getattr(account, 'total_value', 0) or 0),
+            'initial_capital': float(getattr(account, 'initial_capital', 0) or 0),
+            'cumulative_return': float(getattr(account, 'cumulative_return', 0) or 0),
+            'last_rebalance_date': (str(getattr(account, 'last_rebalance_date', None))
+                                    if getattr(account, 'last_rebalance_date', None) else None),
+            'last_updated': now.isoformat(),
+            'price_as_of': price_as_of,
+            'price_stale': price_stale,
+            'positions_count': len(position_dicts),
+            'positions': position_dicts,
+            'benchmark': None,  # core 不含基准；绩效另走 performance 查询
         }
 
     def _fetch_benchmark_klines(self, symbol: str, start_date: str, end_date: str) -> List[Dict]:
@@ -240,7 +342,7 @@ class SimulationService:
             self.logger.warning(f"基准对比计算失败（降级为无基准）: {e}")
             return None
 
-    def _fetch_current_prices(self, symbols: List[str]) -> Dict[str, float]:
+    def _fetch_current_prices(self, symbols: List[str]) -> Tuple[Dict[str, float], Dict[str, str]]:
         """
         获取股票当前价格
 
@@ -248,14 +350,15 @@ class SimulationService:
             symbols: 股票代码列表
 
         Returns:
-            Dict[str, float]: {symbol: price}
+            Tuple[Dict[str, float], Dict[str, str]]: ({symbol: price}, {symbol: 行情时间戳 ISO 字符串})
+            时间戳随返回值传递（2026-10-27，RFC 017 P0）。早前实现写入 self._price_timestamps
+            单例字段，线程池并发下两个账户请求会互相覆盖——请求级状态不得留在共享单例上。
         """
         try:
             from qs_market_data.application.services.realtime_quote_service import RealtimeQuoteService
             quote_service = RealtimeQuoteService()
-            prices = {}
-            # 记录每个 symbol 的行情时间戳，供 get_account_status 透传
-            self._price_timestamps = {}
+            prices: Dict[str, float] = {}
+            price_timestamps: Dict[str, str] = {}
             # 2026-09-13（w-adb088f2）：逐只 → 批量。原实现每只各新建一次 HTTP 连接，
             # 本机 IPv6 兜底场景下每只多付约 8s（实测 2 只持仓 = 16.4s，超过 agent 工具 10s
             # 超时，导致 account_info/position_list 不可用）。批量后合并为 1 次请求。
@@ -266,7 +369,7 @@ class SimulationService:
                         prices[symbol] = float(quote.price)
                         ts = getattr(quote, 'timestamp', None)
                         if ts:
-                            self._price_timestamps[symbol] = (
+                            price_timestamps[symbol] = (
                                 ts.isoformat() if hasattr(ts, 'isoformat') else str(ts)
                             )
                 except Exception as e:
@@ -275,10 +378,10 @@ class SimulationService:
             if gap:
                 # 缺口显式告警：调用方据此置 price_stale（部分成功 ≠ 全部成功）
                 self.logger.warning(f"批量行情缺口 {len(gap)} 只: {gap}")
-            return prices
+            return prices, price_timestamps
         except Exception as e:
             self.logger.error(f"Error fetching prices: {e}")
-            return {}
+            return {}, {}
     
     def get_trades(
         self,
