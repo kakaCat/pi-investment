@@ -198,3 +198,54 @@ class TestBenchmarkBlock:
         svc.repo.get_equity_snapshots.return_value = []
         result = svc.get_account_status("test_account")
         assert result["benchmark"] is None
+
+
+class TestGetAccountOverview:
+    """RFC 017 P2：overview 是纯 DB 快照——不拉行情、不写库、不计算基准。"""
+
+    def test_pure_db_snapshot_no_provider_and_no_write(self):
+        svc = _make_service()
+        TestGetAccountStatus()._setup_repo(svc, [_make_position()])
+        svc._fetch_current_prices = MagicMock(side_effect=AssertionError('overview 不得拉行情'))
+        svc._fetch_benchmark_klines = MagicMock(side_effect=AssertionError('overview 不得算基准'))
+        result = svc.get_account_overview("acct")
+        assert result["benchmark"] is None
+        assert result["positions_count"] == 1
+        assert result["positions"][0]["price_updated_at"] is not None
+        assert result["total_value"] == 100000
+        svc.repo.update_position_prices.assert_not_called()
+
+    def test_price_stale_true_when_old_snapshot_in_trading(self, monkeypatch):
+        from qs_trading.application.services.simulation_service import SimulationService
+        svc = _make_service()
+        pos = _make_position()
+        pos.updated_at = datetime.now() - timedelta(seconds=3600)
+        TestGetAccountStatus()._setup_repo(svc, [pos])
+        monkeypatch.setattr(SimulationService, '_is_trading_time', staticmethod(lambda now: True))
+        result = svc.get_account_overview("acct")
+        assert result["price_stale"] is True
+
+    def test_price_stale_false_when_fresh_snapshot(self, monkeypatch):
+        from qs_trading.application.services.simulation_service import SimulationService
+        svc = _make_service()
+        TestGetAccountStatus()._setup_repo(svc, [_make_position()])
+        monkeypatch.setattr(SimulationService, '_is_trading_time', staticmethod(lambda now: True))
+        result = svc.get_account_overview("acct")
+        assert result["price_stale"] is False
+
+    def test_empty_positions_not_stale(self):
+        svc = _make_service()
+        TestGetAccountStatus()._setup_repo(svc, [])
+        result = svc.get_account_overview("acct")
+        assert result["positions"] == []
+        assert result["price_stale"] is False
+        assert result["price_as_of"] is None
+
+    def test_unknown_account_raises(self):
+        svc = _make_service()
+        svc.repo.get_account.return_value = None
+        try:
+            svc.get_account_overview("nope")
+            assert False, '必须抛 ValueError'
+        except ValueError:
+            pass

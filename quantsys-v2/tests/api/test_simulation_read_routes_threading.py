@@ -22,6 +22,7 @@ READ_PATHS = {
     '/api/simulation/accounts/{account_name}',
     '/api/simulation/accounts/{account_name}/pending-orders',
     '/api/simulation/accounts/{account_name}/slippage-report',
+    '/api/simulation/accounts/{account_name}/overview',
     '/api/simulation/trades',
     '/api/simulation/accounts/{account_name}/trades',
     '/api/simulation/performance',

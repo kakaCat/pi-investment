@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseParts, pickParts, HOT_PARTS, COLD_PARTS, ALL_PARTS, hasColdParts, refreshModeFor, fetchPlanFor } from '../src/services/parts'
+import { parseParts, pickParts, HOT_PARTS, COLD_PARTS, CORE_PARTS, AUTOMATION_PARTS, ACTIVITY_PARTS, WATCH_PARTS, ALL_PARTS, hasColdParts, refreshModeFor, fetchPlanFor } from '../src/services/parts'
 
 /**
  * 分块契约锁（2026-09-13，w-adb088f2）
@@ -117,5 +117,44 @@ describe('fetchPlanFor', () => {
     expect(fetchPlanFor('poll', 1, all)).toBe('hot')
     expect(fetchPlanFor('poll', 4, all)).toBe('full')
     expect(fetchPlanFor('poll', 2, undefined)).toBe('full')
+  })
+})
+
+
+/**
+ * 业务分块预设（2026-10-27，RFC 017 P2）
+ * core=账户切换关键路径；automation/activity/watch 独立加载，互不阻塞。
+ */
+describe('P2 业务分块预设', () => {
+  it('core 只含关键路径（不含 automation/成交/盯盘）', () => {
+    const parts = parseParts('core')
+    expect(parts).toEqual([...CORE_PARTS])
+    expect(parts).toContain('summary')
+    expect(parts).toContain('positions')
+    expect(parts).not.toContain('automation')
+    expect(parts).not.toContain('watchRules')
+    expect(parts).not.toContain('tradeHistory')
+  })
+
+  it('automation/activity/watch 各自独立成块', () => {
+    expect(parseParts('automation')).toEqual([...AUTOMATION_PARTS])
+    expect(parseParts('activity')).toEqual([...ACTIVITY_PARTS])
+    expect(parseParts('watch')).toEqual([...WATCH_PARTS])
+  })
+
+  it('hot 向后兼容 = core + automation（旧客户端不感知拆分）', () => {
+    expect(parseParts('hot')).toEqual([...CORE_PARTS, ...AUTOMATION_PARTS])
+    expect([...HOT_PARTS]).toEqual([...CORE_PARTS, ...AUTOMATION_PARTS])
+  })
+
+  it('cold 向后兼容 = watch + activity', () => {
+    expect(parseParts('cold')).toEqual([...WATCH_PARTS, ...ACTIVITY_PARTS])
+    expect([...COLD_PARTS]).toEqual([...WATCH_PARTS, ...ACTIVITY_PARTS])
+  })
+
+  it('all 覆盖全部九个块且无重复', () => {
+    expect(parseParts('all')).toEqual([...ALL_PARTS])
+    expect(new Set(ALL_PARTS).size).toBe(ALL_PARTS.length)
+    expect(ALL_PARTS.length).toBe(9)
   })
 })

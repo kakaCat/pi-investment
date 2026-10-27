@@ -12,23 +12,40 @@
  * 缺省（不带 parts）＝全量，保持向后兼容。
  */
 
-/** 跟随轮询的高频块（约 4 KB） */
+/**
+ * 业务分块（2026-10-27，RFC 017 P2）：按**业务边界**而非「冷热」切分。
+ *   core       账户切换关键路径：账户列表 + 概览快照（摘要/持仓）+ 合规派生；
+ *   automation 当前账户自动化任务（调度摘要 + Agent OS 例行）；
+ *   activity   成交（今日 + 历史同源）；
+ *   watch      盯盘规则（跨账户视图，独立低频）。
+ * 旧 hot/cold 预设保留兼容（hot = core + automation；cold = watch + activity）。
+ */
+export const CORE_PARTS = ['accounts', 'currentAccount', 'summary', 'positions', 'compliance'] as const
+export const AUTOMATION_PARTS = ['automation'] as const
+export const ACTIVITY_PARTS = ['todayTrades', 'tradeHistory'] as const
+export const WATCH_PARTS = ['watchRules'] as const
+
+/** 旧预设：高频小块（= core + automation，向后兼容 2026-09-13 客户端） */
 // currentAccount 必须在 hot 里：账户下拉框的 selected 由它渲染，缺了它就会出现
 // 「下拉框显示 A、数据是 B」的不一致（2026-09-13 实证）
-export const HOT_PARTS = ['accounts', 'currentAccount', 'summary', 'positions', 'automation', 'compliance'] as const
-/** 低频大块（约 85 KB）：盯盘规则 + 成交（todayTrades 与 tradeHistory 同源） */
-export const COLD_PARTS = ['watchRules', 'tradeHistory', 'todayTrades'] as const
-export const ALL_PARTS: readonly string[] = [...HOT_PARTS, ...COLD_PARTS]
+export const HOT_PARTS: readonly string[] = [...CORE_PARTS, ...AUTOMATION_PARTS]
+/** 旧预设：低频大块（盯盘规则 + 成交） */
+export const COLD_PARTS: readonly string[] = [...WATCH_PARTS, ...ACTIVITY_PARTS]
+export const ALL_PARTS: readonly string[] = [...CORE_PARTS, ...AUTOMATION_PARTS, ...ACTIVITY_PARTS, ...WATCH_PARTS]
 
 /**
  * 解析 parts 查询参数。
  * - 缺省 / 空 / 全未知 → 全量（保守：宁可多传，绝不返回空页面）
- * - 'hot' / 'cold' / 'all' 预设
+ * - 'core' / 'automation' / 'activity' / 'watch' / 'hot' / 'cold' / 'all' 预设
  * - 逗号分隔的显式块名
  */
 export function parseParts(raw: string | null | undefined): string[] {
   if (raw == null || raw.trim() === '') return [...ALL_PARTS]
   const t = raw.trim().toLowerCase()
+  if (t === 'core') return [...CORE_PARTS]
+  if (t === 'automation') return [...AUTOMATION_PARTS]
+  if (t === 'activity') return [...ACTIVITY_PARTS]
+  if (t === 'watch') return [...WATCH_PARTS]
   if (t === 'hot') return [...HOT_PARTS]
   if (t === 'cold') return [...COLD_PARTS]
   if (t === 'all') return [...ALL_PARTS]

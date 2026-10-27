@@ -11,7 +11,7 @@
  *
  * @module dashboard-holdings/client/view
  */
-import type { Account, HoldingsData, Position, SchedulerTask, WatchRule } from './types.js'
+import type { Account, HoldingsData, PortfolioSummary, Position, SchedulerTask, WatchRule } from './types.js'
 import { esc, fmtClock } from '@pi-investment/page-kit/client'
 
 /* ------------------------------------------------------------------ utils */
@@ -110,7 +110,7 @@ function stopRatioFor(code: string): number {
 
 /* ------------------------------------------------------------------ board */
 export function buildView(data: HoldingsData, watchKey: string = 'current', historyPage = 0): string {
-  const summary = (data.summary ?? {}) as HoldingsData['summary']
+  const summary = (data.summary ?? {}) as PortfolioSummary
   const accounts: Account[] = Array.isArray(data.accounts) ? data.accounts : []
   const current = data.currentAccount ?? ''
   const positions: Position[] = Array.isArray(data.positions) ? data.positions : []
@@ -140,13 +140,18 @@ export function buildView(data: HoldingsData, watchKey: string = 'current', hist
   // 2026-10-27（RFC 017 P0）：降级/陈旧提示横幅（如「数据刷新失败，显示上次有效数据」），
   // 由客户端在 core 失败但缓存可用时写入 loadNotice；成功刷新时清除。
   const notice = String(data.loadNotice ?? '')
+  // 2026-10-27（RFC 017 P2）：行情快照时点如实展示（overview 只读 DB，价格可能非实时）。
+  // 陈旧时显式标注——展示口径，不参与任何交易判定。
+  const priceNote = data.priceAsOf
+    ? ` · 行情 ${fmtClock(data.priceAsOf)}${data.priceStale ? '（陈旧）' : ''}`
+    : ''
 
   return `<div class="dsh-hld-board">
   ${notice ? `<div class="dsh-hld-banner show">${esc(notice)}</div>` : ''}
   <div class="dsh-hld-topbar">
     <div class="dsh-hld-title">
       <h1>账户持仓看板</h1>
-      <div class="sub">只读监控 · 交易操作由 agent 执行</div>
+      <div class="sub">只读监控 · 交易操作由 agent 执行${esc(priceNote)}</div>
     </div>
     <div class="dsh-hld-tools">
       ${accountSelect}
@@ -170,7 +175,7 @@ export function buildView(data: HoldingsData, watchKey: string = 'current', hist
 }
 
 /* ---------------------------------------------------------------- summary */
-function renderSummary(summary: HoldingsData['summary'], todayPct: number, data: HoldingsData): string {
+function renderSummary(summary: PortfolioSummary, todayPct: number, data: HoldingsData): string {
   const tToday = trend(summary.dailyChange)
   const tHeld = trend(summary.totalPnl)
   const cashRatio = Number(data.compliance?.cashRatio ?? (summary.totalValue ? (summary.cash / summary.totalValue) * 100 : 0))

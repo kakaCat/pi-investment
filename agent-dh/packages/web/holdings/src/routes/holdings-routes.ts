@@ -45,3 +45,20 @@ export function createHoldingsHandler(aggregator: PortfolioAggregationService) {
     }
   };
 }
+
+/** POST /dashboard/api/holdings/refresh?account=<name>：代理 v2 行情刷新命令（RFC 017 P2）。
+ *  浏览器只与 :13080 同源通信；刷新是后台命令（v2 返回 202 + single-flight），
+ *  不改变任何交易状态。失败返回 502，前端只记日志不打断看板。 */
+export function createHoldingsRefreshHandler(aggregator: PortfolioAggregationService) {
+  return async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
+    try {
+      const url = new URL(req.url || '/', `http://${req.headers.host}`);
+      const account = url.searchParams.get('account') || 'agent_brain';
+      const result = await aggregator.requestQuoteRefresh(account);
+      json(res, result.ok ? result.status : 502, result.body ?? { success: result.ok, error: 'empty upstream body' });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      json(res, 502, { success: false, error: msg });
+    }
+  };
+}

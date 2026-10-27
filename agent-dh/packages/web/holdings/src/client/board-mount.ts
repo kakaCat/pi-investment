@@ -8,7 +8,7 @@
 import { ACTIVE_ATTR, ACTIVATE_EVENT, BOARD_VIEW_SELECTOR, PANEL_NAME, OTHER_ACTIVE_ATTRS } from './dom.js'
 import { buildHistoryCard, buildView, buildWatchCardHtml, HISTORY_PAGE_SIZE } from './view.js'
 import type { HoldingsData } from './types.js'
-import { pickParts, fetchPlanFor } from '../services/parts.js'
+import { pickParts } from '../services/parts.js'
 import {
   createSolveKit, type SolveCandidate, type SolveIdentity, type SolveKit, type SolveSnapshot,
 } from '@pi-investment/solve-kit/client'
@@ -56,15 +56,25 @@ export function createBoardController(): BoardController {
   // 这 2.6 KB 换不来任何服务端节省。故**挂载不再取数**：取数时机统一由 fetchPlanFor 决定
   // （mount → null），首次打开时 lastData=undefined → 判成 full，一次把整包拿齐（看板不会空）。
   let pollTick = 0
-  // 请求序号：只有最后一次发出的请求允许落地（防止旧响应覆盖新响应）
-  let fetchSeq = 0
-  const fetchAndRender = async (accountName: string, mode: 'full' | 'hot' = 'full'): Promise<void> => {
-    const mySeq = ++fetchSeq
+  // 请求序号（RFC 017 P2）：按**分块**独立计数 —— core/automation/activity/watch 并行加载，
+  // 同一分块的新请求覆盖旧请求；账户切换用 fetchGen 全局代际让所有在途请求作废。
+  let fetchGen = 0
+  const fetchSeqByPart: Record<string, number> = {}
+  /** 按账户缓存：切回已访问账户先渲染上次数据，再后台刷新（不再白屏等网络） */
+  const accountCache = new Map<string, HoldingsData>()
+  /** 后台行情刷新请求节流（每账户 30s 最多一次；陈旧时触发，下次 core 轮询读新快照） */
+  const lastRefreshRequest: Record<string, number> = {}
+
+  type PartMode = 'core' | 'automation' | 'activity' | 'watch' | 'full' | 'hot'
+  const fetchAndRender = async (accountName: string, mode: PartMode = 'full'): Promise<void> => {
+    const gen = fetchGen
+    const seq = (fetchSeqByPart[mode] = (fetchSeqByPart[mode] ?? 0) + 1)
     const forAccount = accountName
     let httpStatus = 0
     try {
+      const partsParam = mode === 'full' || mode === 'hot' ? mode : mode
       const url = '/dashboard/api/holdings?account=' + encodeURIComponent(accountName)
-        + (mode === 'hot' ? '&parts=hot' : '')
+        + '&parts=' + partsParam
       const res = await fetch(url)
       httpStatus = res.status
       const json = await res.json()
@@ -77,34 +87,53 @@ export function createBoardController(): BoardController {
       // ② 账户一致性：HOT_PARTS 曾漏掉 currentAccount，hot 响应不带它，合并后保留了上一个
       //    账户的值 —— 而下拉框的 selected 正是由 currentAccount 渲染的，于是出现
       //    「下拉框显示 A、数据是 B」。现在无论服务端是否回显，都以本次请求的账户为准。
-      if (mySeq !== fetchSeq) {
-        console.log('[dashboard-holdings] 丢弃过期响应（有更新的请求在后）: ' + forAccount)
-        return
-      }
-      if (forAccount !== currentAccount) {
-        console.log('[dashboard-holdings] 丢弃跨账户响应: ' + forAccount + '（当前 ' + currentAccount + '）')
+      if (gen !== fetchGen || seq !== fetchSeqByPart[mode] || forAccount !== currentAccount) {
+        console.log('[dashboard-holdings] 丢弃过期/跨账户响应: ' + forAccount + ' (' + mode + ')')
         return
       }
       const merged: HoldingsData = lastData !== undefined
         ? ({ ...lastData, loadNotice: undefined, ...(pickParts(incoming as any, incoming.parts) as object), currentAccount: forAccount, parts: incoming.parts } as HoldingsData)
         : ({ ...incoming, currentAccount: forAccount, parts: incoming.parts } as HoldingsData)
       renderBoard(merged)
+      accountCache.set(forAccount, merged)
+      if (mode === 'core') maybeTriggerRefresh(forAccount, merged)
     } catch (error) {
-      // 2026-10-27（RFC 017 P0）：错误响应与成功响应一样要做序号/跨账户校验——
+      // 2026-10-27（RFC 017 P0/P2）：错误响应与成功响应一样要做代际/序号/跨账户校验——
       // 否则一个慢失败的旧账户请求会用错误横幅覆盖新账户视图。
-      if (mySeq !== fetchSeq || forAccount !== currentAccount) {
+      if (gen !== fetchGen || seq !== fetchSeqByPart[mode] || forAccount !== currentAccount) {
         console.log('[dashboard-holdings] 丢弃过期/跨账户的错误响应: ' + forAccount)
         return
       }
-      console.error('[dashboard-holdings] fetch failed:', error)
+      console.error('[dashboard-holdings] fetch failed (' + mode + '):', error)
       if (lastData && lastData.currentAccount === forAccount) {
         // core 不可用（503）或网络失败：保留上次有效数据 + 陈旧横幅。旧行为是整板替换为
         // 错误页，用户看到「持仓消失」——假空数据的另一面（RFC 017 P0 修正）。
-        renderBoard({ ...lastData, loadNotice: '数据刷新失败（HTTP ' + (httpStatus || '网络异常') + '），显示上次有效数据' })
+        // 辅助块失败不整板报错（core 仍在），仅保留旧值 + 控制台告警。
+        if (mode === 'core') {
+          renderBoard({ ...lastData, loadNotice: '数据刷新失败（HTTP ' + (httpStatus || '网络异常') + '），显示上次有效数据' })
+        }
       } else {
         renderError(String(error))
       }
     }
+  }
+
+  /** 陈旧时异步触发后台刷新（POST 由 host 代理到 v2；fire-and-forget，下次 core 轮询取新快照）。 */
+  const maybeTriggerRefresh = (accountName: string, data: HoldingsData): void => {
+    if (!data.priceStale) return
+    const now = Date.now()
+    if (now - (lastRefreshRequest[accountName] ?? 0) < 30000) return
+    lastRefreshRequest[accountName] = now
+    void fetch('/dashboard/api/holdings/refresh?account=' + encodeURIComponent(accountName), { method: 'POST' })
+      .then((r) => { if (!r.ok) console.warn('[dashboard-holdings] 行情刷新请求失败 HTTP ' + r.status) })
+      .catch((e) => console.warn('[dashboard-holdings] 行情刷新请求异常', e))
+  }
+
+  /** 辅助块独立加载：automation/activity/watch 并行、各自失败互不影响 core。 */
+  const refreshAux = (accountName: string): void => {
+    void fetchAndRender(accountName, 'automation')
+    void fetchAndRender(accountName, 'activity')
+    void fetchAndRender(accountName, 'watch')
   }
 
   const renderBoard = (data: HoldingsData): void => {
@@ -220,21 +249,21 @@ export function createBoardController(): BoardController {
     closeBoard: () => shellRef?.close(),
     toggleBoard: () => shellRef?.toggle(),
     getSnapshot: () => ({ boardOpen: shellRef?.isActive() ?? false }),
+    // 轮询（RFC 017 P2）：core 每 15s；辅助块每 4 次（60s）独立刷新，互不阻塞
     refresh: () => {
       pollTick += 1
-      const mode = fetchPlanFor('poll', pollTick, lastData)
-      if (mode === null) return
-      console.log('[dashboard-holdings] refresh (' + mode + ')')
-      fetchAndRender(currentAccount, mode)
+      console.log('[dashboard-holdings] refresh (core)')
+      void fetchAndRender(currentAccount, 'core')
+      if (pollTick % 4 === 0) refreshAux(currentAccount)
     },
-    // 打开看板：冷块（盯盘规则/成交明细）不在手 → full 补齐；已在手 → 只拉 hot。
-    // 首次打开 lastData=undefined → hasColdParts=false → full，一次把整包拿齐。
+    // 打开看板：有账户缓存先立即渲染（不白屏），再 core + 辅助块独立刷新
     refreshOnOpen: () => {
       pollTick = 0
-      const mode = fetchPlanFor('open', 1, lastData)
-      if (mode === null) return
-      console.log('[dashboard-holdings] open refresh (' + mode + ')')
-      fetchAndRender(currentAccount, mode)
+      const cached = accountCache.get(currentAccount)
+      if (cached) renderBoard({ ...cached, currentAccount, loadNotice: undefined })
+      console.log('[dashboard-holdings] open refresh (core + aux)')
+      void fetchAndRender(currentAccount, 'core')
+      refreshAux(currentAccount)
     },
     switchAccount: (accountName) => {
       console.log('[dashboard-holdings] switching account to', accountName)
@@ -242,8 +271,13 @@ export function createBoardController(): BoardController {
       watchKey = 'current'
       historyPage = 0
       pollTick = 0
-      // 冷块按账户过滤（盯盘规则带 account 字段），换账户必须整包重取
-      fetchAndRender(accountName)
+      fetchGen += 1 // 作废所有在途请求（含旧账户 core 与辅助块）
+      // 2026-10-27（RFC 017 P2）：有缓存先渲染该账户上次数据，再刷新 core；
+      // 辅助块独立加载，不再让 automation/activity/watch 阻塞账户切换。
+      const cached = accountCache.get(accountName)
+      if (cached) renderBoard({ ...cached, currentAccount: accountName, loadNotice: undefined })
+      void fetchAndRender(accountName, 'core')
+      refreshAux(accountName)
     },
     watchSwitch,
     historyPageSwitch,
