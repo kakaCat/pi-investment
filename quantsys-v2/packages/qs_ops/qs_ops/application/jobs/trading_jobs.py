@@ -1,8 +1,8 @@
 """
 交易类定时任务
 
-包含：v13_daily_check, v13_risk_check, v13_verification,
-      trade_verify_daily, pool_refresh_daily
+包含：strategy_execute_all, intraday_risk_check, v13_daily_check,
+      v13_risk_check, v13_verification, trade_verify_daily, pool_refresh_daily
 """
 import asyncio
 import logging
@@ -78,6 +78,68 @@ class V14DailyCheckJob(Job):
             from qs_ops.infrastructure.jobs.strategy_trading_job import v14_daily_check
             result = v14_daily_check(**params)
             return _ok_or_fail(self.name, "V14 每日检查完成", result)
+        except Exception as e:
+            return JobResult.fail(self.name, str(e))
+
+
+class StrategyExecuteAllJob(Job):
+    """全策略每日执行（V2 本地调度与 webhook 共用同一业务函数）"""
+
+    @property
+    def name(self) -> str:
+        return "strategy_execute_all"
+
+    @property
+    def description(self) -> str:
+        return "全部启用策略每日检查与模拟交易"
+
+    @property
+    def timeout_seconds(self) -> int:
+        return 1800
+
+    @property
+    def misfire_grace_time_seconds(self) -> int:
+        return 300
+
+    async def execute(self, params: Dict[str, Any]) -> JobResult:
+        try:
+            from qs_ops.infrastructure.jobs.strategy_trading_job import strategy_execute_all
+            result = strategy_execute_all(**params)
+            # 该业务函数顶层异常返回 success=False，而不是 status=failed。
+            if isinstance(result, dict) and result.get("success") is False:
+                return JobResult.fail(
+                    self.name,
+                    result.get("error") or result.get("message") or "全策略执行失败",
+                )
+            return _ok_or_fail(self.name, "全策略每日执行完成", result)
+        except Exception as e:
+            return JobResult.fail(self.name, str(e))
+
+
+class IntradayRiskCheckJob(Job):
+    """盘中止损/移动止损检查（复用既有 IntradayRiskService 链路）"""
+
+    @property
+    def name(self) -> str:
+        return "intraday_risk_check"
+
+    @property
+    def description(self) -> str:
+        return "盘中策略持仓止损与移动止损检查"
+
+    @property
+    def timeout_seconds(self) -> int:
+        return 300
+
+    @property
+    def misfire_grace_time_seconds(self) -> int:
+        return 300
+
+    async def execute(self, params: Dict[str, Any]) -> JobResult:
+        try:
+            from qs_ops.infrastructure.jobs.strategy_trading_job import intraday_risk_check
+            result = intraday_risk_check(**params)
+            return _ok_or_fail(self.name, "盘中风控检查完成", result)
         except Exception as e:
             return JobResult.fail(self.name, str(e))
 
@@ -259,6 +321,8 @@ class PoolRefreshDailyJob(Job):
 
 # 导出所有交易类任务
 TRADING_JOBS = [
+    StrategyExecuteAllJob(),
+    IntradayRiskCheckJob(),
     V13DailyCheckJob(),
     V14DailyCheckJob(),
     V13RiskCheckJob(),

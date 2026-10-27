@@ -561,10 +561,15 @@ JOBS = [
 
 
 async def register_all_jobs():
-    """Register all jobs to Agent OS Scheduler.
+    """Retired entry point: V2 business schedules must stay inside V2 (ADR-004)."""
+    raise RuntimeError(
+        "Agent OS registration is retired by ADR-004; "
+        "manage V2 business jobs through quant.scheduler_tasks or DailyJobs"
+    )
 
-    This function is idempotent - it skips jobs that already exist.
-    """
+
+async def _legacy_register_all_jobs():
+    """Historical implementation retained only for archaeological reference."""
     client = get_agent_os_client()
 
     try:

@@ -279,9 +279,9 @@ async def platform_status():
 
 
 # ============ v2 调度健康监控 job handler（2026-09-01 investor w-8366e526） ============
-# ADR-002 后 v2 定时任务由 Agent OS 调度（webhook 模式），Agent OS 单点故障会静默
-# 停摆全部 v2 任务。注册 health_check 处理器：每日检查任务僵尸/漏执行/高失败率，
-# 发现异常返回 high 告警供 Agent OS 记录与外部监控拾取。
+# ADR-004 起 V2 业务调度归 V2 本地 APScheduler / DailyJobs；本 webhook 处理器仅为
+# 历史兼容入口。健康检查同时由 V2HealthCheckJob 本地执行，检查僵尸/漏执行/高失败率，
+# 异常结果供 V2 调度记录与外部监控拾取，不再依赖 Agent OS 排班。
 try:
     from api.internal.scheduler_webhook import register_job_handler
     from qs_ops.application.jobs.health_monitor import check_job_health
