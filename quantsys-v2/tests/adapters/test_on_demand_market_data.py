@@ -1,10 +1,12 @@
 """On-demand K-line backfill / factor refresh tests (no network, no DB)."""
 
+import inspect
 from datetime import date, datetime
 
 import pytest
 
 from adapters.shared import on_demand_market_data as lazy
+from adapters.outbound.repositories.kline_repository import KlineORMRepository
 
 
 class FakeKlineRepo:
@@ -48,6 +50,12 @@ class FakeFactorRepo:
 @pytest.fixture(autouse=True)
 def trading_weekdays_only(monkeypatch):
     monkeypatch.setattr(lazy, '_safe_is_trading_day', lambda d: d.weekday() < 5)
+
+
+def test_repository_latest_trade_date_accepts_optional_symbol():
+    params = inspect.signature(KlineORMRepository.get_latest_trade_date).parameters
+    assert 'symbol' in params
+    assert params['symbol'].default is None
 
 
 def test_completed_trading_day_uses_previous_day_before_close():
