@@ -61,6 +61,18 @@ JobRegistry                           →  command → 业务函数
 - 切换当天 APScheduler 尚无记录时，状态 API 回读旧台账，避免把已成功的 9 条任务显示为 `not_run`。
 - 快照：`agent-dh/.dsh-data/state/dailyjobs-apscheduler-20261027/`。
 
+## 2026-10-28 首个真实运行日
+
+- 401–408、410 共 **9 条全部 success**；409 周六、411 周日，按 cron 今日 not_run 属正常。
+- 状态 API：11 条全部 `backend=apscheduler`，今日 9 条 `source=apscheduler`。
+- 旧 `quant.inprocess_job_runs` 今日 **0 行**；最后一条仍为 2026-10-27 21:10。
+- 406 evening_pipeline：20:30–22:42 success；K线同步成功 2149 只但 `budget_exhausted=true`，
+  factor_compute 计算 5268 只。
+- 407 chip_distribution：updated=2155、failed=0。
+- 410 pool_daily_refresh：3 个 dynamic 池刷新成功、failed=0。
+- 405 freshness_guard 在 17:20 已提前发出 K线覆盖 3492/5281（66.1%）告警，
+  说明旧 `DailyJobs→APScheduler` 迁移的观测/告警链路正常；数据覆盖不全属于上游 K 线预算问题，另行治理。
+
 ## 已知差异与后续
 
 - APScheduler 不复制旧宿主的“失败 2 小时后自动重试”。失败仍会落 `scheduler_runs`、发告警并在状态 API 可见；是否增加统一重试策略需单独设计，不能靠复制 cron 行制造双跑。
