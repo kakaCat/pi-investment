@@ -102,6 +102,25 @@ JobResult 时抛 TypeError**，真实业务结果无法回传。原测试只覆�
 已建提醒 `schedule-9688c682-6f72-456b-8dc0-21e4cdfbe978`（2026-10-28 16:05），
 逐项核对 412/413、381/390/391/392、377、337、domain 与 high_failure 趋势。
 
+## 2026-10-28 首日复核结果
+
+- **plan_reflect_daily**：15:35 run 8587 **success**，packed=1、woken=1、overdue=1；通知已送达 agent-dh。
+- **plan_reflect_weekly**：周六才到下一次，仍显示历史 failed 属正常。
+- **watch_scan 30s**：
+  - 381：58/58 success
+  - 390：118/118 success
+  - 391：60/60 success
+  - 392：151/153 success
+  - 392 两次失败：一次 `delivery_failed=1`，一次 SQLAlchemy `WatchRule is not bound to a Session`；均为单拍异常，不影响后续扫描。
+- **core_plan_generate**：保持禁用，jobstore 已摘除；今日无新的 Unknown command 日志。
+- **健康检查**（run 8598，16:05）：missed=0、zombie=0、domain_missing=0、total_enabled=68；
+  仅剩 1 条 high_failure：plan_reflect_daily 历史 4/5（含昨天前样本），会随后续成功样本自然下降。
+- **trading_plan 412/413 未执行根因**：它们插入时没有 `misfire_grace_time_seconds`，APScheduler 使用默认 5 分钟。
+  10-28 宿主约 09:25:47 才恢复调度，412 已迟到 20m47s、413 迟到 5m47s，均超过 5 分钟被跳过，因此没有 run 记录。
+  - 已用幂等迁移 `20261028_plan_job_misfire_grace.py` 将两者宽限设为 6 小时；提交 `28e8925c4`。
+  - 已 reload APScheduler；next_run 同步为 2026-10-29 09:05/09:20，未在盘后补触发。
+  - 次日 10:00 复核提醒：`schedule-895c92b2-a525-4ad1-bc94-03e8833c9e58`。
+
 ## 未纳入本次
 
 - V13 06:30 单独日检与 14:30 全策略执行重叠，仍未处理，避免擅自改交易行为。
