@@ -67,6 +67,22 @@ V2 覆盖来自 13 条 APScheduler 任务及 DailyJobs；未删除历史任务�
 4. 连续干净日目前为 1；10/19、10/20、10/26 的 evening_pipeline 失败均记录为宿主重启造成的孤儿 running，不是本次业务逻辑失败。
 5. Agent 侧仍有历史一次性任务治理空间，例如 `post-lift-core-plan-execute-2026-10-20`；未混入本次 V2 迁移。
 
+## 2026-10-28 首日真实运行复核
+
+- V2 十条任务均按排班**触发**；`v2_health_check` run 8601 success（missed=0、zombie=0、domain_missing=0）。
+- **7 条盘中风控 + 全策略 + 指数任务全部在业务入口失败**，错误一致：
+  `argument after ** must be a mapping, not str`。
+- 根因：线上 JSONB `params` 被驱动/会话读成字符串 `'{}'`，`SchedulerRepository._row_to_dict`
+  未归一化，Job 类执行 `**params` 立即抛错。调度触发了，但风控/策略实际未执行。
+- 修复：仓储边界统一 `_normalize_params`，所有 Job/API 消费方拿到 dict；
+  提交 `77a309e07`，目标测试 9 passed。
+- 修复后在线验证：`index_constituents_update`（362）手动触发 run 8603 **success**，
+  返回指数成分 000300.SH=300、000688.SH=50、399006.SZ=100。
+- 7 条风控与 361 全策略未在盘后补触发；下一合法交易日 2026-10-29 10:00–14:30 验证。
+- Agent OS 对应 10 项 last_run_at 为 null/旧值，日志中的执行均为 2026-10-27 历史；
+  2026-10-28 无新的 `:5001/internal/scheduler/webhook` 执行。
+- 次日 16:10 复核提醒：`schedule-07c705f8-e7a8-4626-bff7-cabdaa1da315`。
+
 ## 后续复核
 
-2026-10-28 盘后核对 7 条盘中风控、全策略执行、指数成分与健康检查的真实首轮运行，并确认 Agent OS 无对应 V2 执行记录。若需回滚，使用上述状态目录的 before 快照；先恢复 OS 入口，再停用对应 V2 新排班，避免保护性任务空档。
+2026-10-28 盘后核对 7 条盘中风控、全策略执行、指数成分与健康检查的真实首轮运行，并确认 Agent OS 无对应 V2 执行记录。首日已发现参数字符串缺陷并修复；2026-10-29 盘中重新验证交易类任务。若需回滚，使用上述状态目录的 before 快照；先恢复 OS 入口，再停用对应 V2 新排班，避免保护性任务空档。
