@@ -99,7 +99,15 @@ class SchedulerRepository(ISchedulerRepository):
     def _row_to_dict(self, row) -> Optional[Dict[str, Any]]:
         if row is None:
             return None
-        return {c.key: getattr(row, c.key) for c in row.__table__.columns}
+        data = {c.key: getattr(row, c.key) for c in row.__table__.columns}
+        # 2026-10-28 实证：线上 JSONB 在当前驱动/会话下会以字符串 '{}' 读出。
+        # job_executor 把 params 原样交给 JobRegistry，Job 内 **params 立即抛
+        # "argument after ** must be a mapping, not str" —— 7 条盘中风控、
+        # 全策略、指数更新全部在业务入口前失败。params 的形态必须在仓储边界
+        # 归一化，不能假设上游一定给出 dict。
+        if 'params' in data:
+            data['params'] = _normalize_params(data['params'])
+        return data
 
     # ── Task CRUD ──
 
