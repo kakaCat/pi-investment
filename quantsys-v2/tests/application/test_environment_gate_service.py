@@ -265,6 +265,15 @@ def test_missing_data_alone_never_blocks():
     assert len(decision.skipped_dimensions) == 3
 
 
+def test_degraded_capital_missing_is_one_field_not_characters():
+    """回归：missing 必须是单元素元组，不能 tuple(str) 拆成逐字符。"""
+    decision = _svc().evaluate(_state(degraded=[
+        "sentiment:{'dimension': 'coverage', 'reason': 'K线覆盖不足'}"
+    ]))
+    assert decision.missing == ("capital.sentiment_degraded",)
+    assert decision.as_dict()["missing"] == ["capital.sentiment_degraded"]
+
+
 def test_blocked_alongside_skipped_keeps_both_annotations():
     """一维命中拦截、其余维缺数据：拦是拦，但 skipped 仍要标出来。"""
     state = _state(indices={"000300.SH": {"change_pct": -1.80}}, sectors={},
