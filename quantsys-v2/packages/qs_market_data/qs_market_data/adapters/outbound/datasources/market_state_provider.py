@@ -6,9 +6,10 @@ MarketState 快照。按 ADR-001，所有 I/O 都收在适配器层。
 诚实原则：任一数据源不可用时记入 state.degraded，**绝不用 0 冒充**——
 "涨停家数=0" 会被市场规则判定成"情绪冰点"，那是用故障伪造事实。
 """
+import threading
 import time
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import structlog
 
@@ -58,36 +59,42 @@ def _as_rows(res):
 
 
 class MarketStateProvider:
+    # 计划、盯盘等调用方会各自 new provider。实例缓存因此形同虚设，线上曾每次
+    # 花 17s 重拉快照并超过 core_plan 工具 15s 上限。按指数宇宙共享 60s 缓存；
+    # force=True 仍可强制刷新，锁防止并发请求重复打爆上游。
+    _shared_cache = {}                 # {index_codes: (ts, MarketState)}
+    _cache_lock = threading.RLock()
 
     def __init__(self, index_codes=INDEX_CODES, cache_ttl_sec: int = CACHE_TTL_SEC):
         self.index_codes = tuple(index_codes)
         self.cache_ttl_sec = cache_ttl_sec
-        self._cache: Optional[tuple] = None   # (ts, MarketState)
 
     def get_state(self, force: bool = False):
         from qs_watch.domain.watch.models import MarketState
-        now = time.time()
-        if (not force) and self._cache and (now - self._cache[0]) < self.cache_ttl_sec:
-            return self._cache[1]
-        degraded = []
-        indices = self._indices(degraded)
-        sentiment = self._sentiment(degraded)
-        limit_up = self._limit_up(degraded)
-        sectors = self._sectors(degraded)
-        state = MarketState(
-            trade_date=datetime.now().strftime("%Y-%m-%d"),
-            indices=indices,
-            limit_up_count=limit_up.get("count"),
-            max_streak=limit_up.get("max_streak"),
-            sentiment_score=sentiment.get("score"),
-            fear_greed_index=sentiment.get("fear_greed"),
-            advance_decline_ratio=sentiment.get("ad_ratio"),
-            volume_ratio=sentiment.get("volume_ratio"),
-            sectors=sectors,
-            degraded=degraded,
-        )
-        self._cache = (now, state)
-        return state
+        with self._cache_lock:
+            now = time.time()
+            cached = self._shared_cache.get(self.index_codes)
+            if (not force) and cached and (now - cached[0]) < self.cache_ttl_sec:
+                return cached[1]
+            degraded = []
+            indices = self._indices(degraded)
+            sentiment = self._sentiment(degraded)
+            limit_up = self._limit_up(degraded)
+            sectors = self._sectors(degraded)
+            state = MarketState(
+                trade_date=datetime.now().strftime("%Y-%m-%d"),
+                indices=indices,
+                limit_up_count=limit_up.get("count"),
+                max_streak=limit_up.get("max_streak"),
+                sentiment_score=sentiment.get("score"),
+                fear_greed_index=sentiment.get("fear_greed"),
+                advance_decline_ratio=sentiment.get("ad_ratio"),
+                volume_ratio=sentiment.get("volume_ratio"),
+                sectors=sectors,
+                degraded=degraded,
+            )
+            self._shared_cache[self.index_codes] = (now, state)
+            return state
 
     # ── 指数（quant.index_daily：最近两个交易日算涨跌幅）──
     def _indices(self, degraded) -> Dict[str, Dict[str, Any]]:

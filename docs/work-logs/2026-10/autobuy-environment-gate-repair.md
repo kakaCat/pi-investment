@@ -16,12 +16,13 @@
 1. `MarketSentimentService._get_advance_decline_ratio()`：日 K 缺失或样本 `<1000` 时，盘后/盘前也回退到多源最近交易快照；实时源失败保留小样本并交由既有 coverage 守卫显式降级；盘中失败不重复拉取。
 2. `EnvironmentGateService`：修正 degraded capital 的 `missing` 为单元素元组。
 3. Watch V2 入场提示词：激活计划且账户自主授权时，触发进入买入执行核验；仍完整执行 R-001/R-008/R-009 和基本面排雷，全部通过才在合法时段按计划与试单额度较严值调用 `portfolio_trade`，并核对成交、止损和审计；不通过必须列具体阻塞项。
+4. `MarketStateProvider`：缓存从单实例改为按指数宇宙跨请求共享 60 秒，并以锁防止并发重复回源；`force=True` 保留强制刷新。修复首次部署后 `/api/plans/today` 实测 17.58s、超过工具 15s 上限的问题。
 
 ## 验证
 
 - 隔离 worktree 测试，强制 PYTHONPATH 指向本 worktree，避免误测主工作区源码。
 - 故障注入覆盖：低覆盖回源、充足日 K 不拉快照、实时源失败保留降级、盘中失败不重复请求、degraded 字段序列化、入场执行提示词。
-- `packages/qs_watch/tests/v2` + 环境闸 + 市场宽度回退 + `test_account_trading_service_v2.py`：**164 passed**。
+- `packages/qs_watch/tests/v2` + 环境闸 + 市场宽度回退 + 快照缓存 + `test_account_trading_service_v2.py`：**167 passed**。
 
 ## 边界与后续
 
