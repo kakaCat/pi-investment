@@ -368,7 +368,7 @@ class EnvironmentGateService:
             return self._skip(
                 DIM_CAPITAL,
                 "sentiment 数据源降级（%s），fail-open 放行" % "、".join(_sent_degraded),
-                missing=tuple("capital.sentiment_degraded"),
+                missing=("capital.sentiment_degraded",),
             )
         policy = self.policy
         sentiment = self._as_float(getattr(state, "sentiment_score", None))

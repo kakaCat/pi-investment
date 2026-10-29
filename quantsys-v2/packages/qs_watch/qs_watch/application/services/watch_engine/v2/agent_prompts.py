@@ -71,10 +71,14 @@ _register(POSITION_HOLDING, 'exit_reduce', (
 
 # ── 非持仓类（none）· 上下文含买点价/失效线/建议仓位 ────────────────────
 _register(POSITION_NONE, 'entry', (
-    '【未持仓·买入判断】{symbol} 现价 {price} 已到买入范围（{hit_summary}）。\n'
-    '规则失效线 {invalidation_pct}%，账户 {account}。'
-    '请判断：是否建仓？仓位多少？哪个账户？'
-    '\n输出：{{action: 买入|观察, qty, account, reason}}'
+    '【未持仓·买入执行核验】{symbol} 现价 {price} 已到买入范围（{hit_summary}）。\n'
+    '规则失效线 {invalidation_pct}%，账户 {account}。\n'
+    '若规则关联已激活计划且账户有自主授权，触发后直接进入执行核验，不要重复选股或只回复'
+    '“继续观察”：先用 watch_brief 核对计划与规则，再完成 R-001（实时价/资金/regime/仓位）、'
+    'R-008（经验检索）、R-009（信号级别）与基本面排雷。全部通过则在合法交易时段按计划'
+    '仓位与试单额度的较严值调用 portfolio_trade，并核对成交、止损和审计；任一不通过才观察，'
+    '且必须逐项列出具体阻塞项，禁止用笼统的“再评估”结束。'
+    '\n输出：{{action: 买入|观察, qty, account, reason, blockers}}'
 ))
 
 _register(POSITION_NONE, 'trend_observe', (

@@ -133,20 +133,36 @@ class MarketSentimentService:
         涨跌比 > 1: 市场偏强
         涨跌比 < 0.5: 市场弱势
 
-        数据源（2026-10-22 多源改造）：
+        数据源（2026-10-22 多源改造；2026-10-29 补低覆盖回退）：
           · 盘中（交易时段）→ 多源实时快照 count（东财主/新浪兜，5000+ 只真实宽度）。
             盘中日 K 表不全（仅几十只样本），曾致 sentiment 基于 51 只算涨跌比=0.27
             严重失真 → 环境闸误判「资金氛围偏冷」拦真信号。
-          · 盘后 → 日 K 表（等价且稳，不每次拉 10s 快照）。
+          · 盘后/盘前 → 优先日 K 表；但样本 <1000 时不能当全市场事实，必须回退
+            多源最近交易快照。实时源也不可用才保留小样本，由 coverage 守卫显式降级。
         """
         try:
-            # 盘中：多源实时 breadth（样本不足或失败则诚实降级到日 K 表）
-            if self._is_intraday():
+            # 盘中先取实时宽度；记录是否已尝试，避免失败后低覆盖回退再重复拉一次。
+            rt_attempted = self._is_intraday()
+            if rt_attempted:
                 rt = self._realtime_breadth()
                 if rt is not None:
                     return rt
 
             breadth = self.kline_repo.get_market_breadth()
+            sample_size = 0
+            if breadth:
+                sample_size = sum(
+                    int(breadth.get(key) or 0)
+                    for key in ('up_count', 'down_count', 'flat_count')
+                )
+
+            # 日 K 缺失/低覆盖时，盘后和盘前同样回源最近交易快照。原实现只在
+            # 盘中回源，导致夜间计划与盘前检查长期停在「资金氛围 skipped」。
+            if sample_size < 1000 and not rt_attempted:
+                rt = self._realtime_breadth()
+                if rt is not None:
+                    return rt
+
             if not breadth:
                 return {'error': 'daily_klines 无有效涨跌数据'}
 
