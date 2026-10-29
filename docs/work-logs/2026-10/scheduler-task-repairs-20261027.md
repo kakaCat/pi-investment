@@ -121,6 +121,27 @@ JobResult 时抛 TypeError**，真实业务结果无法回传。原测试只覆�
   - 已 reload APScheduler；next_run 同步为 2026-10-29 09:05/09:20，未在盘后补触发。
   - 次日 10:00 复核提醒：`schedule-895c92b2-a525-4ad1-bc94-03e8833c9e58`。
 
+## 2026-10-29 复核结果
+
+- **412 trading_plan_generate_daily**：09:05 宽限 6 小时已生效，任务实际触发；run 8628 failed：
+  `column trading_plan_item_versions.setup_type does not exist`。
+- **413 trading_plan_readiness**：09:20 run 8633 success，但 `ready=0/1`，
+  reason=REVISION_MISSING（账户主计划不存在，是 412 未生成的下游结果）。
+- 全量 ORM/DB 列比对发现两列缺失：
+  - `trading_plan_item_versions.setup_type`
+  - `trading_plan_conditions.invalidation_threshold_pct`
+- 已新增幂等迁移 `20261029_trading_plan_missing_columns.py` 并生产应用，验证两列存在；
+  提交 `184a256d6`。**未在盘后手动重跑 412**，明日 09:05 验证真实生成。
+- **watch_scan_30s**：
+  - 381：上午 44/56 success，09:45–09:53 连续 12 次 `delivery_failed=1`；
+  - 根因：`.env` 的 `WATCH_ACCOUNT_AGENT_MAP={"user_main_simulation":"agent-ts"}`
+    显式覆盖默认，agent-ts:3002 无响应；
+  - 已将映射改为 `agent-dh`（`.env` 非版本库文件），重启 V2 后 390 连续运行 success，
+    日志显示 `target=agent-dh`、`Agent notified successfully`；
+  - 10:02 一次 390 run 被本次重启打断，启动回收 5 分钟宽限内未判死；已将其明确标记 failed
+    释放后续拍（数据任务，非交易补触发）。
+- 交易计划次日复核：`schedule-a514fc84-5cbf-4f99-96d9-269579b5260c`（2026-10-30 10:00）。
+
 ## 未纳入本次
 
 - V13 06:30 单独日检与 14:30 全策略执行重叠，仍未处理，避免擅自改交易行为。
