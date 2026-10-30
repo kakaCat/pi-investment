@@ -142,6 +142,18 @@ JobResult 时抛 TypeError**，真实业务结果无法回传。原测试只覆�
     释放后续拍（数据任务，非交易补触发）。
 - 交易计划次日复核：`schedule-a514fc84-5cbf-4f99-96d9-269579b5260c`（2026-10-30 10:00）。
 
+## 2026-10-30 schema 修复复核
+
+- **412 trading_plan_generate_daily**：09:05 run 9246 **success**；
+  generated=1，账户 agent_brain 生成 plan_id=7、revision_id=13、items=18，状态 draft。
+- **413 trading_plan_readiness**：09:20 run 9251 success，**不再报 REVISION_MISSING**；
+  但 `ready=0/1`，原因是 revision 未激活 + 17 个 buy 项缺入场条件 + 1 个持仓项缺退出规则
+  （`REVIEW_REQUIRED` / `ENTRY_INCOMPLETE` / `EXIT_INCOMPLETE`）。
+- **misfire_grace_time_seconds**：412/413 均仍为 21600。
+- **watch_scan_30s**：381 56/56 success、390 1/1 success，今日无 delivery_failed；
+  日志确认 `watch_trigger target=agent-dh`、`Agent notified successfully`。
+- 未在盘后补触发计划；draft 待后续正常 review/activate 流程，不在本复核内擅自激活。
+
 ## 未纳入本次
 
 - V13 06:30 单独日检与 14:30 全策略执行重叠，仍未处理，避免擅自改交易行为。
