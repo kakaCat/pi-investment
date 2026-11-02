@@ -1186,6 +1186,15 @@ def register_routes():
         optional_failed.append("evolution")
         logger.warning(f"⚠️ Failed to import evolution_async: {e}")
 
+    # 投资评价与业绩归因（A 项，只读评价账本）
+    try:
+        from adapters.inbound.fastapi_app.routes.evaluation_async import router as evaluation_router
+        app.include_router(evaluation_router)
+        logger.info("✅ Registered: investment-evaluation (A 项只读评价)")
+    except ImportError as e:
+        optional_failed.append("investment-evaluation")
+        logger.warning(f"⚠️ Failed to import evaluation_async: {e}")
+
     # 策略进化引擎（evolution 域，RFC 012 P1 2026-09-03——替代 agent-os 0.05xi 占位链）
     try:
         from adapters.inbound.fastapi_app.routes.evolution_engine_async import (
