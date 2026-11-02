@@ -364,7 +364,7 @@ Adjust `min_score` based on market conditions:
 
 ## Related Documentation
 
-- [Strategy Code Execution Engine](superpowers/specs/strategy-code-execution-engine.md)
+- [Strategy Code Execution Engine](archive/cleanup-2026-10/superpowers/specs/strategy-code-execution-engine.md)（历史设计卡，已归档）
 - [ML Pipeline](../CLAUDE.md#ml-pipeline)
 - [Repository Layer](../CLAUDE.md#repository-layer)
 

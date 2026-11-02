@@ -47,7 +47,7 @@
 
 - [investigations/](investigations/) — 问题排查记录（issues/audits/fixes 已归拢至此）
 - [work-logs/](work-logs/) — 工作日志（按月归档 2026-06 起）
-- [superpowers/](superpowers/) — 历史设计卡（specs/plans；reports 已归档）
+- [superpowers/](superpowers/) — 运行时诊断报告 `reports/`（gitignored，诊断功能输出，非文档）；历史设计卡已归档至 [archive/cleanup-2026-10/superpowers/](archive/cleanup-2026-10/superpowers/)
 - [interfaces/](interfaces/) — 接口桩文件（py，供沙箱探查）
 - [misc/requirements.txt](misc/requirements.txt) — 归档位（依赖权威是根 `pyproject.toml`，勿按它装环境）
 - [archive/cleanup-2026-10/](archive/cleanup-2026-10/) — 2026-10 文档清理归档（过时报告/计划/旧 README 等只读史料）
