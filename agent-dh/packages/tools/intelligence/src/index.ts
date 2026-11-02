@@ -9,6 +9,7 @@ import { createSignalTrackTool } from './tools/SignalTrackTool';
 import { createDecisionAuditTool } from './tools/DecisionAuditTool';
 import { createDecisionHistoryTool } from './tools/DecisionHistoryTool';
 import { createDecisionScoresTool } from './tools/DecisionScoresTool';
+import { createEvaluationReportTool } from './tools/EvaluationReportTool';
 
 export interface Config {
   quantsysV2?: {
@@ -69,5 +70,8 @@ export default class IntelligencePlugin extends Service {
 
     // M6↔L2 决策回流边消费端（2026-09-12，REQ-9bcd0a WP2）
     ctx.tools.register(createDecisionScoresTool(qv2));
+
+    // A 项：投资评价与业绩归因（只读；经济账/能力账/全局未归属信号分离）
+    ctx.tools.register(createEvaluationReportTool(qv2));
   }
 }

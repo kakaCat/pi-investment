@@ -17,6 +17,7 @@ import type {
   PortfolioSummary,
   EvolutionLeaderboard,
   EvolutionDecisionScores,
+  InvestmentEvaluationReport,
   StrategyListResponse,
   // P0 missing method types
   TradeRequest,
@@ -1201,6 +1202,17 @@ export class QuantsysV2Client {
   async getEvolutionDecisionScores(): Promise<EvolutionDecisionScores> {
     const response = await this.client.get('/api/evolution/decision-scores');
     return this.unwrap<EvolutionDecisionScores>(response.data, 'getEvolutionDecisionScores');
+  }
+
+  /** 投资评价与业绩归因（只读）：账户由调用方显式指定。 */
+  async getInvestmentEvaluationReport(params: {
+    account_name: string;
+    start_date?: string;
+    end_date?: string;
+    annual_cost_rate?: number;
+  }): Promise<InvestmentEvaluationReport> {
+    const response = await this.client.get('/api/evaluation/report', { params });
+    return this.unwrap<InvestmentEvaluationReport>(response.data, 'getInvestmentEvaluationReport');
   }
 
   // ==================== Trading APIs (P0) ====================

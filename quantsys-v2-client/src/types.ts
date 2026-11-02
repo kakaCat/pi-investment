@@ -377,6 +377,26 @@ export interface EvolutionDecisionScores {
   items: EvolutionDecisionScore[];
 }
 
+/** 投资评价报告（只读）：三套口径分离，明细结构由后端 schema_version 约束。 */
+export interface InvestmentEvaluationReport {
+  schemaVersion: string;
+  generatedAt: string;
+  readOnly: boolean;
+  accountName: string;
+  period: Record<string, any>;
+  accountCurrent: Record<string, any>;
+  accountEconomy: Record<string, any>;
+  tradeEconomy: Record<string, any>;
+  investmentAbility: Record<string, any>;
+  episodeSummary: Record<string, any>;
+  tradeEpisodes: Array<Record<string, any>>;
+  tradeLedger: Array<Record<string, any>>;
+  signalEvaluation: Record<string, any>;
+  decisionCoverage: Record<string, any>;
+  dataQuality: Record<string, any>;
+  [key: string]: any;
+}
+
 /**
  * Macroeconomic data (GDP/CPI/PMI)
  * Real endpoint: GET /api/market/macro
