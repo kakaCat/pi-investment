@@ -557,7 +557,7 @@ from adapters.outbound.datasources.providers.quantlib import get_factor_adapter
 ## 相关文档
 
 > （原 backtest/risk/factors 域 README 为 S7 拆分前旧路径，包内已无对应子目录）
-- [重构完成报告](../../../docs/work-logs/2026-08/quantlib-refactoring-complete.md)
+- [重构完成报告](../../../docs/archive/cleanup-2026-10/work-logs-process/quantlib-refactoring-complete.md)（历史过程件，已归档）
 - 重构计划（历史文档，已随 docs 清理移除，见 git 历史 `docs/quantlib-refactoring-plan-2026-08.md`）
 
 ---
