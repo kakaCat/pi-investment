@@ -737,6 +737,7 @@ df['sell'] = df['score'] < 0.3
   ⚠️ 旧写法 `api/server.py` / `api/server_websocket.py` / `cli/main.py` **均不存在**。
 - No `_backup`, `_v2`, `_old`, `_new` parallel files in `api/` or `cli/`
 - Delete obsolete code after references are removed; example code goes to `docs/examples/`
+- 一次性核查优先 `python -c` 或复用 `tools/` 既有脚本（`monitor_scheduler.py` / `check_scheduler_dedup.py` / `analyze_layer_violations.py`）；确需新建时放 `scripts/`（已 gitignore）或可复用才进 `tools/`，脚本头写用途与失效期；**不要往 `docs/` 新增脚本**（`docs/examples/` 只放教学示例）
 - Test coverage target: > 80% for core modules
 - All tests must pass before committing
 
