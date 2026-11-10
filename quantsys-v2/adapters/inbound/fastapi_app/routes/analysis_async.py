@@ -1028,107 +1028,142 @@ def calculate_risk_metrics(payload: Optional[Dict[str, Any]] = Body(None)):
 
 
 # ============ /api/portfolio/factor-analyze（analysis.py） ============
+#
+# 2026-11-10 重写（REQ 机会扫描改进 P0.1，w-191eb58c）：
+# 旧实现三重硬伤——①因子值恒为 20 日动量代理（"momentum as factor proxy"），
+# 任意因子名返回同一 IC；②"未来收益"实为过去 5 日均值（后视）；③ic_ir 恒 None、
+# universe 默认取库前 50 只。现改为：真实因子序列 × 真实前向收益的截面 IC 时间序列。
+# 门禁测试：tests/migration/test_analysis_parity.py::test_factor_analyze_factors_differ
+
+# 因子序列计算已抽离至 domain.factors.analysis.factor_series（独立可测，
+# 门禁：tests/services/test_factor_series.py 断言不同因子产出不同序列）。
+from domain.factors.analysis.factor_series import compute_factor_series as _fa_compute_factor_series
+
 
 @router.post('/api/portfolio/factor-analyze')
 @handle_api_error
 def factor_analyze(payload: Optional[Dict[str, Any]] = Body(None)):
-    """因子分析 - v2 增强版（集成 alphalens）"""
-    data = payload or {}
+    """因子有效性分析：截面 Spearman IC 时间序列（均值/IR/胜率）。
 
+    口径：因子值取 t 日收盘后可见数据，前向收益 = close[t+P]/close[t]-1，
+    在 universe 截面上逐采样日算 Spearman IC，再汇总均值与 IR。
+    采样日落在 [start_date, end_date] 内，步长 = 前向周期 P（默认 5）。
+    """
+    import numpy as np
+    import pandas as pd
+    from scipy.stats import spearmanr
+    from infrastructure.services.service_factory import ServiceFactory
+
+    data = payload or {}
     factors = data.get('factors', [])
     start_date = data.get('start_date') or data.get('startDate')
     end_date = data.get('end_date') or data.get('endDate')
     universe = data.get('universe')
-    use_alphalens = data.get('use_alphalens', True)
-    use_alphalens = data.get('useAlphalens', use_alphalens)  # 兼容驼峰命名
+    forward_period = int(data.get('forward_period') or 5)
+    min_cross_section = int(data.get('min_cross_section') or 10)
 
-    # 参数验证
     if not factors:
-        return error_response({
-            'success': False,
-            'error': '因子列表不能为空'
-        }, 400)
-
+        return error_response({'success': False, 'error': '因子列表不能为空'}, 400)
     if not start_date or not end_date:
-        return error_response({
-            'success': False,
-            'error': '开始日期和结束日期不能为空'
-        }, 400)
+        return error_response({'success': False, 'error': '开始日期和结束日期不能为空'}, 400)
 
     try:
-        import numpy as np
-        import pandas as pd
-        from domain.factors.analysis.ic_analyzer import ICAnalyzer
-        from infrastructure.services.service_factory import ServiceFactory
-        _stock_repo_ic = ServiceFactory.get_stock_repository()
-        _kline_repo_ic = ServiceFactory.get_kline_repository()
-
-        analyzer = ICAnalyzer()
-        results = {}
+        kline_repo = ServiceFactory.get_kline_repository()
+        stock_repo = ServiceFactory.get_stock_repository()
 
         if universe:
             symbols = universe if isinstance(universe, list) else [universe]
         else:
-            stocks = _stock_repo_ic.get_all(limit=50) if _stock_repo_ic else []
+            stocks = stock_repo.get_all(limit=50) if stock_repo else []
             symbols = [s.get('symbol') for s in stocks] if stocks else []
-
         if not symbols:
             return error_response({'success': False, 'error': '无可用股票池'}, 400)
 
-        for factor_name in factors:
-            try:
-                klines_map = _kline_repo_ic.batch_get_recent_klines(symbols, days=250) if _kline_repo_ic else {}
+        # 420 天：覆盖 ~250 个交易日窗口 + MACD(26+9)/均线 warmup
+        klines_map = kline_repo.batch_get_recent_klines(symbols, days=420) if kline_repo else {}
 
-                factor_values = []
-                forward_returns = []
+        close_frames = {}
+        factor_frames = {f: {} for f in factors}
+        unsupported = set()
 
-                for symbol, klines_df in klines_map.items():
-                    if klines_df is None:
-                        continue
-                    if isinstance(klines_df, (list, tuple)):
-                        if len(klines_df) < 30:
-                            continue
-                        klines_df = pd.DataFrame(klines_df)
-                        if 'close' not in klines_df.columns:
-                            continue
-                    elif hasattr(klines_df, 'is_empty') and klines_df.is_empty():
-                        continue
-                    elif len(klines_df) < 30:
-                        continue
-                    try:
-                        close = klines_df['close'].to_numpy()
-                        fwd_ret = (close[-5:].mean() - close[-10:-5].mean()) / close[-10:-5].mean() if len(close) >= 10 else np.nan
-                        # momentum as factor proxy — non-obvious, kept for clarity
-                        factor_val = (close[-1] / close[-20] - 1) if len(close) >= 20 else np.nan
-                        factor_values.append(factor_val)
-                        forward_returns.append(fwd_ret)
-                    except Exception:
-                        continue
-
-                if len(factor_values) < 10:
-                    results[factor_name] = {'ic_mean': None, 'ic_ir': None, 'status': 'insufficient_data', 'sample_size': len(factor_values)}
+        for symbol, klines in klines_map.items():
+            if not klines or len(klines) < 60:
+                continue
+            df = pd.DataFrame(klines)
+            if 'close' not in df.columns or 'trade_date' not in df.columns:
+                continue
+            df['trade_date'] = pd.to_datetime(df['trade_date'])
+            df = df.sort_values('trade_date').reset_index(drop=True)
+            close_s = pd.Series(df['close'].astype(float).values, index=df['trade_date'])
+            close_frames[symbol] = close_s
+            for f in factors:
+                if f in unsupported:
                     continue
+                series = _fa_compute_factor_series(df, f)
+                if series is None:
+                    unsupported.add(f)
+                    continue
+                factor_frames[f][symbol] = pd.Series(series.values, index=df['trade_date'])
 
-                factor_arr = np.array(factor_values)
-                returns_arr = np.array(forward_returns)
+        if len(close_frames) < min_cross_section:
+            return error_response({
+                'success': False,
+                'error': f'有效 K 线股票数 {len(close_frames)} < 截面下限 {min_cross_section}，拒绝出数（防小样本假 IC）'
+            }, 400)
 
-                ic = analyzer.calculate_ic(factor_arr, returns_arr)
-                results[factor_name] = {
-                    'ic_mean': float(ic) if not np.isnan(ic) else None,
-                    'ic_ir': None,
-                    'status': 'ok' if not np.isnan(ic) else 'calculation_failed',
-                    'sample_size': len(factor_values),
+        close_df = pd.DataFrame(close_frames).sort_index()
+        fwd_df = close_df.shift(-forward_period) / close_df - 1.0
+
+        sample_dates = close_df.loc[start_date:end_date].index
+        if forward_period > 0 and len(sample_dates) > 0:
+            # 采样步长=前向周期，避免重叠窗口伪相关
+            sample_dates = sample_dates[::forward_period]
+
+        results = {}
+        for f in factors:
+            if f in unsupported:
+                results[f] = {
+                    'ic_mean': None, 'ic_ir': None, 'status': 'unsupported_factor',
+                    'error': '该因子无历史序列口径（基本面因子需历史快照），已诚实降级，禁止用代理值冒充',
                 }
-            except Exception as e:
-                logger.warning(f"Factor analysis failed for {factor_name}: {e}")
-                results[factor_name] = {'ic_mean': None, 'ic_ir': None, 'status': 'error', 'error': str(e)}
+                continue
+            fdf = pd.DataFrame(factor_frames[f]).reindex(close_df.index)
+            ics = []
+            for d in sample_dates:
+                fv = fdf.loc[d]
+                fr = fwd_df.loc[d]
+                mask = fv.notna() & fr.notna()
+                if mask.sum() < min_cross_section:
+                    continue
+                ic, _ = spearmanr(fv[mask], fr[mask])
+                if not np.isnan(ic):
+                    ics.append(float(ic))
+            if len(ics) < 5:
+                results[f] = {
+                    'ic_mean': None, 'ic_ir': None,
+                    'status': 'insufficient_data', 'n_periods': len(ics),
+                }
+                continue
+            arr = np.array(ics)
+            ic_mean = float(arr.mean())
+            ic_std = float(arr.std())
+            results[f] = {
+                'ic_mean': ic_mean,
+                'ic_ir': float(ic_mean / ic_std) if ic_std > 0 else None,
+                'ic_std': ic_std,
+                'ic_positive_ratio': float((arr > 0).mean()),
+                'n_periods': len(ics),
+                'status': 'ok',
+            }
 
         return api_response({
             'success': True,
             'factors': results,
             'start_date': start_date,
             'end_date': end_date,
-            'universe_size': len(symbols),
+            'forward_period': forward_period,
+            'universe_size': len(close_frames),
+            'method': 'cross-sectional spearman IC series, step=forward_period',
         })
     except Exception as e:
         return error_response({'success': False, 'error': f'因子分析失败: {str(e)}'}, 500)
