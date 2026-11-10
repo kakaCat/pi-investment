@@ -223,6 +223,74 @@ class OpportunityScoringService:
         opportunities.sort(key=lambda x: x.get('score', 0), reverse=True)
         return opportunities
 
+    def score_accumulation(
+        self,
+        symbols: List[str],
+        no_cache: bool = False,
+    ) -> List[Dict]:
+        """蓄势模式扫描（2026-11-10 Phase 2，w-191eb58c）。
+
+        与 score_stocks 的动量哲学相反：奖励"波动压缩+缩量+趴着+资金温和流入"。
+        特征与阈值经全市场事件研究验证（5/10/20 日超额 t=2.7~3.5 显著为正）。
+        结果按蓄势分排序；validated_combo=True 表示命中验证过的硬组合。
+        """
+        from application.services.scoring.accumulation_scorer import (
+            extract_features, score_one)
+
+        if not symbols:
+            return []
+        # 需要 ≥140 根日K（120 日分位窗口 + warmup），取 420 天与事件研究同口径
+        klines_map = self.kline_repo.batch_get_recent_klines(symbols, days=420)
+        flows_map = {}
+        if self.fund_flow_repo is not None:
+            flows_map, _ = self._cached_batch(
+                symbols, 'flow', self.TTL_FUND_FLOW, no_cache,
+                lambda miss: self.fund_flow_repo.batch_get_latest_flows(miss, days=5))
+
+        results = []
+        for symbol in symbols:
+            klines = klines_map.get(symbol) or []
+            flows = flows_map.get(symbol) or []
+            mf5 = None
+            if flows:
+                vals = [float(f.get('main_net_inflow') or 0) for f in flows[:5]]
+                if vals:
+                    mf5 = sum(vals)
+            feats = extract_features(klines, mf5)
+            if feats is None:
+                continue
+            scored = score_one(feats)
+            if scored is None:
+                continue
+            data_as_of = None
+            if klines:
+                last_bar = klines[-1]
+                data_as_of = str(last_bar.get('trade_date') or last_bar.get('date') or '')[:10] or None
+            results.append({
+                'symbol': symbol,
+                'name': self._get_name(symbol),
+                'score': round(scored['total']),
+                'signal_type': 'watch',  # 蓄势=观察仓候选，非立即买入信号
+                'timestamp': datetime.now().isoformat(),
+                'data_as_of': data_as_of,
+                'score_breakdown': {'accumulation': scored['breakdown']},
+                'accumulation_features': scored['features'],
+                'validated_combo': scored['validated_combo'],
+                'scoring_method': 'accumulation_v1',
+                'reasons': [
+                    f"蓄势分{scored['total']:.0f}"
+                    f"（波动压缩{scored['features']['vol_pct']:.0%}分位/"
+                    f"量比{scored['features']['volume_ratio']:.2f}/"
+                    f"20日动量{scored['features']['mom20']:+.1%}/"
+                    f"5日主力{scored['features']['mf5_wan']:.0f}万）",
+                    '命中验证组合' if scored['validated_combo'] else '未命中验证组合（软评分）',
+                ],
+                'confidence': round(scored['total'] / 100, 2),
+                'risk_level': self._calculate_risk_level(scored['total']),
+            })
+        results.sort(key=lambda x: x.get('score', 0), reverse=True)
+        return results
+
     def _cached_batch(self, symbols, kind, ttl, no_cache, fetch):
         """per-symbol 缓存的批量取数。返回 (map, {symbol: 'hit'|'computed'})"""
         result, status, missing = {}, {}, []

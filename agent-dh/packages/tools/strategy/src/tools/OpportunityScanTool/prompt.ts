@@ -5,7 +5,7 @@
 import type { ToolPrompt } from '@pi-investment/core-tool';
 
 export interface OpportunityScanParams {
-  scan_type?: 'technical' | 'fundamental' | 'hybrid';
+  scan_type?: 'technical' | 'fundamental' | 'hybrid' | 'accumulation';
   pool_id?: number;
   symbols?: string[];
   min_score?: number;
@@ -23,6 +23,8 @@ export interface OpportunityScanResult {
     capital_score?: number;
     score_breakdown?: Record<string, any>;
     data_as_of?: string;
+    validated_combo?: boolean;
+    scoring_method?: string;
   }>;
   scan_summary: {
     total_scanned: number;
@@ -42,7 +44,7 @@ export const opportunityScanPrompt: ToolPrompt<OpportunityScanParams, Opportunit
   parameters: {
     scan_type: {
       type: 'string',
-      description: '扫描类型：technical/fundamental/hybrid',
+      description: '扫描类型：technical/fundamental/hybrid/accumulation(蓄势，找未启动标的)',
       example: 'hybrid',
     },
     pool_id: {
@@ -71,6 +73,8 @@ export const opportunityScanPrompt: ToolPrompt<OpportunityScanParams, Opportunit
     '💡 hybrid 模式综合技术+基本面，适合日常使用',
     '💡 technical 模式关注形态、突破、超跌反弹',
     '💡 fundamental 模式关注估值、业绩、财务质量',
+    '💡 accumulation 模式（2026-11-10 上线）：蓄势扫描——找"波动压缩+缩量+趴着+资金温和流入"的未启动标的，与 momentum 哲学相反；特征阈值经全市场事件研究验证（5/10/20日超额 t=2.7~3.5 显著为正），命中 validated_combo 的优先级最高；蓄势≠立即买入，是观察仓候选',
+    '⚠️ technical/hybrid/fundamental 模式实测偏右侧（追涨组全市场回测 5-10 日显著为负），找早期机会用 accumulation',
     'min_score 建议设置 70-80 以过滤低质量信号',
   ],
 
@@ -113,9 +117,10 @@ export const opportunityScanPrompt: ToolPrompt<OpportunityScanParams, Opportunit
                 .map(([k, v]) => `${k}${(v as number) > 0 ? '+' : ''}${Number(v).toFixed(1)}`)
                 .join(' ')}`
             : '';
+          const combo = opp.validated_combo === true ? ' ✅命中验证组合' : '';
           return {
             type: 'text' as const,
-            text: `• ${opp.symbol} ${opp.name} (得分: ${opp.score})${dims} - ${opp.reasons.join(', ')}${techDetail}`,
+            text: `• ${opp.symbol} ${opp.name} (得分: ${opp.score})${combo}${dims} - ${opp.reasons.join(', ')}${techDetail}`,
           };
         }),
       ];

@@ -23,15 +23,15 @@ export class OpportunityScanTool extends BaseTool<OpportunityScanParams, Opportu
 
   protected validate(args: OpportunityScanParams): ValidationResult {
     if (args.scan_type) {
-      const validTypes = ['technical', 'fundamental', 'hybrid'];
+      const validTypes = ['technical', 'fundamental', 'hybrid', 'accumulation'];
       if (!validTypes.includes(args.scan_type)) {
         return {
           success: false,
           errorType: ErrorType.INPUT_ERROR,
           field: 'scan_type',
-          issue: 'scan_type 必须是 technical/fundamental/hybrid',
+          issue: 'scan_type 必须是 technical/fundamental/hybrid/accumulation',
           received: args.scan_type,
-          expected: 'technical | fundamental | hybrid',
+          expected: 'technical | fundamental | hybrid | accumulation',
         };
       }
     }

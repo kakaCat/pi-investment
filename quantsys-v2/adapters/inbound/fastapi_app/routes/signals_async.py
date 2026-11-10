@@ -155,6 +155,10 @@ def scan_signals(payload: Optional[Dict[str, Any]] = Body(None)):
 
         if strategy_id is not None:
             opportunities = _scan_strategy_opportunities(strategy_id, symbols)
+        elif scan_type == 'accumulation':
+            # 蓄势模式（2026-11-10 Phase 2，w-191eb58c）：与 momentum 并列的独立模式，
+            # 奖励波动压缩+缩量+趴着+温和流入；特征阈值经全市场事件研究验证。
+            opportunities = scoring_service.score_accumulation(symbols, no_cache=no_cache)
         else:
             # RFC 012：使用 DDD 评分系统（行业中性化 + 平滑化）
             if use_ddd_scoring:
