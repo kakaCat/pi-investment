@@ -371,6 +371,13 @@ class OpportunityScoringService:
             confidence_penalty = degradation_tracker.get_confidence_penalty()
             adjusted_confidence = round(base_confidence * confidence_penalty, 2)
             
+            # 数据时点水印（2026-11-10 P1，w-191eb58c）：技术指标基于日K，
+            # 盘中扫描时最后一根通常是昨日收盘（T-1）——透出让消费方知悉口径
+            data_as_of = None
+            if klines:
+                last_bar = klines[-1]
+                data_as_of = str(last_bar.get('trade_date') or last_bar.get('date') or '')[:10] or None
+
             return {
                 'symbol': symbol,
                 'name': stock_name,
@@ -382,6 +389,7 @@ class OpportunityScoringService:
                 'risk_level': self._calculate_risk_level(total_score),
                 'signal_type': 'buy',
                 'timestamp': datetime.now().isoformat(),
+                'data_as_of': data_as_of,
                 'score_breakdown': score_breakdown,
                 'reasons': reasons,
                 'reason': reasons[0] if reasons else '',
