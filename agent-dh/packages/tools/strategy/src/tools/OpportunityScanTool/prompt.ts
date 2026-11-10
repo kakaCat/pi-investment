@@ -18,6 +18,11 @@ export interface OpportunityScanResult {
     score: number;
     reasons: string[];
     signals: Record<string, any>;
+    technical_score?: number;
+    fundamental_score?: number;
+    capital_score?: number;
+    score_breakdown?: Record<string, any>;
+    data_as_of?: string;
   }>;
   scan_summary: {
     total_scanned: number;
@@ -80,16 +85,40 @@ export const opportunityScanPrompt: ToolPrompt<OpportunityScanParams, Opportunit
         scan_summary: { type: 'object', additionalProperties: true, description: '扫描摘要' },
       },
     },
-    render: (_args, data) => [
-      { type: 'text', text: `🔍 机会扫描完成` },
-      { type: 'text', text: `` },
-      { type: 'text', text: `📊 扫描范围: ${data.scan_summary.total_scanned} 只股票` },
-      { type: 'text', text: `✨ 发现机会: ${data.scan_summary.opportunities_found} 个` },
-      { type: 'text', text: `` },
-      ...data.opportunities.slice(0, 5).map(opp => ({
-        type: 'text' as const,
-        text: `• ${opp.symbol} ${opp.name} (得分: ${opp.score}) - ${opp.reasons.join(', ')}`
-      })),
-    ],
+    render: (_args, data) => {
+      // P1 透明度（2026-11-10，w-191eb58c）：透出四维明细 + 数据时点水印。
+      // 技术面指标基于日K收盘，盘中扫描时 data_as_of 通常是昨日（T-1），必须显式告知。
+      const asOfDates = [...new Set(
+        data.opportunities.map(o => o.data_as_of).filter(Boolean)
+      )] as string[];
+      const asOf = asOfDates.length ? asOfDates.sort().reverse()[0] : null;
+      const today = new Date().toISOString().slice(0, 10);
+      const staleWarn = asOf && asOf < today
+        ? ` ⚠️ 技术指标基于 ${asOf} 收盘（T-1 滞后，非盘中实时）`
+        : '';
+      return [
+        { type: 'text', text: `🔍 机会扫描完成${staleWarn}` },
+        { type: 'text', text: `` },
+        { type: 'text', text: `📊 扫描范围: ${data.scan_summary.total_scanned} 只股票` },
+        { type: 'text', text: `✨ 发现机会: ${data.scan_summary.opportunities_found} 个` },
+        ...(asOf ? [{ type: 'text' as const, text: `🕐 指标数据截至: ${asOf}` }] : []),
+        { type: 'text', text: `` },
+        ...data.opportunities.slice(0, 5).map(opp => {
+          const dims = (opp.technical_score !== undefined)
+            ? ` [技术${opp.technical_score}/基本面${opp.fundamental_score}/资金${opp.capital_score}]`
+            : '';
+          const techDetail = opp.score_breakdown?.technical?.details
+            ? ` 技术明细: ${Object.entries(opp.score_breakdown.technical.details)
+                .filter(([, v]) => typeof v === 'number' && v !== 0)
+                .map(([k, v]) => `${k}${(v as number) > 0 ? '+' : ''}${Number(v).toFixed(1)}`)
+                .join(' ')}`
+            : '';
+          return {
+            type: 'text' as const,
+            text: `• ${opp.symbol} ${opp.name} (得分: ${opp.score})${dims} - ${opp.reasons.join(', ')}${techDetail}`,
+          };
+        }),
+      ];
+    },
   },
 };
