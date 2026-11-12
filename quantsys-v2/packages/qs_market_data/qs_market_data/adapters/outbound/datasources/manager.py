@@ -1,6 +1,8 @@
 """Unified data provider manager with automatic failover."""
 import logging
+import os
 import time
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from datetime import date as _date, datetime as _datetime, timedelta as _timedelta
 from typing import List, Dict, Any, Optional
 
@@ -83,6 +85,10 @@ class DataProviderManager(IDataProviderManager):
     Coordinates multiple providers per domain with automatic failover,
     health tracking, and source attribution.
     """
+
+    # 批量取价 per-provider 超时预算默认值（__init__ 可用环境变量覆盖；
+    # 类级默认值供测试/旁路 __init__ 的构造方式使用）
+    _batch_quote_provider_timeout_s = 8.0
 
     def __init__(self, ds=None):
         # 2026-09-13（w-adb088f2）：进程级收敛到 IPv4。本机 IPv6 不可达但 getaddrinfo 先返回
@@ -265,6 +271,14 @@ class DataProviderManager(IDataProviderManager):
         self._circuit_breaker_threshold = 10  # 连续失败10次触发熔断
         self._circuit_breaker_duration = 300  # 熔断持续时间（秒）- 5分钟
         self._circuit_breakers: Dict[str, CircuitBreaker] = {}
+        # 批量取价 per-provider 超时预算（2026-11-12，w-09d7af23）：单源不许吃掉整个
+        # 请求时长（上游 agent 工具 20s 超时，akshare 盘前曾挂 44s）。akshare 全市场
+        # 表正常抓取 2~6s，预算留足余量；可用 QUANTSYS_BATCH_QUOTE_PROVIDER_TIMEOUT_S 覆盖。
+        try:
+            self._batch_quote_provider_timeout_s = float(
+                os.environ.get('QUANTSYS_BATCH_QUOTE_PROVIDER_TIMEOUT_S', '8'))
+        except ValueError:
+            self._batch_quote_provider_timeout_s = 8.0
         self._init_stats()
 
     def _init_stats(self):
@@ -709,7 +723,19 @@ class DataProviderManager(IDataProviderManager):
             attempted_sources.append(provider.name)
             _t0 = time.monotonic()
             try:
-                got = provider.get_quotes(pending) or {}
+                # Per-provider 超时预算（2026-11-12，w-09d7af23）：上游 agent 工具超时 20s，
+                # 此前无预算时单个慢源（akshare 盘前挂 44s）能烧光整个请求时长，故障转移
+                # 虽然最终兜底成功但已超时。线程内执行 + result(timeout)，超时即记 failure
+                # 并继续下一个源。注：Python 线程无法强杀，shutdown(wait=False) 后孤儿
+                # 线程自行跑完；熔断器（连续 10 次失败断开 5 分钟）把孤儿线程数限在
+                # ~10/5min/源。不能用 with 语法——其 __exit__ 会 shutdown(wait=True) 阻塞到
+                # 孤儿线程结束，超时预算就形同虚设。
+                pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix='qs-batch-quote')
+                try:
+                    got = pool.submit(provider.get_quotes, pending).result(
+                        timeout=self._batch_quote_provider_timeout_s) or {}
+                finally:
+                    pool.shutdown(wait=False, cancel_futures=True)
                 # 分源耗时（RFC 017 P0 可观测性）：2026-10-26 事故中账户响应 11s+ 无法归因到
                 # 具体源（降级链只有开始/结束两条日志）；现逐源记录命中数与耗时，慢请求一进
                 # 日志即可看到是哪一源、花了多少毫秒、补了几只。
@@ -717,6 +743,17 @@ class DataProviderManager(IDataProviderManager):
                     "Batch quotes via %s: %d/%d symbols in %.0fms",
                     provider.name, len(got), len(pending), (time.monotonic() - _t0) * 1000,
                 )
+            except FuturesTimeoutError:
+                elapsed_ms = (time.monotonic() - _t0) * 1000
+                logger.warning(
+                    "Batch quotes via %s timed out after %.0fms (budget %.0fs), trying next provider",
+                    provider.name, elapsed_ms, self._batch_quote_provider_timeout_s,
+                )
+                provider_errors[provider.name] = (
+                    f'批量取价超时（>{self._batch_quote_provider_timeout_s}s）'
+                )
+                self._record_failure(provider.name)
+                continue
             except Exception as e:
                 logger.warning(
                     "Batch quotes via %s failed after %.0fms: %s",

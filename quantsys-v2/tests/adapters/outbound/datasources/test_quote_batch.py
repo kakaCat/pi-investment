@@ -257,7 +257,6 @@ def test_批量接口使用manager批量入口():
 
 
 # --------------------------- ④ IPv4 收敛 ---------------------------
-
 def test_进程级收敛到IPv4(monkeypatch):
     import urllib3.util.connection as uc
     from qs_market_data.adapters.outbound.datasources import net_prefs
@@ -273,3 +272,127 @@ def test_进程级收敛到IPv4(monkeypatch):
         assert net_prefs.prefer_ipv4() is False, '环境变量必须能关掉（排查真实 IPv6 问题用）'
     finally:
         uc.allowed_gai_family = orig
+
+
+# --------------------------- ⑤ 慢源不烧光超时预算（2026-11-12 事故修复锁，w-09d7af23） ---------------------------
+# 事故：akshare 盘前 stock_zh_a_spot_em 挂 44s（7 只 × 全市场表），agent 工具 20s 超时三连。
+# 修复锁三件事：
+#   a) akshare.get_quotes 只发**一次**全市场请求（不再逐只 ×7）；
+#   b) 基类默认批量实现「全部异常且零结果」必须自报 last_error（系统性故障不得伪装成健康空）；
+#   c) manager.get_quotes per-provider 超时预算：慢源记 failure 后立即转移到下一源。
+
+def test_akshare批量只发一次全市场请求(monkeypatch):
+    import pandas as pd
+    from qs_market_data.adapters.outbound.datasources.providers.quote import akshare as ak_mod
+
+    calls = []
+
+    def fake_spot_em():
+        calls.append(1)
+        return pd.DataFrame({
+            '代码': ['111111', '600887', '300677'],  # 含未请求的代码
+            '名称': ['别的', '伊利股份', '英科医疗'],
+            '最新价': [1.0, 26.66, 55.0],
+            '今开': [1.0, 26.5, 55.63],
+            '最高': [1.0, 26.74, 56.0],
+            '最低': [1.0, 26.4, 54.0],
+            '昨收': [1.0, 26.5, 55.0],
+            '成交量': [100, 222222, 91739],
+            '成交额': [1000.0, 333333.0, 444444.0],
+            '涨跌幅': [0.0, 0.1, -0.2],
+        })
+
+    monkeypatch.setattr(ak_mod.ak, 'stock_zh_a_spot_em', fake_spot_em)
+    p = ak_mod.AkshareQuoteProvider()
+    got = p.get_quotes(['600887', '300677'])
+
+    assert len(calls) == 1, f'批量必须只拉一次全市场表，实际 {len(calls)} 次 —— 逐只全市场抓取正是 44s 事故的形态'
+    assert set(got.keys()) == {'600887', '300677'}, '本地过滤必须精确命中目标代码'
+    assert got['600887'].price == pytest.approx(26.66)
+    assert got['600887'].source == 'akshare'
+    assert p.last_error is None, '有命中结果时不得自报错误'
+
+
+def test_akshare批量空表必须自报last_error(monkeypatch):
+    import pandas as pd
+    from qs_market_data.adapters.outbound.datasources.providers.quote import akshare as ak_mod
+
+    monkeypatch.setattr(ak_mod.ak, 'stock_zh_a_spot_em', lambda: pd.DataFrame())
+    p = ak_mod.AkshareQuoteProvider()
+    got = p.get_quotes(['600887'])
+    assert got == {}
+    assert p.last_error, '整批无数据必须自报 last_error，否则 manager 记 empty 不记 failure，健康分永远不掉'
+
+
+def test_基类默认批量全部异常必须自报last_error():
+    from qs_market_data.adapters.outbound.datasources.base import QuoteProvider
+
+    class P(QuoteProvider):
+        @property
+        def name(self):
+            return 'stub'
+
+        def get_quote(self, symbol):
+            raise RuntimeError('conn reset')
+
+    p = P()
+    got = p.get_quotes(['a', 'b'])
+    assert got == {}
+    assert p.last_error and 'conn reset' in p.last_error, (
+        '全部标的异常且零结果 = 系统性故障，必须经 last_error 暴露给 manager 记 failure；'
+        '否则慢源/坏源被当成"健康空"永远排在故障转移第一位'
+    )
+
+
+def test_基类默认批量部分成功不报错误():
+    from qs_market_data.adapters.outbound.datasources.base import QuoteProvider
+
+    class P(QuoteProvider):
+        @property
+        def name(self):
+            return 'stub'
+
+        def get_quote(self, symbol):
+            if symbol == 'bad':
+                raise RuntimeError('boom')
+            return _quote(symbol, 10.0, source='stub')
+
+    p = P()
+    got = p.get_quotes(['a', 'bad', 'b'])
+    assert set(got.keys()) == {'a', 'b'}
+    assert p.last_error is None, '部分成功属正常路径，不得误报错误（2026-09-11 空结果降权教训）'
+
+
+def test_慢源超时后立即转移到下一源():
+    import time as _time
+
+    failures = []
+
+    class _SlowProv:
+        name = 'slow'
+        last_error = None
+
+        def get_quotes(self, symbols):
+            _time.sleep(2.0)  # 远超预算
+            return {s: _quote(s, 1.0, source='slow') for s in symbols}
+
+    class _FastProv:
+        name = 'fast'
+        last_error = None
+
+        def get_quotes(self, symbols):
+            return {s: _quote(s, 2.0, source='fast') for s in symbols}
+
+    m = _manager([_SlowProv(), _FastProv()])
+    m._batch_quote_provider_timeout_s = 0.2
+    m._record_failure = lambda name: failures.append(name)
+
+    _t0 = _time.monotonic()
+    r = m.get_quotes(['a', 'b'])
+    elapsed = _time.monotonic() - _t0
+
+    assert r['success'] is True and set(r['data']) == {'a', 'b'}
+    assert all(q.source == 'fast' for q in r['data'].values()), '慢源结果不得采信（超时后其 future 未完成）'
+    assert elapsed < 1.5, f'慢源不得烧光请求时长（实际 {elapsed:.1f}s），预算内必须转移到下一源'
+    assert failures == ['slow'], '超时的源必须记 failure，让健康排序/熔断把它沉底'
+    assert r['provider_errors'].get('slow'), '超时要向调用方暴露原因'
