@@ -16,6 +16,16 @@ DAYS = [
 ]
 
 
+def test_real_repository_backfill_contract_is_not_overridden():
+    """主区并行合入同名旧方法时，mock 测试全绿但线上仍会用旧签名。"""
+    import inspect
+
+    params = inspect.signature(
+        repo_module.SignalTrackingRepository.get_signals_pending_backfill
+    ).parameters
+    assert {'symbol', 'include_filled', 'start_date'} <= set(params)
+
+
 def _signal(**overrides):
     value = {
         "id": 1,
