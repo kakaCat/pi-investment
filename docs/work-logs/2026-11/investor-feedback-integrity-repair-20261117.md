@@ -53,3 +53,12 @@
 ## 审计与集成
 
 审计快照位于 `feedback-integrity-audit/`。代码在隔离分支 `fix/feedback-integrity-20261117` 提交；主工作区采用逐文件 patch + 5 个文件三方合并部署，保留主区未提交的 `mature_count`、持仓宇宙扩展等行为，未提交或回滚其他会话改动。主区并行旧同名 repository 方法曾覆盖新签名，已移除并加入真实类签名回归。
+
+## 重启后线上工具验收
+
+- `signal_track(update)` 直接调用成功，无 Axios 超时；详细诊断保留未到期 136、非法信号 1、缺 K 0。首次调用发现工具摘要把 camelCase diagnostics 错读成 0，已兼容 snake/camel 两种形状并补真实 client 形状回归。
+- `signal_track(update, signal_date=2026-10-16, symbol=002027, refresh=true)` 返回 `complete=true`，3 个成熟窗口重算成功。
+- `kline_daily_sync(force=true, symbols=[002027], source=akshare)` 直接调用 1.396 秒成功，`repair_details` 透传完整；Akshare/Sina 双源一致，前后均为正确 EOD。
+- 本实例未收敛 watch 待办为 0；#4784 仍 pending、response NULL，未处置。
+- 远端 main 发布修复提交 `41f70a202`、`3488bdc5b`，摘要修正 `535463a49`；均为 fast-forward，未强推。
+
