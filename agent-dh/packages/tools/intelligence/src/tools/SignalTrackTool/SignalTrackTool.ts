@@ -198,12 +198,14 @@ export class SignalTrackTool extends BaseTool<SignalTrackParams, any> {
         symbol: params.symbol,
         refresh: params.refresh,
       });
-      const missing = Number(result.diagnostics?.missing_kline || 0);
-      const invalid = Number(result.diagnostics?.invalid_signal || 0);
+      const diagnostics: any = result.diagnostics || {};
+      const notDue = Number(diagnostics.notDue ?? diagnostics.not_due ?? 0);
+      const missing = Number(diagnostics.missingKline ?? diagnostics.missing_kline ?? 0);
+      const invalid = Number(diagnostics.invalidSignal ?? diagnostics.invalid_signal ?? 0);
       const blocked = missing + invalid;
       return {
         action: 'update',
-        result: `已更新 ${result.updated} 个信号；未到期 ${result.diagnostics?.not_due || 0} 项；缺K线 ${missing} 项；非法信号 ${invalid} 项${blocked ? '（回填未完整，详见 blocked）' : ''}`,
+        result: `已更新 ${result.updated} 个信号；未到期 ${notDue} 项；缺K线 ${missing} 项；非法信号 ${invalid} 项${blocked ? '（回填未完整，详见 blocked）' : ''}`,
         details: result,
       };
     }
