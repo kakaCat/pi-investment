@@ -51,6 +51,18 @@ DEFAULT_MAX_RUNTIME_SEC = 1800
 _BUDGET_CHECK_EVERY = 10
 
 
+def _keep_completed_klines(klines, target_date: str):
+    """Job 写入前再剔除目标完成日之后的快照（manager 防线的纵深兜底）。"""
+    kept = []
+    for row in klines or []:
+        raw_date = getattr(row, 'date', None)
+        if raw_date is None and isinstance(row, dict):
+            raw_date = row.get('date') or row.get('trade_date')
+        if raw_date is not None and str(raw_date)[:10] <= target_date:
+            kept.append(row)
+    return kept
+
+
 def update_gem_klines(**params):
     """
     更新K线数据
@@ -181,7 +193,13 @@ def update_gem_klines(**params):
                     start_date,
                     end_date,
                 )
-                klines = result.get('data') if result.get('success') else None
+                raw_klines = result.get('data') if result.get('success') else None
+                klines = _keep_completed_klines(raw_klines, target_date)
+                dropped = len(raw_klines or []) - len(klines)
+                if dropped:
+                    logger.warning(
+                        f"[{symbol}] 剔除 {dropped} 条目标完成日 {target_date} 之后的盘中/未来日K快照"
+                    )
 
                 if not klines:
                     skipped += 1

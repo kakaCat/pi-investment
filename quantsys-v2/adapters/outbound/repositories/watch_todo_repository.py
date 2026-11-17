@@ -5,8 +5,8 @@
   · create / get   —— 落待办、按 id 取；
   · claim          —— **只在未终态时生效**（WHERE terminal IS NULL），并把 L1 通知推进到
                       L2 待办（R2：L1 的退出条件 = 有人认领）；已终态返回 None；
-  · close          —— **只写终态字段**（terminal/closed_at/close_reason/next_condition/
-                      action_kind/decision_audit_id + updated_at），不改身份列；
+  · close          —— 写待办终态字段，并在**同一事务**把仍处 UNRESOLVED 的关联触发
+                      对齐到相同终态（D-31；不覆盖其他链已写入的更新终态）；
                       已终态（或并发抢先）返回 None，绝不二次改写（I3）；
   · list_overdue   —— (terminal IS NULL AND due_at < now)，命中
                       idx_watch_todos_overdue(terminal, due_at)，按 due_at 升序（I1 巡检口径）；
@@ -21,22 +21,21 @@
 （回滚线程 scoped session 后 re-raise），绝不静默返回空值把"查询坏了"伪装成"没有待办"。
 
 关于 closed_by：interfaces.md §2 的 close() 带 closed_by，但 data-model.md §2 的
-quant.watch_todos **没有该列**。为避免"参数收下不生效"，此处显式说明：closed_by 只用于
-审计日志（structlog），**不落 watch_todos**；关闭者身份的可核验留痕由
-close_reason / decision_audit_id 与（t6 的回执表）承担。若后续要给该列落库，必须走迁移
-（本任务不改表结构）。
+quant.watch_todos **没有该列**，因此不落在待办表；它写入审计日志，并在 D-31 联动时
+落到关联 watch_triggers.disposition_by。待办关闭者身份的可核验留痕仍由
+close_reason / decision_audit_id 与（t6 的回执表）承担（本任务不改表结构）。
 """
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 import structlog
-from sqlalchemy import and_, case, func, or_, text, update as sa_update
+from sqlalchemy import and_, case, func, or_, text, select as sa_select, update as sa_update
 
 from qs_kernel.infrastructure.persistence.orm.base_repository import BaseORMRepository
 from infrastructure.persistence.orm.models.watch_todo import WatchTodo
 # WatchRule ORM 模型声明在规则仓储模块内（同层适配器互引，无循环：
 # 规则仓储只在本模块方法的函数体内反向懒引本模块）。
-from adapters.outbound.repositories.watch_rule_repository import WatchRule
+from adapters.outbound.repositories.watch_rule_repository import WatchRule, WatchTrigger
 
 logger = structlog.get_logger(__name__)
 
@@ -195,7 +194,12 @@ class WatchTodoRepository(BaseORMRepository[WatchTodo]):
               next_condition: Optional[str] = None, action_kind: Optional[str] = None,
               decision_audit_id: Optional[str] = None, closed_by: Optional[str] = None,
               now: Optional[datetime] = None) -> Optional[WatchTodo]:
-        """收敛：只写终态字段；已终态/并发抢先返回 None（绝不二次改写，I3）"""
+        """收敛待办并同步关联触发；已终态/并发抢先返回 None（I3）。
+
+        D-31：todo 已关闭而 trigger 仍为 meta_review 时，digest 会永久重报。
+        联动只命中 UNRESOLVED 触发，避免覆盖 agent-complete/fill_sync 已写入的
+        更新终态；两张表在同一个 commit 中成功或一起回滚。
+        """
         stamp = now if now is not None else func.now()
         stmt = (
             sa_update(WatchTodo)
@@ -213,7 +217,26 @@ class WatchTodoRepository(BaseORMRepository[WatchTodo]):
         )
         try:
             session = self.session
+            trigger_id = session.execute(
+                sa_select(WatchTodo.trigger_id).where(WatchTodo.id == todo_id)
+            ).scalar_one_or_none()
             result = session.execute(stmt)
+            if result.rowcount and trigger_id is not None:
+                from qs_watch.domain.watch.services.disposition import UNRESOLVED
+                session.execute(
+                    sa_update(WatchTrigger)
+                    .where(
+                        WatchTrigger.id == trigger_id,
+                        WatchTrigger.disposition.in_(tuple(UNRESOLVED)),
+                    )
+                    .values(
+                        disposition=terminal,
+                        disposition_reason=close_reason,
+                        disposition_by=closed_by or 'watch_todo',
+                        disposition_at=stamp,
+                    )
+                    .execution_options(synchronize_session=False)
+                )
             session.commit()
         except Exception as e:  # noqa: BLE001
             logger.error('待办关闭失败', todo_id=todo_id, terminal=terminal, error=str(e))

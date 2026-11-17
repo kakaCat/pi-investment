@@ -1868,7 +1868,7 @@ export class QuantsysV2Client {
    * Sync daily K-line data
    * Real endpoint: POST /api/data/sync-daily-klines
    */
-  async syncDailyKlines(params?: { date?: string; symbols?: string[]; force?: boolean }): Promise<{
+  async syncDailyKlines(params?: { date?: string; symbols?: string[]; force?: boolean; source?: string }): Promise<{
     success: boolean;
     sync_date: string;
     success_count: number;
@@ -1878,6 +1878,7 @@ export class QuantsysV2Client {
     elapsed_time: number;
     message: string;
     failed_symbols?: string[];
+    details?: Array<Record<string, any>>;
   }> {
     const response = await this.client.post('/api/data/sync-daily-klines', params || {});
     return response.data;
@@ -2005,14 +2006,28 @@ export class QuantsysV2Client {
   /**
    * Update signal performance (backfill 5/10/20-day returns)
    * Real endpoint: PUT /api/signals/track/update
-   * Body: {signal_date?, lookback_days?}
+   * Body: {signal_date?, lookback_days?, symbol?, refresh?}
+   * 单独 60s：该接口历史上曾 33s 才提交，Axios 默认 30s 会制造
+   * “客户端报超时、服务端实际已写入”的假失败。超时后仍须先对账。
    */
   async updateSignalPerformance(params?: {
     signal_date?: string;
     lookback_days?: number;
-  }): Promise<{ updated: number; details: Record<string, number> }> {
-    const response = await this.client.put('/api/signals/track/update', params ?? {});
-    return this.unwrap<{ updated: number; details: Record<string, number> }>(response.data, 'updateSignalPerformance');
+    symbol?: string;
+    refresh?: boolean;
+  }): Promise<{
+    updated: number;
+    details: Record<string, number>;
+    diagnostics: Record<string, any>;
+    complete: boolean;
+  }> {
+    const response = await this.client.put('/api/signals/track/update', params ?? {}, { timeout: 60000 });
+    return this.unwrap<{
+      updated: number;
+      details: Record<string, number>;
+      diagnostics: Record<string, any>;
+      complete: boolean;
+    }>(response.data, 'updateSignalPerformance');
   }
 
   /**

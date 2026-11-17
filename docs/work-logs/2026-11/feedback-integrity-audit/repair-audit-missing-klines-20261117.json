@@ -1,0 +1,177 @@
+[
+  {
+    "symbol": "600356",
+    "trade_date": "2026-11-04",
+    "success": true,
+    "saved": 1,
+    "primary_source": "akshare",
+    "confirmation_source": "sina",
+    "before": [],
+    "after": [
+      {
+        "symbol": "600356",
+        "trade_date": "2026-11-04",
+        "open": 8.79,
+        "high": 8.88,
+        "low": 8.54,
+        "close": 8.78,
+        "volume": 9893900.0,
+        "amount": 86351601.0,
+        "turnover_rate": 0.0,
+        "remark": null,
+        "source": "akshare"
+      }
+    ],
+    "cross_validated": true
+  },
+  {
+    "symbol": "600583",
+    "trade_date": "2026-11-05",
+    "success": true,
+    "saved": 1,
+    "primary_source": "akshare",
+    "confirmation_source": "sina",
+    "before": [],
+    "after": [
+      {
+        "symbol": "600583",
+        "trade_date": "2026-11-05",
+        "open": 6.25,
+        "high": 6.38,
+        "low": 5.99,
+        "close": 6.36,
+        "volume": 66028400.0,
+        "amount": 411700960.0,
+        "turnover_rate": 0.0,
+        "remark": null,
+        "source": "akshare"
+      }
+    ],
+    "cross_validated": true
+  },
+  {
+    "symbol": "603155",
+    "trade_date": "2026-11-06",
+    "success": true,
+    "saved": 1,
+    "primary_source": "akshare",
+    "confirmation_source": "sina",
+    "before": [],
+    "after": [
+      {
+        "symbol": "603155",
+        "trade_date": "2026-11-06",
+        "open": 11.33,
+        "high": 11.69,
+        "low": 11.13,
+        "close": 11.48,
+        "volume": 6263100.0,
+        "amount": 72111895.0,
+        "turnover_rate": 0.0,
+        "remark": null,
+        "source": "akshare"
+      }
+    ],
+    "cross_validated": true
+  },
+  {
+    "symbol": "600192",
+    "trade_date": "2026-11-09",
+    "success": true,
+    "saved": 1,
+    "primary_source": "akshare",
+    "confirmation_source": "sina",
+    "before": [],
+    "after": [
+      {
+        "symbol": "600192",
+        "trade_date": "2026-11-09",
+        "open": 6.97,
+        "high": 7.15,
+        "low": 6.8,
+        "close": 6.84,
+        "volume": 13363500.0,
+        "amount": 92708367.0,
+        "turnover_rate": 0.0,
+        "remark": null,
+        "source": "akshare"
+      }
+    ],
+    "cross_validated": true
+  },
+  {
+    "symbol": "603477",
+    "trade_date": "2026-11-04",
+    "success": true,
+    "saved": 1,
+    "primary_source": "akshare",
+    "confirmation_source": "sina",
+    "before": [],
+    "after": [
+      {
+        "symbol": "603477",
+        "trade_date": "2026-11-04",
+        "open": 14.47,
+        "high": 14.74,
+        "low": 14.39,
+        "close": 14.57,
+        "volume": 12841700.0,
+        "amount": 186706440.0,
+        "turnover_rate": 0.0,
+        "remark": null,
+        "source": "akshare"
+      }
+    ],
+    "cross_validated": true
+  },
+  {
+    "symbol": "603280",
+    "trade_date": "2026-11-05",
+    "success": true,
+    "saved": 1,
+    "primary_source": "akshare",
+    "confirmation_source": "sina",
+    "before": [],
+    "after": [
+      {
+        "symbol": "603280",
+        "trade_date": "2026-11-05",
+        "open": 25.0,
+        "high": 25.38,
+        "low": 24.42,
+        "close": 25.19,
+        "volume": 4228900.0,
+        "amount": 106015455.0,
+        "turnover_rate": 0.0,
+        "remark": null,
+        "source": "akshare"
+      }
+    ],
+    "cross_validated": true
+  },
+  {
+    "symbol": "600377",
+    "trade_date": "2026-11-10",
+    "success": true,
+    "saved": 1,
+    "primary_source": "akshare",
+    "confirmation_source": "sina",
+    "before": [],
+    "after": [
+      {
+        "symbol": "600377",
+        "trade_date": "2026-11-10",
+        "open": 13.96,
+        "high": 14.05,
+        "low": 13.78,
+        "close": 13.94,
+        "volume": 8745800.0,
+        "amount": 122180663.0,
+        "turnover_rate": 0.0,
+        "remark": null,
+        "source": "akshare"
+      }
+    ],
+    "cross_validated": true
+  }
+]

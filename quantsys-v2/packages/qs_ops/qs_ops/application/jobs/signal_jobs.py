@@ -237,20 +237,29 @@ class SignalPerfBackfillJob(Job):
             from qs_sourcing.application.services.signal_tracking_service import SignalTrackingService
             # 不传连接：SignalTrackingRepository 内部自建 psycopg2 裸连接
             svc = SignalTrackingService()
-            return svc.update_performance(lookback_days=params.get('lookback_days', 30))
+            return svc.update_performance(lookback_days=params.get('lookback_days'))
 
         try:
             result = await asyncio.to_thread(_run)
             updated = result.get('updated', 0)
+            if not result.get('complete', True):
+                return JobResult(
+                    success=False,
+                    action=self.name,
+                    error='到期信号仍存在缺 K 线或非法信号，未完整回填',
+                    details={'result': result},
+                )
             return JobResult.ok(self.name, message=f"信号回填完成：更新 {updated} 条", details=result)
         except Exception as e:
             return JobResult.fail(self.name, str(e))
 
 
-# 导出所有信号类任务
+# 导出所有内置调度的信号类任务。
+# SignalPerfBackfillJob 保留为手工执行实现，但不进入内置注册表：
+# 生产唯一调度所有者是 Agent OS 的同名 webhook（signal_tracking.py），
+# 双注册曾导致每日 15:45 同一回填并发执行两次。
 SIGNAL_JOBS = [
     SignalGenerateJob(),
     SignalExecutionDailyJob(),
     FundFlowUpdateJob(),
-    SignalPerfBackfillJob(),
 ]

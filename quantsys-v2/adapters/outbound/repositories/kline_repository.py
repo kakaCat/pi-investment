@@ -396,7 +396,8 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
         symbol: str,
         start_date: str,
         end_date: str,
-        fields: List[str] = None
+        fields: List[str] = None,
+        raise_on_error: bool = False,
     ) -> pl.DataFrame:
         """查询日K线数据
 
@@ -456,6 +457,8 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
         except Exception as e:
             self._safe_rollback()
             logger.error(f"Error getting daily klines for {symbol}: {e}")
+            if raise_on_error:
+                raise
             return pl.DataFrame()
 
     def get_latest_daily_kline(self, symbol: str) -> Optional[pl.DataFrame]:
@@ -583,7 +586,8 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
         self,
         symbols: List[str],
         start_date: str,
-        end_date: str
+        end_date: str,
+        raise_on_error: bool = False,
     ) -> Dict[str, List[Dict]]:
         """批量查询多只股票的日K线数据
 
@@ -628,6 +632,8 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
         except Exception as e:
             self._safe_rollback()
             logger.error(f"Error getting batch daily klines: {e}")
+            if raise_on_error:
+                raise
             return {symbol: [] for symbol in symbols}
 
     def count_daily_klines(self, symbol: str) -> int:

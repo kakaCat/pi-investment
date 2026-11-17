@@ -42,6 +42,15 @@ export class KlineDailySyncTool extends BaseTool<KlineDailySyncParams, KlineDail
     if (params.force !== undefined && typeof params.force !== 'boolean') {
       errors.push('force 必须是布尔值');
     }
+    if (params.force && (!params.symbols || params.symbols.length === 0)) {
+      errors.push('force=true 必须显式指定 symbols');
+    }
+    if (params.force && params.symbols && params.symbols.length > 20) {
+      errors.push('单次显式修复最多 20 只股票');
+    }
+    if (params.source && !params.force) {
+      errors.push('source 只允许与 force=true 一起使用');
+    }
 
     if (errors.length > 0) {
       return {
@@ -70,6 +79,9 @@ export class KlineDailySyncTool extends BaseTool<KlineDailySyncParams, KlineDail
 
     if (params.force !== undefined) {
       requestParams.force = params.force;
+    }
+    if (params.source) {
+      requestParams.source = params.source;
     }
 
     const response = await this.quantsysClient.syncDailyKlines(requestParams);
@@ -111,6 +123,7 @@ export class KlineDailySyncTool extends BaseTool<KlineDailySyncParams, KlineDail
       message: String(response?.message ?? ''),
       total_rows: Number(response?.total_rows ?? 0),
       backend_success: response?.success === true,
+      repair_details: Array.isArray(response?.details) ? response.details : [],
     } as KlineDailySyncResult;
   }
 

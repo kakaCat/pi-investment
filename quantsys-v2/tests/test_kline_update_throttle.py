@@ -14,6 +14,16 @@ from qs_ops.infrastructure.jobs import kline_update_job
 from qs_market_data.adapters.outbound.datasources.providers.kline.base import KlineData
 
 
+TARGET_DATE = '2026-10-27'
+
+
+def _fixed_calendar():
+    return patch(
+        'qs_ops.application.services.trading_day_guard.TradingDayGuard.is_trading_day',
+        side_effect=lambda day: day.isoformat() == TARGET_DATE,
+    )
+
+
 def _repo_for(symbols):
     """构造替身仓储：选股返回给定宇宙，写方法与自检方法均为无害桩。"""
     repo = MagicMock()
@@ -35,16 +45,15 @@ def _run_job(symbols, manager_results, **params):
     defaults = {'interval_seconds': 0}
     defaults.update(params)
     with patch.object(kline_update_job, 'KlineSyncRepository', return_value=repo), \
-         patch.object(kline_update_job, 'DataProviderManager', return_value=manager):
+         patch.object(kline_update_job, 'DataProviderManager', return_value=manager), \
+         _fixed_calendar():
         result = kline_update_job.update_gem_klines(days=1, **defaults)
     return result, repo, manager
 
 
 def _ok_result():
-    # 日期必须 >= 任务基准日（最近已收盘交易日），否则被计为 stale 而非 success
-    # （2026-07-30 stale 检测特性）；硬编码历史日期会随时间漂移失败
-    from datetime import date as _date
-    k = KlineData(symbol='300001', date=_date.today().isoformat(), open=1, high=1,
+    # 与 _fixed_calendar 的目标完成日一致，避免动态今天被完成态防线正确剔除。
+    k = KlineData(symbol='300001', date=TARGET_DATE, open=1, high=1,
                   low=1, close=1, volume=100, amount=100.0)
     return {'success': True, 'data': [k], 'source': 'baostock'}
 
@@ -99,7 +108,8 @@ def test_write_failure_counted_as_failed():
     manager.get_klines.return_value = _ok_result()
 
     with patch.object(kline_update_job, 'KlineSyncRepository', return_value=repo), \
-         patch.object(kline_update_job, 'DataProviderManager', return_value=manager):
+         patch.object(kline_update_job, 'DataProviderManager', return_value=manager), \
+         _fixed_calendar():
         result = kline_update_job.update_gem_klines(
             days=1, symbols=['300001'], interval_seconds=0)
 
@@ -121,7 +131,8 @@ def test_nonstandard_symbol_skipped_before_write():
     repo = _repo_for(['600000.SH'])
 
     with patch.object(kline_update_job, 'KlineSyncRepository', return_value=repo), \
-         patch.object(kline_update_job, 'DataProviderManager', return_value=manager):
+         patch.object(kline_update_job, 'DataProviderManager', return_value=manager), \
+         _fixed_calendar():
         result = kline_update_job.update_gem_klines(
             days=1, symbols=['600000.SH'], interval_seconds=0)
 

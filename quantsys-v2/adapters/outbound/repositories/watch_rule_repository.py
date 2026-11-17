@@ -935,8 +935,13 @@ class WatchTriggerRepository(BaseORMRepository[WatchTrigger]):
         )
 
     def update_disposition(self, trigger_id: int, disposition: str,
-                           reason: str = None, by: str = 'agent') -> Optional[WatchTrigger]:
-        """处置一条触发（handled / ignored / expired）。ignored 必须带 reason。"""
+                           reason: str = None, by: str = 'agent',
+                           agent_response: Optional[dict] = None) -> Optional[WatchTrigger]:
+        """处置一条触发；可选在同一事务内合并 agent 的结构化裁决。
+
+        ``agent_response`` 只由 agent-dh/watch_resolve 等裁决入口传入。V2
+        agent-complete 与 fill_sync 不传时保持原行为，已有通知元数据不会被覆盖。
+        """
         from qs_watch.domain.watch.services.disposition import DISPOSITION_IGNORED
         if disposition == DISPOSITION_IGNORED and not (reason or '').strip():
             raise ValueError('ignored 状态必须填写 reason（为什么知悉但不动作）')
@@ -947,6 +952,12 @@ class WatchTriggerRepository(BaseORMRepository[WatchTrigger]):
         trigger.disposition_reason = reason
         trigger.disposition_by = by
         trigger.disposition_at = datetime.now()
+        if agent_response is not None:
+            # 合并而非替换：保留 V2 notification_delivered 等既有审计字段。
+            trigger.agent_response = {
+                **dict(trigger.agent_response or {}),
+                **dict(agent_response),
+            }
         self.session.commit()
         return trigger
 

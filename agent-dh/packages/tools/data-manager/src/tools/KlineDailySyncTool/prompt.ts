@@ -4,6 +4,7 @@ export interface KlineDailySyncParams {
   date?: string;
   symbols?: string[];
   force?: boolean;
+  source?: string;
 }
 
 export interface KlineDailySyncResult {
@@ -15,6 +16,7 @@ export interface KlineDailySyncResult {
   failed_symbols: string[];
   duration_seconds: number;
   message: string;
+  repair_details?: Array<Record<string, any>>;
 }
 
 export const klineDailySyncPrompt: ToolPrompt<KlineDailySyncParams, KlineDailySyncResult> = {
@@ -36,8 +38,13 @@ export const klineDailySyncPrompt: ToolPrompt<KlineDailySyncParams, KlineDailySy
     },
     force: {
       type: 'boolean',
-      description: '是否强制更新已存在的数据',
+      description: '显式修复已存在数据：必须指定 symbols，DB 旁路并由两个独立网络源核验；分歧时拒绝写入',
       default: false,
+    },
+    source: {
+      type: 'string',
+      description: 'force 修复主源（如 akshare/sina/tencent）；系统另选独立确认源',
+      enum: ['akshare', 'sina', 'tencent', 'baostock'],
     },
   },
   output: {
@@ -56,6 +63,11 @@ export const klineDailySyncPrompt: ToolPrompt<KlineDailySyncParams, KlineDailySy
         // 2026-09-11（REQ-342799）：additionalProperties:false 下必须声明，否则校验失败
         total_rows: { type: 'number' },
         backend_success: { type: 'boolean' },
+        repair_details: {
+          type: 'array',
+          items: { type: 'object', additionalProperties: true },
+          description: 'force 修复的双源证据与前后快照',
+        },
       },
     },
   },

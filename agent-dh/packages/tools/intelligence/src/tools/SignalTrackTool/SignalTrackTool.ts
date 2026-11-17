@@ -8,7 +8,7 @@ export class SignalTrackTool extends BaseTool<SignalTrackParams, any> {
     name: 'signal_track',
     category: 'intelligence',
     version: '1.0.0',
-    timeoutMs: 10000,
+    timeoutMs: 60000,
   };
 
   protected readonly prompt = signalTrackPrompt;
@@ -19,6 +19,14 @@ export class SignalTrackTool extends BaseTool<SignalTrackParams, any> {
 
   protected validate(params: SignalTrackParams): ValidationResult {
     const { action, symbol, price, source, grade } = params;
+
+    if (action === 'update' && params.refresh && !(params.signal_date || params.symbol)) {
+      return {
+        success: false,
+        errorType: ErrorType.INPUT_ERROR,
+        issue: 'refresh=true 必须同时限定 signal_date 或 symbol，禁止全表重写派生值',
+      };
+    }
 
     if (action === 'record') {
       // record 必填参数校验
@@ -186,12 +194,16 @@ export class SignalTrackTool extends BaseTool<SignalTrackParams, any> {
       // 盘后回填表现
       const result = await this.qv2Client.updateSignalPerformance({
         signal_date: params.signal_date,
-        lookback_days: params.lookback_days || 30,
+        lookback_days: params.lookback_days,
+        symbol: params.symbol,
+        refresh: params.refresh,
       });
-
+      const missing = Number(result.diagnostics?.missing_kline || 0);
+      const invalid = Number(result.diagnostics?.invalid_signal || 0);
+      const blocked = missing + invalid;
       return {
         action: 'update',
-        result: `已更新 ${result.updated} 个信号的表现数据`,
+        result: `已更新 ${result.updated} 个信号；未到期 ${result.diagnostics?.not_due || 0} 项；缺K线 ${missing} 项；非法信号 ${invalid} 项${blocked ? '（回填未完整，详见 blocked）' : ''}`,
         details: result,
       };
     }

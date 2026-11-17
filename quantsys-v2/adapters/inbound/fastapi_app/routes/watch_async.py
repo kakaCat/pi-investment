@@ -734,10 +734,23 @@ def update_trigger_disposition(trigger_id: int,
     if disposition == 'ignored' and not str(reason or '').strip():
         return _err('ignored 必须填写 reason（为什么知悉但不动作）', 400)
     trigger_repo = WatchTriggerRepository()
+    by = str(payload.get('by') or 'agent')
+    # pending 是未决初态，不是 agent 完成裁决；只有终态才写 response。
+    # 不走 /agent-complete：该接口还会发群、mark_notified、改 process_state，
+    # watch_resolve 只需要在现有 PATCH 的同一事务中补齐审计信封。
+    agent_response = None
+    if disposition != 'pending':
+        agent_response = {
+            'source': 'watch_resolve',
+            'disposition': disposition,
+            'reason': reason,
+            'agent': by,
+            'completed_at': datetime.now().isoformat(),
+        }
     try:
         trigger = trigger_repo.update_disposition(
-            trigger_id, disposition, reason=reason,
-            by=str(payload.get('by') or 'agent'))
+            trigger_id, disposition, reason=reason, by=by,
+            agent_response=agent_response)
     except ValueError as e:
         return _err(str(e), 400)
     if trigger is None:

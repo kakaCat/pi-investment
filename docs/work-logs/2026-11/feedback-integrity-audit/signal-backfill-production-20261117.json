@@ -1,0 +1,81 @@
+{
+  "elapsed_seconds": 6.924,
+  "success": true,
+  "updated": 2,
+  "details": {
+    "5d": 0,
+    "10d": 1,
+    "20d": 1
+  },
+  "diagnostics": {
+    "scanned_signals": 96,
+    "candidate_horizons": 9,
+    "not_due": 136,
+    "missing_kline": 7,
+    "invalid_signal": 1,
+    "blocked": [
+      {
+        "signal_id": 134,
+        "symbol": "601890",
+        "signal_date": "2026-10-07",
+        "reason": "signal_date_not_trading_day"
+      },
+      {
+        "signal_id": 123,
+        "symbol": "600356",
+        "horizon": "20d",
+        "target_date": "2026-11-04",
+        "reason": "missing_kline"
+      },
+      {
+        "signal_id": 139,
+        "symbol": "600583",
+        "horizon": "20d",
+        "target_date": "2026-11-05",
+        "reason": "missing_kline"
+      },
+      {
+        "signal_id": 147,
+        "symbol": "603155",
+        "horizon": "20d",
+        "target_date": "2026-11-06",
+        "reason": "missing_kline"
+      },
+      {
+        "signal_id": 152,
+        "symbol": "600192",
+        "horizon": "20d",
+        "target_date": "2026-11-09",
+        "reason": "missing_kline"
+      },
+      {
+        "signal_id": 173,
+        "symbol": "603477",
+        "horizon": "10d",
+        "target_date": "2026-11-04",
+        "reason": "missing_kline"
+      },
+      {
+        "signal_id": 181,
+        "symbol": "603280",
+        "horizon": "10d",
+        "target_date": "2026-11-05",
+        "reason": "missing_kline"
+      },
+      {
+        "signal_id": 194,
+        "symbol": "600377",
+        "horizon": "10d",
+        "target_date": "2026-11-10",
+        "reason": "missing_kline"
+      }
+    ],
+    "refresh": false,
+    "scope": {
+      "signal_date": null,
+      "symbol": null,
+      "lookback_days": null
+    }
+  },
+  "complete": false
+}
