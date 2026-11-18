@@ -1069,6 +1069,84 @@ class WatchTriggerRepository(BaseORMRepository[WatchTrigger]):
         trigger.agent_response = dict(response)
         self.session.commit()
 
+    def claim_digest_batch(self, trigger_ids: List[int], event_id: str,
+                           at: datetime) -> bool:
+        """发送前原子认领整批 trigger；不同 event_id 不得重复认领。"""
+        ids = sorted({int(value) for value in trigger_ids})
+        if not ids:
+            return False
+        try:
+            rows = (self.session.query(WatchTrigger)
+                    .filter(WatchTrigger.id.in_(ids)).with_for_update().all())
+            if len(rows) != len(ids):
+                self._safe_rollback()
+                return False
+            for trigger in rows:
+                detail = trigger.detail or {}
+                delivered = detail.get('digest_event_id')
+                claimed = detail.get('digest_claim_event_id')
+                if (delivered and delivered != event_id) or (claimed and claimed != event_id):
+                    self._safe_rollback()
+                    return False
+            for trigger in rows:
+                detail = dict(trigger.detail or {})
+                detail.setdefault('digest_claim_event_id', event_id)
+                detail.setdefault('digest_claimed_at', at.isoformat())
+                trigger.detail = detail
+            self.session.commit()
+            return True
+        except SQLAlchemyError as exc:
+            self._safe_rollback()
+            logger.error('摘要批次原子认领失败', event_id=event_id, error=str(exc))
+            return False
+
+    def mark_digest_delivered(self, trigger_ids: List[int], event_id: str,
+                              at: datetime) -> bool:
+        """逐事件持久确认摘要投递，替代依赖时间水位的防重猜测。"""
+        ids = sorted({int(value) for value in trigger_ids})
+        if not ids:
+            return False
+        try:
+            rows = (self.session.query(WatchTrigger)
+                    .filter(WatchTrigger.id.in_(ids)).with_for_update().all())
+            if len(rows) != len(ids):
+                self._safe_rollback()
+                return False
+            for trigger in rows:
+                existing = (trigger.detail or {}).get('digest_event_id')
+                if existing and existing != event_id:
+                    logger.error('trigger 已由另一摘要事件确认',
+                                 trigger_id=trigger.id, existing=existing, incoming=event_id)
+                    self._safe_rollback()
+                    return False
+            for trigger in rows:
+                detail = dict(trigger.detail or {})
+                detail.setdefault('digest_event_id', event_id)
+                detail.setdefault('digest_delivered_at', at.isoformat())
+                trigger.detail = detail
+            self.session.commit()
+            return True
+        except SQLAlchemyError as exc:
+            self._safe_rollback()
+            logger.error('摘要逐 trigger 确认写库失败', event_id=event_id, error=str(exc))
+            return False
+
+    def mark_rearmed(self, trigger_id: int, at: datetime) -> bool:
+        """在旧事件 detail 持久记录已离开迟滞带，供重启后识别真正的新边沿。"""
+        try:
+            trigger = self.get_by_id(trigger_id)
+            if trigger is None:
+                return False
+            detail = dict(trigger.detail or {})
+            detail['rearmed_at'] = at.isoformat()
+            trigger.detail = detail
+            self.session.commit()
+            return True
+        except SQLAlchemyError as exc:
+            self._safe_rollback()
+            logger.error("回写 trigger rearm 失败", trigger_id=trigger_id, error=str(exc))
+            return False
+
     def mark_notified(self, trigger_id: int, notified: bool) -> None:
         """回写触发的实际送达结果（REQ-261016155500-4f2a wt:engine:2）。
 
@@ -1192,6 +1270,9 @@ class WatchTriggerRepository(BaseORMRepository[WatchTrigger]):
         disposition: Optional[str] = None,
         dispositions: Optional[tuple] = None,
         limit: int = 200,
+        digest_unacked: bool = False,
+        rule_ids: Optional[List[int]] = None,
+        exclude_rule_ids: Optional[List[int]] = None,
     ) -> List[WatchTrigger]:
         """按状态查触发（盘后未处置清单的数据源）"""
         q = self.session.query(WatchTrigger)
@@ -1201,7 +1282,15 @@ class WatchTriggerRepository(BaseORMRepository[WatchTrigger]):
             q = q.filter(WatchTrigger.disposition == disposition)
         if dispositions:
             q = q.filter(WatchTrigger.disposition.in_(list(dispositions)))
-        return q.order_by(WatchTrigger.triggered_at.desc()).limit(limit).all()
+        if rule_ids is not None:
+            q = q.filter(WatchTrigger.rule_id.in_([int(value) for value in rule_ids]))
+        if exclude_rule_ids:
+            q = q.filter(~WatchTrigger.rule_id.in_([int(value) for value in exclude_rule_ids]))
+        if digest_unacked:
+            # 必须先排除已确认事件再 LIMIT；否则最新 200 条已 ACK 会永久挡住旧积压。
+            q = q.filter(WatchTrigger.detail['digest_event_id'].as_string().is_(None))
+        order = WatchTrigger.triggered_at.asc() if digest_unacked else WatchTrigger.triggered_at.desc()
+        return q.order_by(order).limit(limit).all()
 
     def count_older_unresolved(self, since: datetime, dispositions: tuple) -> dict:
         """早于 since 的未处置触发统计（digest 积压可见，REQ-261016155500-4f2a wt:engine:4）。

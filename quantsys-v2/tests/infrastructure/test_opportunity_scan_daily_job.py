@@ -42,8 +42,9 @@ class FakeRuleService:
         self.results = results
         self.calls = []
 
-    def auto_create_rules(self, opportunities):
+    def auto_create_rules(self, opportunities, **kwargs):
         self.calls.append(opportunities)
+        self.kwargs = kwargs
         if self.results is not None:
             return list(self.results)
         return [{"symbol": opp["symbol"], "action": "created", "rule_id": index + 1}
@@ -103,7 +104,9 @@ def test_daily_scan_filters_sorts_and_creates_top_ten_rules():
     opportunities.append(opportunity("799999.SZ", score=79))
     job, scoring, pool, rules, _ = make_job(opportunities)
 
-    result = asyncio.run(job.execute({}))
+    result = asyncio.run(job.execute({
+        "auto_create_rules": True, "account_name": "agent_brain", "decision_audit_id": "DA-scan",
+    }))
 
     assert result.success is True
     assert result.details["scanned"] == 3
@@ -127,7 +130,10 @@ def test_min_score_and_risk_filters():
         opportunity("000004.SZ", score=79, risk_level="low"),
     ])
 
-    result = asyncio.run(job.execute({"max_risk_level": "medium"}))
+    result = asyncio.run(job.execute({
+        "max_risk_level": "medium", "auto_create_rules": True,
+        "account_name": "agent_brain", "decision_audit_id": "DA-scan",
+    }))
 
     assert result.success is True
     assert [opp["symbol"] for opp in rules.calls[0]] == ["000001.SZ", "000002.SZ"]
@@ -174,11 +180,28 @@ def test_rule_creation_failure_is_not_fake_success():
         rule_results=[{"symbol": "000001.SZ", "action": "failed", "reason": "db"}],
     )
 
-    result = asyncio.run(job.execute({}))
+    result = asyncio.run(job.execute({
+        "auto_create_rules": True, "account_name": "agent_brain", "decision_audit_id": "DA-scan",
+    }))
 
     assert result.success is False
     assert result.details["failed"] == 1
     assert result.details["rule_results"][0]["reason"] == "db"
+
+
+def test_default_scan_is_read_only():
+    job, _, _, rules, _ = make_job([opportunity("000001.SZ")])
+    result = asyncio.run(job.execute({}))
+    assert result.success is True
+    assert result.details["auto_create_rules"] is False
+    assert rules.calls == []
+
+
+def test_auto_create_job_requires_account_and_audit():
+    job, _, _, rules, _ = make_job([opportunity("000001.SZ")])
+    result = asyncio.run(job.execute({"auto_create_rules": True}))
+    assert result.success is False
+    assert rules.calls == []
 
 
 def test_read_only_scan_does_not_create_rules():
@@ -209,7 +232,10 @@ def test_job_is_registered_in_signal_jobs():
 def test_high_score_candidates_send_summary_with_rule_results():
     job, _, _, _, _ = make_job([opportunity("600519.SH", score=92)])
 
-    result = asyncio.run(job.execute({"trade_date": "2026-10-27"}))
+    result = asyncio.run(job.execute({
+        "trade_date": "2026-10-27", "auto_create_rules": True,
+        "account_name": "agent_brain", "decision_audit_id": "DA-scan",
+    }))
 
     assert result.success is True
     assert result.details["notified"] is True
@@ -235,7 +261,9 @@ def test_notification_failure_marks_job_failed():
     job, _, _, _, _ = make_job(
         [opportunity("000001.SZ")], notification_sender=sender)
 
-    result = asyncio.run(job.execute({}))
+    result = asyncio.run(job.execute({
+        "auto_create_rules": True, "account_name": "agent_brain", "decision_audit_id": "DA-scan",
+    }))
 
     assert result.success is False
     assert result.details["notified"] is False
@@ -260,7 +288,9 @@ def test_rule_failure_still_sends_summary_with_failure_status():
         rule_results=[{"symbol": "000001.SZ", "action": "failed", "reason": "db"}],
     )
 
-    result = asyncio.run(job.execute({}))
+    result = asyncio.run(job.execute({
+        "auto_create_rules": True, "account_name": "agent_brain", "decision_audit_id": "DA-scan",
+    }))
 
     assert result.success is False
     assert result.details["notified"] is True

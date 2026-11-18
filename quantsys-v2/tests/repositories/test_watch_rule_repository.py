@@ -1,11 +1,12 @@
 """WatchRuleRepository 集成测试（使用 quant_test 库）"""
 import pytest
+import threading
 from datetime import datetime, timedelta
 from sqlalchemy import text
 
 from adapters.outbound.repositories import watch_rule_repository as wrr
 from adapters.outbound.repositories.watch_rule_repository import (
-    POSITION_STATE_HOLDING, POSITION_STATE_NONE, WatchRule,
+    POSITION_STATE_HOLDING, POSITION_STATE_NONE, WatchRule, WatchTrigger,
     WatchRuleRepository, WatchTriggerRepository, rule_interval_sec,
     rule_position_state, rule_to_dict,
 )
@@ -60,6 +61,128 @@ class TestWatchRuleRepository:
 
         fetched = self.trigger_repo.get_by_id(trigger.id)
         assert fetched.agent_response == response
+
+    def test_mark_rearmed_preserves_detail_and_survives_reload(self):
+        rule = self._make_rule()
+        trigger = self.trigger_repo.record(
+            rule_id=rule.id, symbol=rule.symbol,
+            condition=rule.conditions[0], trigger_price=1801.0,
+            detail={'engine': 'v2', 'message': 'keep-me'}, engine='v2',
+        )
+        self._created_trigger_ids.append(trigger.id)
+        at = datetime(2026, 11, 18, 10, 30)
+
+        assert self.trigger_repo.mark_rearmed(trigger.id, at) is True
+        fetched = self.trigger_repo.get_by_id(trigger.id)
+        assert fetched.detail == {
+            'engine': 'v2', 'message': 'keep-me', 'rearmed_at': at.isoformat(),
+        }
+        assert self.trigger_repo.mark_rearmed(-999999, at) is False
+
+    def test_digest_delivery_ack_is_persistent_and_idempotent(self):
+        rule = self._make_rule()
+        trigger = self.trigger_repo.record(
+            rule_id=rule.id, symbol=rule.symbol,
+            condition=rule.conditions[0], trigger_price=1801.0,
+            detail={'engine': 'v2'}, engine='v2',
+        )
+        self._created_trigger_ids.append(trigger.id)
+        at = datetime(2026, 11, 18, 10, 30)
+        assert self.trigger_repo.mark_digest_delivered([trigger.id], 'watch_digest:test', at) is True
+        assert self.trigger_repo.mark_digest_delivered([trigger.id], 'watch_digest:test', at) is True
+        fetched = self.trigger_repo.get_by_id(trigger.id)
+        assert fetched.detail['digest_event_id'] == 'watch_digest:test'
+        assert fetched.detail['digest_delivered_at'] == at.isoformat()
+        assert self.trigger_repo.mark_digest_delivered([trigger.id], 'watch_digest:other', at) is False
+
+    def test_concurrent_digest_claim_allows_exactly_one_worker(self):
+        rule = self._make_rule()
+        trigger = self.trigger_repo.record(
+            rule_id=rule.id, symbol=rule.symbol,
+            condition=rule.conditions[0], trigger_price=1801.0,
+            detail={'engine': 'v2'}, engine='v2',
+        )
+        self._created_trigger_ids.append(trigger.id)
+        barrier = threading.Barrier(2)
+        results, errors = [], []
+
+        def worker(event_id):
+            repo = WatchTriggerRepository()
+            try:
+                barrier.wait(timeout=5)
+                results.append(repo.claim_digest_batch(
+                    [trigger.id], event_id, datetime(2026, 11, 18, 10, 30)))
+            except Exception as exc:  # noqa: BLE001
+                errors.append(exc)
+            finally:
+                repo.session.close()
+
+        threads = [threading.Thread(target=worker, args=(event,)) for event in ('event-A', 'event-B')]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=10)
+        assert not errors
+        assert sorted(results) == [False, True]
+        self.trigger_repo.session.expire_all()
+        fetched = self.trigger_repo.get_by_id(trigger.id)
+        winning_event = fetched.detail['digest_claim_event_id']
+        assert winning_event in ('event-A', 'event-B')
+        assert self.trigger_repo.mark_digest_delivered(
+            [trigger.id], winning_event, datetime(2026, 11, 18, 10, 31)) is True
+
+    def test_digest_unacked_filter_runs_before_limit(self):
+        rule = self._make_rule(symbol='TESTLIMIT')
+        base = datetime(2026, 11, 18, 9, 0)
+        oldest = WatchTrigger(
+            rule_id=rule.id, symbol=rule.symbol, condition=rule.conditions[0],
+            trigger_price=1801.0, disposition='pending', engine='v2',
+            triggered_at=base, detail={},
+        )
+        acked = [WatchTrigger(
+            rule_id=rule.id, symbol=rule.symbol, condition=rule.conditions[0],
+            trigger_price=1801.0, disposition='pending', engine='v2',
+            triggered_at=base + timedelta(minutes=index + 1),
+            detail={'digest_event_id': f'old-event-{index}'},
+        ) for index in range(200)]
+        self.trigger_repo.session.add_all([oldest, *acked])
+        self.trigger_repo.session.flush()
+        self._created_trigger_ids.extend(row.id for row in [oldest, *acked])
+        self.trigger_repo.session.commit()
+
+        latest = self.trigger_repo.list_triggers(
+            symbol=rule.symbol, dispositions=('pending',), limit=200)
+        assert oldest.id not in {row.id for row in latest}
+        pending = self.trigger_repo.list_triggers(
+            symbol=rule.symbol, dispositions=('pending',), limit=200, digest_unacked=True)
+        assert [row.id for row in pending] == [oldest.id]
+
+    def test_scoped_digest_limit_isolates_rule_backlog(self):
+        rule_a = self._make_rule(symbol='TESTA')
+        rule_b = self._make_rule(symbol='TESTB')
+        base = datetime(2026, 11, 18, 9, 0)
+        rows = [WatchTrigger(
+            rule_id=rule_a.id, symbol=rule_a.symbol, condition=rule_a.conditions[0],
+            trigger_price=1801.0, disposition='pending', engine='v2',
+            triggered_at=base + timedelta(minutes=index), detail={},
+        ) for index in range(2)]
+        healthy = WatchTrigger(
+            rule_id=rule_b.id, symbol=rule_b.symbol, condition=rule_b.conditions[0],
+            trigger_price=1801.0, disposition='pending', engine='v2',
+            triggered_at=base + timedelta(minutes=3), detail={},
+        )
+        self.trigger_repo.session.add_all([*rows, healthy])
+        self.trigger_repo.session.flush()
+        self._created_trigger_ids.extend(row.id for row in [*rows, healthy])
+        self.trigger_repo.session.commit()
+
+        global_page = self.trigger_repo.list_triggers(
+            dispositions=('pending',), limit=2, digest_unacked=True,
+            rule_ids=[rule_a.id, rule_b.id])
+        assert {row.id for row in global_page} == {row.id for row in rows}
+        scoped_page = self.trigger_repo.list_triggers(
+            dispositions=('pending',), limit=2, digest_unacked=True, rule_ids=[rule_b.id])
+        assert [row.id for row in scoped_page] == [healthy.id]
 
     def test_rule_to_dict_serialization(self):
         rule = self._make_rule()

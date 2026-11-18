@@ -39,7 +39,7 @@ def _behavior(*, institution_flow=-1527.1 * 100_000_000,
         'window': 'trailing_5d_cumulative',
         'window_unit': 'calendar_days',
         'lookback_days': 5,
-        'start': '2026-11-13',
+        'start': '2026-11-14',
         'end': '2026-11-18',
         'as_of': as_of,
         'source': 'fund_flow_repository.get_market_aggregate_flow',
@@ -95,6 +95,22 @@ def test_repeated_polling_is_deterministic_and_not_notify_worthy():
                for a in second)
 
 
+def test_dedup_state_error_keeps_alerts_visible_but_not_notify_worthy():
+    class BrokenStore:
+        persistence = 'broken'
+        restart_safe = False
+
+        def observe(self, key, fingerprint, observed_at):
+            raise RuntimeError('state unavailable')
+
+    alerts = _service(FakeOpponentService(_behavior()), BrokenStore()).check_alerts()
+    assert len(alerts) == 2
+    assert all(alert['notify_worthy'] is False for alert in alerts)
+    assert all(alert['notification_reason'] == 'dedup_error' for alert in alerts)
+    assert all(alert['dedup_status'] == 'error' for alert in alerts)
+    assert all('state unavailable' in alert['dedup_error'] for alert in alerts)
+
+
 def test_alert_id_is_deterministic_across_time_and_empty_state_restarts():
     opponent = FakeOpponentService(_behavior())
     first_clock = {'now': NOW}
@@ -135,7 +151,7 @@ def test_without_current_day_data_cumulative_flow_cannot_be_same_day_critical():
     cumulative = _by_title(alerts, '机构资金区间累计净流出')
     assert cumulative['level'] == 'high'
     assert cumulative['window'] == 'trailing_5d_cumulative'
-    assert cumulative['start'] == '2026-11-13'
+    assert cumulative['start'] == '2026-11-14'
     assert cumulative['end'] == '2026-11-18'
     assert cumulative['as_of'] == '2026-11-17'
     assert cumulative['source_rows'] == 4

@@ -187,11 +187,12 @@ class OpportunityScanDailyJob(Job):
 
     def __init__(self, scoring_service=None, stock_pool_service=None,
                  watchlist_reader=None, rule_service=None, trading_day_guard=None,
-                 notification_sender=None):
+                 notification_sender=None, rule_write_service=None):
         self._scoring_service = scoring_service
         self._stock_pool_service = stock_pool_service
         self._watchlist_reader = watchlist_reader
         self._rule_service = rule_service
+        self._rule_write_service = rule_write_service
         self._trading_day_guard = trading_day_guard
         self._notification_sender = notification_sender
 
@@ -289,17 +290,24 @@ class OpportunityScanDailyJob(Job):
         for opp in candidates:
             opp["scoring_method"] = "ddd_industry_neutral_smooth"
 
-        auto_create = bool(params.get("auto_create_rules", True))
+        auto_create = bool(params.get("auto_create_rules", False))
         rule_results = []
         if auto_create and candidates:
+            watch_account = str(params.get('account_name') or params.get('watch_account') or '').strip() or None
+            decision_audit_id = str(params.get('decision_audit_id') or '').strip() or None
+            if not watch_account or not decision_audit_id:
+                return JobResult.fail(
+                    self.name, 'auto_create_rules=true 必须配置 account_name 与 decision_audit_id')
             rule_service = self._rule_service
             if rule_service is None:
                 from qs_watch.application.services.opportunity_to_watch_rule_service import (
                     OpportunityToWatchRuleService,
                 )
-                rule_service = OpportunityToWatchRuleService()
-            watch_account = str(params.get('account_name') or params.get('watch_account') or '').strip() or None
-            rule_results = rule_service.auto_create_rules(candidates, account=watch_account)
+                rule_service = OpportunityToWatchRuleService(
+                    write_service=self._rule_write_service)
+            rule_results = rule_service.auto_create_rules(
+                candidates, account=watch_account,
+                decision_audit_id=decision_audit_id, operator='agent')
 
         created = sum(result.get("action") == "created" for result in rule_results)
         skipped = sum(result.get("action") == "skipped" for result in rule_results)

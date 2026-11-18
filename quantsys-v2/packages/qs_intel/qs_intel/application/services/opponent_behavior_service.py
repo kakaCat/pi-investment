@@ -52,7 +52,8 @@ class OpponentBehaviorService:
         """
         now = self._now_fn()
         end = now.strftime('%Y-%m-%d')
-        start = (now - timedelta(days=5)).strftime('%Y-%m-%d')
+        # start/end 均为闭区间：5 个日历日 = 今天及此前 4 天，而非此前 5 天共 6 天。
+        start = (now - timedelta(days=4)).strftime('%Y-%m-%d')
         rows: List[Dict[str, Any]] = []
         read_error = None
         try:

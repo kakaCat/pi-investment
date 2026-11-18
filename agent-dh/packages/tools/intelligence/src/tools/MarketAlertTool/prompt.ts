@@ -7,7 +7,7 @@ export interface MarketAlertParams {
 
 export const marketAlertPrompt: ToolPrompt<MarketAlertParams> = {
   name: 'market_alert',
-  description: '获取系统生成的市场告警：异常波动、重大事件、风险信号，按触发时间倒序返回。适用于：盘前/盘中定期查看市场异常动态。告警是系统主动发现的风险线索，high 级别应优先处理并评估是否影响持仓。',
+  description: '获取系统生成的市场告警：异常波动、重大事件、风险信号，按触发时间倒序返回。适用于：盘前/盘中定期查看市场异常动态。notify_worthy=true 才是新出现/内容变化的新提醒；false 的持续告警仍代表风险存在，但不得重复当作新风险。告警是风险线索，high 级别应结合证据窗口评估是否影响持仓。',
 
   parameters: {
     level: {
@@ -32,7 +32,14 @@ export const marketAlertPrompt: ToolPrompt<MarketAlertParams> = {
           title: { type: 'string', description: '告警标题' },
           description: { type: 'string', description: '详细描述' },
           symbol: { type: 'string', description: '相关股票代码' },
-          triggered_at: { type: 'string', description: '触发时间' },
+          triggered_at: { type: 'string', description: '首次触发时间；持续告警的最近一次见数据时间另见 last_seen_at' },
+          notify_worthy: { type: 'boolean', description: '仅 true 表示新出现或内容变化，需要按新风险提醒；false 不重复提醒' },
+          notification_reason: { type: 'string', description: 'new_or_changed / unchanged / dedup_error' },
+          dedup_status: { type: 'string', description: '去重状态；error 时只保持风险可见，不作为新告警' },
+          window: { type: 'string', description: '资金证据窗口，如 trailing_5d_cumulative / single_day' },
+          start: { type: 'string', description: '证据窗口开始日' },
+          end: { type: 'string', description: '证据窗口结束日' },
+          as_of: { type: 'string', description: '实际数据最新时点，不是轮询时间' },
         },
         additionalProperties: true,
       },
@@ -79,7 +86,9 @@ export const marketAlertPrompt: ToolPrompt<MarketAlertParams> = {
 
   notes: [
     '告警按触发时间倒序返回（最新的在前）',
-    'high 级别告警建议优先处理，评估是否影响持仓',
+    'high 级别告警建议优先处理，评估是否影响持仓；但只有 notify_worthy=true 才作为新事件提醒',
+    'notify_worthy=false 且 notification_reason=unchanged：风险仍活跃但内容未变，不重复告警；dedup_error：状态不可读，先复核状态而非放大提醒',
+    'trailing_5d_cumulative 是闭区间 5 个日历日的历史累计，不是当日风险；single_day 才代表真实单日数据',
     '告警是系统主动发现的风险线索，结合 watch_list 规则触发生成',
   ],
 

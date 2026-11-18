@@ -13,6 +13,8 @@ export interface OpportunityScanParams {
   auto_create_rules?: boolean;
   /** auto_create_rules=true 时必填，明确规则归属，禁止猜默认账户 */
   account_name?: string;
+  /** auto_create_rules=true 时必填；后端核验其真实存在且与本次实体一致 */
+  decision_audit_id?: string;
 }
 
 export interface OpportunityScanResult {
@@ -75,6 +77,10 @@ export const opportunityScanPrompt: ToolPrompt<OpportunityScanParams, Opportunit
       type: 'string',
       description: '规则归属账户全名；auto_create_rules=true 时必填，不允许写死或猜测账户',
     },
+    decision_audit_id: {
+      type: 'string',
+      description: '事前决策审计号；auto_create_rules=true 时必填，后端验真并校验账户/标的实体',
+    },
   },
   examples: [
     'opportunity_scan({ scan_type: "hybrid" }) // 综合扫描市场机会',
@@ -88,7 +94,7 @@ export const opportunityScanPrompt: ToolPrompt<OpportunityScanParams, Opportunit
     '💡 fundamental 模式关注估值、业绩、财务质量',
     '💡 accumulation 模式（2026-11-10 上线）：蓄势扫描——找"波动压缩+缩量+趴着+资金温和流入"的未启动标的，与 momentum 哲学相反；特征阈值经全市场事件研究验证（5/10/20日超额 t=2.7~3.5 显著为正），命中 validated_combo 的优先级最高；蓄势≠立即买入，是观察仓候选',
     '⚠️ technical/hybrid/fundamental 模式实测偏右侧（追涨组全市场回测 5-10 日显著为负），找早期机会用 accumulation',
-    '⚠️ 默认只读扫描；auto_create_rules=true 才会创建观察规则且必须显式传 account_name',
+    '⚠️ 默认只读扫描；auto_create_rules=true 才会创建观察规则且必须显式传 account_name + 已存在的 decision_audit_id',
     '⚠️ 自动建规要求上游提供结构位/失效位/目标位/失效动作，缺少时跳过，不再按最新价×0.98生成买区',
     'min_score 建议设置 70-80 以过滤低质量信号',
   ],

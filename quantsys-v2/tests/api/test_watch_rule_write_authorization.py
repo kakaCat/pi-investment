@@ -39,6 +39,8 @@ class FakeRuleRepo:
         self.rows = {row.id: row for row in rules}
         self.update_calls = 0
         self.fail_update_calls = set()
+        self.none_update_calls = set()
+        self.false_delete_ids = set()
 
     def get_by_id(self, rule_id):
         return self.rows.get(int(rule_id))
@@ -67,12 +69,16 @@ class FakeRuleRepo:
         self.update_calls += 1
         if self.update_calls in self.fail_update_calls:
             raise RuntimeError(f'injected update failure #{self.update_calls}')
+        if self.update_calls in self.none_update_calls:
+            return None
         rule = self.rows[int(rule_id)]
         for key, value in fields.items():
             setattr(rule, key, value)
         return rule
 
     def delete_by_id(self, rule_id):
+        if int(rule_id) in self.false_delete_ids:
+            return False
         return self.rows.pop(int(rule_id), None) is not None
 
 
@@ -98,6 +104,14 @@ class FakeChangeRepo:
         return row
 
 
+class FakeDecisionRepo:
+    def __init__(self):
+        self.rows = {'DA-write-1': {'decision_id': 'DA-write-1'}}
+
+    def get_decision(self, decision_id):
+        return self.rows.get(decision_id)
+
+
 @pytest.fixture
 def env(monkeypatch):
     rules = FakeRuleRepo([
@@ -107,12 +121,14 @@ def env(monkeypatch):
         make_rule(4, 'agent_brain', context='second-old'),
     ])
     changes = FakeChangeRepo()
-    service = WatchRuleWriteService(rules, changes)
+    decisions = FakeDecisionRepo()
+    service = WatchRuleWriteService(rules, changes, decision_repo=decisions)
     monkeypatch.setattr(watch_async, '_write_service', lambda: service)
     monkeypatch.setattr(watch_async, 'WatchRuleRepository', lambda: rules)
     app = FastAPI()
     app.include_router(watch_async.router)
-    return SimpleNamespace(client=TestClient(app), rules=rules, changes=changes)
+    return SimpleNamespace(client=TestClient(app), rules=rules, changes=changes,
+                           decisions=decisions, service=service)
 
 
 def test_agent_cannot_patch_user_account(env):
@@ -140,19 +156,41 @@ def test_agent_write_requires_decision_audit(env):
     assert env.changes.rows == []
 
 
-def test_user_requires_reason_but_not_decision_audit(env):
-    missing = env.client.patch('/api/watch/rules/2', json={
-        'operator': 'user', 'context': 'must-not-write'})
-    assert missing.status_code == 400
-    assert missing.json()['error'] == 'watch_rule_change_missing_reason'
+def test_http_cannot_self_declare_user_but_trusted_internal_user_can_write(env):
+    forged = env.client.patch('/api/watch/rules/2', json={
+        **USER, 'decision_audit_id': 'DA-write-1', 'context': 'must-not-write'})
+    assert forged.status_code == 403
+    assert env.rules.rows[2].context == 'user-old'
+    assert env.changes.rows == []
 
-    resp = env.client.patch('/api/watch/rules/2', json={**USER, 'context': 'user-new'})
-    assert resp.status_code == 200, resp.text
-    change = env.changes.rows[-1]
+    result = env.service.update(2, {'context': 'user-new'},
+                                reason=USER['reason'], operator='user',
+                                decision_audit_id=None)
+    change = result['change']
     assert change.changed_by == 'user'
     assert change.decision_audit_id is None
     assert change.before == {'context': 'user-old'}
     assert change.after == {'context': 'user-new'}
+
+
+def test_agent_audit_must_exist_and_match_explicit_stock(env):
+    missing = env.client.patch('/api/watch/rules/1', json={
+        'reason': '伪造审计号', 'decision_audit_id': 'DA-not-found', 'context': 'bad'})
+    assert missing.status_code == 400
+    assert missing.json()['error'] == 'watch_rule_change_invalid_audit'
+    assert env.rules.rows[1].context == 'own-old'
+
+    env.decisions.rows['DA-other-stock'] = {
+        'decision_id': 'DA-other-stock',
+        'related_entity_type': 'stock', 'related_entity_id': '600519',
+    }
+    mismatched = env.client.patch('/api/watch/rules/1', json={
+        'reason': '借用其他标的审计', 'decision_audit_id': 'DA-other-stock',
+        'context': 'bad'})
+    assert mismatched.status_code == 400
+    assert mismatched.json()['error'] == 'watch_rule_change_invalid_audit'
+    assert env.rules.rows[1].context == 'own-old'
+    assert env.changes.rows == []
 
 
 def test_accountless_observation_create_allowed_with_audit_and_lineage(env):
@@ -222,6 +260,28 @@ def test_audit_failure_removes_unaudited_create(env):
     assert resp.status_code == 500
     assert resp.json()['success'] is False
     assert set(env.rules.rows) == before
+    assert env.changes.rows == []
+
+
+def test_update_returning_none_is_failure_and_never_writes_false_audit(env):
+    env.rules.none_update_calls = {1}
+    resp = env.client.patch('/api/watch/rules/1', json={**AGENT, 'context': 'not-persisted'})
+    assert resp.status_code == 500
+    assert resp.json()['success'] is False
+    assert env.rules.rows[1].context == 'own-old'
+    assert env.changes.rows == []
+
+
+def test_create_compensation_delete_false_is_not_reported_as_rolled_back(env):
+    env.changes.fail_calls = {1}
+    env.rules.false_delete_ids = {5}
+    resp = env.client.post('/api/watch/rules', json={
+        **AGENT, 'symbol': '000008.SZ', 'conditions': CONDITIONS, 'intent': 'trend_observe'})
+    assert resp.status_code == 500
+    body = resp.json()
+    assert body['rolled_back'] is False
+    assert body['rollback_errors']
+    assert 5 in env.rules.rows  # 补偿失败的残留必须可见，不能谎称已删除。
     assert env.changes.rows == []
 
 

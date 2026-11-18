@@ -69,6 +69,17 @@ export class OpportunityScanTool extends BaseTool<OpportunityScanParams, Opportu
       };
     }
 
+    if (args.auto_create_rules === true && !args.decision_audit_id?.trim()) {
+      return {
+        success: false,
+        errorType: ErrorType.INPUT_ERROR,
+        field: 'decision_audit_id',
+        issue: 'auto_create_rules=true 时必须提供已存在的事前 decision_audit_id',
+        received: args.decision_audit_id,
+        expected: '真实决策审计号；后端还会校验账户/标的实体',
+      };
+    }
+
     return { success: true };
   }
 
@@ -89,6 +100,7 @@ export class OpportunityScanTool extends BaseTool<OpportunityScanParams, Opportu
       // 工具默认只读；自动写规则必须由调用方显式开启并给出账户。
       auto_create_rules: args.auto_create_rules === true,
       account_name: args.account_name?.trim(),
+      decision_audit_id: args.decision_audit_id?.trim(),
     });
 
     const list = Array.isArray(raw) ? raw : (raw?.opportunities ?? []);

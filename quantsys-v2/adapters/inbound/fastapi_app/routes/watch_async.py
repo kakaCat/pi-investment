@@ -5,6 +5,9 @@ from typing import Any, Dict, Optional
 from fastapi import APIRouter, Body, Query
 from fastapi.responses import JSONResponse
 
+from adapters.outbound.repositories.agent_intelligence_repository import (
+    AgentIntelligenceORMRepository,
+)
 from adapters.outbound.repositories.watch_rule_repository import (
     WatchTrigger, WatchRuleRepository, WatchTriggerRepository, rule_to_dict, trigger_to_dict,
 )
@@ -31,13 +34,18 @@ EXPIRES_AT_ERROR = 'expires_at 格式无效（需 ISO 格式，如 2026-07-25T15
 
 def _write_service() -> WatchRuleWriteService:
     """普通规则写的唯一应用服务工厂（测试以内存仓储替换，避免直连生产库）。"""
-    return WatchRuleWriteService(WatchRuleRepository(), WatchRuleChangeRepository())
+    return WatchRuleWriteService(
+        WatchRuleRepository(), WatchRuleChangeRepository(),
+        decision_repo=AgentIntelligenceORMRepository(),
+    )
 
 
 def _write_context(data: Dict[str, Any]) -> Dict[str, Any]:
     return {
         'reason': data.get('reason'),
-        'operator': data.get('operator'),
+        # HTTP JSON 不能声明用户身份；受信内部用户修复才可传 operator=user。
+        # 否则任意请求都能绕过账户授权与 decision_audit 事前闸。
+        'operator': 'agent',
         'decision_audit_id': data.get('decision_audit_id'),
         'trigger_id': data.get('source_trigger_id', data.get('trigger_id')),
         'todo_id': data.get('todo_id'),

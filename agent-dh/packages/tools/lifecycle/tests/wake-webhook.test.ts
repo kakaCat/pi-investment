@@ -1,9 +1,9 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Readable } from 'node:stream';
 import { describe, expect, it, vi } from 'vitest';
-import { registerWakeWebhook } from '../src/wake-webhook.js';
+import { registerWakeWebhook, WakeDedupStore } from '../src/wake-webhook.js';
 
 function mount(options: { token?: string; maxBodyBytes?: number; dedupPath?: string; deliver?: ReturnType<typeof vi.fn> } = {}) {
   const deliver = options.deliver ?? vi.fn(async () => undefined);
@@ -127,6 +127,25 @@ describe('lifecycle /wake webhook', () => {
     expect(deliver).toHaveBeenCalledTimes(1);
   });
 
+  it('同事件 pending 不冒充 completed；首个真实投递失败后仍可重试', async () => {
+    let rejectFirst!: (error: Error) => void;
+    const gate = new Promise<void>((_resolve, reject) => { rejectFirst = reject; });
+    const deliver = vi.fn()
+      .mockImplementationOnce(() => gate)
+      .mockResolvedValueOnce(undefined);
+    const { route } = mount({ deliver });
+    const body = JSON.stringify({ event: 'watch_trigger', event_id: 'watch_trigger:pending-proof', data: {} });
+    const firstPromise = invoke(route, { body });
+    await vi.waitFor(() => expect(deliver).toHaveBeenCalledTimes(1));
+    const concurrent = await invoke(route, { body });
+    expect(concurrent.status).toBe(202);
+    expect(concurrent.json).toMatchObject({ success: false, in_progress: true, deduplicated: true });
+    rejectFirst(new Error('first delivery failed'));
+    expect((await firstPromise).json).toMatchObject({ success: false });
+    expect((await invoke(route, { body })).json).toMatchObject({ success: true });
+    expect(deliver).toHaveBeenCalledTimes(2);
+  });
+
   it('入队失败释放 pending，允许同 event_id 真正重试', async () => {
     const deliver = vi.fn()
       .mockRejectedValueOnce(new Error('offline'))
@@ -153,6 +172,39 @@ describe('lifecycle /wake webhook', () => {
       expect(directory.startsWith(join(tmpdir(), 'wake-dedup-test-'))).toBe(true);
       rmSync(directory, { recursive: true, force: true });
     }
+  });
+
+  it('合法 JSON 但结构损坏的幂等台账返回 503，不静默清空重投', async () => {
+    const malformed = [
+      { version: 1, entries: [] },
+      { version: 1 },
+      { version: 1, entries: { old: { state: 'completed' } } },
+      { version: 1, entries: { old: { state: 'bad', updatedAt: 1 } } },
+    ];
+    for (const value of malformed) {
+      const directory = mkdtempSync(join(tmpdir(), 'wake-dedup-test-'));
+      const dedupPath = join(directory, 'wake-dedup.json');
+      try {
+        writeFileSync(dedupPath, JSON.stringify(value));
+        const { route, deliver } = mount({ dedupPath });
+        const response = await invoke(route);
+        expect(response.status).toBe(503);
+        expect(deliver).not.toHaveBeenCalled();
+      } finally {
+        expect(directory.startsWith(join(tmpdir(), 'wake-dedup-test-'))).toBe(true);
+        rmSync(directory, { recursive: true, force: true });
+      }
+    }
+  });
+
+  it('reserve 持久化失败会撤销内存占位，同键可在写恢复后重试', () => {
+    const store = new WakeDedupStore('');
+    const persist = vi.spyOn(store as any, 'persist').mockImplementationOnce(() => {
+      throw new Error('disk full');
+    });
+    expect(() => store.reserve('evt-reserve', 1000)).toThrow('disk full');
+    persist.mockRestore();
+    expect(store.reserve('evt-reserve', 1001)).toBe(true);
   });
 
   it('watch 事件缺稳定幂等身份时拒绝，不伪造一次性 timestamp 键', async () => {

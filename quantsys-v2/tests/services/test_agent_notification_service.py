@@ -93,6 +93,38 @@ def test_notify_agent_detailed_ok():
         assert service.notify_agent('watch_triggered', {'trigger_ids': [1]}) is True
 
 
+def test_notify_agent_in_progress_is_not_delivery_proof():
+    from qs_agenthub.application.services.agent_notification_service import AgentNotificationService
+
+    service = AgentNotificationService(agent_url='http://agent.test:3001')
+    mock_resp = MagicMock()
+    mock_resp.status_code = 202
+    mock_resp.text = '{"success":false,"in_progress":true}'
+    mock_resp.json.return_value = {'success': False, 'in_progress': True}
+    with patch('qs_agenthub.application.services.agent_notification_service.requests.post',
+               return_value=mock_resp):
+        assert service.notify_agent_detailed('watch_digest', {'trigger_ids': [1]}) == 'in_progress'
+        assert service.notify_agent('watch_digest', {'trigger_ids': [1]}) is False
+
+
+def test_in_progress_stops_candidate_chain_before_backup():
+    from qs_agenthub.application.services.agent_notification_service import AgentNotificationService
+
+    service = AgentNotificationService(targets={
+        'primary': 'http://primary.test', 'backup': 'http://backup.test'})
+    pending = MagicMock(status_code=202, text='{"success":false,"in_progress":true}')
+    would_duplicate = MagicMock(status_code=200)
+    would_duplicate.json.return_value = {'success': True}
+    with patch.object(service, 'candidate_chain', return_value=['primary', 'backup']), \
+         patch('qs_agenthub.application.services.agent_notification_service.requests.post',
+               side_effect=[pending, would_duplicate]) as post:
+        assert service.notify_agent_detailed(
+            'watch_digest', {'event_id': 'watch_digest:same', 'trigger_ids': [1]},
+            target='primary') == 'in_progress'
+    assert post.call_count == 1
+    assert post.call_args.args[0] == 'http://primary.test/wake'
+
+
 def test_notify_agent_detailed_timeout():
     """Timeout → 'timeout'，且 notify_agent 返回 False"""
     import requests as real_requests

@@ -244,8 +244,26 @@ class TriggerArchive:
             if (entry.condition is not None
                     and within_hysteresis_band(entry.condition, getattr(quote, 'price', None))):
                 continue
+            if not self._mark_rearmed(entry):
+                self.failed += 1
+                # 持久化失败时保留旧闩锁；重启后仍恢复旧事件，绝不伪造新边沿。
+                continue
             _LATCH.pop(key, None)
             _REARMED.add(key)
+
+    def _mark_rearmed(self, entry: _LatchEntry) -> bool:
+        marker = getattr(self._repo, 'mark_rearmed', None)
+        if not callable(marker):
+            return True  # 旧内存仓储兼容；生产 WatchTriggerRepository 提供持久实现
+        try:
+            result = marker(entry.trigger_id, self._now)
+            if result is False:
+                raise RuntimeError('mark_rearmed 返回 False')
+            return True
+        except Exception as exc:  # noqa: BLE001
+            logger.error('v2.trigger_rearm_update_failed',
+                         trigger_id=entry.trigger_id, error=str(exc))
+            return False
 
     def _restore(self, key, condition) -> Optional[_LatchEntry]:
         finder = getattr(self._repo, 'find_latest_for_condition', None)
@@ -259,6 +277,14 @@ class TriggerArchive:
             engine=ARCHIVE_ENGINE,
         )
         if trigger is None:
+            return None
+        detail = getattr(trigger, 'detail', None) or {}
+        if isinstance(detail, dict) and detail.get('rearmed_at'):
+            # 旧事件已确认离开迟滞带；重启不能把它恢复成仍活跃闩锁。
+            _REARMED.add(key)
+            logger.info('v2.trigger_rearm_restored', rule_id=rule_id,
+                        trigger_id=getattr(trigger, 'id', None),
+                        rearmed_at=detail.get('rearmed_at'))
             return None
         entry = _LatchEntry(
             trigger_id=getattr(trigger, 'id', None),

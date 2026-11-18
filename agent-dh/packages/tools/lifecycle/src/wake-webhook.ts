@@ -56,14 +56,19 @@ export class WakeDedupStore {
     if (!filePath || !existsSync(filePath)) return;
     try {
       const raw = JSON.parse(readFileSync(filePath, 'utf-8'));
-      const values = raw?.entries;
-      if (values && typeof values === 'object' && !Array.isArray(values)) {
-        for (const [id, value] of Object.entries(values) as Array<[string, any]>) {
-          if ((value?.state === 'pending' || value?.state === 'completed')
-              && Number.isFinite(value?.updatedAt)) {
-            this.entries.set(id, { state: value.state, updatedAt: Number(value.updatedAt) });
-          }
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+        throw new Error('wake dedup root must be an object');
+      }
+      const values = raw.entries;
+      if (!values || typeof values !== 'object' || Array.isArray(values)) {
+        throw new Error('wake dedup entries must be an object');
+      }
+      for (const [id, value] of Object.entries(values) as Array<[string, any]>) {
+        if ((value?.state !== 'pending' && value?.state !== 'completed')
+            || !Number.isFinite(value?.updatedAt)) {
+          throw new Error(`wake dedup entry is malformed: ${id}`);
         }
+        this.entries.set(id, { state: value.state, updatedAt: Number(value.updatedAt) });
       }
     } catch (error) {
       this.loadError = error as Error;
@@ -79,8 +84,19 @@ export class WakeDedupStore {
       if (now - old.updatedAt < ttl) return false;
     }
     this.entries.set(id, { state: 'pending', updatedAt: now });
-    this.persist();
+    try {
+      this.persist();
+    } catch (error) {
+      // 占位未持久化就不能留在内存里冒充“已接收”；否则下次同键会被误去重。
+      this.entries.delete(id);
+      throw error;
+    }
     return true;
+  }
+
+  status(id: string): DedupEntry['state'] | undefined {
+    this.assertHealthy();
+    return this.entries.get(id)?.state;
   }
 
   complete(id: string, now = Date.now()): void {
@@ -232,7 +248,14 @@ function createWakeHandler(deliver: WakeDeliver, token: string | undefined,
       const wake = parseWakeBody(body);
       const eventId = resolveEventId(request, wake);
       if (!dedup.reserve(eventId)) {
-        respondJson(response, 200, { success: true, deduplicated: true, event_id: eventId });
+        if (dedup.status(eventId) === 'completed') {
+          respondJson(response, 200, { success: true, deduplicated: true, event_id: eventId });
+        } else {
+          // pending 只表示另一请求正在投递，不是送达证明；上游不得据此 ACK/clear。
+          respondJson(response, 202, {
+            success: false, in_progress: true, deduplicated: true, event_id: eventId,
+          });
+        }
         return;
       }
       reservedId = eventId;

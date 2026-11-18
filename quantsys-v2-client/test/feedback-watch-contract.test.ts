@@ -50,13 +50,33 @@ describe('feedback watch client contracts', () => {
     const client = clientWithHttp(http);
 
     const result = await client.scanOpportunitiesDetailed({
-      scan_type: 'accumulation', auto_create_rules: false, account_name: 'agent_brain',
+      scan_type: 'accumulation', auto_create_rules: true, account_name: 'agent_brain',
+      decision_audit_id: 'DA-scan',
     });
 
     expect(http.post).toHaveBeenCalledWith('/api/signals/scan', {
-      scan_type: 'accumulation', auto_create_rules: false, account_name: 'agent_brain',
+      scan_type: 'accumulation', auto_create_rules: true, account_name: 'agent_brain',
+      decision_audit_id: 'DA-scan',
     });
     expect(result.scanned).toBe(2);
     expect(result.watch_rule_results[0].action).toBe('skipped');
+  });
+
+  it('告警映射保留通知资格、去重状态与资金窗口', async () => {
+    const http = {
+      get: vi.fn(async () => ({ data: { success: true, data: [{
+        alert_id: 'alert-1', level: 'high', title: '持续风险', message: '五日累计',
+        notify_worthy: false, notification_reason: 'unchanged', dedup_status: 'ok',
+        content_fingerprint: 'abc', window: 'trailing_5d_cumulative',
+        start: '2026-11-14', end: '2026-11-18', as_of: '2026-11-17', source_rows: 4,
+      }] } })),
+    };
+    const alerts = await clientWithHttp(http).getAlerts({ level: 'all' });
+    expect(alerts[0]).toMatchObject({
+      id: 'alert-1', notify_worthy: false, notification_reason: 'unchanged',
+      dedup_status: 'ok', content_fingerprint: 'abc',
+      window: 'trailing_5d_cumulative', start: '2026-11-14',
+      end: '2026-11-18', as_of: '2026-11-17', source_rows: 4,
+    });
   });
 });

@@ -43,6 +43,7 @@ class TriggerRepo:
     def __init__(self):
         self.rows = []
         self.restore_calls = 0
+        self.fail_rearm = False
 
     def record(self, **kwargs):
         row = SimpleNamespace(
@@ -71,6 +72,14 @@ class TriggerRepo:
 
     def mark_notified(self, trigger_id, notified):
         self.get_by_id(trigger_id).notified = bool(notified)
+
+    def mark_rearmed(self, trigger_id, at):
+        if self.fail_rearm:
+            return False
+        row = self.get_by_id(trigger_id)
+        row.detail = dict(row.detail or {})
+        row.detail['rearmed_at'] = at.isoformat()
+        return True
 
 
 class Quotes:
@@ -224,6 +233,43 @@ def test_restart_restores_notified_trigger_without_duplicate_notification():
     scan(rule, repo, triggers, restarted, quotes)
 
     assert triggers.restore_calls == before_restart + 1
+    assert len(calls) == 1
+    assert len(triggers.rows) == 1
+
+
+def test_restart_after_persistent_rearm_allows_exactly_one_new_edge():
+    rule = make_rule()
+    repo, triggers = RuleRepo(rule), TriggerRepo()
+    calls = []
+    engine = make_engine(repo, agent_sender=lambda *args: calls.append(args) or True)
+    scan(rule, repo, triggers, engine, Quotes(rule.symbol, 11.0))
+    # 离开 above=10 的迟滞带：旧事件持久标记 rearm，而非只写进程内存。
+    scan(rule, repo, triggers, engine, Quotes(rule.symbol, 9.0))
+    assert triggers.rows[0].detail['rearmed_at']
+
+    reset_latch()  # 停机期间 rearm 已完成；重启后再次突破必须是新事件。
+    restarted = make_engine(repo, agent_sender=lambda *args: calls.append(args) or True)
+    scan(rule, repo, triggers, restarted, Quotes(rule.symbol, 11.0))
+    scan(rule, repo, triggers, restarted, Quotes(rule.symbol, 11.0))
+
+    assert len(calls) == 2
+    assert len(triggers.rows) == 2
+    assert triggers.rows[-1].notified is True
+
+
+def test_rearm_persistence_failure_keeps_old_latch_after_restart():
+    rule = make_rule()
+    repo, triggers = RuleRepo(rule), TriggerRepo()
+    calls = []
+    engine = make_engine(repo, agent_sender=lambda *args: calls.append(args) or True)
+    scan(rule, repo, triggers, engine, Quotes(rule.symbol, 11.0))
+    triggers.fail_rearm = True
+    scan(rule, repo, triggers, engine, Quotes(rule.symbol, 9.0))
+    assert 'rearmed_at' not in (triggers.rows[0].detail or {})
+
+    reset_latch()
+    restarted = make_engine(repo, agent_sender=lambda *args: calls.append(args) or True)
+    scan(rule, repo, triggers, restarted, Quotes(rule.symbol, 11.0))
     assert len(calls) == 1
     assert len(triggers.rows) == 1
 

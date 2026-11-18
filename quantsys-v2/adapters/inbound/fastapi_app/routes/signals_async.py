@@ -87,10 +87,16 @@ def scan_signals(payload: Optional[Dict[str, Any]] = Body(None)):
     page = max(1, int(snake_data.get('page', 1)))
     page_size = min(int(snake_data.get('page_size', 20)), 100)
     
-    # RFC 011：自动创建盯盘规则（后端兼容默认开启；只读工具会显式传 False）。
-    auto_create_rules = bool(snake_data.get('auto_create_rules', True))
+    # 自动写规则默认关闭；显式开启也必须经过统一账户授权与真实事前审计。
+    auto_create_rules = bool(snake_data.get('auto_create_rules', False))
     # 显式账户 → 账户候选；缺省 → 全局观察。不得在共享后端猜一个默认投资账户。
     watch_account = str(snake_data.get('account_name') or snake_data.get('account') or '').strip() or None
+    decision_audit_id = str(snake_data.get('decision_audit_id') or '').strip() or None
+    if auto_create_rules and (not watch_account or not decision_audit_id):
+        return error_response({
+            'success': False,
+            'error': 'auto_create_rules=true 必须同时提供 account_name 与 decision_audit_id',
+        }, 400)
     
     # RFC 012：使用 DDD 评分系统（默认开启，行业中性化 + 平滑化）
     use_ddd_scoring = bool(snake_data.get('use_ddd_scoring', True))
@@ -205,10 +211,13 @@ def scan_signals(payload: Optional[Dict[str, Any]] = Body(None)):
         watch_rule_results = []
         if auto_create_rules and sorted_opps:
             try:
-                watch_service = OpportunityToWatchRuleService()
+                from adapters.inbound.fastapi_app.routes.watch_async import _write_service
+                watch_service = OpportunityToWatchRuleService(write_service=_write_service())
                 # 只处理前 10 个最高分机会（避免一次创建太多）
                 top_opps = sorted_opps[:10]
-                watch_rule_results = watch_service.auto_create_rules(top_opps, account=watch_account)
+                watch_rule_results = watch_service.auto_create_rules(
+                    top_opps, account=watch_account,
+                    decision_audit_id=decision_audit_id, operator='agent')
                 logger.info(
                     '机会扫描自动创建盯盘规则',
                     created=sum(1 for r in watch_rule_results if r['action'] == 'created'),

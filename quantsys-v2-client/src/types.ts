@@ -584,11 +584,31 @@ export interface TradeVerifyResponse {
  */
 export interface Alert {
   id: string;
-  level: 'high' | 'medium' | 'low';
+  level: 'high' | 'medium' | 'low' | 'critical';
   title: string;
   description: string;
   symbol?: string;
   triggered_at: string;
+  type?: string;
+  action?: string;
+  symbols?: string[];
+  details?: Record<string, any>;
+  /** true=新/内容变化；false=持续未变或去重状态不可读，均不得当新事件重复提醒 */
+  notify_worthy?: boolean;
+  notification_reason?: string;
+  notification_key?: string;
+  content_fingerprint?: string;
+  dedup_status?: 'ok' | 'error';
+  dedup_error?: string | null;
+  window?: string;
+  window_unit?: string;
+  lookback_days?: number;
+  start?: string;
+  end?: string;
+  as_of?: string;
+  source?: string;
+  source_rows?: number;
+  current_day?: string;
 }
 
 /**
@@ -767,6 +787,7 @@ export interface OpportunityScanRequest {
   min_score?: number;
   auto_create_rules?: boolean;
   account_name?: string;
+  decision_audit_id?: string;
   // Legacy fields (keep for backward compatibility)
   conditions?: string[];
   limit?: number;

@@ -99,12 +99,22 @@ class IWatchDigestStateRepository(ABC):
 
     @abstractmethod
     def load_state(self) -> Any:
-        """返回 {last_wake_at, wake_date, wake_count}"""
+        """返回状态与 pending_batches；读取失败必须带 load_error，不得伪报空态。"""
         pass
 
     @abstractmethod
-    def save_wake(self, now: datetime) -> None:
-        """记录一次唤醒（当日计数自增，跨日归零）"""
+    def save_wake(self, now: datetime, account: Optional[str] = None) -> bool:
+        """记录一次唤醒；只有返回 True 才允许清理固定 pending 批次。"""
+        pass
+
+    @abstractmethod
+    def save_pending_batch(self, account: str, batch: Dict[str, Any]) -> bool:
+        """网络投递前持久化固定 event_id/payload/through。"""
+        pass
+
+    @abstractmethod
+    def clear_pending_batch(self, account: str, expected_event_id: str) -> bool:
+        """行锁内只清 expected_event_id 自己的 pending，旧完成者不得删新批次。"""
         pass
 
 
@@ -611,6 +621,21 @@ class IWatchTriggerRepository(ABC):
     def find_latest_for_condition(self, rule_id: int, condition: dict, since,
                                   engine: str = 'v2'):
         """读取当日同规则、同条件的最新触发，供 V2 闩锁重启恢复。"""
+        pass
+
+    @abstractmethod
+    def claim_digest_batch(self, trigger_ids: List[int], event_id: str, at) -> bool:
+        """网络发送前用行锁原子认领；不同 event_id 只允许一个成功。"""
+        pass
+
+    @abstractmethod
+    def mark_digest_delivered(self, trigger_ids: List[int], event_id: str, at) -> bool:
+        """持久确认摘要批次；同一 event_id 幂等，另一事件不得覆盖既有确认。"""
+        pass
+
+    @abstractmethod
+    def mark_rearmed(self, trigger_id: int, at) -> bool:
+        """在移除 V2 闩锁前持久化真实再武装边界。"""
         pass
 
     @abstractmethod

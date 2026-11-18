@@ -36,6 +36,11 @@ class WatchRuleChangeMissingAudit(WatchRuleChangeError):
     code = 'watch_rule_change_missing_audit'
 
 
+class WatchRuleChangeInvalidAudit(WatchRuleChangeError):
+    """审计号不存在，或其显式业务实体与本次规则写不一致。"""
+    code = 'watch_rule_change_invalid_audit'
+
+
 class WatchRuleWriteFailed(RuntimeError):
     """写入/审计失败；rollback_errors 非空表示补偿也未完整成功。"""
 
@@ -123,9 +128,11 @@ def _normalize_fields(fields: Dict[str, Any]) -> Dict[str, Any]:
 class WatchRuleWriteService:
     """规则写入应用服务；仓储由路由/测试注入，不自行接触 ORM 或 SQL。"""
 
-    def __init__(self, rule_repo: Any, change_repo: Any, *, policy: Any = None):
+    def __init__(self, rule_repo: Any, change_repo: Any, *, policy: Any = None,
+                 decision_repo: Any = None):
         self._rule_repo = rule_repo
         self._change_repo = change_repo
+        self._decision_repo = decision_repo
         self._policy = policy
 
     @staticmethod
@@ -177,6 +184,44 @@ class WatchRuleWriteService:
             policy=self._policy,
             allow_accountless_observation=allow_none,
         )
+
+    def _validate_audit(self, ctx: Dict[str, Any], *, before: Any = None,
+                        fields: Optional[Dict[str, Any]] = None) -> None:
+        """事前审计必须真实存在；显式关联实体不得张冠李戴。
+
+        通用 pool/strategy 决策可派生多条规则，因此不强制所有决策都预绑定 rule_id；
+        但 stock/account/rule 三类明确实体若与目标不同，必须拒绝。
+        """
+        if ctx['changed_by'] == USER_OPERATOR:
+            return
+        if self._decision_repo is None:
+            raise WatchRuleChangeInvalidAudit('规则写服务未接决策审计仓储，拒绝写入')
+        audit_id = ctx.get('decision_audit_id')
+        decision = self._decision_repo.get_decision(audit_id)
+        if not decision:
+            raise WatchRuleChangeInvalidAudit(f'decision_audit_id 不存在: {audit_id}')
+        related_type = str(decision.get('related_entity_type') or '').strip()
+        related_id = decision.get('related_entity_id')
+        if related_id is None or not related_type:
+            return
+        data = fields or {}
+        related = str(related_id)
+        if related_type == 'stock':
+            symbol = str(data.get('symbol') or _get(before, 'symbol') or '')
+            if symbol and related != symbol:
+                raise WatchRuleChangeInvalidAudit(
+                    f'审计标的 {related} 与规则标的 {symbol} 不一致')
+        elif related_type == 'account':
+            account = (data.get('linked_account') or data.get('account')
+                       or effective_account(before))
+            if account and related != str(account):
+                raise WatchRuleChangeInvalidAudit(
+                    f'审计账户 {related} 与规则账户 {account} 不一致')
+        elif related_type == 'rule':
+            rule_id = _get(before, 'id')
+            if rule_id is None or related != str(rule_id):
+                raise WatchRuleChangeInvalidAudit(
+                    f'审计规则 {related} 与目标规则 {rule_id} 不一致')
 
     def _authorize_existing(self, rule: Any, ctx: Dict[str, Any]) -> None:
         account, derived = self._guard(rule, {})
@@ -250,6 +295,7 @@ class WatchRuleWriteService:
             if error:
                 raise ValueError(error)
 
+        self._validate_audit(ctx, fields=data)
         base = {key: data[key] for key in _CREATE_BASE_FIELDS if key in data}
         created = self._rule_repo.create_rule(**base)
         if created is None:
@@ -312,6 +358,7 @@ class WatchRuleWriteService:
             if error:
                 raise ValueError(error)
 
+        self._validate_audit(ctx, before=before, fields=data)
         names = list(data)
         before_fields = _snapshot(before, names) or {}
         updated = self._rule_repo.update_fields(rule_id, **data)
@@ -347,6 +394,7 @@ class WatchRuleWriteService:
         if before is None:
             raise WatchRuleChangeRuleNotFound(f'规则 {rule_id} 不存在')
         self._authorize_existing(before, ctx)
+        self._validate_audit(ctx, before=before)
         note = str(retire_note or ctx['reason']).strip()
         old_notes = _get(before, 'ops_notes') or []
         notes = list(old_notes) + [{'at': datetime.now().isoformat(),

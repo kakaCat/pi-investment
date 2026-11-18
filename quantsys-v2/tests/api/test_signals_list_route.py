@@ -12,6 +12,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from adapters.inbound.fastapi_app.routes.signals_async import router
+from adapters.inbound.fastapi_app.routes import signals_async as signals_module
 
 
 @pytest.fixture
@@ -54,3 +55,30 @@ class TestSignalsListParamPaths:
         resp = client.get('/api/signals', params={'days': 7, 'limit': 5})
         assert resp.status_code == 200
         assert resp.json()['success'] is True, resp.json().get('error')
+
+
+def test_scan_defaults_to_read_only_even_with_high_score_candidate(client, monkeypatch):
+    monkeypatch.setattr(signals_module, '_read_watchlist',
+                        lambda: {'items': [{'symbol': '600519'}]})
+    monkeypatch.setattr(signals_module.stock_pool_service, 'get_hot_stocks', lambda: [])
+    monkeypatch.setattr(
+        signals_module.scoring_service, 'score_stocks',
+        lambda **kwargs: [{'symbol': '600519', 'name': '贵州茅台', 'score': 90,
+                           'risk_level': 'medium', 'signal_type': 'buy'}])
+    response = client.post('/api/signals/scan', json={})
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body['total'] == 1
+    assert 'watch_rule_results' not in body and 'watch_rules_created' not in body
+
+
+@pytest.mark.parametrize('payload', [
+    {'auto_create_rules': True},
+    {'auto_create_rules': True, 'account_name': 'agent_brain'},
+    {'auto_create_rules': True, 'decision_audit_id': 'DA-scan'},
+])
+def test_scan_auto_rule_write_requires_account_and_audit(client, payload):
+    response = client.post('/api/signals/scan', json=payload)
+    assert response.status_code == 400
+    assert 'account_name' in response.json()['error']
+    assert 'decision_audit_id' in response.json()['error']

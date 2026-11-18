@@ -6,6 +6,7 @@ import pytest
 
 from adapters.outbound.repositories.watch_rule_repository import WatchRuleRepository
 from qs_watch.application.services.opportunity_to_watch_rule_service import OpportunityToWatchRuleService
+from qs_watch.application.services.watch_engine.watch_rule_write_service import WatchRuleWriteService
 
 
 @pytest.fixture
@@ -30,7 +31,15 @@ def repo():
 
 @pytest.fixture
 def service(repo):
-    return OpportunityToWatchRuleService(rule_repo=repo)
+    change_repo = Mock()
+    change_repo.record.return_value = Mock(id=1)
+    decision_repo = Mock()
+    decision_repo.get_decision.return_value = {
+        'decision_id': 'DA-scan', 'related_entity_type': 'pool', 'related_entity_id': 'scan-pool',
+    }
+    write_service = WatchRuleWriteService(
+        repo, change_repo, decision_repo=decision_repo)
+    return OpportunityToWatchRuleService(rule_repo=repo, write_service=write_service)
 
 
 def opportunity(**overrides):
@@ -48,7 +57,8 @@ def opportunity(**overrides):
 
 
 def test_complete_structure_creates_explicit_price_rule(service, repo):
-    result = service.auto_create_rules([opportunity()], account='agent_brain')[0]
+    result = service.auto_create_rules(
+        [opportunity()], account='agent_brain', decision_audit_id='DA-scan')[0]
 
     assert result['action'] == 'created'
     assert result['ownership'] == 'account'
@@ -97,7 +107,7 @@ def test_invalid_structure_or_reward_risk_is_rejected(service, repo, setup):
 
 
 def test_missing_account_is_explicit_global_observation(service, repo):
-    result = service.auto_create_rules([opportunity()])[0]
+    result = service.auto_create_rules([opportunity()], decision_audit_id='DA-scan')[0]
 
     assert result['action'] == 'created'
     assert result['ownership'] == 'global_observation'
@@ -114,4 +124,22 @@ def test_filters_and_duplicate_guard_still_apply(service, repo):
     assert service.auto_create_rules([opportunity(signal_type='sell')])[0]['action'] == 'skipped'
     repo.list_rules.return_value = [Mock(id=1)]
     assert service.auto_create_rules([opportunity()])[0]['action'] == 'skipped'
+    repo.create_rule.assert_not_called()
+
+
+def test_auto_create_requires_real_audit_and_authorized_account(service, repo):
+    missing = service.auto_create_rules([opportunity()], account='agent_brain')[0]
+    assert missing['action'] == 'failed'
+    forbidden = service.auto_create_rules(
+        [opportunity()], account='user_main_simulation', decision_audit_id='DA-scan')[0]
+    assert forbidden['action'] == 'failed'
+    repo.create_rule.assert_not_called()
+
+
+def test_auto_create_without_unified_write_service_fails_closed(repo):
+    raw = OpportunityToWatchRuleService(rule_repo=repo)
+    result = raw.auto_create_rules(
+        [opportunity()], account='agent_brain', decision_audit_id='DA-scan')[0]
+    assert result['action'] == 'failed'
+    assert 'WatchRuleWriteService' in result['reason']
     repo.create_rule.assert_not_called()

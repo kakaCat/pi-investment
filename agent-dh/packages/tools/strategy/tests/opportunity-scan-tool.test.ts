@@ -27,4 +27,18 @@ describe('opportunity_scan read/write boundary', () => {
     expect(result.field).toBe('account_name');
     expect(client.scanOpportunitiesDetailed).not.toHaveBeenCalled();
   });
+
+  it('自动建规还必须携带并透传事前审计号', async () => {
+    const { tool, client } = makeTool();
+    const invalid = (tool as any).validate({ auto_create_rules: true, account_name: 'acct_A' });
+    expect(invalid.success).toBe(false);
+    expect(invalid.field).toBe('decision_audit_id');
+
+    await (tool as any).execute({
+      auto_create_rules: true, account_name: 'acct_A', decision_audit_id: 'DA-scan',
+    }, {});
+    expect(client.scanOpportunitiesDetailed).toHaveBeenCalledWith(expect.objectContaining({
+      auto_create_rules: true, account_name: 'acct_A', decision_audit_id: 'DA-scan',
+    }));
+  });
 });

@@ -4,6 +4,9 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from adapters.inbound.fastapi_app.routes.watch_async import router
+from adapters.outbound.repositories.agent_intelligence_repository import (
+    AgentIntelligenceORMRepository,
+)
 
 VALID_CONDITIONS = [
     {'type': 'price_break', 'params': {'direction': 'above', 'price': 1800.0}},
@@ -20,7 +23,12 @@ def _delete(client, rule_id):
 
 
 @pytest.fixture
-def client():
+def client(monkeypatch):
+    # parity 用例聚焦规则路由；固定审计号在此显式登记为存在，不写业务库。
+    monkeypatch.setattr(
+        AgentIntelligenceORMRepository, 'get_decision',
+        lambda self, decision_id: ({'decision_id': decision_id}
+                                   if decision_id == 'DA-watch-parity' else None))
     app = FastAPI()
     app.include_router(router)
     return TestClient(app)

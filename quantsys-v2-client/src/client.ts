@@ -1681,6 +1681,16 @@ export class QuantsysV2Client {
       triggered_at: a.triggered_at ?? a.created_at ?? '',
       // 透传后端附加信息（action/details/symbols/type），供工具层展示依据
       type: a.type, action: a.action, symbols: a.symbols, details: a.details,
+      // 活跃告警仍可见；通知资格与窗口证据必须传到 agent，不能丢成重复 high 告警。
+      notify_worthy: a.notify_worthy,
+      notification_reason: a.notification_reason,
+      notification_key: a.notification_key,
+      content_fingerprint: a.content_fingerprint,
+      dedup_status: a.dedup_status,
+      dedup_error: a.dedup_error,
+      window: a.window, window_unit: a.window_unit, lookback_days: a.lookback_days,
+      start: a.start, end: a.end, as_of: a.as_of,
+      source: a.source, source_rows: a.source_rows, current_day: a.current_day,
     })) as any as Alert[];
   }
 

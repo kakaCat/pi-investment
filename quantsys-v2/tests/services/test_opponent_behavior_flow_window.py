@@ -44,16 +44,16 @@ def _service(rows):
 
 def test_window_metadata_is_cumulative_and_reads_repository_once():
     service, repo = _service([
-        _row('2026-11-13', main=-500000, small=250000, medium=100000),
+        _row('2026-11-14', main=-500000, small=250000, medium=100000),
         _row('2026-11-17', main=-300000, small=100000, medium=50000),
     ])
 
     result = service.analyze_current_behavior()
 
-    assert repo.calls == [('2026-11-13', '2026-11-18')]
+    assert repo.calls == [('2026-11-14', '2026-11-18')]
     assert result['window'] == 'trailing_5d_cumulative'
     assert result['window_unit'] == 'calendar_days'
-    assert result['start'] == '2026-11-13'
+    assert result['start'] == '2026-11-14'
     assert result['end'] == '2026-11-18'
     assert result['as_of'] == '2026-11-17'
     assert result['source_rows'] == 2

@@ -45,13 +45,21 @@ export class MarketAlertTool extends BaseTool<MarketAlertParams, any[]> {
       low: data.filter((a: any) => a.level === 'low').length,
     };
 
+    const notification = {
+      notify_worthy: data.filter((a: any) => a.notify_worthy === true).length,
+      unchanged: data.filter((a: any) => a.notification_reason === 'unchanged').length,
+      dedup_errors: data.filter((a: any) => a.dedup_status === 'error').length,
+      unspecified: data.filter((a: any) => a.notify_worthy === undefined).length,
+    };
+
     return {
       success: true,
       data,
-      message: `共 ${data.length} 条告警（high: ${levelCounts.high}, medium: ${levelCounts.medium}, low: ${levelCounts.low}）`,
+      message: `共 ${data.length} 条活跃告警（high: ${levelCounts.high}, medium: ${levelCounts.medium}, low: ${levelCounts.low}）；新/变化 ${notification.notify_worthy} 条，持续未变 ${notification.unchanged} 条，去重异常 ${notification.dedup_errors} 条`,
       metadata: {
         total: data.length,
         by_level: levelCounts,
+        notification,
       },
     };
   }

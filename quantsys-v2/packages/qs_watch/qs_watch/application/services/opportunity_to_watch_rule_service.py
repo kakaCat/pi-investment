@@ -34,15 +34,23 @@ class OpportunityToWatchRuleService:
     MIN_SCORE = 80
     DEFAULT_EXPIRY_DAYS = 30
 
-    def __init__(self, rule_repo: Optional[IWatchRuleRepository] = None):
+    def __init__(self, rule_repo: Optional[IWatchRuleRepository] = None,
+                 write_service: Any = None):
         self.rule_repo = rule_repo or watch_rule_repo()
+        self.write_service = write_service
 
-    def auto_create_rules(self, opportunities: List[Dict], account: Optional[str] = None) -> List[Dict]:
-        """批量创建；account 为空表示全局观察，绝不猜一个默认账户。"""
+    def auto_create_rules(self, opportunities: List[Dict], account: Optional[str] = None,
+                          decision_audit_id: Optional[str] = None,
+                          operator: str = 'agent') -> List[Dict]:
+        """批量创建；所有写必须经统一授权/审计服务，不允许直写仓储。"""
         owner = str(account or '').strip() or None
-        return [self._process_single_opportunity(opp, account=owner) for opp in opportunities]
+        return [self._process_single_opportunity(
+            opp, account=owner, decision_audit_id=decision_audit_id, operator=operator,
+        ) for opp in opportunities]
 
-    def _process_single_opportunity(self, opp: Dict, account: Optional[str] = None) -> Dict:
+    def _process_single_opportunity(self, opp: Dict, account: Optional[str] = None,
+                                    decision_audit_id: Optional[str] = None,
+                                    operator: str = 'agent') -> Dict:
         symbol = str(opp.get('symbol') or '')
         score = opp.get('score', 0)
         signal_type = opp.get('signal_type', '')
@@ -60,7 +68,8 @@ class OpportunityToWatchRuleService:
                     'reason': f'已存在{len(existing_rules)}条启用规则'}
 
         try:
-            rule = self._create_watch_rule(opp, account=account)
+            rule = self._create_watch_rule(
+                opp, account=account, decision_audit_id=decision_audit_id, operator=operator)
             if rule is None:
                 return {
                     'symbol': symbol,
@@ -109,7 +118,9 @@ class OpportunityToWatchRuleService:
             return None
         return entry, invalidation, target, action, basis, direction
 
-    def _create_watch_rule(self, opp: Dict, account: Optional[str] = None):
+    def _create_watch_rule(self, opp: Dict, account: Optional[str] = None,
+                           decision_audit_id: Optional[str] = None,
+                           operator: str = 'agent'):
         structure = self._validated_structure(opp)
         if structure is None:
             return None
@@ -134,22 +145,32 @@ class OpportunityToWatchRuleService:
             'structure_basis': basis,
             'ownership': 'account' if account else 'global_observation',
         }
-        rule = self.rule_repo.create_rule(
-            symbol=symbol,
-            conditions=conditions,
-            context=context,
-            active_window=None,
-            expires_at=datetime.now() + timedelta(days=self.DEFAULT_EXPIRY_DAYS),
-            created_by='opportunity_scan',
-            account=account,
-            linked_account=account,
-            intent='trend_observe',
-            action_hint=action_hint,
-            position_state='none',
-            trigger_channel='direct',
-        )
-        self._update_rule_meta(rule, symbol)
-        return rule
+        if self.write_service is None:
+            raise RuntimeError('自动建规未注入统一 WatchRuleWriteService，已 fail-closed')
+        policy = EscalationPolicy(auto_escalate=True)
+        result = self.write_service.create({
+            'symbol': symbol,
+            'conditions': conditions,
+            'context': context,
+            'active_window': None,
+            'expires_at': datetime.now() + timedelta(days=self.DEFAULT_EXPIRY_DAYS),
+            'created_by': 'opportunity_scan',
+            'account': account,
+            'linked_account': account,
+            'intent': 'trend_observe',
+            'action_hint': action_hint,
+            'position_state': 'none',
+            'trigger_channel': 'direct',
+            'lifecycle_stage': 'watching',
+            'scope': 'symbol',
+            'target': symbol,
+            'review_interval_days': 7,
+            'next_action_hint': '结构触发后复核数据时点与账户归属；观察不等于入场',
+            'escalation_policy': {'auto_escalate': policy.auto_escalate},
+            'created_from': 'opportunity_scan',
+        }, reason=f'机会扫描按 {symbol} 显式结构创建非交易观察规则',
+            operator=operator, decision_audit_id=decision_audit_id)
+        return result['rule']
 
     @staticmethod
     def _build_context(opp: Dict, *, basis: str, invalidation: float,
@@ -167,16 +188,4 @@ class OpportunityToWatchRuleService:
             f'失效位：{invalidation}；失效后动作：{invalidation_action}\n'
             f'数据时点：{data_as_of}\n'
             f'[opportunity_scan 自动创建 · 显式结构证据 · 非买入指令]'
-        )
-
-    def _update_rule_meta(self, rule, symbol: str) -> None:
-        policy = EscalationPolicy(auto_escalate=True)
-        self.rule_repo.update_fields(
-            rule.id,
-            lifecycle_stage='watching',
-            scope='symbol',
-            target=symbol,
-            review_interval_days=7,
-            next_action_hint='结构触发后复核数据时点与账户归属；观察不等于入场',
-            escalation_policy={'auto_escalate': policy.auto_escalate},
         )

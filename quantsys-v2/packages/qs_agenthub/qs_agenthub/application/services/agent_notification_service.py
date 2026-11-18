@@ -197,6 +197,7 @@ class AgentNotificationService:
         Returns:
             'ok'      - 成功送达并确认
             'timeout' - 请求超时（事件大概率已送达，Agent 正在处理，不应重试）
+            'in_progress' - 同事件正在首选 agent 投递（不得 ACK、不得换候选）
             'error'   - 连接失败/其他错误（事件未送达，可重试）
             'disabled'- 通知被禁用
             'skipped' - 非生产环境（测试库/pytest 进程），按纪律不投递真实 agent
@@ -206,8 +207,8 @@ class AgentNotificationService:
         回退成功时在 payload 里标注 delivery_target / delivery_fallback_from /
         delivery_fallback_reason —— **绝不静默丢事件**（盯盘事件里有止损这类不能丢的东西）。
 
-        'timeout' **不换下一个候选**：那是"大概率已送达但无法确认"，换人就有重复处置风险
-        （与 2026-09-11 定下的"超时不重试"同一口径）。
+        'timeout' / 'in_progress' **不换下一个候选**：首选 agent 可能正在真实处理，
+        换人就有重复处置风险；in_progress 同时不构成 ACK 送达证明。
         """
         if not self.enabled:
             logger.debug(f"Agent notify disabled, skipping: {event}")
@@ -252,9 +253,9 @@ class AgentNotificationService:
                     logger.warning("候选链回退投递成功", notify_event=event,
                                    requested=requested, delivered_to=key, hops=idx)
                 return status
-            if status == 'timeout':
-                logger.warning("候选链首个候选超时：不再换人（避免重复处置）",
-                               notify_event=event, target=key)
+            if status in ('timeout', 'in_progress'):
+                logger.warning("候选已超时或正在投递：不换人、不作送达确认",
+                               notify_event=event, target=key, status=status)
                 return status
             logger.error("候选链候选不可达，尝试下一个",
                          notify_event=event, target=key, url=url,
@@ -292,6 +293,12 @@ class AgentNotificationService:
                 headers=headers
             )
 
+            if response.status_code == 202:
+                # 同事件正在该候选内投递：结果不确定，立即停止候选链，但不允许 ACK。
+                detail = f"HTTP 202 in_progress: {response.text[:200]}"
+                logger.info("Agent 同事件正在投递，禁止回退造成双处置",
+                            notify_event=event, target=target_key, url=url)
+                return 'in_progress', detail
             if response.status_code == 200:
                 result = response.json()
                 if result.get('success'):

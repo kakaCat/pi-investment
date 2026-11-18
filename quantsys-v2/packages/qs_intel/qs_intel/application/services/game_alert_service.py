@@ -92,7 +92,7 @@ class GameAlertService:
         excluded = {
             'alert_id', 'created_at', 'last_seen_at', 'content_fingerprint',
             'notify_worthy', 'notification_reason', 'notification_key',
-            'dedup_persistence', 'dedup_restart_safe', 'dedup_status',
+            'dedup_persistence', 'dedup_restart_safe', 'dedup_status', 'dedup_error',
         }
         return {key: value for key, value in alert.items() if key not in excluded}
 
@@ -131,8 +131,9 @@ class GameAlertService:
             'alert_id': self._generate_alert_id(fingerprint),
             'content_fingerprint': fingerprint,
             'notification_key': key,
-            'notify_worthy': not unchanged,
-            'notification_reason': 'unchanged' if unchanged else 'new_or_changed',
+            'notify_worthy': False if state_error else not unchanged,
+            'notification_reason': (
+                'dedup_error' if state_error else 'unchanged' if unchanged else 'new_or_changed'),
             'created_at': first_seen_at,
             'last_seen_at': observed_at,
             'dedup_persistence': getattr(
@@ -141,6 +142,7 @@ class GameAlertService:
                 self._alert_state, 'restart_safe',
                 False if self._alert_state_persistence == 'process_memory' else None),
             'dedup_status': 'error' if state_error else 'ok',
+            'dedup_error': state_error,
         })
         if not callable(observer):
             try:
@@ -151,6 +153,9 @@ class GameAlertService:
                 }
             except Exception as exc:
                 finalized['dedup_status'] = 'error'
+                finalized['dedup_error'] = str(exc)
+                finalized['notify_worthy'] = False
+                finalized['notification_reason'] = 'dedup_error'
                 logger.error(f"写入告警去重状态失败: {exc}")
         return finalized
 
