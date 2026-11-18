@@ -81,7 +81,8 @@ class TestDecisionScoringPipeline:
         decision_dict = _build_decision_dict(full_id, TEST_SYMBOL, "trade_buy", 1650.00, trade_date)
         service = self._make_service({TEST_SYMBOL: klines_data}, [decision_dict])
 
-        pending = service.decision_repo.list_pending_evaluations(days=30)
+        pending = service.decision_repo.list_unscored_decisions(
+            days=30, decision_types=['trade_buy', 'trade_sell', 'missed_opportunity'])
         assert len(pending) >= 1
 
         result = service.score_mature_decisions(pending_days=30)

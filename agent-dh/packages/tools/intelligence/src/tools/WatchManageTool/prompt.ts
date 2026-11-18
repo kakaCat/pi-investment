@@ -7,6 +7,9 @@ export interface WatchManageParams {
   symbol?: string;
   condition?: string;
   reason?: string;
+  decision_audit_id?: string;
+  source_trigger_id?: number;
+  todo_id?: number;
   cost_price?: number;
   account?: string;
   expires_at?: string;
@@ -41,7 +44,21 @@ export const watchManagePrompt: ToolPrompt<WatchManageParams> = {
     },
     reason: {
       type: 'string',
-      description: '监视理由（强烈建议填写）：为什么盯这只票、触发后该怎么决策。触发通知会带出此文本，供未来自己/其他窗口回溯决策上下文',
+      description: '必填变更理由：为什么创建/启停/归档、触发后怎么决策；create 时也作为监视上下文',
+      required: true,
+    },
+    decision_audit_id: {
+      type: 'string',
+      description: '必填事前审计号：先调 decision_audit(record)，再把返回 ID 传入；后端校验账户授权与审计血缘',
+      required: true,
+    },
+    source_trigger_id: {
+      type: 'integer',
+      description: '可选：本次规则变更来源的触发 ID',
+    },
+    todo_id: {
+      type: 'integer',
+      description: '可选：本次规则变更来源的盯盘待办 ID',
     },
     cost_price: {
       type: 'number',
@@ -199,6 +216,8 @@ export const watchManagePrompt: ToolPrompt<WatchManageParams> = {
   ],
 
   notes: [
+    '⚠️ 2026-11-18 起所有写操作必须 reason + decision_audit_id（先 decision_audit(record)）；delete 为可审计软归档，不是物理删除',
+    '⚠️ 账户自治边界由后端统一复核：agent 不能借通用/batch/repair 接口修改用户或未知账户规则',
     '2026-09-01 扩展：新增 pnl_pct（持仓盈亏%）、volume_surge（量能倍数）、velocity（窗口波动）条件，新增 reason（监视理由）/cost_price/expires_at 参数——对标 agent-ts watch 能力，后端引擎原生支持',
     '2026-09-04 账户关联：规则带 account=归属账户（account_name 全名）→ 只在该账户看板显示；不带 → 通用观察（各账户可见）。历史规则已按 context/持仓回填归属',
     'condition 表达式：price>N、price<N、change_pct>N、change_pct<-N、pnl_pct>N、pnl_pct<-N、volume_surge>N、velocity>N/M（M=窗口分钟）',

@@ -8,11 +8,83 @@ from fastapi.responses import JSONResponse
 from adapters.outbound.repositories.watch_rule_repository import (
     WatchTrigger, WatchRuleRepository, WatchTriggerRepository, rule_to_dict, trigger_to_dict,
 )
+from adapters.outbound.repositories.watch_rule_change_repository import (
+    WatchRuleChangeRepository, change_to_dict,
+)
 from qs_watch.application.services.watch_engine.conditions import validate_condition
+from qs_watch.application.services.watch_engine.watch_rule_write_service import (
+    WatchRuleBatchFailed,
+    WatchRuleWriteFailed,
+    WatchRuleWriteService,
+)
+from qs_watch.domain.watch.ports import (
+    WatchRuleChangeError,
+    WatchRuleChangeMissingReason,
+    WatchRuleChangeRuleNotFound,
+    WatchRuleChangeUnauthorized,
+)
 
 router = APIRouter(tags=['Watch - 实时盯盘'])
 
 EXPIRES_AT_ERROR = 'expires_at 格式无效（需 ISO 格式，如 2026-07-25T15:00:00）'
+
+
+def _write_service() -> WatchRuleWriteService:
+    """普通规则写的唯一应用服务工厂（测试以内存仓储替换，避免直连生产库）。"""
+    return WatchRuleWriteService(WatchRuleRepository(), WatchRuleChangeRepository())
+
+
+def _write_context(data: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        'reason': data.get('reason'),
+        'operator': data.get('operator'),
+        'decision_audit_id': data.get('decision_audit_id'),
+        'trigger_id': data.get('source_trigger_id', data.get('trigger_id')),
+        'todo_id': data.get('todo_id'),
+    }
+
+
+def _write_status(exc: Exception) -> int:
+    if isinstance(exc, WatchRuleChangeUnauthorized):
+        return 403
+    if isinstance(exc, WatchRuleChangeRuleNotFound):
+        return 404
+    if isinstance(exc, (WatchRuleChangeMissingReason, WatchRuleChangeError, ValueError)):
+        return 400
+    return 500
+
+
+def _write_error(exc: Exception) -> JSONResponse:
+    status = _write_status(exc)
+    body: Dict[str, Any] = {
+        'success': False,
+        'error': getattr(exc, 'code', 'watch_rule_write_failed' if status == 500 else 'invalid_rule_write'),
+        'message': str(exc),
+    }
+    if isinstance(exc, WatchRuleWriteFailed):
+        body['rollback_attempted'] = exc.rollback_attempted
+        body['rollback_errors'] = exc.rollback_errors
+        body['rolled_back'] = exc.rollback_attempted and not exc.rollback_errors
+    return JSONResponse(body, status_code=status)
+
+
+def _write_result(result: Dict[str, Any]) -> Dict[str, Any]:
+    return {'rule': rule_to_dict(result['rule']), 'change': change_to_dict(result['change'])}
+
+
+def _batch_result_rows(rows: list) -> list:
+    out = []
+    for row in rows:
+        item = {k: v for k, v in row.items()
+                if k not in ('rule', 'change', 'rollback_change')}
+        if row.get('rule') is not None:
+            item['rule'] = rule_to_dict(row['rule'])
+        if row.get('change') is not None:
+            item['change'] = change_to_dict(row['change'])
+        if row.get('rollback_change') is not None:
+            item['rollback_change'] = change_to_dict(row['rollback_change'])
+        out.append(item)
+    return out
 
 
 def _err(message: str, status: int) -> JSONResponse:
@@ -235,51 +307,28 @@ def create_rule(payload: Dict[str, Any] = Body(default_factory=dict)):
                             % (symbol, len(existing))),
                 'existing_rules': [rule_to_dict(r) for r in existing],
             }, status_code=409)
-        rule = rule_repo.create_rule(
-            symbol=symbol,
-            conditions=conditions,
-            context=data.get('context'),
-            cost_price=data.get('cost_price'),
-            active_window=data.get('active_window'),
-            expires_at=expires_at,
-            created_by=data.get('created_by', 'agent'),
-            account=(data.get('account') or data.get('linked_account') or None),
-            # 2026-09-11（w-aebfddcd）：账户归一 + intent/action_hint 透传。
-            # 透传是必须的：①账户铁律在**仓储层**（create_rule/update_fields）统一拦，"没有账户
-            # 不能进入买卖"；②此前 intent 被静默丢弃，声明 entry 的规则实际落库 NULL。
-            linked_account=(data.get('linked_account') or data.get('account') or None),
-            intent=data.get('intent'),
-            action_hint=data.get('action_hint'),
-            action_params=data.get('action_params'),
-            # RFC 017（2026-10-21，per-rule-interval 卡）：创建即带持仓状态与规则级频率。
-            # 两者都是 additive：不给 → 不动 DB 默认（position_state='none' 由服务端默认
-            # 兜住、interval_sec 保持 NULL 跟随全局档），存量创建路径行为不变。
-            # 非法值由仓储归一抛 ValueError → 上面的 400 分支（不让坏值落库后变成抽奖）。
-            position_state=data.get('position_state'),
-            interval_sec=data.get('interval_sec'),
-            # 失效阈值（2026-10-22 必填语义）：agent 按规则设定，像止盈价/止损价一样是
-            # 具体参数；不给 → 仓储层落全局默认，规则上始终有具体值。
-            invalidation_threshold_pct=data.get('invalidation_threshold_pct'),
-            # 2026-10-23：盯盘 V2 档位（30/600/1800 秒）。不给 → DB 默认 30（最快档），
-            # 随后由开盘任务按距离自动归档；给了就按给的值钉死。
-            watch_tier=data.get('watch_tier'),
-        )
-    except ValueError as e:
-        # 领域守卫拒绝（没有账户不能进入买卖 / 策略账户不接受盯盘规则）→ 400 而非 500：
-        # 这是**调用方数据问题**，必须给出可读原因，不能被当成服务端故障
-        return _err(str(e), 400)
-    except Exception as e:
+        fields = dict(data)
+        fields['expires_at'] = expires_at
+        fields['created_by'] = data.get('created_by') or 'agent'
+        fields['account'] = data.get('account') or data.get('linked_account') or None
+        fields['linked_account'] = data.get('linked_account') or data.get('account') or None
+        result = _write_service().create(fields, **_write_context(data))
+    except (WatchRuleChangeError, WatchRuleWriteFailed, ValueError) as e:
+        return _write_error(e)
+    except Exception as e:  # noqa: BLE001
         return _err(f'创建失败: {e}', 500)
-    # 替换语义（force 确认后）：新建成功 → 旧规则作废（archived）。
-    # 先建新再废旧——新规则一定落库，避免「先删旧再建新」的中间窗口期该股票无规则可盯。
+
+    # force/replace 中的旧规则退役也是普通写，必须走同一授权/审计；失败不得静默吞掉。
     replaced_ids = []
     for old in existing:
         try:
-            rule_repo.update_fields(old.id, rule_state='archived')
+            _write_service().archive(old.id, **_write_context(data))
             replaced_ids.append(old.id)
-        except Exception:  # noqa: BLE001 - 单个作废失败不阻断（新规则已生效）
-            pass
-    out = {'rule': rule_to_dict(rule)}
+        except Exception as e:  # noqa: BLE001 - 新规则已有审计，明确暴露部分完成状态
+            failure = WatchRuleWriteFailed(
+                f"新规则 #{result['rule'].id} 已创建并审计，但旧规则 #{old.id} 退役失败: {e}")
+            return _write_error(failure)
+    out = _write_result(result)
     if replaced_ids:
         out['replaced_rule_ids'] = replaced_ids
     return {'success': True, 'data': out}
@@ -288,6 +337,10 @@ def create_rule(payload: Dict[str, Any] = Body(default_factory=dict)):
 def _update_rule(rule_id: int, payload: Dict[str, Any]):
     rule_repo = WatchRuleRepository()
     data = dict(payload or {})
+    try:
+        WatchRuleWriteService.context(**_write_context(data))
+    except WatchRuleChangeError as e:
+        return _write_error(e)
     if 'conditions' in data:
         if not isinstance(data['conditions'], list):
             return _err('conditions 必须为数组', 400)
@@ -338,14 +391,14 @@ def _update_rule(rule_id: int, payload: Dict[str, Any]):
     before = {k: getattr(before_rule, k, None) for k in data.keys()}
 
     try:
-        rule = rule_repo.update_fields(rule_id, **data)
-    except ValueError as e:
-        # 领域守卫拒绝（把观察规则改成买卖却不给账户 / 清空买卖规则的账户）→ 400
-        return _err(str(e), 400)
-    if rule is None:
-        return _err('规则不存在', 404)
+        result = _write_service().update(rule_id, data, **_write_context(data))
+    except (WatchRuleChangeError, WatchRuleWriteFailed, ValueError) as e:
+        return _write_error(e)
+    rule = result['rule']
     changes = [k for k, v in before.items() if str(v) != str(getattr(rule, k, None))]
-    return {'success': True, 'data': {'rule': rule_to_dict(rule), 'changed_fields': changes}}
+    out = _write_result(result)
+    out['changed_fields'] = changes
+    return {'success': True, 'data': out}
 
 
 @router.put('/api/watch/rules/{rule_id}')
@@ -374,17 +427,16 @@ def backfill_guidance():
 
 
 @router.delete('/api/watch/rules/{rule_id}')
-def delete_rule(rule_id: int):
-    rule_repo = WatchRuleRepository()
-    if rule_repo.get_by_id(rule_id) is None:
-        return _err('规则不存在', 404)
-    # 级联归档（2026-10-19）：规则删除后其未收敛待办成孤儿，触发链已断——
-    # 先埋掉再删规则，否则 SLA 巡检会继续晋升/超时打扰用户（静默，不发回执）。
-    from adapters.outbound.repositories.watch_todo_repository import WatchTodoRepository
-    WatchTodoRepository().close_open_by_rule(
-        rule_id, close_reason='盯盘规则已删除，此提醒单随之自动归档，无需处理')
-    rule_repo.delete_by_id(rule_id)
-    return {'success': True}
+def delete_rule(rule_id: int, payload: Dict[str, Any] = Body(default_factory=dict)):
+    """软退役：保留规则、触发与审计历史；不再物理 DELETE。"""
+    data = payload or {}
+    try:
+        result = _write_service().archive(rule_id, **_write_context(data))
+    except (WatchRuleChangeError, WatchRuleWriteFailed, ValueError) as e:
+        return _write_error(e)
+    except Exception as e:  # noqa: BLE001
+        return _err(f'规则软退役失败: {e}', 500)
+    return {'success': True, 'data': _write_result(result)}
 
 
 def _limit_of(limit, default: int = 50, cap: int = 200) -> int:
@@ -870,83 +922,43 @@ def trigger_digest(since: Optional[str] = Query(None), limit: Optional[str] = Qu
 
 @router.post('/api/watch/rules/batch')
 def batch_reconfigure_rules(payload: Dict[str, Any] = Body(default_factory=dict)):
-    # 规则重配置批量接口（REQ-f08def P2，RFC 014 v3 §7.4）。
-    # 为什么批量：检查点输出=一次规则重配置（买入+挂卖出规则/加仓/清仓收摊），
-    # 天然是多条一起动；逐条调既不原子也无法归因到同一触发。
-    # 强制审计：reason + source_trigger_id 必填（重配置必须可回溯到触发）。
-    actions = payload.get('actions')
+    """批量规则写：统一授权/审计；失败反向补偿，且绝不恒定 success=true。"""
+    data = payload or {}
+    actions = data.get('actions')
     if not isinstance(actions, list) or not actions:
         return _err('actions 必须为非空数组', 400)
-    reason = str(payload.get('reason') or '').strip()
-    source_trigger_id = payload.get('source_trigger_id')
-    if not reason:
-        return _err('reason 必填（规则重配置的依据）', 400)
+    source_trigger_id = data.get('source_trigger_id')
     if source_trigger_id is None:
         return _err('source_trigger_id 必填（重配置必须可回溯到触发）', 400)
-    rule_repo = WatchRuleRepository()
-    results = []
-    for i, act in enumerate(actions):
-        op = act.get('op')
-        try:
-            if op == 'create':
-                conds = act.get('conditions') or []
-                if not isinstance(conds, list) or not conds:
-                    results.append({'index': i, 'success': False, 'error': 'create 需要非空 conditions'})
-                    continue
-                for c in conds:
-                    validate_condition(c)
-                rule = rule_repo.create_rule(
-                    symbol=act.get('symbol'), conditions=conds,
-                    context=act.get('context'), cost_price=act.get('cost_price'),
-                    active_window=act.get('active_window'),
-                    expires_at=_parse_expires_at(act.get('expires_at')),
-                    created_by=act.get('created_by') or 'agent',
-                    account=act.get('account'))
-                meta = {k: act[k] for k in ('intent', 'lifecycle_stage', 'scope', 'target',
-                        'linked_account', 'next_action_hint', 'review_interval_days',
-                        'action_hint', 'escalation_policy') if k in act}
-                meta['created_from'] = (act.get('created_from') or ('trigger:' + str(source_trigger_id)))[:80]
-                if meta:
-                    rule_repo.update_fields(rule.id, **meta)
-                results.append({'index': i, 'success': True, 'op': 'create', 'rule_id': rule.id})
-            elif op == 'update':
-                rid = act.get('rule_id')
-                if rid is None:
-                    results.append({'index': i, 'success': False, 'error': 'update 需要 rule_id'})
-                    continue
-                if rule_repo.get_by_id(rid) is None:
-                    results.append({'index': i, 'success': False, 'error': '规则 ' + str(rid) + ' 不存在'})
-                    continue
-                fields = {k: act[k] for k in (
-                    'enabled', 'conditions', 'context', 'cost_price', 'active_window',
-                    'expires_at', 'account', 'notify_mode', 'action_hint', 'escalation_policy',
-                    'intent', 'lifecycle_stage', 'scope', 'target', 'linked_account',
-                    'next_action_hint', 'review_interval_days', 'review_due_at') if k in act}
-                if 'conditions' in fields:
-                    for c in fields['conditions']:
-                        validate_condition(c)
-                if 'expires_at' in fields:
-                    fields['expires_at'] = _parse_expires_at(fields['expires_at'])
-                rule_repo.update_fields(rid, **fields)
-                results.append({'index': i, 'success': True, 'op': 'update', 'rule_id': rid})
-            elif op == 'retire':
-                rid = act.get('rule_id')
-                if rid is None:
-                    results.append({'index': i, 'success': False, 'error': 'retire 需要 rule_id'})
-                    continue
-                old = rule_repo.get_by_id(rid)
-                if old is None:
-                    results.append({'index': i, 'success': False, 'error': '规则 ' + str(rid) + ' 不存在'})
-                    continue
-                banner = act.get('retire_note') or ('报废（来源触发 #' + str(source_trigger_id) + '）')
-                ctx = (old.context or '') if old else ''
-                rule_repo.update_fields(rid, enabled=False,
-                    context='[报废 ' + datetime.now().strftime('%Y-%m-%d') + '] ' + banner + chr(10) + ctx)
-                results.append({'index': i, 'success': True, 'op': 'retire', 'rule_id': rid})
-            else:
-                results.append({'index': i, 'success': False, 'error': 'op 必须是 create/update/retire'})
-        except Exception as e:
-            results.append({'index': i, 'success': False, 'error': str(e)})
-    ok = sum(1 for r in results if r.get('success'))
-    return {'success': True, 'data': {'results': results, 'ok': ok, 'failed': len(results) - ok,
-            'reason': reason, 'source_trigger_id': source_trigger_id}}
+    context = _write_context(data)
+    context.pop('trigger_id', None)
+    todo_id = context.pop('todo_id', None)
+    try:
+        rows = _write_service().execute_batch(
+            actions, source_trigger_id=source_trigger_id, todo_id=todo_id, **context)
+    except WatchRuleBatchFailed as e:
+        results = _batch_result_rows(e.results)
+        ok = sum(1 for row in results if row.get('success'))
+        return JSONResponse({
+            'success': False,
+            'error': 'watch_rule_batch_failed',
+            'message': str(e),
+            'data': {
+                'results': results,
+                'ok': ok,
+                'failed': len(actions) - ok,
+                'reason': data.get('reason'),
+                'source_trigger_id': source_trigger_id,
+                'rollback_attempted': e.rollback_attempted,
+                'rolled_back': e.rollback_attempted and not e.rollback_errors,
+                'rollback_errors': e.rollback_errors,
+            },
+        }, status_code=_write_status(e.cause))
+    except (WatchRuleChangeError, WatchRuleWriteFailed, ValueError) as e:
+        return _write_error(e)
+    results = _batch_result_rows(rows)
+    return {'success': True, 'data': {
+        'results': results, 'ok': len(results), 'failed': 0,
+        'reason': data.get('reason'), 'source_trigger_id': source_trigger_id,
+        'rollback_attempted': False, 'rolled_back': False, 'rollback_errors': [],
+    }}

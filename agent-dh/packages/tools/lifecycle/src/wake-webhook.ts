@@ -1,61 +1,139 @@
 /**
- * v2 → dh 唤醒桥（路 2：自写 webhook 路由，2026-09-02 死链修复）
+ * v2 → dh 唤醒桥：鉴权、有界读取、持久幂等、快速入队。
  *
- * 断链背景：quantsys-v2 的 AgentNotificationService 把事件 POST 到
- * AGENT_API_URL/wake（v2 .env 曾指向 gateway 3002）。2026-09-01 起 AGENT_API_URL
- * 改指 dh 13080，但 dh 侧此前无 /wake 路由 → 404 断链（watch 触发/定时提醒
- * 全部静默丢失）。本模块在 webServer 注册 exact /wake 路由补上这一环。
- *
- * 协议契约（与 v2 application/services/agent_notification_service.py 对齐，Python 零改动）：
- *   POST /wake
- *   Content-Type: application/json
- *   body: { "event": string, "data": object, "timestamp": ISO string }
- *   header: X-Wake-Token（可选；本侧配置了 token 才校验）
- *   期望响应: 200 {"success": true}
- *     - success=false 或非 200 → v2 记为 error 并重试
- *     - 请求超时 → v2 视为"已送达不重试"（因此本 handler 立即响应，不等 LLM）
- *
- * 实现参照官方 @deepseek-ai/dsh-webhook-github（exact 路由 + fire-and-forget），
- * 但投递不走 webhookRuntime，而是由 lifecycle 的 deliver 回调直投 investor 窗口。
+ * 同一 event_id 重试只入队一次；投递失败会释放 pending，允许真正重试。
+ * completed 默认保留 24h，pending 崩溃后 60s 可恢复，避免重启把旧事件再次当新事件。
  */
-
+import { createHash } from 'node:crypto';
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { Context } from '@deepseek-ai/cordis';
 
 const DEFAULT_MAX_BODY_BYTES = 256 * 1024;
+const DEFAULT_DEDUP_TTL_MS = 24 * 60 * 60 * 1000;
+const DEFAULT_PENDING_TTL_MS = 60 * 1000;
+const DEFAULT_DEDUP_CAPACITY = 4096;
 
-/** v2 事件 payload 的结构（只取本侧需要的字段） */
 interface WakeBody {
   event?: unknown;
+  event_id?: unknown;
   data?: unknown;
   timestamp?: unknown;
 }
 
-/** 投递回调：把 v2 事件交给 lifecycle 处理（找 investor 窗口投递） */
 export type WakeDeliver = (event: string, data: unknown, timestamp?: string) => Promise<void>;
 
 export interface RegisterWakeWebhookOptions {
-  /** 可选：配置后校验 X-Wake-Token 必须匹配（与 v2 AGENT_API_TOKEN 同值） */
   token?: string;
-  /** body 大小上限，默认 256KiB */
   maxBodyBytes?: number;
-  /** 事件投递回调（由 lifecycle 注入） */
   deliver: WakeDeliver;
+  /** 持久化幂等台账；不传仅进程内去重（单测/嵌入场景）。 */
+  dedupPath?: string;
+  dedupTtlMs?: number;
+  pendingTtlMs?: number;
+  dedupCapacity?: number;
 }
 
-/** HTTP 错误：status + message，映射为 JSON 响应 */
 class WakeHttpError extends Error {
   constructor(readonly status: number, message: string) {
     super(message);
   }
 }
 
-/** 发送 JSON 响应（成功：{success:true}；失败：{success:false,error}） */
+type DedupEntry = { state: 'pending' | 'completed'; updatedAt: number };
+
+/** 小型原子 JSON 台账。损坏/写入失败必须显式 503，不能静默退化成无幂等。 */
+export class WakeDedupStore {
+  private entries = new Map<string, DedupEntry>();
+  private readonly loadError?: Error;
+
+  constructor(
+    private readonly filePath = '',
+    private readonly completedTtlMs = DEFAULT_DEDUP_TTL_MS,
+    private readonly pendingTtlMs = DEFAULT_PENDING_TTL_MS,
+    private readonly capacity = DEFAULT_DEDUP_CAPACITY,
+  ) {
+    if (!filePath || !existsSync(filePath)) return;
+    try {
+      const raw = JSON.parse(readFileSync(filePath, 'utf-8'));
+      const values = raw?.entries;
+      if (values && typeof values === 'object' && !Array.isArray(values)) {
+        for (const [id, value] of Object.entries(values) as Array<[string, any]>) {
+          if ((value?.state === 'pending' || value?.state === 'completed')
+              && Number.isFinite(value?.updatedAt)) {
+            this.entries.set(id, { state: value.state, updatedAt: Number(value.updatedAt) });
+          }
+        }
+      }
+    } catch (error) {
+      this.loadError = error as Error;
+    }
+  }
+
+  reserve(id: string, now = Date.now()): boolean {
+    this.assertHealthy();
+    this.prune(now);
+    const old = this.entries.get(id);
+    if (old) {
+      const ttl = old.state === 'completed' ? this.completedTtlMs : this.pendingTtlMs;
+      if (now - old.updatedAt < ttl) return false;
+    }
+    this.entries.set(id, { state: 'pending', updatedAt: now });
+    this.persist();
+    return true;
+  }
+
+  complete(id: string, now = Date.now()): void {
+    this.assertHealthy();
+    this.entries.set(id, { state: 'completed', updatedAt: now });
+    this.prune(now);
+    this.persist();
+  }
+
+  release(id: string): void {
+    this.assertHealthy();
+    if (this.entries.get(id)?.state === 'pending') {
+      this.entries.delete(id);
+      this.persist();
+    }
+  }
+
+  private assertHealthy(): void {
+    if (this.loadError) throw new WakeHttpError(503, `wake dedup store is unavailable: ${this.loadError.message}`);
+  }
+
+  private prune(now: number): void {
+    for (const [id, entry] of this.entries) {
+      const ttl = entry.state === 'completed' ? this.completedTtlMs : this.pendingTtlMs;
+      if (now - entry.updatedAt >= ttl) this.entries.delete(id);
+    }
+    while (this.entries.size >= this.capacity) {
+      const oldest = [...this.entries.entries()]
+        .sort((a, b) => a[1].updatedAt - b[1].updatedAt)[0]?.[0];
+      if (!oldest) break;
+      this.entries.delete(oldest);
+    }
+  }
+
+  private persist(): void {
+    if (!this.filePath) return;
+    try {
+      mkdirSync(dirname(this.filePath), { recursive: true });
+      const temp = `${this.filePath}.${process.pid}.tmp`;
+      const body = JSON.stringify({ version: 1, entries: Object.fromEntries(this.entries) });
+      writeFileSync(temp, body, { encoding: 'utf-8', mode: 0o600 });
+      renameSync(temp, this.filePath);
+    } catch (error) {
+      throw new WakeHttpError(503, `wake dedup store write failed: ${(error as Error).message}`);
+    }
+  }
+}
+
 function respondJson(response: any, status: number, body: Record<string, unknown>): void {
   response.writeHead(status, { 'content-type': 'application/json; charset=utf-8' });
   response.end(JSON.stringify(body));
 }
 
-/** 校验 Content-Type 为 application/json（至多一个 utf-8 charset 参数） */
 function isJsonContentType(value: string | undefined): boolean {
   if (value === undefined) return false;
   const [mediaType, parameter, ...extra] = value.split(';').map((p) => p.trim());
@@ -64,7 +142,6 @@ function isJsonContentType(value: string | undefined): boolean {
   return extra.length === 0 && /^charset=(?:utf-8|"utf-8")$/i.test(parameter);
 }
 
-/** 有界读取请求体（原生 Node req 无内置 body 解析，须手动 collect chunks） */
 async function readBoundedBody(request: any, maxBytes: number): Promise<string> {
   const declared = Number(request.headers['content-length']);
   if (Number.isFinite(declared) && declared > maxBytes) {
@@ -85,9 +162,8 @@ async function readBoundedBody(request: any, maxBytes: number): Promise<string> 
   return Buffer.concat(chunks).toString('utf-8');
 }
 
-/** 校验 X-Wake-Token：本侧配置了 token 时，header 必须匹配（constant-time 比较） */
 function assertToken(request: any, expected: string | undefined): void {
-  if (!expected) return; // 未配置 → 不校验（与 v2 未配 AGENT_API_TOKEN 时的行为对齐）
+  if (!expected) return;
   const given = request.headers['x-wake-token'];
   if (typeof given !== 'string' || given.length !== expected.length) {
     throw new WakeHttpError(401, 'invalid wake token');
@@ -97,7 +173,6 @@ function assertToken(request: any, expected: string | undefined): void {
   if (diff !== 0) throw new WakeHttpError(401, 'invalid wake token');
 }
 
-/** 解析并校验 v2 事件 body */
 function parseWakeBody(body: string): WakeBody {
   let parsed: unknown;
   try {
@@ -115,9 +190,35 @@ function parseWakeBody(body: string): WakeBody {
   return wake;
 }
 
-/** 创建 /wake exact 路由的 HTTP handler */
-function createWakeHandler(deliver: WakeDeliver, token: string | undefined, maxBodyBytes: number) {
+function resolveEventId(request: any, wake: WakeBody): string {
+  const header = request.headers['idempotency-key'] ?? request.headers['x-wake-event-id'];
+  let value = wake.event_id ?? header;
+  if (value === undefined) {
+    const data = (wake.data && typeof wake.data === 'object' && !Array.isArray(wake.data))
+      ? wake.data as Record<string, any> : {};
+    const triggerIds = Array.isArray(data.trigger_ids) ? data.trigger_ids : [];
+    if (data.trigger_id !== undefined) triggerIds.push(data.trigger_id);
+    if (triggerIds.length > 0) {
+      value = `${wake.event}:${[...new Set(triggerIds.map(String))].sort().join(',')}`;
+    } else if (String(wake.event).startsWith('watch_')) {
+      throw new WakeHttpError(400, 'watch wake requires event_id or stable trigger_ids');
+    } else {
+      value = `sha256:${createHash('sha256')
+        .update(`${String(wake.event)}:${JSON.stringify(data)}`).digest('hex')}`;
+    }
+  }
+  if (typeof value !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9:_.=-]{0,255}$/.test(value)) {
+    throw new WakeHttpError(400, 'event_id must be 1-256 safe ASCII characters');
+  }
+  // 把可读但不固定长度的业务身份收敛成固定键，避免长 trigger_ids 占用台账。
+  if (value.length > 80) return `sha256:${createHash('sha256').update(value).digest('hex')}`;
+  return value;
+}
+
+function createWakeHandler(deliver: WakeDeliver, token: string | undefined,
+                           maxBodyBytes: number, dedup: WakeDedupStore) {
   return async (request: any, response: any): Promise<void> => {
+    let reservedId = '';
     try {
       if (request.method !== 'POST') {
         response.setHeader('allow', 'POST');
@@ -129,16 +230,27 @@ function createWakeHandler(deliver: WakeDeliver, token: string | undefined, maxB
       const body = await readBoundedBody(request, maxBodyBytes);
       assertToken(request, token);
       const wake = parseWakeBody(body);
-      // deliver 只做消息入队（followup 立即返回），不等 LLM 处理 → v2 30s 超时内必响应。
-      // 投递失败 → success:false，v2 记 error 并重试（与 notifier 重试语义一致）。
+      const eventId = resolveEventId(request, wake);
+      if (!dedup.reserve(eventId)) {
+        respondJson(response, 200, { success: true, deduplicated: true, event_id: eventId });
+        return;
+      }
+      reservedId = eventId;
       try {
-        await deliver(wake.event as string, wake.data, typeof wake.timestamp === 'string' ? wake.timestamp : undefined);
-        respondJson(response, 200, { success: true });
+        await deliver(wake.event as string, wake.data,
+          typeof wake.timestamp === 'string' ? wake.timestamp : undefined);
+        dedup.complete(eventId);
+        respondJson(response, 200, { success: true, event_id: eventId });
       } catch (err: any) {
+        dedup.release(eventId);
+        reservedId = '';
         console.warn(`[wake] deliver failed for event ${wake.event}: ${err?.message ?? err}`);
-        respondJson(response, 200, { success: false, error: 'deliver failed' });
+        respondJson(response, 200, { success: false, error: 'deliver failed', event_id: eventId });
       }
     } catch (error) {
+      if (reservedId) {
+        try { dedup.release(reservedId); } catch { /* 原始错误优先，绝不吞掉响应 */ }
+      }
       if (error instanceof WakeHttpError) {
         respondJson(response, error.status, { success: false, error: error.message });
         return;
@@ -149,20 +261,18 @@ function createWakeHandler(deliver: WakeDeliver, token: string | undefined, maxB
   };
 }
 
-/**
- * 在 webServer 上注册 exact /wake 路由。
- * 用 ctx.inject(['webServer'], ...) 惰性注入（参照官方 dsh-api-gateway）——
- * webServer 服务就绪前不阻塞 lifecycle 启动。
- */
 export function registerWakeWebhook(ctx: Context, options: RegisterWakeWebhookOptions): void {
   const token = options.token;
   const maxBodyBytes = options.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES;
   const deliver = options.deliver;
+  const dedup = new WakeDedupStore(
+    options.dedupPath ?? '', options.dedupTtlMs, options.pendingTtlMs, options.dedupCapacity,
+  );
   (ctx as any).inject?.(['webServer'], (webCtx: any) => {
     const route = {
       kind: 'exact',
       path: '/wake',
-      handler: createWakeHandler(deliver, token, maxBodyBytes),
+      handler: createWakeHandler(deliver, token, maxBodyBytes, dedup),
     };
     webCtx.effect(() => webCtx.webServer.register(route), 'lifecycle: /wake');
   });

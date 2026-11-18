@@ -20,6 +20,14 @@ export class WatchManageTool extends BaseTool<WatchManageParams, any> {
   protected validate(params: WatchManageParams): ValidationResult {
     const { action, rule_id, name, symbol, condition } = params;
 
+    if (!params.reason?.trim() || !params.decision_audit_id?.trim()) {
+      return {
+        success: false,
+        errorType: ErrorType.INPUT_ERROR,
+        issue: 'watch_manage 写操作必须先 decision_audit 落审计，并传 reason + decision_audit_id；后端会复核账户授权与规则血缘',
+      };
+    }
+
     // 2026-08-27：前端参数校验（此前缺字段直达后端才报 400，错误信息晦涩）
     if (action === 'create') {
       const missing: string[] = [];
@@ -89,8 +97,8 @@ export class WatchManageTool extends BaseTool<WatchManageParams, any> {
   protected async execute(params: WatchManageParams, context: ToolContext): Promise<any> {
     // 2026-09-01 扩展：reason → 后端 context（监视理由）；pnl_pct 自动补成本价
     const request: any = { ...params };
-    delete request.reason;
-    // account 不再删除：create 时透传后端落库为规则归属账户（2026-09-04 账户关联）
+    // reason 同时用于 create 的触发上下文与所有写操作的专用审计，不能再静默删除。
+    // account 继续透传，后端按账户自治策略复核。
 
     if (params.action === 'create') {
       if (params.reason) request.context = params.reason;
@@ -127,7 +135,7 @@ export class WatchManageTool extends BaseTool<WatchManageParams, any> {
       action: params.action,
       message: params.action === 'create'
         ? `规则已创建 (ID: ${rid ?? 'unknown'})`
-        : `规则已${params.action === 'enable' ? '启用' : params.action === 'disable' ? '禁用' : '删除'}`,
+        : `规则已${params.action === 'enable' ? '启用' : params.action === 'disable' ? '禁用' : '归档'}`,
       data: result,
     });
   }

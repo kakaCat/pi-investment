@@ -9,6 +9,10 @@ export interface OpportunityScanParams {
   pool_id?: number;
   symbols?: string[];
   min_score?: number;
+  /** 默认 false：扫描是只读；true 才按完整结构证据创建观察规则 */
+  auto_create_rules?: boolean;
+  /** auto_create_rules=true 时必填，明确规则归属，禁止猜默认账户 */
+  account_name?: string;
 }
 
 export interface OpportunityScanResult {
@@ -31,6 +35,7 @@ export interface OpportunityScanResult {
     opportunities_found: number;
     scan_time: string;
   };
+  watch_rule_results?: Array<Record<string, any>>;
 }
 
 export const opportunityScanPrompt: ToolPrompt<OpportunityScanParams, OpportunityScanResult> = {
@@ -62,6 +67,14 @@ export const opportunityScanPrompt: ToolPrompt<OpportunityScanParams, Opportunit
       description: '最低得分阈值',
       example: 70,
     },
+    auto_create_rules: {
+      type: 'boolean',
+      description: '是否创建观察规则，默认 false（纯扫描）；true 时仅完整结构证据候选可建规',
+    },
+    account_name: {
+      type: 'string',
+      description: '规则归属账户全名；auto_create_rules=true 时必填，不允许写死或猜测账户',
+    },
   },
   examples: [
     'opportunity_scan({ scan_type: "hybrid" }) // 综合扫描市场机会',
@@ -75,6 +88,8 @@ export const opportunityScanPrompt: ToolPrompt<OpportunityScanParams, Opportunit
     '💡 fundamental 模式关注估值、业绩、财务质量',
     '💡 accumulation 模式（2026-11-10 上线）：蓄势扫描——找"波动压缩+缩量+趴着+资金温和流入"的未启动标的，与 momentum 哲学相反；特征阈值经全市场事件研究验证（5/10/20日超额 t=2.7~3.5 显著为正），命中 validated_combo 的优先级最高；蓄势≠立即买入，是观察仓候选',
     '⚠️ technical/hybrid/fundamental 模式实测偏右侧（追涨组全市场回测 5-10 日显著为负），找早期机会用 accumulation',
+    '⚠️ 默认只读扫描；auto_create_rules=true 才会创建观察规则且必须显式传 account_name',
+    '⚠️ 自动建规要求上游提供结构位/失效位/目标位/失效动作，缺少时跳过，不再按最新价×0.98生成买区',
     'min_score 建议设置 70-80 以过滤低质量信号',
   ],
 
@@ -87,6 +102,7 @@ export const opportunityScanPrompt: ToolPrompt<OpportunityScanParams, Opportunit
       properties: {
         opportunities: { type: 'array', description: '机会列表' },
         scan_summary: { type: 'object', additionalProperties: true, description: '扫描摘要' },
+        watch_rule_results: { type: 'array', description: '显式启用时的规则创建/跳过结果' },
       },
     },
     render: (_args, data) => {

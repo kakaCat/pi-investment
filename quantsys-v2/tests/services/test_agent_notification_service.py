@@ -89,8 +89,8 @@ def test_notify_agent_detailed_ok():
 
     with patch('qs_agenthub.application.services.agent_notification_service.requests.post',
                return_value=mock_resp):
-        assert service.notify_agent_detailed('watch_triggered', {}) == 'ok'
-        assert service.notify_agent('watch_triggered', {}) is True
+        assert service.notify_agent_detailed('watch_triggered', {'trigger_ids': [1]}) == 'ok'
+        assert service.notify_agent('watch_triggered', {'trigger_ids': [1]}) is True
 
 
 def test_notify_agent_detailed_timeout():
@@ -102,8 +102,8 @@ def test_notify_agent_detailed_timeout():
 
     with patch('qs_agenthub.application.services.agent_notification_service.requests.post',
                side_effect=real_requests.exceptions.Timeout('slow')):
-        assert service.notify_agent_detailed('watch_triggered', {}) == 'timeout'
-        assert service.notify_agent('watch_triggered', {}) is False
+        assert service.notify_agent_detailed('watch_triggered', {'trigger_ids': [1]}) == 'timeout'
+        assert service.notify_agent('watch_triggered', {'trigger_ids': [1]}) is False
 
 
 def test_notify_agent_detailed_error():
@@ -115,8 +115,8 @@ def test_notify_agent_detailed_error():
 
     with patch('qs_agenthub.application.services.agent_notification_service.requests.post',
                side_effect=real_requests.exceptions.ConnectionError('refused')):
-        assert service.notify_agent_detailed('watch_triggered', {}) == 'error'
-        assert service.notify_agent('watch_triggered', {}) is False
+        assert service.notify_agent_detailed('watch_triggered', {'trigger_ids': [1]}) == 'error'
+        assert service.notify_agent('watch_triggered', {'trigger_ids': [1]}) is False
 
 
 def test_notify_agent_detailed_disabled():
@@ -127,7 +127,7 @@ def test_notify_agent_detailed_disabled():
     service.enabled = False
 
     with patch('qs_agenthub.application.services.agent_notification_service.requests.post') as mock_post:
-        assert service.notify_agent_detailed('watch_triggered', {}) == 'disabled'
+        assert service.notify_agent_detailed('watch_triggered', {'trigger_ids': [1]}) == 'disabled'
         mock_post.assert_not_called()
 
 

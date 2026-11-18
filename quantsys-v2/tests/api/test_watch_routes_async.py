@@ -8,6 +8,15 @@ from adapters.inbound.fastapi_app.routes.watch_async import router
 VALID_CONDITIONS = [
     {'type': 'price_break', 'params': {'direction': 'above', 'price': 1800.0}},
 ]
+WRITE_AUDIT = {'reason': 'parity 测试规则写入', 'decision_audit_id': 'DA-watch-parity'}
+
+
+def _write(**fields):
+    return {**WRITE_AUDIT, **fields}
+
+
+def _delete(client, rule_id):
+    return client.request('DELETE', f'/api/watch/rules/{rule_id}', json=_write())
 
 
 @pytest.fixture
@@ -21,11 +30,12 @@ def client():
 def created_rule(client):
     resp = client.post('/api/watch/rules', json={
         'symbol': '000001.SZ', 'conditions': VALID_CONDITIONS, 'context': 'parity 测试',
+        **WRITE_AUDIT,
     })
     assert resp.status_code == 200, resp.json()
     rule_id = resp.json()['data']['rule']['id']
     yield rule_id
-    client.delete(f'/api/watch/rules/{rule_id}')
+    _delete(client, rule_id)
 
 
 def test_create_and_list(client, created_rule):
@@ -38,48 +48,52 @@ def test_create_and_list(client, created_rule):
 def test_create_invalid_condition_400(client):
     resp = client.post('/api/watch/rules', json={
         'symbol': '600519.SH', 'conditions': [{'type': 'magic', 'params': {}}],
+        **WRITE_AUDIT,
     })
     assert resp.status_code == 400
     assert resp.json()['success'] is False
 
 
 def test_create_conditions_not_list_400(client):
-    resp = client.post('/api/watch/rules', json={'symbol': '600519.SH', 'conditions': 'abc'})
+    resp = client.post('/api/watch/rules', json=_write(symbol='600519.SH', conditions='abc'))
     assert resp.status_code == 400
 
 
 def test_create_missing_symbol_400(client):
-    resp = client.post('/api/watch/rules', json={'conditions': VALID_CONDITIONS})
+    resp = client.post('/api/watch/rules', json=_write(conditions=VALID_CONDITIONS))
     assert resp.status_code == 400
 
 
 def test_update_disable(client, created_rule):
-    resp = client.put(f'/api/watch/rules/{created_rule}', json={'enabled': False})
+    resp = client.put(f'/api/watch/rules/{created_rule}', json=_write(enabled=False))
     assert resp.status_code == 200
     assert resp.json()['data']['rule']['enabled'] is False
 
 
 def test_update_invalid_expires_at_400(client, created_rule):
-    resp = client.put(f'/api/watch/rules/{created_rule}', json={'expires_at': 'garbage'})
+    resp = client.put(f'/api/watch/rules/{created_rule}', json=_write(expires_at='garbage'))
     assert resp.status_code == 400
 
 
 def test_update_nonexistent_404(client):
-    assert client.put('/api/watch/rules/99999999', json={'enabled': False}).status_code == 404
+    assert client.put('/api/watch/rules/99999999', json=_write(enabled=False)).status_code == 404
 
 
 def test_patch_supported(client, created_rule):
-    resp = client.patch(f'/api/watch/rules/{created_rule}', json={'context': 'patch 更新'})
+    resp = client.patch(f'/api/watch/rules/{created_rule}', json=_write(context='patch 更新'))
     assert resp.status_code == 200
     assert resp.json()['data']['rule']['context'] == 'patch 更新'
 
 
 def test_delete(client, created_rule):
-    assert client.delete(f'/api/watch/rules/{created_rule}').json()['success'] is True
+    resp = _delete(client, created_rule)
+    assert resp.json()['success'] is True
+    assert resp.json()['data']['rule']['enabled'] is False
+    assert resp.json()['data']['rule']['rule_state'] == 'archived'
 
 
 def test_delete_nonexistent_404(client):
-    assert client.delete('/api/watch/rules/99999999').status_code == 404
+    assert _delete(client, 99999999).status_code == 404
 
 
 def test_list_triggers(client):
@@ -94,13 +108,13 @@ def test_list_triggers_invalid_limit_falls_back(client):
 
 
 def test_create_empty_conditions_400(client):
-    resp = client.post('/api/watch/rules', json={'symbol': '600519.SH', 'conditions': []})
+    resp = client.post('/api/watch/rules', json=_write(symbol='600519.SH', conditions=[]))
     assert resp.status_code == 400
 
 
 def test_update_invalid_conditions_400(client, created_rule):
     resp = client.put(f'/api/watch/rules/{created_rule}',
-                      json={'conditions': [{'type': 'magic'}]})
+                      json=_write(conditions=[{'type': 'magic'}]))
     assert resp.status_code == 400
 
 

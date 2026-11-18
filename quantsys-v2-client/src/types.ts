@@ -678,6 +678,13 @@ export interface WatchRuleManageRequest {
   /** 归属账户（account_name 全名，如 agent_virtual）。持仓止损/止盈等账户内规则必传；
    *  不传=通用观察（无主候选，各账户看板均可见） */
   account?: string;
+  /** 规则变更理由；agent 写操作必填 */
+  reason?: string;
+  /** agent 写操作必填的事前决策审计 ID */
+  decision_audit_id?: string;
+  /** 可选：由哪条触发/待办派生本次变更 */
+  source_trigger_id?: number;
+  todo_id?: number;
 }
 
 /**
@@ -754,10 +761,12 @@ export interface SignalGenerateRequest {
  */
 export interface OpportunityScanRequest {
   // New fields for Strategy Package tools
-  scan_type?: 'technical' | 'fundamental' | 'hybrid';
+  scan_type?: 'technical' | 'fundamental' | 'hybrid' | 'accumulation';
   pool_id?: number;
   symbols?: string[];
   min_score?: number;
+  auto_create_rules?: boolean;
+  account_name?: string;
   // Legacy fields (keep for backward compatibility)
   conditions?: string[];
   limit?: number;

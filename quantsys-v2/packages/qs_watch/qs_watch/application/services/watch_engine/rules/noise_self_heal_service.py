@@ -54,8 +54,12 @@ from qs_watch.domain.watch.ports import (
 from qs_watch.domain.watch.services import noise_policy
 from qs_watch.domain.watch.services.disposition import TRADE_INTENTS, intent_of
 from qs_watch.domain.watch.services.level_resolver import P1, sla_seconds_for
-from qs_watch.domain.watch.services.owner_router import OWNER_USER, route_owner
+from qs_watch.domain.watch.services.owner_router import route_owner
 from qs_watch.domain.watch.services.rule_guard import effective_account
+from qs_watch.application.services.watch_engine.rules.authorizer import (
+    USER_OPERATOR as SHARED_USER_OPERATOR,
+    authorize_rule_account,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -63,7 +67,8 @@ logger = structlog.get_logger(__name__)
 REPAIR_TODO_LEVEL = P1
 
 #: operator 取该值表示"用户本人确认"；其余一律视为 agent 代改（授权最保守）
-USER_OPERATOR = 'user'
+#: 常量名保留兼容；实际判定与普通规则写入共用 authorizer。
+USER_OPERATOR = SHARED_USER_OPERATOR
 
 #: 可机械落地的配置类修复动作（真正改 watch_rules 配置才算修复，E1）
 CONFIG_REPAIR_ACTIONS = ('cooldown', 'threshold', 'retire')
@@ -492,14 +497,6 @@ class NoiseSelfHealService:
           · owner_kind='user' 或 autonomy='remind_only'（含未登记账户/空账户）→ 只允许 user
           · autonomy='autonomous'（agent 自有账户）→ agent 可自主变更并留痕
         """
-        route = route_owner(account, self._policy)
-        if operator == USER_OPERATOR:
-            return route
-        if route.out_of_scope:
-            raise WatchRuleChangeUnauthorized(
-                f'账户 {account!r} 盯盘不介入（out_of_scope），agent 不得变更其规则：{route.reason}')
-        if route.owner_kind == OWNER_USER or route.autonomy != 'autonomous':
-            raise WatchRuleChangeUnauthorized(
-                f'账户 {account!r} 的规则须用户本人确认（owner_kind={route.owner_kind}, '
-                f'autonomy={route.autonomy}），agent 不得直接变更：{route.reason}')
-        return route
+        # 与普通 CRUD/batch 共用同一路由策略；不传 accountless 放开参数，
+        # 因而 repair 对无账户规则仍保持「agent 拒绝、user 可修」的原行为。
+        return authorize_rule_account(account, operator, policy=self._policy)

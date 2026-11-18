@@ -4,9 +4,15 @@
 前向路径（回填走的是 update_decision，属另一条路径，已另有用例）。
 """
 from datetime import date, datetime, timedelta
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import polars as pl
+from sqlalchemy.dialects import postgresql
 
+from adapters.outbound.repositories.agent_intelligence_repository import (
+    AgentDecision,
+    AgentIntelligenceORMRepository,
+)
 from qs_agenthub.application.services.evolution.decision_score_service import DecisionScoreService
 
 
@@ -15,7 +21,12 @@ class FakeDecisionRepo:
         self._d = decision
         self.calls = []
 
-    def list_pending_evaluations(self, days=1):
+    def list_unscored_decisions(self, days=1, decision_types=None):
+        if self._d.get('score') is not None:
+            return []
+        normalized = str(self._d.get('decision_type') or '').strip().lower()
+        if decision_types is not None and normalized not in decision_types:
+            return []
         return [self._d]
 
     def update_score(self, decision_id, score, band, detail, lesson=None):
@@ -80,3 +91,84 @@ def test_unmature_decision_not_scored_and_no_lesson():
     assert result['scored'] == 0
     assert result['skipped_unmature'] == 1
     assert repo.calls == []
+
+
+def test_unscored_query_ignores_generic_status_and_filters_scorable_types():
+    """SQL资格必须是 score IS NULL + 日龄 + 类型，不得混入 evaluation_status。"""
+    repo = AgentIntelligenceORMRepository()
+    session = MagicMock()
+    query = session.query.return_value
+    query.filter.return_value.order_by.return_value.all.return_value = []
+
+    with patch.object(type(repo), 'session', new_callable=PropertyMock) as session_prop:
+        session_prop.return_value = session
+        result = repo.list_unscored_decisions(
+            days=30,
+            decision_types=['trade_BUY', 'trade_sell', 'missed_opportunity'],
+        )
+
+    assert result == []
+    criteria = query.filter.call_args.args
+    where_sql = ' AND '.join(
+        str(criterion.compile(
+            dialect=postgresql.dialect(),
+            compile_kwargs={'literal_binds': True},
+        ))
+        for criterion in criteria
+    )
+    assert 'score IS NULL' in where_sql
+    assert 'created_at <=' in where_sql
+    assert 'evaluation_status' not in where_sql
+    assert "'missed_opportunity'" in where_sql
+    assert "'trade_buy'" in where_sql
+    assert "'trade_sell'" in where_sql
+
+
+def test_generic_evaluation_fault_injection_preserves_score_evidence():
+    """故障注入：通用评估试图覆盖时，已有评分及其共享证据字段均不变。"""
+    repo = AgentIntelligenceORMRepository()
+    scored_at = datetime(2026, 8, 11, 16, 0)
+    score_detail = {
+        'scorer': 'decision_score_p0a',
+        'score': 0.75,
+        'band': 'big_win',
+        'excess_return': 0.12,
+    }
+    row = AgentDecision(
+        id=1,
+        decision_id='DEC-SCORED-GUARD',
+        decision_type='trade_buy',
+        context={},
+        parameters={'symbol': '600519', 'price': 10.0},
+        created_at=datetime(2026, 7, 14, 10, 0),
+        evaluation_status='evaluated',
+        evaluation_result=score_detail,
+        evaluation_date=scored_at,
+        learned_lesson='20交易日评分教训',
+        confidence_score=0.9,
+        success=True,
+        score=0.75,
+        score_band='big_win',
+    )
+    session = MagicMock()
+    session.query.return_value.filter_by.return_value.first.return_value = row
+
+    with patch.object(type(repo), 'session', new_callable=PropertyMock) as session_prop:
+        session_prop.return_value = session
+        result = repo.update_evaluation('DEC-SCORED-GUARD', {
+            'success': False,
+            'learned_lesson': 'trade_buy决策已执行',
+            'confidence_score': 0.1,
+        })
+
+    assert result['score'] == 0.75
+    assert result['score_band'] == 'big_win'
+    assert result['evaluation_result'] == score_detail
+    assert result['learned_lesson'] == '20交易日评分教训'
+    assert result['evaluation_date'] == '2026-08-11 16:00:00'
+    assert result['success'] is True
+    assert result['confidence_score'] == 0.9
+    assert row.evaluation_result is score_detail
+    assert row.evaluation_date == scored_at
+    session.commit.assert_not_called()
+    session.rollback.assert_not_called()

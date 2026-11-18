@@ -32,7 +32,8 @@ DEFAULT_ACCOUNT_AGENT_MAP: Dict[str, str] = {}
 #: 是当前在线的唯一 wake 端点，且是通知域的既定兜底。
 DEFAULT_AGENT = 'agent-dh'
 
-#: 再次唤醒同一规则 agent 的最小绝对价格浮动阈值（%）。
+#: 无台账兼容路径再次唤醒同一规则 agent 的最小价格浮动阈值（%）。
+#: 生产 archive 路径按 trigger 闩锁去重，新 rearm 事件不沿用旧事件的价格门槛。
 MIN_AGENT_PRICE_CHANGE_PCT = 1.0
 PRICE_GATE_SKIP = 'price_change_below_threshold'
 

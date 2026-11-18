@@ -58,6 +58,17 @@ export class OpportunityScanTool extends BaseTool<OpportunityScanParams, Opportu
       };
     }
 
+    if (args.auto_create_rules === true && !args.account_name?.trim()) {
+      return {
+        success: false,
+        errorType: ErrorType.INPUT_ERROR,
+        field: 'account_name',
+        issue: 'auto_create_rules=true 时必须显式传 account_name，禁止猜测规则归属账户',
+        received: args.account_name,
+        expected: '账户 account_name 全名',
+      };
+    }
+
     return { success: true };
   }
 
@@ -70,11 +81,14 @@ export class OpportunityScanTool extends BaseTool<OpportunityScanParams, Opportu
     // 2026-09-01 契约修复（investor w-8366e526）：client.scanOpportunities 已 unwrap
     // 返回裸数组（后端 {success, opportunities} → data.opportunities），此前工具取
     // raw?.opportunities 恒为 undefined → 工具永远返回空列表（契约失真第二层）。
-    const raw: any = await this.qv2.scanOpportunities({
+    const raw: any = await this.qv2.scanOpportunitiesDetailed({
       scan_type: args.scan_type || 'hybrid',
       pool_id: args.pool_id,
       symbols: args.symbols,
       min_score: args.min_score || 60,
+      // 工具默认只读；自动写规则必须由调用方显式开启并给出账户。
+      auto_create_rules: args.auto_create_rules === true,
+      account_name: args.account_name?.trim(),
     });
 
     const list = Array.isArray(raw) ? raw : (raw?.opportunities ?? []);
@@ -85,6 +99,7 @@ export class OpportunityScanTool extends BaseTool<OpportunityScanParams, Opportu
         opportunities_found: list.length,
         scan_time: new Date().toISOString(),
       },
+      watch_rule_results: raw?.watch_rule_results ?? raw?.watch_rules_created ?? [],
     };
   }
 

@@ -1027,6 +1027,27 @@ class WatchTriggerRepository(BaseORMRepository[WatchTrigger]):
         )
         return self.create(trigger)
 
+    def find_latest_for_condition(self, rule_id: int, condition: dict, since: datetime,
+                                  engine: str = 'v2') -> Optional[WatchTrigger]:
+        """读取当日同规则、同条件的最新非抑噪触发，供 V2 重建进程内闩锁。
+
+        查询失败必须抛给调用方：archive 会把“读不到”与“历史不存在”分开，
+        禁止在 DB 故障时新建 trigger 并重复通知。
+        """
+        try:
+            query = self.session.query(WatchTrigger).filter(
+                WatchTrigger.rule_id == rule_id,
+                WatchTrigger.condition == (condition or {}),
+                WatchTrigger.triggered_at >= since,
+                WatchTrigger.engine == str(engine or 'v2'),
+                WatchTrigger.suppressed.is_(False),
+            )
+            return query.order_by(
+                WatchTrigger.triggered_at.desc(), WatchTrigger.id.desc()).first()
+        except SQLAlchemyError:
+            self._safe_rollback()
+            raise
+
     def set_todo_id(self, trigger_id: int, todo_id) -> None:
         """回填触发的 todo_id（触发→待办溯源，REQ-c9f899 t12）。
 

@@ -23,8 +23,23 @@ from qs_trading.domain.trading.services.market_session_policy import MarketSessi
 logger = structlog.get_logger(__name__)
 
 
-#: 无账户归属的触发（规则缺 linked_account）——单独成桶投默认 agent，绝不静默丢弃
+#: 无账户且需要账户的触发 = 数据缺陷；全局观察 = 合法的无账户业务模式。
 UNASSIGNED = "__unassigned__"
+GLOBAL_OBSERVATION = "__global_observation__"
+
+
+def _missing_account_is_defect(rule) -> bool:
+    """无账户是否非法：入场/交易需要账户；趋势、消息等全局观察不需要。"""
+    if rule is None:
+        return True
+    intent = str(getattr(rule, 'intent', '') or '')
+    hint = getattr(rule, 'action_hint', None) or {}
+    action = str(hint.get('action_on_trigger') or hint.get('type') or '')
+    return intent == 'entry' or action in ('entry', 'buy', 'sell', 'trade')
+
+
+def _is_global_group(group: dict) -> bool:
+    return not group.get('account') and group.get('ownership') == 'global_observation'
 
 
 class WatchDigestService:
@@ -178,9 +193,12 @@ class WatchDigestService:
             acct = getattr(rule, "linked_account", None) if rule is not None else None
             if account is not None and acct != account:
                 continue
-            key = "%s|%s" % (acct or "-", sym)
-            g = groups.setdefault(key, {"symbol": sym, "account": acct, "count": 0,
-                                        "items": [], "dispositions": {}})
+            ownership = ('account' if acct else
+                         'unassigned' if _missing_account_is_defect(rule) else 'global_observation')
+            # 同标的的“合法全局观察”和“缺账户入场”不得混成一桶。
+            key = "%s|%s|%s" % (acct or "-", ownership, sym)
+            g = groups.setdefault(key, {"symbol": sym, "account": acct, "ownership": ownership,
+                                        "count": 0, "items": [], "dispositions": {}})
             g["count"] += 1
             g["dispositions"][t.disposition] = g["dispositions"].get(t.disposition, 0) + 1
             cond = t.condition or {}
@@ -211,7 +229,8 @@ class WatchDigestService:
         for _key, g in sorted(groups.items(), key=lambda kv: kv[1]["count"], reverse=True):
             first = min((i["triggered_at"] or "") for i in g["items"])
             disp = "/".join("%s×%d" % (k, v) for k, v in sorted(g["dispositions"].items()))
-            acct_tag = ("[%s] " % g["account"]) if g["account"] else "[未归属账户] "
+            acct_tag = (("[%s] " % g["account"]) if g["account"] else
+                        "[全局观察] " if _is_global_group(g) else "[未归属账户·数据缺陷] ")
             lines.append(acct_tag + "[%s] %d条（%s）首发 %s" % (
                 g["symbol"], g["count"], disp, first[11:19] if first else "-"))
             for it in g["items"][:4]:
@@ -235,7 +254,7 @@ class WatchDigestService:
 
         by_account: Dict[str, int] = {}
         for g in groups.values():
-            k = g["account"] or "未归属"
+            k = g["account"] or ("全局观察" if _is_global_group(g) else "未归属")
             by_account[k] = by_account.get(k, 0) + g["count"]
 
         # 积压行（wt:engine:4）：早于 since 的未处置触发不计入上面的分组，单独点名，
@@ -250,7 +269,9 @@ class WatchDigestService:
         return {
             "gate": sum(g["count"] for g in groups.values()) > 0,
             "by_account": by_account,
-            "unassigned": sum(g["count"] for g in groups.values() if not g["account"]),
+            "unassigned": sum(g["count"] for g in groups.values()
+                               if not g["account"] and not _is_global_group(g)),
+            "global_observation": sum(g["count"] for g in groups.values() if _is_global_group(g)),
             "market_summary": market_text,
             "count": sum(g["count"] for g in groups.values()),
             "backlog": {"count": int(backlog.get("count") or 0),
@@ -273,7 +294,7 @@ class WatchDigestService:
         """
         segs: Dict[str, dict] = {}
         for g in digest.get("groups") or []:
-            key = g.get("account") or UNASSIGNED
+            key = g.get("account") or (GLOBAL_OBSERVATION if _is_global_group(g) else UNASSIGNED)
             seg = segs.setdefault(key, {"count": 0, "group_count": 0, "groups": [],
                                         "by_disposition": {}, "by_account": {}})
             seg["groups"].append(g)
@@ -320,14 +341,17 @@ class WatchDigestService:
         return WatchDeliveryPolicy().resolve_autonomy(account)
 
     @staticmethod
-    def _instruction(account: Optional[str], autonomy: Optional[str] = None) -> str:
+    def _instruction(account: Optional[str], autonomy: Optional[str] = None,
+                     ownership: Optional[str] = None) -> str:
         """唤醒指令：账户作用域纪律 + **授权等级**（用户 2026-09-11 定调）
 
         授权按账户给：agent 自有账户（agent_virtual/agent_brain）agent 自己操作；
         用户账户（user_main_simulation）只提醒、不得下单。未知账户兜底只提醒。
         """
         from qs_notification.domain.policies.watch_delivery_policy import AUTONOMOUS, REMIND_ONLY
-        if autonomy == AUTONOMOUS:
+        if not account and ownership == 'global_observation':
+            authority = "全局观察不属于任何用户账户：只提醒、不交易，不按用户账户语义处理。"
+        elif autonomy == AUTONOMOUS:
             authority = ("本账户是 **agent 自有账户**：**你可以自主操作**（含下单），"
                          "按交易宪法与 R-001~R-009 执行，下单 reason 写明规则ID+数据依据，"
                          "并用 decision_audit 留痕。")
@@ -336,13 +360,16 @@ class WatchDigestService:
                          "需要交易时用 ask_user_question 拉起用户确认，不得替用户决定。")
         else:
             authority = "授权未明确：按最保守处理——只提醒，不下单。"
-        # 账户为空是**规则数据缺陷**（不是投送模式）：照常唤醒 agent，但第一优先是把归属补齐。
-        scope = ("本摘要仅属于账户 **%s**：所有账户查询/交易工具必须显式传 account_name=\"%s\"，"
-                 "禁止操作其他账户。" % (account, account)) if account else (
-                 "⚠️ 本摘要的规则**缺账户归属（linked_account）＝数据缺陷**：第一优先是判定归属，"
-                 "并 PATCH /api/watch/rules/{id} 补 linked_account（盯盘信息必须归属 agent_virtual / "
-                 "agent_brain / v13_simulation / user_main_simulation 之一）；补归属前不得下单"
-                 "（无账户无法交易），也不得把本摘要当作已处置。")
+        if account:
+            scope = ("本摘要仅属于账户 **%s**：所有账户查询/交易工具必须显式传 account_name=\"%s\"，"
+                     "禁止操作其他账户。" % (account, account))
+        elif ownership == 'global_observation':
+            scope = ("【全局观察·无账户】这是合法的非交易观察事件，不是缺账户缺陷。"
+                     "只做结构复核与信息沉淀；不得据此交易，也不要求补 linked_account。")
+        else:
+            scope = ("⚠️ 本摘要的规则**缺账户归属（linked_account）＝数据缺陷**：第一优先是判定归属，"
+                     "并 PATCH /api/watch/rules/{id} 补 linked_account；补归属前不得下单"
+                     "（无账户无法交易），也不得把本摘要当作已处置。")
         return (
             scope + authority +
             "按标的处置待处置触发：可自决的 PATCH /api/watch/triggers/{id} 置 handled 并写动作与结果；"
@@ -384,7 +411,7 @@ class WatchDigestService:
             self._shadow_last_at = now
             plan = []
             for acc_key, seg in segments.items():
-                acct = None if acc_key == UNASSIGNED else acc_key
+                acct = None if acc_key in (UNASSIGNED, GLOBAL_OBSERVATION) else acc_key
                 if acct is not None and self._is_strategy_managed(acct):
                     plan.append({"account": acct, "count": seg["count"],
                                  "action": "skip", "reason": "策略账户：盯盘不介入"})
@@ -401,7 +428,7 @@ class WatchDigestService:
 
         woke_accounts, failed, delivered, defects, out_of_scope = [], [], 0, [], []
         for acc_key, seg in segments.items():
-            acct = None if acc_key == UNASSIGNED else acc_key
+            acct = None if acc_key in (UNASSIGNED, GLOBAL_OBSERVATION) else acc_key
             if acc_key == UNASSIGNED:
                 # 账户为空**不是一种投送模式，而是规则数据缺陷**（用户 2026-09-11 纠正：
                 # 「没有账户不能交易 → 不唤醒 agent，只发飞书」是 bug —— 那等于把缺陷藏起来）。
@@ -429,11 +456,16 @@ class WatchDigestService:
             autonomy = self._resolve_autonomy(acct)
             payload = {
                 "account_name": acct,
+                # 传输幂等身份输入：同一批触发即使文本水位变化也保持同一事件 ID。
+                "trigger_ids": sorted({item["trigger_id"] for group in seg["groups"]
+                                       for item in group.get("items", [])
+                                       if item.get("trigger_id") is not None}),
                 "count": seg["count"],
                 "group_count": seg["group_count"],
                 "by_disposition": seg["by_disposition"],
                 "by_account": seg["by_account"],
                 "unassigned": acc_key == UNASSIGNED,
+                "global_observation": acc_key == GLOBAL_OBSERVATION,
                 "since": last_at.isoformat() if last_at else None,
                 "digest": seg["text"],
                 # 积压可见（wt:engine:4）：增量段之外更早的未处置触发计数与最旧时间
@@ -441,7 +473,9 @@ class WatchDigestService:
                 "target_agent": target_agent,
                 # 授权等级（账户维度）：autonomous=agent 自己操作 / remind_only=只提醒不下单
                 "autonomy": autonomy,
-                "instruction": self._instruction(acct, autonomy),
+                "instruction": self._instruction(
+                    acct, autonomy,
+                    'global_observation' if acc_key == GLOBAL_OBSERVATION else 'account'),
             }
             if acc_key == UNASSIGNED:
                 payload["data_defect"] = (

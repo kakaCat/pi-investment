@@ -1,7 +1,8 @@
 """决策打分服务（文本参数进化 P0a，2026-08-07）。
 
-每日调度：对 evaluation_status='pending' 的 trade_buy/trade_sell 决策，
+每日调度：对 score IS NULL 的 trade_buy/trade_sell/missed_opportunity 决策，
 满 mature_window 个交易日后用 daily_klines 收盘价 + 沪深300 基准打分回写。
+通用 evaluation_status 不参与评分资格判定，避免7日通用评估提前截断20日评分。
 纯计算无判断——分数是裁判 agent 的待解读原料（总设计 §1.2/§3.1）。
 依赖注入模式同 EvolutionFitnessService：repo 与 provider 可替换，便于 mock 测试。
 
@@ -64,7 +65,11 @@ class DecisionScoreService:
         self.mature_window = mature_window
 
     def score_mature_decisions(self, pending_days: int = 1) -> Dict[str, Any]:
-        """扫描 pending 决策并打分回写，返回计数汇总（供调度 run 记录）。"""
+        """扫描未评分候选并回写，返回既有计数汇总（供调度 run 记录）。
+
+        候选资格只由 score IS NULL、创建时间与可评分类型决定；真实20交易日
+        成熟度仍由 _score_one 按K线核验，不使用通用 evaluation_status 做闸门。
+        """
         from infrastructure.monitoring.business_metrics import (
             evolution_decision_scored_total,
             evolution_decision_score_duration_seconds,
@@ -72,13 +77,19 @@ class DecisionScoreService:
         )
         
         with evolution_decision_score_duration_seconds.time():
-            pending = self.decision_repo.list_pending_evaluations(days=pending_days)
+            candidates = self.decision_repo.list_unscored_decisions(
+                days=pending_days,
+                decision_types=sorted(SCORABLE_TYPES),
+            )
             result = {'scanned': 0, 'scored': 0, 'skipped_unmature': 0,
                       'skipped_invalid': 0, 'errors': 0}
             # 独立审阅 M5（2026-09-13 w-c8cae280）：指标按决策真实账户记账，
             # 原实现写死 labels(account='agent_virtual')，跨账户污染监控口径。
             scored_by_account: Dict[str, int] = {}
-            for decision in pending:
+            for decision in candidates:
+                # 仓储已过滤；保留服务侧防御，避免自定义仓储造成重复评分。
+                if decision.get('score') is not None:
+                    continue
                 # 2026-09-13（w-c8cae280）：大小写归一。
                 # 成交自动审计（account_trading_service._auto_record_decision）写的是
                 # f'trade_{action}'，action 为 'BUY'/'SELL' 大写 ⇒ 落库成 trade_BUY /

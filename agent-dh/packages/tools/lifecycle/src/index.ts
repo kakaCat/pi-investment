@@ -137,6 +137,7 @@ export default class LifecyclePlugin extends Service {
   private setupWakeWebhook(): void {
     registerWakeWebhook(this.ctx, {
       token: (this.cfg as any).wakeToken,
+      dedupPath: join(this.cfg.profileDir, 'state', 'wake-dedup.json'),
       deliver: async (event, data, timestamp) => {
         await this.deliverWake(event, data, timestamp);
       },

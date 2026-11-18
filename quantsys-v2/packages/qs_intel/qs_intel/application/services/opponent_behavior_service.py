@@ -6,7 +6,7 @@
 """
 from qs_kernel.domain.ports import IAgentIntelligenceRepository, IFundFlowRepository
 import structlog
-from typing import Dict, Any, List, Optional
+from typing import Callable, Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 logger = structlog.get_logger(__name__)
@@ -22,16 +22,19 @@ class OpponentBehaviorService:
         self,
         opponent_repo: Optional[IAgentIntelligenceRepository] = None,
         fund_flow_repo: Optional[IFundFlowRepository] = None,
+        now_fn: Optional[Callable[[], datetime]] = None,
     ):
         """初始化服务
 
         Args:
             opponent_repo: 智能仓库（可选）
             fund_flow_repo: 资金流仓库（可选）
+            now_fn: 当前时间提供者（可选，测试可注入固定时间）
 
         P2-1: 推荐通过 ServiceFactory 获取实例
         """
         self.opponent_repo = opponent_repo
+        self._now_fn = now_fn or datetime.now
         
         # 自动创建 fund_flow_repo（如果未提供）
         if fund_flow_repo is None:
@@ -40,6 +43,81 @@ class OpponentBehaviorService:
             fund_flow_repo = ServiceFactory.resolve(IFundFlowRepository)
         
         self.fund_flow_repo = fund_flow_repo
+
+    def _load_flow_data(self) -> Dict[str, Any]:
+        """一次读取并描述资金窗口，避免散户/机构各自取数造成口径漂移。
+
+        ``source_rows`` 是仓储返回的“每日市场聚合行”数量，不是底层个股行数；
+        ``as_of`` 取实际数据中的最新交易日，不能用轮询时间冒充数据时点。
+        """
+        now = self._now_fn()
+        end = now.strftime('%Y-%m-%d')
+        start = (now - timedelta(days=5)).strftime('%Y-%m-%d')
+        rows: List[Dict[str, Any]] = []
+        read_error = None
+        try:
+            raw_rows = self.fund_flow_repo.get_market_aggregate_flow(start, end) or []
+            for row in raw_rows:
+                normalized = dict(row)
+                normalized['trade_date'] = str(row.get('trade_date') or '')[:10]
+                rows.append(normalized)
+            rows.sort(key=lambda item: item['trade_date'])
+        except Exception as exc:  # 数据不可用时显式降级，不用0伪装中性
+            read_error = str(exc)
+            logger.warning(f"读取市场资金流窗口失败: {exc}")
+
+        today_rows = [row for row in rows if row['trade_date'] == end]
+        has_current_day = bool(today_rows)
+
+        def current_day_flow(keys: List[str], main_fallback: bool = False) -> Optional[float]:
+            if not has_current_day:
+                return None
+            total = 0.0
+            for row in today_rows:
+                if main_fallback:
+                    amount_wan = ((row.get('total_main_flow') or 0)
+                                  or (row.get('total_large_flow') or 0)
+                                  + (row.get('total_big_flow') or 0))
+                else:
+                    amount_wan = sum(float(row.get(key) or 0) for key in keys)
+                total += float(amount_wan) * 10000
+            return total
+
+        return {
+            'rows': rows,
+            'window': 'trailing_5d_cumulative',
+            'window_unit': 'calendar_days',
+            'lookback_days': 5,
+            'start': start,
+            'end': end,
+            'as_of': max((row['trade_date'] for row in rows), default=None),
+            'source': 'fund_flow_repository.get_market_aggregate_flow',
+            'source_row_kind': 'daily_market_aggregate',
+            'source_rows': len(rows),
+            'current_day': end,
+            'current_day_source_rows': len(today_rows),
+            'has_current_day_data': has_current_day,
+            'current_day_retail_flow': current_day_flow(
+                ['total_small_flow', 'total_medium_flow']),
+            'current_day_institution_flow': current_day_flow(
+                ['total_main_flow'], main_fallback=True),
+            'read_error': read_error,
+        }
+
+    @staticmethod
+    def _participant_flow_fields(flow_data: Dict[str, Any], participant: str) -> Dict[str, Any]:
+        """附加到参与者对象的窗口契约；net_flow 始终表示窗口累计值。"""
+        fields = {
+            key: flow_data[key] for key in (
+                'window', 'window_unit', 'lookback_days', 'start', 'end', 'as_of',
+                'source', 'source_row_kind', 'source_rows', 'current_day',
+                'current_day_source_rows', 'has_current_day_data', 'read_error'
+            )
+        }
+        fields['net_flow_scope'] = 'window_cumulative'
+        fields['current_day_net_flow'] = flow_data[
+            f'current_day_{participant}_flow']
+        return fields
 
     def analyze_current_behavior(self) -> Dict[str, Any]:
         """
@@ -59,12 +137,15 @@ class OpponentBehaviorService:
         logger.info("🔍 开始分析对手行为")
 
         try:
-            # 1. 分析散户行为
-            retail = self._analyze_retail_behavior()
+            # 1. 一次读取同一资金窗口，散户和机构共享完全相同的数据版本
+            flow_data = self._load_flow_data()
+
+            # 2. 分析散户行为
+            retail = self._analyze_retail_behavior(flow_data)
             logger.info(f"散户行为: {retail['behavior']}, 情绪指数: {retail['emotion_index']}")
 
-            # 2. 分析机构行为
-            institution = self._analyze_institution_behavior()
+            # 3. 分析机构行为
+            institution = self._analyze_institution_behavior(flow_data)
             inst_flow = institution['net_flow']
             logger.info(f"机构行为: {institution['behavior']}, 净流入: "
                         f"{inst_flow/100000000:.1f}亿" if inst_flow is not None
@@ -97,6 +178,20 @@ class OpponentBehaviorService:
                 'hot_money_target_stocks': hot_money.get('target_stocks', []),
                 'hot_money_stage': hot_money.get('stage'),
                 'market_phase': market_phase,
+                'market_phase_basis': 'fund_flow_combination_only',
+                'market_phase_requires_price_confirmation': True,
+                'window': flow_data['window'],
+                'window_unit': flow_data['window_unit'],
+                'lookback_days': flow_data['lookback_days'],
+                'start': flow_data['start'],
+                'end': flow_data['end'],
+                'as_of': flow_data['as_of'],
+                'source': flow_data['source'],
+                'source_row_kind': flow_data['source_row_kind'],
+                'source_rows': flow_data['source_rows'],
+                'current_day': flow_data['current_day'],
+                'current_day_source_rows': flow_data['current_day_source_rows'],
+                'has_current_day_data': flow_data['has_current_day_data'],
                 'risk_appetite': risk_appetite,
                 'opportunities': opportunity_map
             }
@@ -112,10 +207,24 @@ class OpponentBehaviorService:
                 'institution': institution,
                 'hot_money': hot_money,
                 'market_phase': market_phase,
+                'market_phase_basis': 'fund_flow_combination_only',
+                'market_phase_requires_price_confirmation': True,
+                'window': flow_data['window'],
+                'window_unit': flow_data['window_unit'],
+                'lookback_days': flow_data['lookback_days'],
+                'start': flow_data['start'],
+                'end': flow_data['end'],
+                'as_of': flow_data['as_of'],
+                'source': flow_data['source'],
+                'source_row_kind': flow_data['source_row_kind'],
+                'source_rows': flow_data['source_rows'],
+                'current_day': flow_data['current_day'],
+                'current_day_source_rows': flow_data['current_day_source_rows'],
+                'has_current_day_data': flow_data['has_current_day_data'],
                 'risk_appetite': risk_appetite,
                 'opportunity_map': opportunity_map,
                 'degraded': bool(retail.get('degraded') or institution.get('degraded')),
-                'timestamp': datetime.now().isoformat()
+                'timestamp': self._now_fn().isoformat()
             }
 
             logger.info("✅ 对手行为分析完成")
@@ -125,40 +234,23 @@ class OpponentBehaviorService:
             logger.error(f"❌ 对手行为分析失败: {e}", exc_info=True)
             raise
 
-    def _analyze_retail_behavior(self) -> Dict[str, Any]:
-        """
-        分析散户行为
-
-        基于资金流向数据分析散户的行为模式和情绪状态
-
-        Returns:
-            {
-                'behavior': 'panic_selling' | 'fomo_buying' | 'neutral',
-                'net_flow': int,           # 净流入（元）
-                'emotion_index': float,    # 情绪指数 0-100
-                'common_mistakes': [str]   # 常见错误
-            }
-        """
+    def _analyze_retail_behavior(self, flow_data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """分析散户行为；net_flow 是窗口累计，不代表当日流量。"""
         try:
-            # 获取近5日资金流向数据
-            end_date = datetime.now()
-            start_date = end_date - timedelta(days=5)
-
-            # TODO: 这里需要获取市场整体资金流向，暂时使用模拟逻辑
-            # 实际实现时应该聚合所有股票或使用指数的资金流向
-
-            # 计算散户净流入（小单 + 中单），数据不可用时返回 None
-            retail_flow = self._calculate_retail_flow(start_date, end_date)
+            flow_data = flow_data or self._load_flow_data()
+            window_fields = self._participant_flow_fields(flow_data, 'retail')
+            retail_flow = self._calculate_retail_flow(flows=flow_data['rows'])
 
             if retail_flow is None:
                 return {
                     'behavior': 'unknown',
-                    'net_flow': 0,
-                    'emotion_index': 50.0,
+                    'net_flow': None,
+                    'emotion_index': None,
                     'common_mistakes': [],
                     'degraded': True,
                     'reason': 'stock_fund_flow 无数据（等待每日采集任务 fund_flow_update）',
-                    'description': '资金流数据不可用，无法判断散户行为'
+                    'description': '资金流数据不可用，无法判断散户行为',
+                    **window_fields,
                 }
 
             # 判断行为模式
@@ -180,52 +272,40 @@ class OpponentBehaviorService:
                 'net_flow': int(retail_flow),
                 'emotion_index': emotion_index,
                 'common_mistakes': mistakes,
-                'description': self._get_behavior_description(behavior, 'retail')
+                'degraded': False,
+                'description': self._get_behavior_description(behavior, 'retail'),
+                **window_fields,
             }
 
         except Exception as e:
             logger.warning(f"分析散户行为失败: {e}")
             return {
                 'behavior': 'unknown',
-                'net_flow': 0,
-                'emotion_index': 50.0,
+                'net_flow': None,
+                'emotion_index': None,
                 'common_mistakes': [],
                 'degraded': True,
                 'reason': str(e),
                 'description': '数据不足，无法判断'
             }
 
-    def _analyze_institution_behavior(self) -> Dict[str, Any]:
-        """
-        分析机构行为
-
-        基于大单流向、龙虎榜数据分析机构的建仓/出货行为
-
-        Returns:
-            {
-                'behavior': 'accumulating' | 'distributing' | 'neutral',
-                'net_flow': int,                  # 净流入（元）
-                'target_sectors': [str],          # 目标板块
-                'position_change': 'increasing' | 'decreasing'
-            }
-        """
+    def _analyze_institution_behavior(self, flow_data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """分析机构行为；net_flow 是窗口累计，不代表当日流量。"""
         try:
-            # 获取近5日资金流向
-            end_date = datetime.now()
-            start_date = end_date - timedelta(days=5)
-
-            # 计算机构净流入（超大单 + 大单），数据不可用时返回 None
-            institution_flow = self._calculate_institution_flow(start_date, end_date)
+            flow_data = flow_data or self._load_flow_data()
+            window_fields = self._participant_flow_fields(flow_data, 'institution')
+            institution_flow = self._calculate_institution_flow(flows=flow_data['rows'])
 
             if institution_flow is None:
                 return {
                     'behavior': 'unknown',
-                    'net_flow': 0,
+                    'net_flow': None,
                     'target_sectors': [],
                     'position_change': 'unknown',
                     'degraded': True,
                     'reason': 'stock_fund_flow 无数据（等待每日采集任务 fund_flow_update）',
-                    'description': '资金流数据不可用，无法判断机构行为'
+                    'description': '资金流数据不可用，无法判断机构行为',
+                    **window_fields,
                 }
 
             # 判断行为模式
@@ -247,14 +327,16 @@ class OpponentBehaviorService:
                 'net_flow': int(institution_flow),
                 'target_sectors': target_sectors,
                 'position_change': position_change,
-                'description': self._get_behavior_description(behavior, 'institution')
+                'degraded': False,
+                'description': self._get_behavior_description(behavior, 'institution'),
+                **window_fields,
             }
 
         except Exception as e:
             logger.warning(f"分析机构行为失败: {e}")
             return {
                 'behavior': 'unknown',
-                'net_flow': 0,
+                'net_flow': None,
                 'target_sectors': [],
                 'position_change': 'unknown',
                 'degraded': True,
@@ -302,14 +384,10 @@ class OpponentBehaviorService:
         """
         判断市场阶段
 
-        根据散户和机构的行为组合判断当前市场所处阶段
+        根据散户和机构的历史行为组合返回兼容枚举。
 
-        Phases:
-        - accumulation: 机构建仓，散户恐慌（底部）
-        - markup: 机构和散户都在买入（上涨）
-        - distribution: 机构出货，散户追涨（顶部）
-        - markdown: 机构和散户都在卖出（下跌）
-        - consolidation: 震荡整理
+        注意：这些枚举只描述资金组合，不是已经确认的价格位置；调用方不得
+        仅凭该字段输出价格顶部/底部结论或直接交易动作。
 
         Args:
             retail: 散户行为数据
@@ -392,17 +470,17 @@ class OpponentBehaviorService:
                 'confidence': 0.85,
                 'expected_return': '+5% ~ +10%',
                 'time_horizon': '3-5 days',
-                'reason': '散户恐慌抛售，机构逢低吸纳，优质股被错杀',
-                'action': '创建"恐慌抄底池"，筛选基本面优质但超跌的股票'
+                'reason': '窗口内散户累计流出、主力累计流入；价格位置与标的基本面仍需确认',
+                'action': '创建资金背离观察清单，等待价格结构和基本面确认'
             }]
 
-        # 机会2: 避开机构出货陷阱
+        # 资金分歧只形成复核线索，不能脱离价格位置直接推导交易动作
         if institution['behavior'] == 'distributing' and retail['behavior'] == 'fomo_buying':
             opportunities['avoid_institution'] = [{
                 'risk': 'high',
-                'reason': '机构大量出货，散户高位接盘',
-                'action': '清仓观望，或做空相关板块',
-                'urgency': 'critical'
+                'reason': '窗口内主力累计净流出、散户累计净流入，存在资金分歧；价格位置尚待确认',
+                'action': '结合价格位置与最新单日流向复核，不直接触发交易动作',
+                'urgency': 'normal'
             }]
 
         # 机会3: 跟随机构建仓
@@ -431,19 +509,21 @@ class OpponentBehaviorService:
 
     # ==================== 辅助方法 ====================
 
-    def _calculate_retail_flow(self, start_date: datetime, end_date: datetime) -> float | None:
-        """
-        计算散户资金净流入（小单+中单）
-
-        Returns:
-            散户净流入金额（元）；无数据时返回 None（由调用方显式降级，
-            不再静默返回 0.0 伪装成"中性"）
-        """
+    def _calculate_retail_flow(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        flows: Optional[List[Dict[str, Any]]] = None,
+    ) -> float | None:
+        """计算窗口内散户累计净流入；无数据返回 None。"""
         try:
-            flows = self.fund_flow_repo.get_market_aggregate_flow(
-                start_date.strftime('%Y-%m-%d'),
-                end_date.strftime('%Y-%m-%d')
-            )
+            if flows is None:
+                end_date = end_date or self._now_fn()
+                start_date = start_date or (end_date - timedelta(days=5))
+                flows = self.fund_flow_repo.get_market_aggregate_flow(
+                    start_date.strftime('%Y-%m-%d'),
+                    end_date.strftime('%Y-%m-%d')
+                )
 
             if not flows:
                 logger.warning("stock_fund_flow 无市场聚合资金流数据")
@@ -462,19 +542,21 @@ class OpponentBehaviorService:
             logger.error(f"计算散户资金流失败: {e}")
             return None
 
-    def _calculate_institution_flow(self, start_date: datetime, end_date: datetime) -> float | None:
-        """
-        计算机构/主力资金净流入
-
-        优先用主力净流入（total_main_flow，东财=主力合计、新浪=r0超大单）；
-        东财 4 档数据齐全时回退为超大单+大单口径。
-        无数据时返回 None。
-        """
+    def _calculate_institution_flow(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        flows: Optional[List[Dict[str, Any]]] = None,
+    ) -> float | None:
+        """计算窗口内机构累计净流入；无数据返回 None。"""
         try:
-            flows = self.fund_flow_repo.get_market_aggregate_flow(
-                start_date.strftime('%Y-%m-%d'),
-                end_date.strftime('%Y-%m-%d')
-            )
+            if flows is None:
+                end_date = end_date or self._now_fn()
+                start_date = start_date or (end_date - timedelta(days=5))
+                flows = self.fund_flow_repo.get_market_aggregate_flow(
+                    start_date.strftime('%Y-%m-%d'),
+                    end_date.strftime('%Y-%m-%d')
+                )
 
             if not flows:
                 logger.warning("stock_fund_flow 无市场聚合资金流数据")
@@ -527,11 +609,11 @@ class OpponentBehaviorService:
     def _get_behavior_description(self, behavior: str, participant: str) -> str:
         """获取行为描述"""
         descriptions = {
-            ('panic_selling', 'retail'): '散户正在恐慌性抛售，情绪极度悲观',
-            ('fomo_buying', 'retail'): '散户正在疯狂追涨，情绪极度乐观',
-            ('neutral', 'retail'): '散户观望为主，情绪相对平稳',
-            ('accumulating', 'institution'): '机构正在建仓，看好后市',
-            ('distributing', 'institution'): '机构正在出货，准备离场',
-            ('neutral', 'institution'): '机构维持仓位，暂无明显动向',
+            ('panic_selling', 'retail'): '窗口内散户资金累计净流出并达到流出阈值，不代表当日恐慌',
+            ('fomo_buying', 'retail'): '窗口内散户资金累计净流入并达到流入阈值，不代表当日追涨',
+            ('neutral', 'retail'): '窗口内散户资金累计流向未达到行为阈值',
+            ('accumulating', 'institution'): '窗口内主力资金累计净流入并达到流入阈值，需结合价格位置确认',
+            ('distributing', 'institution'): '窗口内主力资金累计净流出并达到流出阈值，需结合价格位置确认',
+            ('neutral', 'institution'): '窗口内主力资金累计流向未达到行为阈值',
         }
         return descriptions.get((behavior, participant), '行为模式不明确')

@@ -196,6 +196,28 @@ class TestWatchRuleRepository:
         rows = self.trigger_repo.list_by_symbol(rule.symbol, limit=10)
         assert any(t.id == trigger.id for t in rows)
 
+    def test_find_latest_for_condition_restores_latest_v2_trigger(self):
+        rule = self._make_rule()
+        condition = {'type': 'price_break', 'params': {'direction': 'above', 'price': 1800.0}}
+        first = self.trigger_repo.record(
+            rule_id=rule.id, symbol=rule.symbol, condition=condition,
+            trigger_price=1801.0, notified=True, engine='v2')
+        latest = self.trigger_repo.record(
+            rule_id=rule.id, symbol=rule.symbol, condition=condition,
+            trigger_price=1802.0, notified=False, engine='v2')
+        other_engine = self.trigger_repo.record(
+            rule_id=rule.id, symbol=rule.symbol, condition=condition,
+            trigger_price=1803.0, notified=False, engine='v1')
+        self._created_trigger_ids.extend([first.id, latest.id, other_engine.id])
+
+        restored = self.trigger_repo.find_latest_for_condition(
+            rule_id=rule.id, condition=condition,
+            since=datetime.now() - timedelta(minutes=1), engine='v2')
+
+        assert restored is not None
+        assert restored.id == latest.id
+        assert restored.notified is False
+
 
 # ── RFC 017（2026-10-21）：position_state / interval_sec 读写与兼容语义 ──────────
 

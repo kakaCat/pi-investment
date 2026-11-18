@@ -35,7 +35,7 @@ def _decision(**kw):
 
 def _service(pending, kline_df, bench):
     decision_repo = MagicMock()
-    decision_repo.list_pending_evaluations.return_value = pending
+    decision_repo.list_unscored_decisions.return_value = pending
     kline_repo = MagicMock()
     kline_repo.get_daily_klines.return_value = kline_df
     return DecisionScoreService(
@@ -59,6 +59,32 @@ def test_mature_buy_scored():
     detail = args[0][3]
     assert detail['window_trading_days'] == 20
     assert detail['benchmark_missing'] is False
+
+
+def test_evaluated_unscored_mature_decision_is_scored():
+    """回归：7日通用评估已写 evaluated，但20日收益评分仍必须执行。"""
+    decision = _decision(
+        evaluation_status='evaluated',
+        score=None,
+        evaluation_result={'success': True, 'learned_lesson': 'trade_buy决策已执行'},
+        learned_lesson='trade_buy决策已执行',
+    )
+    df = _kline_df([10.0] + [10.5] * 19 + [11.0])
+    svc, repo = _service([decision], df, _bench([100.0] * 30))
+
+    result = svc.score_mature_decisions()
+
+    assert result['scanned'] == 1
+    assert result['scored'] == 1
+    assert set(result) == {
+        'scanned', 'scored', 'skipped_unmature', 'skipped_invalid', 'errors'
+    }
+    repo.list_unscored_decisions.assert_called_once_with(
+        days=1,
+        decision_types=['missed_opportunity', 'trade_buy', 'trade_sell'],
+    )
+    repo.list_pending_evaluations.assert_not_called()
+    assert repo.update_score.call_args[0][0] == 'DEC-T1'
 
 
 def test_unmature_skipped():
@@ -104,7 +130,7 @@ def test_single_error_does_not_abort_batch():
     kline_repo = MagicMock()
     kline_repo.get_daily_klines.side_effect = [RuntimeError('kline db error'), good_df]
     decision_repo = MagicMock()
-    decision_repo.list_pending_evaluations.return_value = [
+    decision_repo.list_unscored_decisions.return_value = [
         _decision(decision_id='DEC-BAD'),
         _decision(decision_id='DEC-GOOD'),
     ]

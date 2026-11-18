@@ -87,8 +87,10 @@ def scan_signals(payload: Optional[Dict[str, Any]] = Body(None)):
     page = max(1, int(snake_data.get('page', 1)))
     page_size = min(int(snake_data.get('page_size', 20)), 100)
     
-    # RFC 011：自动创建盯盘规则（默认开启）
+    # RFC 011：自动创建盯盘规则（后端兼容默认开启；只读工具会显式传 False）。
     auto_create_rules = bool(snake_data.get('auto_create_rules', True))
+    # 显式账户 → 账户候选；缺省 → 全局观察。不得在共享后端猜一个默认投资账户。
+    watch_account = str(snake_data.get('account_name') or snake_data.get('account') or '').strip() or None
     
     # RFC 012：使用 DDD 评分系统（默认开启，行业中性化 + 平滑化）
     use_ddd_scoring = bool(snake_data.get('use_ddd_scoring', True))
@@ -206,7 +208,7 @@ def scan_signals(payload: Optional[Dict[str, Any]] = Body(None)):
                 watch_service = OpportunityToWatchRuleService()
                 # 只处理前 10 个最高分机会（避免一次创建太多）
                 top_opps = sorted_opps[:10]
-                watch_rule_results = watch_service.auto_create_rules(top_opps)
+                watch_rule_results = watch_service.auto_create_rules(top_opps, account=watch_account)
                 logger.info(
                     '机会扫描自动创建盯盘规则',
                     created=sum(1 for r in watch_rule_results if r['action'] == 'created'),
@@ -239,6 +241,8 @@ def scan_signals(payload: Optional[Dict[str, Any]] = Body(None)):
         if selected_sectors_info:
             result['sector_info'] = selected_sectors_info
         if watch_rule_results:
+            # 新统一字段供 agent 展示逐项建规/跳过结果；旧字段保留给既有调用方。
+            result['watch_rule_results'] = watch_rule_results
             result['watch_rules_created'] = watch_rule_results
         return result
 

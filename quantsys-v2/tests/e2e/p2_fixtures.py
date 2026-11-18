@@ -258,6 +258,16 @@ class MockDecisionRepository:
     def list_pending_evaluations(self, days: int = 1):
         return self.decisions
 
+    def list_unscored_decisions(self, days: int = 1, decision_types=None):
+        normalized_types = {
+            str(value).strip().lower() for value in (decision_types or [])
+        }
+        return [
+            decision for decision in self.decisions
+            if decision.get('score') is None
+            and str(decision.get('decision_type') or '').strip().lower() in normalized_types
+        ]
+
     def update_score(self, decision_id: str, score: float, band: str, detail: dict,
                      lesson: str = None):
         # 2026-09-13（w-c8cae280）：生产签名已扩为 (..., detail, lesson=None)

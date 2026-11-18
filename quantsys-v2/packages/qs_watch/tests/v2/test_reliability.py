@@ -125,7 +125,7 @@ def test_failed_agent_send_retries_same_trigger_and_delays_cycle():
     assert second['archived'] == 0
 
 
-def test_agent_call_skips_below_one_percent_and_retries_after_threshold():
+def test_successful_agent_trigger_does_not_repeat_after_cycle_reset_or_price_move():
     rule = make_rule()
     repo = RuleRepo(rule)
     triggers = TriggerRepo()
@@ -140,7 +140,7 @@ def test_agent_call_skips_below_one_percent_and_retries_after_threshold():
     assert len(agent_calls) == 1
     assert repo.count == 1
 
-    repo.count = 0  # 模拟新循环首发 agent；价格浮动不足 1% 时不得重复唤醒
+    repo.count = 0  # 即使旧计数归零，同一已通知 trigger 也不得进入新循环
     quotes.price = 11.05
     second = scheduled.scan(rule.watch_tier, now=NOW, rule_repo=repo,
                             quote_service=quotes, trigger_repo=triggers, engine=engine)
@@ -153,12 +153,12 @@ def test_agent_call_skips_below_one_percent_and_retries_after_threshold():
     third = scheduled.scan(rule.watch_tier, now=NOW, rule_repo=repo,
                            quote_service=quotes, trigger_repo=triggers, engine=engine)
     assert third['delivery_failed'] == 0
-    assert len(agent_calls) == 2
-    assert repo.count == 1
+    assert len(agent_calls) == 1, '价格变化不再复活已投递的 trigger'
+    assert repo.count == 0, '已通知事件不推进或重置任何新循环'
 
 
-def test_failed_tenth_direct_does_not_reset_and_retries_same_record():
-    rule = make_rule()
+def test_failed_direct_retries_same_record_without_cycle_count():
+    rule = make_rule(trigger_channel='direct')
     repo = RuleRepo(rule)
     repo.count = 9
     triggers = TriggerRepo()
@@ -178,7 +178,7 @@ def test_failed_tenth_direct_does_not_reset_and_retries_same_record():
     scheduled.scan(rule.watch_tier, now=NOW, rule_repo=repo,
                    quote_service=Quotes(rule.symbol, 11.0),
                    trigger_repo=triggers, engine=engine)
-    assert repo.count == 0
+    assert repo.count == 9, 'direct 通道不消费 10-cycle 计数'
     assert len(calls) == 2
     assert len(triggers.rows) == 1
     assert triggers.rows[0]['notified'] is True
@@ -248,7 +248,7 @@ def test_missing_quote_preserves_latch_and_new_day_creates_new_record():
     assert len(triggers.rows) == 2
 
 
-def test_slow_tier_moves_to_fast_and_completes_tenth_delivery():
+def test_slow_tier_moves_to_fast_without_tenth_cycle_renotification():
     rule = make_rule(watch_tier=tier.TIER_SLOW)
     repo = RuleRepo(rule)
     triggers = TriggerRepo()
@@ -271,8 +271,8 @@ def test_slow_tier_moves_to_fast_and_completes_tenth_delivery():
                        quote_service=quotes, trigger_repo=triggers, engine=engine)
 
     assert len(agent_calls) == 1
-    assert len(feishu_calls) == 1
-    assert repo.count == 0
+    assert len(feishu_calls) == 0, '同一 trigger 成功后不得再由第 10 次循环发群'
+    assert repo.count == 1, '成功事件停在已处理计数，不再推进 10-cycle'
     assert repo.tier_updates == [tier.TIER_FAST]
 
 

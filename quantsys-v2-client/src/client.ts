@@ -1644,16 +1644,16 @@ export class QuantsysV2Client {
       const response = await this.client.post('/api/watch/rules', body);
       return this.unwrap(response.data, 'manageWatchRule');
     }
-    if (action === 'enable') {
-      const response = await this.client.patch(`/api/watch/rules/${rule_id}`, { enabled: true });
-      return this.unwrap(response.data, 'manageWatchRule');
-    }
-    if (action === 'disable') {
-      const response = await this.client.patch(`/api/watch/rules/${rule_id}`, { enabled: false });
+    if (action === 'enable' || action === 'disable') {
+      const response = await this.client.patch(`/api/watch/rules/${rule_id}`, {
+        ...rest,
+        enabled: action === 'enable',
+      });
       return this.unwrap(response.data, 'manageWatchRule');
     }
     if (action === 'delete') {
-      const response = await this.client.delete(`/api/watch/rules/${rule_id}`);
+      // DELETE 也携带 reason/decision_audit_id；后端执行可审计的软退役而非物理抹除。
+      const response = await this.client.delete(`/api/watch/rules/${rule_id}`, { data: rest });
       return this.unwrap(response.data, 'manageWatchRule');
     }
     throw new Error(`Unknown watch rule action: ${action}`);
@@ -1816,13 +1816,18 @@ export class QuantsysV2Client {
    * Scan market opportunities
    * Real endpoint: POST /api/signals/scan
    */
-  async scanOpportunities(params?: OpportunityScanRequest): Promise<Opportunity[]> {
+  async scanOpportunitiesDetailed(params?: OpportunityScanRequest): Promise<any> {
     const response = await this.client.post('/api/signals/scan', params ?? {});
     const data = response.data;
     if (data?.success === false) {
       throw new Error(data?.error || 'API request failed: scanOpportunities');
     }
-    // 后端返回 {success, scan_mode, opportunities: [...]}，无 data 信封，需显式提取
+    // 保留 scanned/watch_rule_results 等元数据；旧方法下方仍只返回机会数组。
+    return data;
+  }
+
+  async scanOpportunities(params?: OpportunityScanRequest): Promise<Opportunity[]> {
+    const data = await this.scanOpportunitiesDetailed(params);
     const list = data?.opportunities ?? data?.data ?? [];
     return (Array.isArray(list) ? list : []) as Opportunity[];
   }

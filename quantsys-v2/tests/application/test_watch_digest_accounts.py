@@ -6,7 +6,9 @@
 """
 from datetime import datetime
 
-from qs_watch.application.services.watch_engine.digest_service import UNASSIGNED, WatchDigestService
+from qs_watch.application.services.watch_engine.digest_service import (
+    GLOBAL_OBSERVATION, UNASSIGNED, WatchDigestService,
+)
 
 
 class _Rule:
@@ -172,27 +174,35 @@ def test_unassigned_still_wakes_agent_and_flags_defect():
     assert res["data_defects"] == [{"count": 1, "rule_ids": [3]}]
 
 
-def test_unassigned_observe_also_wakes_agent():
-    """非交易类未归属同样唤醒（判据只看账户是不是缺陷，不看意图）"""
+def test_global_observe_wakes_without_fake_account_defect():
+    """无账户趋势观察是合法全局事件，不再要求 PATCH linked_account。"""
     agent = _Agent()
     rules = [_Rule(4, "600150", account=None, intent="trend_observe")]
     trigs = [_Trig(14, 4, "600150")]
     res = _svc(agent=agent, rules=rules, trigs=trigs).maybe_wake(now=TRADING_NOW)
     assert res["woke"] is True and len(agent.calls) == 1
-    assert agent.calls[0]["data"]["data_defect"]
+    data = agent.calls[0]["data"]
+    assert data["global_observation"] is True
+    assert data["unassigned"] is False
+    assert "data_defect" not in data
+    assert "不是缺账户缺陷" in data["instruction"]
+    assert res["accounts"] == [GLOBAL_OBSERVATION]
 
 
-def test_unassigned_bucket_is_not_split_by_intent():
-    """未归属桶不再按交易/非交易切分（那是把缺陷当路由）：混着也一起投，整体标缺陷"""
+def test_global_observe_and_unassigned_entry_are_separate_buckets():
+    """合法全局观察与缺账户入场不得混成同一数据缺陷桶。"""
     agent = _Agent()
     rules = [_Rule(5, "601138", account=None, intent="entry"),
              _Rule(6, "600011", account=None, intent="trend_observe")]
     trigs = [_Trig(15, 5, "601138"), _Trig(16, 6, "600011")]
     res = _svc(agent=agent, rules=rules, trigs=trigs).maybe_wake(now=TRADING_NOW)
-    assert res["wakes"] == 1 and len(agent.calls) == 1
-    digest_text = agent.calls[0]["data"]["digest"]
-    assert "601138" in digest_text and "600011" in digest_text
-    assert res["data_defects"][0]["rule_ids"] == [5, 6]
+    assert res["wakes"] == 2 and len(agent.calls) == 2
+    by_kind = {c["data"].get("global_observation", False): c["data"] for c in agent.calls}
+    assert "600011" in by_kind[True]["digest"]
+    assert "601138" not in by_kind[True]["digest"]
+    assert "601138" in by_kind[False]["digest"]
+    assert "600011" not in by_kind[False]["digest"]
+    assert res["data_defects"] == [{"count": 1, "rule_ids": [5]}]
 
 
 def test_wake_respects_daily_cap():

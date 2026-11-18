@@ -3,8 +3,10 @@
 
 实时监控市场博弈态势，发现风险和机会时主动预警
 """
+import hashlib
+import json
 import structlog
-from typing import Dict, Any, List, Optional
+from typing import Callable, Dict, Any, List, MutableMapping, Optional
 from datetime import datetime, timedelta
 from qs_kernel.domain.ports import IFundFlowRepository
 from qs_intel.application.services.opponent_behavior_service import OpponentBehaviorService
@@ -20,7 +22,7 @@ def _net_flow_yi(participant: Dict[str, Any]) -> Optional[float]:
     （见 opponent_behavior_service._analyze_retail_behavior / _analyze_institution_behavior）。
 
     2026-09-11 修复（w-f4aa1f6a）：原实现读 participant['flow_amount']，该键不存在，
-    抛 KeyError 后被下面 except 吞掉 → 「抄底机会 / 顶部风险 / 机构出货」三条预警永久失效，
+    抛 KeyError 后被下面 except 吞掉 → 对手资金预警长期失效，
     /api/alerts/check 恒返回空（实证：日志 “检查对手行为预警失败: 'flow_amount'”，
     而同一时刻对手服务已识别出 panic_selling + accumulating 的抄底机会）。
     """
@@ -46,6 +48,8 @@ class GameAlertService:
         fund_flow_repo: Optional[IFundFlowRepository] = None,
         opponent_service: Optional[OpponentBehaviorService] = None,
         manipulation_detector: Optional[ManipulationDetector] = None,
+        alert_state: Optional[MutableMapping[str, Dict[str, Any]]] = None,
+        now_fn: Optional[Callable[[], datetime]] = None,
     ):
         """初始化服务
 
@@ -53,12 +57,17 @@ class GameAlertService:
             fund_flow_repo: 资金流仓库（可选）
             opponent_service: 对手行为服务（可选）
             manipulation_detector: 操纵检测器（可选）
-
-        P2-1: 推荐通过 ServiceFactory 获取实例
+            alert_state: 可注入的告警状态映射；支持原子 observe 的持久适配器。
+                缺省为进程内存；生产由 ServiceFactory 显式注入文件状态适配器。
+            now_fn: 当前时间提供者（可选，测试可注入固定时间）
         """
         self.fund_flow_repo = fund_flow_repo
         self.opponent_service = opponent_service or OpponentBehaviorService()
         self.manipulation_detector = manipulation_detector or ManipulationDetector()
+        self._alert_state = alert_state if alert_state is not None else {}
+        self._alert_state_persistence = (
+            'injected_store' if alert_state is not None else 'process_memory')
+        self._now_fn = now_fn or datetime.now
 
         # 操纵检测总超时（秒）：外部数据源（涨停池/龙虎榜）可能无响应，
         # 必须给 check_alerts 设硬上限，否则 /api/alerts/check 无限挂起。
@@ -72,6 +81,79 @@ class GameAlertService:
             'manipulation_confidence': 0.8,  # 操纵检测置信度
         }
 
+    @staticmethod
+    def _notification_key(alert: Dict[str, Any]) -> str:
+        symbols = ','.join(sorted(str(item) for item in (alert.get('symbols') or [])))
+        return f"{alert.get('type', 'unknown')}:{alert.get('title', 'unknown')}:{symbols}"
+
+    @staticmethod
+    def _fingerprint_payload(alert: Dict[str, Any]) -> Dict[str, Any]:
+        # 轮询时间、通知状态和上一轮ID不参与内容指纹。
+        excluded = {
+            'alert_id', 'created_at', 'last_seen_at', 'content_fingerprint',
+            'notify_worthy', 'notification_reason', 'notification_key',
+            'dedup_persistence', 'dedup_restart_safe', 'dedup_status',
+        }
+        return {key: value for key, value in alert.items() if key not in excluded}
+
+    def _finalize_alert(self, alert: Dict[str, Any]) -> Dict[str, Any]:
+        """生成确定性ID，并把重复内容降级为非 notify-worthy。
+
+        返回重复告警而不是返回空列表，避免调用方把“已提醒过”误读为“风险消失”。
+        持久适配器通过 observe 在同一临界区内完成读取、判重和写入。
+        """
+        finalized = dict(alert)
+        payload = self._fingerprint_payload(finalized)
+        canonical = json.dumps(
+            payload, ensure_ascii=False, sort_keys=True, separators=(',', ':'), default=str)
+        fingerprint = hashlib.sha256(canonical.encode('utf-8')).hexdigest()
+        key = self._notification_key(finalized)
+        observed_at = self._now_fn().isoformat(timespec='seconds')
+        previous = None
+        state_error = None
+        unchanged = False
+        observer = getattr(self._alert_state, 'observe', None)
+        try:
+            if callable(observer):
+                previous, unchanged = observer(key, fingerprint, observed_at)
+            else:
+                previous = self._alert_state.get(key)
+                unchanged = bool(previous and previous.get('fingerprint') == fingerprint)
+        except Exception as exc:
+            state_error = str(exc)
+            logger.error(f"读取/更新告警去重状态失败: {exc}")
+
+        first_seen_at = (
+            str(previous.get('first_seen_at'))
+            if unchanged and previous and previous.get('first_seen_at') else observed_at
+        )
+        finalized.update({
+            'alert_id': self._generate_alert_id(fingerprint),
+            'content_fingerprint': fingerprint,
+            'notification_key': key,
+            'notify_worthy': not unchanged,
+            'notification_reason': 'unchanged' if unchanged else 'new_or_changed',
+            'created_at': first_seen_at,
+            'last_seen_at': observed_at,
+            'dedup_persistence': getattr(
+                self._alert_state, 'persistence', self._alert_state_persistence),
+            'dedup_restart_safe': getattr(
+                self._alert_state, 'restart_safe',
+                False if self._alert_state_persistence == 'process_memory' else None),
+            'dedup_status': 'error' if state_error else 'ok',
+        })
+        if not callable(observer):
+            try:
+                self._alert_state[key] = {
+                    'fingerprint': fingerprint,
+                    'first_seen_at': first_seen_at,
+                    'last_seen_at': observed_at,
+                }
+            except Exception as exc:
+                finalized['dedup_status'] = 'error'
+                logger.error(f"写入告警去重状态失败: {exc}")
+        return finalized
+
     def check_alerts(self) -> List[Dict[str, Any]]:
         """
         检查所有预警条件
@@ -79,14 +161,21 @@ class GameAlertService:
         Returns:
             预警列表 [
                 {
-                    'alert_id': 'alert_001',
+                    'alert_id': 'alert_<content-hash>',
                     'type': 'opportunity',  # opportunity/risk
                     'level': 'high',        # low/medium/high/critical
-                    'title': '抄底机会',
-                    'message': '散户恐慌抛售，XX股超跌30%',
-                    'action': '建议建仓',
-                    'symbols': ['600519.SH'],
-                    'created_at': '2026-06-26 01:00:00'
+                    'title': '资金承接观察',
+                    'message': '5日累计窗口……',
+                    'action': '等待价格结构确认',
+                    'symbols': [],
+                    'window': 'trailing_5d_cumulative',
+                    'start': '2026-11-13',
+                    'end': '2026-11-18',
+                    'as_of': '2026-11-17',
+                    'source_rows': 3,
+                    'content_fingerprint': '<sha256>',
+                    'notify_worthy': True,
+                    'created_at': '2026-11-18T09:30:00'
                 }
             ]
         """
@@ -107,6 +196,9 @@ class GameAlertService:
             # position_alerts = self._check_position_alerts()
             # alerts.extend(position_alerts)
 
+            # 所有通道统一在出口生成稳定ID并标记通知资格
+            alerts = [self._finalize_alert(alert) for alert in alerts]
+
             logger.info(f"✅ 预警检查完成: 发现{len(alerts)}个预警")
             return alerts
 
@@ -114,76 +206,139 @@ class GameAlertService:
             logger.error(f"❌ 预警检查失败: {e}", exc_info=True)
             return []
 
+    @staticmethod
+    def _flow_window_fields(behavior: Dict[str, Any]) -> Dict[str, Any]:
+        source = behavior
+        if not source.get('window'):
+            source = behavior.get('institution') or behavior.get('retail') or {}
+        keys = (
+            'window', 'window_unit', 'lookback_days', 'start', 'end', 'as_of',
+            'source', 'source_row_kind', 'source_rows', 'current_day',
+            'current_day_source_rows', 'has_current_day_data',
+        )
+        return {key: source.get(key) for key in keys}
+
+    @staticmethod
+    def _window_label(fields: Dict[str, Any]) -> str:
+        days = fields.get('lookback_days') or 5
+        return (
+            f"{days}日累计窗口 {fields.get('start') or '未知'}~{fields.get('end') or '未知'}，"
+            f"数据截至{fields.get('as_of') or '无可用数据'}，"
+            f"日聚合行{fields.get('source_rows') or 0}条"
+        )
+
     def _check_opponent_alerts(self) -> List[Dict[str, Any]]:
-        """检查对手行为预警"""
+        """检查对手行为预警；历史累计与真实单日风险严格分开。"""
         alerts = []
 
         try:
-            # 获取当前对手行为
             opponent_behavior = self.opponent_service.analyze_current_behavior()
             retail = opponent_behavior.get('retail') or {}
             institution = opponent_behavior.get('institution') or {}
             retail_yi = _net_flow_yi(retail)
             institution_yi = _net_flow_yi(institution)
+            window_fields = self._flow_window_fields(opponent_behavior)
+            window_label = self._window_label(window_fields)
+            market_details = {
+                'market_phase': opponent_behavior.get('market_phase', 'unknown'),
+                'market_phase_basis': opponent_behavior.get(
+                    'market_phase_basis', 'fund_flow_combination_only'),
+                'market_phase_requires_price_confirmation': True,
+                'flow_window': dict(window_fields),
+            }
 
-            # 散户恐慌 + 机构建仓 = 抄底机会
             if (retail.get('behavior') == 'panic_selling' and
-                institution.get('behavior') == 'accumulating'):
-
+                    institution.get('behavior') == 'accumulating'):
                 alerts.append({
-                    'alert_id': self._generate_alert_id(),
                     'type': 'opportunity',
                     'level': 'high',
-                    'title': '抄底机会',
+                    'title': '资金承接观察',
                     'message': (
-                        f"散户恐慌抛售（{_fmt_yi(retail_yi)}），"
-                        f"机构逢低建仓（{_fmt_yi(institution_yi)}）"
+                        f"{window_label}：散户累计{_fmt_yi(retail_yi)}，"
+                        f"主力累计{_fmt_yi(institution_yi)}；资金背离不代表价格底部"
                     ),
-                    'action': '建议创建"恐慌抄底池"',
+                    'action': '加入观察清单，等待价格结构和基本面确认',
                     'symbols': [],
                     'details': {
-                        'market_phase': opponent_behavior['market_phase'],
-                        'retail_emotion': opponent_behavior['retail']['emotion_index']
+                        **market_details,
+                        'retail_emotion': retail.get('emotion_index'),
                     },
-                    'created_at': datetime.now().isoformat()
+                    **window_fields,
                 })
 
-            # 散户追涨 + 机构出货 = 风险预警
             if (retail.get('behavior') == 'fomo_buying' and
-                institution.get('behavior') == 'distributing'):
-
+                    institution.get('behavior') == 'distributing'):
                 alerts.append({
-                    'alert_id': self._generate_alert_id(),
                     'type': 'risk',
                     'level': 'high',
-                    'title': '顶部风险',
+                    'title': '资金流向分歧',
                     'message': (
-                        f"散户追涨（{_fmt_yi(retail_yi)}），"
-                        f"机构出货（{_fmt_yi(institution_yi)}）"
+                        f"{window_label}：散户累计{_fmt_yi(retail_yi)}，"
+                        f"主力累计{_fmt_yi(institution_yi)}；该组合不构成价格位置判断"
                     ),
-                    'action': '建议减仓或空仓观望',
+                    'action': '结合价格位置与最新单日数据复核，不直接触发交易动作',
                     'symbols': [],
-                    'details': {
-                        'market_phase': opponent_behavior['market_phase']
-                    },
-                    'created_at': datetime.now().isoformat()
+                    'details': market_details,
+                    **window_fields,
                 })
 
-            # 机构大量出货（无论散户如何）= 风险预警
-            institution_flow = institution_yi
-            if institution_flow is not None and institution_flow < -50:  # 机构净流出>50亿
+            current_day_raw = institution.get('current_day_net_flow')
+            current_day_yi = (
+                current_day_raw / 100_000_000.0 if current_day_raw is not None else None)
+            has_current_day = bool(
+                window_fields.get('has_current_day_data')
+                and current_day_yi is not None
+                and (window_fields.get('current_day_source_rows') or 0) > 0
+            )
+
+            if has_current_day and current_day_yi < -50:
+                current_day = window_fields.get('current_day')
+                single_day_fields = dict(window_fields)
+                single_day_fields.update({
+                    'window': 'single_day',
+                    'window_unit': 'calendar_day',
+                    'lookback_days': 1,
+                    'start': current_day,
+                    'end': current_day,
+                    'as_of': current_day,
+                    'source_rows': window_fields.get('current_day_source_rows') or 0,
+                })
                 alerts.append({
-                    'alert_id': self._generate_alert_id(),
                     'type': 'risk',
                     'level': 'critical',
-                    'title': '机构大量出货',
-                    'message': f"机构净流出{abs(institution_flow):.1f}亿，市场风险剧增",
-                    'action': '建议大幅减仓或清仓',
+                    'title': '机构资金当日大额净流出',
+                    'message': (
+                        f"{current_day}单日主力净流出{abs(current_day_yi):.1f}亿"
+                        f"（单日数据）；需结合价格结构复核"
+                    ),
+                    'action': '复核持仓风险与价格结构，按既有风控规则处理',
                     'symbols': [],
                     'details': {
-                        'institution_flow': institution_flow
+                        'institution_flow': current_day_yi,
+                        'flow_scope': 'single_day',
+                        'flow_window': single_day_fields,
                     },
-                    'created_at': datetime.now().isoformat()
+                    **single_day_fields,
+                })
+            elif institution_yi is not None and institution_yi < -50:
+                # 累计阈值只产生区间复核线索；无当日行绝不能升级为当日critical。
+                alerts.append({
+                    'type': 'risk',
+                    'level': 'high',
+                    'title': '机构资金区间累计净流出',
+                    'message': (
+                        f"{window_label}：主力累计净流出{abs(institution_yi):.1f}亿；"
+                        f"该数值不是当日流量"
+                    ),
+                    'action': '仅作区间风险线索，结合最新单日数据和价格位置复核',
+                    'symbols': [],
+                    'details': {
+                        'institution_flow': institution_yi,
+                        'flow_scope': 'window_cumulative',
+                        'flow_window': dict(window_fields),
+                        'current_day_data_missing': not has_current_day,
+                    },
+                    **window_fields,
                 })
 
         except Exception as e:
@@ -214,7 +369,6 @@ class GameAlertService:
                     manip.get('risk_level') in ['high', 'extreme']):
 
                     alerts.append({
-                        'alert_id': self._generate_alert_id(),
                         'type': 'risk',
                         'level': 'critical' if manip['risk_level'] == 'extreme' else 'high',
                         'title': '操纵风险预警',
@@ -231,7 +385,7 @@ class GameAlertService:
                             'current_price': manip.get('current_price'),
                             'fair_value': manip.get('fair_value')
                         },
-                        'created_at': datetime.now().isoformat()
+                        'created_at': self._now_fn().isoformat()
                     })
 
             # 崩盘后机会 → 机会预警
@@ -240,7 +394,6 @@ class GameAlertService:
             for opp in opportunities:
                 if opp.get('confidence', 0) >= 0.7:
                     alerts.append({
-                        'alert_id': self._generate_alert_id(),
                         'type': 'opportunity',
                         'level': 'medium',
                         'title': '崩盘抄底机会',
@@ -254,7 +407,7 @@ class GameAlertService:
                             'upside': opp.get('upside', 'N/A'),
                             'confidence': opp.get('confidence', 0)
                         },
-                        'created_at': datetime.now().isoformat()
+                        'created_at': self._now_fn().isoformat()
                     })
 
         except Exception as e:
@@ -271,10 +424,9 @@ class GameAlertService:
 
         return alerts
 
-    def _generate_alert_id(self) -> str:
-        """生成预警ID"""
-        import uuid
-        return f"alert_{uuid.uuid4().hex[:8]}"
+    def _generate_alert_id(self, fingerprint: str) -> str:
+        """由内容指纹生成确定性ID，相同业务内容跨轮询保持一致。"""
+        return f"alert_{fingerprint[:24]}"
 
     def _run_with_timeout(self, fn, timeout_seconds: float, *args):
         """在受控线程中执行 fn，超时返回 None 并遗弃线程。

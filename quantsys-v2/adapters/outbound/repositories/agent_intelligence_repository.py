@@ -7,7 +7,7 @@ Agent Intelligence ORM Repository - 智能体决策仓储
   - save_snapshot/save_metrics/create_event 等博弈模块方法保持原有日志 stub 行为
 """
 from qs_kernel.infrastructure.persistence.orm import BaseORMRepository
-from sqlalchemy import Column, Integer, String, Float, Text, JSON, Boolean, DateTime
+from sqlalchemy import Column, Integer, String, Float, Text, JSON, Boolean, DateTime, func
 from sqlalchemy.exc import SQLAlchemyError
 from qs_kernel.infrastructure.persistence.orm.base import Base
 from qs_kernel.domain.ports import IAgentIntelligenceRepository
@@ -135,6 +135,13 @@ class AgentIntelligenceORMRepository(BaseORMRepository[AgentDecision], IAgentInt
                 logger.warning(f"Decision not found for evaluation: {decision_id}")
                 return None
 
+            # 20交易日评分与通用评估共享 evaluation_result/learned_lesson。
+            # 已有评分证据时，通用评估必须整体跳过，不能把评分结果覆盖成
+            # “trade_*决策已执行”等通用文本，也不能改写评估时间与成功标记。
+            if row.score is not None:
+                logger.info("通用评估跳过已有评分证据", decision_id=decision_id)
+                return self._to_dict(row)
+
             row.evaluation_status = 'evaluated'
             row.evaluation_result = evaluation
             row.evaluation_date = datetime.now()
@@ -239,6 +246,37 @@ class AgentIntelligenceORMRepository(BaseORMRepository[AgentDecision], IAgentInt
         except SQLAlchemyError as e:
             self._safe_rollback()
             logger.error(f"Error listing pending evaluations: {e}")
+            return []
+
+    def list_unscored_decisions(self, days: int = 1,
+                                decision_types: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+        """返回20交易日评分候选：未评分、达到日龄、且属于指定可评分类型。
+
+        不读取 evaluation_status：通用评估可在第7天把记录标为 evaluated，
+        但 score IS NULL 的记录仍必须在第20交易日进入收益评分。
+        真正的交易日成熟度由 DecisionScoreService 按后续K线数量复核。
+        """
+        normalized_types = sorted({
+            str(value).strip().lower()
+            for value in (decision_types or [])
+            if str(value).strip()
+        })
+        if not normalized_types:
+            return []
+        try:
+            cutoff = datetime.now() - timedelta(days=days)
+            rows = (self.session.query(self.model)
+                    .filter(
+                        self.model.score.is_(None),
+                        self.model.created_at <= cutoff,
+                        func.lower(func.trim(self.model.decision_type)).in_(normalized_types),
+                    )
+                    .order_by(self.model.created_at.asc())
+                    .all())
+            return [self._to_dict(row) for row in rows]
+        except SQLAlchemyError as e:
+            self._safe_rollback()
+            logger.error(f"Error listing unscored decisions: {e}")
             return []
 
     # ---------- 接口方法 ----------

@@ -298,7 +298,8 @@ class OpportunityScanDailyJob(Job):
                     OpportunityToWatchRuleService,
                 )
                 rule_service = OpportunityToWatchRuleService()
-            rule_results = rule_service.auto_create_rules(candidates)
+            watch_account = str(params.get('account_name') or params.get('watch_account') or '').strip() or None
+            rule_results = rule_service.auto_create_rules(candidates, account=watch_account)
 
         created = sum(result.get("action") == "created" for result in rule_results)
         skipped = sum(result.get("action") == "skipped" for result in rule_results)

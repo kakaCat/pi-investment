@@ -401,7 +401,24 @@ class WatchEngineV2:
 
     def _route(self, rule, judgment):
         from . import router
-        if str(getattr(rule, 'trigger_channel', 'agent') or 'agent') == 'direct':
+        archive_driven = hasattr(judgment, '_v2_delivery_allowed')
+        if archive_driven and not judgment._v2_delivery_allowed:
+            self._log.info(
+                'v2.delivery_blocked',
+                rule_id=getattr(rule, 'id', None),
+                reasons=getattr(judgment, '_v2_delivery_block_reasons', []),
+            )
+            return None
+        channel = str(getattr(rule, 'trigger_channel', 'agent') or 'agent')
+        if archive_driven:
+            # 同一 trigger 由事件状态驱动，不再进入 10-cycle 重投：
+            # 首次/失败重试走固定通道；成功或终态在上一段直接硬停。
+            if channel == 'direct':
+                return router.RouteDecision(router.ROUTE_DIRECT, 0, 'event_pending')
+            if self._cycle_store is None:
+                return None
+            return router.RouteDecision(router.ROUTE_AGENT, 1, 'event_pending')
+        if channel == 'direct':
             if getattr(judgment, '_v2_new_trigger', True):
                 return router.RouteDecision(router.ROUTE_DIRECT, 0, 'direct_channel')
             return router.RouteDecision(router.ROUTE_SKIP, 0, 'direct_edge_latched')
@@ -410,7 +427,7 @@ class WatchEngineV2:
         return router.route_trigger(rule, self._cycle_store, commit=False)
 
     def _deliver(self, rule, judgment, state, route, quote):
-        """按路由决策投递：agent 首发 → notify_agent；第 10 次 → notify_feishu 直通。"""
+        """按路由决策投递；归档模式的事件由 archive 在路由前完成去重。"""
         from . import notify_agent, notify_feishu, router
 
         judgment.quote = quote  # 供提示词/模板渲染
@@ -426,6 +443,9 @@ class WatchEngineV2:
                 sender=self._agent_sender,
                 account_agent_map=self._account_agent_map,
                 price_tracker=self._agent_price_tracker,
+                # archive 已按 trigger 去重；新 rearm 边沿不能被上一事件的
+                # 1% 价格门槛误杀。该门槛仅保留给无台账兼容路径。
+                use_price_gate=not hasattr(judgment, '_v2_delivery_allowed'),
             )
         if route.route == router.ROUTE_DIRECT:
             return notify_feishu.send(

@@ -1,8 +1,11 @@
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { Readable } from 'node:stream';
 import { describe, expect, it, vi } from 'vitest';
 import { registerWakeWebhook } from '../src/wake-webhook.js';
 
-function mount(options: { token?: string; maxBodyBytes?: number; deliver?: ReturnType<typeof vi.fn> } = {}) {
+function mount(options: { token?: string; maxBodyBytes?: number; dedupPath?: string; deliver?: ReturnType<typeof vi.fn> } = {}) {
   const deliver = options.deliver ?? vi.fn(async () => undefined);
   let route: any;
   const webCtx = {
@@ -61,7 +64,8 @@ describe('lifecycle /wake webhook', () => {
     });
     expect(route.path).toBe('/wake');
     expect(response.status).toBe(200);
-    expect(response.json).toEqual({ success: true });
+    expect(response.json).toMatchObject({ success: true });
+    expect(response.json.event_id).toBeTruthy();
     expect(deliver).toHaveBeenCalledWith('daily_report', { account: 'agent_brain' }, timestamp);
   });
 
@@ -106,6 +110,57 @@ describe('lifecycle /wake webhook', () => {
     const { route } = mount({ deliver });
     const response = await invoke(route);
     expect(response.status).toBe(200);
-    expect(response.json).toEqual({ success: false, error: 'deliver failed' });
+    expect(response.json).toMatchObject({ success: false, error: 'deliver failed' });
+  });
+
+  it('同一 watch event_id 重复投递只入队一次', async () => {
+    const { route, deliver } = mount();
+    const body = JSON.stringify({
+      event: 'watch_trigger', event_id: 'watch_trigger:4786', data: { trigger_ids: [4786] },
+    });
+    const first = await invoke(route, { body });
+    expect(first.json).toMatchObject({ success: true, event_id: 'watch_trigger:4786' });
+    for (let i = 0; i < 20; i++) {
+      const duplicate = await invoke(route, { body });
+      expect(duplicate.json).toMatchObject({ success: true, deduplicated: true });
+    }
+    expect(deliver).toHaveBeenCalledTimes(1);
+  });
+
+  it('入队失败释放 pending，允许同 event_id 真正重试', async () => {
+    const deliver = vi.fn()
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce(undefined);
+    const { route } = mount({ deliver });
+    const body = JSON.stringify({ event: 'watch_trigger', event_id: 'watch_trigger:failed-1', data: {} });
+    expect((await invoke(route, { body })).json).toMatchObject({ success: false });
+    expect((await invoke(route, { body })).json).toMatchObject({ success: true });
+    expect(deliver).toHaveBeenCalledTimes(2);
+  });
+
+  it('completed 幂等台账跨 handler 重启恢复', async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'wake-dedup-test-'));
+    const dedupPath = join(directory, 'wake-dedup.json');
+    try {
+      const first = mount({ dedupPath });
+      const body = JSON.stringify({ event: 'watch_trigger', event_id: 'watch_trigger:restart-1', data: {} });
+      expect((await invoke(first.route, { body })).json.success).toBe(true);
+      const second = mount({ dedupPath });
+      expect((await invoke(second.route, { body })).json).toMatchObject({ success: true, deduplicated: true });
+      expect(first.deliver).toHaveBeenCalledTimes(1);
+      expect(second.deliver).not.toHaveBeenCalled();
+    } finally {
+      expect(directory.startsWith(join(tmpdir(), 'wake-dedup-test-'))).toBe(true);
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it('watch 事件缺稳定幂等身份时拒绝，不伪造一次性 timestamp 键', async () => {
+    const { route, deliver } = mount();
+    const response = await invoke(route, {
+      body: JSON.stringify({ event: 'watch_trigger', data: { symbol: '600000' }, timestamp: '2026-11-18' }),
+    });
+    expect(response.status).toBe(400);
+    expect(deliver).not.toHaveBeenCalled();
   });
 });

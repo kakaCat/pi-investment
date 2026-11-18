@@ -608,6 +608,12 @@ class IWatchTriggerRepository(ABC):
         pass
 
     @abstractmethod
+    def find_latest_for_condition(self, rule_id: int, condition: dict, since,
+                                  engine: str = 'v2'):
+        """读取当日同规则、同条件的最新触发，供 V2 闩锁重启恢复。"""
+        pass
+
+    @abstractmethod
     def get_rule_trigger_stats(self) -> dict:
         """按规则聚合触发统计。"""
         pass

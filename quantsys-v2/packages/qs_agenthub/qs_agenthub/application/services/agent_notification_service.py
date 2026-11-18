@@ -2,6 +2,8 @@
 Agent 通知服务
 V2 任务完成后调用此服务通知 Agent
 """
+import hashlib
+import json
 import os
 import sys
 import structlog
@@ -78,6 +80,29 @@ def non_prod_reason() -> Optional[str]:
     if os.getenv('PYTEST_CURRENT_TEST') or 'pytest' in sys.modules:
         return 'pytest-runtime'
     return None
+
+
+def _wake_event_id(event: str, data: Dict[str, Any]) -> str:
+    """同一逻辑事件跨重试/回退保持同一 ID；时间戳绝不参与身份计算。"""
+    explicit = str(data.get('event_id') or '').strip()
+    if explicit:
+        return explicit
+    trigger_ids = sorted({str(v) for v in (data.get('trigger_ids') or []) if v is not None})
+    if data.get('trigger_id') is not None:
+        trigger_ids = sorted(set(trigger_ids + [str(data['trigger_id'])]))
+    if trigger_ids:
+        raw = f'{event}:' + ','.join(trigger_ids)
+    elif data.get('todo_id') is not None:
+        raw = f'{event}:todo:{data["todo_id"]}'
+    elif str(event).startswith('watch_') or str(event).startswith('watch:'):
+        # 盯盘事件必须能指回同一 trigger/todo。把 timestamp 等业务载荷哈希当身份，
+        # 会把每次重试变成新事件，正是 #4786 重复唤醒的隐蔽后门。
+        raise ValueError('watch wake 缺少稳定 event_id/trigger_id/todo_id，拒绝投递')
+    else:
+        # 通用事件用规范化业务数据兜底；仍由接收端限制 TTL/容量。
+        raw = event + ':' + json.dumps(data, ensure_ascii=False, sort_keys=True,
+                                      default=str, separators=(',', ':'))
+    return event + ':' + hashlib.sha256(raw.encode('utf-8')).hexdigest()
 
 
 class AgentNotificationService:
@@ -203,6 +228,11 @@ class AgentNotificationService:
         """候选链投递（见 notify_agent_detailed 的纪律）。返回最终状态串。"""
         requested = str(target or DEFAULT_TARGET).strip() or DEFAULT_TARGET
         chain = self.candidate_chain(requested)
+        try:
+            event_id = _wake_event_id(event, data or {})
+        except ValueError as exc:
+            logger.error(f"拒绝无稳定身份的 wake: {exc}")
+            return 'error'
         status, detail = 'error', None
         attempts = []
         for idx, key in enumerate(chain):
@@ -215,7 +245,7 @@ class AgentNotificationService:
                 payload['delivery_fallback_reason'] = str(detail)[:200]
                 payload['delivery_fallback_hops'] = idx
             url = self.resolve_target_url(key)
-            status, detail = self._post_once(url, event, payload, target_key=key)
+            status, detail = self._post_once(url, event, payload, target_key=key, event_id=event_id)
             attempts.append({'target': key, 'status': status})
             if status == 'ok':
                 if idx:
@@ -236,18 +266,23 @@ class AgentNotificationService:
         return status
 
     def _post_once(self, url: str, event: str, data: Dict[str, Any],
-                   target_key: Optional[str] = None) -> tuple:
+                   target_key: Optional[str] = None, event_id: Optional[str] = None) -> tuple:
         """单次投递：返回 (status, detail)"""
         try:
+            stable_id = event_id or _wake_event_id(event, data or {})
             payload = {
                 'event': event,
+                'event_id': stable_id,
                 'data': data,
                 'timestamp': datetime.now().isoformat()
             }
 
-            logger.info("Notifying Agent", notify_event=event, target=target_key, url=url)
+            logger.info("Notifying Agent", notify_event=event, event_id=stable_id,
+                        target=target_key, url=url)
 
-            headers = {'Content-Type': 'application/json'}
+            headers = {'Content-Type': 'application/json',
+                       'Idempotency-Key': stable_id,
+                       'X-Wake-Event-Id': stable_id}
             if self.token:
                 headers['X-Wake-Token'] = self.token
             response = requests.post(

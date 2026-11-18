@@ -72,7 +72,7 @@ class FakeEngine:
         outcomes = list(self.outcomes)
         if archive is not None:
             for rule in rules:
-                archive.evaluated(rule)
+                archive.evaluated(rule, quotes.get(rule.symbol))
             for outcome in outcomes:
                 if outcome[0] == 'trigger' and archive.before_delivery(outcome[1], outcome[2]):
                     archive.after_delivery(outcome[2], outcome[4])
@@ -189,11 +189,13 @@ def test_archive_is_edge_triggered(trading_day):
                    quote_service=quotes, engine=engine, trigger_repo=trig)
     assert len(trig.records) == 1, '条件持续为真，不能每 30 秒写一行'
 
-    engine.outcomes = []                      # 回落 → 解除闩锁
+    engine.outcomes = []                      # 真正回落到迟滞带外 → 解除闩锁
+    quotes.prices['600001'] = FakeQuote(23.0)
     scheduled.scan(tier.TIER_FAST, now=TRADING_AM, rule_repo=repo,
                    quote_service=quotes, engine=engine, trigger_repo=trig)
     engine.outcomes = [_outcome(rule)]        # 再次命中 → 再归档一次
-    scheduled.scan(tier.TIER_FAST, now=TRADING_AM, rule_repo=repo,
+    quotes.prices['600001'] = FakeQuote(23.9)
+    scheduled.scan(rule.watch_tier, now=TRADING_AM, rule_repo=repo,
                    quote_service=quotes, engine=engine, trigger_repo=trig)
     assert len(trig.records) == 2
 

@@ -57,9 +57,19 @@ REPAIR_ACTION_SCENARIOS: Dict[str, str] = {
     'retire': '规则已失效（基本面/持仓/意图已不成立）：退役停用，保留审计可回溯',
 }
 
-#: 允许写入 quant.watch_rule_changes.change_kind 的全集
+#: repair/抑噪自愈允许写入 quant.watch_rule_changes.change_kind 的全集；
+#: 普通 CRUD 使用独立白名单，apply_repair 不会因此获得 create/update 语义。
 #: （data-model.md §4 列出的 7 个值 = REPAIR_ACTIONS + 抑噪态两动作）
 CHANGE_KINDS = REPAIR_ACTIONS + ('suppress', 'unsuppress')
+
+#: 普通 CRUD/batch 的审计动作。刻意不并入 CHANGE_KINDS：repair 的
+#: apply_repair 仍只接受既有修复/抑噪动作，不能因共享审计表而获得 create/update 语义。
+RULE_WRITE_CHANGE_KINDS = ('create', 'update', 'retire')
+
+
+def is_rule_write_change_kind(change_kind: Any) -> bool:
+    """普通规则写入审计动作白名单（大小写/首尾空白不敏感）。"""
+    return str(change_kind or '').strip().lower() in RULE_WRITE_CHANGE_KINDS
 
 
 def _num(value: Any) -> float:

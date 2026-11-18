@@ -579,8 +579,10 @@ class ServiceFactory:
         """获取GameAlertService实例"""
         if 'game_alert_service' not in cls._instances:
             from qs_intel.application.services.game_alert_service import GameAlertService
-            cls._instances['game_alert_service'] = GameAlertService()
-            logger.info("GameAlertService initialized")
+            from adapters.outbound.state.game_alert_state_store import FileGameAlertStateStore
+            cls._instances['game_alert_service'] = GameAlertService(
+                alert_state=FileGameAlertStateStore())
+            logger.info("GameAlertService initialized with persistent alert state")
         return cls._instances['game_alert_service']
 
     # ── P1-2 Phase 2: 数据源接口抽象 (2026-08-21) ──

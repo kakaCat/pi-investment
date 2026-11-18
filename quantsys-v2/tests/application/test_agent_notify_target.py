@@ -52,7 +52,7 @@ def test_delivers_to_selected_agent(monkeypatch):
     monkeypatch.setattr("qs_agenthub.application.services.agent_notification_service.requests.post",
                         lambda url, **kw: (calls.append((url, kw.get("json"))), _Resp())[1])
     svc = AgentNotificationService()
-    assert svc.notify_agent("watch_digest", {"a": 1}, target=AGENT_TS) is True
+    assert svc.notify_agent("watch_digest", {"a": 1, "trigger_ids": [4786]}, target=AGENT_TS) is True
     assert calls[0][0] == "http://127.0.0.1:3002/wake"
     assert calls[0][1]["event"] == "watch_digest"
 
@@ -70,7 +70,7 @@ def test_unreachable_target_falls_back_to_default_with_marker(monkeypatch):
 
     monkeypatch.setattr("qs_agenthub.application.services.agent_notification_service.requests.post", _post)
     svc = AgentNotificationService()
-    assert svc.notify_agent("watch_digest", {"a": 1}, target=AGENT_TS) is True
+    assert svc.notify_agent("watch_digest", {"a": 1, "trigger_ids": [4786]}, target=AGENT_TS) is True
     assert len(calls) == 2
     assert calls[0][0] == "http://127.0.0.1:3002/wake"
     assert calls[1][0] == "http://127.0.0.1:13080/wake"
@@ -90,7 +90,7 @@ def test_timeout_does_not_fall_back(monkeypatch):
 
     monkeypatch.setattr("qs_agenthub.application.services.agent_notification_service.requests.post", _post)
     svc = AgentNotificationService()
-    assert svc.notify_agent_detailed("watch_digest", {}, target=AGENT_TS) == "timeout"
+    assert svc.notify_agent_detailed("watch_digest", {"trigger_ids": [4786]}, target=AGENT_TS) == "timeout"
     assert len(calls) == 1
 
 
