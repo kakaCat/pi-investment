@@ -45,6 +45,22 @@ class TestWatchRuleRepository:
         assert fetched.conditions[0]['type'] == 'price_break'
         assert float(fetched.cost_price) == 1700.0
 
+    def test_save_agent_response(self):
+        rule = self._make_rule()
+        trigger = self.trigger_repo.record(
+            rule_id=rule.id, symbol=rule.symbol,
+            condition=rule.conditions[0], trigger_price=1801.0,
+            detail={'engine': 'v2'}, engine='v2',
+        )
+        self._created_trigger_ids.append(trigger.id)
+        response = {'action': '观察', 'reason': '等待确认',
+                    'notification_delivered': True}
+
+        self.trigger_repo.save_agent_response(trigger.id, response)
+
+        fetched = self.trigger_repo.get_by_id(trigger.id)
+        assert fetched.agent_response == response
+
     def test_rule_to_dict_serialization(self):
         rule = self._make_rule()
         d = rule_to_dict(rule)
@@ -228,6 +244,14 @@ class TestWatchRuleNewColumns:
         assert fetched.position_state == POSITION_STATE_HOLDING
         assert fetched.interval_sec == 20
 
+    def test_create_rule_accepts_v2_trigger_channel(self):
+        rule = self._make_rule(intent='trend_observe', trigger_channel='direct')
+        assert rule.trigger_channel == 'direct'
+        assert self.repo.get_by_id(rule.id).trigger_channel == 'direct'
+        with pytest.raises(ValueError):
+            self.repo.create_rule(
+                symbol='000001.SZ', conditions=[], trigger_channel='webhook')
+
     def test_update_fields_writes_new_fields_and_null_resets(self):
         rule = self._make_rule()
         updated = self.repo.update_fields(rule.id, position_state='holding', interval_sec=30)
@@ -240,6 +264,20 @@ class TestWatchRuleNewColumns:
         assert self.repo.update_fields(rule.id, interval_sec=None).interval_sec is None
         # position_state=None 写入口径归一为 'none'（列是 NOT NULL，不存在"清空成 NULL"）
         assert self.repo.update_fields(rule.id, position_state=None).position_state == POSITION_STATE_NONE
+
+    def test_update_fields_writes_v2_routing_state(self):
+        rule = self._make_rule()
+        updated = self.repo.update_fields(
+            rule.id, trigger_channel='direct', process_state='processed')
+        assert updated.trigger_channel == 'direct'
+        assert updated.process_state == 'processed'
+        fetched = self.repo.get_by_id(rule.id)
+        assert fetched.trigger_channel == 'direct'
+        assert fetched.process_state == 'processed'
+        with pytest.raises(ValueError):
+            self.repo.update_fields(rule.id, trigger_channel='webhook')
+        with pytest.raises(ValueError):
+            self.repo.update_fields(rule.id, process_state='done')
 
     def test_update_fields_rejects_invalid_new_values(self):
         rule = self._make_rule()

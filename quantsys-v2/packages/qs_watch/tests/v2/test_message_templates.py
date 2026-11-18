@@ -97,6 +97,24 @@ class TestEntries:
         assert d.entry == 'after_agent'
         assert len(calls) == 1
 
+    def test_after_agent_card_contains_structured_decision(self):
+        calls = []
+        result = {'action': '卖出', 'reason': '止损线已破',
+                  'account': 'agent_virtual', 'qty': 1000}
+
+        notify_feishu.send(
+            _rule(), _judgment(), 'holding',
+            entry=notify_feishu.ENTRY_AFTER_AGENT,
+            sender=lambda title, body: calls.append((title, body)) or True,
+            agent_result=result,
+        )
+
+        assert 'Agent 裁决' in calls[0][1]
+        assert '卖出' in calls[0][1]
+        assert '止损线已破' in calls[0][1]
+        assert 'agent_virtual' in calls[0][1]
+        assert '1000' in calls[0][1]
+
     def test_direct_entry_on_tenth_cycle(self):
         d = notify_feishu.send(_rule(), _judgment(), 'holding',
                                entry=notify_feishu.ENTRY_DIRECT,

@@ -12,9 +12,10 @@
 - 同一 symbol 没有已启用的买入规则
 
 创建的规则：
-- trigger_level: L1（观察提醒）
-- action_hint: observe（不自动买入）
-- escalation_policy: 默认（价格偏差>5%或触发频率异常时升级L2）
+- intent: trend_observe（无账户的观察规则，不自动买入）
+- trigger_channel: direct（V2 命中后直发观察提醒）
+- position_state: none
+- escalation_policy: 默认
 - expires_at: 30天后
 """
 import re
@@ -174,33 +175,29 @@ class OpportunityToWatchRuleService:
         # 构建 context（预案）
         context = self._build_context(opp, entry_price, stop_loss, take_profit)
         
-        # 构建 action_hint
         action_hint = {
-            'trigger_level': 'L1',
             'action_on_trigger': 'observe',
             'requires_agent': False,
         }
-        
-        # 构建 escalation_policy
+
         escalation_policy = EscalationPolicy.default()
-        
-        # 创建规则
+
         rule = self.rule_repo.create_rule(
             symbol=symbol,
             conditions=conditions,
             context=context,
             expires_at=datetime.now() + timedelta(days=self.DEFAULT_EXPIRY_DAYS),
             created_by='opportunity_scan',
+            intent='trend_observe',
+            action_hint=action_hint,
+            position_state='none',
+            trigger_channel='direct',
         )
-        
-        # 更新 action_hint 和 escalation_policy（create_rule 不支持这些字段，需要额外更新）
-        # 注意：这里假设 rule_repo 有 update 方法，或者通过 SQL 直接更新
+
         self._update_rule_meta(rule.id, action_hint, escalation_policy)
 
-        # 2026-10-15：补 next_action_hint —— 触发通知的「下一步」行直接取它；
-        # 缺了的话（实测 002074 规则#236）用户只看到触发事实，看不到"跌破后要干嘛"。
-        # 注：intent 暂不设为 entry —— entry 属交易类意图，铁律要求账户归属
-        # （rule_guard），而扫描建规则时账户尚未归属，硬设会被守卫拒绝。
+        # 默认激活的是观察提醒，不是建仓交易规则；转 entry 时仍必须补账户归属。
+        # next_action_hint 给通知提供触发后的具体动作说明。
         if entry_price:
             hint = f'跌破 {entry_price} 进入买入区，评估建仓（评分{score}）'
         else:

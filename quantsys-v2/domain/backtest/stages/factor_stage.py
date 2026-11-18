@@ -41,7 +41,7 @@ class FactorStage(PipelineStage):
     # Add to this list to include new factors in default pipeline output.
     DEFAULT_TECHNICAL_FACTORS = [
         # MA family
-        "ma5", "ma10", "ma20",
+        "ma5", "ma10", "ma20", "ma60",
         # RSI
         "rsi14",
         # MACD
@@ -50,6 +50,9 @@ class FactorStage(PipelineStage):
         "bollinger_upper", "bollinger_middle", "bollinger_lower",
         # ATR
         "atr14",
+        # Trend / Volatility（2026-11-03 补：ML 32 特征中 adx/ma60/volatility_20 因
+        # 不在默认清单从未落库 → 训练侧全 NaN、特征重要性恒 0；计算器已注册可直接用）
+        "adx", "volatility_20",
         # Volume
         "volume_ma5", "volume_ratio",
         # Reversal factors (high IC: 0.08-0.12)

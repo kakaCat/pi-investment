@@ -1,21 +1,10 @@
-"""WatchEngineV2 —— 持仓驱动盯盘引擎骨架（REQ-261022235419-2299 / t-b8ffa6）
+"""WatchEngineV2 —— 持仓驱动盯盘判定与投递链。
 
-本骨架只保证两件事（decomposition.md t2）：
+激活规则按 symbol 去重取价，随后执行失效判定、持仓分类和条件求值。定时任务可注入
+``TriggerArchive``，形成投递前落台账、投递后回写结果、成功才提交循环计数的闭环。
+未注入通知依赖时保持影子判定；生产由 JobRegistry 定时驱动，不启动常驻循环。
 
-1. **加载**：tick 内 ``rule_repo.list_by_state('active')`` 取全部激活规则；
-2. **统一取价前置**：激活规则按 symbol 去重后**一次性**取价 ——
-   取价输入集合 == 激活 symbol 集合（不过滤、不遗漏，失效/到期/持仓都是
-   对比维度而不是取价前置过滤条件）。
-
-判定模块（position_engine / unpositioned_engine / invalidation / router /
-notify_*）在 t3~t8 接入本 tick 的取价结果；影子期只留日志不投递。
-
-宿主契约与 V1 一致（backend.md IF-1）：lifespan 起独立后台线程，
-``run_forever()`` 常驻、``stop()`` 优雅退出。
-
-依赖注入说明：``qs_watch`` 是 L1 包，不 import L0 适配层 —— 规则仓储与
-行情服务均由调用方（watch_bootstrap V2 启动分支）注入，本模块只依赖
-它们的接口形状（``list_by_state(state)`` / ``get_realtime_quote(symbol)``）。
+规则仓储、行情、名称和持仓查询均由宿主注入，本模块不 import L0 适配层。
 """
 import threading
 import time
@@ -65,20 +54,35 @@ class WatchEngineV2:
                  agent_sender=None,
                  feishu_sender=None,
                  account_agent_map=None,
-                 name_resolver=None):
+                 name_resolver=None,
+                 position_reader=None,
+                 evaluation_context=None,
+                 staged_manager=None,
+                 market_watch_service=None,
+                 agent_price_tracker=None):
+        from .evaluation_context import EvaluationContextFactory
+        from .staged_break_manager import StagedBreakManager
+
         self._rule_repo = rule_repo
         self._quote_service = quote_service
         self._tick_interval_sec = float(tick_interval_sec)
         self._log = log or logger
         self._stop_event = threading.Event()
-        # ── 判定链依赖（全部可选；缺省 = 影子判定，不投递）────────────────
-        self._judge = judge                    # False = 只要取价骨架
-        self._cycle_store = cycle_store        # router 的计数存储（缺省不路由）
-        self._agent_sender = agent_sender      # (agent, account, prompt) -> bool
-        self._feishu_sender = feishu_sender    # (title, body) -> bool
+        self._judge = judge
+        self._cycle_store = cycle_store
+        self._agent_sender = agent_sender
+        self._agent_price_tracker = (agent_price_tracker if agent_price_tracker is not None
+                                     else {})
+        self._feishu_sender = feishu_sender
         self._account_agent_map = account_agent_map or {}
-        #: 公司名称解析（symbol -> name）；规则表不存名称，渲染前回填到 rule.stock_name
         self._name_resolver = name_resolver
+        self._position_reader = position_reader
+        self._market_watch = market_watch_service
+        self._context = evaluation_context or EvaluationContextFactory()
+        self._staged = staged_manager or StagedBreakManager()
+        self._staged.restore_from_store()
+        self._suppressed_reported = set()
+        self._suppressed_day = None
 
     # ── ① 激活规则加载 ────────────────────────────────────────────────────
 
@@ -159,70 +163,198 @@ class WatchEngineV2:
 
     # ── 判定链（失效 → 分类 → 判定 → 路由 → 投递）──────────────────────────
 
-    def run_chain(self, rules, quotes):
-        """公开入口：定时任务（scheduled.py）调用的唯一业务入口。
+    def run_chain(self, rules, quotes, archive=None, now=None, assessments=None):
+        """公开入口：定时任务可注入归档器、判定时刻和评估指标集合。"""
+        return self._run_chain(rules, quotes, archive=archive, now=now,
+                               assessments=assessments)
 
-        与 run_forever 的 tick 共用同一条 `_run_chain`，不复制判定/路由逻辑；
-        差异只在"谁驱动"——常驻循环不再启动，改由 4 个定时任务按档位驱动。
-        """
-        return self._run_chain(rules, quotes)
+    def _run_chain(self, rules, quotes, archive=None, now=None, assessments=None) -> List[Any]:
+        """失效 → 分类判定 → 投递前归档 → 路由投递 → 回写并提交计数。"""
+        from . import invalidation, position_engine, router, unpositioned_engine
 
-    def _run_chain(self, rules, quotes) -> List[Any]:
-        """对全部激活规则跑一遍判定链，返回判定结果列表。
-
-        顺序严格按 architecture.md 主流程：
-        ① 失效扫描（全票，独立于持仓与触发，止损豁免）
-        ② 持仓分类（holding → position_engine；none → unpositioned_engine）
-        ③ 命中 → 路由（10 次循环）→ 投递（notify_agent / notify_feishu）
-
-        任何一环的单条失败都只影响该条规则（异常隔离）。
-        """
-        from . import invalidation, position_engine, unpositioned_engine
-
+        now = now or datetime.now()
+        if self._suppressed_day != now.date():
+            self._suppressed_reported.clear()
+            self._suppressed_day = now.date()
+        self._staged.reset_daily(now)
+        self._context.prepare(quotes, now)
+        self._attach_stock_names(rules)
         outcomes: List[Any] = []
         for rule in rules:
             symbol = getattr(rule, 'symbol', None)
             quote = quotes.get(symbol)
             if quote is None:
-                continue  # 本拍无价：失明但不是故障（下拍重试）
+                continue
             try:
-                state = str(getattr(rule, 'position_state', '') or '').lower()
-
-                # ① 失效判定（覆盖全票；止损豁免）
+                from types import SimpleNamespace
+                from qs_watch.domain.watch.services import noise_policy
+                rule_id = getattr(rule, 'id', None)
+                if noise_policy.is_suppressed(
+                        getattr(rule, 'noise_state', None),
+                        getattr(rule, 'suppress_until', None), now):
+                    if archive is not None:
+                        archive.evaluated(rule, quote)
+                    if rule_id not in self._suppressed_reported:
+                        judgment = SimpleNamespace(
+                            intent=str(getattr(rule, 'intent', '') or ''),
+                            triggered=False,
+                            suppressed_conditions=[{
+                                'condition': cond,
+                                'value': getattr(quote, 'price', None),
+                                'message': '规则处于抑噪期，仅留样本不通知',
+                            } for cond in (getattr(rule, 'conditions', None) or [])],
+                            suppressed_kind='noise_suppressed',
+                            degraded=False,
+                            distance_ratio=None,
+                        )
+                        if assessments is not None:
+                            assessments[rule_id] = judgment
+                        if archive is not None and archive.record_suppressed(rule, judgment):
+                            self._suppressed_reported.add(rule_id)
+                    continue
+                position = self._read_position(rule)
+                state = self._position_state(rule, position)
                 event = invalidation.check_invalidation(rule, quote)
                 if event is not None:
-                    # 2026-10-24：失效闭环——标 invalid（退出 active）+ 投递 agent 裁决。
-                    # 此前只返回事件，规则永远僵在 active，等于没有作废能力。
                     delivery = self._handle_invalidation(rule, event, quote, state)
                     outcomes.append(('invalidation', rule, event, delivery))
-                    continue  # 已作废，不再判定触发
+                    continue
 
-                # ② 持仓分类判定
-                if state == 'holding':
-                    judgment = position_engine.evaluate(rule, quote, position='holding')
-                elif state == 'none':
-                    judgment = unpositioned_engine.evaluate(rule, quote)
+                ctx = self._context.build(rule, quote, now)
+                from .rule_policy import position_intent
+                if state == 'holding' or position_intent(getattr(rule, 'intent', None)):
+                    judgment = position_engine.evaluate(
+                        rule, quote, position=state or None, now=now, ctx=ctx,
+                        staged_manager=self._staged)
                 else:
-                    # 持仓真值不可知：止损 fail-open 交给 position_engine（它会留痕）
-                    judgment = position_engine.evaluate(rule, quote)
-
+                    judgment = unpositioned_engine.evaluate(
+                        rule, quote, now=now, ctx=ctx, staged_manager=self._staged)
+                if assessments is not None:
+                    assessments[getattr(rule, 'id', None)] = judgment
+                if archive is not None:
+                    archive.evaluated(rule, quote)
+                    archive.record_suppressed(rule, judgment)
                 if not getattr(judgment, 'triggered', False):
                     continue
 
-                # 观察类只留痕不投递（R-5：观察不产生交易动作，也不该唤醒 agent）。
-                # 仍返回 trigger outcome → scheduled._archive 落 watch_triggers 供复盘。
-                if getattr(judgment, 'observe_only', False):
+                self._enrich_judgment(rule, judgment, quote, state, position)
+                if archive is not None and not archive.before_delivery(rule, judgment):
+                    outcomes.append(('trigger', rule, judgment, None, None))
+                    continue
+                if (getattr(judgment, 'observe_only', False)
+                        and str(getattr(rule, 'trigger_channel', 'agent') or 'agent') != 'direct'):
                     outcomes.append(('trigger', rule, judgment, None, None))
                     continue
 
-                # ③ 路由 + 投递
-                route = self._route(rule)
+                route = self._route(rule, judgment)
                 delivery = self._deliver(rule, judgment, state, route, quote)
+                if archive is not None:
+                    archive.after_delivery(judgment, delivery)
+                if self._route_completed(rule, route, delivery):
+                    router.commit_route(rule, self._cycle_store, route)
                 outcomes.append(('trigger', rule, judgment, route, delivery))
             except Exception:  # noqa: BLE001 - 单条规则异常不影响其余
                 self._log.exception('v2.rule_chain_failed',
                                     rule_id=getattr(rule, 'id', None))
         return outcomes
+
+    def run_market_chain(self, archive=None, now=None):
+        """市场快照评估后复用 V2 归档与投递，不走股票条件管线。"""
+        from types import SimpleNamespace
+        from . import router
+
+        now = now or datetime.now()
+        empty = {'outcomes': [], 'scanned': 0, 'triggered': 0, 'degraded': []}
+        if self._market_watch is None:
+            return empty
+        scan = self._market_watch.scan_market_rules(now)
+        outcomes = []
+        for candidate in scan.get('evaluated') or []:
+            rule = candidate['rule']
+            result = candidate['result']
+            quote = candidate['quote']
+            triggered = bool(getattr(result, 'triggered', False))
+            judgment = SimpleNamespace(
+                intent=str(getattr(rule, 'intent', '') or 'trend_observe'),
+                triggered=triggered,
+                hit_conditions=([{
+                    'condition': candidate['cond'],
+                    'value': getattr(result, 'value', None),
+                    'message': getattr(result, 'message', ''),
+                }] if triggered else []),
+                suppressed_conditions=[],
+                degraded=False,
+                observe_only=False,
+            )
+            if archive is not None:
+                archive.evaluated(rule, quote)
+            if not triggered:
+                continue
+            if archive is not None and not archive.before_delivery(rule, judgment):
+                outcomes.append(('trigger', rule, judgment, None, None))
+                continue
+            state = str(getattr(rule, 'position_state', '') or '').lower()
+            route = self._route(rule, judgment)
+            delivery = self._deliver(rule, judgment, state, route, quote)
+            if archive is not None:
+                archive.after_delivery(judgment, delivery)
+            if self._route_completed(rule, route, delivery):
+                router.commit_route(rule, self._cycle_store, route)
+            outcomes.append(('trigger', rule, judgment, route, delivery))
+        return {
+            'outcomes': outcomes,
+            'scanned': int(scan.get('scanned') or 0),
+            'triggered': int(scan.get('triggered') or 0),
+            'degraded': list(scan.get('degraded') or []),
+            'skipped': scan.get('skipped'),
+        }
+
+    def staged_pending(self) -> int:
+        return self._staged.pending()
+
+    def flush_state(self) -> None:
+        self._staged.flush()
+
+    def _read_position(self, rule):
+        if self._position_reader is None:
+            return None
+        try:
+            return self._position_reader(
+                getattr(rule, 'account', None), getattr(rule, 'symbol', None))
+        except Exception as exc:  # noqa: BLE001 - 查询失败回落规则状态，止损仍 fail-open
+            self._log.warning('v2.position_read_failed',
+                              rule_id=getattr(rule, 'id', None), error=str(exc))
+            return None
+
+    @staticmethod
+    def _position_state(rule, position) -> str:
+        if position is not None:
+            shares = getattr(position, 'shares_total', None)
+            if shares is not None:
+                return 'holding' if int(shares) > 0 else 'none'
+        return str(getattr(rule, 'position_state', '') or '').lower()
+
+    def _enrich_judgment(self, rule, judgment, quote, state, position=None) -> None:
+        try:
+            price = float(getattr(quote, 'price', None))
+            raw_cost = ((getattr(position, 'avg_cost', None) or getattr(rule, 'cost_price', None))
+                        if position is not None else getattr(rule, 'cost_price', None))
+            cost = float(raw_cost)
+            if price > 0 and cost > 0:
+                judgment.pnl_pct = round((price - cost) / cost * 100.0, 2)
+        except (TypeError, ValueError):
+            pass
+        if position is not None:
+            judgment.sellable = getattr(position, 'shares_available', None)
+
+    @staticmethod
+    def _route_completed(rule, route, delivery) -> bool:
+        from . import router
+        if route is None or str(getattr(rule, 'trigger_channel', 'agent')) == 'direct':
+            return False
+        if route.route == router.ROUTE_SKIP:
+            return True
+        return bool(getattr(delivery, 'delivered', False))
 
     def _handle_invalidation(self, rule, event, quote, state):
         """失效闭环：规则标 invalid + 投递对应 agent 裁决（改阈值回 active / 退役）。
@@ -257,6 +389,8 @@ class WatchEngineV2:
             rule, judgment, position_state,
             sender=self._agent_sender,
             account_agent_map=self._account_agent_map,
+            price_tracker=self._agent_price_tracker,
+            use_price_gate=False,  # 失效裁决必达，但仍更新“上次成功发 agent”价格
         )
         self._log.info(
             'v2.rule_invalidated', rule_id=rule_id,
@@ -265,11 +399,15 @@ class WatchEngineV2:
         )
         return delivery
 
-    def _route(self, rule):
+    def _route(self, rule, judgment):
         from . import router
+        if str(getattr(rule, 'trigger_channel', 'agent') or 'agent') == 'direct':
+            if getattr(judgment, '_v2_new_trigger', True):
+                return router.RouteDecision(router.ROUTE_DIRECT, 0, 'direct_channel')
+            return router.RouteDecision(router.ROUTE_SKIP, 0, 'direct_edge_latched')
         if self._cycle_store is None:
-            return None  # 无 store：影子期不路由（只判定）
-        return router.route_trigger(rule, self._cycle_store)
+            return None
+        return router.route_trigger(rule, self._cycle_store, commit=False)
 
     def _deliver(self, rule, judgment, state, route, quote):
         """按路由决策投递：agent 首发 → notify_agent；第 10 次 → notify_feishu 直通。"""
@@ -287,6 +425,7 @@ class WatchEngineV2:
                 rule, judgment, state,
                 sender=self._agent_sender,
                 account_agent_map=self._account_agent_map,
+                price_tracker=self._agent_price_tracker,
             )
         if route.route == router.ROUTE_DIRECT:
             return notify_feishu.send(
@@ -299,8 +438,10 @@ class WatchEngineV2:
     # ── 常驻主循环 ─────────────────────────────────────────────────────────
 
     def stop(self) -> None:
-        """请求退出 run_forever 循环（lifespan 优雅停止句柄用）。"""
+        """请求退出 run_forever 循环，并保存状态、回收取数资源。"""
         self._stop_event.set()
+        self._staged.flush()
+        self._context.shutdown()
 
     def run_forever(self) -> None:
         """常驻循环：tick → 按拍间隔等待 → 下一拍；异常逐拍隔离不退出线程。"""
@@ -309,7 +450,7 @@ class WatchEngineV2:
             started = time.monotonic()
             try:
                 self.tick()
-            except Exception:  # noqa: BLE001 - 单拍失败不杀线程（探活靠心跳兜底）
+            except Exception:  # noqa: BLE001 - 单拍失败不杀线程
                 self._log.exception('v2.tick_failed')
             elapsed = time.monotonic() - started
             wait_sec = max(self._tick_interval_sec - elapsed, 0.0)
@@ -324,6 +465,7 @@ def create_engine_v2(rule_repo, quote_service,
 
     只做参数转发，不 import 任何 L0 实现 —— 实现选择留在调用方。
     chain_deps: judge / cycle_store / agent_sender / feishu_sender / account_agent_map
+                / agent_price_tracker
     """
     kwargs: Dict[str, Any] = dict(chain_deps)
     if tick_interval_sec is not None:

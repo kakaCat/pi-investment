@@ -5,7 +5,7 @@
 
 本轮处置（返工 B+C 已授权加列迁移）：
   · **库优先、env 兜底**：quant.watch_runtime_meta.digest_shadow_since（本次迁移新增列）
-    是跨重启的唯一事实源；进程启动时先读库，读到就把它镜像进 env（心跳巡检只读 env），
+    是跨重启的唯一事实源；进程启动时先读库，读到就把它镜像进 env（影子模式巡检只读 env），
     读不到才用 env 现值，再读不到才用「现在」。
   · **首次进入影子模式写库**：库为空且处于影子模式时落库一次；此后幂等不覆盖
     （重启不刷新起点）——这正是上一版「env 独木难支、重启归零」要修的。
@@ -143,7 +143,7 @@ def ensure_shadow_since_env(now: Optional[datetime] = None,
     """进程启动时落地影子起始时间（库优先、env 兜底），返回最终值。
 
     流程：
-      1) 读库 → 有值：镜像进 env（心跳巡检只读 env）并返回——**重启读回真值**；
+      1) 读库 → 有值：镜像进 env（影子模式巡检只读 env）并返回——**重启读回真值**；
       2) 库为空：取 env 现值，env 也空则用 now（仅影子模式）；然后把该值**首次写库**
          （persist=False 或库不可用时只写 env），并补 env。
     幂等：已有值不覆盖（重启不刷新起点）。返回 None = 非影子模式，不适用。
@@ -158,7 +158,7 @@ def ensure_shadow_since_env(now: Optional[datetime] = None,
     if persisted is not None:
         iso = _to_iso_naive(persisted)
         if str(store_env.get(SHADOW_SINCE_ENV) or '').strip() != iso:
-            store_env[SHADOW_SINCE_ENV] = iso      # 库 → env 镜像（心跳巡检通道）
+            store_env[SHADOW_SINCE_ENV] = iso      # 库 → env 镜像（影子模式巡检通道）
         return iso
 
     value = resolve_shadow_since(now=now, env=store_env, store=None)

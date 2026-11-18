@@ -68,14 +68,8 @@ def next_route(cycle_count: Optional[int]) -> RouteDecision:
     return RouteDecision(route=ROUTE_SKIP, cycle_count=nxt, reason='cycle_middle')
 
 
-def route_trigger(rule, store) -> RouteDecision:
-    """按规则当前计数决策并写回（store 需有 get_cycle_count / set_cycle_count）。
-
-    store 契约（可由仓储或内存实现）：
-        get_cycle_count(rule_id) -> int | None
-        set_cycle_count(rule_id, count) -> None
-    读取失败按新循环首发处理（宁可多发一次 agent，不漏判断）。
-    """
+def route_trigger(rule, store, *, commit: bool = True) -> RouteDecision:
+    """读取路由决策；``commit=False`` 时由调用方在投递成功后提交计数。"""
     rule_id = getattr(rule, 'id', None)
     try:
         current = store.get_cycle_count(rule_id)
@@ -84,14 +78,21 @@ def route_trigger(rule, store) -> RouteDecision:
         current = 0
 
     decision = next_route(current)
+    if commit:
+        commit_route(rule, store, decision)
+    return decision
 
+
+def commit_route(rule, store, decision: RouteDecision) -> bool:
+    """提交已完成的路由步骤；写失败返回 False，不伪造计数已推进。"""
     write_value = 0 if decision.cycle_count >= CYCLE_LEN else decision.cycle_count
     try:
-        store.set_cycle_count(rule_id, write_value)
-    except Exception as exc:  # noqa: BLE001 - 写失败不阻断本轮投递
-        logger.warning('v2.cycle_write_failed', rule_id=rule_id, error=str(exc))
-
-    return decision
+        store.set_cycle_count(getattr(rule, 'id', None), write_value)
+        return True
+    except Exception as exc:  # noqa: BLE001
+        logger.warning('v2.cycle_write_failed',
+                       rule_id=getattr(rule, 'id', None), error=str(exc))
+        return False
 
 
 def reset_daily_cycles(store) -> int:

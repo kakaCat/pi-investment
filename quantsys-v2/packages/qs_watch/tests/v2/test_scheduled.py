@@ -67,9 +67,16 @@ class FakeEngine:
         self.outcomes = outcomes or []
         self.chain_calls = []
 
-    def run_chain(self, rules, quotes):
+    def run_chain(self, rules, quotes, archive=None, now=None, assessments=None):
         self.chain_calls.append((list(rules), dict(quotes)))
-        return list(self.outcomes)
+        outcomes = list(self.outcomes)
+        if archive is not None:
+            for rule in rules:
+                archive.evaluated(rule)
+            for outcome in outcomes:
+                if outcome[0] == 'trigger' and archive.before_delivery(outcome[1], outcome[2]):
+                    archive.after_delivery(outcome[2], outcome[4])
+        return outcomes
 
 
 class FakeTriggerRepo:
@@ -79,6 +86,9 @@ class FakeTriggerRepo:
     def record(self, **kwargs):
         self.records.append(kwargs)
         return SimpleNamespace(id=len(self.records))
+
+    def mark_notified(self, trigger_id, notified):
+        self.records[trigger_id - 1]['notified'] = bool(notified)
 
 
 # ── 时段门 ─────────────────────────────────────────────────────────────
@@ -201,27 +211,3 @@ def test_build_watch_v2_jobs_names():
 def test_scan_rejects_invalid_tier():
     with pytest.raises(ValueError):
         scheduled.scan(45)
-
-
-# ── 心跳（V1 停用后由 V2 宿主维持）──────────────────────────────────────
-
-def test_write_heartbeat_calls_store():
-    class Store:
-        def __init__(self):
-            self.calls = []
-
-        def save_meta(self, **kwargs):
-            self.calls.append(kwargs)
-
-    store = Store()
-    now = datetime(2026, 10, 23, 10, 0, 0)
-    assert scheduled.write_heartbeat(now=now, store=store) is True
-    assert store.calls == [{'heartbeat_at': now, 'state_date': now.date()}]
-
-
-def test_write_heartbeat_failure_is_swallowed():
-    class Broken:
-        def save_meta(self, **kwargs):
-            raise RuntimeError('db down')
-
-    assert scheduled.write_heartbeat(store=Broken()) is False

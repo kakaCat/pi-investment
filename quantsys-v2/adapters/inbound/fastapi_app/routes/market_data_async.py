@@ -179,6 +179,28 @@ def get_index_history_v2(symbol: str = Query('sh000300'), start_date: str = Quer
     return mgr.get_index_daily(symbol)
 
 
+@router.get('/api/market/trading-calendar')
+def get_trading_calendar(start_date: str = Query(''), end_date: str = Query('')):
+    """交易日历查询（quant.trading_calendar，交易所发布口径）。
+
+    2026-11-03：供 Agent OS 归因对齐使用——按交易日剔除净值序列中的非交易日行，
+    避免节假日行被误报为"基准缺日"。返回区间内交易日列表（升序，YYYY-MM-DD）。
+    """
+    if not start_date or not end_date:
+        return {"success": False, "error": "require start_date and end_date params"}
+    try:
+        from infrastructure.services.service_factory import ServiceFactory
+        from qs_kernel.domain.ports import IKlineRepository
+        repo = ServiceFactory.resolve(IKlineRepository)
+        days = repo.get_calendar_trade_dates(start_date, end_date)
+        return {"success": True, "start": start_date, "end": end_date,
+                "count": len(days),
+                "trade_dates": [d.isoformat() for d in days]}
+    except Exception as e:  # noqa: BLE001 - 降级为无日历（调用方回退旧行为）
+        logger.error("trading_calendar_query_failed", error=str(e))
+        return {"success": False, "error": str(e)[:200], "trade_dates": []}
+
+
 @router.get('/api/hk/overview')
 def get_hk_overview():
     mgr = get_data_provider_manager()

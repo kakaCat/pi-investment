@@ -18,7 +18,8 @@ from adapters.outbound.repositories.watch_rule_repository import (
 )
 from qs_agenthub.application.services.agent_notification_service import AgentNotificationService
 from qs_watch.application.services.watch_engine.digest_service import WatchDigestService
-from qs_watch.application.services.watch_engine.factory import create_watch_engine
+from qs_watch.application.services.watch_engine.v2 import scheduled
+from adapters.inbound.fastapi_app.watch_bootstrap_v2 import build_engine_v2
 
 SYMBOL = "600887"          # 伊利：agent_virtual 持仓标的（止损伤痕真实存在）
 ACCOUNT = "agent_virtual"
@@ -158,26 +159,22 @@ def rule_id():
         pass
 
 
+def _scan_v2():
+    return scheduled.scan(
+        30,
+        now=datetime(2026, 9, 11, 10, 0),
+        rule_repo=WatchRuleRepository(),
+        quote_service=_QuoteSvc(TRIGGER_PRICE - 1),
+        trigger_repo=WatchTriggerRepository(),
+        engine=build_engine_v2(),
+    )
+
+
 def test_e2e_rule_to_trigger_to_notification(rule_id, captured):
-    """① 建规则 → ② tick 命中 → ③ 状态机 → ④ 触发落库 + 通知出口"""
-    engine = create_watch_engine()
-    engine.quote_service = _QuoteSvc(TRIGGER_PRICE - 1)          # 跌破
-    engine.now_fn = lambda: datetime(2026, 9, 11, 10, 0)         # 交易时段内
-    # 外部数据源桩：均量走 baostock/腾讯/akshare（离线时 2 分钟超时），E2E 只关心引擎自身链路
-    engine._get_avg_volume = lambda symbol: None
-
-    events = engine.tick()
-
-    # 本规则被命中（可能伴随同批其他规则，按 rule_id 过滤）
-    mine = [e for e in events if e.get("rule_id") == rule_id]
-    assert mine, "规则未命中：检查 intent/条件/激活窗口。events=%s" % events
-
-    # 可观测性：命中事件必须带处置结论（2026-09-11 修复：此前只有 message，无法区分
-    # "命中并通知"与"命中但被去重/压预算"，调用方只能回查库）
-    ev = mine[0]
-    assert ev["disposition"] in ("escalated", "pending"), ev
-    assert ev["notified"] is True
-    assert ev["trigger_id"], "事件缺触发ID，无法与库内记录对齐"
+    """① 建规则 → ② V2 扫描命中 → ③ 触发落库 + 通知出口"""
+    result = _scan_v2()
+    assert result["events"] >= 1, result
+    assert result["delivery_failed"] == 0, result
 
     # 触发落库（真库）
     rows = WatchTriggerRepository().list_triggers(limit=200)
@@ -186,6 +183,9 @@ def test_e2e_rule_to_trigger_to_notification(rule_id, captured):
     row = mine_rows[0]
     assert row.symbol.split(".")[0] == SYMBOL
     assert row.disposition, "落库缺处置状态"
+    assert row.engine == 'v2'
+    assert row.notified is True
+    assert row.id, "触发缺 trigger_id，无法与库内记录对齐"
 
     # 通知出口：宪法级（exit_stop）必须落到不可静音的风控频道
     os_calls = [c for c in captured if "notifications/send" in c["url"]]
@@ -200,11 +200,7 @@ def test_e2e_rule_to_trigger_to_notification(rule_id, captured):
 def test_e2e_digest_splits_by_account_and_carries_authority(rule_id, captured):
     """⑤ 摘要门：按账户分段投送 + 授权等级（不自作主张替用户下单）"""
     # 先制造一条未决触发
-    engine = create_watch_engine()
-    engine.quote_service = _QuoteSvc(TRIGGER_PRICE - 1)
-    engine.now_fn = lambda: datetime(2026, 9, 11, 10, 0)
-    engine._get_avg_volume = lambda symbol: None
-    engine.tick()
+    _scan_v2()
 
     svc = WatchDigestService(
         trigger_repo=WatchTriggerRepository(),

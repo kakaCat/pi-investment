@@ -5,7 +5,7 @@
 ``feishu_templates.py``，两者互不 import）。
 
 键 = （持仓状态, 判定类型）：
-- 持仓类：holding × (add_position / exit_take_profit / exit_stop / exit_reduce)
+- 持仓类：holding × (add_position / exit_take_profit / exit_stop / exit_reduce / t_trade)
 - 非持仓类：none × (entry / trend_observe)
 
 未注册键 → 回落通用提示词（不中断投递，只留 warning）。
@@ -67,6 +67,15 @@ _register(POSITION_HOLDING, 'exit_reduce', (
     '浮盈亏 {pnl_pct}%，可卖 {sellable} 股。\n'
     '减仓线已触发（{hit_summary}）。请判断：是否减仓？减多少？'
     '\n输出：{{action: 减仓|持有, qty, account, reason}}'
+))
+
+_register(POSITION_HOLDING, 't_trade', (
+    '【区间T·{t_trade_leg}】周期 {t_trade_id}｜{symbol} 现价 {price}｜账户 {account}｜'
+    '模式 {t_trade_mode}｜数量 {quantity} 股｜触发价 {reference_price}｜回补价 {buyback_price}。\n'
+    'remind_only：只向用户给出操作建议，禁止下单；等待真实成交后用 record-fill 登记。'
+    'auto_sim：核对周期状态后用 t_trade 工具执行当前腿，禁止另用 portfolio_trade 重复下单。'
+    '止损、区间失效或数据异常优先，取消周期，不得为完成做T拖延风控。'
+    '\n输出：{{action, t_trade_id, qty, account, reason}}'
 ))
 
 # ── 非持仓类（none）· 上下文含买点价/失效线/建议仓位 ────────────────────

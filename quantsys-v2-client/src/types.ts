@@ -220,6 +220,8 @@ export interface Position {
   profitLoss: number;
   profitLossPct: number;
   profitToday: number;
+  /** 持仓后历史最高价（移动止盈峰值基准；无数据时为 0） */
+  peakPrice?: number;
   /** 行情刷新时间戳（ISO），来自 simulation 账户接口的 price_updated_at */
   priceUpdatedAt?: string | null;
   /** 账户级行情陈旧标记：true=本次行情拉取失败，价格为旧值 */
@@ -377,6 +379,26 @@ export interface EvolutionDecisionScores {
   items: EvolutionDecisionScore[];
 }
 
+/** 投资评价报告（只读）：三套口径分离，明细结构由后端 schema_version 约束。 */
+export interface InvestmentEvaluationReport {
+  schemaVersion: string;
+  generatedAt: string;
+  readOnly: boolean;
+  accountName: string;
+  period: Record<string, any>;
+  accountCurrent: Record<string, any>;
+  accountEconomy: Record<string, any>;
+  tradeEconomy: Record<string, any>;
+  investmentAbility: Record<string, any>;
+  episodeSummary: Record<string, any>;
+  tradeEpisodes: Array<Record<string, any>>;
+  tradeLedger: Array<Record<string, any>>;
+  signalEvaluation: Record<string, any>;
+  decisionCoverage: Record<string, any>;
+  dataQuality: Record<string, any>;
+  [key: string]: any;
+}
+
 /**
  * Macroeconomic data (GDP/CPI/PMI)
  * Real endpoint: GET /api/market/macro
@@ -484,6 +506,11 @@ export interface TradeRequest {
   execute_at?: 'market_open';
   /** 重复挂单确认（2026-09-03）：同标的同方向已有 pending 单时后端 409 拦截，确认后设 true 放行 */
   allow_duplicate?: boolean;
+  plan_id?: number;
+  item_id?: number;
+  plan_version?: number;
+  signal_grade?: 'A' | 'B' | 'C';
+  decision_audit_id?: string;
 }
 
 /**
@@ -696,6 +723,10 @@ export interface RiskControlRequest {
   risk_level?: 'large_cap' | 'growth' | 'small_cap_theme';
   price?: number;
   entry_price?: number;
+  /** position_size 用：账户总资产（缺省后端按 100000 兜底 → 建议额恒 20000） */
+  account_value?: number;
+  /** position_size 用：单笔风险百分比（缺省 2.0） */
+  risk_percent?: number;
 }
 
 /**
@@ -1172,10 +1203,15 @@ export interface EvolutionEngineRunsResponse {
   runs: EvolutionEngineRunRow[];
 }
 
-// ==================== Core Plan（建仓计划，B8 2026-09-13） ====================
-// ⚠️ 这些结构**刻意保持蛇形 key**：后端 /api/core-plan 原样返回 config/core_plan.json 的结构，
-// 与三个读文件的例行任务看到的一致。切勿在此"顺手"改成驼峰——那会让同一份计划出现两套
-// key 词汇表（"同一状态两种定义"，本仓已因此出过真实故障）。
+// ==================== Core Plan（建仓计划，B8 2026-09-13；2026-10-29 迁移 qs_plan） ====================
+// ⚠️ 2026-10-29 起：后端 /api/core-plan（config/core_plan.json 文件链路）已退役，getCorePlan()
+// 改读 GET /api/plans/today 并**适配进**下述信封（字段名不变，语义已变）：
+//   · plan  = 今日视图 {empty, plans:[{plan,targets,entry,exit,env_gate}], generated_at}；
+//             后端账户级 items[] 会归一化为 plans[]，不再是 core_plan.json 结构
+//             （exposure/holdings/growth_sleeve 已不存在）
+//   · delta 恒为 null（今日视图不产出机械差额）
+// 信封内字段**刻意保持蛇形 key**——切勿"顺手"改成驼峰，那会让同一状态出现两套 key 词汇表
+//（"同一状态两种定义"，本仓已因此出过真实故障）。
 
 /** 计划新鲜度（机械判定 + 理由） */
 export interface CorePlanFreshness {
@@ -1237,5 +1273,45 @@ export interface CorePlanSnapshot {
   freshness: CorePlanFreshness | null;
   plan: Record<string, any> | null;
   delta: CorePlanDelta | null;
+  [key: string]: any;
+}
+
+export type TTradeMode = 'remind_only' | 'auto_sim';
+export type TTradeStatus = 'waiting_sell' | 'waiting_buyback' | 'completed' | 'cancelled';
+
+export interface TTradeCycle {
+  id: number;
+  t_trade_id: number;
+  account: string;
+  symbol: string;
+  mode: TTradeMode;
+  status: TTradeStatus;
+  current_leg: 'sell' | 'buyback' | null;
+  upper_price: number;
+  lower_price: number;
+  shares: number;
+  expected_net_pnl: number;
+  net_pnl: number | null;
+  total_fees: number | null;
+  sell_trade_id: number | null;
+  buyback_trade_id: number | null;
+  [key: string]: any;
+}
+
+export interface TTradeCreateRequest {
+  account: string;
+  symbol: string;
+  upper_price: number;
+  lower_price: number;
+  shares: number;
+  reason: string;
+  invalidation?: string;
+  slippage_bps?: number;
+}
+
+export interface TTradeResult {
+  cycle: TTradeCycle;
+  rule_sync?: Record<string, any>;
+  trade?: Record<string, any>;
   [key: string]: any;
 }

@@ -77,7 +77,7 @@ def build_todo_service(assigner: Optional[Any] = None,
     from qs_watch.application.services.watch_engine.watch_channels import wake_todo_assignment
     if rule_change_linkage is None:
         try:
-            from qs_watch.application.services.watch_engine.disposition_engine import (
+            from qs_watch.application.services.watch_engine.rule_change_linkage import (
                 RuleChangeLinkage,
             )
             from qs_watch.application.services.watch_engine._repo_resolver import (

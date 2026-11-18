@@ -234,6 +234,47 @@ class SignalTrackingRepository:
             self._end_read()
             cursor.close()
     
+    def get_signals_pending_backfill(
+        self,
+        symbol: Optional[str] = None,
+        include_filled: bool = False,
+        start_date: Optional[str] = None,
+    ) -> List[Dict]:
+        """取回填候选，不限默认 30 天窗口。
+
+        默认只取仍有 NULL 表现价的信号；``include_filled=True`` 仅供受控重算
+        （K 线修复后刷新已写入的派生值），必须配合 symbol 或日期范围收窄。
+        """
+        cursor = self._ensure_connection().cursor()
+        conditions = []
+        params = []
+        if symbol:
+            conditions.append("symbol = %s")
+            params.append(symbol)
+        if start_date:
+            conditions.append("signal_date >= %s")
+            params.append(start_date)
+        if not include_filled:
+            conditions.append("(price_5d IS NULL OR price_10d IS NULL OR price_20d IS NULL)")
+        where_clause = "WHERE " + " AND ".join(conditions) if conditions else ""
+        try:
+            cursor.execute(f"""
+                SELECT
+                    id, signal_date, symbol, grade, source, price, reason,
+                    price_5d, price_10d, price_20d,
+                    return_5d, return_10d, return_20d,
+                    hit_5d, hit_10d, hit_20d,
+                    created_at, updated_at
+                FROM quant.signal_tracking
+                {where_clause}
+                ORDER BY signal_date, id
+            """, params)
+            columns = [desc[0] for desc in cursor.description]
+            return [dict(zip(columns, row)) for row in cursor]
+        finally:
+            self._end_read()
+            cursor.close()
+
     def get_signals(
         self,
         start_date: Optional[str] = None,

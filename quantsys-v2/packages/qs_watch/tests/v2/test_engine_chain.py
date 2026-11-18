@@ -78,7 +78,7 @@ class TestChainEndToEnd:
         eng = _engine(
             [rule], {'300750.SZ': 8.8},
             cycle_store=MemCycleStore(),
-            agent_sender=lambda a, acc, p: agent_calls.append((a, acc)) or True,
+            agent_sender=lambda a, acc, p, ctx: agent_calls.append((a, acc)) or True,
             feishu_sender=lambda t, b: feishu_calls.append(t) or True,
             account_agent_map={'acct_A': 'agent-A'},
         )
@@ -98,7 +98,7 @@ class TestChainEndToEnd:
         eng = _engine(
             [rule], {'300750.SZ': 8.8},
             cycle_store=store,
-            agent_sender=lambda a, acc, p: True,
+            agent_sender=lambda a, acc, p, ctx: True,
             feishu_sender=lambda t, b: feishu_calls.append(t) or True,
         )
         result = eng.tick()
@@ -113,7 +113,7 @@ class TestChainEndToEnd:
         eng = _engine(
             [rule], {'000999.SZ': 30.5},
             cycle_store=MemCycleStore(),
-            agent_sender=lambda a, acc, p: agent_calls.append(p) or True,
+            agent_sender=lambda a, acc, p, ctx: agent_calls.append(p) or True,
         )
         result = eng.tick()
         kind, r, judgment, route, delivery = result.judgments[0]
@@ -150,7 +150,7 @@ class TestChainEndToEnd:
         eng = v2_engine.WatchEngineV2(
             rule_repo=repo,
             quote_service=FakeQuoteService({'300750.SZ': 320.0}),
-            agent_sender=lambda a, acc, p: agent_calls.append((a, acc, p)) or True,
+            agent_sender=lambda a, acc, p, ctx: agent_calls.append((a, acc, p)) or True,
             account_agent_map={'acct_A': 'agent-A'},
         )
         result = eng.tick()
@@ -169,13 +169,34 @@ class TestChainEndToEnd:
         eng = _engine(
             [rule], {'300418': 10.5},
             cycle_store=MemCycleStore(),
-            agent_sender=lambda a, acc, p: agent_calls.append(p) or True,
+            agent_sender=lambda a, acc, p, ctx: agent_calls.append(p) or True,
         )
         result = eng.tick()
         kind, r, judgment, route, delivery = result.judgments[0]
         assert kind == 'trigger' and judgment.observe_only is True
         assert route is None and delivery is None
         assert agent_calls == []
+
+    def test_direct_observe_delivers_feishu_without_account_or_agent(self):
+        rule = _rule(314, 'trend_observe', 10.0, 'above', 'none', symbol='300419')
+        rule.account = None
+        rule.trigger_channel = 'direct'
+        agent_calls, feishu_calls = [], []
+        eng = _engine(
+            [rule], {'300419': 10.5},
+            cycle_store=MemCycleStore(),
+            agent_sender=lambda a, acc, p, ctx: agent_calls.append((a, acc)) or True,
+            feishu_sender=lambda t, b: feishu_calls.append((t, b)) or True,
+        )
+
+        result = eng.tick()
+
+        kind, r, judgment, route, delivery = result.judgments[0]
+        assert kind == 'trigger' and judgment.observe_only is True
+        assert route.route == router.ROUTE_DIRECT
+        assert delivery.delivered is True
+        assert agent_calls == []
+        assert len(feishu_calls) == 1
 
     def test_shadow_mode_no_delivery(self):
         """无 cycle_store / 无 sender：判定仍留痕（judgments 有），但不路由不投递。"""

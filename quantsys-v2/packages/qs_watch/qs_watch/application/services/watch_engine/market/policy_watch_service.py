@@ -20,9 +20,9 @@
   3) **板块映射复用现有口径，不维护第二份**：
      · 板块名 → canonical 板块：`policy_lexicon.normalize_sector / resolve_sector /
        SECTOR_ALIASES`（词表配置是唯一真相）；
-     · 行情板块列表/成分：`sector_resonance_service._ManagerSectorSource`（与确认核验
-       的共振阶段**同一个**取数适配器，含两层剥壳）与 `_bare_symbol`（同一套裸码归一）；
-     · TTL 与 `sector_resonance_service.DEFAULT_TTL_SEC` 同一口径（6h，板块成分日间不变）。
+     · 行情板块列表/成分：`sector_constituents._ManagerSectorSource`（统一取数适配，
+       含两层剥壳）与 `_bare_symbol`（同一套裸码归一）；
+     · TTL 与 `sector_constituents.DEFAULT_TTL_SEC` 同一口径（6h，板块成分日间不变）。
      本模块**没有**第二张别名表、第二套裸码归一、第二个 manager 剥壳实现。
 
 取数失败口径（与 policy_news_source / 新闻监控同源）：
@@ -44,7 +44,7 @@ from qs_watch.application.services.watch_engine.policy_news_source import (
 )
 # 复用现有口径（**禁止第二份**）：行情板块/成分取数适配、裸码归一、TTL。
 # 这两个名字带下划线是因为它们住在共振核验模块里，但口径是全包共用的。
-from qs_watch.application.services.watch_engine.sector_resonance_service import (
+from qs_watch.application.services.watch_engine.sector_constituents import (
     DEFAULT_TTL_SEC as SECTOR_MAP_TTL_SEC,
     _ManagerSectorSource,
     _bare_symbol,

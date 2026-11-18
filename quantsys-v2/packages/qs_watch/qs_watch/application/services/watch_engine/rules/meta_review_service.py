@@ -72,6 +72,17 @@ class WatchMetaReviewService:
             interval = REVIEW_INTERVAL_DAYS.get(intent, 7)
             st = stats.get(rule.id, {"today": 0, "last_at": None})
 
+            # 未到下一次复核期则跳过（尊重 review_due_at，避免长期静默规则每天重复刷屏）
+            review_due = getattr(rule, "review_due_at", None)
+            if not force and review_due is not None:
+                try:
+                    if review_due > now:
+                        skipped_reviewed += 1
+                        continue
+                except TypeError:
+                    # 历史数据可能存在 aware/naive 混用；比较失败时不阻塞扫描
+                    pass
+
             # 当日已复核过则跳过（每天最多一次，避免噪声）
             last_reviewed = getattr(rule, "last_reviewed_at", None)
             if (not force) and last_reviewed is not None and last_reviewed.date() == now.date():

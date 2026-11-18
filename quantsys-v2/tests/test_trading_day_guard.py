@@ -11,6 +11,7 @@ from datetime import date
 import pytest
 
 from qs_ops.application.services.trading_day_guard import (
+    SOURCE_CALENDAR,
     SOURCE_COMPUTE_ERROR,
     SOURCE_INTRADAY,
     SOURCE_KLINE,
@@ -77,6 +78,16 @@ def _clear_guard_cache():
     m._verdict_cache.clear()
     yield
     m._verdict_cache.clear()
+
+
+@pytest.fixture(autouse=True)
+def _disable_calendar_source(monkeypatch):
+    """日历优先改造（2026-11-03）后，既有用例只测 K 线判据：默认 stub 日历为无覆盖。
+
+    日历分支的专属用例见文件末尾「日历优先」一节，它们自行覆盖本 stub。
+    """
+    monkeypatch.setattr(
+        TradingDayGuard, '_calendar_stats', classmethod(lambda cls, d: None))
 
 
 def test_check_source_weekend(monkeypatch):
@@ -494,3 +505,105 @@ def test_no_alert_for_normal_verdicts(monkeypatch, _fake_alert_sink):
     assert TradingDayGuard.is_trading_day('2026-09-10') is True
     assert TradingDayGuard.is_trading_day('2026-08-08') is False
     assert _fake_alert_sink == []
+
+
+# ── 5. 日历优先（2026-11-03 节假日假快照修复）─────────────────
+# 背景：K 线启发式无法区分"节假日工作日"与"日K未落库的交易日"——
+# 2026-10-01（国庆，周四）全账户被 orchestrator 写假净值快照；
+# 2026-10-08（节后首个交易日）guard 误判非交易日整天跳过。
+# 修复：quant.trading_calendar（交易所发布口径）覆盖范围内优先于 K 线判据。
+
+# autouse 的 _disable_calendar_source 会换掉类属性；在补丁生效前留住真实现，
+# 供下面测"真实现 + 假仓储"的用例恢复使用。
+_REAL_CALENDAR_STATS = TradingDayGuard.__dict__['_calendar_stats']
+
+
+def test_calendar_trading_day_wins_over_kline_path(monkeypatch):
+    """覆盖范围内的交易日：日历说了算，不再走 K 线启发式（也不该查 K 线）。"""
+    monkeypatch.setattr(
+        TradingDayGuard, '_calendar_stats', classmethod(lambda cls, d: True))
+
+    def _boom(day):
+        raise AssertionError('日历已覆盖时不应再查 K 线数据源')
+
+    monkeypatch.setattr(TradingDayGuard, '_kline_stats', staticmethod(_boom))
+    v = TradingDayGuard.check('2026-10-09', use_cache=False)
+    assert v.is_trading_day is True
+    assert v.source == SOURCE_CALENDAR and v.degraded is False
+
+
+def test_calendar_holiday_wins_over_intraday_heuristic(monkeypatch):
+    """回归锚点（RC1）：10-01 是节假日——即使"近 7 日有K线"（09-30 的K线），
+    日历也必须把它判成非交易日，堵住 orchestrator 写假快照的路径。"""
+    monkeypatch.setattr(
+        TradingDayGuard, '_calendar_stats', classmethod(lambda cls, d: False))
+    v = TradingDayGuard.check('2026-10-01', use_cache=False)
+    assert v.is_trading_day is False
+    assert v.source == SOURCE_CALENDAR and v.degraded is False
+
+
+def test_calendar_no_coverage_falls_back_to_kline(monkeypatch):
+    """日历无覆盖（d > max(trade_date)，典型为清晨刷新前）→ 回退 K 线判据。"""
+    monkeypatch.setattr(
+        TradingDayGuard, '_calendar_stats', classmethod(lambda cls, d: None))
+    monkeypatch.setattr(
+        TradingDayGuard, '_kline_stats',
+        staticmethod(lambda day: (True, date(2026, 9, 10))),
+    )
+    v = TradingDayGuard.check('2026-09-10', use_cache=False)
+    assert v.is_trading_day is True
+    assert v.source == SOURCE_KLINE
+
+
+def test_calendar_error_falls_back_to_kline(monkeypatch):
+    """日历取数抛异常 → 留痕、回退 K 线判据，绝不击穿调用方。"""
+    monkeypatch.setattr(
+        TradingDayGuard, '_calendar_stats',
+        classmethod(lambda cls, d: (_ for _ in ()).throw(RuntimeError('cal db down'))),
+    )
+    monkeypatch.setattr(
+        TradingDayGuard, '_kline_stats',
+        staticmethod(lambda day: (True, date(2026, 9, 10))),
+    )
+    v = TradingDayGuard.check('2026-09-10', use_cache=False)   # 不得抛
+    assert v.is_trading_day is True
+    assert v.source == SOURCE_KLINE
+
+
+def test_calendar_stats_none_beyond_coverage(monkeypatch):
+    """真实现 + 假仓储：d > 日历最大日期 → None（无覆盖）。"""
+    class _Repo:
+        def __init__(self, *a, **k):
+            pass
+
+        def get_calendar_max_date(self):
+            return date(2026, 9, 30)
+
+        def has_calendar_trade_day(self, day):
+            raise AssertionError('无覆盖日期不应查行存在性')
+
+    import adapters.outbound.repositories.kline_repository as repo_mod
+    monkeypatch.setattr(repo_mod, 'KlineORMRepository', _Repo)
+    monkeypatch.setattr(TradingDayGuard, '_calendar_stats', _REAL_CALENDAR_STATS)
+    assert TradingDayGuard._calendar_stats(date(2026, 10, 1)) is None
+
+
+def test_calendar_stats_holiday_has_no_row(monkeypatch):
+    """真实现 + 假仓储：覆盖范围内，日历无行的工作日 = 法定节假日。"""
+    class _Repo:
+        rows = {date(2026, 10, 9)}
+
+        def __init__(self, *a, **k):
+            pass
+
+        def get_calendar_max_date(self):
+            return date(2026, 12, 31)   # 交易所日历含未来交易日
+
+        def has_calendar_trade_day(self, day):
+            return day in type(self).rows
+
+    import adapters.outbound.repositories.kline_repository as repo_mod
+    monkeypatch.setattr(repo_mod, 'KlineORMRepository', _Repo)
+    monkeypatch.setattr(TradingDayGuard, '_calendar_stats', _REAL_CALENDAR_STATS)
+    assert TradingDayGuard._calendar_stats(date(2026, 10, 9)) is True
+    assert TradingDayGuard._calendar_stats(date(2026, 10, 1)) is False

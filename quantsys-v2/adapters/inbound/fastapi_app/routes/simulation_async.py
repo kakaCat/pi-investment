@@ -18,6 +18,8 @@ from qs_trading.application.services.account_trading_service import (
 from adapters.outbound.repositories.simulation_repository import (
     SimulationORMRepository, SimulationPendingOrder,   # 后者用于滑点报表（M5 闭环）
 )
+from qs_plan.application.plan_execution_guard import PlanExecutionGuard
+from qs_plan.application.plan_generation_service import AccountPlanError
 
 logger = structlog.get_logger(__name__)
 
@@ -81,6 +83,25 @@ async def create_account(payload: Dict[str, Any] = Body(...)):
 async def manual_trade(account_name: str, payload: Dict[str, Any] = Body(...)):
     """手工/代管交易（agent 虚拟仓核心端点）"""
     try:
+        from adapters.inbound.fastapi_app.routes.plan_async import _build_account_readiness_service
+        from adapters.outbound.repositories.trading_plan_unit_of_work import TradingPlanUnitOfWork
+
+        PlanExecutionGuard(
+            unit_of_work_factory=TradingPlanUnitOfWork,
+            readiness_service_factory=_build_account_readiness_service,
+        ).validate(
+            account=account_name,
+            action=payload.get('action'),
+            symbol=payload.get('symbol'),
+            reason=payload.get('reason'),
+            plan_id=payload.get('plan_id'),
+            item_id=payload.get('item_id'),
+            plan_version=payload.get('plan_version'),
+            signal_grade=payload.get('signal_grade'),
+            decision_audit_id=payload.get('decision_audit_id'),
+            execute_at=payload.get('execute_at'),
+            price=payload.get('price'),
+        )
         svc = AccountTradingService(repo=SimulationORMRepository())
         result = svc.execute_trade(
             account_name=account_name,
@@ -98,8 +119,23 @@ async def manual_trade(account_name: str, payload: Dict[str, Any] = Body(...)):
             # 盈亏闭环 B1（2026-10-19）：订单关联信号/策略，卖出时归因落 strategy_performance
             signal_id=payload.get('signal_id'),
             strategy_name=payload.get('strategy_name'),
+            plan_id=payload.get('plan_id'),
+            plan_version=payload.get('plan_version'),
+            item_id=payload.get('item_id'),
+            decision_audit_id=payload.get('decision_audit_id'),
         )
         return {'success': True, 'data': result}
+    except AccountPlanError as e:
+        status = 400 if e.code in (
+            'PLAN_ATTRIBUTION_REQUIRED', 'SIGNAL_GRADE_NOT_ALLOWED',
+            'DECISION_AUDIT_REQUIRED', 'PLAN_PENDING_UNSUPPORTED',
+        ) else (409 if e.code in (
+            'PLAN_VERSION_STALE', 'PLAN_BATCH_CONFLICT', 'PLAN_BATCH_INTERVAL',
+        ) else 422)
+        return JSONResponse(
+            status_code=status,
+            content={'success': False, 'code': e.code, 'error': e.message, 'details': e.details},
+        )
     except TradingError as e:
         body = {'success': False, 'error': str(e)}
         if getattr(e, 'details', None) is not None:

@@ -30,6 +30,7 @@ from .simulation import (
     SimulationOrder, SimulationCashFlow, SimulationEquitySnapshot,
     SimulationPendingOrder,
 )
+from .t_trade import TTradeCycle
 from .portfolio import PortfolioHolding
 from .trade import Trade
 from .factor import FactorValue
@@ -72,6 +73,7 @@ __all__ = [
     'SimulationPosition',
     'SimulationTrade',
     'SimulationPendingOrder',
+    'TTradeCycle',
 
     # 持仓相关
     'PortfolioHolding',

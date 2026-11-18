@@ -59,6 +59,14 @@ class TestOpportunityToWatchRuleService:
         assert results[0]['symbol'] == '600519'
         assert 'rule_id' in results[0]
         mock_repo.create_rule.assert_called_once()
+        call_args = mock_repo.create_rule.call_args[1]
+        assert call_args['intent'] == 'trend_observe'
+        assert call_args['position_state'] == 'none'
+        assert call_args['trigger_channel'] == 'direct'
+        assert call_args['action_hint'] == {
+            'action_on_trigger': 'observe',
+            'requires_agent': False,
+        }
     
     def test_low_score_skips(self, service, mock_repo):
         """低分信号应该跳过"""

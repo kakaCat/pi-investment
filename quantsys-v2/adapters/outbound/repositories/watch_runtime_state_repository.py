@@ -5,7 +5,7 @@
   · WatchRuntimeState（quant.watch_runtime_state，(rule_id, cond_idx) 联合主键）
     —— 闩锁 + 冷却基准，启动恢复与批量 upsert（ON CONFLICT DO UPDATE）。
   · WatchRuntimeMeta（quant.watch_runtime_meta，恒 id=1）
-    —— 心跳 / 状态日期 / 事件窗口水位 / 影子起始时间，单行 upsert。
+    —— 状态日期 / 事件窗口水位 / 影子起始时间，单行 upsert。
 
 返工 B+C（REQ-c9f899，2026-09-18）在同一适配器上补齐三类运行态的读写与裁剪：
   · 去重窗（quant.watch_runtime_dedup，(symbol, direction) 主键）
@@ -38,11 +38,9 @@ logger = structlog.get_logger(__name__)
 
 # 单行 meta 的固定主键
 _META_ID = 1
-# ⚠️ 这里刻意**只含** 20260918 迁移已存在的三列：digest_shadow_since 是 20260918b
-# 新增列，若塞进来会让「迁移尚未应用」的库（含 pytest 的 quant_test）连心跳读取都
-# 直接 ProgrammingError → 整个 app 起不来。影子起始时间走下面的专用读写方法，
-# 列缺失时由调用方（shadow_mode_clock）响亮降级，而不是把 meta 全表读死。
-_META_FIELDS = ('heartbeat_at', 'state_date', 'event_watermark')
+# digest_shadow_since 走专用读写方法；列缺失时由 shadow_mode_clock 降级，
+# 不影响其余 meta 字段。
+_META_FIELDS = ('state_date', 'event_watermark')
 
 
 def _safe_rollback() -> None:
@@ -134,7 +132,6 @@ class WatchRuntimeStateRepository:
             row = (
                 get_session()
                 .query(
-                    WatchRuntimeMeta.heartbeat_at,
                     WatchRuntimeMeta.state_date,
                     WatchRuntimeMeta.event_watermark,
                 )
@@ -146,12 +143,11 @@ class WatchRuntimeStateRepository:
             raise
         if row is None:
             return {f: None for f in _META_FIELDS}
-        return {'heartbeat_at': row[0], 'state_date': row[1], 'event_watermark': row[2]}
+        return {'state_date': row[0], 'event_watermark': row[1]}
 
     def save_meta(self, **fields: Any) -> None:
         unknown = set(fields) - set(_META_FIELDS)
         if unknown:
-            # 响亮失败：拼错字段名却静默丢弃，会让"心跳已更新"变成假象
             raise ValueError(f'未知 meta 字段: {sorted(unknown)}，允许: {list(_META_FIELDS)}')
         if not fields:
             return

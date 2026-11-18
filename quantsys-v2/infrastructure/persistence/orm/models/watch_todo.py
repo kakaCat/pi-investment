@@ -97,7 +97,7 @@ class WatchRuntimeState(Base):
 
 
 class WatchRuntimeMeta(Base):
-    """运行态单行 meta（心跳 / 当日 / 事件窗口水位）
+    """运行态单行 meta（当日 / 事件窗口水位）
 
     对应数据库表：quant.watch_runtime_meta，恒为 id=1。
     """
@@ -105,7 +105,6 @@ class WatchRuntimeMeta(Base):
     __table_args__ = {'schema': 'quant'}
 
     id = Column(Integer, primary_key=True, comment='固定为 1')
-    heartbeat_at = Column(DateTime(timezone=True), nullable=True, comment='引擎最近一次心跳（存活告警依据）')
     state_date = Column(Date, nullable=True, comment='状态所属交易日（跨天重置判定；命名避开 PG 保留字 current_date）')
     event_watermark = Column(DateTime(timezone=True), nullable=True, comment='触发事件窗口裁剪水位')
     digest_shadow_since = Column(

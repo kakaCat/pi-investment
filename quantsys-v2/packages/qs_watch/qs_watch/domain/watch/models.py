@@ -37,6 +37,10 @@ def validate_action_params(value: Any) -> Optional[str]:
       quantity              正整数（股数）
       invalidation          字符串（失效/重估条件）
       observation_criterion 字符串（observe 类必填）
+      t_trade_id           做T周期正整数 ID
+      leg                  sell / buyback
+      mode                 remind_only / auto_sim
+      buyback_price        正数回补价
     """
     if value is None:
         return None
@@ -54,6 +58,16 @@ def validate_action_params(value: Any) -> Optional[str]:
     qty = value.get('quantity')
     if qty is not None and (not isinstance(qty, int) or qty <= 0):
         return 'action_params.quantity 必须为正整数'
+    ttid = value.get('t_trade_id')
+    if ttid is not None and (not isinstance(ttid, int) or isinstance(ttid, bool) or ttid <= 0):
+        return 'action_params.t_trade_id 必须为正整数'
+    if value.get('leg') is not None and value.get('leg') not in ('sell', 'buyback'):
+        return 'action_params.leg 必须为 sell/buyback'
+    if value.get('mode') is not None and value.get('mode') not in ('remind_only', 'auto_sim'):
+        return 'action_params.mode 必须为 remind_only/auto_sim'
+    bp = value.get('buyback_price')
+    if bp is not None and (not isinstance(bp, (int, float)) or bp <= 0):
+        return 'action_params.buyback_price 必须为正数'
     for key in ('invalidation', 'observation_criterion'):
         if value.get(key) is not None and not isinstance(value.get(key), str):
             return 'action_params.%s 必须为字符串' % key

@@ -12,7 +12,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from qs_watch.application.services.watch_engine.disposition_engine import (
+from qs_watch.application.services.watch_engine.rule_change_linkage import (
     RuleChangeLinkage,
 )
 from qs_watch.application.services.watch_engine.todo_service import TodoService

@@ -32,7 +32,7 @@ import pandas as pd
 
 # ⚠️ 路径基准：本文件在 application/services/ 下，parents[2] 才是 quantsys-v2/
 # （从 scripts/ 上迁时用 parents[1] 会把产物写到 application/config/ 而消费端读 quantsys-v2/config/
-#   —— 静默读到旧文件。2026-09-13 core_plan 上迁时实测踩到，见 core_plan_service.py 注释。）
+#   —— 静默读到旧文件。2026-09-13 core_plan 上迁时实测踩到，见 portfolio_decision_service.py 注释。）
 ROOT = Path(__file__).resolve().parents[2]
 
 COST_BUY_BP = 2.5 + 5.0            # 佣金 + 滑点（bp）

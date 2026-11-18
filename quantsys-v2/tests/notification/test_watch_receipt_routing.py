@@ -136,11 +136,11 @@ def test_receipt_content_never_leaks_channel_label(fake_facade):
 
 
 def test_alert_routes_watch_symbol_with_high_urgency(fake_facade):
-    watch_channels.send_watch_alert('心跳告警 | 引擎 5 分钟无心跳')
+    watch_channels.send_watch_alert('影子模式超期 | 已挂 72 小时')
     call = fake_facade.calls[-1]
     assert call['os_channel'] == 'watch_symbol'
     assert call['urgency'] == 'high'
-    assert call['title'] == '心跳告警'
+    assert call['title'] == '影子模式超期'
 
 
 def test_receipt_send_failure_raises_loudly(fake_facade):

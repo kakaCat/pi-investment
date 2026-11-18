@@ -9,6 +9,7 @@ QuantSys V2 FastAPI 主应用
 端口: 5001 (替换原 Flask 端口)
 文档: http://localhost:5001/docs
 """
+
 import sys
 import os
 from pathlib import Path
@@ -36,7 +37,8 @@ from adapters.inbound.fastapi_app.middleware.session_cleanup import SessionClean
 
 # 加载环境变量
 from dotenv import load_dotenv
-env_path = Path(__file__).resolve().parent.parent.parent.parent / '.env'
+
+env_path = Path(__file__).resolve().parent.parent.parent.parent / ".env"
 load_dotenv(env_path)
 
 # （路径引导已上移至文件顶部，见上）
@@ -46,23 +48,27 @@ from qs_kernel.infrastructure.logging import configure_structured_logging
 
 # 加载统一配置
 from qs_kernel.infrastructure.config.settings import get_settings
+
 settings = get_settings()
 
 configure_structured_logging(
     level=settings.logging.log_level,
     json_format=(settings.logging.log_format == "json"),
-    enable_trace_id=True
+    enable_trace_id=True,
 )
 
 import structlog
+
 logger = structlog.get_logger(__name__)
 
 # 加载统一配置
 from qs_kernel.infrastructure.config.settings import get_settings
+
 settings = get_settings()
 
 
 # ==================== 生命周期管理 ====================
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -75,6 +81,7 @@ async def lifespan(app: FastAPI):
     # 不阻塞启动（与测试 conftest._bootstrap_service_factory 同一引导面）。
     try:
         from infrastructure.services.service_factory import ServiceFactory
+
         ServiceFactory.initialize()
     except Exception as se:  # noqa: BLE001 - 引导只告警；各 resolve 点可按需重试
         logger.warning("ServiceFactory.initialize() failed (DI keys may be absent)", error=str(se))
@@ -86,12 +93,13 @@ async def lifespan(app: FastAPI):
             check_dependencies,
             summarize,
         )
+
         dep_results = check_dependencies()
         dep_summary = summarize(dep_results)
-        if not dep_summary['all_critical_ok']:
+        if not dep_summary["all_critical_ok"]:
             logger.error(
                 "startup_dependency_check_failed",
-                failed=dep_summary['failed'],
+                failed=dep_summary["failed"],
                 detail="关键依赖缺失，应用可能无法正常工作",
             )
         else:
@@ -102,6 +110,7 @@ async def lifespan(app: FastAPI):
     # 初始化 JobRegistry（2026-09-01: scheduler 重构，优先使用 JobRegistry）
     try:
         from qs_ops.application.jobs.registry_setup import register_all_jobs
+
         register_all_jobs()
         logger.info("✅ JobRegistry initialized")
     except Exception as e:
@@ -112,6 +121,7 @@ async def lifespan(app: FastAPI):
     # 若放行启动，已启用的排班会在运行时变成 Unknown job，数据管道静默断更。
     from qs_ops.application.jobs.job_registry import job_registry
     from adapters.inbound.fastapi_app.daily_jobs.apscheduler_bridge import build_daily_jobs
+
     for _daily_job in build_daily_jobs():
         job_registry.register(_daily_job)
     logger.info("✅ Registered: migrated DailyJobs (11 APScheduler commands)")
@@ -126,28 +136,78 @@ async def lifespan(app: FastAPI):
         from qs_ops.application.jobs.job_registry import job_registry
         from qs_intel.application.services.event_feed_service import build_event_ingest_jobs
         from adapters.inbound.fastapi_app.routes.events_async import get_feed_service
+
         for _job in build_event_ingest_jobs(get_feed_service()):
             job_registry.register(_job)
         logger.info("✅ Registered: event ingest jobs (ingest_events_daily / ingest_events_policy)")
     except Exception as e:
         logger.warning(f"⚠️ Failed to register event ingest jobs: {e}")
 
-    # core 建仓计划任务（2026-09-13 w-a9ec14d7：从 scripts/core_plan.py 上迁）
-    # 上迁原因：用户裁定「脚本不能写进 v2 项目，脚本只能测试用」；
-    # 但本能力是账户建仓决策入口（工作日 09:05 生成计划，09:10 的 agent 任务只读取文件）。
+    # 账户级交易计划任务（REQ-261026140857-c192）：数据库生成 + readiness。
     try:
+        from sqlalchemy import text as _plan_text
+
+        from adapters.outbound.repositories.portfolio_decision_provider import (
+            PortfolioDecisionProviderAdapter,
+        )
+        from adapters.outbound.repositories.trading_plan_unit_of_work import (
+            TradingPlanUnitOfWork,
+        )
+        from application.services.portfolio_decision_service import resolve_account
         from qs_ops.application.jobs.job_registry import job_registry
-        from application.services.core_plan_service import build_core_plan_jobs
-        for _job in build_core_plan_jobs():
+        from qs_plan.application.plan_generation_service import PlanGenerationService
+        from qs_plan.application.plan_job import build_trading_plan_jobs
+        from qs_plan.application.plan_readiness_service import PlanReadinessService
+        from qs_plan.application.ports import PositionView
+
+        class _SimulationPositions:
+            def list_positions(self, *, account: str):
+                from qs_kernel.infrastructure.persistence.database.engine import get_engine
+
+                with get_engine().connect() as conn:
+                    rows = (
+                        conn.execute(
+                            _plan_text(
+                                "SELECT symbol, coalesce(sum(shares_total),0) AS qty "
+                                "FROM quant.simulation_positions "
+                                "WHERE (NULLIF(btrim(account_name),'') IS NULL "
+                                "OR btrim(account_name)=btrim(:acct)) "
+                                "GROUP BY symbol HAVING coalesce(sum(shares_total),0) > 0"
+                            ),
+                            {"acct": account or ""},
+                        )
+                        .mappings()
+                        .all()
+                    )
+                return tuple(
+                    PositionView(symbol=row["symbol"], qty=int(row["qty"])) for row in rows
+                )
+
+        _positions = _SimulationPositions()
+        _generation = PlanGenerationService(
+            decision_provider=PortfolioDecisionProviderAdapter(),
+            position_provider=_positions,
+            unit_of_work_factory=TradingPlanUnitOfWork,
+        )
+        _readiness = PlanReadinessService(
+            unit_of_work_factory=TradingPlanUnitOfWork,
+            position_provider=_positions,
+        )
+        for _job in build_trading_plan_jobs(
+            generation_service=_generation,
+            readiness_service=_readiness,
+            account_provider=lambda: (resolve_account(None),),
+        ):
             job_registry.register(_job)
-        logger.info("✅ Registered: core plan job (core_plan_generate)")
+        logger.info("✅ Registered: account trading plan jobs (generate/readiness)")
     except Exception as e:
-        logger.warning(f"⚠️ Failed to register core plan job: {e}")
+        logger.warning(f"⚠️ Failed to register account trading plan jobs: {e}")
 
     # 交易计划反思任务（REQ-261021222905-6dff t11）：盘后 15:35 / 周六 10:00
     try:
         from qs_ops.application.jobs.job_registry import job_registry
         from qs_plan.application.reflection_job import build_plan_jobs
+
         for _job in build_plan_jobs():
             job_registry.register(_job)
         logger.info("✅ Registered: plan reflection jobs (plan_reflect_daily/weekly)")
@@ -159,7 +219,10 @@ async def lifespan(app: FastAPI):
     # 本能力是策略门槛守门人（周日 20:30 复核 → 未过门槛则退役 → 落报告供 agent 读取通知）。
     try:
         from qs_ops.application.jobs.job_registry import job_registry
-        from qs_strategy.application.services.strategy_lifecycle_service import build_strategy_loop_jobs
+        from qs_strategy.application.services.strategy_lifecycle_service import (
+            build_strategy_loop_jobs,
+        )
+
         for _job in build_strategy_loop_jobs():
             job_registry.register(_job)
         logger.info("✅ Registered: strategy loop job (strategy_loop_weekly)")
@@ -172,6 +235,7 @@ async def lifespan(app: FastAPI):
     try:
         from qs_ops.application.jobs.job_registry import job_registry
         from application.services.data_hygiene_service import build_data_hygiene_jobs
+
         for _job in build_data_hygiene_jobs():
             job_registry.register(_job)
         logger.info("✅ Registered: data hygiene job (data_hygiene_probe)")
@@ -184,6 +248,7 @@ async def lifespan(app: FastAPI):
     try:
         from qs_ops.application.jobs.job_registry import job_registry
         from application.services.evolution.daily_snapshot_service import build_equity_snapshot_jobs
+
         for _job in build_equity_snapshot_jobs():
             job_registry.register(_job)
         logger.info("✅ Registered: equity snapshot job (equity_snapshot_daily)")
@@ -202,7 +267,10 @@ async def lifespan(app: FastAPI):
         from qs_market_data.adapters.outbound.datasources import get_data_provider_manager
         from adapters.outbound.repositories.minute_kline_repository import get_minute_kline_repo
         from adapters.outbound.repositories.event_repository import get_market_event_repo
-        from adapters.inbound.fastapi_app.routes.industry_chain_async import get_service as _get_chain_service
+        from adapters.inbound.fastapi_app.routes.industry_chain_async import (
+            get_service as _get_chain_service,
+        )
+
         for _job in build_refresh_jobs(
             manager=get_data_provider_manager(),
             minute_repo=get_minute_kline_repo(),
@@ -217,14 +285,14 @@ async def lifespan(app: FastAPI):
     # 初始化数据库引擎
     try:
         from qs_kernel.infrastructure.persistence.database.engine import init_engine
+
         init_engine(
-            pool_size=settings.database.pool_size,
-            max_overflow=settings.database.max_overflow
+            pool_size=settings.database.pool_size, max_overflow=settings.database.max_overflow
         )
         logger.info(
             "database_engine_initialized",
             pool_size=settings.database.pool_size,
-            max_overflow=settings.database.max_overflow
+            max_overflow=settings.database.max_overflow,
         )
     except Exception as e:
         logger.error("database_engine_init_failed", error=str(e))
@@ -232,13 +300,17 @@ async def lifespan(app: FastAPI):
     # 初始化 ORM（可选，用于支持旧代码）
     try:
         from qs_kernel.infrastructure.persistence.orm import init_orm
+
         init_orm()
         logger.info("✅ ORM initialized successfully")
 
         # 启用 Session 泄漏检测（开发/测试环境）
-        if settings.environment != 'production':
+        if settings.environment != "production":
             try:
-                from qs_kernel.infrastructure.persistence.orm.session_guard import enable_session_guard
+                from qs_kernel.infrastructure.persistence.orm.session_guard import (
+                    enable_session_guard,
+                )
+
                 enable_session_guard(timeout=300)  # 5 分钟超时
                 logger.info("✅ Session guard enabled (timeout=300s)")
             except Exception as e:
@@ -248,10 +320,11 @@ async def lifespan(app: FastAPI):
 
     # 同步内置策略到数据库
     # 2026-08-30: 临时禁用，疑似触发K线获取导致启动阻塞
-    if os.getenv('ENABLE_STRATEGY_SYNC', '').lower() == 'true':
+    if os.getenv("ENABLE_STRATEGY_SYNC", "").lower() == "true":
         try:
             from domain.backtest.engine.strategy_factory import StrategyFactory
             from adapters.outbound.repositories import StrategyORMRepository
+
             StrategyFactory.auto_discover()
             count = StrategyFactory.sync_to_database(StrategyORMRepository())
             logger.info(f"✅ Synced {count} built-in strategies to database")
@@ -264,13 +337,15 @@ async def lifespan(app: FastAPI):
     # 注册 quantsys-v2 调度任务到 Agent OS Scheduler（webhook 模式）
     # 注册失败时回退到本地 APScheduler
     import sys as _sys
-    if 'pytest' not in _sys.modules:
+
+    if "pytest" not in _sys.modules:
         use_agent_os_scheduler = settings.scheduler.agent_os_enabled
 
         if use_agent_os_scheduler:
             try:
                 logger.info("🔄 Registering jobs to Agent OS Scheduler...")
                 from tools.register_jobs_to_agent_os import register_all_jobs
+
                 success = await register_all_jobs()
                 if success:
                     logger.info("✅ Agent OS Scheduler integration enabled")
@@ -289,7 +364,7 @@ async def lifespan(app: FastAPI):
         # 包括 15:30 的「每日信号执行」「恐慌抄底每日扫描」——等于在滞后 20 天的数据上开火，
         # 并发飞书通知。原有 DISABLE_DAILY_JOBS / DISABLE_UNIFIED_SCHEDULER 都关不掉这条路径，
         # 故补 DISABLE_APSCHEDULER：置 true 时只起 API、不起任何调度（默认 false = 行为不变）。
-        _apscheduler_disabled = os.getenv('DISABLE_APSCHEDULER', '').lower() == 'true'
+        _apscheduler_disabled = os.getenv("DISABLE_APSCHEDULER", "").lower() == "true"
         if _apscheduler_disabled:
             logger.warning("⚠️ APScheduler disabled via DISABLE_APSCHEDULER（只起 API，不起调度）")
         elif not use_agent_os_scheduler:
@@ -323,52 +398,40 @@ async def lifespan(app: FastAPI):
     # 注：该值现已落库（quant.watch_runtime_meta.digest_shadow_since，迁移 20260918b），
     # shadow_mode_clock 走「库优先 → env 兜底」，重启读回真值；仅库不可用时才退化为 env 口径。
     try:
-        from qs_watch.application.services.watch_engine.shadow_mode_clock import ensure_shadow_since_env
+        from qs_watch.application.services.watch_engine.shadow_mode_clock import (
+            ensure_shadow_since_env,
+        )
+
         _shadow_since = ensure_shadow_since_env()
         if _shadow_since:
             logger.info("✅ 影子模式起始时间已落地", since=_shadow_since)
     except Exception as e:
         logger.warning(f"⚠️ 影子模式起始时间落地失败（影子超期告警将不可判定）: {e}")
 
-    # 启动 WatchEngine 实时盯盘线程（2026-08-12 起唯一宿主，原 scheduler_daemon
-    # 已下线该职责；pytest 下不启动，避免测试进程拉起盯盘循环）。
+    # 股票判定由 V2 定时任务承担；这里只启动仍需保留的旁路服务。
     # 引擎句柄挂到 app.state，lifespan 关闭时优雅停止。
-    # 2026-08-30: 添加 DISABLE_WATCH_ENGINE 环境变量开关，避免启动阻塞
-    try:
-        from adapters.inbound.fastapi_app.watch_bootstrap import v1_enabled as _v1_enabled
-    except Exception:  # noqa: BLE001 - 导入失败按关闭处理，绝不盲目起线程
-        _v1_enabled = lambda: False
-    if _v1_enabled():
+    if os.getenv("DISABLE_WATCH_ENGINE", "").lower() != "true" and "pytest" not in _sys.modules:
         try:
-            from adapters.inbound.fastapi_app.watch_bootstrap import start_watch_engine
-            handles = start_watch_engine(skip='pytest' in _sys.modules)
-            if handles is not None:
-                app.state.watch_engine = handles[0]
-                logger.info("✅ WatchEngine watch thread started")
+            from adapters.inbound.fastapi_app.watch_bootstrap import start_watch_sidecars
+
+            sidecar_engine = start_watch_sidecars(skip=False)
+            if sidecar_engine is not None:
+                app.state.watch_engine = sidecar_engine
         except Exception as e:
-            logger.error(f"❌ WatchEngine startup failed: {e}")
+            logger.error(f"❌ WatchEngine sidecar startup failed: {e}")
     else:
-        # 2026-10-24：V1 判定循环下线，但旁路服务必须保留（新仓自动补止损/新闻/
-        # 走势回填/池对账/收盘日报都在 sidecar 里）。只不起 run_forever 判定循环。
-        if os.getenv('DISABLE_WATCH_ENGINE', '').lower() != 'true' and 'pytest' not in _sys.modules:
-            try:
-                from adapters.inbound.fastapi_app.watch_bootstrap import start_watch_sidecars
-                sidecar_engine = start_watch_sidecars(skip=False)
-                if sidecar_engine is not None:
-                    app.state.watch_engine = sidecar_engine
-            except Exception as e:
-                logger.error(f"❌ WatchEngine V1 sidecar startup failed: {e}")
-        else:
-            logger.warning("⚠️ WatchEngine(V1) 未启动（WATCH_V1_ENABLED=false 或 DISABLE_WATCH_ENGINE=true）")
+        logger.warning("⚠️ WatchEngine 旁路服务未启动（DISABLE_WATCH_ENGINE=true 或测试环境）")
 
     # WatchEngineV2（REQ-261022235419-2299，2026-10-23 改定时任务）：不再起常驻循环，
     # 改为注册 5 个 Job（watch_open_am/pm + 30s/10m/30m 档位任务），由 scheduler_tasks
     # 的 cron 行驱动。开关关闭（WATCH_V2_ENABLED=false）时一个 Job 都不注册，V1 行为不变。
-    if os.getenv('DISABLE_WATCH_ENGINE', '').lower() != 'true' and 'pytest' not in _sys.modules:
+    if os.getenv("DISABLE_WATCH_ENGINE", "").lower() != "true" and "pytest" not in _sys.modules:
         try:
             from adapters.inbound.fastapi_app.watch_bootstrap_v2 import register_watch_v2_jobs
+
             _v2_jobs = register_watch_v2_jobs()
             if _v2_jobs:
+                app.state.watch_engine_v2 = True
                 logger.info(f"✅ WatchEngineV2 scheduled jobs registered: {_v2_jobs}")
         except Exception as e:
             logger.error(f"❌ WatchEngineV2 job registration failed (V1 unaffected): {e}")
@@ -383,6 +446,7 @@ async def lifespan(app: FastAPI):
             install_degraded_alert_notifier,
             notify_degraded,
         )
+
         install_degraded_alert_notifier(notify_degraded)
         logger.info("✅ 交易日判定降级告警已接线（飞书）")
     except Exception as e:
@@ -392,10 +456,11 @@ async def lifespan(app: FastAPI):
     # 原 scheduler_daemon 已下线该职责——daemon 08-05 停跑致 T+1 结转静默中断 8 天；
     # pytest 下不启动，避免测试进程拉起调度循环）。
     # 2026-08-30: 添加 DISABLE_ORCHESTRATOR 环境变量开关，避免启动阻塞
-    if os.getenv('DISABLE_ORCHESTRATOR', '').lower() != 'true':
+    if os.getenv("DISABLE_ORCHESTRATOR", "").lower() != "true":
         try:
             from adapters.inbound.fastapi_app.orchestrator_bootstrap import start_orchestrator
-            orch_handles = start_orchestrator(skip='pytest' in _sys.modules)
+
+            orch_handles = start_orchestrator(skip="pytest" in _sys.modules)
             if orch_handles is not None:
                 app.state.orchestrator = orch_handles
                 logger.info("✅ DailyOrchestrator tick thread started")
@@ -440,13 +505,14 @@ async def lifespan(app: FastAPI):
     # WP-15: Close Agent OS client
     try:
         from application.services.agent_os_client import close_agent_os_client
+
         await close_agent_os_client()
         logger.info("✅ Agent OS client closed")
     except Exception as e:
         logger.warning(f"⚠️ Agent OS client cleanup failed: {e}")
 
     # 关闭 APScheduler（2026-09-01）
-    scheduler_service = getattr(app.state, 'scheduler_service', None)
+    scheduler_service = getattr(app.state, "scheduler_service", None)
     if scheduler_service is not None:
         try:
             scheduler_service.shutdown(wait=True)
@@ -454,7 +520,7 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning(f"⚠️ APScheduler shutdown failed: {e}")
 
-    engine = getattr(app.state, 'watch_engine', None)
+    engine = getattr(app.state, "watch_engine", None)
     if engine is not None:
         try:
             engine.stop()
@@ -462,19 +528,21 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning(f"⚠️ WatchEngine stop failed: {e}")
 
-    v2_handles = getattr(app.state, 'watch_engine_v2', None)
+    v2_handles = getattr(app.state, "watch_engine_v2", None)
     if v2_handles is not None:
         try:
             from adapters.inbound.fastapi_app.watch_bootstrap_v2 import stop_watch_engine_v2
+
             stop_watch_engine_v2(v2_handles)
             logger.info("✅ WatchEngineV2 stopped")
         except Exception as e:
             logger.warning(f"⚠️ WatchEngineV2 stop failed: {e}")
 
-    orch_handles = getattr(app.state, 'orchestrator', None)
+    orch_handles = getattr(app.state, "orchestrator", None)
     if orch_handles is not None:
         try:
             from adapters.inbound.fastapi_app.orchestrator_bootstrap import stop_orchestrator
+
             stop_orchestrator(orch_handles)
             logger.info("✅ Orchestrator tick thread stopped")
         except Exception as e:
@@ -491,6 +559,7 @@ async def lifespan(app: FastAPI):
     # 关闭线程池（优雅关闭，等待任务完成）
     try:
         from infrastructure.threading.thread_pool import shutdown_all_pools
+
         logger.info("Shutting down thread pools...")
         shutdown_all_pools(wait=True, timeout=30)
         logger.info("✅ All thread pools shut down")
@@ -499,6 +568,7 @@ async def lifespan(app: FastAPI):
 
     try:
         from qs_kernel.infrastructure.persistence.database.engine import dispose_engine
+
         dispose_engine()
         logger.info("✅ Engine closed successfully")
     except Exception as e:
@@ -506,6 +576,7 @@ async def lifespan(app: FastAPI):
 
     try:
         from qs_kernel.infrastructure.persistence.orm import close_orm
+
         close_orm()
         logger.info("✅ ORM closed successfully")
     except Exception as e:
@@ -531,7 +602,7 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 
@@ -595,6 +666,7 @@ async def release_orm_session(request: Request, call_next):
         return await call_next(request)
     finally:
         from qs_kernel.infrastructure.persistence.orm.config import close_session
+
         close_session()
 
 
@@ -657,6 +729,7 @@ def install_sync_session_cleanup() -> None:
 # P0-2 Fix: Replace individual exception handlers with unified exception handling
 # Uses structured QuantSysException hierarchy with proper error codes and logging
 from adapters.inbound.fastapi_app.exception_handlers import register_exception_handlers
+
 register_exception_handlers(app)
 
 
@@ -665,6 +738,7 @@ register_exception_handlers(app)
 # + HTTP 异常路径（exception_handlers 内）。安装失败不阻断启动（旁路能力）。
 try:
     from infrastructure.error_reporting import agent_os_reporter
+
     agent_os_reporter.install()
     logger.info("✅ Agent OS 结构化错误上报已接线（source=v2）")
 except Exception as _reporting_install_err:  # noqa: BLE001
@@ -672,6 +746,7 @@ except Exception as _reporting_install_err:  # noqa: BLE001
 
 
 # ==================== 基础路由 ====================
+
 
 @app.get("/", tags=["System"])
 async def root():
@@ -682,85 +757,89 @@ async def root():
         "framework": "FastAPI",
         "status": "running",
         "docs": "/docs",
-        "redoc": "/redoc"
+        "redoc": "/redoc",
     }
 
 
 @app.get("/health", tags=["System"])
 async def health_check():
     """健康检查端点"""
-    return {
-        "status": "ok",
-        "framework": "fastapi",
-        "version": "2.0.0"
-    }
+    return {"status": "ok", "framework": "fastapi", "version": "2.0.0"}
 
 
 # ==================== 注册路由模块 ====================
+
 
 def register_routes():
     """注册所有路由 —— 核心路由失败时中断启动"""
 
     # ===== P0 核心路由（CRITICAL - 失败时中断启动） =====
-    
+
     logger.info("=" * 60)
     logger.info("Registering CRITICAL routes...")
     logger.info("=" * 60)
-    
+
     critical_routes = []
-    
+
     # 健康检查（监控依赖）
     try:
         from adapters.inbound.fastapi_app.routes.health_async import router as health_router
+
         app.include_router(health_router)
         logger.info("✅ Registered (CRITICAL): health")
         critical_routes.append("health")
     except (ImportError, AttributeError) as e:
         logger.error(f"❌ CRITICAL route failed: health - {e}")
         raise RuntimeError(f"Critical route 'health' failed to register: {e}") from e
-    
+
     # Prometheus 指标端点（监控核心）
     try:
         from adapters.inbound.fastapi_app.routes.metrics_async import router as metrics_router
+
         app.include_router(metrics_router)
         logger.info("✅ Registered (CRITICAL): metrics")
         critical_routes.append("metrics")
     except (ImportError, AttributeError) as e:
         logger.error(f"❌ CRITICAL route failed: metrics - {e}")
         raise RuntimeError(f"Critical route 'metrics' failed to register: {e}") from e
-    
+
     # 认证授权（安全基础）
     try:
         from adapters.inbound.fastapi_app.routes.auth_async import router as auth_router
+
         app.include_router(auth_router, prefix="/api")
         logger.info("✅ Registered (CRITICAL): auth")
         critical_routes.append("auth")
     except (ImportError, AttributeError) as e:
         logger.error(f"❌ CRITICAL route failed: auth - {e}")
         raise RuntimeError(f"Critical route 'auth' failed to register: {e}") from e
-    
+
     # Agent OS Scheduler Webhook（关键集成）
     try:
         from api.internal.scheduler_webhook import router as scheduler_webhook_router
-        app.include_router(scheduler_webhook_router, prefix="/internal/scheduler", tags=["internal"])
+
+        app.include_router(
+            scheduler_webhook_router, prefix="/internal/scheduler", tags=["internal"]
+        )
         logger.info("✅ Registered (CRITICAL): scheduler_webhook")
         critical_routes.append("scheduler_webhook")
     except (ImportError, AttributeError) as e:
         logger.error(f"❌ CRITICAL route failed: scheduler_webhook - {e}")
         raise RuntimeError(f"Critical route 'scheduler_webhook' failed to register: {e}") from e
-    
+
     logger.info("=" * 60)
     logger.info(f"✅ All {len(critical_routes)} CRITICAL routes registered successfully")
     logger.info("=" * 60)
-    
+
     # ===== P1 可选路由（失败时告警但继续） =====
-    
+
     logger.info("Registering optional routes...")
     optional_failed = []
 
     # 执行记录（P5 迁移，parity 对齐 Flask executions.py）
     try:
         from adapters.inbound.fastapi_app.routes.executions_async import router as executions_router
+
         app.include_router(executions_router)
         logger.info("✅ Registered: executions (P5 迁移)")
     except ImportError as e:
@@ -770,6 +849,7 @@ def register_routes():
     # 市场数据
     try:
         from adapters.inbound.fastapi_app.routes.market_async import router as market_router
+
         app.include_router(market_router, prefix="/api")
         logger.info("✅ Registered: market")
     except ImportError as e:
@@ -779,6 +859,7 @@ def register_routes():
     # 分析工具（analysis 域，P6 迁移：backtest/compute-factors/technical）
     try:
         from adapters.inbound.fastapi_app.routes.analysis_async import router as analysis_router
+
         app.include_router(analysis_router)
         logger.info("✅ Registered: analysis (P6 迁移)")
     except ImportError as e:
@@ -787,7 +868,10 @@ def register_routes():
 
     # 市场/港股数据（market_data 域迁移，parity 对齐 Flask market.py/quote_market.py）
     try:
-        from adapters.inbound.fastapi_app.routes.market_data_async import router as market_data_router
+        from adapters.inbound.fastapi_app.routes.market_data_async import (
+            router as market_data_router,
+        )
+
         app.include_router(market_data_router)
         logger.info("✅ Registered: market_data (market/hk 迁移)")
     except ImportError as e:
@@ -796,7 +880,10 @@ def register_routes():
 
     # M1 市场感知（RFC 007: regime落库/主线识别/情绪时间序列）
     try:
-        from adapters.inbound.fastapi_app.routes.market_perception_async import router as market_perception_router
+        from adapters.inbound.fastapi_app.routes.market_perception_async import (
+            router as market_perception_router,
+        )
+
         app.include_router(market_perception_router)
         logger.info("✅ Registered: market_perception (M1 RFC 007)")
     except ImportError as e:
@@ -805,7 +892,10 @@ def register_routes():
 
     # 行情K线（quote_market 域迁移：/api/stock/{symbol}/history，agent data_fetch_kline 依赖）
     try:
-        from adapters.inbound.fastapi_app.routes.quote_market_async import router as quote_market_router
+        from adapters.inbound.fastapi_app.routes.quote_market_async import (
+            router as quote_market_router,
+        )
+
         app.include_router(quote_market_router)
         logger.info("✅ Registered: quote_market (stock/history 迁移)")
     except ImportError as e:
@@ -815,6 +905,7 @@ def register_routes():
     # 图表数据
     try:
         from adapters.inbound.fastapi_app.routes.charts_async import router as charts_router
+
         app.include_router(charts_router, prefix="/api")
         logger.info("✅ Registered: charts")
     except ImportError as e:
@@ -823,7 +914,10 @@ def register_routes():
 
     # 图表（Flask charts.py parity 迁移：accuracy/equity/comparison/importance）
     try:
-        from adapters.inbound.fastapi_app.routes.charts_async import flask_parity_router as charts_flask_parity_router
+        from adapters.inbound.fastapi_app.routes.charts_async import (
+            flask_parity_router as charts_flask_parity_router,
+        )
+
         app.include_router(charts_flask_parity_router)
         logger.info("✅ Registered: charts (Flask parity 迁移)")
     except ImportError as e:
@@ -832,7 +926,10 @@ def register_routes():
 
     # 组合优化（Flask portfolio.py parity 迁移：markowitz/black-litterman/risk-parity）
     try:
-        from adapters.inbound.fastapi_app.routes.portfolio_opt_async import router as portfolio_opt_router
+        from adapters.inbound.fastapi_app.routes.portfolio_opt_async import (
+            router as portfolio_opt_router,
+        )
+
         app.include_router(portfolio_opt_router)
         logger.info("✅ Registered: portfolio optimize (Flask parity 迁移)")
     except ImportError as e:
@@ -841,7 +938,10 @@ def register_routes():
 
     # 因子模型（Flask factor_models.py parity 迁移：fama-french-3/5, carhart, barra）
     try:
-        from adapters.inbound.fastapi_app.routes.factor_models_async import router as factor_models_router
+        from adapters.inbound.fastapi_app.routes.factor_models_async import (
+            router as factor_models_router,
+        )
+
         app.include_router(factor_models_router)
         logger.info("✅ Registered: factor_models (Flask parity 迁移)")
     except ImportError as e:
@@ -851,6 +951,7 @@ def register_routes():
     # 配置管理
     try:
         from adapters.inbound.fastapi_app.routes.config_async import router as config_router
+
         app.include_router(config_router, prefix="/api")
         logger.info("✅ Registered: config")
     except ImportError as e:
@@ -860,6 +961,7 @@ def register_routes():
     # V14量化交易 (新增)
     try:
         from adapters.inbound.fastapi_app.routes.v14_trading import router as v14_router
+
         app.include_router(v14_router)
         logger.info("✅ Registered: v14_trading")
     except ImportError as e:
@@ -869,6 +971,7 @@ def register_routes():
     # 池子扫描
     try:
         from adapters.inbound.fastapi_app.routes.pool_scan_async import router as pool_scan_router
+
         app.include_router(pool_scan_router, prefix="/api")
         logger.info("✅ Registered: pool_scan")
     except ImportError as e:
@@ -878,6 +981,7 @@ def register_routes():
     # 风控（risk 域，P6 迁移：check + stop-loss 规则）
     try:
         from adapters.inbound.fastapi_app.routes.risk_async import router as risk_router
+
         app.include_router(risk_router)
         logger.info("✅ Registered: risk (P6 迁移)")
     except ImportError as e:
@@ -886,7 +990,10 @@ def register_routes():
 
     # 组合级回撤熔断状态（M4 硬拦截数据源，2026-09-10，w-f4aa1f6a）
     try:
-        from adapters.inbound.fastapi_app.routes.circuit_breaker_async import router as circuit_breaker_router
+        from adapters.inbound.fastapi_app.routes.circuit_breaker_async import (
+            router as circuit_breaker_router,
+        )
+
         app.include_router(circuit_breaker_router)
         logger.info("✅ Registered: circuit_breaker (M4 组合熔断)")
     except ImportError as e:
@@ -900,6 +1007,7 @@ def register_routes():
     # 股票池管理（P3 迁移，parity 对齐 Flask pools/pool_scan/pool_scan_switch）
     try:
         from adapters.inbound.fastapi_app.routes.pools_async import router as pools_router
+
         app.include_router(pools_router)
         logger.info("✅ Registered: pools (P3 迁移)")
     except ImportError as e:
@@ -909,6 +1017,7 @@ def register_routes():
     # 信号管理（P3 迁移，parity 对齐 Flask signals.py）
     try:
         from adapters.inbound.fastapi_app.routes.signals_async import router as signals_router
+
         app.include_router(signals_router)
         logger.info("✅ Registered: signals (P3 迁移)")
     except ImportError as e:
@@ -917,7 +1026,10 @@ def register_routes():
 
     # 信号质量追踪（M3-1 信号分级）
     try:
-        from adapters.inbound.fastapi_app.routes.signal_tracking import router as signal_tracking_router
+        from adapters.inbound.fastapi_app.routes.signal_tracking import (
+            router as signal_tracking_router,
+        )
+
         app.include_router(signal_tracking_router)
         logger.info("✅ Registered: signal_tracking (M3-1)")
     except ImportError as e:
@@ -926,7 +1038,10 @@ def register_routes():
 
     # 学习飞轮归因分析（M6-1）
     try:
-        from adapters.inbound.fastapi_app.routes.learning_attribution import router as learning_router
+        from adapters.inbound.fastapi_app.routes.learning_attribution import (
+            router as learning_router,
+        )
+
         app.include_router(learning_router)
         logger.info("✅ Registered: learning_attribution (M6-1)")
     except ImportError as e:
@@ -936,6 +1051,7 @@ def register_routes():
     # 周报生成（M6-2）
     try:
         from adapters.inbound.fastapi_app.routes.weekly_report import router as weekly_report_router
+
         app.include_router(weekly_report_router)
         logger.info("✅ Registered: weekly_report (M6-2)")
     except ImportError as e:
@@ -945,6 +1061,7 @@ def register_routes():
     # 股票数据（stocks 域，P1 迁移）
     try:
         from adapters.inbound.fastapi_app.routes.stock_async import router as stock_router
+
         app.include_router(stock_router)
         logger.info("✅ Registered: stock (P1 迁移)")
     except ImportError as e:
@@ -954,6 +1071,7 @@ def register_routes():
     # 自选股（watchlist 域，P1 迁移）
     try:
         from adapters.inbound.fastapi_app.routes.watchlist_async import router as watchlist_router
+
         app.include_router(watchlist_router)
         logger.info("✅ Registered: watchlist (P1 迁移)")
     except ImportError as e:
@@ -963,6 +1081,7 @@ def register_routes():
     # 实时盯盘（watch 域，WatchEngine parity 迁移）
     try:
         from adapters.inbound.fastapi_app.routes.watch_async import router as watch_router
+
         app.include_router(watch_router)
         logger.info("✅ Registered: watch (WatchEngine parity 迁移)")
     except ImportError as e:
@@ -971,7 +1090,10 @@ def register_routes():
 
     # Agent 任务派发（2026-10-20）：agent 工具/调度任务共用的派单入口（信封+报告要求+留痕）。
     try:
-        from adapters.inbound.fastapi_app.routes.agent_dispatch_async import router as agent_dispatch_router
+        from adapters.inbound.fastapi_app.routes.agent_dispatch_async import (
+            router as agent_dispatch_router,
+        )
+
         app.include_router(agent_dispatch_router)
         logger.info("✅ Registered: agent_dispatch (任务派发)")
     except ImportError as e:
@@ -983,6 +1105,7 @@ def register_routes():
     # 失败进 optional_failed（可由 GET /api/health/routes 发现，不静默）。
     try:
         from adapters.inbound.fastapi_app.routes.watch_todo_async import router as watch_todo_router
+
         app.include_router(watch_todo_router)
         logger.info("✅ Registered: watch_todo (REQ-c9f899 待办闭环)")
     except ImportError as e:
@@ -990,7 +1113,10 @@ def register_routes():
         logger.warning(f"⚠️ Failed to import watch_todo_async: {e}")
 
     try:
-        from adapters.inbound.fastapi_app.routes.watch_rule_repair_async import router as watch_repair_router
+        from adapters.inbound.fastapi_app.routes.watch_rule_repair_async import (
+            router as watch_repair_router,
+        )
+
         app.include_router(watch_repair_router)
         logger.info("✅ Registered: watch_rule_repair (REQ-c9f899 规则自愈)")
     except ImportError as e:
@@ -998,7 +1124,10 @@ def register_routes():
         logger.warning(f"⚠️ Failed to import watch_rule_repair_async: {e}")
 
     try:
-        from adapters.inbound.fastapi_app.routes.watch_metrics_async import router as watch_metrics_router
+        from adapters.inbound.fastapi_app.routes.watch_metrics_async import (
+            router as watch_metrics_router,
+        )
+
         app.include_router(watch_metrics_router)
         logger.info("✅ Registered: watch_metrics (REQ-c9f899 最小观测)")
     except ImportError as e:
@@ -1008,6 +1137,7 @@ def register_routes():
     # 交易计划（REQ-261021222905-6dff）：IF-1~IF-9、IF-11
     try:
         from adapters.inbound.fastapi_app.routes.plan_async import router as plan_router
+
         app.include_router(plan_router)
         logger.info("✅ Registered: trading plan (REQ-261021222905-6dff)")
     except ImportError as e:
@@ -1017,6 +1147,7 @@ def register_routes():
     # 订单/交易/投资组合（orders 域，P5 迁移）
     try:
         from adapters.inbound.fastapi_app.routes.orders_async import router as orders_router
+
         app.include_router(orders_router)
         logger.info("✅ Registered: orders (P5 迁移)")
     except ImportError as e:
@@ -1026,6 +1157,7 @@ def register_routes():
     # 每日报告（report 域，P7 迁移）
     try:
         from adapters.inbound.fastapi_app.routes.report_async import router as report_router
+
         app.include_router(report_router)
         logger.info("✅ Registered: report (P7 迁移)")
     except ImportError as e:
@@ -1035,6 +1167,7 @@ def register_routes():
     # 分红数据（dividends 域，agent 迁移）
     try:
         from adapters.inbound.fastapi_app.routes.dividends_async import router as dividends_router
+
         app.include_router(dividends_router)
         logger.info("✅ Registered: dividends (agent 迁移)")
     except ImportError as e:
@@ -1043,7 +1176,10 @@ def register_routes():
 
     # 数据质量（data_quality 域，agent 迁移）
     try:
-        from adapters.inbound.fastapi_app.routes.data_quality_async import router as data_quality_router
+        from adapters.inbound.fastapi_app.routes.data_quality_async import (
+            router as data_quality_router,
+        )
+
         app.include_router(data_quality_router)
         logger.info("✅ Registered: data_quality (agent 迁移)")
     except ImportError as e:
@@ -1053,6 +1189,7 @@ def register_routes():
     # 情绪/资金（sentiment 域，agent 迁移）
     try:
         from adapters.inbound.fastapi_app.routes.sentiment_async import router as sentiment_router
+
         app.include_router(sentiment_router)
         logger.info("✅ Registered: sentiment (agent 迁移)")
     except ImportError as e:
@@ -1061,7 +1198,10 @@ def register_routes():
 
     # 信号测试（signal_test 域，agent 迁移）
     try:
-        from adapters.inbound.fastapi_app.routes.signal_test_async import router as signal_test_router
+        from adapters.inbound.fastapi_app.routes.signal_test_async import (
+            router as signal_test_router,
+        )
+
         app.include_router(signal_test_router)
         logger.info("✅ Registered: signal_test (agent 迁移)")
     except ImportError as e:
@@ -1071,6 +1211,7 @@ def register_routes():
     # 市场预警（alerts 域，agent 新建）
     try:
         from adapters.inbound.fastapi_app.routes.alerts_async import router as alerts_router
+
         app.include_router(alerts_router)
         logger.info("✅ Registered: alerts (agent 新建)")
     except ImportError as e:
@@ -1081,6 +1222,7 @@ def register_routes():
     # events_async.py 早已存在但从未 include，/api/events/upcoming 一直 404）
     try:
         from adapters.inbound.fastapi_app.routes.events_async import router as events_router
+
         app.include_router(events_router)
         logger.info("✅ Registered: events (事件日历)")
     except ImportError as e:
@@ -1089,7 +1231,10 @@ def register_routes():
 
     # Agent 会话事件（sessions 域，parity 迁移——syncer 事件摄入 + web 查询/诊断）
     try:
-        from adapters.inbound.fastapi_app.routes.agent_sessions_async import router as agent_sessions_router
+        from adapters.inbound.fastapi_app.routes.agent_sessions_async import (
+            router as agent_sessions_router,
+        )
+
         app.include_router(agent_sessions_router)
         logger.info("✅ Registered: agent_sessions (parity 迁移)")
     except ImportError as e:
@@ -1099,6 +1244,7 @@ def register_routes():
     # 策略发现（discovery 域，agent 迁移）
     try:
         from adapters.inbound.fastapi_app.routes.discovery_async import router as discovery_router
+
         app.include_router(discovery_router)
         logger.info("✅ Registered: discovery (agent 迁移)")
     except ImportError as e:
@@ -1107,25 +1253,20 @@ def register_routes():
 
     # 市场风格（market_style 域，agent 迁移）
     try:
-        from adapters.inbound.fastapi_app.routes.market_style_async import router as market_style_router
+        from adapters.inbound.fastapi_app.routes.market_style_async import (
+            router as market_style_router,
+        )
+
         app.include_router(market_style_router)
         logger.info("✅ Registered: market_style (agent 迁移)")
     except ImportError as e:
         optional_failed.append("market_style")
         logger.warning(f"⚠️ Failed to import market_style_async: {e}")
 
-    # core 建仓计划只读（计划 + 新鲜度 + 与当前持仓的差额；B8，2026-09-13）
-    try:
-        from adapters.inbound.fastapi_app.routes.core_plan_async import router as core_plan_router
-        app.include_router(core_plan_router)
-        logger.info("✅ Registered: core_plan (只读建仓计划)")
-    except ImportError as e:
-        optional_failed.append("core_plan")
-        logger.warning(f"⚠️ Failed to import core_plan_async: {e}")
-
     # 时间序列分析（timeseries 域，agent 迁移）
     try:
         from adapters.inbound.fastapi_app.routes.timeseries_async import router as timeseries_router
+
         app.include_router(timeseries_router)
         logger.info("✅ Registered: timeseries (agent 迁移)")
     except ImportError as e:
@@ -1135,6 +1276,7 @@ def register_routes():
     # 诊断（diagnosis 域，P8 迁移）
     try:
         from adapters.inbound.fastapi_app.routes.diagnosis_async import router as diagnosis_router
+
         app.include_router(diagnosis_router)
         logger.info("✅ Registered: diagnosis (P8 迁移)")
     except ImportError as e:
@@ -1144,6 +1286,7 @@ def register_routes():
     # 缠论分析（chan 域，P8 迁移）
     try:
         from adapters.inbound.fastapi_app.routes.chan_async import router as chan_router
+
         app.include_router(chan_router)
         logger.info("✅ Registered: chan (P8 迁移)")
     except ImportError as e:
@@ -1153,6 +1296,7 @@ def register_routes():
     # 统一记忆存储（memory 域，W1.2 框架演进 P1）
     try:
         from adapters.inbound.fastapi_app.routes.memory_async import router as memory_router
+
         app.include_router(memory_router)
         logger.info("✅ Registered: memory (W1.2 统一记忆)")
     except ImportError as e:
@@ -1161,7 +1305,10 @@ def register_routes():
 
     # 记忆蒸馏（memory distill 域，W1.5a T1）
     try:
-        from adapters.inbound.fastapi_app.routes.memory_distill_async import router as memory_distill_router
+        from adapters.inbound.fastapi_app.routes.memory_distill_async import (
+            router as memory_distill_router,
+        )
+
         app.include_router(memory_distill_router)
         logger.info("✅ Registered: memory_distill (W1.5a 记忆蒸馏)")
     except ImportError as e:
@@ -1171,6 +1318,7 @@ def register_routes():
     # 知识库（knowledge 域，W1.1 修断链后补 FastAPI 路由——此前仅 Flask 有，5001 上 404）
     try:
         from adapters.inbound.fastapi_app.routes.knowledge_async import router as knowledge_router
+
         app.include_router(knowledge_router)
         logger.info("✅ Registered: knowledge (W1.1 FastAPI 补全)")
     except ImportError as e:
@@ -1180,6 +1328,7 @@ def register_routes():
     # 行为进化（evolution 域，2026-08-05 Phase 1）
     try:
         from adapters.inbound.fastapi_app.routes.evolution_async import router as evolution_router
+
         app.include_router(evolution_router)
         logger.info("✅ Registered: evolution (行为进化 Phase 1)")
     except ImportError as e:
@@ -1191,15 +1340,27 @@ def register_routes():
         from adapters.inbound.fastapi_app.routes.evolution_engine_async import (
             router as evolution_engine_router,
         )
+
         app.include_router(evolution_engine_router)
         logger.info("✅ Registered: evolution-engine (RFC 012 策略进化引擎)")
     except ImportError as e:
         optional_failed.append("evolution-engine")
         logger.warning(f"⚠️ Failed to import evolution_engine_async: {e}")
 
+    # 投资评价与业绩归因（A 项，只读评价账本）
+    try:
+        from adapters.inbound.fastapi_app.routes.evaluation_async import router as evaluation_router
+
+        app.include_router(evaluation_router)
+        logger.info("✅ Registered: investment-evaluation (A 项只读评价)")
+    except ImportError as e:
+        optional_failed.append("investment-evaluation")
+        logger.warning(f"⚠️ Failed to import evaluation_async: {e}")
+
     # 流水线（pipeline 域，P8 迁移）
     try:
         from adapters.inbound.fastapi_app.routes.pipeline_async import router as pipeline_router
+
         app.include_router(pipeline_router)
         logger.info("✅ Registered: pipeline (P8 迁移)")
     except ImportError as e:
@@ -1209,6 +1370,7 @@ def register_routes():
     # 机器学习（ml 域，P8 迁移）
     try:
         from adapters.inbound.fastapi_app.routes.ml_async import router as ml_router
+
         app.include_router(ml_router)
         logger.info("✅ Registered: ml (P8 迁移)")
     except ImportError as e:
@@ -1218,6 +1380,7 @@ def register_routes():
     # 财务报表 V2（financials_v2 域，parity 对齐 Flask financials_v2.py）
     try:
         from adapters.inbound.fastapi_app.routes.financials_async import router as financials_router
+
         app.include_router(financials_router)
         logger.info("✅ Registered: financials_v2 (parity 迁移)")
     except ImportError as e:
@@ -1227,6 +1390,7 @@ def register_routes():
     # 策略管理（P2 迁移，parity 对齐 Flask strategies.py）
     try:
         from adapters.inbound.fastapi_app.routes.strategies_async import router as strategies_router
+
         app.include_router(strategies_router)
         logger.info("✅ Registered: strategies (P2 迁移)")
     except ImportError as e:
@@ -1235,7 +1399,10 @@ def register_routes():
 
     # 策略执行（P2 迁移，run/status）
     try:
-        from adapters.inbound.fastapi_app.routes.strategy_async import router as strategy_exec_router
+        from adapters.inbound.fastapi_app.routes.strategy_async import (
+            router as strategy_exec_router,
+        )
+
         app.include_router(strategy_exec_router)
         logger.info("✅ Registered: strategy run/status (P2 迁移)")
     except ImportError as e:
@@ -1244,7 +1411,10 @@ def register_routes():
 
     # 统一策略交易 API（重构版，支持 V13/V14/V15...）
     try:
-        from adapters.inbound.fastapi_app.routes.strategy_trading_async import router as strategy_trading_router
+        from adapters.inbound.fastapi_app.routes.strategy_trading_async import (
+            router as strategy_trading_router,
+        )
+
         app.include_router(strategy_trading_router, prefix="/api")
         logger.info("✅ Registered: strategy_trading (统一策略API: /api/strategy/*)")
     except ImportError as e:
@@ -1253,16 +1423,29 @@ def register_routes():
 
     # 多账户域 API（账户发现/开户/手工交易/绩效）
     try:
-        from adapters.inbound.fastapi_app.routes.simulation_async import router as simulation_async_router
+        from adapters.inbound.fastapi_app.routes.simulation_async import (
+            router as simulation_async_router,
+        )
+
         app.include_router(simulation_async_router)
         logger.info("✅ Registered: simulation accounts (多账户API: /api/simulation/accounts/*)")
     except ImportError as e:
         optional_failed.append("simulation")
         logger.warning(f"⚠️ Failed to import simulation_async: {e}")
 
+    try:
+        from adapters.inbound.fastapi_app.routes.t_trade_async import router as t_trade_router
+
+        app.include_router(t_trade_router)
+        logger.info("✅ Registered: range T trading (/api/t-trades/*)")
+    except ImportError as e:
+        optional_failed.append("t_trade")
+        logger.warning(f"⚠️ Failed to import t_trade_async: {e}")
+
     # 决策追踪（/api/decisions/*，走 DecisionService → PG，Flask parity）
     try:
         from adapters.inbound.fastapi_app.routes.decisions_async import router as decisions_router
+
         app.include_router(decisions_router)
         logger.info("✅ Registered: decisions (/api/decisions/*, PG 持久化)")
     except ImportError as e:
@@ -1271,7 +1454,10 @@ def register_routes():
 
     # 决策跟踪（旧内存桩，/api/decision-tracking/*，保留兼容）
     try:
-        from adapters.inbound.fastapi_app.routes.decision_tracking_async import router as decision_tracking_router
+        from adapters.inbound.fastapi_app.routes.decision_tracking_async import (
+            router as decision_tracking_router,
+        )
+
         app.include_router(decision_tracking_router, prefix="/api")
         logger.info("✅ Registered: decision_tracking")
     except ImportError as e:
@@ -1280,16 +1466,24 @@ def register_routes():
 
     # 实时信号（包含新迁移的 3 个端点）
     try:
-        from adapters.inbound.fastapi_app.routes.realtime_signals_async import router as realtime_signals_router
+        from adapters.inbound.fastapi_app.routes.realtime_signals_async import (
+            router as realtime_signals_router,
+        )
+
         app.include_router(realtime_signals_router, prefix="/api")
-        logger.info("✅ Registered: realtime_signals (包含 t1/generate, filter/executable, morning-scan)")
+        logger.info(
+            "✅ Registered: realtime_signals (包含 t1/generate, filter/executable, morning-scan)"
+        )
     except ImportError as e:
         optional_failed.append("realtime_signals")
         logger.warning(f"⚠️ Failed to import realtime_signals_async: {e}")
 
     # 策略执行（新迁移的 3 个端点）
     try:
-        from adapters.inbound.fastapi_app.routes.strategy_execution_async import router as strategy_execution_router
+        from adapters.inbound.fastapi_app.routes.strategy_execution_async import (
+            router as strategy_execution_router,
+        )
+
         app.include_router(strategy_execution_router, prefix="/api")
         logger.info("✅ Registered: strategy_execution (execute, batch-execute, pipeline-execute)")
     except ImportError as e:
@@ -1299,6 +1493,7 @@ def register_routes():
     # 回测
     try:
         from adapters.inbound.fastapi_app.routes.backtest_async import router as backtest_router
+
         app.include_router(backtest_router, prefix="/api")
         logger.info("✅ Registered: backtest")
     except ImportError as e:
@@ -1307,7 +1502,10 @@ def register_routes():
 
     # 回测（Flask backtest.py 迁移：results/run/strategy/combo + performance/*）
     try:
-        from adapters.inbound.fastapi_app.routes.backtest_async import flask_parity_router as backtest_flask_parity_router
+        from adapters.inbound.fastapi_app.routes.backtest_async import (
+            flask_parity_router as backtest_flask_parity_router,
+        )
+
         app.include_router(backtest_flask_parity_router)
         logger.info("✅ Registered: backtest (Flask parity 迁移)")
     except ImportError as e:
@@ -1316,7 +1514,10 @@ def register_routes():
 
     # 回测历史
     try:
-        from adapters.inbound.fastapi_app.routes.backtest_history_async import router as backtest_history_router
+        from adapters.inbound.fastapi_app.routes.backtest_history_async import (
+            router as backtest_history_router,
+        )
+
         app.include_router(backtest_history_router)
         logger.info("✅ Registered: backtest_history")
     except ImportError as e:
@@ -1326,6 +1527,7 @@ def register_routes():
     # 指标管理
     try:
         from adapters.inbound.fastapi_app.routes.indicators_async import router as indicators_router
+
         app.include_router(indicators_router)
         logger.info("✅ Registered: indicators")
     except ImportError as e:
@@ -1341,12 +1543,15 @@ def register_routes():
         # 相对导入必抛 ImportError → 3 组批量路由静默缺失（p1 5 个 + p2_batch1 6 个 + p2_batch2 5 个），
         # 日志仅留 warning。改用绝对导入（项目根已在 sys.path，脚本/模块两种模式都成立）。
         from adapters.inbound.fastapi_app.routes import p1_batch_async
+
         app.include_router(p1_batch_async.sentiment_router, prefix="/api")
         app.include_router(p1_batch_async.discovery_router, prefix="/api")
         app.include_router(p1_batch_async.game_alert_router, prefix="/api")
         app.include_router(p1_batch_async.chan_router, prefix="/api")
         app.include_router(p1_batch_async.data_quality_router, prefix="/api")
-        logger.info("✅ Registered: p1_batch (sentiment, discovery, game_alert, chan, data_quality)")
+        logger.info(
+            "✅ Registered: p1_batch (sentiment, discovery, game_alert, chan, data_quality)"
+        )
     except ImportError as e:
         optional_failed.append("p1_batch")
         logger.warning(f"⚠️ Failed to import p1_batch_async: {e}")
@@ -1354,6 +1559,7 @@ def register_routes():
     # P2 批量路由 - Batch 1
     try:
         from adapters.inbound.fastapi_app.routes import p2_batch1_async
+
         app.include_router(p2_batch1_async.diagnosis_router, prefix="/api")
         app.include_router(p2_batch1_async.dividends_router, prefix="/api")
         app.include_router(p2_batch1_async.financial_router, prefix="/api")
@@ -1368,6 +1574,7 @@ def register_routes():
     # P2 批量路由 - Batch 2
     try:
         from adapters.inbound.fastapi_app.routes import p2_batch2_async
+
         app.include_router(p2_batch2_async.ml_model_router, prefix="/api")
         app.include_router(p2_batch2_async.position_router, prefix="/api")
         app.include_router(p2_batch2_async.industry_router, prefix="/api")
@@ -1381,6 +1588,7 @@ def register_routes():
     # 定时任务管理
     try:
         from adapters.inbound.fastapi_app.routes.scheduler_async import router as scheduler_router
+
         app.include_router(scheduler_router)
         logger.info("✅ Registered: scheduler")
     except ImportError as e:
@@ -1392,7 +1600,10 @@ def register_routes():
 
     # 统一事件总线（P2.4 unified event bus）
     try:
-        from adapters.inbound.fastapi_app.routes.unified_event_bus_async import router as event_bus_router
+        from adapters.inbound.fastapi_app.routes.unified_event_bus_async import (
+            router as event_bus_router,
+        )
+
         app.include_router(event_bus_router)
         logger.info("✅ Registered: unified_event_bus (P2.4)")
     except ImportError as e:
@@ -1403,7 +1614,10 @@ def register_routes():
 
     # Agent 决策执行 API
     try:
-        from adapters.inbound.fastapi_app.routes.agent_decision_async import router as agent_decision_router
+        from adapters.inbound.fastapi_app.routes.agent_decision_async import (
+            router as agent_decision_router,
+        )
+
         app.include_router(agent_decision_router)
         logger.info("✅ Registered: agent_decision (Agent决策执行: /api/agent/*)")
     except ImportError as e:
@@ -1413,6 +1627,7 @@ def register_routes():
     # 任务管理（P4 迁移，jobs）
     try:
         from adapters.inbound.fastapi_app.routes.jobs_async import router as jobs_router
+
         app.include_router(jobs_router)
         logger.info("✅ Registered: jobs (P4 迁移)")
     except ImportError as e:
@@ -1421,11 +1636,17 @@ def register_routes():
 
     # ===== 游戏智能模块 =====
     try:
-        from adapters.inbound.fastapi_app.routes.game.intelligence import router as game_intelligence_router
+        from adapters.inbound.fastapi_app.routes.game.intelligence import (
+            router as game_intelligence_router,
+        )
+
         app.include_router(game_intelligence_router)
         # 兼容路由：把同一 handler 挂到规范文档路径 /api/market/opponent-behavior
         # （原路径 /api/game/market/opponent-behavior 保留；2026-09-10，w-23c70356）
-        from adapters.inbound.fastapi_app.routes.game.intelligence import compat_router as game_intelligence_compat_router
+        from adapters.inbound.fastapi_app.routes.game.intelligence import (
+            compat_router as game_intelligence_compat_router,
+        )
+
         app.include_router(game_intelligence_compat_router)
         logger.info("✅ Registered: game.intelligence (+compat /api/market/opponent-behavior)")
     except ImportError as e:
@@ -1434,7 +1655,10 @@ def register_routes():
 
     # 流水线杂项（cli/calibrate、stocks/data-status，agent 迁移）
     try:
-        from adapters.inbound.fastapi_app.routes.pipeline_misc_async import router as pipeline_misc_router
+        from adapters.inbound.fastapi_app.routes.pipeline_misc_async import (
+            router as pipeline_misc_router,
+        )
+
         app.include_router(pipeline_misc_router)
         logger.info("✅ Registered: pipeline_misc (agent 迁移)")
     except ImportError as e:
@@ -1444,6 +1668,7 @@ def register_routes():
     # 工具自省（tools/list、tools/describe，agent 迁移）
     try:
         from adapters.inbound.fastapi_app.routes.tools_async import router as tools_router
+
         app.include_router(tools_router)
         logger.info("✅ Registered: tools (agent 迁移)")
     except ImportError as e:
@@ -1453,6 +1678,7 @@ def register_routes():
     # 训练报告（training/reports、training/history，agent 迁移）
     try:
         from adapters.inbound.fastapi_app.routes.training_async import router as training_router
+
         app.include_router(training_router)
         logger.info("✅ Registered: training (agent 迁移)")
     except ImportError as e:
@@ -1461,7 +1687,10 @@ def register_routes():
 
     # 线程监控（monitoring/threads）
     try:
-        from adapters.inbound.fastapi_app.routes.thread_monitoring_async import router as thread_monitoring_router
+        from adapters.inbound.fastapi_app.routes.thread_monitoring_async import (
+            router as thread_monitoring_router,
+        )
+
         app.include_router(thread_monitoring_router)
         logger.info("✅ Registered: thread_monitoring")
     except ImportError as e:
@@ -1471,6 +1700,7 @@ def register_routes():
     # 数据同步（data/sync）
     try:
         from adapters.inbound.fastapi_app.routes.data_sync_async import router as data_sync_router
+
         app.include_router(data_sync_router)
         logger.info("✅ Registered: data_sync")
     except ImportError as e:
@@ -1479,7 +1709,10 @@ def register_routes():
 
     # 统一数据源 API（DataProviderManager 所有方法的 HTTP 入口）
     try:
-        from adapters.inbound.fastapi_app.routes.data_provider_async import router as data_provider_router
+        from adapters.inbound.fastapi_app.routes.data_provider_async import (
+            router as data_provider_router,
+        )
+
         app.include_router(data_provider_router)
         logger.info("✅ Registered: data_provider (统一数据源 API)")
     except ImportError as e:
@@ -1489,6 +1722,7 @@ def register_routes():
     # 进程内每日任务管理（状态巡检 + 手动触发）
     try:
         from adapters.inbound.fastapi_app.routes.daily_jobs_async import router as daily_jobs_router
+
         app.include_router(daily_jobs_router)
         logger.info("✅ Registered: daily_jobs (进程内每日任务)")
     except ImportError as e:
@@ -1497,7 +1731,10 @@ def register_routes():
 
     # 微观结构（分钟线 / 交易状态 / 执行成本估算，RFC 015 §4.4）
     try:
-        from adapters.inbound.fastapi_app.routes.microstructure_async import router as microstructure_router
+        from adapters.inbound.fastapi_app.routes.microstructure_async import (
+            router as microstructure_router,
+        )
+
         app.include_router(microstructure_router)
         logger.info("✅ Registered: microstructure (分钟线/交易状态/执行估算)")
     except ImportError as e:
@@ -1506,7 +1743,10 @@ def register_routes():
 
     # 产业链图谱（RFC 015 §2.4）
     try:
-        from adapters.inbound.fastapi_app.routes.industry_chain_async import router as industry_chain_router
+        from adapters.inbound.fastapi_app.routes.industry_chain_async import (
+            router as industry_chain_router,
+        )
+
         app.include_router(industry_chain_router)
         logger.info("✅ Registered: industry_chain (产业链图谱)")
     except ImportError as e:
@@ -1517,9 +1757,11 @@ def register_routes():
     logger.info("=" * 60)
     logger.info("Route Registration Summary")
     logger.info("=" * 60)
-    logger.info(f"✅ CRITICAL routes: {len(critical_routes)}/{len(critical_routes)} (all must succeed)")
+    logger.info(
+        f"✅ CRITICAL routes: {len(critical_routes)}/{len(critical_routes)} (all must succeed)"
+    )
     logger.info(f"   Routes: {', '.join(critical_routes)}")
-    
+
     # 2026-09-11（w-8f2c4cc5）：启动期路由注册降级必须可见。
     # 故障现场：启动时 peer 正在写文件，42 个可选路由 import 失败 → 进程带 237 个 404 端点静默运行
     # （日志仅 warning），且启动期导入失败不会重试，不重启永不恢复。
@@ -1535,7 +1777,7 @@ def register_routes():
             )
     else:
         logger.info(f"✅ Optional routes: all registered successfully")
-    
+
     logger.info("=" * 60)
     logger.info("✅ Route registration completed")
     logger.info("=" * 60)
@@ -1555,8 +1797,9 @@ if __name__ == "__main__":
 
     # 获取配置
     import os
-    host = os.environ.get('QUANTSYS_API_HOST', '127.0.0.1')
-    port = int(os.environ.get('QUANTSYS_API_PORT', '5001'))
+
+    host = os.environ.get("QUANTSYS_API_HOST", "127.0.0.1")
+    port = int(os.environ.get("QUANTSYS_API_PORT", "5001"))
 
     logger.info(f"Starting FastAPI server on {host}:{port}")
 
@@ -1566,5 +1809,5 @@ if __name__ == "__main__":
         port=port,
         reload=False,  # 生产环境关闭自动重载
         log_level="info",
-        access_log=True
+        access_log=True,
     )

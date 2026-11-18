@@ -39,7 +39,8 @@ class IWatchRuleRepository(ABC):
                     account=None, linked_account=None,
                     intent=None, action_hint=None, action_params=None,
                     position_state=None, interval_sec=None, plan_id=None,
-                    invalidation_threshold_pct=None, watch_tier=None) -> Any:
+                    invalidation_threshold_pct=None, watch_tier=None,
+                    trigger_channel=None) -> Any:
         """创建规则（仓储层跑 rule_guard 铁律：交易类意图必须有账户归属）。"""
         pass
 
@@ -175,7 +176,7 @@ class IWatchRuntimeStateStore(ABC):
 
     @abstractmethod
     def load_meta(self) -> Dict[str, Any]:
-        """返回单行 meta：{heartbeat_at, state_date, event_watermark}；无记录时值为 None"""
+        """返回单行 meta：{state_date, event_watermark}；无记录时值为 None"""
         pass
 
     @abstractmethod

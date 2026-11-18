@@ -1169,6 +1169,24 @@ class DataProviderManager(IDataProviderManager):
             index_code
         )
 
+    @staticmethod
+    def _completed_daily_rows(rows: List, now: Optional[_datetime] = None) -> List:
+        """日 K 只保留已完成交易日；盘中当日快照在任何自动回写前剔除。"""
+        now = now or _datetime.now()
+        cutoff = now.date() if now.hour >= 15 else (now - _timedelta(days=1)).date()
+        completed = []
+        for row in rows or []:
+            raw_date = getattr(row, 'date', None)
+            if raw_date is None and isinstance(row, dict):
+                raw_date = row.get('date') or row.get('trade_date')
+            try:
+                row_date = str(raw_date)[:10]
+                if row_date <= cutoff.isoformat():
+                    completed.append(row)
+            except (TypeError, ValueError):
+                continue
+        return completed
+
     def get_klines(self, symbol: str, period: str, start_date: str, end_date: str) -> dict:
         """Get kline data with automatic failover + backfill to DB
 
@@ -1191,6 +1209,11 @@ class DataProviderManager(IDataProviderManager):
         尾部（最近应有 EOD 的交易日）时，继续走实时源并把两边按日期合并
         （实时优先），合并结果仍照常回写 DB。
         """
+        if period in ('1m', '5m', '15m', '30m', '60m'):
+            return self.get_minute_klines(
+                symbol, period, start_date, end_date, limit=500,
+            )
+
         result = self._try_providers(
             self.kline_providers,
             'get_klines',
@@ -1199,6 +1222,18 @@ class DataProviderManager(IDataProviderManager):
             start_date,
             end_date
         )
+
+        # 日 K 是完成态数据：盘中快照必须在覆盖判断与自动回写之前剔除。
+        # 否则 provider 的“当日最新累计”会被当成完整 EOD 永久写入。
+        if period == 'daily' and result.get('success'):
+            raw_rows = result.get('data') or []
+            result['data'] = self._completed_daily_rows(raw_rows)
+            dropped = len(raw_rows) - len(result['data'])
+            if dropped:
+                result['dropped_unclosed_daily_bars'] = dropped
+                logger.warning(
+                    f"Dropped {dropped} unclosed daily bars for {symbol} before DB backfill"
+                )
 
         if period in ['daily', 'weekly', 'monthly'] and result.get('source') == 'database':
             expected_last = self._expected_last_bar_date(period, end_date)
@@ -1216,6 +1251,8 @@ class DataProviderManager(IDataProviderManager):
                     start_date,
                     end_date
                 )
+                if period == 'daily' and network.get('success'):
+                    network['data'] = self._completed_daily_rows(network.get('data') or [])
                 if network.get('success') and network.get('data'):
                     merged: Dict[str, Any] = {}
                     for k in result.get('data') or []:

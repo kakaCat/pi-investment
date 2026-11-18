@@ -83,101 +83,189 @@ class SignalTrackingService:
     def update_performance(
         self,
         signal_date: str = None,
-        lookback_days: int = 30
+        lookback_days: Optional[int] = None,
+        symbol: Optional[str] = None,
+        refresh: bool = False,
     ) -> Dict[str, Any]:
-        """批量更新信号表现（盘后例程调用）
-        
-        回填逻辑：
-        - 5日后：计算 price_5d, return_5d, hit_5d
-        - 10日后：计算 price_10d, return_10d, hit_10d
-        - 20日后：计算 price_20d, return_20d, hit_20d
-        
-        Args:
-            signal_date: 指定更新日期（None=更新最近lookback_days内的所有信号）
-            lookback_days: 回溯天数
-        
-        Returns:
-            {"success": True, "updated": 15, "details": {...}}
+        """批量回填 5/10/20 交易日表现，并显式报告无法回填的原因。
+
+        - 默认扫描全部历史 NULL 欠账；显式 lookback_days 是自然日下界过滤。
+        - 整次调用共享一份交易日历，所有目标日 K 线只做一次批量查询。
+        - refresh=True 用于 K 线修复后的受控重算，必须限定 signal_date 或 symbol。
+        - 未到期与目标日缺 K 线分开计数；缺数据绝不取邻日价格代替。
         """
         from qs_sourcing.adapters.outbound.repositories.signal_tracking_repository import SignalTrackingRepository
         from infrastructure.services.service_factory import ServiceFactory
+        from qs_market_data.application.services.trading_calendar_service import TradingCalendarService
+
+        if lookback_days is not None and lookback_days < 0:
+            raise ValueError("lookback_days 必须 >= 0")
+        if refresh and not (signal_date or symbol):
+            raise ValueError("refresh=true 必须同时限定 signal_date 或 symbol")
 
         repo = SignalTrackingRepository(self.db)
         kline_repo = ServiceFactory.get_kline_repository()
-        
-        # 获取待更新的信号
+        cutoff = (
+            (datetime.now() - timedelta(days=lookback_days)).strftime('%Y-%m-%d')
+            if lookback_days is not None else None
+        )
         if signal_date:
             signals = repo.get_signals_by_date(signal_date)
+            if symbol:
+                signals = [s for s in signals if s.get('symbol') == symbol]
+            if not refresh:
+                signals = [s for s in signals if any(
+                    s.get(f'price_{h}d') is None for h in (5, 10, 20)
+                )]
         else:
-            cutoff = (datetime.now() - timedelta(days=lookback_days)).strftime('%Y-%m-%d')
-            signals = repo.get_signals_after_date(cutoff)
-        
-        updated_count = 0
+            signals = repo.get_signals_pending_backfill(
+                symbol=symbol,
+                include_filled=refresh,
+                start_date=cutoff,
+            )
+
         details = {"5d": 0, "10d": 0, "20d": 0}
-        
-        for signal in signals:
-            sig_date = signal['signal_date']
-            # 确保是字符串格式
-            if isinstance(sig_date, datetime):
-                sig_date = sig_date.strftime('%Y-%m-%d')
-            elif hasattr(sig_date, 'isoformat'):
-                sig_date = sig_date.isoformat()
-            
-            symbol = signal['symbol']
-            # 2026-09-01 修复（investor w-8366e526）：DB 返回 Decimal，直接参与
-            # 除法会与 float 冲突（unsupported operand types）。统一转 float。
-            entry_price = float(signal['price'])
-            
-            updates = {}
-            
-            # 5日表现
-            if signal['price_5d'] is None:
-                date_5d = self._get_trading_date_after(sig_date, 5)
-                if date_5d and date_5d <= datetime.now().strftime('%Y-%m-%d'):
-                    price_5d = self._get_close_price(kline_repo, symbol, date_5d)
-                    if price_5d:
-                        updates['price_5d'] = price_5d
-                        updates['return_5d'] = (price_5d / entry_price - 1)
-                        updates['hit_5d'] = (price_5d > entry_price)
-                        details["5d"] += 1
-            
-            # 10日表现
-            if signal['price_10d'] is None:
-                date_10d = self._get_trading_date_after(sig_date, 10)
-                if date_10d and date_10d <= datetime.now().strftime('%Y-%m-%d'):
-                    price_10d = self._get_close_price(kline_repo, symbol, date_10d)
-                    if price_10d:
-                        updates['price_10d'] = price_10d
-                        updates['return_10d'] = (price_10d / entry_price - 1)
-                        updates['hit_10d'] = (price_10d > entry_price)
-                        details["10d"] += 1
-            
-            # 20日表现
-            if signal['price_20d'] is None:
-                date_20d = self._get_trading_date_after(sig_date, 20)
-                if date_20d and date_20d <= datetime.now().strftime('%Y-%m-%d'):
-                    price_20d = self._get_close_price(kline_repo, symbol, date_20d)
-                    if price_20d:
-                        updates['price_20d'] = price_20d
-                        updates['return_20d'] = (price_20d / entry_price - 1)
-                        updates['hit_20d'] = (price_20d > entry_price)
-                        details["20d"] += 1
-            
-            if updates:
-                repo.update_signal_performance(signal['id'], updates)
-                updated_count += 1
-        
+        diagnostics = {
+            "scanned_signals": len(signals),
+            "candidate_horizons": 0,
+            "not_due": 0,
+            "missing_kline": 0,
+            "invalid_signal": 0,
+            "blocked": [],
+            "refresh": refresh,
+            "scope": {
+                "signal_date": signal_date,
+                "symbol": symbol,
+                "lookback_days": lookback_days,
+            },
+        }
+        if not signals:
+            return {
+                "success": True,
+                "updated": 0,
+                "details": details,
+                "diagnostics": diagnostics,
+                "complete": True,
+            }
+
+        today = datetime.now().strftime('%Y-%m-%d')
+        normalized_signal_dates = [self._date_text(s.get('signal_date')) for s in signals]
+        calendar = TradingCalendarService()
+        raw_days = calendar.get_trading_days(
+            start_date=min(d for d in normalized_signal_dates if d),
+            end_date=today,
+        )
+        trading_days = sorted({self._date_text(d) for d in (raw_days or []) if self._date_text(d)})
+        if not trading_days:
+            raise RuntimeError("交易日历不可用：拒绝按自然日估算信号表现")
+        day_index = {day: idx for idx, day in enumerate(trading_days)}
+
+        work = []
+        for signal, sig_date in zip(signals, normalized_signal_dates):
+            symbol_value = str(signal.get('symbol') or '').split('.')[0]
+            try:
+                entry_price = float(signal['price'])
+                if entry_price <= 0:
+                    raise ValueError("entry price must be positive")
+            except (TypeError, ValueError, KeyError) as exc:
+                diagnostics['invalid_signal'] += 1
+                diagnostics['blocked'].append({
+                    "signal_id": signal.get('id'), "symbol": symbol_value,
+                    "reason": "invalid_entry_price", "detail": str(exc),
+                })
+                continue
+            if sig_date not in day_index:
+                diagnostics['invalid_signal'] += 1
+                diagnostics['blocked'].append({
+                    "signal_id": signal.get('id'), "symbol": symbol_value,
+                    "signal_date": sig_date, "reason": "signal_date_not_trading_day",
+                })
+                continue
+
+            for horizon in (5, 10, 20):
+                if not refresh and signal.get(f'price_{horizon}d') is not None:
+                    continue
+                target_idx = day_index[sig_date] + horizon
+                if target_idx >= len(trading_days):
+                    diagnostics['not_due'] += 1
+                    continue
+                work.append({
+                    "signal": signal,
+                    "symbol": symbol_value,
+                    "entry_price": entry_price,
+                    "horizon": horizon,
+                    "target_date": trading_days[target_idx],
+                })
+
+        diagnostics['candidate_horizons'] = len(work)
+        close_map = {}
+        if work:
+            # 查询异常必须响亮失败，不能被仓储的空 dict 伪装成"全市场缺 K"。
+            batch = kline_repo.get_daily_klines_batch(
+                symbols=sorted({item['symbol'] for item in work}),
+                start_date=min(item['target_date'] for item in work),
+                end_date=max(item['target_date'] for item in work),
+                raise_on_error=True,
+            )
+            for symbol_value, rows in (batch or {}).items():
+                bare_symbol = str(symbol_value).split('.')[0]
+                for row in rows or []:
+                    day = self._date_text(row.get('trade_date') or row.get('date'))
+                    try:
+                        close = float(row.get('close'))
+                        if close > 0:
+                            close_map[(bare_symbol, day)] = close
+                    except (TypeError, ValueError):
+                        continue
+
+        updates_by_signal = {}
+        for item in work:
+            signal = item['signal']
+            horizon = item['horizon']
+            close = close_map.get((item['symbol'], item['target_date']))
+            if close is None:
+                diagnostics['missing_kline'] += 1
+                diagnostics['blocked'].append({
+                    "signal_id": signal.get('id'),
+                    "symbol": item['symbol'],
+                    "horizon": f"{horizon}d",
+                    "target_date": item['target_date'],
+                    "reason": "missing_kline",
+                })
+                continue
+            updates = updates_by_signal.setdefault(signal['id'], {})
+            updates[f'price_{horizon}d'] = close
+            updates[f'return_{horizon}d'] = close / item['entry_price'] - 1
+            updates[f'hit_{horizon}d'] = close > item['entry_price']
+            details[f'{horizon}d'] += 1
+
+        for signal_id, updates in updates_by_signal.items():
+            repo.update_signal_performance(signal_id, updates)
+
         logger.info(
             "signal_performance_updated",
-            updated_count=updated_count,
-            details=details
+            updated_count=len(updates_by_signal),
+            details=details,
+            missing_kline=diagnostics['missing_kline'],
+            not_due=diagnostics['not_due'],
         )
-        
         return {
             "success": True,
-            "updated": updated_count,
-            "details": details
+            "updated": len(updates_by_signal),
+            "details": details,
+            "diagnostics": diagnostics,
+            "complete": not diagnostics['blocked'],
         }
+
+    @staticmethod
+    def _date_text(value) -> Optional[str]:
+        if value is None:
+            return None
+        if isinstance(value, datetime):
+            return value.strftime('%Y-%m-%d')
+        if hasattr(value, 'isoformat'):
+            return value.isoformat()[:10]
+        return str(value)[:10]
     
     def get_statistics(
         self,
@@ -237,12 +325,13 @@ class SignalTrackingService:
             grade_signals = [s for s in signals if s['grade'] == grade]
             
             if not grade_signals:
-                stats[grade] = {"count": 0}
+                stats[grade] = {"count": 0, "mature_count": 0}
                 continue
             
-            # 计算各周期胜率和平均收益
+            # count 是原始信号数；mature_count 只包含有 5 日表现的样本。
             stats[grade] = {
                 "count": len(grade_signals),
+                "mature_count": sum(1 for s in grade_signals if s.get('return_5d') is not None),
                 "hit_rate_5d": self._calc_hit_rate(grade_signals, 'hit_5d'),
                 "avg_return_5d": self._calc_avg_return(grade_signals, 'return_5d'),
                 "hit_rate_10d": self._calc_hit_rate(grade_signals, 'hit_10d'),
@@ -262,6 +351,7 @@ class SignalTrackingService:
             source_signals = [s for s in signals if s['source'] == source]
             stats[source] = {
                 "count": len(source_signals),
+                "mature_count": sum(1 for s in source_signals if s.get('return_5d') is not None),
                 "hit_rate_5d": self._calc_hit_rate(source_signals, 'hit_5d'),
                 "avg_return_5d": self._calc_avg_return(source_signals, 'return_5d'),
             }

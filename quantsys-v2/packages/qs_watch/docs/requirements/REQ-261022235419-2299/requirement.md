@@ -147,8 +147,8 @@ req_id: REQ-261022235419-2299
   - 判据：`python -m pytest tests/v2/test_unpositioned_engine.py -q` 全绿（退出码 0）；空仓 entry 规则现价触买点 → notified=true；未触 → 无通知
 - **FR-6: 失效判定独立覆盖全部激活票**——偏离超 agent 失效线标 invalid，止损豁免（对应 R-6）
   - 判据：`python -m pytest tests/v2/test_invalidation.py -q` 全绿（退出码 0）；偏离超线后 `rule_state='invalid'` 且 `invalid_reason` 非空且投递记录存在；持仓/未持仓/未到期三类同覆盖；重复触发不重复投递；失效投递走 notify_agent 通道（与触发首发同一模块）
-- **FR-7: 触发路由与通知（10次循环）**——循环首发对应账户 agent 判断，agent 发盯盘群；第2~9次不处理；第10次直通群并归零，次日首轮仍 agent 先处理；止损必达；**发 agent（notify_agent）与发飞书（notify_feishu）两个文件各自实现**（对应 R-7）
-  - 判据：`python -m pytest tests/v2/test_trigger_routing.py -q` 全绿（退出码 0）；循环第1次走 notify_agent；第2~9次零投递；第10次走 notify_feishu 直通盯盘群且计数归零；第11次（新循环首发）重新走 notify_agent；止损在预算耗尽/抑噪下仍 notified=true；`notify_agent` 与 `notify_feishu` 两文件各自可 import（`python -c "import ..."` 退出码 0）且互不 import 对方
+- **FR-7: 触发路由与通知（10次循环）**——循环首发对应账户 agent 判断（较上次成功发 agent 价绝对涨跌幅 `<1%` 不投递、`>=1%` 投递），agent 发盯盘群；第2~9次不处理；第10次直通群并归零，次日首轮仍 agent 先处理；止损必达；**发 agent（notify_agent）与发飞书（notify_feishu）两个文件各自实现**（对应 R-7）
+  - 判据：`python -m pytest tests/v2/test_trigger_routing.py -q` 全绿（退出码 0）；循环第1次走 notify_agent；第2~9次零投递；第10次走 notify_feishu 直通盯盘群且计数归零；第11次（新循环首发）重新走 notify_agent；再次走 notify_agent 时 `<1%` 零投递且不计 delivery_failed、`>=1%` 投递；止损在预算耗尽/抑噪下仍 notified=true；`notify_agent` 与 `notify_feishu` 两文件各自可 import（`python -c "import ..."` 退出码 0）且互不 import 对方
 - **FR-8: 失效投递 agent 裁决闭环**——改阈值回 active / 退役归 archived（对应 R-8）
   - 判据：`curl -X PATCH /api/watch/rules/{id} -d '{"rule_state":"active"}'` 后 invalid_reason/invalid_at 清空且重回激活集合；rule_state=archived 后不在 active 列表
 - **FR-9: 账户绑定路由**——规则绑账户，信号路由到该账户对应 agent（对应 R-10）
@@ -309,7 +309,7 @@ req_id: REQ-261022235419-2299
 
 **描述**
 
-**触发路由按「10 次一循环」**：每条规则带循环计数——每循环**第 1 次触发 → 发对应账户 agent 处理**（notify_agent；agent 判断：规则是否修改 / 是否执行规则 / 应由哪个账户购买 → 判断后发盯盘群通知用户）；**第 2~9 次触发 → agent 不处理**（循环内无新事不重复劳动）；**第 10 次触发 → 引擎直通盯盘群**（notify_feishu，不等 agent），随后计数归零进入下一循环（下循环第 1 次再发 agent）。跨天延续：次日循环第一次仍 agent 先处理。无每日定时任务。止损宪法级必达——「必达」只保**不被预算/降噪/状态滞后吞掉**（该发必发），止损与其他规则一样走 10 次循环，无「永远走 agent」特权。
+**触发路由按「10 次一循环」**：每条规则带循环计数——每循环**第 1 次触发 → 发对应账户 agent 处理**（notify_agent；agent 判断：规则是否修改 / 是否执行规则 / 应由哪个账户购买 → 判断后发盯盘群通知用户；**2026-10-28 新增价格门槛**：与上次成功发 agent 的价格比较，绝对涨跌幅 `<1%` 不投递，`>=1%` 才投递）；**第 2~9 次触发 → agent 不处理**（循环内无新事不重复劳动）；**第 10 次触发 → 引擎直通盯盘群**（notify_feishu，不等 agent），随后计数归零进入下一循环（下循环第 1 次再发 agent）。跨天延续：次日循环第一次仍 agent 先处理。无每日定时任务。止损宪法级必达——「必达」只保**不被预算/降噪/状态滞后吞掉**（该发必发），止损与其他规则一样走 10 次循环，无「永远走 agent」特权。
 
 **两条通道文件级分离（D-13）**：发 agent 一个文件（`notify_agent`：触发→agent 判断通道），发飞书盯盘群一个文件（`notify_feishu`：→用户通知通道）。两个文件各自独立实现，互不内嵌——每次触发只走 notify_agent；agent 判断后由 agent 侧走 notify_feishu 发群；循环第 10 次触发时引擎直接走 notify_feishu 发群（随后归零）。
 
@@ -319,7 +319,7 @@ req_id: REQ-261022235419-2299
 
 **验收判据**
 
-单测：每循环第 1 次触发 → 投递对应 agent（notify_agent）；第 2~9 次触发 → agent 不处理（零投递）；第 10 次触发 → notify_feishu 直通盯盘群且计数归零；第 11 次（新循环第 1 次）→ 重新投递 agent；跨天日期变更不影响循环连续性；止损触发在预算耗尽/抑噪下仍 notified=true（必达=不被吞）。
+单测：每循环第 1 次触发 → 投递对应 agent（notify_agent）；第 2~9 次触发 → agent 不处理（零投递）；第 10 次触发 → notify_feishu 直通盯盘群且计数归零；第 11 次（新循环第 1 次）→ 重新投递 agent；跨天日期变更不影响循环连续性；止损触发在预算耗尽/抑噪下仍 notified=true（必达=不被吞）；再次走 notify_agent 时，较上次成功投递价绝对涨跌幅 `<1%` 零投递且不计 delivery_failed，`>=1%` 投递，发送失败不更新上次价格；失效裁决不被价格门槛拦截。
 
 **优先级理由**
 
@@ -478,6 +478,7 @@ agent 判断是稀缺资源（token 成本）：新规则首日要 agent 把关�
 | D-20 | 「feishu 不同判定发送不同模版，模板是一个独立的文件」「不同判定 发送agent和飞书都有不同的提示词和模板。提示词和模板是单独的2个文件」 | 文案体系两个独立文件：飞书消息模板一个文件（feishu_templates，按判定类型）；agent 提示词一个文件（agent_prompts，按判定类型） | FR-10、FR-9 | 见 FR-10、FR-9 判据（功能点节） |
 | D-21 | 「持仓和非持仓方案不一样」「持仓和非持仓方案提示词和模板不一样」 | 文案矩阵 = 持仓状态 × 判定类型：持仓四操作（增仓/止盈/止损/减仓）一套方案，非持仓（买入/观察）另一套方案；提示词与模板随之不同 | FR-10、FR-9 | 见 FR-10、FR-9 判据（功能点节） |
 | D-22 | 「v2_daily_cycle_reset 是活跃的才重置，非活跃的不需要重置」（2026-10-23） | 每日重置收窄为**活跃规则**：活跃 = `rule_state='active'` 且启用且未过期（与引擎判定集合同源）；invalid/archived/停用/过期规则不进判定，不重置（其计数与处理状态保持原样） | FR-11 | 见 FR-11 判据（功能点节）；`reset_active_cycles()` 单测 + 集成测试断言非活跃规则不被改 |
+| D-23 | 「盯盘添加一个规则，再次调用agent要判断上次价格浮动1%就不发agent了」（2026-10-28） | agent 通道按规则记录**上次成功发送**价格；再次走触发首发 agent 时，绝对涨跌幅 `<1%` 不投递，`>=1%` 才投递；发送失败不更新基线；失效裁决等必达调用不被拦截，但成功后会更新基线 | FR-7 | 见 FR-7 判据（功能点节）；价格门槛单测 + 定时扫描集成测试断言零投递、零 delivery_failed、达到 1% 再发 |
 
 ## 变更控制
 
@@ -487,6 +488,7 @@ agent 判断是稀缺资源（token 成本）：新规则首日要 agent 把关�
 |---|---|---|---|---|
 | 2026-10-22 | 初版（R-1~R-9） | 用户 | 接受 | 全部 FR 待映射 |
 | 2026-10-23 | 每日重置范围收窄为活跃规则（D-22） | 用户 | 接受 | FR-11 判据改为「活跃规则计数清零、非活跃规则保持原样」 |
+| 2026-10-28 | 新增再次发 agent 的 1% 价格浮动门槛（D-23） | 用户 | 接受 | FR-7 触发首发 agent 前增加上次成功投递价比较；失效投递不拦截 |
 
 ## 与 PRD 的映射
 

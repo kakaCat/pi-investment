@@ -12,6 +12,7 @@
 旧路径 `application/trading/paper_trading_engine.py` 继续导出同名符号（转发），
 旧 import 不破。
 """
+
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, Optional, Protocol, runtime_checkable
@@ -21,12 +22,12 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 __all__ = [
-    'FillEvent',
-    'IFillListener',
-    'notify_fill',
-    'register_fill_listener',
-    'get_fill_listener',
-    'unregister_fill_listener',
+    "FillEvent",
+    "IFillListener",
+    "notify_fill",
+    "register_fill_listener",
+    "get_fill_listener",
+    "unregister_fill_listener",
 ]
 
 
@@ -40,8 +41,7 @@ class IFillListener(Protocol):
       · 不产生订单/交易动作（RFC §2.4：闭环 = 指令 → agent 执行 → 成交回执）。
     """
 
-    def on_fill(self, event: "FillEvent") -> Any:
-        ...
+    def on_fill(self, event: "FillEvent") -> Any: ...
 
 
 @dataclass(frozen=True)
@@ -63,29 +63,34 @@ class FillEvent:
     order_id: Optional[int] = None
     decision_audit_id: Optional[str] = None
     filled_at: Optional[datetime] = None
-    source: str = 'paper_trading'
+    source: str = "paper_trading"
     reason: Optional[str] = None
     #: REQ-261021222905-6dff：计划归因（None = 计划外成交，不影响计划状态）
     plan_id: Optional[int] = None
     plan_version: Optional[int] = None
+    #: REQ-261026140857-c192：账户级计划项精确归因（新链路必填）
+    item_id: Optional[int] = None
+    t_trade_id: Optional[int] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """JSON-safe 投影（供日志/留痕；消费侧也接受这个形状）。"""
         filled_at = self.filled_at
         return {
-            'account_name': self.account_name,
-            'symbol': self.symbol,
-            'action': self.action,
-            'shares': self.shares,
-            'price': self.price,
-            'trade_id': self.trade_id,
-            'order_id': self.order_id,
-            'decision_audit_id': self.decision_audit_id,
-            'filled_at': filled_at.isoformat() if hasattr(filled_at, 'isoformat') else filled_at,
-            'source': self.source,
-            'reason': self.reason,
-            'plan_id': self.plan_id,
-            'plan_version': self.plan_version,
+            "account_name": self.account_name,
+            "symbol": self.symbol,
+            "action": self.action,
+            "shares": self.shares,
+            "price": self.price,
+            "trade_id": self.trade_id,
+            "order_id": self.order_id,
+            "decision_audit_id": self.decision_audit_id,
+            "filled_at": filled_at.isoformat() if hasattr(filled_at, "isoformat") else filled_at,
+            "source": self.source,
+            "reason": self.reason,
+            "plan_id": self.plan_id,
+            "plan_version": self.plan_version,
+            "item_id": self.item_id,
+            "t_trade_id": self.t_trade_id,
         }
 
 
@@ -100,11 +105,13 @@ def register_fill_listener(listener: Optional[IFillListener]) -> None:
     交易与 watch 之间只靠这份协议约定耦合。
     """
     global _FILL_LISTENER
-    if listener is not None and not callable(getattr(listener, 'on_fill', None)):
-        raise TypeError('fill listener 必须实现 on_fill(event)（IFillListener）')
+    if listener is not None and not callable(getattr(listener, "on_fill", None)):
+        raise TypeError("fill listener 必须实现 on_fill(event)（IFillListener）")
     _FILL_LISTENER = listener
-    logger.info('fill_listener_registered',
-                listener=type(listener).__name__ if listener is not None else None)
+    logger.info(
+        "fill_listener_registered",
+        listener=type(listener).__name__ if listener is not None else None,
+    )
 
 
 def get_fill_listener() -> Optional[IFillListener]:
@@ -137,11 +144,13 @@ def notify_fill(event: FillEvent, *, listener: Optional[IFillListener] = None) -
     try:
         target.on_fill(event)
     except Exception as e:  # noqa: BLE001 - 回执失败绝不影响成交（成交已提交）
-        logger.error('fill_listener_error（成交已落库，回执失败只记日志）',
-                     account=getattr(event, 'account_name', None),
-                     symbol=getattr(event, 'symbol', None),
-                     action=getattr(event, 'action', None),
-                     trade_id=getattr(event, 'trade_id', None),
-                     error=str(e))
+        logger.error(
+            "fill_listener_error（成交已落库，回执失败只记日志）",
+            account=getattr(event, "account_name", None),
+            symbol=getattr(event, "symbol", None),
+            action=getattr(event, "action", None),
+            trade_id=getattr(event, "trade_id", None),
+            error=str(e),
+        )
         return False
     return True

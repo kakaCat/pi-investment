@@ -1,7 +1,7 @@
 """
 信号类定时任务
 
-包含：signal_generate, signal_execution_daily, fund_flow_update
+包含：signal_generate, signal_execution_daily, opportunity_scan_daily, fund_flow_update
 """
 import logging
 from typing import Any, Dict
@@ -182,6 +182,190 @@ class SignalExecutionDailyJob(Job):
             return JobResult.fail(self.name, str(e))
 
 
+class OpportunityScanDailyJob(Job):
+    """每日综合评分机会扫描，并把高分买入机会转成盯盘规则。"""
+
+    def __init__(self, scoring_service=None, stock_pool_service=None,
+                 watchlist_reader=None, rule_service=None, trading_day_guard=None,
+                 notification_sender=None):
+        self._scoring_service = scoring_service
+        self._stock_pool_service = stock_pool_service
+        self._watchlist_reader = watchlist_reader
+        self._rule_service = rule_service
+        self._trading_day_guard = trading_day_guard
+        self._notification_sender = notification_sender
+
+    @property
+    def name(self) -> str:
+        return "opportunity_scan_daily"
+
+    @property
+    def description(self) -> str:
+        return "每交易日扫描自选股与热门池，高分买入机会生成 V2 盯盘规则"
+
+    @property
+    def timeout_seconds(self) -> int:
+        return 1800
+
+    async def execute(self, params: Dict[str, Any]) -> JobResult:
+        import asyncio
+
+        try:
+            return await asyncio.to_thread(self._run, params or {})
+        except Exception as e:
+            logger.exception("opportunity_scan_daily failed", error=str(e))
+            return JobResult.fail(self.name, str(e))
+
+    def _run(self, params: Dict[str, Any]) -> JobResult:
+        guard = self._trading_day_guard
+        if guard is None:
+            from qs_ops.application.services.trading_day_guard import TradingDayGuard
+            guard = TradingDayGuard
+        if not guard.is_trading_day():
+            return JobResult.ok(
+                self.name, message="非交易日，跳过机会扫描",
+                skipped="non_trading_day", scanned=0, candidates=0,
+            )
+
+        scoring_service = self._scoring_service
+        stock_pool_service = self._stock_pool_service
+        if scoring_service is None or stock_pool_service is None:
+            from infrastructure.services.service_factory import ServiceFactory
+            scoring_service = scoring_service or ServiceFactory.get_scoring_service()
+            stock_pool_service = stock_pool_service or ServiceFactory.get_stock_pool_service()
+
+        symbols_param = params.get("symbols") or []
+        if symbols_param:
+            symbols = (list(symbols_param) if isinstance(symbols_param, list)
+                       else [symbols_param])
+        else:
+            reader = self._watchlist_reader
+            if reader is None:
+                from adapters.shared import _read_watchlist
+                reader = _read_watchlist
+            try:
+                watchlist = reader() or {}
+                watchlist_symbols = [item["symbol"] for item in watchlist.get("items", [])
+                                     if item.get("symbol")]
+            except Exception as e:
+                logger.warning("opportunity_scan_daily: 自选股读取失败，仅扫描热门池", error=str(e))
+                watchlist_symbols = []
+            symbols = stock_pool_service.get_scan_universe(watchlist_symbols)
+        symbols = sorted({str(symbol).strip() for symbol in symbols if str(symbol).strip()})
+        if not symbols:
+            return JobResult.fail(self.name, "机会扫描宇宙为空，请检查股票池数据源")
+
+        no_cache = bool(params.get("no_cache", False))
+        opportunities = scoring_service.score_stocks(
+            symbols=symbols,
+            filters={"technical": [], "fundamental": []},
+            weights=None,
+            no_cache=no_cache,
+        ) or []
+        diagnostics = dict(getattr(scoring_service, "last_diagnostics", None) or {})
+        scored = int(diagnostics.get("scored", len(opportunities)))
+        if scored == 0:
+            return JobResult(
+                success=False,
+                action=self.name,
+                message="股票池非空但没有股票评分成功",
+                details={"scanned": len(symbols), "scored": 0,
+                         "diagnostics": diagnostics},
+                error="all_scoring_failed",
+            )
+
+        min_score = float(params.get("min_score", 80))
+        max_risk_level = str(params.get("max_risk_level", "high"))
+        top_n = max(1, min(int(params.get("top_n", 10)), 100))
+        risk_levels = {"low": 1, "medium": 2, "high": 3}
+        max_risk = risk_levels.get(max_risk_level, 3)
+        candidates = [
+            opp for opp in opportunities
+            if risk_levels.get(opp.get("risk_level"), 3) <= max_risk
+            and float(opp.get("score", 0)) >= min_score
+        ]
+        candidates.sort(key=lambda opp: float(opp.get("score", 0)), reverse=True)
+        candidates = candidates[:top_n]
+        for opp in candidates:
+            opp["scoring_method"] = "ddd_industry_neutral_smooth"
+
+        auto_create = bool(params.get("auto_create_rules", True))
+        rule_results = []
+        if auto_create and candidates:
+            rule_service = self._rule_service
+            if rule_service is None:
+                from qs_watch.application.services.opportunity_to_watch_rule_service import (
+                    OpportunityToWatchRuleService,
+                )
+                rule_service = OpportunityToWatchRuleService()
+            rule_results = rule_service.auto_create_rules(candidates)
+
+        created = sum(result.get("action") == "created" for result in rule_results)
+        skipped = sum(result.get("action") == "skipped" for result in rule_results)
+        failed = sum(result.get("action") == "failed" for result in rule_results)
+        high_score_candidates = [
+            opp for opp in candidates if float(opp.get("score", 0)) >= 80
+        ]
+        notify = bool(params.get("notify", True))
+        notified = False
+        notification_error = None
+        if notify and high_score_candidates:
+            from qs_notification.infrastructure.formatters.opportunity_scan_formatter import (
+                render_opportunity_scan_summary,
+            )
+            title, body = render_opportunity_scan_summary(
+                high_score_candidates,
+                rule_results,
+                scanned=len(symbols),
+                scored=scored,
+                trade_date=params.get("trade_date"),
+                auto_create_rules=auto_create,
+            )
+            sender = self._notification_sender
+            if sender is None:
+                from qs_notification.application import get_notification_facade
+                facade = get_notification_facade()
+
+                def sender(title, body):
+                    return facade.send_watch_receipt(
+                        title, body, os_channel="watch_symbol")
+
+            try:
+                notified = bool(sender(title, body))
+                if not notified:
+                    notification_error = "sender_returned_false"
+            except Exception as e:
+                notification_error = str(e)
+                logger.error("opportunity_scan_daily: 盯盘群通知失败", error=str(e))
+
+        details = {
+            "scanned": len(symbols),
+            "scored": scored,
+            "candidates": len(candidates),
+            "created": created,
+            "skipped": skipped,
+            "failed": failed,
+            "auto_create_rules": auto_create,
+            "rule_results": rule_results,
+            "notified": notified,
+            "notification_error": notification_error,
+            "diagnostics": diagnostics,
+        }
+        message = (f"机会扫描完成：{len(symbols)} 只，候选 {len(candidates)} 个，"
+                   f"新建规则 {created} 条，跳过 {skipped} 条，失败 {failed} 条")
+        errors = []
+        if failed:
+            errors.append(f"{failed} 条盯盘规则创建失败")
+        if notification_error:
+            errors.append(f"盯盘群通知失败：{notification_error}")
+        if errors:
+            return JobResult(
+                success=False, action=self.name, message=message,
+                details=details, error="；".join(errors),
+            )
+        return JobResult.ok(self.name, message=message, **details)
+
+
 class FundFlowUpdateJob(Job):
     """全市场资金流向每日采集"""
 
@@ -237,20 +421,30 @@ class SignalPerfBackfillJob(Job):
             from qs_sourcing.application.services.signal_tracking_service import SignalTrackingService
             # 不传连接：SignalTrackingRepository 内部自建 psycopg2 裸连接
             svc = SignalTrackingService()
-            return svc.update_performance(lookback_days=params.get('lookback_days', 30))
+            return svc.update_performance(lookback_days=params.get('lookback_days'))
 
         try:
             result = await asyncio.to_thread(_run)
             updated = result.get('updated', 0)
+            if not result.get('complete', True):
+                return JobResult(
+                    success=False,
+                    action=self.name,
+                    error='到期信号仍存在缺 K 线或非法信号，未完整回填',
+                    details={'result': result},
+                )
             return JobResult.ok(self.name, message=f"信号回填完成：更新 {updated} 条", details=result)
         except Exception as e:
             return JobResult.fail(self.name, str(e))
 
 
-# 导出所有信号类任务
+# 导出所有内置调度的信号类任务。
+# SignalPerfBackfillJob 保留为手工执行实现，但不进入内置注册表：
+# 生产唯一调度所有者是 Agent OS 的同名 webhook（signal_tracking.py），
+# 双注册曾导致每日 15:45 同一回填并发执行两次。
 SIGNAL_JOBS = [
     SignalGenerateJob(),
     SignalExecutionDailyJob(),
+    OpportunityScanDailyJob(),
     FundFlowUpdateJob(),
-    SignalPerfBackfillJob(),
 ]

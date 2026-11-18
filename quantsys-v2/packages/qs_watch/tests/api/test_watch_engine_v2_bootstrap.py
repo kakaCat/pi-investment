@@ -41,6 +41,12 @@ class TestStartStop:
     def test_stop_none_safe(self):
         watch_bootstrap_v2.stop_watch_engine_v2(None)  # 不应抛异常
 
+    def test_stop_releases_engine_resources(self):
+        calls = []
+        engine = type('Engine', (), {'stop': lambda self: calls.append('engine')})()
+        watch_bootstrap_v2.stop_watch_engine_v2(engine)
+        assert calls == ['engine']
+
 
 class TestDailyJobRegistered:
     def test_v2_daily_cycle_reset_registered(self):

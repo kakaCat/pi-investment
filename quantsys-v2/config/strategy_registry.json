@@ -29,7 +29,7 @@
   {
    "strategy_id": null,
    "name": "core-overlay-v1",
-   "source": "core_plan",
+   "source": "portfolio_decision",
    "kind": "overlay",
    "status": "active",
    "forced": false,
@@ -58,9 +58,9 @@
     "window": "2024-07-01~2026-09-11",
     "universe": "等权 core（流动性 Top 800，2024H1 定义的最活跃池）"
    },
-   "plan_file": "quantsys-v2/config/core_plan.json",
+   "plan_source": "qs_plan",
    "evidence_file": "config/core_overlay_evidence.json",
-   "consume_hint": "消费端（agent-brain-candidate-hunt）对 source=core_plan 的条目：读取 plan_file 的 holdings 作为候选，并按 exposure 口径给仓位；不要调用 strategy_execute（本条目不产生单标的买卖信号）。"
+   "consume_hint": "消费端（agent-brain-candidate-hunt）读取 trading_plan.today：按账户计划 items 的 targets/weights 作为候选；不要调用 strategy_execute（本条目不产生单标的买卖信号）。"
   }
  ]
 }

@@ -981,6 +981,9 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
         realized_pnl: Optional[float] = None,
         realized_pnl_rate: Optional[float] = None,
         reason: Optional[str] = None,
+        plan_id: Optional[int] = None,
+        plan_version: Optional[int] = None,
+        item_id: Optional[int] = None,
         write_flow: bool = True,
         commit: bool = True
     ) -> Optional[int]:
@@ -1037,6 +1040,9 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
                 realized_pnl=realized_pnl,
                 realized_pnl_rate=realized_pnl_rate,
                 reason=reason,
+                plan_id=plan_id,
+                plan_version=plan_version,
+                item_id=item_id,
             )
             self.session.add(trade)
             self.session.flush()

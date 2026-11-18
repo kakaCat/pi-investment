@@ -10,6 +10,9 @@ from typing import Any, Dict, Optional
 import structlog
 from sqlalchemy import text
 
+from adapters.outbound.repositories.trading_plan_unit_of_work import TradingPlanUnitOfWork
+from qs_plan.application.plan_generation_service import AccountPlanError
+from qs_plan.application.plan_progress_service import PlanProgressService
 from qs_plan.application.plan_service import PlanError, PlanService
 
 logger = structlog.get_logger(__name__)
@@ -62,6 +65,39 @@ def _sold_qty(plan_id: int, account: str, symbol: str) -> Optional[int]:
         return None
 
 
+class AccountPlanProgressPort:
+    """带 item_id 的新成交 → 账户级计划项推进。"""
+
+    def __init__(self, unit_of_work_factory=None, remaining_provider=None):
+        self._service = PlanProgressService(
+            unit_of_work_factory=unit_of_work_factory or TradingPlanUnitOfWork,
+            remaining_qty_provider=remaining_provider or _remaining_qty,
+        )
+
+    def __call__(self, fill: Dict[str, Any]) -> Dict[str, Any]:
+        try:
+            return self._service.on_fill(
+                account=fill.get("account") or fill.get("account_name") or "",
+                symbol=fill.get("symbol") or "",
+                side=str(fill.get("action") or "").lower(),
+                qty=int(fill.get("shares") or 0),
+                remaining_qty=None,
+                trade_id=fill.get("trade_id"),
+                plan_id=fill.get("plan_id"),
+                item_id=fill.get("item_id"),
+                plan_version=fill.get("plan_version"),
+            )
+        except AccountPlanError as e:
+            logger.error(
+                "账户计划推进被拒",
+                plan_id=fill.get("plan_id"),
+                item_id=fill.get("item_id"),
+                code=e.code,
+                error=e.message,
+            )
+            return {"status": "rejected", "code": e.code, "error": e.message}
+
+
 class PlanProgressPort:
     """__call__(fill) → dict：推进计划状态并返回结果（供回执留痕）。"""
 
@@ -91,6 +127,8 @@ class PlanProgressPort:
         plan_id = fill.get("plan_id")
         if plan_id is None:
             return {"status": "skipped", "reason": "no_plan_id"}
+        if fill.get("item_id") is not None:
+            return AccountPlanProgressPort(remaining_provider=self._remaining)(fill)
         account = fill.get("account") or fill.get("account_name") or ""
         symbol = fill.get("symbol") or ""
         side = str(fill.get("action") or "").lower()

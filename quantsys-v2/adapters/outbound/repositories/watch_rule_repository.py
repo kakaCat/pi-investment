@@ -1,12 +1,26 @@
 """WatchEngine 盯盘规则/触发记录 ORM Repository"""
+
 from datetime import datetime, timedelta
 from typing import List, Optional
 
 import structlog
 from sqlalchemy import (
-    Column, Integer, String, Boolean, DateTime, Numeric, Text, ForeignKey, or_, func,
-    bindparam, case, update as sa_update, insert as sa_insert,
-    update as sa_table_update, text,
+    Column,
+    Integer,
+    String,
+    Boolean,
+    DateTime,
+    Numeric,
+    Text,
+    ForeignKey,
+    or_,
+    func,
+    bindparam,
+    case,
+    update as sa_update,
+    insert as sa_insert,
+    update as sa_table_update,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.exc import SQLAlchemyError
@@ -30,15 +44,28 @@ from qs_watch.domain.watch.services.position_state_policy import (  # noqa: F401
     normalize_position_state,
     rule_position_state,
 )
+
 POSITION_STATES = (POSITION_STATE_NONE, POSITION_STATE_HOLDING)
 
 #: 迁移 20261021_watch_rules_position_interval.py 新增的两列。
 #: 2026-10-22 三分支落地新增列：rule_state/invalid_reason/invalid_at/confirm_count。
 #: 缺列库（未跑迁移的 *_test）fail-open：INSERT 不带默认值、UPDATE 忽略这些字段。
-NEW_RULE_COLUMNS = ('plan_id', 'position_state', 'interval_sec', 'watch_tier',
-                    'rule_state', 'invalid_reason', 'invalid_at', 'confirm_count',
-                    'invalidation_threshold_pct', 'invalid_escalated_at',
-                    'trigger_channel', 'process_state', 'cycle_count', 'engine')
+NEW_RULE_COLUMNS = (
+    "plan_id",
+    "position_state",
+    "interval_sec",
+    "watch_tier",
+    "rule_state",
+    "invalid_reason",
+    "invalid_at",
+    "confirm_count",
+    "invalidation_threshold_pct",
+    "invalid_escalated_at",
+    "trigger_channel",
+    "process_state",
+    "cycle_count",
+    "engine",
+)
 
 #: 失效偏离阈值全局默认（%，2026-10-22）：agent 创建规则未显式设定时的兜底值。
 #: **必填语义**（用户裁定）：invalidation_threshold_pct 像止盈价/止损价一样是规则的
@@ -56,9 +83,9 @@ def normalize_invalidation_threshold(value):
         return DEFAULT_INVALIDATION_THRESHOLD_PCT
     v = float(value)
     if v <= 0:
-        raise ValueError(
-            'invalidation_threshold_pct 必须为正数（%%）， got %r' % (value,))
+        raise ValueError("invalidation_threshold_pct 必须为正数（%%）， got %r" % (value,))
     return v
+
 
 #: 列预检的缓存（key = engine url）。列一旦落库不会消失，缓存 True 安全；
 #: 迁移在运行中落地时调 reset_watch_rules_column_cache() 或重启进程即可。
@@ -86,13 +113,13 @@ def normalize_interval_sec(value) -> Optional[int]:
     if isinstance(value, str) and not value.strip():
         return None
     if isinstance(value, bool):
-        raise ValueError('interval_sec 必须是整数秒或 None（收到布尔值）')
+        raise ValueError("interval_sec 必须是整数秒或 None（收到布尔值）")
     try:
         seconds = int(value)
     except (TypeError, ValueError):
-        raise ValueError('interval_sec 必须是整数秒或 None（收到的：%r）' % (value,))
+        raise ValueError("interval_sec 必须是整数秒或 None（收到的：%r）" % (value,))
     if seconds < 1:
-        raise ValueError('interval_sec 必须 >= 1 秒，或给 None 表示跟随全局档')
+        raise ValueError("interval_sec 必须 >= 1 秒，或给 None 表示跟随全局档")
     return seconds
 
 
@@ -103,20 +130,20 @@ def normalize_watch_tier(value) -> int:
     路由层 catch 后回 400，不让它落库后变成"抽奖"）。
     """
     if isinstance(value, bool) or value is None:
-        raise ValueError('watch_tier 必填且只能是 30 / 600 / 1800，got %r' % (value,))
+        raise ValueError("watch_tier 必填且只能是 30 / 600 / 1800，got %r" % (value,))
     try:
         tier = int(value)
     except (TypeError, ValueError):
-        raise ValueError('watch_tier 只能是整数秒（30/600/1800），got %r' % (value,))
+        raise ValueError("watch_tier 只能是整数秒（30/600/1800），got %r" % (value,))
     if tier not in (30, 600, 1800):
-        raise ValueError('watch_tier 只能是 30 / 600 / 1800 秒，got %r' % (value,))
+        raise ValueError("watch_tier 只能是 30 / 600 / 1800 秒，got %r" % (value,))
     return tier
 
 
 def rule_interval_sec(rule) -> Optional[int]:
     """读口径（fail-open）：正整数秒；NULL、缺列、非法值 → None（跟随全局档）。"""
     try:
-        raw = getattr(rule, 'interval_sec', None)
+        raw = getattr(rule, "interval_sec", None)
     except Exception:  # noqa: BLE001
         return None
     if raw is None:
@@ -124,14 +151,15 @@ def rule_interval_sec(rule) -> Optional[int]:
     try:
         return normalize_interval_sec(raw)
     except ValueError:
-        logger.debug('非法 interval_sec，按未设置处理',
-                     rule_id=getattr(rule, 'id', None), value=raw)
+        logger.debug(
+            "非法 interval_sec，按未设置处理", rule_id=getattr(rule, "id", None), value=raw
+        )
         return None
 
 
 class WatchRule(Base):
-    __tablename__ = 'watch_rules'
-    __table_args__ = {'schema': 'quant'}
+    __tablename__ = "watch_rules"
+    __table_args__ = {"schema": "quant"}
 
     id = Column(Integer, primary_key=True)
     symbol = Column(String(20), nullable=False)
@@ -141,13 +169,13 @@ class WatchRule(Base):
     cost_price = Column(Numeric(12, 4))
     active_window = Column(JSONB)
     expires_at = Column(DateTime)
-    created_by = Column(String(50), default='agent')
+    created_by = Column(String(50), default="agent")
     # account：规则归属账户（account_name 全名）。None=通用观察（无主/跨账户候选，
     # 2026-09-04 看板按账户分组展示用）。历史规则由迁移脚本按 context/持仓回填。
     account = Column(String(50))
     # notify_mode：direct=v2 直发飞书（纯提醒）；agent=唤醒 LLM 分析后再发
     # （2026-09-02 修复：模型此前漏此列，致 getattr 拿不到、agent 模式静默降级为 direct）
-    notify_mode = Column(String(20), default='direct')
+    notify_mode = Column(String(20), default="direct")
     # RFC 011：分层提醒与自动升级
     action_hint = Column(JSONB, default={})
     escalation_policy = Column(JSONB, default={})
@@ -160,8 +188,8 @@ class WatchRule(Base):
     # 也不落库（#120 改成 entry 看似成功、库里仍是旧值）；②锚点 agent_response 在
     # WatchTrigger 里也有，第一次补列插错了类。补 ORM 列时必须做唯一性断言。
     intent = Column(String(30))
-    lifecycle_stage = Column(String(30), default='tracking')
-    scope = Column(String(20), default='symbol')
+    lifecycle_stage = Column(String(30), default="tracking")
+    scope = Column(String(20), default="symbol")
     target = Column(String(60))
     linked_account = Column(String(60))
     created_from = Column(String(80))
@@ -211,27 +239,29 @@ class WatchRule(Base):
     # 既违反 position_state 的 NOT NULL，又会在缺列库上 UndefinedColumn ——
     # 实测第一版（无 server_default）就是这么把 6 个既有仓储测试打红的。
     position_state = Column(String(16), server_default=text("'none'"))
-    interval_sec = Column(Integer, server_default=text('NULL'))
+    interval_sec = Column(Integer, server_default=text("NULL"))
     # ── 盯盘 V2 定时任务档位（2026-10-23）────────────────────────────────
     # 30 / 600 / 1800 秒：由开盘任务与各档位任务按"现价与触发价的距离"重算并回写。
     # server_default 让缺列库（未跑迁移的 *_test）的 INSERT 不带该列（同 position_state）。
-    watch_tier = Column(Integer, server_default=text('30'))
+    watch_tier = Column(Integer, server_default=text("30"))
     # RFC 017 后续（REQ-261021222905-6dff t6）：托管归属。
     # NULL = 非托管（既有规则行为零变化）；计划编译器写入后该规则由计划唯一托管。
-    plan_id = Column(Integer, server_default=text('NULL'))
+    plan_id = Column(Integer, server_default=text("NULL"))
+    # 账户级计划项归因（REQ-261026140857-c192）：NULL = 旧计划/非托管规则。
+    item_id = Column(Integer, server_default=text("NULL"))
 
     # ── 规则生命周期三态 + 确认直通（2026-10-22，迁移 20261022_watch_rules_state）
     # server_default 让缺列库（未跑迁移的 *_test）的 INSERT 不带这些列，
     # 与 position_state 同一理由（本文件 168-170 行注释）。
     rule_state = Column(String(16), server_default=text("'active'"))
-    invalid_reason = Column(Text, server_default=text('NULL'))
-    invalid_at = Column(DateTime, server_default=text('NULL'))
-    confirm_count = Column(Integer, server_default=text('0'))
+    invalid_reason = Column(Text, server_default=text("NULL"))
+    invalid_at = Column(DateTime, server_default=text("NULL"))
+    confirm_count = Column(Integer, server_default=text("0"))
     # 失效偏离阈值（agent 按规则设定，正数）——必填，像止盈价/止损价一样是规则的
     # 具体参数（2026-10-22 用户裁定）。server_default NULL = 缺列库 fail-open。
-    invalidation_threshold_pct = Column(Numeric(6, 2), server_default=text('NULL'))
+    invalidation_threshold_pct = Column(Numeric(6, 2), server_default=text("NULL"))
     # 滞留升级标记：invalid 超龄未裁决时提醒用户后置时间（NULL=未提醒，每个规则只提醒一次）
-    invalid_escalated_at = Column(DateTime, server_default=text('NULL'))
+    invalid_escalated_at = Column(DateTime, server_default=text("NULL"))
 
     # ── V2 触发路由（REQ-261022235419-2299 t1/t9）─────────────────────────
     # 是否触发 agent（D-15）：agent=发 agent 判断 / direct=直发。每日重置不清此列。
@@ -239,17 +269,17 @@ class WatchRule(Base):
     # agent 处理状态（D-14）：pending=待处理 / processed=已处理；每日收盘重置回 pending
     process_state = Column(String(16), server_default=text("'pending'"))
     # 10 次循环计数 0..9（D-16/19 per-rule）：第 10 次直通群后归零
-    cycle_count = Column(Integer, server_default=text('0'))
+    cycle_count = Column(Integer, server_default=text("0"))
     # 触发落库来源标记（backend.md）：v1 / v2 —— 影子期双写对账按此区分
     engine = Column(String(8), server_default=text("'v1'"))
 
 
 class WatchTrigger(Base):
-    __tablename__ = 'watch_triggers'
-    __table_args__ = {'schema': 'quant'}
+    __tablename__ = "watch_triggers"
+    __table_args__ = {"schema": "quant"}
 
     id = Column(Integer, primary_key=True)
-    rule_id = Column(Integer, ForeignKey('quant.watch_rules.id', ondelete='SET NULL'))
+    rule_id = Column(Integer, ForeignKey("quant.watch_rules.id", ondelete="SET NULL"))
     symbol = Column(String(20), nullable=False)
     condition = Column(JSONB, nullable=False)
     trigger_price = Column(Numeric(12, 4))
@@ -260,7 +290,7 @@ class WatchTrigger(Base):
     # ── 处置状态机（REQ-f08def，2026-09-11）─────────────────────────────
     # 为什么要落库：实测近 200 条触发 agent_response 全为 null，触发无终态 = 无闭环。
     # disposition 让每条触发有明确归属：机械归档 / 去重合并 / 升级给 agent / 待处置 / 已处置。
-    disposition = Column(String(20), default='pending')
+    disposition = Column(String(20), default="pending")
     disposition_reason = Column(Text)
     # 2026-10-19 加宽 50→120：生产实测 15 条顶格值全为 agent 会话 ID（investor-session-*,恰 50 字符被调用方先裁）——处置人是审计归因字段，须容下完整会话 ID（迁移：20261019_watch_triggers_disposition_by_widen）
     disposition_by = Column(String(120))
@@ -282,84 +312,99 @@ class WatchTrigger(Base):
 def rule_to_dict(rule: WatchRule) -> dict:
     """序列化为 API 响应 dict（snake_case，与现有契约风格一致）"""
     return {
-        'id': rule.id,
-        'symbol': rule.symbol,
-        'enabled': rule.enabled,
-        'conditions': rule.conditions,
-        'context': rule.context,
-        'cost_price': float(rule.cost_price) if rule.cost_price is not None else None,
-        'active_window': rule.active_window,
-        'expires_at': rule.expires_at.isoformat() if rule.expires_at else None,
-        'created_by': rule.created_by,
-        'account': rule.account,
-        'notify_mode': rule.notify_mode,
-        'action_hint': rule.action_hint,
-        'escalation_policy': rule.escalation_policy,
-        'created_at': rule.created_at.isoformat() if rule.created_at else None,
-        'updated_at': rule.updated_at.isoformat() if rule.updated_at else None,
+        "id": rule.id,
+        "symbol": rule.symbol,
+        "enabled": rule.enabled,
+        "conditions": rule.conditions,
+        "context": rule.context,
+        "cost_price": float(rule.cost_price) if rule.cost_price is not None else None,
+        "active_window": rule.active_window,
+        "expires_at": rule.expires_at.isoformat() if rule.expires_at else None,
+        "created_by": rule.created_by,
+        "account": rule.account,
+        "notify_mode": rule.notify_mode,
+        "action_hint": rule.action_hint,
+        "escalation_policy": rule.escalation_policy,
+        "created_at": rule.created_at.isoformat() if rule.created_at else None,
+        "updated_at": rule.updated_at.isoformat() if rule.updated_at else None,
         # ── 价值生命周期字段（REQ-f08def P1，RFC 014 v3 §7.1）──
         # 没有 intent/lifecycle_stage，agent 拿到触发不知道该回答什么问题。
-        'intent': getattr(rule, 'intent', None),
-        'lifecycle_stage': getattr(rule, 'lifecycle_stage', None),
-        'scope': getattr(rule, 'scope', None),
-        'target': getattr(rule, 'target', None),
-        'linked_account': getattr(rule, 'linked_account', None),
-        'created_from': getattr(rule, 'created_from', None),
-        'next_action_hint': getattr(rule, 'next_action_hint', None),
+        "intent": getattr(rule, "intent", None),
+        "lifecycle_stage": getattr(rule, "lifecycle_stage", None),
+        "scope": getattr(rule, "scope", None),
+        "target": getattr(rule, "target", None),
+        "linked_account": getattr(rule, "linked_account", None),
+        "created_from": getattr(rule, "created_from", None),
+        "next_action_hint": getattr(rule, "next_action_hint", None),
         # 决策化改造（REQ-261016155500-4f2a）：结构化操作指引 + 机器注记
-        'action_params': getattr(rule, 'action_params', None),
-        'ops_notes': getattr(rule, 'ops_notes', None),
+        "action_params": getattr(rule, "action_params", None),
+        "ops_notes": getattr(rule, "ops_notes", None),
         # RFC 017（2026-10-21）：持仓状态 / 规则级盯盘频率。
         # position_state=None 表示**状态不可知**（NULL/缺列），消费方须 fail-open
         # 旧行为，不要把它当成 'none'（那会误判"确认无持仓"）。
-        'position_state': rule_position_state(rule),
-        'interval_sec': rule_interval_sec(rule),
+        "position_state": rule_position_state(rule),
+        "interval_sec": rule_interval_sec(rule),
         # 盯盘 V2 定时任务档位（30/600/1800 秒）；缺列/脏值 → None（消费方按默认档处理）
-        'watch_tier': getattr(rule, 'watch_tier', None),
-        'plan_id': getattr(rule, 'plan_id', None),
+        "watch_tier": getattr(rule, "watch_tier", None),
+        "plan_id": getattr(rule, "plan_id", None),
         # ── 规则生命周期三态 + 确认直通（2026-10-22）──
         # rule_state: active=在盯盘 / invalid=失效待裁决 / archived=过滤丢弃
-        'rule_state': getattr(rule, 'rule_state', 'active'),
-        'invalid_reason': getattr(rule, 'invalid_reason', None),
-        'invalid_at': rule.invalid_at.isoformat() if getattr(rule, 'invalid_at', None) else None,
-        'confirm_count': getattr(rule, 'confirm_count', 0) or 0,
+        "rule_state": getattr(rule, "rule_state", "active"),
+        "invalid_reason": getattr(rule, "invalid_reason", None),
+        "invalid_at": rule.invalid_at.isoformat() if getattr(rule, "invalid_at", None) else None,
+        "confirm_count": getattr(rule, "confirm_count", 0) or 0,
         # 失效偏离阈值（agent 设定，必填）：像止盈价/止损价一样是规则的具体参数
-        'invalidation_threshold_pct': (float(rule.invalidation_threshold_pct)
-                                       if getattr(rule, 'invalidation_threshold_pct', None) is not None else None),
-        'invalid_escalated_at': rule.invalid_escalated_at.isoformat() if getattr(rule, 'invalid_escalated_at', None) else None,
-        'last_reviewed_at': rule.last_reviewed_at.isoformat() if getattr(rule, 'last_reviewed_at', None) else None,
-        'review_interval_days': getattr(rule, 'review_interval_days', None),
-        'review_due_at': rule.review_due_at.isoformat() if getattr(rule, 'review_due_at', None) else None,
-        'value_ledger': {
-            'valuable_actions': getattr(rule, 'valuable_actions', 0) or 0,
-            'valuable_reviews': getattr(rule, 'valuable_reviews', 0) or 0,
-            'interventions': getattr(rule, 'interventions', 0) or 0,
-            'noise_triggers': getattr(rule, 'noise_triggers', 0) or 0,
-            'tokens_cost': getattr(rule, 'tokens_cost', 0.0) or 0.0,
-            'last_value_at': rule.last_value_at.isoformat() if getattr(rule, 'last_value_at', None) else None,
+        "invalidation_threshold_pct": (
+            float(rule.invalidation_threshold_pct)
+            if getattr(rule, "invalidation_threshold_pct", None) is not None
+            else None
+        ),
+        "invalid_escalated_at": (
+            rule.invalid_escalated_at.isoformat()
+            if getattr(rule, "invalid_escalated_at", None)
+            else None
+        ),
+        "last_reviewed_at": (
+            rule.last_reviewed_at.isoformat() if getattr(rule, "last_reviewed_at", None) else None
+        ),
+        "review_interval_days": getattr(rule, "review_interval_days", None),
+        "review_due_at": (
+            rule.review_due_at.isoformat() if getattr(rule, "review_due_at", None) else None
+        ),
+        "value_ledger": {
+            "valuable_actions": getattr(rule, "valuable_actions", 0) or 0,
+            "valuable_reviews": getattr(rule, "valuable_reviews", 0) or 0,
+            "interventions": getattr(rule, "interventions", 0) or 0,
+            "noise_triggers": getattr(rule, "noise_triggers", 0) or 0,
+            "tokens_cost": getattr(rule, "tokens_cost", 0.0) or 0.0,
+            "last_value_at": (
+                rule.last_value_at.isoformat() if getattr(rule, "last_value_at", None) else None
+            ),
         },
     }
 
 
 def trigger_to_dict(t: WatchTrigger) -> dict:
     return {
-        'id': t.id,
-        'rule_id': t.rule_id,
-        'symbol': t.symbol,
-        'condition': t.condition,
-        'trigger_price': float(t.trigger_price) if t.trigger_price is not None else None,
-        'detail': t.detail,
-        'agent_response': t.agent_response,
-        'notified': t.notified,
-        'triggered_at': t.triggered_at.isoformat() if t.triggered_at else None,
+        "id": t.id,
+        "rule_id": t.rule_id,
+        "symbol": t.symbol,
+        "condition": t.condition,
+        "trigger_price": float(t.trigger_price) if t.trigger_price is not None else None,
+        "detail": t.detail,
+        "agent_response": t.agent_response,
+        "notified": t.notified,
+        "triggered_at": t.triggered_at.isoformat() if t.triggered_at else None,
         # 处置状态机字段（REQ-f08def）
-        'disposition': getattr(t, 'disposition', None),
-        'disposition_reason': getattr(t, 'disposition_reason', None),
-        'disposition_by': getattr(t, 'disposition_by', None),
-        'disposition_at': t.disposition_at.isoformat() if getattr(t, 'disposition_at', None) else None,
-        'dup_of': getattr(t, 'dup_of', None),
+        "disposition": getattr(t, "disposition", None),
+        "disposition_reason": getattr(t, "disposition_reason", None),
+        "disposition_by": getattr(t, "disposition_by", None),
+        "disposition_at": (
+            t.disposition_at.isoformat() if getattr(t, "disposition_at", None) else None
+        ),
+        "dup_of": getattr(t, "dup_of", None),
         # 抑噪标记（R6/t8）：true = 该触发产生于规则抑噪期，只进聚合不推送
-        'suppressed': getattr(t, 'suppressed', None),
+        "suppressed": getattr(t, "suppressed", None),
     }
 
 
@@ -389,7 +434,7 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
             bind = self.session.get_bind()
         except Exception:  # noqa: BLE001
             return True
-        key = str(getattr(bind, 'url', bind))
+        key = str(getattr(bind, "url", bind))
         cached = _COLUMNS_PRESENT_CACHE.get(key)
         if cached is not None:
             return cached
@@ -402,11 +447,11 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
             missing = [name for name in NEW_RULE_COLUMNS if name not in present]
             available = not missing
         except Exception as e:  # noqa: BLE001
-            logger.warning('watch_rules 列预检失败，按新列在位处理', error=str(e))
+            logger.warning("watch_rules 列预检失败，按新列在位处理", error=str(e))
             self._safe_rollback()
         if not available:
             logger.warning(
-                'watch_rules 缺 position_state/interval_sec 列（迁移未落库），新字段按旧行为 fail-open',
+                "watch_rules 缺 position_state/interval_sec 列（迁移未落库），新字段按旧行为 fail-open",
                 missing=missing,
             )
         _COLUMNS_PRESENT_CACHE[key] = available
@@ -424,22 +469,19 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
         if rule is None or self._new_columns_available():
             return rule
         try:
-            set_committed_value(rule, 'position_state', None)
-            set_committed_value(rule, 'interval_sec', None)
+            set_committed_value(rule, "position_state", None)
+            set_committed_value(rule, "interval_sec", None)
         except Exception:  # noqa: BLE001 - 注入失败也不该让读路径崩
-            logger.debug('legacy 默认值注入失败', rule_id=getattr(rule, 'id', None))
+            logger.debug("legacy 默认值注入失败", rule_id=getattr(rule, "id", None))
         return rule
 
     def _reload_rule(self, rule_id):
         if rule_id is None:
             return None
         try:
-            rule = (self._rule_query()
-                    .populate_existing()
-                    .filter(WatchRule.id == rule_id)
-                    .first())
+            rule = self._rule_query().populate_existing().filter(WatchRule.id == rule_id).first()
         except SQLAlchemyError as e:
-            logger.error('规则重载失败', rule_id=rule_id, error=str(e))
+            logger.error("规则重载失败", rule_id=rule_id, error=str(e))
             self._safe_rollback()
             return None
         return self._apply_legacy_defaults(rule)
@@ -450,11 +492,9 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
             if self._new_columns_available():
                 rule = self.session.get(WatchRule, id_value)
             else:
-                rule = (self._rule_query()
-                        .filter(WatchRule.id == id_value)
-                        .first())
+                rule = self._rule_query().filter(WatchRule.id == id_value).first()
         except SQLAlchemyError as e:
-            logger.error('读取规则失败', rule_id=id_value, error=str(e))
+            logger.error("读取规则失败", rule_id=id_value, error=str(e))
             self._safe_rollback()
             return None
         return self._apply_legacy_defaults(rule)
@@ -471,7 +511,7 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
         if self._new_columns_available():
             return self.create(rule)
         table = WatchRule.__table__
-        safe_columns = set(self._SAFE_RULE_COLUMNS) - {'id'}
+        safe_columns = set(self._SAFE_RULE_COLUMNS) - {"id"}
         values = {k: v for k, v in vars(rule).items() if k in safe_columns}
         try:
             rule_id = self.session.execute(
@@ -479,7 +519,7 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
             ).scalar()
             self.session.commit()
         except SQLAlchemyError as e:
-            logger.error('创建规则失败（legacy schema：缺新列）', error=str(e))
+            logger.error("创建规则失败（legacy schema：缺新列）", error=str(e))
             self._safe_rollback()
             return None
         return self._reload_rule(rule_id)
@@ -489,7 +529,7 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
         table = WatchRule.__table__
         values = dict(values)
         # 与正常路径一致：任何一次 update_fields 都推进 updated_at
-        values['updated_at'] = datetime.now()
+        values["updated_at"] = datetime.now()
         try:
             with self.session.no_autoflush:
                 self.session.execute(
@@ -497,48 +537,81 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
                 )
             self.session.commit()
         except SQLAlchemyError as e:
-            logger.error('更新规则失败（legacy schema：缺新列）', rule_id=rule_id, error=str(e))
+            logger.error("更新规则失败（legacy schema：缺新列）", rule_id=rule_id, error=str(e))
             self._safe_rollback()
             return None
         return self._reload_rule(rule_id)
 
-    def create_rule(self, symbol, conditions, context=None, cost_price=None,
-                    active_window=None, expires_at=None, created_by='agent',
-                    account=None, linked_account=None,
-                    intent=None, action_hint=None, action_params=None,
-                    position_state=None, interval_sec=None, plan_id=None,
-                    invalidation_threshold_pct=None, watch_tier=None) -> WatchRule:
+    def create_rule(
+        self,
+        symbol,
+        conditions,
+        context=None,
+        cost_price=None,
+        active_window=None,
+        expires_at=None,
+        created_by="agent",
+        account=None,
+        linked_account=None,
+        intent=None,
+        action_hint=None,
+        action_params=None,
+        position_state=None,
+        interval_sec=None,
+        plan_id=None,
+        invalidation_threshold_pct=None,
+        watch_tier=None,
+        trigger_channel=None,
+    ) -> WatchRule:
         # 铁律下沉（2026-09-11，w-aebfddcd）：没有账户的规则不能进入买卖——在**仓储层**拦，
         # 这样任何创建路径（API / 内部服务 / 定时任务）都绕不过去。观察类规则放行。
         from qs_watch.domain.watch.services.rule_guard import guard_new_rule
-        guard_new_rule(intent=intent, action_hint=action_hint, conditions=conditions,
-                       account=(linked_account or account), symbol=symbol)
+
+        guard_new_rule(
+            intent=intent,
+            action_hint=action_hint,
+            conditions=conditions,
+            account=(linked_account or account),
+            symbol=symbol,
+        )
+        if trigger_channel is not None and trigger_channel not in ("agent", "direct"):
+            raise ValueError("trigger_channel 只能是 agent/direct")
         available = self._new_columns_available()
         new_fields = {}
         if available:
             # 只在显式给值时写：不写 → INSERT 不带该列 → DB 默认 'none' 兜住存量语义
             if position_state is not None:
-                new_fields['position_state'] = normalize_position_state(position_state)
+                new_fields["position_state"] = normalize_position_state(position_state)
             if interval_sec is not None:
-                new_fields['interval_sec'] = normalize_interval_sec(interval_sec)
+                new_fields["interval_sec"] = normalize_interval_sec(interval_sec)
             if plan_id is not None:
-                new_fields['plan_id'] = int(plan_id)
+                new_fields["plan_id"] = int(plan_id)
             if watch_tier is not None:
-                new_fields['watch_tier'] = normalize_watch_tier(watch_tier)
+                new_fields["watch_tier"] = normalize_watch_tier(watch_tier)
+            if trigger_channel is not None:
+                new_fields["trigger_channel"] = trigger_channel
             # 失效阈值必填（2026-10-22 用户裁定）：像止盈价/止损价一样是规则的具体参数。
             # None → 全局默认兜住（规则上始终有具体值，程序不面对 NULL）。
-            new_fields['invalidation_threshold_pct'] = normalize_invalidation_threshold(
-                invalidation_threshold_pct)
+            new_fields["invalidation_threshold_pct"] = normalize_invalidation_threshold(
+                invalidation_threshold_pct
+            )
         elif position_state is not None or interval_sec is not None or plan_id is not None:
-            logger.warning('watch_rules 缺新列，创建时忽略 position_state/interval_sec（fail-open 旧行为）',
-                           symbol=symbol)
+            logger.warning(
+                "watch_rules 缺新列，创建时忽略 position_state/interval_sec（fail-open 旧行为）",
+                symbol=symbol,
+            )
         # 账户归一：account 与 linked_account 是同一语义的两个字段，
         # 只传其一时另一个必须跟随——否则新建的规则在投送侧（读 linked_account）看起来"无账户"，
         # 触发时会被当成数据缺陷，而创建方以为自己给了账户。
         rule = WatchRule(
-            symbol=symbol, conditions=conditions, context=context,
-            cost_price=cost_price, active_window=active_window,
-            expires_at=expires_at, created_by=created_by, enabled=True,
+            symbol=symbol,
+            conditions=conditions,
+            context=context,
+            cost_price=cost_price,
+            active_window=active_window,
+            expires_at=expires_at,
+            created_by=created_by,
+            enabled=True,
             account=account or linked_account,
             linked_account=linked_account or account,
             # 2026-09-11（w-aebfddcd）：这两个参数此前被**静默丢弃**（签名收了却不写库），
@@ -576,7 +649,7 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
         "在盯盘里" = enabled 且 rule_state=active 且未过期。保留本方法名
         兼容既有调用方，内部转调 list_by_state。
         """
-        return self.list_by_state('active')
+        return self.list_by_state("active")
 
     # ── 「活跃」口径（唯一权威，2026-10-23 用户裁定）───────────────────────
     # 活跃 = 引擎每拍真正参与判定的规则：rule_state='active' + 启用 + 未过期。
@@ -585,7 +658,7 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
     @staticmethod
     def _active_conditions():
         return (
-            WatchRule.rule_state == 'active',
+            WatchRule.rule_state == "active",
             WatchRule.enabled.is_(True),
             or_(WatchRule.expires_at.is_(None), WatchRule.expires_at > datetime.now()),
         )
@@ -598,7 +671,7 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
         与 _active_conditions 同一口径。
         """
         q = self._rule_query().filter(WatchRule.rule_state == state)
-        if state == 'active':
+        if state == "active":
             for cond in self._active_conditions():
                 q = q.filter(cond)
         return [self._apply_legacy_defaults(r) for r in q.all()]
@@ -613,19 +686,24 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
         if not self._new_columns_available():
             return []
         cutoff = datetime.now() - timedelta(hours=older_than_hours)
-        q = (self._rule_query()
-             .filter(WatchRule.rule_state == 'invalid')
-             .filter(WatchRule.invalid_at.isnot(None))
-             .filter(WatchRule.invalid_at < cutoff)
-             .filter(WatchRule.invalid_escalated_at.is_(None)))
+        q = (
+            self._rule_query()
+            .filter(WatchRule.rule_state == "invalid")
+            .filter(WatchRule.invalid_at.isnot(None))
+            .filter(WatchRule.invalid_at < cutoff)
+            .filter(WatchRule.invalid_escalated_at.is_(None))
+        )
         result = [self._apply_legacy_defaults(r) for r in q.all()]
-        self._commit_if_readonly()   # 只读事务收尾（2026-10-22 泄漏治理，同其他读方法）
+        self._commit_if_readonly()  # 只读事务收尾（2026-10-22 泄漏治理，同其他读方法）
         return result
 
-    def list_rules(self, symbol: Optional[str] = None,
-                   enabled: Optional[bool] = None,
-                   account: Optional[str] = None,
-                   rule_state: Optional[str] = None) -> List[WatchRule]:
+    def list_rules(
+        self,
+        symbol: Optional[str] = None,
+        enabled: Optional[bool] = None,
+        account: Optional[str] = None,
+        rule_state: Optional[str] = None,
+    ) -> List[WatchRule]:
         """account=某账户时返回「该账户归属 + 通用观察(account IS NULL)」——
         看板按账户展示盯盘需要两组都可见；不传则返回全部。
         rule_state=active/invalid/archived 按生命周期三态过滤（2026-10-22）。"""
@@ -660,13 +738,15 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
         """
         try:
             from sqlalchemy import update as sa_update
+
             self.session.execute(
                 sa_update(WatchRule)
                 .where(WatchRule.id == rule_id)
-                .values(confirm_count=WatchRule.confirm_count + 1))
+                .values(confirm_count=WatchRule.confirm_count + 1)
+            )
             self.session.commit()
         except Exception as e:  # noqa: BLE001 - 计数失败不阻断判定（直通是增益）
-            logger.debug('confirm_count 累加失败', rule_id=rule_id, error=str(e))
+            logger.debug("confirm_count 累加失败", rule_id=rule_id, error=str(e))
             try:
                 self.session.rollback()
             except Exception:
@@ -677,24 +757,23 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
     def get_cycle_count(self, rule_id) -> int:
         """读规则当前循环计数（0..9）；缺列/异常返回 0（按新循环首发处理）。"""
         try:
-            row = (self.session.query(WatchRule.cycle_count)
-                   .filter(WatchRule.id == rule_id).first())
+            row = self.session.query(WatchRule.cycle_count).filter(WatchRule.id == rule_id).first()
             return int(row[0] or 0) if row else 0
         except Exception as e:  # noqa: BLE001 - 缺列库 fail-open
-            logger.debug('cycle_count 读取失败', rule_id=rule_id, error=str(e))
+            logger.debug("cycle_count 读取失败", rule_id=rule_id, error=str(e))
             return 0
 
     def set_cycle_count(self, rule_id, count: int) -> None:
         """写规则循环计数（原子 UPDATE；缺列库静默跳过）。"""
         try:
             from sqlalchemy import update as sa_update
+
             self.session.execute(
-                sa_update(WatchRule)
-                .where(WatchRule.id == rule_id)
-                .values(cycle_count=int(count)))
+                sa_update(WatchRule).where(WatchRule.id == rule_id).values(cycle_count=int(count))
+            )
             self.session.commit()
         except Exception as e:  # noqa: BLE001 - 计数失败不阻断投递
-            logger.debug('cycle_count 写入失败', rule_id=rule_id, error=str(e))
+            logger.debug("cycle_count 写入失败", rule_id=rule_id, error=str(e))
             try:
                 self.session.rollback()
             except Exception:
@@ -710,7 +789,7 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
 
         返回受影响行数（缺列库返回 0，不炸）。
         """
-        stmt = sa_update(WatchRule).values(cycle_count=0, process_state='pending')
+        stmt = sa_update(WatchRule).values(cycle_count=0, process_state="pending")
         for cond in self._active_conditions():
             stmt = stmt.where(cond)
         try:
@@ -718,7 +797,7 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
             self.session.commit()
             return int(result.rowcount or 0)
         except Exception as e:  # noqa: BLE001 - 重置失败记日志继续
-            logger.warning('每日循环重置失败（V2 路由退化为持续计数）', error=str(e))
+            logger.warning("每日循环重置失败（V2 路由退化为持续计数）", error=str(e))
             try:
                 self.session.rollback()
             except Exception:
@@ -742,11 +821,19 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
         # 铁律下沉：按"改后状态"判——不许把观察规则改成买卖规则却不给账户，
         # 也不许把已有买卖规则的账户清空（任何调用方都绕不过）
         from qs_watch.domain.watch.services.rule_guard import (
-            guard_disable_rule, guard_rule_change,
+            guard_disable_rule,
+            guard_rule_change,
         )
-        guard_rule_change(rule, {k: v for k, v in fields.items()
-                                 if k in ('intent', 'action_hint', 'conditions',
-                                          'account', 'linked_account')} or None)
+
+        guard_rule_change(
+            rule,
+            {
+                k: v
+                for k, v in fields.items()
+                if k in ("intent", "action_hint", "conditions", "account", "linked_account")
+            }
+            or None,
+        )
         # 停用守卫（2026-10-20 用户裁定）：宪法级止损规则的停用必须随附理由
         # （ops_notes/context），裸 enabled=false 拒绝——300677 #103 静默停用事故的收口。
         # 卡口设在仓储层：API/批量/生命周期/引擎/自愈全部停用路径都经 update_fields，漏不掉。
@@ -756,40 +843,69 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
         if not available:
             dropped = [k for k in fields if k in NEW_RULE_COLUMNS]
             if dropped:
-                logger.warning('watch_rules 缺新列，更新忽略新字段（fail-open 旧行为）',
-                               rule_id=rule_id, dropped=dropped)
+                logger.warning(
+                    "watch_rules 缺新列，更新忽略新字段（fail-open 旧行为）",
+                    rule_id=rule_id,
+                    dropped=dropped,
+                )
                 fields = {k: v for k, v in fields.items() if k not in NEW_RULE_COLUMNS}
         # RFC 017 写入归一：position_state 永远落 none/holding（NULL→none）；
         # interval_sec 落正整数秒或 NULL（NULL=跟随全局档，显式清空既有值也用 None）。
-        if 'position_state' in fields:
-            fields['position_state'] = normalize_position_state(fields['position_state'])
-        if 'interval_sec' in fields:
-            fields['interval_sec'] = normalize_interval_sec(fields['interval_sec'])
-        if 'watch_tier' in fields:
-            fields['watch_tier'] = normalize_watch_tier(fields['watch_tier'])
+        if "position_state" in fields:
+            fields["position_state"] = normalize_position_state(fields["position_state"])
+        if "interval_sec" in fields:
+            fields["interval_sec"] = normalize_interval_sec(fields["interval_sec"])
+        if "watch_tier" in fields:
+            fields["watch_tier"] = normalize_watch_tier(fields["watch_tier"])
+        if "trigger_channel" in fields and fields["trigger_channel"] not in ("agent", "direct"):
+            raise ValueError("trigger_channel 只能是 agent/direct")
+        if "process_state" in fields and fields["process_state"] not in ("pending", "processed"):
+            raise ValueError("process_state 只能是 pending/processed")
 
-        allowed = {'symbol', 'enabled', 'conditions', 'context',
-                   'cost_price', 'active_window', 'expires_at', 'account',
-                   'notify_mode',  # 2026-09-05 补：notify_mode 曾被白名单静默丢弃
-                   # 2026-09-11（w-c8cae280 / REQ-f08def Phase 3）：规则演化（改分级/改动作/改升级策略）
-                   # 需要这两个字段可写，否则 agent 无法按 RFC 014 §4 的反馈边调整规则。
-                   'action_hint', 'escalation_policy',
-                   # REQ-f08def P2：规则重配置所需字段（价值账本计数由系统维护，不在此列）
-                   'intent', 'lifecycle_stage', 'scope', 'target',
-                   'linked_account', 'created_from', 'next_action_hint',
-                   'review_interval_days', 'review_due_at',
-                   # REQ-261016155500-4f2a：结构化操作指引与机器注记可写
-                   'action_params', 'ops_notes',
-                   # RFC 017（2026-10-21）：持仓状态与规则级频率经既有规则 CRUD 调整
-                   'position_state', 'interval_sec',
-                   # 2026-10-23：盯盘 V2 档位（30/600/1800 秒）可人工钉死；
-                   # 不钉死时由开盘任务与各档位任务按距离自动回写
-                   'watch_tier',
-                   # REQ-261021222905-6dff（2026-10-22）：计划托管归属
-                   'plan_id',
-                   # 2026-10-22 三分支：失效标记可写（引擎标 invalid / agent 裁决回写）
-                   'rule_state', 'invalid_reason', 'invalid_at',
-                   'invalidation_threshold_pct', 'invalid_escalated_at'}
+        allowed = {
+            "symbol",
+            "enabled",
+            "conditions",
+            "context",
+            "cost_price",
+            "active_window",
+            "expires_at",
+            "account",
+            "notify_mode",  # 2026-09-05 补：notify_mode 曾被白名单静默丢弃
+            # 2026-09-11（w-c8cae280 / REQ-f08def Phase 3）：规则演化（改分级/改动作/改升级策略）
+            # 需要这两个字段可写，否则 agent 无法按 RFC 014 §4 的反馈边调整规则。
+            "action_hint",
+            "escalation_policy",
+            # REQ-f08def P2：规则重配置所需字段（价值账本计数由系统维护，不在此列）
+            "intent",
+            "lifecycle_stage",
+            "scope",
+            "target",
+            "linked_account",
+            "created_from",
+            "next_action_hint",
+            "review_interval_days",
+            "review_due_at",
+            # REQ-261016155500-4f2a：结构化操作指引与机器注记可写
+            "action_params",
+            "ops_notes",
+            # RFC 017（2026-10-21）：持仓状态与规则级频率经既有规则 CRUD 调整
+            "position_state",
+            "interval_sec",
+            # 2026-10-23：盯盘 V2 档位（30/600/1800 秒）可人工钉死；
+            # 不钉死时由开盘任务与各档位任务按距离自动回写
+            "watch_tier",
+            # REQ-261021222905-6dff（2026-10-22）：计划托管归属
+            "plan_id",
+            # 2026-10-22 三分支：失效标记可写（引擎标 invalid / agent 裁决回写）
+            "rule_state",
+            "invalid_reason",
+            "invalid_at",
+            "invalidation_threshold_pct",
+            "invalid_escalated_at",
+            "trigger_channel",
+            "process_state",
+        }
         if available:
             for key, value in fields.items():
                 if key in allowed:
@@ -800,22 +916,25 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
             # 缺列：一律走 Core UPDATE（不 setattr、不 refresh 全列）。
             # 若在此处 setattr 再 commit，ORM flush 仍会把新增列塞进语句/RETURNING。
             updated = self._save_rule_fields(
-                rule_id, {k: v for k, v in fields.items() if k in allowed})
+                rule_id, {k: v for k, v in fields.items() if k in allowed}
+            )
         # 级联归档（2026-10-19）：规则「启用 → 停用」时，它名下未收敛待办的触发链
         # 已断、工单永久无法执行——不埋掉的话 SLA 巡检会继续晋升/超时打扰用户
         # （生产实测：死工单挂 3 天晋升 3 次发 3 张超时卡，最后还要人工大扫除）。
         # 在此收口而非逐调用点改：全部停用路径（API 单改/批量、持仓生命周期、
         # 引擎、健康作业、合并工具）都走 update_fields，漏不掉。
         # 静默归档不发回执——"系统扔垃圾"不值得一张卡。
-        if updated is not None and was_enabled and fields.get('enabled') is False:
+        if updated is not None and was_enabled and fields.get("enabled") is False:
             from adapters.outbound.repositories.watch_todo_repository import (
                 WatchTodoRepository,
             )
+
             WatchTodoRepository().close_open_by_rule(rule_id)
         return updated
 
-    def apply_intervention_ledger(self, rule_id: int, cost_delta: float,
-                                  valuable: bool, commit: bool = False) -> None:
+    def apply_intervention_ledger(
+        self, rule_id: int, cost_delta: float, valuable: bool, commit: bool = False
+    ) -> None:
         """把一次介入的成本/价值记到规则的价值账本（quant.watch_rules）。
 
         迁移背景（2026-09-14，w-8b43d3b8，REQ-24e15d B4-c5）：原实现是
@@ -848,9 +967,9 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
                 # 不显式给类型：NullType 直通，psycopg2 按 float8 发送，
                 # 与旧 SQL 的裸 :cost 参数同形（避免被 Numeric 强转）。
                 tokens_cost=func.coalesce(WatchRule.tokens_cost, 0)
-                + bindparam('cost_delta', cost_delta),
+                + bindparam("cost_delta", cost_delta),
                 last_value_at=case(
-                    (bindparam('valuable', valuable, type_=Boolean), func.now()),
+                    (bindparam("valuable", valuable, type_=Boolean), func.now()),
                     else_=WatchRule.last_value_at,
                 ),
             )
@@ -863,10 +982,21 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
 class WatchTriggerRepository(BaseORMRepository[WatchTrigger]):
     model = WatchTrigger
 
-    def record(self, rule_id, symbol, condition, trigger_price,
-               detail=None, notified=False, disposition='pending',
-               disposition_reason=None, disposition_by='system',
-               dup_of=None, suppressed=False, engine='v1') -> WatchTrigger:
+    def record(
+        self,
+        rule_id,
+        symbol,
+        condition,
+        trigger_price,
+        detail=None,
+        notified=False,
+        disposition="pending",
+        disposition_reason=None,
+        disposition_by="system",
+        dup_of=None,
+        suppressed=False,
+        engine="v1",
+    ) -> WatchTrigger:
         """落一条触发 + 其处置初态（REQ-f08def）。
 
         disposition 由 domain/watch/services/disposition.decide() 决定：
@@ -881,15 +1011,19 @@ class WatchTriggerRepository(BaseORMRepository[WatchTrigger]):
         无需改动。
         """
         trigger = WatchTrigger(
-            rule_id=rule_id, symbol=symbol, condition=condition,
-            trigger_price=trigger_price, detail=detail, notified=notified,
+            rule_id=rule_id,
+            symbol=symbol,
+            condition=condition,
+            trigger_price=trigger_price,
+            detail=detail,
+            notified=notified,
             disposition=disposition,
             disposition_reason=disposition_reason,
             disposition_by=disposition_by,
-            disposition_at=datetime.now() if disposition not in ('pending', 'escalated') else None,
+            disposition_at=datetime.now() if disposition not in ("pending", "escalated") else None,
             dup_of=dup_of,
             suppressed=bool(suppressed),
-            engine=str(engine or 'v1'),
+            engine=str(engine or "v1"),
         )
         return self.create(trigger)
 
@@ -905,6 +1039,13 @@ class WatchTriggerRepository(BaseORMRepository[WatchTrigger]):
         if trigger is None:
             return
         trigger.todo_id = int(todo_id)
+        self.session.commit()
+
+    def save_agent_response(self, trigger_id: int, response: dict) -> None:
+        trigger = self.get_by_id(trigger_id)
+        if trigger is None:
+            return
+        trigger.agent_response = dict(response)
         self.session.commit()
 
     def mark_notified(self, trigger_id: int, notified: bool) -> None:
@@ -928,18 +1069,19 @@ class WatchTriggerRepository(BaseORMRepository[WatchTrigger]):
         """
         return (
             self.session.query(WatchTrigger)
-            .filter(WatchTrigger.rule_id == rule_id,
-                    WatchTrigger.notified.is_(False))
+            .filter(WatchTrigger.rule_id == rule_id, WatchTrigger.notified.is_(False))
             .order_by(WatchTrigger.id.desc())
             .first()
         )
 
     def update_disposition(self, trigger_id: int, disposition: str,
-                           reason: str = None, by: str = 'agent') -> Optional[WatchTrigger]:
-        """处置一条触发（handled / ignored / expired）。ignored 必须带 reason。"""
+                           reason: str = None, by: str = 'agent',
+                           agent_response: Optional[dict] = None) -> Optional[WatchTrigger]:
+        """处置一条触发；可选同事务合并 agent 结构化裁决并保留通知审计。"""
         from qs_watch.domain.watch.services.disposition import DISPOSITION_IGNORED
-        if disposition == DISPOSITION_IGNORED and not (reason or '').strip():
-            raise ValueError('ignored 状态必须填写 reason（为什么知悉但不动作）')
+
+        if disposition == DISPOSITION_IGNORED and not (reason or "").strip():
+            raise ValueError("ignored 状态必须填写 reason（为什么知悉但不动作）")
         trigger = self.get_by_id(trigger_id)
         if trigger is None:
             return None
@@ -947,9 +1089,14 @@ class WatchTriggerRepository(BaseORMRepository[WatchTrigger]):
         trigger.disposition_reason = reason
         trigger.disposition_by = by
         trigger.disposition_at = datetime.now()
+        if agent_response is not None:
+            # 合并而非替换：保留 V2 notification_delivered 等既有审计字段。
+            trigger.agent_response = {
+                **dict(trigger.agent_response or {}),
+                **dict(agent_response),
+            }
         self.session.commit()
         return trigger
-
 
     def get_rule_trigger_stats(self) -> dict:
         """批量触发统计（元触发复核用，避免 N+1）：{rule_id: {today, last_at}}
@@ -976,8 +1123,8 @@ class WatchTriggerRepository(BaseORMRepository[WatchTrigger]):
                     WatchTrigger.rule_id,
                     func.count()
                     .filter(WatchTrigger.triggered_at >= func.current_date())
-                    .label('today_cnt'),
-                    func.max(WatchTrigger.triggered_at).label('last_at'),
+                    .label("today_cnt"),
+                    func.max(WatchTrigger.triggered_at).label("last_at"),
                 )
                 .group_by(WatchTrigger.rule_id)
                 .all()
@@ -987,6 +1134,7 @@ class WatchTriggerRepository(BaseORMRepository[WatchTrigger]):
         except Exception as e:
             self._safe_rollback()
             import structlog
+
             structlog.get_logger(__name__).warning("批量触发统计读取失败", error=str(e))
         return out
 
@@ -1011,13 +1159,19 @@ class WatchTriggerRepository(BaseORMRepository[WatchTrigger]):
         except Exception as e:  # noqa: BLE001
             self._safe_rollback()
             import structlog
-            structlog.get_logger(__name__).warning("读取规则最近触发时间失败", rule_id=rule_id, error=str(e))
+
+            structlog.get_logger(__name__).warning(
+                "读取规则最近触发时间失败", rule_id=rule_id, error=str(e)
+            )
             raise
 
-    def list_triggers(self, symbol: Optional[str] = None,
-                      disposition: Optional[str] = None,
-                      dispositions: Optional[tuple] = None,
-                      limit: int = 200) -> List[WatchTrigger]:
+    def list_triggers(
+        self,
+        symbol: Optional[str] = None,
+        disposition: Optional[str] = None,
+        dispositions: Optional[tuple] = None,
+        limit: int = 200,
+    ) -> List[WatchTrigger]:
         """按状态查触发（盘后未处置清单的数据源）"""
         q = self.session.query(WatchTrigger)
         if symbol:
@@ -1028,8 +1182,7 @@ class WatchTriggerRepository(BaseORMRepository[WatchTrigger]):
             q = q.filter(WatchTrigger.disposition.in_(list(dispositions)))
         return q.order_by(WatchTrigger.triggered_at.desc()).limit(limit).all()
 
-    def count_older_unresolved(self, since: datetime,
-                               dispositions: tuple) -> dict:
+    def count_older_unresolved(self, since: datetime, dispositions: tuple) -> dict:
         """早于 since 的未处置触发统计（digest 积压可见，REQ-261016155500-4f2a wt:engine:4）。
 
         返回 {'count': N, 'oldest_at': 最早 triggered_at | None}——build_digest 的
@@ -1043,7 +1196,7 @@ class WatchTriggerRepository(BaseORMRepository[WatchTrigger]):
             WatchTrigger.triggered_at < since,
         )
         count, oldest = q.one()
-        return {'count': int(count or 0), 'oldest_at': oldest}
+        return {"count": int(count or 0), "oldest_at": oldest}
 
     def list_by_symbol(self, symbol: Optional[str] = None, limit: int = 50) -> List[WatchTrigger]:
         q = self.session.query(WatchTrigger)

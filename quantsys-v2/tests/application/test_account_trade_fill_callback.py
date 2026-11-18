@@ -45,7 +45,8 @@ def test_sell_fill_emits_structured_event():
 
     AccountTradingService._emit_fill_notification(
         account_name='agent_virtual', symbol='000425.SZ', action='SELL',
-        shares=1000, price=10.5, trade_id=1234, order_id=99, reason='止损')
+        shares=1000, price=10.5, trade_id=1234, order_id=99, reason='止损',
+        plan_id=7, item_id=27, plan_version=3, decision_audit_id='audit-fill')
 
     assert len(rec.events) == 1
     event = rec.events[0]
@@ -56,7 +57,8 @@ def test_sell_fill_emits_structured_event():
     assert event.symbol == '000425.SZ'
     assert event.shares == 1000 and event.price == 10.5
     assert event.source == 'agent_trade'
-    assert event.decision_audit_id is None
+    assert event.plan_id == 7 and event.item_id == 27 and event.plan_version == 3
+    assert event.decision_audit_id == 'audit-fill'
 
 
 def test_listener_failure_does_not_raise():

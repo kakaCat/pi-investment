@@ -29,7 +29,7 @@ import pytest
 from adapters.outbound.repositories.watch_rule_change_repository import (
     WatchRuleChangeRepository, change_to_dict,
 )
-from qs_watch.application.services.watch_engine.disposition_engine import (
+from qs_watch.application.services.watch_engine.rule_change_linkage import (
     ACTION_LABELS, CHANGE_KIND_BY_ACTION, DEFAULT_POSTPONE_DAYS, LINKAGE_NOTE_SOURCE,
     RETIRED_LIFECYCLE_STAGE, RuleChangeAction, RuleChangeLinkage, RuleChangeOutcome,
 )

@@ -160,6 +160,8 @@ def _normalize_event(event: Any) -> Optional[Dict[str, Any]]:
                     if _field(event, 'plan_id', None) is not None else None),
         'plan_version': (_as_int(_field(event, 'plan_version', None))
                          if _field(event, 'plan_version', None) is not None else None),
+        't_trade_id': (_as_int(_field(event, 't_trade_id', None))
+                       if _field(event, 't_trade_id', None) is not None else None),
     }
 
 
@@ -181,6 +183,8 @@ class FillSyncService:
         lifecycle: `PositionLifecycleService`（复用 `_retire` 语义）；缺省惰性构造。
         todo_scan_limit: 未收敛待办扫描上限。
         now_fn: 时钟注入（测试用；缺省 `datetime.now`）。
+        plan_progress: 可选账户计划推进端口。
+        t_trade_progress: 可选做T规则推进端口；失败只记录，可 reconcile 重试。
     """
 
     def __init__(
@@ -195,6 +199,7 @@ class FillSyncService:
         todo_scan_limit: int = DEFAULT_TODO_SCAN_LIMIT,
         now_fn: Any = None,
         plan_progress: Any = None,
+        t_trade_progress: Any = None,
     ):
         self.rule_repo = rule_repo
         self.todo_service = todo_service
@@ -207,6 +212,7 @@ class FillSyncService:
         #: REQ-261021222905-6dff：计划推进端口（None = 未装配计划层，行为不变）。
         #: 只对携带 plan_id 的成交回调；异常自吞（回执主链不许被计划层打挂）。
         self.plan_progress = plan_progress
+        self.t_trade_progress = t_trade_progress
 
     # ── 端口入口（IFillListener.on_fill）────────────────────────────────
 
@@ -250,6 +256,13 @@ class FillSyncService:
                 logger.error('计划推进失败（成交已收敛，计划状态未推进）',
                              plan_id=fill.get('plan_id'), error=str(e))
                 errors.append('plan_progress: %s' % e)
+        if fill.get('t_trade_id') is not None and self.t_trade_progress is not None:
+            try:
+                result['t_trade_progress'] = self.t_trade_progress(fill)
+            except Exception as e:  # noqa: BLE001
+                logger.error('做T规则推进失败（成交已落库，可 reconcile 重试）',
+                             t_trade_id=fill.get('t_trade_id'), error=str(e))
+                errors.append('t_trade_progress: %s' % e)
         result['errors'] = errors
         return result
 

@@ -9,6 +9,7 @@ export interface SignalTrackParams {
   grade?: 'A' | 'B' | 'C';
   reason?: string;
   lookback_days?: number;
+  refresh?: boolean;
   start_date?: string;
   end_date?: string;
 }
@@ -26,7 +27,7 @@ export const signalTrackPrompt: ToolPrompt<SignalTrackParams> = {
     },
     symbol: {
       type: 'string',
-      description: '股票代码（record 时必填）',
+      description: '股票代码（record 必填；update 可选限定标的；refresh 时与 signal_date 至少一项）',
     },
     signal_date: {
       type: 'string',
@@ -53,7 +54,12 @@ export const signalTrackPrompt: ToolPrompt<SignalTrackParams> = {
     },
     lookback_days: {
       type: 'number',
-      description: '回溯天数（update 时选填，默认30）',
+      description: '可选信号日下界（自然日）；update 缺省扫描全部历史 NULL 欠账',
+    },
+    refresh: {
+      type: 'boolean',
+      description: 'K线修复后重算非 NULL 派生值；必须同时限定 signal_date 或 symbol',
+      default: false,
     },
     start_date: {
       type: 'string',

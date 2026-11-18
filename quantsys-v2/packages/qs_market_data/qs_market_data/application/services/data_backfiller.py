@@ -291,6 +291,111 @@ class DataBackfiller:
         
         return filtered
 
+    def repair_daily_kline(
+        self,
+        symbol: str,
+        trade_date: str,
+        source: Optional[str] = None,
+    ) -> Dict:
+        """显式修复单日 K 线：DB 旁路 + 两个独立网络源交叉核验 + 前后快照。
+
+        与常规增量回填严格分开；只有 API 的 ``force=true`` 分支调用本方法。
+        不允许单源覆盖，也不允许用邻日/分钟累计替代完整日 K。
+        """
+        if self._is_index_symbol(symbol):
+            raise ValueError("显式日 K 修复当前仅支持个股，不支持歧义指数代码")
+        today = datetime.now().strftime('%Y-%m-%d')
+        if trade_date > today or (trade_date == today and datetime.now().hour < 15):
+            raise ValueError("当日日 K 尚未进入盘后完成态，禁止修复写入")
+        if source == 'database':
+            raise ValueError("修复源不能是 database")
+
+        primary = self._fetch_network_for_repair(symbol, trade_date, source=source)
+        primary_rows = self._filter_by_date_range(primary.get('data') or [], trade_date, trade_date)
+        if not primary_rows:
+            raise RuntimeError(f"主源 {primary.get('source')} 未返回 {trade_date} 完整日 K")
+        confirmation = self._fetch_network_for_repair(
+            symbol, trade_date, exclude_source=primary.get('source'),
+        )
+        confirmation_rows = self._filter_by_date_range(
+            confirmation.get('data') or [], trade_date, trade_date,
+        )
+        if not confirmation_rows:
+            raise RuntimeError(f"确认源 {confirmation.get('source')} 未返回 {trade_date} 日 K，拒绝单源覆盖")
+
+        def row_value(row, key):
+            return getattr(row, key, None) if hasattr(row, 'date') else row.get(key)
+
+        def row_date(row):
+            value = row_value(row, 'date') or row_value(row, 'trade_date')
+            return str(value)[:10]
+
+        p = primary_rows[0]
+        c = confirmation_rows[0]
+        if row_date(p) != trade_date or row_date(c) != trade_date:
+            raise RuntimeError("主源/确认源返回日期与目标日不一致")
+        differences = {}
+        for field in ('open', 'high', 'low', 'close'):
+            pv, cv = float(row_value(p, field)), float(row_value(c, field))
+            if abs(pv - cv) > 0.001:
+                differences[field] = {"primary": pv, "confirmation": cv}
+        pv, cv = float(row_value(p, 'volume')), float(row_value(c, 'volume'))
+        if min(pv, cv) <= 0 or abs(pv - cv) / max(pv, cv) > 0.001:
+            differences['volume'] = {"primary": pv, "confirmation": cv}
+        if differences:
+            raise RuntimeError(f"双源日 K 不一致，已隔离且未写入: {differences}")
+
+        before_df = self.kline_repo.get_daily_klines(
+            symbol, trade_date, trade_date, raise_on_error=True,
+        )
+        before = before_df.to_dicts() if hasattr(before_df, 'to_dicts') else list(before_df or [])
+        klines = self._convert_klines(symbol, primary_rows, trade_date, trade_date)
+        if len(klines) != 1:
+            raise RuntimeError("目标日有效 K 线数量不是 1，拒绝写入")
+        saved = self.kline_repo.save_daily_klines(klines)
+        after_df = self.kline_repo.get_daily_klines(
+            symbol, trade_date, trade_date, raise_on_error=True,
+        )
+        after = after_df.to_dicts() if hasattr(after_df, 'to_dicts') else list(after_df or [])
+        if len(after) != 1:
+            raise RuntimeError("修复后读回校验失败：目标日记录数不为 1")
+        for field in ('open', 'high', 'low', 'close', 'volume'):
+            if abs(float(after[0][field]) - float(klines[0][field])) > 0.001:
+                raise RuntimeError(f"修复后读回字段 {field} 与已核验数据不一致")
+
+        return {
+            "symbol": symbol,
+            "trade_date": trade_date,
+            "success": True,
+            "saved": saved,
+            "primary_source": primary.get('source'),
+            "confirmation_source": confirmation.get('source'),
+            "before": before,
+            "after": after,
+            "cross_validated": True,
+        }
+
+    def _fetch_network_for_repair(
+        self,
+        symbol: str,
+        trade_date: str,
+        source: Optional[str] = None,
+        exclude_source: Optional[str] = None,
+    ) -> Dict:
+        providers = [
+            p for p in self.data_source_manager.kline_providers
+            if p.name != 'database' and (not source or p.name == source)
+            and p.name != exclude_source
+        ]
+        if not providers:
+            raise RuntimeError("没有可用的独立网络 K 线确认源")
+        result = self.data_source_manager._try_providers(
+            providers, 'get_klines', symbol, 'daily', trade_date, trade_date,
+        )
+        if not result.get('success'):
+            raise RuntimeError(result.get('error') or "网络 K 线获取失败")
+        return result
+
     def backfill_batch(
         self,
         backfill_tasks: Dict[str, List[Dict]],
@@ -438,6 +543,7 @@ class DataBackfiller:
                     volume_val = item.volume
                     amount_val = getattr(item, 'amount', 0)
                     turnover_val = getattr(item, 'turnover_rate', 0)
+                    source_val = getattr(item, 'source', None)
                 else:
                     # 字典格式（兼容旧数据源）
                     trade_date = item.get('date') or item.get('trade_date') or item.get('日期')
@@ -448,6 +554,7 @@ class DataBackfiller:
                     volume_val = item.get('volume') or item.get('成交量') or 0
                     amount_val = item.get('amount') or item.get('成交额') or 0
                     turnover_val = item.get('turnover_rate') or item.get('换手率') or 0
+                    source_val = item.get('source')
 
                 # 日期格式归一化
                 if isinstance(trade_date, datetime):
@@ -469,6 +576,7 @@ class DataBackfiller:
                     'volume': float(volume_val),
                     'amount': float(amount_val),
                     'turnover_rate': float(turnover_val),
+                    'source': source_val,
                 }
 
                 # 基本验证

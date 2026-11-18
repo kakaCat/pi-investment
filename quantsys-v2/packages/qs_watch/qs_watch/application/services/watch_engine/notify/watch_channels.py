@@ -1,14 +1,14 @@
 """盯盘闭环的真实通知通道（REQ-c9f899 t12，2026-09-18）
 
-把心跳告警与三段回执接到 NotificationFacade（飞书）——此前 t10/t6 的 sender 默认
+把盯盘告警与三段回执接到 NotificationFacade（飞书）——此前 t10/t6 的 sender 默认
 log-only，告警只在日志里、人看不到（§6 待接线项 6/10）。
 
 纪律（对齐 pi-investment/CLAUDE.md 通知架构铁律）：
   · 只经 qs_notification.application.get_notification_facade()；禁止直接 import
     qs_notification.infrastructure.channels.*，禁止 requests.post(飞书 webhook)。
-  · 发送失败必须抛错，不许静默返回 False：run_heartbeat_check 用 sender 是否抛错
+  · 发送失败必须抛错，不许静默返回 False：run_shadow_check 用 sender 是否抛错
     统计 sent；ReceiptService 用 sender 是否抛错 决定 delivery_status=sent/failed。
-    若这里吞掉失败返回 False，回执会被记成 sent（假成功），心跳会把失败当成已送达。
+    若这里吞掉失败返回 False，回执会被记成 sent（假成功），巡检会把失败当成已送达。
 
 路由（REQ-260924104605-ad0a t3，FR-3）：回执/告警经 facade.send_watch_receipt 携带
 os_channel（逻辑频道码）——timeout/P0 → risk_stop，其余 → watch_symbol；AgentChannel
@@ -49,11 +49,7 @@ _CLOSE_GUIDE = (
 
 
 def send_watch_alert(text: str) -> bool:
-    """心跳/影子超期告警的真实投递（供 run_heartbeat_check 的 sender 参数）。
-
-    run_heartbeat_check 传入的是「标题 | 原因」；按首个竖线拆标题与正文。
-    失败抛错（run_heartbeat_check 会如实记 sent=0），绝不假装已发。
-    """
+    """盯盘告警的真实投递；输入为「标题 | 原因」，失败必须抛错。"""
     from qs_notification.application import get_notification_facade
 
     raw = str(text or "").strip()

@@ -9,13 +9,18 @@
 - 2026-08-12 事故：用"当天日K是否已落库"当唯一判据 → 06:30/14:30 的调度检查永远判"今天不是
   交易日" → v13/v14 调仓从不执行却被记为 success（静默失败）。
 
-## 语义（唯一真源：judge_trading_day 纯函数 + K线数据）
+## 语义（唯一真源：交易日历 + judge_trading_day 纯函数 + K线数据）
 - 周末 → 非交易日
 - 未来日期 → 非交易日
-- 该日 daily_klines 有记录 → 交易日（精确覆盖法定节假日）
-- 判定对象是"今天"且当日K线尚未落库（盘中；日K 17:40 才更新）→ 近期市场活跃
-  （7 个自然日内有K线）则视为交易日，并标记 **degraded=True**（属启发式判断，必须可见）
-- 其它（过去的工作日无K线 = 节假日；数据断供）→ 非交易日
+- **交易日历覆盖范围内（d <= max(trade_date)）→ 日历唯一判据**（2026-11-03 修复）：
+  有行=交易日，无行=法定节假日。K 线启发式分不清"节假日工作日"与"日K未落库的
+  交易日"（2026-10-01 全账户写假快照 / 10-08 guard 误跳过），交易所发布日历可以。
+- 日历无覆盖（当天清晨刷新前 / 日历断供）→ 回退原 K 线判据：
+  该日 daily_klines 有记录 → 交易日（精确覆盖法定节假日）；
+  判定对象是"今天"且当日K线尚未落库（盘中；日K 17:40 才更新）→ 近期市场活跃
+  （7 个自然日内有K线）则视为交易日，并标记 **degraded=True**（属启发式判断，必须可见）；
+  其它（过去的工作日无K线 = 节假日；数据断供）→ 非交易日
+- 日历取数异常 → 留痕并回退 K 线判据（不许击穿调用方，不许静默）
 
 ## 用法
     from qs_ops.application.services.trading_day_guard import TradingDayGuard
@@ -48,6 +53,10 @@ SOURCE_KLINE = 'kline-data'
 SOURCE_INTRADAY = 'intraday-recent-market'
 SOURCE_NO_DATA = 'no-kline-data'
 SOURCE_UNAVAILABLE = 'unavailable'
+# 交易所发布日历（quant.trading_calendar）。2026-11-03 节假日假快照修复：
+# K 线启发式无法区分"节假日工作日"与"日K未落库的交易日"（10-01 全账户写假快照、
+# 10-08 guard 误跳过），日历成为优先判据；仅覆盖 d<=max(trade_date) 的日期。
+SOURCE_CALENDAR = 'trading-calendar'
 # 判定器自身异常（既非"数据说不是交易日"，也非"数据源不可用"）。2026-09-14（复查 M4）：
 # 与 SOURCE_UNAVAILABLE 分开，避免"代码 bug"被读成"今天真的不是交易日"。
 SOURCE_COMPUTE_ERROR = 'compute-error'
@@ -250,6 +259,21 @@ class TradingDayGuard:
         if d > today:
             return TradingDayVerdict(d, False, SOURCE_FUTURE, False, '未来日期')
 
+        # 日历优先（2026-11-03 修复）：覆盖范围内（d <= 日历最大日期）直接信任日历，
+        # 节假日（无行）不再被"近 7 日有K线"盘中启发式误判为交易日。
+        try:
+            cal = cls._calendar_stats(d)
+        except Exception as e:  # noqa: BLE001 - 日历不可用时回退 K 线判据，不许击穿
+            logger.warning('trading_day_guard_calendar_unavailable',
+                           day=d.isoformat(), error=str(e))
+            cal = None
+        if cal is not None:
+            if cal:
+                return TradingDayVerdict(d, True, SOURCE_CALENDAR, False,
+                                         '交易日历含该日（交易所发布口径）')
+            return TradingDayVerdict(d, False, SOURCE_CALENDAR, False,
+                                     '交易日历不含该日（法定节假日）')
+
         try:
             exists, latest = cls._kline_stats(d)
         except Exception as e:  # noqa: BLE001 - 数据源不可用必须可见且保守
@@ -384,6 +408,22 @@ class TradingDayGuard:
                 day=v.day.isoformat(), source=v.source, reason=v.reason,
             )
         return v
+
+    @classmethod
+    def _calendar_stats(cls, d: date) -> Optional[bool]:
+        """交易日历判据。返回 True/False=覆盖范围内的判定；None=无覆盖，回退 K 线判据。
+
+        覆盖条件：日历表非空且 d <= max(trade_date)。日历每日 06:00/23:10 刷新
+        （数据源为交易所发布日历，含未来交易日），故当天在清晨刷新后即被覆盖；
+        刷新失败/滞后时保守回退到原 K 线启发式，语义与修复前一致。
+        """
+        from adapters.outbound.repositories.kline_repository import KlineORMRepository
+
+        repo = KlineORMRepository()
+        max_date = repo.get_calendar_max_date()
+        if max_date is None or d > max_date:
+            return None
+        return repo.has_calendar_trade_day(d)
 
     # ------------------------------------------------------------------
     @staticmethod

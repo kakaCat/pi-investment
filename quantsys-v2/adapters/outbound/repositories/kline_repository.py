@@ -22,7 +22,7 @@ import structlog
 
 from sqlalchemy import desc, and_, func, select
 from qs_kernel.infrastructure.persistence.orm import BaseORMRepository, get_session
-from infrastructure.persistence.orm.models import DailyKline, IndexDaily, MinuteKline, Stock
+from infrastructure.persistence.orm.models import DailyKline, IndexDaily, MinuteKline, Stock, TradingCalendar
 # 指数与个股分表（2026-09-11 w-f4aa1f6a）：指数键带市场后缀，解析统一走 symbol_classifier，
 # 绝不在调用方手写后缀（399xxx 恒 .SZ，其余白名单 .SH，歧义码由 stocks 表定夺）。
 # 该模块只依赖标准库 + 惰性 DB 访问，无循环导入。
@@ -396,7 +396,8 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
         symbol: str,
         start_date: str,
         end_date: str,
-        fields: List[str] = None
+        fields: List[str] = None,
+        raise_on_error: bool = False,
     ) -> pl.DataFrame:
         """查询日K线数据
 
@@ -456,6 +457,8 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
         except Exception as e:
             self._safe_rollback()
             logger.error(f"Error getting daily klines for {symbol}: {e}")
+            if raise_on_error:
+                raise
             return pl.DataFrame()
 
     def get_latest_daily_kline(self, symbol: str) -> Optional[pl.DataFrame]:
@@ -583,7 +586,8 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
         self,
         symbols: List[str],
         start_date: str,
-        end_date: str
+        end_date: str,
+        raise_on_error: bool = False,
     ) -> Dict[str, List[Dict]]:
         """批量查询多只股票的日K线数据
 
@@ -628,6 +632,8 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
         except Exception as e:
             self._safe_rollback()
             logger.error(f"Error getting batch daily klines: {e}")
+            if raise_on_error:
+                raise
             return {symbol: [] for symbol in symbols}
 
     def count_daily_klines(self, symbol: str) -> int:
@@ -1545,6 +1551,68 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
             self._safe_rollback()
             logger.error(f"Error checking bar on {day}: {e}")
             return False
+
+    # ── 交易日历（quant.trading_calendar，TradingDayGuard 的日历优先判据）─────
+    def get_calendar_max_date(self) -> Optional[date]:
+        """交易日历覆盖到的最大日期；空表返回 None。
+
+        2026-11-03（节假日假快照修复）：日历由 tools/refresh_trading_calendar.py 每日
+        刷新（数据源为交易所发布日历，含未来交易日）。guard 只对 d <= max 的日期
+        信任日历；超出覆盖（典型：当天清晨刷新前）回退 K 线启发式。
+        """
+        try:
+            d = self.session.query(func.max(TradingCalendar.trade_date)).scalar()
+            self._commit_if_readonly()
+            return d
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error in get_calendar_max_date: {e}")
+            return None
+
+    def has_calendar_trade_day(self, day) -> bool:
+        """某日是否在交易日历中（有行即交易日；节假日无行）。"""
+        from datetime import date as _date
+        d = day
+        if isinstance(day, str):
+            try:
+                d = _date.fromisoformat(day[:10])
+            except ValueError:
+                return False
+        try:
+            result = self.session.query(TradingCalendar.trade_date).filter(
+                TradingCalendar.trade_date == d
+            ).first() is not None
+            self._commit_if_readonly()
+            return result
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error checking calendar on {day}: {e}")
+            return False
+
+    def get_calendar_trade_dates(self, start, end) -> List[date]:
+        """区间内的交易日列表（升序；exchange 三行去重）。
+
+        2026-11-03：供 /api/market/trading-calendar 与外部归因对齐使用——
+        agent 侧按交易日剔除净值序列中的非交易日行，避免节假日被当成"基准缺日"。
+        """
+        from datetime import date as _date
+        try:
+            s = _date.fromisoformat(str(start)[:10]) if not isinstance(start, _date) else start
+            e = _date.fromisoformat(str(end)[:10]) if not isinstance(end, _date) else end
+            rows = (
+                self.session.query(TradingCalendar.trade_date)
+                .filter(TradingCalendar.trade_date >= s)
+                .filter(TradingCalendar.trade_date <= e)
+                .distinct()
+                .order_by(TradingCalendar.trade_date.asc())
+                .all()
+            )
+            self._commit_if_readonly()
+            return [r[0] for r in rows]
+        except Exception as ex:
+            self._safe_rollback()
+            logger.error(f"Error in get_calendar_trade_dates({start}, {end}): {ex}")
+            return []
 
     def get_trade_dates_map(self, symbols: List[str], start_date, end_date) -> Dict[str, set]:
         """批量取多只股票在区间内**实际有数据**的交易日集合。

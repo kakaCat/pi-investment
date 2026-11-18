@@ -14,9 +14,12 @@
   POST   /api/plans/{plan_id}/resume       IF-8 恢复
   POST   /api/plans/{plan_id}/close        IF-9 关闭（规则退役）
   GET    /api/plans/{plan_id}/compile-preview  IF-11 编译预览（不落库）
+  POST   /api/plans/generate                 账户级每日生成（数据库，core_plan.json 已退出）
+  POST   /api/plans/{plan_id}/readiness      账户级 readiness/运行时对账
+  POST   /api/plans/{plan_id}/activate       账户级 approved revision 原子激活
 """
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Any, Dict, Optional
 
 import structlog
@@ -24,8 +27,16 @@ from fastapi import APIRouter, Body, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
-from qs_plan.application.core_plan_adapter import CorePlanAdapter, CorePlanUnavailable
+from adapters.outbound.repositories.trading_plan_unit_of_work import TradingPlanUnitOfWork
+from qs_plan.application.account_plan_draft_service import AccountPlanDraftService
 from qs_plan.application.plan_aggregator import PlanAggregator
+from qs_plan.application.plan_activation_service import PlanActivationService
+from qs_plan.application.plan_generation_service import (
+    AccountPlanError,
+    PlanGenerationService,
+)
+from qs_plan.application.plan_readiness_service import PlanReadinessService
+from qs_plan.application.ports import PositionView
 from qs_plan.application.reflection_pack_service import (
     ReflectionPackService,
     trades_provider_from_engine,
@@ -35,6 +46,75 @@ from qs_plan.application.plan_service import PlanError, PlanService
 
 logger = structlog.get_logger(__name__)
 router = APIRouter(tags=["Trading Plan - 交易计划"])
+
+# 组合根可注入；默认 None 时账户级生成接口明确返回配置缺失，绝不回退 JSON 文件。
+_account_decision_provider = None
+_account_position_provider = None
+
+
+class _SimulationPositionProvider:
+    def list_positions(self, *, account: str):
+        try:
+            from qs_kernel.infrastructure.persistence.database.engine import get_engine
+
+            with get_engine().connect() as conn:
+                rows = (
+                    conn.execute(
+                        text(
+                            "SELECT symbol, coalesce(sum(shares_total),0) AS qty "
+                            "FROM quant.simulation_positions "
+                            "WHERE (NULLIF(btrim(account_name),'') IS NULL "
+                            "OR btrim(account_name)=btrim(:acct)) "
+                            "GROUP BY symbol HAVING coalesce(sum(shares_total),0) > 0"
+                        ),
+                        {"acct": account or ""},
+                    )
+                    .mappings()
+                    .all()
+                )
+            return tuple(PositionView(symbol=row["symbol"], qty=int(row["qty"])) for row in rows)
+        except Exception as e:  # noqa: BLE001 - 持仓事实不可用不能伪装为空持仓
+            logger.error("账户持仓读取失败", account=account, error=str(e))
+            raise AccountPlanError("POSITION_READ_FAILED", "账户持仓读取失败：%s" % e) from e
+
+
+def _build_account_generation_service() -> PlanGenerationService:
+    if _account_decision_provider is None:
+        from adapters.outbound.repositories.portfolio_decision_provider import (
+            PortfolioDecisionProviderAdapter,
+        )
+
+        decision_provider = PortfolioDecisionProviderAdapter()
+    else:
+        decision_provider = _account_decision_provider
+    return PlanGenerationService(
+        decision_provider=decision_provider,
+        position_provider=_account_position_provider or _SimulationPositionProvider(),
+        unit_of_work_factory=TradingPlanUnitOfWork,
+    )
+
+
+def _build_account_readiness_service(account: str) -> PlanReadinessService:
+    return PlanReadinessService(
+        unit_of_work_factory=TradingPlanUnitOfWork,
+        position_provider=_account_position_provider or _SimulationPositionProvider(),
+        position_state_provider=_state_provider(account),
+    )
+
+
+def _account_err(e: AccountPlanError) -> JSONResponse:
+    status = {
+        "PLAN_ACCOUNT_REQUIRED": 400,
+        "PLAN_SPEC_INVALID": 400,
+        "DECISION_AUDIT_REQUIRED": 400,
+        "PLAN_NOT_FOUND": 404,
+        "VERSION_CONFLICT": 409,
+        "PLAN_ALREADY_EXISTS": 409,
+    }.get(e.code, 422)
+    return JSONResponse(
+        status_code=status,
+        content={"success": False, "code": e.code, "error": e.message, "details": e.details},
+    )
 
 
 # ── DI ──────────────────────────────────────────────────────
@@ -379,31 +459,6 @@ async def list_reflections(plan_id: int):
         return _err(e)
 
 
-# ── IF-15 core_plan 适配（P2） ─────────────────────────────
-@router.post("/api/plans/from-core-plan")
-async def from_core_plan(body: Dict[str, Any] = Body(...)):
-    account = body.get("account")
-    batch = body.get("batch")
-    if not account or batch is None:
-        return JSONResponse(
-            status_code=400,
-            content={
-                "success": False,
-                "code": "PLAN_SPEC_INVALID",
-                "error": "account 与 batch 必填",
-            },
-        )
-    d = _build()
-    adapter = CorePlanAdapter(d["svc"])
-    try:
-        return _ok(adapter.from_batch(account, int(batch), actor=body.get("actor") or "agent"))
-    except CorePlanUnavailable as e:
-        return JSONResponse(
-            status_code=422,
-            content={"success": False, "code": "CORE_PLAN_UNAVAILABLE", "error": str(e)},
-        )
-
-
 # ── IF-14 / IF-16 统计 ────────────────────────────────────
 @router.get("/api/plans/{plan_id}/stats")
 async def plan_stats_route(plan_id: int):
@@ -426,6 +481,166 @@ async def blocked_stats_route(request: Request):
     return _ok(blocked_stats(since_days=since_days, horizon=horizon))
 
 
+# ── 账户级计划 API ──────────────────────────────────────────
+@router.post("/api/plans/generate")
+async def generate_account_plan(request: Request, body: Dict[str, Any] = Body(...)):
+    account = body.get("account")
+    trade_date_raw = body.get("trade_date")
+    if not account:
+        return _account_err(AccountPlanError("PLAN_ACCOUNT_REQUIRED", "account 必填"))
+    if not trade_date_raw:
+        return _account_err(AccountPlanError("PLAN_SPEC_INVALID", "trade_date 必填"))
+    try:
+        trade_date = date.fromisoformat(str(trade_date_raw))
+    except ValueError:
+        return _account_err(AccountPlanError("PLAN_SPEC_INVALID", "trade_date 必须是 YYYY-MM-DD"))
+    try:
+        result = _build_account_generation_service().generate(
+            account=account,
+            trade_date=trade_date,
+            actor=body.get("actor") or "system",
+            idempotency_key=body.get("idempotency_key") or "%s:%s:generate" % (account, trade_date),
+        )
+        return _ok(result, status_code=200 if result.get("existing") else 201)
+    except AccountPlanError as e:
+        return _account_err(e)
+
+
+@router.post("/api/plans/{plan_id}/readiness")
+async def account_plan_readiness(plan_id: int, body: Dict[str, Any] = Body(default={})):
+    d = _build()
+    try:
+        plan = d["svc"].get(plan_id)
+    except PlanError as e:
+        return _err(e)
+    if getattr(plan, "plan_kind", "legacy_single") != "account":
+        return _account_err(
+            AccountPlanError("PLAN_MIGRATION_REQUIRED", "旧单标计划请先完成账户级迁移")
+        )
+    trade_date_raw = body.get("trade_date") or date.today().isoformat()
+    try:
+        trade_date = date.fromisoformat(str(trade_date_raw))
+    except ValueError:
+        return _account_err(AccountPlanError("PLAN_SPEC_INVALID", "trade_date 必须是 YYYY-MM-DD"))
+    try:
+        result = _build_account_readiness_service(plan.account).evaluate(
+            account=plan.account,
+            trade_date=trade_date,
+            stage=body.get("stage") or "runtime",
+        )
+        return _ok(result)
+    except AccountPlanError as e:
+        return _account_err(e)
+
+
+def _account_today(account: str, trade_date: date) -> Optional[Dict[str, Any]]:
+    """账户级 today：直接读 revision/items/conditions/states，不依赖旧 spec。"""
+    with TradingPlanUnitOfWork() as uow:
+        plan = uow.plans.find_account_plan(account)
+        if plan is None:
+            return None
+        revision = uow.plans.find_revision_for_day(
+            plan.id,
+            trade_date,
+            statuses=("draft", "reviewing", "approved", "active"),
+        )
+        item_views = []
+        if revision is not None:
+            states = {
+                state.item_id: state
+                for state in uow.plans.list_item_states(
+                    [item.id for item in uow.plans.list_open_items(plan.id)]
+                )
+            }
+            for item_version in uow.plans.list_item_versions_for_revision(revision.id):
+                item = uow.plans.get_item(item_version.item_id)
+                if item is None:
+                    continue
+                conditions = uow.plans.list_conditions(item_version.id)
+                state = states.get(item.id)
+                entry = {
+                    "combinator": item_version.entry_combinator,
+                    "valid_until": (
+                        item_version.entry_valid_until.isoformat()
+                        if item_version.entry_valid_until
+                        else None
+                    ),
+                    "conditions": [
+                        {"type": condition.condition_type, "params": condition.params}
+                        for condition in conditions
+                        if condition.role == "entry"
+                    ],
+                }
+                exits = [
+                    {
+                        "role": condition.role,
+                        "batch": condition.batch,
+                        "sequence": condition.sequence,
+                        "type": condition.condition_type,
+                        "params": condition.params,
+                    }
+                    for condition in conditions
+                    if condition.role in ("stop_loss", "reduce")
+                ]
+                item_views.append(
+                    {
+                        "item_id": item.id,
+                        "symbol": item.symbol,
+                        "action": item_version.action,
+                        "setup_type": item_version.setup_type,
+                        "horizon": item_version.horizon,
+                        "target_weight": (
+                            float(item_version.target_weight)
+                            if item_version.target_weight is not None
+                            else None
+                        ),
+                        "target_qty": item_version.target_qty,
+                        "execution_batch": item_version.execution_batch,
+                        "max_chase_pct": (
+                            float(item_version.max_chase_pct)
+                            if item_version.max_chase_pct is not None
+                            else None
+                        ),
+                        "thesis": item_version.thesis,
+                        "invalidation": item_version.invalidation,
+                        "entry": entry,
+                        "exit": exits,
+                        "state": {
+                            "state": state.state if state else None,
+                            "filled_qty": state.filled_qty if state else None,
+                            "remaining_qty": state.remaining_qty if state else None,
+                        },
+                    }
+                )
+        plan_id = plan.id
+        revision_id = revision.id if revision else None
+        revision_version = revision.version if revision else None
+        revision_status = revision.status if revision else None
+        market_gate = revision.market_gate if revision else None
+        data_as_of = revision.data_as_of.isoformat() if revision and revision.data_as_of else None
+
+    readiness = _build_account_readiness_service(account).evaluate(
+        account=account, trade_date=trade_date, stage="runtime"
+    )
+    names = _resolve_names([item["symbol"] for item in item_views])
+    for item in item_views:
+        item["name"] = names.get(item["symbol"].split(".")[0])
+    return {
+        "account": account,
+        "trade_date": trade_date.isoformat(),
+        "plan_id": plan_id,
+        "version": revision_version,
+        "revision_id": revision_id,
+        "revision_status": revision_status,
+        "items": item_views,
+        "market_gate": market_gate,
+        "data_as_of": data_as_of,
+        "pending_todos": _pending_todo_count(account),
+        "readiness": readiness,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
 # ── IF-10 today 视图 ───────────────────────────────────────
 @router.get("/api/plans/today")
 async def plans_today(request: Request):
@@ -435,6 +650,14 @@ async def plans_today(request: Request):
             status_code=400,
             content={"success": False, "code": "PLAN_ACCOUNT_REQUIRED", "error": "account 必填"},
         )
+    trade_date_raw = request.query_params.get("trade_date") or date.today().isoformat()
+    try:
+        trade_date = date.fromisoformat(trade_date_raw)
+    except ValueError:
+        return _account_err(AccountPlanError("PLAN_SPEC_INVALID", "trade_date 必须是 YYYY-MM-DD"))
+    account_view = _account_today(account, trade_date)
+    if account_view is not None:
+        return _ok(account_view)
     d = _build()
     agg = PlanAggregator(
         d["repo"],
@@ -485,7 +708,10 @@ async def list_plans(request: Request):
     statuses = [s for s in status_param.split(",") if s] if status_param else None
     d = _build()
     plans = d["svc"].list(account, statuses=statuses)
-    names = _resolve_names([t.get("symbol") for p in plans for t in (p.spec.get("targets") or [])])
+    # account 级计划的 spec 为 None（旧单标的计划才有 spec）——None.get 曾致 GET /api/plans 500
+    names = _resolve_names(
+        [t.get("symbol") for p in plans for t in ((p.spec or {}).get("targets") or [])]
+    )
     return _ok({"plans": [_plan_dict(p, names) for p in plans], "count": len(plans)})
 
 
@@ -494,7 +720,8 @@ async def get_plan(plan_id: int):
     d = _build()
     try:
         plan = d["svc"].get(plan_id)
-        names = _resolve_names([t.get("symbol") for t in (plan.spec.get("targets") or [])])
+        # account 级计划 spec=None 时不得 .get（曾致 GET /api/plans/{id} 500）
+        names = _resolve_names([t.get("symbol") for t in ((plan.spec or {}).get("targets") or [])])
         return _ok(
             {
                 "plan": _plan_dict(plan, names),
@@ -530,6 +757,20 @@ async def get_plan(plan_id: int):
 async def patch_plan(plan_id: int, body: Dict[str, Any] = Body(...)):
     d = _build()
     try:
+        plan = d["svc"].get(plan_id)
+        if getattr(plan, "plan_kind", "legacy_single") == "account":
+            try:
+                result = AccountPlanDraftService(unit_of_work_factory=TradingPlanUnitOfWork).patch(
+                    plan_id=plan_id,
+                    expected_version=int(body.get("expected_version") or 0),
+                    item_patches=body.get("item_patches") or [],
+                    actor=body.get("actor") or "agent",
+                    decision_audit_id=body.get("decision_audit_id"),
+                    reason=body.get("reason"),
+                )
+                return _ok(result)
+            except AccountPlanError as account_error:
+                return _account_err(account_error)
         out = d["svc"].patch(
             plan_id=plan_id,
             expected_version=int(body.get("expected_version") or 0),
@@ -547,6 +788,19 @@ async def patch_plan(plan_id: int, body: Dict[str, Any] = Body(...)):
 async def apply_plan(plan_id: int, body: Dict[str, Any] = Body(...)):
     d = _build()
     try:
+        plan = d["svc"].get(plan_id)
+        if getattr(plan, "plan_kind", "legacy_single") == "account":
+            try:
+                result = AccountPlanDraftService(unit_of_work_factory=TradingPlanUnitOfWork).apply(
+                    plan_id=plan_id,
+                    expected_version=int(body.get("expected_version") or 0),
+                    actor=body.get("actor") or "agent",
+                    decision_audit_id=body.get("decision_audit_id"),
+                    reason=body.get("reason"),
+                )
+                return _ok(result)
+            except AccountPlanError as account_error:
+                return _account_err(account_error)
         out = d["svc"].apply(
             plan_id=plan_id,
             expected_version=int(body.get("expected_version") or 0),
@@ -590,6 +844,22 @@ async def activate_plan(plan_id: int, body: Dict[str, Any] = Body(default={})):
     d = _build()
     try:
         plan = d["svc"].get(plan_id)
+        if getattr(plan, "plan_kind", "legacy_single") == "account":
+            if body.get("expected_version") is None:
+                raise AccountPlanError("VERSION_CONFLICT", "账户级激活必须显式传 expected_version")
+            try:
+                result = PlanActivationService(
+                    unit_of_work_factory=TradingPlanUnitOfWork,
+                    position_state_provider=_state_provider(plan.account),
+                ).activate(
+                    plan_id=plan_id,
+                    expected_version=int(body["expected_version"]),
+                    actor=body.get("actor") or "agent",
+                    decision_audit_id=body.get("decision_audit_id"),
+                )
+                return _ok(result)
+            except AccountPlanError as account_error:
+                return _account_err(account_error)
         if plan.status != "draft":
             raise PlanError("PLAN_STATE_ILLEGAL", "只有草稿计划可以激活")
         position_state = _state_provider(plan.account)

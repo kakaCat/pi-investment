@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-10-25T20:15:00",
+ "generated_at": "2026-11-15T20:15:00",
  "elapsed_sec": 0.0,
  "registry_count": 0,
  "registry_empty": true,
@@ -19,5 +19,5 @@
   "max_dd": -0.2
  },
  "conclusion": "registry 为空：尚无通过门槛注册的策略（合法状态）",
- "journal_file": "/Users/yunpeng/pi-investment/quantsys-v2/packages/qs_strategy/docs/work-logs/2026-10/strategy-research-journal.md"
+ "journal_file": "/Users/yunpeng/pi-investment/quantsys-v2/packages/qs_strategy/docs/work-logs/2026-11/strategy-research-journal.md"
 }

@@ -101,13 +101,13 @@ def get_stock_history(
         records = []
         for kline in klines:
             records.append({
-                "date": kline.date,
+                "date": getattr(kline, 'trade_datetime', None) or kline.date,
                 "open": kline.open,
                 "high": kline.high,
                 "low": kline.low,
                 "close": kline.close,
                 "volume": kline.volume,
-                "change_pct": kline.change_pct,
+                "change_pct": getattr(kline, 'change_pct', None),
             })
 
         # 应用周期聚合（如果需要）

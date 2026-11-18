@@ -99,7 +99,11 @@ class TestExecuteTradeV2Buy:
                 action='buy',
                 symbol='600000.SH',
                 shares=1000,
-                reason='测试买入理由至少十个字'
+                reason='计划#7 测试买入理由至少十个字',
+                plan_id=7,
+                item_id=27,
+                plan_version=3,
+                decision_audit_id='audit-before-trade',
             )
 
         # 验证结果
@@ -114,6 +118,9 @@ class TestExecuteTradeV2Buy:
         mock_repo.get_account_for_update.assert_called_once_with('test')
         mock_repo.create_order.assert_called_once()
         mock_repo.add_trade.assert_called_once()
+        assert mock_repo.add_trade.call_args.kwargs['plan_id'] == 7
+        assert mock_repo.add_trade.call_args.kwargs['item_id'] == 27
+        assert mock_repo.add_trade.call_args.kwargs['plan_version'] == 3
         mock_repo.upsert_position.assert_called_once()
         mock_session.commit.assert_called_once()
 

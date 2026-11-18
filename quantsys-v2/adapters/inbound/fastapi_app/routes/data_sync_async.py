@@ -20,6 +20,8 @@ class KlineSyncRequest(BaseModel):
     """K线同步请求"""
     date: Optional[str] = None  # YYYY-MM-DD，默认昨日
     symbols: Optional[List[str]] = None  # 指定股票代码列表（默认全市场活跃股）
+    force: bool = False  # 显式修复：必须指定 symbols，DB 旁路且双源核验
+    source: Optional[str] = None  # 修复主源；确认源由系统自动选择另一独立网络源
 
 
 class KlineSyncResponse(BaseModel):
@@ -33,6 +35,7 @@ class KlineSyncResponse(BaseModel):
     elapsed_time: float
     message: str
     failed_symbols: list[str] = []
+    details: Optional[List[dict]] = None  # 显式修复的双源证据与前后快照
 
 
 def get_active_stocks() -> set[str]:
@@ -87,8 +90,12 @@ def sync_daily_klines(request: KlineSyncRequest):
     else:
         sync_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
     
-    logger.info(f"开始同步 {sync_date} K线数据")
-    
+    if request.force and not request.symbols:
+        raise HTTPException(status_code=400, detail="force=true 必须显式指定 symbols，禁止全市场覆盖")
+    if request.force and len(request.symbols) > 20:
+        raise HTTPException(status_code=400, detail="单次显式修复最多 20 只股票")
+    logger.info(f"开始同步 {sync_date} K线数据 (force={request.force}, source={request.source})")
+
     try:
         # 获取同步标的：优先用请求指定的 symbols，否则全市场活跃股
         symbols = list(request.symbols) if request.symbols else list(get_active_stocks())
@@ -101,7 +108,39 @@ def sync_daily_klines(request: KlineSyncRequest):
         # 构建回填任务
         kline_repo = KlineORMRepository()
         backfiller = DataBackfiller(kline_repo=kline_repo)
-        
+        start_time = datetime.now()
+
+        if request.force:
+            repairs = []
+            for symbol in symbols:
+                try:
+                    repairs.append(backfiller.repair_daily_kline(
+                        symbol=symbol.split('.')[0],
+                        trade_date=sync_date,
+                        source=request.source,
+                    ))
+                except Exception as repair_error:
+                    logger.error(f"显式修复 {symbol} {sync_date} 失败（未写入）: {repair_error}")
+                    repairs.append({
+                        "symbol": symbol, "trade_date": sync_date,
+                        "success": False, "error": str(repair_error), "saved": 0,
+                    })
+            success_count = sum(1 for row in repairs if row['success'])
+            failed = [row['symbol'] for row in repairs if not row['success']]
+            elapsed = (datetime.now() - start_time).total_seconds()
+            return KlineSyncResponse(
+                success=not failed,
+                sync_date=sync_date,
+                success_count=success_count,
+                failed_count=len(failed),
+                total_stocks=len(repairs),
+                total_rows=sum(int(row.get('saved') or 0) for row in repairs),
+                elapsed_time=elapsed,
+                message=("✅ 双源核验修复完成" if not failed else "⚠️ 修复未完成；分歧/缺源行未写入"),
+                failed_symbols=failed,
+                details=repairs,
+            )
+
         backfill_tasks = {}
         for symbol in symbols:
             backfill_tasks[symbol] = [{
@@ -111,7 +150,6 @@ def sync_daily_klines(request: KlineSyncRequest):
             }]
         
         # 执行批量回填
-        start_time = datetime.now()
         result = backfiller.backfill_batch(
             backfill_tasks=backfill_tasks,
             max_workers=10,

@@ -45,7 +45,7 @@ from qs_watch.application.services.watch_engine.policy_watch_service import (  #
     PolicyWatchService,
     SectorConstituentIndex,
 )
-from qs_watch.application.services.watch_engine.sector_resonance_service import (  # noqa: E402
+from qs_watch.application.services.watch_engine.sector_constituents import (  # noqa: E402
     _ManagerSectorSource,
 )
 

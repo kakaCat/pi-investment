@@ -35,9 +35,28 @@ class FeishuDelivery:
     error: str = ''
 
 
-def render(rule, judgment, position_state: Optional[str] = None
-           ) -> tuple[str, str]:
-    """按 持仓状态 × 判定类型 渲染（标题, 正文）。"""
+def _display(value):
+    return '—' if value is None or value == '' else value
+
+
+def _with_agent_result(body: str, agent_result: Optional[dict]) -> str:
+    if not agent_result:
+        return body
+    lines = [
+        '**Agent 裁决**',
+        f"动作：{agent_result['action']}",
+        f"理由：{agent_result['reason']}",
+    ]
+    if agent_result.get('account'):
+        lines.append(f"账户：{agent_result['account']}")
+    if agent_result.get('qty') is not None:
+        lines.append(f"数量：{agent_result['qty']}")
+    return body + '\n\n' + '\n'.join(lines)
+
+
+def render(rule, judgment, position_state: Optional[str] = None,
+           agent_result: Optional[dict] = None) -> tuple[str, str]:
+    """按 持仓状态 × 判定类型 渲染（标题, 正文），可附 agent 裁决。"""
     intent = str(getattr(judgment, 'intent', '') or getattr(rule, 'intent', '') or '').strip()
     title_tpl, body_tpl = feishu_templates.get(position_state, intent)
 
@@ -52,30 +71,38 @@ def render(rule, judgment, position_state: Optional[str] = None
             stop_price = params['price']
             break
 
+    action_params = getattr(rule, 'action_params', None) or {}
     ctx = dict(
         symbol=getattr(rule, 'symbol', ''),
         # 公司名称：规则表不存名称，由 engine 注入 resolver 后回填到 rule.stock_name；
         # 缺名称时退化为空串（标题显示「(代码)」仍可定位）
         stock_name=getattr(rule, 'stock_name', '') or '',
         price=price,
-        cost_price=getattr(rule, 'cost_price', None) or '—',
-        pnl_pct=getattr(judgment, 'pnl_pct', None) or '—',
-        sellable=getattr(judgment, 'sellable', None) or '—',
+        cost_price=_display(getattr(rule, 'cost_price', None)),
+        pnl_pct=_display(getattr(judgment, 'pnl_pct', None)),
+        sellable=_display(getattr(judgment, 'sellable', None)),
         stop_price=stop_price,
         invalidation_pct=getattr(rule, 'invalidation_threshold_pct', None) or '—',
         account=getattr(rule, 'account', None) or '—',
         hit_summary=hit_summary,
         judgment_type=intent,
         position_state=position_state or '—',
+        t_trade_id=action_params.get('t_trade_id', '—'),
+        t_trade_leg=action_params.get('leg', '—'),
+        t_trade_mode=action_params.get('mode', '—'),
+        quantity=action_params.get('quantity', '—'),
+        reference_price=action_params.get('reference_price', '—'),
+        buyback_price=action_params.get('buyback_price', '—'),
     )
     try:
         title = title_tpl.format(**ctx)
         if not ctx['stock_name']:
             title = title.replace('()', '').replace('()', '')
-        return title, body_tpl.format(**ctx)
+        return title, _with_agent_result(body_tpl.format(**ctx), agent_result)
     except (KeyError, IndexError, ValueError) as exc:
         logger.warning('v2.feishu_template_format_failed', error=str(exc))
-        return (f'🔔 盯盘触发 {ctx["symbol"]}', hit_summary)
+        return (f'🔔 盯盘触发 {ctx["symbol"]}',
+                _with_agent_result(hit_summary, agent_result))
 
 
 def make_facade_sender(facade):
@@ -212,15 +239,17 @@ def send_rendered(webhook_url: str, title: str, body: str,
 
 def send(rule, judgment, position_state: Optional[str] = None,
          entry: str = ENTRY_AFTER_AGENT,
-         sender: Optional[Callable[[str, str], bool]] = None) -> FeishuDelivery:
+         sender: Optional[Callable[[str, str], bool]] = None,
+         agent_result: Optional[dict] = None) -> FeishuDelivery:
     """发飞书盯盘群。
 
     参数：
         entry:  ENTRY_AFTER_AGENT（agent 判断后）/ ENTRY_DIRECT（循环第 10 次直通）
         sender: 注入发送器 ``sender(title, body) -> bool``（生产走
                 NotificationFacade.send_watch_*）；缺失视为未接线。
+        agent_result: after_agent 时附加的结构化裁决；direct 不传。
     """
-    title, body = render(rule, judgment, position_state)
+    title, body = render(rule, judgment, position_state, agent_result=agent_result)
 
     if sender is None:
         logger.warning('v2.feishu_sender_not_wired',

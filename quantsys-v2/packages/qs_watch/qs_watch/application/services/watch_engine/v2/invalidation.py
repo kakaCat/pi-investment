@@ -68,7 +68,8 @@ def _trigger_prices(rule) -> List[float]:
         if cond.get('type') not in PRICE_LINE_TYPES:
             continue
         params = cond.get('params') or {}
-        raw = params.get('price')
+        raw = (params.get('touch') or {}).get('price') \
+            if cond.get('type') == 'staged_break' else params.get('price')
         try:
             price = float(raw)
         except (TypeError, ValueError):

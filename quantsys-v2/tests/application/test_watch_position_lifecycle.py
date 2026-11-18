@@ -141,7 +141,7 @@ def test_autocreated_take_profit_not_skipped_by_state_gate():
     REQ-261021194640-69b8 FR-8 的验收锚点：新补挂的止盈规则若落在 none，
     状态门会永久跳过 exit 族；本用例直接调引擎的状态门判定证明不会发生。
     """
-    from qs_watch.application.services.watch_engine.engine import position_state_verdict
+    from qs_watch.application.services.watch_engine.v2 import position_engine
 
     rules = FakeRuleRepo([_rule(rid=1, symbol="600150", intent="entry")])
     svc = PositionLifecycleService(
@@ -150,6 +150,8 @@ def test_autocreated_take_profit_not_skipped_by_state_gate():
 
     tp = next(r for r in rules.created if r.conditions[0]["type"] == "pnl_pct")
     assert tp.intent == "exit_take_profit"
-    skip_reason, mismatch = position_state_verdict(tp)
-    assert skip_reason is None, "holding 的止盈规则不得被状态门跳过"
-    assert mismatch is None
+    judgment = position_engine.evaluate(
+        tp, SimpleNamespace(price=100.0, prev_close=100.0, volume=None),
+        position='holding')
+    assert judgment.triggered is True, "holding 的止盈规则必须进入 V2 条件判定"
+    assert judgment.reason != 'not_holding'

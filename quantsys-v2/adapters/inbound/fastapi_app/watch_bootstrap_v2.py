@@ -11,8 +11,6 @@
 开关：`WATCH_V2_ENABLED` 未设/false → 不注册任何 Job（V1 行为完全不变）。
 """
 import os
-import threading
-from typing import Optional
 
 import structlog
 
@@ -21,9 +19,7 @@ logger = structlog.get_logger(__name__)
 #: V2 主流程开关（影子期默认关闭；切主时置 true）
 _ENV_V2_ENABLED = 'WATCH_V2_ENABLED'
 
-#: 心跳写线程句柄（V1 停用后由它维持"宿主进程存活"信号）
-_HEARTBEAT_THREAD = None
-_HEARTBEAT_STOP = threading.Event()
+_V2_ENGINE = None
 
 
 def v2_enabled() -> bool:
@@ -57,12 +53,30 @@ def build_feishu_sender(webhook_url: str = ''):
 
 
 def build_engine_v2():
-    """组装 V2 判定引擎（不做 I/O；失败由调用方决定是否降级）。"""
+    """组装 V2 判定引擎并恢复两段式伏击观察状态。"""
     from qs_watch.application.services.watch_engine.core.factory import (
         RealtimeQuoteServiceV2,
+        get_market_watch_service,
+        sim_position_repo,
         watch_rule_repo,
     )
+    from qs_watch.application.services.watch_engine.v2.data_providers import (
+        make_avg_volume_provider,
+        make_fund_flow_provider,
+        make_kline_closes_provider,
+    )
+    from qs_watch.application.services.watch_engine.core.watch_loop_wiring import (
+        build_runtime_store,
+        watch_runtime_persist_enabled,
+    )
     from qs_watch.application.services.watch_engine.v2.engine import create_engine_v2
+    from qs_watch.application.services.watch_engine.v2.evaluation_context import (
+        EvaluationContextFactory,
+    )
+    from qs_watch.application.services.watch_engine.v2.rule_evaluator import RuleEvaluator
+    from qs_watch.application.services.watch_engine.v2.staged_break_manager import (
+        StagedBreakManager,
+    )
 
     # 名称解析（规则表不存名称，渲染标题用）：黑盒复用既有 StockORMRepository
     def _name_resolver(symbols):
@@ -77,7 +91,7 @@ def build_engine_v2():
     # agent 通道（第 1 次触发唤醒 agent 判断）：qs_agenthub 的既有唤醒服务。
     # 超时用短档（默认 10s）：定时任务线程不能被 agent 侧 300s 超时拖住，否则
     # 30 秒任务的下一拍会被 misfire_grace 跳过（N 拍内丢判定）。
-    def _agent_sender(agent, account, prompt):
+    def _agent_sender(agent, account, prompt, context):
         from qs_agenthub.application.services.agent_notification_service import (
             AgentNotificationService,
         )
@@ -85,49 +99,41 @@ def build_engine_v2():
             timeout=int(os.environ.get('WATCH_AGENT_TIMEOUT', '10')))
         return bool(svc.notify_agent(
             'watch_trigger',
-            {'agent': agent, 'account': account, 'prompt': prompt},
+            {'agent': agent, 'account': account, 'prompt': prompt, **context},
             target=agent,
         ))
 
-    # cycle_store：仓储已实现 get_cycle_count / set_cycle_count（10 次循环计数）。
-    # 不注入 = 影子（只判定不投递）；定时任务模式下必须注入，否则第 10 次直发永远走不到。
+    def _position_reader(account, symbol):
+        if not account or not symbol:
+            return None
+        return sim_position_repo().get_position(account, symbol)
+
+    runtime_store = None
+    if watch_runtime_persist_enabled():
+        try:
+            runtime_store = build_runtime_store()
+        except Exception as exc:  # noqa: BLE001 - 持久化不可用时保留内存状态机
+            logger.error('V2 staged 运行态仓储装配失败，降级为内存', error=str(exc))
+    avg_volume_evaluator = RuleEvaluator(avg_volume_provider=make_avg_volume_provider())
+    evaluation_context = EvaluationContextFactory(
+        avg_volume_evaluator=avg_volume_evaluator,
+        kline_closes_provider=make_kline_closes_provider(),
+        fund_flow_provider=make_fund_flow_provider(),
+    )
+
     return create_engine_v2(
         rule_repo=watch_rule_repo(),
         quote_service=RealtimeQuoteServiceV2(),
         name_resolver=_name_resolver,
+        position_reader=_position_reader,
+        evaluation_context=evaluation_context,
+        staged_manager=StagedBreakManager(store=runtime_store),
+        market_watch_service=get_market_watch_service(),
         feishu_sender=_feishu_sender,
         agent_sender=_agent_sender,
         account_agent_map=account_agent_map_from_env(),
         cycle_store=watch_rule_repo(),
     )
-
-
-def _ensure_heartbeat_thread(interval_sec: float = 0.0) -> Optional[threading.Thread]:
-    """30 秒写一次引擎心跳（幂等）；V1 停用后心跳巡检靠它判活。"""
-    global _HEARTBEAT_THREAD
-    if _HEARTBEAT_THREAD is not None and _HEARTBEAT_THREAD.is_alive():
-        return _HEARTBEAT_THREAD
-    from qs_watch.application.services.watch_engine.v2.scheduled import write_heartbeat
-
-    interval = interval_sec or float(os.environ.get('WATCH_HEARTBEAT_INTERVAL_SEC', '30') or 30)
-
-    def _loop():
-        while not _HEARTBEAT_STOP.wait(interval):
-            write_heartbeat()
-
-    _HEARTBEAT_STOP.clear()
-    thread = threading.Thread(target=_loop, name='watch-v2-heartbeat', daemon=True)
-    thread.start()
-    _HEARTBEAT_THREAD = thread
-    logger.info('✅ WatchEngineV2 心跳线程已启动', interval_sec=interval)
-    return thread
-
-
-def stop_heartbeat_thread() -> None:
-    """停止心跳线程（测试/优雅退出）；幂等。"""
-    global _HEARTBEAT_THREAD
-    _HEARTBEAT_STOP.set()
-    _HEARTBEAT_THREAD = None
 
 
 def tier_column_ready(rule_repo) -> bool:
@@ -150,6 +156,7 @@ def tier_column_ready(rule_repo) -> bool:
 
 def register_watch_v2_jobs(rule_repo=None) -> int:
     """注册 5 个 V2 定时任务；返回注册数量（0 = 开关关闭/预付检未过/未注册）。"""
+    global _V2_ENGINE
     if not v2_enabled():
         logger.info('WatchEngineV2 未启用（WATCH_V2_ENABLED=false，V1 行为不变）')
         return 0
@@ -172,18 +179,14 @@ def register_watch_v2_jobs(rule_repo=None) -> int:
     jobs = build_watch_v2_jobs(engine)
     for job in jobs:
         job_registry.register(job)
+    _V2_ENGINE = engine
     logger.info('✅ WatchEngineV2 定时任务已注册', count=len(jobs),
                 jobs=[job.name for job in jobs])
-    _ensure_heartbeat_thread()
     return len(jobs)
 
 
 def start_watch_engine_v2(skip: bool = False):
-    """已废弃：V2 不再起常驻线程（保留函数名只为旧调用方不炸）。
-
-    Returns:
-        None（无线程可返回）
-    """
+    """已废弃：V2 不再起常驻线程（保留函数名只为旧调用方不炸）。"""
     if skip:
         return None
     logger.warning('start_watch_engine_v2 已废弃：V2 已改为定时任务（register_watch_v2_jobs）')
@@ -192,5 +195,9 @@ def start_watch_engine_v2(skip: bool = False):
 
 
 def stop_watch_engine_v2(handle=None) -> None:
-    """已废弃：定时任务无常驻线程可停（保留函数名只为旧调用方不炸）。"""
-    return None
+    """保存观察状态并回收取数线程池。"""
+    global _V2_ENGINE
+    engine = handle if handle not in (None, True) else _V2_ENGINE
+    if engine is not None:
+        engine.stop()
+    _V2_ENGINE = None

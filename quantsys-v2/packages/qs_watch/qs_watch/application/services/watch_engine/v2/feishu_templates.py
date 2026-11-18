@@ -54,6 +54,12 @@ _register(POSITION_HOLDING, 'exit_reduce', '【持仓】📉 减仓提醒 {stock
     '触发：{hit_summary}\n建议动作：减仓（数量待定）'
 ))
 
+_register(POSITION_HOLDING, 't_trade', '【区间T】🔁 {t_trade_leg} {stock_name}({symbol})', (
+    '周期 {t_trade_id}｜现价 {price}｜模式 {t_trade_mode}｜数量 {quantity} 股\n'
+    '触发价 {reference_price}｜回补价 {buyback_price}\n'
+    '提醒模式仅供人工决策；止损与区间失效优先'
+))
+
 # ── 非持仓类 ──────────────────────────────────────────────────────────────
 _register(POSITION_NONE, 'entry', '【未持仓】🎯 买入范围 {stock_name}({symbol})', (
     '现价 {price}｜失效线 {invalidation_pct}%｜账户 {account}\n'
@@ -72,6 +78,7 @@ COLORS = {
     ('holding', 'exit_take_profit'): 'green',   # 止盈：盈利兑现
     ('holding', 'exit_reduce'): 'orange',       # 减仓：风险降低
     ('holding', 'add_position'): 'blue',        # 增仓：机会
+    ('holding', 't_trade'): 'wathet',
     ('none', 'entry'): 'yellow',                # 买入范围：建仓机会
     ('none', 'trend_observe'): 'grey',          # 观察：只读
 }

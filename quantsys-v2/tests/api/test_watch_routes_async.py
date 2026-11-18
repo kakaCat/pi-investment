@@ -135,3 +135,103 @@ def test_disposition_endpoints_reachable(path):
     resp = TestClient(app, raise_server_exceptions=False).get(path)
     assert resp.status_code == 200, f'{path} -> {resp.status_code}: {resp.text[:200]}'
     assert resp.json().get('success') is True
+
+
+def test_agent_complete_route_returns_v2_delivery(client, monkeypatch):
+    monkeypatch.setattr(
+        'adapters.inbound.fastapi_app.routes.watch_async._run_agent_completion',
+        lambda trigger_id, payload: {
+            'trigger_id': trigger_id, 'delivered': True,
+            'deduplicated': False, 'agent_response': payload,
+        },
+    )
+
+    resp = client.post('/api/watch/triggers/88/agent-complete', json={
+        'action': '卖出', 'reason': '止损线已破', 'disposition': 'handled',
+    })
+
+    assert resp.status_code == 200
+    assert resp.json()['data']['trigger_id'] == 88
+    assert resp.json()['data']['delivered'] is True
+
+
+def test_agent_complete_route_maps_completion_error(client, monkeypatch):
+    from qs_watch.application.services.watch_engine.v2.agent_completion import (
+        AgentCompletionError,
+    )
+
+    def fail(trigger_id, payload):
+        raise AgentCompletionError('触发记录不存在', 404)
+
+    monkeypatch.setattr(
+        'adapters.inbound.fastapi_app.routes.watch_async._run_agent_completion', fail)
+
+    resp = client.post('/api/watch/triggers/999/agent-complete', json={
+        'action': '观察', 'reason': '等待确认',
+    })
+
+    assert resp.status_code == 404
+    assert resp.json()['success'] is False
+
+
+def test_agent_complete_http_to_v2_card_and_idempotent_retry(client, monkeypatch):
+    from types import SimpleNamespace
+    import adapters.inbound.fastapi_app.routes.watch_async as watch_module
+    from adapters.inbound.fastapi_app import watch_bootstrap_v2
+
+    rule = SimpleNamespace(
+        id=26, symbol='000425.SZ', intent='exit_stop', account='agent_virtual',
+        cost_price=10.0, invalidation_threshold_pct=20.0,
+        conditions=[{'type': 'price_break', 'params': {'price': 9.0}}],
+        position_state='holding', process_state='pending',
+    )
+    trigger = SimpleNamespace(
+        id=88, rule_id=26, symbol=rule.symbol, condition=rule.conditions[0],
+        trigger_price=8.8, detail={'intent': 'exit_stop', 'message': '下破 9.0'},
+        agent_response=None, disposition='pending', notified=False,
+    )
+
+    class Triggers:
+        def get_by_id(self, trigger_id):
+            return trigger if trigger_id == 88 else None
+
+        def save_agent_response(self, trigger_id, response):
+            trigger.agent_response = dict(response)
+
+        def mark_notified(self, trigger_id, notified):
+            trigger.notified = notified
+
+        def update_disposition(self, trigger_id, disposition, reason, by):
+            trigger.disposition = disposition
+            return trigger
+
+    class Rules:
+        def get_by_id(self, rule_id):
+            return rule if rule_id == 26 else None
+
+        def update_fields(self, rule_id, **fields):
+            for key, value in fields.items():
+                setattr(rule, key, value)
+            return rule
+
+    sent = []
+    monkeypatch.setattr(watch_module, 'WatchTriggerRepository', Triggers)
+    monkeypatch.setattr(watch_module, 'WatchRuleRepository', Rules)
+    monkeypatch.setattr(
+        watch_bootstrap_v2, 'build_feishu_sender',
+        lambda webhook_url='': lambda title, body: sent.append((title, body)) or True,
+    )
+    payload = {'action': '卖出', 'reason': '止损线已破', 'disposition': 'handled'}
+
+    first = client.post('/api/watch/triggers/88/agent-complete', json=payload)
+    second = client.post('/api/watch/triggers/88/agent-complete', json=payload)
+
+    assert first.status_code == 200, first.text
+    assert second.status_code == 200, second.text
+    assert first.json()['data']['deduplicated'] is False
+    assert second.json()['data']['deduplicated'] is True
+    assert len(sent) == 1
+    assert 'Agent 裁决' in sent[0][1] and '止损线已破' in sent[0][1]
+    assert trigger.agent_response['notification_delivered'] is True
+    assert trigger.disposition == 'handled'
+    assert rule.process_state == 'processed'

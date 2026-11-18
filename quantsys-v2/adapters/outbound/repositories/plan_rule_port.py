@@ -59,9 +59,65 @@ class PlanRulePort:
         return out
 
     # ── 写 ────────────────────────────────────────────────
+    @staticmethod
+    def _near_tautology_banner(symbol: str, conditions) -> str:
+        """entry price_break/above 阈值 ≤ 最近收盘 ⇒ 开盘即恒真，无结构信息（board a942092b）。
+
+        只打标不拒写：硬拒会破坏既有计划的规则覆盖语义，结构性修复走计划项修订。
+        """
+        thresholds = [
+            float((c.get("params") or {}).get("price"))
+            for c in conditions or []
+            if isinstance(c, dict)
+            and c.get("type") == "price_break"
+            and (c.get("params") or {}).get("direction") == "above"
+            and (c.get("params") or {}).get("price") is not None
+        ]
+        if not thresholds:
+            return ""
+        try:
+            from qs_kernel.infrastructure.persistence.database.engine import get_engine
+            from sqlalchemy import text as _text
+
+            bare = str(symbol or "").split(".")[0]
+            with get_engine().connect() as conn:
+                row = conn.execute(
+                    _text(
+                        "SELECT close FROM quant.daily_klines WHERE symbol=:sym "
+                        "ORDER BY trade_date DESC LIMIT 1"
+                    ),
+                    {"sym": bare},
+                ).first()
+            if row is None or row[0] is None:
+                return ""
+            prev_close = float(row[0])
+        except Exception as e:  # noqa: BLE001 - 打标是增益，查不到收盘价不阻断编译
+            logger.warning("恒真打标取收盘价失败", symbol=symbol, error=str(e))
+            return ""
+        hits = [t for t in thresholds if t <= prev_close * 1.01]
+        if not hits:
+            return ""
+        logger.warning(
+            "entry 阈值近恒真（≤昨收×1.01），规则已打标",
+            symbol=symbol,
+            thresholds=hits,
+            prev_close=prev_close,
+        )
+        return (
+            "[近恒真预警] 上破阈值 %s ≤ 最近收盘 %.2f×1.01，开盘后任一上涨即触发、无结构信息；"
+            "请改结构位（前高/MA10-20/放量确认位）或 staged_break（board a942092b）"
+            % (hits, prev_close)
+        )
+
     def create_rule(self, payload: Dict[str, Any]) -> int:
         account = payload.get("account")
         is_exit = payload.get("role") in ("stop_loss", "reduce")
+        banner = self._near_tautology_banner(
+            payload.get("symbol"), payload.get("conditions")
+        )
+        context = payload.get("context")
+        if banner:
+            context = (banner + "\n" + (context or "")).strip()
         action_hint = (
             {
                 "trigger_level": "L2",
@@ -78,7 +134,7 @@ class PlanRulePort:
         rule = self.rule_repo.create_rule(
             symbol=payload["symbol"],
             conditions=payload["conditions"],
-            context=payload.get("context"),
+            context=context,
             created_by="agent",
             account=account,
             linked_account=account,
@@ -92,13 +148,21 @@ class PlanRulePort:
         return rule.id
 
     def update_rule(self, rule_id: int, payload: Dict[str, Any]) -> None:
+        context = payload.get("context")
+        banner = self._near_tautology_banner(payload.get("symbol"), payload.get("conditions"))
+        if banner:
+            # 去重：剥掉旧 banner 行，避免每次编译叠加
+            old_lines = [
+                ln for ln in (context or "").splitlines() if not ln.startswith("[近恒真预警]")
+            ]
+            context = (banner + "\n" + "\n".join(old_lines)).strip()
         fields = {
             "conditions": payload["conditions"],
             "intent": payload.get("intent"),
             "position_state": payload.get("position_state"),
             "interval_sec": payload.get("interval_sec"),
             "action_params": payload.get("action_params"),
-            "context": payload.get("context"),
+            "context": context,
             "enabled": payload.get("enabled", True),
         }
         self.rule_repo.update_fields(rule_id, **fields)

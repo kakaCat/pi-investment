@@ -28,8 +28,11 @@ class FakeEngine:
     def __init__(self):
         self.rules = None
 
-    def run_chain(self, rules, quotes):
+    def run_chain(self, rules, quotes, archive=None, now=None, assessments=None):
         self.rules = list(rules)
+        if archive is not None:
+            for rule in rules:
+                archive.evaluated(rule)
         return []
 
 

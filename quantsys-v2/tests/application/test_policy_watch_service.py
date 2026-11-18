@@ -28,7 +28,7 @@ if _PACKAGES.is_dir():
 from qs_watch.application.services.watch_engine import factory as factory_mod  # noqa: E402
 from qs_watch.application.services.watch_engine import policy_lexicon as pl  # noqa: E402
 from qs_watch.application.services.watch_engine import policy_watch_service as pw  # noqa: E402
-from qs_watch.application.services.watch_engine import sector_resonance_service as sr  # noqa: E402
+from qs_watch.application.services.watch_engine import sector_constituents as sr  # noqa: E402
 from qs_watch.application.services.watch_engine.policy_news_source import (  # noqa: E402
     PolicyNewsSource,
 )
@@ -716,10 +716,9 @@ def test_scanner_survives_scan_exception(monkeypatch):
 
 
 def test_engine_bootstrap_starts_scanner_without_blocking(monkeypatch):
-    """引擎 bootstrap 照常返回句柄，政策扫描线程启动被接线（不动 engine）。"""
+    """旁路宿主返回引擎句柄，政策扫描线程启动被接线。"""
     engine_stub = SimpleNamespace(
-        run_forever=lambda: None,
-        spawn_heartbeat_thread=lambda: None,
+        _ensure_sidecar_thread=lambda: None,
         confirm_verify_pipeline=None,
         news_watch_service=None,
     )
@@ -729,17 +728,15 @@ def test_engine_bootstrap_starts_scanner_without_blocking(monkeypatch):
         factory_mod, 'start_policy_watch_scanner',
         lambda engine=None, stop_event=None, service=None: started.append(engine))
 
-    engine, thread = factory_mod.start_watch_engine_in_thread()
+    engine = factory_mod.start_watch_sidecars_in_thread()
 
     assert engine is engine_stub
-    assert thread.daemon is True
     assert started == [engine_stub]
 
 
 def test_engine_bootstrap_survives_scanner_start_failure(monkeypatch):
     engine_stub = SimpleNamespace(
-        run_forever=lambda: None,
-        spawn_heartbeat_thread=lambda: None,
+        _ensure_sidecar_thread=lambda: None,
         confirm_verify_pipeline=None,
         news_watch_service=None,
     )
@@ -752,10 +749,9 @@ def test_engine_bootstrap_survives_scanner_start_failure(monkeypatch):
 
     monkeypatch.setattr(factory_mod, 'start_policy_watch_scanner', _boom)
 
-    engine, thread = factory_mod.start_watch_engine_in_thread()
+    engine = factory_mod.start_watch_sidecars_in_thread()
 
     assert engine is engine_stub
-    assert thread.daemon is True
     assert '政策盯盘扫描线程启动失败' in capture.text()
 
 

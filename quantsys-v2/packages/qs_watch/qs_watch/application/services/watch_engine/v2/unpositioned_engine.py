@@ -34,9 +34,11 @@ class Judgment:
     intent: str
     triggered: bool = False
     hit_conditions: List[Dict[str, Any]] = field(default_factory=list)
+    suppressed_conditions: List[Dict[str, Any]] = field(default_factory=list)
     degraded: bool = False
+    distance_ratio: Optional[float] = None
     reason: str = ''
-    #: 观察类即使触发也不进交易通道（只进摘要/留痕）
+    #: 观察类不进交易通道；agent 通道只留痕，direct 通道可发观察提醒
     observe_only: bool = False
 
 
@@ -45,19 +47,19 @@ def _intent_of(rule) -> str:
 
 
 def evaluate(rule, quote, now: Optional[datetime] = None,
-             ctx: Optional[Any] = None) -> Judgment:
+             ctx: Optional[Any] = None, staged_manager=None) -> Judgment:
     """非持仓类判定：买入范围 / 观察。
 
     返回 Judgment：
         - 非非持仓类 intent → triggered=False, reason='not_unpositioned_intent'
         - 买入范围到点 → triggered=True
-        - 观察类命中 → triggered=True 且 observe_only=True（调用方据此只留痕不交易）
+        - 观察类命中 → triggered=True 且 observe_only=True（不交易；agent 通道只留痕）
     """
     intent = _intent_of(rule)
     if intent not in UNPOSITIONED_INTENTS:
         return Judgment(intent=intent, triggered=False, reason='not_unpositioned_intent')
 
-    from ..rules.conditions import EvalContext, evaluate as _eval_condition  # 延迟 import
+    from ..rules.conditions import EvalContext
 
     if ctx is None:
         _cost = getattr(rule, 'cost_price', None)
@@ -67,33 +69,16 @@ def evaluate(rule, quote, now: Optional[datetime] = None,
             _cost = None  # Decimal/脏值统一转 float（条件 DSL 用 float 运算）
         ctx = EvalContext(cost_price=_cost)
 
-    hits: List[Dict[str, Any]] = []
-    degraded = False
-    for cond in (getattr(rule, 'conditions', None) or []):
-        if isinstance(cond, dict) and cond.get('type') == 'staged_break':
-            degraded = True   # 有状态条件，需 StagedBreakManager（V2 暂不评估）
-            continue
-        try:
-            result = _eval_condition(cond, quote, ctx, now)
-        except Exception as exc:  # noqa: BLE001 - 单条件异常不拖垮整条规则
-            logger.warning('v2.unpositioned_condition_eval_failed',
-                           rule_id=getattr(rule, 'id', None), error=str(exc))
-            continue
-        if getattr(result, 'degraded', False):
-            degraded = True
-        if getattr(result, 'triggered', False):
-            hits.append({
-                'condition': cond,
-                'value': getattr(result, 'value', None),
-                'message': getattr(result, 'message', ''),
-            })
-
+    from .condition_evaluator import evaluate_conditions
+    batch = evaluate_conditions(rule, quote, ctx, now, staged_manager=staged_manager)
     observe_only = intent == 'trend_observe'
     return Judgment(
         intent=intent,
-        triggered=bool(hits),
-        hit_conditions=hits,
-        degraded=degraded,
-        reason='' if hits else 'no_condition_hit',
+        triggered=bool(batch.hits),
+        hit_conditions=batch.hits,
+        suppressed_conditions=batch.suppressed,
+        degraded=batch.degraded,
+        distance_ratio=batch.distance_ratio,
+        reason='' if batch.hits else 'no_condition_hit',
         observe_only=observe_only,
     )

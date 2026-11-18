@@ -508,6 +508,15 @@ class DailyOrchestrator:
         from application.trading.paper_trading_engine import PaperTradingEngine
         from qs_ops.application.services.scheduler_tasks import handle_factor_compute
 
+        # 交易日守卫（2026-11-03 节假日假快照修复）：tick() 的守卫挡不住 run_phase
+        # 直调/断点续跑路径（实证 10-01 06:30、10-15 06:30 的 resume 写假快照），
+        # 写快照的阶段入口再守一道。非交易日 → 整段跳过。
+        from qs_ops.application.services.trading_day_guard import TradingDayGuard
+        verdict = TradingDayGuard.should_write_daily(state.trade_date)
+        if not verdict.is_trading_day:
+            return {'status': 'skipped', 'reason': 'non_trading_day',
+                    'guard': verdict.as_dict()}
+
         accounts = self._active_accounts(self._sim_repo())
 
         # 1+2. 逐账户拍摄净值快照 + 生成绩效报告

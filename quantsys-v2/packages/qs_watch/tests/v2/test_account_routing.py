@@ -41,8 +41,8 @@ class TestAccountRouting:
     def test_account_a_routes_to_agent_a(self):
         calls = []
 
-        def sender(agent, account, prompt):
-            calls.append((agent, account))
+        def sender(agent, account, prompt, context):
+            calls.append((agent, account, context))
             return True
 
         d = notify_agent.send(
@@ -52,7 +52,22 @@ class TestAccountRouting:
         )
         assert d.delivered is True
         assert d.agent == 'agent-A'
-        assert calls == [('agent-A', 'acct_A')]
+        assert calls == [('agent-A', 'acct_A', {'rule_id': 260, 'trigger_ids': []})]
+
+    def test_sender_receives_callback_context(self):
+        calls = []
+        judgment = _judgment()
+        judgment._v2_archive_entries = [
+            ('a', SimpleNamespace(trigger_id=88)),
+            ('b', SimpleNamespace(trigger_id=89)),
+        ]
+
+        notify_agent.send(
+            _rule(), judgment, 'holding',
+            sender=lambda *args: calls.append(args) or True,
+        )
+
+        assert calls[0][3] == {'rule_id': 260, 'trigger_ids': [88, 89]}
 
     def test_unmapped_account_falls_back_not_silent(self):
         d = notify_agent.send(
@@ -94,6 +109,67 @@ class TestPromptPlans:
     def test_unregistered_key_falls_back(self):
         p = agent_prompts.get('holding', 'unknown_type')
         assert '盯盘触发' in p
+
+
+class TestAgentPriceGate:
+    def test_repeat_agent_call_requires_one_percent_price_move(self):
+        calls = []
+        tracker = {}
+        rule = _rule()
+        sender = lambda *args: calls.append(args) or True
+
+        first = notify_agent.send(rule, _judgment(quote_price=100.0), 'holding',
+                                  sender=sender, price_tracker=tracker)
+        second = notify_agent.send(rule, _judgment(quote_price=100.5), 'holding',
+                                   sender=sender, price_tracker=tracker)
+        third = notify_agent.send(rule, _judgment(quote_price=101.0), 'holding',
+                                  sender=sender, price_tracker=tracker)
+
+        assert first.delivered is True
+        assert second.delivered is False
+        assert second.skipped is True
+        assert second.error == notify_agent.PRICE_GATE_SKIP
+        assert third.delivered is True
+        assert len(calls) == 2, '100.5 较上次 100.0 浮动 0.5% 不发；101.0 达到 1% 再发'
+        assert float(tracker[rule.id]) == 101.0
+
+    def test_failed_send_does_not_update_price_baseline(self):
+        calls = []
+        tracker = {}
+        rule = _rule()
+
+        def sender(*args):
+            calls.append(args)
+            return len(calls) > 1
+
+        first = notify_agent.send(rule, _judgment(quote_price=100.0), 'holding',
+                                  sender=sender, price_tracker=tracker)
+        retry = notify_agent.send(rule, _judgment(quote_price=100.0), 'holding',
+                                  sender=sender, price_tracker=tracker)
+
+        assert first.delivered is False
+        assert retry.delivered is True
+        assert len(calls) == 2, '上次发送失败不算“已调用 agent”，同价也要补发'
+        assert float(tracker[rule.id]) == 100.0
+
+    def test_price_gate_can_be_bypassed_but_baseline_updates(self):
+        calls = []
+        tracker = {}
+        rule = _rule()
+        sender = lambda *args: calls.append(args) or True
+
+        notify_agent.send(rule, _judgment(quote_price=100.0), 'holding',
+                          sender=sender, price_tracker=tracker)
+        bypass = notify_agent.send(rule, _judgment(quote_price=100.5), 'holding',
+                                   sender=sender, price_tracker=tracker,
+                                   use_price_gate=False)
+        gated = notify_agent.send(rule, _judgment(quote_price=100.6), 'holding',
+                                  sender=sender, price_tracker=tracker)
+
+        assert bypass.delivered is True
+        assert gated.skipped is True, '失效裁决等必达调用绕过门槛后，仍以新价作为下次基线'
+        assert len(calls) == 2
+        assert float(tracker[rule.id]) == 100.5
 
 
 class TestSenderContract:

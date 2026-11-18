@@ -29,7 +29,6 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from adapters.inbound.fastapi_app.routes import watch_rule_repair_async as repair_route
-from qs_watch.application.services.watch_engine.engine import SUPPRESSED_TRIGGER_REASON, WatchEngine
 from qs_watch.application.services.watch_engine.noise_self_heal_service import NoiseSelfHealService
 from qs_watch.application.services.watch_engine.todo_service import TodoService
 from qs_watch.domain.watch.ports import (
@@ -1005,7 +1004,7 @@ class _EngineQuoteService:
 
 
 def _engine_rule(**over):
-    """引擎可消费的规则替身（字段口径对齐 tests/services/test_watch_engine.py）"""
+    """盯盘规则字段替身。"""
     row = dict(id=1, symbol="600150.SH",
                conditions=[{"type": "price_break",
                             "params": {"direction": "above", "price": 100.0}}],
@@ -1017,127 +1016,6 @@ def _engine_rule(**over):
                noise_state=None, suppress_until=None)
     row.update(over)
     return SimpleNamespace(**row)
-
-
-def _engine(rules, prices, notifier, now=_ENGINE_NOW):
-    return WatchEngine(rule_repo=_EngineRuleRepo(rules),
-                       quote_service=_EngineQuoteService(prices),
-                       notifier=notifier, now_fn=lambda: now)
-
-
-def test_engine_suppressed_rule_archives_trigger_without_notify_or_todo():
-    """抑噪期：落库 suppressed=true + auto_observed，不 notify（=不进摘要队列/不建待办）"""
-    trigger_repo = _RecordingTriggerRepo()
-    notifier = _EngineNotifier(trigger_repo)
-    rule = _engine_rule(noise_state="suppressed",
-                        suppress_until=_ENGINE_NOW + timedelta(hours=1))
-    engine = _engine([rule], {"600150.SH": 101.0}, notifier)
-
-    events = engine.tick()
-
-    assert notifier.notifications == []                 # 不进摘要队列
-    assert len(trigger_repo.rows) == 1                  # 但仍落库（账不丢）
-    row = trigger_repo.rows[0]
-    assert row.suppressed is True
-    assert row.disposition == "auto_observed"           # 归档类处置
-    assert row.notified is False
-    assert "抑噪期" in row.disposition_reason
-    assert "修规则待办" in row.disposition_reason
-    assert len(events) == 1
-    assert events[0]["suppressed"] is True and events[0]["notified"] is False
-    assert events[0]["disposition"] == "auto_observed"
-    assert events[0]["disposition_reason"] == SUPPRESSED_TRIGGER_REASON
-
-    # 闩锁仍生效：同引擎再 tick 不重复落库（不逐条灌数据）
-    assert engine.tick() == []
-    assert len(trigger_repo.rows) == 1
-
-
-def test_engine_suppression_expired_behaves_normally():
-    """抑噪到期（suppress_until 已过）→ 恢复原级别：通知照发、suppressed=false"""
-    trigger_repo = _RecordingTriggerRepo()
-    notifier = _EngineNotifier(trigger_repo)
-    rule = _engine_rule(noise_state="suppressed",
-                        suppress_until=_ENGINE_NOW - timedelta(seconds=1))
-    events = _engine([rule], {"600150.SH": 101.0}, notifier).tick()
-
-    assert notifier.notifications == [(1, "price_break")]
-    assert len(trigger_repo.rows) == 1
-    assert trigger_repo.rows[0].suppressed is False
-    assert "suppressed" not in events[0]
-
-
-def test_engine_rule_without_noise_state_unchanged():
-    """无抑噪态（noise_state=None）→ 行为与改造前完全一致"""
-    trigger_repo = _RecordingTriggerRepo()
-    notifier = _EngineNotifier(trigger_repo)
-    events = _engine([_engine_rule()], {"600150.SH": 101.0}, notifier).tick()
-
-    assert notifier.notifications == [(1, "price_break")]
-    assert trigger_repo.rows[0].suppressed is False
-    assert "suppressed" not in events[0]
-
-
-def test_real_db_engine_archives_suppressed_trigger_without_new_todo(watch_tables):
-    """真库端到端：抑噪期规则触发 → suppressed=true 归档；修规则待办不因触发变多"""
-    import psycopg2
-
-    from adapters.outbound.repositories.watch_rule_repository import (
-        WatchRuleRepository, WatchTriggerRepository,
-    )
-
-    _db_cleanup()
-    # 阈值口径（2026-10-19 陈旧驻留裁定后对齐）：quote 假仓 prev_close=98.0、现价 10.0——
-    # 原 above/1.0 在昨收时已成立（98≥1）属「陈旧驻留」会被提前转治理、走不到抑噪归档；
-    # 改为 below/90.0：昨收 98>90 未成立（今日新穿越）、现价 10≤90 触发，语义不变。
-    _seed_db_rule(trigger_count=8, conditions_json=(
-        '[{"type": "price_break", "params": {"direction": "below", "price": 90.0}}]'))
-    try:
-        # ① 自愈 scan：置抑噪态 + 建 1 条「修规则」待办
-        _real_service().scan(now=datetime.now())
-        # 固定 now_fn 所需：把抑噪截止钉到可复现的时刻（不依赖系统时钟）
-        _set_suppress_until(_DB_RULE_ID, _ENGINE_NOW + timedelta(hours=1))
-
-        # ② 引擎在抑噪期 tick：只归档，不进摘要队列
-        trigger_repo = WatchTriggerRepository()
-        notifier = _EngineNotifier(trigger_repo)
-        engine = WatchEngine(rule_repo=WatchRuleRepository(),
-                             quote_service=_EngineQuoteService({_DB_SYMBOL: 10.0}),
-                             notifier=notifier, now_fn=lambda: _ENGINE_NOW)
-        events = engine.tick()
-        mine = [e for e in events if e["rule_id"] == _DB_RULE_ID]
-        assert notifier.notifications == [], notifier.notifications
-        assert len(mine) == 1 and mine[0]["suppressed"] is True, events
-
-        # ③ DB 事实：触发 suppressed=true / auto_observed；待办仍只有 scan 那一条
-        conn = psycopg2.connect(_dsn())
-        try:
-            cur = conn.cursor()
-            cur.execute("SELECT suppressed, disposition, disposition_reason, notified "
-                        "FROM quant.watch_triggers WHERE rule_id = %s ORDER BY id DESC LIMIT 1",
-                        (_DB_RULE_ID,))
-            suppressed, disposition, reason, notified = cur.fetchone()
-            assert suppressed is True
-            assert disposition == "auto_observed"
-            assert "抑噪期" in reason and "修规则待办" in reason
-            assert notified is False
-            cur.execute("SELECT count(*) FROM quant.watch_todos WHERE rule_id = %s",
-                        (_DB_RULE_ID,))
-            assert cur.fetchone()[0] == 1, "抑噪期触发不得再建待办（只有自愈那条修规则待办）"
-
-            # ④ 非抑噪期行为不变：默认 suppressed=False（列默认与形参默认一致）
-            WatchTriggerRepository().record(
-                rule_id=_DB_RULE_ID, symbol=_DB_SYMBOL,
-                condition={"type": "price_break"}, trigger_price=10.0,
-                disposition="pending", disposition_reason="回归用")
-            cur.execute("SELECT suppressed FROM quant.watch_triggers WHERE rule_id = %s "
-                        "ORDER BY id DESC LIMIT 1", (_DB_RULE_ID,))
-            assert cur.fetchone()[0] is False
-        finally:
-            conn.close()
-    finally:
-        _db_cleanup()
-
 
 
 # ── 服务：静音告知卡标的名解析（2026-10-21）──────────────────

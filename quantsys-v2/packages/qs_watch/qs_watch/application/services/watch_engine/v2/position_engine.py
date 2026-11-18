@@ -58,8 +58,10 @@ class Judgment:
     intent: str
     triggered: bool = False
     hit_conditions: List[Dict[str, Any]] = field(default_factory=list)
+    suppressed_conditions: List[Dict[str, Any]] = field(default_factory=list)
     state_mismatch: Optional[str] = None
     degraded: bool = False
+    distance_ratio: Optional[float] = None
     reason: str = ''
 
 
@@ -80,7 +82,7 @@ def _position_state_of(rule) -> Optional[str]:
 
 def evaluate(rule, quote, position: Optional[str] = None,
              now: Optional[datetime] = None,
-             ctx: Optional[Any] = None) -> Judgment:
+             ctx: Optional[Any] = None, staged_manager=None) -> Judgment:
     """持仓类判定：增仓 / 止盈 / 止损 / 减仓。
 
     参数：
@@ -122,7 +124,7 @@ def evaluate(rule, quote, position: Optional[str] = None,
             return Judgment(intent=intent, triggered=False, reason='not_holding')
 
     # ── 条件求值（复用 V1 DSL）─────────────────────────────────────────
-    from ..rules.conditions import EvalContext, evaluate as _eval_condition  # 延迟 import
+    from ..rules.conditions import EvalContext
 
     if ctx is None:
         # 缺省最小上下文：成本价从规则取（止盈/止损模板与 pnl 类条件需要）
@@ -133,36 +135,15 @@ def evaluate(rule, quote, position: Optional[str] = None,
             _cost = None  # Decimal/脏值统一转 float（条件 DSL 用 float 运算）
         ctx = EvalContext(cost_price=_cost)
 
-    hits: List[Dict[str, Any]] = []
-    degraded = False
-    conditions = getattr(rule, 'conditions', None) or []
-    for cond in conditions:
-        if isinstance(cond, dict) and cond.get('type') == 'staged_break':
-            # 有状态条件（触及→观察→确认）：需 StagedBreakManager 驱动，
-            # V2 判定层暂不评估（V1 引擎 tick 内拦截同口径）——标 degraded 不误判
-            degraded = True
-            continue
-        try:
-            result = _eval_condition(cond, quote, ctx, now)
-        except Exception as exc:  # noqa: BLE001 - 单条件异常不拖垮整条规则
-            logger.warning('v2.position_condition_eval_failed',
-                           rule_id=getattr(rule, 'id', None), error=str(exc))
-            continue
-        if getattr(result, 'degraded', False):
-            degraded = True
-        if getattr(result, 'triggered', False):
-            hits.append({
-                'condition': cond,
-                'value': getattr(result, 'value', None),
-                'message': getattr(result, 'message', ''),
-            })
-
+    from .condition_evaluator import evaluate_conditions
+    batch = evaluate_conditions(rule, quote, ctx, now, staged_manager=staged_manager)
     return Judgment(
         intent=intent,
-        triggered=bool(hits),
-        hit_conditions=hits,
-        # 状态不一致只在**真触发时**带出（调用方据此留痕；未触发不刷事件）
-        state_mismatch=mismatch if hits else None,
-        degraded=degraded,
-        reason='' if hits else 'no_condition_hit',
+        triggered=bool(batch.hits),
+        hit_conditions=batch.hits,
+        suppressed_conditions=batch.suppressed,
+        state_mismatch=mismatch if batch.hits else None,
+        degraded=batch.degraded,
+        distance_ratio=batch.distance_ratio,
+        reason='' if batch.hits else 'no_condition_hit',
     )

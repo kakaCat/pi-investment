@@ -1,4 +1,4 @@
-"""间隔任务（盯盘心跳/自愈）与其调度（拆分自 daily_jobs_bootstrap.py）
+"""间隔任务（盯盘影子模式/待办/自愈）与其调度（拆分自 daily_jobs_bootstrap.py）
 
 2026-10-01（REQ-261001145152-3982 t-686185）：由 daily_jobs_bootstrap.py 机械拆分而来
 （原文件 1147 行）。函数体与签名**逐字未改**；原模块保留为转发壳，既有导入路径不受影响。
@@ -38,26 +38,23 @@ def _self_heal_interval_sec() -> float:
 
 
 def _watch_loop_master_enabled() -> bool:
-    """新闭环总闸（WATCH_TODO_ENABLED，默认 false）= SLA 巡检 + 心跳巡检的注册条件。"""
+    """新闭环总闸（WATCH_TODO_ENABLED，默认 false）= 影子/SLA 巡检的注册条件。"""
     return _env_flag('WATCH_TODO_ENABLED', False)
 
 
-def _watch_heartbeat_job_enabled() -> bool:
-    return _watch_loop_master_enabled() and _env_flag('WATCH_HEARTBEAT_ENABLED', True)
+def _watch_shadow_job_enabled() -> bool:
+    return _watch_loop_master_enabled()
 
 
 def _watch_self_heal_job_enabled() -> bool:
     return _watch_loop_master_enabled() and _env_flag('WATCH_SELF_HEAL_ENABLED', False)
 
 
-def _job_watch_heartbeat() -> Dict[str, Any]:
-    """引擎心跳 / 影子超期巡检（真实通知通道=NotificationFacade，t12 §6-项10）"""
-    from adapters.inbound.fastapi_app.watch_heartbeat_job import run_heartbeat_check
-    from adapters.outbound.repositories.watch_runtime_state_repository import (
-        WatchRuntimeStateRepository,
-    )
+def _job_watch_shadow() -> Dict[str, Any]:
+    """影子超期巡检（真实通知通道=NotificationFacade，t12 §6-项10）"""
+    from adapters.inbound.fastapi_app.watch_shadow_job import run_shadow_check
     from qs_watch.application.services.watch_engine.watch_channels import send_watch_alert
-    return run_heartbeat_check(store=WatchRuntimeStateRepository(), sender=send_watch_alert)
+    return run_shadow_check(sender=send_watch_alert)
 
 
 def _job_watch_sla() -> Dict[str, Any]:
@@ -74,9 +71,9 @@ def _job_watch_self_heal() -> Dict[str, Any]:
 
 def _build_interval_jobs() -> List[IntervalJobDef]:
     return [
-        IntervalJobDef('watch_heartbeat_patrol', _job_watch_heartbeat, float(_TICK_SEC),
-                       '盯盘引擎心跳/影子超期巡检（进程外，1 分钟）',
-                       _watch_heartbeat_job_enabled),
+        IntervalJobDef('watch_shadow_patrol', _job_watch_shadow, float(_TICK_SEC),
+                       '盯盘影子模式超期巡检（进程外，1 分钟）',
+                       _watch_shadow_job_enabled),
         IntervalJobDef('watch_sla_patrol', _job_watch_sla, float(_TICK_SEC),
                        '盯盘待办到期巡检（唯一收敛权威，1 分钟）',
                        _watch_loop_master_enabled),

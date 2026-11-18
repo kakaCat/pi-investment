@@ -46,9 +46,11 @@ class RecordSignalRequest(BaseModel):
 
 
 class UpdatePerformanceRequest(BaseModel):
-    """更新表现请求"""
-    signal_date: Optional[str] = Field(None, description="指定更新日期（None=更新最近30天）")
-    lookback_days: int = Field(30, description="回溯天数")
+    """更新表现请求；缺省扫描全部历史 NULL 欠账。"""
+    signal_date: Optional[str] = Field(None, description="指定信号日期")
+    lookback_days: Optional[int] = Field(None, ge=0, description="可选的信号日下界（自然日）")
+    symbol: Optional[str] = Field(None, description="可选的限定标的")
+    refresh: bool = Field(False, description="重算非 NULL 派生值；须限定 signal_date 或 symbol")
 
 
 # === API 端点 ===
@@ -94,12 +96,16 @@ def update_performance(request: UpdatePerformanceRequest = Body(...)):
     
     result = service.update_performance(
         signal_date=request.signal_date,
-        lookback_days=request.lookback_days
+        lookback_days=request.lookback_days,
+        symbol=request.symbol,
+        refresh=request.refresh,
     )
-    
+
     return api_response({
         "updated": result["updated"],
-        "details": result["details"]
+        "details": result["details"],
+        "diagnostics": result["diagnostics"],
+        "complete": result["complete"],
     })
 
 
@@ -152,17 +158,25 @@ try:
 
     @register_job_handler("signal_perf_backfill_daily")
     async def handle_signal_perf_backfill(metadata=None):
-        """盘后回填信号 5/10/20 日表现（15:45 由 Agent OS 触发）"""
+        """盘后回填信号 5/10/20 日表现（15:45 由 Agent OS 触发）
+        
+        2026-11-02 改造（w-8cbf83a2）：改为待办驱动，扫描全部历史欠账，不限30天。
+        """
         try:
-            lookback_days = 30
-            if metadata and isinstance(metadata, dict):
-                lookback_days = int(metadata.get("lookback_days", 30))
+            # Agent OS 唯一调度；None=全部历史待办，显式 metadata 才限窗口。
+            lookback_days = None
+            if metadata and isinstance(metadata, dict) and "lookback_days" in metadata:
+                lookback_days = int(metadata.get("lookback_days"))
             service = SignalTrackingService()
             result = service.update_performance(lookback_days=lookback_days)
+            complete = result.get("complete", True)
             return {
-                "status": "ok",
+                "status": "ok" if complete else "error",
+                "error": None if complete else "到期信号仍存在缺 K 线或非法信号，未完整回填",
                 "updated": result.get("updated", 0),
                 "details": result.get("details", {}),
+                "diagnostics": result.get("diagnostics", {}),
+                "complete": complete,
             }
         except Exception as e:
             logger.exception(f"signal_perf_backfill_daily job failed: {e}")

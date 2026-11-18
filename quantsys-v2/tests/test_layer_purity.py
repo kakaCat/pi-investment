@@ -23,6 +23,7 @@ hook 与既有工具对齐，本文件管得更宽。
 只许降不许升：修好一批后，把下面两个常量一起调小。
 新增违规会立刻让本文件红灯——这正是它的用途。
 """
+
 from __future__ import annotations
 
 import ast
@@ -40,7 +41,7 @@ LAYERS = ("domain", "application", "adapters", "infrastructure")
 # 为什么 +2 可接受：CLAUDE.md「Data Access Rules」**强制** application 走
 # DataProviderManager（位于 qs_market_data.adapters.outbound.datasources.manager）取外部数据——
 # 于是"按规范取数"必然新增 application→adapters 引用，被本口径计为违规。
-# 这 2 处（core_plan_service 的沪深300 基准、market_style_detector 的新浪行业截面）
+# 这 2 处（portfolio_decision_service 的沪深300 基准、market_style_detector 的新浪行业截面）
 # 是**度量与规范冲突**的假阳性，不是债上加债；目标是持续下调，
 # 若日后改为端口注入（application 不再 import adapters），这两处会自然消失。
 # 这两个数字是"存量债"，不是"允许值"——目标是持续下调。
@@ -135,9 +136,10 @@ def scan():
 def test_total_layer_violations_do_not_increase(scan):
     """违规总数不得超过存量基线。"""
     total, _toplevel, details = scan
-    assert total <= TOTAL_BASELINE, (
-        f"分层违规总数上升：{total} > 基线 {TOTAL_BASELINE}（新增 {total - TOTAL_BASELINE} 处）\n"
-        + "\n".join(sorted(details)[-20:])
+    assert (
+        total <= TOTAL_BASELINE
+    ), f"分层违规总数上升：{total} > 基线 {TOTAL_BASELINE}（新增 {total - TOTAL_BASELINE} 处）\n" + "\n".join(
+        sorted(details)[-20:]
     )
     if total < TOTAL_BASELINE:
         pytest.skip(
@@ -149,9 +151,10 @@ def test_total_layer_violations_do_not_increase(scan):
 def test_toplevel_layer_violations_do_not_increase(scan):
     """模块顶层的越层导入（性质最重、无法用打破循环依赖辩解）不得超过基线。"""
     _total, toplevel, details = scan
-    assert toplevel <= TOPLEVEL_BASELINE, (
-        f"顶层分层违规上升：{toplevel} > 基线 {TOPLEVEL_BASELINE}\n"
-        + "\n".join(d for d in sorted(details) if "（顶层）" in d)
+    assert (
+        toplevel <= TOPLEVEL_BASELINE
+    ), f"顶层分层违规上升：{toplevel} > 基线 {TOPLEVEL_BASELINE}\n" + "\n".join(
+        d for d in sorted(details) if "（顶层）" in d
     )
     if toplevel < TOPLEVEL_BASELINE:
         pytest.skip(

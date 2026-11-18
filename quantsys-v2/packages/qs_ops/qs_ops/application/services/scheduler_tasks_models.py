@@ -213,6 +213,10 @@ def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
         
         # 7. 保存训练记录到DB（用 MlModelORMRepository.save_model 真实 upsert；
         #    BaseORMRepository.create(dict) 静默吞 dict → 元数据永不落库，勿再用）
+        # 2026-11-03（w-0b085607）：prev_version 必须在落库之前捕获——落库后
+        # _resolve_latest_version 已是新版本，切换比较会退化为与自己比（恒切换）。
+        from adapters.shared.ml_helpers import _resolve_latest_version
+        prev_version = _resolve_latest_version(model_type)
         model_repo = _get_model_repo()
         try:
             model_repo.save_model({
@@ -235,10 +239,13 @@ def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
         except Exception as e:
             logger.warning(f"训练元数据落库失败: {e}")
         
-        # 8. 性能对比（记录，不自动切换，需人工确认）
+        # 8. 性能对比切换（prev_version 已于落库前捕获，见步骤 7 注释）
         switched = False
         if auto_switch:
-            switched = _try_switch_model(model_type, version, test_acc)
+            if prev_version == version:
+                # 极端兜底：同名版本（同一秒重跑）时按无前任处理
+                prev_version = None
+            switched = _try_switch_model(model_type, version, test_acc, prev_version=prev_version)
             if switched:
                 logger.info(f"已自动切换到新模型: {version}")
         
@@ -291,11 +298,16 @@ def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
         _release_thread_session()
 
 
-def _try_switch_model(model_type: str, new_version: str, new_test_acc: float) -> bool:
-    """尝试切换到新模型（如果性能更好）"""
+def _try_switch_model(model_type: str, new_version: str, new_test_acc: float, prev_version: str = None) -> bool:
+    """尝试切换到新模型（如果性能更好）
+
+    prev_version：调用方在新模型元数据落库**之前**捕获的前任版本。
+    缺省回退旧行为（落库后取 latest，此时 latest 已是 new_version → 恒切换，
+    仅为兼容保留，新调用方必须显式传 prev_version）。
+    """
     from adapters.shared.ml_helpers import _get_model_repo, _resolve_latest_version
-    
-    current_version = _resolve_latest_version(model_type)
+
+    current_version = prev_version or _resolve_latest_version(model_type)
     if not current_version or current_version == new_version:
         return True
     

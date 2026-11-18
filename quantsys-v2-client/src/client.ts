@@ -17,6 +17,7 @@ import type {
   PortfolioSummary,
   EvolutionLeaderboard,
   EvolutionDecisionScores,
+  InvestmentEvaluationReport,
   StrategyListResponse,
   // P0 missing method types
   TradeRequest,
@@ -72,6 +73,10 @@ import type {
   WatchTodo,
   WatchTodoListParams,
   WatchTodoCloseRequest,
+  TTradeCycle,
+  TTradeCreateRequest,
+  TTradeResult,
+  TTradeStatus,
 } from './types.js';
 
 
@@ -317,6 +322,26 @@ export class QuantsysV2Client {
     });
     // Special case: no success envelope, direct {symbol, count, klines}
     return response.data.klines || [];
+  }
+
+  /**
+   * 本地交易日历（2026-11-03，节假日误判修复）：/api/market/trading-calendar。
+   * 与 getTradingCalendar（/api/provider/*，akshare 外网源）不同，本方法走 v2 本地
+   * quant.trading_calendar（交易所发布口径，每日 06:00/23:10 刷新），热路径可用性更高。
+   * 返回区间内交易日（YYYY-MM-DD 升序）；失败返回 []（调用方回退旧行为）。
+   */
+  async getTradingCalendarDates(startDate: string, endDate: string): Promise<string[]> {
+    try {
+      const response = await this.client.get('/api/market/trading-calendar', {
+        params: { start_date: startDate, end_date: endDate },
+      });
+      if (response.data && response.data.success) {
+        return response.data.trade_dates || [];
+      }
+    } catch {
+      // 日历不可用不得阻塞主指标——对齐逻辑回退到不过滤
+    }
+    return [];
   }
 
   /**
@@ -1069,6 +1094,7 @@ export class QuantsysV2Client {
       profitLoss: profitTotal,
       profitLossPct: Number((profitTotalRate * 100).toFixed(2)),
       profitToday: Number(p.profit_today) || 0,
+      peakPrice: Number(p.peak_price) || 0,
       // 行情时效信息：价格刷新时间戳 + 账户级陈旧标记（true=本次行情拉取失败，价格为旧值）
       priceUpdatedAt: p.price_updated_at || account.last_updated || null,
       priceStale: Boolean(account.price_stale),
@@ -1078,24 +1104,125 @@ export class QuantsysV2Client {
   // ==================== Core Plan APIs（建仓计划，B8 2026-09-13） ====================
 
   /**
-   * 读取投资脑 core 建仓计划（**只读**）。
+   * 读取投资脑当日建仓计划视图（**只读**）。
    *
-   * 返回 {available, unavailable_reason, freshness, plan, delta}：
-   *   · plan      计划全文（与 config/core_plan.json 结构一致，**蛇形 key 原样返回**）
-   *   · freshness 新鲜度（generated_at/data_date/is_stale/stale_reason）——
-   *               直读文件时**看不出**计划陈不陈，周五的计划周一读出来一模一样
-   *   · delta     目标组合 vs 当前持仓的机械差额（含 shares_available 供 T+1 校验）
+   * 2026-10-29 迁移（qs_plan 数据库化）：后端 /api/core-plan（config/core_plan.json 文件链路）
+   * 已随 core_plan_generate 任务一并退役（路由删除、未留兼容期）。本方法改读
+   * GET /api/plans/today（当日账户级计划视图，由 09:05 trading_plan_generate_daily 生成），
+   * 并适配进 CorePlanSnapshot 信封以保住既有消费方（core_plan 工具/例行任务）：
+   *   · plan  = 今日视图原样（{empty, plans:[{plan,targets,entry,exit,env_gate}], generated_at}），
+   *             **不再是** config/core_plan.json 结构（无 exposure/holdings/growth_sleeve）
+   *   · freshness 由 generated_at 机械判定（是否今天生成）
+   *   · delta = null —— 今日视图不提供"目标组合 vs 当前持仓"机械差额，
+   *             需要差额时用 position_list 自行核对
+   *   · 当日无计划（empty=true）→ available=false + unavailable_reason（不静默）
    *
-   * ⚠️ delta 不是委托清单：价格是计划时收盘价、未做 regime/止损复检、未做分批节奏。
-   *    下单前仍须走 R-001/R-002。详见返回的 delta.caveats。
-   * ⚠️ 不触发重新生成（生成参数集已审批）；补跑用 POST /api/scheduler/tasks/337/trigger。
+   * ⚠️ 不触发重新生成；补跑：scheduler_manage trigger trading_plan_generate_daily 或
+   *    POST /api/plans/generate {account}。
    */
   async getCorePlan(account?: string): Promise<CorePlanSnapshot> {
     const qs = new URLSearchParams();
     if (account) qs.set('account', account);
-    const url = qs.toString() ? `/api/core-plan?${qs.toString()}` : '/api/core-plan';
-    const response = await this.client.get(url);
-    return this.unwrap<CorePlanSnapshot>(response.data, 'getCorePlan');
+    const response = await this.client.get(`/api/plans/today?${qs.toString()}`);
+    const body = this.unwrap<{
+      empty?: boolean;
+      plans?: any[];
+      items?: any[];
+      generated_at?: string | null;
+      readiness?: { ready?: boolean; reasons?: Array<Record<string, any>> };
+      [key: string]: any;
+    }>(response.data, 'getCorePlan');
+
+    const generatedAt = body.generated_at || null;
+    let isStale = true;
+    let staleReason: string | null = 'generated_at 缺失';
+    let ageHours: number | null = null;
+    if (generatedAt) {
+      const genMs = Date.parse(generatedAt);
+      if (Number.isFinite(genMs)) {
+        const genDay = new Date(genMs);
+        const today = new Date();
+        // 本地日历日比较（后端给 ISO 带时区，直接按本地零点切日）
+        isStale = genDay.getFullYear() !== today.getFullYear()
+          || genDay.getMonth() !== today.getMonth()
+          || genDay.getDate() !== today.getDate();
+        staleReason = isStale ? `generated_at=${generatedAt} 不是今天` : null;
+        ageHours = Math.round(((Date.now() - genMs) / 3600000) * 100) / 100;
+      }
+    }
+    const legacyPlans = Array.isArray(body.plans) ? body.plans : [];
+    const accountItems = Array.isArray(body.items) ? body.items : [];
+    const plans = legacyPlans.length > 0 ? legacyPlans : accountItems.map((item) => {
+      const exits = Array.isArray(item.exit) ? item.exit : [];
+      const exitConditions = (role: string) => exits
+        .filter((condition: any) => condition.role === role)
+        .map((condition: any) => ({
+          ...condition,
+          value: condition.params?.value,
+          params: condition.params || {},
+        }));
+      const marketGate = body.market_gate || {};
+      return {
+        plan: {
+          id: body.plan_id,
+          item_id: item.item_id,
+          name: item.name ? `${item.name} ${item.symbol}` : item.symbol,
+          status: body.revision_status,
+          version: body.version,
+          horizon: item.horizon,
+        },
+        targets: [{
+          symbol: item.symbol,
+          name: item.name,
+          role: item.action,
+          budget_pct: item.target_weight == null ? null : Number(item.target_weight) * 100,
+          target_qty: item.target_qty,
+          position: item.state?.state,
+        }],
+        entry: item.entry || { conditions: [] },
+        execution_batch: item.execution_batch,
+        max_chase_pct: item.max_chase_pct,
+        exit: {
+          stop_loss: exitConditions('stop_loss')[0] || {},
+          reduce_plan: exitConditions('reduce'),
+          risk_reduce_plan: exitConditions('exit_reduce'),
+        },
+        env_gate: {
+          ...marketGate,
+          verdict: marketGate.allowed === true ? 'allowed'
+            : marketGate.allowed === false ? 'blocked' : marketGate.verdict,
+        },
+      };
+    });
+    const empty = Boolean(body.empty) || (legacyPlans.length === 0 && accountItems.length === 0);
+    const notReady = !empty && body.readiness?.ready === false;
+    const readinessReasons = (body.readiness?.reasons || []).map((reason) => (
+      `${reason.code || 'UNKNOWN'}${reason.item_id == null ? '' : `(item ${reason.item_id})`}: ${reason.message || ''}`
+    )).join('；');
+    const emptyReason = '当日无已生成计划（trading_plan_generate_daily 工作日 09:05 生成；'
+      + '补跑：scheduler_manage trigger trading_plan_generate_daily 或 POST /api/plans/generate）';
+    const notReadyReason = `当日计划已生成但未就绪（readiness_not_ready${readinessReasons ? `：${readinessReasons}` : ''}）`;
+
+    return {
+      plan_file: '(deprecated: core_plan.json 文件链路已退役，现为 qs_plan 数据库当日视图)',
+      available: !empty && !notReady,
+      unavailable_reason: empty ? emptyReason : notReady ? notReadyReason : (isStale ? staleReason : null),
+      account: body.account || account || null,
+      requested_account: account || null,
+      account_mismatch: false,
+      freshness: {
+        generated_at: generatedAt,
+        data_date: generatedAt ? String(generatedAt).slice(0, 10) : null,
+        deadline_hhmm: '09:05',
+        age_hours: ageHours,
+        generated_today: !isStale,
+        generated_after_deadline: true,
+        is_stale: empty ? true : isStale,
+        stale_reason: empty ? emptyReason : staleReason,
+      },
+      plan: { ...body, empty, plans } as Record<string, any>,
+      delta: null,
+    };
   }
 
   // ==================== Trading Plan APIs (REQ-261021222905-6dff) ====================
@@ -1203,6 +1330,17 @@ export class QuantsysV2Client {
     return this.unwrap<EvolutionDecisionScores>(response.data, 'getEvolutionDecisionScores');
   }
 
+  /** 投资评价与业绩归因（只读）：账户由调用方显式指定。 */
+  async getInvestmentEvaluationReport(params: {
+    account_name: string;
+    start_date?: string;
+    end_date?: string;
+    annual_cost_rate?: number;
+  }): Promise<InvestmentEvaluationReport> {
+    const response = await this.client.get('/api/evaluation/report', { params });
+    return this.unwrap<InvestmentEvaluationReport>(response.data, 'getInvestmentEvaluationReport');
+  }
+
   // ==================== Trading APIs (P0) ====================
 
   /**
@@ -1236,6 +1374,11 @@ export class QuantsysV2Client {
     // 不映射会导致限价挂单裸奔成市价单（开盘跳空无保护）。
     if (params.price && params.execute_at) body.price_limit = params.price;
     if (params.allow_duplicate) body.allow_duplicate = true;  // 重复挂单确认放行（2026-09-03）
+    if (params.plan_id !== undefined) body.plan_id = params.plan_id;
+    if (params.item_id !== undefined) body.item_id = params.item_id;
+    if (params.plan_version !== undefined) body.plan_version = params.plan_version;
+    if (params.signal_grade) body.signal_grade = params.signal_grade;
+    if (params.decision_audit_id) body.decision_audit_id = params.decision_audit_id;
     const response = await this.client.post(`/api/simulation/accounts/${encodeURIComponent(account)}/trade`, body);
     const data = this.unwrap<any>(response.data, 'executeTrade');
     // 映射为 TradeResponse 契约（挂单场景：status='pending'，无成交价）
@@ -1250,6 +1393,43 @@ export class QuantsysV2Client {
       timestamp: data.timestamp ?? new Date().toISOString(),
       ...(data.pending_order_id ? { pending_order_id: data.pending_order_id, message: data.message } : {}),
     } as TradeResponse;
+  }
+
+  async createTTrade(params: TTradeCreateRequest): Promise<TTradeResult> {
+    const response = await this.client.post('/api/t-trades', params);
+    return this.unwrap<TTradeResult>(response.data, 'createTTrade');
+  }
+
+  async listTTrades(params: { account?: string; status?: TTradeStatus; limit?: number } = {}): Promise<TTradeCycle[]> {
+    const response = await this.client.get('/api/t-trades', { params });
+    const data = this.unwrap<{ cycles: TTradeCycle[] }>(response.data, 'listTTrades');
+    return data.cycles ?? [];
+  }
+
+  async getTTrade(cycleId: number): Promise<TTradeCycle> {
+    const response = await this.client.get(`/api/t-trades/${cycleId}`);
+    const data = this.unwrap<{ cycle: TTradeCycle }>(response.data, 'getTTrade');
+    return data.cycle;
+  }
+
+  async executeTTrade(cycleId: number): Promise<TTradeResult> {
+    const response = await this.client.post(`/api/t-trades/${cycleId}/execute`, {});
+    return this.unwrap<TTradeResult>(response.data, 'executeTTrade');
+  }
+
+  async recordTTradeFill(cycleId: number, tradeId: number): Promise<TTradeResult> {
+    const response = await this.client.post(`/api/t-trades/${cycleId}/record-fill`, { trade_id: tradeId });
+    return this.unwrap<TTradeResult>(response.data, 'recordTTradeFill');
+  }
+
+  async cancelTTrade(cycleId: number, reason: string): Promise<TTradeResult> {
+    const response = await this.client.post(`/api/t-trades/${cycleId}/cancel`, { reason });
+    return this.unwrap<TTradeResult>(response.data, 'cancelTTrade');
+  }
+
+  async reconcileTTrade(cycleId: number): Promise<TTradeResult> {
+    const response = await this.client.post(`/api/t-trades/${cycleId}/reconcile`, {});
+    return this.unwrap<TTradeResult>(response.data, 'reconcileTTrade');
   }
 
   /**
@@ -1543,9 +1723,14 @@ export class QuantsysV2Client {
    * Dispatches to different endpoints based on command.
    */
   async riskControl(params: RiskControlRequest): Promise<any> {
-    const { command, symbol, account_name, risk_level, price, entry_price } = params;
+    const { command, symbol, account_name, risk_level, price, entry_price, account_value, risk_percent } = params;
     if (command === 'position_size') {
-      const response = await this.client.post(`/api/stock/${symbol}/risk/position-size`, { account_name, price });
+      // 2026-10-27（w-2b6ce5f0）：account_value 此前在客户端被静默丢弃 → 后端退回默认 100000，
+      // 静态建议恒为 20000（≈总资产 4%），R-021 试单额度再高也被它钳死。现按后端契约透传。
+      const body: Record<string, any> = { account_name, price };
+      if (typeof account_value === 'number' && account_value > 0) body.account_value = account_value;
+      if (typeof risk_percent === 'number' && risk_percent > 0) body.risk_percent = risk_percent;
+      const response = await this.client.post(`/api/stock/${symbol}/risk/position-size`, body);
       return this.unwrap(response.data, 'riskControl');
     }
     if (command === 'stop_loss') {
@@ -1856,7 +2041,7 @@ export class QuantsysV2Client {
    * Sync daily K-line data
    * Real endpoint: POST /api/data/sync-daily-klines
    */
-  async syncDailyKlines(params?: { date?: string; symbols?: string[]; force?: boolean }): Promise<{
+  async syncDailyKlines(params?: { date?: string; symbols?: string[]; force?: boolean; source?: string }): Promise<{
     success: boolean;
     sync_date: string;
     success_count: number;
@@ -1866,6 +2051,7 @@ export class QuantsysV2Client {
     elapsed_time: number;
     message: string;
     failed_symbols?: string[];
+    details?: Array<Record<string, any>>;
   }> {
     const response = await this.client.post('/api/data/sync-daily-klines', params || {});
     return response.data;
@@ -1993,14 +2179,28 @@ export class QuantsysV2Client {
   /**
    * Update signal performance (backfill 5/10/20-day returns)
    * Real endpoint: PUT /api/signals/track/update
-   * Body: {signal_date?, lookback_days?}
+   * Body: {signal_date?, lookback_days?, symbol?, refresh?}
+   * 单独 60s：该接口历史上曾 33s 才提交，Axios 默认 30s 会制造
+   * “客户端报超时、服务端实际已写入”的假失败。超时后仍须先对账。
    */
   async updateSignalPerformance(params?: {
     signal_date?: string;
     lookback_days?: number;
-  }): Promise<{ updated: number; details: Record<string, number> }> {
-    const response = await this.client.put('/api/signals/track/update', params ?? {});
-    return this.unwrap<{ updated: number; details: Record<string, number> }>(response.data, 'updateSignalPerformance');
+    symbol?: string;
+    refresh?: boolean;
+  }): Promise<{
+    updated: number;
+    details: Record<string, number>;
+    diagnostics: Record<string, any>;
+    complete: boolean;
+  }> {
+    const response = await this.client.put('/api/signals/track/update', params ?? {}, { timeout: 60000 });
+    return this.unwrap<{
+      updated: number;
+      details: Record<string, number>;
+      diagnostics: Record<string, any>;
+      complete: boolean;
+    }>(response.data, 'updateSignalPerformance');
   }
 
   /**

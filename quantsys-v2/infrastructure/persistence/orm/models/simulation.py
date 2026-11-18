@@ -6,9 +6,18 @@
 2. SimulationPosition - 模拟持仓
 3. SimulationTrade - 模拟交易记录
 """
+
 from sqlalchemy import (
-    Column, String, Integer, Date, DateTime, Numeric, Text,
-    Index, CheckConstraint
+    Column,
+    String,
+    Integer,
+    Date,
+    DateTime,
+    Numeric,
+    Text,
+    Index,
+    CheckConstraint,
+    text,
 )
 from sqlalchemy.orm import relationship, validates
 from datetime import datetime
@@ -17,9 +26,13 @@ from ..base import Base
 from .action_norm import normalize_action
 
 __all__ = [
-    'SimulationAccount', 'SimulationPosition', 'SimulationTrade',
-    'SimulationOrder', 'SimulationCashFlow', 'SimulationEquitySnapshot',
-    'SimulationPendingOrder',
+    "SimulationAccount",
+    "SimulationPosition",
+    "SimulationTrade",
+    "SimulationOrder",
+    "SimulationCashFlow",
+    "SimulationEquitySnapshot",
+    "SimulationPendingOrder",
 ]
 
 
@@ -30,73 +43,65 @@ class SimulationAccount(Base):
     主键：id
     唯一约束：account_name
     """
-    __tablename__ = 'simulation_account'
+
+    __tablename__ = "simulation_account"
     __table_args__ = (
         # 唯一约束
-        Index('simulation_account_account_name_key', 'account_name', unique=True),
+        Index("simulation_account_account_name_key", "account_name", unique=True),
         # Schema
-        {'schema': 'quant'}
+        {"schema": "quant"},
     )
 
     # 主键
-    id = Column(Integer, primary_key=True, autoincrement=True, comment='账户ID')
+    id = Column(Integer, primary_key=True, autoincrement=True, comment="账户ID")
 
     # 账户信息
-    account_name = Column(
-        String(50),
-        nullable=False,
-        default='default',
-        comment='账户名称'
-    )
+    account_name = Column(String(50), nullable=False, default="default", comment="账户名称")
 
     # 资金信息
-    cash_available = Column(Numeric(15, 2), nullable=False, default=0, comment='可用资金')
-    cash_frozen = Column(Numeric(15, 2), nullable=False, default=0, comment='冻结资金')
-    position_value = Column(Numeric(15, 2), nullable=False, default=0, comment='持仓市值')
-    total_value = Column(Numeric(15, 2), nullable=False, default=0, comment='总资产')
-    peak_value = Column(Numeric(15, 2), nullable=False, default=0, comment='历史峰值')
-    initial_capital = Column(Numeric(15, 2), nullable=False, default=0, comment='初始资金')
+    cash_available = Column(Numeric(15, 2), nullable=False, default=0, comment="可用资金")
+    cash_frozen = Column(Numeric(15, 2), nullable=False, default=0, comment="冻结资金")
+    position_value = Column(Numeric(15, 2), nullable=False, default=0, comment="持仓市值")
+    total_value = Column(Numeric(15, 2), nullable=False, default=0, comment="总资产")
+    peak_value = Column(Numeric(15, 2), nullable=False, default=0, comment="历史峰值")
+    initial_capital = Column(Numeric(15, 2), nullable=False, default=0, comment="初始资金")
 
     # 账户元数据
-    display_name = Column(String(100), comment='显示名')
-    strategy_name = Column(String(50), comment='绑定策略名')
-    account_type = Column(String(30), comment='账户自动化类型: strategy=策略自动/agent=Agent驱动/user=用户主仓/legacy=历史冻结')
-    status = Column(String(20), nullable=False, default='active', comment='active/archived')
+    display_name = Column(String(100), comment="显示名")
+    strategy_name = Column(String(50), comment="绑定策略名")
+    account_type = Column(
+        String(30),
+        comment="账户自动化类型: strategy=策略自动/agent=Agent驱动/user=用户主仓/legacy=历史冻结",
+    )
+    status = Column(String(20), nullable=False, default="active", comment="active/archived")
 
     # 绩效指标
-    cumulative_return = Column(Numeric(10, 4), default=0, comment='累计收益率')
-    max_drawdown = Column(Numeric(10, 4), default=0, comment='最大回撤')
+    cumulative_return = Column(Numeric(10, 4), default=0, comment="累计收益率")
+    max_drawdown = Column(Numeric(10, 4), default=0, comment="最大回撤")
 
     # 最后操作日期
-    last_rebalance_date = Column(Date, comment='最后调仓日期')
+    last_rebalance_date = Column(Date, comment="最后调仓日期")
 
     # 时间戳
-    created_at = Column(
-        DateTime(timezone=False),
-        default=datetime.now,
-        comment='创建时间'
-    )
+    created_at = Column(DateTime(timezone=False), default=datetime.now, comment="创建时间")
     updated_at = Column(
-        DateTime(timezone=False),
-        default=datetime.now,
-        onupdate=datetime.now,
-        comment='更新时间'
+        DateTime(timezone=False), default=datetime.now, onupdate=datetime.now, comment="更新时间"
     )
 
     # 关系映射
     positions = relationship(
-        'SimulationPosition',
-        back_populates='account',
-        foreign_keys='SimulationPosition.account_name',
-        primaryjoin='SimulationAccount.account_name==SimulationPosition.account_name',
-        lazy='dynamic'
+        "SimulationPosition",
+        back_populates="account",
+        foreign_keys="SimulationPosition.account_name",
+        primaryjoin="SimulationAccount.account_name==SimulationPosition.account_name",
+        lazy="dynamic",
     )
     trades = relationship(
-        'SimulationTrade',
-        back_populates='account',
-        foreign_keys='SimulationTrade.account_name',
-        primaryjoin='SimulationAccount.account_name==SimulationTrade.account_name',
-        lazy='dynamic'
+        "SimulationTrade",
+        back_populates="account",
+        foreign_keys="SimulationTrade.account_name",
+        primaryjoin="SimulationAccount.account_name==SimulationTrade.account_name",
+        lazy="dynamic",
     )
 
     def __repr__(self):
@@ -108,23 +113,25 @@ class SimulationAccount(Base):
     def to_dict(self):
         """转换为字典"""
         return {
-            'id': self.id,
-            'account_name': self.account_name,
-            'cash_available': float(self.cash_available) if self.cash_available else 0,
-            'cash_frozen': float(self.cash_frozen) if self.cash_frozen else 0,
-            'position_value': float(self.position_value) if self.position_value else 0,
-            'total_value': float(self.total_value) if self.total_value else 0,
-            'peak_value': float(self.peak_value) if self.peak_value else 0,
-            'initial_capital': float(self.initial_capital) if self.initial_capital else 0,
-            'display_name': self.display_name,
-            'strategy_name': self.strategy_name,
-            'account_type': self.account_type,
-            'status': self.status,
-            'cumulative_return': float(self.cumulative_return) if self.cumulative_return else 0,
-            'max_drawdown': float(self.max_drawdown) if self.max_drawdown else 0,
-            'last_rebalance_date': self.last_rebalance_date.isoformat() if self.last_rebalance_date else None,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            "id": self.id,
+            "account_name": self.account_name,
+            "cash_available": float(self.cash_available) if self.cash_available else 0,
+            "cash_frozen": float(self.cash_frozen) if self.cash_frozen else 0,
+            "position_value": float(self.position_value) if self.position_value else 0,
+            "total_value": float(self.total_value) if self.total_value else 0,
+            "peak_value": float(self.peak_value) if self.peak_value else 0,
+            "initial_capital": float(self.initial_capital) if self.initial_capital else 0,
+            "display_name": self.display_name,
+            "strategy_name": self.strategy_name,
+            "account_type": self.account_type,
+            "status": self.status,
+            "cumulative_return": float(self.cumulative_return) if self.cumulative_return else 0,
+            "max_drawdown": float(self.max_drawdown) if self.max_drawdown else 0,
+            "last_rebalance_date": (
+                self.last_rebalance_date.isoformat() if self.last_rebalance_date else None
+            ),
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
 
 
@@ -135,61 +142,52 @@ class SimulationPosition(Base):
     主键：id
     唯一约束：(account_name, symbol)
     """
-    __tablename__ = 'simulation_positions'
+
+    __tablename__ = "simulation_positions"
     __table_args__ = (
         # 唯一约束
-        Index('simulation_positions_account_name_symbol_key', 'account_name', 'symbol', unique=True),
+        Index(
+            "simulation_positions_account_name_symbol_key", "account_name", "symbol", unique=True
+        ),
         # Schema
-        {'schema': 'quant'}
+        {"schema": "quant"},
     )
 
     # 主键
-    id = Column(Integer, primary_key=True, autoincrement=True, comment='持仓ID')
+    id = Column(Integer, primary_key=True, autoincrement=True, comment="持仓ID")
 
     # 账户关联
-    account_name = Column(
-        String(50),
-        nullable=False,
-        default='default',
-        comment='账户名称'
-    )
+    account_name = Column(String(50), nullable=False, default="default", comment="账户名称")
 
     # 持仓信息
-    symbol = Column(String(20), nullable=False, comment='股票代码')
-    shares_total = Column(Integer, nullable=False, default=0, comment='持仓总量')
-    shares_available = Column(Integer, nullable=False, default=0, comment='可用数量(T+1)')
-    avg_cost = Column(Numeric(10, 2), nullable=False, comment='移动加权成本价')
+    symbol = Column(String(20), nullable=False, comment="股票代码")
+    shares_total = Column(Integer, nullable=False, default=0, comment="持仓总量")
+    shares_available = Column(Integer, nullable=False, default=0, comment="可用数量(T+1)")
+    avg_cost = Column(Numeric(10, 2), nullable=False, comment="移动加权成本价")
 
     # 市值信息
-    current_price = Column(Numeric(10, 2), comment='当前价格')
-    peak_price = Column(Numeric(10, 2), comment='持仓后历史最高价（移动止损基准）')
-    market_value = Column(Numeric(15, 2), comment='市值')
-    cost = Column(Numeric(15, 2), comment='成本')
+    current_price = Column(Numeric(10, 2), comment="当前价格")
+    peak_price = Column(Numeric(10, 2), comment="持仓后历史最高价（移动止损基准）")
+    market_value = Column(Numeric(15, 2), comment="市值")
+    cost = Column(Numeric(15, 2), comment="成本")
 
     # 盈亏信息
-    profit_total = Column(Numeric(15, 2), comment='持仓盈亏(浮动)')
-    profit_total_rate = Column(Numeric(10, 4), comment='持仓盈亏比例')
-    profit_today = Column(Numeric(15, 2), comment='当日盈亏')
+    profit_total = Column(Numeric(15, 2), comment="持仓盈亏(浮动)")
+    profit_total_rate = Column(Numeric(10, 4), comment="持仓盈亏比例")
+    profit_today = Column(Numeric(15, 2), comment="当日盈亏")
 
     # 时间戳
-    created_at = Column(
-        DateTime(timezone=False),
-        default=datetime.now,
-        comment='创建时间'
-    )
+    created_at = Column(DateTime(timezone=False), default=datetime.now, comment="创建时间")
     updated_at = Column(
-        DateTime(timezone=False),
-        default=datetime.now,
-        onupdate=datetime.now,
-        comment='更新时间'
+        DateTime(timezone=False), default=datetime.now, onupdate=datetime.now, comment="更新时间"
     )
 
     # 关系映射
     account = relationship(
-        'SimulationAccount',
-        back_populates='positions',
+        "SimulationAccount",
+        back_populates="positions",
         foreign_keys=[account_name],
-        primaryjoin='SimulationPosition.account_name==SimulationAccount.account_name'
+        primaryjoin="SimulationPosition.account_name==SimulationAccount.account_name",
     )
 
     def __repr__(self):
@@ -201,21 +199,21 @@ class SimulationPosition(Base):
     def to_dict(self):
         """转换为字典"""
         return {
-            'id': self.id,
-            'account_name': self.account_name,
-            'symbol': self.symbol,
-            'shares_total': self.shares_total,
-            'shares_available': self.shares_available,
-            'avg_cost': float(self.avg_cost) if self.avg_cost else 0,
-            'current_price': float(self.current_price) if self.current_price else 0,
-            'peak_price': float(self.peak_price) if getattr(self, 'peak_price', None) else 0,
-            'market_value': float(self.market_value) if self.market_value else 0,
-            'cost': float(self.cost) if self.cost else 0,
-            'profit_total': float(self.profit_total) if self.profit_total else 0,
-            'profit_total_rate': float(self.profit_total_rate) if self.profit_total_rate else 0,
-            'profit_today': float(self.profit_today) if self.profit_today else 0,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            "id": self.id,
+            "account_name": self.account_name,
+            "symbol": self.symbol,
+            "shares_total": self.shares_total,
+            "shares_available": self.shares_available,
+            "avg_cost": float(self.avg_cost) if self.avg_cost else 0,
+            "current_price": float(self.current_price) if self.current_price else 0,
+            "peak_price": float(self.peak_price) if getattr(self, "peak_price", None) else 0,
+            "market_value": float(self.market_value) if self.market_value else 0,
+            "cost": float(self.cost) if self.cost else 0,
+            "profit_total": float(self.profit_total) if self.profit_total else 0,
+            "profit_total_rate": float(self.profit_total_rate) if self.profit_total_rate else 0,
+            "profit_today": float(self.profit_today) if self.profit_today else 0,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
 
 
@@ -225,82 +223,71 @@ class SimulationTrade(Base):
     对应数据库表：quant.simulation_trades
     主键：id
     """
-    __tablename__ = 'simulation_trades'
+
+    __tablename__ = "simulation_trades"
     __table_args__ = (
         # 索引
-        Index('idx_simulation_trades_account', 'account_name'),
-        Index('idx_simulation_trades_symbol', 'symbol'),
-        Index('idx_simulation_trades_date', 'trade_date'),
+        Index("idx_simulation_trades_account", "account_name"),
+        Index("idx_simulation_trades_symbol", "symbol"),
+        Index("idx_simulation_trades_date", "trade_date"),
         # action 大写契约（2026-08-13 统一，见 models/action_norm.py）
-        CheckConstraint("action IN ('BUY','SELL')", name='simulation_trades_action_check'),
+        CheckConstraint("action IN ('BUY','SELL')", name="simulation_trades_action_check"),
         # Schema
-        {'schema': 'quant'}
+        {"schema": "quant"},
     )
 
-    @validates('action')
+    @validates("action")
     def _normalize_action(self, key, value):
         return normalize_action(value)
 
     # 主键
-    id = Column(Integer, primary_key=True, autoincrement=True, comment='交易ID')
+    id = Column(Integer, primary_key=True, autoincrement=True, comment="交易ID")
+
+    # 交易计划归因（server_default 让缺列环境 INSERT 不带这些列）
+    plan_id = Column(Integer, nullable=True, server_default=text("NULL"))
+    plan_version = Column(Integer, nullable=True, server_default=text("NULL"))
+    item_id = Column(Integer, nullable=True, server_default=text("NULL"))
 
     # 账户关联
-    account_name = Column(
-        String(50),
-        nullable=False,
-        default='default',
-        comment='账户名称'
-    )
+    account_name = Column(String(50), nullable=False, default="default", comment="账户名称")
 
     # 交易信息
-    symbol = Column(String(20), nullable=False, comment='股票代码')
-    action = Column(String(10), nullable=False, comment='操作类型(BUY/SELL，大写契约)')
-    shares = Column(Integer, nullable=False, comment='交易数量')
+    symbol = Column(String(20), nullable=False, comment="股票代码")
+    action = Column(String(10), nullable=False, comment="操作类型(BUY/SELL，大写契约)")
+    shares = Column(Integer, nullable=False, comment="交易数量")
 
     # 价格信息
-    price = Column(Numeric(10, 2), nullable=False, comment='委托价格')
-    filled_price = Column(Numeric(10, 2), nullable=False, comment='成交价格')
-    amount = Column(Numeric(15, 2), nullable=False, comment='交易金额')
+    price = Column(Numeric(10, 2), nullable=False, comment="委托价格")
+    filled_price = Column(Numeric(10, 2), nullable=False, comment="成交价格")
+    amount = Column(Numeric(15, 2), nullable=False, comment="交易金额")
 
     # 费用信息
-    commission = Column(Numeric(10, 2), nullable=False, default=0, comment='佣金')
-    stamp_duty = Column(Numeric(10, 2), default=0, comment='印花税')
-    transfer_fee = Column(Numeric(10, 2), default=0, comment='过户费')
-    total_cost = Column(Numeric(15, 2), comment='总成本（买入时）')
-    total_revenue = Column(Numeric(15, 2), comment='总收入（卖出时）')
+    commission = Column(Numeric(10, 2), nullable=False, default=0, comment="佣金")
+    stamp_duty = Column(Numeric(10, 2), default=0, comment="印花税")
+    transfer_fee = Column(Numeric(10, 2), default=0, comment="过户费")
+    total_cost = Column(Numeric(15, 2), comment="总成本（买入时）")
+    total_revenue = Column(Numeric(15, 2), comment="总收入（卖出时）")
 
     # 关联与盈亏
-    order_id = Column(Integer, comment='关联委托单ID')
-    realized_pnl = Column(Numeric(15, 2), comment='已实现盈亏(卖出)')
-    realized_pnl_rate = Column(Numeric(10, 4), comment='已实现盈亏率')
-    reason = Column(String(500), comment='交易理由')
+    order_id = Column(Integer, comment="关联委托单ID")
+    realized_pnl = Column(Numeric(15, 2), comment="已实现盈亏(卖出)")
+    realized_pnl_rate = Column(Numeric(10, 4), comment="已实现盈亏率")
+    reason = Column(String(500), comment="交易理由")
 
     # 订单类型
-    order_type = Column(
-        String(20),
-        default='market',
-        comment='订单类型(market/limit)'
-    )
+    order_type = Column(String(20), default="market", comment="订单类型(market/limit)")
 
     # 时间信息
-    trade_date = Column(Date, nullable=False, comment='交易日期')
-    trade_time = Column(
-        DateTime(timezone=False),
-        default=datetime.now,
-        comment='交易时间'
-    )
-    created_at = Column(
-        DateTime(timezone=False),
-        default=datetime.now,
-        comment='创建时间'
-    )
+    trade_date = Column(Date, nullable=False, comment="交易日期")
+    trade_time = Column(DateTime(timezone=False), default=datetime.now, comment="交易时间")
+    created_at = Column(DateTime(timezone=False), default=datetime.now, comment="创建时间")
 
     # 关系映射
     account = relationship(
-        'SimulationAccount',
-        back_populates='trades',
+        "SimulationAccount",
+        back_populates="trades",
         foreign_keys=[account_name],
-        primaryjoin='SimulationTrade.account_name==SimulationAccount.account_name'
+        primaryjoin="SimulationTrade.account_name==SimulationAccount.account_name",
     )
 
     def __repr__(self):
@@ -312,69 +299,80 @@ class SimulationTrade(Base):
     def to_dict(self):
         """转换为字典"""
         return {
-            'id': self.id,
-            'account_name': self.account_name,
-            'symbol': self.symbol,
-            'action': self.action,
-            'shares': self.shares,
-            'price': float(self.price) if self.price else 0,
-            'filled_price': float(self.filled_price) if self.filled_price else 0,
-            'amount': float(self.amount) if self.amount else 0,
-            'commission': float(self.commission) if self.commission else 0,
-            'stamp_duty': float(self.stamp_duty) if self.stamp_duty else 0,
-            'transfer_fee': float(self.transfer_fee) if self.transfer_fee else 0,
-            'total_cost': float(self.total_cost) if self.total_cost else 0,
-            'total_revenue': float(self.total_revenue) if self.total_revenue else 0,
-            'order_id': self.order_id,
-            'realized_pnl': float(self.realized_pnl) if self.realized_pnl is not None else None,
-            'realized_pnl_rate': float(self.realized_pnl_rate) if self.realized_pnl_rate is not None else None,
-            'reason': self.reason,
-            'order_type': self.order_type,
-            'trade_date': self.trade_date.isoformat() if self.trade_date else None,
-            'trade_time': self.trade_time.isoformat() if self.trade_time else None,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
+            "id": self.id,
+            "account_name": self.account_name,
+            "symbol": self.symbol,
+            "action": self.action,
+            "shares": self.shares,
+            "price": float(self.price) if self.price else 0,
+            "filled_price": float(self.filled_price) if self.filled_price else 0,
+            "amount": float(self.amount) if self.amount else 0,
+            "commission": float(self.commission) if self.commission else 0,
+            "stamp_duty": float(self.stamp_duty) if self.stamp_duty else 0,
+            "transfer_fee": float(self.transfer_fee) if self.transfer_fee else 0,
+            "total_cost": float(self.total_cost) if self.total_cost else 0,
+            "total_revenue": float(self.total_revenue) if self.total_revenue else 0,
+            "order_id": self.order_id,
+            "realized_pnl": float(self.realized_pnl) if self.realized_pnl is not None else None,
+            "realized_pnl_rate": (
+                float(self.realized_pnl_rate) if self.realized_pnl_rate is not None else None
+            ),
+            "reason": self.reason,
+            "plan_id": self.plan_id,
+            "item_id": self.item_id,
+            "plan_version": self.plan_version,
+            "order_type": self.order_type,
+            "trade_date": self.trade_date.isoformat() if self.trade_date else None,
+            "trade_time": self.trade_time.isoformat() if self.trade_time else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 
 
 class SimulationOrder(Base):
     """委托单表 quant.simulation_order"""
-    __tablename__ = 'simulation_order'
+
+    __tablename__ = "simulation_order"
     __table_args__ = (
-        Index('idx_simulation_order_account', 'account_name'),
-        Index('idx_simulation_order_symbol', 'symbol'),
-        CheckConstraint("action IN ('BUY','SELL')", name='simulation_order_action_check'),
-        {'schema': 'quant'}
+        Index("idx_simulation_order_account", "account_name"),
+        Index("idx_simulation_order_symbol", "symbol"),
+        CheckConstraint("action IN ('BUY','SELL')", name="simulation_order_action_check"),
+        {"schema": "quant"},
     )
 
-    @validates('action')
+    @validates("action")
     def _normalize_action(self, key, value):
         return normalize_action(value)
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    account_name = Column(String(50), nullable=False, comment='账户名称')
-    action = Column(String(10), nullable=False, comment='BUY/SELL（大写契约）')
-    order_type = Column(String(20), nullable=False, default='market', comment='market/limit')
-    symbol = Column(String(20), nullable=False, comment='股票代码')
-    shares = Column(Integer, nullable=False, comment='委托数量')
-    price_limit = Column(Numeric(10, 2), comment='限价')
+    account_name = Column(String(50), nullable=False, comment="账户名称")
+    action = Column(String(10), nullable=False, comment="BUY/SELL（大写契约）")
+    order_type = Column(String(20), nullable=False, default="market", comment="market/limit")
+    symbol = Column(String(20), nullable=False, comment="股票代码")
+    shares = Column(Integer, nullable=False, comment="委托数量")
+    price_limit = Column(Numeric(10, 2), comment="限价")
     # 注（2026-09-14 w-2129d492）：本表**不放**决策价/滑点列。
     # M5（cedfb4ed）曾把 decision_price/decision_at/price_source/fill_price/slippage_bps
     # 定义在这里，但埋点的代码（create_pending_order 入参、execute_pending_orders 回填）
     # 全部作用在挂单表 → 模型与表两侧都错位：本表被 ORM flush 带上 5 个 DB 不存在的列
     # （立即单 INSERT 必 500），挂单表则 DB 有列、模型没有（构造即 TypeError）。
     # 见 migrations/add_execution_quality_columns.sql 与 tests/test_orm_db_drift.py。
-    status = Column(String(20), nullable=False, default='submitted',
-                    comment='submitted/filled/partially_filled/cancelled/rejected')
-    filled_shares = Column(Integer, default=0, comment='已成交数量')
-    avg_filled_price = Column(Numeric(10, 2), comment='平均成交价')
-    reason = Column(String(500), comment='决策理由')
-    strategy_name = Column(String(50), comment='来源策略')
-    signal_id = Column(String(64), comment='来源信号')
-    reject_reason = Column(String(500), comment='拒绝原因')
-    submitted_by = Column(String(50), comment='下单窗口编码（如 w-64c01af2）')
-    created_at = Column(DateTime(timezone=False), default=datetime.now, comment='创建时间')
-    updated_at = Column(DateTime(timezone=False), default=datetime.now,
-                        onupdate=datetime.now, comment='更新时间')
+    status = Column(
+        String(20),
+        nullable=False,
+        default="submitted",
+        comment="submitted/filled/partially_filled/cancelled/rejected",
+    )
+    filled_shares = Column(Integer, default=0, comment="已成交数量")
+    avg_filled_price = Column(Numeric(10, 2), comment="平均成交价")
+    reason = Column(String(500), comment="决策理由")
+    strategy_name = Column(String(50), comment="来源策略")
+    signal_id = Column(String(64), comment="来源信号")
+    reject_reason = Column(String(500), comment="拒绝原因")
+    submitted_by = Column(String(50), comment="下单窗口编码（如 w-64c01af2）")
+    created_at = Column(DateTime(timezone=False), default=datetime.now, comment="创建时间")
+    updated_at = Column(
+        DateTime(timezone=False), default=datetime.now, onupdate=datetime.now, comment="更新时间"
+    )
 
     def __repr__(self):
         return (
@@ -384,42 +382,46 @@ class SimulationOrder(Base):
 
     def to_dict(self):
         return {
-            'id': self.id,
-            'account_name': self.account_name,
-            'action': self.action,
-            'order_type': self.order_type,
-            'symbol': self.symbol,
-            'shares': self.shares,
-            'price_limit': float(self.price_limit) if self.price_limit else None,
-            'status': self.status,
-            'filled_shares': self.filled_shares,
-            'avg_filled_price': float(self.avg_filled_price) if self.avg_filled_price else None,
-            'reason': self.reason,
-            'strategy_name': self.strategy_name,
-            'signal_id': self.signal_id,
-            'reject_reason': self.reject_reason,
-            'submitted_by': self.submitted_by,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
+            "id": self.id,
+            "account_name": self.account_name,
+            "action": self.action,
+            "order_type": self.order_type,
+            "symbol": self.symbol,
+            "shares": self.shares,
+            "price_limit": float(self.price_limit) if self.price_limit else None,
+            "status": self.status,
+            "filled_shares": self.filled_shares,
+            "avg_filled_price": float(self.avg_filled_price) if self.avg_filled_price else None,
+            "reason": self.reason,
+            "strategy_name": self.strategy_name,
+            "signal_id": self.signal_id,
+            "reject_reason": self.reject_reason,
+            "submitted_by": self.submitted_by,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 
 
 class SimulationCashFlow(Base):
     """资金流水表 quant.simulation_cash_flow —— 所有资金变动必须经此表"""
-    __tablename__ = 'simulation_cash_flow'
+
+    __tablename__ = "simulation_cash_flow"
     __table_args__ = (
-        Index('idx_simulation_cash_flow_account', 'account_name'),
-        {'schema': 'quant'}
+        Index("idx_simulation_cash_flow_account", "account_name"),
+        {"schema": "quant"},
     )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    account_name = Column(String(50), nullable=False, comment='账户名称')
-    flow_type = Column(String(20), nullable=False,
-                       comment='deposit/buy_debit/sell_credit/fee/withdraw/dividend/adjustment')
-    amount = Column(Numeric(15, 2), nullable=False, comment='有符号变动额')
-    balance_after = Column(Numeric(15, 2), nullable=False, comment='变动后余额')
-    ref_order_id = Column(Integer, comment='来源委托单')
-    ref_trade_id = Column(Integer, comment='来源成交')
-    created_at = Column(DateTime(timezone=False), default=datetime.now, comment='创建时间')
+    account_name = Column(String(50), nullable=False, comment="账户名称")
+    flow_type = Column(
+        String(20),
+        nullable=False,
+        comment="deposit/buy_debit/sell_credit/fee/withdraw/dividend/adjustment",
+    )
+    amount = Column(Numeric(15, 2), nullable=False, comment="有符号变动额")
+    balance_after = Column(Numeric(15, 2), nullable=False, comment="变动后余额")
+    ref_order_id = Column(Integer, comment="来源委托单")
+    ref_trade_id = Column(Integer, comment="来源成交")
+    created_at = Column(DateTime(timezone=False), default=datetime.now, comment="创建时间")
 
     def __repr__(self):
         return (
@@ -429,36 +431,41 @@ class SimulationCashFlow(Base):
 
     def to_dict(self):
         return {
-            'id': self.id,
-            'account_name': self.account_name,
-            'flow_type': self.flow_type,
-            'amount': float(self.amount),
-            'balance_after': float(self.balance_after),
-            'ref_order_id': self.ref_order_id,
-            'ref_trade_id': self.ref_trade_id,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
+            "id": self.id,
+            "account_name": self.account_name,
+            "flow_type": self.flow_type,
+            "amount": float(self.amount),
+            "balance_after": float(self.balance_after),
+            "ref_order_id": self.ref_order_id,
+            "ref_trade_id": self.ref_trade_id,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 
 
 class SimulationEquitySnapshot(Base):
     """净值快照表 quant.simulation_equity_snapshot，(account_name, snapshot_date) 唯一"""
-    __tablename__ = 'simulation_equity_snapshot'
+
+    __tablename__ = "simulation_equity_snapshot"
     __table_args__ = (
-        Index('simulation_equity_snapshot_account_date_key',
-              'account_name', 'snapshot_date', unique=True),
-        {'schema': 'quant'}
+        Index(
+            "simulation_equity_snapshot_account_date_key",
+            "account_name",
+            "snapshot_date",
+            unique=True,
+        ),
+        {"schema": "quant"},
     )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    account_name = Column(String(50), nullable=False, comment='账户名称')
-    snapshot_date = Column(Date, nullable=False, comment='快照日期')
-    cash = Column(Numeric(15, 2), nullable=False, default=0, comment='现金')
-    position_value = Column(Numeric(15, 2), nullable=False, default=0, comment='持仓市值')
-    total_value = Column(Numeric(15, 2), nullable=False, default=0, comment='总资产')
-    daily_return = Column(Numeric(10, 4), default=0, comment='日收益率')
-    cumulative_return = Column(Numeric(10, 4), default=0, comment='累计收益率')
-    drawdown = Column(Numeric(10, 4), default=0, comment='回撤')
-    created_at = Column(DateTime(timezone=False), default=datetime.now, comment='创建时间')
+    account_name = Column(String(50), nullable=False, comment="账户名称")
+    snapshot_date = Column(Date, nullable=False, comment="快照日期")
+    cash = Column(Numeric(15, 2), nullable=False, default=0, comment="现金")
+    position_value = Column(Numeric(15, 2), nullable=False, default=0, comment="持仓市值")
+    total_value = Column(Numeric(15, 2), nullable=False, default=0, comment="总资产")
+    daily_return = Column(Numeric(10, 4), default=0, comment="日收益率")
+    cumulative_return = Column(Numeric(10, 4), default=0, comment="累计收益率")
+    drawdown = Column(Numeric(10, 4), default=0, comment="回撤")
+    created_at = Column(DateTime(timezone=False), default=datetime.now, comment="创建时间")
 
     def __repr__(self):
         return (
@@ -468,14 +475,14 @@ class SimulationEquitySnapshot(Base):
 
     def to_dict(self):
         return {
-            'account_name': self.account_name,
-            'date': self.snapshot_date.isoformat() if self.snapshot_date else None,
-            'cash': float(self.cash or 0),
-            'position_value': float(self.position_value or 0),
-            'total_value': float(self.total_value or 0),
-            'daily_return': float(self.daily_return or 0),
-            'cumulative_return': float(self.cumulative_return or 0),
-            'drawdown': float(self.drawdown or 0),
+            "account_name": self.account_name,
+            "date": self.snapshot_date.isoformat() if self.snapshot_date else None,
+            "cash": float(self.cash or 0),
+            "position_value": float(self.position_value or 0),
+            "total_value": float(self.total_value or 0),
+            "daily_return": float(self.daily_return or 0),
+            "cumulative_return": float(self.cumulative_return or 0),
+            "drawdown": float(self.drawdown or 0),
         }
 
 
@@ -485,47 +492,51 @@ class SimulationPendingOrder(Base):
     非交易时段下的 execute_at='market_open' 挂单，
     开盘后 9:31 起由 daily_orchestrator MARKET_OPEN tick 自动撮合。
     """
-    __tablename__ = 'simulation_pending_orders'
+
+    __tablename__ = "simulation_pending_orders"
     __table_args__ = (
-        Index('idx_simulation_pending_orders_account', 'account_name'),
-        Index('idx_simulation_pending_orders_status', 'status'),
-        CheckConstraint("action IN ('BUY','SELL')", name='simulation_pending_orders_action_check'),
-        {'schema': 'quant'}
+        Index("idx_simulation_pending_orders_account", "account_name"),
+        Index("idx_simulation_pending_orders_status", "status"),
+        CheckConstraint("action IN ('BUY','SELL')", name="simulation_pending_orders_action_check"),
+        {"schema": "quant"},
     )
 
-    @validates('action')
+    @validates("action")
     def _normalize_action(self, key, value):
         return normalize_action(value)
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    account_name = Column(String(50), nullable=False, comment='账户名称')
-    symbol = Column(String(20), nullable=False, comment='股票代码')
-    action = Column(String(10), nullable=False, comment='BUY/SELL（大写契约）')
-    shares = Column(Integer, comment='委托数量（可空，与 amount 二选一）')
-    amount = Column(Numeric(15, 2), comment='委托金额（可空，与 shares 二选一）')
-    price_limit = Column(Numeric(10, 2), comment='限价')
+    account_name = Column(String(50), nullable=False, comment="账户名称")
+    symbol = Column(String(20), nullable=False, comment="股票代码")
+    action = Column(String(10), nullable=False, comment="BUY/SELL（大写契约）")
+    shares = Column(Integer, comment="委托数量（可空，与 amount 二选一）")
+    amount = Column(Numeric(15, 2), comment="委托金额（可空，与 shares 二选一）")
+    price_limit = Column(Numeric(10, 2), comment="限价")
     # ── 执行质量闭环（2026-09-13 w-a9ec14d7，M5 补完；2026-09-14 w-2129d492 归位）──────
     # 为什么记在挂单行上：这一行本身就是订单全生命周期的审计载体（决策→排队→成交→滑点），
     # 不新建表就能让"决策价 vs 成交价"永久可追溯。此前 slippage_report 工具读 Agent OS 的
     # trade:slippage 记忆，但**全仓没有任何写入方** → 该工具恒返回 0 条（能力存在但没接线）。
     # 埋点位置：create_pending_order 记 decision_price/price_source；execute_pending_orders
     # 撮合后回填 fill_price 与 slippage_bps（方向归一：正=买贵/卖便宜=成本）。
-    decision_price = Column(Numeric(10, 2), comment='决策时价（滑点基准）')
-    decision_at = Column(DateTime(timezone=True), comment='决策时刻')
-    price_source = Column(Text, comment='决策价来源（R-013 可追溯）')
-    fill_price = Column(Numeric(10, 2), comment='实际成交价')
-    slippage_bps = Column(Numeric(10, 2), comment='滑点基点（正=买贵/卖便宜=成本）')
-    reason = Column(Text, comment='交易理由')
-    execute_at = Column(String(20), nullable=False, default='market_open',
-                        comment='撮合时机（market_open）')
-    status = Column(String(20), nullable=False, default='pending',
-                    comment='pending/executed/failed/cancelled')
-    fail_reason = Column(Text, comment='撮合失败原因（护栏拒绝理由）')
-    executed_trade_id = Column(Integer, comment='撮合成功后关联的 simulation_trades.id')
-    submitted_by = Column(String(50), comment='下单窗口编码（如 w-64c01af2）')
-    created_at = Column(DateTime(timezone=False), default=datetime.now, comment='创建时间')
-    updated_at = Column(DateTime(timezone=False), default=datetime.now,
-                        onupdate=datetime.now, comment='更新时间')
+    decision_price = Column(Numeric(10, 2), comment="决策时价（滑点基准）")
+    decision_at = Column(DateTime(timezone=True), comment="决策时刻")
+    price_source = Column(Text, comment="决策价来源（R-013 可追溯）")
+    fill_price = Column(Numeric(10, 2), comment="实际成交价")
+    slippage_bps = Column(Numeric(10, 2), comment="滑点基点（正=买贵/卖便宜=成本）")
+    reason = Column(Text, comment="交易理由")
+    execute_at = Column(
+        String(20), nullable=False, default="market_open", comment="撮合时机（market_open）"
+    )
+    status = Column(
+        String(20), nullable=False, default="pending", comment="pending/executed/failed/cancelled"
+    )
+    fail_reason = Column(Text, comment="撮合失败原因（护栏拒绝理由）")
+    executed_trade_id = Column(Integer, comment="撮合成功后关联的 simulation_trades.id")
+    submitted_by = Column(String(50), comment="下单窗口编码（如 w-64c01af2）")
+    created_at = Column(DateTime(timezone=False), default=datetime.now, comment="创建时间")
+    updated_at = Column(
+        DateTime(timezone=False), default=datetime.now, onupdate=datetime.now, comment="更新时间"
+    )
 
     def __repr__(self):
         return (
@@ -535,27 +546,29 @@ class SimulationPendingOrder(Base):
 
     def to_dict(self):
         return {
-            'id': self.id,
-            'account_name': self.account_name,
-            'symbol': self.symbol,
-            'action': self.action,
-            'shares': self.shares,
-            'amount': float(self.amount) if self.amount is not None else None,
-            'price_limit': float(self.price_limit) if self.price_limit is not None else None,
-            'reason': self.reason,
-            'execute_at': self.execute_at,
-            'status': self.status,
-            'fail_reason': self.fail_reason,
-            'executed_trade_id': self.executed_trade_id,
+            "id": self.id,
+            "account_name": self.account_name,
+            "symbol": self.symbol,
+            "action": self.action,
+            "shares": self.shares,
+            "amount": float(self.amount) if self.amount is not None else None,
+            "price_limit": float(self.price_limit) if self.price_limit is not None else None,
+            "reason": self.reason,
+            "execute_at": self.execute_at,
+            "status": self.status,
+            "fail_reason": self.fail_reason,
+            "executed_trade_id": self.executed_trade_id,
             # 执行质量字段（2026-09-14 w-0f022172 复查 m4）：/accounts/{a}/pending-orders
             # 走本方法，此前只吐队列状态、看不到决策价/成交价/滑点，与 slippage-report
             # 端点口径不一致。Numeric → float，保持与上面 amount/price_limit 同款处理。
-            'decision_price': float(self.decision_price) if self.decision_price is not None else None,
-            'decision_at': self.decision_at.isoformat() if self.decision_at else None,
-            'price_source': self.price_source,
-            'fill_price': float(self.fill_price) if self.fill_price is not None else None,
-            'slippage_bps': float(self.slippage_bps) if self.slippage_bps is not None else None,
-            'submitted_by': self.submitted_by,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            "decision_price": (
+                float(self.decision_price) if self.decision_price is not None else None
+            ),
+            "decision_at": self.decision_at.isoformat() if self.decision_at else None,
+            "price_source": self.price_source,
+            "fill_price": float(self.fill_price) if self.fill_price is not None else None,
+            "slippage_bps": float(self.slippage_bps) if self.slippage_bps is not None else None,
+            "submitted_by": self.submitted_by,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

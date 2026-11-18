@@ -167,6 +167,10 @@ class AccountTradingService:
         strategy_name: Optional[str] = None,
         plan_id: Optional[int] = None,
         plan_version: Optional[int] = None,
+        item_id: Optional[int] = None,
+        decision_audit_id: Optional[str] = None,
+        t_trade_id: Optional[int] = None,
+        t_trade_repo=None,
     ) -> Dict:
         """
         重构版交易执行（使用 TradeGuardService）
@@ -200,6 +204,8 @@ class AccountTradingService:
                 卖出平仓时据此把盈亏归因到信号/策略（strategy_performance）。
             strategy_name: 策略名（归因优先于信号反查；缺省按 signal_id 反查，
                 再缺如实记 'unattributed'，不伪造归因）。
+            t_trade_id: 做T应用服务传入的周期 ID；普通路由不传。
+            t_trade_repo: 与当前交易共享 session 的做T仓储，用于原子推进周期。
 
         Returns:
             交易结果字典
@@ -235,6 +241,32 @@ class AccountTradingService:
 
         if execute_at is not None and execute_at != 'market_open':
             raise TradingError("execute_at 仅支持 'market_open'", 400)
+
+        t_cycle = None
+        if t_trade_id is not None:
+            if execute_at is not None or allow_off_hours or amount is not None:
+                raise TradingError('做T周期只支持交易时段内按固定股数立即执行', 400)
+            if t_trade_repo is None:
+                from adapters.outbound.repositories.t_trade_repository import TTradeRepository
+                t_trade_repo = TTradeRepository(session=self.repo.session)
+            t_cycle = t_trade_repo.get(t_trade_id, for_update=True)
+            if t_cycle is None:
+                raise TradingError(f'做T周期不存在: {t_trade_id}', 404)
+            from qs_trading.domain.trading.t_trade_cycle import (
+                MODE_AUTO_SIM, expected_action,
+            )
+            if t_cycle.mode != MODE_AUTO_SIM:
+                raise TradingError('remind_only 做T周期禁止代下单', 403)
+            if (t_cycle.account != account_name or t_cycle.symbol != symbol
+                    or int(t_cycle.shares) != shares):
+                raise TradingError('做T周期账户、标的或数量与委托不一致', 409)
+            expected = expected_action(t_cycle.status)
+            if action != expected:
+                raise TradingError(f'当前做T腿要求 {expected}，收到 {action}', 409)
+            required_limit = float(
+                t_cycle.upper_price if action == 'SELL' else t_cycle.lower_price)
+            if price_limit is None or abs(price_limit - required_limit) > 1e-9:
+                raise TradingError(f'做T委托必须使用周期价格保护 {required_limit}', 400)
 
         now = self.now_fn()
 
@@ -413,7 +445,9 @@ class AccountTradingService:
                 total_cost=trade_amount + commission + transfer_fee if action == 'BUY' else None,
                 total_revenue=trade_amount - commission - stamp_duty - transfer_fee if action == 'SELL' else None,
                 order_id=order.id, realized_pnl=realized_pnl,
-                realized_pnl_rate=realized_pnl_rate, reason=reason, commit=False)
+                realized_pnl_rate=realized_pnl_rate, reason=reason,
+                plan_id=plan_id, plan_version=plan_version, item_id=item_id,
+                commit=False)
 
             # ---- 8. 更新持仓 ----
             if action == 'BUY':
@@ -479,6 +513,15 @@ class AccountTradingService:
                 if locked_account.peak_value else 0.0,
                 commit=False)
 
+            if t_cycle is not None:
+                from qs_trading.application.services.t_trade_service import apply_fill_to_cycle
+                from qs_trading.domain.trading.t_trade_cycle import make_fill
+                apply_fill_to_cycle(t_cycle, make_fill(
+                    trade_id=trade_id, action=action, shares=shares, price=px,
+                    commission=commission, stamp_duty=stamp_duty,
+                    transfer_fee=transfer_fee), filled_at=now)
+                self.repo.session.flush()
+
             # ---- 11. 提交事务 ----
             self.repo.session.commit()
 
@@ -496,7 +539,9 @@ class AccountTradingService:
         self._emit_fill_notification(
             account_name=account_name, symbol=symbol, action=action,
             shares=shares, price=px, trade_id=trade_id, order_id=order.id,
-            reason=reason, plan_id=plan_id, plan_version=plan_version)
+            reason=reason, plan_id=plan_id, plan_version=plan_version,
+            item_id=item_id, decision_audit_id=decision_audit_id,
+            t_trade_id=t_trade_id)
 
         # ---- 11b. 盈亏闭环落库（2026-10-19，断点 C 修复）----
         # SELL 成交 → strategy_performance。写端曾随 legacy 订单栈（9-14 删除）
@@ -536,6 +581,8 @@ class AccountTradingService:
             'transfer_fee': transfer_fee,
             'realized_pnl': realized_pnl,
             'realized_pnl_rate': realized_pnl_rate,
+            't_trade_id': t_trade_id,
+            't_trade_status': t_cycle.status if t_cycle is not None else None,
         }
 
     def execute_pending_orders(self, now: Optional[datetime] = None) -> Dict:
@@ -604,7 +651,9 @@ class AccountTradingService:
                                 reason: Optional[str] = None,
                                 source: str = 'agent_trade',
                                 plan_id: Optional[int] = None,
-                                plan_version: Optional[int] = None) -> None:
+                                plan_version: Optional[int] = None,
+                                item_id: Optional[int] = None,
+                                t_trade_id: Optional[int] = None) -> None:
         """把已提交的成交投影成 FillEvent 交给盯盘（IF-2；失败只记日志）。
 
         依赖方向：交易包只 import 自己的端口，**不感知** watch。未注册监听者时
@@ -618,7 +667,8 @@ class AccountTradingService:
                 price=float(price), trade_id=trade_id, order_id=order_id,
                 decision_audit_id=decision_audit_id, filled_at=datetime.now(),
                 source=source, reason=reason,
-                plan_id=plan_id, plan_version=plan_version))
+                plan_id=plan_id, plan_version=plan_version, item_id=item_id,
+                t_trade_id=t_trade_id))
         except Exception as e:  # noqa: BLE001 - 成交已落库，回执失败绝不反噬
             logger.error('fill_notify_error（成交已落库，回执失败只记日志）',
                          account=account_name, symbol=symbol,
